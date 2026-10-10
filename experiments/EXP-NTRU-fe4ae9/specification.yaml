@@ -1,0 +1,437 @@
+# =============================================================================
+# EXP-NTRU-fe4ae9 — version 1, approved by DEC-20261006-7d3135.
+# Frozen control: the dense-sublattice transition at n=64 is scored only on
+# ternary NTRU above the reported fatigue curve. Prediction is fixed here,
+# before any BKZ call. This design session reduced no lattice.
+# Source idea IDEA-20261005-bd02d9 is already on main. It is not rewritten.
+# =============================================================================
+experiment:
+  id: EXP-NTRU-fe4ae9
+  hypothesis_id: H-NTRU-b09cf3
+  question_id: RQ-NTRU-9015ee
+  source_idea: IDEA-20261005-bd02d9
+  goal_id: null
+  version: 1
+  title: >-
+    Toy control at n=64: dense-sublattice z-shape on ternary NTRU only above
+    the reported fatigue curve, against ideal, module, random, and planted cells
+  status: approved
+  approved_by: DEC-20261006-7d3135
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: DEC-20261006-7d3135
+    composing_decision: DEC-20261006-7d3135
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the transition was observed and does not assert an attack.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide which mechanism_assignment row the six cells support. The row that
+    assigns the panel to the NTRU dense-sublattice line is the success row.
+    The row that assigns the same z-shape to a non-NTRU lattice is a failure
+    of specificity. A silent planted cell assigns nothing about the fatigue
+    curve.
+
+  inputs:
+    n: 64
+    dimension: 128
+    ring_ntru: Z[x]/(x^64+1)
+    ring_ideal: Z[x]/(x^128+1)
+    q_above: 1024
+    q_below: 32
+    ternary_law: independent uniform on {-1, 0, 1}
+    bkz:
+      implementation: fpylll BKZ.Param
+      block_sizes: [8, 12, 16, 20]
+      max_loops: 1
+      preprocessing: LLL
+      missing_dependency: failed_infrastructure
+    fatigue_ratio:
+      formula: r = q / (0.004 * math.pow(n, 2.484))
+      gate: r(q=32) < 1 and r(q=1024) > 1
+      label_not_input: >-
+        Python 3.12.8 at design time printed curve 122.63404310775728,
+        r(32) 0.260938962698, r(1024) 8.350046806336. The executor does not
+        match these floats. It matches the two inequalities.
+    rng_pin:
+      implementation: CPython random.Random.choice((-1, 0, 1))
+      version_that_produced_the_pin: 3.12.8
+      seed: 20261006
+      first_eight_ternary:
+        - 0
+        - -1
+        - 1
+        - 0
+        - 0
+        - 1
+        - -1
+        - 1
+      note: >-
+        Build random.Random(20261006), draw eight choice((-1, 0, 1)), and
+        compare to this list. Then discard that generator. Instance
+        generation starts from a fresh random.Random(20261006). The first
+        eight coefficients of the first f on cell N- are these eight
+        values. A mismatch is failed_infrastructure.
+    cells:
+      - id: N-
+        role: ternary_ntru_below
+        q: 32
+        basis: q-ary form below, C = negacyclic multiplication by h = g*f^{-1} mod q
+      - id: N+
+        role: ternary_ntru_above
+        q: 1024
+        basis: same form, its own f, g, h
+      - id: M
+        role: module_not_ntru
+        q: 1024
+        basis: >-
+          Same q-ary form. Draw a1, a2 uniform in 0..q-1. Redraw a2 until
+          the negacyclic matrix of a2 is invertible mod q. Set
+          h = -a2^{-1}*a1 mod q. Do not compute h as e*s^{-1}. After h is
+          fixed, draw ternary s and e and record that they were not used
+          in h. If s is invertible mod q and h equals e*s^{-1}, redraw e
+          once. The basis contains Rot(h), not (s, e).
+      - id: I
+        role: cyclotomic_ideal
+        q: none
+        q_note: Cell I has no modulus. The token none is the frozen value, not an omitted field.
+        basis: >-
+          Negacyclic multiplication matrix of one polynomial g of degree
+          less than 128 in Z[x]/(x^128+1). Coefficients are randrange(5)-2.
+          Redraw if g is 0, a monomial ±x^k, or a zero divisor. No NTRU
+          public key and no modulus q.
+      - id: R
+        role: random_qary
+        q: 1024
+        basis: >-
+          Same q-ary form with C a 64 by 64 matrix of independent uniform
+          entries in 0..q-1. C is not required to be negacyclic.
+      - id: P
+        role: planted_dense_not_ntru
+        q: 1024
+        basis: >-
+          Same q-ary form with C the zero matrix. The first 64 standard
+          basis vectors lie in the lattice and have length 1. No NTRU
+          public key.
+    qary_basis: >-
+      For every cell except I, the basis is the 128 by 128 integer matrix
+      [I_64, 0; C, q I_64]. Determinant q^64. For N-, N+, and M, C is the
+      negacyclic matrix of multiplication by h in Z[x]/(x^64+1), with the
+      sign rule x^64 = -1. For R, C is unstructured. For P, C is zero.
+    redraw_cap: 256
+    z_shape_predicate: >-
+      Let d=128 and n=64. Let det be q^n for every cell except I, and
+      abs(det(M_g)) for cell I. Let lambda_GH = sqrt(d / (2 * math.pi *
+      math.e)) * (det ** (1/d)), using Python math.pi and math.e. After
+      BKZ at a block size β, let gs_norm be the Euclidean norms of the
+      Gram-Schmidt vectors in order. z_shape is 1 when
+      statistics.median(gs_norm[:n]) <= lambda_GH / 4 and
+      statistics.median(gs_norm[n:]) >= lambda_GH. A zero Gram-Schmidt
+      norm means the basis is rank-deficient: the run is invalid, not a
+      negative. β_hit is the smallest β in [8, 12, 16, 20] at which
+      z_shape is 1, or null if none.
+    secret_tied: >-
+      On N- and N+, a reduced basis vector (u, v) is secret-tied when
+      there exists c in Z[x]/(x^64+1) with u = c*f and v = c*g, solved
+      by exact rational linear algebra on the negacyclic matrix of f and
+      checked by a second multiplication of c*f and c*g. The two checks
+      must agree. On P, secret-tied means some reduced basis vector equals
+      ±e_i for an i in 0..63. On I, M, and R there is no planted NTRU
+      secret; secret_tied stays 0.
+    detection_rule: >-
+      dense_sublattice_detected is 1 on N- and on N+ only when z_shape is
+      1 and secret_tied is 1. It is 1 on I, M, and R when z_shape is 1.
+      instrument_alive on P is 1 only when z_shape is 1 and secret_tied
+      is 1. A profile gap without a secret-tied vector does not detect
+      N+ or N-.
+    forbidden_methods:
+      - log_unit_decoder
+      - class_group
+      - coefficient_isometry_bitcount
+    log_unit_certificate: >-
+      Must be 0 on every cell. The only allowed method tag is bkz_profile.
+      A tag of log_unit_decoder, or any claimed short generator from a
+      unit-lattice decoder, sets the certificate to 1 and selects the
+      excluded class-group row. That row is not fatigue.
+    isometry_scored: >-
+      Must be 0. This protocol does not compute a bit discount. Emitting
+      a bit-security gap selects the excluded isometry row. That row is
+      not the dense-sublattice transition.
+
+  controls:
+    - id: below-curve
+      statement: Cell N- is the same ternary NTRU construction at q=32.
+      pass_condition: >-
+        Used as a scientific cell, not as an instrument. Detection here
+        is a falsification row, not an infrastructure failure.
+    - id: cyclotomic-ideal
+      statement: >-
+        Cell I has dimension 128 and no NTRU public key. A log-unit
+        decoder is not run.
+      pass_condition: log_unit_certificate stays 0 unless a forbidden method ran
+    - id: module-not-ntru
+      statement: >-
+        Cell M uses q=1024 and dimension 128. h is not g*f^{-1}.
+      pass_condition: the run records the assertion that h was not built as a trapdoor
+    - id: matched-random
+      statement: >-
+        Cell R matches dimension 128 and determinant q^64 with N+ and has
+        no planted short span.
+      pass_condition: determinant recorded and equal to 1024^64
+    - id: planted-dense
+      statement: >-
+        Cell P is the instrument. It is a dense sublattice that is not
+        NTRU-shaped. If it is silent, the panel reading is inconclusive.
+      pass_condition: instrument_alive is 1
+      on_fail: >-
+        Assignment is inconclusive. Do not score N+ silence as evidence
+        that the published transition is absent.
+
+  independent_variables:
+    - cell identity in {N-, N+, M, I, R, P}
+    - q in {32, 1024} on the NTRU pair, with the ratio sign checked by the harness
+    - whether a short secret span was planted, and whether that span is an NTRU rotation span
+    - BKZ block size inside the frozen sweep
+
+  metrics:
+    primary:
+      - id: dense_sublattice_detected
+        statement: 0 or 1 per cell, under detection_rule.
+      - id: fatigue_ratio_sign
+        statement: >-
+          The pair of booleans r(q=32)<1 and r(q=1024)>1, plus the raw
+          floats the harness computed.
+      - id: z_shape
+        statement: 0 or 1 per cell, and β_hit or null.
+      - id: secret_tied
+        statement: 0 or 1 per cell, under secret_tied.
+    secondary:
+      - id: lambda_GH
+        statement: The Gaussian-heuristic length used in the predicate, per cell.
+      - id: median_head
+        statement: statistics.median of the first 64 Gram-Schmidt norms at β_hit, or at β=20 if β_hit is null.
+      - id: median_tail
+        statement: statistics.median of the last 64 Gram-Schmidt norms at that same block size.
+      - id: log_unit_certificate
+        statement: 0 or 1 per cell. The scientific prediction is 0.
+      - id: isometry_scored
+        statement: 0 or 1 for the run. The scientific prediction is 0.
+      - id: instrument_alive
+        statement: 0 or 1 on cell P.
+      - id: determinant
+        statement: Integer determinant of each basis. q^64 on every cell except I.
+
+  heuristic_under_test: HEUR-1
+  preregistered_prediction:
+    quantity: >-
+      Which cells fire dense_sublattice_detected, and which mechanism row
+      that pattern is assigned to.
+    formula: >-
+      Positive side: detected(N+)=1, detected(N-)=detected(I)=detected(M)=
+      detected(R)=0, instrument_alive(P)=1, r(32)<1<r(1024),
+      log_unit_certificate=0, isometry_scored=0. Negative sides: the same
+      z-shape fires on I, M, or R; or N- fires; or N+ is silent while P
+      fires. The z-shape inequalities are part of the frozen predicate
+      and are not retuned after the run.
+    source: >-
+      IDEA-20261005-bd02d9 predictions and falsification_conditions, plus
+      the curve statement in knowledge/techniques/KN-TECH-045.md. This
+      design session did not adjust the split after seeing a profile,
+      because it computed none.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested parameters are n=64, dimension 128, q in {32, 1024}, and
+      one draw per cell. A result here is not a result at sntrup761, at
+      NTRU-HPS, or at any other n. No extrapolation of the exponent is
+      authorized. The block-size sweep stops at 20.
+    correspondence: >-
+      Direct construction of the six bases. No sampling equivalence is
+      used to reach a larger n.
+
+  tail_checks:
+    - >-
+      Ratio gate: r(q=32)<1 and r(q=1024)>1 before any cell is scored.
+      Failure of the gate is failed_infrastructure (the formula was not
+      the frozen one), not a scientific outcome.
+    - >-
+      Planted cell P is the instrument tail. It must fire. Silence there
+      withholds every fatigue reading.
+    - >-
+      One draw per cell is the whole sample. No tail probability is
+      estimated and no exponent is fitted.
+
+  replication:
+    seeds:
+      - name: instance_stream
+        algorithm: CPython random.Random
+        seed: 20261006
+        version: 3.12.8
+    independent_instances: 6
+    independent_instances_note: >-
+      The six cells are the instances. There is one draw of each. A second
+      draw is not part of this protocol.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 4
+    maximum_memory_gb: 8
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time, CPU, and memory figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not change the frozen sweep
+      or the six cells. maximum_runs is 2 so one infrastructure retry may
+      take a new run id. Watch expiry is failed_infrastructure, never a
+      negative mathematical result. No attack budget is implied.
+
+  procedure:
+    order: >-
+      Pin check. Ratio gate. Then generate and reduce cells in the order
+      N-, N+, M, I, R, P, consuming one random.Random(20261006) stream
+      except for P, which is deterministic. For each cell except the ratio
+      arithmetic, LLL then BKZ at β = 8, 12, 16, 20, one tour each,
+      stopping the sweep for that cell at the first β where z_shape is 1.
+      Record Gram-Schmidt norms at that β, or at β=20 if none fired.
+    invertibility: >-
+      A polynomial is invertible mod q when its negacyclic matrix has
+      determinant coprime to q. Redraw up to 256 times. Exhaustion is
+      failed_infrastructure.
+    assignment: >-
+      After all six cells have a detection bit, select exactly one row of
+      mechanism_assignment. Do not select the NTRU row if any other row
+      also matches. Precedence: invalid excluded-line rows, then
+      infrastructure and inconclusive, then non-NTRU transition, then
+      below-curve detection, then N+ silence with P alive, then the NTRU
+      dense-sublattice row.
+    mechanism_assignment:
+      - id: ntru_dense_sublattice_line
+        observation: >-
+          r(q=32)<1 and r(q=1024)>1. dense_sublattice_detected is 1 on N+
+          and 0 on N-, I, M, and R. instrument_alive is 1 on P.
+          log_unit_certificate is 0 on every cell. isometry_scored is 0.
+          Every method tag is bkz_profile.
+        assigns_to: >-
+          The NTRU dense-sublattice line at this toy point. The observation
+          that does the assigning is secret-tied z-shape on N+ only, with
+          the same z-shape predicate silent on the non-NTRU cells I, M,
+          and R, and silent on N- below the curve. This does not move the
+          exponent 2.484 and is not an attack.
+      - id: same_transition_on_non_ntru
+        observation: >-
+          z_shape is 1 on cell I, on cell M, or on cell R, with the ratio
+          gate passed and cell P alive. log_unit_certificate is 0 and
+          isometry_scored is 0.
+        assigns_to: >-
+          The same transition on a non-NTRU lattice. Specificity fails.
+          This row is a failure of the NTRU-only claim. It is not the
+          class-group line and not the isometry line.
+      - id: curve_does_not_separate
+        observation: >-
+          dense_sublattice_detected is 1 on N- while r(q=32)<1, P is
+          alive, and z_shape is 0 on I, M, and R.
+        assigns_to: >-
+          The reported curve does not separate this toy point, or the
+          detector fires without the above-curve NTRU span. The
+          full-wreath analogue here is a failed positive claim.
+      - id: design_does_not_see_transition
+        observation: >-
+          dense_sublattice_detected is 0 on N+ while r(q=1024)>1, P is
+          alive, N- is silent, and z_shape is 0 on I, M, and R.
+        assigns_to: >-
+          This design does not see the published transition inside the
+          frozen sweep. That falsifies the positive side of this protocol.
+          It does not falsify the literature at a larger block size.
+      - id: class_group_line_excluded
+        observation: >-
+          log_unit_certificate is 1 on any cell, or any method tag is
+          log_unit_decoder or class_group.
+        assigns_to: >-
+          KN-TECH-046, the class-group and log-unit line. Not a fatigue
+          result. The run is invalid as a score of EXP-NTRU-fe4ae9.
+      - id: isometry_line_excluded
+        observation: >-
+          isometry_scored is 1, or any method tag is
+          coefficient_isometry_bitcount.
+        assigns_to: >-
+          KN-OPEN-026, the coefficient-isometry bit discount. Not the
+          dense-sublattice transition. The run is invalid as a score of
+          this protocol.
+      - id: inconclusive
+        observation: >-
+          instrument_alive is 0, or the ratio gate fails, or the redraw
+          cap is hit, or fpylll is missing, or the watch expires, or a
+          Gram-Schmidt norm is zero.
+        assigns_to: >-
+          Inconclusive or failed_infrastructure. Not evidence for the
+          NTRU line and not evidence against it.
+
+  stopping_rules:
+    - Stop when every cell has its detection bit, both ratio booleans, and a single assignment row.
+    - Do not add a cell, an n, a q, a block size above 20, or a second tour.
+    - Do not refit 0.004 or 2.484.
+    - Watch expiry, a pin mismatch, and a missing dependency stop the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, missing dependency, pin mismatch, or ratio-gate failure is failed_infrastructure and is not evidence against the hypothesis.
+    - Scoring a log-unit certificate or an isometry bit gap as dense_sublattice_detected invalidates the run.
+    - Using any block size outside [8, 12, 16, 20], or more than one tour, invalidates the run.
+    - Changing the z-shape inequalities after seeing a profile is forbidden. A correction is a new amendment file, and existing runs are not re-scored against it.
+    - A claim about sntrup761, NTRU-HPS, or a deployed bit level invalidates the interpretation. Delete that sentence from the verdict and record the attempt.
+    - Calling the outcome an attack, or an improvement of the exponent 2.484, invalidates the interpretation.
+
+  success_criterion: >-
+    The run succeeds for the NTRU dense-sublattice reading exactly when
+    the row ntru_dense_sublattice_line is the selected row. Any other
+    completed row is not this success. The rows
+    same_transition_on_non_ntru, curve_does_not_separate, and
+    design_does_not_see_transition are reachable failures. The row
+    inconclusive falsifies nothing.
+
+  falsification_criterion: >-
+    Specificity is falsified when same_transition_on_non_ntru is selected:
+    the same z-shape predicate fired on a non-NTRU lattice (cell I, M, or
+    R). The separator is falsified when curve_does_not_separate is
+    selected. The positive prediction of this protocol is falsified when
+    design_does_not_see_transition is selected. The excluded-line rows
+    falsify nothing about the fatigue curve; they mark a mis-assigned
+    observation. The inconclusive row falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/manifest.yaml
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/stdout.txt
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/stderr.txt
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/raw-result.json
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/profiles.jsonl
+    - experiments/EXP-NTRU-fe4ae9/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      Per cell: q, determinant, lambda_GH, median_head, median_tail,
+      z_shape, beta_hit, secret_tied, dense_sublattice_detected,
+      log_unit_certificate, method_tag. Plus the two ratio floats and
+      booleans, isometry_scored, instrument_alive, and the rng pin check.
+    verdict.yaml: >-
+      Exactly one assignment row id from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row,
+      including which observation assigned the NTRU line or which
+      observation showed the transition on a non-NTRU lattice. It does
+      not change hypothesis status. It does not state an attack or an
+      exponent change.
+    profiles.jsonl: >-
+      One record per cell per block size actually run: cell id, beta,
+      and the 128 Gram-Schmidt norms.
+
+  assigned_to: executor
+  zero_runs_in_design: true
