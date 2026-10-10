@@ -43,9 +43,9 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any] | None, str]:
     if not match:
         return None, text
     try:
-        import yaml
+        from crypto_kb.fastyaml import safe_load
 
-        loaded = yaml.safe_load(match.group(1))
+        loaded = safe_load(match.group(1))
     except Exception:
         return None, text
     if not isinstance(loaded, dict):

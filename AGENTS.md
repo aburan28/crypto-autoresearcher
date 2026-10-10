@@ -410,7 +410,10 @@ contradictions rather than pick one, and never treat retrieval score as evidence
 quality. A passage points to a record and is not a citation; a remembered paper
 stays `recalled` until rule 9 is met. No result is not evidence of absence.
 Deduplicate against the ledger with the generated `ledger/.index/*.jsonl`
-(`tools/build_ledger_index.py`), not the corpus.
+(`tools/build_ledger_index.py`), not the corpus. Read only what a step needs:
+tools and indexes before records, sizes before contents, run outputs by receipt
+(`docs/agent-runtime-core.md`, "Reading discipline"). A path off disk in a
+sparse checkout still exists (`docs/sparse-checkout.md`).
 
 ## Curve identity and measured bounds
 

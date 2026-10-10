@@ -46,6 +46,34 @@ the Coordinator, not an executor edit. For heuristic-validation work, report the
 prediction reference and comparison statistics; do not declare the heuristic supported
 or refuted.
 
+## Reading discipline
+
+Every role, every runtime. Context is the scarcest budget a session has: read
+what the current step needs, when it needs it, and no more.
+
+- **A tool before a corpus.** "What exists, in what state" is answered by
+  `tools/ledger_summary.py`, `tools/newest_experiments.py --experiment|--goal`,
+  `tools/goal_head.py show <GOAL-ID>`, `tools/merge_digest.py`, the generated
+  `ledger/.index/*.jsonl` (`tools/build_ledger_index.py`) and
+  `search_knowledge`. Open a record to act on it, not to find it.
+- **Locate, then read.** `rg -n` (or `-l`) an exact id or term in the
+  narrowest directory, then read the matching range. Never open files one by
+  one to learn which matters.
+- **Size before contents.** Check `wc -c` first; above ~100 KB read a range,
+  a `head`, or one key (`jq`, `yq`). Goal heads, proposals and handoffs can
+  exceed 64 KiB.
+- **Run outputs by receipt.** A run directory is read through
+  `manifest.yaml` or `execution-receipt.json`. Raw results, `*.jsonl` and logs
+  are read only by the check that consumes them, by key or range, and only
+  when the task names them.
+- **Once.** Do not re-read an unchanged file, or reload `AGENTS.md` or a role
+  contract already in context; load the one `AGENTS.md` section a gate needs.
+- **Paths, not contents.** Handoffs and subagent prompts name files and ids;
+  a subagent returns conclusions and paths, never file dumps.
+- **Off disk is not absent.** In a sparse checkout (`docs/sparse-checkout.md`)
+  a path `git ls-files` lists is materialized with `tools/sparse_checkout.py
+  add`, never reported missing or as evidence of absence.
+
 ## Research scheduling
 
 - Standing user authorization covers idea intake, experiment design, and execution; do not repeatedly ask for user approval of complete protocols.
