@@ -1,0 +1,353 @@
+name: autofix-queue
+
+# A queue for janitorial PR work (merge conflicts and failing checks) that runs
+# on cheap models instead of Opus.
+#
+#   triage (hourly, or on demand)
+#     .github/scripts/autofix_triage.py finds open same-repo PRs with merge
+#     conflicts or failing checks and picks a starting tier:
+#       haiku   only lockfile/generated-file conflicts and/or only lint, format,
+#               or generated-output staleness checks failing
+#       sonnet  everything else
+#   fix (one PR at a time: max-parallel 1 plus the workflow concurrency group)
+#     Haiku tries first when the tier allows. If its attempt is rejected, the
+#     same job resets and hands the PR to Sonnet. If Sonnet's is rejected too,
+#     the PR gets `needs-human`. A PR whose pushed fix still fails CI climbs
+#     the same ladder on the next sweep (autofix:haiku / autofix:sonnet labels
+#     remember who already tried); a clean PR has those labels cleared.
+#
+# The model only edits files. .github/scripts/autofix_run.py starts the merge,
+# checks the result (no conflict markers, no workflow edits, no protected
+# paths, branch not moved underneath it), commits, and pushes without --force.
+#
+# Controls (Settings > Secrets and variables > Actions)
+#   secrets.ANTHROPIC_API_KEY   required
+#   secrets.AUTOFIX_GH_TOKEN    optional fine-grained PAT (contents: write on
+#                               this repo). Commits pushed with the default
+#                               GITHUB_TOKEN do NOT trigger CI, so without it a
+#                               fix lands but its checks only re-run on the
+#                               next human push.
+#   vars.AUTOFIX_PAUSED         "true" stops the queue
+#   vars.AUTOFIX_CHEAP_MODEL    default claude-haiku-5-5
+#   vars.AUTOFIX_MID_MODEL      default claude-sonnet-5-5
+#   vars.AUTOFIX_MAX_PER_SWEEP  PRs queued per sweep, default 3
+#   vars.AUTOFIX_MIN_AGE_MINUTES  quiet period after the last push, default 45
+# Per PR: label `autofix` to queue it now, `autofix:off` to opt it out.
+#
+# Security: like any job that checks out a PR branch with write access, this
+# runs branch code (build scripts, generators) with a write token. Fork PRs
+# are never queued; anyone who can push a branch here is trusted.
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to queue now (blank sweeps every open PR)
+        required: false
+        type: string
+      dry_run:
+        description: Triage only; change no labels and queue nothing
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    types: [labeled]
+
+# One queue per repository. A new sweep waits for the running one; GitHub
+# keeps only the newest pending run, which is fine because each sweep
+# recomputes the whole queue.
+concurrency:
+  group: autofix-queue
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  CHEAP_MODEL: ${{ vars.AUTOFIX_CHEAP_MODEL || 'claude-haiku-5-5' }}
+  MID_MODEL: ${{ vars.AUTOFIX_MID_MODEL || 'claude-sonnet-5-5' }}
+  AUTOFIX_MAX_PER_SWEEP: ${{ vars.AUTOFIX_MAX_PER_SWEEP || '3' }}
+  AUTOFIX_MIN_AGE_MINUTES: ${{ vars.AUTOFIX_MIN_AGE_MINUTES || '45' }}
+  AUTOFIX_MECHANICAL_CHECKS: '(?i)(lint|fmt|format|ruff|black|isort|prettier|typos|spell|yaml|parse|syntax|whitespace)'
+  AUTOFIX_MECHANICAL_FILES: '(^|/)(poetry\.lock|uv\.lock|package-lock\.json|requirements[^/]*\.lock)$'
+  # The research record. Only the Coordinator writes here (AGENTS.md), so the
+  # queue never edits these paths, never queues a PR whose conflicts are in
+  # them, and leaves check failures on record-changing PRs to their owner.
+  AUTOFIX_PROTECTED_PATHS: '^(ledger|experiments|knowledge|coordination)/'
+  AUTOFIX_REPO_NOTES: |
+    - AGENTS.md governs this repository. You are an unprivileged worker with no research authority: never change a hypothesis or experiment status or write a decision record. If the fix needs any of that, escalate and say what the Coordinator would have to do.
+    - `main` takes merge commits only. The workflow merges the base branch for you; never rebase.
+    - Tests: `python3 -m pytest -q <path>` for the module you touched; `make check-harness` for harness code. Do not run research jobs, sweeps, or anything that writes run records.
+    - If a check fails because a derived index or record under a protected path is stale, that is the Coordinator's to regenerate: escalate.
+
+jobs:
+  triage:
+    if: >-
+      vars.AUTOFIX_PAUSED != 'true' &&
+      (github.event_name != 'pull_request' || github.event.label.name == 'autofix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: write
+      issues: write
+    outputs:
+      matrix: ${{ steps.triage.outputs.matrix }}
+      count: ${{ steps.triage.outputs.count }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: .github/scripts
+          persist-credentials: true # triage fetches PR refs for `git merge-tree`
+
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create autofix         --color 0e8a16 --description "Queue this PR for the autofix bot now" --force
+          gh label create autofix:off     --color cccccc --description "Autofix queue skips this PR" --force
+          gh label create autofix:running --color fbca04 --description "Autofix job in progress" --force
+          gh label create autofix:haiku   --color c5def5 --description "Haiku has attempted an autofix" --force
+          gh label create autofix:sonnet  --color 1d76db --description "Sonnet has attempted an autofix" --force
+          gh label create needs-human     --color d93f0b --description "Autofix gave up; needs a person" --force
+
+      - name: Triage open pull requests
+        id: triage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ONLY_PR: ${{ inputs.pr || github.event.pull_request.number }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ -n "$ONLY_PR" ]; then args+=(--pr "$ONLY_PR"); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python3 .github/scripts/autofix_triage.py "${args[@]}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "count=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Consume the `autofix` label
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/autofix" || true
+
+  fix:
+    needs: triage
+    if: needs.triage.outputs.count != '' && needs.triage.outputs.count != '0'
+    name: "#${{ matrix.pr.number }} (${{ matrix.pr.tier }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        pr: ${{ fromJSON(needs.triage.outputs.matrix) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write # read failing-job logs; re-run jobs judged flaky
+      checks: read
+    env:
+      PR: ${{ matrix.pr.number }}
+      HEAD_REF: ${{ matrix.pr.head_ref }}
+      BASE_REF: ${{ matrix.pr.base_ref }}
+      TIER: ${{ matrix.pr.tier }}
+      CONFLICT: ${{ matrix.pr.conflict }}
+      FAILING: ${{ toJSON(matrix.pr.failing) }}
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      - name: Require ANTHROPIC_API_KEY
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error::Set the ANTHROPIC_API_KEY repository secret, or set vars.AUTOFIX_PAUSED=true."
+          exit 1
+
+      - name: Claim PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" -X POST -f "labels[]=autofix:running" >/dev/null
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.pr.head_ref }}
+          fetch-depth: 0
+          # No token left in .git/config while a model runs here; the scripts
+          # pass one explicitly for the base fetch and the final push.
+          persist-credentials: false
+
+      - name: Set git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # ---------------------------------------------------------------- Haiku
+      - name: Prepare (Haiku)
+        if: env.TIER == 'haiku'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/autofix_run.py prepare
+
+      - name: Haiku attempt
+        id: haiku
+        if: env.TIER == 'haiku'
+        continue-on-error: true
+        timeout-minutes: 20
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: Read .autofix/task.md and do exactly what it says.
+          claude_args: |
+            --model ${{ env.CHEAP_MODEL }}
+            --max-turns 40
+            --allowedTools "Read,Edit,MultiEdit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git ls-files:*),Bash(git grep:*),Bash(python3:*),Bash(pytest:*),Bash(make check-harness:*),Bash(make test:*),Bash(ruff:*),Bash(node:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(diff:*)"
+            --disallowedTools "Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git merge:*),Bash(git reset:*),Bash(git checkout:*),Bash(git restore:*),Bash(git stash:*),Bash(git rebase:*),WebFetch,WebSearch"
+
+      - name: Verify (Haiku)
+        id: haiku_check
+        if: env.TIER == 'haiku'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/autofix_run.py verify
+
+      # --------------------------------------------------------------- Sonnet
+      # Model-written text (reasons, titles) only ever reaches a shell through
+      # env, never through ${{ }} interpolation.
+      - name: Decide on Sonnet
+        id: route
+        env:
+          H_OK: ${{ steps.haiku_check.outputs.ok }}
+          H_STATUS: ${{ steps.haiku_check.outputs.status }}
+          H_REASON: ${{ steps.haiku_check.outputs.reason }}
+        run: |
+          if [ "$TIER" = "sonnet" ]; then
+            echo "sonnet=true" >> "$GITHUB_OUTPUT"
+          elif [ "$H_OK" != "true" ] && [ "$H_STATUS" != "stale" ]; then
+            echo "Haiku attempt rejected: $H_REASON"
+            echo "sonnet=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sonnet=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare (Sonnet)
+        if: steps.route.outputs.sonnet == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/autofix_run.py prepare
+
+      - name: Sonnet attempt
+        id: sonnet
+        if: steps.route.outputs.sonnet == 'true'
+        continue-on-error: true
+        timeout-minutes: 40
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: Read .autofix/task.md and do exactly what it says.
+          claude_args: |
+            --model ${{ env.MID_MODEL }}
+            --max-turns 60
+            --allowedTools "Read,Edit,MultiEdit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git ls-files:*),Bash(git grep:*),Bash(git merge-base:*),Bash(python3:*),Bash(pytest:*),Bash(make check-harness:*),Bash(make test:*),Bash(ruff:*),Bash(node:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(diff:*)"
+            --disallowedTools "Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git merge:*),Bash(git reset:*),Bash(git checkout:*),Bash(git restore:*),Bash(git stash:*),Bash(git rebase:*),WebFetch,WebSearch"
+
+      - name: Verify (Sonnet)
+        id: sonnet_check
+        if: steps.route.outputs.sonnet == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/autofix_run.py verify
+
+      # -------------------------------------------------------------- Publish
+      - name: Pick the accepted attempt
+        id: final
+        env:
+          USED_SONNET: ${{ steps.route.outputs.sonnet }}
+          H_OK: ${{ steps.haiku_check.outputs.ok }}
+          H_STATUS: ${{ steps.haiku_check.outputs.status }}
+          S_OK: ${{ steps.sonnet_check.outputs.ok }}
+          S_STATUS: ${{ steps.sonnet_check.outputs.status }}
+        run: |
+          if [ "$USED_SONNET" = "true" ]; then
+            tier=sonnet model="$MID_MODEL" ok="$S_OK" status="$S_STATUS"
+          else
+            tier=haiku model="$CHEAP_MODEL" ok="$H_OK" status="$H_STATUS"
+          fi
+          {
+            echo "tier=$tier"; echo "model=$model"; echo "ok=${ok:-false}"
+            echo "status=${status:-failed}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        id: push
+        if: steps.final.outputs.ok == 'true' && steps.final.outputs.status == 'fixed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUSH_TOKEN: ${{ secrets.AUTOFIX_GH_TOKEN || github.token }}
+          MODEL: ${{ steps.final.outputs.model }}
+          TIER_USED: ${{ steps.final.outputs.tier }}
+          TITLE: ${{ steps.route.outputs.sonnet == 'true' && steps.sonnet_check.outputs.title || steps.haiku_check.outputs.title }}
+        run: python3 .github/scripts/autofix_run.py commit
+
+      - name: Re-run flaky jobs
+        if: steps.final.outputs.ok == 'true' && steps.final.outputs.status == 'rerun'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/autofix_run.py rerun
+
+      - name: Report and release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAIKU_RAN: ${{ env.TIER == 'haiku' }}
+          SONNET_RAN: ${{ steps.route.outputs.sonnet == 'true' }}
+          HAIKU_REASON: ${{ steps.haiku_check.outputs.reason }}
+          SONNET_REASON: ${{ steps.sonnet_check.outputs.reason }}
+          OK: ${{ steps.final.outputs.ok }}
+          STATUS: ${{ steps.final.outputs.status }}
+          MODEL: ${{ steps.final.outputs.model }}
+          PUSHED_SHA: ${{ steps.push.outputs.sha }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          HAS_PAT: ${{ secrets.AUTOFIX_GH_TOKEN != '' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          api="repos/$GITHUB_REPOSITORY/issues/$PR"
+          add() { gh api "$api/labels" -X POST -f "labels[]=$1" >/dev/null || true; }
+          gh api -X DELETE "$api/labels/autofix:running" >/dev/null 2>&1 || true
+          [ "$HAIKU_RAN" = "true" ] && add autofix:haiku
+          [ "$SONNET_RAN" = "true" ] && add autofix:sonnet
+
+          if [ "$STATUS" = "stale" ]; then
+            echo "Branch moved during the attempt; the next sweep will look again."
+            exit 0
+          fi
+
+          {
+            if [ "$OK" = "true" ] && [ "$STATUS" = "fixed" ] && [ -n "$PUSHED_SHA" ]; then
+              echo "**autofix** (\`$MODEL\`) pushed ${PUSHED_SHA:0:8}: $( [ "$SONNET_RAN" = true ] && echo "$SONNET_REASON" || echo "$HAIKU_REASON" )"
+              if [ "$HAS_PAT" != "true" ]; then
+                echo
+                echo "Checks will not re-run on their own: this commit was pushed with the default GITHUB_TOKEN. Set the \`AUTOFIX_GH_TOKEN\` secret to fix that."
+              fi
+            elif [ "$OK" = "true" ] && [ "$STATUS" = "rerun" ]; then
+              echo "**autofix** (\`$MODEL\`) judged the failures flaky and re-ran the failed jobs: $( [ "$SONNET_RAN" = true ] && echo "$SONNET_REASON" || echo "$HAIKU_REASON" )"
+            else
+              add needs-human
+              echo "**autofix** could not fix this PR, so it is labelled \`needs-human\`."
+              echo
+              [ "$HAIKU_RAN" = "true" ] && echo "- Haiku: ${HAIKU_REASON:-attempt did not complete}"
+              [ "$SONNET_RAN" = "true" ] && echo "- Sonnet: ${SONNET_REASON:-attempt did not complete}"
+              [ "$PUSH_OUTCOME" = "failure" ] && echo "- The push was rejected (the branch probably moved)."
+            fi
+            echo
+            echo "<sub>[run]($RUN_URL)</sub>"
+          } > comment.md
+          gh api "$api/comments" -X POST -F body=@comment.md >/dev/null
