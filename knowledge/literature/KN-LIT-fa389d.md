@@ -17,7 +17,7 @@ tags: [index-calculus, weil-descent, ghs, weak-fields, binary-field, ecdlp]
 confidence: reported
 citation_verified: web
 added: "2026-09-26"
-superseded_by: null
+superseded_by: KN-LIT-d7995a
 ---
 
 ## Contribution
