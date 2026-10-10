@@ -6,6 +6,7 @@ archive that an execution (`run`) session never reads:
 | excluded by the `harness` profile | size | files |
 | --- | ---: | ---: |
 | `experiments/*/runs/` (except experiments with a trial plan) | 5.1 GB | 42,000 |
+| `experiments/*/implementation/runs/` (stage caches: 1.4 GB of LFS objects) | 0.1 GB | 17 |
 | `inputs/refs/` (reference bundles, incl. committed Rust build trees) | 1.1 GB | 6,100 |
 | `inputs/archive_from_autolab/`, `inputs/pqshield-signature-zoo-20260928/` | 0.3 GB | 3,900 |
 | `research/cold_*/` (IC run outputs) | 0.3 GB | 430 |
