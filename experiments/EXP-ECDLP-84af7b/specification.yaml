@@ -3,13 +3,14 @@
 # splitting. Relation yield ratio R(H) and covering exponent gamma of E over
 # subfields K of Q(zeta_c) in which the Mersenne prime p = 2^c - 1 splits
 # completely, against random completely split fields of the same degree.
-# status review_required: IMPLEMENTED, not run. implementation/{run.py,
-# nfield.py, ecnf.py, gptool.py} are Python-standard-library only
-# (number-field arithmetic in Q[t]/(g), Gaussian-period polynomials, exact
-# discriminant, complete-splitting check, exact square roots, sup-norm-shell
-# point search, residues at the primes above p, torsion bound, trace
-# relation). 2-descent over K is not available anywhere in the container
-# (PARI/GP 2.15 ellrank is over Q only), so the rank arm reports proven
+# status review_required: IMPLEMENTED, not run. implementation/ is a Rust
+# crate (binary g1 on the nfield library: number-field arithmetic in
+# Q[t]/(g), Gaussian-period polynomials, exact discriminant,
+# complete-splitting check, exact square roots, sup-norm-shell point search,
+# residues at the primes above p, torsion bound, trace relation) with an
+# optional FFI binding to libpari (feature `pari`) for the ellrank-over-Q and
+# nfdisc cross-checks. 2-descent over K is not available anywhere in the
+# container (PARI 2.15 ellrank is over Q only), so the rank arm reports proven
 # non-torsion new points, not rank. Smoke-tested; no run record, no outcome.
 # =============================================================================
 experiment:
@@ -186,38 +187,61 @@ experiment:
       ratio >= 1 contradicts the height obstruction as understood.
   required_artifacts:
     - experiments/EXP-ECDLP-84af7b/specification.yaml
-    - experiments/EXP-ECDLP-84af7b/implementation/run.py
-    - experiments/EXP-ECDLP-84af7b/implementation/nfield.py
-    - experiments/EXP-ECDLP-84af7b/implementation/ecnf.py
-    - experiments/EXP-ECDLP-84af7b/implementation/gptool.py
+    - experiments/EXP-ECDLP-84af7b/implementation/Cargo.toml
+    - experiments/EXP-ECDLP-84af7b/implementation/Cargo.lock
+    - experiments/EXP-ECDLP-84af7b/implementation/src/main.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/Cargo.toml
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/build.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/lib.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/field.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/ecnf.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/modpoly.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/rng.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/gp.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/csrc/pari_shim.c
     - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/manifest.yaml
     - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/raw-result.json
   launcher:
     command: >-
-      python3 experiments/EXP-ECDLP-84af7b/implementation/run.py --c 13 17 19
-      31 --dmax 12 --ladder 300 1000 3000 10000 30000 100000 --curves 7
+      cargo run --release --features pari --manifest-path
+      experiments/EXP-ECDLP-84af7b/implementation/Cargo.toml --bin g1 -- --c 13
+      17 19 31 --dmax 12 --ladder 300 1000 3000 10000 30000 100000 --curves 7
       --abelian-controls 3 --random-fields 2 --seeds 1 2 3 --aux-primes 8 --out
       experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>
+    build_requirements: >-
+      Rust 1.97 (cargo, crates.io for num-bigint 0.4, num-rational 0.4,
+      num-integer 0.1, num-traits 0.2, serde_json 1, sha2 0.10, cc 1); the
+      `pari` feature additionally needs libpari-dev and libgmp-dev (apt) and a
+      C compiler for nfield/csrc/pari_shim.c. Without the feature the same
+      binary builds and runs; CTRL-RANK0 and the nfdisc cross-check are then
+      recorded as absent.
     runnable_state_at_design: >-
-      RUNNABLE. implementation/run.py with nfield.py (Q[t]/(g) arithmetic,
-      Gaussian-period polynomials of Q(zeta_m), Sylvester-resultant
-      discriminant, roots and full factorisation mod q by distinct-degree
-      and Cantor-Zassenhaus equal-degree splitting, irreducibility test,
-      complete-splitting test, degree-one primes, exact square root by
-      finite-field Tonelli-Shanks, CRT, ring Hensel lifting and rational
-      reconstruction, seeded random completely split fields), ecnf.py (curve over K with a2
-      term, finite-field arithmetic, exact and BSGS point counts, sieved
-      sup-norm-shell point search with checkpoints, torsion bound, residues,
-      trace relation) and gptool.py (optional PARI/GP: ellrank over Q,
-      nfdisc). Python 3 standard library only; PARI/GP 2.15.4 is present in
-      the design container and used only for CTRL-RANK0 and CTRL-DISC
-      cross-checks, the run proceeds without it. 2-descent over K is not
-      available (ellrank is over Q only). Smoke test: --c 13 --dmax 4 --ladder
-      300 1000 3000 10000 --curves 7 --abelian-controls 2 --random-fields 1
-      --seeds 1 gave 91 cells in 9 s, no CTRL-TRACE failure, CTRL-DISC
-      agreeing with PARI on every cyclic field, non-torsion K-points found on
-      all three arms, and a byte-identical replay (CTRL-REPLAY). The default
-      command is estimated at about 2600 cells and about 2 to 3 hours on one core (a degree-12 cell at W = 100000 takes about 3 s); shells
-      grow like (2X+1)^d, so at d >= 8 the ladder covers only the first one
-      or two shells, which the shells_completed field records per rung.
+      RUNNABLE. implementation/ is a Rust workspace: the nfield library
+      (field.rs: Q[t]/(g) arithmetic on exact rationals, Gaussian-period
+      polynomials of Q(zeta_m), Sylvester-resultant discriminant, roots and
+      complete-splitting test, embeddings, degree-one and lift primes, exact
+      square root by finite-field Tonelli-Shanks, CRT, ring Hensel lifting
+      and rational reconstruction, seeded random completely split fields;
+      modpoly.rs: polynomials over Z/q with distinct-degree and
+      Cantor-Zassenhaus equal-degree factorisation; ecnf.rs: curves over K
+      with an a2 term, finite-field arithmetic, exact and BSGS point counts,
+      sieved sup-norm-shell point search with checkpoints, torsion bound,
+      residues, trace relation; rng.rs: seeded xoshiro256** so replays are
+      byte-identical across machines; gp.rs + csrc/pari_shim.c: optional FFI
+      to libpari for ellrank over Q and nfdisc) and the g1 binary
+      (src/main.rs). Exact arithmetic through num-bigint / num-rational.
+      libpari 2.15.4 is linked in the design container through the `pari`
+      feature and used only for CTRL-RANK0 and CTRL-DISC; the run proceeds
+      without it. 2-descent over K is not available (ellrank is over Q
+      only). Smoke test: --c 13 --dmax 4 --ladder 300 1000 3000 10000
+      --curves 7 --abelian-controls 2 --random-fields 1 --seeds 1 gave 91
+      cells in 11 s, no CTRL-TRACE failure, CTRL-DISC agreeing with libpari on
+      every cyclic field, non-torsion K-points found on all three arms, and a
+      byte-identical replay (CTRL-REPLAY); the deterministic cells reproduce
+      the earlier Python prototype's counts exactly. A full-ladder cell takes
+      0.1 to 1.2 s up to degree 12 (11 cells in 4.4 s), so the default
+      command (about 2600 cells) is estimated at 15 to 30 minutes on one
+      core; shells grow like (2X+1)^d, so at d >= 8 the ladder covers only
+      the first one or two shells, which the shells_completed field records
+      per rung.
   assigned_to: executor

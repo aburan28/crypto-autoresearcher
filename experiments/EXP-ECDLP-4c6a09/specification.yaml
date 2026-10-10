@@ -4,9 +4,9 @@
 # the four NIST low-weight shapes at toy k, against random low-weight g of
 # the same degree and weight, with a regression of gamma on root discriminant.
 # status review_required: IMPLEMENTED (coverage and height arms), not run.
-# implementation/{run.py, nfield.py, ecnf.py, gptool.py} share the
-# Python-standard-library number-field toolkit of EXP-ECDLP-84af7b byte for
-# byte. 2-descent over K_f is not available in the container (PARI/GP 2.15
+# implementation/ is a Rust crate (binary g3) on the nfield library of
+# EXP-ECDLP-84af7b (path dependency), with the optional libpari FFI for the
+# nfdisc cross-check. 2-descent over K_f is not available in the container (PARI 2.15
 # ellrank is over Q only), so the rank arm is skipped and reported as
 # skipped. CORRECTION at design time: the P-384 shape is t^12 - t^4 - t^3 +
 # t - 1, not t^12 - t^4 + t^3 + t - 1 as first filed (CTRL-SHAPE caught it).
@@ -153,31 +153,39 @@ experiment:
       correlation becomes a new RQ with the regression as its first exhibit.
   required_artifacts:
     - experiments/EXP-ECDLP-4c6a09/specification.yaml
-    - experiments/EXP-ECDLP-4c6a09/implementation/run.py
-    - experiments/EXP-ECDLP-4c6a09/implementation/nfield.py
-    - experiments/EXP-ECDLP-4c6a09/implementation/ecnf.py
-    - experiments/EXP-ECDLP-4c6a09/implementation/gptool.py
+    - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml
+    - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.lock
+    - experiments/EXP-ECDLP-4c6a09/implementation/src/main.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/ (shared library crate, see EXP-ECDLP-84af7b)
     - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/manifest.yaml
     - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/raw-result.json
   launcher:
     command: >-
-      python3 experiments/EXP-ECDLP-4c6a09/implementation/run.py --kmin 4
-      --kmax 12 --min-bits 12 --max-primes-per-shape 3 --random-g 20
+      cargo run --release --features pari --manifest-path
+      experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml --bin g3 --
+      --kmin 4 --kmax 12 --min-bits 12 --max-primes-per-shape 3 --random-g 20
       --curves 5 --ladder 300 1000 3000 10000 30000 100000 --seeds 1 2 3
       --aux-primes 8 --out experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>
+    build_requirements: >-
+      Rust 1.97 and crates.io (same crates as EXP-ECDLP-84af7b); the `pari`
+      feature needs libpari-dev, libgmp-dev and a C compiler; without it the
+      binary builds and runs and the nfdisc cross-check is recorded as absent.
     runnable_state_at_design: >-
       RUNNABLE for the coverage and height arms; the rank arm is skipped and
-      reported as skipped. implementation/run.py with nfield.py, ecnf.py and
-      gptool.py identical byte for byte to EXP-ECDLP-84af7b's (Q[t]/(f)
-      arithmetic, exact discriminant, roots mod q, irreducibility, exact
-      square root, sieved sup-norm-shell point search with checkpoints,
-      torsion bound by reduction at degree-one primes; optional PARI/GP nfdisc). Python 3
-      standard library only; PARI/GP 2.15.4 is present in the design
-      container and used only for CTRL-DISC, the run proceeds without it.
-      Smoke test: --shapes P-192 P-384 --max-primes-per-shape 1 --random-g 2
-      --curves 2 --ladder 300 1000 3000 10000 --seeds 1 gave 18 cells in 4 s
-      with CTRL-SHAPE passing and a byte-identical replay (CTRL-REPLAY). The
-      default command is estimated at about 1500 cells and about 1 to 2 hours on one core (a degree-12 cell at W = 100000 takes about 3 s); shells grow
+      reported as skipped. implementation/src/main.rs (binary g3) on the
+      nfield Rust library of EXP-ECDLP-84af7b (Q[t]/(f) arithmetic on exact
+      rationals, exact discriminant, roots and factorisation mod q,
+      irreducibility, exact square root, sieved sup-norm-shell point search
+      with checkpoints, torsion bound by reduction at degree-one primes;
+      residues at the 72-bit P-384 toy prime through big-integer embeddings;
+      optional libpari nfdisc over FFI). libpari 2.15.4 is linked in the
+      design container through the `pari` feature and used only for
+      CTRL-DISC; the run proceeds without it. Smoke test: --shapes P-192
+      P-384 --max-primes-per-shape 1 --random-g 2 --curves 2 --ladder 300
+      1000 3000 10000 --seeds 1 gave 18 cells in 2.5 s with CTRL-SHAPE
+      passing and a byte-identical replay (CTRL-REPLAY). A full-ladder cell
+      takes well under a second up to degree 12, so the default command
+      (about 1500 cells) is estimated at 10 to 20 minutes on one core; shells grow
       like (2X+1)^d, so at d >= 8 the ladder covers only the first one or two
       shells, which the shells_completed field records per rung.
   assigned_to: executor
