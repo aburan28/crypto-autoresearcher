@@ -1,0 +1,10 @@
+default(realprecision,80);
+default(parisizemax,2000000000);
+read("ellQ.gp");read("ell-certified.gp");read("qfsolve.gp");read("resultant3.gp");
+rank_bnfinit(P,flag=1)={my(B=bnfinit(P,flag)); if(bnfcertify(B)!=1,error("BNF certification failed")); print("@@BNFCERT|",poldegree(P));B};
+DEBUGLEVEL_ell=0;LIM1=2;LIM3=4;LIMTRIV=2;MAXPROB=20;LIMBIGPRIME=0;
+setrand(1);
+B=rank_bnfinit(y^2-5,1);R=bnfellrank(B,[0,0,0,-1,0]);print("@@CONTROL_5|",R);
+B=rank_bnfinit(y^2+23,1);R=bnfellrank(B,[0,0,1,-1,0]);print("@@CONTROL_23|",R);
+B=rank_bnfinit(y^3-y-1,1);R=bnfellrank(B,[0,0,0,-3,3]);print("@@SOLINAS_FIRST|",R);
+quit;
