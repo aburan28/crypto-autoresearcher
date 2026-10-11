@@ -402,6 +402,40 @@ and solution certificates: `docs/claims-and-verification.md`. Session receipts
 (`tools/session_receipt.py`, `docs/session-receipts.md`) record what a session
 cost; they are never evidence.
 
+## Papers
+
+Manuscripts generated from this repository's results live under `papers/`,
+one directory per paper, and nowhere else. The layout is the same in
+`aburan28/cryptanalysis`, `aburan28/crypto`, `aburan28/crypto-autoresearcher`
+and `aburan28/ml-cryptanalysis`:
+
+- `papers/README.md` is the index: one row per paper (directory, title,
+  status). Add a row when adding a paper; never add a paper outside `papers/`.
+- `papers/paper.mk` is the shared build. A paper's `Makefile` sets `TEX`,
+  `SECTIONS` and `BIB` and includes it; the targets are `make`, `make check`,
+  `make arxiv`, `make eprint`, `make deanonymize` and `make clean`.
+- `papers/.gitignore` ignores LaTeX auxiliaries and submission bundles. The
+  built PDF is committed next to its sources and rebuilt whenever a cited
+  number, conclusion or figure changes.
+- `papers/AUTHORS.example` is the author-block template. Sources stay
+  anonymized (`\author{Anonymous}`); `make deanonymize` restores the authors
+  from an untracked `AUTHORS` file.
+- Each paper directory holds the root `.tex` (or the `.md` of a draft that is
+  not typeset yet), its sections and bibliography, `README.md` (status banner,
+  what it says, what it does not say, how to build, reproduction pointers, and
+  the checklist owed before submission), `abstract.txt` (title, keywords,
+  category) and the PDF.
+- Claims follow the repository's evidence rules: every number cites a
+  committed artefact in this repository or a sibling (prefix the path with
+  `crypto:`, `cryptanalysis:` or `crypto-autoresearcher:`); a stage
+  diagnostic is never reported as a speedup; every end-to-end row has
+  verified answers; each change is classed as advance, engineering,
+  relabelling or accounting. A draft is not submitted, posted or cleared for
+  either until its README says so, and its README names the novelty audit
+  and the measurements still owed.
+- `make check` must pass (references and citations resolved, no LaTeX errors,
+  no overfull boxes) before a PDF is recommitted.
+
 ## Knowledge retrieval
 
 `kb/` is a derived, read-only MCP index over the corpus; no agent writes to it.
