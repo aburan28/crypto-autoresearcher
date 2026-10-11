@@ -1,0 +1,11 @@
+m=41; P=lift(Mod(-x,x^2-x+2)^m); X=polcoeff(P,0); Y=polcoeff(P,1); tr=2*X+Y; N=2^m+1-tr; f=abs(Y); F=factor(f)[,1]~;
+print("trace ",tr,"  N ",N," = ",factor(N),"  conductor ",factor(f));
+foreach(F,p, c=X%p; print(p,": kron(-7,p)=",kronecker(-7,p)," c=",c," ord(c)=",znorder(Mod(c,p))," ord(-c)=",znorder(Mod(-c,p))));
+hf(ff)=my(G=factor(ff)[,1]); ff*prod(i=1,#G,1-kronecker(-7,G[i])/G[i]);
+lv=[1,F[1],F[2],f]; foreach(lv,ff,print("conductor ",ff," h=",hf(ff)));
+print("total ", vecsum(apply(hf,lv)));
+l=N/4; print("ell ",l," isprime ",isprime(l)," log2 ",log(l)/log(2)); print("lambda roots ",polrootsmod(x^2+x+2,l));
+print("embedding degree ",znorder(Mod(2^m,l)),"  twist ",factor(2*2^m+2-N));
+ordq(D,p)=my(Q=qfbprimeform(D,p),R=Q,k=1,I=qfbpow(Q,0)); while(qfbred(R)!=qfbred(I), R=qfbcomp(R,Q); k++); k;
+forprime(p=3,60, if(kronecker(-7,p)==1, print1("ord[l_",p,"]: "); foreach(lv,ff,print1(ordq(-7*ff^2,p)," ")); print()));
+print("x^41+x^3+1 irreducible: ", polisirreducible(Mod(1,2)*(x^41+x^3+1)));
