@@ -111,6 +111,8 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     if not isinstance(document, dict):
         raise ExecutionError("specification is not a mapping")
     spec = document.get("experiment", document)
+    # Expand after a Stages 0-1 package review may leave status=running while
+    # further execution_authorized stages remain runnable (DEC expand).
     # Expand after Stages 0-1 review leaves status=running while further
     # execution_authorized stages remain runnable (DEC expand / standing auth).
     if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
