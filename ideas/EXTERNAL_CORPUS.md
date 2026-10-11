@@ -184,9 +184,15 @@ state.
   independently mixed public tag then passed every held-out and scaling gate.
   On six 2K--64K curves it used 41.08%--43.16% of paired six-bit validations;
   on 128K--512K curves that fell to 15.60%--16.88%, with exact reads and
-  recovery and 361--723 tag states. A cheaper coordinate-residue tag is frozen
-  and unrun. These are compact-hash representation measurements of
-  signed/shifted BSGS, not a new ECDLP exponent. Source:
+  recovery and 361--723 tag states. Replacing SplitMix64 with `x mod
+  tag_states` preserved every recovery/read/layout outcome and gave replicated
+  1.065--1.066x reduced end-to-end Python timing ratios. Low-bit power-of-two
+  tags also preserved the full protocol. Per-call mask derivation was about
+  21% slower than modulo; precomputing it was about 10% faster in isolation,
+  but two integrated decoder runs failed their timing gate despite fewer
+  charged validations and group operations. These are compact-hash
+  representation measurements of signed/shifted BSGS, not a new ECDLP
+  exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
