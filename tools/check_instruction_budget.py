@@ -6,9 +6,9 @@ contract at 12,146 words -- more than the longest skill, read by every session
 before it did anything -- and set two budgets:
 
   * ALWAYS_LOADED: AGENTS.md + CLAUDE.md, loaded by every runtime on every
-    wake, at most 4,000 words.
+    wake, at most 5,000 words.
   * WAKE: the always-loaded set plus the one skill or agent contract a session
-    actually runs, at most 7,000 words. Checked for every skill under
+    actually runs, at most 8,000 words. Checked for every skill under
     .claude/skills and every generated agent under .claude/agents, since a
     session loads one of each at most.
 
@@ -28,8 +28,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 ALWAYS_LOADED = ("AGENTS.md", "CLAUDE.md")
-ALWAYS_LOADED_BUDGET = 4_000
-WAKE_BUDGET = 7_000
+# Raised from 4,000 / 7,000 on user direction (2026-10-09): the contract may
+# grow to 5,000 words provided what it adds is new, which
+# tools/instruction_uniqueness.py measures (no statement may restate another).
+# WAKE rises by the same 1,000 so a skill keeps its 3,000-word allowance.
+ALWAYS_LOADED_BUDGET = 5_000
+WAKE_BUDGET = 8_000
 SKILL_GLOB = ".claude/skills/*/SKILL.md"
 AGENT_GLOB = ".claude/agents/*.md"
 

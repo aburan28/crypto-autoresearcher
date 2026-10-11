@@ -131,10 +131,11 @@ binding declares one of two reasoning modes. `anthropic_adaptive` (the Claude
 5 bindings) sends `thinking: {type: adaptive}` plus the effort as a named
 `output_config.effort`; those models reject `budget_tokens` and `temperature`
 outright, and thinking cannot be disabled on them, so the `low` tier is low
-effort rather than no thinking. `anthropic_thinking` (the Haiku 4.5 binding)
-maps effort to an explicit `budget_tokens` (`budget_by_effort`), where `low`
-maps to `0`, which disables extended thinking and lets `temperature: 0.0`
-through. On the OpenAI protocol the effort maps to `reasoning_effort`.
+effort rather than no thinking. Every live `anthropic` binding is now a
+Claude 5 model (Opus 5.5, Sonnet 5.5, Haiku 5.5) and uses this mode.
+`anthropic_thinking` remains for pre-Claude-5 models: it maps effort to an
+explicit `budget_tokens` (`budget_by_effort`), where `low` maps to `0`, which
+disables extended thinking and lets `temperature: 0.0` through. On the OpenAI protocol the effort maps to `reasoning_effort`.
 
 ### Per subagent, where the runtime can express it
 
