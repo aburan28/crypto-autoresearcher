@@ -80,6 +80,10 @@ CERTIFICATE_OBJECTIVES = {
     "decomposition": "cairn/objectives/decomposition-reverification.json",
 }
 
+STAGE1CS_RUN = ("EXP-ECDLP-5cad48", "RUN-ECDLP-5cad48-S1CS")
+STAGE1CS_WRAPPER = "tools/cairn_replay_stage1cs.py"
+STAGE1CS_INPUT = "experiments/EXP-ECDLP-5cad48/runs/RUN-ECDLP-5cad48-S1/raw-result.json"
+
 VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
 
 DEFAULT_TIMEOUT_SECONDS = 600
@@ -94,6 +98,8 @@ class BridgeError(Exception):
 
 
 def load_spec(repo: Path, exp_id: str) -> tuple[Path, dict[str, Any]]:
+    if not re.fullmatch(r"EXP-[A-Za-z0-9_-]+", exp_id):
+        raise BridgeError(f"malformed experiment id {exp_id!r}")
     path = repo / "experiments" / exp_id / "specification.yaml"
     if not path.is_file():
         raise BridgeError(f"{exp_id}: no specification at {path.relative_to(repo)}")
@@ -107,6 +113,8 @@ def load_spec(repo: Path, exp_id: str) -> tuple[Path, dict[str, Any]]:
 
 
 def load_manifest(repo: Path, exp_id: str, run_id: str) -> tuple[Path, dict[str, Any]]:
+    if not re.fullmatch(r"RUN-[A-Za-z0-9_-]+", run_id):
+        raise BridgeError(f"malformed run id {run_id!r}")
     path = repo / "experiments" / exp_id / "runs" / run_id / "manifest.yaml"
     if not path.is_file():
         raise BridgeError(f"{run_id}: no manifest at {path.relative_to(repo)}")
@@ -117,6 +125,64 @@ def load_manifest(repo: Path, exp_id: str, run_id: str) -> tuple[Path, dict[str,
     if run.get("experiment_id") not in (None, exp_id):
         raise BridgeError(f"{run_id} belongs to {run.get('experiment_id')}, not {exp_id}")
     return path, run
+
+
+DECISION_ID = re.compile(r"^DEC-[A-Za-z0-9-]+$")
+
+
+def approval(repo: Path, exp_id: str, spec: dict[str, Any],
+             run: dict[str, Any] | None) -> dict[str, Any]:
+    """Require a frozen contract and Coordinator decisions before minting a bounty.
+
+    A run's later-stage authorization can be separate from the original
+    experiment approval. A recorded run is evidence of execution, not by
+    itself authority to publish or to treat its metrics as true.
+    """
+    if spec.get("status") != "approved" or spec.get("frozen") is not True:
+        raise BridgeError(f"{exp_id}: objective requires an approved, frozen experiment")
+    if spec.get("approved_by") != "coordinator":
+        raise BridgeError(f"{exp_id}: approval must be recorded by the Coordinator")
+
+    def decision(dec_id: Any, stage: Any = None) -> dict[str, Any]:
+        if not isinstance(dec_id, str) or not DECISION_ID.fullmatch(dec_id):
+            raise BridgeError(f"{exp_id}: missing or malformed Coordinator decision id")
+        path = repo / "ledger" / "decisions" / f"{dec_id}.yaml"
+        if not path.is_file():
+            raise BridgeError(f"{exp_id}: decision {dec_id} is missing")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        block = doc.get("coordinator_decision") if isinstance(doc, dict) else None
+        if not isinstance(block, dict) or block.get("id") != dec_id:
+            raise BridgeError(f"{dec_id}: malformed Coordinator decision")
+        targets = block.get("target_ids")
+        if (block.get("decided_by") != "coordinator" or block.get("decision") != "approve"
+                or not isinstance(targets, list) or exp_id not in targets):
+            raise BridgeError(f"{dec_id}: does not approve {exp_id}")
+        if stage is not None:
+            transitions = block.get("official_transitions") or {}
+            stages = (transitions.get("execution_authorized_stages")
+                      or transitions.get("execution_authorized_stages_remain") or [])
+            if not isinstance(stages, list) or stage not in stages:
+                raise BridgeError(f"{dec_id}: does not authorize stage {stage}")
+        return {"id": dec_id, "path": str(path.relative_to(repo)), "sha256": sha256_of(path)}
+
+    base = decision(spec.get("approval_decision"))
+    result = {"experiment": base}
+    if run is not None:
+        if run.get("status") not in ("completed_valid", "completed"):
+            raise BridgeError(f"{run.get('id')}: run is not completed and valid")
+        code = run.get("code") or {}
+        if code.get("dirty") is not False:
+            raise BridgeError(f"{run.get('id')}: dirty or unrecorded code cannot be pinned")
+        if (run.get("result") or {}).get("valid") is False:
+            raise BridgeError(f"{run.get('id')}: run is invalid")
+        stage = run.get("stage")
+        if stage is not None:
+            if type(stage) is not int or stage < 0:
+                raise BridgeError(f"{run.get('id')}: malformed stage")
+            authorized = (run.get("inputs") or {}).get("parameters") or {}
+            dec_id = authorized.get("authorized_by") or spec.get("execution_authorized_decision")
+            result["run_stage"] = decision(dec_id, stage)
+    return result
 
 
 def sha256_of(path: Path) -> str:
@@ -170,6 +236,18 @@ def replay_fields(metrics: dict[str, Any]) -> tuple[list[str], list[str]]:
         else:
             refused.append(f"{name}: not an integer")
     return kept, refused
+
+
+def pinned_replay_command(repo: Path, exp_id: str, run_id: str) -> list[str]:
+    """Only audited, read-only adapters are publishable through this bridge."""
+    if (exp_id, run_id) != STAGE1CS_RUN:
+        raise BridgeError(f"{run_id}: no audited read-only replay adapter")
+    wrapper = repo / STAGE1CS_WRAPPER
+    source = repo / STAGE1CS_INPUT
+    if not wrapper.is_file() or not source.is_file():
+        raise BridgeError(f"{run_id}: replay wrapper or input is missing")
+    return ["python3", STAGE1CS_WRAPPER, "--input-sha256", sha256_of(source),
+            "--wrapper-sha256", sha256_of(wrapper)]
 
 
 def statement_text(exp_id: str, spec: dict[str, Any], kind: str, extra: str) -> str:
@@ -246,13 +324,19 @@ def normalise_ts(value: Any) -> str:
 
 
 def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward: int,
-           created_at: str | None, replay_wrapper: str | None) -> tuple[dict[str, Any], dict[str, Any]]:
+           created_at: str | None, replay_wrapper: str | None,
+           *, isolated_demo: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
     """The objective and its provenance sidecar."""
     spec_path, spec = load_spec(repo, exp_id)
     run = None
     manifest_path = None
     if run_id:
         manifest_path, run = load_manifest(repo, exp_id, run_id)
+    # The legacy seam demo mints supply and posts only to its throwaway log.
+    # Its historical fixture predates DEC records; production callers never
+    # set this flag and must pass the Coordinator gate above.
+    approval_provenance = ({"isolated_demo": True} if isolated_demo
+                           else approval(repo, exp_id, spec, run))
     kind = kind or infer_kind(spec, run)
     goal = str(spec.get("goal_id") or exp_id)
     stamp, stamp_source = created_at_for(spec, run, created_at)
@@ -274,6 +358,7 @@ def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward
         "kind": kind,
         "created_at_source": stamp_source,
         "rendered_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+        "approval": approval_provenance,
     }
     if run is not None and manifest_path is not None:
         code = run.get("code") or {}
@@ -335,7 +420,10 @@ def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward
     command_text = code.get("command")
     if not command_text:
         raise BridgeError(f"{run_id}: manifest has no run.code.command to pin")
-    command = shlex.split(str(command_text)) if replay_wrapper is None else shlex.split(replay_wrapper)
+    if replay_wrapper == "auto":
+        command = pinned_replay_command(repo, exp_id, run_id)
+    else:
+        command = shlex.split(str(command_text)) if replay_wrapper is None else shlex.split(replay_wrapper)
     metrics = (run.get("result") or {}).get("metrics") or {}
     if not isinstance(metrics, dict):
         raise BridgeError(f"{run_id}: result.metrics is not a mapping")
@@ -353,7 +441,7 @@ def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward
         "and a read-only tree. Until this program ships a replay wrapper, this objective "
         "carries replay_wrapper_required: true and should not be posted."
         if replay_wrapper is None
-        else f"Pinned command: {command_text!r}, wrapped by {replay_wrapper!r}, which must print "
+        else f"Pinned command: {command_text!r}, wrapped by {command!r}, which must print "
              f"one JSON object holding the reproducible fields on stdout."
     )
     extra = (
@@ -392,6 +480,7 @@ def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward
         "refused_fields": refused,
         "wrapper": replay_wrapper,
         "replay_wrapper_required": replay_wrapper is None,
+        "audited_read_only_wrapper": replay_wrapper == "auto",
     }
     return objective, provenance
 
@@ -723,7 +812,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--kind", choices=("certificate", "replay"))
     p.add_argument("--reward", type=int, default=0, help="units; 0 until the Coordinator funds it")
     p.add_argument("--created-at", help="override the objective's created_at (RFC 3339)")
-    p.add_argument("--replay-wrapper", help="command that runs the driver and prints the fields as JSON")
+    p.add_argument("--replay-wrapper", help="'auto' for a pinned read-only adapter, or a draft command")
     p.add_argument("--out", help="objective file to write (default: cairn/objectives/<EXP>[-<RUN>].json)")
     p.add_argument("--log", default="$CAIRN_LOG", help="log path to print in the post line")
 
@@ -770,12 +859,14 @@ def main(argv: list[str] | None = None) -> int:
             side.write_text(yaml.safe_dump(provenance, sort_keys=True), encoding="utf-8")
             print(f"wrote {out}")
             print(f"      {side}")
-            if provenance.get("replay", {}).get("replay_wrapper_required"):
-                print("NOT POSTABLE YET: the pinned command needs a replay wrapper "
-                      "(see --replay-wrapper); the objective says so in its statement")
+            replay = provenance.get("replay", {})
+            if replay and not replay.get("audited_read_only_wrapper"):
+                print("NOT POSTABLE YET: replay needs an audited read-only wrapper "
+                      "(--replay-wrapper auto is supported for one pinned run)")
             else:
-                print("to post, the Coordinator runs:")
-                print(f"  cairn --log {args.log} --root {repo} post {out} --identity <coordinator-identity.json>")
+                print("the Coordinator may prepare publication with:")
+                print(f"  python3 tools/cairn_publish_objective.py --exp {args.exp} "
+                      f"--run {args.run or '<RUN-ID>'}")
             return 0
         if args.command == "artifact":
             if args.all:
