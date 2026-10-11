@@ -10,6 +10,11 @@ from pathlib import Path
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "tools/run_supersession_registry.yaml"
@@ -80,7 +85,7 @@ def load(path: Path) -> dict:
     if path.suffix == ".json":
         value = json.loads(path.read_text(encoding="utf-8"))
     else:
-        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+        value = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(path)
     return value
@@ -234,7 +239,7 @@ def companions(run_dir: Path, body: dict) -> None:
 def add_ssi_s1_runs() -> None:
     task = (ROOT / "coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/"
             "TASK-20260804-946415")
-    execution = yaml.safe_load((task / "execution_report.yaml").read_text())
+    execution = fast_yaml.safe_load((task / "execution_report.yaml").read_text())
     source_commit = archive_commit(task / "execution_report.yaml")
     for index in range(1, 4):
         run_id = f"RUN-SSI-S1-{index:02d}"
@@ -271,7 +276,7 @@ def add_ssi_s1_runs() -> None:
 
 
 def main() -> None:
-    registry = yaml.safe_load(REGISTRY.read_text())
+    registry = fast_yaml.safe_load(REGISTRY.read_text())
     existing = {entry["superseded_path"]: entry
                 for entry in registry.get("records") or []}
     for relative in SUPERSEDED:

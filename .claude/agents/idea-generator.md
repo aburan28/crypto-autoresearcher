@@ -1,11 +1,10 @@
 ---
 name: idea-generator
 description: >-
-  Hypothesis and idea generator for the ECDLP autoresearch program. Use when a
-  research question needs structured, falsifiable proposals: new mechanisms,
-  algorithms, representations, measurements, compositions, controls, or
-  tooling ideas. Produces YAML idea records with predictions, minimal
-  discriminating tests, and falsification criteria. Never assigns work or
+  Generates structured, falsifiable proposals for a research question
+  (mechanisms, algorithms, representations, measurements, compositions,
+  controls, tooling) as YAML idea records with predictions, minimal
+  discriminating tests and falsification criteria. Never assigns work or
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
 model: claude-sonnet-5-5

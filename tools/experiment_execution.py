@@ -26,6 +26,11 @@ from typing import Any, Callable
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sparse_checkout  # noqa: E402
 
@@ -105,16 +110,21 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     if sha256(spec_path) != plan["specification_sha256"]:
         raise ExecutionError("specification hash changed; use an additive amendment")
     try:
-        document = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+        document = fast_yaml.safe_load(spec_path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ExecutionError(f"malformed specification: {error}") from error
     if not isinstance(document, dict):
         raise ExecutionError("specification is not a mapping")
     spec = document.get("experiment", document)
+    # Expand after a Stages 0-1 package review may leave status=running while
+    # further execution_authorized stages remain runnable (DEC expand).
+    # Expand after Stages 0-1 review leaves status=running while further
+    # execution_authorized stages remain runnable (DEC expand / standing auth).
     if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
-            or spec.get("status") != "approved" or spec.get("frozen") is not True
+            or spec.get("status") not in ("approved", "running")
+            or spec.get("frozen") is not True
             or not spec.get("approved_by") or spec.get("execution_authorized") is False):
-        raise ExecutionError("specification is not approved, frozen and execution-authorized")
+        raise ExecutionError("specification is not approved/running, frozen and execution-authorized")
     safe_path(root, plan["queue"])
     sources = plan.get("source_sha256")
     if not isinstance(sources, dict) or not sources:

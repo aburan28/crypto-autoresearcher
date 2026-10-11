@@ -31,7 +31,10 @@ from __future__ import annotations
 import re
 import sys
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 # The lookahead must NOT exclude '|' and '>': those are exactly the two
 # characters case 2 exists to fix. Excluding them made the first version of this
@@ -45,7 +48,7 @@ ITEM = re.compile(r"^(\s*)- (?!['\"&*!])(.*\S)\s*$")
 
 def _parses(text: str) -> bool:
     try:
-        yaml.safe_load(text)
+        fast_yaml.safe_load(text)
         return True
     except Exception:
         return False

@@ -48,6 +48,16 @@ specification, experiment design, approval, and handoff.
    - draft the `experiment` contract with inputs, controls, independent
      variables, primary/secondary metrics, seeds and replication plan,
      budget, stopping and invalidation rules, success and falsification
+     criteria, and required artifacts;
+   - refuse approval while required scientific-contract fields are incomplete
+     (status stays `review_required`). Advisory research estimates and unlimited
+     campaign budgets may be null under the current budget policy; that alone
+     does not prevent approval.
+3. Create the experiment directory:
+   `experiments/EXP-<AREA>-<NNN>/specification.yaml` (plus empty
+   `amendments/` and `runs/`).
+4. Under the standing user authorization in `AGENTS.md`, the Coordinator
+   records approval of the complete frozen contract with
      criteria that name a metric the run produces and differ from each other,
      `designed_at`, a `decision_impact` block (`on_positive` / `on_negative`:
      what decision changes on each outcome; the two must differ), and
