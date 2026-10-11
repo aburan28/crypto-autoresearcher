@@ -26,6 +26,7 @@ Screening is a Coordinator-run operation, not a file copy.
 | External source | What it holds | Relevance here |
 |---|---|---|
 | `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md` | Six coordinate/orbit alternatives with toy measurements on seven ordinary prime-order groups and two anomalous controls | **Screened external packet.** Five mechanisms map to existing records or known results; the carry-ranked binary branch score is a distinct tested variant with no stable control advantage. H3's matched-random result directly bears on ECDLP-IDEA-110. No IDs allocated. |
+| `inputs/idea_generation_20261006_adaptive_quadratic_character_tree.md` | An exact fixed-base `chi(x-c)` decoder plus a preregistered scalar-leaf advice-erasure follow-up | **Screened external negatives.** Random field subsets matched tree depths (0/7), and 100 leaf relabellings per curve matched scalar-label recurrence complexity across four generators (0/7). Exhaustive setup and linear advice remain. No ID allocated. |
 | `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md` | Frozen ECDLP mechanism follow-ups from p-adic cocycles through compact representative and state-fingerprint tables | **Screened external mixed results.** Early cocycle/beam/coordinate successors failed their gates; exact rational-addition structure led back to signed/shifted BSGS. Later capped sketches, nonlinear fingerprints, stopping rules, minimum-ticket representatives, and compact state reuse measured time-memory-validation frontiers on toy curves, including complete recovery, but no new exponent. No IDs allocated. |
 | `ECDLP_MECHANISM_CATALOG.md` | ~111 prime-field mechanisms mined from an external corpus, mapped to R6 / K1 / K2 / Defect-B / CM cells | **Largest unscreened input.** Candidate generation + dedup screening against IDs 001-410 |
 | `LIT_REVIEW_PRIME_FIELD_ECDLP.md` | 23-paper review, 8 field cards, dedup tags | Literature cross-check for `knowledge/literature`; names three untouched gaps: syzygies/Betti, singular loci of the Semaev ideal/variety, and Yokoyama semi-normality (flagged there as the top F_p test) |
@@ -61,6 +62,18 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
+- **Adaptive quadratic-character trees are generic set separators, not an EC signal.**
+  A greedy ternary tree over predicates `chi(x-c)` recovered all 2,274 nonidentity
+  toy targets with mean online depths 4.24-7.49, but setup enumerated the full
+  fixed-base orbit, materialized `|X_P| * p` predicate cells, and stored linear
+  scalar-labeled advice. Across 12 matched random field subsets per curve, the
+  predeclared EC-specificity rule passed on 0/7 curves. A preregistered
+  follow-up then tested whether the scalar-labelled leaves compress: across four
+  generators and 100 random relabellings per curve, recurrence length stayed at
+  the random-permutation scale and that rule also passed on 0/7 curves. Preserve
+  both as preprocessing/advice and null-model controls, not as canonical
+  evidence or an ECDLP improvement. Source:
+  `inputs/idea_generation_20261006_adaptive_quadratic_character_tree.md`.
 - **Five preregistered coordinate/orbit successors also fail their gates.**
   Four-section p-adic cocycle arithmetic was exact and both Smart controls
   recovered 96/96 logs, but all six signed/dyadic formulas changed with the
