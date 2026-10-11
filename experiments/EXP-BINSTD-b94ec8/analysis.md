@@ -183,3 +183,105 @@ Evidence strength **preliminary**. Knowledge promotion not warranted.
 - Additive manifest_v2 schema completion; original flat manifest
   byte-identical.
 - Amazon Bedrock unused; must stay unused on any Stage-2 re-run.
+
+---
+
+# Analysis: EXP-BINSTD-b94ec8 Stage 2 refine / Phi_31-ker (H-BINSTD-dfc684)
+
+Review plan:
+`experiments/EXP-BINSTD-b94ec8/review/review-plan-stage2-r2.yaml`
+(`REVIEW-BINSTD-b94ec8-stage2-r2-20261003`), written before this analysis.
+Producer: TASK-20261003-81632a. Snapshot: TASK-20261003-f701df
+(tip `137e8c0740347c17a949b19b360c611261140d3f`). Amendment:
+`AMD-EXP-BINSTD-b94ec8-20261003-phi31ker`. Prior Stage-2 refine decision:
+EV-BINSTD-671f89 / DEC-20261003-031dba. No re-run in this review.
+No break / exponent / deployed attack. Amazon Bedrock: NOT_USED.
+
+## Observation
+
+**Validity (J1).** One Stage-2 refine run directory:
+
+| run | stage | status / outcome | key flags |
+|-----|-------|------------------|-----------|
+| RUN-BINSTD-377a61 | 2 | failed_infrastructure / O-IMPEDIMENT | phi31_ker_bound=true; stable_bases_are_window_proxy=false; wdsat_build_ok=true; leaf_census_attempted=false; impediment=semaev_m4_cnf_xor_instance_export_not_implemented |
+
+Artifacts present: `manifest.yaml`, `manifest_v2.yaml` (additive schema
+completion; original sha256 `80999878…` matches registry superseded_path;
+v2 sha256 `68c7cfe4…`), `raw-result.json`, `execution-receipt.json`
+(`status: output_validated`, `check_returncode: 0`), `environment.json`,
+`stdout.log`, `command.txt`, `check.stdout.log` = `OK`, additive
+`stage1/phi31-ker-bases.json`, `stage2/r2-phi31ker/{arm-summaries.json,
+leaf-counts.jsonl, RESULTS.md}`. Raw flags agree with r2 RESULTS.md.
+Claims: break=false, exponent_move=false, deployed_attack=false.
+`amazon_bedrock: NOT_USED` on raw, manifests, r2 RESULTS, and snapshot.
+Prior Stage-2 paths (`runs/RUN-BINSTD-e8660a/`,
+`stage2/{leaf-counts,arm-summaries}.json*`, top-level `RESULTS.md`) were
+not rewritten.
+
+**Window_proxy gate cleared (J2 progress).** Blind read of
+`stage1/phi31-ker-bases.json` alone (not `implementation/run.py` /
+`phi31_ker.py` / Stage-2 stdout):
+
+- `stable_V5.kind = phi31_ker`, `frobenius_stable=true`,
+  `distinct_from_window_deg=true`, basis_hex
+  `{0x2,0x4,0x10,0x100,0x10000}`
+- `stable_V6.kind = phi31_ker`, `frobenius_stable=true`,
+  `distinct_from_window_deg=true`, basis_hex
+  `{0x1,0x2,0x4,0x10,0x100,0x10000}`
+- `window_deg_5.kind = window_deg`, basis_hex `{0x1,0x2,0x4,0x8,0x10}`
+- `window_deg_6.kind = window_deg`, basis_hex `{0x1,0x2,0x4,0x8,0x10,0x20}`
+- `window_proxy=false`, `selected_factor_hex=0x25`
+- set-equality: V5 ≠ window_deg_5, V6 ≠ window_deg_6
+
+Matches producer `phi31_ker_bound=true` and
+`stable_bases_are_window_proxy=false`. Prior refine successor
+(DEC-20261003-031dba) discharged on the base-identity gate.
+
+**New impediment (J2 block).** After bases + WDSat OK, producer records
+`impediments: [semaev_m4_cnf_xor_instance_export_not_implemented]`:
+Stage-1 fixture E0 supplies structure skeletons + planted group-arithmetic
+certificates only; full Semaev m=4 CNF-XOR/ANF instance export for the
+50-target UNSAT leaf census is not implemented. Census correctly not
+started. WDSat capacity-smoke still `build_ok=true` (binary sha256
+`c77db8d750d2c2186245efb42d2c25ca17c24b93215ad1bfee13fd3917cc183b`) —
+not the blocker.
+
+**Primary metrics (unset).**
+`koblitz_ordinary_median_leaf_ratio: null`, `window_stable_ratio: null`.
+`stage2/r2-phi31ker/leaf-counts.jsonl` is a refine probe note only (no
+per-target leaf rows).
+
+## Comparison
+
+Matches the contract's O-IMPEDIMENT / infrastructure-stop class and
+AGENTS.md rule 5. Distinct from the prior Stage-2 stop
+(RUN-BINSTD-e8660a / window_proxy): that gate is cleared; the new stop is
+downstream instrument debt (Semaev export). Distinct from O-NULL /
+O-DIVISOR / O-SHAPE (those require leaf-count ratios). Distinct from
+O-ARTIFACT (fixture E0 already passed; this is missing export, not a
+planted-cert failure). Proves-too-much: reading Semaev-export
+O-IMPEDIMENT as H1 falsification, or reading Phi_31-ker bind alone as H1
+support, is forbidden by the review plan and by the absence of any ratio
+measurement.
+
+## Inference
+
+Stage-2 refine package is valid: window_proxy cleared (progress);
+census still blocked on Semaev m=4 CNF-XOR instance export
+(infra impediment, not H1 falsification). Preferred Coordinator
+transition: **refine** — implement / bind Semaev m=4 CNF-XOR/ANF instance
+export under an additive amendment, then re-admit `/run` Stage 2 leaf
+census under DEC-20261002-e6818c / DEC-20261003-8881ef /
+DEC-20261003-031dba authority. Do **not** support, weaken, or
+reject_scoped H1: no leaf counts exist. Hypothesis and experiment remain
+**approved**. Evidence strength **preliminary**. Knowledge promotion not
+warranted.
+
+## Limitation
+
+- No Stage-2 scientific measurement (census not started).
+- Coordinator-direct / same-session review (PD-1).
+- Semaev m=4 export path still missing after Phi_31-ker bind.
+- Toy tier at n=31; claim-(D) forbids deployed/exponent reading.
+- Additive r2 artifacts; prior Stage-2 immutable bytes preserved.
+- Amazon Bedrock unused; must stay unused on any Stage-2 re-run.
