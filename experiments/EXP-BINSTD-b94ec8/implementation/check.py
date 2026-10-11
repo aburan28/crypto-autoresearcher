@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent checker for EXP-BINSTD-b94ec8 Stage 0-2 run artifacts.
+"""Independent checker for EXP-BINSTD-b94ec8 Stage 0-1 run artifacts.
 
 Recomputes ord_n(2) and the m=4 admissibility screen without importing
 run.py stage logic. Verifies raw-result.json / manifest.yaml agreement.
@@ -153,6 +154,23 @@ def main() -> int:
         if raw.get("claims", {}).get("deployed_attack"):
             errs.append("forbidden deployed_attack claim present")
         arm_path = stage2_root / "arm-summaries.json"
+        for rel in (
+            "stage2/leaf-counts.jsonl",
+            "stage2/arm-summaries.json",
+            "RESULTS.md",
+        ):
+            if not (root / rel).is_file():
+                errs.append(f"missing {rel}")
+        if (root / "RESULTS.md").is_file() and outcome:
+            body = (root / "RESULTS.md").read_text(encoding="utf-8")
+            if f"**{outcome}**" not in body and f"outcome: **{outcome}**" not in body:
+                # Accept either bold outcome form used by Stage-2 RESULTS.
+                if outcome not in body:
+                    errs.append("RESULTS.md does not name the Stage-2 O-* outcome")
+        if raw.get("claims", {}).get("deployed_attack"):
+            errs.append("forbidden deployed_attack claim present")
+        # Exactly one O-* in arm-summaries when present
+        arm_path = root / "stage2" / "arm-summaries.json"
         if arm_path.is_file():
             arms = json.loads(arm_path.read_text(encoding="utf-8"))
             if arms.get("outcome") != outcome:

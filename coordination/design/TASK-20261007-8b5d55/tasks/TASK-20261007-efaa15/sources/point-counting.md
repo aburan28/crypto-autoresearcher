@@ -1,0 +1,13 @@
+# Deterministic cardinality and exact point orders
+
+Task TASK-20261007-efaa15; verified_by: producer /root/ssi_j45_producer. Provenance: retrieved paper; internal order-test derivation.
+
+René Schoof, *Elliptic Curves Over Finite Fields and the Computation of Square Roots mod p*, Mathematics of Computation44,no.170, April1985, pp.483–494; DOI10.1090/S0025-5718-1985-0777280-6. Primary author-hosted journal scan https://reneschoof.github.io/ctpts.pdf, retrieved2026-10-07T06:24:03.238Z; SHA256 `29f3cdc7297a08f094cdbe52f7a7692467475b76c965df30cab0f7afcea11895`. PDF p1 is a JSTOR cover; printed483=PDF2, printed484=PDF3, printed490=PDF9. OCR is a reading aid, not authoritative bytes. Inspected original scanned pp.483–484 and490, §1, §2 setup and §3 closing complexity/cardinality discussion. No invented theorem number: the claim is the unnumbered §1 result, with §3 derivation.
+
+[Retrieved statement, paraphrased] Given a nonsingular short-Weierstrass curve over F_q of characteristic other than2,3, with a specified irreducible polynomial representing the field, the paper gives an unconditional deterministic algorithm for #E(F_q), polynomial in log q. Here q=p^2, p>3 and i^2+1 is the specified irreducible polynomial. This supports checking #C(F_(p^2))=(p+1)^2. It is an existence/cost citation, not a claim that a routine was implemented or run.
+
+The paper explicitly distinguishes point counting from finding the group structure on p490. Cardinality alone does NOT certify C(F_(p^2)) is (Z/(p+1)Z)^2, a torsion basis, any exact point order, scalar Frobenius or a complete End(C). The inherited source-curve Frobenius/BaseGen statements are left historical/conditional; this source gate does not reprove them.
+
+[Derived order test] For a parsed on-curve T and L=l^e, [L]T=O implies ord(T)|L. The additional [(L/l)]T!=O is equivalent to ord(T)=L. Apply l=5 to P,X and l=2 to U,V,B0,H with their declared exponents. No factorization of a general cardinality and no full group structure algorithm is smuggled into this prime-power test. Scalar multiplication has O(log L) additions/doublings.
+
+Errata inspection: author-hosted https://reneschoof.github.io/schooferr.pdf, SHA256 `11ada4d0a54d6f96f671836510a9c1a131fb948c15b5aeae8cd54949b31d9593`, retrieved2026-10-07T06:24:03.474Z, is *Corrections to Schoof85*, Nick Alexander and Janice Tytaneck, January18,2004, not authored by Schoof. It identifies formula corrections around pp488–489 and expressly disclaims responsibility for accuracy. No implementation or corrected formula audit is claimed. The broad counting result and its precise input assumptions are the only application here. Independent verification remains pending; zero runs.

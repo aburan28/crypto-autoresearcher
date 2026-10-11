@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """EXP-BINSTD-b94ec8 Stages 0-2 launcher (HOLD-X1 / HOLD-T supersession).
+"""EXP-BINSTD-b94ec8 Stages 0-1 launcher (HOLD-X1 / HOLD-T supersession).
 
 Stage 0: Zero-compute worksheet — counting identity (A); ord_n(2)/stable
          lattices at n in {17,23,29,31,37,41}; m=4 admissibility screen
@@ -16,6 +17,15 @@ Stage 2: CNF-XOR leaf-count null at n=31, m=4, l in {5,6} on
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
 No n>=131 attack.
+         Admitted by trial-plan-v2 / AMD-EXP-BINSTD-b94ec8-20261003-stage2
+         under DEC-20261003-8881ef expand + DEC-20261002-e6818c.
+
+Observations only. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
+No n>=131 attack.
+
+Observations only. Stages 2 remain on the design contract /
+TASK-20261002-b92ba4 and are NOT enumerated in trial-plan-v1. No Magma/
+Sage/AUXIN/Bedrock. No ECDLP solve. No n>=131 attack.
 """
 from __future__ import annotations
 
@@ -27,6 +37,8 @@ import os
 import re
 import shutil
 import subprocess
+import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -54,12 +66,17 @@ TASK_ID_STAGES01 = "TASK-20261003-4d4739"
 TASK_ID_STAGE2_V1 = "TASK-20261003-43c403"  # prior Stage-2 (window_proxy O-IMPEDIMENT)
 TASK_ID = "TASK-20261003-81632a"  # live Stage-2 refine executor (trial-plan-v3)
 AMD_PHI31KER = "AMD-EXP-BINSTD-b94ec8-20261003-phi31ker"
+TASK_ID_STAGES01 = "TASK-20261003-4d4739"
+TASK_ID = "TASK-20261003-43c403"  # live Stage-2 executor (trial-plan-v2)
 MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EXP_ROOT.parents[1]
 WDSAT_SRC = REPO_ROOT / "inputs" / "TRIMOSKA-WDSAT-2024" / "upstream"
 STAGE2_R2_DIR = EXP_ROOT / "stage2" / "r2-phi31ker"
 PHI31_BIND_PATH = EXP_ROOT / "stage1" / "phi31-ker-bases.json"
+TASK_ID = "TASK-20261003-4d4739"
+MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
+EXP_ROOT = Path(__file__).resolve().parents[1]
 
 WORKSHEET_NS = (17, 23, 29, 31, 37, 41)
 ADMISSIBLE_CELLS = {(31, 5), (31, 6)}
@@ -70,6 +87,7 @@ PLANTED_SAT_PER_ARM = 20
 UNSAT_TARGETS_PER_ARM = 50
 ALLOWED_STAGE1 = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
 ALLOWED_STAGE2 = {"O-NULL", "O-DIVISOR", "O-SHAPE", "O-ARTIFACT", "O-IMPEDIMENT"}
+ALLOWED_STAGE1 = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
 
 
 def write_json(path: Path, obj: Any) -> None:
@@ -810,6 +828,10 @@ def stage2(run_dir: Path) -> dict[str, Any]:
     t0 = time.time()
     out_dir = STAGE2_R2_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
+    """Stage-2 leaf-count null attempt; emit exactly one O-*."""
+    t0 = time.time()
+    stage2_dir = EXP_ROOT / "stage2"
+    stage2_dir.mkdir(parents=True, exist_ok=True)
 
     impediments: list[str] = []
     prereg_path = EXP_ROOT / "stage0" / "preregistered-predictions.json"
@@ -828,6 +850,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         e0 = json.loads(e0_path.read_text(encoding="utf-8"))
         e0_ok = bool(e0.get("overall_ok"))
         if not e0_ok:
+            # Contract: fixture failure → O-ARTIFACT, do not read leaf ratios.
             outcome = "O-ARTIFACT"
             status = "artifact"
             reason = "Stage-1 fixture E0 overall_ok is false; leaf ratios not read"
@@ -848,6 +871,15 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             results = "\n".join(
                 [
                     f"# RESULTS — {EXPERIMENT_ID} (Stage 2 refine / Phi_31-ker)",
+                "amazon_bedrock": "NOT_USED",
+            }
+            leaf_path = stage2_dir / "leaf-counts.jsonl"
+            if not leaf_path.exists():
+                leaf_path.write_text("", encoding="utf-8")
+            write_json(stage2_dir / "arm-summaries.json", arm_summaries)
+            results = "\n".join(
+                [
+                    f"# RESULTS — {EXPERIMENT_ID} (Stage 2)",
                     "",
                     f"Hypothesis: {HYPOTHESIS_ID}",
                     f"Approved by: {APPROVED_BY}",
@@ -869,6 +901,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             results_path = out_dir / "RESULTS.md"
             if not results_path.exists():
                 results_path.write_text(results, encoding="utf-8")
+            (EXP_ROOT / "RESULTS.md").write_text(results, encoding="utf-8")
             raw = {
                 "experiment_id": EXPERIMENT_ID,
                 "hypothesis_id": HYPOTHESIS_ID,
@@ -908,6 +941,11 @@ def stage2(run_dir: Path) -> dict[str, Any]:
                         "  - raw-result.json",
                         f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/leaf-counts.jsonl",
                         f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/arm-summaries.json",
+                        "artifacts:",
+                        "  - manifest.yaml",
+                        "  - raw-result.json",
+                        f"  - experiments/{EXPERIMENT_ID}/stage2/leaf-counts.jsonl",
+                        f"  - experiments/{EXPERIMENT_ID}/stage2/arm-summaries.json",
                         "amazon_bedrock: NOT_USED",
                         "",
                     ]
@@ -979,6 +1017,15 @@ def stage2(run_dir: Path) -> dict[str, Any]:
     else:
         bases_meta = stage1_bases_meta
         stable_proxy = stage1_proxy
+    stable_proxy = False
+    bases_meta: dict[str, Any] = {}
+    if bases_path.is_file():
+        bases_doc = json.loads(bases_path.read_text(encoding="utf-8"))
+        bases_meta = bases_doc.get("bases") or {}
+        for name in ("stable_V5", "stable_V6"):
+            kind = (bases_meta.get(name) or {}).get("kind")
+            if kind == "window_proxy_for_stable_dim":
+                stable_proxy = True
         if stable_proxy:
             impediments.append(
                 "frobenius_stable_bases_are_window_proxy_stage1_deferred_phi31_ker"
@@ -1028,6 +1075,25 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             "certificates only). This is an instrument debt after clearing "
             "the window_proxy refine gate — not H1 falsification."
         )
+    # H1 requires a Frobenius-stable V distinct from the window control.
+    # Stage 1 deferred Phi_31-ker construction and recorded window proxies.
+    # Leaf-count ratios under that mislabel would not test H1; stop as
+    # O-IMPEDIMENT (instrument), never as negative mathematical evidence.
+    leaf_census_attempted = False
+    outcome = "O-IMPEDIMENT"
+    status = "failed_infrastructure"
+    reason = (
+        "Stage-2 H1 leaf-count null requires Frobenius-stable V5/V6 distinct "
+        "from window_deg controls. Stage-1 curves-and-bases.json records "
+        "stable_V5/stable_V6 as kind=window_proxy_for_stable_dim (Phi_31-ker "
+        "deferred). Leaf census not started. "
+        + (
+            "WDSat capacity-smoke build_ok=true from vendored "
+            "inputs/TRIMOSKA-WDSAT-2024 (not the blocking impediment)."
+            if wdsat.get("build_ok")
+            else "WDSat capacity-smoke build also failed; see builds/."
+        )
+    )
 
     arm_summaries = {
         "n": 31,
@@ -1046,6 +1112,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "phi31_ker_bound": phi_ok,
         "phi31_ker_factor_hex": (phi_bind or {}).get("selected_factor_hex"),
         "bound_bases": bases_meta,
+        "stage1_bases": bases_meta,
         "stable_bases_are_window_proxy": stable_proxy,
         "wdsat_probe": {
             "available_source": wdsat.get("available_source"),
@@ -1062,6 +1129,10 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "refine_decision": REFINE_DEC,
         "amd": AMD_PHI31KER,
         "prior_stage2_task": TASK_ID_STAGE2_V1,
+        "koblitz_ordinary_median_leaf_ratio": None,
+        "window_stable_ratio": None,
+        "impediments": impediments,
+        "expand_decision": EXPAND_DEC,
         "amazon_bedrock": "NOT_USED",
         "claims": {
             "break": False,
@@ -1088,6 +1159,24 @@ def stage2(run_dir: Path) -> dict[str, Any]:
     results = "\n".join(
         [
             f"# RESULTS — {EXPERIMENT_ID} (Stage 2 refine / Phi_31-ker)",
+    leaf_path = stage2_dir / "leaf-counts.jsonl"
+    if not leaf_path.exists():
+        # One probe note line only; no fabricated conflict counts.
+        note = {
+            "record_type": "stage2_probe_note",
+            "leaf_census_attempted": False,
+            "outcome": outcome,
+            "reason": "no per-target leaf rows; instrument impediment before census",
+            "wdsat_build_ok": wdsat.get("build_ok"),
+            "stable_bases_are_window_proxy": stable_proxy,
+        }
+        leaf_path.write_text(json.dumps(note, sort_keys=True) + "\n", encoding="utf-8")
+    if not (stage2_dir / "arm-summaries.json").exists():
+        write_json(stage2_dir / "arm-summaries.json", arm_summaries)
+
+    results = "\n".join(
+        [
+            f"# RESULTS — {EXPERIMENT_ID} (Stage 2)",
             "",
             f"Hypothesis: {HYPOTHESIS_ID}",
             f"Approved by: {APPROVED_BY}",
@@ -1096,6 +1185,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             f"Amendment: {AMD_PHI31KER}",
             f"Live executor: {TASK_ID}",
             f"Prior Stage-2 executor: {TASK_ID_STAGE2_V1}",
+            f"Live executor: {TASK_ID}",
             f"Prior Stages 0-1 executor: {TASK_ID_STAGES01}",
             "",
             f"Stage-2 outcome: **{outcome}**",
@@ -1116,6 +1206,10 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             "Prior Stage-2 RESULTS.md / stage2/{{leaf-counts,arm-summaries}} "
             "remain immutable (RUN-BINSTD-e8660a). This refine writes only "
             "stage1/phi31-ker-bases.json and stage2/r2-phi31ker/*.",
+            "This is infrastructure / instrument readiness, **not** negative "
+            "mathematical evidence against H1. Revisit when Phi_31-ker "
+            "Frobenius-stable bases are constructed and bound into Stage-2 "
+            "ANF export (additive amendment).",
             "",
             "Amazon Bedrock: NOT_USED",
             "No Magma/Sage/AUXIN.",
@@ -1126,6 +1220,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
     results_path = out_dir / "RESULTS.md"
     if not results_path.exists():
         results_path.write_text(results, encoding="utf-8")
+    (EXP_ROOT / "RESULTS.md").write_text(results, encoding="utf-8")
 
     raw = {
         "experiment_id": EXPERIMENT_ID,
@@ -1177,6 +1272,8 @@ def stage2(run_dir: Path) -> dict[str, Any]:
                 f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/leaf-counts.jsonl",
                 f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/arm-summaries.json",
                 f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/RESULTS.md",
+                f"  - experiments/{EXPERIMENT_ID}/stage2/leaf-counts.jsonl",
+                f"  - experiments/{EXPERIMENT_ID}/stage2/arm-summaries.json",
                 "amazon_bedrock: NOT_USED",
                 "",
             ]
@@ -1189,6 +1286,12 @@ def stage2(run_dir: Path) -> dict[str, Any]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-2")
     ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
+def main() -> int:
+    ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-2")
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
+def main() -> int:
+    ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-1")
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1])
     ap.add_argument("--trial-plan", required=True)
     ap.add_argument("--run-dir", required=True)
     args = ap.parse_args()
@@ -1218,6 +1321,10 @@ def main() -> int:
         )
     )
     return 0 if ok else 1
+    else:
+        raw = stage1(run_dir)
+    print(json.dumps({"stage": args.stage, "status": raw.get("status"), "outcome": raw.get("outcome")}, sort_keys=True))
+    return 0 if raw.get("status") in ("completed",) or raw.get("outcome") in ALLOWED_STAGE1 else 1
 
 
 if __name__ == "__main__":
