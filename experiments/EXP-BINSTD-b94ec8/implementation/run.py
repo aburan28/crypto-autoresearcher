@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """EXP-BINSTD-b94ec8 Stages 0-2 launcher (HOLD-X1 / HOLD-T supersession).
+"""EXP-BINSTD-b94ec8 Stages 0-1 launcher (HOLD-X1 / HOLD-T supersession).
 
 Stage 0: Zero-compute worksheet — counting identity (A); ord_n(2)/stable
          lattices at n in {17,23,29,31,37,41}; m=4 admissibility screen
@@ -15,6 +16,10 @@ Stage 2: CNF-XOR leaf-count null at n=31, m=4, l in {5,6} on
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
 No n>=131 attack.
+
+Observations only. Stages 2 remain on the design contract /
+TASK-20261002-b92ba4 and are NOT enumerated in trial-plan-v1. No Magma/
+Sage/AUXIN/Bedrock. No ECDLP solve. No n>=131 attack.
 """
 from __future__ import annotations
 
@@ -26,6 +31,8 @@ import os
 import re
 import shutil
 import subprocess
+import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -53,6 +60,9 @@ MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EXP_ROOT.parents[1]
 WDSAT_SRC = REPO_ROOT / "inputs" / "TRIMOSKA-WDSAT-2024" / "upstream"
+TASK_ID = "TASK-20261003-4d4739"
+MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
+EXP_ROOT = Path(__file__).resolve().parents[1]
 
 WORKSHEET_NS = (17, 23, 29, 31, 37, 41)
 ADMISSIBLE_CELLS = {(31, 5), (31, 6)}
@@ -63,6 +73,7 @@ PLANTED_SAT_PER_ARM = 20
 UNSAT_TARGETS_PER_ARM = 50
 ALLOWED_STAGE1 = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
 ALLOWED_STAGE2 = {"O-NULL", "O-DIVISOR", "O-SHAPE", "O-ARTIFACT", "O-IMPEDIMENT"}
+ALLOWED_STAGE1 = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
 
 
 def write_json(path: Path, obj: Any) -> None:
@@ -1067,6 +1078,9 @@ def stage2(run_dir: Path) -> dict[str, Any]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-2")
     ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
+def main() -> int:
+    ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-1")
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1])
     ap.add_argument("--trial-plan", required=True)
     ap.add_argument("--run-dir", required=True)
     args = ap.parse_args()
@@ -1096,6 +1110,10 @@ def main() -> int:
         )
     )
     return 0 if ok else 1
+    else:
+        raw = stage1(run_dir)
+    print(json.dumps({"stage": args.stage, "status": raw.get("status"), "outcome": raw.get("outcome")}, sort_keys=True))
+    return 0 if raw.get("status") in ("completed",) or raw.get("outcome") in ALLOWED_STAGE1 else 1
 
 
 if __name__ == "__main__":
