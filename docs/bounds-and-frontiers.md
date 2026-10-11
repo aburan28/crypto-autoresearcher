@@ -126,14 +126,64 @@ cost: a headline that was not measured end to end is a projection.
 ## 5. On the network
 
 Each domain's frontier is one **ratchet objective** on cairn (`docs/cairn-
-integration-plan.md`, Stage 2), with a pinned evaluator that rescores a bound
-record from its own per-size counts and returns an integer: parts per million
-of the generic floor achieved, higher being closer to the floor.
+integration-plan.md`, Stage 2): `verifier.kind: evaluator`, a pinned
+evaluator that rescores a bound record from its own per-size counts and
+returns an integer -- parts per million of the generic floor achieved, higher
+being closer to the floor -- and a `ratchet` block that pays along that score.
 `cairn/checkers/bound_frontier_prime_toy.py` is the first, for the prime,
 planted, toy domain; `cairn/objectives/bound-frontier-ecdlp-prime-toy.json`
 pins it. The checker binds the domain by constants in its own text, so one
 objective is one domain and one tier (invariant (d)); a second domain is a
 copy with other constants, hence another hash, hence another objective.
+
+The shape is cairn's, read off `spec/objective.schema.json`,
+`src/verifiers/mod.rs` and `src/frontier.rs` and then confirmed with the
+binary built at commit `b93dd9aa7d2840e46b7b7136afb8fc7c1fec3b6a` rather than
+off the plan's own table:
+
+- **The verifier block** is `{kind: evaluator, evaluator: <path>,
+  evaluator_sha256: <hex>, entrypoint: score, threshold: <int>, direction:
+  maximize}`. The pinned file is named `evaluator`, not `checker`: an
+  evaluator spec carrying `checker_sha256` is `invalid_spec` on the node. The
+  entrypoint is `score(artifact) -> int`; `score >= threshold` is `accept`,
+  less is `reject`, a `bool`, a `float` or a number outside 64 bits is
+  `invalid_spec`, and an uncaught exception is `unavailable`. So the evaluator
+  **never raises**: a record it refuses scores the sentinel `0`, and
+  `threshold: 1` turns that into a real rejection rather than an outage
+  anyone could provoke with garbage. `check(artifact)` beside it returns the
+  reason, for a submitter; cairn never calls it.
+- **The ratchet block** is `{baseline, target, reward, direction,
+  min_improvement}`, every field an integer or one of two words, `reward`
+  equal to the objective's (one pool, not two -- both `0` here, since nobody
+  outside this program funds it yet). `baseline: 500000` is a method spending
+  twice the floor's group additions; `target: 1000000` is the floor itself,
+  past which the curve pays no more; `min_improvement: 10000` is one per cent
+  of the floor. The threshold and the baseline answer different questions: the
+  threshold says whether an artifact is a bound record at all, the baseline
+  where paying starts, so a slow but self-consistent method is accepted, pays
+  nothing and does not take the frontier. `min_improvement` is cairn's
+  economic parameter against slicing a result into paid steps; it is not a
+  statistical one. A move of the frontier in **this** ledger still needs the
+  paired verdict of §3; the network's frontier is a receipt and an ordering.
+- **Floats travel as decimal strings.** cairn's canonical encoding has no
+  float variant, so a bound record as ecbench writes it is refused at
+  `propose`, `commit` and `score_candidate` before any verifier runs. The
+  artifact is the record with every non-integer number carried as its
+  shortest round-trip decimal string -- `tools/bound_artifact.py render`
+  writes one and `check` there proves it reads back to the same doubles --
+  and the evaluator accepts both spellings. The artifact's cairn id is the
+  digest of that rendering; the record's `bound_id` still names the measuring
+  repository's bytes, and the evidence record cites the latter. The fixtures
+  under `cairn/checkers/fixtures/` come in both forms, `*.bound.json` as
+  committed and `*.artifact.json` as submitted.
+- **Measured, not asserted.** Posted to a scratch log with the real binary:
+  `prime-rho-neg.artifact.json` scored `accept score 682064`,
+  `prime-bsgs-neg.artifact.json` `accept score 866743`, a copy with one
+  `mean_gae` altered `reject score 0`, and the un-rendered record was refused
+  for its floats. A worked copy of the same objective and artifacts is
+  proposed to cairn as `examples/bound-frontier/`, where cairn's own example
+  tests run it. `tools/exp_to_objective.py check` holds an evaluator objective
+  and its ratchet to these rules without a binary.
 
 What the network verifies is **internal consistency and the rules**: the
 record's per-size `S` recomputes from its own `gae` and `r`, the ratio to the
