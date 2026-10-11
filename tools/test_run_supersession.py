@@ -186,6 +186,60 @@ class PendingRawResultTests(SupersessionFixture):
             self.assertTrue(any(expected in e for e in errors), errors)
 
 
+class UnwrittenRawResultTests(SupersessionFixture):
+    """A failed_infrastructure envelope may name an unwritten raw result.
+
+    The absence is the observation. Creating the file would fabricate a
+    count the receipt says was never produced. The waiver is the sentence
+    plus a null outcome and a none certificate; a bare status does not
+    qualify, and neither does any other terminal status.
+    """
+
+    NOTE = "run.py did not write raw-result.json; claim_expired is not a label."
+
+    def unwritten_errors(self, status="failed_infrastructure", note=None,
+                         outcome=None, raw_result=None, kind="none"):
+        (self.run_dir / "raw-result.json").unlink(missing_ok=True)
+        result = {
+            "certificate": {"kind": kind},
+            "outcome": outcome,
+            "raw_result": raw_result,
+            "outcome_note": self.NOTE if note is None else note,
+        }
+        path = self.write_manifest(
+            "manifest.yaml", manifest_body(status=status, result=result))
+        ctx = vl.Ctx(set())
+        vl.check_run(str(path), ctx, {})
+        return ctx.errors
+
+    def test_named_absence_needs_no_fabricated_raw_result(self):
+        self.assertEqual(self.unwritten_errors(), [])
+
+    def test_bare_failed_infrastructure_still_owes_the_file(self):
+        errors = self.unwritten_errors(note="stopped; no scientific label")
+        self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                            for e in errors))
+
+    def test_a_present_outcome_or_claim_still_owes_the_file(self):
+        for kwargs in (
+            {"outcome": "O-E1"},
+            {"raw_result": "stage1/panels.json"},
+            {"kind": "discrete_log"},
+            {"kind": None},
+        ):
+            with self.subTest(**kwargs):
+                errors = self.unwritten_errors(**kwargs)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_other_statuses_cannot_use_the_sentence(self):
+        for status in ("completed", "failed", "cancelled", "running"):
+            with self.subTest(status=status):
+                errors = self.unwritten_errors(status=status)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+
 class DuplicateProcessIdentityTests(SupersessionFixture):
     SOURCE = "run:\n  id: RUN-SUP-001\n  process:\n    pid: 1\n  process:\n    pid: 2\n"
 

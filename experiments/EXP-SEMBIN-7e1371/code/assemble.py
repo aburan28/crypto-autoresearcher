@@ -184,6 +184,10 @@ def main():
     ap.add_argument("--task-id", required=True)
     ap.add_argument("--status", default="completed_valid")
     ap.add_argument("--validity-reason", required=True)
+    ap.add_argument("--engine-note", default=None,
+                    help="groebner_engine text for the manifest (default: the RUN-SEMBIN-9bb990 instruments)")
+    ap.add_argument("--code-change-note", default=None,
+                    help="code_change_note text for the manifest (default: the RUN-SEMBIN-9bb990 note)")
     args = ap.parse_args()
     run = Path(args.run_dir).resolve()
 
@@ -248,7 +252,7 @@ def main():
             "code_sha256_by_worker": {k: v.get("code_sha256") for k, v in envs.items()},
             "code_changed_during_run": len({json.dumps(v.get("code_sha256"), sort_keys=True)
                                             for v in envs.values()}) > 1,
-            "code_change_note": ("run_cert.py gained options while the run was in flight "
+            "code_change_note": args.code_change_note or ("run_cert.py gained options while the run was in flight "
                                  "(--draw-list, --no-single, and the chained-system exact counter). "
                                  "Each worker's environment.json records the hash of the code it "
                                  "actually ran; a worker launched before a change did not see it. "
@@ -267,9 +271,9 @@ def main():
             "processor_count": first.get("processor_count"),
             "libm4ri_dev": first.get("m4ri_package"),
             "gcc": first.get("gcc_version"),
-            "groebner_engine": "msolve 0.6.5 (F4, -v 2 -g 2 -u 1, explicit field equations) for the "
+            "groebner_engine": args.engine_note or ("msolve 0.6.5 (F4, -v 2 -g 2 -u 1, explicit field equations) for the "
                                "trace; libm4ri 20200125 via closure.c for the closure and single-level "
-                               "blocks; count_m2.c (no solver) for the exact solution counts",
+                               "blocks; count_m2.c (no solver) for the exact solution counts"),
             "source": "*/environment.json"},
         "inputs": {
             "specification": "experiments/EXP-SEMBIN-7e1371/specification.yaml (v1)",
