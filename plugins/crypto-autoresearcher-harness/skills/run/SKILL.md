@@ -6,7 +6,8 @@ description: Run existing experiment programs and report their outputs. Use for 
 # Run
 
 Execute existing experiments. Finish with actual run counts, results, failures,
-and output paths. This is the single public execution entry point.
+output paths, and each experiment's run report. This is the single public
+execution entry point.
 
 ## Find the program
 
@@ -46,6 +47,14 @@ infer membership from an identifier prefix. An empty or impeded goal-scoped list
 never falls back to the whole portfolio. Report the selected goal, attempted
 experiments, completed/failed trials, output paths, and any remaining impediment.
 
+A sparse checkout (`python3 tools/sparse_checkout.py status`,
+`docs/sparse-checkout.md`) keeps run archives and reference bundles off disk.
+A `needs_materialization` row, or a launch the runner refuses because run
+directories are off disk, needs one command: `python3 tools/sparse_checkout.py
+add --experiment <EXP-ID>`. A declared input that `git ls-files` lists but the
+disk lacks is outside the checkout, not missing: `add --path` it rather than
+reporting an impediment.
+
 ## Execute
 
 Run the existing program with its declared inputs, seeds, controls, and trial
@@ -69,17 +78,39 @@ author protocols, approval records, migrations, repair queues, or review plans
 just to satisfy a run request. Do not fetch/merge branches or start independent
 review as an automatic part of execution. Those are separate tasks.
 
+## Report each experiment
+
+After an experiment's trials finish (completed, failed, or timed out), write
+its run report as `research-visuals` describes under "Every experiment run"
+(`.claude/skills/research-visuals/SKILL.md`): a write-once directory
+`experiments/<EXP-ID>/reports/run-<YYYYMMDDTHHMMZ>/` holding a report of what
+ran and what it measured, at least one graph of the recorded data (or a
+diagram of what ran when there is nothing to compare), and `report.pdf`
+rendered from them and inspected. One report per experiment per session,
+covering every run directory this session wrote for it. Never write into a run
+directory or edit an earlier report.
+
+The report describes outputs; it is not a review. It states no verdict,
+support, weakening, or significance, plots recorded values only, and computes
+nothing new beyond labeled arithmetic on recorded values. It does not delay
+the run records: commit and push those first (below), then the report. If no
+renderer can be installed, commit the report source and graphs and state the
+blocker; do not skip the report.
+
 ## Publish the run records
 
 Run records left only in a working tree are not evidence and are invisible to
 the next session, which then runs the same trials again. When trials finish,
 commit the run directories this session wrote (`experiments/<EXP-ID>/runs/...`
 and nothing else) on the session's own branch and push it, so the selector's
-`off_main_runs` column shows them to every later `run` session. Open or refresh
+`off_main_runs` column shows them to every later `run` session. Commit and push
+each experiment's report directory (`experiments/<EXP-ID>/reports/run-*/`)
+next, on the same branch. Open or refresh
 a PR for that branch with the runtime's PR tool when one is available; this is
 publication of observations, not review, archival, or a research-state change.
 Never amend or rewrite a pushed run commit, and never commit ledger records,
-specification edits, or generated indexes from this skill.
+specification edits, generated indexes, or anything outside those run and report
+directories from this skill.
 
 If a launcher, necessary input, ownership, or runtime admission is unavailable,
 report the exact impediment once. For an unqualified run, continue other runnable
@@ -91,8 +122,9 @@ change is reported separately, not silently made during this skill.
 
 Retain commands, parameters/seeds, code and environment identity, logs, raw
 outputs, elapsed time, and failed attempts using the runner's existing output
-format. Report what actually completed and where its outputs are. State any
-missing data without fabricating receipts. A failed process is not a mathematical
+format. Report what actually completed, where its outputs are, and where each
+experiment's run report and PDF are. State any missing data without
+fabricating receipts. A failed process is not a mathematical
 refutation, and a successful run alone does not promote a scientific claim.
 
 Continue existing runnable work within the user's requested scope. Stop at the
