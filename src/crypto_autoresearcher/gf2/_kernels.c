@@ -958,6 +958,114 @@ int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const
     return err ? -1 : 0;
 }
 
+/*
+ * acc (W words, zeroed by the caller) ^= every Macaulay row mu[i] * f_{k[i]},
+ * i < n, in the same column order as gf2_build_rows; no row is materialised.
+ * Used to check that a certificate sums to 1.
+ */
+int gf2_rows_sum(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const u64 *mu,
+                 const i32 *k, i64 W, u64 *acc)
+{
+    if (nv < 1 || nv > 64 || D < 0)
+        return -1;
+    i64 *B = (i64 *)malloc((size_t)(nv + 1) * (D + 1) * sizeof(i64));
+    i64 *off = (i64 *)malloc((size_t)(D + 2) * sizeof(i64));
+    if (!B || !off) {
+        free(B); free(off);
+        return -1;
+    }
+    binom_table(nv, D, B);
+    off[D] = 0;
+    for (int d = D - 1; d >= 0; d--)
+        off[d] = off[d + 1] + B[(size_t)nv * (D + 1) + d + 1];
+    int err = 0;
+    for (i64 i = 0; i < n && !err; i++) {
+        const u64 *f = emon + eoff[k[i]];
+        i64 len = eoff[k[i] + 1] - eoff[k[i]];
+        for (i64 t = 0; t < len; t++) {
+            u64 x = mu[i] | f[t];
+            int d = __builtin_popcountll(x);
+            if (d > D) {
+                err = 1;
+                break;
+            }
+            i64 r = 0;
+            int idx = 1;
+            while (x) {
+                int b = __builtin_ctzll(x);
+                x &= x - 1;
+                r += B[(size_t)b * (D + 1) + idx];
+                idx++;
+            }
+            i64 c = off[d] + r;
+            if ((c >> 6) >= W) {
+                err = 1;
+                break;
+            }
+            acc[c >> 6] ^= 1ULL << (c & 63);
+        }
+    }
+    free(B); free(off);
+    return err ? -1 : 0;
+}
+
+/*
+ * One 64-column step of the blocked column pass on the active rows' words
+ * alone (the trailing update is left to the caller, e.g. a GPU). val[a] is
+ * word w of active row a (rows ascending; every val[a] is nonzero and has
+ * its lowest bit at its lead). For each column b < nbits, the smallest active
+ * row whose current lowest bit is b becomes pivot slot s (piv_a[s] = a,
+ * piv_b[s] = b) and is XORed into every other active row with bit b, exactly
+ * as gf2_column_pass_blocked_mt does. On return val holds the reduced words
+ * and coef[a] the set of pivot slots whose pre-step rows were added to row a
+ * (for a pivot, those added before it became one). Returns the pivot count.
+ */
+int gf2_block_elim(u64 *val, i64 na, int nbits, u64 *coef, i32 *piv_a, i32 *piv_b)
+{
+    size_t nwa = ((size_t)na + 63) / 64;
+    u64 *bm = (u64 *)calloc(64 * (nwa ? nwa : 1), sizeof(u64));
+    if (!bm)
+        return -1;
+    for (i64 a = 0; a < na; a++) {
+        coef[a] = 0;
+        if (!val[a])
+            continue;
+        int b = __builtin_ctzll(val[a]);
+        bm[(size_t)b * nwa + (a >> 6)] |= 1ULL << (a & 63);
+    }
+    int npiv = 0;
+    for (int b = 0; b < nbits; b++) {
+        u64 *bb = bm + (size_t)b * nwa;
+        size_t q = 0;
+        while (q < nwa && !bb[q])
+            q++;
+        if (q == nwa)
+            continue;
+        i64 p = (i64)(q * 64 + __builtin_ctzll(bb[q]));
+        bb[q] &= bb[q] - 1;
+        int slot = npiv++;
+        piv_a[slot] = (i32)p;
+        piv_b[slot] = b;
+        u64 pv = val[p], pc = coef[p] ^ (1ULL << slot);
+        for (; q < nwa; q++) {
+            u64 word = bb[q];
+            bb[q] = 0;
+            while (word) {
+                i64 x = (i64)(q * 64 + __builtin_ctzll(word));
+                word &= word - 1;
+                val[x] ^= pv;
+                coef[x] ^= pc;
+                if (val[x]) {
+                    int nb = __builtin_ctzll(val[x]);
+                    bm[(size_t)nb * nwa + (x >> 6)] |= 1ULL << (x & 63);
+                }
+            }
+        }
+    }
+    free(bm);
+    return npiv;
+}
+
 /* lead[i] = lowest set column of row i (-1 if none), weight[i] = popcount. */
 HOT void gf2_row_lead_weight(const u64 *M, i64 R, i64 W, i64 *lead, i64 *weight)
 {
