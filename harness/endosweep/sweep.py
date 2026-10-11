@@ -204,9 +204,9 @@ def build_catalogue(T: Target, D: int | None, lam_omega: int | None, opts: Sweep
                           "step_cost_M": CM.isogeny_step_cost(ell),
                           "cost_per_height_bit_M": per_bit,
                           "beta": beta})
-    # declared extension-field generators
+    # declared extension-field generators (a declared cost_M overrides the table)
     for dg in T.declared_generators:
-        cost = CM.ENDOMORPHISM_COSTS[dg["cost_key"]]["M"]
+        cost = dg["cost_M"] if "cost_M" in dg else CM.ENDOMORPHISM_COSTS[dg["cost_key"]]["M"]
         g = CM.Generator(dg["name"], dg["eigenvalue"] % n, cost, dg["kind"],
                          detail={"order_mod_n": dg.get("order_mod_n")})
         gens[f"declared:{dg['name']}"] = g
@@ -316,6 +316,19 @@ def enumerate_configurations(T: Target, D, lam_omega, gens, pumps, opts: SweepOp
                                     [one, unit, A, _product(unit, A, n), B, _product(unit, B, n),
                                      _product(A, B, n), _product(unit, _product(A, B, n), n)],
                                     "no literature match found: unit x two-cycle box (this sweep)"))
+    # declared automorphisms of higher order (zeta_5 on a Buhler-Koblitz
+    # Jacobian, zeta_8 on a Furukawa-Kawazoe-Takahashi one): the power basis
+    # {u^i : i < phi(m)} spans the rank-phi(m) ring Z[zeta_m]
+    from sympy import totient
+    for g in gens.values():
+        m = g.detail.get("order_mod_n") if g.kind == "unit" else None
+        if m and m >= 5:
+            dmax = min(int(totient(m)), opts.max_dim)
+            for d in range(2, dmax + 1):
+                gl = [_power(g, i, n) for i in range(d)]
+                known = ("Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian "
+                         "(Bos-Costello-Hisil-Lauter 2013)" if d == int(totient(m)) else "power basis of a higher-order automorphism")
+                configs.append((f"auto-{d} [{g.name}^(0..{d-1})]", gl, known))
     # declared Frobenius-type generators: monomial boxes
     frob = [g for g in gens.values() if g.kind == "frobenius"]
     units_decl = [g for g in gens.values() if g.kind == "unit" and g is not unit] + ([unit] if unit else [])
@@ -336,6 +349,30 @@ def enumerate_configurations(T: Target, D, lam_omega, gens, pumps, opts: SweepOp
                 known = ("Longa-Sica 2012 4-GLV (GLV x GLS)" if d == 2
                          else "unit x Frobenius-power box")
                 configs.append((f"frob-{2*d} [{u.name} x {f.name}^(0..{d-1})]", gl, known))
+            # a higher-order automorphism (zeta_5, zeta_8: rank phi(m)) times the
+            # Frobenius powers: the Bos-Costello-Hisil-Lauter 8-dimensional box
+            m = u.detail.get("order_mod_n")
+            if m and m >= 5:
+                from sympy import totient
+                r = int(totient(m))
+                for d in range(2, min(order, max(2, opts.max_dim // r)) + 1):
+                    gl = []
+                    for i in range(d):
+                        fi = _power(f, i, n)
+                        for j in range(r):
+                            uj = _power(u, j, n)
+                            if i == 0 and j == 0:
+                                gl.append(one)
+                            elif i == 0:
+                                gl.append(uj)
+                            elif j == 0:
+                                gl.append(fi)
+                            else:
+                                gl.append(_product(uj, fi, n))
+                    if len(gl) <= opts.max_dim:
+                        configs.append((f"frob-{len(gl)} [{u.name}^(0..{r-1}) x {f.name}^(0..{d-1})]", gl,
+                                        "Bos-Costello-Hisil-Lauter 2013 8-dimensional (zeta x GLS on a genus-2 Jacobian)"
+                                        if len(gl) == 8 else "automorphism power basis x Frobenius-power box"))
     # de-duplicate by eigenvalue multiset and cap dimension
     seen = set()
     out = []
@@ -522,6 +559,10 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     opts = SweepOptions(disc_bound=args.disc_bound, max_dim=args.max_dim, lattice_samples=args.samples,
                         affine_tables=not args.projective_tables)
+    if not args.no_synthetic:
+        from .genus2 import install_counted_model
+        counted = install_counted_model()
+        print(f"genus-2 affine Cantor counts measured: {counted}")
     T = all_targets(include_synthetic=not args.no_synthetic)
     if args.targets != "all":
         subs = [s.strip().lower() for s in args.targets.split(",")]

@@ -200,23 +200,70 @@ class Isomorphism:
         return (self.E.F.mul(self.u2, P[0]), self.E.F.mul(self.u3, P[1]))
 
 
+def prime_nth_roots(r: int, n: int, p: int) -> list[int]:
+    """All n-th roots of r modulo the prime p, n prime (Adleman-Manders-Miller).
+
+    sympy's generic ``nthroot_mod`` can take minutes at 256-bit primes; this is
+    the textbook Tonelli-Shanks generalisation and is instant.
+    """
+    r %= p
+    if r == 0:
+        return [0]
+    if (p - 1) % n:
+        # n is invertible mod p-1: the unique root is r^(n^-1)
+        return [pow(r, pow(n, -1, p - 1), p)]
+    if pow(r, (p - 1) // n, p) != 1:
+        return []
+    s, t = 0, p - 1
+    while t % n == 0:
+        s += 1
+        t //= n
+    # a non-residue and the generator b of the n-Sylow subgroup
+    rho = 2
+    while pow(rho, (p - 1) // n, p) == 1:
+        rho += 1
+    b = pow(rho, t, p)
+    zeta = pow(b, n ** (s - 1), p)             # primitive n-th root of unity
+    zpows = [pow(zeta, j, p) for j in range(n)]
+    # discrete log of x = r^t in <b> (order n^s), digit by digit
+    x = pow(r, t, p)
+    e = 0
+    for i in range(s):
+        y = pow(x * pow(b, (-e) % (p - 1), p) % p, n ** (s - 1 - i), p)
+        digit = zpows.index(y)
+        e += digit * n ** i
+    assert e % n == 0
+    y = pow(b, e // n, p)                       # y^n = r^t
+    v = pow(t, -1, n)
+    w = (t * v - 1) // n
+    z = pow(r, (-w) % (p - 1), p) * pow(y, v, p) % p
+    assert pow(z, n, p) == r
+    return sorted({z * zj % p for zj in zpows})
+
+
 def isomorphism_to(E1: Curve, E2: Curve):
     """An F_p-isomorphism E1 -> E2 (same j), or None if they are twists."""
     p = E1.p
     if E1.a == 0 and E2.a == 0:
         ratio = E2.b * pow(E1.b, -1, p) % p
-        for u in nthroot_mod(ratio, 6, p, all_roots=True) or []:
-            iso = Isomorphism(E1, int(u))
-            if (iso.codomain.a, iso.codomain.b) == (E2.a, E2.b):
-                return iso
+        for c in prime_nth_roots(ratio, 3, p):               # u^6 = ratio: u^2 = cube root
+            for u in prime_nth_roots(c, 2, p):
+                iso = Isomorphism(E1, int(u))
+                if (iso.codomain.a, iso.codomain.b) == (E2.a, E2.b):
+                    return iso
+        return None
+    if E1.b == 0 and E2.b == 0:
+        ratio = E2.a * pow(E1.a, -1, p) % p
+        for c in prime_nth_roots(ratio, 2, p):               # u^4 = ratio
+            for u in prime_nth_roots(c, 2, p):
+                iso = Isomorphism(E1, int(u))
+                if (iso.codomain.a, iso.codomain.b) == (E2.a, E2.b):
+                    return iso
         return None
     if E1.a and E2.a and E1.b and E2.b:
         r = E2.b * pow(E1.b, -1, p) * E1.a * pow(E2.a, -1, p) % p
-        u = sqrt_mod(r, p)
-        if u is None:
-            return None
-        for cand in (int(u), (-int(u)) % p):
-            iso = Isomorphism(E1, cand)
+        for u in prime_nth_roots(r, 2, p):
+            iso = Isomorphism(E1, int(u))
             if (iso.codomain.a, iso.codomain.b) == (E2.a, E2.b):
                 return iso
     return None
@@ -286,6 +333,71 @@ def j0_curve_with_7_torsion(bits: int, seed: int = 1):
 
 
 HILBERT_CLASS_POLY_M23 = [1, 3491750, -5151296875, 12771880859375]   # H_{-23}(x), degree 3
+HILBERT_CLASS_POLY_M7 = [1, 3375]                                       # H_{-7}(x) = x + 3375
+
+
+def cm_curve_from_class_polynomial(D: int, hilbert: list[int], bits: int, seed: int = 1,
+                                   max_cofactor: int = 64):
+    """A curve of any size with CM by the maximal order of disc D, from H_D (high-first coeffs).
+
+    Finds p with 4p = A^2 + |D| B^2 (so p splits into principal ideals), takes a
+    root j of H_D mod p (python-flint when available), builds a curve with that j,
+    and picks the twist and the cofactor <= max_cofactor that leave a prime
+    subgroup order n > 4 sqrt(p).  Returns (E, N, n, t, j).  The trace found by
+    testing the group order must satisfy t^2 - 4p = D f^2, which checks H_D.
+    """
+    rng = random.Random(seed)
+    tau = D % 2
+    absD = -D
+    while True:
+        # 4p = A^2 + |D| B^2 with A = B (mod 2) when D is odd, A even when D is even
+        B = rng.randrange(1 << (bits // 2 - absD.bit_length() // 2 - 1), 1 << (bits // 2 - absD.bit_length() // 2))
+        A = rng.randrange(1 << (bits // 2 - 1), 1 << (bits // 2))
+        if (A - B * tau) % 2:
+            A += 1
+        m = A * A + absD * B * B
+        if m % 4:
+            continue
+        p = m // 4
+        if p % 2 == 0 or not isprime(p):
+            continue
+        try:
+            import flint  # type: ignore
+            ctx = flint.fmpz_mod_poly_ctx(p)
+            js = [int(r) % p for r, _ in ctx(list(reversed([c % p for c in hilbert]))).roots()]
+        except ImportError:
+            from sympy import Poly, symbols
+            x = symbols("x")
+            js = [int(r) % p for r in Poly(sum(c * x ** (len(hilbert) - 1 - i) for i, c in enumerate(hilbert)),
+                                            x, modulus=p).ground_roots()]
+        if not js:
+            continue
+        # the two twists of a curve with this j have traces +-A; find each twist's
+        # trace with one scalar multiplication, then look for a small cofactor
+        from math import isqrt
+        from sympy.ntheory import sqrt_mod
+        nonres = next(z for z in range(2, 200) if sqrt_mod(z, p) is None)
+        for j0 in js:
+            if j0 in (0, 1728 % p):
+                continue
+            k = j0 * pow((1728 - j0) % p, -1, p) % p
+            a0, b0 = 3 * k % p, 2 * k % p
+            for tw in (1, nonres):
+                E = Curve(p, a0 * tw ** 2 % p, b0 * tw ** 3 % p)
+                P = E.point(seed)
+                t = next((tt for tt in (A, -A) if E.mul(p + 1 - tt, P) is None), None)
+                if t is None:
+                    continue
+                Nord = p + 1 - t
+                for h in range(1, max_cofactor + 1):
+                    if Nord % h == 0 and Nord // h > 4 * isqrt(p) and isprime(Nord // h):
+                        n = Nord // h
+                        if E.mul(Nord // n, P) is None:
+                            continue                      # unlucky point of small order
+                        f2 = (4 * p - t * t) // absD
+                        f = isqrt(f2)
+                        assert f * f == f2 and (t * t - 4 * p) == D * f * f, "trace does not match CM by D"
+                        return E, Nord, n, t, j0
 
 
 def cm23_curve(bits: int, seed: int = 1):

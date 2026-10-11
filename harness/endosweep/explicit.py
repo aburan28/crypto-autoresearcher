@@ -177,7 +177,29 @@ X = symbols("x")
 
 
 def _factor_mod_p(f: list[int], p: int) -> list[tuple[list[int], int]]:
-    """Irreducible factors of f over F_p as (coeff list low-first, multiplicity)."""
+    """Irreducible factors of f over F_p as (coeff list low-first, multiplicity).
+
+    Uses python-flint when it is installed (C-speed Cantor-Zassenhaus; the
+    31-division polynomial of degree 480 over a 256-bit field factors in well
+    under a second) and falls back to sympy otherwise (fine up to ell = 7).
+    Both paths return the same factorisation; a test pins that.
+    """
+    try:
+        import flint  # type: ignore
+    except ImportError:
+        flint = None
+    if flint is not None:
+        ctx = flint.fmpz_mod_poly_ctx(p)
+        poly = ctx([int(c) % p for c in f])
+        _, facs = poly.factor()
+        out = []
+        for g, e in facs:
+            coeffs = [int(c) % p for c in g.coeffs()]
+            # make monic (flint returns monic factors already; keep it explicit)
+            inv = pow(coeffs[-1], -1, p)
+            coeffs = [c * inv % p for c in coeffs]
+            out.append((coeffs, int(e)))
+        return out
     expr = sum(c * X ** i for i, c in enumerate(f))
     _, facs = Poly(expr, X, modulus=p).factor_list()
     out = []
@@ -203,9 +225,175 @@ def _is_isogeny_kernel(E: Curve, h: list[int], ell: int, seed: int = 11) -> bool
     return True
 
 
-def rational_kernels(E: Curve, ell: int, fdiv: dict[int, list[int]]) -> list[list[int]]:
-    """Monic kernel polynomials h(x) in F_p[x] of the rational subgroups of order ell."""
+def _flint():
+    try:
+        import flint  # type: ignore
+        return flint
+    except ImportError:
+        return None
+
+
+def division_polynomials_flint(p: int, a: int, b: int, upto: int) -> dict[int, list[int]]:
+    """Same as ``division_polynomials`` but with C-speed polynomial arithmetic (python-flint)."""
+    flint = _flint()
+    ctx = flint.fmpz_mod_poly_ctx(p)
+    a %= p
+    b %= p
+    F = ctx([b, a, 0, 1])
+    F2 = F * F
+    f = {0: ctx([0]), 1: ctx([1]), 2: ctx([2]),
+         3: ctx([(-a * a) % p, 12 * b % p, 6 * a % p, 0, 3]),
+         4: ctx([(-8 * b * b - a ** 3) % p, (-4 * a * b) % p, (-5 * a * a) % p, 20 * b % p, 5 * a % p, 0, 1]) * 4}
+    inv2 = pow(2, -1, p)
+    for n in range(5, upto + 1):
+        m = n // 2
+        if n % 2 == 1:
+            t1 = f[m + 2] * f[m] ** 3
+            t2 = f[m - 1] * f[m + 1] ** 3
+            f[n] = (F2 * t1 - t2) if m % 2 == 0 else (t1 - F2 * t2)
+        else:
+            f[n] = f[m] * (f[m + 2] * f[m - 1] ** 2 - f[m - 2] * f[m + 1] ** 2) * inv2
+    return {k: [int(c) % p for c in v.coeffs()] if v.degree() >= 0 else [0] for k, v in f.items()}
+
+
+def rational_kernels_frobenius(E: Curve, ell: int, trace: int, fdiv: dict[int, list[int]]) -> list[list[int]]:
+    """Kernel polynomials of the rational order-ell subgroups via Frobenius eigenvalues.
+
+    A rational cyclic subgroup C of E[ell] is an eigenspace of Frobenius: pi
+    acts on it as a scalar mu with mu^2 - t mu + p = 0 (mod ell).  For P in C,
+    x(P)^p = x([mu]P) = x - psi_(mu-1) psi_(mu+1) / psi_mu^2, so the kernel
+    polynomial of C divides gcd(f_ell, x^p * den - x * den + num) with
+    (num, den) the x-coordinate formula of [mu] written through the f_n.
+    Needs python-flint for x^p mod f_ell at large ell; exact.
+    """
+    flint = _flint()
+    if flint is None:
+        return []
+    p = E.p
+    from sympy.ntheory import sqrt_mod
+    disc = (trace * trace - 4 * p) % ell
+    roots = sqrt_mod(disc, ell, all_roots=True) or []
+    inv2 = pow(2, -1, ell)
+    mus = sorted({(trace + int(r)) * inv2 % ell for r in roots} | {(trace - int(r)) * inv2 % ell for r in roots})
+    if not mus:
+        return []
+    ctx = flint.fmpz_mod_poly_ctx(p)
+    fl = ctx(fdiv[ell])
+    Fpoly = ctx([E.b, E.a, 0, 1])
+    xp = ctx([0, 1]).pow_mod(p, fl)
+    x = ctx([0, 1])
+    out = []
     s = (ell - 1) // 2
+    for mu in mus:
+        if mu == 0:
+            continue
+        m = mu
+        need = max(m + 1, 4)
+        fd = fdiv if need in fdiv else division_polynomials_flint(p, E.a, E.b, need)
+        fm, fm1, fp1 = ctx(fd[m]), ctx(fd[m - 1]) if m >= 1 else ctx([0]), ctx(fd[m + 1])
+        if m % 2 == 1:
+            num, den = Fpoly * fm1 * fp1, fm * fm
+        else:
+            num, den = fm1 * fp1, Fpoly * fm * fm
+        cond = (xp * den - x * den + num) % fl
+        g = fl.gcd(cond)
+        if g.degree() == s:
+            h = [int(c) % p for c in g.coeffs()]
+            inv = pow(h[-1], -1, p)
+            h = [c * inv % p for c in h]
+            if _is_isogeny_kernel(E, h, ell):
+                out.append(h)
+        elif g.degree() > s:
+            # More than one subgroup shares this eigenvalue: Frobenius is the scalar mu on all of E[ell]
+            # (ell divides the conductor of Z[pi]) or t = 0 (mod ell).  A kernel polynomial is then a
+            # product of irreducible factors of g, one per Frobenius orbit, so group them by subgroup.
+            facs = [fac for fac, _e in _factor_mod_p([int(c) % p for c in g.coeffs()], p)]
+            out.extend(k for k in _kernels_from_orbits(E, ell, facs, fdiv) if k not in out)
+    return out
+
+
+def _kernels_from_orbits(E: Curve, ell: int, factors: list[list[int]], fdiv: dict[int, list[int]]) -> list[list[int]]:
+    """Kernel polynomials of the rational order-ell subgroups whose x-coordinates are roots of ``factors``.
+
+    For a root X of one irreducible factor (a point P of order ell over an
+    extension), the kernel polynomial of <P> is prod_{k=1..s} (Y - x([k]P)),
+    with x([k]P) = X - num_k(X) / den_k(X) through the f_n as in
+    ``rational_kernels_frobenius``.  Computed in F_p[X]/(factor), its
+    coefficients are constants exactly when <P> is rational; every factor
+    dividing it belongs to the same subgroup and is not tried again.  This is
+    linear in the number of subgroups where trying products of factors is
+    exponential (on a curve where Frobenius is a scalar of order 3 on E[43],
+    f_43 splits into 308 cubics and each kernel is a product of 7 of them).
+    """
+    flint = _flint()
+    p = E.p
+    s = (ell - 1) // 2
+    fd = fdiv if all(k in fdiv for k in range(s + 2)) else division_polynomials_flint(p, E.a, E.b, s + 2)
+    ctx = flint.fmpz_mod_poly_ctx(p)
+    Fpoly = ctx([E.b, E.a, 0, 1])
+    G = [ctx(g) for g in factors]
+    done = [g.degree() > s for g in G]
+    out: list[list[int]] = []
+    for i, g in enumerate(G):
+        if done[i]:
+            continue
+        done[i] = True
+        X = ctx([0, 1]) % g
+        F = [ctx(fd[k]) % g for k in range(s + 2)]
+        Fp = Fpoly % g
+        h = [ctx([1])]                                  # coefficients in F_p[X]/(g), low-first
+        for k in range(1, s + 1):
+            if k % 2 == 1:
+                num, den = Fp * F[k - 1] * F[k + 1] % g, F[k] * F[k] % g
+            else:
+                num, den = F[k - 1] * F[k + 1] % g, Fp * F[k] * F[k] % g
+            xk = (X - num * den.inverse_mod(g)) % g
+            nh = [ctx([0]) for _ in range(len(h) + 1)]
+            for j, c in enumerate(h):
+                nh[j + 1] = nh[j + 1] + c
+                nh[j] = (nh[j] - c * xk) % g
+            h = nh
+        if any(c.degree() > 0 for c in h):
+            continue                                    # <P> is not rational
+        hk = [int(c.coeffs()[0]) % p if c.degree() >= 0 else 0 for c in h]
+        H = ctx(hk)
+        for j in range(len(G)):
+            if not done[j] and (H % G[j]).is_zero():
+                done[j] = True
+        if hk not in out and _is_isogeny_kernel(E, hk, ell):
+            out.append(hk)
+    return out
+
+
+def rational_two_kernels(E: Curve) -> list[list[int]]:
+    """Kernel polynomials x - x2 of the rational subgroups of order 2: rational roots of x^3 + a x + b."""
+    p = E.p
+    cubic = [E.b % p, E.a % p, 0, 1]
+    roots: list[int] = []
+    fl = _flint()
+    if fl is not None:
+        ctx = fl.fmpz_mod_poly_ctx(p)
+        roots = [int(r) % p for r, _m in ctx(cubic).roots()]
+    else:
+        from sympy import Poly
+        roots = [int(r) % p for r in Poly(sum(c * X ** i for i, c in enumerate(cubic)), X, modulus=p).ground_roots()]
+    out = []
+    for x2 in sorted(set(roots)):
+        h = [(-x2) % p, 1]
+        if _is_isogeny_kernel(E, h, 2):
+            out.append(h)
+    return out
+
+
+def rational_kernels(E: Curve, ell: int, fdiv: dict[int, list[int]], trace: int | None = None) -> list[list[int]]:
+    """Monic kernel polynomials h(x) in F_p[x] of the rational subgroups of order ell."""
+    if ell == 2:
+        return rational_two_kernels(E)
+    s = (ell - 1) // 2
+    if trace is not None and ell > 7 and _flint() is not None:
+        found = rational_kernels_frobenius(E, ell, trace, fdiv)
+        if found:
+            return found
     facs = [(g, e) for g, e in _factor_mod_p(fdiv[ell], E.p)]
     pieces = []
     for g, e in facs:
@@ -252,6 +440,18 @@ class KernelIsogeny:
         self.E, self.h, self.ell = E, list(h), ell
         p, a, b = E.p, E.a, E.b
         s = len(h) - 1
+        if ell == 2:
+            # kernel {O, (x2, 0)}: h = x - x2, v = 3 x2^2 + a (no +-pair, so no factor 2), u = 0
+            if s != 1 or h[-1] != 1:
+                raise ValueError("a 2-isogeny kernel polynomial is monic linear")
+            x2 = (-h[0]) % p
+            v = (3 * x2 * x2 + a) % p
+            self.ps = [1, x2, x2 * x2 % p, pow(x2, 3, p)]
+            self.codomain = Curve(p, (a - 5 * v) % p, (b - 7 * x2 * v) % p, E.F)
+            self.vT = _trim([v])            # constant: v_i for the single root
+            self.uT = [0]
+            self.s = 1
+            return
         if s != (ell - 1) // 2 or h[-1] != 1:
             raise ValueError("kernel polynomial must be monic of degree (ell-1)/2")
         # elementary symmetric functions: h = x^s - e1 x^(s-1) + e2 x^(s-2) - ...
@@ -319,6 +519,8 @@ class ChainResult:
     lambda_omega: int | None = None
     walk_js: list[int] = field(default_factory=list)
     intermediate_curves: list[tuple[int, int]] = field(default_factory=list)
+    kernel_polys: list[list[int]] = field(default_factory=list)   # monic, low-first, per step
+    isomorphism_u: int | None = None                               # (x,y) -> (u^2 x, u^3 y) back to E
     walks_examined: int = 0
     glv_check: dict = field(default_factory=dict)
     note: str = ""
@@ -338,45 +540,88 @@ def point_of_order(E: Curve, n: int, cofactor: int, seed: int = 2):
 
 def build_chain_endomorphism(p: int, a: int, b: int, n: int, cofactor: int, D: int,
                              element: tuple[int, int], *, curve_name: str = "",
-                             seed: int = 2) -> ChainResult:
+                             seed: int = 2, steps: list[int] | None = None,
+                             conjugates: bool = True,
+                             omega_root: int | None = None) -> ChainResult:
+    """Build the endomorphism ``element`` as a closed walk of prime-degree isogenies.
+
+    ``steps`` fixes the order of the prime-degree steps; it must be an
+    ordering of the prime factors of the element's norm (default: ascending).
+    Every ordering of the same factors gives the same endomorphism (the
+    kernel ``E[(alpha)]`` factors through the prime ideals in any order) but
+    a different walk through the isogeny class, hence different constants
+    and, for an implementation, a different cost.  With ``conjugates=False``
+    only a walk acting as the element itself, up to units, is accepted;
+    otherwise the conjugate's walk is accepted too (the same cost, the other
+    eigenvalue).  "The element itself" is relative to which root of
+    omega's minimal polynomial mod n is taken as omega's eigenvalue, since
+    conjugation swaps the roots: pass ``omega_root`` to fix it (it must be
+    one of the roots), so that every ordering of one element is matched to
+    the same eigenvalue.
+    """
     E = Curve(p, a, b)
     ea, eb = element
     el = QO.RingElement(D, ea, eb)
     N = el.norm
     fac = factorint(N)
-    steps: list[int] = []
+    canonical: list[int] = []
     for ell in sorted(fac):
-        steps += [ell] * fac[ell]
-    res = ChainResult(curve_name, D, element, N, steps, False)
-    if any(ell == 2 for ell in steps):
-        res.note = "degree-2 steps not implemented in kernel-polynomial form"
-        return res
+        canonical += [ell] * fac[ell]
+    if steps is None:
+        steps = canonical
+    else:
+        steps = [int(s) for s in steps]
+        if sorted(steps) != canonical:
+            raise ValueError(f"steps {steps} are not an ordering of the prime factors of N = {N}")
+    res = ChainResult(curve_name, D, element, N, list(steps), False)
     P = point_of_order(E, n, cofactor, seed)
     lam_roots = QO.omega_eigenvalues(D, n)
     if not lam_roots:
         res.note = "omega has no eigenvalue mod n"
         return res
+    if omega_root is not None:
+        if omega_root % n not in lam_roots:
+            raise ValueError("omega_root is not a root of omega's minimal polynomial mod n")
+        lam_roots = [omega_root % n]
     # candidate scalars: the element's unit/conjugation orbit under each root
     cands: dict[int, tuple[tuple[int, int], int]] = {}
+    bases = ((ea, eb), QO.conjugate(D, ea, eb)) if conjugates else ((ea, eb),)
     for lam_w in lam_roots:
-        for base in ((ea, eb), QO.conjugate(D, ea, eb)):
+        for base in bases:
             for u in QO.units(D):
                 a_, b_ = QO.multiply(D, base, u)
                 cands[QO.eigenvalue(D, a_, b_, lam_w, n)] = ((a_, b_), lam_w)
-    # precompute division polynomials once per curve lazily
+    # precompute division polynomials once per curve lazily; isogenous curves
+    # share the trace, which the Frobenius-eigenvalue kernel finder needs
+    trace = p + 1 - cofactor * n
     cache: dict[tuple[int, int, int], list[list[int]]] = {}
 
     def kernels(cur: Curve, ell: int) -> list[list[int]]:
         key = (cur.a, cur.b, ell)
         if key not in cache:
-            fdiv = division_polynomials(cur.p, cur.a, cur.b, ell)
-            cache[key] = rational_kernels(cur, ell, fdiv)
+            fdiv = (division_polynomials_flint(cur.p, cur.a, cur.b, ell) if _flint() is not None
+                    else division_polynomials(cur.p, cur.a, cur.b, ell))
+            cache[key] = rational_kernels(cur, ell, fdiv, trace=trace)
         return cache[key]
 
     j0 = E.j()
     walks: list[list[KernelIsogeny]] = []
 
-    def dfs(cur: Curve, maps: list[KernelIsogeny], prev_j, depth: int):
+    dual_rng = random.Random(seed + 99)
+
+    def is_dual_of_previous(iso: KernelIsogeny, prev: KernelIsogeny) -> bool:
+        """iso o prev = +-[ell] on prev's domain (up to the isomorphism back)?"""
+        if iso.ell != prev.ell or iso.codomain.j() != prev.E.j():
+            return False
+        back = isomorphism_to(iso.codomain, prev.E)
+        if back is None:
+            return False
+        R = prev.E.point(dual_rng.randrange(1 << 30))
+        S = back(iso(prev(R)))
+        lR = prev.E.mul(iso.ell, R)
+        return S == lR or S == prev.E.neg(lR)
+
+    def dfs(cur: Curve, maps: list[KernelIsogeny], depth: int):
         if depth == len(steps):
             if cur.j() == j0:
                 walks.append(list(maps))
@@ -384,12 +629,11 @@ def build_chain_endomorphism(p: int, a: int, b: int, n: int, cofactor: int, D: i
         ell = steps[depth]
         for h in kernels(cur, ell):
             iso = KernelIsogeny(cur, h, ell)
-            cj = iso.codomain.j()
-            if cj == prev_j:
-                continue               # immediate backtrack along the dual
-            dfs(iso.codomain, maps + [iso], cur.j(), depth + 1)
+            if maps and is_dual_of_previous(iso, maps[-1]):
+                continue               # backtracking along the dual gives [ell], never a cyclic chain
+            dfs(iso.codomain, maps + [iso], depth + 1)
 
-    dfs(E, [], None, 0)
+    dfs(E, [], 0)
     res.walks_examined = len(walks)
     for walk in walks:
         last = walk[-1].codomain
@@ -408,6 +652,8 @@ def build_chain_endomorphism(p: int, a: int, b: int, n: int, cofactor: int, D: i
                 res.lambda_omega = lam_w
                 res.walk_js = [E.j()] + [m.codomain.j() for m in walk]
                 res.intermediate_curves = [(m.codomain.a, m.codomain.b) for m in walk]
+                res.kernel_polys = [list(m.h) for m in walk]
+                res.isomorphism_u = iso.u
                 # end-to-end GLV-2 check with explicit images
                 red = LA.reduce([1, lam], n)
                 rng = random.Random(seed + 1)
