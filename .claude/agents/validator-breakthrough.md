@@ -8,7 +8,11 @@ description: >-
   claim-changing validation goes to `validator`. Never changes research status
   or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
-model: inherit
+model: claude-fable-5-1
+# Pinned, not inherited: roles.yaml runtime_model_pins -> validator-breakthrough
+# -> model-bindings.yaml anthropic binding of review-breakthrough (Claude
+# Fable 5.1). Edit the binding, never this line; tools/check_runtime_bindings.py
+# fails the build when they disagree.
 # Policy-tier variant of `validator` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
 # review-breakthrough is `degradable: false`: reviewing a claimed break at a
@@ -23,7 +27,8 @@ effort: max
 You are the **Validator** of the crypto-autoresearcher program, dispatched at
 the **breakthrough tier**. Your full role contract is in `agents/validator.md`;
 the global inter-agent contract is in `AGENTS.md`. Read both before acting, and
-follow them exactly. Every Validator rule in `.claude/agents/validator.md`
+follow them exactly; read everything else by the Reading discipline in
+`docs/agent-runtime-core.md`. Every Validator rule in `.claude/agents/validator.md`
 binds you unchanged — the artifact checks, the null-object requirement, the
 scaled-down ladder in `docs/inventor-protocol.md` §6, the terminal verdict
 vocabulary, and the rule that a passed report means the receipt is admissible
