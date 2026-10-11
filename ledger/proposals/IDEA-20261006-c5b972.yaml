@@ -1,0 +1,100 @@
+idea:
+  id: IDEA-20261006-c5b972
+  question_id: RQ-SCURVE-df94be
+  added: '2026-10-06'
+  status: approved
+  approved_by: DEC-20261006-af8214
+  title: X-only planted-key recovery through P-192's same-a singular companion
+  class: implementation_attack
+  claim: >-
+    A low-level P-192 scalar multiplication routine that accepts an unchecked
+    affine point and exposes a confirmation tag derived only from the resulting
+    x-coordinate can leak a fixed synthetic scalar through points on
+    y^2=x^3-3x-2. Adaptive composite-order probes recover the coherent class
+    plus-or-minus d modulo M=(p+1)/67280421310721; the public legitimate P-192
+    key Q=[d]G then reduces the remaining interval to at most the omitted
+    46-bit factor, solvable for both orientations with one shared BSGS table.
+    Exact replay [d]G=Q is the success condition.
+  mechanism: >-
+    Short-Weierstrass addition with fixed a=-3 does not use b, so unchecked
+    inputs from the singular same-a companion may traverse its smooth nodal
+    group. Here the smooth locus is the nonsplit norm-one torus of order p+1.
+    X-only observation identifies P and -P, so the experiment must maintain
+    sign ambiguity and join residues with composite-order probes rather than
+    pretending to observe a full group element. The omitted largest prime
+    factor is recovered on the legitimate curve, not from a stronger oracle.
+  novelty_status: adaptation
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      This is a concrete input-validation/interface audit; it does not propose
+      an improvement to the generic valid-curve ECDLP frontier.
+    nearest:
+      - ref: KN-LIT-3372
+        provenance: kb
+        relation: special_case
+        delta: >-
+          Specializes degenerate invalid-curve attacks to the exact P-192
+          same-a nodal companion and requires x-only confirmation plus a
+          legitimate-key residual solve instead of a full-point oracle.
+      - ref: KN-TECH-034
+        provenance: kb
+        relation: adjacent
+        delta: >-
+          Turns the general invalid-curve validation warning into a fixed-seed,
+          native, end-to-end recovery contract with exact order certificates.
+      - ref: KN-TECH-90e273
+        provenance: kb
+        relation: special_case
+        delta: >-
+          Instantiates the singular/degenerate-group lane at P-192 and charges
+          the x-coordinate sign ambiguity and final 46-bit residual search.
+  predictions:
+    - metric: final_legitimate_key_replay
+      direction: different
+      minimum_effect: Exactly one recovered scalar in [1,n-1] satisfies [d]G=Q.
+    - metric: primary_confirmation_oracle_queries
+      direction: lower
+      minimum_effect: Finite, fully counted recovery of plus-or-minus d modulo M using only x-derived tags.
+  minimal_test:
+    design: >-
+      Run one fixed public seed through the native low-level interface, recover
+      residues using the exact singular-locus factors below qmax, solve both
+      residual orientations against Q, and replay the answer. Run an exhaustive
+      p=59 singular toy, the repository challenge59 control, raw/full-point PH
+      as a stronger positive model, and rejection/mutation controls.
+    controls:
+      - exhaustive p=59 singular companion
+      - existing challenge59 invalid-curve recovery
+      - raw/full-point Pohlig-Hellman model control
+      - high-level validated ECDH rejection
+      - wrong-a, mutated-order, mutated-tag, and mutated-target negatives
+    required_metrics:
+      - confirmation queries by factor and binary-lift stage
+      - recovered modulus and residual orientation count
+      - BSGS baby entries, giant steps, group additions, and peak resident bytes
+      - exact final replay and every control verdict
+  falsification_conditions:
+    - The primary x-only interface cannot produce a coherent plus-or-minus residue class modulo M.
+    - Neither residual orientation replays to Q within the frozen interval.
+    - Any required negative control accepts or any exact order certificate fails.
+  interpretation_limits:
+    - The strongest authorized label is IMPLEMENTATION_WEAK.
+    - The singular companion is not an elliptic curve and is not isogenous to P-192.
+    - The fixed public scalar and key say nothing about an untested implementation or live deployment.
+    - Raw/full-point PH is a positive model only and cannot substitute for the primary x-only run.
+  target_complexity:
+    time_exponent: No new valid-curve ECDLP exponent claim.
+    memory_exponent: Approximately 2^23 baby entries for the frozen residual interval; measured exactly.
+    best_known: Generic P-192 ECDLP remains approximately square-root work absent the validation flaw.
+    hidden_overhead: Adaptive sign reconciliation, confirmation queries, table construction, and replay are all charged.
+    tradeoff_note: The chosen BSGS endpoint is a concrete memory-heavy recovery demonstration, not a production exploit estimate.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  source_refs:
+    - RQ-SCURVE-df94be
+    - KN-LIT-3372
+    - KN-TECH-034
+    - KN-TECH-90e273

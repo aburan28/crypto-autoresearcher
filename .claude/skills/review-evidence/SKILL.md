@@ -62,7 +62,8 @@ review, and synthesis.
      not inflated. A heuristic-conditional result keeps `claim_tier` capped
      at conditional, with the heuristic and its validation experiment IDs
      named in the evidence record;
-   - create the `evidence` record in `ledger/evidence/EV-<AREA>-<NNN>.yaml`
+   - create the `evidence` record in `ledger/evidence/<EV-ID>.yaml`
+     (`python3 tools/allocate_id.py --next evidence --area <AREA>`, then `--check`)
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
      what the runs' parameters allow), `certificate_refs`,
@@ -86,7 +87,7 @@ review, and synthesis.
    (schema in `templates/research-records.md`):
    - Promotion is REQUIRED when the decision is `support` or `reject_scoped`
      and the evidence strength is `replicated` or `strong`: create a
-     `knowledge/findings/KN-FIND-NNN.md` entry via the `/curate-knowledge`
+     `knowledge/findings/KN-FIND-<tok>.md` entry via the `/curate-knowledge`
      conventions, citing the EV-/DEC-/EXP- IDs. A proven scoped negative
      (`reject_scoped`) is a durable boundary and is promoted like a positive.
    - Promotion is CONSIDERED when an `inconclusive` or `pause` decision
@@ -95,18 +96,31 @@ review, and synthesis.
      `KN-TECH`).
    - If nothing is promoted, record why in `knowledge_promotion.
      not_warranted` — one concrete line, not "n/a".
-4. The Coordinator runs an isolated ledger archive task after every required
-   review. It commits the review reports, analysis, evidence record, decision
-   record, and any hypothesis or knowledge update by exact path. The official
+4. Write the decision report (`research-visuals`, "Every evidence review";
+   `.claude/skills/research-visuals/SKILL.md`): in
+   `experiments/<EXP-ID>/reports/review-<DEC-ID>/`, the decision, evidence
+   strength, claim tier and exact scoped claim with the IDs they rest on, at
+   least one graph of the quantities the decision rests on (units, sample
+   sizes, uncertainty, run IDs) against the declared prediction, threshold or
+   control, and its `report.pdf`, rendered and inspected. Refresh every
+   canonical graph the decision changes and list the ones checked and left
+   unchanged. The coordinator subagent has no shell: it writes the report
+   source and graph data; this session renders the graphs and the PDF. Link
+   the experiment's earlier run reports (`reports/run-*/`).
+5. The Coordinator runs an isolated ledger archive task after every required
+   review. It commits the review reports, the decision report with its graphs
+   and PDF, analysis, evidence record, decision record, any refreshed canonical
+   graph, and any hypothesis or knowledge update by exact path. The official
    transition is blocked until the dispatcher verifies that commit's parent,
    diff, record IDs, and file hashes.
-5. Push the branch and open or refresh a PR against `main` naming the new
+6. Push the branch and open or refresh a PR against `main` naming the new
    `EV-*`/`DEC-*`/`KN-*` records (see "Branch and PR hygiene"). An evidence
    or decision record that exists only in a local commit has not been made
    official — it is unpublished.
-6. Report to the user: the decision, the evidence strength, the exact scoped
+7. Report to the user: the decision, the evidence strength, the exact scoped
    claim the data justify (use the negative-result phrasing rules from
-   `docs/evidence-and-reproducibility.md`), and the next actions.
+   `docs/evidence-and-reproducibility.md`), the next actions, and the path to
+   the decision report's PDF.
 
 ## Branch and PR hygiene
 
@@ -117,9 +131,14 @@ pulls in `main` and surfaces the decision as a PR:
   never rebase. If the merge conflicts, stop and report; never resolve a
   conflict by editing a record. Re-run `tools/validate_ledger.py` after the
   merge.
-- **After the ledger archive:** `git push -u origin <branch>` then
-  `gh pr create --base main --head <branch> --title "evidence: <EV-ID>/<DEC-ID>" --body "<EV-*/DEC-*/KN-* IDs>"`
-  (or `gh pr edit <number>` when a PR for the branch already exists).
+- **After the ledger archive:** `git push -u origin <branch>`, then open or
+  refresh a PR against `main` with the runtime's PR tool, titled
+  `evidence: <EV-ID>/<DEC-ID>` and naming the `EV-*`/`DEC-*`/`KN-*` ids. Use
+  `gh pr create` only where `gh auth status` succeeds; a session with no PR
+  tool reports the pushed branch.
+- **Receipt:** end with `python3 tools/session_receipt.py --skill
+  review-evidence --role coordinator --outcome reviewed --created <ids>`
+  (`docs/session-receipts.md`).
 
 ## Rules
 
@@ -142,3 +161,6 @@ pulls in `main` and surfaces the decision as a PR:
 - A decision record with an unfilled `knowledge_promotion` field is
   incomplete: proven results that never reach `knowledge/findings/` are lost
   to future ideation and novelty checks.
+- A review without its decision report, graph and PDF is incomplete. If no
+  renderer can be installed, archive the report source and graphs and state
+  the blocker; never present an older PDF as current.
