@@ -11,6 +11,22 @@ earlier long form of this file stays unchanged at
 
 ## What is Claude Code specific
 
+- **Subagents** live in `.claude/agents/`: seven roles plus three policy-tier
+  variants. Their tools, model pins and `effort:` come from
+  `orchestration/roles.yaml` and `orchestration/model-policies.yaml`, never
+  hand edits; `tools/check_runtime_bindings.py` fails the build on drift and
+  `--list` shows each role's source. The session default is `claude-opus-5-5`
+  (`.claude/settings.json`).
+- **Skills** are in `.claude/skills/`; `run` is the only execution skill and
+  `coordinate` never runs trials. Every skill ends by writing a session
+  receipt (`docs/session-receipts.md`).
+- **Retrieval**: `.mcp.json` starts the read-only `kb/` server with a
+  relative `--directory`; machine settings go in `kb/.env`. The index is
+  derived and starts empty (`make -C kb qdrant-up`, `crypto-kb stage-repo .`,
+  `crypto-kb ingest`).
+- **Batch delivery**: `python3 -m orchestration.adapter batch …` for
+  single-turn prompts; records are write-once under
+  `coordination/inference-batches/` (`docs/batch-inference.md`).
 - **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
   `tools/generate_runtime_agents.py`: seven roles (`idea-synthesist` is Claude
   Code only) plus the policy-tier variants `executor-mechanical`,

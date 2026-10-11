@@ -39,10 +39,10 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
-try:  # libyaml, with the pure loader's errors (tools/fast_yaml.py)
-    from fast_yaml import safe_load as _safe_load
-except ImportError:  # pragma: no cover - imported from outside tools/
-    _safe_load = yaml.safe_load
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 import ecc_priority  # noqa: E402
 import sparse_checkout  # noqa: E402
 from experiment_execution import coverage  # noqa: E402
@@ -52,7 +52,7 @@ _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
 
 def _load(path: Path) -> dict[str, Any] | None:
     try:
-        doc = _safe_load(path.read_text(encoding="utf-8"))
+        doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(doc, dict):
             return None
         exp = doc.get("experiment", doc)
