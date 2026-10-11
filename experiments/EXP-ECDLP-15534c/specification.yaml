@@ -1,0 +1,189 @@
+# =============================================================================
+# EXP-ECDLP-15534c -- L3 / HEUR-001 of H-ECDLP-bd1572: there is no
+# point-level canonical lift, and the form of p does not create one. The
+# instrument is Smart's formal-group logarithm on a lifted curve over
+# Z/p^r: on an anomalous curve it recovers k exactly (positive control); on
+# a non-anomalous curve the ratio carries a lift defect delta that is
+# uniform on F_p unless the lift rule has structure. Three lift rules are
+# tested, including the Teichmuller-x lift, the only coordinate-level
+# Frobenius-equivariant lift available over Z_p. status review_required:
+# implemented, not approved, no run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-15534c
+  hypothesis_id: H-ECDLP-bd1572
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Formal-group defect uniformity under three point-lift rules
+    (integer-representative Hensel, Teichmuller-x Hensel, random Hensel) on
+    non-anomalous curves over special-form and matched random toy primes,
+    with Smart's anomalous recovery as the positive control
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  limb: L3
+  heuristic_under_test: HEUR-001
+  objective: >-
+    For P of odd prime order l on E/F_p and Q = [k]P, lift both points to
+    E(Z/p^r) by a rule L, compute [l]L(P) and [l]L(Q) in Jacobian
+    coordinates (both land in the formal group), take z = -X Z / Y, and form
+    delta = (z_Q / z_P - k) mod p after removing the common p-power. Smart
+    1999: on an anomalous curve with l = p, delta = 0 and k is recovered. On
+    a non-anomalous curve delta = l * log_F(T) / log_F([l]L(P)) mod p with
+    T = L(Q) - [k]L(P) the lift discrepancy, which is a unit-level quantity
+    with no known structure. HEUR-001 predicts delta uniform on F_p for
+    every rule and both prime arms. The Teichmuller-x rule is the one rule
+    with a canonical flavour (x lifted to the unique (p-1)-th root of unity
+    representative); a non-uniform delta there would be a point-level
+    canonical structure, which H-ECDLP-bd1572 says does not exist.
+  inputs:
+    primes: >-
+      Special arm: p = m^d - c for d in {2, 3, 5}, p in [2^13, 2^15), two
+      primes per d from the EXP-ECDLP-2535ec generator; random arm: one
+      matched random prime per special prime.
+    curves: >-
+      Per prime, 6 seeded random (a, b) whose group order (exact Legendre
+      count) has a prime factor l >= 2^8 with l != p; P a seeded point of
+      order l; k seeded uniform in [1, l-1]; 400 (P, k) draws per curve.
+    lift_rules:
+      L1_integer_hensel: >-
+        x_hat = x as an integer in [0, p); y_hat the Hensel root of
+        y^2 = x^3 + a x + b lifting y, to precision r = 6.
+      L2_teichmuller_hensel: >-
+        x_hat = x^(p^(r-1)) mod p^r, the Teichmuller representative
+        (satisfies x_hat^(p-1) = 1 mod p^r for x != 0); y_hat Hensel as in L1.
+      L3_random_hensel: >-
+        x_hat = x + p * u with u seeded uniform in [0, p^(r-1)); y_hat Hensel.
+    arithmetic: >-
+      Jacobian coordinates (X : Y : Z) over Z/p^r with the standard
+      short-Weierstrass doubling and addition formulas; [l]L(P) is computed
+      left-to-right double-and-add; every intermediate has nonzero
+      reduction except the final addition, whose Z is divisible by p and
+      whose Y is a unit, which is the formal-group representative.
+    statistic: >-
+      Per (curve, rule): the 400 values of delta; chi-square against uniform
+      on 20 equiprobable bins; Kolmogorov-Smirnov distance of delta/p
+      against U(0, 1); the count of delta = 0; alpha = 0.001 per test with
+      Bonferroni over (rules x curves x arms).
+    positive_control: >-
+      For each prime arm, search seeded (a, b) at p in [2^11, 2^13) for an
+      anomalous curve (#E = p); on it run rule L1 with l = p and require
+      delta = 0 and recovered k = planted k on every draw (Smart's attack).
+      Rules L2 and L3 are also run on the anomalous curve and their delta
+      recorded (expected 0 as well, since the relation is lift-independent
+      when l = p).
+    instrument: >-
+      experiments/EXP-ECDLP-15534c/implementation/run.py, pure Python 3
+      standard library. Nearest independent instrument: aburan28/crypto
+      src/cryptanalysis/nonanom_formal_log.rs (rule L1 only), usable by the
+      validator to cross-check one cell.
+  controls:
+    - >-
+      CTRL-ANOMALOUS: the positive control recovers the planted k on every
+      draw on both prime arms; otherwise the instrument is broken and the
+      run is invalid.
+    - >-
+      CTRL-REDUCTION: [l]L(P) and [l]L(Q) reduce to the identity mod p
+      (Z = 0 mod p, Y a unit) on every draw; a failure is an arithmetic bug.
+    - >-
+      CTRL-VALUATION: v_p(z_P) = v_p(z_Q) = 1 on at least 99% of draws (the
+      generic case); draws with higher valuation are recorded and excluded
+      from delta with their count reported.
+    - >-
+      CTRL-TEICHMULLER: x_hat^(p-1) = 1 mod p^r for every L2 lift with
+      x != 0; a failure invalidates the L2 arm.
+    - >-
+      CTRL-PRECISION: a 10% subsample is recomputed at r = 8 and must give
+      the same delta mod p.
+    - CTRL-REPLAY: seeded replay byte-identical.
+  independent_variables:
+    - "lift rule: L1_integer_hensel | L2_teichmuller_hensel | L3_random_hensel"
+    - "prime arm: special | random"
+    - "d in {2, 3, 5} (special arm)"
+    - "curve seed 1..6"
+  metrics:
+    primary:
+      - uniformity_rejections_per_rule_per_arm_at_alpha_0_001_bonferroni
+      - delta_zero_count_per_rule_per_arm
+      - anomalous_control_recovery_rate
+    secondary:
+      - chi_square_statistic_and_ks_distance_per_cell
+      - higher_valuation_draw_count
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: number of uniformity rejections
+    formula: >-
+      zero rejections across all (rule, arm, curve) cells after Bonferroni;
+      delta = 0 count per cell consistent with Binomial(400, 1/p); anomalous
+      control recovery rate 1.0.
+    source: >-
+      Smart 1999 (anomalous case); the pro-p formal kernel argument of
+      EXP-CANL-1064e0 (internal draft); HEUR-001 statement in
+      H-ECDLP-bd1572.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      13-15 bit primes and 400 draws per cell detect a concentration of
+      delta on a set of density below 1/20 at power above 0.99; a subtler
+      structure is outside what this cell can see and the record says so.
+    correspondence: null
+  tail_checks:
+    - Report the cell with the most extreme chi-square and its full delta histogram.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 72
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 3
+    maximum_memory_gb: 1
+    maximum_runs: 12
+  stopping_rules:
+    - Stop a run at 1800 s and report completed cells; never as evidence.
+  invalidation_rules:
+    - CTRL-ANOMALOUS or CTRL-REDUCTION failure invalidates the run.
+    - CTRL-TEICHMULLER failure invalidates the L2 arm.
+    - A replay mismatch is a provenance failure.
+  success_criterion: >-
+    Zero uniformity rejections on every (rule, arm, curve) cell at
+    alpha = 0.001 after Bonferroni, delta = 0 counts within the binomial
+    expectation, and the anomalous control at recovery rate 1.0 on both
+    arms: no tested point-lift rule carries a point-level canonical
+    structure, special p or not, in the tested scope.
+  falsification_criterion: >-
+    A (rule, arm) with at least two curves rejecting uniformity at
+    alpha = 0.001 after Bonferroni while the anomalous control passes and
+    CTRL-PRECISION holds: that lift rule carries structure on
+    non-anomalous curves, falsifying HEUR-001 at toy scale (and, if only on
+    the special arm, HEUR-002).
+  decision_impact:
+    on_positive: >-
+      HEUR-001 of H-ECDLP-bd1572 is supported in scope and the Coordinator
+      records that the Teichmuller-x lift adds nothing to the Hensel lift on
+      the formal-group defect; the point-lift lane under RQ-CANL-63098f
+      gains a measured null for special primes.
+    on_negative: >-
+      A new IDEA is filed on the rejecting rule with the delta histogram as
+      the resource, routed to independent validation; EXP-CANL-1064e0's
+      enumeration of lift routes is reopened.
+  required_artifacts:
+    - experiments/EXP-ECDLP-15534c/specification.yaml
+    - experiments/EXP-ECDLP-15534c/implementation/run.py
+    - experiments/EXP-ECDLP-15534c/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-15534c/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      python3 experiments/EXP-ECDLP-15534c/implementation/run.py --d 2 3 5
+      --curves 6 --draws 400 --seeds 1 2 3 --out <run_dir>
+    runnable_state_at_design: >-
+      Implementation committed and smoke-tested at reduced size in the design
+      session (no run record was written from the smoke test). Not selectable
+      by tools/newest_experiments.py until a Coordinator approval decision
+      sets status approved, and then its execution_progress reads
+      needs_implementation_or_plan until a dispatch task and a frozen
+      trial-plan.json exist. The missing pieces are the approval ceremony
+      (DEC-*, TASK-*, handoff) and the trial plan, not code.
+  assigned_to: executor
