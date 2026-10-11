@@ -1861,3 +1861,33 @@ class VoidSourceArtifactTests(unittest.TestCase):
                 dispatch.validate_queue(
                     queue(worker, archive),
                     repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+
+class ReadyOnlyRenderTests(unittest.TestCase):
+    """`--ready-only` prints the Ready Tasks alone (P1.7 of the track-record review)."""
+
+    def test_ready_only_lists_dispatches_with_claims_and_nothing_else(self) -> None:
+        plan = {
+            "dispatches": [
+                {"id": "TASK-20261007-aaaaaa", "role": "executor", "state": "queued",
+                 "priority": 1, "depends_on": [], "artifact_paths": ["x"],
+                 "write_scope": ["coordination/q/TASK-20261007-aaaaaa/"]},
+                {"id": "TASK-20261007-bbbbbb", "role": "validator", "state": "running",
+                 "priority": 2, "depends_on": [], "artifact_paths": ["y"],
+                 "write_scope": ["coordination/q/TASK-20261007-bbbbbb/"]},
+            ],
+            "deferred": [{"id": "TASK-20261007-cccccc", "reason": ["dependency not completed"]}],
+            "claims": {"TASK-20261007-bbbbbb": {"status": "live", "owner": "executor-2"}},
+        }
+        text = dispatch.ready_only(plan)
+        lines = text.splitlines()
+        self.assertEqual(lines[0], "ready: 2 task(s); deferred: 1")
+        self.assertIn("TASK-20261007-aaaaaa\texecutor\tqueued\tp1\tclaim=null", lines[1])
+        self.assertIn("TASK-20261007-bbbbbb\tvalidator\trunning\tp2\tclaim=executor-2", lines[2])
+        self.assertNotIn("TASK-20261007-cccccc", text)
+        self.assertNotIn("dependency not completed", text)
+        self.assertEqual(len(lines), 3)
+
+    def test_ready_only_with_empty_plan(self) -> None:
+        self.assertEqual(dispatch.ready_only({"dispatches": [], "deferred": []}),
+                         "ready: 0 task(s); deferred: 0\n")

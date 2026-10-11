@@ -127,9 +127,15 @@ frozen design, which is both wasted budget and the route by which an Executor
 drifts into reinterpreting a specification it is supposed to follow exactly.
 
 This reaches the wire, not just the manifest. On the Anthropic protocol a
-binding maps effort to a thinking budget (`budget_by_effort`), and `low` maps to
-`0`, which disables extended thinking and lets `temperature: 0.0` through. On
-the OpenAI protocol the effort maps to `reasoning_effort`.
+binding declares one of two reasoning modes. `anthropic_adaptive` (the Claude
+5 bindings) sends `thinking: {type: adaptive}` plus the effort as a named
+`output_config.effort`; those models reject `budget_tokens` and `temperature`
+outright, and thinking cannot be disabled on them, so the `low` tier is low
+effort rather than no thinking. Every live `anthropic` binding is now a
+Claude 5 model (Opus 5.5, Sonnet 5.5, Haiku 5.5) and uses this mode.
+`anthropic_thinking` remains for pre-Claude-5 models: it maps effort to an
+explicit `budget_tokens` (`budget_by_effort`), where `low` maps to `0`, which
+disables extended thinking and lets `temperature: 0.0` through. On the OpenAI protocol the effort maps to `reasoning_effort`.
 
 ### Per subagent, where the runtime can express it
 
@@ -234,6 +240,38 @@ silently granted. And a review policy may not be calibrated below its floor —
 lives, and buying budget by thinking less there is exactly the trade
 `evals/suites/discipline.yaml` exists to catch.
 
+## Two delivery lanes: interactive and batch
+
+A resolved request can travel one of two ways. The synchronous Messages API
+answers now; the Message Batches API answers within 24 hours (most within an
+hour) at half the token price, with results collectable for 29 days. The
+lane is a transport fact recorded on every manifest (`delivery`, `batch_id`)
+and changes nothing about resolution: same policy, same binding, same
+request body, same cost-policy guard.
+
+A handoff chooses with `inference.delivery` (`interactive` — the default —
+`batch`, or `auto`) and `inference.deadline_seconds`. Under `auto` the
+router batches only when the deadline leaves room beyond the provider's
+published latency envelope and never batches a task at or above the urgent
+dispatch priority; a result that becomes urgent after submission is
+re-run synchronously with `batch escalate`, which marks the late batch copy
+superseded and cancels what is no longer wanted. Only the first-party
+`anthropic` backend declares `supports_message_batches`; asking a gateway
+to batch is an error, never a silent synchronous call. Submissions, results,
+and escalations are recorded write-once under
+`coordination/inference-batches/<batch id>/`, so a batch submitted from one
+ephemeral session is collected from any other.
+
+```sh
+python3 -m orchestration.adapter batch plan    --delivery auto --deadline-seconds 7200
+python3 -m orchestration.adapter batch submit  --task ledger/handoffs/TASK-....yaml --prompts-jsonl p.jsonl
+python3 -m orchestration.adapter batch status  --all
+python3 -m orchestration.adapter batch collect msgbatch_...
+```
+
+Full semantics, the registry layout, and the result-type table:
+[`docs/batch-inference.md`](batch-inference.md).
+
 ## Policy ids and the alias contract
 
 Policy ids are permanent. The pre-2.0 ids (`coordinator-ultra-code`,
@@ -305,6 +343,36 @@ Declared capabilities are assertions too. The resolver can catch a binding that
 *admits* it is too weak; it cannot catch one that overstates itself. Inflating
 `max_reasoning_effort` to make a review gate pass is an evidence-integrity
 failure, in the same class as overstating a claim tier.
+
+### Operator-local bindings: `model-bindings.local.yaml`
+
+Some backends are committed unbound on purpose -- `openrouter`, because no one
+has probed an id there; `local`, whenever a machine serves a different weight
+set than the committed one. An operator who wants to run the program through
+such a backend needs an id on *that machine* without asserting it for
+everyone. `orchestration/model-bindings.local.yaml` (gitignored; copy
+`model-bindings.local.example.yaml`) is merged over the committed bindings by
+`orchestration.adapter.config.load`:
+
+* an entry replaces the committed entry for the same backend and policy
+  whole, so a partial overlay cannot leave a committed `request:` block under
+  an overlay `model:`;
+* only `bindings`, `schema_version` and `notes` are allowed -- fallback order
+  and the other defaults stay committed;
+* `provenance: runtime-verified` is refused; only `doctor --probe` may write
+  that, and an overlay saying it is the forgery this field exists to prevent;
+* the merged file is validated exactly like the committed one (unknown
+  backends, unknown policies, the Bedrock prohibition);
+* the configuration digest covers the merged result, so every manifest a run
+  writes is distinguishable from one produced without the overlay, and
+  `autoresearch status` and `autoresearch backends` print the overlay path.
+
+`AUTORESEARCH_BINDINGS_OVERLAY=/path` selects another file;
+`AUTORESEARCH_BINDINGS_OVERLAY=` (empty) disables the overlay, which the test
+suite does so a developer's overlay never reaches a test. The autopilot's
+`--model ID --model-caps …` writes a one-run overlay of the same shape under
+its state directory and layers it over the standing one
+(`docs/research-throughput-autopilot.md`).
 
 ### Verifying one Codex CLI session
 
@@ -544,8 +612,10 @@ inference:
   fallback_reason: null
   degraded_requirements: []
   independent_session: false
-  adapter_version: 1.0.0
+  adapter_version: 1.2.0
   config_digest: sha256:...              # binds the run to exact configuration
+  delivery: interactive                  # or batch, with the batch named
+  batch_id: null
 ```
 
 Deterministic harness runs record the same block with `resolved_model_id: null`

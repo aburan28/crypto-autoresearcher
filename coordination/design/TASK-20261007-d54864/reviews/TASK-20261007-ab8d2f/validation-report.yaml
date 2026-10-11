@@ -1,0 +1,200 @@
+schema: crypto.autoresearch.trap_interface_validation.v1
+task_id: TASK-20261007-ab8d2f
+batch_id: BATCH-cb7b9a
+goal_id: GOAL-SSI-2fa82a
+role: validator
+scope:
+  owned_joints:
+    - "T1: bare-curve public sampling and exact distribution"
+    - "T2: typed any-basis inversion"
+  excluded_joints: [T3, T4, T5]
+  experiments_run: 0
+  whole_claim_vote: not_performed
+  security_novelty_or_practicality_verdict: not_performed
+  permitted_verdicts: [holds, breaks, inconclusive]
+
+requested_scope_and_execution:
+  - requirement: Verify the frozen contract bytes against the snapshot receipt.
+    status: verified_complete
+    evidence: >-
+      SHA-256 of the UTTK contract is
+      f43e49d33c603e7f9eed6e0a1a45667a508ee60e2cf07c2611cc01226b6aa095;
+      SHA-256 of the RWER-Trap contract is
+      599a45e1183ff15aea75b54ee9f05e875ceb010c7c77a3886212319278f460fb.
+      Both equal the corresponding snapshot-receipt entries.
+  - requirement: Rederive T1 for each candidate from the frozen contracts only.
+    status: verified_complete
+    evidence: candidate_results
+  - requirement: Rederive T2, including arbitrary unimodular basis changes.
+    status: verified_complete
+    evidence: candidate_results
+  - requirement: Run zero experiments and issue no T3-T5 or whole-claim verdict.
+    status: verified_complete
+    evidence: scope
+
+snapshot_integrity:
+  receipt_path: coordination/design/TASK-20261007-d54864/archives/TASK-20261007-4057bd/snapshot-receipt.json
+  receipt_self_hash_excluded: true
+  checked_paths:
+    - path: coordination/design/TASK-20261007-d54864/tasks/TASK-20261007-6f5135/trap-interface.yaml
+      expected_sha256: f43e49d33c603e7f9eed6e0a1a45667a508ee60e2cf07c2611cc01226b6aa095
+      observed_sha256: f43e49d33c603e7f9eed6e0a1a45667a508ee60e2cf07c2611cc01226b6aa095
+      result: holds
+    - path: coordination/design/TASK-20261007-d54864/tasks/TASK-20261007-61dd3f/trap-interface.yaml
+      expected_sha256: 599a45e1183ff15aea75b54ee9f05e875ceb010c7c77a3886212319278f460fb
+      observed_sha256: 599a45e1183ff15aea75b54ee9f05e875ceb010c7c77a3886212319278f460fb
+      result: holds
+
+candidate_results:
+  - candidate:
+      name: unoriented-torsion-transport-kernel-interface
+      short_name: UTTK
+      candidate_id: IDEA-20261007-c5a097
+      producer_task_id: TASK-20261007-6f5135
+    T1:
+      verdict: inconclusive
+      dependency_trace:
+        public_inputs:
+          - bare encoded E over F_(p^2)
+          - p and E0
+          - declared walk length and law
+          - factored smooth coprime n and N dividing p+1
+        sampled_objects:
+          - an exact-order-n point R, interpreted modulo unit multiples
+          - an ordered basis P,Q of E[N]
+        public_operations:
+          - group-point sampling and cofactoring
+          - exact-order and primitive-Weil-pairing validation
+          - fixed-factor-order small-degree Velu quotients
+          - transport of P,Q through the quotient chain
+        hidden_dependency_found: false
+      domain_and_failure_rederivation: >-
+        If R has exact order n and (P,Q) is a basis of E[N], with gcd(n,N)=1,
+        the stated quotient chain and transported points are typed. Unit
+        multiples of R define the same cyclic kernel. INVALID_ENCODING,
+        WRONG_ORDER, and DEPENDENT_TORSION cover the declared public input
+        validation failures. This does not establish an exact sampler.
+      exact_distribution_gap: >-
+        The contract says only "rejection-sample" from the known group. It
+        gives neither an exact random-point procedure nor the induced law on
+        valid (R,P,Q), and it leaves retry and failure tails unquantified.
+        Consequently the real transcript distribution and its abort mass
+        cannot be shown identical to a simulator starting from the bare
+        EndRing curve, even though no forbidden orientation, walk, torsion
+        basis, connecting isogeny, or ring basis is named as an input.
+      cost_rederivation: >-
+        Eval is conditionally polynomial for publicly factored smooth n, but
+        Sample has no proved polynomial tail in the packet. This is an open
+        accounting gap, not evidence of a superpolynomial lower bound.
+      breaking_artifact_found: false
+      verdict_reason: >-
+        Bare-curve dependency typing survives, but exact-distribution and
+        abort accounting are not established; therefore T1 neither holds nor
+        has a demonstrated hidden-data break on the frozen text.
+    T2:
+      verdict: breaks
+      required_domain: >-
+        Inv must accept E, every certified evaluable rank-four Z-basis B of
+        End(E), and every valid pointed transport transcript in honest
+        support, then output an equivalent kernel generator.
+      observed_definition: >-
+        Inv is UNAVAILABLE. The packet supplies neither a compiler from B to
+        an attack-suitable endomorphism theta nor a verified recovery
+        algorithm from theta and the transcript.
+      failures_and_cost: >-
+        INV_ANY_BASIS_COMPILER_UNDEFINED is certain on the proposed
+        definition, and no polynomial runtime or failure probability exists.
+        A conditional outline B -> theta -> kernel is not an algorithm.
+      GL4Z_audit: >-
+        For any U in GL_4(Z), B and B U span the identical full order. A valid
+        universal inverse must therefore preserve correctness under this
+        replacement, with cost polynomial in the encoded transformed basis.
+        The only described bounded coordinate search for theta depends on the
+        presented coordinates; no invariant normalization, search bound, or
+        size-dependent runtime is provided. Large unimodular changes can make
+        those coordinates arbitrarily large without changing End(E).
+      breaking_artifact: >-
+        The inverse call is undefined for every basis, and specifically has
+        no planted-basis-independent implementation for arbitrary B U.
+      verdict_reason: >-
+        This is the review plan's ill-typed/missing universal inverse and
+        planted-basis-only failure signature.
+
+  - candidate:
+      name: Random-Walk Endpoint Routing Trap Interface
+      short_name: RWER-Trap
+      candidate_id: IDEA-20261007-7625cc
+      producer_task_id: TASK-20261007-61dd3f
+    T1:
+      verdict: inconclusive
+      dependency_trace:
+        public_inputs:
+          - bare encoded supersingular E over F_(p^2)
+          - p and the finite-field representation
+          - lambda, ell, L, and L_max
+          - canonical endpoint and public edge-validation rules
+        sampled_objects:
+          - one selected cyclic subgroup/edge encoding at each of exactly L steps
+        public_operations:
+          - enumerate and sort constant-degree edges
+          - compute and normalize successive quotients
+          - validate a path and return its canonical endpoint encoding
+        hidden_dependency_found: false
+      domain_and_failure_rederivation: >-
+        Eval is typed on an already validated explicit path of length at most
+        L_max. Sample, however, does not state the exact probability law for
+        "sample an index", an automorphism-aware edge convention, or a total
+        normalization rule for exceptional endpoints. It also does not state
+        whether every enumerated edge/map is represented over the declared
+        field/model or which extension encoding is used otherwise.
+      exact_distribution_gap: >-
+        Uniformity among edges, behavior at multiplicities/automorphisms, and
+        factoring/normalization retries remain open. These choices change the
+        endpoint distribution and abort mass, so equality between the honest
+        view and a bare-challenge simulation cannot be rederived from the
+        frozen algorithm.
+      cost_rederivation: >-
+        For fixed ell, the proposed enumeration and path evaluation could be
+        polynomial in lambda and L, but the packet explicitly leaves
+        finite-field factoring and normalization retry bounds open. No
+        unconditional polynomial expected-time or failure bound follows.
+      breaking_artifact_found: false
+      verdict_reason: >-
+        The text names no hidden ring, orientation, torsion basis, alignment,
+        route table, or planted basis, but its exact public sampling law is
+        incomplete. T1 is therefore inconclusive rather than a hold or a
+        demonstrated hidden-data break.
+    T2:
+      verdict: breaks
+      required_domain: >-
+        Inv must accept E, every arbitrary certified evaluable Z-basis B of
+        the full End(E), and every y in the honest endpoint support, then
+        return a validated source-to-y path of length at most L_max.
+      observed_definition: >-
+        Inv is unavailable. The packet gives no procedure deriving endpoint
+        order data, a connecting ideal, or a bounded route from the source
+        basis. Existence of the sampled path does not supply it to Inv.
+      failures_and_cost: >-
+        ROUTE_NOT_FOUND or RETRY_EXHAUSTED has no bounded probability because
+        no router exists. Generic enumeration of up to (ell+1)^L paths would
+        not establish the demanded polynomial runtime when L grows; the
+        contract does not offer or analyze such an algorithm.
+      GL4Z_audit: >-
+        Replacing B by B U for arbitrary U in GL_4(Z) preserves End(E) and
+        the set of valid target routes. The packet supplies no
+        basis-invariant preprocessing, canonical order representation,
+        connecting-ideal extraction, or runtime polynomial in the encoded
+        transformed basis. Thus the universal quantifier is not discharged
+        for either B or B U; a helpful planted basis cannot repair it.
+      breaking_artifact: >-
+        The required arbitrary-basis routing call is absent and has no
+        polynomial cost or failure analysis.
+      verdict_reason: >-
+        This directly realizes the review plan's ill-typed/missing universal
+        inverse and non-polynomial-subroutine failure signature.
+
+limits:
+  - No claim is made that either missing inverse is impossible to construct.
+  - No complete-ring-necessity, reduction, PKE-security, prior-art, source, or complete-view conclusion is made.
+  - No experiment, implementation, benchmark, parameter selection, or external-system run was performed.
+  - T1 inconclusive records specification gaps only; it is not negative mathematical evidence against either mechanism family.

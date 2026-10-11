@@ -709,6 +709,8 @@ def main() -> int:
                     f"e_budget_mult={args.e_budget_mult} artifact_tag={args.artifact_tag!r}."
                 ),
             )
+        from stages23 import stage2, stage3
+
         if args.stage == 2:
             stage2(run_dir)
         else:

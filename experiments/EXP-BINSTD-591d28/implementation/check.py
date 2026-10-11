@@ -172,6 +172,8 @@ def main() -> int:
         for rel in (
             f"{s2_prefix}/random-subspace-summary.json",
             f"{s2_prefix}/p1-fillin-summary.json",
+            "stage2/random-subspace-summary.json",
+            "stage2/p1-fillin-summary.json",
         ):
             if not (EXP_ROOT / rel).is_file():
                 errs.append(f"missing {rel}")
@@ -189,6 +191,9 @@ def main() -> int:
             f"{s3_prefix}/frobenius-arm-summary.json",
             f"{s3_prefix}/p4-comparison.json",
             results_s23,
+            "stage3/frobenius-arm-summary.json",
+            "stage3/p4-comparison.json",
+            "RESULTS-stages2-3.md",
         ):
             if not (EXP_ROOT / rel).is_file():
                 errs.append(f"missing {rel}")
