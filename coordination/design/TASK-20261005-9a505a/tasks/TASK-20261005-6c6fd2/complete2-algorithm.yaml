@@ -1,0 +1,95 @@
+task_id: TASK-20261005-6c6fd2
+route: P1_Complete_2
+selected_finalist: null
+common_definition: keygen-hardening.yaml
+relation:
+  input: '(O=End(E),E,C,X,P,Q,D,N), with optional public U,V for coefficient decoding'
+  O_representation: four integral evaluable source maps, table, rational coordinates and certificates
+  valid_support: 'accepted keys and normalized (C,X)=(C_s,phi_s(P)), s=m+2^k*r, K_s=<U+sV>'
+  output: 'exact normalized phi_s(Q), or an evaluated degree-D map with the sender kernel and retained-point transport'
+  output_equivalence: domain-labelled map up to the unique target isomorphism fixing the retained observation
+  missing_image_uniqueness: follows from N>4D on this restricted parameter slice, not merely N^2>4D
+  forbidden_extra_inputs: [connecting_path, Hom_basis, connecting_ideal, orientation, retained_tau, target_ring_oracle, extra_secret]
+public_algorithms:
+  Setup: exact procedure and encodings in keygen-hardening.yaml
+  KeyGen: exact capped rejection procedure and conditional law in keygen-hardening.yaml
+  Encrypt:
+    input: 'pk,m in [0,2^k),r uniform in [0,2^(a-k))'
+    steps:
+      - Validate pk, message and randomness encodings; return bottom on invalid input.
+      - 'Set s=m+2^k*r and form K_s=<U+sV> in E[D].'
+      - Evaluate the cyclic quotient as a degree-2 chain of a steps.
+      - Canonicalize C_s and the retained image X simultaneously, retaining the selected target transport locally.
+      - 'Return (C_s,X) in canonical curve/point encoding.'
+    output_size: O(log p) coefficient bits for one curve and one point, plus fixed tags
+    work: polynomial in a,log p and represented inputs with explicit small-degree quotient/root/model work
+    failure: bottom on arithmetic or validation failure; no undeclared secret input
+  Decode_if_completion_exists:
+    input: '(sk,ct=(C,X))'
+    steps:
+      - Validate ciphertext, field/model and order of X; otherwise bottom.
+      - Run the fixed Complete_2 routine; bottom on failure.
+      - Recover/evaluate the completed map from full smooth action using an explicitly condition-checked public full-action routine, or use the returned chain.
+      - Recover its D-torsion kernel by smooth finite algebra; normalize a primitive generator to U+tV.
+      - Check cyclic slope shape, degree and ciphertext equality; return t modulo 2^k, otherwise bottom.
+    conditions: 'D,N factored; source/target torsion rationality and rank; field/model conversions and output-sized evaluated chain charged'
+    status: conditional decoder only; there is no Complete_2 routine here
+M1_connecting_module:
+  class: representation
+  pseudocode:
+    - Parse O and ciphertext; verify declared certificates.
+    - 'Attempt to obtain evaluated h1,...,h4 forming Hom(E,C); stop with MISSING_EVALUATED_ANCHOR because no operation from the supplied O and (C,X) has been defined.'
+    - 'If such a basis were independently supplied, form norm(f)=D and f(P)=X constraints on f=sum zi*hi.'
+    - Enumerate the finite norm-D candidates and select the unique compatible map, if any; output f(Q).
+  exact_missing_arrow: 'evaluable End(E) plus (C,X) -> evaluated connecting Hom(E,C) anchor/basis'
+  unproved_oracle: evaluated_Hom_anchor
+  why_not_secret_rename: supplying the anchor is a connecting-map/Hom secret, not a basis change of source End(E)
+  EndE_operations: ring multiplication/trace/norm and source evaluations only before the missing arrow
+  time: 'finite candidate enumeration need not be polynomial even after anchor; coefficient ellipsoid/conditioning and bit lengths must be bounded'
+  memory_and_output: evaluated anchor and candidate representations have no established polynomial bound
+  failure: typed missing-arrow result; never substitute exponential fallback as polynomial success
+  public_substitution: publishing the same evaluated Hom basis makes all defined remaining computations public
+  correctness: uniqueness would identify the sender map, but existence/feasibility is not supplied
+  heuristic_assumptions: none adopted; missing anchor is not renamed a validated heuristic
+M2_transported_operator:
+  class: mechanism
+  pseudocode:
+    - Evaluate every certified source basis alpha_i on P and Q.
+    - Express those images in the public N-basis using smooth 5-power discrete logarithms; compute four 2x2 matrices M_i over Z/NZ.
+    - Solve 'sum ci*M_i*(1,0)^T=(0,1)^T' by Smith/finite-ring linear algebra; choose least residues ci in [0,N).
+    - 'Set alpha=sum ci*alpha_i and check alpha(P)=Q; bottom if no solution.'
+    - 'Attempt to evaluate gamma=phi_s alpha dual(phi_s) on C; stop with MISSING_TARGET_TRANSPORT because phi_s and target evaluation data are not inputs.'
+    - 'If that evaluated gamma were supplied, return [D^(-1) mod N]gamma(X).'
+  exact_missing_arrow: 'O and one-column observation -> evaluation of phi_s alpha dual(phi_s) at X without constructing/supplying the connecting map'
+  torsion_linear_algebra:
+    equation_status: finite and explicit
+    surjectivity: 'expected standard unramified full maximal-order action for N coprime p; not needed as an assumed completion theorem because the algorithm tests solvability'
+    failure: no solution returns bottom; never assume source-action solvability proves target transport
+  conditional_identity: 'dual(phi_s)(X)=[D]P, hence gamma(X)=phi_s(alpha([D]P))=[D]phi_s(Q)'
+  EndE_operations: four basis-map evaluations at P,Q; finite matrix extraction; bounded integral linear combinations
+  unproved_oracle: target_transport_evaluation
+  extra_secret_if_supplied: connecting map/ideal, target evaluated ring with correspondence, or equivalent transported operator
+  representation_charge:
+    source_stage: O(log N)-bit coefficients plus four represented source maps; polynomial if supplied source evaluation bound holds
+    transported_map: 'deg(gamma)=D^2*deg(alpha); expanded rational maps may be exponential; a polynomial DAG requires the unavailable connecting map'
+    desired_output: one point O(log p) bits; small point output does not make obtaining gamma polynomial
+  time_memory: source stage polynomial in encoded input, log N and source evaluation cost; target stage undefined
+  failure: bottom for malformed/unsolvable source stage; typed missing-arrow at transport
+  public_substitution: with evaluated gamma at X supplied publicly, the same inversion modulo N is public
+  correctness: conditional identity is exact; no actual-message equation for an absent lift
+  heuristic_assumptions: none adopted
+fallback:
+  name: PublicEnum_P1
+  steps:
+    - For each t in '[0,D)', construct the public normalized quotient and compare '(C_t,phi_t(P))' with ct.
+    - Emit the compatible map; return its Q image and low-k residue if the matching fiber is nonempty.
+  uniqueness: at most one t on the N>4D slice, modulo normalized transport
+  time: 'D=2^lambda public quotient reenactments, each a steps; exponential in lambda'
+  memory: one chain and one coefficient when streamed, plus represented field/preprocessing
+  EndE_used: false
+  recipient_polynomial_status: failed
+quantifiers:
+  desired: 'exists one fixed uniform Complete_2; forall successful Setup,accepted keys,m,r: output equals sender image except recipient-coin failure <=epsilon_lift(lambda)'
+  actual: source-stage formulas and public finite enumeration only; no epsilon_lift bound supplied
+  no_inference: unique finite solution is not a polynomial private algorithm
+security_result: no security arrow follows from the conditional formula

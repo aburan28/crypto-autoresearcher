@@ -247,7 +247,10 @@ def closure_certificate(N, equations, D, mem_cap_gb, s_known=None, standard_cap=
     out["standard_monomials"] = c if c <= standard_cap else None
     out["standard_monomials_exceeds_cap"] = c > standard_cap
     s = s_known
-    s_source = "f4_quotient_dimension" if s_known is not None else None
+    # The caller knows where s_known came from (run_cert passes its exhaustive
+    # count or the msolve quotient) and relabels; a bare call says only that
+    # the value was supplied.
+    s_source = "caller_supplied" if s_known is not None else None
     if res["contains_one"]:
         out["verdict"] = "sufficient"
         out["verdict_basis"] = "1 in W_D"
