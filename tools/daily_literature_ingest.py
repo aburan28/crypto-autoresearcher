@@ -420,7 +420,9 @@ def validate_distillation(result: dict, pages: dict[int, str]) -> dict:
     return result
 
 
-def distill_pdf(paper: Paper, data: bytes, api_key: str, model: str) -> dict:
+def build_distill_request(paper: Paper, data: bytes, model: str
+                          ) -> tuple[dict, dict[int, str], bool]:
+    """The Messages request for one paper, plus the page map its answer is checked against."""
     pages, truncated = pdf_pages(data)
     page_text = "\n\n".join(f"[PDF page {page}]\n{text}" for page, text in pages.items())
     request = {
@@ -440,12 +442,12 @@ def distill_pdf(paper: Paper, data: bytes, api_key: str, model: str) -> dict:
                       f"<untrusted_paper_text>\n{page_text}\n</untrusted_paper_text>"}],
         "output_config": {"format": {"type": "json_schema", "schema": SUMMARY_SCHEMA}},
     }
-    payload = json.dumps(request).encode("utf-8")
-    http = Request("https://api.anthropic.com/v1/messages", data=payload,
-                   headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
-                            "content-type": "application/json"}, method="POST")
-    with urlopen(http, timeout=180) as response:
-        message = json.load(response)
+    return request, pages, truncated
+
+
+def finish_distillation(message: dict, pages: dict[int, str], truncated: bool,
+                        model: str, delivery: dict) -> dict:
+    """Validate one model answer; identical for both delivery lanes."""
     if message.get("stop_reason") != "end_turn":
         raise ValueError(f"model response incomplete: {message.get('stop_reason')}")
     content = next((part["text"] for part in message.get("content", [])
@@ -455,8 +457,89 @@ def distill_pdf(paper: Paper, data: bytes, api_key: str, model: str) -> dict:
     result = validate_distillation(json.loads(content), pages)
     result.update({"provider": "anthropic", "model": model,
                    "pages_extracted": len(pages), "text_truncated": truncated,
-                   "usage": message.get("usage") or {}})
+                   "usage": message.get("usage") or {}, "delivery": delivery})
     return result
+
+
+def _post_message(request: dict, api_key: str) -> dict:
+    payload = json.dumps(request).encode("utf-8")
+    http = Request("https://api.anthropic.com/v1/messages", data=payload,
+                   headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                            "content-type": "application/json"}, method="POST")
+    with urlopen(http, timeout=180) as response:
+        return json.load(response)
+
+
+def distill_pdf(paper: Paper, data: bytes, api_key: str, model: str) -> dict:
+    request, pages, truncated = build_distill_request(paper, data, model)
+    message = _post_message(request, api_key)
+    return finish_distillation(message, pages, truncated, model, {"mode": "interactive"})
+
+
+def distill_batch(items: list[tuple[Paper, bytes]], api_key: str, model: str, *,
+                  wait_seconds: float, registry: Path, cancel_wait_seconds: float = 600,
+                  opener=None, sleep=None, clock=None) -> list[dict]:
+    """Distill every paper through one Message Batch, at half the token price.
+
+    Nobody is waiting on these drafts, which is what the batch lane is for.
+    The job still has to finish inside its runner, so it waits at most
+    `wait_seconds`; if the batch has not ended by then it is cancelled, every
+    result that finished is kept, and only the requests that never ran are sent
+    synchronously. A request is therefore never paid for twice. Records go to
+    `registry` (outside the repository, so the automation branch stays clean).
+    """
+    if not items:
+        return []
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    import time
+    from orchestration import adapter
+    from orchestration.adapter import batch
+
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
+    cfg = adapter.load()
+    env = {**os.environ, "ANTHROPIC_API_KEY": api_key}
+    prepared, entries = [], []
+    for index, (paper, data) in enumerate(items):
+        request, pages, truncated = build_distill_request(paper, data, model)
+        custom_id = batch.custom_id_for("lit", index, paper.dedup_key)
+        prepared.append((custom_id, request, pages, truncated))
+        entries.append(batch.BatchEntry(custom_id=custom_id, params=request,
+                                        meta={"custom_id": custom_id, "task_id": None,
+                                              "role": "literature-intake",
+                                              "source": paper.dedup_key,
+                                              "resolved_model_id": model}))
+    handle = batch.submit(cfg, "anthropic", entries, env=env, opener=opener,
+                          sleep=sleep, registry=registry, note="daily literature intake")
+    state = batch.wait(cfg, "anthropic", handle.id, timeout_seconds=wait_seconds,
+                       env=env, opener=opener, sleep=sleep, clock=clock)
+    if not state.ended:
+        batch.cancel(cfg, "anthropic", handle.id, env=env, opener=opener, sleep=sleep,
+                     registry=registry, reason=f"not ended within {wait_seconds:.0f}s")
+        state = batch.wait(cfg, "anthropic", handle.id, timeout_seconds=cancel_wait_seconds,
+                           env=env, opener=opener, sleep=sleep, clock=clock)
+    results = {}
+    if state.ended:
+        results = batch.collect(cfg, "anthropic", handle.id, env=env, opener=opener,
+                                sleep=sleep, registry=registry).results
+    out = []
+    for custom_id, request, pages, truncated in prepared:
+        found = results.get(custom_id)
+        if found is not None and found.type == "succeeded":
+            message = (found.raw.get("result") or {}).get("message") or {}
+            out.append(finish_distillation(
+                message, pages, truncated, model,
+                {"mode": "batch", "batch_id": handle.id, "custom_id": custom_id}))
+            continue
+        # Never ran in the batch (cancelled, expired, or a server-side error):
+        # run it now. A rejected request fails here exactly as it would have.
+        message = _post_message(request, api_key)
+        out.append(finish_distillation(
+            message, pages, truncated, model,
+            {"mode": "interactive", "fallback_from_batch": handle.id,
+             "batch_result": found.type if found is not None else "not_collected"}))
+    return out
 
 
 def make_entry(paper: Paper, record_id: str, receipt: dict, today: str,
@@ -473,7 +556,8 @@ def make_entry(paper: Paper, record_id: str, receipt: dict, today: str,
         "source": {"citation": citation, "url": paper.url},
         "source_artifact": receipt,
         "distillation": ({k: distilled[k] for k in
-                          ("provider", "model", "pages_extracted", "text_truncated", "usage")}
+                          ("provider", "model", "pages_extracted", "text_truncated", "usage",
+                           "delivery") if k in distilled}
                          if distilled else {"basis": "author abstract only"}),
         "tags": [paper.source, lane(paper), "automated-intake", "attack-or-speedup-candidate"],
         "confidence": "reported", "citation_verified": "feed-and-pdf",
@@ -523,7 +607,8 @@ def make_entry(paper: Paper, record_id: str, receipt: dict, today: str,
 
 
 def ingest(papers: list[Paper], root: Path, bucket: str, s3, get=fetch,
-           max_new: int = 20, now: datetime | None = None, distill=None) -> dict:
+           max_new: int = 20, now: datetime | None = None, distill=None,
+           distill_many=None) -> dict:
     now = now or datetime.now(timezone.utc)
     keys, titles = corpus_keys(root)
     chosen, duplicates = [], []
@@ -539,10 +624,17 @@ def ingest(papers: list[Paper], root: Path, bucket: str, s3, get=fetch,
         titles.add(title_key)
     if len(chosen) > max_new:
         raise ValueError(f"{len(chosen)} new matching papers exceed --max-new {max_new}; increase limit or refine filter")
+    # Archive every PDF first, then distill them together (one batch when
+    # `distill_many` is given), then write the entries. A failed download or
+    # distillation still writes no entry at all.
+    archived = [(paper, *archive_pdf(paper, bucket, s3, get)) for paper in chosen]
+    if distill_many:
+        distillations = distill_many([(paper, pdf) for paper, _, pdf in archived])
+    else:
+        distillations = [distill(paper, pdf) if distill else None
+                         for paper, _, pdf in archived]
     added = []
-    for paper in chosen:
-        receipt, pdf = archive_pdf(paper, bucket, s3, get)
-        distilled = distill(paper, pdf) if distill else None
+    for (paper, receipt, pdf), distilled in zip(archived, distillations):
         record_id = new_id(root)
         target = root / "knowledge/literature" / f"{record_id}.md"
         target.write_text(make_entry(paper, record_id, receipt, now.date().isoformat(),
@@ -560,6 +652,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--abstract-only", action="store_true",
                         help="create limited drafts without reading PDF text or calling a model")
+    parser.add_argument("--delivery", choices=["batch", "interactive"], default="batch",
+                        help="batch (default) distills every paper in one Message Batch at "
+                             "half price; interactive calls the model once per paper")
+    parser.add_argument("--batch-wait-seconds", type=float, default=1800,
+                        help="how long to wait for the batch before cancelling it and "
+                             "running only the unfinished papers synchronously")
+    parser.add_argument("--batch-registry", type=Path,
+                        help="where batch records go (default: a temporary directory, so "
+                             "nothing is added to the repository)")
     args = parser.parse_args(argv)
     if args.days < 1 or args.max_new < 1 or not args.bucket.strip():
         parser.error("days, max-new and bucket must be positive/nonempty")
@@ -568,11 +669,18 @@ def main(argv: list[str] | None = None) -> int:
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not args.abstract_only and not api_key:
         parser.error("ANTHROPIC_API_KEY is required for full-PDF distillation; use --abstract-only for limited drafts")
-    model = os.environ.get("LITERATURE_MODEL", "claude-opus-5")
-    distill = (lambda p, pdf: distill_pdf(p, pdf, api_key, model)) if not args.abstract_only else None
+    model = os.environ.get("LITERATURE_MODEL", "claude-opus-5-5")
+    distill = distill_many = None
+    if not args.abstract_only and args.delivery == "batch":
+        import tempfile
+        registry = args.batch_registry or Path(tempfile.mkdtemp(prefix="literature-batches-"))
+        distill_many = lambda items: distill_batch(  # noqa: E731
+            items, api_key, model, wait_seconds=args.batch_wait_seconds, registry=registry)
+    elif not args.abstract_only:
+        distill = lambda p, pdf: distill_pdf(p, pdf, api_key, model)  # noqa: E731
     papers = recent_papers(datetime.now(timezone.utc), args.days)
     result = ingest(papers, ROOT, args.bucket, boto3.client("s3"),
-                    max_new=args.max_new, distill=distill)
+                    max_new=args.max_new, distill=distill, distill_many=distill_many)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(f"Checked {result['checked']} candidates; {len(result['existing'])} known; {len(result['added'])} new KN-LIT drafts")
     return 0
