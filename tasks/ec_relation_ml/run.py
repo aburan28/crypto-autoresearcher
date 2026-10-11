@@ -39,7 +39,8 @@ def write_json(path, value):
 def sources():
     files = [*Path(__file__).parent.glob("*.py"),
              *(ROOT/"tasks/polynomial_solver_ml/environment/polynomial_ml").glob("*.py"),
-             ROOT/"tools/curve_identity.py", Path(__file__).with_name("PROTOCOL.md")]
+             ROOT/"tools/curve_identity.py", Path(__file__).with_name("PROTOCOL.md"),
+             Path(__file__).with_name("requirements.txt")]
     return {p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted(files)}
 
