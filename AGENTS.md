@@ -100,6 +100,10 @@ batch …`, with write-once records under `coordination/inference-batches/`
 enforces write scope, no-overwrite, command allow-list and budget stops rather
 than requesting them.
 
+## Mandatory progress-fidelity gate
+
+Every new quantitative speedup, performance advantage, or ECDLP attack-cost claim MUST carry a machine-readable record in `claims/*.json` passing `python3 -m tools.progress_fidelity validate`. Local subroutine gains must not be presented as end-to-end gains. All claims require matched baseline/candidate evidence and independent verification; see `docs/progress-fidelity.md`. Missing evidence is unqualified, never inferred. The Coordinator must enforce this for claims in prose as well as code; the `progress-fidelity` CI check must be required by branch protection before merge.
+
 ## Core rules
 
 1. Separate speculation, implementation, observation and conclusion.
