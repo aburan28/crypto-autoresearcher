@@ -1,0 +1,139 @@
+# EXP-CZLIFT-17b7eb -- Smart's attack against the Serre-Tate canonical lift.
+# H-CZLIFT-889c9d / RQ-CZLIFT-b9f765 / GOAL-CZLIFT-1516d5.
+# Approved by DEC-20261009-a3797d under the standing user authorization.
+experiment:
+  id: EXP-CZLIFT-17b7eb
+  hypothesis_id: H-CZLIFT-889c9d
+  question_id: RQ-CZLIFT-b9f765
+  goal_id: GOAL-CZLIFT-1516d5
+  version: 1
+  title: >-
+    On every class-number-one CM anomalous curve with p <= 1500, read
+    v_p(z([p]P^)) and Smart's ratio over four curve-lift classes and three
+    point sections, against the rule v_p(z) >= 2 iff v_p(j(E^) - j_can) >= 2e
+  status: approved
+  frozen: true
+  designed_at: '2026-10-09'
+  approved_by: coordinator
+  approval_decision: DEC-20261009-a3797d
+  execution_authorized: true
+  status_note: >-
+    Frozen at version 1 and approved 2026-10-09 by DEC-20261009-a3797d under
+    AGENTS.md "Standing user authorization". The Coordinator verified
+    protocol readiness (every field below non-null, both criteria decidable
+    from the primary metrics, launcher bound in trial-plan.json). Approval
+    asserts nothing about H-CZLIFT-889c9d. Changes after this point go to
+    amendments/ as versioned protocol_amendment records.
+  objective: >-
+    Measure, on the 29 anomalous curves of harness.czlift.anomalous_cm_curves
+    (1500), for each curve lift class (canonical CM model; an isomorphic
+    re-model A(1+pt)^2, B(1+pt)^3; perturbations at p-adic distance p and p^2
+    from the CM model) and each point section (Hensel with random x-digit,
+    naive integer lift, Teichmuller x), the valuation of the formal parameter
+    of [p]P^ and whether z([p]Q^)/z([p]P^) at its first nonzero digit equals
+    d, for random P and d in [2, p-2].
+  inputs:
+    curves: harness.czlift.anomalous_cm_curves(1500) -- D in {-3, -11, -19, -43, -67, -163}, 29 curves, p from 7 to 1373
+    precision: 8
+    lift_classes: [canonical, isomorphic, pert_p, pert_p2]
+    point_sections: [hensel_random, naive, teichmuller]
+    per_class: 2
+    samples_per_cell: 12
+    seeds: [20261009, 20261010]
+  controls:
+    - >-
+      Non-degenerate control: the pert_p class (v_p(Delta j) = 1 for j != 0,
+      = 3 for j = 0, both below 2e) must recover d for every point lift; this
+      is Smart's theorem and validates the instrument.
+    - >-
+      Isomorphic re-model control: an isomorphic model of the CM curve must
+      behave exactly like the canonical model (the rule concerns the curve,
+      not the equation).
+    - >-
+      The j-distance is computed from the lifted equation independently of
+      any point; the degeneracy flag is computed from the point. The rule is a
+      cross-check between two independent instruments.
+    - 'd = +-1 excluded: negation-equivariant sections recover them by symmetry (pilot observation 2026-10-09).'
+  independent_variables:
+    - curve lift class (four values) and thereby v_p(j(E^) - j_can)
+    - point section (three values)
+    - the prime p and discriminant D
+  metrics:
+    primary:
+      - rule_agreement
+      - nondegenerate_success_rate
+      - degenerate_success_rate with degenerate_reference_inv_p and degenerate_z_score
+    secondary:
+      - by_class frac_degenerate, frac_predicted_degenerate, success_rate
+      - degenerate_by_section success and reference
+      - rule_disagreements (count)
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: rule_agreement, nondegenerate_success_rate, degenerate_success_rate
+    formula: >-
+      rule_agreement = 1 and nondegenerate_success_rate = 1 exactly;
+      degenerate_success_rate = mean(1/p) within 4 binomial standard errors.
+    source: H-CZLIFT-889c9d predictions (Serre-Tate splitting of E^[p] on lifts with v_p(q-1) >= 2; Smart 1999 on the others).
+  scale_relevance:
+    tier: toy
+    justification: p <= 1373; the rule is exact at every precision so no transfer assumption is needed, but no crypto-scale statement is made.
+    correspondence: null
+  tail_checks:
+    - The canonical class alone must show frac_degenerate = 1 on every curve (per-curve rows are recorded).
+    - 'The pilot (seed 1, pmax 400) showed d = +-1 inflating the degenerate rate by 2/(p-1) at p <= 19; the frozen protocol excludes +-1 and the per-section breakdown must show no residual excess.'
+  replication:
+    seeds: [20261009, 20261010]
+    independent_instances: 2
+    replication_note: two full sweeps with distinct seeds; a prediction must hold on both to count.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 1
+    maximum_runs: 4
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after the two planned trials have output_validated receipts.
+    - A crash or timeout is failed_infrastructure; it is never a value of any metric.
+  invalidation_rules:
+    - harness.czlift.self_test() fails on the executing commit.
+    - A curve in the sweep is found not to have #E(F_p) = p (the driver asserts it).
+    - The checker cannot reproduce the first two curves row by row from the recorded seed.
+  success_criterion: >-
+    On both seeds: rule_agreement = 1.0, nondegenerate_success_rate = 1.0,
+    and |degenerate_z_score| <= 4.
+  falsification_criterion: >-
+    On both seeds any of: rule_disagreements > 0; nondegenerate_success_rate
+    < 1.0; degenerate_z_score > 4 (a section recovering d on the canonical
+    lift above the random rate).
+  decision_impact:
+    on_positive: >-
+      H-CZLIFT-889c9d moves to supported at toy tier after review; the
+      obstruction "the canonical lift is exactly the lift on which Smart's
+      attack degenerates, and its next digit is lift-noise" is promoted as a
+      finding; the user's clause that the lift-noise for t != 1 comes from
+      the lift choice is answered for t = 1 by this record and for t != 1 by
+      EXP-CZLIFT-ae0a13.
+    on_negative: >-
+      A rule disagreement sends the instrument (harness/czlift.py) to repair
+      before any inference; a degenerate z-score above 4 on both seeds opens
+      a follow-up contract on the offending section with larger p and a
+      red-team card, since a section beating 1/p on the canonical lift is the
+      first structural signal this goal looks for.
+  required_artifacts:
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/command.txt
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/environment.json
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-CZLIFT-17b7eb/runs/<RUN-ID>/stderr.log
+  launcher:
+    trial_plan: experiments/EXP-CZLIFT-17b7eb/trial-plan.json
+    driver: experiments/EXP-CZLIFT-17b7eb/implementation/run.py
+    checker: experiments/EXP-CZLIFT-17b7eb/implementation/check.py
+    library: [harness/czlift.py, harness/czlift_run.py, harness/toycurve.py]
+  assigned_to: executor
+  out_of_scope:
+    - Any prime above 1500 or any non-CM anomalous curve.
+    - The non-anomalous case (EXP-CZLIFT-ae0a13) and global lifts (EXP-CZLIFT-a255fc).
+    - Any claim about a deployed curve.

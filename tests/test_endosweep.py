@@ -643,3 +643,17 @@ def test_nist_results_rest_on_checked_certificates():
         if name.startswith("nist/K-"):
             assert r["exact"]["D_K"] == -7 and r["tau"]["all_checks_pass"]
             assert r["summary"]["S_free"]["ratio"] > 2 and r["summary"]["S_equals_M"]["ratio"] > 1.5
+
+
+def test_partial_certificate_raises_the_b571_bound(tmp_path):
+    base = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_nist_20261006")
+    partials = NI.load_partial_certificates(_os.path.join(base, "factorizations.jsonl"))
+    assert len(partials) == 1
+    (N, known), = partials.items()
+    part = NI.partial_factorization(N, bound=10 ** 4, known=known)
+    assert not part["complete"] and part["cofactor_digits"] == 130 and not part["cofactor_square"]
+    assert part["abs_D_K_at_least"] == 137 * 1502689 * 5608493523058319 * 3563521804312876303 * 10 ** 4
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text(_json.dumps({"N": str(N), "partial_factors": [["137", 1]], "cofactor": str(N // 137 - 1)}) + "\n")
+    with pytest.raises(ValueError):
+        NI.load_partial_certificates(str(bad))
