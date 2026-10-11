@@ -1,0 +1,175 @@
+experiment:
+  id: EXP-KIC-976649
+  hypothesis_id: H-KIC-baee02
+  idea_id: IDEA-20260930-4ebd85
+  version: 1
+  title: Triple-sum coverage of toy Koblitz bases against a relabelled cyclic group
+  status: approved
+  objective: >-
+    Decide explanation G against explanation N for H-KIC-baee02 by exhaustive
+    triple-sum coverage at n=7 and n=11.
+  inputs:
+    curve: y^2 + xy = x^3 + x^2 + 1
+    n7:
+      modulus: x^7+x+1
+      group_order: 142
+      r: 71
+      m_values: [8, 12]
+    n11:
+      modulus: x^11+x^2+1
+      group_order: computed in the run
+      r: computed in the run
+      m_values: [12, 16]
+    addition:
+      distinct_points: >-
+        lambda = (y1 + y2) / (x1 + x2), x3 = lambda^2 + lambda + 1 + x1 + x2,
+        y3 = lambda * (x1 + x3) + x3 + y1
+      doubling: >-
+        lambda = x + y/x, x3 = lambda^2 + lambda + 1,
+        y3 = lambda * (x + x3) + x3 + y
+      inverse: (x, x + y)
+      routine_a: the formulas above with inversion by Fermat power a^(2^n - 2)
+      routine_b: >-
+        the same group law in projective coordinates, with inversion by the
+        extended Euclidean algorithm, converted back to affine for the hit set
+    base_rule: >-
+      Sort affine subgroup x-coordinates by the integer whose low bit is the
+      constant term. For each x, append both subgroup lifts in increasing y
+      order. Do not split an x-pair. Stop at the largest prefix with |B|=m.
+      If m is not reached, the cell is invalid.
+    random_base: >-
+      One uniform m-subset of the r subgroup points, including the identity.
+      Fisher-Yates from the end, j = random.Random(seed).randrange(i+1),
+      on the lexicographic point list. The subset is the first m elements
+      after the shuffle.
+    seeds:
+      bijection: 5160325
+      sensitivity_bijection: 5160326
+      subset_n7_m8: 5160327
+      subset_n7_m12: 5160329
+      subset_n11_m12: 5160330
+      subset_n11_m16: 5160331
+      random_label: 5160328
+    bijection_rule: >-
+      Independently for each cell, shuffle 0..r-1 with Fisher-Yates and the
+      cell seed, and assign the result to the subgroup in lexicographic order
+      (infinity first, then x, then y). Write the permutation before any
+      coverage number is computed. The sensitivity seed is a second row, not
+      a redraw after seeing the gap.
+    random_label_rule: >-
+      Draw M elements with replacement by random.Random(seed).randrange(r)
+      on the same lexicographic indexing. One draw per cell.
+    arithmetic_progression: the residues 0 through m-1 in Z/rZ
+    enumeration: >-
+      Store every unordered distinct pair sum, then probe the third point.
+      This is the declared algorithm. Sorting all M sums is not a substitute
+      inside this run.
+  controls:
+    - >-
+      Identity: at n=7 the two addition routines produce the same hit set on
+      every lexicographic and random base.
+    - >-
+      Random-label: report cov_random_label beside p_occ = 1-(1-1/r)^M.
+      The difference is not a success gate.
+    - >-
+      Relabelled Z/rZ: one primary bijection. The sensitivity bijection is
+      reported and flips the decision into unresolved if it crosses 0.25.
+    - >-
+      Arithmetic progression: at each (r, m) the gap against its bijection
+      must exceed 0.25. A cell inside the band voids the instrument.
+    - >-
+      Multiplicities are stored before any digest. Mean multiplicity 1 is L=0.
+  independent_variables:
+    - n in {7, 11}
+    - m in the pre-registered list for that n
+    - base in {lexicographic, random, arithmetic-progression}
+  metrics:
+    primary:
+      - abs_relative_gap_lex
+      - ratio_lex
+      - ap_gap
+      - n7_hit_set_agreement
+    secondary:
+      - abs_relative_gap_random_base
+      - cov_random_label_minus_p_occ
+      - mean_orbit_multiplicity
+      - max_orbit_multiplicity
+      - L
+      - sensitivity_gap
+      - peak_rss_bytes
+  heuristic_under_test: H1
+  preregistered_prediction:
+    quantity: relative coverage gap of the curve triple sumset against the cyclic null
+    formula: >-
+      gap = |cov_curve - cov_cyclic| / max(cov_cyclic, 1/r). Explanation G
+      is gap <= 0.25 and cov_curve / cov_cyclic in [0.75, 1.25] on every
+      lexicographic cell. M = m(m-1)(m-2)/6. p_occ = 1-(1-1/r)^M.
+      L = log2 of the mean number of S_3-orbits per hit element.
+    source: >-
+      IDEA-20260930-4ebd85. The bijection seeds 5160325 and 5160326, the
+      subset seeds 5160327, 5160329, 5160330 and 5160331, and the
+      random-label seed 5160328 are the integers this contract supplies
+      because the proposal required frozen seeds and did not name them.
+      They were not measured.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The cells are exhaustive at r=71 and at the n=11 subgroup order
+      computed in the run. No transfer to n greater than 11, to m growing
+      with r, or to a co-designed algebraic base is assumed.
+    correspondence: null
+  tail_checks:
+    - >-
+      Maximum S_3-orbit multiplicity, reported next to the Poisson
+      probability that a bin is at least that large when the mean is M/r.
+      The probability is a comparison row, not a pass-fail cut.
+    - >-
+      A lexicographic gap inside the band with mean multiplicity 1 is L=0
+      and is not described as a lossy projection.
+  replication:
+    seeds: [5160325, 5160326]
+    independent_instances: 4
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after the four (n, m) cells, both base rules, both bijections, and the arithmetic-progression rows.
+    - Do not retune m after seeing a gap.
+    - Do not add a third scale.
+  invalidation_rules:
+    - The two n=7 addition routines disagree on a hit set.
+    - A coverage ratio divides by zero because cov_cyclic is 0.
+    - The n=11 order fails #E = cofactor * r, or the first affine subgroup point does not have order r.
+    - An x-pair is split to force |B|=m.
+    - A bijection is replaced after cov_curve has been computed.
+    - The pair-table algorithm is swapped for a different enumeration after the first cell.
+  success_criterion: >-
+    The run is valid. Every lexicographic cell has gap at most 0.25 and
+    ratio in [0.75, 1.25]. Every arithmetic-progression cell has gap
+    strictly above 0.25. The sensitivity bijection does not move any
+    lexicographic cell across the cut. The two n=7 hit sets agree.
+  falsification_criterion: >-
+    The run is valid, the arithmetic-progression cells all exit the band,
+    the addition routines agree, and at least one lexicographic cell has
+    gap strictly above 0.25.
+  required_artifacts:
+    - experiments/EXP-KIC-976649/runs/<RUN-ID>/command.txt
+    - experiments/EXP-KIC-976649/runs/<RUN-ID>/permutations.json
+    - experiments/EXP-KIC-976649/runs/<RUN-ID>/coverage.json
+    - experiments/EXP-KIC-976649/runs/<RUN-ID>/stdout.txt
+    - experiments/EXP-KIC-976649/runs/<RUN-ID>/stderr.txt
+  assigned_to: executor
+  approved_by: coordinator
+  approval:
+    decision_id: DEC-20261005-d0f94f
+    basis: >-
+      AGENTS.md standing user authorization of 2026-09-06. This record
+      freezes the protocol. It does not start the executor.
+    not_launched_because: >-
+      The design turn archives the contract and does not launch
+      TASK-20261005-953545. That handoff is eligible once its archive
+      commit is reachable and a lane is claimed.
