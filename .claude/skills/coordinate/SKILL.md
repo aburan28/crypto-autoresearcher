@@ -16,7 +16,8 @@ capacity is not (`AGENTS.md`, "Approval is bounded by execution").
 Public **coordination** entry point. The session drives the Coordinator role
 (`agents/coordinator.md`, `.claude/agents/coordinator.md`). Detailed procedure:
 `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/WORKFLOW.md`
-and `references/lifecycle.md`. Do not copy or weaken `AGENTS.md`.
+and `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/references/lifecycle.md`.
+Do not copy or weaken `AGENTS.md`.
 
 This is **not** `/run`. Do not launch scientific trials, implement experiment
 code, or treat a Ready executor card as something this skill executes. When the
