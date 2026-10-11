@@ -3,10 +3,74 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 from orchestration.campaign import autopilot
+
+
+def test_service_stop_reaps_an_active_worker(tmp_path: Path) -> None:
+    """A launchd stop must not leave a worker holding the Cairn node log."""
+    pidfile = tmp_path / "worker.pid"
+    wrapper = """
+import signal, sys
+sys.path.insert(0, sys.argv[1])
+from orchestration.campaign.autopilot import _run_worker
+signal.signal(signal.SIGTERM, lambda _signum, _frame: sys.exit(0))
+child = "import os,sys,time; open(sys.argv[1], 'w').write(str(os.getpid())); time.sleep(60)"
+_run_worker([sys.executable, '-c', child, sys.argv[2]], timeout=120)
+"""
+    parent = subprocess.Popen(
+        [sys.executable, "-c", wrapper, str(Path(__file__).resolve().parents[1]),
+         str(pidfile)])
+    child_pid: int | None = None
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and child_pid is None:
+            if pidfile.exists():
+                child_pid = int(pidfile.read_text(encoding="utf-8"))
+            elif parent.poll() is not None:
+                raise AssertionError(f"worker wrapper exited {parent.returncode}")
+            else:
+                time.sleep(0.05)
+        assert child_pid is not None, "worker did not start"
+
+        os.kill(parent.pid, signal.SIGTERM)
+        assert parent.wait(timeout=15) == 0
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            # macOS can leave a terminated orphan as a zombie until launchd
+            # reaps it. A zombie holds no node log or other open files.
+            state = subprocess.run(
+                ["ps", "-o", "stat=", "-p", str(child_pid)],
+                capture_output=True, text=True, check=False,
+            ).stdout.strip()
+            if not state or state.startswith("Z"):
+                break
+            time.sleep(0.05)
+        else:
+            detail = subprocess.run(
+                ["ps", "-o", "pid=,ppid=,pgid=,stat=,comm=", "-p", str(child_pid)],
+                capture_output=True, text=True, check=False,
+            ).stdout.strip()
+            raise AssertionError(f"worker {child_pid} survived supervisor stop: {detail}")
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+            parent.wait()
+        if child_pid is not None:
+            try:
+                os.killpg(child_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def _write(path: Path, content: str) -> None:
@@ -76,8 +140,9 @@ def test_model_failover_only_before_tools_or_checkout_effects(
     calls = []
 
     def run(command, **kwargs):
-        assert command[5] == "build"  # top-level dispatcher can invoke the subagent
-        calls.append(command[7])
+        assert command[2] == "--auto"  # no terminal to answer tool prompts
+        assert command[6] == "build"  # top-level dispatcher can invoke the subagent
+        calls.append(command[8])
         kwargs["stdout"].write(json.dumps({"part": {"type": "step-finish",
             "tokens": {"input": 100, "output": 20}, "cost": 0.001}}) + "\n")
         return subprocess.CompletedProcess(command, 1 if len(calls) == 1 else 0)
