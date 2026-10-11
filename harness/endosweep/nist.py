@@ -79,6 +79,37 @@ def load_factorizations(path: str | None) -> dict[int, list]:
     return out
 
 
+def load_partial_certificates(path: str | None) -> dict[int, list]:
+    """Partial factorisations {N: [(p, e), ...]}: proven primes found for a number not yet split completely.
+
+    A record carries ``partial_factors`` and the composite ``cofactor`` they leave; it is accepted only
+    if the factors are prime, they and the cofactor multiply to N, and the cofactor is composite.
+    """
+    from sympy import isprime
+    out: dict[int, list] = {}
+    if not path or not os.path.exists(path):
+        return out
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            r = json.loads(line)
+            if "partial_factors" not in r:
+                continue
+            N, C = int(r["N"]), int(r["cofactor"])
+            fac = [(int(p), int(e)) for p, e in r["partial_factors"]]
+            prod = C
+            for p, e in fac:
+                if not isprime(p):
+                    raise ValueError(f"{p} is not prime")
+                prod *= p ** e
+            if prod != N or C < 4 or isprime(C):
+                raise ValueError("the partial factorisation does not leave a composite cofactor of N")
+            out[N] = sorted(fac)
+    return out
+
+
 def _pari_factor(N: int, conn) -> None:
     import cypari2
     pari = cypari2.Pari()
@@ -105,7 +136,7 @@ def pari_factor(N: int, budget: float) -> list | None:
     return a.recv() if a.poll() else None
 
 
-def partial_factorization(N: int, bound: int = 10 ** 7) -> dict:
+def partial_factorization(N: int, bound: int = 10 ** 7, known: list | None = None) -> dict:
     """Trial division of N by every prime below ``bound``, and what it proves about |D_K|.
 
     N = S * C with S the part found and C free of primes below ``bound``.  If C
@@ -113,13 +144,23 @@ def partial_factorization(N: int, bound: int = 10 ** 7) -> dict:
     Otherwise, when C is not a perfect square its squarefree part is a product
     of primes >= bound, so the squarefree part of N -- and |D_K|, which is that
     or four times it -- is at least (the primes of odd exponent in S) * bound.
+    ``known`` adds proven primes found otherwise (ECM, say) to S before the trial division.
     """
     from math import isqrt
     from sympy import isprime, primerange
     small, C = [], N
+    for p, _e in known or []:
+        e = 0
+        while C % p == 0:
+            C //= p
+            e += 1
+        if e:
+            small.append((p, e))
     for p in primerange(2, bound):
         if p * p > C:
             break
+        if any(p == k for k, _ in small):
+            continue
         if C % p == 0:
             e = 0
             while C % p == 0:
@@ -136,6 +177,7 @@ def partial_factorization(N: int, bound: int = 10 ** 7) -> dict:
     if r * r == C and isprime(r):
         return {"complete": True, "factors": small + [(r, 2)]}
     square = r * r == C
+    small.sort()
     return {"complete": False, "trial_division_bound": bound, "factors": small,
             "cofactor_digits": len(str(C)), "cofactor_composite": True, "cofactor_square": square,
             "abs_D_K_at_least": core if square else core * bound}
@@ -187,11 +229,11 @@ def _discriminants(q: int, t: int, factors: dict, budget: float, new: dict) -> d
         out["exact"] = {"D_K": DK, "f": f, "how": "complete factorisation of 4q - t^2 into primes",
                         "factorization": [[str(p), e] for p, e in fac]}
     else:
-        part = partial_factorization(N)
+        part = partial_factorization(N, known=factors.get(("partial", N)))
         if part["complete"]:
             fac = check_factorization(N, part["factors"])
             DK, f = exact_discriminant(D_frob, fac)
-            out["exact"] = {"D_K": DK, "f": f, "how": "trial division below 10^7 left a prime cofactor",
+            out["exact"] = {"D_K": DK, "f": f, "how": "the known primes and trial division below 10^7 left a prime cofactor",
                             "factorization": [[str(p), e] for p, e in fac]}
         else:
             out["exact"] = None
@@ -347,6 +389,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     widths = tuple(int(w) for w in args.widths.split(","))
     factors = load_factorizations(args.factorizations)
+    factors.update({("partial", N): fac for N, fac in load_partial_certificates(args.factorizations).items()})
     new: dict = {}
     raw = {}
     for cat in ("nist", "other"):

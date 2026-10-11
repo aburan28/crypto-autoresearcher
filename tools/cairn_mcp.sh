@@ -1,6 +1,7 @@
 #!/bin/sh
 # The cairn network as MCP tools for an agent in this repository
-# (`.mcp.json` server "cairn"). docs/cairn-runbook.md is the operator's page.
+# (`.mcp.json` and `opencode.json` server "cairn").
+# docs/cairn-runbook.md is the operator's page.
 #
 # Two arrangements, chosen by CAIRN_MODE:
 #
@@ -41,6 +42,11 @@
 # sees "server failed to start: <reason>" instead of a silent empty tool list.
 # A machine without cairn loses the network tools and nothing else.
 set -eu
+# This launcher serves research agents, not the Coordinator's funding key.
+# Current cairn also exposes post_objective over MCP; never inherit a spend
+# ceiling from an operator shell or a service environment.
+CAIRN_MCP_MAX_SPEND=0
+export CAIRN_MCP_MAX_SPEND
 repo=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel 2>/dev/null || pwd)
 name=$(basename "$repo")
 bin=${CAIRN_BIN:-$(command -v cairn || true)}

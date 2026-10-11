@@ -16,22 +16,22 @@ a hash it cannot is an assertion by the session that recorded it.
 |---|---|
 | Frozen source packages (`SRC-*`) | 28 |
 | — of those with the artifact committed | 27 |
-| Per-URL retrieval attempts | 46 |
-| — succeeded | 29 |
-| — failed or blocked | 17 |
-| Source artifacts under `inputs/` | 54 |
-| — hash recomputed and matching | 50 |
+| Per-URL retrieval attempts | 54 |
+| — succeeded | 34 |
+| — failed or blocked | 20 |
+| Source artifacts under `inputs/` | 64 |
+| — hash recomputed and matching | 55 |
 | — hash MISMATCH | 0 |
-| — present but carrying no `.sha256` | 3 |
+| — present but carrying no `.sha256` | 8 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8096 |
-| — with a resolvable external identifier | 2482 |
+| Literature entries (`KN-LIT-*`) | 8100 |
+| — with a resolvable external identifier | 2486 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 832, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 181, eprint 835, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7523, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7527, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -118,6 +118,14 @@ not the same as never having looked.
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
 | eprint-abs | https://eprint.iacr.org/2010/157 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/JOUX-VITSE-2010-157/eprint-2010-157-abs.html` |
 | eprint-pdf | https://eprint.iacr.org/2010/157.pdf | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/JOUX-VITSE-2010-157/eprint-2010-157.pdf` |
+| arxiv-1807.01858v1-pdf | https://arxiv.org/pdf/1807.01858 | retrieved | 200 | 2026-10-09T15:22:00Z | `inputs/MTW-WEAK-FIELDS-20261009/sources/mesnager-kim-choe-tang-arxiv-1807.01858v1.pdf` |
+| cacr-corr2001-59-ps | https://cacr.uwaterloo.ca/techreports/2001/corr2001-59.ps | retrieved | 200 | 2026-10-09T15:45:00Z | `inputs/MTW-WEAK-FIELDS-20261009/sources/maurer-menezes-teske-corr2001-59.ps` |
+| cacr-corr2004-25-pdf | https://cacr.uwaterloo.ca/techreports/2004/corr2004-25.pdf | retrieved | 200 | 2026-10-09T15:22:00Z | `inputs/MTW-WEAK-FIELDS-20261009/sources/menezes-teske-corr2004-25.pdf` |
+| cacr-ecc2003-teske-slides | https://cacr.uwaterloo.ca/conferences/2003/ecc2003/teske.ps | retrieved | 200 | 2026-10-09T15:24:00Z | `inputs/MTW-WEAK-FIELDS-20261009/sources/teske-ecc2003-weak-fields-slides.ps` |
+| eprint-2003-128-pdf | https://eprint.iacr.org/2003/128.pdf | blocked | 403 | 2026-10-09T15:19:00Z |  |
+| eprint-2003-128-ps | https://eprint.iacr.org/2003/128.ps.gz | retrieved | 200 | 2026-10-09T15:22:00Z | `inputs/MTW-WEAK-FIELDS-20261009/sources/mtw-eprint-2003-128.ps` |
+| eprint-2004-235-pdf | https://eprint.iacr.org/2004/235.pdf | blocked | 403 | 2026-10-09T15:22:00Z |  |
+| springer-chapter-page | https://link.springer.com/chapter/10.1007/978-3-540-24660-2_28 | blocked | 303 | 2026-10-09T15:22:00Z |  |
 | eprint-2013-548-landing | https://eprint.iacr.org/2013/548 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
 | eprint-2013-548-pdf | https://eprint.iacr.org/2013/548.pdf | retrieved | 200 | 2026-09-13T19:02:41Z | `inputs/NAGAO-2013-548/eprint-2013-548.pdf` |
 | eprint-2013-549-landing | https://eprint.iacr.org/2013/549 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
@@ -191,6 +199,16 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/JOUX-VITSE-2010-157/paper_fulltext.md` | 54750 | match | a2869c55af89b8e8 |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/maurer-menezes-teske-corr2001-59.ps` | 606633 | match | 5833727d99d5a9d1 |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/maurer-menezes-teske-corr2001-59.txt` | 185192 | **present_unhashed** |  |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/menezes-teske-corr2004-25.pdf` | 364856 | match | 6015c2f6dbd197ec |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/menezes-teske-corr2004-25.txt` | 65791 | **present_unhashed** |  |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/mesnager-kim-choe-tang-arxiv-1807.01858v1.pdf` | 134886 | match | cc18f03404ccc829 |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/mesnager-kim-choe-tang-arxiv-1807.01858v1.txt` | 29087 | **present_unhashed** |  |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/mtw-eprint-2003-128.ps` | 232811 | match | 2feda511b2e23024 |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/mtw-eprint-2003-128.txt` | 67827 | **present_unhashed** |  |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/teske-ecc2003-weak-fields-slides.ps` | 120241 | match | e82ce2b1367c4fe9 |  |
+| `inputs/MTW-WEAK-FIELDS-20261009/sources/teske-ecc2003-weak-fields-slides.txt` | 16998 | **present_unhashed** |  |  |
 | `inputs/NAGAO-2013-548/eprint-2013-548.pdf` | 167931 | match | 9406f2f7f01ae933 |  |
 | `inputs/NAGAO-2013-548/paper_fulltext.md` | 18123 | match | dd67fd774762f05a |  |
 | `inputs/NAGAO-2013-549/eprint-2013-549.pdf` | 141803 | match | 5971667527aad7af |  |
@@ -225,7 +243,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2482 of 8096 `KN-LIT-*` entries carry an
+2486 of 8100 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -351,6 +369,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-0cb87e | Elliptic curve cryptography: the serpentine course of a paradigm shift (Koblitz, Koblitz, Menezes) -- conductor-gap speculation, Sec. 11.2-11.3 | 2011 | `eprint:2008/390` | read |
 | KN-LIT-0d9d28 | On Index Calculus Algorithms for Subfield Curves | 2021 | `eprint:2020/1315` | web |
 | KN-LIT-0e36d4 | A Las Vegas algorithm to solve the elliptic curve discrete logarithm problem | 2018 | `eprint:2018/134` | web |
+| KN-LIT-0e854b | Analysis of the GHS Weil descent attack on the ECDLP over characteristic two finite fields of composite degree (Maurer, Menezes, Teske) -- Section 6 read: the ANSI X9.62 c2pnb*w1 curves, including the (n, m) = (8, 5) question for c2pnb176w1 | 2002 | `eprint:2001/084` | read |
 | KN-LIT-0f43ad | Finding the permutation between equivalent linear codes: The support splitting algorithm | 2000 | `doi:10.1109/18.850662` | web |
 | KN-LIT-0fbe5a | FLIT（NGCC 公钥第一轮候选 · 密钥封装 15） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-100 | Lattice Reduction by Random Sampling and Birthday Methods | 2003 | `doi:10.1007/3-540-36494-3_14` | read |
@@ -2657,6 +2676,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | 2026 | `eprint:2026/430` | web |
 | KN-LIT-d734f8 | OPS Digital Signature Algorithm（NGCC 公钥第一轮候选 · 数字签名 17） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-d78021 | AI for code-based cryptography | 2025 | `eprint:2025/440` | web |
+| KN-LIT-d7995a | Weak Fields for ECC (Menezes, Teske, Weng) -- full read: exact GHS-versus-rho accounting for F_{2^{5l}}, F_{2^{4l}} and F_{2^{210}}, and the isogeny-walk extension | 2004 | `eprint:2003/128` | read |
 | KN-LIT-d82a53 | A note on the Goppa code distinguishing problem | 2025 | `eprint:2025/1661` | web |
 | KN-LIT-d8e1b9 | Complexity bounds on Semaev's naive index calculus method for ECDLP | 2020 | `doi:10.1515/jmc-2019-0029` | web |
 | KN-LIT-d962e5 | A safety-critical, RISC-V SoC integrated and ASIC-ready Classic McEliece accelerator | 2024 | `doi:10.1007/978-3-031-55673-9_20` | web |
@@ -2693,6 +2713,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-f50ab3 | Leaky McEliece: secret key recovery from highly erroneous side-channel information | 2025 | `eprint:2023/1536` | web |
 | KN-LIT-f51628 | Sieving method for SDP with the zero window: an improvement in low memory environments | 2024 | `doi:10.1007/978-981-97-7737-2_9` | web |
 | KN-LIT-f5ca08 | TSUOV（NGCC 公钥第一轮候选 · 数字签名 31） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
+| KN-LIT-f64d86 | Cryptographic implications of Hess' generalized GHS attack (Menezes, Teske) -- full read: which F_{2^{nl}} are (potentially, partially) weak, with the vulnerable families, membership tests, walk lengths and cost tables for n = 3, 6, 7, 8 | 2005 | `eprint:2004/235` | read |
 | KN-LIT-f663db | Solving the Discrete Logarithm of a 113-Bit Koblitz Curve with an FPGA Cluster | 2014 | `eprint:2014/368` | read |
 | KN-LIT-f6de4b | Bombieri–Weil bound (additive / Artin–Schreier case) — attempted verification of hypothesis (H1') | 1966 | `url:encyclopediaofmath.org/wiki/bombieri-weil_bound` | secondary_only |
 | KN-LIT-f7558f | Using Equivalence Classes to Accelerate Solving the Discrete Logarithm Problem in a Short Interval | 2010 | `eprint:2010/615` | web |
@@ -2707,6 +2728,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-fbc2c8 | Breaking Goppa-based McEliece with hints | 2022 | `eprint:2022/525` | web |
 | KN-LIT-fbe4e0 | Two grumpy giants and a baby | 2013 | `eprint:2012/294` | web |
 | KN-LIT-fc4c4d | Harder, better, faster, stronger: elliptic curve discrete logarithm computations on FPGAs | 2016 | `eprint:2015/143` | read |
+| KN-LIT-fc822d | On the Menezes-Teske-Weng conjecture (Mesnager, Kim, Choe, Tang) -- proof of Conjecture 15 of Weak Fields for ECC | 2020 | `arxiv:1807.01858` | read |
 | KN-LIT-fd29f0 | Security-analysis of a class of cryptosystems based on linear error-correcting codes | 1994 | `doi:10.6100/ir426904` | false |
 | KN-LIT-fda207 | MORNING-Scabbard（NGCC 公钥第一轮候选 · 密钥封装 24） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-fe066e | Tight Time-Space Lower Bounds for Finding Multiple Collision Pairs and Their Applications | 2020 | `eprint:2020/229` | web |
@@ -8357,6 +8379,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `doi:10.1109/fpl.2010.34` | KN-LIT-2791, KN-LIT-63a5c5 |
 | `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
 | `doi:10.1515/jmc-2019-0029` | KN-LIT-4558, KN-LIT-d8e1b9 |
+| `eprint:2003/128` | KN-LIT-d7995a, KN-LIT-fa389d |
 | `eprint:2004/153` | KN-LIT-164, KN-LIT-92caf4 |
 | `eprint:2008/390` | KN-LIT-0cb87e, KN-LIT-235 |
 | `eprint:2009/466` | KN-LIT-270, KN-LIT-469ff0 |
