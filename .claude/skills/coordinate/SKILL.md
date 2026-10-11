@@ -58,10 +58,12 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    second batch on a goal another session already holds.
 3. **Orient.** Read the cached portfolio health first
    (`coordination/portfolio_health/latest.json`, refreshed by
-   `main-health.yml` with its `generated_at` and commit); run
-   `python3 tools/goal_portfolio_health.py` yourself only when the cache is
-   older than the merge digest you just read, or when the task is a goal's
-   own deepening (add `--no-deepen` in **status**). Read the KPI block of
+   `main-health.yml` with its `generated_at` and commit). A stale cache is a
+   shortlist hint, not a reason to sweep every active goal before work can
+   begin: use the selector and ECC priority to shortlist, then run
+   `python3 tools/goal_portfolio_health.py --goal <GOAL-ID> --no-deepen` for
+   each goal whose queue state affects the decision. Use the unfiltered sweep
+   only when a portfolio-wide health report is itself the task. Read the KPI block of
    `python3 tools/ledger_summary.py` (approved-unrun, approvals per evidence
    record, aged handoffs); a session that raises approved-unrun says why in
    its checkpoint. Read the bound goal head, the Ready Tasks only
