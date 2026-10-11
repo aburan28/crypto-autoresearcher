@@ -138,8 +138,10 @@ comes next before any repeat. A process killed mid-action also reconciles on
 restart. The Coordinator must still archive, verify, and publish per AGENTS.md.
 
 Each OpenCode call uses the primary `build` dispatcher with `--format json` and
-an explicit model. The dispatcher invokes the Coordinator subagent for reserved
-decisions. OpenCode's generated Coordinator and Executor are subagents and
+an explicit model. It also uses `--auto` for unattended permission requests;
+explicit role `deny` rules remain in force. The dispatcher invokes the
+Coordinator subagent for reserved decisions. OpenCode's generated Coordinator
+and Executor are subagents and
 cannot perform the full top-level workflow alone. Their fixed model overrides
 were removed so they inherit the selected primary model on failover. The
 candidate list comes from the existing model bindings and the role's policy; candidates
@@ -171,6 +173,123 @@ probe-verified solely because the router endpoint responded. OpenRouter
 [provider failover is automatic, while model fallbacks require an explicit
 list](https://openrouter.ai/blog/insights/reliability-failover/);
 the supervisor's backend failover covers a different failure boundary.
+
+## Continuous local Cairn node
+
+The supervisor above uses OpenCode. `opencode.json` now starts the Cairn MCP
+server and the generated Executor/Validator/Red Team bindings grant only their
+role's network tools. The Coordinator remains responsible for posting and
+funding objectives; the MCP launcher forces `CAIRN_MCP_MAX_SPEND=0` even when
+an operator shell sets a higher value. A funded objective still needs a
+Coordinator decision and a CLI post. The existing runner's Stage 0 Cairn
+certificate check uses its own offline log, so it never opens the live node's
+exclusive log a second time. The service sets `CAIRN_BRIDGE_LOG` to its private
+`stage0.jsonl`; older standalone runs may still use `CAIRN_LOG`.
+The service clears inherited demo epoch, log, bootstrap, validator, and legacy
+MCP binary settings so this checkout starts against its own private node.
+
+On macOS, use one clean checkout and one private state directory. Build Cairn
+with the reader embedded (`make ui-build` in the Cairn checkout), then create a
+signed submitter identity once:
+
+```sh
+mkdir -p .cairn-runtime/bin
+cp /absolute/path/to/reader-enabled/cairn .cairn-runtime/bin/cairn
+.cairn-runtime/bin/cairn identity --out .cairn-runtime/executor.identity.json
+python3 tools/cairn_autopilot_service.py \
+  --repo . --state-dir .cairn-runtime/campaign \
+  --cairn-bin .cairn-runtime/bin/cairn \
+  --identity .cairn-runtime/executor.identity.json \
+  --cairn-data .cairn-runtime/node \
+  --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
+  --cairn-listen 127.0.0.1:9001 --backend local --node-only
+```
+
+`tools/cairn_autopilot_service.py` keeps `opencode serve` on loopback and
+requires its `/mcp` endpoint to report Cairn connected. `--node-only` keeps
+the network environment up without sending a model prompt. The committed
+`opencode.json` labels its loopback model endpoint as an AWS lazy proxy: the
+first inference request can launch paid remote compute. Campaign actions
+therefore refuse to start with this configuration unless the operator removes
+`--node-only` and explicitly passes `--allow-remote-inference` after approving
+that destination and cost. The node and campaign checkpoint survive individual
+actions; its state, identity, node log and OpenCode log stay
+in `.cairn-runtime/`, which Git ignores. Use a user service manager such as
+launchd with restart enabled for reboots and process failures. The command
+above runs indefinitely until stopped. With inference approved, `--once` runs
+one campaign action for a bounded live check; `--check` only confirms that
+Cairn connected and then stops. `--timeout` caps one OpenCode action without treating a
+watchdog as research evidence. `autoresearch campaign autopilot --repo .
+--state-dir .cairn-runtime/campaign --report` reads its progress.
+The service puts OpenCode's XDG data, state, cache, and config under the same
+private state directory, so a full system volume or an unrelated global plugin
+cannot break this checkout's continuous run.
+
+After `--check` and `--once` succeed, render a launchd agent with the same
+paths and ports, then install it for the current macOS user:
+
+```sh
+python3 tools/cairn_autopilot_launchd.py --repo . \
+  --state-dir .cairn-runtime/campaign \
+  --cairn-bin .cairn-runtime/bin/cairn \
+  --identity .cairn-runtime/executor.identity.json \
+  --cairn-data .cairn-runtime/node \
+  --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
+  --cairn-listen 127.0.0.1:9001 --backend local --node-only \
+  --out .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist
+mkdir -p ~/Library/LaunchAgents
+cp .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist \
+  ~/Library/LaunchAgents/com.crypto-autoresearcher.cairn.plist
+launchctl bootstrap "gui/$(id -u)" \
+  ~/Library/LaunchAgents/com.crypto-autoresearcher.cairn.plist
+launchctl print "gui/$(id -u)/com.crypto-autoresearcher.cairn"
+```
+
+The generated agent restarts after failures and login; its stdout, stderr,
+node log, and campaign event log are all in `.cairn-runtime/`. Stop it with
+`launchctl bootout "gui/$(id -u)/com.crypto-autoresearcher.cairn"` before
+running a manual copy on the same ports and log. Keep this dedicated checkout
+and its ignored runtime directory in place while the service is installed.
+
+The service can join trusted peers with repeated `--bootstrap
+/absolute/path/to/bootstrap.json` arguments. `--attest-identity
+/absolute/path/to/validator.identity.json` enables Cairn's validator loop
+under a separate funded identity. The launchd renderer accepts the same
+flags and preserves them in its command line. Each node still needs its own
+data directory and port pair; its HTTP `/peers`, `/network`, and
+`/work_assignment` endpoints expose topology and the current search slice.
+
+Coordinator publication is a separate action from the research agent's
+zero-spend MCP tools. Prepare an approved frozen experiment with:
+
+```sh
+python3 tools/cairn_publish_objective.py \
+  --exp EXP-ECDLP-5cad48 --run RUN-ECDLP-5cad48-S1CS \
+  --node http://127.0.0.1:8081
+```
+
+The tool checks the committed experiment, approval and stage decisions,
+clean run manifest, and the read-only replay adapter against the archived
+exact metrics. `--publish --cairn-bin .cairn-runtime/bin/cairn --identity
+/absolute/path/to/funder.identity.json` signs through Cairn and queues the
+objective at the running node, then waits for admission. It never opens the
+node's locked log. A positive reward also requires `--funding-decision
+DEC-... --funder <public-key>`; the committed decision must explicitly carry
+`cairn_funding: {reward: <units>, funder: <public-key>}`. No existing
+experiment approval silently authorizes network spending. The first audited
+replay adapter is `tools/cairn_replay_stage1cs.py`; other replay runs remain
+unpublishable until they have an exact, read-only adapter. Certificate runs
+use the pinned Stage 0 checkers.
+
+After a claim has an accepted verdict and a settlement, derive a draft
+receipt with `python3 tools/cairn_settlement_receipt.py --exp EXP-... --run
+RUN-... --objective sha256:... --claim sha256:... --node
+http://127.0.0.1:8081 --out <new-file>.yaml`. It compares the public claim
+artifact with the archived run, checks the settlement and verdict, and records
+the ledger head. The Coordinator reviews that draft before adding it to a
+new evidence record; the receipt alone changes no scientific state. An
+action with no posted matching objective continues normal harness work and
+cannot claim a network result.
 
 ## What to measure every day
 
