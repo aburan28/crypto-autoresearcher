@@ -520,9 +520,9 @@ def _stage_one(
 def _front_or_record(path: Path, text: str) -> dict[str, Any] | None:
     if path.suffix in {".yaml", ".yml"}:
         try:
-            import yaml
+            from crypto_kb.fastyaml import safe_load
 
-            loaded = yaml.safe_load(text)
+            loaded = safe_load(text)
         except Exception:
             return None
         return loaded if isinstance(loaded, dict) else {}
@@ -530,9 +530,9 @@ def _front_or_record(path: Path, text: str) -> dict[str, Any] | None:
     if not match:
         return {}
     try:
-        import yaml
+        from crypto_kb.fastyaml import safe_load
 
-        loaded = yaml.safe_load(match.group(1))
+        loaded = safe_load(match.group(1))
     except Exception:
         return {}
     return loaded if isinstance(loaded, dict) else {}

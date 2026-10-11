@@ -1,0 +1,186 @@
+red_team_review:
+  task_id: TASK-20261006-ab7bd2
+  goal_id: GOAL-SSI-2fa82a
+  batch_id: BATCH-9681e3
+  reviewed_snapshot: TASK-20261006-dfe098
+  producer_task: TASK-20261006-04e1d5
+  joints_owned: [J3, J4, J5]
+  independent_session: true
+  read_sibling_reports: false
+  verdicts:
+    J3: holds
+    J4: breaks
+    J5: breaks
+  joint_assessments:
+    J3:
+      verdict: holds
+      exact_scope: >-
+        Honest Setup/KeyGen/Encrypt compatibility holds for every valid BaseGen
+        output satisfying the frozen parameter predicate.  This is conditional
+        compatibility only; it does not construct BaseGen, an exact recipient
+        map, or Eval2.
+      checks:
+        uniform_point_sampler: >-
+          The sampler has exactly one accepting index per point, including O,
+          among 2(p^2+1) indices.  Its acceptance probability is
+          (p+1)^2/(2(p^2+1))>1/2, so t_R independent attempts fail with
+          probability below 2^(-t_R).
+        exact_torsion_projection: >-
+          E(F_(p^2))=E[p+1] is a rank-two (Z/(p+1)Z)-module on the stated
+          source slice.  Exact valuations make multiplication by (p+1)/N and
+          (p+1)/D surjective uniform projections onto E[N] and E[D].
+        rejection_probabilities: >-
+          A uniform E[5^b] point has exact order 5^b with probability 24/25;
+          an ordered pair in E[2^a]^2 is a basis with probability 3/8.  A union
+          bound over t_P+2t_B bounded sampler calls gives the declared
+          (t_P+2t_B)2^(-t_R)+(1/25)^t_P+(5/8)^t_B term, in addition to
+          epsilon_base.
+        honest_kernel_shape: >-
+          In the admitted ordered basis, K=U+sV has coordinate vector (1,s).
+          Its unit U coefficient makes K primitive of exact order D.  The
+          iterated normalized degree-two quotients therefore have composite
+          kernel <K> and exact degree D.
+        ciphertext_pre_admission: >-
+          Since gcd(D,N)=1, the quotient map is injective on E[N], so X has
+          exact order N.  Its F_(p^2)-rational kernel makes C isogenous over the
+          base field and preserves the stated group order; honest ciphertexts
+          satisfy the declared pre-admission checks.
+        image_order_lemma: >-
+          If [n]f(V)=O, then nV=z(U+sV) in E[D].  Comparing the U coordinate
+          gives z=0 mod D, and then the V coordinate gives n=0 mod D.  Thus
+          ord(f(V))=D; f(U)=-[s]f(V) follows from f(U+sV)=O.
+        admission_inputs: >-
+          PreAdmit uses only public canonical pp/pk/ct bytes.  It does not read
+          End(E), f, f(U), f(V), Hom, a connection, frame, action,
+          orientation, walk, dual, or advice.  The sender chain is explicitly
+          erased and is not ciphertext or recipient input.
+      limits:
+        - autonomous BaseGen remains open
+        - exact recipient-map construction remains open
+        - uniform bit-polynomial Eval2 and epsilon_eval remain open
+    J4:
+      verdict: breaks
+      decisive_attack: >-
+        The claimed x(X)-only sign collision is not a cross-message collision
+        under the frozen honest relation.  If x(f(P))=x(g(P)), then
+        g(P)=f(P) or g(P)=-f(P).  The first case gives f=g by the retained
+        degree/order argument.  In the second case (f+g)(P)=O, so the same
+        N>4D argument gives g=-f; but two normalized maps cannot satisfy
+        g=-f because [-1]^*omega_C=-omega_C while p>3.  Even if normalization
+        were dropped, f and -f have the same kernel and hence the same slope,
+        so this still would not exhibit distinct messages.  Full signed X may
+        remain a sound encoding choice, but C8 does not prove it is the
+        separating conjunct for message injectivity.
+      trace_gap: >-
+        The P=O and lower-order-P entries show that the unique-map proof loses
+        its order threshold, but they do not supply two distinct normalized
+        degree-D maps with different kernels, one exact codomain C, and one
+        accepted exact ciphertext.  The handoff requires an exact
+        acceptance/collision trace, not merely failure of the existing proof.
+      controls_that_do_hold:
+        V_zero: >-
+          Under a membership-only weakening, V=O makes U+sV=U for every s,
+          yielding the identical quotient map and ciphertext for distinct
+          messages.  Exact V order and the basis test reject it.
+        dependent_pair: >-
+          On the a>=4 sub-slice, U and V=U may both have exact order D while
+          e_D(U,V)=1.  Slopes s=0 and s=2 encode different messages and give
+          generators U and 3U of the same kernel.  The full-order pairing is
+          the exact separator.
+        weak_image_order: >-
+          If B0 is allowed to have order D/2, then H has order 2^(k-1).
+          Inputs satisfying A0=-[s]B0 for messages separated by 2^(k-1) have
+          the same projected G=[s]H, so the weakened decoder can return 0 for
+          a nonzero selected message.  Exact B0/H order rejects this trace.
+        swapped_or_retagged: >-
+          A swap or retag relative to a frozen key changes canonical bytes and
+          is rejected.  A freshly bound swapped tuple is a distinct key and
+          does not constitute a within-key collision.
+        supplied_evaluator: >-
+          Supplying correct A0=f(U),B0=f(V) makes the decoder available to any
+          holder.  The artifacts correctly keep that proves-too-much control
+          separate from evaluator construction.
+      surviving_collision_under_full_predicate: not_found
+      implication: >-
+        This verdict rejects the completeness and correctness of the declared
+        collision-control package; it is not a whole-claim verdict and does
+        not refute the full-signed honest-relation injectivity theorem.
+    J5:
+      verdict: breaks
+      boundaries_that_hold:
+        quantifier_order: >-
+          The artifacts quantify over valid BaseGen outputs and admitted keys,
+          then honest messages/randomness, and condition decoding on a
+          semantically correct output for that same map.  They do not choose
+          BaseGen or Eval2 witnesses after seeing a ciphertext.
+        evaluator_separation: >-
+          PreAdmit excludes post-evaluation values and hidden map/connection/
+          Hom/frame/action/orientation/advice.  PostAdmitDecode does not claim
+          that local order checks certify evaluator semantics.
+        method_ceiling: >-
+          The stated ceiling is limited to staged admission, conditional
+          honest compatibility, exact-relation injectivity, and conditional
+          decoding.  Exact-map construction, Eval2, BaseGen, security,
+          novelty, practicality, deployment, family closure, and universal
+          possibility/impossibility are explicitly excluded.
+        O1_through_O6: >-
+          All six obligations remain open.  In particular O5 correctly says
+          solver-to-decrypt is only an attack upper bound and supplies no
+          IND-CPA-adversary-to-EndRing reduction.
+        costs_and_failures: >-
+          Added parsing, order, pairing, point-count, sender-chain, and decoder
+          costs are separated from the missing evaluator cost; epsilon_eval
+          remains unbounded.  Malformed, admission, evaluator, decoder, and
+          detectable wrong-key failures are partitioned without claiming
+          ciphertext authentication.
+        claim_hygiene: >-
+          No finalist, security, novelty, practicality, deployment, closure,
+          or universal possibility/impossibility conclusion is asserted.
+      breaks:
+        - id: J5-SOURCE
+          finding: >-
+            The packet relies on external standard results including the Weil
+            pairing determinant criterion, the positive-definite degree-norm
+            bound for f+/-g, normalized Velu quotient composition, and
+            deterministic polynomial-time point counting, but provenance
+            records no external primary retrieval.  The cited KB literature
+            records are abstract/reported tier and explicitly not proof of
+            this derivation.  Hashes authenticate the packet bytes, not these
+            external theorems, so the handoff's primary-source-or-hash evidence
+            gate is not discharged.
+        - id: J5-VISUAL
+          finding: >-
+            The editable Mermaid source has CTRL --> POST, while the SVG path
+            M325,690 V645 H760 V625 ends on the bottom of the Checked decoder
+            box, not the post-evaluation-admission box.  The PDF embeds the
+            SVG routing.  Thus SVG/PDF agree with each other but not with the
+            declared editable Mermaid source, contradicting the claimed
+            matching vector transcription.
+        - id: J5-PROOF-MAP
+          finding: >-
+            The proof-search map repeats x(X) as a collision separator even
+            though its f/-f pair has the same kernel/message and violates the
+            normalized-map relation.  Its observation-collision audit is
+            therefore not complete as written.
+      provenance:
+        immutable_snapshot_hashes: all_fourteen_declared_hashes_match
+        external_primary_retrievals_in_packet: 0
+        novelty_status: unverified
+      visual_inspection:
+        svg: legible_but_not_editable_source_consistent
+        pdf_pages: 4
+        pdf_legibility: holds
+        pdf_text_consistency: holds_with_markdown
+        quantitative_graph: correctly_not_applicable
+  execution_accounting:
+    scientific_runs: 0
+    implementation_runs: 0
+    formalizer_runs: 0
+    experiment_runs: 0
+    symbolic_review_only: true
+  scope_guards:
+    whole_claim_verdict_emitted: false
+    state_transition_claimed: false
+    release_or_finalist_claimed: false
+    queue_or_ledger_mutation: false
+    commit_or_push: false

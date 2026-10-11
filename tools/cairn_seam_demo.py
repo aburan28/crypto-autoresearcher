@@ -296,7 +296,10 @@ def walk(args: argparse.Namespace, cairn: str, work: Path, env: dict[str, str], 
         say(f"  {name:9} {key[:16]}…{' (funded)' if name != 'executor' else ''}")
 
     rule(f"render {args.exp} / {args.run} as a certificate objective")
-    objective, provenance = e2o.render(REPO, args.exp, args.run, "certificate", args.reward, None, None)
+    objective, provenance = e2o.render(
+        REPO, args.exp, args.run, "certificate", args.reward, None, None,
+        isolated_demo=True,
+    )
     problems = e2o.check(objective, REPO)
     if problems:
         raise Refused("rendered objective fails its own check: " + "; ".join(problems))
