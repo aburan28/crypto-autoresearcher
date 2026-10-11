@@ -15,6 +15,12 @@ permission:
   bash: allow
   webfetch: allow
   websearch: allow
+  "cairn_*": deny
+  cairn_audit: allow
+  cairn_frontier_status: allow
+  cairn_get_claim: allow
+  cairn_get_objective: allow
+  cairn_list_objectives: allow
   # A subagent never delegates: the Coordinator owns dispatch.
   task:
     "*": deny

@@ -10,12 +10,13 @@ thread pool (``map_threads``).
 """
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
 import threading
 import weakref
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 
@@ -136,7 +137,6 @@ def column_pass(M, C, keep_ops=True, algorithm="auto", threads=None) -> OpLog:
     if lib is None:
         ps, cs, Xs, total = reference.column_pass(M, C, keep_ops)
         return OpLog.from_lists(ps, cs, Xs, total)
-    import ctypes
     tot = ctypes.c_int64(0)
     lib = _lib_for(R * W)
     if threads is None:
@@ -187,7 +187,6 @@ def row_pass(M0, C):
     lib = _native.load()
     if lib is None:
         return reference.row_pass(M0, C)
-    import ctypes
     R, W = M0.shape
     Z = np.empty(max(R, 1), dtype=np.int32)
     leads = np.empty(max(min(R, C), 1), dtype=np.int32)
@@ -197,6 +196,223 @@ def row_pass(M0, C):
     if nz < 0:
         raise MemoryError("gf2_row_pass: allocation failed")
     return Z[:nz].tolist(), leads[:nl.value].tolist()
+
+
+def pack_eqs(eqs):
+    """Equations (lists of monomial masks) -> (eoff int64[neq+1], emon uint64[])."""
+    lens = np.array([len(f) for f in eqs], dtype=np.int64)
+    eoff = np.zeros(len(eqs) + 1, dtype=np.int64)
+    np.cumsum(lens, out=eoff[1:])
+    emon = np.array([int(m) for f in eqs for m in f], dtype=np.uint64)
+    return eoff, emon
+
+
+def build_rows(eoff, emon, nv, D, mu, k, W=None, threads=None):
+    """Macaulay rows mu[i] * f_{k[i]} in Closure(nv, D, .) column order.
+
+    Returns (M or None, lead, weight): with W given, M is the (n x W) packed
+    matrix (equal to the matching rows of Closure.build_M); lead is each row's
+    lowest column (-1 for a zero row), weight its number of monomials."""
+    mu = np.ascontiguousarray(mu, dtype=np.uint64)
+    k = np.ascontiguousarray(k, dtype=np.int32)
+    n = len(mu)
+    lead = np.empty(n, dtype=np.int64)
+    weight = np.empty(n, dtype=np.int64)
+    M = np.zeros((n, W), dtype=np.uint64) if W is not None else None
+    lib = _native.load()
+    if lib is None:
+        return reference.build_rows(eoff, emon, nv, D, mu, k, M, lead, weight)
+    nt = inner_threads() if threads is None else max(1, int(threads))
+    rc = _lib_for(n * 64).gf2_build_rows(_ptr(eoff), _ptr(emon) if len(emon) else None, nv, D, n,
+                                         _ptr(mu), _ptr(k), W or 0,
+                                         _ptr(M) if M is not None else None,
+                                         _ptr(lead), _ptr(weight), nt)
+    if rc != 0:
+        raise MemoryError("gf2_build_rows failed")
+    return M, lead, weight
+
+
+def rows_sum(eoff, emon, nv, D, mu, k, W):
+    """XOR of the Macaulay rows mu[i] * f_{k[i]} (W words), without building
+    them."""
+    mu = np.ascontiguousarray(mu, dtype=np.uint64)
+    k = np.ascontiguousarray(k, dtype=np.int32)
+    lib = _native.load()
+    if lib is None:
+        M, _, _ = build_rows(eoff, emon, nv, D, mu, k, W=W)
+        return np.bitwise_xor.reduce(M, axis=0) if len(M) else np.zeros(W, np.uint64)
+    acc = np.zeros(W, dtype=np.uint64)
+    if _lib_for(len(mu) * 32).gf2_rows_sum(_ptr(eoff), _ptr(emon) if len(emon) else None, nv, D,
+                                           len(mu), _ptr(mu), _ptr(k), W, _ptr(acc)) != 0:
+        raise ValueError("rows_sum: monomial outside the column range")
+    return acc
+
+
+def row_lead_weight(M):
+    """(lead, weight) int64 arrays: lowest set column of each row (-1 for a zero
+    row) and its popcount."""
+    _need(M, np.uint64, "M")
+    R, W = M.shape
+    lib = _native.load()
+    if lib is None:
+        nz = M != 0
+        has = nz.any(axis=1)
+        fw = np.argmax(nz, axis=1)
+        word = M[np.arange(R), fw]
+        low = word & (~word + np.uint64(1))
+        bit = np.zeros(R, dtype=np.int64)
+        bit[has] = np.log2(low[has].astype(np.float64)).astype(np.int64)
+        lead = np.where(has, fw.astype(np.int64) * 64 + bit, -1)
+        weight = np.unpackbits(M.view(np.uint8), axis=1).sum(axis=1).astype(np.int64)
+        return lead, weight
+    lead = np.empty(R, dtype=np.int64)
+    weight = np.empty(R, dtype=np.int64)
+    _lib_for(R * W).gf2_row_lead_weight(_ptr(M), R, W, _ptr(lead), _ptr(weight))
+    return lead, weight
+
+
+def row_leads(M0, C):
+    """Per-row leads in row order: int32 array, out[i] = the leading column row
+    i adds to the span of rows 0..i-1, or -1 if it adds none. M0 is not
+    modified."""
+    _need(M0, np.uint64, "M0")
+    lib = _native.load()
+    if lib is None:
+        return reference.row_leads(M0, C)
+    R, W = M0.shape
+    out = np.empty(R, dtype=np.int32)
+    lib = _lib_for(R * W)
+    if lib.gf2_row_leads(_ptr(M0), R, W, C, _ptr(out)) < 0:
+        raise MemoryError("gf2_row_leads: allocation failed")
+    return out
+
+
+def _row_addrs(blocks):
+    """blocks: [(M, rows, ...)] -> uint64 addresses of those rows."""
+    out = []
+    for blk in blocks:
+        M, rows = blk[0], np.asarray(blk[1], dtype=np.int64)
+        _need(M, np.uint64, "M")
+        out.append(np.uint64(M.ctypes.data) + rows.astype(np.uint64) * np.uint64(M.shape[1] * 8))
+    return np.concatenate(out) if out else np.zeros(0, np.uint64)
+
+
+def annihilator(blocks, C):
+    """Basis of U^perp as the columns of K (C x fw uint64 words; f = C - r
+    columns, fw = ceil(f/64)), U = the span of an echelon row set given as
+    blocks [(M, rows, leads), ...]: row rows[t] of M has lead leads[t], and
+    all leads are distinct. Free column t (t-th non-lead column, ascending)
+    has K[free_t] = e_t; see _kernels.c gf2_annihilator. No row is copied."""
+    lead = np.concatenate([np.asarray(b[2], dtype=np.int64) for b in blocks]) if blocks else np.zeros(0, np.int64)
+    r = len(lead)
+    W = blocks[0][0].shape[1] if blocks else (C + 63) // 64
+    f = C - r
+    fw = max(1, (f + 63) // 64)
+    order = np.argsort(-lead, kind="stable")
+    ls = np.ascontiguousarray(lead[order])
+    K = np.zeros((C, fw), dtype=np.uint64)
+    lib = _native.load()
+    if lib is None:
+        E = (np.concatenate([b[0][np.asarray(b[1], dtype=np.int64)] for b in blocks]) if blocks
+             else np.zeros((0, W), np.uint64))
+        return reference.annihilator(np.ascontiguousarray(E[order]), ls, C, K)
+    ptrs = np.ascontiguousarray(_row_addrs(blocks)[order])
+    if _lib_for(r * W + C * fw).gf2_annihilator(_ptr(ptrs), r, W, C, _ptr(ls), _ptr(K), fw) != f:
+        raise ValueError("annihilator: rows are not echelon with distinct leads")
+    return K
+
+
+def reduce_rows(Q, C, blocks, keep_ops=False, threads=None, full=False):
+    """Reduce the rows of Q (in place) against an echelon basis given as
+    blocks [(M, rows, leads, gids), ...] until each row's lead is not a basis
+    lead (full: until no bit of the row is at a basis lead). Returns (lead,
+    X): lead is int64, -1 for rows reduced to zero; with keep_ops X is
+    (xoff, xs), CSR: xs[xoff[i]:xoff[i+1]] are the gids of the basis rows
+    XORed into row i, in order, and None otherwise."""
+    _need(Q, np.uint64, "Q")
+    nq, W = Q.shape
+    slot = np.zeros(C, dtype=np.uint64)
+    sgid = np.full(C, -1, dtype=np.int64)
+    for blk, addr in zip(blocks, [_row_addrs([b]) for b in blocks]):
+        lead = np.asarray(blk[2], dtype=np.int64)
+        slot[lead] = addr
+        sgid[lead] = np.asarray(blk[3], dtype=np.int64)
+    lib = _native.load()
+    if lib is None:
+        return reference.reduce_rows(Q, C, blocks, keep_ops, full)
+    nt = inner_threads() if threads is None else max(1, int(threads))
+    h = _lib_for(nq * W * 64).gf2_reduce_rows(_ptr(Q), nq, W, C, _ptr(slot), _ptr(sgid),
+                                          1 if keep_ops else 0, 1 if full else 0, nt)
+    if not h:
+        raise MemoryError("gf2_reduce_rows failed")
+    ps = np.empty(nq, dtype=np.int32)
+    cs = np.empty(nq, dtype=np.int32)
+    xoff = np.empty(nq + 1, dtype=np.int64)
+    lib.gf2_log_copy_meta(h, _ptr(ps), _ptr(cs), _ptr(xoff))
+    X = None
+    if keep_ops:
+        nx = lib.gf2_log_nx(h)
+        xs = np.empty(max(nx, 1), dtype=np.int32)
+        if nx:
+            lib.gf2_log_copy(h, _ptr(ps), _ptr(cs), _ptr(xoff), _ptr(xs))
+        X = (xoff, xs[:nx].astype(np.int64))
+    lib.gf2_log_free(h)
+    return cs.astype(np.int64), X
+
+
+def syndromes(A, K, idx=None, threads=None):
+    """S (n x fw uint64): S[i] = row i of A (row idx[i] when idx is given)
+    times K. S[i] == 0 exactly when that row lies in the space K
+    annihilates; rows are independent modulo that space exactly when their
+    syndromes are independent."""
+    _need(A, np.uint64, "A")
+    _need(K, np.uint64, "K")
+    W = A.shape[1]
+    ix = None if idx is None else np.ascontiguousarray(idx, dtype=np.int64)
+    R = A.shape[0] if ix is None else len(ix)
+    fw = K.shape[1]
+    S = np.zeros((R, fw), dtype=np.uint64)
+    lib = _native.load()
+    if lib is None:
+        return reference.syndromes(A if ix is None else A[ix], K)
+    nt = inner_threads() if threads is None else max(1, int(threads))
+    _lib_for(R * W).gf2_syndromes(_ptr(A), R, W, _ptr(ix) if ix is not None else None,
+                                  _ptr(K), fw, _ptr(S), nt)
+    return S
+
+
+def product_syndromes(addrs, W, C, colmap, nv, K, threads=None, rows=None):
+    """S (nv*n x fw), j-major: S[j*n + f] = (v_j * row f) . K, where row f is
+    at address addrs[f] (W words). The products are never formed. ``rows``
+    (the same rows as an array) is used by the reference backend only."""
+    _need(K, np.uint64, "K")
+    addrs = np.ascontiguousarray(addrs, dtype=np.uint64)
+    n = len(addrs)
+    fw = K.shape[1]
+    S = np.zeros((nv * n, fw), dtype=np.uint64)
+    lib = _native.load()
+    if lib is None:
+        return reference.product_syndromes(rows, colmap, nv, C, K)
+    if n:
+        nt = inner_threads() if threads is None else max(1, int(threads))
+        _lib_for(n * W * nv).gf2_product_syndromes(_ptr(addrs), n, W, C, _ptr(colmap), nv,
+                                                   _ptr(K), fw, _ptr(S), nt)
+    return S
+
+
+def product_pairs(addrs, js, W, C, colmap, rows=None):
+    """(n x W) packed rows: row p = v_{js[p]} * (the row at addrs[p]).
+    ``rows`` (those rows as an array) is used by the reference backend only."""
+    addrs = np.ascontiguousarray(addrs, dtype=np.uint64)
+    js = np.ascontiguousarray(js, dtype=np.int64)
+    out = np.zeros((len(addrs), W), dtype=np.uint64)
+    lib = _native.load()
+    if lib is None:
+        return reference.product_pairs(rows, js, colmap, C, W)
+    if len(addrs):
+        _lib_for(len(addrs) * W).gf2_product_pairs(_ptr(addrs), _ptr(js), len(addrs), W, C,
+                                                   _ptr(colmap), _ptr(out))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -379,3 +595,38 @@ def map_threads(fn, items, threads=None):
         return [fn(x) for x in items]
     with ThreadPoolExecutor(max_workers=threads) as ex:
         return list(ex.map(_pooled(fn), items))
+
+
+_proc_fn = None
+
+
+def _proc_init():
+    os.environ["CRYPTO_AR_GF2_INNER_THREADS"] = "1"
+
+
+def _proc_call(x):
+    return _proc_fn(x)
+
+
+def map_processes(fn, items, procs=None):
+    """``list(map(fn, items))`` across forked worker processes, order preserved.
+
+    For batches of many small eliminations: the Python glue of one solve and
+    native calls too small to release the GIL serialize a thread pool
+    (``map_threads``), so its 4 workers reached ~2.7x on the RC-1 replay where
+    4 processes reach ~3.4x. ``fn`` may be a closure: workers inherit it, and
+    everything it refers to, through fork. Each worker runs its eliminations
+    single-threaded. Falls back to ``map_threads`` where fork is unavailable
+    or with the reference backend."""
+    import multiprocessing as mp
+    global _proc_fn
+    items = list(items)
+    procs = procs or default_threads()
+    if procs == 1 or len(items) < 2 or backend() != "native" or "fork" not in mp.get_all_start_methods():
+        return map_threads(fn, items, procs)
+    _proc_fn = fn
+    try:
+        with ProcessPoolExecutor(procs, mp_context=mp.get_context("fork"), initializer=_proc_init) as ex:
+            return list(ex.map(_proc_call, items))
+    finally:
+        _proc_fn = None
