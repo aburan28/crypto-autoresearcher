@@ -97,3 +97,89 @@ promotion not warranted.
   flat manifests remain byte-identical.
 - Toy tier at n=31; claim-(D) forbids deployed/exponent reading.
 - Amazon Bedrock unused; must stay unused on Stage 2.
+
+---
+
+# Analysis: EXP-BINSTD-b94ec8 Stage 2 (H-BINSTD-dfc684)
+
+Review plan: `experiments/EXP-BINSTD-b94ec8/review/review-plan-stage2.yaml`
+(`REVIEW-BINSTD-b94ec8-stage2-20261003`), written before this Stage-2
+analysis. Producer: TASK-20261003-43c403. Snapshot: TASK-20261003-72bf6d
+(tip `29d66c5f54e05eeaccb12cb073d916f67b8aa3b6`). Prior expand:
+EV-BINSTD-0e42ac / DEC-20261003-8881ef. No re-run in this review.
+No break / exponent / deployed attack. Amazon Bedrock: NOT_USED.
+
+## Observation
+
+**Validity (J1).** One Stage-2 run directory:
+
+| run | stage | status / outcome | key flags |
+|-----|-------|------------------|-----------|
+| RUN-BINSTD-e8660a | 2 | failed_infrastructure / O-IMPEDIMENT | wdsat_build_ok=true; stable_bases_are_window_proxy=true; leaf_census_attempted=false |
+
+Artifacts present: `manifest.yaml`, `manifest_v2.yaml` (additive schema
+completion; original sha256 `96416447…` matches registry superseded_path;
+v2 sha256 `27759a86…`), `raw-result.json`, `execution-receipt.json`
+(`status: output_validated`, `check_returncode: 0`), `environment.json`,
+`stdout.log`, `command.txt`, `check.stdout.log` = `OK`, stage2
+`arm-summaries.json` and `leaf-counts.jsonl`. Raw flags agree with
+RESULTS.md. Claims: break=false, exponent_move=false,
+deployed_attack=false. `amazon_bedrock: NOT_USED` on raw, manifests,
+RESULTS, and snapshot receipt.
+
+**Impediment identity (J2).** Stage-1
+`curves-and-bases.json` records:
+
+- `stable_V5.kind = window_proxy_for_stable_dim` (l=5; Phi_31-ker deferred)
+- `stable_V6.kind = window_proxy_for_stable_dim` (l=6; Phi_31-ker deferred)
+- `window_deg_5.kind = window_deg`, `window_deg_6.kind = window_deg`
+
+Blind re-derivation from that JSON alone (not `implementation/run.py`
+or Stage-2 stdout) recovers exactly those four kinds. Therefore
+stable and window controls are not distinct bases — Stage-2 H1 null
+cannot start. Producer correctly sets
+`stable_bases_are_window_proxy=true`, `leaf_census_attempted=false`,
+impediment id
+`frobenius_stable_bases_are_window_proxy_stage1_deferred_phi31_ker`.
+
+**WDSat (not blocking).** Vendored `inputs/TRIMOSKA-WDSAT-2024` capacity
+smoke: `wdsat_probe.build_ok=true`, `make_returncode=0`, binary sha256
+`c77db8d750d2c2186245efb42d2c25ca17c24b93215ad1bfee13fd3917cc183b`.
+Missing WDSat is NOT the impediment.
+
+**Primary metrics (unset).**
+`koblitz_ordinary_median_leaf_ratio: null`, `window_stable_ratio: null`.
+`leaf-counts.jsonl` is a probe note only (no per-target leaf rows).
+
+## Comparison
+
+Matches the contract's O-IMPEDIMENT / infrastructure-stop class and
+AGENTS.md rule 5: instrument readiness failure is never negative
+mathematical evidence against H1. Distinct from O-NULL / O-DIVISOR /
+O-SHAPE (those require leaf-count ratios). Distinct from O-ARTIFACT
+(fixture E0 already passed at Stage 1; this stop is base-identity, not
+planted-cert failure). Proves-too-much: reading window_proxy as H1
+falsification is forbidden by the review plan and by the absence of
+any ratio measurement.
+
+## Inference
+
+Stage-2 package is valid as an instrument stop. Preferred Coordinator
+transition: **refine** — author an additive amendment that constructs
+and binds explicit Phi_31-ker Frobenius-stable V5/V6 (distinct from
+window_deg controls), then re-admit `/run` Stage 2 leaf census under
+the already-approved protocol (DEC-20261002-e6818c) and prior expand
+(DEC-20261003-8881ef). Do **not** support, weaken, or reject_scoped H1:
+no leaf counts exist. Hypothesis and experiment remain **approved**.
+Evidence strength **preliminary**. Knowledge promotion not warranted.
+
+## Limitation
+
+- No Stage-2 scientific measurement (census not started).
+- Coordinator-direct / same-session review (PD-1).
+- Stage-1 deferred Phi_31-ker bases; window_proxy is disclosed debt, not
+  a secret defect discovered after H1 measurement.
+- Toy tier at n=31; claim-(D) forbids deployed/exponent reading.
+- Additive manifest_v2 schema completion; original flat manifest
+  byte-identical.
+- Amazon Bedrock unused; must stay unused on any Stage-2 re-run.
