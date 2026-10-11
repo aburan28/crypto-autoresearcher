@@ -388,11 +388,11 @@ def test_anthropic_request_shape(cfg):
 
 
 def test_every_claude_5_binding_is_adaptive_and_sends_no_budget(cfg):
-    """A `budget_tokens` on Opus 5 / Sonnet 5 is rejected by the API."""
+    """A `budget_tokens` on any Claude 5 model is rejected by the API."""
     checked = 0
     for policy_id, binding in cfg.binding_table["anthropic"].items():
         model = binding.get("model") or ""
-        if not (model.startswith("claude-opus-5") or model.startswith("claude-sonnet-5")):
+        if not model.startswith(("claude-opus-5", "claude-sonnet-5", "claude-haiku-5")):
             continue
         mode = (binding.get("request") or {}).get("reasoning", {}).get("mode")
         assert mode == "anthropic_adaptive", f"{policy_id} on {model} uses {mode!r}"
@@ -714,12 +714,25 @@ def test_calibration_reaches_the_anthropic_wire(cfg):
 
 
 def test_thinking_off_lets_temperature_through(cfg):
-    """Extended thinking pins temperature; the mechanical tier wants it at 0."""
-    resolution = adapter.resolve(cfg, "executor-mechanical", backend="anthropic",
-                                 env={})
-    _, _, body = adapter.build_request(
-        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
-        env={"ANTHROPIC_API_KEY": "k"})
+    """Extended thinking pins temperature; a pre-Claude-5 model at budget 0 may
+    take temperature 0. No live anthropic binding uses this mode since the
+    mechanical tier moved to Haiku 5.5, so the wire path is exercised on a
+    temporary binding rather than left untested."""
+    original = cfg.binding_table["anthropic"]["executor-mechanical"]
+    legacy = deepcopy(original)
+    legacy["model"] = "claude-haiku-4-5-20251001"
+    legacy["request"] = {"max_tokens": 16000, "temperature": 0.0,
+                         "reasoning": {"mode": "anthropic_thinking",
+                                       "budget_by_effort": {"none": 0, "low": 0, "medium": 4000}}}
+    cfg.binding_table["anthropic"]["executor-mechanical"] = legacy
+    try:
+        resolution = adapter.resolve(cfg, "executor-mechanical", backend="anthropic",
+                                     env={})
+        _, _, body = adapter.build_request(
+            cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+            env={"ANTHROPIC_API_KEY": "k"})
+    finally:
+        cfg.binding_table["anthropic"]["executor-mechanical"] = original
     assert "thinking" not in body
     assert body["temperature"] == 0.0
 
