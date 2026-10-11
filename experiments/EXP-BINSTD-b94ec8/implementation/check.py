@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent checker for EXP-BINSTD-b94ec8 Stage 0-2 run artifacts.
+"""Independent checker for EXP-BINSTD-b94ec8 Stage 0-1 run artifacts.
 
 Recomputes ord_n(2) and the m=4 admissibility screen without importing
 run.py stage logic. Verifies raw-result.json / manifest.yaml agreement.
