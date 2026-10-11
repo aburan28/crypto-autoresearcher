@@ -53,9 +53,12 @@ def load_renames() -> dict[str, tuple[str, list[tuple[str, str]]]]:
     declared substitution is still verified byte for byte; nothing is waived.
     """
     try:
-        import yaml
+        try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+            import fast_yaml
+        except ImportError:  # imported as tools.<name>, the repository root importable
+            from orchestration import fast_yaml
         with open(REMAP_PATH, encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh) or {}
+            doc = fast_yaml.safe_load(fh) or {}
     except (OSError, ImportError):
         return {}
     if doc.get("schema") != "run-id-remap-v1":
