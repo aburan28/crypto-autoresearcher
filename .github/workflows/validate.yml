@@ -9,14 +9,18 @@ permissions:
   contents: read
 
 # Keep the newest PR check instead of paying for obsolete queued revisions.
-# Main runs retain independent groups so every merged revision is checked.
-# One run per pull request, and one for main: a newer push cancels the run it supersedes.
-# Main used to key on run_id, so every merge queued its own full validation and a busy
-# day of merges held the account's runners for hours; only the newest main needs checking,
-# and main-health sweeps it hourly regardless.
+# One run per pull request, and one for main. A newer push to a PR branch cancels
+# the run it supersedes. A push to main never cancels a run that is already
+# executing: GitHub keeps one running and one pending run per group, and a newer
+# push replaces only the pending one. Main used to key on run_id, so every merge
+# queued its own full validation and a busy day of merges held the account's
+# runners for hours; it then cancelled the running one on every merge, so during
+# a burst of merges (one a minute against a validation that takes longer) no
+# run of main ever finished. Only the newest main needs checking, and
+# main-health sweeps it hourly regardless.
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
