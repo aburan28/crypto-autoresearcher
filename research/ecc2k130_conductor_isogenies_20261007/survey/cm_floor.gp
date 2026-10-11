@@ -5,8 +5,38 @@
 \\ Checks: number of roots = h(D); each j has a model with #E = N; Galois orbits; level by horizontal S-isogeny cycles:
 \\ their length must equal ord[l_S] in Cl(D) (crater: 1), and every visited curve must be in the root set.
 \\ set before reading: m, a, F, S, NSAMP, OUT
-MODp = 0; for(kk = 1, m-1, if(polisirreducible(Mod(1,2)*(x^m+x^kk+1)), MODp = x^m+x^kk+1; break));
-{if(!MODp, forvec(v = [[1,m-1],[1,m-1],[1,m-1]], my(P = x^m+x^v[3]+x^v[2]+x^v[1]+1); if(polisirreducible(Mod(1,2)*P), MODp = P; break), 2));}
+\\ optionally set FIELD_MODULUS to a degree-m irreducible polynomial over F_2
+MODp = 0;
+REQUIRE_FIELD_MODULUS =
+  type(FIELD_MODULUS_REQUIRED) == "t_INT" && FIELD_MODULUS_REQUIRED;
+if(REQUIRE_FIELD_MODULUS &&
+   (type(FIELD_MODULUS) != "t_POL" || poldegree(FIELD_MODULUS) != m),
+  error("required FIELD_MODULUS does not have degree m")
+);
+if(type(FIELD_MODULUS) == "t_POL" && poldegree(FIELD_MODULUS) == m,
+  if(!polisirreducible(Mod(1,2)*FIELD_MODULUS),
+    error("FIELD_MODULUS is not irreducible over F_2"));
+  MODp = FIELD_MODULUS
+);
+if(!MODp,
+  for(kk = 1, m-1,
+    if(polisirreducible(Mod(1,2)*(x^m+x^kk+1)),
+      MODp = x^m+x^kk+1;
+      break
+    )
+  )
+);
+{if(!MODp,
+  forvec(v = [[1,m-1],[1,m-1],[1,m-1]],
+    my(P = x^m+x^v[3]+x^v[2]+x^v[1]+1);
+    if(polisirreducible(Mod(1,2)*P),
+      MODp = P;
+      break
+    ),
+    2
+  )
+);}
+if(!MODp, error("no irreducible degree-m field modulus found"));
 g = ffgen(Mod(1,2)*MODp, 'g); toint(z) = subst(lift(z.pol), variable(z.pol), 2);
 fromint(n) = my(s = 0*g, kk = 0); while(n, if(n % 2, s += g^kk); n \= 2; kk++); s;
 E = ellinit([1,a,0,0,1], g); N = ellcard(E);
