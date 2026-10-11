@@ -1,0 +1,182 @@
+validation_report:
+  id: VAL-20261007-bc6c0f
+  task_id: TASK-20261007-bc6c0f
+  role: validator
+  review_plan: coordination/design/TASK-20261007-9c36ba/review-preparation/review-plan.yaml
+  review_scope:
+    - "J1 / O1 only"
+    - "J2 / O2-O3 only"
+  run_ids: []
+  artifact_checks:
+    - artifact: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+      expected_sha256: 2977243c489f4e4208a66cbf0c423425bcc4ecaa5a715ca3f39a120f037ad328
+      observed_sha256: 2977243c489f4e4208a66cbf0c423425bcc4ecaa5a715ca3f39a120f037ad328
+      result: holds
+    - artifact: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/scheme-contract.yaml
+      expected_sha256: 4c45d9f47fad8df5bca4a37d23c59b3dc2037ef5fc440f4a4aa575e507f243e9
+      observed_sha256: 4c45d9f47fad8df5bca4a37d23c59b3dc2037ef5fc440f4a4aa575e507f243e9
+      result: holds
+    - artifact: coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-0ec6c3/snapshot-receipt.json
+      check: "The receipt names both producer tasks and binds both reviewed contract hashes."
+      result: holds
+  metric_recomputations: []
+  control_checks:
+    - candidate_task: TASK-20261007-913665
+      control: wrong_key_and_exceptional_inputs
+      result: inconclusive
+      detail: >-
+        A secret key bound to different pk bytes is rejected before secret
+        output. An incorrect or incomplete W is outside the valid-key theorem.
+        Agreement for a different complete basis of the same End(E) remains
+        conditional on the unproved representation-independent behavior of
+        CanonicalBoundedEnd. Malformed ciphertexts have one declared failure
+        result, while no implementation or timing claim was tested.
+    - candidate_task: TASK-20261007-61f3bc
+      control: wrong_key_and_exceptional_inputs
+      result: inconclusive
+      detail: >-
+        The contract says a wrong key has no correctness guarantee and says a
+        wrong key tag rejects, but it does not define key_id construction or a
+        complete wrong-key acceptance predicate. Malformed encodings reject by
+        declaration. No accidental-acceptance experiment was run.
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks:
+    - check: blind_rederivation
+      result: holds
+      detail: >-
+        Both correctness derivations below use only the frozen contracts and
+        the statement/parameters in the review plan; no producer narrative,
+        proof-search map, provenance file, sibling report, or red-team output
+        was read.
+
+  candidate_joint_findings:
+    - candidate_task: TASK-20261007-913665
+      candidate_label: CEST-PKE
+      joints:
+        J1_O1:
+          verdict: inconclusive
+          finding: >-
+            AuxEndRing_CEST and CEST-XFER-KI include every real public-key
+            field and auxiliary datum by definition, so no field is silently
+            omitted from those named auxiliary games. However, the instance
+            sampler calls TrapCurveGen and CanonicalBoundedEnd, whose exact
+            efficient algorithms, representation conversion, accepted mass,
+            and retry tail are open. Moreover, from a bare curve-only EndRing
+            challenge there is no supplied compiler for q, B, P, and especially
+            A=psi_E(P). Thus the auxiliary distribution is accurately named but
+            is not yet an independently usable polynomial-time hard-problem
+            sampler or a bridge from bare EndRing.
+          narrow_surviving_statement: >-
+            The contract defines a conditional auxiliary-data problem on the
+            exact intended CEST key distribution; it does not establish that
+            distribution's efficient samplability or equivalence to bare
+            EndRing.
+          blockers:
+            - "Polynomial, exact TrapCurveGen with an accepted-mass/retry bound."
+            - "Representation-independent polynomial CanonicalBoundedEnd and conversion to evaluable maps."
+            - "A compiler or distribution bridge from the intended bare EndRing challenge to the complete public key."
+        J2_O2_O3:
+          verdict: breaks
+          O2_verdict: breaks
+          O3_actual_message_verdict: holds
+          independent_derivation: >-
+            For an accepted valid key and r in Z_q^*, encryption sets
+            R=[r]P, S_snd=[r]A, and v=m XOR
+            H_pad(pk_ser,R,S_snd). Decryption's admitted selector returns an
+            endomorphism psi_E with psi_E(P)=A. Endomorphism additivity gives
+            S_rec=psi_E(R)=psi_E([r]P)=[r]psi_E(P)=[r]A=S_snd. Therefore the
+            decryption oracle input is identical and v XOR
+            H_pad(pk_ser,R,S_rec)=m for every admitted message and coin. This
+            recovers the selected message, not merely an orbit or endpoint.
+          collision_check: >-
+            For fixed valid pk and R, two different messages produce different
+            v values under the same pad. Different r values that yield the same
+            R modulo q also yield the same transfer value; this does not impair
+            round-trip correctness, though nonce reuse is outside this joint's
+            confidentiality scope.
+          breaking_artifact: >-
+            O2 explicitly depends on unavailable TrapCurveGen,
+            CanonicalBoundedEnd, full-End(E) verification, and unproved
+            expected-polynomial retry and evaluator bounds. Consequently the
+            honest KeyGen/Dec interface is not a complete efficient algorithm,
+            even though the algebraic O3 identity holds conditionally.
+          blockers:
+            - "Complete and polynomial honest setup/key generation."
+            - "Polynomial canonical selector and evaluator with representation independence."
+            - "A certificate/verifier that W is exactly End(E), plus retry-tail bounds."
+
+    - candidate_task: TASK-20261007-61f3bc
+      candidate_label: ER-seeded McEliece PKE
+      joints:
+        J1_O1:
+          verdict: breaks
+          finding: >-
+            The curve-only Walk-ER challenge supplies E, whereas a real public
+            key additionally contains the public salt, code parameters, and
+            the full matrix G_pub deterministically derived through a complete
+            ring witness. The contract supplies no simulator/compiler for
+            G_pub from E without first solving EndRing. Aux-ER-McE includes the
+            complete public key by definition, but sampling it invokes
+            EnumerateEndRing and CanRing with unbounded time and memory and no
+            polynomial distribution bridge. Thus G_pub is exactly the typed
+            unembedded auxiliary field identified by the frozen J1 attack.
+          narrow_surviving_statement: >-
+            Aux-ER-McE names the exact full-view key-recovery target, while no
+            hardness reduction or efficient sampler from the bare Walk-ER
+            challenge is established.
+          blockers:
+            - "Compiler for the real G_pub distribution from a curve-only EndRing challenge."
+            - "Polynomial complete-ring generation/canonicalization and exact sampler cost."
+            - "Hardness accounting for the public matrix and salt as auxiliary data."
+        J2_O2_O3:
+          verdict: breaks
+          O2_verdict: breaks
+          O3_actual_message_verdict: inconclusive
+          conditional_derivation: >-
+            If G_pub=S*G_sec*P, S is invertible, P is a coordinate permutation,
+            and G_sec generates a code of distance at least 2t+1 with a total
+            radius-t decoder, then c*P^-1=(m*S)*G_sec+e*P^-1. A coordinate
+            permutation preserves wt(e)=t, unique decoding returns m*S, and
+            multiplication by S^-1 returns the selected m. Under those added
+            types and relations, two distinct admitted messages cannot collide
+            through two weight-t errors because their codeword difference has
+            weight at least 2t+1 but the error difference has weight at most 2t.
+          breaking_artifact: >-
+            The contract does not type S as invertible or P as a
+            weight-preserving coordinate permutation, and its KeyGen entry does
+            not state or validate G_pub=S*G_sec*P. Therefore the displayed
+            conditional derivation is not a derivation for every key admitted
+            by the written contract. Independently, EnumerateEndRing, CanRing,
+            KeyGen, and the rejection tail are explicitly unbounded or
+            unproved, so O2 is not discharged.
+          wrong_key_and_exceptional_case: >-
+            Malformed inputs reject by declaration. Wrong-key behavior is not
+            fully derivable because key_id construction and collision behavior
+            are unspecified. Decoder failure returns bottom, but the honest
+            no-failure theorem still needs the missing P/S/G_pub predicates.
+          blockers:
+            - "Explicit types and validation for invertible S and weight-preserving permutation P."
+            - "Explicit KeyGen invariant G_pub=S*G_sec*P and proof that the certified distance applies to that public code."
+            - "Polynomial complete-ring generation, canonicalization, decoder specification, and retry-tail bounds."
+
+  joint_verdict_summary:
+    TASK-20261007-913665:
+      J1_O1: inconclusive
+      J2_O2_O3: breaks
+    TASK-20261007-61f3bc:
+      J1_O1: breaks
+      J2_O2_O3: breaks
+  verdict: incomplete
+  verdict_scope: >-
+    This is a scoped J1/J2 report, not a whole-candidate, security, novelty,
+    deployability, or goal-status verdict. No finding here addresses J3-J5.
+  limitations:
+    - "No scientific experiment, implementation, benchmark, finite test, formal proof, or source retrieval was performed."
+    - "The CEST correctness result is conditional on interfaces that O2 leaves open."
+    - "The ER-seeded McEliece correctness result cannot be completed from the frozen contract without adding key-structure predicates."
+    - "No confidentiality or EndRing-based security claim is established by selected-message correctness."
+  artifact_paths:
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/validation-report.yaml
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/review-attestation.yaml
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/runtime-session-receipt.json

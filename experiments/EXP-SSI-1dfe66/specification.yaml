@@ -1,0 +1,395 @@
+# =============================================================================
+# EXP-SSI-1dfe66 — version 1, approved by DEC-20261006-f59943.
+# Frozen distance test for IDEA-20261005-e211ac.
+# The prime is p = 83. G_full is the simple supersingular 2-isogeny graph
+# on the supersingular j-invariants in F_{83^2}. G_rat is the simple graph
+# on the F_83-rational subset, with edges only for kernels defined over F_83.
+# The prediction is d(G_full)/d(G_rat) at least 3/2. A smaller ratio is a
+# negative. No path-finding algorithm. No change to p^{1/4} or p^{1/3+o(1)}.
+# No run in this design. The source idea is in commit efaa5e0b09 and is
+# not copied.
+# =============================================================================
+experiment:
+  id: EXP-SSI-1dfe66
+  hypothesis_id: H-SSI-3c7111
+  question_id: RQ-SSI-001
+  source_idea: IDEA-20261005-e211ac
+  goal_id: null
+  version: 1
+  title: >-
+    Mean 2-isogeny distance on the supersingular graph at p = 83 versus
+    its F_83-rational subgraph, predicted ratio at least 3/2
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-f59943
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the ratio is at least 3/2, does not assert a path-finding algorithm,
+      and does not assert that the ratio was observed.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide the ratio of mean pairwise distances of G_full to G_rat at the
+    prime p = 83. Success is a ratio at least 3/2 on a run where the
+    ratio is defined and the setup checks pass. A strictly smaller ratio
+    on such a run is a negative, so success can fail.
+
+  inputs:
+    names:
+      prime: 83
+      full_graph: >-
+        G_full, the simple graph whose vertices are the supersingular
+        j-invariants in F_{83^2}, with an edge when a separable 2-isogeny
+        over F_{83^2} has distinct source and codomain j-invariants.
+      rational_graph: >-
+        G_rat, the simple graph whose vertices are the supersingular
+        j-invariants that lie in F_83, with an edge only when a separable
+        2-isogeny over F_83 joins two distinct such j-invariants. G_rat
+        is not the induced subgraph of G_full.
+      null_graph: >-
+        The path graph on |S| vertices, one vertex per element of S in
+        the enumeration order below. It is not an isogeny graph.
+    field:
+      prime: 83
+      construction: F_83[z] / (z^2 + 1)
+      irreducible_check: >-
+        z^2 + 1 has no root in F_83. The executor tests all field
+        elements. If a root exists, the run is invalid and no graph is
+        built. Elements are a + b z with a, b in {0, 1, ..., 82}.
+      lex_order: a varies fastest, then b
+    curve_from_j:
+      model: y^2 = x^3 + A x + B
+      j_zero: A = 0 and B = 1
+      j_1728: A = 1 and B = 0
+      general: >-
+        For j not equal to 0 or 1728, set A = 3 j (1728 - j) and
+        B = 2 j (1728 - j)^2, with 1728 reduced into F_83. Recover
+        j as 6912 A^3 / (4 A^3 + 27 B^2). If the recovered j is not
+        the input j, the model is invalid and that j is not scored.
+    supersingular_test: >-
+      The curve is supersingular when the coefficient of x^{82} in
+      (x^3 + A x + B)^{41} is 0. The closed count floor(p/12)+2 is not
+      the counter. The executor enumerates every j in F_{83^2}.
+    first_prime_check: >-
+      For each prime q congruent to 11 mod 12 and strictly less than
+      83, namely 11, 23, 47, 59, and 71, enumerate the supersingular
+      j-invariants in F_{q^2} by the same Hasse test and record the
+      count. The field polynomial is the lexicographically first monic
+      irreducible quadratic, constant term varying fastest. If any such
+      count lies in 8 to 24, p = 83 is not the first prime in the
+      window and the ratio at 83 is not read.
+    two_isogeny:
+      kernel: >-
+        The nontrivial 2-torsion x-coordinates are the roots of
+        x^3 + A x + B = 0, split in an extension if needed. Each simple
+        root r gives a kernel point (r, 0).
+      velu: >-
+        Set t = 3 r^2 + A, A' = A - 5 t, and B' = B - 7 r t. The
+        codomain is y^2 = x^3 + A' x + B', and its j-invariant is the
+        neighbor. This formula was checked in the design session
+        against the classical modular polynomial at one rational curve
+        of j = 1728. The executor still computes it. The modular
+        polynomial is not a second edge oracle and is not substituted
+        for Vélu.
+      simple_graph: >-
+        Distinct codomain j-invariants different from the source
+        contribute one undirected edge. A codomain equal to the source
+        is recorded and is not a vertex and not a loop in the degree.
+        The dual isogeny is the same undirected edge, not a second
+        vertex. The adjacency relation must be symmetric.
+      rational_edge: >-
+        An edge of G_rat exists only when r lies in F_83 and both
+        source and codomain j lie in F_83.
+    distance:
+      pairs: unordered pairs of distinct vertices
+      mean: >-
+        The arithmetic mean of the distances of those pairs. If the
+        graph is disconnected, the mean is undefined and is not
+        imputed.
+      method_A: breadth-first search from each vertex
+      method_B: Floyd-Warshall on the same adjacency matrix
+      agreement: the two methods must return the same means
+    pre_registered:
+      prime: 83
+      vertex_count_window: [8, 24]
+      ratio_at_least: 3/2
+      degree_off_0_1728: 3
+      degree_of_0_and_1728_at_most: 2
+    seeds: [0]
+    enumeration_order: >-
+      Seed 0 names the lex rules above. It is not a pseudorandom draw.
+    forbidden:
+      - Do not claim a path-finding algorithm.
+      - Do not claim a change to the soft-O of p to the 1/4 bound.
+      - Do not claim a change to the p to the 1/3 plus o(1) pattern.
+      - Do not publish a torsion image or return an endomorphism ring.
+      - Do not use the closed count floor(p/12)+2 as the vertex set.
+      - Do not use the induced subgraph of G_full as G_rat.
+      - Do not substitute the number 3/2 for the two means.
+
+  controls:
+    - id: field-polynomial
+      statement: z^2 + 1 is irreducible over F_83.
+      pass_condition: no root in F_83
+      on_fail: The run is invalid. No graph is built.
+    - id: special-j
+      statement: 0 and 1728 both lie in S.
+      pass_condition: both are supersingular
+      on_fail: Failed setup. The ratio is not read.
+    - id: first-in-window
+      statement: >-
+        The enumerated |S| at p = 83 lies in 8 to 24, and every smaller
+        prime congruent to 11 mod 12 has enumerated count outside that
+        window.
+      pass_condition: both hold
+      on_fail: Failed setup. The ratio at 83 is not the claim's graph.
+    - id: symmetric-adjacency
+      statement: The neighbor relation on G_full and on G_rat is symmetric.
+      pass_condition: both adjacency matrices are symmetric
+      on_fail: >-
+        The dual was stored as a new vertex or a one-way edge. The run
+        is invalid. No distance is read.
+    - id: two-methods
+      statement: >-
+        Method A and method B agree on d(G_full), on d(G_rat) when the
+        rational mean is defined, and on the path-null mean.
+      pass_condition: the agreed values are equal as rationals
+      on_fail: The instrument disagrees with itself. No ratio is read.
+    - id: path-null
+      statement: >-
+        The path graph on |S| vertices has mean distance strictly larger
+        than d(G_full).
+      pass_condition: the inequality holds on the agreed means
+      on_fail: >-
+        The distance statistic does not see expansion. The ratio is not
+        interpreted.
+    - id: rational-order
+      statement: "|S_83| is at least 2 and G_rat is connected."
+      pass_condition: both hold
+      on_fail: The ratio is undefined. This is not a numerical ratio.
+
+  independent_variables:
+    - the graph, G_full or G_rat
+    - the distance method, breadth-first search or Floyd-Warshall
+    - the null, the path graph on |S| vertices
+
+  metrics:
+    primary:
+      - id: distance_ratio
+        statement: >-
+          The ratio d(G_full)/d(G_rat). The prediction is at least 3/2.
+          A strictly smaller ratio, when the ratio is defined, is the
+          negative.
+    secondary:
+      - id: vertex_count_full
+        statement: The enumerated |S| at p = 83.
+      - id: vertex_count_rational
+        statement: The enumerated |S_83|.
+      - id: degree_list_outside_0_1728
+        statement: >-
+          The distinct-neighbor count of every vertex of G_full other
+          than 0 and 1728. The pre-registered value is 3 at each.
+      - id: degree_of_0
+        statement: Distinct-neighbor count of j = 0. Predicted at most 2.
+      - id: degree_of_1728
+        statement: Distinct-neighbor count of j = 1728. Predicted at most 2.
+      - id: mean_distance_full
+        statement: Agreed mean pairwise distance of G_full.
+      - id: mean_distance_rational
+        statement: Agreed mean pairwise distance of G_rat, when defined.
+      - id: mean_distance_path_null
+        statement: Agreed mean pairwise distance of the path graph.
+      - id: smaller_prime_counts
+        statement: >-
+          Enumerated supersingular counts at 11, 23, 47, 59, and 71.
+
+  heuristic_under_test: H1
+  heuristic_under_test_note: >-
+    H1 says the mean on G_full is at least 3/2 times the mean on G_rat
+    when the graphs are connected and G_full is 3-regular off {0, 1728}.
+    A smaller defined ratio falsifies it at p = 83. The recalled Moore
+    bound is not the counter. If either mean exceeds twice its Moore
+    lower bound, record that the expander reading failed and do not
+    export the ratio as an asymptotic.
+
+  preregistered_prediction:
+    quantity: >-
+      The ratio of the mean pairwise distance of G_full to the mean
+      pairwise distance of G_rat at p = 83.
+    formula: >-
+      The ratio is at least 3/2. Any strictly smaller defined ratio is
+      the negative. The formula that motivates 3/2 is the idea's
+      comparison of the full supersingular 2-isogeny graph with its
+      F_p-rational subgraph. It is not evaluated in place of the
+      distances.
+    source: >-
+      Copied from IDEA-20261005-e211ac before any run of EXP-SSI-1dfe66.
+      The prime p = 83 is the least prime congruent to 11 mod 12 whose
+      classical supersingular count floor(p/12)+2 lies in 8 to 24.
+      That count is a name for the prime, not the vertex set.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested object is one graph on a vertex set predicted to have
+      8 elements, inside the window 8 to 24, at the prime 83. A result
+      here is not a result at cryptographic size and not an exponent.
+      No extrapolation to a larger prime is authorized.
+    correspondence: >-
+      Direct enumeration of j-invariants and direct distances. No
+      Deuring sampling shortcut is used to reach a larger prime.
+
+  tail_checks:
+    - >-
+      There is no smoothness tail. The extreme check is the ratio
+      itself. One disagreement between the two distance methods makes
+      the run invalid. One defined ratio strictly below 3/2 is already
+      the negative. The path-null comparison is the check that the
+      distance statistic sees expansion.
+
+  replication:
+    seeds:
+      - name: lex-enumeration
+        algorithm: the field, curve, kernel, and distance rules in inputs
+        seed: [0]
+        note: >-
+          One exhaustive pass by two methods. Adding another prime is a
+          protocol amendment. Seed 0 does not draw a sample.
+    independent_instances: 1
+    independent_instances_note: >-
+      One prime. G_rat is the comparison graph, not a second copy of
+      G_full. Methods A and B are two implementations of one distance.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not change the prime,
+      the graphs, or the ratio 3/2. maximum_runs is 2 so one
+      infrastructure retry may take a new run id. Watch expiry is
+      failed_infrastructure, never a negative mathematical result.
+
+  procedure:
+    identities: >-
+      Check that z^2 + 1 is irreducible. Enumerate the smaller primes
+      11, 23, 47, 59, and 71, then enumerate S at p = 83. Record the
+      counts and whether 0 and 1728 lie in S before any neighbor is
+      computed.
+    graphs: >-
+      Build G_full and G_rat by the Vélu rule. Record degrees, including
+      the degrees of 0 and 1728, and whether each adjacency matrix is
+      symmetric. Then run method A and method B.
+    mechanism_assignment:
+      - observation: >-
+          The field polynomial is irreducible, p = 83 is the first prime
+          in the window, 0 and 1728 lie in S, both graphs are connected,
+          |S_83| is at least 2, every vertex of G_full outside {0, 1728}
+          has degree 3, the adjacency matrices are symmetric, the two
+          methods agree, the path-null mean is strictly larger than
+          d(G_full), and the ratio is at least 3/2.
+        assigns_to: >-
+          The prediction holds at p = 83. This is not a path-finding
+          algorithm and not an exponent.
+      - observation: >-
+          The same validity checks hold, the methods agree, and the
+          ratio is strictly less than 3/2.
+        assigns_to: >-
+          Negative. The mean-distance ratio is smaller than 3/2.
+          Success does not hold. The observed ratio is the datum.
+      - observation: >-
+          The setup through symmetry and method agreement holds, and
+          some vertex outside {0, 1728} has degree not equal to 3.
+        assigns_to: >-
+          The ratio is not interpreted. The enumerated simple graph is
+          not 3-regular off {0, 1728}. This is not the primary negative
+          and it is not success.
+      - observation: >-
+          Either graph is disconnected, or |S_83| is less than 2.
+        assigns_to: >-
+          The ratio is undefined. Report the components. Do not impute
+          a distance. This is not success.
+      - observation: >-
+          0 or 1728 is absent, the enumerated |S| at 83 is outside 8 to
+          24, or a smaller prime congruent to 11 mod 12 has enumerated
+          count inside that window.
+        assigns_to: >-
+          Failed setup. There is no ratio to score. This is not success
+          and it is not a smaller ratio.
+      - observation: >-
+          The path-null mean is less than or equal to d(G_full), the
+          two methods disagree, the adjacency is not symmetric, the
+          field polynomial is reducible, the closed count was used as
+          the vertex set, or the number 3/2 was substituted for the means.
+        assigns_to: >-
+          Invalid. Not evidence for either reading of the ratio.
+      - observation: >-
+          The watch expires, a dependency is missing, or the process crashes.
+        assigns_to: >-
+          failed_infrastructure. Not evidence.
+
+  stopping_rules:
+    - >-
+      Stop when the agreed ratio and the degree list are recorded, or
+      when an invalid row, a setup row, or an undefined-ratio row fires.
+    - Do not add another prime after 83, and do not build a 3-isogeny graph.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - >-
+      A timeout, crash, memory abort, or missing dependency is
+      failed_infrastructure and is not evidence against the hypothesis.
+    - Substituting 3/2 for the two means invalidates the run.
+    - Scoring a ratio when the two methods disagree invalidates the run.
+    - Scoring a ratio when G_rat was taken to be the induced subgraph invalidates the run.
+    - Reporting success when the ratio is strictly less than 3/2 invalidates the run.
+
+  success_criterion: >-
+    The run is a success for the prediction exactly when the first row
+    of mechanism_assignment holds: the ratio d(G_full)/d(G_rat) is at
+    least 3/2. Any other completed assignment is not this success. The
+    second row is a negative, so success can fail.
+
+  falsification_criterion: >-
+    The prediction is falsified when the second row holds: the agreed
+    ratio is strictly less than 3/2. The third and fourth rows do not
+    replace that negative, because the ratio is not interpreted or is
+    undefined. The fifth row falsifies the setup and does not invent a
+    ratio. The sixth and seventh rows falsify nothing.
+
+  required_artifacts:
+    - experiments/EXP-SSI-1dfe66/runs/RUN-*/manifest.yaml
+    - experiments/EXP-SSI-1dfe66/runs/RUN-*/stdout.txt
+    - experiments/EXP-SSI-1dfe66/runs/RUN-*/stderr.txt
+    - experiments/EXP-SSI-1dfe66/runs/RUN-*/raw-result.json
+    - experiments/EXP-SSI-1dfe66/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      The field polynomial, the supersingular counts at 11, 23, 47, 59,
+      71, and 83, the j-invariants in S and in S_83, the degree of each
+      vertex, the method A and method B means, the path-null mean, and
+      the ratio when it is defined.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row.
+      It does not change hypothesis status. It does not claim an exponent.
+
+  assigned_to: executor
+  zero_runs_in_design: true
