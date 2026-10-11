@@ -71,6 +71,10 @@ Contract: `docs/inter-agent-messaging.md` ("The consolidation pass") and
 4. **Report** the window, message and sender counts, what was carried and to
    whom, and what was considered and deliberately not carried. That last item
    is the one a reader cannot reconstruct from the bus.
+5. **Receipt.** `python3 tools/session_receipt.py --skill consolidate-lanes
+   --role consolidator --outcome no_change` (or `impeded` when a
+   precondition failed), `docs/session-receipts.md`. The receipt counts the
+   pass; the bus messages it carried are the only other trace it leaves.
 
 ## What is worth carrying
 
