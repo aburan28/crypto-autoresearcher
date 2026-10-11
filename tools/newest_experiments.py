@@ -45,7 +45,7 @@ except ImportError:  # imported as tools.<name>, the repository root importable
     from orchestration import fast_yaml
 import ecc_priority  # noqa: E402
 import sparse_checkout  # noqa: E402
-from experiment_execution import coverage  # noqa: E402
+from experiment_execution import coverage, safe_path, sha256  # noqa: E402
 from research_dispatch import validate_queue  # noqa: E402
 
 _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
@@ -62,27 +62,48 @@ def _load(path: Path) -> dict[str, Any] | None:
         return None
 
 
-def _dispatch_queue_ready(repo: Path, plan: Path) -> tuple[bool, str]:
-    """Check the static queue binding before calling a planned trial ready."""
+def _dispatch_queue_ready(repo: Path, plan: Path) -> tuple[bool, str, str | None]:
+    """Return the exact plan named by a valid executor handoff."""
     try:
-        binding = json.loads(plan.read_text(encoding="utf-8"))
-        queue_name = binding["queue"]
-        task_id = binding["task_id"]
+        plan_data = json.loads(plan.read_text(encoding="utf-8"))
+        queue_name = plan_data["queue"]
+        task_id = plan_data["task_id"]
+        experiment_id = plan_data["experiment_id"]
+        approved_by = plan_data["approved_by"]
         queue_path = repo / queue_name
         queue = json.loads(queue_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError, KeyError) as error:
-        return False, f"dispatch queue is absent or unreadable: {error}"
+        return False, f"dispatch queue is absent or unreadable: {error}", None
+    tasks = queue.get("tasks") if isinstance(queue, dict) else None
     if (not isinstance(queue, dict)
             or queue.get("schema") != "crypto.autoresearch.dispatch_queue.v1"
-            or not isinstance(queue.get("tasks"), list)
-            or not any(isinstance(task, dict) and task.get("id") == task_id
-                       for task in queue["tasks"])):
-        return False, f"{queue_name}: no valid dispatch queue entry for {task_id}"
+            or not isinstance(tasks, list)):
+        return False, f"{queue_name}: no valid dispatch queue entry for {task_id}", None
+    task = next((item for item in tasks
+                 if isinstance(item, dict) and item.get("id") == task_id), None)
+    if task is None:
+        return False, f"{queue_name}: no valid dispatch queue entry for {task_id}", None
     try:
         validate_queue(queue)
     except ValueError as error:
-        return False, f"{queue_name}: dispatcher rejects queue: {error}"
-    return True, ""
+        return False, f"{queue_name}: dispatcher rejects queue: {error}", None
+    execution_binding = (task.get("handoff") or {}).get("execution") if isinstance(
+        task.get("handoff"), dict) else None
+    if not isinstance(execution_binding, dict):
+        return False, f"{queue_name}: {task_id} has no execution plan binding", None
+    bound_name = execution_binding.get("trial_plan")
+    try:
+        bound_path = safe_path(repo, bound_name)
+        digest = sha256(bound_path)
+    except (OSError, ValueError, TypeError) as error:
+        return False, f"{queue_name}: bound trial plan is unavailable: {error}", None
+    required = {"mode": "experiments", "kind": "run",
+                "experiment_id": experiment_id,
+                "trial_plan": bound_name, "trial_plan_sha256": digest,
+                "approved_by": approved_by}
+    if execution_binding != required or digest != sha256(plan):
+        return False, f"{queue_name}: handoff does not bind the frozen plan and approval", None
+    return True, "", bound_name
 
 
 def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
@@ -95,16 +116,18 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
     if plan.exists() or plan.is_symlink():
         try:
             report = coverage(repo, plan)
+            plan_name = str(plan.relative_to(repo))
             if report.get("not_materialized") and not report["measurement_complete"]:
-                return {**materialize, "trial_plan": str(plan.relative_to(repo)), "coverage": report}
+                return {**materialize, "trial_plan": plan_name, "coverage": report}
             if report["planned"] and not report["measurement_complete"]:
-                queue_ready, reason = _dispatch_queue_ready(repo, plan)
+                queue_ready, reason, bound_name = _dispatch_queue_ready(repo, plan)
                 if not queue_ready:
                     return {"execution_state": "needs_dispatch_queue", "reason": reason,
-                            "trial_plan": str(plan.relative_to(repo)), "coverage": report}
+                            "trial_plan": plan_name, "coverage": report}
+                plan_name = bound_name
             state = ("measurement_complete" if report["measurement_complete"] else
                      "ready" if report["planned"] else "needs_reconciliation")
-            return {"execution_state": state, "trial_plan": str(plan.relative_to(repo)),
+            return {"execution_state": state, "trial_plan": plan_name,
                     "coverage": report}
         except (OSError, ValueError, TypeError) as error:
             return {"execution_state": "needs_plan_repair", "reason": str(error)}

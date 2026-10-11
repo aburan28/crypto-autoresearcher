@@ -47,7 +47,9 @@ def test_planned_trial_needs_a_real_dispatch_queue(tmp_path, monkeypatch):
     plan = exp / "trial-plan.json"
     queue = exp / "queue.json"
     plan.write_text(json.dumps({"queue": "experiments/EXP-ECDLP-a1b2c3/queue.json",
-                                "task_id": "TASK-20261011-a1b2c3"}))
+                                "task_id": "TASK-20261011-a1b2c3",
+                                "experiment_id": "EXP-ECDLP-a1b2c3",
+                                "approved_by": "DEC-20261011-a1b2c3"}))
     monkeypatch.setattr(mod.sparse_checkout, "tracked_absent", lambda *_: set())
     monkeypatch.setattr(mod, "coverage", lambda *_: {
         "not_materialized": 0, "measurement_complete": False, "planned": 1})
@@ -64,8 +66,20 @@ def test_planned_trial_needs_a_real_dispatch_queue(tmp_path, monkeypatch):
     queue.write_text(json.dumps({"schema": "crypto.autoresearch.dispatch_queue.v1",
                                  "goal_id": "", "tasks": [{"id": "TASK-20261011-a1b2c3"}]}))
     assert mod.execution_progress(exp, tmp_path)["execution_state"] == "needs_dispatch_queue"
+    bound_plan = exp / "trial-plan-v1.json"
+    bound_plan.write_bytes(plan.read_bytes())
+    queue.write_text(json.dumps({
+        "schema": "crypto.autoresearch.dispatch_queue.v1",
+        "tasks": [{"id": "TASK-20261011-a1b2c3", "handoff": {"execution": {
+            "mode": "experiments", "kind": "run",
+            "experiment_id": "EXP-ECDLP-a1b2c3",
+            "trial_plan": "experiments/EXP-ECDLP-a1b2c3/trial-plan-v1.json",
+            "trial_plan_sha256": mod.sha256(bound_plan),
+            "approved_by": "DEC-20261011-a1b2c3"}}}]}))
     monkeypatch.setattr(mod, "validate_queue", lambda queue: None)
-    assert mod.execution_progress(exp, tmp_path)["execution_state"] == "ready"
+    progress = mod.execution_progress(exp, tmp_path)
+    assert progress["execution_state"] == "ready"
+    assert progress["trial_plan"] == "experiments/EXP-ECDLP-a1b2c3/trial-plan-v1.json"
 
 
 def test_newest_runnable_excludes_unreconciled_activity_and_orders_newest(tmp_path):
