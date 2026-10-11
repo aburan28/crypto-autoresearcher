@@ -1,0 +1,174 @@
+# IDEA-20261006-a0e3bd — proposal only. No hypothesis and no run.
+idea:
+  id: IDEA-20261006-a0e3bd
+  question_id: RQ-GRUMPY-964876
+  added: '2026-10-06'
+  status: proposed
+  approved_by: null
+  title: >-
+    One shared inversion for x(P+Q) and x(P-Q) on y^2 = x^3 + 5x + 7
+    over F_101
+  class: measurement
+  claim: >-
+    On y^2 = x^3 + 5x + 7 over F_101, for each of 40 frozen pairs of
+    affine points with distinct abscissae, the joint computation of
+    x(P+Q) and x(P-Q) uses 1 field inversion, the two separate
+    additions use 2, and the joint multiplication count does not
+    exceed the separate multiplication count.
+  mechanism: >-
+    The tracked object is the pair (inversions, multiplications) under
+    a frozen operation model, not a discrete logarithm. The
+    representation is short-Weierstrass coordinates. The slope of P+Q
+    is (y2-y1)/(x2-x1) and the slope of P+(-Q) is (-y2-y1)/(x2-x1).
+    The denominators are equal, so one inversion serves both slopes.
+    Each slope then costs one multiplication, and each resulting point
+    costs two further multiplications in the frozen model below, so
+    both routes use 6 multiplications. The saving is the second
+    inversion. KR-RHO-fbd582 records that a shared inversion makes
+    x(P-Q) cheap beside x(P+Q) and that grumpy giants use the trick.
+    This proposal counts the saving on 40 pairs. It does not change a
+    walk exponent.
+  assumptions:
+    - p=101, A=5, B=7. The design session computed 4 A^3 + 27 B^2 = 1823, which is 5 modulo 101 and nonzero. The executor repeats that check. A zero discriminant voids the count.
+    - A pair is rejected when the abscissae are equal, including the case P = -Q. Doubling is not in the 40 pairs.
+    - The 40 pairs are the first 40 accepted lifts from SHA-256 rejection on the UTF-8 string IDEA-20261006-a0e3bd|{i}|{counter}, i increasing from 0.
+    - An inversion counts as one inversion and not as a multiplication. A multiplication is a product of two field elements that are not the constant 1.
+  predictions:
+    - metric: shared_inversion_saving
+      direction: lower
+      minimum_effect: >-
+        On all 40 pairs the joint inversion count is 1, the separate
+        inversion count is 2, and the joint multiplication count is
+        less than or equal to the separate multiplication count.
+  minimal_test:
+    design: >-
+      Recheck the discriminant. Draw the 40 pairs. For each pair
+      compute P+Q and P-Q twice: once with two independent inversions,
+      once with the single shared denominator. Count operations under
+      the frozen model. A separate addition is inv(x2-x1), one
+      multiplication for the slope, one for the square, and one for
+      the new y, hence 3 multiplications and 1 inversion. Two separate
+      additions are 6 and 2. The joint route inverts once, forms both
+      slopes, and finishes both points, hence 6 multiplications and 1
+      inversion. Compare the counts. As a refusal control, one pair
+      with equal abscissae must be rejected rather than counted as a
+      saving.
+    controls:
+      - Both routes return the same two points on every accepted pair. A coordinate mismatch means the formulas differ and the counts are not scored.
+      - The equal-abscissa pair is rejected. If it is counted, the filter is wrong and the saving is not scored.
+      - One planted addition 2G, with G the first accepted point doubled by the doubling formula, is checked against two additions of G with itself only as a refusal. It is not one of the 40 pairs.
+    required_metrics:
+      - joint and separate inversion counts on each of the 40 pairs
+      - joint and separate multiplication counts on each of the 40 pairs
+      - whether the two routes agree on the points
+      - whether the equal-abscissa pair was rejected
+  falsification_conditions:
+    - On at least one accepted pair the joint inversion count is not 1, or the joint multiplication count exceeds the separate multiplication count, and the two routes still agree on the points.
+    - The two routes disagree on a point, in which case the counts are not evidence about the saving.
+    - The discriminant check fails, in which case there is no curve to score.
+  confounders:
+    - Counting an inversion as a multiplication would erase the saving. The model forbids that fold, and changing the model after seeing the counts invalidates the sample.
+    - A pair with equal abscissae has no slope of this form. Including one would manufacture a failure.
+  interpretation_limits:
+    - One saved inversion per pair is a constant-factor field-arithmetic fact. It does not move the exponent 1/2.
+    - The 40 pairs are at p=101. No transfer to a cryptographic prime is claimed.
+    - This proposal does not count grumpy-giant successes. That comparison is a different proposal.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For x1 different from x2, the two denominators x2-x1 are the
+        same field element, so a correct joint routine uses exactly
+        one inversion where two separate additions use two, and it
+        does not add multiplications beyond the two slopes and the
+        two point completions.
+      rigorous_support: >-
+        The equality of the denominators is the slope formula for
+        P+Q and P+(-Q) on a short-Weierstrass curve. KR-RHO-fbd582
+        records the shared-inversion trick. This session opened that
+        row and did not open Galbraith-Wang-Zhang.
+      validation_plan: >-
+        On all 40 pairs, compare the inversion counts 1 against 2 and
+        require the multiplication counts not to increase. Point
+        agreement is required before a count is believed.
+  target_complexity:
+    time_exponent: >-
+      Unchanged at 1/2. Saving one inversion inside an addition does
+      not beat generic rho. KR-RHO-13bf67 remains the floor.
+    memory_exponent: >-
+      Unchanged. The routine stores O(1) field elements. It does not
+      shrink a BSGS table.
+    best_known: >-
+      Generic rho at exponent 1/2 (KR-RHO-13bf67). The shared
+      inversion is a constant-factor addition trick already named on
+      KR-RHO-fbd582. This count does not beat it.
+    hidden_overhead: >-
+      None claimed. The counts 6, 1, and 2 are explicit. No o(1)
+      improvement is claimed.
+    tradeoff_note: >-
+      The saving is one inversion against a second inversion. It is
+      not a time-memory tradeoff and not a van Oorschot-Wiener point.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: low
+  novelty_status: unverified
+  citations:
+    - ref: ledger/questions/RQ-GRUMPY-964876.yaml
+      provenance: internal
+      claim: >-
+        The elliptic consistency arm uses ordinary short-Weierstrass
+        curves at toy size and may not change the generic-group
+        constant. This proposal measures an addition primitive that
+        arm uses.
+      verified_by: ledger/questions/RQ-GRUMPY-964876.yaml
+    - ref: KR-RHO-fbd582
+      provenance: internal
+      claim: >-
+        With a shared inversion, x(P-Q) costs little extra once
+        x(P+Q) is computed. Grumpy giants use the trick.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd582.yaml
+    - ref: KR-RHO-fbd7b1
+      provenance: internal
+      claim: >-
+        Grumpy giants improve the average-case success probability
+        inside a square-root budget. This proposal does not measure
+        that probability.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd7b1.yaml
+    - ref: KR-RHO-13bf67
+      provenance: internal
+      claim: >-
+        A generic discrete logarithm needs Omega(sqrt(N)) group
+        operations.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+      - KR-RHO-fbd582
+      - KR-RHO-fbd7b1
+      - KR-RHO-13bf67
+    nearest:
+      - ref: KR-RHO-fbd582
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row states the shared-inversion trick. This proposal
+          asks for inversion counts 1 against 2, and multiplication
+          counts that do not increase, on 40 pairs at p=101. The
+          exponent movement is 0.
+        verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd582.yaml
+      - ref: KR-RHO-13bf67
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row is the generic floor. One saved inversion does not
+          cross it. The exponent movement is 0.
+  dominated_by: >-
+    Pollard rho at exponent 1/2 dominates this count as an attack.
+    KR-RHO-fbd582 already owns the shared-inversion trick. Matching
+    the frozen counts does not beat rho or that row.
+  sota_delta: >-
+    The separator is one saved inversion, with multiplication count
+    not increased, on 40 pairs at p=101, against the trick already
+    stated on KR-RHO-fbd582. The distance to a sub-square-root
+    algorithm is the full exponent 1/2, and this proposal moves that
+    exponent by 0.
