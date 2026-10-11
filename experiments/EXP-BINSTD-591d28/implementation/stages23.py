@@ -4,6 +4,7 @@
 Does not rewrite stage0/, stage1/, or RESULTS.md from Stages 0-1.
 Writes stage2/, stage3/, and RESULTS-stages2-3.md by default;
 replication uses stage2-<tag>/, stage3-<tag>/, RESULTS-stages2-3-<tag>.md.
+Writes stage2/, stage3/, and RESULTS-stages2-3.md only.
 No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
 """
 from __future__ import annotations
@@ -546,6 +547,14 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             "artifact_tag": ARTIFACT_TAG or None,
             "amazon_bedrock": "NOT SELECTED",
         },
+            "Does not rewrite stage0/stage1/RESULTS.md. Full O-* decided in Stage 3."
+        ),
+        "amazon_bedrock": "NOT SELECTED",
+    }
+    write_json(EXP_ROOT / "stage2" / "random-subspace-summary.json", summary)
+    write_json(
+        EXP_ROOT / "stage2" / "p1-fillin-summary.json",
+        {"poly_p1_fillin": poly_cells, "amazon_bedrock": "NOT SELECTED"},
     )
 
     raw = {
@@ -668,12 +677,14 @@ def stage3(run_dir: Path) -> dict[str, Any]:
     t0 = time.time()
     s2_dir = _stage_dir("stage2")
     stage2_path = s2_dir / "random-subspace-summary.json"
+    stage2_path = EXP_ROOT / "stage2" / "random-subspace-summary.json"
     if not stage2_path.is_file():
         raw = {
             "experiment_id": EXPERIMENT_ID,
             "stage": 3,
             "outcome": "O-IMPEDIMENT",
             "impediment": f"{s2_dir.relative_to(EXP_ROOT)}/random-subspace-summary.json missing",
+            "impediment": "stage2/random-subspace-summary.json missing",
             "claims": {"break": False, "exponent_move": False, "deployed_attack": False},
             "wall_clock_seconds": time.time() - t0,
             "peak_rss_bytes": peak_rss_bytes(),
@@ -833,6 +844,9 @@ def stage3(run_dir: Path) -> dict[str, Any]:
     write_json(s3_dir / "frobenius-arm-summary.json", p4_summary)
     write_json(
         s3_dir / "p4-comparison.json",
+    write_json(EXP_ROOT / "stage3" / "frobenius-arm-summary.json", p4_summary)
+    write_json(
+        EXP_ROOT / "stage3" / "p4-comparison.json",
         {
             "koblitz_mean": kob_mean,
             "ordinary_mean": ord_mean,
@@ -858,6 +872,11 @@ def stage3(run_dir: Path) -> dict[str, Any]:
         f"master_seed={MASTER_SEED}; sample_e_budget={dict(SAMPLE_E_BUDGET_S23)}.\n\n"
         "Stages 0–1 RESULTS.md and prior stage2/stage3/RESULTS-stages2-3.md "
         "left immutable.\n\n"
+    results = (
+        f"# RESULTS — {EXPERIMENT_ID} Stages 2–3\n\n"
+        f"**Outcome:** `{outcome}`\n\n"
+        f"Hypothesis: {HYPOTHESIS_ID}. Approved: {APPROVED_BY}. Task: {TASK_ID}.\n\n"
+        "Stages 0–1 RESULTS.md left immutable (O-STAGES-0-1-COMPLETE).\n\n"
         "## P1 fill-in (sampled e-space, Stage 2)\n\n"
     )
     for cell in poly:
@@ -885,6 +904,11 @@ def stage3(run_dir: Path) -> dict[str, Any]:
         "Amazon Bedrock: NOT SELECTED.\n"
     )
     write_text(_results_path(), results)
+        "Stages 2–3 under trial-plan-v2 / TASK-20261002-d8df85. "
+        "No Magma/Sage/AUXIN/Bedrock. No ECDLP break. No exponent claim.\n"
+        "Amazon Bedrock: NOT SELECTED.\n"
+    )
+    write_text(EXP_ROOT / "RESULTS-stages2-3.md", results)
 
     raw = {
         "experiment_id": EXPERIMENT_ID,
