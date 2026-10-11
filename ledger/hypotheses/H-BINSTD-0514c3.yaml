@@ -1,0 +1,440 @@
+# =============================================================================
+# H-BINSTD-0514c3 -- Schema-typed, CI-validated reachability-table carrier
+# (HOLD-F corrected: per-cell write-once shards + extended schema).
+# Specified and approved under DEC-20261001-8570c3 from IDEA-20260922-6028ed
+# under RQ-BINSTD-b6f698 / GOAL-ECDLP2M-001. Absorbs 2026-09-26 HOLD-F
+# review defects (analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-6028ed.yaml;
+# verdict sound_with_corrections): (1) one write-once file per cell, not one
+# shared 180-cell YAML; (2) schema fields unit / m / floor_bits / budget_bits /
+# rho_convention / provenance_tier; (3) ECC2K-130 row seeded by hand from
+# KN-LIT-661e97; (4) seed only re-derived cells at provenance_tier
+# proposal_arithmetic.
+#
+# ZERO RUNS in this design packet. IDEA-20260922-6028ed claim text is not
+# edited (proposals immutable). Class: tooling — no attack, no exponent.
+# =============================================================================
+hypothesis:
+  id: H-BINSTD-0514c3
+  question_id: RQ-BINSTD-b6f698
+  related_question_ids: []
+  source_idea: IDEA-20260922-6028ed
+  experiment_id: EXP-BINSTD-f9a860
+  goal_id: GOAL-ECDLP2M-001
+  specified_at: '2026-10-01'
+  approved_at: '2026-10-01'
+  authorised_by: DEC-20261001-8570c3
+  review_cited: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-6028ed.yaml
+  hold_id: HOLD-F
+  proposed_by: coordinator
+  title: >-
+    Per-cell write-once reachability shards plus a validate_ledger-style
+    validator catch certificate-hash and input-supersession staleness on a
+    six-case synthetic battery; generated table view is gitignored
+
+  statement: >-
+    SETTING. RQ-BINSTD-b6f698's decision_target names a maintained
+    REACHABILITY TABLE (one row per named binary curve, one column per
+    index-calculus line) whose cells are STRUCTURALLY_EMPTY (with
+    certificate), COMPUTED (with cost/formula/inputs), OPEN (with a
+    controlled missing_quantity), or NOT_YET_ASSESSED. As of the source
+    idea, that table exists only as prose across proposal files and the
+    audit README; nothing detects when a cell's provenance rots.
+
+    (A-CORRECTED STORAGE) CELLS ARE WRITE-ONCE SHARDS. Each cell lives at
+        analysis/binstd-curve-audit/reachability/<curve_row>/<column>.yaml
+    with a superseded_by field for corrections (never in-place edits).
+    The assembled table view is a GENERATED, gitignored artifact rebuilt
+    by the validator (same discipline as knowledge/INDEX.md). HOLD-F
+    defect: a single shared ~180-cell YAML reproduces the goal-head
+    conflict pattern CLAUDE.md already forbids.
+
+    (B) SCHEMA (EXTENDED). Each cell record carries at least:
+      curve_row, method_column,
+      verdict in {STRUCTURALLY_EMPTY, COMPUTED, OPEN, NOT_YET_ASSESSED},
+      unit (controlled vocabulary: group_ops_rho | sat_conflicts |
+        field_ops | wall_clock | bits | none),
+      m (arity; 0 when not a decomposition cell),
+      floor_bits, budget_bits (with formula and N used; required for
+        COMPUTED decomposition cells),
+      rho_convention: CORR-20260922-81aeab (pointer beside matched_rho_row),
+      provenance_tier in {proposal_arithmetic, analysis, evidence},
+      certificate {artifact_path, sha256, assertion} (iff STRUCTURALLY_EMPTY),
+      inputs [{record_id, kind}] (iff COMPUTED, non-empty),
+      formula (iff COMPUTED),
+      extrapolation_distance (iff COMPUTED and curve_row is deployed),
+      missing_quantity (iff OPEN; controlled vocabulary),
+      matched_rho_row, ratio (optional; required iff a ratio is claimed),
+      superseded_by (null or successor cell path).
+
+    (C) VALIDATOR. tools/validate_reachability_table.py extends the
+    check_* / Ctx pattern of tools/validate_ledger.py:
+      (i) schema shape including the extended fields;
+      (ii) CERTIFICATE INTEGRITY — re-hash certificate.artifact_path vs
+           pinned sha256;
+      (iii) PROVENANCE FRESHNESS — every cited input record_id exists and
+           carries no superseded_by (reuse check_schema_supersessions
+           machinery);
+      (iv) OPEN-CELL LIVENESS (non-blocking) — grep proposals/hypotheses
+           for missing_quantity and flag "possibly closeable".
+
+    (D) SEED POLICY (HOLD-F). Stage 1 seeds ONLY cells whose arithmetic
+    has been independently re-derived (review lane / CORR-20260922-81aeab
+    conventions; KN-LIT-661e97 for ECC2K-130 parameters) and marks them
+    provenance_tier: proposal_arithmetic. Do NOT seed COMPUTED cells from
+    unrepaired 77bf31 g/B prose. ECC2K-130 is added by hand (absent from
+    the OpenSSL dump). All other cells stay NOT_YET_ASSESSED.
+
+    (E) FALSIFICATION BATTERY. Six named scratch-copy cases: valid shards;
+    one-byte certificate change; missing input id; synthetic supersession;
+    bad missing_quantity string; unrelated ledger record (false-positive
+    control). Forced 6/6 before any CI-integration proposal.
+
+  statement_note: >-
+    IDEA-20260922-6028ed claim text is immutable and left at status
+    proposed. Review verdict sound_with_corrections (HOLD-F). Defects
+    absorbed into this hypothesis and EXP-BINSTD-f9a860: per-cell
+    sharding; extended schema; ECC2K-130 hand-seed; seed-only-re-derived.
+    No security claim about any deployed curve. No attack.
+
+  mechanism: >-
+    CLASS tooling. Tracked object (analogue): the reachability CELL as a
+    typed write-once shard, not the full prose argument. Operation set
+    Sigma_ledger = {supersede(record_id), re-run_and_change(artifact),
+    append(new_record)}. Lossy projection: discards prose; retains
+    verdict + pointers whose truth Sigma_ledger can change. Compatible
+    discard: cell truth is unchanged by mutations that do not touch named
+    pointers, and is forced stale (caught by the validator) when they do.
+    HOLD-F corrects the storage unit so concurrent writers never share one
+    mutable aggregate file.
+
+  assumptions:
+    - >-
+      Schema + certificate-hash + supersession checks catch the named
+      staleness modes of Sigma_ledger; content drift without formal
+      supersession is out of scope (program immutability rule).
+    - >-
+      missing_quantity controlled vocabulary is maintained by hand as OPEN
+      cells are added (disclosed maintenance cost).
+    - >-
+      This hypothesis does not compute any curve's cost or certificate;
+      it types and checks verdicts other records supply. Transcription
+      errors are tooling bugs, not scientific findings.
+    - >-
+      No group arithmetic, no deployed-curve attack run is performed.
+    - >-
+      Generated table view is gitignored; only per-cell shards are
+      committed research artifacts.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether the cell's typed pointers (certificate hash, input record
+      IDs, extended schema fields) suffice to detect every named
+      Sigma_ledger staleness event, AND whether per-cell sharding avoids
+      the concurrent-write conflict a single YAML would create.
+    baseline_embedding:
+      parameter_slice: >-
+        Incumbent: prose-only reachability claims (audit README +
+        proposal claim fields); no schema; no automated staleness check;
+        no shard layout.
+      reproduction_check: >-
+        Zero research compute: transcribe only re-derived cells into
+        shards; confirm every required schema field has a prose or
+        arithmetic analogue in the cited sources. Missing analogues are
+        schema gaps, not silently fabricated.
+    observation_collision:
+      observable: 'The reachability table says cell (curve, column) = X.'
+      distinct_preimage_search: >-
+        Same printed verdict can mean (i) still true, (ii) certificate
+        silently changed, (iii) input superseded, (iv) OPEN now closeable.
+        Identifying tuple: (verdict, hash_status, supersession_status,
+        liveness_flag, provenance_tier).
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold printed verdict fixed; vary hidden staleness state across
+          the six-case battery.
+        predicted_gain: >-
+          Converts "table says X" into a machine-checked claim with named
+          failure modes. NO RESEARCH RESULT.
+      - transform: specialization_pack
+        proposed_object: >-
+          Six-case synthetic battery as specialisation of Sigma_ledger.
+        predicted_gain: >-
+          Makes "the validator works" falsifiable rather than inspected.
+    quantifier_order: >-
+      FOR EVERY cell whose certificate re-hashes and whose every input is
+      present and non-superseded, the validator emits no failure. FOR
+      EVERY cell where either live check fails, the validator names the
+      cell and the failing pointer. NOT CLAIMED: completeness beyond
+      Sigma_ledger; any curve research result.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For the per-cell schema and the six synthetic cases, the
+        validator passes the two valid cases and fails each injected
+        failure, naming cell and pointer. Cannot certify scientific
+        content correctness or absence of unmodeled drift.
+      nearby_object_control: >-
+        Case 6 (unrelated ledger record) must PASS — distinguishes a
+        dependency tracker from a tripwire on ledger size.
+    proof_obligations:
+      - claim: >-
+          Seeded shards from re-derived sources validate cleanly with
+          zero fabricated COMPUTED numbers.
+        responsibility: correctness
+      - claim: Certificate-integrity fires on a one-byte artifact change.
+        responsibility: correctness
+      - claim: Provenance-freshness fires on superseded inputs only.
+        responsibility: correctness
+      - claim: Battery achieves 6/6 before any CI-integration proposal.
+        responsibility: scope
+      - claim: Per-cell paths + gitignored view honor write-once discipline.
+        responsibility: interface
+
+  asymptotic_claim:
+    problem: >-
+      NOT APPLICABLE. Infrastructure for tracking claims OTHER records
+      make about binary-curve index-calculus reachability; no ECDLP
+      complexity claim.
+    prior_best: NOT APPLICABLE — no attack compared.
+    time_exponent: NOT APPLICABLE
+    memory_exponent: NOT APPLICABLE
+    hidden_cofactor: >-
+      String-based missing_quantity matching misses semantic equivalents;
+      battery does not exercise real git concurrency races; schema does
+      not verify scientific content.
+    claim_kind: infrastructure
+
+  heuristic_assumptions:
+    - id: HEUR-BINSTD-0514c3-H0
+      formal_statement: >-
+        NONE FOR THE VALIDATOR LOGIC ITSELF beyond design. The six-case
+        battery is an exhaustive enumeration of named Sigma_ledger
+        operations plus valid/false-positive controls, not a sampling
+        heuristic. Recorded so absence of a distributional heuristic is
+        explicit.
+      random_model_justification: >-
+        Engineering claim answered by exhaustive test of a finite named
+        operation set (idea H-BINSTD-TOOL-1 restated under HOLD-F
+        storage).
+      supporting_results:
+        - ref: IDEA-20260922-6028ed
+          provenance: internal
+          claim: Six-case battery and Sigma_ledger mapping
+          verified_by: coordinator, this design session (Read, full proposal)
+        - ref: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-6028ed.yaml
+          provenance: internal
+          claim: HOLD-F defects and corrected concrete experiment
+          verified_by: coordinator, this design session (Read, full review)
+      validation_experiment_ids:
+        - EXP-BINSTD-f9a860
+      falsification_condition: >-
+        Battery score < 6/6 on first implementation, or seeded shards
+        fail the unmutated validator.
+    - id: HEUR-BINSTD-0514c3-H1
+      formal_statement: >-
+        Per-cell write-once shards plus a gitignored generated view are
+        jointly sufficient to avoid the concurrent-edit conflict class
+        that a single shared reachability_table.yaml would create under
+        this program's many-worktree discipline.
+      random_model_justification: >-
+        Same rationale as goal-head sharding (tools/shard_goal.py) and
+        gitignored knowledge/INDEX.md — design analogy, not a
+        probabilistic model. Validated by construction of the layout and
+        by case-6 false-positive control (unrelated writes do not fail
+        validation).
+      supporting_results:
+        - ref: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-6028ed.yaml
+          provenance: internal
+          claim: HOLD-F storage defect and per-cell fix
+          verified_by: coordinator, this design session (Read)
+        - ref: CLAUDE.md
+          provenance: internal
+          claim: Concurrency / write-once / gitignored aggregate rules
+          verified_by: coordinator, this design session (workspace rules / Read)
+      validation_experiment_ids:
+        - EXP-BINSTD-f9a860
+      falsification_condition: >-
+        Layout still requires concurrent writers to mutate the same
+        cell file for disjoint columns, or the generated view is
+        committed and thrash-conflicts — revise layout before CI.
+
+  structural_ingredients:
+    - description: RQ decision_target naming the three-way (plus NOT_YET_ASSESSED) reachability table
+      citation: RQ-BINSTD-b6f698
+      provenance: internal
+      verified_by: coordinator, this design session (cited throughout BINSTD designs; path ledger/questions)
+      role: owning decision target
+    - description: Existing audit prose and certificate-producing scripts
+      citation: analysis/binstd-curve-audit/
+      provenance: internal
+      verified_by: coordinator, this design session (listed README, subfield_scan.py, subfield_certify.py)
+      role: seed sources for STRUCTURALLY_EMPTY GHS / subfield columns
+    - description: Rho convention correction pointer
+      citation: CORR-20260922-81aeab
+      provenance: internal
+      verified_by: coordinator, this design session (path present; Read head)
+      role: required rho_convention field beside matched_rho_row
+    - description: ECC2K-130 parameters for hand-seeded row
+      citation: KN-LIT-661e97
+      provenance: internal
+      verified_by: coordinator, this design session (path present; Read for existence)
+      role: ECC2K-130 row absent from OpenSSL dump
+    - description: validate_ledger check_* / Ctx / supersession pattern
+      citation: tools/validate_ledger.py
+      provenance: internal
+      verified_by: coordinator, this design session (path present; size check)
+      role: validator extension target
+    - description: HOLD-F corrected concrete experiment
+      citation: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-6028ed.yaml
+      provenance: internal
+      verified_by: coordinator, this design session (Read, full)
+      role: defect list and seed policy
+
+  reduction_chain:
+    core_problem: >-
+      Give RQ-BINSTD-b6f698 a checkable, write-once reachability carrier
+      whose staleness modes are caught before CI trusts a cell
+    corollaries:
+      - problem: Future producers (e.g. IDEA-20260922-818b73 gamma*) write into the same schema
+        reduction_ref: IDEA-20260922-818b73
+        asymptotics_preserved: true
+      - problem: Optional CI wire-up after 6/6 (Coordinator infrastructure decision)
+        reduction_ref: IDEA-20260922-6028ed
+        asymptotics_preserved: true
+
+  predictions:
+    - metric: battery_pass_count_out_of_6
+      direction: higher
+      minimum_effect: >-
+        Forced 6/6. Any score below 6 blocks CI proposal and names the
+        failing case.
+    - metric: transcription_fidelity_fraction
+      direction: higher
+      minimum_effect: >-
+        100 percent on seeded re-derived cells (numbers match independent
+        re-derivation to 0.01 bit where applicable); schema gaps reported,
+        not fabricated.
+    - metric: open_cell_liveness_hit_rate_on_planted_examples
+      direction: higher
+      minimum_effect: >-
+        Informational only; a miss does not fail the battery.
+    - metric: validator_runtime_and_peak_memory
+      direction: lower
+      minimum_effect: >-
+        Sub-second wall time and negligible RSS on the seeded shard set
+        (engineering expectation, not a cryptanalytic claim).
+
+  test_boundary:
+    instances:
+      - >-
+        Stage 0: schema + validator scaffolding + gitignore rule for
+        generated view; zero research compute.
+      - >-
+        Stage 1: seed re-derived shards only (matched-rho rows,
+        GHS/subfield/stable-subspace STRUCTURALLY_EMPTY on prime-degree
+        rows, ECC2K-130 hand row including decomposition floors m=2..8
+        if re-derived); all else NOT_YET_ASSESSED.
+      - >-
+        Stage 2: implement live checks (schema, hash, supersession,
+        informational liveness) and generated view builder.
+      - >-
+        Stage 3: six-case synthetic battery on scratch copies only.
+    parameters:
+      storage_layout: per_cell_write_once_shards
+      cell_root: analysis/binstd-curve-audit/reachability/
+      generated_view: analysis/binstd-curve-audit/reachability_table.generated.yaml
+      generated_view_gitignored: true
+      seed_provenance_tier: proposal_arithmetic
+      battery_cases: 6
+      rho_convention: CORR-20260922-81aeab
+      ecc2k130_source: KN-LIT-661e97
+      certificate_kind_on_manifests: none
+    implementation: >-
+      tools/validate_reachability_table.py (+ optional tests under
+      tools/ or experiments/EXP-BINSTD-f9a860/implementation/). Reuse
+      validate_ledger supersession lookup. Scratch copies for mutation
+      cases never touch live ledger or live audit artifacts.
+    budget:
+      wall_clock_seconds: 14400
+      memory_gb: 2
+      maximum_runs: 12
+
+  falsification_conditions:
+    - Battery score below 6/6 on first implementation.
+    - Unmutated seeded shards fail their own validator.
+    - Transcription-fidelity finds a required field with no analogue in
+      cited re-derived sources — schema gap, not silent fabrication.
+    - Layout still forces concurrent writers onto one shared mutable
+      aggregate (HEUR-H1 fail).
+
+  interpretation_limits:
+    - NO RESEARCH RESULT / NO BREAK / NO EXPONENT CLAIM.
+    - Seeded coverage is a small fraction of ~180 cells; NOT_YET_ASSESSED
+      must not be narrated as progress or as STRUCTURALLY_EMPTY.
+    - Validator certifies pointer consistency, not scientific truth.
+    - CI wire-up is a separate Coordinator infrastructure decision after 6/6.
+    - Real concurrent-worktree races are out of scope of the scratch battery.
+    - >-
+      certificate.kind vocabulary for any run manifests is the closed set
+      discrete_log | decomposition | key_recovery | none
+      (docs/claims-and-verification.md). This tooling experiment uses none.
+
+  distinguishable_outcomes:
+    - id: DO-1-carrier-ready
+      description: >-
+        6/6 battery; 100% transcription fidelity on seeded cells;
+        per-cell layout + gitignored view in place — carrier may be
+        proposed for CI.
+      next_decision: support_scoped_tooling_carrier_propose_CI
+    - id: DO-2-battery-gap
+      description: >-
+        Named battery case fails — revise validator/schema before CI.
+      next_decision: refine_validator_no_CI
+    - id: DO-3-schema-seed-mismatch
+      description: >-
+        Unmutated seed fails validator or fidelity finds missing analogue.
+      next_decision: revise_schema_or_seed_policy
+    - id: DO-4-layout-conflict
+      description: >-
+        Storage still conflicts with write-once discipline.
+      next_decision: supersede_layout
+    - id: DO-5-infrastructure
+      description: >-
+        Timeout/crash/OOM building tools — infrastructure, not negative
+        math; no reject_scoped on the tooling hypothesis from infra alone.
+      next_decision: checkpoint_repair_infra
+
+  dominated_by: >-
+    n/a (no attack claimed). Checked alternatives: prose-only audit README
+    (no schema/validator); single shared YAML as in the unrepaired idea
+    (HOLD-F defective under concurrency); generic build-system staleness
+    (known outside corpus; this record's contribution is the application
+    to RQ-BINSTD-b6f698 under program ledger conventions). Net
+    contribution is checkability of a research-question-specific derived
+    table, not Pareto attack improvement.
+  sota_delta:
+    time: Zero cryptanalytic movement. Before/after is automatic staleness detection.
+    memory: Unaffected for attacks; O(cells) for the validator.
+    data_queries: N/A.
+
+  status: supported
+  status_history:
+    - status: proposed
+      at: '2026-10-01'
+      by: coordinator
+      note: minted from IDEA-20260922-6028ed under design-experiment
+    - status: approved
+      at: '2026-10-01'
+      by: DEC-20261001-8570c3
+      note: >-
+        Approved under standing user authorization; HOLD-F defects
+        absorbed; Stages 0-3 frozen; first executor handoff authorized
+        (zero runs in this design session).
+    - status: supported
+      at: '2026-10-01'
+      by: DEC-20261001-93ce58
+      note: >-
+        Scoped tooling DO-1 support after EXP-BINSTD-f9a860 Stages 0-3
+        (EV-BINSTD-813422): battery 6/6, fidelity 1.0, write-once
+        layout, gitignored view. Strength preliminary. CI not
+        auto-authorized. No break / attack-cost claim.

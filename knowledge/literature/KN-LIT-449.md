@@ -15,7 +15,7 @@ tags: [binary-field, complexity-theory, dlp, ecdlp, elliptic-curve, glv-gls, hyp
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-bf1772
 ---
 
 ## Contribution

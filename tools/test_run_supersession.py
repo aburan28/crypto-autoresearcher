@@ -48,6 +48,14 @@ ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
 # exact bytes here again without rewriting the test.
 PROSE_SUPERSESSION_SHA256: dict[str, str] = {}
 
+# Closed, exact disclosed debt for test_committed_supersessions_are_clean.
+# Never grow this to turn the test green: an entry belongs here only when a
+# committed correction record lists the error by exact text as permanent.
+_QSP_S0_V2 = "experiments/EXP-QSP-33b442/runs/RUN-QSP-33b442-S0/manifest_v2.yaml"
+DISCLOSED_SUPERSESSION_DEBT: frozenset[str] = frozenset(
+    f"{_QSP_S0_V2}: run directory missing artifact '{name}'"
+    for name in ARTIFACTS)
+
 
 def manifest_body(**over) -> dict:
     """A run manifest that validates clean, before any field is removed."""
@@ -176,6 +184,60 @@ class PendingRawResultTests(SupersessionFixture):
         for expected in ("missing required field 'environment'",
                          "missing required field 'timing'", "run.code.commit missing"):
             self.assertTrue(any(expected in e for e in errors), errors)
+
+
+class UnwrittenRawResultTests(SupersessionFixture):
+    """A failed_infrastructure envelope may name an unwritten raw result.
+
+    The absence is the observation. Creating the file would fabricate a
+    count the receipt says was never produced. The waiver is the sentence
+    plus a null outcome and a none certificate; a bare status does not
+    qualify, and neither does any other terminal status.
+    """
+
+    NOTE = "run.py did not write raw-result.json; claim_expired is not a label."
+
+    def unwritten_errors(self, status="failed_infrastructure", note=None,
+                         outcome=None, raw_result=None, kind="none"):
+        (self.run_dir / "raw-result.json").unlink(missing_ok=True)
+        result = {
+            "certificate": {"kind": kind},
+            "outcome": outcome,
+            "raw_result": raw_result,
+            "outcome_note": self.NOTE if note is None else note,
+        }
+        path = self.write_manifest(
+            "manifest.yaml", manifest_body(status=status, result=result))
+        ctx = vl.Ctx(set())
+        vl.check_run(str(path), ctx, {})
+        return ctx.errors
+
+    def test_named_absence_needs_no_fabricated_raw_result(self):
+        self.assertEqual(self.unwritten_errors(), [])
+
+    def test_bare_failed_infrastructure_still_owes_the_file(self):
+        errors = self.unwritten_errors(note="stopped; no scientific label")
+        self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                            for e in errors))
+
+    def test_a_present_outcome_or_claim_still_owes_the_file(self):
+        for kwargs in (
+            {"outcome": "O-E1"},
+            {"raw_result": "stage1/panels.json"},
+            {"kind": "discrete_log"},
+            {"kind": None},
+        ):
+            with self.subTest(**kwargs):
+                errors = self.unwritten_errors(**kwargs)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_other_statuses_cannot_use_the_sentence(self):
+        for status in ("completed", "failed", "cancelled", "running"):
+            with self.subTest(status=status):
+                errors = self.unwritten_errors(status=status)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
 
 
 class DuplicateProcessIdentityTests(SupersessionFixture):
@@ -865,7 +927,14 @@ class CommittedRegistryTests(unittest.TestCase):
                                    "coordinator_decision", ctx)
         for key in entries:
             vl.check_run(key, ctx, entries)
-        self.assertEqual(ctx.errors, [])
+        # Disclosed debt is exact: RUN-QSP-33b442-S0 is a zero-compute hand
+        # derivation whose five companion artifacts never existed (registry
+        # entry and CORR-20260917-8b80cc route.D2_route_S0). Writing them would
+        # describe an execution that did not occur, so the errors stay, listed
+        # by exact text; any other error, or any growth here, still fails.
+        self.assertEqual(
+            sorted(e for e in ctx.errors if e not in DISCLOSED_SUPERSESSION_DEBT),
+            [])
 
     def test_lpf_plantz_manifest_is_routed_to_its_superseding_record(self) -> None:
         superseded = REPO / ("experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/"
@@ -931,11 +1000,15 @@ class CommittedRegistryTests(unittest.TestCase):
                 # predecessor, which then names the registry's original.
                 # Follow and hash-check that immutable chain rather than
                 # rewriting history to make every replacement look direct.
+                # EXP-QSP-33b442 (CORR-20260917-8b80cc) adds a fourth:
+                # supersedes_path/supersedes_sha256.
                 prior_path = (declared.get("prior_manifest_path")
                               or declared.get("prior_manifest")
+                              or declared.get("supersedes_path")
                               or declared.get("path"))
                 prior_sha256 = (declared.get("prior_manifest_sha256")
                                 or declared.get("prior_sha256")
+                                or declared.get("supersedes_sha256")
                                 or declared.get("sha256"))
                 self.assertIsNotNone(prior_path, str(current))
                 self.assertIsNotNone(prior_sha256, str(current))

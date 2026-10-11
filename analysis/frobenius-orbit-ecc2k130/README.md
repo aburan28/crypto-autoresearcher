@@ -533,3 +533,52 @@ whatever those PRs settle rather than answered from this note alone. With
 likeliest resolution is that this note's subject already has an owner and this
 directory should be superseded by, or folded into, that lane rather than
 adopted on its own.
+
+---
+
+## Coordinator ruling, 2026-09-22 (appended; nothing above is edited)
+
+**`DEC-20260922-61cdc1`** rules the ownership question this note left open.
+Read that record. It supersedes the "likeliest resolution" guess in the
+paragraph above, which was written before `RQ-CERTBIN-836ce2` existed.
+
+- **Owner: `RQ-CERTBIN-836ce2`.** This directory is a **pre-compute artifact**
+  of that question: a section-8 audit plus a single-session instrument probe.
+  Future CERTBIN contracts reuse it by reference and say what they add.
+  CERTBIN admits ECC2K-130 as an instance, with the challenges as declared
+  endpoints. It also names Frobenius-stable and orbit-aware `V` as a
+  factor-base choice. `GOAL-FROB-6333a9` and `RQ-FROB-7d8dd4` exclude both.
+- **Not folded into `EXP-FROB-ec08b5`.** That contract covers Part 1 section B
+  only. Its frozen scope is the linear Gaudry/Diem `F_V` family, and it
+  explicitly excludes decomposition cost. So the orbit union (C, D), the
+  charged floor table and all of Part 2 fall outside it. It is
+  cross-referenced, not an owner.
+- **Still not evidence.** No `RUN-*` exists and none is created. No status
+  moves. No completion criterion is discharged, including
+  `GOAL-FROB-6333a9` C1/C2. The sentence above placing this note on
+  `RQ-FROB-7d8dd4`'s target (a) is **not** adopted as a ruling on that
+  question.
+- **Pending:** attaching `RQ-CERTBIN-836ce2` to `GOAL-ECDLP2M-001` is a named
+  next action (NA-2), not done here.
+
+---
+
+## Erratum, 2026-09-22 — a net-loss range attributed to the wrong degree
+
+The "Concurrent work" section above says `EXP-FROB-ec08b5` "costs the
+ECC2K-130 net loss across `m` at 57 to 122 bits". **That is wrong.** The range
+spans two different degrees: `EV-FROB-d336b0` gives the net loss as **57.0 to
+96.0 bits at `n = 131` (ECC2K-130)** and 72.7 to 121.7 bits at `n = 163`
+(K-163). The error came from reading PR #1360's description, which quotes a
+single "57 to 122 bits" for both degrees together, instead of the evidence
+record. It was caught by the coordinator ruling `DEC-20260922-61cdc1` (its
+`R2`) and confirmed against `EV-FROB-d336b0` directly before this erratum was
+written.
+
+The sentence is left as written above rather than edited in place, because
+`DEC-20260922-61cdc1` reviewed this README with that text in it. The same wrong
+range also appears in the description of PR #1363, which is merged and closed.
+
+Nothing else in this note depends on the figure: it was cited only as the
+reason `EXP-FROB-ec08b5` goes further than this note does, and that remains
+true at the corrected range.

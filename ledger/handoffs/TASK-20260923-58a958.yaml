@@ -1,0 +1,258 @@
+# =============================================================================
+# TASK-20260923-58a958 -- Coordinator LEDGER ARCHIVE for the addendum-approval
+# act TASK-20260923-33484e (Act 2) on GOAL-GFPN-380702. It binds by SHA-256
+# and commits the act's decision, its four cards, the BATCH-6b1c29 dispatch
+# queue, the goal checkpoint and this card. It also binds, by hash only, the
+# archived addendum the decision approves, so that the receipt proves the
+# approval read those exact bytes. It records ledger-receipt.json.
+# Interprets nothing and launches nothing. Written LAST in the act.
+# =============================================================================
+handoff:
+  id: TASK-20260923-58a958
+  from: coordinator
+  to: coordinator
+  archive_kind: ledger
+  kind: ledger_archive
+  recorded_at: '2026-09-23'
+  source_task_ids:
+    - TASK-20260923-33484e
+  goal_id: GOAL-GFPN-380702
+  question_id: RQ-GFPN-c01af8
+  batch_id: BATCH-6b1c29
+  experiment_ids: [EXP-GFPN-05ff43]
+  hypothesis_ids: [H-GFPN-9a29be]
+  record_ids:
+    - DEC-20260923-8b2dbf
+    - TASK-20260923-33484e
+    - TASK-20260923-4c64b5
+    - TASK-20260923-6c7f55
+    - TASK-20260923-4ff597
+    - TASK-20260923-58a958
+    - BATCH-6b1c29
+    - GOAL-GFPN-380702
+    - EXP-GFPN-05ff43
+    - AMD-EXP-GFPN-05ff43-20260923-rung31
+  record_ids_note: >-
+    Identical to archive.record_ids of this task's entry in the BATCH-6b1c29
+    queue. The commit message must name every one: the queue verifier checks
+    the message under content_at_commit.
+
+  objective: >-
+    Commit the exact products of TASK-20260923-33484e in one isolated commit.
+    Record a post-commit ledger receipt with per-path SHA-256, the parent, the
+    origin/main base commit checked and the merge outcome. The receipt must
+    also show that the addendum still hashes to the value DEC-20260923-8b2dbf
+    binds. Until the verifier accepts this commit, the approval is not
+    official, BATCH-6b1c29 is not open, and TASK-20260923-4c64b5 may not be
+    dispatched (CLAUDE.md rule 7; DEC-20260923-8b2dbf SQ-2).
+
+  uncertainty_reduced: >-
+    Whether the approval decision, the cards, the dispatch queue and the goal
+    checkpoint are the bytes that reach the branch, the PR and main, and
+    whether the approved addendum is byte-identical to what
+    TASK-20260923-2e741f archived.
+
+  inputs:
+    - ledger/handoffs/TASK-20260923-33484e.yaml
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-2e741f/snapshot-receipt.json
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/dispatch_queue.json
+    - origin/main
+
+  constraints:
+    - id: LB-1
+      text: >-
+        STAGE ONLY THE DECLARED PATHS in artifact_paths, path by path. `git
+        add -A` is forbidden. The addendum is bound by hash only (LB-2). It is
+        unchanged since archive commit 92b495235 and adds no diff.
+        knowledge/INDEX.md and any dispatch_plan.{json,md} are generated and
+        are NOT staged. No knowledge entry changes.
+    - id: LB-2
+      text: >-
+        VERIFY THE APPROVED BYTES BEFORE COMMITTING. These sha256 values must
+        hold:
+        - experiments/EXP-GFPN-05ff43/amendments/v2_addendum_rung31.yaml:
+          2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c;
+        - experiments/EXP-GFPN-05ff43/amendments/v1_to_v2_reanchor_and_arm_iii.yaml:
+          e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3;
+        - the 14 paths bound by TASK-20260923-0fa03f phase A: their receipt
+          values.
+        On any mismatch, STOP. The decision does not bind the bytes on disk.
+        Report it, and do not commit.
+    - id: LB-3
+      text: >-
+        VALIDATE THE QUEUE BEFORE COMMITTING (DEC-20260923-034ba0 R-7 (5);
+        DEC-20260923-8b2dbf SQ-2). Run these on
+        coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/dispatch_queue.json:
+        - `python3 tools/research_dispatch.py <queue> --output <scratch> --report <scratch>`;
+        - `python3 tools/validate_dispatch_reference.py <queue> --output <scratch> --report <scratch>`.
+        Both must exit 0. On failure, return the exact error text to the
+        Coordinator for a repair of the queue. Do not repair it in this task,
+        and do not commit. If no honest queue can pass, the Coordinator
+        records the R-7 (6) substitute under DEC-20260923-f11b13 and re-issues
+        this card's artifact set by a new record.
+    - id: LB-4
+      text: >-
+        EDIT NO RECORD WHILE ARCHIVING. That covers the addendum, the v2
+        amendment, the specification, implementation-v2/, runs, reviewer
+        directories, hypotheses, prior decisions, corrections, receipts,
+        tools/ and other goals. A defect found now becomes a new record, never
+        a repair.
+    - id: LB-5
+      text: >-
+        MERGE origin/main INTO THE BRANCH, NEVER REBASE, before the commit.
+        Record the base commit checked and the merge outcome. Run
+        tools/validate_ledger.py and report any error line beyond the base's
+        pre-existing set. In particular, confirm that:
+        - every target_id of DEC-20260923-8b2dbf that starts with RQ-, H-,
+          EXP- or EV- resolves;
+        - the decision carries a non-empty knowledge_promotion.not_warranted,
+          and no citation has provenance 'recalled';
+        - no handoff written by TASK-20260923-33484e carries a null budget
+          field;
+        - goal.yaml keeps status active, parses, and has exactly one
+          next_action.
+    - id: LB-6
+      text: >-
+        AN ARCHIVE IS NOT EVIDENCE AND LAUNCHES NOTHING (maximum_runs 0).
+        TASK-20260923-4c64b5 is committed as a card and is NOT dispatched by
+        this task.
+    - id: LB-7
+      text: >-
+        After the commit, push the branch and refresh PR #1383 on
+        claude/pollard-rho-speedup-hypotheses-yu8qwp against main (or its
+        successor), naming the new records:
+        - DEC-20260923-8b2dbf;
+        - TASK-20260923-33484e, TASK-20260923-4c64b5, TASK-20260923-6c7f55,
+          TASK-20260923-4ff597 and TASK-20260923-58a958;
+        - BATCH-6b1c29;
+        - the GOAL-GFPN-380702 checkpoint.
+        A record that exists only in a local commit is unpublished.
+    - id: LB-8
+      text: >-
+        AFTER VERIFICATION, in this order and as separate commits (SQ-2):
+        (1) Backfill the receipt's commit_sha, if that is this program's
+            practice.
+        (2) Append a tasks_state_revisions entry to the BATCH-6b1c29 queue
+            that marks TASK-20260923-58a958 completed, with commit_sha,
+            parent_sha and path_sha256 covering every archive and source
+            artifact. The receipt's hash is the hash of its bytes AT the
+            archive commit, because binding_mode is content_at_commit.
+            research_dispatch.py must pass on the revised queue WITH the
+            repository verifier before it is committed.
+        (3) Run `python3 tools/goal_lanes.py open-lane GOAL-GFPN-380702
+            BATCH-6b1c29 --queue
+            coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/dispatch_queue.json
+            ...` and publish it.
+        Only then may TASK-20260923-4c64b5 be claimed.
+    - id: LB-9
+      text: >-
+        Amazon Bedrock is prohibited. No model name is written into the
+        receipt beyond the inference block's resolved binding, which the
+        dispatching session records.
+
+  deliverables:
+    - >-
+      One commit whose message names TASK-20260923-58a958,
+      TASK-20260923-33484e, DEC-20260923-8b2dbf, TASK-20260923-4c64b5,
+      TASK-20260923-6c7f55, TASK-20260923-4ff597, BATCH-6b1c29,
+      GOAL-GFPN-380702, EXP-GFPN-05ff43 and
+      AMD-EXP-GFPN-05ff43-20260923-rung31.
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-58a958/ledger-receipt.json
+  artifact_paths:
+    - ledger/handoffs/TASK-20260923-33484e.yaml
+    - ledger/decisions/DEC-20260923-8b2dbf.yaml
+    - ledger/handoffs/TASK-20260923-4c64b5.yaml
+    - ledger/handoffs/TASK-20260923-6c7f55.yaml
+    - ledger/handoffs/TASK-20260923-4ff597.yaml
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/dispatch_queue.json
+    - ledger/goals/GOAL-GFPN-380702/goal.yaml
+    - ledger/handoffs/TASK-20260923-58a958.yaml
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-58a958/ledger-receipt.json
+  artifact_paths_note: >-
+    The Coordinator subagent CREATED the decision, the five handoff cards and
+    the dispatch queue. It MODIFIED goal.yaml additively:
+    - updated_at_note, with the prior value kept verbatim under
+      updated_at_note_previous_20260923_amendment_approval;
+    - current_batch_id and dispatch_queue_path, set from null, with the prior
+      note kept verbatim;
+    - latest_checkpoint_decision, with a new note;
+    - checkpoint_20260923_addendum_approval;
+    - next_action replaced, with the prior value, role, dispatch and set_by
+      kept verbatim under
+      previous_next_action_superseded_2026_09_23_addendum_approval;
+    - next_action_dispatch and next_action_set_by;
+    - next_action_context_20260923_addendum_approval.
+    Impediments IMP-1 to IMP-4 are unchanged, and none is added.
+    Declared unused, so these reserved paths stay absent:
+    - ledger/decisions/DEC-20260923-f11b13.yaml: the R-7 (6) substitute was
+      not taken;
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/batch.yaml:
+      no validator requires it.
+    The receipt is written by the dispatching session.
+  bound_by_hash_only:
+    experiments/EXP-GFPN-05ff43/amendments/v2_addendum_rung31.yaml: 2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c
+    experiments/EXP-GFPN-05ff43/amendments/v1_to_v2_reanchor_and_arm_iii.yaml: e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3
+  bound_by_hash_only_note: >-
+    Recorded in the receipt, as TASK-20260923-2e741f's receipt did. They are
+    not staged and not in artifact_paths, and the queue gives neither a write
+    scope, because both are frozen and archived by earlier tasks.
+  queue_ownership_note: >-
+    In the BATCH-6b1c29 queue, this task declares
+    ledger/decisions/DEC-20260923-8b2dbf.yaml and its receipt. The other seven
+    paths are declared by TASK-20260923-33484e. research_dispatch.py requires
+    a ledger archive to own its decision, and refuses an artifact owned twice
+    (precedent BATCH-ba0b0d TASK-20260922-7e0d35). The set this commit stages
+    is the union, which is this card's artifact_paths.
+  write_scope:
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-58a958
+  write_scope_note: >-
+    This task writes only its receipt directory. Every other path belongs to
+    the write set of TASK-20260923-33484e and is STAGED by this task, not
+    written.
+
+  archived_by: TASK-20260923-58a958
+  archived_by_note: Self-bound. This is the archive card itself, and it rides its own commit.
+  depends_on:
+    - TASK-20260923-33484e
+    - TASK-20260923-2e741f
+
+  dispatch_preconditions:
+    - every path in artifact_paths except the receipt exists and parses (YAML, or JSON for the queue)
+    - both amendment files hash to the values in LB-2
+    - the queue passes both tools (LB-3)
+    - no lane on GOAL-GFPN-380702 holds any of the declared paths (tools/goal_lanes.py lanes)
+    - origin/main is fetched and merged (merge, never rebase) before staging, and the base commit is recorded
+    - RUNS ALONE
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: high
+    resolved_model_id: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - the commit changes exactly the declared paths plus the receipt (or a documented superset listed in the receipt), and nothing under runs/, amendments/ (bytes unchanged), implementation-v2/, specification.yaml, hypotheses/, tools/ or another goal
+    - the receipt's path_sha256 covers every artifact path and matches the committed tree, and both amendment hashes equal the LB-2 values
+    - the receipt records the parent, the origin/main base commit, the merge outcome, and the exit status of both queue validators
+    - tools/validate_ledger.py on the head reports no error line beyond the base's pre-existing set
+    - 'the branch is pushed and PR #1383 (or its successor) is refreshed, naming the new records'
+    - the LB-8 queue revision and open-lane follow the verified commit; no scientific trial was launched and TASK-20260923-4c64b5 was not dispatched by this task
+
+  return_format: >-
+    - the receipt path, the archive commit sha, and the base commit and merge
+      outcome;
+    - both amendment sha256 values as computed;
+    - both queue-validator exit statuses and outputs;
+    - the validate_ledger result;
+    - the PR number;
+    - the commit of the LB-8 queue revision and the lane record path.
+
+  handoff_record: ledger/handoffs/TASK-20260923-58a958.yaml
+  state: written_not_executed

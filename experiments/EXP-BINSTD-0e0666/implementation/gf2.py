@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Minimal F_2[t]/(f) arithmetic for EXP-BINSTD-0e0666 Stages 0-1.
+
+Self-contained (no numpy). Frozen irreducible moduli recorded in run artifacts.
+Pattern adapted from EXP-CERTBIN-e94b27/impl/gf2n.py (schoolbook clmul +
+reduction); this module does not import that path.
+"""
+from __future__ import annotations
+
+
+def clmul(a: int, b: int) -> int:
+    r = 0
+    while b:
+        if b & 1:
+            r ^= a
+        a <<= 1
+        b >>= 1
+    return r
+
+
+def pmod(a: int, m: int) -> int:
+    dm = m.bit_length() - 1
+    while a and a.bit_length() - 1 >= dm:
+        a ^= m << (a.bit_length() - 1 - dm)
+    return a
+
+
+def pgcd(a: int, b: int) -> int:
+    while b:
+        a, b = b, pmod(a, b)
+    return a
+
+
+def is_irreducible(mod: int) -> bool:
+    n = mod.bit_length() - 1
+    x = 2
+    cur = x
+    for i in range(1, n + 1):
+        cur = pmod(clmul(cur, cur), mod)
+        if i <= n // 2 and pgcd(mod, cur ^ x) != 1:
+            return False
+    return cur == x
+
+
+class Field:
+    """Elements are Python ints; bit j is the coefficient of t^j."""
+
+    def __init__(self, modulus: int):
+        if not is_irreducible(modulus):
+            raise ValueError(f"modulus not irreducible: {modulus:#x}")
+        self.mod = modulus
+        self.n = modulus.bit_length() - 1
+        self.q = 1 << self.n
+
+    def add(self, a: int, b: int) -> int:
+        return a ^ b
+
+    def mul(self, a: int, b: int) -> int:
+        mask = self.q - 1
+        return pmod(clmul(a & mask, b & mask), self.mod)
+
+    def square(self, a: int) -> int:
+        return self.mul(a, a)
+
+    def pow(self, a: int, e: int) -> int:
+        r = 1
+        a &= self.q - 1
+        while e:
+            if e & 1:
+                r = self.mul(r, a)
+            a = self.mul(a, a)
+            e >>= 1
+        return r
+
+    def inv(self, a: int) -> int:
+        if a == 0:
+            raise ZeroDivisionError("invert 0")
+        return self.pow(a, self.q - 2)
+
+    def sqrt(self, a: int) -> int:
+        # In char 2, sqrt(a) = a^{2^{n-1}}.
+        return self.pow(a, 1 << (self.n - 1))
+
+    def trace(self, a: int) -> int:
+        """Absolute trace F_{2^n} -> F_2."""
+        s = 0
+        x = a & (self.q - 1)
+        for _ in range(self.n):
+            s ^= x & 1
+            x = self.square(x)
+        return s & 1
+
+    def half_trace(self, a: int) -> int:
+        """Solve z^2 + z = a when Tr(a)=0 (n odd); returns one root."""
+        if self.n % 2 == 0:
+            raise NotImplementedError("half-trace for even n not used under this card")
+        z = 0
+        x = a & (self.q - 1)
+        # z = sum_{i=0}^{(n-1)/2} a^{2^{2i}}
+        for i in range((self.n + 1) // 2):
+            z ^= x
+            x = self.square(self.square(x))
+        return z
+
+
+# Frozen irreducible polynomials (recorded in artifacts).
+MODULI = {
+    17: (1 << 17) | (1 << 3) | 1,  # t^17 + t^3 + 1
+    23: (1 << 23) | (1 << 5) | 1,  # t^23 + t^5 + 1
+    31: (1 << 31) | (1 << 3) | 1,  # t^31 + t^3 + 1
+}
+
+
+def field_for(n: int) -> Field:
+    if n not in MODULI:
+        raise KeyError(f"no frozen modulus for n={n}")
+    return Field(MODULI[n])

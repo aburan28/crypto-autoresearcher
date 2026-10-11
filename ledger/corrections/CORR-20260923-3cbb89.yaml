@@ -1,0 +1,129 @@
+# =============================================================================
+# CORR-20260923-3cbb89 -- EXP-GFPN-05ff43: the record misstates what was
+# attempted, and under what envelope, for the cells that measured nothing.
+# One defect class, three facets across several runs:
+#   (1) the resource cap recorded vs the cap in force;
+#   (2) the attempt counters targets_attempted / m5_timeout_count;
+#   (3) never-attempted arms and shapes not recorded as not_attempted.
+# Written by the Coordinator under TASK-20260923-e52c88 from joint K1 of the
+# review round TASK-20260923-fe27e4. No archived run record is edited.
+# =============================================================================
+correction:
+  id: CORR-20260923-3cbb89
+  recorded_at: '2026-09-23'
+  record_type: run
+  record_id: RUN-GFPN-8f1b50
+  experiment_id: EXP-GFPN-05ff43
+  goal_id: GOAL-GFPN-380702
+  task_id: TASK-20260923-e52c88
+  decision_id: DEC-20260923-d86ff2
+
+  field: >-
+    (1) resources.memory_cap_gb in every EXP-GFPN-05ff43 cell manifest,
+    including RUN-GFPN-8f1b50, RUN-GFPN-805701 and RUN-GFPN-61a67b (the m = 5
+    cells). Also the cap statement of implementation.md deviation D-1 (lines
+    144-149), and parameters.memory_cap_gb 12.0 of the validation and anchor
+    runs RUN-GFPN-4892a8, -f55fbd, -650471, -a0fb62, -b336b6, -bbed6f and
+    -61bba9.
+    (2) targets_attempted and m5_timeout_count in the manifests of
+    RUN-GFPN-8f1b50 and RUN-GFPN-805701 (lines 146 and 148) and
+    targets_attempted of RUN-GFPN-61a67b, -b1f5d2, -c7a3e9 and -d8e114. Also
+    the same values repeated in the ladder rows of aggregate RUN-GFPN-ca7b88.
+    (3) The coverage statement of implementation.md section 6 ("At m = 5 they
+    all ended not_measured / resource_exhaustion") and the aggregate
+    heur-dflat.yaml. The latter gives attempted-and-exhausted and
+    never-attempted (arm, shape) pairs the same reason ("no completed m=5 cell
+    with a measured D").
+
+  prior_value: >-
+    (1) memory_cap_gb 12, and D-1 "a 12 GB address-space cap (prlimit
+    --as=12000000000, plus ulimit -v inside run_msolve)".
+    (2) RUN-GFPN-8f1b50 and RUN-GFPN-805701: targets_attempted 0,
+    m5_timeout_count 20. RUN-GFPN-61a67b, -b1f5d2, -c7a3e9 and -d8e114:
+    targets_attempted 0.
+    (3) "At m = 5 they all ended not_measured / resource_exhaustion", read as
+    covering all arms and shapes.
+
+  corrected_value: >-
+    (1) THE CELLS: each msolve 0.6.5 child ran with -t 4 under
+    RLIMIT_AS = 11811160064 bytes (11 GiB). The limit was set by setrlimit in
+    the child (implementation/symmetrize.py lines 393-400,
+    GFPN_MEM_CAP_GB = 11) and is logged on line 2 of every cell .ms.log (500
+    logs). resources.memory_cap_gb 12 is a wrapper default
+    (run_wrapper.py line 153, raw.get("memory_cap_gb", 12)), not a
+    measurement. THE VALIDATION AND ANCHOR RUNS: `ulimit -v` failed with EPERM
+    in all 29 of their msolve logs. Their in-force cap is whatever the parent
+    carried, and its value is recorded nowhere. parameters.memory_cap_gb 12.0
+    is unverified for them; this is not material to their results, since peak
+    RSS was 0.46 GB for RUN-GFPN-61bba9.
+    (2) RUN-GFPN-8f1b50 and RUN-GFPN-805701: 2 targets attempted, both ended
+    memory_exhausted in the degree-33 F4 round after about 825-849 s, with 0
+    timeouts and 18 targets not attempted (D-5 early stop).
+    RUN-GFPN-61a67b: 1 attempt completed memory_exhausted, 1 interrupted by
+    the Executor with no log, 18 not attempted. RUN-GFPN-b1f5d2, -c7a3e9 and
+    -d8e114: 5 attempts each, all timed out at 1200 s, and targets 5-19 not
+    attempted (per-cell watchdog). Root cause: pdp_cell.py line 424 sets
+    targets_attempted to the number MEASURED, and line 425 counts every
+    resource_exhaustion not_measured entry, attempted or not, as an m = 5
+    timeout.
+    (3) THE m = 5 ABSENCE COVERS ONLY: arms (ii) S5 and (iii) torsion_S5, the
+    EcGFp5-shaped curve, p' = 4111, two targets per arm. NOT ATTEMPTED, at any
+    prime: arm (i) raw at m = 5; every arm at m = 5 on random_2torsion and
+    random_no2torsion; arm (i) on contract random targets at any m (its only
+    cells are the supplementary constructed-solvable ones).
+    ENVELOPE SENTENCE any record of the absence must use: "not measured, arms
+    (ii) and (iii) only, EcGFp5-shaped curve only, p' = 4111 only, under an
+    11 GiB (11811160064-byte) RLIMIT_AS on each msolve 0.6.5 child running 4
+    threads, F4 dying in the degree-33 round after about 836 s per target, two
+    targets per arm; arm (i) and both control shapes not attempted at m = 5".
+    This is neither the contract's envelope (maximum_memory_gb 32) nor "12 GB".
+
+  reason: >-
+    Validator TASK-20260923-58953e, joint K1 (breaks on honesty of scope). The
+    breaking artifacts, each quoted in the report:
+    - RUN-GFPN-8f1b50/cell_t0.ms.log line 2 ("# RLIMIT_AS = 11811160064 bytes
+      (11.0 GB)");
+    - RUN-GFPN-8f1b50/manifest.yaml line 129 (memory_cap_gb: 12) against line
+      79 (memory_cap_gb: 11.0);
+    - run_wrapper.py line 153 and symmetrize.py lines 395-396;
+    - RUN-GFPN-61bba9/anchor_t0.ms.log line 79 (the ulimit EPERM line, one of
+      29);
+    - the manifests' attempt counters against their own msolve logs.
+    The classification of D itself HOLDS: every exhausted cell is not_measured
+    with D null and certificate.kind none. This correction changes no
+    classification and is not evidence about any ideal degree (AGENTS.md core
+    rule 5).
+
+  effect_on_dependent_records: >-
+    - EV-GFPN-fc5950 and DEC-20260923-d86ff2 state the absence with the
+      envelope sentence above.
+    - DEC-20260923-885c52 and the goal checkpoint of 2026-09-23 describe the
+      absence as "no m = 5 ideal degree measured at any prime". That is true
+      of the measurement, and it is read through facet (3) for coverage.
+    - The review plan TASK-20260923-fe27e4's claim_under_review restates "a
+      12 GB cap" from D-1 and is read through facet (1).
+    - Any rerun records the in-force cap and the attempt counts from the child
+      process, not from a default. This is listed on the amendment design card
+      TASK-20260923-aa277e.
+
+  evidence_artifacts:
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-8f1b50/manifest.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-8f1b50/cell_t0.ms.log
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-805701/manifest.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-61a67b/manifest.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-61bba9/anchor_t0.ms.log
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ca7b88/heur-dflat.yaml
+    - experiments/EXP-GFPN-05ff43/implementation/run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation/symmetrize.py
+    - experiments/EXP-GFPN-05ff43/implementation/pdp_cell.py
+    - experiments/EXP-GFPN-05ff43/implementation.md
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-58953e/review-report.yaml
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-58953e/scratch/readcheck_output.json
+
+  scope_note: >-
+    A record-level correction of resource, attempt and coverage accounting. No
+    run status changes: every affected run's status (failed /
+    resource_exhaustion, or completed_valid for validation and anchors) is
+    correct, and no same-run superseding record is needed. Nothing here is
+    evidence about D. The archived manifests and implementation.md are not
+    edited.

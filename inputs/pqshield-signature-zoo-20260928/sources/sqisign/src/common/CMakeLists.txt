@@ -1,0 +1,9 @@
+if (POLICY CMP0076)
+    cmake_policy(SET CMP0076 NEW)
+endif()
+
+get_filename_component(CCSD_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+string(TOUPPER ${CCSD_NAME} CCSD_NAME_UPPER)
+include(${SELECT_SQISIGN_VARIANT})
+
+add_subdirectory(ref)

@@ -1,0 +1,115 @@
+# =============================================================================
+# CORR-20260923-6d8879 -- DISCLOSES A DISPATCH WITH AN UNMET PRECONDITION.
+# Stage 1 of TASK-20260923-cd932c was launched with no lane claimed, contrary
+# to the card's DP-3 and to DEC-20260923-e788a1 AC-6. ROOT CAUSE IS THE
+# COORDINATOR'S: AC-6 required a claim through tools/goal_lanes.py, but the
+# approving act opened no batch and wrote no dispatch queue, so the claim tool
+# had nothing to claim against. WRITE-ONCE.
+# Written by the Coordinator under TASK-20260923-242cd0. The card is not edited.
+# =============================================================================
+correction:
+  id: CORR-20260923-6d8879
+  recorded_at: '2026-09-23'
+  recorded_by: coordinator
+  goal_id: GOAL-GFPN-380702
+  batch_id: null
+  task_id: TASK-20260923-242cd0
+  decision_id: DEC-20260923-034ba0
+  archived_by: TASK-20260923-2e741f
+
+  record_type: run
+  record_type_note: >-
+    Closest permitted token. Precedent: CORR-20260915-6708e4, which records a
+    dispatch-precondition violation against a TASK card with record_type run.
+  record_id: TASK-20260923-cd932c
+  corrects:
+    - TASK-20260923-cd932c (dispatch_preconditions DP-3, as executed for stage 1)
+    - DEC-20260923-e788a1 (condition AC-6, as specified)
+
+  nature: >-
+    - The card's DP-3 reads: "a lane is claimed with tools/goal_lanes.py
+      (claim ... --as executor --publish) before each stage launch and
+      released on return."
+    - DEC-20260923-e788a1 AC-6 reads: "The lane is claimed with
+      tools/goal_lanes.py before each stage launch and released on return."
+    - Stage 1 was launched with no claim. `goal_lanes.py claim <queue> <TASK>`
+      needs a dispatch-queue JSON whose `tasks` list holds the task in state
+      `queued` (docs/concurrent-goal-lanes.md lines 48-67). GOAL-GFPN-380702
+      has current_batch_id null and dispatch_queue_path null (goal.yaml lines
+      46-52).
+    - The executor disclosed the missing claim itself (implementation-v2.md
+      section 10, lines 454-456). The dispatching session reported it as F8.
+
+  substance_of_the_violation:
+    field: TASK-20260923-cd932c dispatch_preconditions DP-3 (stage 1 launch)
+    prior_value: >-
+      Required state at launch: a live claim on TASK-20260923-cd932c,
+      published, held for stage 1 and released on return.
+    actual_state_at_dispatch: >-
+      No claim and no queue. Reported by the dispatching session, not re-run
+      by this act (no shell):
+      - `tools/goal_lanes.py lanes GOAL-GFPN-380702` printed "no lanes recorded";
+      - the coordinator bus inbox held no GFPN mail.
+      The other standing preconditions were met:
+      - archived_by was bound (TASK-20260923-0fa03f, reserved by
+        DEC-20260923-e788a1);
+      - the declared inputs were committed, as the card's DP-1 and DP-2 recite.
+    root_cause: >-
+      A COORDINATOR SPECIFICATION DEFECT. DEC-20260923-e788a1 required a tool
+      whose precondition, a queue, it did not supply. It had the same shape as
+      goal impediment IMP-2, where BATCH-17be6a was not opened because no
+      acceptable queue could be written (goal.yaml lines 46-51). The act that
+      wrote AC-6 should either have opened a batch with a queue or named a
+      substitute. It did neither.
+    remedy_applied: >-
+      DEC-20260923-034ba0 rules that Act 2 (TASK-20260923-33484e) opens
+      BATCH-6b1c29 with a dispatch queue that holds every remaining producer
+      and archive task of this run, so that claims can be made before stage
+      1b, stage 2 and stage 2b. If no acceptable queue can be written, a
+      recorded substitute applies, decided by DEC-20260923-f11b13 (see
+      DEC-20260923-034ba0 ruling DP-3). The card is NOT edited. Its
+      `state: written_not_dispatched` is accurate for the moment of the
+      launch, and this record supplies what followed.
+
+  what_this_does_and_does_not_change:
+    stage_1_bytes: >-
+      The stage-1 deliverables stand subject to the phase-A archive of
+      TASK-20260923-0fa03f, which binds them by sha256. According to its note
+      (implementation-v2.md lines 10-18 and 379-384):
+      - stage 1 wrote only inside its write scope;
+      - it created no run package;
+      - it solved no fixture system and did not execute the comparator.
+      This act has not verified the working tree against those statements
+      beyond reading the files. Phase A checks the paths against the filing
+      commit.
+    the_deviation_was_real: >-
+      A claim exists so that another session cannot start the same task or
+      a solver on the same host while this one runs. For the length of stage
+      1 no such hold existed, and nothing prevented a concurrent launch. That
+      nothing went wrong does not waive the precondition (AGENTS.md "A
+      precondition is not waived by the work turning out fine").
+    no_status_changes: >-
+      H-GFPN-9a29be stays inconclusive and HEUR-GFPN-DFLAT stays untested.
+      EXP-GFPN-05ff43 v2 stays approved and not running. This record is
+      process, not evidence.
+
+  lesson_for_the_next_dispatcher: >-
+    A condition that requires a tool must also supply the tool's input, or
+    name a substitute, in the same act. A Coordinator that writes "claim a
+    lane" on a goal with no queue has written an unsatisfiable precondition.
+
+  evidence_artifacts:
+    - ledger/handoffs/TASK-20260923-cd932c.yaml
+    - ledger/decisions/DEC-20260923-e788a1.yaml
+    - ledger/goals/GOAL-GFPN-380702/goal.yaml
+    - experiments/EXP-GFPN-05ff43/implementation-v2.md
+    - docs/concurrent-goal-lanes.md
+
+  interpretation_limits:
+    - >-
+      This corrects process, not mathematics. It carries no weight on any
+      GFPN claim, and it does not invalidate the stage-1 implementation,
+      whose validity is a question for phase A and the later review.
+    - >-
+      The facts about lanes and the bus inbox at stage 1's launch are the
+      dispatching session's report. This act could not re-run the tools.

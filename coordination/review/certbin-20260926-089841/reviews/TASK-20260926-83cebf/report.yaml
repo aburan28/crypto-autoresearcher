@@ -1,0 +1,401 @@
+# =============================================================================
+# TASK-20260926-83cebf -- VALIDATOR, BLIND RE-DERIVATION (joint J7 of
+# REVIEW-CERTBIN-20260926-089841). Written AFTER seal.txt (BR-7).
+#
+# This report states method, commands, self-test results, ambiguities,
+# missing items and the J7 verdict. It restates no computed value of Q0-Q5
+# and makes no comparison with anything this task did not compute (BR-8).
+# Every computed value is in rederivation.json (sealed).
+# =============================================================================
+report:
+  task_id: TASK-20260926-83cebf
+  review_plan_id: REVIEW-CERTBIN-20260926-089841
+  experiment_id: EXP-CERTBIN-ddfe75
+  joint: J7
+  written_utc: '2026-09-26T04:05Z (after seal.txt, sealed_utc 2026-09-26T03:55:39Z)'
+  claim_scope: >-
+    Derivability only. This report says nothing about the experiment's outcome,
+    H-CERTBIN-be6cbd, any run, or any curve. Agreement with the run is decided by
+    TASK-20260926-59169c, not here.
+
+  # ---------------------------------------------------------------------------
+  j7_verdict: holds
+  j7_basis:
+    - >-
+      Every required quantity was computed from the statement: Q0 (the U and S_L
+      construction and the N-CONV stream replay over all 144 slots of the blind
+      "slots" table: every attempt, both kept systems per slot, and s of each), Q1
+      (the M_4 quantities on all 144 kept unsatisfiable systems of my replay, with a
+      wdag-v1 for each one refuted), and Q2, Q3, Q4 and Q5 on all 55 pool systems
+      BS-001..BS-055. The optional items were also computed: Q1 on the 144 kept
+      satisfiable systems, and Q0-opt (the first 10 slots of N-CONVL, N-CONV17 and
+      N-ELL144). rederivation.json missing_items is empty.
+    - >-
+      Every BR-2 self-test passed (details below and in rederivation.json
+      self_tests), before any draw was made.
+    - >-
+      Every reading I had to choose is recorded: 23 entries, AMB-01..AMB-23,
+      in rederivation.json ambiguities and code/br_ambiguities.py. They were written
+      before the real pass, and the file's sha256 is in rederivation.json code_sha256.
+      None of them is unresolvable. The load-bearing one is AMB-01 (numpy default
+      dtype for the draw call), which I took literally. Every other reading
+      either gives the same result under each alternative (AMB-04, AMB-05, AMB-06)
+      or affects only presentation or optional items.
+    - >-
+      I found no load-bearing clause that is self-contradictory. Facts the
+      specifications assert about the construction came out as stated in my own
+      build: the Coordinator reading of U_k, the parts of E_S3, and the fixture
+      dimensions. The truth values are in rederivation.json construction and
+      self_tests.
+    - >-
+      Two routes give s wherever BR-4 applies both, and they agree on every such
+      pool system. Every system I found refuted has a wdag-v1 that my checker
+      accepts, and none is "refuted, unwitnessed". rederivation.json certificates
+      and Q4 have the details.
+
+  # ---------------------------------------------------------------------------
+  method:
+    implementation: >-
+      Written from the statement alone, in Python 3.11.15 with numpy 2.4.6. It
+      imports no repository module (code/ imports only its own br_* modules, the
+      standard library and numpy; checked by grep). Modules:
+      br_field (F_2^17, scalar and vectorized arithmetic, trace, half-trace);
+      br_curve (affine group law of Y^2 + XY = X^3 + AX^2 + B, and S_3);
+      br_system (E_layout, E_S3 by algebraic expansion, a second E_S3 route by
+      direct evaluation plus Moebius transform, the union support U, S_L, hex
+      encodings); br_macaulay (M_D rows and columns in the stated orders, and
+      multiplication by v_j); br_linalg (bit-packed F_2 Gauss-Jordan and
+      reduction against an RREF); br_closure (M_D statistics, the literal W_D
+      iteration, witness extraction); br_sat (exhaustive s over 2^18, oracle A
+      root-finding, direct S_3 over V x V); br_draws (the arm replays);
+      br_rcb (rc_b steps 1-5); br_wdag_check (an independent wdag-v1 checker:
+      sets of monomial bitmasks, no shared arithmetic with the engine);
+      br_selftest (BR-2); br_ambiguities; driver.py.
+    elimination: >-
+      Bit-packed dense Gauss-Jordan over F_2 (my own code). Columns are taken in
+      increasing index of the Macaulay column order (descending degrevlex,
+      constant last). The pivot is the unused row of smallest index with a 1 in
+      the column; rows never move. dims_by_deg(X)[d] is the number of echelon rows
+      whose leading monomial has degree <= d; this is valid for a
+      degree-descending order. "1 in X" holds iff the constant (last) column is a
+      pivot. P is computed two ways: rank M_4 - dims_by_deg(M_4)[3], and the rank
+      of the degree-4 column block alone. The two agree on every system (asserted).
+      Full statement: rederivation.json elimination_method.
+    W_4: >-
+      The literal rule (BR-5): W^(0) = rowspace(M_4), and W^(i+1) = W^(i) +
+      span{v_j * b}, where b runs over ALL RREF rows of W^(i) whose leading
+      monomial has degree <= 3, at every iteration, for j = 0..17. The iteration
+      stops at the first i with dim W^(i+1) = dim W^(i). Every dim W^(i) is
+      recorded, and so is the fallen-basis size multiplied at each iteration.
+    witnesses: >-
+      A refutation first reached at iteration i is decomposed by the level at
+      which each target first lies, as y = w + sum_j v_j g_j, with w in W^(L-1)
+      and g_j in W^(L-1) cap B_{<=3}. Each g_j becomes a child node (degree
+      <= 3). The rows and prods of w are inlined into the parent (AMB-20).
+      Level 0 is expressed as M_4 rows through a tracked RREF. An M_4 refutation
+      is a one-node wdag with rows only. Every record in wcerts.jsonl.gz was
+      re-read from the file and checked against rules (a)-(e), with f_k rebuilt
+      from the pool's own monomial lists or from the replay log's row hex.
+    satisfiability: >-
+      s comes from exhaustive evaluation at all 2^18 assignments with bit-sliced
+      monomial tables, for every drawn system of Q0 and Q0-opt and every pool
+      system. For pool systems that equal my E_S3(x_R) at a slot, s is also
+      counted by oracle A (for each x_1 in V, the quadratic in x_2 solved by the
+      half-trace, degenerate cases included) and by direct S_3 evaluation over
+      V x V. Neither of those routes touches the descended equations.
+      Supplementary and labelled: oracle A with the system's own constant b'
+      wherever the quadratic and linear parts equal E_S3 at a slot but the
+      constant differs.
+    soundness_instruments: >-
+      These are extra and not required. On every satisfiable system computed
+      here (the Q1 optional systems and the satisfiable pool systems), every M_4
+      row, and for the pool every final W_4 basis row, was evaluated at every
+      solution, and codim(W_4) >= s was checked. rederivation.json
+      soundness_summary lists no refutation of a satisfiable system and no
+      vanishing failure.
+    derived_extras_not_required: >-
+      Q5 carries T5_applicable, final_dim(W_4) - rank R'_4 and
+      one(W_4) == one(R'_4) where substituted. All three are computed from my own
+      values only.
+
+  # ---------------------------------------------------------------------------
+  self_tests:
+    seeds: 'own seeds 8638143101..8638143108 and 8638144104 (code/br_selftest.py SEEDS); no specification seed used'
+    ran_before_any_draw: true
+    all_pass: true
+    results:
+      irreducibility: >-
+        pass. t^{2^17} = t mod f; gcd(t^{2^i} - t, f) = 1 for i = 1..8; and
+        trial division finds no factor of degree 1..8.
+      field_axioms_and_root_finding: >-
+        pass. 2000 random triples (associativity, distributivity, commutativity,
+        inverses). Vectorized multiplication agrees with scalar on 500 pairs.
+        Half-trace root finding was checked on 2000 quadratics.
+      S3_against_point_addition: >-
+        pass. On 300 random point pairs of E(A = 97044, B = 126251),
+        S_3(x(P1), x(P2), x(P1 + P2)) = 0 and S_3(x(P1), x(P2), x(P1 - P2)) = 0.
+        All points are on the curve, and 50 doublings land on the curve. A random
+        third x gives S_3 != 0 in 300 of 300 cases, so the test is not vacuous.
+      descended_equations_against_direct_evaluation: >-
+        pass. On 300 random (v, x_R), the descended equations equal the bits of
+        S_3 evaluated directly in F_2^17. On 3 further x_R, the full ANF from
+        direct evaluation of all 2^18 points (Moebius transform) equals E_S3
+        exactly, has degree <= 2, and uses only bilinear, linear and constant
+        columns.
+      macaulay_rows_against_naive_multiply: 'pass. 40 random rows (S_3 and dense random systems) against a naive set-based multiplication.'
+      fixture_dimensions: 'pass. From my own construction: M_3 323 x 988, M_4 2924 x 4048, R''_3 306 x 834, R''_4 2618 x 3214.'
+      literal_W_against_brute_force_fixpoint: >-
+        pass. 11 random small Boolean systems (6 variables, D = 3, seed
+        8638143104), 3 of which reach the fixpoint at iteration index >= 2. The
+        literal W_D equals a brute-force naive closure on every system (same
+        dimension and containment). The brute force uses separate Python-int
+        arithmetic and spans W cap B_{<=2} by a kernel computation instead of RREF
+        leading degrees. Every W_D element vanishes on the common zeros.
+      literal_W_deep_refutations_and_witnesses_nv8_D3: >-
+        pass. 228 random systems (8 variables, D = 3, seed 8638144104). All equal
+        the brute-force fixpoint. 13 are refuted, 2 of them first at iteration 2,
+        and all 13 witnesses (up to 14 nodes) pass the checker. This test was
+        added to exercise multi-level witnesses; BR-2 does not require it.
+      substitution_against_direct_evaluation: 'pass. 150 cases on 15 systems: pi(f_k)(u'') = f_k(u) for u extending u'' through ell = 0, and ell(u) = 0.'
+      exhaustive_s_routes: >-
+        pass. On 6 S_3 systems at random x_R, the bit-sliced exhaustive count, a
+        second unpacked exhaustive implementation, oracle A and direct V x V
+        evaluation all agree, and every listed solution satisfies every equation
+        pointwise. Bit-sliced and unpacked also agree on 3 random systems.
+      wdag_checker_positive_and_negative: >-
+        pass. The checker accepts a valid multi-node W_4 witness and a valid
+        one-node M_4 witness on 18-variable systems. It rejects corrupted
+        witnesses for each rule: (a) ids reversed; (b) a |mu| = 3 row added twice
+        (sum unchanged) and k = 17; (c) a degree-4 child used twice in prods (sum
+        unchanged); (d) a degree-5 node, via a |mu| = 3 row and via v_17 times a
+        degree-4 child; (e) one row removed, the output pointing at a child, one k
+        changed, and a witness checked against another system. Rule (d) cannot be
+        violated alone at D = 4 for quadratic f_k, because (b) and (c) imply (d);
+        the checker reports (d) among the failed rules in both (d) cases.
+
+  # ---------------------------------------------------------------------------
+  ambiguities:
+    location: rederivation.json ambiguities (sealed), and code/br_ambiguities.py
+    count: 23
+    summary:
+      - {id: AMB-01, chosen: 'g.integers(0, 2, size=|S_L|) with numpy defaults (int64, endpoint False), one call per attempt', load_bearing: 'yes (stream consumption)'}
+      - {id: AMB-02, chosen: 'bits[i] -> S_L[i], S_L row-major (k, then column)'}
+      - {id: AMB-03, chosen: 'N-CONV: quadratic columns from my E_S3(x_R); columns 0..18 = bits on S_L, zero elsewhere'}
+      - {id: AMB-04, chosen: 'identity = whole-matrix equality with E_S3(x_R) (equivalent to lower-part equality)'}
+      - {id: AMB-05, chosen: 'duplicate = exact matrix equality against every kept system of the arm (E_sha256 byte encoding is not defined in texts I may read; decision-equivalent)'}
+      - {id: AMB-06, chosen: 's computed and logged for every draw; a rejected draw never fills a role'}
+      - {id: AMB-07, chosen: 'attempts a = 0..255; a draw of an already-filled role is "discarded"; stop when both roles are filled'}
+      - {id: AMB-08, chosen: 'assignment integer: bit i = v_i'}
+      - {id: AMB-09, chosen: 'row hex without zero padding'}
+      - {id: AMB-10, chosen: 'N-CONVL identity compares the drawn bits with B''s bits at the constant positions of S_L; all-zero draw rejected (Q0-opt only)'}
+      - {id: AMB-11, chosen: 'N-CONV17 and N-ELL144: duplicate rejection only (Q0-opt only)'}
+      - {id: AMB-12, chosen: 'N-ELL144: M[Upos] over the full U, then c = int(g.integers(0, 2)); row 16 replaced entirely (Q0-opt only)'}
+      - {id: AMB-13, chosen: 'fixpoint_index = first i with dim W^(i+1) = dim W^(i); dims lists W^(0)..W^(i+1)'}
+      - {id: AMB-14, chosen: 'rc_b label "SUBSTITUTED" for systems that reach steps (4)-(5)'}
+      - {id: AMB-15, chosen: 'left kernel c with c^T Q = 0, c_k multiplying f_k'}
+      - {id: AMB-16, chosen: 'substitution includes ell''s constant; relabel ascending; R''_D in the M_D conventions'}
+      - {id: AMB-17, chosen: 'Q1 "refuted" = 1 in rowspace(M_4); W_4 is not computed on replay systems'}
+      - {id: AMB-18, chosen: 'P computed by both definitions; asserted equal'}
+      - {id: AMB-19, chosen: 'BR-4 second route on exact E_S3 matches; supplementary oracle A with b'' where only the constant differs'}
+      - {id: AMB-20, chosen: 'wdag: the W^(i-1) component is inlined into the parent; the same j may repeat in prods'}
+      - {id: AMB-21, chosen: 'checker also enforces distinct ids, existing children and output, D/nv header'}
+      - {id: AMB-22, chosen: 'A, B from blind-inputs.json (curve.json is under a must_not_read run directory; the values equal the specification text)'}
+      - {id: AMB-23, chosen: 'x_R by slot from the blind slots table; source set and idx not needed'}
+    unreadable_clauses: none
+
+  missing_items: >-
+    None. rederivation.json missing_items is empty. No slot was EXHAUSTED(cap),
+    no item raised an exception, and no refutation is unwitnessed.
+
+  # ---------------------------------------------------------------------------
+  commands:
+    environment_for_every_run: >-
+      PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 and
+      ulimit -v 3145728 (3 GiB address space) for the full pass, the dev
+      end-to-end runs and the post-seal verification. Exception disclosed: the
+      early component tests (t1-t7 below) ran without PYTHONDONTWRITEBYTECODE and
+      left code/__pycache__. That directory was removed after the seal
+      (rm -r <task dir>/code/__pycache__). Nothing was byte-compiled after 03:40 UTC.
+    orientation_readonly:
+      - git rev-parse HEAD                  # a832d63ac7e566bcf7e78f8523742e5af4dd7c8a, before and during the pass
+      - git status --porcelain              # at start: empty. After the pass: see disclosures D-4
+      - python3 inline scripts printing the schema of blind-inputs.json, the first slot entries, the pool labels and monomial-degree statistics (format validation only)
+      - sha256sum coordination/review/certbin-20260926-089841/blind/blind-inputs.json   # f5fa42f35979f593b9a778a9d48852365869d082974d7f3ae50f43952eeb54cc
+    development_not_full_passes: >-
+      All development ran in the session scratchpad
+      (/tmp/claude-0/-home-user/25660233-7a63-5e2d-9f4c-bd1d584cced4/scratchpad),
+      outside the write scope. It used synthetic inputs and my own seeds, and
+      never the frozen arm streams. t1.py: field, S_3 against point addition and
+      E_S3 route A against route B, including one construction check of E_S3 at
+      x_R = 4418 (slot 0's x_R), plus U and S_L. t2.py: Macaulay build and
+      elimination timing at a random x_R. t3.py and t4.py: W_4, witness extraction
+      and checker on synthetic systems, and S_3 descents at random x_R (seeds
+      8638143003, 8638143004). t5.py: the self-test suite. t6.py: a search for
+      deep refutations in small random systems (seed 1). t7.py: the small-system
+      W tests. mk_synth.py built synthetic-inputs (seed 8638143999: 10 random x_R
+      and 7 synthetic pool systems). dev_run.py ran the driver on them with the
+      arm seeds REPLACED by 99990000..99990003, three times (a full run, a resume
+      after deleting checkpoints, which reproduced identical outputs, and a rerun
+      after adding the soundness instruments). dev_run2.py injected a per-item
+      failure to test missing-item reporting.
+    full_pass_1: >-
+      cd /home/user/crypto-autoresearcher && export PYTHONDONTWRITEBYTECODE=1
+      OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 && ulimit -v 3145728 && python3
+      coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/code/driver.py
+      --inputs coordination/review/certbin-20260926-089841/blind/blind-inputs.json
+      --out coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf
+      --ckpt /tmp/claude-0/-home-user/25660233-7a63-5e2d-9f4c-bd1d584cced4/scratchpad/ckpt-real
+      > .../logs/driver-pass1.log 2>&1
+    full_pass_1_outcome: >-
+      Started 2026-09-26T03:50:22Z and exited with status 0 at 03:55:13Z (wall
+      290.9 s, peak RSS 379.7 MB). Exactly one full pass was run. There was no
+      infrastructure failure and no re-run. Checkpoints went to the scratchpad
+      (per slot and per system) and were not used.
+    seal: 'python3 code/aux/seal.py <task dir>  # wrote seal.txt at 2026-09-26T03:55:39Z, before report.yaml and attestation.yaml'
+    post_seal_verification: >-
+      python3 code/aux/postseal_verify.py, a separate process that only reads the
+      sealed files. It re-checks every wdag-v1 record from the file, re-generates
+      the N-CONV stream with direct numpy calls and compares every attempt's row
+      hex, s and outcome with the sealed log, and re-counts s on every kept replay
+      system with the second (unpacked) exhaustive route. Result:
+      logs/postseal-verify.out. All records valid, 0 stream mismatches, and 0
+      role/s disagreements. Read-only consistency scripts also ran on the sealed
+      rederivation.json: W dims monotone, W^(0) = rank M_4, "1" monotone across
+      R_3, R_4 and W_4, R' shapes, and Q1 s-roles. No sealed file was changed.
+    post_seal_files_added: >-
+      After the seal I added code/aux/seal.py and code/aux/postseal_verify.py
+      (the scripts that were run), logs/postseal-verify.out, this report and
+      attestation.yaml. I removed code/__pycache__. The sealed files are unchanged,
+      and the hashes in seal.txt verify.
+
+  environment:
+    python: 3.11.15
+    numpy: 2.4.6 (equals the specification's 2.4.6)
+    platform: Linux 6.18.44 x86_64, 4 CPUs, 15 GB RAM
+    memory_cap: 3 GiB address space (ulimit -v), peak RSS 379.7 MB
+    git_head: a832d63ac7e566bcf7e78f8523742e5af4dd7c8a (read only; no git write was made)
+    worktree: >-
+      The primary checkout /home/user/crypto-autoresearcher. No separate worktree
+      was created (card: preferred, not required). Sibling directories were never
+      listed on purpose; see disclosures D-3 and D-4.
+
+  inference:
+    requested_policy: review-adversarial
+    served_by: 'Claude Code subagent (validator), session model claude-opus-5-5, as the runtime reports it to this session; not probe-verified by me'
+    reasoning_effort: xhigh (the policy default carried by the validator agent file, per CLAUDE.md; not independently verified, since orchestration/ is outside read_scope)
+    fallback_used: >-
+      Not determinable by this agent. The policy-to-model binding is in
+      orchestration/, outside my read_scope. The card pre-authorizes a backend
+      fallback (fallback_allowed: true).
+    pd_r3_different_model_family: not met. Same family as the executor's claude-opus-5-5.
+    independent_session: true (a fresh subagent context; the dispatch prompt was exactly "Execute ledger/handoffs/TASK-20260926-83cebf.yaml")
+
+  dispatch_precondition_observations:
+    - >-
+      blind-inputs.json sha256 in the working tree is
+      f5fa42f35979f593b9a778a9d48852365869d082974d7f3ae50f43952eeb54cc. I cannot
+      compare it with the TASK-20260926-58d32c receipt, which is on my
+      must_not_read list; the dispatcher's comparison stands.
+    - The HEAD at which this task ran is a832d63ac7e566bcf7e78f8523742e5af4dd7c8a.
+    - No message was received from any agent during the task.
+
+  disclosures:
+    - id: D-1
+      what: >-
+        The permitted specification texts (read in full as context) contain
+        values from EARLIER experiments and reviews: RC-1 reference rates,
+        red-team R'_4 profiles, the "ell = v_0 + v_9 + Tr(B/x_R^2) on 92/92"
+        statement, an engine regression report, and the Coordinator priors of
+        EXP-CERTBIN-ddfe75. None of them is an outcome of EXP-CERTBIN-ddfe75.
+        None was used to choose any reading or to tune any computation.
+    - id: D-2
+      what: >-
+        During development, synthetic S_3 and null-type systems at random x_R
+        (my own seeds) gave closure profiles, some equal to reference values
+        quoted in the specifications. These are my own computations on my own
+        inputs and say nothing about the pool or the replay.
+    - id: D-3
+      what: >-
+        Directory metadata. An `ls -la` of my own (new) task directory showed a
+        link count of 4 on its parent `reviews/`, which implies one other
+        subdirectory there. I never saw its name or contents.
+    - id: D-4
+      what: >-
+        After the pass, `git status --porcelain` printed two untracked paths:
+        coordination/review/certbin-20260926-089841/reviews/ (my own directory
+        is inside it) and coordination/review/certbin-20260926-d7249d/reviews/.
+        The second is under a must_not_read path. I saw its name only, never
+        listed or opened it, and did not create it: it was absent from the
+        empty `git status` at the start of the task, and every file I wrote is
+        under my task directory or the session scratchpad. I learned nothing
+        about any outcome from it.
+    - id: D-5
+      what: >-
+        One development check (t1.py) built E_S3 at slot 0's x_R to compare my
+        two construction routes. That is a construction check, not a quantity
+        of Q0-Q5 computed outside the pass.
+  contamination: none. I learned nothing about any outcome of EXP-CERTBIN-ddfe75 from any source other than my own computation.
+
+  limitations:
+    - >-
+      This is a re-derivation, not a validation of any run. It can localize a
+      disagreement to one of two implementations, but it cannot say which one
+      is right where a reading was chosen (AMB-01 above all).
+    - >-
+      The wdag-v1 checker and the engine are author-dependent: I wrote both.
+      They share no arithmetic, since the checker uses set-of-bitmask
+      polynomials and rebuilds f_k from the input monomial lists or the logged
+      hex. Their independence is at code level, not at author level.
+    - >-
+      Model-family independence from the executor (PD-R3) was not achieved.
+      The same model family served both.
+    - >-
+      Q1 computes only the M_4 quantities on the replay systems (AMB-17). W_4
+      and rc_b on the replay systems were not asked for and were not computed.
+
+  # ---------------------------------------------------------------------------
+  validation_report:
+    id: null
+    id_note: 'not minted: this card grants no identifier allocation, and tools/ is outside read_scope; the Coordinator''s archive task may assign one'
+    task_id: TASK-20260926-83cebf
+    run_ids: []
+    run_ids_note: 'zero trials (BR-9): a verification computation with no RUN-id'
+    artifact_checks:
+      - 'input: coordination/review/certbin-20260926-089841/blind/blind-inputs.json, sha256 f5fa42f35979f593b9a778a9d48852365869d082974d7f3ae50f43952eeb54cc (recorded in rederivation.json inputs)'
+      - 'sealed outputs: rederivation.json, stream-replay.jsonl.gz and wcerts.jsonl.gz (plus logs/driver-pass1.log), hashes in seal.txt, re-verified after the seal'
+      - 'code/: the sha256 of every module at run time is in rederivation.json code_sha256; unchanged since the pass (re-verified)'
+    metric_recomputations:
+      - 'Q0, Q0-opt, Q1 (plus the optional satisfiable half), Q2, Q3, Q4 and Q5: computed in full; values in rederivation.json and not restated here (BR-8, return_format)'
+    control_checks:
+      - 'BR-2 self-tests: all pass (see self_tests)'
+      - 'BR-4: two routes agree wherever both apply'
+      - 'BR-6: every refutation witnessed; every wdag-v1 accepted by my checker in-run and again in a separate process'
+      - 'soundness instruments: no satisfiable system refuted; every M_4 row and W_4 basis row vanishes at every solution; codim(W_4) >= s'
+      - 'stream determinism: an independent re-generation reproduces every attempt of the sealed N-CONV log'
+    heuristic_validation_checks:
+      - 'not applicable: EXP-CERTBIN-ddfe75 tests no numbered heuristic (heuristic_under_test: null), and this task computes no distributional prediction'
+    cost_model_checks:
+      - 'not applicable: no cost table or cost claim is under review in this task'
+    proof_architecture_checks:
+      - 'not applicable to J7 (derivability). The fixture dimensions were reproduced from my own construction (self_tests.fixture_dimensions).'
+    verdict: passed
+    verdict_scope: >-
+      This verdict is about THIS re-derivation receipt: it is complete (every
+      required quantity computed, all self-tests passing, every ambiguity
+      recorded, sealed before this report) and admissible as J7 evidence for the
+      comparator. It is not a verdict on the experiment, the hypothesis or any
+      run (BR-8). It does not support an ECDLP claim, demonstrate a speedup, or
+      authorize promotion. The J7 verdict is `holds`.
+    limitations: see report.limitations
+    artifact_paths:
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/rederivation.json
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/stream-replay.jsonl.gz
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/wcerts.jsonl.gz
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/seal.txt
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/code/
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/logs/
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/report.yaml
+      - coordination/review/certbin-20260926-089841/reviews/TASK-20260926-83cebf/attestation.yaml
+    handoff: >-
+      For the Coordinator's archive task TASK-20260926-9c0134, which commits this
+      directory. This task made no commit, no ledger edit and no status change.

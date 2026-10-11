@@ -1,0 +1,148 @@
+review:
+  idea_id: IDEA-20260922-99294c
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-5d1a51
+  ranking_context:
+    rank: 21
+    disposition: consolidated_into_cdca3a
+    hold_id: HOLD-I
+  claim_restated: >-
+    Is the "fully determined" Weil-descent shape basis-invariant? n=131 is prime so
+    there is no subfield to descend to and the descended Boolean system's total
+    degree and variable count are fixed once arity m is chosen. But the F_2-basis
+    coordinatising F_{2^131} is not fixed by the algorithm: the program's own
+    pentanomial z^131+z^13+z^2+z+1 fixes a polynomial basis, while Bailey et al.'s
+    ECC2K-130 campaign used a type-2 normal basis for its Hamming-weight test.
+    Total degree is basis-invariant by elementary algebra (linear substitution
+    cannot raise degree), but sparsity and engine-MEASURED solving degree may not
+    be. Toy audit at prime n<=41: build the descended system in polynomial vs
+    normal basis, verify degree/variable-count equality (sanity gate), then compare
+    measured solving degree / conflict count with and without a term-order control.
+  core_argument_check:
+    - step: 'total degree basis-invariant under invertible F_2-linear substitution'
+      verdict: holds
+      note: >-
+        Correct and elementary; the record lists it as a zero-compute sanity gate,
+        not new content. An invertible linear change of the 131 coordinates
+        preserves per-monomial degree.
+    - step: 'measured engine cost may still depend on basis (H_dep) though hardness does not'
+      verdict: holds
+      note: >-
+        Legitimate: an invertible change of coordinates is definitionally lossless
+        (the record correctly declares LOSSY-PROJECTION test not applicable), yet a
+        Groebner/SAT engine is sensitive to generator sparsity and variable order.
+        Same phenomenon as f37254 and IDEA-20260830-ad0be4.
+    - step: 'ECC2K-130 dual-basis usage (polynomial + type-2 normal) from KN-LIT-661e97'
+      verdict: unchecked
+      note: >-
+        The claim that Bailey et al. used a type-2 normal basis for the DP Hamming-
+        weight statistic is quoted from KN-LIT-661e97 (read this session per the
+        record); I did not re-open the primary source. Plausible and matches the
+        known ECC2K-130 normal-basis DP normalisation described in the brief.
+    - step: 'ord_131(2) = 130 -> only trivial stable subspaces at n=131'
+      verdict: holds
+      note: >-
+        Confirmed ord_131(2)=130, so x^131-1 has only two irreducible factors over
+        F_2 and the only Frobenius-stable subspaces have dim 0,1,130,131 -- context
+        the record does not lean on but which is consistent with its no-subfield framing.
+  verdict: sound
+  defects:
+    - what: least novel of the three basis records; the polynomial-basis sparsity axis is already f37254/9d12bd's
+      where: overlap_review, recommended_priority (low)
+      fix: >-
+        Fold the normal-basis arm into the cdca3a merged design (HOLD-I) or into
+        RQ-ICPERF-94c86e's boundary table as one more swept coordinate, as the
+        record's own next_gate proposes. Its distinct contribution is the normal-
+        basis (vs polynomial) arm and the ECC2K-130-specific dual-basis motivation.
+    - what: constant-factor at best, explicitly not exponent-moving
+      where: target_complexity, priority_rationale
+      fix: none; correctly self-ranked low.
+    - what: needs a dual-basis Weil-descent builder + ICPERF instrument
+      where: estimated_cost
+      fix: mark the F_2-linear change-of-variables layer as the new build; reuse ad4b55's term-order instrument for the control.
+  ecc2k130_bearing: >-
+    The most ECC2K-130-specific of the basis trio -- it directly toy-analogues
+    ECC2K-130's own field and its documented dual basis (polynomial pentanomial vs
+    type-2 normal). But by R2/elementary algebra a basis change cannot move total
+    degree, hence cannot move any degree-based exponent; a positive H_dep is a
+    constant-factor engine-cost effect only, leaving matched rho at 2^60.9 (KN-LIT-096)
+    dominant by many orders of magnitude. No arity change is proposed, so the
+    product-law floor is untouched. What transfers to ECC2K-130: at most a
+    constant-factor solving-cost characterisation for its polynomial vs normal
+    basis, and a boundary-table coordinate (basis) that ICPERF has not yet varied.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    Agree with consolidation into cdca3a / fold into ICPERF (HOLD-I). It is a
+    genuine, cheap, well-posed representation-invariance audit but low value: the
+    polynomial-basis sparsity axis is already covered by f37254/9d12bd, and the
+    added normal-basis arm yields at best a constant factor. It should share the
+    dual-basis builder with the merged design rather than run standalone.
+  concrete_experiment:
+    cell:
+      curve: >-
+        Prime n<=41 ECC2K-130-shaped Koblitz analogue over F_{2^n}, built in (i)
+        the low-weight polynomial basis and (ii) an explicit type-2 normal basis
+        (where one exists), related by a computed invertible 131->n-scaled matrix;
+        RC-1 (n=17) as the smallest cell.
+      m: 2
+      l: 9
+      factor_base: 'the RC-1 deg<9 subspace V, transported through the basis-change matrix'
+      targets: 'x(2E) subgroup targets; >=20 per basis'
+      seeds: 'independent seeds for the identity/noise control; matched instances across bases'
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/gf2n.py
+      - experiments/EXP-CERTBIN-e94b27/impl/macaulay.py
+      - experiments/EXP-CERTBIN-e94b27/impl/curve.py
+      - 'new: F_2-linear change-of-variables (dual-basis) layer before the descent builder'
+      - 'missing: WDSat (SAT conflict-count arm); Macaulay solving-degree via macaulay.py is available, so a solver-free version runs'
+    procedure:
+      - Stage 0 -- hand check on a small invertible F_2 matrix that total degree cannot rise under substitution.
+      - Stage 1 -- build the toy curve's descended system in polynomial and normal basis; verify by sample-point evaluation both describe the same curve; confirm total degree and variable count match EXACTLY (sanity gate).
+      - Stage 2 -- compute measured solving degree (macaulay.py) at fixed small arity, >=20 targets, per basis; add SAT conflict counts if WDSat available.
+      - Stage 3 -- term-order control: canonical variable relabelling across bases, and vary term order within each basis (ad4b55 instrument) to check whether any basis effect survives; Stage 4 -- a second inequivalent low-weight polynomial as a within-polynomial-basis control.
+    metrics:
+      - name: total_degree_and_variable_count
+        unit: integer
+        definition: must be EXACTLY equal across bases (sanity gate); any deviation voids the instrument
+      - name: measured_solving_degree
+        unit: integer degree
+        definition: Macaulay first-fall degree per basis; predicted within a factor of 2 (H_inv)
+      - name: term_order_controlled_cost_ratio
+        unit: dimensionless
+        definition: cross-basis cost ratio with canonical order fixed; any basis effect must survive this
+    controls:
+      - 'DEGREE/VARIABLE-COUNT SANITY GATE: exact equality across bases before any cost comparison.'
+      - 'TERM-ORDER CANONICALISATION (reuse ad4b55).'
+      - 'SECOND LOW-WEIGHT DEFINING POLYNOMIAL: within-polynomial-basis control.'
+      - 'INDEPENDENT REPLICATION at a second toy field size before any H_dep claim.'
+    outcomes:
+      positive: measured solving degree / conflicts agree across bases within noise (H_inv) -- a third confirmed invariance axis (basis) beside model and term order; certificate closure.
+      negative: a >2x cost difference replicated at a second cell AND surviving the term-order control (H_dep) -- basis is a free constant-factor engine-cost lever on this program's F2 instruments.
+      artifact: the difference vanishes under the term-order control -- it was an ordering artifact, not a basis effect.
+    falsification_threshold: >-
+      Total degree or variable count differing across bases voids the instrument
+      (bug). A >2x cost difference surviving the term-order control at two cells
+      establishes H_dep; disappearing under it attributes to ordering, not basis.
+    estimated_cost:
+      implementation: medium
+      compute: low (toy n<=41, reuses ICPERF/Macaulay instruments; ESTIMATE minutes-hours)
+    zero_run_prerequisites:
+      - dual-basis change-of-variables layer.
+      - explicit type-2 normal basis constructor at the toy n (shared with 2a3771).
+  successor_seam: >-
+    A proposal that unifies the three representation axes this program now has open
+    -- curve model (b751cf), monomial order (ad4b55), and field basis (this record
+    plus f37254/9d12bd) -- into a single boundary-table coordinate sweep for
+    RQ-ICPERF-94c86e, so that every filed solving-degree / conflict-count figure
+    carries its (model, order, basis) tag and cross-record comparisons stop
+    silently mixing representations. That is a schema/instrument contribution, not
+    an attack, and it is where 99294c's value actually lands.
+  records_read:
+    - IDEA-20260922-99294c (full)
+    - IDEA-20260922-f37254 (full, sibling axis)
+    - ranking-context-DEC-20260924-99ce20.yaml (HOLD-I)
+    - BRIEF.md sections 1,2,3,6
+    - experiments/EXP-CERTBIN-e94b27/impl/ (README, file listing)
+  not_read:
+    - KN-LIT-661e97 primary (cited by the record as read this session)
+    - IDEA-20260815-b751cf, IDEA-20260815-ad4b55 bodies (titles only)

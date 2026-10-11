@@ -1,0 +1,286 @@
+protocol_amendment:
+  experiment_id: EXP-ICINV-4d33aa
+  version_from: 3
+  version_to: 4
+  filed_at: '2026-08-10'
+  filed_by: coordinator (GOAL-ENDO-001, BATCH-74ebef)
+  status: filed_before_re_execution
+  applies_to: >-
+    FUTURE RUNS ONLY. No run of version 1, 2, or 3 is re-scored against
+    anything in this file, and no raw run record is altered (AGENTS.md
+    rule 4). RUN-ICINV-849d1d's own `terminal_state: OUTCOME-C` stands
+    exactly as recorded, and DEC-20260810-cc6577 / EV-ENDO-eb58c4 already
+    adjudicate it under version 3's rules. This amendment makes a
+    successor run possible; it does not revisit the version-3 result.
+  reason: >-
+    CORR-20260810-a4c123 (independent Validator + Red Team review of
+    version 3's execution, both dispatched by this Coordinator before
+    writing any decision on RUN-ICINV-849d1d) found amendment v3's own
+    non-vacuousness argument for change A7 answered the wrong question.
+    v3-verification.py showed the redesigned CI-overlap SR3 sub-check still
+    rejects two arbitrary extreme ratios (1.00, 4.50) -- true, and not
+    disputed here. It never computed the gate's FALSE-PASS RATE under a
+    genuine null (true ratio = 1, i.e. no real over-dispersion at all).
+    Independently re-derived by the Red Team via the regularized incomplete
+    gamma function, and independently reproduced by this Coordinator in
+    this amendment's own verification script: 44.3% at p=6007's df=139,
+    45.0% at p=4001's df=137 -- a 40-50x inflation over the ~1.0-2.2%
+    false-pass rate of the literal `[1.3,3.6]` check version 3 replaced.
+    `gate_passed: True` at p=6007 in RUN-ICINV-849d1d therefore certified
+    "not statistically excludable from [1.3,3.6]", a standard a genuinely
+    null object clears roughly half the time at this sample size -- far
+    weaker than a baseline-reproduction gate is meant to certify.
+    CORR-20260810-a4c123's required_action names this as blocking: "No
+    further version-3 dispatch is authorized until this lands"
+    (DEC-20260810-cc6577 next_action N14).
+  changes:
+  - id: A10
+    field: >-
+      frozen_decision_rule.state_2 baseline-reproduction sub-check, the
+      SAME field amendment v3 change A7 last touched (per-row
+      `ci_overlaps_band_1_3_to_3_6` and its contribution to
+      `checks["every_row_in_band_1_3_to_3_6"]`).
+    kind: defect_repair_gate_design
+    from: >-
+      A TWO-SIDED CONFIDENCE-INTERVAL OVERLAP TEST at 95% (z=1.96): row
+      passes iff a 95% CI for the true ratio, built from the observed
+      point estimate via the Wilson-Hilferty approximation, overlaps
+      [1.3, 3.6]. False-pass rate under a genuine null: 44.3-57.0% across
+      this contract's three df values (see reason above and
+      v4-verification.py Part 1).
+    to: >-
+      TWO INDEPENDENT ONE-SIDED HYPOTHESIS TESTS, each at the standard
+      alpha = 0.05 significance level, replacing the single two-sided
+      overlap test. LOWER test: H0 is "true_ratio >= 1.3"; reject H0 (row
+      FAILS on the low side) iff the observed data is significantly
+      inconsistent with the boundary true_ratio = 1.3 at the 5% level.
+      UPPER test: H0 is "true_ratio <= 3.6"; reject H0 (row FAILS on the
+      high side) iff significantly inconsistent with true_ratio = 3.6 at
+      the 5% level. A row PASSES iff neither H0 is rejected.
+
+      EXACT FORMULA, reusing (not replacing) the SAME Wilson-Hilferty
+      machinery amendment v3 change A8 already froze and cross-checked
+      against the committed harness/exp_icinv.py:binomial_null_verdict --
+      only the z parameter changes, from 1.96 (two-sided 95%) to 1.6449
+      (the standard normal 95th percentile, for a ONE-SIDED 5% test):
+
+        df := n_curves - 1
+        (lo, hi) := chi2_wilson_hilferty_bounds(df, z=1.6449)   # A8's
+                                                                  # function,
+                                                                  # new z
+        accept_lo := 1.3 * lo / df      # the boundary of the LOWER test
+        accept_hi := 3.6 * hi / df      # the boundary of the UPPER test
+        row_passes := accept_lo <= variance_ratio_measured <= accept_hi
+
+      This is algebraically the SAME shape of computation as change A7's
+      CI-overlap test (a linear rescaling of the observed ratio by a
+      df-dependent, precomputed constant), so `baseline_reproduction_v3`'s
+      existing code structure is reused with the z parameter and the
+      derivation's interpretation changed, not rewritten. Change A8's
+      cross-check (already frozen, already implemented, already run in
+      every version-3 run) covers this unchanged, since it verifies the
+      formula `chi2_wilson_hilferty_bounds(df, z)` for arbitrary z against
+      the committed function -- it does not need to be re-derived, only
+      re-run at the new z value, which its own existing df-probe set
+      (`{1, 5, 20, 69, 138, 139}`) already covers.
+    rationale: >-
+      THIS IS A CLEANER STATISTICAL OBJECT THAN v3's OVERLAP TEST, NOT
+      MERELY A NARROWER ONE. A two-sided CI-overlap test does not have a
+      single, clean significance-level interpretation (its false-pass rate
+      under a fixed null varies with the null's position relative to the
+      band in a way that is not fixed by construction). Two one-sided
+      tests, each at a stated alpha, DO have exactly this property BY
+      CONSTRUCTION: this amendment's own verification script confirms the
+      reject-rate at the true boundary (ratio = 1.3 exactly) is exactly
+      0.0500 at every df this contract uses -- the gate's Type-I error at
+      the one point that matters most (the floor amendment v2's own
+      standing caution A5 already flagged as the fragile edge) is now a
+      DESIGNED, VERIFIED property, not an emergent, previously-uncomputed
+      side effect the way v3's overlap test's false-pass rate was.
+
+      A GENUINELY COUNTERINTUITIVE FINDING, VERIFIED BEFORE THIS TEXT WAS
+      FROZEN, IS RECORDED HERE SO IT IS NOT RE-DISCOVERED THE HARD WAY:
+      NAIVELY TIGHTENING THE TWO-SIDED CONFIDENCE LEVEL MAKES THE
+      FALSE-PASS RATE WORSE, NOT BETTER. v4-verification.py Part 1: at
+      z=1.96 (95%) the false-pass rate at df=139 is 44.3%; at z=2.576
+      (99%) it is 70.2%; at z=3.0 (~99.7%) it is 83.9%. This is not a
+      computational error -- a HIGHER confidence level requires a WIDER
+      individual CI (more margin is needed to be more confident), and a
+      wider CI is MORE likely to overlap any fixed band, not less. Any
+      future attempt to "tighten" this gate by raising the confidence
+      level of a two-sided overlap test will make it weaker, not stronger,
+      and must not be tried again without accounting for this.
+
+      THE IMPROVEMENT IS REAL BUT MODEST, AND THAT IS DISCLOSED PLAINLY
+      RATHER THAN OVERSOLD. False-pass at df=139 drops from 44.3% (v3) to
+      31.3% (v4) -- a meaningful reduction, not a return to the literal
+      check's ~1-2%. Going further (e.g. a genuine equivalence/TOST
+      formulation with an explicit indifference zone, or a smaller alpha
+      per side) would narrow the gate further, but at the direct cost of
+      raising the false-REJECTION rate for genuine positives near the
+      band edge -- exactly the failure mode v3 was built to fix in the
+      first place (version 2's own defect: legitimate sampling noise at
+      fb=4/fb=5 pushed point estimates just below 1.3, and the literal
+      check rejected them). alpha = 0.05 per side is the standard,
+      textbook default for a single one-sided test and is chosen here
+      because it is not tuned to this data -- an unusual alpha (e.g. 0.10,
+      which would narrow the gate further) chosen specifically because it
+      produces a lower false-pass number on THIS run's own data would be
+      exactly the kind of post-hoc threshold selection this campaign's
+      rules exist to prevent. A more thorough redesign (TOST-style
+      equivalence testing with a justified indifference zone) is named as
+      a candidate for a future version, not attempted here.
+    non_vacuousness_and_no_regression_verified: >-
+      v4-verification.py Part 3, output in v4-verification-output.txt,
+      re-run at filing time (not carried over from amendment v3's own
+      script): the two rows amendment v3 was built to admit (p=6007,
+      fb=4: ratio 1.231529; fb=5: ratio 1.112531) BOTH STILL PASS under
+      the tighter v4 acceptance region (1.0546, 4.3385) at df=139 -- v4
+      does not reintroduce version 2's own failure. The sanity row (fb=6,
+      ratio 1.451842, already passing under both v2's literal check and
+      v3) is unaffected. Non-vacuousness is preserved and tightened:
+      ratio=1.00 and ratio=4.50 are both still correctly rejected, now
+      with a materially narrower margin than v3's own (1.0124, 4.4944).
+  - id: A11
+    field: required_artifacts, per-row output of `baseline_reproduction_v3`
+      (or its v4 successor)
+    kind: addition
+    from: >-
+      Per-row output carried `ci_overlaps_band_1_3_to_3_6` (the gating
+      verdict) and `r_true_95pct_ci` (the two-sided CI bounds), with no
+      disclosure of the test's own operating characteristics.
+    to: >-
+      EVERY ROW'S GATE EVALUATION MUST ALSO REPORT its own false-pass
+      probability under NULL-B's true-null model (true_ratio = 1) at that
+      row's exact df, computed by the SAME closed-form method
+      v4-verification.py demonstrates (the regularized incomplete gamma
+      function applied to the row's own accept_lo/accept_hi boundaries).
+      This is the standing disclosure CORR-20260810-a4c123's
+      required_action names as missing from v3 ("the same standing
+      disclosure discipline A5 already established for the literal
+      check's floor slack"). Proposed field name:
+      `false_pass_rate_under_true_null`, alongside the existing
+      `ci_overlaps_band_1_3_to_3_6` / `r_true_95pct_ci` fields (renamed or
+      kept as-is at the Executor's discretion, since the underlying
+      computation changes but the reporting shape does not need to).
+      `mpmath` (already a dependency of this repository's environment,
+      confirmed available in this amendment's own verification script) or
+      an equivalent regularized-incomplete-gamma implementation is
+      required for this computation; the Wilson-Hilferty approximation
+      alone is not sufficient for it since it only ever produced quantile
+      BOUNDS, not the CDF value the false-pass probability itself
+      requires.
+    rationale: >-
+      A gate whose own discriminating power is undisclosed cannot be
+      weighed by a reader deciding how much to trust a `gate_passed: True`
+      label. This makes the disclosure mandatory and structural (part of
+      every run's own required artifacts) rather than something a future
+      Coordinator has to recompute by hand from raw numbers after the
+      fact, the way this Coordinator did for RUN-ICINV-849d1d in
+      CORR-20260810-a4c123.
+  unchanged_and_still_frozen:
+  - >-
+    The [1.3, 3.6] band's own endpoints. Change A10 changes how a row's
+    OWN false-pass rate is controlled and disclosed; it does not move,
+    widen, or re-derive the band itself, exactly as amendment v3's own
+    forbidden clause required and this amendment does not touch.
+  - >-
+    monotonic_decay_is_false and operating_row_within_tolerance, unchanged
+    since amendment v2 and untouched by v3; not implicated by
+    CORR-20260810-a4c123's findings and not touched here.
+  - >-
+    Amendment v3 changes A8 (the Wilson-Hilferty cross-check machinery,
+    reused unchanged at a new z value) and A9 (data-provenance / p=2003
+    audit discipline) in full. A9's requirements apply identically to any
+    version-4 run.
+  - >-
+    Every invalidation rule, SR1-SR8, and the entire frozen_decision_rule
+    evaluation order from the original contract and amendments v1-v3.
+  - >-
+    SR6, no outcome shopping: change A10's formula is fixed in this text,
+    before any version-4 run exists.
+  affected_runs:
+  - >-
+    RUN-ICINV-849d1d, RUN-ICINV-ff0806, RUN-ICINV-476e12, RUN-ICINV-4bf6c8,
+    and every earlier run stand exactly as committed. None is edited,
+    re-scored, or has its terminal_state changed. DEC-20260810-cc6577's
+    `reject_scoped` adjudication of H-ICINV-6c7920 is unaffected by this
+    amendment; it was decided under version 3's own rules and this
+    amendment does not revisit it.
+  - >-
+    A version-4 run MAY read version 2/3's own already-committed Stage-3
+    measurements at p=4001 and p=6007 without redrawing, under the SAME
+    change-A9 reuse-without-redraw argument (Arm A0 is deterministic given
+    the frozen seed) -- change A10 alters only how the reused numbers are
+    GATED, not the numbers themselves, so the provenance discipline A9
+    already established carries over unchanged.
+  confirmatory_status: exploratory_only
+  confirmatory_status_note: >-
+    UNCHANGED FROM AMENDMENT V3, FOR THE SAME REASON, NOW CARRIED FORWARD
+    A THIRD TIME. If a version-4 run reuses p=4001/p=6007's data (as A9
+    permits), the same blindness problem CORR-20260810-a4c123 Finding 1
+    identified for version 3 applies identically: those numbers are
+    already fully known. A version-4 run's evidentiary value, like
+    version 3's, would rest entirely on p=2003 -- and CORR-20260810-a4c123
+    Finding 1 already showed p=2003's own numbers were ALSO already known
+    (bit-identical to a pre-existing version-1 run, disclosed in amendment
+    v2.yaml's own text before v3 existed). A genuinely confirmatory test
+    of H-ICINV-6c7920 under any version of this gate needs a prime none of
+    versions 1 through 4 has touched -- this amendment does not name one,
+    and does not authorize treating a version-4 run as confirmatory
+    regardless of which primes it reuses.
+  what_this_amendment_does_not_do:
+  - >-
+    It does not fully close the gap between this gate's discriminating
+    power and the literal check's. False-pass at df=139 drops from 44.3%
+    to 31.3%, not to the literal check's ~1-2%. A TOST-style equivalence
+    redesign that could close this gap further, at the cost of raising the
+    false-rejection rate for genuine near-boundary positives, is named as
+    a candidate for a future version and not attempted here.
+  - >-
+    It does not move H-ICINV-6c7920's status. DEC-20260810-cc6577's
+    `reject_scoped` adjudication stands; this amendment governs only
+    future runs.
+  - >-
+    It does not authorize execution. Under AGENTS.md rule 1 a version-4
+    run needs its own approval and its own handoff; this file makes the
+    protocol coherent, it does not license compute.
+  - >-
+    It does not resolve CORR-20260807-d78e2f (already discharged by
+    EV-ENDO-eb58c4 under version 3's own rules) or the density-linked
+    candidate cause CORR-20260810-a4c123 Finding 5 named (GOAL-ENDO-001
+    next_action N13, a separate, not-yet-drafted experiment).
+  approved_by: null
+  approved_by_note: >-
+    NOT APPROVED, DELIBERATELY. Filed by the Coordinator as the required
+    fix CORR-20260810-a4c123's required_action names as blocking further
+    version-3-path dispatch (DEC-20260810-cc6577 next_action N14), and
+    left unapproved pending the user's review, following the same
+    two-step discipline used for every prior amendment in this
+    experiment's history (v2, v3). No run may be dispatched against it
+    until approved_by is filled by a separate Coordinator approval
+    decision.
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-74ebef
+  - EXP-ICINV-4d33aa
+  - H-ICINV-6c7920
+  - RQ-ICINV-475b5e
+  - DEC-20260810-cc6577
+  - EV-ENDO-eb58c4
+  - CORR-20260810-a4c123
+  - experiments/EXP-ICINV-4d33aa/amendments/v3.yaml
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.

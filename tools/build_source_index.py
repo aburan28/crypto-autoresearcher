@@ -43,6 +43,10 @@ import sys
 from collections import Counter, defaultdict
 
 import yaml
+try:  # libyaml, with the pure loader's errors (tools/fast_yaml.py)
+    from fast_yaml import safe_load as _safe_load
+except ImportError:  # pragma: no cover - imported from outside tools/
+    _safe_load = yaml.safe_load
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MD_OUT = os.path.join(REPO, "knowledge", "SOURCES.md")
@@ -127,7 +131,7 @@ def collect_source_packages() -> list[dict]:
     rows = []
     for path in sorted(glob.glob(os.path.join(REPO, "inputs", "**", "source_record.yaml"),
                                  recursive=True)):
-        record = yaml.safe_load(_read(path)) or {}
+        record = _safe_load(_read(path)) or {}
         provenance = record.get("provenance") or {}
         artifact = record.get("source_artifact") or {}
         repro = record.get("reproducibility") or {}
@@ -285,6 +289,12 @@ def collect_retrievals() -> list[dict]:
 SIDECAR_SUFFIXES = (".sha256", ".FAIL")
 
 
+def _is_digest_manifest(path: str) -> bool:
+    """True for a `.sha256` file listing more than one digest: a manifest."""
+    lines = [line for line in _read(path).splitlines() if line.strip()]
+    return len(lines) > 1
+
+
 def collect_frozen_artifacts() -> list[dict]:
     """Every source artifact under `inputs/`, hashed where a sidecar allows it.
 
@@ -298,6 +308,12 @@ def collect_frozen_artifacts() -> list[dict]:
     targets: set[str] = set()
     for sidecar_glob in ("*.sha256", "*.FAIL"):
         for sidecar in glob.glob(os.path.join(REPO, "inputs", "**", sidecar_glob), recursive=True):
+            if sidecar.endswith(".sha256") and _is_digest_manifest(sidecar):
+                # A `sha256sum` listing of several files (vendored upstream as
+                # e.g. `ref_kat/KAT_DIGESTS.sha256`) is a manifest, not the
+                # sidecar of a file named by its stem; treating it as one
+                # reports that nonexistent file as missing.
+                continue
             targets.add(sidecar[: sidecar.rindex(".")])
     for path in glob.glob(os.path.join(REPO, "inputs", "**", "sources", "*"), recursive=True):
         if os.path.isfile(path) and not path.endswith(SIDECAR_SUFFIXES):
@@ -383,7 +399,7 @@ def collect_literature() -> list[dict]:
         if not text.startswith("---"):
             continue
         try:
-            fm = yaml.safe_load(text.split("---", 2)[1]) or {}
+            fm = _safe_load(text.split("---", 2)[1]) or {}
         except yaml.YAMLError:
             # Reported, not skipped: an unparseable entry is a corpus defect and
             # silently dropping it would shrink the gap counts below.

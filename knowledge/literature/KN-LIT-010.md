@@ -13,7 +13,7 @@ tags: [experimental, semaev, weil-descent, groebner, first-fall-degree, binary-f
 confidence: reported
 citation_verified: web
 added: 2026-07-19
-superseded_by: null
+superseded_by: KN-LIT-19665f
 ---
 
 ## Contribution

@@ -1,0 +1,213 @@
+# Independent re-check of the EXP-ICEX-aaccfc v4c repair (repair round 3, H-1 only)
+# (pre-admission implementation check; zero scientific runs).
+validation_report:
+  id: VAL-20260929-3bb834
+  task_id: TASK-20260929-3bb834
+  role: validator
+  reviewer_continuity: >-
+    Same reviewer as TASK-20260929-e3446a, TASK-20260929-1344ef and
+    TASK-20260929-545abe (VAL-20260929-545abe), whose finding H-1 motivated
+    TASK-20260929-44a9b2. This checks H-1's closure only.
+  experiment_id: EXP-ICEX-aaccfc
+  subject: experiments/EXP-ICEX-aaccfc/implementation/ (snapshot TASK-20260929-a7f89b; repair TASK-20260929-44a9b2)
+  snapshot_commit: ac0cc7e21f28ff84e95e2d4ffccac14cfa2b19eb
+  snapshot_parent: 314158214aceb184c712b1e98ac0f8f2739be494
+  head_at_validation: f1098f8f81
+  protocol: v4 = specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 + AMD-20260929-5a84eb (DEC-20260929-986b4c)
+  run_ids: []
+  scientific_runs_performed: 0
+  verdict: PASS_WITH_FINDINGS
+  verdict_meaning: >-
+    H-1 is closed. smoke_primary never prints a frozen value, under the suite
+    config or a bare default-traceback config, on either interpreter tested.
+    The committed pytest.ini (--tb=short) is picked up from the repo root and
+    hides every traceback-argument channel.
+    One advisory residual (I-1): under a bare config only, a plain JSON copy
+    of the fixture passed into a helper can still print complete_units, and
+    whether it does depends on the pytest version.
+    No must-fix findings. This report makes no ECDLP claim and authorizes
+    nothing.
+
+  checks:
+    - id: 1
+      name: snapshot integrity, tree clean
+      result: PASS
+      evidence:
+        - >-
+          Commit ac0cc7e21f ('snapshot(TASK-20260929-a7f89b): ...'); its parent
+          314158214a equals the receipt's parent_sha.
+        - >-
+          185/185 receipt hashes match the worktree.
+          `git status --porcelain` shows nothing under the receipt paths.
+          trial-plan-v2.json sha256 = 58c36b6d...c2e983 (unchanged).
+    - id: 2
+      name: pytest from repo root (expected 104); pytest.ini picked up
+      result: PASS
+      evidence:
+        - >-
+          From /Volumes/SSD990/wt-amend-ic: `TMPDIR=/Volumes/SSD990/.tmp-agent
+          PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -rs -p
+          no:cacheprovider experiments/EXP-ICEX-aaccfc/implementation` gave 104
+          passed in 80.96 s (exit 0).
+        - >-
+          The session header shows rootdir .../EXP-ICEX-aaccfc/implementation
+          and configfile pytest.ini. It is found ahead of the repo
+          pyproject.toml, so addopts --tb=short applies.
+          Python 3.12.8, pytest 9.1.1.
+    - id: 3
+      name: H-1 deliberately failing probe (hash/regex only)
+      result: PASS
+      evidence:
+        - >-
+          Method:
+            - A temporary copy of the implementation, with the SDEG fixture
+              files, got a probe module (PYTEST_DONT_REWRITE) with four
+              deliberately failing tests:
+                (a) assert on smoke_primary['complete_units'] (funcarg
+                    channel);
+                (b) a plain json-roundtrip copy of smoke_primary passed to a
+                    helper that raises (helper-frame channel);
+                (c) the same copy passed to the real audit.audit_run, which
+                    raises inside audit.py (library-frame channel);
+                (d) sensitivity control: a helper that raises, given a small
+                    plain dict holding complete_units.
+            - Detection: every digit run in each test's failure section was
+              sha256-compared with the hashes of the 10 'units' integers
+              (>= 1000) in smoke_primary, plus the regex
+              complete_units['"]?\s*[:=]\s*-?\d.
+            - No value was printed or stored in clear. Output was inspected
+              only with every digit masked.
+        - >-
+          Configs, each run under Python 3.12.8 / pytest 9.1.1 and Python
+          3.9.10 / pytest 8.4.2:
+            - suite, run from the implementation dir;
+            - suite, run from the repo root;
+            - suite with -vv;
+            - bare with -o addopts= (default --tb=auto);
+            - bare with -c <empty ini> (default --tb=auto);
+            - bare with -vv.
+        - >-
+          (a) smoke_primary funcarg: clean in all 12 runs. It renders as
+          '<frozen smoke result: values hidden>'.
+        - >-
+          Suite configs: (a) to (d) are all clean in all 6 runs, including
+          the sensitivity control. The --tb=short ini closes the channel.
+        - >-
+          Bare configs: (d) leaks in all 6 runs, so the probe is sensitive.
+          (c) is clean in all 6, because the repr is truncated before
+          complete_units. (b) is clean on 3.12.8/9.1.1 (truncated) but leaks
+          on 3.9.10/8.4.2 (hash and regex). See I-1.
+          This confirms the executor's remark that pytest's truncation is
+          version-dependent.
+        - >-
+          Masked output under --tb=long on 3.12.8 shows plain copies in helper
+          frames do print the fixture's public parameters (G, N, a, b) and
+          peak_rss_bytes. complete_units falls past the truncation point.
+        - >-
+          Interpreter note: `python3` resolves by directory through pyenv:
+          3.12.8 in the worktree, 3.9.10 under the TMPDIR tree. The round-2
+          (VAL-20260929-545abe) A-3 probe ran from the TMPDIR tree and was
+          therefore most likely under 3.9.10.
+    - id: 4
+      name: diff vs c0b8b3 snapshot
+      result: PASS
+      evidence:
+        - >-
+          Receipt comparison (a7f89b vs c0b8b3): changed or added are exactly
+          implementation_report.yaml, pytest.ini, repair_report_v4c.yaml,
+          tests/conftest.py and tests/test_fixture_repr.py. None removed.
+        - >-
+          `git diff --stat 339fb8bc27 ac0cc7e21f -- experiments/` lists the
+          same 5 files. The commit additionally adds only the a7f89b
+          snapshot receipt.
+        - >-
+          conftest.py diff: adds class HiddenResult(dict), whose __repr__ and
+          __str__ return '<frozen smoke result: values hidden>', and wraps
+          the smoke_primary return value in it. Nothing else changed.
+    - id: 5
+      name: old smoke artifacts unchanged, not opened
+      result: PASS
+      evidence:
+        - >-
+          All 151 smoke paths in c0b8b3 have identical hashes in a7f89b, and
+          the worktree matches.
+          Hashed only; nothing opened.
+
+  findings:
+    - id: I-1
+      severity: advisory
+      check: 3
+      summary: >-
+        Under a bare pytest config, a plain copy of smoke_primary passed to a
+        helper can print complete_units (version-dependent).
+      detail: >-
+        HiddenResult protects the fixture object, but json.loads(json.dumps(...))
+        copies are plain dicts:
+          - test_charging._receipt, whose result goes to audit.audit_run;
+          - test_fxa, via r = json.loads(json.dumps(smoke_primary)).
+        When an exception is raised inside a function that receives such a
+        copy, the default long traceback prints its arguments. Only saferepr
+        truncation then stands between the reader and complete_units: it held
+        on Python 3.12.8 / pytest 9.1.1 but not on Python 3.9.10 / pytest 8.4.2
+        (probe (b)).
+        The committed pytest.ini closes this for the documented invocation
+        (repo root or implementation dir). It reappears only when someone
+        overrides the ini (-o addopts=, -c).
+      remedy: >-
+        Make the traceback style non-bypassable, for example a conftest
+        pytest_configure hook that sets config.option.tbstyle = 'short' when
+        it is 'auto' or 'long'. Or re-wrap roundtrip copies in HiddenResult
+        (json.loads(..., object_hook=HiddenResult)).
+        Extend test_fixture_repr with a helper-frame probe over a plain copy.
+
+  artifact_checks:
+    - 185/185 receipt hashes match; parent matches; tree clean; trial plan unchanged
+    - diff vs c0b8b3 is exactly the 5 declared files plus the new receipt
+  metric_recomputations:
+    - none (maximum_runs 0)
+  control_checks:
+    - probe sensitivity control (d) leaks under bare configs and is clean under the suite config, so a clean result is informative
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  limitations:
+    - Probe ran on a temporary copy; only two interpreter/pytest pairs were available (3.12.8/9.1.1, 3.9.10/8.4.2).
+    - Leak detection covers 'units' integers >= 1000 and the complete_units regex; other frozen fields (e.g. peak_rss_bytes, public fixture parameters) were observed in bare-config helper frames and are not verdict inputs.
+    - The pytest run rewrote scratch files in the shared, executor-owned $TMPDIR/icex-aaccfc-tests; left in place.
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-3bb834/validation_report.yaml
+
+  commands_run:
+    - git log --grep='snapshot(TASK-20260929-a7f89b)' --format='%H %P %s'
+    - python3 (hash 185 receipt entries vs worktree; git status on the receipt paths; receipt diff a7f89b vs c0b8b3; smoke-path hash comparison)
+    - git diff --stat 339fb8bc27 ac0cc7e21f -- experiments/; git diff 339fb8bc27 ac0cc7e21f -- .../tests/conftest.py
+    - TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -rs -p no:cacheprovider experiments/EXP-ICEX-aaccfc/implementation   # repo root; 104 passed in 80.96s
+    - zsh $TMPDIR/val3bb834/run.sh   # 4 probe tests x 6 configs x 2 interpreters; hash/regex verdicts only
+    - python3 -m pytest --tb=long tests/test_zz_probe.py | digit-masking filter   # temp copy
+    - rm -rf $TMPDIR/val3bb834; pgrep (no leftover processes)
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    independence_note: same reviewer session lineage as TASK-20260929-e3446a, -1344ef and -545abe (closure re-check), independent of the producer and the repair executor
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-a7f89b/snapshot-receipt.json
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-c0b8b3/snapshot-receipt.json (hashes)
+      - experiments/EXP-ICEX-aaccfc/implementation/pytest.ini
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/conftest.py (diff)
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/test_fixture_repr.py
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/{test_charging,test_controls,test_fxa}.py (smoke_primary usage lines)
+    not_read:
+      - experiments/EXP-ICEX-aaccfc/implementation/repair_report_v4c.yaml body (verified against code and tests; only the executor's truncation remark, as relayed in the task card, was considered)
+      - old smoke artifacts (hashed only)
+      - the executor's conversation, other agents' transcripts or reports
+
+  review_attestation:
+    joints_owned: [checks 1-5]
+    read_sibling_reports: false
+    verdict: PASS_WITH_FINDINGS

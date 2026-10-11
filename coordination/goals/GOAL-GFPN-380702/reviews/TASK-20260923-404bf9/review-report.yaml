@@ -1,0 +1,1093 @@
+# =============================================================================
+# TASK-20260923-404bf9 -- RED TEAM report, EXP-GFPN-05ff43 review round.
+# Review plan: ledger/handoffs/TASK-20260923-fe27e4.yaml.  Owned: joints K5, K6,
+# K7 and the proves-too-much control (objects A, B, C).  Per-joint verdicts only;
+# the Coordinator composes.  Nothing here changes any record (RC-2), and nothing
+# here closes the 2-torsion lane or decides EcGFp5's security level (RC-7).
+# All scratch code, commands and outputs: scratch/ next to this file;
+# invocation ledger: scratch/invocations.log.
+# =============================================================================
+red_team_report:
+  id: null
+  id_note: >-
+    No RT-* identifier minted (card RC-2, "mint nothing"). The report is
+    identified by its task id and its path.
+  task_id: TASK-20260923-404bf9
+  review_plan_ref: ledger/handoffs/TASK-20260923-fe27e4.yaml
+  snapshot_reviewed:
+    branch: claude/pollard-rho-speedup-hypotheses-yu8qwp
+    head_at_review: a6e67416e220878054221378976f21a5adddbb93
+    producer_snapshot: coordination/goals/GOAL-GFPN-380702/archives/TASK-20260921-98561a/snapshot-receipt.json
+    integrity_check: >-
+      Before any use, the SHA-256 of 67 producer paths I relied on (every file
+      under experiments/EXP-GFPN-05ff43/implementation/, the specification,
+      implementation.md, every raw-result.json and the RUN-GFPN-ca7b88 tables)
+      was recomputed against the snapshot receipt's path_sha256: 67/67 match;
+      `git status` of experiments/EXP-GFPN-05ff43 clean. I reviewed the
+      committed snapshot, not a working-tree variant.
+
+  claim_under_review: >-
+    As fixed by the plan: the producer's account that under this construction,
+    msolve 0.6.5 and a 12 GB cap no m = 5 degree is measurable, the m <= 4
+    pipeline is correct, HEUR-GFPN-DFLAT is untested and the band is void, and a
+    rerun is required -- attacked here only at the three joints I own: whether
+    arm (iii) as built can test the 2-torsion symmetrization (K5), whether the
+    *_proxy counts can carry the uses made of them (K6), and whether the frozen
+    prediction a rerun would be scored against is anchored to the system the
+    design note costed (K7); plus the three proves-too-much objects.
+
+  joints:
+    # -------------------------------------------------------------------------
+    K5:
+      verdict: breaks
+      one_line: >-
+        Arm (iii) as built quotients the wrong group on a factor base where only
+        a norm form is F_p-rational; after Weil descent its system has the same
+        monomial support, the same Bezout / mixed-volume bound and -- computed in
+        square analogues -- the same ideal degree as arm (ii) (64 = 64 at
+        n = m = 3 at two primes; 4096 = 4096 at n = m = 4), while an
+        F_p-rational (Z/2)^{m-1} x| S_m construction gives 16 and 512. Its
+        m = 5 exhaustion carries no information about the FHJRV construction.
+      attack_performed:
+        - >-
+          (a) DERIVE THE GROUP. From implementation.md section 1.3 / D-6 and
+          symmetrize.rhs_arm_T: Q = S_{m+1}(x; X) * S_{m+1}(b/x_1, x_2..x_m; X),
+          Laurent-normalised, rewritten in t_i = x_i + b/x_i and e(t), factor
+          base {P : x(P) + b/x(P) in F_p'}, relations accepted = R or R + T
+          (pdp_common.sign_search). Pair identity: translating two points by T
+          leaves every relation sum eps_i P_i = +-R intact, so
+          S(b/x_i, b/x_j, ..) (x_i x_j)^K = b^K S(x) (FHJRV Prop. 7 / Prop. 12
+          argument; the exact Laurent invariance is asserted coefficient by
+          coefficient in my n = 3 and n = 4 conversions). Consequently Q is
+          invariant under x_i -> b/x_i for EVERY i separately (i = 1 swaps the
+          two factors; i >= 2 by the pair identity), under S_m, and under
+          X -> b/X. The group acting on the unknowns is the full hyperoctahedral
+          (Z/2)^m x| S_m (order 2^m m! = 3840 at m = 5), not FHJRV's
+          G2 = (Z/2)^{m-1} x| S_m (order 1920; hal-00935050.txt lines 432-440,
+          even sign changes only), and implementation.md's "|G| = 2^{m-1} m!"
+          and D-6's "quotients by the same group" are not what the polynomial
+          does.
+        - >-
+          Algebraic form of the defect (my derivation): with the
+          anti-invariant w = prod (x_i - b/x_i), the G2-invariant summation
+          polynomial is S = A(sigma(t)) + w B(sigma(t)) and w^2 = prod (t_i^2 - 4b);
+          the producer's Q = S * S^(1) = A^2 - w^2 B^2 is the NORM from the
+          G2-invariant field down to the (Z/2)^m x| S_m-invariant field. It
+          squares away exactly the generator that FHJRV's invariant ring keeps
+          (Prop. 13, lines 668-669: K[s_1..s_{n-1}, e_n], e_n the
+          anti-invariant). Weil descent then imposes Q = 0 separately in each
+          of the n Frobenius components, and each component may pick the "R"
+          or the "R + T" factor independently: 2^{n-1} branch pairs instead of
+          one, each contributing about K^m / 2^{m-1} solutions in sigma-space,
+          total about 2^{n-m} K^m -- at n = m exactly the S_m arm's K^m =
+          2^{m(m-1)}. Only the two coherent branches carry F_p-rational
+          relations; the rest are spurious solutions the solver still pays for.
+        - >-
+          FHJRV's hypotheses checked against EcGFp5. (i) Section 3.2 (lines
+          330-335) needs f_T in PGL2(F_q) for a T-invariant factor base and
+          section 3.3 (lines 385-387) needs the invariant generators to lie in
+          F_q(X_1..X_n). With phi = x and b = 263z not in F_p this fails; the
+          producer's phi-base t = x + b/x in F_p is T-stable but w is not
+          F_p-rational on it, so only the norm Q is available. (ii) Prop. 8(i)
+          (lines 480-490): the affine involution needed for the polynomial-ring
+          form (Prop. 7, Prop. 13) exists iff b is a square in K; Remark 9
+          (lines 534-541): otherwise only via full 2-torsion (a^2 - 4b a square).
+          Pornin, inputs/PORNIN-2022-274-ECGFP5/paper_fulltext.md lines 871-875: a
+          curve y^2 = x(x^2 + ax + b) "may be double-odd ... only if neither b
+          nor a^2 - 4b is a quadratic residue". EcGFp5 is double-odd, so
+          b = 263z is a non-square and neither route of Prop. 8 / Remark 9
+          applies; ladder.json records b_is_square_in_Fq false for all three
+          ecgfp5_shaped rungs. FHJRV's construction, as literally stated, is
+          NOT available for EcGFp5. (iii) What is available (my derivation, not
+          in FHJRV's text): because [F_{p^5} : F_p] is odd, every b equals
+          lam^2 beta with beta in F_p* a non-square and lam in F_{p^5}; with
+          phi = x / lam, f_T(u) = beta / u lies in PGL2(F_p) for EVERY Frobenius
+          conjugate, the factor base {P : x(P)/lam in F_p} is T-stable
+          (section 3.2), and the G2-invariant field is generated over F_p by
+          sigma_k(u_i + beta/u_i) and w = prod (u_i - beta/u_i). This is an
+          invariant-FIELD (non-affine) construction analogous to FHJRV's Q_phi,n
+          (Prop. 12/14), not their Prop. 13 ring.
+        - >-
+          (b) BOUND THE SOLUTIONS. Both arm (ii) and arm (iii) are interpolated
+          on monomials_total(m, 2^{m-1}) (symmetrize.build_arm_polynomial), and
+          the committed build records show full, identical supports: RUN-GFPN-42a000
+          raw-result.json, ecgfp5_shaped, m = 5: S5 support_nonzero_monomials
+          20349 and torsion_S5 20349 (N = C(21,5) = 20349 each); m = 4: 495 and
+          495 (RUN-GFPN-42a000, RUN-GFPN-c16d20); m = 3: 35 and 35
+          (RUN-GFPN-405554). Identical Newton polytope (the degree-16 simplex in
+          five variables) => identical Bezout number = mixed volume = 16^5 = 2^20
+          for the two descended m = 5 systems. Arm (iii) cannot exhibit the
+          predicted drop in the solver's input.
+        - >-
+          (c) COMPUTED, UNFLOORED (optional square analogue, own code, Sage +
+          Singular with msolve cross-check): scratch/k5k7/square_analogue.py,
+          output scratch/k5k7/square_analogue_n3.json. n = m = 3 over
+          F_p[z]/(z^3 - 2), EcGFp5-shaped double-odd curve y^2 = x(x^2 + 2x + b0 z)
+          with b and a^2 - 4b both non-squares (p = 4111: b0 = 7; p = 16777291:
+          b0 = 1), two random targets per prime, predictions written in the
+          script before the run. Every case, Singular vdim = msolve "Dimension
+          of quotient": raw 384 (= 3! * 4^3), S3 64 (= 4^3 = 2^{m(m-1)}),
+          PRODUCT (arm iii as built) 64 with the identical 35-monomial support
+          and total degree 4, and the F_p-rational D3-type quotient
+          (sigma(t'), w) on the rescaled base 16 (= 384 / (2^2 * 3!) =
+          2^{(m-1)^2}; A of sigma-degree 2, B of sigma-degree 1, 14 monomials).
+          Repeated one degree up (scratch/k5k7/square_analogue_m4.py, output
+          square_analogue_n4.json; n = m = 4 over GF(4111^4), one target, raw
+          omitted, msolve degrees; at even degree an F_p rescaling exists only
+          for b a square, so the curve y^2 = x(x^2 + 2x + z^2) is used and
+          beta = 1): S4 4096 (= 8^4), PRODUCT 4096 with the identical
+          495-monomial support and total degree 8, D4-type 512 (= 2^{(m-1)^2};
+          A sigma-degree 4, B sigma-degree 3, 105 monomials). Predictions were
+          written in the script before the run. The pattern D_product = D_S_m =
+          2^{m(m-1)} and D_quotient = 2^{(m-1)^2} holds at m = 3 and m = 4.
+        - >-
+          Existing data (card K5 (c)). The supplementary m = 3 and m = 4
+          constructed-solvable cells give D = 1 for both symmetrised arms: that
+          is the planted orbit (object C), a floor that cannot show any gain.
+          The m = 4 proxies agree to 0.03 percent because the F4 runs are the
+          same shape: scratch/k6/k6_objB_summary.json shape_identity_target0
+          shows the 29 F4 rounds of S4 and torsion_S4 (RUN-GFPN-f888a7 vs
+          RUN-GFPN-fb0726, target 0) have identical rows, columns, new and zero
+          counts. Consistent with (b); it cannot show a drop, and none exists.
+      breaking_artifact: >-
+        The derivation above (group = (Z/2)^m x| S_m via the norm Q = A^2 - w^2 B^2;
+        FHJRV Prop. 8 excluded for double-odd b by Pornin lines 871-875), the committed
+        identical supports (RUN-GFPN-42a000: 20349 = 20349 at m = 5), and the
+        computed example scratch/k5k7/square_analogue_n3.json (n = m = 3, p =
+        4111 and 16777291, two targets each: D_product = D_S3 = 64, D_D3-type = 16,
+        D_raw = 384; Singular and msolve agree), repeated at n = m = 4
+        (scratch/k5k7/square_analogue_n4.json: D_product = D_S4 = 4096,
+        D_D4-type = 512).
+      consequence_for_the_contract: >-
+        Were arm (iii) as built ever to complete at m = 5, its D would be about
+        D_S5, so falsification branch F1 ("D_raw/D_torsion_S5 < 2^9") would fire
+        by construction, and the aggregate's comparisons (pdp_cell.py lines
+        679-680) would record ratio_meets_prediction false for it -- a
+        falsification produced by the construction, not by the mathematics.
+        The run's m = 5 exhaustion of arm (iii) (RUN-GFPN-805701, RUN-GFPN-61a67b)
+        is a property of a 20349-term S_5-shaped system; it says nothing about
+        the size or solvability of an FHJRV-type system. Worse than
+        uninformative for the band: on the phi-base (~p/4 t-values, 4 points
+        each) the decomposition probability accepting R or R + T is
+        2 / (2^n n!) = 1/1920 at n = 5 (my count; FHJRV line 854 states the
+        same 2^4 x 5! for the genuine quotient), against 1/120 for arm (ii), and
+        the T-quotient only halves the relations needed; so arm (iii) as built
+        needs ~8x more systems than arm (ii) at the SAME per-system degree -- it
+        is dominated by arm (ii) and cannot be the symmetrization-aware arm of
+        the band.
+      lane_status: >-
+        NOT a closure (RC-7). The opposite: the F_p-rational quotient exists for
+        EcGFp5-shaped (odd degree, double-odd) curves and realised the predicted
+        2^{m-1} drop exactly at n = m = 3 (64 -> 16) and, with b a square,
+        n = m = 4 (4096 -> 512); at m = 5 it is ~10x sparser than what exhausted
+        the cap. The 2-torsion lane is less tested, and more open, than the run
+        set suggests.
+      what_this_does_not_show: >-
+        Nothing about the ideal degree of any m = 5 system (none was measured by
+        anyone); nothing about EcGFp5's security; the D3-type count is an
+        n = m = 3 computation plus an orbit-count derivation for general m, not
+        a measurement at m = 5.
+
+    # -------------------------------------------------------------------------
+    K6:
+      verdict: breaks
+      one_line: >-
+        The committed cross-arm proxy ratio moves by 3-4x under consistent
+        accounting and by 2.8-11.6x against measured CPU (the plan's test), and
+        the proxy has no defined bound direction, a 2^8.4 spread between the
+        producer's own two versions, and a shape-dependent scale (6 to 101
+        executed F4 instructions per proxy operation), so it cannot score F3.
+        Its p-flatness is only a restatement of p-independent F4 matrix shapes.
+      committed_uses:
+        - >-
+          Every cell / raw run: metrics.fp_operations_per_pdp and the ladder-table
+          row fp_operations_per_pdp_proxy. For `cell` runs it is the median of
+          F4 reduction proxy + FGLM proxy + counted construction/lifting at
+          29 F_p mul per F_q mul and 150 F_q mul per F_q inv; for `raw` runs it is
+          F4 + FGLM proxy ONLY -- the raw arm's per-target grid construction is
+          never charged (pdp_cell.cmd_raw metrics).
+        - >-
+          RUN-GFPN-ca7b88 heur-dflat.yaml supplementary_flatness: per-arm
+          fp_ops_relative_variation (0.0, 1.7e-4, 2.1e-4, 2.8e-4) beside
+          D_identical_across_ladder; degree_ratios_measured:
+          fp_ops_ratio_raw_over_sym = 39.63 / 39.64 / 39.64 (S3) and
+          36.48 / 36.49 / 36.49 (torsion_S3) at m = 3.
+        - >-
+          implementation.md section 6: "The m = 4 values are nearly identical
+          across primes and across arms because the proxy is built from
+          msolve's matrix shapes, which are p-independent, and because arms (ii)
+          and (iii) produce systems of the same shape"; D-2.
+        - >-
+          Anchor rows f4_ops_proxy (RUN-GFPN-61bba9; RUN-GFPN-bbed6f 0.0); the
+          aggregate's tail_check_arm_iii_above_2_36 and cost-band point-estimate
+          code paths (not triggered: no m = 5 cell); the frozen F3 would score
+          arm (iii) fp_operations_per_pdp against 2^36.
+      attack_performed:
+        - >-
+          (b) FLATNESS. scratch/k6/k6_and_objB.py parsed every committed m = 4 and
+          m = 3 log with the producer's own parser: the recomputed proxies equal
+          the committed ones in all 9 cells examined; the per-round F4 shapes
+          (rows, cols, new, zero; 29 rounds) of S4 target 0 are identical at
+          p' = 4111, 262151 and 16777291, and identical between S4 and
+          torsion_S4. The proxy sums over 20 targets differ by 0.05 percent,
+          while msolve's own printed CPU over the same 20 targets is 203.1 s
+          (4111) against 236.6 s (262151) and 226.2 s (16777291) for S4, and
+          203.3 / 230.3 / 237.0 s for torsion_S4 (+11 to +17 percent). The
+          proxy's flatness is exactly the (measured, real) p-independence of the
+          F4 shapes and nothing more; it cannot speak to D at m = 5 nor to cost
+          per operation at 64 bits. Not tautological in the strict sense --
+          shapes could have moved -- but without independent content.
+        - >-
+          (c) CROSS-ARM RATIO, the only non-trivial one (raw vs S3, m = 3,
+          constructed-solvable, p' = 4111). Decomposition of the committed S3
+          figure (RUN-GFPN-49f7c5 medians): 151,071.6 = F4 40,260.6 + FGLM 2 +
+          construction/lifting 110,809, of which 104,400 (69 percent of the
+          total) is 24 sign-search inversions x 150 x 29; the raw figure
+          (RUN-GFPN-cdf887) is 5,987,011 = F4 only, construction uncharged.
+          Like-for-like F4-only ratio: 148.7 (3.75x the committed 39.63).
+          Re-priced with the frozen source's inversion cost (Pornin line
+          ~522-523: inversion "only about 2.57 times the cost of a
+          multiplication"; the code's 150 is an unsourced comment,
+          symmetrize.py lines 86-88): S3 ~ 48,460 and ratio ~ 123.5 (3.1x).
+        - >-
+          (c) MEASURED WORK on the same systems. The m = 3 raw and S3 systems of
+          targets 0-4 were regenerated with the producer's own functions and
+          seeds and verified identical to the committed ones (per-round F4
+          shapes equal the committed logs in all 10 cases), then run: native
+          single-thread CPU over 50 repetitions, and valgrind callgrind
+          instruction counts, total and inclusive in libneogb core_f4, against a
+          trivial-system baseline (scratch/k6/k6_objB_summary.json,
+          callgrind.*.annotate.txt). Raw/S3 ratios: native CPU 13.0-14.2
+          (baseline-subtracted 33-47); executed instructions 53-66 (76-96
+          baseline-subtracted); instructions in core_f4 81.3 (one target 102.1).
+          msolve's printed overall(cpu) in the committed logs: 1.03 s / 0.30 s =
+          3.4 over 20 targets (0.01 s resolution).
+        - >-
+          The plan's test ("if the two ratios differ by more than 2x, the proxy
+          is not tracking work"): committed 39.63 against CPU is 2.8-3.1x off
+          (measured) and 11.6x off (printed); against core_f4 instructions 2.05x
+          off. Only the F4-only proxy against core_f4 instructions agrees within
+          2x (148.7 vs 81.3, 1.83x) -- the shape-based F4 estimate is a usable
+          relative indicator between these two shapes; the committed per-PDP
+          figure built on it is not.
+        - >-
+          (d) F3 AND THE UNIT. (1) Unit: the contract's cost_unit is "F_{p'} field
+          operations (instrumented)" (specification line 122); the proxy is a
+          modeled count from printed shapes plus counted F_q operations at
+          conversion constants (D-2). (2) Bound direction: the producer's own
+          code calls the same quantity sum rows*cols*density "an upper bound on
+          the number of field multiply-accumulates" (symmetrize.py line 463) and
+          a "lower bound: every nonzero touched once" (line 490; implementation.md
+          section 1.4); the figure used (reduction_total) is labelled an
+          "estimate". F3 ("remains > 2^36") needs a lower bound to fire and an
+          upper bound to be declined; neither exists. (3) Spread: for the same
+          m = 4 computation the two committed proxies are 1.0056e10 and
+          2.978e7, a factor 337.7 = 2^8.40, so an F3 verdict is decided by the
+          choice of proxy for any cell whose reduction proxy lies in
+          (2^36, 2^44.4). (4) Scale: measured core_f4 instructions per
+          reduction-proxy operation are 6.07 (m = 4 S4, 6.10e10 instructions),
+          55 (m = 3 raw) and 101 (m = 3 S3), a 16.6x spread across shapes, so no
+          fixed threshold transfers without per-shape calibration. (5) The 29
+          constant matches 25 schoolbook + 4 reduction multiplications; the 150
+          is ~58x the frozen source's Itoh-Tsujii figure (Pornin lines 276-376:
+          inversion 128 cycles vs multiplication 49).
+      breaking_artifact: >-
+        The committed fp_ops_ratio_raw_over_sym = 39.63 (RUN-GFPN-ca7b88
+        heur-dflat.yaml degree_ratios_measured) becomes 13.0-14.2 when the proxy
+        is replaced by measured CPU time on the identical systems (and 3.4 by
+        msolve's printed CPU), 81.3 by executed F4 instructions, 148.7 under
+        consistent accounting and 123.5 with the source's inversion cost:
+        every replacement moves it by more than 2x
+        (scratch/k6/k6_objB_summary.json). Plus the demonstration that the
+        proxy is invariant (0.05 percent) under the change of p' that moves
+        msolve's own CPU by 11-17 percent (committed logs).
+      what_this_does_not_show: >-
+        No committed F3 verdict exists (no m = 5 cell), so (d) is prospective
+        for the rerun; the m = 4 per-PDP order of magnitude (~2^33) is not shown
+        wrong -- it is shown uncalibrated.
+
+    # -------------------------------------------------------------------------
+    K7:
+      verdict: breaks
+      one_line: >-
+        The design note's "total degree 2^{k-1} = 16" system with D ~ 2^{k(k-1)}
+        = 2^20 is the S_5-SYMMETRIZED system, not the raw one; the raw system's
+        degree is ~5! 2^20. The frozen prediction (D_raw ~ 2^20, D_S5 ~ 2^20/120,
+        D_torsion ~ 2^20/1920, band 2^121-2^132) is mis-anchored by 5! = 120.
+      attack_performed:
+        - >-
+          (a) FROZEN TEXT. Pornin, inputs/PORNIN-2022-274-ECGFP5/paper_fulltext.md
+          lines 138-149: "Gaudry's attack entails computing about p^{2-2/5} ~
+          2^102.4 systems ... Each system would contain 5 equations with 5
+          unknowns, and a total degree 2^{k-1} = 16 ... D the degree of the
+          underlying ideal, which should be close to 2^{k(k-1)} = 2^20 ... it is
+          unlikely to go below O(D^2) ~ 2^40. This leads to a total theoretical
+          complexity of at least 2^142". Joux-Vitse, the source Pornin cites,
+          inputs/JOUX-VITSE-2010-157/paper_fulltext.md lines 280-288: "each phi_i
+          is a symmetric polynomial over F_q, of degree at most 2^{n-1} in each
+          variable ... As advised by Gaudry, it can be written as a system of
+          polynomials of total degree 2^{n-1} in terms of the elementary
+          symmetric functions e_1, ..., e_n ... This yields a univariate
+          polynomial whose degree is generically 2^{n(n-1)} in this case"; and
+          line 353 ("n equations defined over F_q with n variables of total
+          degree 2^{n-1}"). Pornin's sentence is JV's description of the
+          e-symmetrized system.
+        - >-
+          (b) DEGREES AND BOUNDS (checkable). Raw S_6(x_1..x_5; x_R): degree 16 in
+          EACH x_i, total degree up to 5 * 16 = 80. Newton polytope of each
+          descended equation is contained in the box [0,16]^5, so the BKK /
+          mixed-volume bound is 5! * 16^5 = 2^26.9 (total-degree Bezout
+          80^5 = 2^31.6); the n = m = 3 analogue attains the full-box count
+          3! * 4^3 = 384 exactly (below), so the bound is not loose there. S_5-symmetrized in e_1..e_5:
+          total degree 16, polytope = degree-16 simplex, Bezout = mixed volume
+          = 16^5 = 2^20 = 2^{k(k-1)}. Generic S_5 orbits have 120 points, so
+          D_raw / D_S5 = 5! = 120. The producer's own implementation says the
+          same: arm (ii) is interpolated on C(5+16,5) = 20349 total-degree-<=16
+          monomials, arm (i) on the (16+1)^5 box (implementation.md section 1.3).
+          Only the symmetrized system has "total degree 16".
+        - >-
+          (c) SANITY. Computed n = m = 3 (scratch/k5k7/square_analogue_n3.json):
+          raw 384 = 3! * 4^3, S3 64 = 4^3 = 2^{n(n-1)} at both primes -- the
+          2^{n(n-1)} law is the SYMMETRIZED degree, the raw system is n! larger.
+          Committed supplementary m = 3 cells: raw D = 6 vs symmetrized D = 1 on
+          one planted orbit = 3! (RUN-GFPN-cdf887 vs RUN-GFPN-49f7c5), sanity only.
+        - >-
+          (d) RECOMPUTED FLOOR, the design note's own model (p^{2-2/5} = 2^102.4
+          systems; per-system D^2 floor and nominal 5 D^3), log2:
+          design note as written = the S_5 object, D = 2^20 -> 142.4 / 164.7;
+          raw, D = 5! 2^20 = 2^26.9 -> 156.2 / 185.4;
+          S_5 plus a valid 2-torsion quotient, D = 2^20 / 2^4 = 2^16 ->
+          134.4 / 152.7 (the Coordinator's hand figure 2^134.4 confirmed);
+          frozen prediction's torsion, D = 2^20/1920 = 2^9.09 -> 120.6 / 132.0;
+          frozen prediction's S_5 (research note's EcMasFp5 row), D = 2^13.09 ->
+          128.6 / 144.0. The frozen band 2^121-2^132 is 13.8 bits (D^2 edge) and
+          20.7 bits (5 D^3 edge) below the re-anchored figure. This is arithmetic
+          on frozen text under the design note's model, not a security finding.
+        - >-
+          Cost bookkeeping on top (frozen texts): JV lines 365-370, "The cost of
+          the first main step becomes thus n! c(n,q) q^{2-2/n}" -- the n! is the
+          inverse decomposition probability that Pornin's "p^{2-2/5} systems"
+          (and the frozen band) omit; FHJRV line 854, with the 2-torsion quotient
+          at n = 5 "the expected time to get one relation is 2^4 x 5! x" one
+          decomposition test; FHJRV lines 336-348, the reduced factor base
+          halves the relations needed and divides the decomposition
+          probability by m^{n-1} = 16. Charged: S_5 -> 5! 2^102.4 = 2^109.3
+          systems, D^2 edge 2^149.3 (5 D^3: 171.6); valid torsion quotient ->
+          2^4 5! 2^102.4 / 2 = 2^112.3 systems, D^2 edge 2^144.3 (5 D^3: 162.6).
+          The producer's aggregate uses nominal success 1/120 (S5) and 2/120
+          (torsion_S5) (pdp_cell.py line 708): the torsion figure is 32x FHJRV's
+          1/(2^4 5!) -- on the phi-base there are ~p/4 t-values, not p/2
+          x-values, which costs 2^5 in multisets (my derivation; agrees with
+          FHJRV line 854).
+      consequence_for_the_rerun: >-
+        Scored against the frozen constants, a rerun that measured everything
+        CORRECTLY would be recorded as failing: pdp_cell.py lines 679-680 divide
+        the frozen 2^20 by the measured D, so a correct D_S5 ~ 2^20 gives
+        ratio 1 < 2^6 ("ratio_meets_prediction: false") and orbit_nonfreeness
+        ~ 120 (lines 451-455, 681); a valid torsion arm with D ~ 2^16 gives
+        2^20/2^16 = 2^4 < 2^9, i.e. F1 read against the constant fires, although
+        the true raw/torsion ratio would be ~2^26.9/2^16 = 2^10.9. A versioned
+        protocol_amendment re-anchoring the prediction (and the scoring code's
+        constants) is owed BEFORE any rerun.
+      breaking_artifact: >-
+        Pornin lines 138-149 and JV lines 280-288 and 353 (quoted above); the
+        box-versus-simplex degree derivation (mixed volume 5! 16^5 vs 16^5); the
+        computed n = m = 3 check (384 vs 64); the recomputed floor table in (d).
+      what_this_does_not_show: >-
+        No statement about EcGFp5's or EcMasFp5's security level; the
+        corrected figures are the design note's model re-anchored, not
+        measurements.
+
+  # ---------------------------------------------------------------------------
+  proves_too_much:
+    object_A:
+      object: >-
+        The "0/20 is the expected regime" argument at a small prime where
+        decompositions are common: exact m = 4 decomposable fraction f by
+        independent enumeration, then the producer's m = 4 RANDOM-target cell
+        path (arm S4, target_kind random) on N targets with N f >= 10, counting
+        verified decompositions.
+      expected_failure_signature: >-
+        Observed verified decompositions inside the two-sided 99 percent binomial
+        interval of N f; materially fewer would mean the regime argument also
+        explains away a completeness defect (a precondition failure for
+        EXP-GFPN-659e34, which reuses the driver).
+      enumeration: >-
+        Own PARI/GP code, no producer code (scratch/objA/enumerate_f.gp, INV-1,
+        output objA_enumeration.txt). All three primes 11, 31, 41 are prime and
+        = 1 mod 5; c = 2 (smallest non-fifth-power) at each, z^5 - 2 irreducible;
+        both curves nonsingular at all three. Fractions (4-sums with repetition,
+        x(P_i) in F_p'): p' = 11 C1 f = 0.00279, C2 f = 0.00801; p' = 31 C1
+        3.2e-5, C2 5.8e-4; p' = 41 C1 8.3e-5, C2 6.8e-4. Selection rule, fixed
+        before the pipeline ran: the configuration with the largest f, so that
+        N f >= 10 needs the fewest solver calls -> p' = 11, curve C2.
+      configuration:
+        p_prime: 11
+        c: 2
+        field: F_11[z]/(z^5 - 2)
+        curve: C2, y^2 = x(x^2 + 2x + 10 z)   # 263 mod 11 = 10
+        order_E: 160752   # 2^4 * 3 * 17 * 197; group structure Z/80376 x Z/2 (PARI ellgroup)
+        factor_base_size_F: 13   # points with x(P) in F_11, T = (0,0) included
+        decomposable_points_S4: 1288   # 644 x-values; 84 of the 1288 points (42 x-values) are 2-sums (S2)
+        f_exact_over_E: 0.0080123   # 1288 / 160752 = 161/20094
+        target_distribution: >-
+          R = [k]G, k uniform on [1, ord G - 1], G = the producer's base_point()
+          with the harness-supplied group data n := ord G = 80376, cofactor 1:
+          G = (3 + 9z + 9z^2 + 8z^3 + z^4, 9 + 4z + 7z^2 + 7z^3 + z^4); 648
+          decomposable points lie in <G>.
+        f_exact_over_targets: 0.0080622   # 648 / 80375
+        N: 1400
+        seed: >-
+          the producer's targets() stream random.Random('2026092001:targets:11:ecgfp5_shaped');
+          base point random.Random('2026092002:basepoint:11:ecgfp5_shaped').
+        N_times_f: 11.29
+        binomial_99pct_interval: [4, 21]
+        observed_verified: 13   # 13/1400 targets with a verified relation; 60 lifted verified points; certificate re-verify pass rate 1.0
+        truth_decomposable_among_drawn: 14   # 12 distinct x-values
+      harness_deviations_declared: >-
+        (1) The S4 polynomial is not built by the producer's
+        build_arm_polynomial, which needs >= 495 distinct e-points from 4-subsets
+        of an x-pool of <= 10 values at p' = 11 (impossible); it is interpolated
+        by the harness from the producer's own point-free evaluator
+        gfpn5_core.S_poly_res over all 1001 multisets of F_11 (rref over F_11:
+        rank 495, all 506 surplus rows consistent) and checked to vanish at all
+        1288 witness decompositions of the independent truth set. (2) Group data:
+        subgroup_prime := ord G = 80376 (not prime), cofactor 1; with the
+        producer's largest-prime convention (n = 197) only 2 decomposable points
+        lie in the target subgroup (f = 1/98), which would turn N f >= 10 into
+        ~10 repeats of one system. (3) fcntl lock around each msolve call.
+        Specialisation, descent, msolve call, parametrisation parsing, lifting,
+        sign search, certificates and independent verification ran unchanged
+        (pdp_cell.cmd_cell). A first attempt (INV-2) was aborted by me after 21
+        targets because my truth script called ellog (PARI's name is elllog);
+        its logs are kept.
+      run: scratch/objA/run_objA_pipeline.py (INV-3); scratch/objA/run_rate/raw-result.json and msolve_logs.tar.gz; scratch/objA/objA_summary.json (rate_test, completeness_test); scratch/objA/run_complete/.
+      outcome: >-
+        INSIDE THE INTERVAL: 13 verified decompositions against N f = 11.29,
+        99 percent interval [4, 21]; no false positive; all 1400 msolve calls
+        completed (no crash, timeout or memory event at p' = 11). The
+        target-by-target comparison with the exact truth set locates one miss
+        of 14: target 140 (k = 7028, x_R = 1 + 4z) is a 2-sum R = P_1 + P_2 of
+        factor-base points, so R = P_1 + P_2 + P_3 - P_3 for every P_3 and the
+        m = 4 system contains the curve x_3 = x_4: msolve printed "Positive
+        dimensional Grobner basis ... The ideal has positive dimension" and
+        wrote [1, 4, -1, []]; parse_msolve_param returned its error dict and
+        cmd_cell kept sols = [] under `if par and "error" not in par`, recording
+        the target as MEASURED with D null, zero solutions and no diagnostic.
+        All 13 other decomposable draws (D = 1, 3, 6 or 7) were found and
+        certified.
+      verdict_on_the_argument: >-
+        Did not prove too much at the specified signature: the random-target
+        path finds decompositions at the rate exact enumeration predicts, so
+        "0/20 at p' >= 4111 is the expected regime" is not explaining away a
+        gross completeness defect, and this is not a precondition failure for
+        EXP-GFPN-659e34 at the level the plan specifies. It does silently drop
+        every decomposition whose system is positive-dimensional (2-sums of the
+        factor base, a fraction |S2|/|S4| ~ 12/p'^2 of decomposable targets:
+        84/1288 = 6.5 percent at p' = 11, ~1e-5 at p' ~ 2^10), and records them
+        as measured non-decompositions; that reporting defect should be fixed
+        (flag and count positive-dimensional outcomes) before the driver is
+        reused.
+      supplementary_completeness_test: >-
+        Beyond the plan, the same unchanged cell path was run on ONE target per
+        decomposable x-value in <G> (324 targets, known scalars by PARI elllog,
+        each re-multiplied; run_complete/raw-result.json, objA_summary.json
+        completeness_test): 295 of 324 recovered (91.0 percent), zero false
+        positives, 1440 lifted verified points, all certificates re-verified.
+        The 29 misses are all located. (i) 22 = EVERY 2-sum target in the set
+        (22 of 22 in S2): positive-dimensional, dropped silently as above.
+        (ii) 7 non-S2 targets with D = 4 or 6 (7 of 302 = 2.3 percent; 164 of
+        171 non-S2 targets with D > 1 were recovered): in all 7 msolve logged
+        "Mininimal polynomial is not square-free / Degree of the square-free
+        part: 1" and returned a single rational point that is NOT the
+        decomposition (lifting then rejects it: "x-polynomial does not split over
+        F_p" 6x, "x does not lift" 1x). For 6 of the 7 the random linear form
+        takes the same value at the returned point and at the decomposition's
+        e-point (e.g. target 38: returned e = (6, 8, 9, 5), decomposition
+        e = (2, 2, 6, 0), both give 7 mod 11) -- a non-separating form, which a
+        random form over F_11 hits with probability ~1/11 per pair; for target
+        119 the form separates the two points and the degenerate output is
+        presumably msolve's randomised minimal-polynomial step failing at
+        characteristic 11 (not established). The producer's path neither reads
+        msolve's degeneracy diagnostics nor substitutes a parsed solution back
+        into the system, so both mechanisms become silent "no decomposition"
+        rows.
+      transfer_to_EXP_GFPN_659e34: >-
+        Extrapolation, untested: the positive-dimensional loss scales like
+        |S2|/|S4| ~ 12/p'^2 and the parametrisation loss needs a system with at
+        least two distinct points or a non-reduced point plus a collision of
+        probability ~D/p', so both should be negligible at the rate-ladder
+        primes 2^10-2^12, where decomposable m = 4 systems are almost always a
+        single reduced point (JV lines 443-446). Not a precondition failure at
+        the plan's signature; a recommended control for that run: one
+        exact-enumeration completeness check at its smallest rate prime, and the
+        two silent paths turned into flagged outcomes.
+    object_B:
+      object: >-
+        Arm (iii) (torsion_S3, m = 3, constructed-solvable) built exactly as on
+        the EcGFp5-shaped curve, on the random_no2torsion ladder curve at
+        p' = 4111 (ladder.json: y^2 = x^3 + a x + b, a6 = [2850, 15, 3930, 376, 117],
+        has_rational_2torsion false).
+      expected_failure_signature: >-
+        Must refuse, or produce only decompositions the S3 arm also finds with no
+        orbit gain; proves too much if it reports the same degree, cost and
+        "(Z/2)^m x S_m" semantics as on the EcGFp5-shaped curve.
+      run: scratch/k6/k6_and_objB.py part B (INV-6); output scratch/k6/k6_objB_summary.json object_B.
+      outcome: >-
+        REFUSES at three layers, producer code unchanged: pdp_cell.cmd_cell
+        raises AssertionError at pdp_cell.py line 324 (`assert
+        cv["has_rational_2torsion"] and E.a6 == 0`) before any polynomial or
+        target is touched; symmetrize.build_pool_t raises AssertionError
+        (`assert E.a6 == 0`); pdp_cell.cmd_build silently skips the torsion arm
+        for a shape without rational 2-torsion and then crashes with ValueError
+        on max() of an empty list (pdp_cell.py line 312) instead of recording
+        the refusal (minor producer defect, out of scope). The independent
+        verifier would also reject a torsion certificate on such a curve
+        ("torsion arm on curve without (0,0)", verify_independent.py).
+      verdict_on_the_argument: >-
+        Did not prove too much at this object: the construction does not run
+        without T. The location where it DOES prove too much is K5's, not this
+        one: on curves where T exists, arm (iii) carries the "(Z/2)^m x S_m"
+        label and group order 2^{m-1} m! in every table (pdp_common.py line 221,
+        pdp_cell.py line 661) while delivering the S_m degree (64 = 64 at
+        n = m = 3). Its dependence on T is syntactic (a6 == 0), not a degree gain.
+        This object as specified could not have exposed that.
+    object_C:
+      object: >-
+        The supplementary flatness reading of RUN-GFPN-ca7b88 heur-dflat.yaml
+        supplementary_flatness_not_the_frozen_heuristic ("D identical across the
+        ladder, therefore flat") applied to the planted-orbit size.
+      expected_failure_signature: >-
+        If the statistic returns "flat" for a quantity constant by construction
+        it cannot discriminate; report whether every supplementary D equals the
+        planted-orbit size in every cell.
+      run: >-
+        Reading of committed artifacts (per-target D and n_rational_solutions in
+        each constructed-solvable run's raw-result.json); no computation.
+      outcome: >-
+        EVERY supplementary D equals the planted-orbit size in EVERY cell and
+        target. 18 constructed-solvable runs; 15 measured, 20 targets each: raw
+        m = 3 (RUN-GFPN-cdf887, -d3f21e, -d4415d) D = 6 = 3! on all 60 targets;
+        S3 (-49f7c5, -64df61, -ae92c4), torsion_S3 (-5f9840, -7580cd, -afc06e),
+        S4 (-fa08ca, -9424ba, -7b9ab6), torsion_S4 (-ce58c1, -7795bd, -4892c7)
+        D = 1 on all 240 targets; n_rational_solutions = D throughout. The three
+        raw m = 4 runs (-b1f5d2, -c7a3e9, -d8e114) measured nothing. So
+        D_identical_across_ladder: true and D_relative_variation 0.0 are fixed by
+        construction (one planted orbit in an overdetermined m < n system), and
+        the accompanying fp_ops_relative_variation is flat because the F4 shapes
+        are identical (K6 (b)).
+      verdict_on_the_argument: >-
+        PROVES TOO MUCH: the statistic returns "flat" on a quantity that is
+        constant by construction, so the supplementary flatness block can
+        discriminate nothing and must not be read as evidence about the
+        p-independence of any degree. It is fenced in the producer's text
+        ("decide nothing about the frozen heuristic"); the finding is that it
+        also carries no information of its own.
+
+  # ---------------------------------------------------------------------------
+  attacked_not_broken:
+    - >-
+      K6: the shape-based F4 estimate itself. On the one non-trivial cross-arm
+      pair the F4-only proxy ratio (148.7) is within 2x of the executed-
+      instruction ratio inside core_f4 (81.3); proxies recompute exactly from
+      the committed logs in 9/9 cells; S4 and torsion_S4 m = 4 CPU agree with
+      the proxy's ~1.0 ratio (203.1 vs 203.3 s at 4111). As a within-shape or
+      like-for-like RELATIVE indicator of F4 work it survives my tests.
+    - >-
+      K6 (b): the p-independence of msolve's F4 matrix shapes on these m <= 4
+      systems is real (identical per-round shapes at three primes).
+    - >-
+      K7: the design note's own arithmetic (2^102.4 systems x D^2 = 2^40 ->
+      2^142.4) and the plan's quotations reproduce exactly from the frozen text.
+    - >-
+      K5: the relation path of arm (iii) (lifting through x^2 - t x + b and
+      the R + T fix-up) is not attacked as incorrect; its certificates re-verify
+      (producer's 600, and object B shows it refuses without T).
+    - >-
+      Object A: the m = 4 random-target decision / lifting / certificate path.
+      At p' = 11 it found 13 of 14 decomposable draws (inside the 99 percent
+      interval of the exact rate) and 295 of 324 in the exhaustive
+      completeness test, with zero false positives and 100 percent certificate
+      re-verification; every miss is located (positive dimension, or a
+      degenerate msolve parametrisation at characteristic 11).
+
+  objections:
+    - id: O-1
+      joint: K5
+      text: >-
+        Arm (iii) as built is not a (Z/2)^{m-1} x| S_m construction in the
+        solver's input: it is the norm of the G2-invariant polynomial to the
+        (Z/2)^m x| S_m-invariant field, whose descended system has arm (ii)'s
+        support and degree. D-6's "quotients by the same group" and the tables'
+        group order 2^{m-1} m! for it are wrong descriptions.
+    - id: O-2
+      joint: K5
+      text: >-
+        FHJRV's Prop. 8(i) / Prop. 13 polynomial-ring form presupposes b a square
+        (or full 2-torsion); EcGFp5 is double-odd, so neither holds. H-GFPN-9a29be's
+        "EcGFp5's rational 2-torsion enables the (Z/2)^4 x| S_5 symmetrization of
+        FGHR/FHJRV" needs the non-affine rescaled construction, which is not in
+        the cited text and has to be built and validated (n = m = 3 check here).
+    - id: O-3
+      joint: K7
+      text: >-
+        The frozen prediction and H-GFPN-9a29be / RQ-GFPN-c01af8 anchor the
+        design note's 2^20 and 2^142 to the raw system; they describe the S_5
+        system. Every predicted degree is 120x too small and the band 2^121-2^132
+        is 13.8-20.7 bits too low under the note's own model.
+    - id: O-4
+      joint: K7
+      text: >-
+        Total cost = per-attempt cost x inverse success probability: the frozen
+        band omits the 1/success factor (5! for S_5; 2^4 5! for the torsion
+        quotient per FHJRV line 854), and the scoring code's nominal torsion
+        success 2/120 is 32x FHJRV's.
+    - id: O-5
+      joint: K6
+      text: >-
+        fp_operations_per_pdp mixes a modeled F4 estimate with counted F_q
+        operations priced by an unsourced inversion constant, charges
+        construction for the symmetrised arms but not for the raw arm, and has
+        no bound direction; it cannot score F3's 2^36 and its cross-arm ratios
+        are accounting artifacts.
+
+  required_controls:
+    - >-
+      A square (n = m) small-field analogue of EVERY arm run before m = 5, with
+      the arm's ideal degree compared to the orbit-count prediction
+      (raw n! K^n, S_n K^n, torsion K^n / 2^{n-1}); arm (iii) as built kept as a
+      negative control expected to equal S_n.
+    - >-
+      The identity/degenerate control for the new arm (iii): its (sigma, w)
+      system must reproduce the rescaled raw u-system's solutions orbit by orbit.
+    - >-
+      For object-A-type rate checks at small p': draw targets over a group
+      large enough that the expected success count matches the rate model
+      (see object A), and cross-check each target against an exact enumeration.
+    - >-
+      For any F_p-operation figure used against a threshold: an instrumented
+      count or a per-shape calibration against executed instructions, reported
+      with the nnz and reduction proxies as a bracket, and construction charged
+      identically in every arm.
+
+  counterexample_or_mutation: >-
+    The cheapest discriminating mutation is the one run here: build the square
+    n = m = 3 analogue of arm (ii), arm (iii) as built, and an F_p-rational
+    (Z/2)^{m-1} x| S_m quotient, and compare ideal degrees (64, 64, 16). It
+    distinguishes "the construction realises the quotient" from "the construction
+    relabels the S_m system" in two seconds of CPU.
+
+  baseline_comparison: >-
+    Nothing in EXP-GFPN-05ff43 claims to beat any baseline and none of my
+    findings does either. Rulers, from committed records (not recomputed by me):
+    Pollard rho 0.886 sqrt(n) ~ 2^159.3 group operations on EcGFp5
+    (H-GFPN-3366ea assumptions, internal); BSGS ~2^159.5 time and memory; the
+    closest specialised baseline is the design note's Gaudry/Diem figure
+    (2^142.4 at the D^2 floor, which by K7 is the S_5 system) and the JV
+    variant O(C p^2) (Pornin lines 147-149). Re-anchored under the note's own
+    model the torsion quotient sits at 2^134.4 (D^2) to 2^152.7 (5 D^3), and at
+    2^144.3 / 2^162.6 with the inverse success probability charged; none of
+    these is a measured figure and none decides a security level (RC-7).
+    dominated_by / sota_delta are not applicable to a measurement contract with
+    no measured headline.
+
+  heuristic_challenges:
+    - >-
+      HEUR-GFPN-DFLAT's random-model justification ("generic complete
+      intersection of those degrees") must be restated per arm with the right
+      degrees: the generic degree is n! K^n for raw, K^n for S_n, K^n / 2^{n-1}
+      for a genuine torsion quotient, and K^n for arm (iii) as built.
+    - >-
+      The supplementary "flatness" (object C) and the proxy flatness (K6 b)
+      are not evidence for HEUR-GFPN-DFLAT at any m: the first is fixed by
+      construction, the second restates F4-shape identity.
+
+  cost_model_challenges:
+    - K7 (d) floor table and inverse-success bookkeeping (O-3, O-4).
+    - >-
+      K6 (d): F3's 2^36 threshold cannot be scored with either committed proxy;
+      the conversion constant 150 F_q mul per inversion is ~58x the frozen
+      source's Itoh-Tsujii cost.
+    - >-
+      Linear algebra (~p^{2-2/5} sparse rows) and memory are not charged in the
+      frozen band (the producer's own optimistic_assumptions_restated says so);
+      a time-memory statement is owed before any band is compared to 128.
+
+  reduction_and_scope_challenges:
+    - >-
+      Scope: the FHJRV mechanism applies to EcGFp5 only through the non-affine
+      rescaled construction (odd extension degree needed: at even degree, e.g.
+      n = 4, no F_p rescaling exists when b is a non-square); any claim for
+      "curves with rational 2-torsion" must carry that condition.
+
+  proof_architecture_challenges:
+    - >-
+      Nearby-object attack (object B generalised): run each symmetrised arm on
+      the nearest object where its gain is known to be zero or known exactly --
+      a curve without T (refuses: fine) AND the square analogue where the
+      orbit count is exact (arm iii as built fails there).
+    - >-
+      Observation-fiber attack: D at m < n on constructed-solvable targets is
+      the same (1) for every symmetrised arm whatever the group; it is not a
+      separator between arms (object C).
+
+  rerun_proposal_to_coordinator:
+    status: proposal only; the Coordinator decides (no record changed here)
+    before_any_rerun:
+      - >-
+        A versioned protocol_amendment under experiments/EXP-GFPN-05ff43/amendments/,
+        made before the rerun, re-anchoring the prediction to the design note's
+        actual object: D_S5 ~ 2^20 (= the design note's D), D_raw ~ 5! 2^20 ~
+        2^26.9 (mixed volume), D_torsion ~ 2^16 = 2^{(m-1)^2} for a genuine
+        (Z/2)^4 x| S_5 quotient; degree-drop thresholds stated against the
+        MEASURED reference arm (e.g. D_S5 / D_torsion >= 2^4 at free orbits,
+        with the non-freeness gap reported), not against the constant 2^20; F1
+        restated accordingly; the band recomputed with the inverse success
+        probability charged (1/5! for S_5, 1/(2^4 5!) for the torsion quotient,
+        FHJRV line 854) and the factor-base halving (FHJRV lines 338-348).
+      - >-
+        The scoring code re-reviewed with the amendment: pdp_common.py lines
+        219-221 and pdp_cell.py lines 451-455, 661, 679-681, 708 hard-code the
+        mis-anchored constants and the 2/120 nominal success.
+    arm_iii_must_build: >-
+      The F_p-rational (Z/2)^{m-1} x| S_m quotient, not the norm: pick beta in
+      F_p* a non-square (b is then lam^2 beta with lam in F_{p^5}, because
+      [F_{p^5}:F_p] is odd); factor base {P : x(P)/lam in F_p} (T-stable, u ->
+      beta/u); unknowns sigma_1..sigma_m of t'_i = u_i + beta/u_i and
+      w = prod (u_i - beta/u_i); equations: the n = 5 z-components of
+      A(sigma) + w B(sigma) = 0 plus w^2 = prod (t'_i^2 - 4 beta) over F_p;
+      lifting: t'_i -> u_i in F_p (reject otherwise) -> points, signs, w-sign
+      consistency; certificate condition x(P)/lam in F_p. At m = 5 (K = 16) A has
+      sigma-degree <= 8 (<= C(13,5) = 1287 monomials) and B <= 7 (<= 792),
+      against 20349 for arms (ii) and (iii)-as-built, so it is also the cheaper
+      system to attempt under the 12 GB cap. Validate first on the square
+      analogues already computed here (n = m = 3: 16; n = m = 4 with b a square:
+      512) and with the identity control.
+    arm_iii_as_built: >-
+      Keep only as a labelled negative control (expected D = D_S_m at n = m);
+      never report its group as 2^{m-1} m!.
+    cost_unit: >-
+      Either an instrumented F_p-operation count (counter-instrumented F4, or
+      executed-instruction counts inside the F4 core with a per-shape
+      calibration), or declare F3 undecidable; report the nnz and reduction
+      proxies as a bracket that is not a bound; charge construction identically
+      in every arm (raw included); replace the 150-mult inversion constant by the
+      frozen Itoh-Tsujii cost or a measured one.
+    prediction_to_score_against: >-
+      The re-anchored numbers above; under the design note's own conventions the
+      torsion arm's band would be 2^134.4 (D^2) to 2^152.7 (5 D^3), and 2^144.3 to
+      2^162.6 with the inverse success probability charged -- arithmetic, not a
+      measurement, and not a security finding.
+
+  records_carrying_k7_premise:
+    note: listed, not changed (RC-2); the Coordinator acts.
+    records:
+      - path: ledger/hypotheses/H-GFPN-9a29be.yaml
+        where: >-
+          statement lines 26-36 ("computed for the RAW descended n=5, m=5
+          system (ideal degree D ~ 2^20 ...)", "~2^9", band "~2^121 (D^2) to
+          ~2^132"); citations claim lines 66-68 ("floor >= 2^142 for the raw
+          system at k=5"); constructive_transforms predicted_gain lines 128 and
+          131 (~2^10.9, ~2^6.9 relative to that raw D); asymptotic_claim
+          prior_best line 184 ("raw-system floor"); predictions lines 195-200;
+          falsification_conditions line 224. Also mechanism lines 46-48 (arm iii
+          "giving (Z/2)^4 x| S_5") -- the K5 premise.
+      - path: ledger/questions/RQ-GFPN-c01af8.yaml
+        where: >-
+          motivation lines 64-75 ("That D is the degree of the RAW descended
+          system", "~2^9, not 2^20", bands 2^121-2^132 for EcGFp5 and
+          2^129-2^144 for EcMasFp5).
+      - path: experiments/EXP-GFPN-05ff43/specification.yaml
+        where: >-
+          frozen_sources role line 76 ("raw-system >=2^142 floor");
+          preregistered_prediction formula lines 184-186 and comparison constant
+          line 191 ("142 (raw floor from KN-LIT-8aff72)"); source line 194;
+          falsification_criterion F1 line 283 as it would be scored; arm (iii)
+          symmetrization label line 117 (K5 premise).
+      - path: ledger/proposals/IDEA-20260920-a639a1.yaml
+        where: lines 10-16, 120, 146, 149, 180, 201 (same premise and band).
+      - path: research/gfp5_deployed_curves_20260920.md
+        where: >-
+          lines 24-34 (the table: raw row D = 2^20; S_5 / EcMasFp5 row D = 2^13.1
+          -> 2^129; torsion row D = 2^9.1 -> 2^121).
+      - path: experiments/EXP-GFPN-05ff43/implementation/pdp_common.py
+        where: lines 219-221 (prediction_reference constants and group orders).
+      - path: experiments/EXP-GFPN-05ff43/implementation/pdp_cell.py
+        where: lines 451-455, 661, 679-681 (scoring against 2^20), 708 (nominal success 2/120).
+      - path: ledger/hypotheses/H-GFPN-3366ea.yaml
+        where: >-
+          lines 70-75 (EXP-GFPN-659e34 arm (iii) at m = 4, "t_i = x_i + b/x_i ...
+          (Z/2)^3 x| S_4 of order 192") -- carries the K5 premise, not K7.
+    not_carriers_checked: >-
+      KN-LIT-8aff72 (states the 2^142 as the paper's bound under its model,
+      no raw/symmetrized claim), ledger/goals/GOAL-GFPN-380702/goal.yaml line 92
+      (cites the >=2^142 figure only), the design note itself (its text is the
+      symmetrized system).
+
+  out_of_scope_findings:
+    - id: OOS-1
+      bears_on: K3 (validator's joint)
+      text: >-
+        RUN-GFPN-ca7b88 degree_ratios_measured pairs the torsion_S3 arm with the
+        raw arm at "matched" p', but the two cells use different planted targets
+        on different factor bases (x-base vs phi-base; seeds keyed per arm), so
+        ratio 6 and "orbit_nonfreeness 4.0" are not like-for-like quantities.
+    - id: OOS-2
+      bears_on: implementation
+      text: >-
+        pdp_cell.cmd_build crashes (ValueError: max() of an empty sequence,
+        line 312) when a torsion arm has no eligible curve shape, instead of
+        recording the refusal (object B, step 2).
+    - id: OOS-3
+      bears_on: EXP-GFPN-659e34 / H-GFPN-3366ea / TASK-20260921-838c4a
+      text: >-
+        The m = 4 arm (iii) planned there ("t_i = x_i + b/x_i ... (Z/2)^3 x| S_4 of
+        order 192", H-GFPN-3366ea lines 70-75) is the same norm construction. By
+        K5 its system has the S4 shape and cost (committed m = 4 CPU 203.1 s vs
+        203.3 s over 20 targets, identical F4 shapes), while on the phi-base its
+        decomposition probability is 2^{m-1} = 8x lower than S4's (about
+        1/(192 p') vs 1/(24 p'): ~p'/4 t-values with 4 points each against ~p'/2
+        x-values with 2; my count, consistent with FHJRV lines 345-347). As
+        built it can only lose; a precondition issue for that run's arm (iii).
+    - id: OOS-4
+      bears_on: implementation.md D-6
+      text: >-
+        D-6 calls arm (iii) "a cruder realisation" that "quotients by the same
+        group"; it quotients a larger group through a norm, and FHJRV's own form
+        is not available for double-odd b at all (K5). The valid alternative at
+        m = 5 is ~10x sparser (<= 1287 + 792 vs 20349 monomials), which bears on
+        D-6's explanation of the memory exhaustion.
+    - id: OOS-5
+      bears_on: EXP-GFPN-659e34 rate ladder (reuse of the m = 4 driver)
+      text: >-
+        At small p' two producer conventions break down (object A):
+        build_arm_polynomial cannot interpolate the m = 4 polynomial (it needs
+        >= 495 distinct e-points from 4-subsets of an x-pool of size <= p'/2 and
+        samples with replacement), and drawing targets from the largest-prime
+        subgroup E[n] concentrates the decomposable points pathologically
+        (scratch/objA/objA_enumeration.txt: at p' = 11, E[n] with n = 197 or 1117
+        contains 2 of the 448-1288 decomposable points; at p' = 31 on C1, none).
+        The planned rate ladder (2^10-2^12) has pools of ~500-2000, so the
+        construction issue should not bite there; the subgroup-concentration
+        effect should be checked against an exact count at one rate-ladder prime.
+    - id: OOS-6
+      bears_on: EXP-GFPN-05ff43 / EXP-GFPN-659e34 m = 4 driver (object A)
+      text: >-
+        pdp_cell.cmd_cell treats an msolve "positive dimension" result (and any
+        unparseable output) as zero rational solutions without a flag
+        (`if par and "error" not in par`), recording a measured non-decomposition
+        with D null; and symmetrize.rational_solutions trusts a parametrisation
+        that msolve itself flags as degenerate ("minimal polynomial is not
+        square-free") without substituting the parsed point back into the
+        system. Located in object A (all 22 2-sum targets; 7 of 302 other
+        decomposable targets at p' = 11). Expected negligible for rates at
+        p' >= 2^10 (extrapolation), but both are silent reclassifications of
+        solver outcomes.
+
+  did_not_do:
+    - Did not attack K1-K4 (not owned) and read no sibling report.
+    - >-
+      Did not run, and nobody has run, any m = 5 system; no m = 5 ideal degree is
+      established or refuted here.
+    - >-
+      Did not build the F_p-rational torsion arm at n = 5 (m = 5 or m = 4); its
+      behaviour there is derived (orbit count) and validated only on the square
+      analogues n = m = 3 (two primes) and n = m = 4 (one prime, b a square).
+    - >-
+      Did not obtain an instrumented F_p-operation count: callgrind instruction
+      counts are a measured proxy for work, not F_p operations.
+    - >-
+      Did not evaluate the linear-algebra, relation-rank, memory or
+      time-memory terms of any band; did not recompute the Pollard rho / BSGS
+      rulers (quoted from internal records).
+    - >-
+      Did not read docs/target-result-profile.md, docs/claims-and-verification.md
+      or experiments/EXP-GFPN-05ff43/trial-plan.json (card inputs not needed for
+      K5-K7 or objects A-C); KN-LIT-47d541 and several ledger records were
+      grepped for the premise, not read in full.
+    - >-
+      Object A was run at p' = 11 only (the configuration with the largest f);
+      p' = 31 and 41 would need N of about 15,000-17,000 (curve C2) or far more (C1) for N f >= 10 and were not
+      attempted. The S4 polynomial there was built by the harness (declared
+      deviation), not by the producer's build_arm_polynomial.
+
+  narrowest_supported_statement: >-
+    On the committed snapshot of EXP-GFPN-05ff43 (receipt TASK-20260921-98561a):
+    (K5) arm (iii) as built is a relabelled S_m system -- same support and Bezout
+    bound as arm (ii) at m = 5 (20349 = 20349 terms), same ideal degree in the
+    computed square analogues (n = m = 3 at two primes, n = m = 4 at one) --
+    so no artifact of this run bears on the (Z/2)^4 x| S_5 symmetrization, and
+    the F_p-rational quotient that does realise the drop in those analogues was
+    never built; (K7) the frozen prediction anchors the design note's 2^20 and
+    2^142 to the raw system while they describe the S_5 system (factor 5! = 120),
+    so a rerun cannot be scored against it without a prior amendment; (K6) the
+    *_proxy counts are a like-for-like relative indicator of F4 work within 2x
+    on the one pair tested, but the committed per-PDP figures, cross-arm ratios
+    and any F3 verdict are not supported by them, and their p-flatness restates
+    F4-shape identity; (A) at p' = 11 the m = 4 random-target path finds decompositions at the exactly enumerated rate (13 against 11.3 expected, inside [4, 21]) and recovers 295 of 324 decomposable x-values exhaustively, silently dropping positive-dimensional (2-sum) systems and degenerate msolve parametrisations; (B) arm (iii) refuses on a curve without
+    T; (C) the supplementary flatness statistic is fixed by construction. Nothing
+    about D at m = 5, HEUR-GFPN-DFLAT, the p = 2^64 band, or the security of
+    EcGFp5 or EcMasFp5 is established or refuted by this report.
+
+  next_concrete_action: >-
+    Coordinator: before any rerun of EXP-GFPN-05ff43 (and before EXP-GFPN-659e34
+    runs its arm (iii)), write one versioned protocol_amendment that (1)
+    re-anchors the frozen prediction and the scoring constants to the S_5 object
+    (K7), (2) replaces arm (iii) by the F_p-rational (Z/2)^{m-1} x| S_m quotient
+    on the rescaled base with the n = m = 3 square analogue (expected D = 16,
+    against 64 for S_3 and for the old arm) as a blocking control (K5), and (3)
+    either instruments the F_p-operation count or declares F3 undecidable (K6).
+
+  budget:
+    maximum_runs: 8
+    scratch_invocations_used: 8
+    invocation_ledger: scratch/invocations.log
+    invocations:
+      - INV-1 object A exact enumeration (PARI/GP, own code), all six (p', curve) configurations -- completed
+      - INV-2 object A pipeline -- ABORTED by me after 21 targets (truth script called ellog; PARI's name is elllog); logs kept
+      - INV-3 object A pipeline, restart (rate test N = 1400 + supplementary completeness test on 324 targets) -- completed, 6949 s (1724 msolve calls, all ok)
+      - INV-4 K5 square analogue -- failed to launch (wrong Sage flag); nothing ran; counted
+      - INV-5 K5/K7 square analogue n = m = 3, two primes -- completed
+      - INV-6 object B + K6 measurement (native CPU, callgrind) -- completed
+      - INV-7 K5 square analogue n = m = 4 -- failed at start (script bug in curve choice); no solver work; counted
+      - INV-8 K5 square analogue n = m = 4, retry -- completed
+    not_counted: >-
+      Read-only inspections of committed artifacts (python/grep one-liners over
+      raw-result.json, manifests and logs, e.g. object C's per-target D table)
+      and three gp syntax one-liners; none produced a result used as a
+      measurement except object C's reading, which is a reading of committed
+      fields.
+    machine_protection: >-
+      Every solver process under an address-space cap <= 12 GiB (prlimit on the
+      driver; msolve children additionally at RLIMIT_AS 11 GiB via the
+      producer's run_msolve); every msolve / gp / valgrind / Sage solver step
+      under the dispatcher's flock, per subprocess inside Python drivers
+      (fcntl.flock) and per process for the Sage and gp runs. No memory
+      exhaustion, timeout or crash occurred in any solver call I made.
+    wall_clock: >-
+      About 2 h 23 min from the first command (~02:57Z) to the final report
+      (~05:20Z), well inside the 36000 s watchdog; the object A pipeline alone
+      took 6949 s, including waits on the shared solver lock.
+
+  artifact_paths:
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/review-report.yaml
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/scratch/invocations.log
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/scratch/objA/ (enumerate_f.gp, objA_enumeration.txt, objA_S4sub_*.txt, truth_S4.gp, truth_p11_C2.txt[.logs], run_objA_pipeline.py, objA_summary.json, run_rate/, run_complete/, cache/, inv*_std*.log)
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/scratch/k5k7/ (square_analogue.py, square_analogue_n3.json, square_analogue_m4.py, square_analogue_n4.json, inv*_std*.log)
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/scratch/k6/ (k6_and_objB.py, k6_objB_summary.json, callgrind.*.annotate.txt, systems/*.ms, inv6_std*.log)
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-404bf9/scratch/objB/ (run_cell/, run_build/ -- empty: the producer's code refused before writing)
+
+review_attestation:
+  task_id: TASK-20260923-404bf9
+  review_plan_ref: ledger/handoffs/TASK-20260923-fe27e4.yaml
+  joints_owned: [K5, K6, K7]
+  proves_too_much_owned: true
+  verdicts:
+    K5: breaks
+    K6: breaks
+    K7: breaks
+  proves_too_much_outcomes:
+    A: >-
+      did not prove too much -- 13 verified against N f = 11.29, 99 percent
+      interval [4, 21] (p' = 11, curve C2, N = 1400); one located miss (a
+      positive-dimensional 2-sum system silently recorded as no solution);
+      supplementary exhaustive test 295/324, all 29 misses located
+    B: did not prove too much -- the construction refuses without rational 2-torsion (three layers)
+    C: proved too much -- the flatness statistic returns "flat" on the planted-orbit size, constant by construction
+  read_sibling_reports: false
+  blind_from_respected: null
+  blindness_disclosures:
+    - >-
+      No path under coordination/goals/GOAL-GFPN-380702/reviews/ other than
+      this task's directory was listed, read or searched. My repository-wide
+      searches were restricted to named paths (ledger, knowledge, research,
+      experiments/EXP-GFPN-05ff43, experiments/EXP-GFPN-659e34,
+      coordination/goals/GOAL-GFPN-380702/archives) and never traversed
+      reviews/.
+    - >-
+      Process list: to monitor MY OWN background jobs I ran `ps aux | grep
+      run_objA` (filtered to my script name) and `pgrep -a msolve` twice; both
+      pgrep calls returned no line, and no other session's process or output
+      was seen. Nothing under /tmp/claude-0/ was listed or read except the
+      solver lock file (one `ls -la` of the lock path at start); three gp
+      one-liners were run with /tmp as working directory, reading nothing there.
+      Git: only `git status` of experiments/EXP-GFPN-05ff43 and of the
+      implementation directory, `git log -1` / `git log --oneline -3` for the
+      HEAD hash, and `git check-ignore` on the bytecode file; no stash, diff of
+      untracked files, or history search for other output.
+    - >-
+      The dispatcher's mid-task reminder (exclude reviews/ from repo-wide
+      searches; nothing under /tmp/claude-0/ except the lock) arrived after my
+      searches; I re-checked every search command against it: none traversed
+      another reviewer's directory.
+  scope_disclosures:
+    - >-
+      One write outside the write scope, not a record: when INV-2 first imported
+      the producer's modules, Python regenerated its bytecode cache
+      experiments/EXP-GFPN-05ff43/implementation/__pycache__/pdp_cell.cpython-311.pyc
+      (2026-09-23T03:17:31Z; gitignored, untracked, derived from the unchanged
+      committed source). No tracked file changed (git status clean; receipt hashes
+      67/67 match). Later invocations did not rewrite it (timestamp unchanged);
+      INV-7/INV-8 ran with PYTHONDONTWRITEBYTECODE=1. Disclosed for the
+      Coordinator; I did not delete it (a second write).
+    - >-
+      No ledger record, run package, registry, card or knowledge entry was
+      modified; nothing written under experiments/; no identifier minted; no
+      git add / commit / stash / reset / checkout / push.
+  sources_read:
+    - AGENTS.md
+    - agents/red-team.md
+    - CLAUDE.md
+    - templates/research-records.md (review_plan tail, review_attestation, archive receipt; lines ~600-702)
+    - tools/check_review_independence.py (verdict and attestation parsing, lines ~100-470)
+    - ledger/handoffs/TASK-20260923-404bf9.yaml
+    - ledger/handoffs/TASK-20260923-fe27e4.yaml
+    - ledger/handoffs/TASK-20260921-98561a.yaml (lines 100-161)
+    - ledger/handoffs/TASK-20260921-838c4a.yaml (constraint C-8, lines 101-126)
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260921-98561a/snapshot-receipt.json (keys; path_sha256 verified for 67 paths)
+    - experiments/EXP-GFPN-05ff43/specification.yaml
+    - experiments/EXP-GFPN-05ff43/implementation.md
+    - experiments/EXP-GFPN-05ff43/implementation/pdp_cell.py
+    - experiments/EXP-GFPN-05ff43/implementation/pdp_common.py
+    - experiments/EXP-GFPN-05ff43/implementation/symmetrize.py
+    - experiments/EXP-GFPN-05ff43/implementation/gfpn5_core.py
+    - experiments/EXP-GFPN-05ff43/implementation/verify_independent.py
+    - experiments/EXP-GFPN-05ff43/implementation/ladder.json (lines 1-150)
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ca7b88/heur-dflat.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ca7b88/cost-band-p64.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ca7b88/ladder-table.yaml (proxy lines)
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ca7b88/manifest.yaml (lines 1-80)
+    - experiments/EXP-GFPN-05ff43/runs/*/manifest.yaml (run, status, inputs.parameters of all 48, by script)
+    - experiments/EXP-GFPN-05ff43/runs/*/raw-result.json (metrics, targets and polynomial build metadata of the cell, raw, build and aggregate runs, by script)
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-cdf887/raw_t0.ms.log (lines 1-120)
+    - experiments/EXP-GFPN-05ff43/runs/{RUN-GFPN-f888a7,fb0726,26a539,2926e7,9172cf,adaec1,49f7c5,5f9840,cdf887}/*_t*.ms.log (parsed by scratch/k6/k6_and_objB.py)
+    - ledger/hypotheses/H-GFPN-9a29be.yaml
+    - ledger/questions/RQ-GFPN-c01af8.yaml
+    - ledger/hypotheses/H-GFPN-3366ea.yaml (lines 60-90)
+    - experiments/EXP-GFPN-659e34/specification.yaml (lines 1-250)
+    - inputs/PORNIN-2022-274-ECGFP5/paper_fulltext.md (lines 100-175, 255-300, 360-380, 500-548, 590-604, 865-885)
+    - inputs/JOUX-VITSE-2010-157/paper_fulltext.md (lines 60-70, 270-300, 345-372, 440-452, 578-590)
+    - research/equation-schemes-20260905/retrieved-pages/hal-00935050.txt (lines 100-923)
+    - knowledge/literature/KN-LIT-8aff72.md (lines 20-50)
+    - knowledge/literature/KN-LIT-673219.md
+    - research/gfp5_deployed_curves_20260920.md (lines 15-60)
+    - >-
+      grep hits only (matching lines, not whole files): ledger/proposals/IDEA-20260920-a639a1.yaml,
+      ledger/goals/GOAL-GFPN-380702/goal.yaml, knowledge/literature/KN-LIT-47d541.md,
+      ledger/hypotheses/H-GFPN-ee4d45.yaml, ledger/decisions/DEC-20260920-fe73de.yaml,
+      ledger/decisions/DEC-20260921-683a85.yaml, ledger/decisions/DEC-20260922-e9d35a.yaml,
+      ledger/decisions/DEC-20260923-885c52.yaml, ledger/corrections/CORR-20260923-d4220b.yaml,
+      experiments/EXP-GFPN-05ff43/corrections/RUN-GFPN-bbed6f.v2.yaml,
+      ledger/handoffs/TASK-20260923-e9ddd2.yaml
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+    resolved_binding: >-
+      `python3 -m orchestration.adapter resolve --role red_team
+      --independent-session` printed: "review-adversarial ->
+      anthropic:claude-opus-5 (effort=xhigh)" (repository configuration, not a
+      verified serving model).
+    bedrock_used: false

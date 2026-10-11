@@ -1,0 +1,156 @@
+handoff:
+  id: TASK-20261001-762c5f
+  from: coordinator
+  to: executor
+  goal_id: GOAL-SCURVE-48e06c
+  batch_id: BATCH-aa389e
+  opening_decision: DEC-20261001-9bb1b7
+  objective: >-
+    Execute lane L5 (transfer, priority 1) of the frozen Anomalous audit plan
+    (BATCH-7cb7f8 / TASK-20260824-8c11ab audit-plan.yaml) exactly as the plan
+    states it. Produce certificate C4 for the published Anomalous tuple. C4 is
+    C1 (a primality certificate for p) + C2 (base point G on the curve) + C3
+    (G != O and p*G = O) + the HD3 interval argument (p | #E and
+    #E <= p + 1 + 2*sqrt(p) < 2p, hence #E = p and t = 1). Run L5's controls
+    through the identical code path: CTRL-POS (the target itself: C4 must be
+    produced), CTRL-NEG-1 (the quadratic twist, #E' = p + 2: C4 must NOT be
+    producible, and a point G' on the twist must satisfy (p+2)*G' = O), CTRL-NULL
+    (at least 20 independent random (a, b) at the SAME p, seeded and the seed
+    recorded: C4 must not be producible on any, reported as a rate k/20), and
+    CTRL-FAULT-1 (change one digit of one field of the valid certificate: the
+    verifier must reject).
+  uncertainty_reduced: >-
+    Whether the family's transfer-lane instrument fires on the one SafeCurves
+    row whose transfer cell is expected to be false and stays silent on its
+    parameter-matched twist and on same-prime random curves. Also, whether the
+    published Anomalous tuple really satisfies #E = p, or whether the agreement
+    between the retrieved p and l strings is a retrieval artefact (plan L5
+    explanations E1 versus E2).
+  inputs:
+  - ledger/goals/GOAL-SCURVE-48e06c/goal.yaml
+  - ledger/questions/RQ-SCURVE-84a540.yaml
+  - ledger/decisions/DEC-20261001-9bb1b7.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-7cb7f8/tasks/TASK-20260824-8c11ab/audit-plan.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-7cb7f8/tasks/TASK-20260824-8c11ab/parameter-capsule.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-7cb7f8/tasks/TASK-20260824-8c11ab/task-report.yaml
+  - coordination/goals/GOAL-SCURVE-15e805/batches/BATCH-0aef14/dispatch_queue.json
+  - https://safecurves.cr.yp.to/base.html
+  - https://safecurves.cr.yp.to/equation.html
+  - https://safecurves.cr.yp.to/field.html
+  - https://safecurves.cr.yp.to/transfer.html
+  constraints:
+  - >-
+    READ THE AUDIT PLAN AS TEXT. audit-plan.yaml does not parse as YAML (parse
+    error near line 210, recorded in DEC-20261001-9bb1b7). Do not repair, rewrite
+    or re-serialize it. It is immutable.
+  - >-
+    SOURCE ROUTE, IN THIS ORDER, EACH ATTEMPT RECORDED. (1) Raw primary-host fetch
+    of the four SafeCurves pages with curl into files inside write_scope, with
+    sha256 recorded, never through a summarizing fetch tool. (2) If the host does
+    not resolve or does not answer (at the 2026-10-01 capability check
+    safecurves.cr.yp.to did not resolve), fetch a raw archived capture
+    (web.archive.org/web/<timestamp>id_/<url>) and record capture URL, timestamp
+    and sha256. (3) If neither works, use the capsule's retrieved digit strings
+    for p, a, b, x1, y1, l, labelled `provenance: proxy_transcribed_unconfirmed`.
+    Under every route, cite the exact source line or byte offset for each value
+    used, or say there is none. Capsule conflict C-1 stays OPEN unless route (1)
+    succeeds.
+  - >-
+    SELF-CHECK GATE. No digit string is used in any certificate until C2 (on-curve
+    identity) passes for the tuple it belongs to. A failed C2 is a transcription
+    finding about the source channel, NOT a mathematical result. Stop L5 and
+    report it.
+  - >-
+    TWO INDEPENDENT IMPLEMENTATIONS FOR C3. Compute p*G once in pure Python
+    (your own affine or Jacobian double-and-add) and once with Sage or PARI
+    (ellmul / scalar multiplication). Record both results. Disagreement is an
+    instrument fault and voids the lane.
+  - >-
+    PRIMALITY ROUTE DISCLOSED. C1 must be a real certificate: a Pocklington
+    certificate as the plan specifies, or a PARI primecert ECPP certificate
+    checked with primecertisvalid. Record which. A BPSW / Miller-Rabin outcome may
+    be reported, but it must never be labelled a certificate (plan C1).
+  - >-
+    CTRL-DECAY IS NOT RUN, and CTRL-NEG-2 is optional. CTRL-DECAY requires
+    implementing the additive transfer, which L5's stopping rule and capsule
+    conflict C-4 forbid until a source paper has been read in full
+    (DEC-20261001-9bb1b7 rationale). Record CTRL-DECAY as `deferred: not run`
+    with that reason. CTRL-NEG-2 may be run only if it fits the budget, using a
+    curve whose order is known by construction, per the plan.
+  - >-
+    DO NOT IMPLEMENT OR RUN ANY TRANSFER OR ATTACK (Smart / Semaev /
+    Satoh-Araki). L5 certifies the PRECONDITION only. The strongest permitted
+    sentence is "the documented precondition #E = p holds (or does not) for the
+    stated tuple, certified".
+  - >-
+    No SafeCurves True/False comparison cell is emitted. Measured quantities are
+    reported as measurements. Thresholds are not this task's question (capsule
+    conflict C-2).
+  - >-
+    Stopping rule (plan L5): stop as soon as C4 is produced or refuted. The
+    certificate budget is about 60 s of compute. Exceeding it is reported, never
+    silently continued. A budget stop, timeout, DNS failure or missing dependency
+    is an operational observation, never mathematical evidence (AGENTS.md core
+    rule 5).
+  - >-
+    Make no statement that the Anomalous curve, or any curve, is safe, unsafe or
+    vulnerable. Use only public parameters and locally generated controls. Never
+    test, request, store or derive a live private key.
+  - Do not create an EXP-* record, do not edit any ledger record, and write only inside write_scope.
+  - Never select a provider, backend, endpoint or model identifier containing Bedrock (case-insensitive).
+  deliverables:
+  - source-binding.yaml giving the route taken, every fetch attempt with its exit status, sha256 of every
+    fetched file, and a value-by-value table (value, source, line or offset, provenance label)
+  - transfer-lane-L5.yaml giving C1, C2, C3 (both implementations), the HD3 interval inequality with exact
+    integers, the C4 verdict, and each control's required versus observed behaviour and seed
+  - l5_certificate.py, the exact code that produced the certificate and controls, runnable on its own
+  - l5_certificate.stdout.txt, the raw stdout of the final run
+  - task-report.yaml stating what ran, what was deferred or UNRESOLVED and why, wall-clock, and the
+    environment (python, sage and gp versions)
+  artifact_paths:
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f/source-binding.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f/transfer-lane-L5.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f/l5_certificate.py
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f/l5_certificate.stdout.txt
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f/task-report.yaml
+  read_scope:
+  - ledger/goals/GOAL-SCURVE-48e06c/goal.yaml
+  - ledger/questions/RQ-SCURVE-84a540.yaml
+  - ledger/decisions/DEC-20261001-9bb1b7.yaml
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-7cb7f8/
+  - coordination/goals/GOAL-SCURVE-15e805/batches/BATCH-0aef14/
+  write_scope:
+  - coordination/goals/GOAL-SCURVE-48e06c/batches/BATCH-aa389e/tasks/TASK-20261001-762c5f
+  archived_by: TASK-20261001-e8b6f6
+  inference:
+    policy: executor-implementation
+    reasoning_effort: medium
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+    budget_note: >-
+      maximum_runs 0 means no EXP-* run record is created, following the
+      BATCH-0aef14 precedent. The lane computation itself is the deliverable and
+      is retained as code plus raw stdout.
+  completion_gate:
+  - Every source-route attempt is recorded with its outcome, and every value used carries a provenance label
+    and a line or offset citation (or an explicit "none").
+  - C2 passed before any value was used, or the lane stopped and reported a transcription finding.
+  - C1 is a genuine primality certificate with its route named, or the report says plainly that only a
+    probabilistic test was obtained.
+  - C3 was computed by two independent implementations and both results are recorded.
+  - CTRL-POS, CTRL-NEG-1, CTRL-NULL (at least 20 draws, seeded) and CTRL-FAULT-1 ran through the identical
+    code path with required versus observed behaviour recorded, and CTRL-DECAY is recorded as deferred with
+    its reason.
+  - No transfer or attack was implemented, no SafeCurves True/False cell was emitted, and no safety or
+    vulnerability statement was made.
+  - All five artifact_paths exist and nothing outside write_scope was written.
+  review_plan: null
+  review_plan_note: >-
+    Not a claim-changing review round. No hypothesis is bound to this goal,
+    and the lane cannot move a hypothesis status, close a lane, or support a
+    headline claim. Independent validation is TASK-20261001-efba92.

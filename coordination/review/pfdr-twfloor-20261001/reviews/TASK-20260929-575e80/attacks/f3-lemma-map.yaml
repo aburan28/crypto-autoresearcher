@@ -1,0 +1,125 @@
+# TASK-20260929-575e80 -- F3: the floor lemma as numbered steps, the A7 symbol map, the
+# c = 2 / c = 1 adjudication with G5, and the per-arm premise table (choices F3-1..F3-5).
+# Sources: ledger/hypotheses/H-PFDR-0cc7e8.yaml (mechanism, assumptions, quantifier_order,
+# proof_obligations, predictions, falsification_conditions) and IDEA-20260928-ce3ab0
+# claim (A), both at 66d6eab71. Numbers from out/01, 02, 02b, 03, 04, 06 (this directory).
+f3_lemma_map:
+  lemma_steps:
+    - step: L0 (premise)
+      text: >-
+        G has prime order N; P, Q and the base elements F_1..F_B are independent encodings with
+        uniform unknown logs; the base is sampled by an x-predicate, not generated from P and Q
+        (H-PFDR-0cc7e8 mechanism and assumption 2; IDEA claim (A) "Setting").
+      quantity: the distribution of z = (k, log F_1, ..., log F_B)
+    - step: L1 (i)
+      text: Each pair of distinct computed linear forms collides under the x-key (equal or negated) with probability <= 2/N (mechanism; proof_obligation 1).
+      quantity: per-pair collision probability
+      check: >-
+        Derived (DN D0): (N-1)/2 x-classes; for affine forms with independent linear parts the
+        probability is exactly 2/N - 2/N^2; 2/N is an UPPER bound for every pair that is not a
+        formal duplicate; probability 1 for formally related pairs.
+    - step: L2 (ii)
+      text: X computed encodings give at most X^2/N expected collisions (mechanism).
+      quantity: E[number of colliding compared pairs]
+      check: >-
+        Linearity of expectation for a non-adaptive compared set (DN D1). For this engine, which
+        truncates adaptively (early return, stop at k), the expectation form is NOT derived by
+        the source record (DN D3, open obligation); it is checked numerically: census aggregate
+        T >= 1.45 on every premise-holding on-mode cell and >= 1.07 (99% lower end) at every
+        rung; PTM-5 aggregate T >= 1.30 at every rung in the exact generic model.
+    - step: L3 (iii)
+      text: Each independent relation needs its own collision (mechanism; proof_obligation 2).
+      quantity: r = number of independent relations <= number of colliding pairs
+    - step: L4 (iv)
+      text: 'One S_3 unit yields two encodings (README charging, F + S and F - S from one inversion), so X = 2S (mechanism; proof_obligation 3; quantifier_order "2 encodings per S_3-unit").'
+      quantity: X, the number of compared encodings
+    - step: L5 (v)
+      text: '"Therefore E[r] <= 4 S^2 / N, i.e. S >= (1/2)*sqrt(r*N)" (mechanism); "THEREFORE there EXISTS NO generic A with total S_3 < (1/2)*sqrt(r*N)*(1-o(1))" (quantifier_order).'
+      quantity: S, bounded below
+      where_the_expectation_becomes_per_row: >-
+        At the "i.e." of L5. "E[r] <= 4S^2/N" is an expectation over the run's randomness at a
+        fixed S; "S >= (1/2)*sqrt(r*N)" is a deterministic inequality between ONE run's S and
+        ONE run's r. The quantifier_order form is asymptotic and about algorithms ("(1-o(1))",
+        "EXISTS NO generic A"), not about runs. Prediction (i) ("at least 1.0 on every row"),
+        falsification condition 1 ("Any committed row with ratio < 0.9 means the lemma, its
+        constants, or the charging convention is wrong") and A7/TW-FLOOR apply the "i.e." form
+        to every row. The lemma does not license that reading (DN D2, D4, D5).
+    - step: L6 (consequence)
+      text: With r ~ c_m |F| and |F| = N^beta the floor is N^((1+beta)/2); (m+1)/(2m) at beta = 1/m.
+      quantity: the exponent (F7's, not this joint's)
+
+  symbol_map:
+    S_3: 's3_solves (table included) <-> S. FAITHFUL: every charged unit is counted; table: one unit per (a, T) prepend at every level (tails.py 307); search: one per scanned index of the charged range (decompose.py 173, 240, 253).'
+    X: >-
+      2*S_3 <-> X. FAITHFUL AND CONSERVATIVE: the compared encodings number
+      X_cmp = table_entries + B + encodings_recorded = 2*S_3 - degenerate (h = 2; 2450/2450
+      rows) and 2*S_3 - B^2 - degenerate (h = 3; 1020/1030 rows, the other 10 one lower: a
+      level-3 sum hit the point at infinity); X_cmp <= 2*S_3 on every row (02b).
+    N: the row's N (group order) <-> N. FAITHFUL; (N-1)/2 x-classes.
+    constant_one_half: follows from c = 2. FAITHFUL.
+    r: >-
+      relations (census) or relations + sum(on.rows_fed) (on) <-> the lemma's r. NOT the
+      lemma's r of L3/L5: every fed row is ONE colliding compared pair (decomposition = one TS
+      pair; TT/TB/SS star rows = (centre, member) pairs), so r_frozen is L2's count, admissible
+      in expectation (E[r_frozen] <= E[pairs] <= X^2/N) but it includes dependent rows and, on
+      known_log and j0_coset, formal rows. The independent-relation count of L3 is the solver
+      rank (r_rank = rank; rank == sum of solver_rank_increments on all 1660 on-mode rows).
+      On the 21 generic firing rows r_frozen/rank runs from 4.0 to 15.5, and S_3/((1/2)*sqrt(rank*N)) from 1.72 to 2.97.
+    fed_rows_classified:
+      decomposition_TS: colliding pair of a charged search encoding and a charged stored tail
+      TT_star: colliding pair of two charged stored tails
+      TB_star: colliding pair of a free base point and a charged stored tail (covered by X = 2S_3, see X)
+      SS_star: colliding pair of two charged search encodings (R_t itself at m = 4, 5 is a charged root)
+      formal_rows: colliding pairs whose collision is certain (probability 1); L1 fails for them
+      dependent_rows: colliding pairs that reduce to zero; L2-admissible, not L3
+
+  c_adjudication:
+    c2: >-
+      ENGINE-FAITHFUL. Search: G5 (encodings_recorded == 2*(s3_solves - table_s3_solves) -
+      degenerate_roots) recomputed from fields holds on 73/73 firing rows, 73/73 census twins
+      and 3480/3480 harvest rows, identity_ok true on all (IC-4: both roots of each charged
+      index recorded). Table: entries == B^2 = 2*table_s3 - B (h = 2) and entries == 2*u3,
+      table_s3 == u2 + u3 (h = 3) on every row; entries <= 2*table_s3 on every row.
+    c1: >-
+      PROVES TOO MUCH. With c = 1 (floor sqrt(r*N), ratio halved) the plain engine on generic
+      bases fires: census-mode random arms 5 of 990 (all m = 3; minimum ratio 0.743),
+      structured 2 of 494, j0_random 3 of 105; harvest-off sweep rows R05/R06 4 of 330. c = 1
+      also fires on 328/330, 314/330, 275/330 random on-mode instances at m = 3, 4, 5.
+
+  premise_table:
+    - arm: known_log (F_j = jP)
+      premise: FALSE by construction (every base log is j, a known multiple of log F_1)
+      evidence: >-
+        formal_basis_kind known_log and formal_basis_rank == B - 1 on all 70 rows (G6); on-mode
+        formal rows are 402,293 of 404,360 fed rows (99.5%); census mode: 35/35 capped at the
+        attempt cap without k (31 with zero relations), not evaluable.
+      A7_applied_as_if_premise_held: yes -- all 35 on-mode instances evaluated, all 35 fire (ratio 0.080-0.536)
+    - arm: j0_coset (y^2 = x^3 + b, 3 | d coset base)
+      premise: FALSE by construction (base closed under the order-3 automorphism)
+      evidence: >-
+        formal_basis_rank == 2B/3 on all 70 rows, i.e. B/3 omega-closed orbits of three base
+        points (3-5 orbits at 12 bits up to 47-63 at 24 bits); formal rows are 55% (mean share)
+        of the on-mode fed rows.
+      A7_applied_as_if_premise_held: yes -- 35 on-mode + 35 census evaluated; 17 on-mode fire (0.724-1.158)
+    - arm: j0_random_r0..r2
+      premise: holds up to accidental automorphism pairs
+      evidence: formal_basis_rank > 0 on 12 of 210 rows (at most 8.3% of B); 0 formal rows emitted in on mode; 0 of 105 on-mode fire.
+    - arm: random_sub_r0..r2, random_dick_r0..r2
+      premise: HOLDS by construction
+      evidence: >-
+        FactorBase.random draws x = rng.randrange(p) uniformly (rng seeded by p, a, b, size,
+        seed -- independent of P and k), lifts it and keeps distinct x: logs uniform over the
+        +-classes and independent; formal kind none, formal rank 0 on all 1980 rows. 14 of 990
+        on-mode fire; 0 of 990 census.
+    - arm: subgroup, dickson, small_x
+      premise: an ASSUMPTION -- exactly lead 2's null (HEUR-4765e4-H2)
+      evidence: >-
+        formal kind none, formal rank 0 on all 990 rows; EV-PFDR-1faf10 found no calibrated
+        structural excess within its detection limits. 7 of 494 on-mode fire (1.42%) against the
+        random arms' 14 of 990 (1.41%): Fisher two-sided p = 1.0 (PTM-4).
+    - arm: targets aP + bQ
+      premise: HOLDS (non-adaptive forms; adaptivity is truncation only)
+      evidence: >-
+        (a, b) drawn by the solver's seeded rng (solver.py 160), independent of z; target forms
+        a_t + b_t k with k uniform; two distinct targets' encodings collide with probability
+        <= 2/N (DN D0); the only adaptivity is the early return and the stop (DN D3).

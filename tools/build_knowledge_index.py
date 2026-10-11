@@ -19,6 +19,11 @@ import sys
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "tools"))
+try:  # libyaml with the pure loader's errors; 98% of this tool was YAML parsing
+    from fast_yaml import safe_load
+except ImportError:  # a copy without its sibling module
+    safe_load = yaml.safe_load
 INDEX = os.path.join(REPO, "knowledge", "INDEX.md")
 SKIP = {"README.md", "SEEDING.md", "INDEX.md"}
 
@@ -38,7 +43,7 @@ def collect_rows() -> list[tuple[str, ...]]:
         text = open(path, encoding="utf-8").read()
         if not text.startswith("---"):
             continue
-        fm = yaml.safe_load(text.split("---", 2)[1]) or {}
+        fm = safe_load(text.split("---", 2)[1]) or {}
         rows.append(
             (
                 str(fm.get("id", "")),
@@ -72,6 +77,16 @@ def render(rows: list[tuple[str, ...]]) -> str:
 
 def main() -> int:
     args = sys.argv[1:]
+    # Anything unrecognised -- `--help` included -- used to fall through to the
+    # write path and regenerate INDEX.md as a side effect of asking for usage.
+    unknown = [a for a in args if a not in ("--check", "--verify-corpus")]
+    if unknown:
+        print(f"usage: {sys.argv[0]} [--check | --verify-corpus]\n"
+              "  (no flag)        write knowledge/INDEX.md\n"
+              "  --check          exit 1 if knowledge/INDEX.md is stale\n"
+              "  --verify-corpus  build and discard (CI crash check)",
+              file=sys.stderr)
+        return 0 if unknown in (["--help"], ["-h"]) else 2
 
     # --verify-corpus BUILDS the index and throws away the result. It exists
     # because INDEX.md is a GENERATED FILE and is no longer committed: every

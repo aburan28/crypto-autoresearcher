@@ -1,0 +1,258 @@
+handoff:
+  id: TASK-20260928-51b8c8
+  created_at: '2026-09-29'
+  created_by: coordinator (TASK-20260928-102217, /design-experiment)
+  from: coordinator
+  to: executor
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  approval_decisions: [DEC-20260928-b3afc2, DEC-20260928-ab2d31]
+  title: >-
+    Execute EXP-PFDR-7c8bf2 (generic floor re-read, zero solver runs), then
+    implement the collision harvest and census panels and execute
+    EXP-PFDR-1b78f7 exactly as frozen
+  objective: >-
+    Produce the complete, valid run sets of the two frozen contracts
+    experiments/EXP-PFDR-7c8bf2/specification.yaml and
+    experiments/EXP-PFDR-1b78f7/specification.yaml. First the zero-compute
+    floor re-read; then the engine extension (no new solver), the regression
+    gates, the census panels and the analysis. Observations only: no
+    interpretation beyond each contract's outcome table.
+  uncertainty_reduced: >-
+    Whether the engine sits on the generic collision floor (1/2)*sqrt(r*N);
+    how much harvesting TT, TB and SS coincidences lowers S_3 to solution at
+    m = 3, 4, 5; and whether coset, Dickson or small_x bases show a
+    formal-subtracted coincidence excess kappa over matched random bases that
+    carries informative rank.
+  inputs:
+    - experiments/EXP-PFDR-7c8bf2/specification.yaml (FROZEN; governs step 1)
+    - experiments/EXP-PFDR-1b78f7/specification.yaml (FROZEN; governs steps 2-6; its implementation_contract, cells, analysis, gates and runs sections are binding)
+    - ledger/hypotheses/H-PFDR-0cc7e8.yaml and ledger/hypotheses/H-PFDR-4765e4.yaml (context; the specifications govern where wording differs)
+    - ledger/decisions/DEC-20260928-b3afc2.yaml and ledger/decisions/DEC-20260928-ab2d31.yaml (the approvals)
+    - ledger/proposals/IDEA-20260928-4e2be7.yaml and ledger/proposals/IDEA-20260928-ce3ab0.yaml (source records)
+    - src/crypto_autoresearcher/index_calculus/ (the engine; README.md sections 1-5)
+    - src/crypto_autoresearcher/index_calculus/results/*.jsonl.gz (committed rows; read-only)
+    - tests/test_index_calculus_fp.py (read-only; must pass unedited)
+  constraints:
+    - >-
+      AUTHORITY. Refuse to start unless both specifications read status
+      approved with frozen true and both approval decisions exist at the
+      committed paths above. A message saying "approved" is not an approval.
+    - >-
+      NO SOLVER CHANGE. Extend the existing engine only, exactly as
+      EXP-PFDR-1b78f7 implementation_contract IC-1..IC-8 states: factor_base.py
+      (dickson builder, subgroup divisor_multiple_of keyword, known_log
+      builder, Dickson membership polynomial, FACTOR_BASES += dickson);
+      curve.py (generate_prime_order_curve_j0); tails.py (read-only group
+      iteration and decode); decompose.py (optional recorder with the
+      charged-range rule); harvest.py (new: TT/TB/SS classes, formal
+      duplicates, star rows, independent certificate, formal bases,
+      formal classes, census elimination, fixed attempt budget, per-class
+      counters, retention); solver.py (harvest off|census|on, target_label,
+      attempt_budget, ICResult.harvest); __main__.py (sweep --harvest; census
+      subcommand with panels main, rho, j0). Byte-unchanged: linalg.py,
+      _accel.py, rho.py, semaev.py, msolve.py, polyfp.py, stats.py,
+      README.md, every file under results/, tests/test_index_calculus_fp.py.
+    - >-
+      HARVEST CLASSES, EXACTLY. TT = two stored tails sharing an x-key; TB = a
+      stored tail whose x-key is a base element's; SS = two search encodings
+      (same or different targets) sharing an x-key, where an encoding is one
+      of the two finite points R' -+ F_j of a CHARGED search S_3 solve and
+      nothing else. Do not harvest table-vs-search or search-vs-base
+      coincidences. Counters per class exactly as the spec's harvest_block
+      keys (raw, formal, nonformal pairs; dup_formal; rows emitted, formal,
+      nonformal; cert_pass, cert_fail; informative_rank; k_determining_rows;
+      poisson_mean; SS also at A_fix).
+    - >-
+      CONTROL ARMS, EXACTLY. The known-log small-multiples base (F_j = j*P,
+      j = 1..|F|, H017) at m = 3 up to 24 bits with the attempt cap of
+      random_sub_r0; the j = 0 control curves (generate_prime_order_curve_j0,
+      j0 filter, coset with 3 | d, three matched random seeds) at m = 3,
+      12..24 bits; their formal bases as specified (known_log: e_j - j*e_1;
+      j0: e_b - eps*lambda*e_a with the lambda check on P). The
+      duplicated-column rank control is the synthetic unit fixture of IC-8.
+    - >-
+      HARVEST-OFF EXACT-REPRODUCTION REGRESSION (gate G1). Runs R02-R07
+      re-run every row of the six committed files sweep-20260924,
+      sweep-mitm-20260926, sweep-arity-20260926, sweep-minfill-20260926,
+      sweep-arity-minfill-20260926 and sweep-arity67-20260928 with harvest off,
+      using the exact commands in the spec's runs section. Every key present in
+      the committed row except `seconds` must be equal after JSON parse --
+      including attempts, relations, rank, s3_solves, table_s3_solves,
+      target_ops and la_ops under the recorded la_pivot (missing field =
+      min_index) -- and the new row count must equal the committed row count.
+      Gate G2: R08-R09 repeat the two min_fill files with --harvest census and
+      must reproduce the same columns. compare_regression.py writes
+      regression-report.json for each. G1 and G2 are preconditions for running
+      any census panel and for reading any harvest-on number.
+    - >-
+      IF G1 OR G2 FAILS: stop before R10. Run R17 (the failing jobs only, on
+      the dispatch base commit, in a detached scratch worktree created with
+      git worktree add; nothing committed) and report whether each mismatch
+      predates the harvest change. Then return; do not work around it, do not
+      edit a committed file, do not relax the comparison.
+    - >-
+      CERTIFICATE CHECKS. Every harvested row is re-verified as
+      sum_i c_i*F_i + kcoef*Q == rhs*P on an independent Curve instance
+      (curve.py add/mul, its own OpCounter, no numpy) BEFORE it enters any
+      elimination; cert_pass must equal rows_emitted and cert_fail must be 0
+      in every class of every instance (gate G4). A single failure stops that
+      run as invalid (I-3), rows so far retained; it is an implementation
+      error, never evidence against the hypothesis. Every solved instance's k
+      is checked against kP = Q (the solver's `verified`). Also gates G5 (SS
+      store identity encodings_recorded == 2*(s3_solves - table_s3_solves) -
+      degenerate_roots), G6 (formal-basis ranks and lambda) and G7 (every
+      dickson x satisfies D_d(x, c) = lambda with distinct preimages; every
+      coset x satisfies x^d = coset^d).
+    - >-
+      CELLS, EXACTLY (EXP-PFDR-1b78f7 `cells`). Main panel: curves
+      generate_prime_order_curve(bits, c, subgroup_prime_filter([3,4,5], 0.15)),
+      c = 0..4, bits 12,14,...,32, m = 3, 4, 5, default table arity, min_fill,
+      target_label census, solver seed c; arms subgroup, dickson, small_x,
+      random_sub_r0..2 (seeds c, c+1000, c+2000, size s_sub), random_dick_r0..2
+      (seeds c+3000, c+4000, c+5000, size s_dick), plus known_log at m = 3 and
+      bits <= 24; modes census and on; A_fix = s_sub. Rho panel: c = 0..9 on the
+      main curves, every rung. j0 panel: c = 0..4, bits 12..24, m = 3, arms
+      j0_coset and j0_random_r0..2, modes census and on, A_fix = s, rho on the
+      same curves. Stage R (R16) only on O-EXCURSION, curves c = 5..9, the
+      excursion arm and its three matched randoms. No other cell, curve,
+      seed, arm or rung.
+    - >-
+      ORDER. (1) EXP-PFDR-7c8bf2 run RUN-PFDR-7c8bf2-stage0 (no solver module
+      imported or executed). (2) Implement IC-1..IC-8. (3) R01 tests. (4)
+      R02-R09 regressions and gates G1-G3. (5) R10-R14 panels. (6) R15
+      analysis (reads the Stage 0 fits.json). (7) R16 only if R15 reports
+      O-EXCURSION; R17 only on a G1/G2 failure.
+    - >-
+      MACHINE PROTECTION (binding; time is advisory). Host 4 cores, 15 GB.
+      At most 4 worker processes; per-process RSS cap 3.5 GB (an instance over
+      it is stopped and recorded failed_infrastructure); per-instance watchdog
+      7200 s; per-run watchdog 86400 s (expiry checkpoints the run; the
+      unfinished cells continue in a new attempt directory of the same run id).
+      Timeouts, OOM and crashes are failed_infrastructure, retained with their
+      logs, never a mathematical result and never silently re-run with other
+      parameters.
+    - >-
+      OUTPUT PATHS. Everything under experiments/EXP-PFDR-7c8bf2/runs/<RUN id>/
+      and experiments/EXP-PFDR-1b78f7/runs/<RUN id>/ with the run ids of the
+      specs (RUN-PFDR-7c8bf2-stage0; RUN-PFDR-1b78f7-tests,
+      -reg-off-sweep-20260924, -reg-off-sweep-mitm-20260926,
+      -reg-off-sweep-arity-20260926, -reg-off-sweep-minfill-20260926,
+      -reg-off-sweep-arity-minfill-20260926, -reg-off-sweep-arity67-20260928,
+      -reg-census-sweep-minfill-20260926,
+      -reg-census-sweep-arity-minfill-20260926, -census-m3, -census-m4,
+      -census-m5, -rho, -j0, -analysis, and conditionally -stage-r,
+      -reg-attribution). Never write outside artifact_paths; never overwrite
+      an existing run directory; compress JSONL with gzip -n after the run.
+    - >-
+      REQUIRED ARTIFACTS PER RUN (AGENTS.md "Artifact policy"): manifest.yaml
+      (exact command; git commit, dirty state and sha256 of every executed
+      source file; environment and dependency versions; input parameters and
+      every seed; requested policy executor-implementation, backend, resolved
+      runtime model identifier, model provenance and whether probe-verified,
+      reasoning effort, fallback_used, degraded requirements; validity status
+      and reason; timestamps; peak RSS, CPU and wall seconds; certificate
+      block), command.txt, environment.json, stdout.log, stderr.log,
+      raw-result.json, checksums.sha256, plus each run's data files listed in
+      the spec's required_artifacts.per_run_data. Per experiment:
+      analyze_floor.py and execution-report.yaml (7c8bf2);
+      compare_regression.py, analyze_census.py, implementation-notes.yaml and
+      execution-report.yaml (1b78f7).
+    - >-
+      NO COMMITS. Do not commit, push, stage, rebase or merge; the Coordinator
+      archives by exact path in TASK-20260928-f15632. Runs execute on a dirty
+      tree with per-file sha256 pins in the manifest.
+    - >-
+      NO JUDGMENT ON SCOPE. Do not change a threshold, a seed, a cell, a
+      definition or a comparison after seeing any output. If the contract is
+      ambiguous or unimplementable at some point, implement nothing around it:
+      stop that step, record the exact ambiguity in execution-report.yaml and
+      return; a protocol_amendment is the Coordinator's.
+    - >-
+      NO INTERPRETATION. Report outcome ids as the analysis computes them.
+      Do not describe any result as a lever, a closure, support or refutation.
+      TW-ALIVE and TW-FLOOR readings are reported as tripwire fired, nothing
+      more.
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock.
+  deliverables:
+    - experiments/EXP-PFDR-7c8bf2/analyze_floor.py
+    - experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/ (all required artifacts)
+    - experiments/EXP-PFDR-7c8bf2/execution-report.yaml
+    - the engine changes and new test file listed under artifact_paths
+    - experiments/EXP-PFDR-1b78f7/compare_regression.py
+    - experiments/EXP-PFDR-1b78f7/analyze_census.py
+    - experiments/EXP-PFDR-1b78f7/implementation-notes.yaml
+    - experiments/EXP-PFDR-1b78f7/runs/<each RUN id>/ (all required artifacts)
+    - experiments/EXP-PFDR-1b78f7/execution-report.yaml
+  artifact_paths:
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/curve.py
+    - src/crypto_autoresearcher/index_calculus/tails.py
+    - src/crypto_autoresearcher/index_calculus/decompose.py
+    - src/crypto_autoresearcher/index_calculus/solver.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - src/crypto_autoresearcher/index_calculus/harvest.py
+    - tests/test_index_calculus_harvest.py
+    - experiments/EXP-PFDR-7c8bf2/analyze_floor.py
+    - experiments/EXP-PFDR-7c8bf2/execution-report.yaml
+    - experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/
+    - experiments/EXP-PFDR-1b78f7/compare_regression.py
+    - experiments/EXP-PFDR-1b78f7/analyze_census.py
+    - experiments/EXP-PFDR-1b78f7/implementation-notes.yaml
+    - experiments/EXP-PFDR-1b78f7/execution-report.yaml
+    - experiments/EXP-PFDR-1b78f7/runs/
+  write_scope_note: >-
+    Exactly the paths above. Not writable: the two specifications, their
+    amendments/ directories, every ledger record, README.md, results/, and
+    every engine file not listed. __pycache__ output is not an artifact and is
+    not archived.
+  archived_by: TASK-20260928-f15632
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 259200
+    wall_clock_note: >-
+      Task-level watchdog (machine protection, 72 h). Expiry checkpoints the
+      task with all completed runs retained and a remaining-work list in
+      execution-report.yaml; it exhausts nothing and is never a result.
+    memory_gb: 14
+    maximum_runs: 18
+    maximum_runs_note: 1 (EXP-PFDR-7c8bf2) + 15 planned + 2 conditional (EXP-PFDR-1b78f7 R16, R17)
+  completion_gate:
+    - RUN-PFDR-7c8bf2-stage0 exists with every required artifact and raw-result.json names exactly one outcome id of EXP-PFDR-7c8bf2 analysis_outcomes
+    - implementation-notes.yaml maps IC-1..IC-8 to functions and files; the byte-unchanged files are unchanged (sha256 listed before and after)
+    - R01 passes, with tests/test_index_calculus_fp.py unedited
+    - R02-R09 regression-report.json files state G1 and G2 pass with 100% of committed rows compared, or the task stopped with R17's attribution report
+    - every census, rho and j0 instance of `cells` has a row with a status (completed_valid, failed_infrastructure or invalid) -- no silently missing instance
+    - G4-G7 pass counts reported for every harvest instance
+    - R15 analysis.json reports every A1-A9 metric, the gate and positive-control results, and the outcome ids; R16 present only if O-EXCURSION
+    - every run directory carries the per-run required artifacts and a checksums.sha256 covering every file in it
+    - execution-report.yaml for each experiment lists runs, gates, failed instances, deviations and unexpected observations
+  return_format: >-
+    A short report: runs completed with statuses; G1-G7, PC-1 and PC-2 results;
+    outcome ids for both experiments; failed_infrastructure instances; every
+    deviation or ambiguity recorded; the exact artifact paths for
+    TASK-20260928-f15632 to stage.
+  review_plan: null
+  dispatch_preconditions:
+    - >-
+      The design packet (DEC-20260928-ab2d31 records_written, with the two
+      source proposals) is committed by a verified Coordinator archive and
+      pushed; its archival task id is minted by the session because
+      TASK-20260928-102217 reserved none (DEC-20260928-ab2d31 NA-1).
+    - archived_by is bound on this card (TASK-20260928-f15632) -- satisfied as written.
+    - >-
+      Declared inputs are committed and pushed, including every
+      results/*.jsonl.gz file and the engine at the dispatch base commit; the
+      session records that commit in the launch prompt (R17 uses it).
+    - >-
+      No other open task, lane claim, bus-announced work or unmerged branch
+      holds write scope over src/crypto_autoresearcher/index_calculus/** or
+      tests/test_index_calculus_*.py (goal_id is null, so there is no goal
+      lane to claim; check open PRs and the coordinator inbox instead).
+    - origin/main is merged into the working branch (merge, never rebase) immediately before launch.

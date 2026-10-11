@@ -63,7 +63,8 @@ class MembershipTests(unittest.TestCase):
             self.assertTrue(EP.is_ecc(gid), f"{gid} should be ECC")
         # Areas that are NOT ECC, including elliptic-adjacent ones.
         for gid in ("GOAL-AES-002", "GOAL-SYMF-c00fa1", "GOAL-MLKEM-005",
-                    "GOAL-CLGRP-001", "GOAL-QALG-001", "GOAL-MD5-001"):
+                    "GOAL-CLGRP-001", "GOAL-QALG-001", "GOAL-MD5-001",
+                    "GOAL-NGCC-6c8a52"):
             self.assertFalse(EP.is_ecc(gid), f"{gid} should NOT be ECC")
 
     def test_classification_spans_record_kinds(self):

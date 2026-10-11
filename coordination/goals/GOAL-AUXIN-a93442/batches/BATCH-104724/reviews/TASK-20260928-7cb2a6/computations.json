@@ -1,0 +1,4550 @@
+{
+ "schema": "rj5.blind_rederivation.computations.v1",
+ "task_id": "TASK-20260928-7cb2a6",
+ "review_plan_id": "REVIEW-AUXIN-20260928-104724",
+ "joint": "RJ5",
+ "experiment_runs": 0,
+ "run_ids_minted": [],
+ "environment": {
+  "python": "3.9.10 (main, Feb 15 2026, 13:00:19) \n[Clang 17.0.0 (clang-1700.0.13.5)]",
+  "platform": "macOS-26.6-arm64-arm-64bit",
+  "libraries": {
+   "PyYAML": "6.0.3",
+   "sympy": "1.14.0",
+   "mpmath": "1.3.0",
+   "cypari2_pari_version": "(2, 17, 3)",
+   "gp": "PARI/GP 2.17.3 (Homebrew, /opt/homebrew/bin/gp)"
+  },
+  "mpmath_dps": 200,
+  "scratch_dir": "/Volumes/SSD990/tmp/rj5/",
+  "TMPDIR": "/Volumes/SSD990/tmp"
+ },
+ "input_hashes": {
+  "AMD-20260928-gated.yaml": "77d1d5bfd8bf9d1c164903742c501f7161cc1b47814420d1957d6e39da9a8f3f",
+  "AMD-20260927-narrow.yaml": "ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd",
+  "AMD-20260926-typed.yaml": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+  "blind-inputs.yaml": "cd76f4119d3f4482e18df4863d55494066fae942c559675773a1f7f964c056bc",
+  "stated_in_gated_for_narrow": "ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd",
+  "stated_in_narrow_for_typed": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+  "stated_in_gated_through_it_for_typed": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6"
+ },
+ "commands": [
+  "shasum -a 256 AMD-20260928-gated.yaml AMD-20260927-narrow.yaml AMD-20260926-typed.yaml",
+  "python3 s1_table.py  # governing_text_table census",
+  "python3 s2_dump.py; s3_dump.py; s4_dump.py; s5_dump.py  # read C-BOUND, definitions, recipes, span_rules, N4, stopping/invalidation rules",
+  "python3 construct.py  # own Baillie-PSW, recipe searches (wall 1m03s)",
+  "gp -q crosscheck.gp  # independent GP re-implementation of both searches",
+  "python3 certs.py  # certificates (first attempt hung in a naive c^4>=N loop in my own verifier; killed and fixed; rerun 0.65 s)",
+  "python3 spans.py  # gated span rules: occurrence count + sha256",
+  "python3 evaluate.py  # BND-1..3, OWN-1, gate 1, N4, QB3",
+  "python3 s7_scan.py; python3 s8_scan2.py  # QB4 numeric-leaf scans",
+  "python3 build_computations.py"
+ ],
+ "scripts": {
+  "s1_table.py": "import yaml,collections,sys\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\ng=yaml.safe_load(open(A+'AMD-20260928-gated.yaml'))['amendment']\nprint('gated top keys:',list(g.keys()))\nt=g['governing_text_table']\nprint('rows',len(t))\nprint(collections.Counter(r['layer'] for r in t))\nprint(collections.Counter(r['field'].split(':')[0] for r in t))\nfor r in t:\n    f=r['field']\n    if 'BOUND' in f or r['layer']=='v1' or 'threshold' in f or 'bin' in f or 'N4' in f or 'gate_eval' in f or 'stopping_rules' in f or 'success' in f:\n        print(r)\n",
+  "s2_dump.py": "import yaml,json\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nty=yaml.safe_load(open(A+'AMD-20260926-typed.yaml'))['amendment']\nna=yaml.safe_load(open(A+'AMD-20260927-narrow.yaml'))['amendment']\nprint('TYPED keys',list(ty.keys()))\nprint('NARROW keys',list(na.keys()))\ndef D(x): print(yaml.safe_dump(x,sort_keys=False,width=140,allow_unicode=True))\ncb=[c for c in ty['controls'] if c.get('id')=='C-BOUND' or c.get('name')=='C-BOUND']\nprint('===C-BOUND'); D(cb)\nprint('===definitions keys',list(ty['definitions'].keys()))\nfor k in ['bins','gate_evaluation_mode']: print('===def',k); D(ty['definitions'].get(k))\nprint('===D3'); D(ty['change']['D3_descriptive_bins'])\nprint('===narrow bin_by_status'); D(na['corrective']['bin_by_status'])\n",
+  "s3_dump.py": "import yaml\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nty=yaml.safe_load(open(A+'AMD-20260926-typed.yaml'))['amendment']\ndef D(x): print(yaml.safe_dump(x,sort_keys=False,width=140,allow_unicode=True))\nfor k,v in ty['definitions'].items():\n    if k in ('bins','gate_evaluation_mode'): continue\n    print('===def',k); D(v)\nfor c in ty['controls']:\n    if c.get('id') in ('C-PLANT-M','C-PLANT-P'): print('===',c['id']); D(c)\nprint('===conventions'); D(ty['conventions'])\n",
+  "s4_dump.py": "import yaml\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nty=yaml.safe_load(open(A+'AMD-20260926-typed.yaml'))['amendment']\nna=yaml.safe_load(open(A+'AMD-20260927-narrow.yaml'))['amendment']\ng=yaml.safe_load(open(A+'AMD-20260928-gated.yaml'))['amendment']\ndef D(x): print(yaml.safe_dump(x,sort_keys=False,width=140,allow_unicode=True))\nprint('===gov rows definitions/C-PLANT/success/stopping10/invalid6/conventions')\nfor r in g['governing_text_table']:\n    f=r['field']\n    if any(s in f for s in ['definitions.','C-PLANT-M','C-PLANT-P','success_criterion','stopping_rules item 10','invalidation_rules item 6','conventions','D7_cert','falsification']) and not f.startswith('v1:'):\n        print(f,'|',r['layer'],'|',r['via'][:90])\nprint('===narrow span_rules'); D(na['span_rules'])\nprint('===narrow supersedes_fields'); D(na['supersedes_fields'])\nprint('===narrow corrective keys',list(na['corrective'].keys()))\n",
+  "s5_dump.py": "import yaml\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nty=yaml.safe_load(open(A+'AMD-20260926-typed.yaml'))['amendment']\nna=yaml.safe_load(open(A+'AMD-20260927-narrow.yaml'))['amendment']\ndef D(x): print(yaml.safe_dump(x,sort_keys=False,width=140,allow_unicode=True))\nprint('===stopping_rules'); D(ty['stopping_rules'])\nprint('===invalidation_rules'); D(ty['invalidation_rules'])\nprint('===success_criterion'); D(ty['success_criterion'])\nprint('===D2'); D(ty['change']['D2_typed_costs'])\nprint('===D7'); D(ty['change']['D7_certificates'])\nprint('===change keys',list(ty['change'].keys()))\nprint('===stages keys', [s.get('id') for s in ty['stages']] if isinstance(ty['stages'],list) else list(ty['stages'].keys()))\n",
+  "s7_scan.py": "import yaml,re,json,sys\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nfiles={'typed':'AMD-20260926-typed.yaml','narrow':'AMD-20260927-narrow.yaml','gated':'AMD-20260928-gated.yaml'}\nPAT=re.compile(r'(<=|>=|(?<![-=])<(?!-)|(?<![-=])>|within|at most|at least|exceed|below|above|no more than|fewer than|more than|timeout|seconds|bits\\b|digits|10\\^-?\\d+|2\\^\\d+|\\b\\d+(\\.\\d+)?\\b)')\nCUT=re.compile(r'(<=|>=|\\s<\\s|\\s>\\s|within|at most|at least|exceed|below|above|no more than|fewer than|more than|timeout|killed|ceiling|floor|minimum|maximum|limit|budget|window|tolerance|slack|cut-?off|threshold|bound)',re.I)\nNUM=re.compile(r'(10\\^-?\\d+|2\\^\\(?[\\w\\-+ ]+\\)?|\\b\\d+(\\.\\d+)?\\b|\\d+/\\d+)')\ndef walk(x,path):\n    if isinstance(x,dict):\n        for k,v in x.items(): yield from walk(v,f'{path}.{k}' if path else str(k))\n    elif isinstance(x,list):\n        for i,v in enumerate(x):\n            lab = v.get('id') if isinstance(v,dict) and 'id' in v else (v.get('field') if isinstance(v,dict) and 'field' in v and False else None)\n            yield from walk(v,f'{path}[{lab}]' if lab else f'{path}[{i}]')\n    else:\n        yield path,str(x)\nres={}\nfor tag,f in files.items():\n    d=yaml.safe_load(open(A+f))['amendment']\n    hits=[]\n    for p,s in walk(d,''):\n        if p.startswith('governing_text_table') or p.startswith('supersedes_fields') : continue\n        if 'sha256' in p.lower(): continue\n        if CUT.search(s) and NUM.search(s):\n            hits.append((p,s))\n    res[tag]=hits\n    print(tag,len(hits),file=sys.stderr)\njson.dump(res,open('/Volumes/SSD990/tmp/rj5/scan.json','w'),indent=0)\n",
+  "s8_scan2.py": "import yaml,re,json\nA='experiments/EXP-AUXIN-7e2e3d/amendments/'\nfiles={'typed':'AMD-20260926-typed.yaml','narrow':'AMD-20260927-narrow.yaml','gated':'AMD-20260928-gated.yaml'}\nfirst=json.load(open('/Volumes/SSD990/tmp/rj5/scan.json'))\nNUM=re.compile(r'(10\\^-?\\d+|2\\^\\(?[\\w\\-+ ]+\\)?|(?<![\\w-])\\d+(\\.\\d+)?(?![\\w-])|\\d+/\\d+|\\d+e\\d+)')\nIDS=re.compile(r'\\b(DEC|TASK|RT|VAL|CORR|RUN|EXP|AMD|H|GOAL|RQ|BATCH|REVIEW|KN)-[\\w-]+|\\b[0-9a-f]{40,64}\\b|\\d{4}-\\d{2}-\\d{2}(T[\\d:]+Z)?|item \\d+|entry \\d+|Theorem \\d|section [\\d.]+|Q0-\\d+|\\b(19|20)\\d\\d\\b|U\\+[0-9A-F]{4}|BND-\\d|CF-\\d|FC\\d|ER-\\d|DF-N?\\d|RI-\\d|NP-\\d|CN-\\d|PR-\\w+|[OSUE]\\d+\\b|RC\\d|F\\d\\b|D\\d+_\\w*|v\\d(\\.\\d)*|\\bJ\\d\\b|F-J\\d-\\d')\ndef walk(x,path):\n    if isinstance(x,dict):\n        for k,v in x.items(): yield from walk(v,f'{path}.{k}' if path else str(k))\n    elif isinstance(x,list):\n        for i,v in enumerate(x):\n            lab = v.get('id') if isinstance(v,dict) and 'id' in v else None\n            yield from walk(v,f'{path}[{lab}]' if lab else f'{path}[{i}]')\n    else: yield path,str(x)\nfor tag,f in files.items():\n    seen={p for p,_ in first[tag]}\n    d=yaml.safe_load(open(A+f))['amendment']\n    for p,s in walk(d,''):\n        if p in seen or p.startswith('governing_text_table') or 'sha256' in p.lower() or p.startswith('path_additions'): continue\n        t=IDS.sub(' ',s)\n        nums=[m.group(0) for m in NUM.finditer(t)]\n        nums=[n for n in nums if n not in ('0','1','2','3','4','5','6','7','8','9')] \n        if nums: print(f'{tag} | {p} | {nums[:12]} | {s[:260]!r}')\n",
+  "construct.py": "\"\"\"Blind re-derivation RJ5: build C-PLANT-M and C-PLANT-P integers from the typed recipes,\nthen the declared C-BOUND states BND-1..3 plus one reviewer state, and evaluate them.\nLibraries: Python stdlib (own Baillie-PSW), mpmath (200-digit logs), cypari2/PARI (ECPP certs),\nsympy (factorint for Pratt trees only).\"\"\"\nimport json, math, sys\nimport mpmath\nfrom mpmath import mp, mpf, log, sqrt, cbrt\n\nmp.dps = 200\n\n# ---------- integer functions (definitions.integer_functions) ----------\ndef isqrt(n): return math.isqrt(n)\ndef icbrt(n):\n    x = int(round(n ** (1/3))) if n < 2**1000 else 1 << ((n.bit_length() + 2)//3)\n    # Newton, then correct\n    x = 1 << ((n.bit_length() + 2)//3)\n    while True:\n        y = (2*x + n//(x*x))//3\n        if y >= x: break\n        x = y\n    while x*x*x > n: x -= 1\n    while (x+1)**3 <= n: x += 1\n    return x\ndef ceildiv(a, b): return -((-a)//b)\n\n# ---------- Baillie-PSW per definitions.prime + Q0-5 convention ----------\nSMALL = [p for p in range(2, 1000) if all(p % q for q in range(2, int(p**0.5)+1))]\ndef is_sprp(n, a):\n    d, s = n-1, 0\n    while d % 2 == 0: d//=2; s+=1\n    x = pow(a, d, n)\n    if x in (1, n-1): return True\n    for _ in range(s-1):\n        x = x*x % n\n        if x == n-1: return True\n    return False\ndef jacobi(a, n):\n    a %= n; r = 1\n    while a:\n        while a % 2 == 0:\n            a //= 2\n            if n % 8 in (3, 5): r = -r\n        a, n = n, a\n        if a % 4 == 3 and n % 4 == 3: r = -r\n        a %= n\n    return r if n == 1 else 0\ndef is_slprp(n):\n    if isqrt(n)**2 == n: return False\n    D = 5\n    while True:\n        j = jacobi(D, n)\n        if j == -1: break\n        if j == 0 and abs(D) < n: return False\n        D = -D - 2 if D > 0 else -D + 2\n    P, Q = 1, (1 - D)//4\n    d, s = n+1, 0\n    while d % 2 == 0: d//=2; s+=1\n    # Lucas sequences U_d, V_d mod n via binary method\n    U, V, Qk = 0, 2, 1\n    for bit in bin(d)[2:]:\n        U, V = U*V % n, (V*V - 2*Qk) % n\n        Qk = Qk*Qk % n\n        if bit == '1':\n            U, V = (P*U + V), (D*U + P*V)\n            if U % 2: U += n\n            if V % 2: V += n\n            U, V = (U//2) % n, (V//2) % n\n            Qk = Qk*Q % n\n    if U == 0 or V == 0: return True\n    for _ in range(s-1):\n        V = (V*V - 2*Qk) % n; Qk = Qk*Qk % n\n        if V == 0: return True\n    return False\ndef bpsw(n):\n    if n < 2: return False\n    for p in SMALL:\n        if n == p: return True\n        if n % p == 0: return False\n    return is_sprp(n, 2) and is_slprp(n)\n\n# ---------- nextprime (definitions.nextprime) with Q0-4 count ----------\ndef nextprime_ge(x):\n    n = x\n    while not bpsw(n): n += 1\n    return n, n - x + 1\ndef nextprime_gt(x):\n    p, c = nextprime_ge(x+1)\n    return p, c\n\nB = 256\nM0 = 3 * 2**(B-2)\ndef in_Bbits(n): return n.bit_length() == B\n\ndef build_plant_M():\n    S = isqrt(M0)\n    s0 = isqrt(S)\n    d1, c_d1 = nextprime_ge(s0)\n    d2, c_d2 = nextprime_gt(d1)\n    D = d1*d2\n    u0 = ceildiv(M0, 2*D)\n    u = u0; screened_rejects = []\n    while True:\n        if u != d1 and u != d2 and bpsw(u):\n            r = 2*D*u + 1\n            if bpsw(r) and (r+1) % 12 == 0 and bpsw((r+1)//12):\n                break\n        u += 1\n    r = 2*D*u + 1; v = (r+1)//12\n    win = dict(d1_in=(s0 <= d1 < s0 + 2**24), d2_in=(d1 < d2 < d1 + 2**24), u_in=(u0 <= u < u0 + 2**48), r_bits=in_Bbits(r))\n    return dict(S=S, isqrt_S=s0, d1=d1, d2=d2, D=D, u0=u0, u=u, r=r, v=v,\n                candidates_examined=dict(d1=c_d1, d2=c_d2, u=u-u0+1), windows=win)\n\ndef build_plant_P():\n    assert M0 % 4 == 0\n    d0 = icbrt(M0//4)\n    d, c_d = nextprime_ge(d0)\n    w0 = ceildiv(M0, 12*d)\n    w = w0\n    while True:\n        if w != d and bpsw(w):\n            r = 12*d*w - 1\n            if bpsw(r) and bpsw((r-1)//2):\n                break\n        w += 1\n    r = 12*d*w - 1; q = (r-1)//2\n    win = dict(d_in=(d0 <= d < d0 + 2**24), w_in=(w0 <= w < w0 + 2**48), r_bits=in_Bbits(r),\n               d_size=(d.bit_length() in (d0.bit_length(), d0.bit_length()+1) and d >= d0))\n    return dict(d0=d0, d=d, w0=w0, w=w, r=r, q=q, candidates_examined=dict(d=c_d, w=w-w0+1), windows=win)\n\n# ---------- typed costs, floors, depth, bins ----------\nL2 = lambda x: log(x, 2)\ndef T(branch, m, d):\n    return sqrt(mpf(m)/d) + (sqrt(mpf(d)) if branch == 'minus' else mpf(d))\ndef e_b(branch, r, m, d): return L2(T(branch, m, d)) / L2(r)\ndef F_b(branch, r):\n    if branch == 'minus': return (1 + L2(r-1)/4) / L2(r)\n    return (L2(3) - mpf(2)/3 + L2(r+1)/3) / L2(r)\ndef C_b(branch, r, m): return L2(sqrt(mpf(m)) + 1) / L2(r)\nTAU = mpf(10)**-45\ndef flag_of(s): return bool(abs(s - mpf(3)/4) <= TAU or abs(s - mpf(1)/4) <= TAU)\ndef bin_exact(s):  # narrow BINS-EXACT order\n    f = flag_of(s)\n    if f:\n        return 'INTERMEDIATE' if abs(s - mpf(3)/4) <= TAU else 'NEAR_CEILING'\n    if s >= mpf(3)/4 + TAU: return 'NEAR_FLOOR'\n    if s <= mpf(1)/4 - TAU: return 'NEAR_CEILING'\n    return 'INTERMEDIATE'\ndef bin_bound(s):  # narrow corrective.bin_by_status\n    f = flag_of(s)\n    if (not f) and s >= mpf(3)/4 + TAU: return 'NEAR_FLOOR', 'NEAR_FLOOR', f\n    return 'UNDETERMINED', bin_exact(s), f\n\ndef divisors_from(fac):  # fac: dict prime->exp\n    ds = [1]\n    for p, k in fac.items():\n        ds = [x * p**i for x in ds for i in range(k+1)]\n    return sorted(set(ds))\n\ndef evaluate_bound(branch, r, F_fac, parts):\n    m = r - 1 if branch == 'minus' else r + 1\n    F = 1\n    for p, k in F_fac.items(): F *= p**k\n    prod = F\n    for P in parts: prod *= P\n    assert prod == m, 'product check'\n    W = set()\n    eF = divisors_from(F_fac)\n    k = len(parts)\n    for mask in range(1 << k):\n        pr = 1\n        for i in range(k):\n            if mask >> i & 1: pr *= parts[i]\n        for e in eF: W.add(e * pr)\n    W = sorted(W)\n    vals = {d: e_b(branch, r, m, d) for d in W}\n    estar = min(vals.values())\n    tied = [d for d in W if vals[d] - estar <= mpf(10)**-100 * estar]\n    wit = min(tied)\n    up = vals[wit]; lo = F_b(branch, r); C = C_b(branch, r, m)\n    s = (C - up) / (C - lo)\n    b, bal, f = bin_bound(s)\n    floor_ok = up >= lo - mpf(10)**-45\n    tplus_ok = all(T('plus', m, d) >= d for d in W) if branch == 'plus' else None\n    return dict(branch=branch, W=W, tied=tied, witness=wit, upper=up, lower=lo, C=C, depth=s,\n                bin=b, bin_at_least=bal, boundary_flag=f, floor_ok=floor_ok, tplus_ge_d=tplus_ok,\n                log2_upper_cost=L2(T(branch, m, wit)), log2_lower_cost=lo * L2(r), log2_r=L2(r),\n                ranking=sorted(((d, vals[d]) for d in W), key=lambda t: t[1])[:4])\n\ndef exact_min(branch, r, fac):\n    m = r - 1 if branch == 'minus' else r + 1\n    best = None\n    for d in divisors_from(fac):\n        v = e_b(branch, r, m, d)\n        if best is None or v < best[1]: best = (d, v)\n    vals = [(d, e_b(branch, r, m, d)) for d in divisors_from(fac)]\n    estar = min(v for _, v in vals)\n    tied = sorted(d for d, v in vals if v - estar <= mpf(10)**-100 * estar)\n    C = C_b(branch, r, m); F = F_b(branch, r)\n    s = (C - estar) / (C - F)\n    return dict(minimiser=tied[0], tied=tied, e=estar, F=F, depth=s, bin=bin_exact(s), flag=flag_of(s),\n                gap=estar - F)\n\ndef fmt(x, n=60): return mpmath.nstr(x, n)\n\nif __name__ == '__main__':\n    PM = build_plant_M(); PP = build_plant_P()\n    out = dict(plant_M={k: (str(v) if isinstance(v, int) else v) for k, v in PM.items()},\n               plant_P={k: (str(v) if isinstance(v, int) else v) for k, v in PP.items()})\n    json.dump(out, open('/Volumes/SSD990/tmp/rj5/integers.json', 'w'), indent=1)\n    print(json.dumps(out, indent=1))\n",
+  "crosscheck.gp": "\\\\ Independent re-implementation of the C-PLANT-M and C-PLANT-P searches in GP (PARI 2.17.3).\n\\\\ ispseudoprime(n) is PARI's BPSW; acceptance order as the recipe lists it.\ndefault(parisize, 10^8);\nB = 256; M0 = 3*2^(B-2);\nS = sqrtint(M0); s0 = sqrtint(S);\nd1 = nextprime(s0); d2 = nextprime(d1+1); D = d1*d2; u0 = ceil(M0/(2*D));\nu = u0;\nwhile(!(u!=d1 && u!=d2 && ispseudoprime(u) && ispseudoprime(2*D*u+1) && (2*D*u+2)%12==0 && ispseudoprime((2*D*u+2)/12)), u++);\nrM = 2*D*u+1;\nprint(\"M d1=\", d1, \" d2=\", d2, \" u=\", u, \" r=\", rM, \" v=\", (rM+1)/12);\nd0 = sqrtnint(M0/4, 3); d = nextprime(d0); w0 = ceil(M0/(12*d));\nw = w0;\nwhile(!(w!=d && ispseudoprime(w) && ispseudoprime(12*d*w-1) && ispseudoprime((12*d*w-2)/2)), w++);\nrP = 12*d*w-1;\nprint(\"P d0=\", d0, \" d=\", d, \" w=\", w, \" r=\", rP, \" q=\", (rP-1)/2);\nquit;\n",
+  "certs.py": "\"\"\"Primality certificates for every integer the C-PLANT-M / C-PLANT-P recipes require prime.\np < 2^64: Pratt tree (factorisation of p-1 by sympy.factorint, witness = smallest valid a >= 2).\np >= 2^64: ECPP chain from PARI primecert (cypari2), checked by PARI primecertisvalid AND by the\nstdlib-only verifier below (independent of PARI), terminal q given a Pratt certificate.\"\"\"\nimport json, math, sys\nimport sympy, cypari2\npari = cypari2.Pari(); pari.allocatemem(2*10**9, silent=True) if hasattr(pari, 'allocatemem') else None\n\ndef pratt(p, depth=0):\n    if p == 2: return {'p': 2, 'leaf': True}\n    fac = sympy.factorint(p - 1)\n    a = 2\n    while True:\n        if pow(a, p-1, p) == 1 and all(pow(a, (p-1)//f, p) != 1 for f in fac): break\n        a += 1\n    return {'p': p, 'a': a, 'factors': {str(f): k for f, k in fac.items()},\n            'sub': [pratt(f, depth+1) for f in fac]}\n\ndef check_pratt(c):\n    p = c['p']\n    if c.get('leaf'): return p == 2\n    fac = {int(f): k for f, k in c['factors'].items()}\n    prod = 1\n    for f, k in fac.items(): prod *= f**k\n    if prod != p - 1: return False\n    a = c['a']\n    if pow(a, p-1, p) != 1: return False\n    if any(pow(a, (p-1)//f, p) == 1 for f in fac): return False\n    return all(check_pratt(s) for s in c['sub']) and {s['p'] for s in c['sub']} == set(fac)\n\ndef ec_mul(k, P, a4, N):\n    # affine; returns None for infinity; raises if a non-invertible denominator appears\n    R = None; Q = P\n    while k:\n        if k & 1: R = ec_add(R, Q, a4, N)\n        Q = ec_add(Q, Q, a4, N); k >>= 1\n    return R\ndef inv(x, N):\n    g = math.gcd(x % N, N)\n    if g != 1: raise ValueError('non-invertible')\n    return pow(x, -1, N)\ndef ec_add(P, Q, a4, N):\n    if P is None: return Q\n    if Q is None: return P\n    x1, y1 = P; x2, y2 = Q\n    if (x1 - x2) % N == 0:\n        if (y1 + y2) % N == 0: return None\n        l = (3*x1*x1 + a4) * inv(2*y1, N) % N\n    else:\n        l = (y2 - y1) * inv(x2 - x1, N) % N\n    x3 = (l*l - x1 - x2) % N\n    return (x3, (l*(x1 - x3) - y1) % N)\n\ndef check_ecpp(chain, p):\n    Nexp = p\n    for (N, t, s, a4, (x, y)) in chain:\n        if N != Nexp or math.gcd(N, 6) != 1: return False, 'N/gcd'\n        m = N + 1 - t\n        if m % s: return False, 's|m'\n        q = m // s\n        b = (y*y - x*x*x - a4*x) % N\n        if math.gcd(4*a4**3 + 27*b*b, N) != 1: return False, 'disc'\n        try:\n            if ec_mul(m, (x % N, y % N), a4, N) is not None: return False, '[m]P'\n            if ec_mul(s, (x % N, y % N), a4, N) is None: return False, '[s]P'\n        except ValueError: return False, 'noninv'\n        c = math.isqrt(math.isqrt(N))\n        while c**4 < N: c += 1\n        while c > 0 and (c-1)**4 >= N: c -= 1\n        if not q > (c + 1)**2: return False, 'q bound'\n        Nexp = q\n    return True, Nexp\n\ndef certify(p):\n    if p < 2**64:\n        c = pratt(p); return {'type': 'pratt', 'cert': c, 'verified_stdlib': check_pratt(c)}\n    pc = pari.primecert(p)\n    ok_pari = bool(pari.primecertisvalid(pc))\n    chain = [(int(st[0]), int(st[1]), int(st[2]), int(st[3]), (int(st[4][0]), int(st[4][1]))) for st in pc]\n    ok, term = check_ecpp(chain, p)\n    tp = pratt(term)\n    return {'type': 'ecpp+pratt_terminal', 'chain': [[str(v) for v in st[:4]] + [[str(st[4][0]), str(st[4][1])]] for st in chain],\n            'terminal_q': str(term), 'terminal_pratt': tp,\n            'verified_pari_primecertisvalid': ok_pari, 'verified_stdlib_ecpp': ok,\n            'verified_stdlib_terminal_pratt': check_pratt(tp) and term < 2**64}\n\nif __name__ == '__main__':\n    I = json.load(open('/Volumes/SSD990/tmp/rj5/integers.json'))\n    need = {'M.d1': I['plant_M']['d1'], 'M.d2': I['plant_M']['d2'], 'M.u': I['plant_M']['u'],\n            'M.r': I['plant_M']['r'], 'M.v': I['plant_M']['v'],\n            'P.d': I['plant_P']['d'], 'P.w': I['plant_P']['w'], 'P.r': I['plant_P']['r'], 'P.q': I['plant_P']['q'],\n            'small.2': '2', 'small.3': '3'}\n    out = {}\n    for k, v in need.items():\n        out[k] = {'n': v, **certify(int(v))}\n        print(k, {kk: vv for kk, vv in out[k].items() if kk.startswith('verified')}, out[k]['type'], flush=True)\n    json.dump(out, open('/Volumes/SSD990/tmp/rj5/certs.json', 'w'), indent=1)\n",
+  "spans.py": "\"\"\"Check every gated_span_rules entry: from-text occurs exactly once in the named field value (PyYAML safe_load),\nspan per narrow incorporates.span_hash_convention, sha256 equals replaced_span_sha256; print the field after replacement.\"\"\"\nimport yaml, hashlib, json, re\nA = '/Volumes/SSD990/crypto-autoresearcher/.worktrees/ecdlp-9225d2-revise-20260927/experiments/EXP-AUXIN-7e2e3d/amendments/'\ng = yaml.safe_load(open(A + 'AMD-20260928-gated.yaml'))['amendment']\ndocs = {'AMD-20260926-typed.yaml': yaml.safe_load(open(A + 'AMD-20260926-typed.yaml'))['amendment'],\n        'AMD-20260927-narrow.yaml': yaml.safe_load(open(A + 'AMD-20260927-narrow.yaml'))['amendment']}\n\ndef resolve(doc, field):\n    # field grammar used: a.b[ID].c item N ; 'item N' is 1-based list index\n    m = re.match(r'^(.*?)(?: item (\\d+))?(?:\\.(\\w+))?$', field)\n    path, item, tail = m.group(1), m.group(2), m.group(3)\n    cur = doc\n    for tok in re.findall(r'[^.\\[\\]]+|\\[[^\\]]+\\]', path):\n        if tok.startswith('['):\n            key = tok[1:-1]\n            cur = next(x for x in cur if isinstance(x, dict) and x.get('id') == key)\n        else:\n            cur = cur[tok]\n    if item: cur = cur[int(item) - 1]\n    if tail: cur = cur[tail]\n    return cur\n\nout = []\nfor r in g['gated_span_rules']:\n    doc = docs[r['file'].split('/')[-1]]\n    val = resolve(doc, r['field'])\n    n_from = val.count(r['from'])\n    i = val.find(r['from'])\n    j = val.find(r['through'], i)\n    span = val[i:j + len(r['through'])]\n    h = hashlib.sha256(span.encode()).hexdigest()\n    after = val[:i] + r['replacement'] + val[j + len(r['through']):]\n    out.append(dict(id=r['id'], field=r['field'], from_occurrences=n_from, hash_ok=(h == r['replaced_span_sha256']),\n                    computed=h, after=after if r['id'] in ('G-GATE1', 'G-BND1', 'G-BND3') else None))\nprint(json.dumps(out, indent=1))\njson.dump(out, open('/Volumes/SSD990/tmp/rj5/spans.json', 'w'), indent=1)\n",
+  "evaluate.py": "\"\"\"Evaluate BND-1, BND-2, BND-3 and reviewer state OWN-1 under the combined text; gate 1 / N4 / QB3.\"\"\"\nimport json, math, sys\nsys.path.insert(0, '/Volumes/SSD990/tmp/rj5')\nimport construct as C\nfrom construct import mpf, fmt, is_sprp\n\nI = json.load(open('/Volumes/SSD990/tmp/rj5/integers.json'))\nM = {k: int(v) for k, v in I['plant_M'].items() if isinstance(v, str)}\nP = {k: int(v) for k, v in I['plant_P'].items() if isinstance(v, str)}\nrM, d1, d2, u, D = M['r'], M['d1'], M['d2'], M['u'], M['D']\nrP, d, w = P['r'], P['d'], P['w']\nassert rM - 1 == 2*d1*d2*u and rP + 1 == 12*d*w\n\ndef comp_witness(n):\n    if n % 2 == 0: return 'even'\n    a = 2\n    while is_sprp(n, a): a += 1\n    return a\ndef perfect_power(n):\n    for k in range(2, n.bit_length() + 1):\n        lo, hi = 1, 1 << (n.bit_length()//k + 1)\n        while lo < hi:\n            mid = (lo + hi)//2\n            if mid**k < n: lo = mid + 1\n            else: hi = mid\n        if lo**k == n: return {'is_perfect_power': True, 'base': lo, 'k': k}\n    return {'is_perfect_power': False}\n\nSTATES = {\n  'BND-1': dict(branch='minus', r=rM, F={2: 1, u: 1}, parts=[D],\n                expected=dict(status='BOUND', witness=min(D, 2*u), bin='NEAR_FLOOR', bin_at_least='NEAR_FLOOR', boundary_flag=False,\n                              W=sorted({e*x for e in (1, 2, u, 2*u) for x in (1, D)}))),\n  'BND-2': dict(branch='minus', r=rM, F={2: 1}, parts=[d1*d2*u],\n                expected=dict(status='BOUND', witness=2, bin='UNDETERMINED', bin_at_least='NEAR_CEILING', boundary_flag=False,\n                              W=sorted({1, 2, (rM-1)//2, rM-1}))),\n  'BND-3': dict(branch='plus', r=rP, F={2: 1}, parts=sorted([2*d, 3*w]),\n                expected=dict(status='BOUND', witness=2*d, bin='NEAR_FLOOR', bin_at_least='NEAR_FLOOR', boundary_flag=False,\n                              W=sorted({1, 2, 2*d, 4*d, 3*w, 6*w, 6*d*w, 12*d*w}))),\n  # reviewer state (QB2): C-PLANT-P plus branch, F = 3 * w, single composite part 4d\n  'OWN-1': dict(branch='plus', r=rP, F={3: 1, w: 1}, parts=[4*d], expected=None),\n}\n\ndef gate1(ret, exp, bal_mode):\n    \"\"\"G-GATE1 text: returns exactly the expected status, witness set, witness, bin, bin_at_least and boundary_flag.\"\"\"\n    r = dict(ret)\n    if bal_mode == 'absent': r.pop('bin_at_least')\n    elif bal_mode == 'other':\n        r['bin_at_least'] = 'INTERMEDIATE' if exp['bin_at_least'] != 'INTERMEDIATE' else 'NEAR_CEILING'\n    fields = ['status', 'W', 'witness', 'bin', 'bin_at_least', 'boundary_flag']\n    diffs = [f for f in fields if r.get(f, '<absent>') != exp[f]]\n    return ('pass' if not diffs else 'fail'), diffs\n\nres = {}\nfor name, st in STATES.items():\n    ev = C.evaluate_bound(st['branch'], st['r'], st['F'], st['parts'])\n    ret = dict(status='BOUND', W=ev['W'], witness=ev['witness'], bin=ev['bin'], bin_at_least=ev['bin_at_least'],\n               boundary_flag=ev['boundary_flag'])\n    exp = st['expected']\n    if exp is None:  # reviewer state: expected values from the D3 rules and corrective.bin_by_status (gated expected_value_source)\n        exp = dict(ret)\n        exp_source = 'computed from change.D3 rules + narrow corrective.bin_by_status (no expected block exists)'\n    else:\n        exp_source = 'declared expected block (typed, with gated spans)'\n    g_main, diffs = gate1(ret, exp, None)\n    g_abs, dabs = gate1(ret, exp, 'absent')\n    g_oth, doth = gate1(ret, exp, 'other')\n    parts_info = [dict(part=str(p), bits=p.bit_length(), compositeness_witness=comp_witness(p), perfect_power=perfect_power(p)['is_perfect_power'])\n                  for p in st['parts']]\n    m = st['r'] - 1 if st['branch'] == 'minus' else st['r'] + 1\n    res[name] = dict(\n        branch=st['branch'], r=str(st['r']), m_bits=m.bit_length(),\n        F_certified={str(k): v for k, v in st['F'].items()}, parts=parts_info,\n        status='BOUND', witness_set=[str(x) for x in ev['W']], witness=str(ev['witness']), tied=[str(x) for x in ev['tied']],\n        witness_label=None,\n        upper_bound_exponent=fmt(ev['upper'], 60), lower_bound_exponent=fmt(ev['lower'], 60), C_b=fmt(ev['C'], 60),\n        upper_bound_exponent_4dp=fmt(ev['upper'], 6), lower_bound_exponent_4dp=fmt(ev['lower'], 6),\n        log2_upper_cost_bits=fmt(ev['log2_upper_cost'], 12), log2_lower_cost_bits=fmt(ev['log2_lower_cost'], 12),\n        log2_r=fmt(ev['log2_r'], 12),\n        depth=fmt(ev['depth'], 60), bin=ev['bin'], bin_at_least=ev['bin_at_least'], boundary_flag=ev['boundary_flag'],\n        floor_invariant_holds=bool(ev['floor_ok']), tplus_ge_d_all_W=ev['tplus_ge_d'],\n        expected_source=exp_source,\n        expected_matches={k: (ret[k] == exp[k]) for k in exp},\n        gate1=g_main, gate1_diffs=diffs, N4_met=(g_main == 'fail'),\n        qb3_bin_at_least_absent=g_abs, qb3_absent_diffs=dabs,\n        qb3_bin_at_least_other=g_oth, qb3_other_diffs=doth,\n        lowest_four=[(str(dd), fmt(v, 20)) for dd, v in ev['ranking']],\n    )\n\n# labels for witnesses\nlab = {str(D): 'D', str(2*u): '2u', '2': '2', str(2*d): '2d', str(4*d): '4d'}\nfor n in res: res[n]['witness_label'] = lab.get(res[n]['witness'])\nres['BND-1']['D_lt_2u'] = D < 2*u\n\n# gate 2 of C-BOUND (closed forms within 1e-50) is identity here; BND-1 CONSISTENCY vs C-PLANT-M exact minus min\nexM = C.exact_min('minus', rM, {2: 1, d1: 1, d2: 1, u: 1})\nres['BND-1']['consistency'] = dict(cplantm_exact_minus_minimiser=str(exM['minimiser']),\n    cplantm_minimiser_label=lab.get(str(exM['minimiser'])), cplantm_exact_minus_e=fmt(exM['e'], 60),\n    abs_diff=fmt(abs(exM['e'] - C.mpf(res['BND-1']['upper_bound_exponent'])), 5),\n    holds=abs(exM['e'] - C.mpf(res['BND-1']['upper_bound_exponent'])) <= C.mpf(10)**-50,\n    cplantm_gap_e_minus_F=fmt(exM['gap'], 10), cplantm_bin=exM['bin'])\nexP = C.exact_min('plus', rP, {2: 2, 3: 1, d: 1, w: 1})\nres['context_CPLANTP_exact_plus'] = dict(minimiser=str(exP['minimiser']), equals_d=(exP['minimiser'] == d), e=fmt(exP['e'], 30),\n                                         gap=fmt(exP['gap'], 10), bin=exP['bin'], depth=fmt(exP['depth'], 20))\n# BND-3 contrast: superseded single-cofactor formula\nev_c = C.evaluate_bound('plus', rP, {2: 1}, [6*d*w])\nres['BND-3']['contrast_single_cofactor'] = dict(witness=str(ev_c['witness']), bin=ev_c['bin'], bin_at_least=ev_c['bin_at_least'])\n# BND-2 why_fixed claim: depth < 1/100\nres['BND-2']['depth_below_1_over_100'] = C.mpf(res['BND-2']['depth']) < C.mpf(1)/100\njson.dump(res, open('/Volumes/SSD990/tmp/rj5/evaluation.json', 'w'), indent=1)\nfor n, v in res.items():\n    if n.startswith('context'): print(n, v); continue\n    print(n, {k: v[k] for k in ('witness_label', 'upper_bound_exponent_4dp', 'lower_bound_exponent_4dp', 'log2_upper_cost_bits',\n          'log2_lower_cost_bits', 'depth', 'bin', 'bin_at_least', 'boundary_flag', 'gate1', 'gate1_diffs', 'N4_met',\n          'qb3_bin_at_least_absent', 'qb3_bin_at_least_other', 'expected_matches', 'floor_invariant_holds')})\n    print('   W size', len(v['witness_set']), 'tied', v['tied'], 'parts', v['parts'])\nprint('BND-1 consistency', res['BND-1']['consistency'], 'D<2u', res['BND-1']['D_lt_2u'])\nprint('BND-3 contrast', res['BND-3']['contrast_single_cofactor'])\n",
+  "build_computations.py": "\"\"\"Assemble computations.json (BL-7): every script, command and raw output of this re-derivation.\"\"\"\nimport json, hashlib, platform, sys, subprocess, os\nT = '/Volumes/SSD990/tmp/rj5/'\nW = '/Volumes/SSD990/crypto-autoresearcher/.worktrees/ecdlp-9225d2-revise-20260927/'\nOUT = W + 'coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-104724/reviews/TASK-20260928-7cb2a6/computations.json'\nA = W + 'experiments/EXP-AUXIN-7e2e3d/amendments/'\ndef rd(p): return open(T + p).read()\ndef sha(p): return hashlib.sha256(open(p, 'rb').read()).hexdigest()\nimport sympy, mpmath, yaml, cypari2\npari = cypari2.Pari()\nscripts = ['s1_table.py', 's2_dump.py', 's3_dump.py', 's4_dump.py', 's5_dump.py', 's7_scan.py', 's8_scan2.py',\n           'construct.py', 'crosscheck.gp', 'certs.py', 'spans.py', 'evaluate.py', 'build_computations.py']\ndoc = {\n  'schema': 'rj5.blind_rederivation.computations.v1',\n  'task_id': 'TASK-20260928-7cb2a6', 'review_plan_id': 'REVIEW-AUXIN-20260928-104724', 'joint': 'RJ5',\n  'experiment_runs': 0, 'run_ids_minted': [],\n  'environment': {\n    'python': sys.version, 'platform': platform.platform(),\n    'libraries': {'PyYAML': yaml.__version__, 'sympy': sympy.__version__, 'mpmath': mpmath.__version__,\n                  'cypari2_pari_version': str(pari.version()), 'gp': 'PARI/GP 2.17.3 (Homebrew, /opt/homebrew/bin/gp)'},\n    'mpmath_dps': 200, 'scratch_dir': T, 'TMPDIR': '/Volumes/SSD990/tmp'},\n  'input_hashes': {\n    'AMD-20260928-gated.yaml': sha(A + 'AMD-20260928-gated.yaml'),\n    'AMD-20260927-narrow.yaml': sha(A + 'AMD-20260927-narrow.yaml'),\n    'AMD-20260926-typed.yaml': sha(A + 'AMD-20260926-typed.yaml'),\n    'blind-inputs.yaml': sha(W + 'coordination/review/auxin-20260928-104724/blind-inputs.yaml'),\n    'stated_in_gated_for_narrow': 'ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd',\n    'stated_in_narrow_for_typed': '3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6',\n    'stated_in_gated_through_it_for_typed': '3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6'},\n  'commands': [\n    'shasum -a 256 AMD-20260928-gated.yaml AMD-20260927-narrow.yaml AMD-20260926-typed.yaml',\n    'python3 s1_table.py  # governing_text_table census',\n    'python3 s2_dump.py; s3_dump.py; s4_dump.py; s5_dump.py  # read C-BOUND, definitions, recipes, span_rules, N4, stopping/invalidation rules',\n    'python3 construct.py  # own Baillie-PSW, recipe searches (wall 1m03s)',\n    'gp -q crosscheck.gp  # independent GP re-implementation of both searches',\n    'python3 certs.py  # certificates (first attempt hung in a naive c^4>=N loop in my own verifier; killed and fixed; rerun 0.65 s)',\n    'python3 spans.py  # gated span rules: occurrence count + sha256',\n    'python3 evaluate.py  # BND-1..3, OWN-1, gate 1, N4, QB3',\n    'python3 s7_scan.py; python3 s8_scan2.py  # QB4 numeric-leaf scans',\n    'python3 build_computations.py'],\n  'scripts': {s: rd(s) for s in scripts},\n  'raw_outputs': {\n    'governing_table_summary': {'rows': 992, 'layers': {'typed-by-hash': 540, 'gated': 186, 'narrow-by-hash': 154, 'v1': 112}},\n    'v1_governed_rows': json.load(open(T + 'v1_rows.json')),\n    'recipe_integers': json.load(open(T + 'integers.json')),\n    'gp_crosscheck_stdout': rd('crosscheck.out'), 'gp_crosscheck_time': rd('crosscheck.time'),\n    'certificates': json.load(open(T + 'certs.json')),\n    'certificate_verifier_tamper_tests': {'M.r genuine chain': True, 'M.r chain with N+2': False, 'M.r chain with t+1': False,\n                                         'M.d1 Pratt genuine': True, 'M.d1 Pratt with a=1': False},\n    'bpsw_self_test': 'own bpsw == sympy.isprime on n<200000 and 900 random 64/128/256-bit odd n; rejects 2047,3277,4033,4681,8321,561,1105,3215031751,3825123056546413051',\n    'span_checks': json.load(open(T + 'spans.json')),\n    'evaluation': json.load(open(T + 'evaluation.json')),\n    'numeric_leaf_scan_1_paths': rd('scan_paths.txt'),\n    'numeric_leaf_scan_2': rd('scan2.txt'),\n    'typed_D4_and_narrow_added_dump': rd('s6.out')},\n}\nos.makedirs(os.path.dirname(OUT), exist_ok=True)\njson.dump(doc, open(OUT, 'w'), indent=1, default=str)\nprint(OUT, os.path.getsize(OUT), sha(OUT))\n"
+ },
+ "raw_outputs": {
+  "governing_table_summary": {
+   "rows": 992,
+   "layers": {
+    "typed-by-hash": 540,
+    "gated": 186,
+    "narrow-by-hash": 154,
+    "v1": 112
+   }
+  },
+  "v1_governed_rows": [
+   "v1:id",
+   "v1:derived_from_idea",
+   "v1:source_idea_ids item 1",
+   "v1:question_id",
+   "v1:goal_id",
+   "v1:version",
+   "v1:title",
+   "v1:status",
+   "v1:frozen",
+   "v1:approved_by",
+   "v1:approval_decision",
+   "v1:approval_basis",
+   "v1:assigned_to",
+   "v1:scientific_execution_authorized",
+   "v1:scientific_execution_scope",
+   "v1:execution_authorized",
+   "v1:evidence_eligible",
+   "v1:execution_admission.currently_admitted",
+   "v1:execution_admission.requirements item 1",
+   "v1:execution_admission.requirements item 2",
+   "v1:execution_admission.requirements item 3",
+   "v1:execution_admission.requirements item 4",
+   "v1:launch_gate.blocks_scientific_run_until item 2",
+   "v1:launch_gate.does_not_block_protocol_approval",
+   "v1:launch_gate.note",
+   "v1:objective",
+   "v1:what_this_is_not item 1",
+   "v1:what_this_is_not item 2",
+   "v1:what_this_is_not item 3",
+   "v1:what_this_is_not item 4",
+   "v1:what_this_is_not item 5",
+   "v1:claim_ceiling.tier",
+   "v1:claim_ceiling.exact_scope_a_run_could_support",
+   "v1:claim_ceiling.explicitly_not_supportable_under_any_outcome",
+   "v1:inputs.parameters.frozen_curve_list[NIST-P-224].role",
+   "v1:inputs.parameters.frozen_curve_list[NIST-P-256].role",
+   "v1:inputs.parameters.frozen_curve_list[NIST-P-256].r_hex_pinned_internal",
+   "v1:inputs.parameters.frozen_curve_list[NIST-P-384].role",
+   "v1:inputs.parameters.frozen_curve_list[NIST-P-521].role",
+   "v1:inputs.parameters.frozen_curve_list[secp256k1].role",
+   "v1:inputs.parameters.frozen_curve_list[secp256k1].r_hex_pinned_internal",
+   "v1:inputs.parameters.frozen_curve_list[brainpoolP256r1].role",
+   "v1:inputs.parameters.frozen_curve_list[brainpoolP384r1].role",
+   "v1:inputs.parameters.frozen_curve_list[Ed25519-L].role",
+   "v1:inputs.parameters.frozen_curve_list[BN254-r].role",
+   "v1:inputs.parameters.frozen_curve_list[BLS12-381-r].role",
+   "v1:inputs.parameters.rho_baseline",
+   "v1:inputs.parameters.factoring_seconds_per_integer",
+   "v1:controls[arithmetic_product].name",
+   "v1:controls[arithmetic_product].design",
+   "v1:controls[independent_recompute].name",
+   "v1:controls[independent_recompute].design",
+   "v1:independent_variables[curve_id].values item 1",
+   "v1:independent_variables[curve_id].values item 2",
+   "v1:independent_variables[curve_id].values item 3",
+   "v1:independent_variables[curve_id].values item 4",
+   "v1:independent_variables[curve_id].values item 5",
+   "v1:independent_variables[curve_id].values item 6",
+   "v1:independent_variables[curve_id].values item 7",
+   "v1:independent_variables[curve_id].values item 8",
+   "v1:independent_variables[curve_id].values item 9",
+   "v1:independent_variables[curve_id].values item 10",
+   "v1:independent_variables[branch].values item 1",
+   "v1:independent_variables[branch].values item 2",
+   "v1:independent_variables[factoring_budget_seconds].values item 1",
+   "v1:heuristic_under_test",
+   "v1:scale_relevance.tier",
+   "v1:scale_relevance.justification",
+   "v1:scale_relevance.correspondence",
+   "v1:tail_checks item 1",
+   "v1:tail_checks item 2",
+   "v1:tail_checks item 3",
+   "v1:replication.independent_instances",
+   "v1:replication.note",
+   "v1:cost_model_disclosure.measured_vs_modelled",
+   "v1:cost_model_disclosure.optimistic_assumptions item 1",
+   "v1:cost_model_disclosure.optimistic_assumptions item 2",
+   "v1:cost_model_disclosure.memory_accounting",
+   "v1:cost_model_disclosure.hidden_overhead",
+   "v1:cost_model_disclosure.standardized_parameter_sets",
+   "v1:budget.enforcement",
+   "v1:budget.wall_clock_seconds_per_run",
+   "v1:budget.total_cpu_hours",
+   "v1:budget.maximum_memory_gb",
+   "v1:budget.maximum_runs",
+   "v1:budget.maximum_workers",
+   "v1:budget.protection_note",
+   "v1:stopping_rules item 2",
+   "v1:stopping_rules item 3",
+   "v1:stopping_rules item 5",
+   "v1:invalidation_rules item 1",
+   "v1:invalidation_rules item 2",
+   "v1:invalidation_rules item 3",
+   "v1:invalidation_rules item 4",
+   "v1:invalidation_rules item 5",
+   "v1:invalidation_rules item 6",
+   "v1:invalidation_rules item 7",
+   "v1:write_scope item 1",
+   "v1:write_scope item 2",
+   "v1:stages[stage0_order_pin].authorized",
+   "v1:stages[stage0_order_pin].claim_status",
+   "v1:stages[stage1_divisor_census].authorized",
+   "v1:stages[stage1_divisor_census].claim_status",
+   "v1:stages[stage2_protocol_supply_join].authorized",
+   "v1:stages[stage2_protocol_supply_join].gated_on",
+   "v1:stages[stage2_protocol_supply_join].purpose",
+   "v1:derivation_provenance.tool",
+   "v1:derivation_provenance.source_record",
+   "v1:derivation_provenance.reserved_ids_note",
+   "v1:derivation_provenance.authored_at",
+   "v1:derivation_provenance.note",
+   "v1:recorded_at"
+  ],
+  "recipe_integers": {
+   "plant_M": {
+    "S": "294693174213430241384087455685767077316",
+    "isqrt_S": "17166629669606968060",
+    "d1": "17166629669606968129",
+    "d2": "17166629669606968169",
+    "D": "294693174213430244430891235695900485801",
+    "u0": "147346587106715119168641837837816850167",
+    "u": "147346587106715119168641837837818895601",
+    "r": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+    "v": "7237005577332262213973186563043094703433019354551488745427098355665533643567",
+    "candidates_examined": {
+     "d1": 70,
+     "d2": 40,
+     "u": 2045435
+    },
+    "windows": {
+     "d1_in": true,
+     "d2_in": true,
+     "u_in": true,
+     "r_bits": true
+    }
+   },
+   "plant_P": {
+    "d0": "27897163901963686775744497",
+    "d": "27897163901963686775744531",
+    "w0": "259417251257675264555422902444027860852665664144271",
+    "w": "259417251257675264555422902444027860852665664308877",
+    "r": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+    "q": "43422033463993573283839119378257965444976244277167577138252363798291365010121",
+    "candidates_examined": {
+     "d": 35,
+     "w": 164607
+    },
+    "windows": {
+     "d_in": true,
+     "w_in": true,
+     "r_bits": true,
+     "d_size": true
+    }
+   }
+  },
+  "gp_crosscheck_stdout": "  ***   Warning: new stack size = 100000000 (95.367 Mbytes).\nM d1=17166629669606968129 d2=17166629669606968169 u=147346587106715119168641837837818895601 r=86844066927987146567678238756517136441196232254617864945125180267986403722803 v=7237005577332262213973186563043094703433019354551488745427098355665533643567\nP d0=27897163901963686775744497 d=27897163901963686775744531 w=259417251257675264555422902444027860852665664308877 r=86844066927987146567678238756515930889952488554335154276504727596582730020243 q=43422033463993573283839119378257965444976244277167577138252363798291365010121\n",
+  "gp_crosscheck_time": "gp -q crosscheck.gp > crosscheck.out 2>&1  2.59s user 0.03s system 91% cpu 2.883 total\n",
+  "certificates": {
+   "M.d1": {
+    "n": "17166629669606968129",
+    "type": "pratt",
+    "cert": {
+     "p": 17166629669606968129,
+     "a": 7,
+     "factors": {
+      "2": 6,
+      "3": 1,
+      "2357": 1,
+      "282679": 1,
+      "134193253": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 2357,
+       "a": 2,
+       "factors": {
+        "2": 2,
+        "19": 1,
+        "31": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 19,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "3": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 31,
+         "a": 3,
+         "factors": {
+          "2": 1,
+          "3": 1,
+          "5": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 282679,
+       "a": 6,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "11": 1,
+        "4283": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 11,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "5": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 4283,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "2141": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 2141,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "5": 1,
+            "107": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 107,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "53": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 53,
+               "a": 2,
+               "factors": {
+                "2": 2,
+                "13": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 13,
+                 "a": 2,
+                 "factors": {
+                  "2": 2,
+                  "3": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  },
+                  {
+                   "p": 3,
+                   "a": 2,
+                   "factors": {
+                    "2": 1
+                   },
+                   "sub": [
+                    {
+                     "p": 2,
+                     "leaf": true
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 134193253,
+       "a": 2,
+       "factors": {
+        "2": 2,
+        "3": 1,
+        "11182771": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 11182771,
+         "a": 15,
+         "factors": {
+          "2": 1,
+          "3": 2,
+          "5": 1,
+          "17": 1,
+          "7309": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 17,
+           "a": 3,
+           "factors": {
+            "2": 4
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 7309,
+           "a": 6,
+           "factors": {
+            "2": 2,
+            "3": 2,
+            "7": 1,
+            "29": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 7,
+             "a": 3,
+             "factors": {
+              "2": 1,
+              "3": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 29,
+             "a": 2,
+             "factors": {
+              "2": 2,
+              "7": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 7,
+               "a": 3,
+               "factors": {
+                "2": 1,
+                "3": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 3,
+                 "a": 2,
+                 "factors": {
+                  "2": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_stdlib": true
+   },
+   "M.d2": {
+    "n": "17166629669606968169",
+    "type": "pratt",
+    "cert": {
+     "p": 17166629669606968169,
+     "a": 3,
+     "factors": {
+      "2": 3,
+      "2145828708700871021": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 2145828708700871021,
+       "a": 2,
+       "factors": {
+        "2": 2,
+        "5": 1,
+        "23": 1,
+        "337": 1,
+        "13842270085801": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 23,
+         "a": 5,
+         "factors": {
+          "2": 1,
+          "11": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 11,
+           "a": 2,
+           "factors": {
+            "2": 1,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 337,
+         "a": 10,
+         "factors": {
+          "2": 4,
+          "3": 1,
+          "7": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 7,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 13842270085801,
+         "a": 7,
+         "factors": {
+          "2": 3,
+          "3": 1,
+          "5": 2,
+          "13": 1,
+          "25679": 1,
+          "69109": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 13,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 25679,
+           "a": 11,
+           "factors": {
+            "2": 1,
+            "37": 1,
+            "347": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 37,
+             "a": 2,
+             "factors": {
+              "2": 2,
+              "3": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 347,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "173": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 173,
+               "a": 2,
+               "factors": {
+                "2": 2,
+                "43": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 43,
+                 "a": 3,
+                 "factors": {
+                  "2": 1,
+                  "3": 1,
+                  "7": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  },
+                  {
+                   "p": 3,
+                   "a": 2,
+                   "factors": {
+                    "2": 1
+                   },
+                   "sub": [
+                    {
+                     "p": 2,
+                     "leaf": true
+                    }
+                   ]
+                  },
+                  {
+                   "p": 7,
+                   "a": 3,
+                   "factors": {
+                    "2": 1,
+                    "3": 1
+                   },
+                   "sub": [
+                    {
+                     "p": 2,
+                     "leaf": true
+                    },
+                    {
+                     "p": 3,
+                     "a": 2,
+                     "factors": {
+                      "2": 1
+                     },
+                     "sub": [
+                      {
+                       "p": 2,
+                       "leaf": true
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 69109,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1,
+            "13": 1,
+            "443": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 13,
+             "a": 2,
+             "factors": {
+              "2": 2,
+              "3": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 443,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "13": 1,
+              "17": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 13,
+               "a": 2,
+               "factors": {
+                "2": 2,
+                "3": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 3,
+                 "a": 2,
+                 "factors": {
+                  "2": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "p": 17,
+               "a": 3,
+               "factors": {
+                "2": 4
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_stdlib": true
+   },
+   "M.u": {
+    "n": "147346587106715119168641837837818895601",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "147346587106715119168641837837818895601",
+      "-14915799974684797027",
+      "76146249",
+      "0",
+      [
+       "127539143723789471433948357311688166278",
+       "71519286256700589621950676839614877943"
+      ]
+     ],
+     [
+      "1935047215611567671357753128621",
+      "-423933021703234",
+      "4368",
+      "0",
+      [
+       "1038670476017199579990351480376",
+       "204271691274140185115484482039"
+      ]
+     ],
+     [
+      "443005314929388300203931967",
+      "-34159116082004",
+      "101012404",
+      "0",
+      [
+       "431556170244416115132413804",
+       "24546536100769812595021678"
+      ]
+     ]
+    ],
+    "terminal_q": "4385652626675655193",
+    "terminal_pratt": {
+     "p": 4385652626675655193,
+     "a": 7,
+     "factors": {
+      "2": 3,
+      "3": 1,
+      "11": 1,
+      "13": 1,
+      "58441": 1,
+      "21865998391": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 11,
+       "a": 2,
+       "factors": {
+        "2": 1,
+        "5": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 13,
+       "a": 2,
+       "factors": {
+        "2": 2,
+        "3": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 58441,
+       "a": 13,
+       "factors": {
+        "2": 3,
+        "3": 1,
+        "5": 1,
+        "487": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 487,
+         "a": 3,
+         "factors": {
+          "2": 1,
+          "3": 5
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 21865998391,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "5": 1,
+        "61": 1,
+        "733": 1,
+        "16301": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 61,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "3": 1,
+          "5": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 733,
+         "a": 6,
+         "factors": {
+          "2": 2,
+          "3": 1,
+          "61": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 61,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 16301,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "5": 2,
+          "163": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 163,
+           "a": 2,
+           "factors": {
+            "2": 1,
+            "3": 4
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "M.r": {
+    "n": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+      "576967588214316886061073310887906288423",
+      "32658129",
+      "12741031737173053097937997750525954760734990956909420311246590043211739740788",
+      [
+       "67672863686194176653620935681066197095753966031258900818659124963805878373254",
+       "24147487309617007969423065605059537543549136888587366491418375942180892953367"
+      ]
+     ],
+     [
+      "2659186842209703641248959447631465245318225813438471875074781747512189",
+      "-41645880522560684721444214156038491",
+      "1026349181359",
+      "0",
+      [
+       "72702172505966675268189037544700419925996609162709896751474210313773",
+       "951592091877804301293113051068595985520557769987308740300324398630241"
+      ]
+     ],
+     [
+      "2590918266908583408738334642753910036213545371356898669559",
+      "-100908900510664540195858579412",
+      "2393132120290612",
+      "0",
+      [
+       "1703078603070899174138327342216195085127906649366780821299",
+       "782328275811972680893848307577311452361246828386788371766"
+      ]
+     ],
+     [
+      "1082647399590271297954333887931650868020031",
+      "-1868652918402141500568",
+      "16413417400",
+      "1082647399590271297954333887931650816352156",
+      [
+       "1046225743683564668465460091236017783343326",
+       "2127581904761308679807223800688861694690"
+      ]
+     ],
+     [
+      "65961120296025086034563560227869",
+      "-542458207488476",
+      "394",
+      "2466583360504661214465901675889",
+      [
+       "37885051133997400936959385313523",
+       "28894318676255785810227702212319"
+      ]
+     ],
+     [
+      "167414010903616971007669461209",
+      "556299141484090",
+      "2720",
+      "1",
+      [
+       "113922108487478362611995082397",
+       "5312206101438047856616315372"
+      ]
+     ],
+     [
+      "61549268714564858348723521",
+      "15327733254169",
+      "1411769749",
+      "0",
+      [
+       "34726759224153754152531392",
+       "5105152144397389806793338"
+      ]
+     ]
+    ],
+    "terminal_q": "43597242934371397",
+    "terminal_pratt": {
+     "p": 43597242934371397,
+     "a": 5,
+     "factors": {
+      "2": 2,
+      "3": 2,
+      "1211034525954761": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 1211034525954761,
+       "a": 3,
+       "factors": {
+        "2": 3,
+        "5": 1,
+        "13": 1,
+        "1082993": 1,
+        "2150441": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 13,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "3": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 1082993,
+         "a": 3,
+         "factors": {
+          "2": 4,
+          "113": 1,
+          "599": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 113,
+           "a": 3,
+           "factors": {
+            "2": 4,
+            "7": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 7,
+             "a": 3,
+             "factors": {
+              "2": 1,
+              "3": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 599,
+           "a": 7,
+           "factors": {
+            "2": 1,
+            "13": 1,
+            "23": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 13,
+             "a": 2,
+             "factors": {
+              "2": 2,
+              "3": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 23,
+             "a": 5,
+             "factors": {
+              "2": 1,
+              "11": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 11,
+               "a": 2,
+               "factors": {
+                "2": 1,
+                "5": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 5,
+                 "a": 2,
+                 "factors": {
+                  "2": 2
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 2150441,
+         "a": 3,
+         "factors": {
+          "2": 3,
+          "5": 1,
+          "37": 1,
+          "1453": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 37,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 1453,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1,
+            "11": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 11,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "5": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 5,
+               "a": 2,
+               "factors": {
+                "2": 2
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "M.v": {
+    "n": "7237005577332262213973186563043094703433019354551488745427098355665533643567",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "7237005577332262213973186563043094703433019354551488745427098355665533643567",
+      "-170113524184751193762859522186260880735",
+      "23",
+      "7237005577332262213973186563043094703433019354551488680425386373608438475567",
+      [
+       "753004072685881823636366456603650587050591895244751816960546428819898446772",
+       "50003947757303014605894677309475688888093349016763891719584070948508441040"
+      ]
+     ],
+     [
+      "314652416405750531042312459262743247982744907771140866921302516428338892361",
+      "35398210316374447266711608717818530708",
+      "4486620581774334",
+      "215903313147218747146075118981449668007680748119666776079874751105327740446",
+      [
+       "245439493189528526572970379119726601855035267326509932971243150220885833580",
+       "93433864763266223944932249503789786654902664960380094508400856824852353423"
+      ]
+     ],
+     [
+      "70131273788548045107033065005867030900844890487340184610981",
+      "-527483117645146421278675147780",
+      "2163506",
+      "37814818505547502788614882004588439720797936826674234157229",
+      [
+       "56801501686542746527357296563912490052556239114495973477254",
+       "4229083238094369725538007981172760503972418737371095254174"
+      ]
+     ],
+     [
+      "32415567041897755359602915363486171990505243298894877",
+      "-103773543279202774051271638",
+      "6402013260388",
+      "1",
+      [
+       "22363386959632221436156372242910637015717706986206053",
+       "4568418495880653508669025791460798671467917124955226"
+      ]
+     ],
+     [
+      "5063339565768593801395016334645712516357",
+      "-94762764482198579599",
+      "4785501",
+      "0",
+      [
+       "4077053386440857513852091482943168752941",
+       "1693161178558874478490089509324433764022"
+      ]
+     ],
+     [
+      "1058058407211406663897840393122457",
+      "47298913653809551",
+      "561257467",
+      "0",
+      [
+       "67531740843842722871162000121752",
+       "165079949211398931515191628341205"
+      ]
+     ],
+     [
+      "1885156936738636951798321",
+      "-2490894440039",
+      "3125148931",
+      "0",
+      [
+       "374155872753636350798384",
+       "798253839822085481561535"
+      ]
+     ]
+    ],
+    "terminal_q": "603221471476531",
+    "terminal_pratt": {
+     "p": 603221471476531,
+     "a": 3,
+     "factors": {
+      "2": 1,
+      "3": 1,
+      "5": 1,
+      "193": 1,
+      "104183328407": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 5,
+       "a": 2,
+       "factors": {
+        "2": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 193,
+       "a": 5,
+       "factors": {
+        "2": 6,
+        "3": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 104183328407,
+       "a": 5,
+       "factors": {
+        "2": 1,
+        "19": 1,
+        "2741666537": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 19,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "3": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 2741666537,
+         "a": 3,
+         "factors": {
+          "2": 3,
+          "7": 1,
+          "31": 1,
+          "109": 1,
+          "14489": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 7,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 31,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 109,
+           "a": 6,
+           "factors": {
+            "2": 2,
+            "3": 3
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 14489,
+           "a": 3,
+           "factors": {
+            "2": 3,
+            "1811": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 1811,
+             "a": 6,
+             "factors": {
+              "2": 1,
+              "5": 1,
+              "181": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 5,
+               "a": 2,
+               "factors": {
+                "2": 2
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              },
+              {
+               "p": 181,
+               "a": 2,
+               "factors": {
+                "2": 2,
+                "3": 2,
+                "5": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 3,
+                 "a": 2,
+                 "factors": {
+                  "2": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                },
+                {
+                 "p": 5,
+                 "a": 2,
+                 "factors": {
+                  "2": 2
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "P.d": {
+    "n": "27897163901963686775744531",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "27897163901963686775744531",
+      "10071243490156",
+      "152737816",
+      "27897163901963686724076656",
+      [
+       "15848865494728844296390200",
+       "13360116480855846192929199"
+      ]
+     ]
+    ],
+    "terminal_q": "182647392980619911",
+    "terminal_pratt": {
+     "p": 182647392980619911,
+     "a": 7,
+     "factors": {
+      "2": 1,
+      "5": 1,
+      "7": 1,
+      "31": 1,
+      "2371": 1,
+      "2939": 1,
+      "12078767": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 5,
+       "a": 2,
+       "factors": {
+        "2": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 7,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 31,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "5": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 2371,
+       "a": 2,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "5": 1,
+        "79": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 79,
+         "a": 3,
+         "factors": {
+          "2": 1,
+          "3": 1,
+          "13": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          },
+          {
+           "p": 13,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 2939,
+       "a": 2,
+       "factors": {
+        "2": 1,
+        "13": 1,
+        "113": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 13,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "3": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 113,
+         "a": 3,
+         "factors": {
+          "2": 4,
+          "7": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 7,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 12078767,
+       "a": 5,
+       "factors": {
+        "2": 1,
+        "7": 1,
+        "862769": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 7,
+         "a": 3,
+         "factors": {
+          "2": 1,
+          "3": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 862769,
+         "a": 3,
+         "factors": {
+          "2": 4,
+          "53923": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 53923,
+           "a": 5,
+           "factors": {
+            "2": 1,
+            "3": 1,
+            "11": 1,
+            "19": 1,
+            "43": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 11,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "5": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 5,
+               "a": 2,
+               "factors": {
+                "2": 2
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 19,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "3": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "p": 43,
+             "a": 3,
+             "factors": {
+              "2": 1,
+              "3": 1,
+              "7": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              },
+              {
+               "p": 7,
+               "a": 3,
+               "factors": {
+                "2": 1,
+                "3": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 3,
+                 "a": 2,
+                 "factors": {
+                  "2": 1
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "P.w": {
+    "n": "259417251257675264555422902444027860852665664308877",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "259417251257675264555422902444027860852665664308877",
+      "-26993817191956607777616602",
+      "202280",
+      "259417251257675264555422902444027860852665664308876",
+      [
+       "42704075141759363438727670783762791389523762983770",
+       "55610146066282845354809180360079224954902608055309"
+      ]
+     ],
+     [
+      "1282466142266537791948897218893835538902874441",
+      "-70206855331524229446358",
+      "7200",
+      "1",
+      [
+       "1159878788800263095915854552743787849906718264",
+       "216641401053230902217816646615625417746517047"
+      ]
+     ],
+     [
+      "178120297537019137770689920242939869879489",
+      "-645364403235458837802",
+      "341772",
+      "32797828419199041870860472910190596939422",
+      [
+       "156728761456049413138394474249624644972877",
+       "85709574733131098860733455259173598742721"
+      ]
+     ],
+     [
+      "521167028126994422513650283364861161",
+      "16685733436398160",
+      "680332077907219322",
+      "154518673512727752053148670763770709",
+      [
+       "498841985575031384235974116016601351",
+       "197148497632864539226434486505475634"
+      ]
+     ]
+    ],
+    "terminal_q": "766048000750111441",
+    "terminal_pratt": {
+     "p": 766048000750111441,
+     "a": 7,
+     "factors": {
+      "2": 4,
+      "3": 2,
+      "5": 1,
+      "79": 1,
+      "229": 1,
+      "499": 1,
+      "761": 1,
+      "154873": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 5,
+       "a": 2,
+       "factors": {
+        "2": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 79,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "13": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 13,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "3": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 229,
+       "a": 6,
+       "factors": {
+        "2": 2,
+        "3": 1,
+        "19": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 19,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "3": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 499,
+       "a": 7,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "83": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 83,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "41": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 41,
+           "a": 6,
+           "factors": {
+            "2": 3,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 761,
+       "a": 6,
+       "factors": {
+        "2": 3,
+        "5": 1,
+        "19": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 19,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "3": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 154873,
+       "a": 7,
+       "factors": {
+        "2": 3,
+        "3": 4,
+        "239": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 239,
+         "a": 7,
+         "factors": {
+          "2": 1,
+          "7": 1,
+          "17": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 7,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 17,
+           "a": 3,
+           "factors": {
+            "2": 4
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "P.r": {
+    "n": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+      "340326714367537800450477042115625228028",
+      "696",
+      "58952391276060619492557915503732995160295397677754339116508760663484513001858",
+      [
+       "31013363334053149075836256504296143000601360941685136384124272903127719149021",
+       "18980133397523826973587680868171602909539360199105388200355590716642851853676"
+      ]
+     ],
+     [
+      "124775958229866589896089423500741280013810577356275311028813578382855035621",
+      "2702316034721630820442196259822651816",
+      "16823366",
+      "123159313037399928152728285164887716852378108126977888285947618856306382634",
+      [
+       "88135516574279434263089973035474429212885489412968067041969851781349682477",
+       "4894267987482890186720337649045982389997045318483566838572073249503119067"
+      ]
+     ],
+     [
+      "7416824803660967127273425752060632813380405640675812450871685376341",
+      "-4016641704763179419561325970248690",
+      "89914987989448",
+      "7416824803660967127273425752060632813380405640675812450871685376340",
+      [
+       "4782008889177897382718040256120160380642371887442726663815665891947",
+       "802265395474368020391671581089840217509535532815839086146776000251"
+      ]
+     ],
+     [
+      "82487079957474618080188120828562885211140838595265009",
+      "371619245358296120012781490",
+      "17998407515349881920",
+      "1",
+      [
+       "69302942652631421447913561547779851633540474371091757",
+       "7009770357637536136139725040633666747887240600757061"
+      ]
+     ],
+     [
+      "4583021019338837983108167816859481",
+      "95486528170656209",
+      "8222556653561",
+      "1396622047623360168289847050412983",
+      [
+       "3756920049181065729844602310516719",
+       "2248191887902964117366359296590149"
+      ]
+     ],
+     [
+      "557371777712718706193",
+      "-41586022984",
+      "52093738",
+      "5415470890749258725",
+      [
+       "262317724109540204787",
+       "76347197327972099276"
+      ]
+     ]
+    ],
+    "terminal_q": "10699400717881",
+    "terminal_pratt": {
+     "p": 10699400717881,
+     "a": 11,
+     "factors": {
+      "2": 3,
+      "3": 1,
+      "5": 1,
+      "7": 1,
+      "23": 1,
+      "2351": 1,
+      "235559": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 5,
+       "a": 2,
+       "factors": {
+        "2": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 7,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 23,
+       "a": 5,
+       "factors": {
+        "2": 1,
+        "11": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 11,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "5": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 5,
+           "a": 2,
+           "factors": {
+            "2": 2
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 2351,
+       "a": 13,
+       "factors": {
+        "2": 1,
+        "5": 2,
+        "47": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 47,
+         "a": 5,
+         "factors": {
+          "2": 1,
+          "23": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 23,
+           "a": 5,
+           "factors": {
+            "2": 1,
+            "11": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 11,
+             "a": 2,
+             "factors": {
+              "2": 1,
+              "5": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 5,
+               "a": 2,
+               "factors": {
+                "2": 2
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 235559,
+       "a": 7,
+       "factors": {
+        "2": 1,
+        "117779": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 117779,
+         "a": 2,
+         "factors": {
+          "2": 1,
+          "58889": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 58889,
+           "a": 3,
+           "factors": {
+            "2": 3,
+            "17": 1,
+            "433": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 17,
+             "a": 3,
+             "factors": {
+              "2": 4
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 433,
+             "a": 5,
+             "factors": {
+              "2": 4,
+              "3": 3
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 3,
+               "a": 2,
+               "factors": {
+                "2": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "P.q": {
+    "n": "43422033463993573283839119378257965444976244277167577138252363798291365010121",
+    "type": "ecpp+pratt_terminal",
+    "chain": [
+     [
+      "43422033463993573283839119378257965444976244277167577138252363798291365010121",
+      "274375964946184893944933407926493392710",
+      "37565092",
+      "695415269845798946473995273042851946444593664039930149414824377203761701773",
+      [
+       "31154678133898480858203835776622835978714090907803289966516194793715657668032",
+       "9797557235849568363500987512364502111076324203694618256760027258030229624094"
+      ]
+     ],
+     [
+      "1155914471445819253785911648459638151417328308745294494268972651267961",
+      "36001092137849366308358539073920726",
+      "4",
+      "0",
+      [
+       "881240999539822720900062446366727884914889870930507018013703285692980",
+       "356314148079417757562683741767624941904391348394990031084098834585381"
+      ]
+     ],
+     [
+      "288978617861454813446477912114909528854059042723982046477608394336809",
+      "32051865296983997276109394893040606",
+      "12076",
+      "156895772057604662832809727757054892678907230685232624637871779237968",
+      [
+       "153024284623364945820417240149504914835702137584483835381393948228203",
+       "12748229095685274118209058642865399167875466857260644055020361614849"
+      ]
+     ],
+     [
+      "23929994854376847751447326276491346207535089908908974028503933529",
+      "-301251215418716620940947462104758",
+      "38992",
+      "0",
+      [
+       "19049848663318834854158636640675217885425778568198829884381506096",
+       "10470658937143941221976852138441918665126786796427879003131641827"
+      ]
+     ],
+     [
+      "613715502010075085952178043611295841679075416124587478866589",
+      "-372368737321489749310369476107",
+      "40393",
+      "0",
+      [
+       "470869576827058590725078190821542914120268423489797907820046",
+       "184751420795395628208400758947509175964890321922086942677101"
+      ]
+     ],
+     [
+      "15193610328771695243041567687759468482568685313640924129",
+      "5248985925896875119912447346",
+      "948653006704",
+      "0",
+      [
+       "11024176093035179919685094723264018625103534292937175373",
+       "3723322270838352345943721214837573802700491041122615784"
+      ]
+     ],
+     [
+      "16015982895116070801634980365159414652821521",
+      "-1938182484421806937061",
+      "1397066467",
+      "0",
+      [
+       "14241625209555575382678418398089291728725657",
+       "3983009149294865870059976824684620124342115"
+      ]
+     ],
+     [
+      "11464009246108453622798834629565149",
+      "-126176016964438907",
+      "136861921",
+      "0",
+      [
+       "11125086647925023798724211074849332",
+       "1705266918878380619435625387098982"
+      ]
+     ],
+     [
+      "83763322641865108330423417",
+      "-4801756393195",
+      "8187718383",
+      "0",
+      [
+       "54894762375491535671996964",
+       "16398176581026343357223222"
+      ]
+     ]
+    ],
+    "terminal_q": "10230361954776811",
+    "terminal_pratt": {
+     "p": 10230361954776811,
+     "a": 3,
+     "factors": {
+      "2": 1,
+      "3": 2,
+      "5": 1,
+      "7": 1,
+      "11": 1,
+      "19": 1,
+      "4693831": 1,
+      "16553": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      },
+      {
+       "p": 3,
+       "a": 2,
+       "factors": {
+        "2": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 5,
+       "a": 2,
+       "factors": {
+        "2": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        }
+       ]
+      },
+      {
+       "p": 7,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 11,
+       "a": 2,
+       "factors": {
+        "2": 1,
+        "5": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 19,
+       "a": 2,
+       "factors": {
+        "2": 1,
+        "3": 2
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 4693831,
+       "a": 3,
+       "factors": {
+        "2": 1,
+        "3": 1,
+        "5": 1,
+        "97": 1,
+        "1613": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 3,
+         "a": 2,
+         "factors": {
+          "2": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 5,
+         "a": 2,
+         "factors": {
+          "2": 2
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          }
+         ]
+        },
+        {
+         "p": 97,
+         "a": 5,
+         "factors": {
+          "2": 5,
+          "3": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 3,
+           "a": 2,
+           "factors": {
+            "2": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "p": 1613,
+         "a": 3,
+         "factors": {
+          "2": 2,
+          "13": 1,
+          "31": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 13,
+           "a": 2,
+           "factors": {
+            "2": 2,
+            "3": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 31,
+           "a": 3,
+           "factors": {
+            "2": 1,
+            "3": 1,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 3,
+             "a": 2,
+             "factors": {
+              "2": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "p": 16553,
+       "a": 3,
+       "factors": {
+        "2": 3,
+        "2069": 1
+       },
+       "sub": [
+        {
+         "p": 2,
+         "leaf": true
+        },
+        {
+         "p": 2069,
+         "a": 2,
+         "factors": {
+          "2": 2,
+          "11": 1,
+          "47": 1
+         },
+         "sub": [
+          {
+           "p": 2,
+           "leaf": true
+          },
+          {
+           "p": 11,
+           "a": 2,
+           "factors": {
+            "2": 1,
+            "5": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 5,
+             "a": 2,
+             "factors": {
+              "2": 2
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "p": 47,
+           "a": 5,
+           "factors": {
+            "2": 1,
+            "23": 1
+           },
+           "sub": [
+            {
+             "p": 2,
+             "leaf": true
+            },
+            {
+             "p": 23,
+             "a": 5,
+             "factors": {
+              "2": 1,
+              "11": 1
+             },
+             "sub": [
+              {
+               "p": 2,
+               "leaf": true
+              },
+              {
+               "p": 11,
+               "a": 2,
+               "factors": {
+                "2": 1,
+                "5": 1
+               },
+               "sub": [
+                {
+                 "p": 2,
+                 "leaf": true
+                },
+                {
+                 "p": 5,
+                 "a": 2,
+                 "factors": {
+                  "2": 2
+                 },
+                 "sub": [
+                  {
+                   "p": 2,
+                   "leaf": true
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "verified_pari_primecertisvalid": true,
+    "verified_stdlib_ecpp": true,
+    "verified_stdlib_terminal_pratt": true
+   },
+   "small.2": {
+    "n": "2",
+    "type": "pratt",
+    "cert": {
+     "p": 2,
+     "leaf": true
+    },
+    "verified_stdlib": true
+   },
+   "small.3": {
+    "n": "3",
+    "type": "pratt",
+    "cert": {
+     "p": 3,
+     "a": 2,
+     "factors": {
+      "2": 1
+     },
+     "sub": [
+      {
+       "p": 2,
+       "leaf": true
+      }
+     ]
+    },
+    "verified_stdlib": true
+   }
+  },
+  "certificate_verifier_tamper_tests": {
+   "M.r genuine chain": true,
+   "M.r chain with N+2": false,
+   "M.r chain with t+1": false,
+   "M.d1 Pratt genuine": true,
+   "M.d1 Pratt with a=1": false
+  },
+  "bpsw_self_test": "own bpsw == sympy.isprime on n<200000 and 900 random 64/128/256-bit odd n; rejects 2047,3277,4033,4681,8321,561,1105,3215031751,3825123056546413051",
+  "span_checks": [
+   {
+    "id": "G-GATE1",
+    "field": "controls[C-BOUND].gates item 1",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "ded9b0d258557e8de7915527f9b1ddc8728726fea5ecaa011bac00acdc71bc3b",
+    "after": "For each state, on path A and on path B, the evaluator returns exactly the expected status, witness set, witness, bin, bin_at_least and boundary_flag."
+   },
+   {
+    "id": "G-BND1",
+    "field": "controls[C-BOUND].states[BND-1].expected",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "4e932aa3f7d0b8e05fe8d3e53891c134d624188271f782ef61b3127a3d4dc89b",
+    "after": "status BOUND. W = {e, e * D : e | 2u}. witness = the smaller of D and 2u (they tie exactly, because D * 2u = m and T_minus(d) = T_minus(m/d)). upper bound = e_minus(witness). lower bound = F_minus(r_M). bin NEAR_FLOOR, bin_at_least NEAR_FLOOR, boundary_flag false. CONSISTENCY: the upper bound equals, within 10^-50, the EXACT minus exponent of C-PLANT-M from the same stage (its minimiser lies in {D, 2u} by that control's gate)."
+   },
+   {
+    "id": "G-BND3",
+    "field": "controls[C-BOUND].states[BND-3].expected",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "4e932aa3f7d0b8e05fe8d3e53891c134d624188271f782ef61b3127a3d4dc89b",
+    "after": "status BOUND. W = {e * (product of S) : e | 2, S a subset of {2d, 3w}} = {1, 2, 2d, 4d, 3w, 6w, 6dw, 12dw}. witness = 2d. upper bound = e_plus(2d). lower bound = F_plus(r_P). bin NEAR_FLOOR, bin_at_least NEAR_FLOOR, boundary_flag false. CONTRAST, stated so that a mis-implementation is visible: the superseded single-cofactor formula (C_b = 6dw, W = {1, 2, 6dw, 12dw}) would give witness 2 and bin UNDETERMINED; that result fails this gate."
+   },
+   {
+    "id": "G-Q011",
+    "field": "conventions.Q0-11",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "4409845e4dc43015e7c17645be4a1a9bf0c73d396b4519dae706ba51bb532ce0",
+    "after": null
+   },
+   {
+    "id": "G-CPL",
+    "field": "corrective.declared_not_superseded item 1.declaration",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "a1d84b537b0f6b243b4d4364f018773a711e751414a06821b207cd4d7bfca533",
+    "after": null
+   },
+   {
+    "id": "G-WII",
+    "field": "incorporates.what_is_incorporated",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "4a6b28cef45da9ef91fb6590b75c2787031dba591f560e63bdab328e70e28dfc",
+    "after": null
+   },
+   {
+    "id": "G-ENV",
+    "field": "envelope_not_incorporated.rule",
+    "from_occurrences": 1,
+    "hash_ok": true,
+    "computed": "3a3de01ca4f5fe65502a9f388cc9fc72d94391ac9c1471bac53a263a7d455ce9",
+    "after": null
+   }
+  ],
+  "evaluation": {
+   "BND-1": {
+    "branch": "minus",
+    "r": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+    "m_bits": 256,
+    "F_certified": {
+     "2": 1,
+     "147346587106715119168641837837818895601": 1
+    },
+    "parts": [
+     {
+      "part": "294693174213430244430891235695900485801",
+      "bits": 128,
+      "compositeness_witness": 2,
+      "perfect_power": false
+     }
+    ],
+    "status": "BOUND",
+    "witness_set": [
+     "1",
+     "2",
+     "147346587106715119168641837837818895601",
+     "294693174213430238337283675675637791202",
+     "294693174213430244430891235695900485801",
+     "589386348426860488861782471391800971602",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+     "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+    ],
+    "witness": "294693174213430238337283675675637791202",
+    "tied": [
+     "294693174213430238337283675675637791202",
+     "294693174213430244430891235695900485801"
+    ],
+    "witness_label": "2u",
+    "upper_bound_exponent": "0.253912593253592446422545918016896190542954586962424691849425",
+    "lower_bound_exponent": "0.25391259325359244642254591801689619046753258224132338160635",
+    "C_b": "0.50000000000000000000000000000000000000001915442696981268692",
+    "upper_bound_exponent_4dp": "0.253913",
+    "lower_bound_exponent_4dp": "0.253913",
+    "log2_upper_cost_bits": "64.8962406252",
+    "log2_lower_cost_bits": "64.8962406252",
+    "log2_r": "255.584962501",
+    "depth": "0.999999999999999999999999999999999999693515382529007288136357",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "floor_invariant_holds": true,
+    "tplus_ge_d_all_W": null,
+    "expected_source": "declared expected block (typed, with gated spans)",
+    "expected_matches": {
+     "status": true,
+     "witness": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true,
+     "W": true
+    },
+    "gate1": "pass",
+    "gate1_diffs": [],
+    "N4_met": false,
+    "qb3_bin_at_least_absent": "fail",
+    "qb3_absent_diffs": [
+     "bin_at_least"
+    ],
+    "qb3_bin_at_least_other": "fail",
+    "qb3_other_diffs": [
+     "bin_at_least"
+    ],
+    "lowest_four": [
+     [
+      "294693174213430238337283675675637791202",
+      "0.25391259325359244642"
+     ],
+     [
+      "294693174213430244430891235695900485801",
+      "0.25391259325359244642"
+     ],
+     [
+      "147346587106715119168641837837818895601",
+      "0.25424501696072238547"
+     ],
+     [
+      "589386348426860488861782471391800971602",
+      "0.25424501696072238547"
+     ]
+    ],
+    "D_lt_2u": false,
+    "consistency": {
+     "cplantm_exact_minus_minimiser": "294693174213430238337283675675637791202",
+     "cplantm_minimiser_label": "2u",
+     "cplantm_exact_minus_e": "0.253912593253592446422545918016896190542954586962424691849425",
+     "abs_diff": "0.0",
+     "holds": true,
+     "cplantm_gap_e_minus_F": "7.542200472e-38",
+     "cplantm_bin": "NEAR_FLOOR"
+    }
+   },
+   "BND-2": {
+    "branch": "minus",
+    "r": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+    "m_bits": 256,
+    "F_certified": {
+     "2": 1
+    },
+    "parts": [
+     {
+      "part": "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+      "bits": 255,
+      "compositeness_witness": 2,
+      "perfect_power": false
+     }
+    ],
+    "status": "BOUND",
+    "witness_set": [
+     "1",
+     "2",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+     "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+    ],
+    "witness": "2",
+    "tied": [
+     "2",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401"
+    ],
+    "witness_label": "2",
+    "upper_bound_exponent": "0.498043703373203776788727040991551904766272017733277934570664",
+    "lower_bound_exponent": "0.25391259325359244642254591801689619046753258224132338160635",
+    "C_b": "0.50000000000000000000000000000000000000001915442696981268692",
+    "upper_bound_exponent_4dp": "0.498044",
+    "lower_bound_exponent_4dp": "0.253913",
+    "log2_upper_cost_bits": "127.29248125",
+    "log2_lower_cost_bits": "64.8962406252",
+    "log2_r": "255.584962501",
+    "depth": "0.00794960072382810676253324259548872890515527811449931583707813",
+    "bin": "UNDETERMINED",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "floor_invariant_holds": true,
+    "tplus_ge_d_all_W": null,
+    "expected_source": "declared expected block (typed, with gated spans)",
+    "expected_matches": {
+     "status": true,
+     "witness": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true,
+     "W": true
+    },
+    "gate1": "pass",
+    "gate1_diffs": [],
+    "N4_met": false,
+    "qb3_bin_at_least_absent": "fail",
+    "qb3_absent_diffs": [
+     "bin_at_least"
+    ],
+    "qb3_bin_at_least_other": "fail",
+    "qb3_other_diffs": [
+     "bin_at_least"
+    ],
+    "lowest_four": [
+     [
+      "2",
+      "0.49804370337320377679"
+     ],
+     [
+      "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+      "0.49804370337320377679"
+     ],
+     [
+      "1",
+      "0.5"
+     ],
+     [
+      "86844066927987146567678238756517136441196232254617864945125180267986403722802",
+      "0.5"
+     ]
+    ],
+    "depth_below_1_over_100": true
+   },
+   "BND-3": {
+    "branch": "plus",
+    "r": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+    "m_bits": 256,
+    "F_certified": {
+     "2": 1
+    },
+    "parts": [
+     {
+      "part": "55794327803927373551489062",
+      "bits": 86,
+      "compositeness_witness": "even",
+      "perfect_power": false
+     },
+     {
+      "part": "778251753773025793666268707332083582557996992926631",
+      "bits": 170,
+      "compositeness_witness": 2,
+      "perfect_power": false
+     }
+    ],
+    "status": "BOUND",
+    "witness_set": [
+     "1",
+     "2",
+     "55794327803927373551489062",
+     "111588655607854747102978124",
+     "778251753773025793666268707332083582557996992926631",
+     "1556503507546051587332537414664167165115993985853262",
+     "43422033463993573283839119378257965444976244277167577138252363798291365010122",
+     "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+    ],
+    "witness": "55794327803927373551489062",
+    "tied": [
+     "55794327803927373551489062"
+    ],
+    "witness_label": "2d",
+    "upper_bound_exponent": "0.337656305333275731227720161619816513714546835080718839439009",
+    "lower_bound_exponent": "0.336926251418456977724972878363770082858314280326533967515625",
+    "C_b": "0.50000000000000000000000000000000000000001915442696981268692",
+    "upper_bound_exponent_4dp": "0.337656",
+    "lower_bound_exponent_4dp": "0.336926",
+    "log2_upper_cost_bits": "86.2998741367",
+    "log2_lower_cost_bits": "86.1132833343",
+    "log2_r": "255.584962501",
+    "depth": "0.99552316714879649055322952666634629584162677056583930298858",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "floor_invariant_holds": true,
+    "tplus_ge_d_all_W": true,
+    "expected_source": "declared expected block (typed, with gated spans)",
+    "expected_matches": {
+     "status": true,
+     "witness": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true,
+     "W": true
+    },
+    "gate1": "pass",
+    "gate1_diffs": [],
+    "N4_met": false,
+    "qb3_bin_at_least_absent": "fail",
+    "qb3_absent_diffs": [
+     "bin_at_least"
+    ],
+    "qb3_bin_at_least_other": "fail",
+    "qb3_other_diffs": [
+     "bin_at_least"
+    ],
+    "lowest_four": [
+     [
+      "55794327803927373551489062",
+      "0.33765630533327573123"
+     ],
+     [
+      "111588655607854747102978124",
+      "0.33980969803032142476"
+     ],
+     [
+      "2",
+      "0.49804370337320377679"
+     ],
+     [
+      "1",
+      "0.5"
+     ]
+    ],
+    "contrast_single_cofactor": {
+     "witness": "2",
+     "bin": "UNDETERMINED",
+     "bin_at_least": "NEAR_CEILING"
+    }
+   },
+   "OWN-1": {
+    "branch": "plus",
+    "r": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+    "m_bits": 256,
+    "F_certified": {
+     "3": 1,
+     "259417251257675264555422902444027860852665664308877": 1
+    },
+    "parts": [
+     {
+      "part": "111588655607854747102978124",
+      "bits": 87,
+      "compositeness_witness": "even",
+      "perfect_power": false
+     }
+    ],
+    "status": "BOUND",
+    "witness_set": [
+     "1",
+     "3",
+     "111588655607854747102978124",
+     "334765966823564241308934372",
+     "259417251257675264555422902444027860852665664308877",
+     "778251753773025793666268707332083582557996992926631",
+     "28948022309329048855892746252171976963317496184778384758834909198860910006748",
+     "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+    ],
+    "witness": "111588655607854747102978124",
+    "tied": [
+     "111588655607854747102978124"
+    ],
+    "witness_label": "4d",
+    "upper_bound_exponent": "0.339809698030321424762104586826849949724291674332488882092727",
+    "lower_bound_exponent": "0.336926251418456977724972878363770082858314280326533967515625",
+    "C_b": "0.50000000000000000000000000000000000000001915442696981268692",
+    "upper_bound_exponent_4dp": "0.33981",
+    "lower_bound_exponent_4dp": "0.336926",
+    "log2_upper_cost_bits": "86.8502489285",
+    "log2_lower_cost_bits": "86.1132833343",
+    "log2_r": "255.584962501",
+    "depth": "0.982318143558080931564380700668025512450144151531215843070492",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "floor_invariant_holds": true,
+    "tplus_ge_d_all_W": true,
+    "expected_source": "computed from change.D3 rules + narrow corrective.bin_by_status (no expected block exists)",
+    "expected_matches": {
+     "status": true,
+     "W": true,
+     "witness": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "gate1": "pass",
+    "gate1_diffs": [],
+    "N4_met": false,
+    "qb3_bin_at_least_absent": "fail",
+    "qb3_absent_diffs": [
+     "bin_at_least"
+    ],
+    "qb3_bin_at_least_other": "fail",
+    "qb3_other_diffs": [
+     "bin_at_least"
+    ],
+    "lowest_four": [
+     [
+      "111588655607854747102978124",
+      "0.33980969803032142476"
+     ],
+     [
+      "334765966823564241308934372",
+      "0.3450166867424578374"
+     ],
+     [
+      "3",
+      "0.49689934320624069566"
+     ],
+     [
+      "1",
+      "0.5"
+     ]
+    ]
+   },
+   "context_CPLANTP_exact_plus": {
+    "minimiser": "27897163901963686775744531",
+    "equals_d": true,
+    "e": "0.336926251418456977724972878364",
+    "gap": "2.04426752e-51",
+    "bin": "NEAR_FLOOR",
+    "depth": "1.0"
+   }
+  },
+  "numeric_leaf_scan_1_paths": "##### typed\n- approval.immutability :: 178\n- defect :: 977\n- definitions.nextprime :: 329\n- definitions.control_size :: 210\n- definitions.frozen_constants :: 281\n- definitions.typed_costs :: 526\n- definitions.analytic_floors_and_ceiling :: 389\n- definitions.depth :: 508\n- definitions.bins :: 618\n- definitions.minimiser_and_ties :: 385\n- definitions.precision :: 319\n- definitions.gate_evaluation_mode :: 619\n- definitions.line_numbering :: 544\n- change.D1_pins.rule :: 642\n- change.D1_pins.parse_rules.PR-SEC2 :: 1039\n- change.D1_pins.parse_rules.PR-RFC7748 :: 537\n- change.D1_pins.pdf_digit_check :: 1032\n- change.D1_pins.confounder_check.clauses_in_order :: 609\n- change.D1_pins.confounder_check.evaluation_and_recording :: 425\n- change.D2_typed_costs.columns :: 776\n- change.D2_typed_costs.what_is_omitted :: 330\n- change.D2_typed_costs.no_combined_quantity :: 148\n- change.D2_typed_costs.floor_invariant :: 205\n- change.D3_descriptive_bins.recorded_parts :: 398\n- change.D3_descriptive_bins.explicit_witness_set :: 378\n- change.D3_descriptive_bins.bin_by_status :: 519\n- change.D3_descriptive_bins.stratification :: 390\n- change.D4_calibration.threshold_inventory :: 1374\n- change.D5_controls.expected_status_convention :: 517\n- change.D6_factoring.budget :: 314\n- change.D6_factoring.clock :: 422\n- change.D6_factoring.timeouts :: 559\n- change.D6_factoring.pipeline :: 1025\n- change.D6_factoring.ecm_curves_per_level :: 611\n- change.D6_factoring.reporting :: 532\n- change.D6_factoring.budget_semantics :: 188\n- change.D7_certificates.producing_library :: 459\n- change.D7_certificates.independent_verifier :: 1376\n- change.D8_custody.trial_plan :: 364\n- change.D8_custody.import_rule :: 1116\n- change.D8_custody.snapshot :: 413\n- change.D9_labelling.secondary_metric_scope :: 359\n- conventions.Q0-5 :: 578\n- conventions.Q0-6 :: 315\n- tools_and_admission.pdf_text_extractor.provenance_note :: 147\n- tools_and_admission.path_b_arithmetic.name :: 72\n- tools_and_admission.admission_gate :: 1079\n- controls[C-PLANT-M].window :: 178\n- controls[C-PLANT-M].gates[2] :: 109\n- controls[C-PLANT-P].purpose :: 229\n- controls[C-PLANT-P].window :: 126\n- controls[C-PLANT-P].declared_size_of_planted_divisor :: 83\n- controls[C-PLANT-P].gates[2] :: 92\n- controls[C-INERT].window :: 95\n- controls[C-INERT].gates[2] :: 112\n- controls[C-INERT].gates[3] :: 94\n- controls[C-PLANT-PL].new_in_this_amendment :: 307\n- controls[C-PLANT-PL].window :: 219\n- controls[C-PLANT-PL].declared_properties :: 1484\n- controls[C-PLANT-PL].gates[2] :: 148\n- controls[C-PLANT-PL].gates[3] :: 94\n- controls[C-PLANT-PL].gates[5] :: 112\n- controls[C-BOUND].new_in_this_amendment :: 159\n- controls[C-BOUND].inputs :: 312\n- controls[C-BOUND].states[BND-1].expected :: 405\n- controls[C-BOUND].states[BND-1].why_fixed_in_advance :: 410\n- controls[C-BOUND].states[BND-2].expected :: 369\n- controls[C-BOUND].states[BND-2].why_fixed_in_advance :: 328\n- controls[C-BOUND].states[BND-3].expected :: 415\n- controls[C-BOUND].states[BND-3].why_fixed_in_advance :: 519\n- controls[C-BOUND].gates[1] :: 116\n- controls[C-FIELD].cases[CF-2].expression_provenance :: 258\n- controls[C-FIELD].why_the_expected_reasons_are_fixed :: 421\n- controls[C-PRODUCT].gates[0] :: 145\n- what_the_controls_exercise :: 733\n- null_arm.pipeline :: 335\n- budget.wall_clock_note :: 451\n- success_criterion.outcomes[N3_FLOOR_VIOLATION].condition :: 184\n- success_criterion.outcomes[N4_BOUND_EVALUATOR_FALSIFIED].condition :: 255\n- success_criterion.decidability :: 503\n- interpretation_limits[4] :: 374\n- interpretation_limits[6] :: 161\n- proof_search_map.bottleneck :: 235\n- proof_search_map.baseline_embedding.parameter_slice :: 265\n- proof_search_map.baseline_embedding.reproduction_check :: 130\n- proof_search_map.observation_collision.distinct_preimage_search :: 669\n- proof_search_map.quantifier_order :: 681\n- authorization :: 703\n##### narrow\n- approval.immutability :: 178\n- incorporates.status_of_that_file :: 227\n- incorporates.reading_of_self_references :: 484\n- envelope_not_incorporated.fields[15] :: 84\n- custody_consequences.rule :: 426\n- span_rules[EIP-R].replacement :: 371\n- span_rules[ADM-3].through :: 32\n- span_rules[ADM-3].replacement :: 573\n- span_rules[F2-RECOG].replacement :: 1072\n- span_rules[BINS-EXACT].replacement :: 581\n- corrective.pins.rows_BN254-r_pinned_revision.how_K_was_resolved :: 400\n- corrective.controls.C-FIELD_cases_extracted.mutation_sensitivity :: 474\n- corrective.tools.certificate_and_factoring_library.minimum_version.rule :: 312\n- corrective.tools.certificate_and_factoring_library.declared_builds.note :: 362\n- corrective.tools.certificate_and_factoring_library.stack_allocation.rule :: 325\n- corrective.bin_by_status.text :: 1029\n- corrective.interpretation_limits_item_6.replaces :: 82\n- corrective.interpretation_limits_item_6.reading_of_the_held_stratification_parenthetical :: 350\n- corrective.threshold_inventory_added.constants :: 842\n- corrective.declared_not_superseded[0].item :: 27\n- corrective.declared_not_superseded[3].declaration :: 290\n- precedence :: 434\n- authorization :: 722\n##### gated\n- approval.immutability :: 178\n- incorporates_by_hash.status_of_the_incorporated_files :: 533\n- incorporates_by_hash.what_is_incorporated :: 574\n- incorporates_by_hash.hash_check :: 315\n- narrow_envelope_not_incorporated.typed_envelope :: 225\n- gated_span_rules[G-GATE1].field :: 30\n- gated_span_rules[G-BND1].field :: 40\n- gated_span_rules[G-BND3].field :: 40\n- gated_span_rules[G-CPL].replacement :: 568\n- corrective.c_bound_gating.expected_value_source.text :: 1463\n- corrective.c_bound_gating.one_outcome :: 459\n- corrective.c_bound_gating.outcome_table[2].evaluator :: 112\n- corrective.c_bound_gating.tested_meaning_of_N4 :: 415\n- corrective.threshold_index.replaces :: 169\n- corrective.threshold_index.text :: 200\n- corrective.threshold_index.completeness_claims_over_four_layers :: 581\n- custody_additions.trial_plan.rule :: 336\n- reading_of_self_references :: 1595\n- precedence :: 994\n- authorization :: 808\n",
+  "numeric_leaf_scan_2": "typed | supersedes_fields[19] | ['0.5'] | 'experiment.metrics.secondary item \"rho baseline 0.5 at identical accounting\" -- replaced by the labelled rho column of amendment.change.D9_labelling'\ntyped | definitions.prime | ['13'] | '\"prime\" means prime in the mathematical sense. A search accepts a candidate only if every integer its acceptance rule names is prime. OPERATIONAL SCREEN: the Baillie-PSW test, defined as a strong probable-prime test to base 2 followed by a strong Lucas probabl'\ntyped | change.D1_pins.parse_rules.PR-SP800 | ['3.2', '1.3'] | '(NIST SP 800-186, derived text inputs/SAFECURVES-20260825/specs/sp800-186.txt.) BLOCK: from the first line whose stripped content equals the section number given for the row (for example \"3.2.1.3.\") to, exclusive, the next line whose stripped content matches t'\ntyped | change.D1_pins.parse_rules.PR-RFC5639 | ['5639', '16'] | '(RFC 5639, inputs/SAFECURVES-20260825/specs/rfc5639.txt, the RFC text itself.) BLOCK for curve C: from the first line whose stripped content equals \"Curve-ID: C\" to, exclusive, the next line whose stripped content begins with \"Curve-ID:\" or \"#Twisted\" or match'\ntyped | change.D1_pins.rows[NIST-P-224].source | ['3.2', '1.2'] | 'inputs/SAFECURVES-20260825/specs/sp800-186.txt, PR-SP800, block \"3.2.1.2.\"'\ntyped | change.D1_pins.rows[NIST-P-256].source | ['3.2', '1.3'] | 'inputs/SAFECURVES-20260825/specs/sp800-186.txt, PR-SP800, block \"3.2.1.3.\"'\ntyped | change.D1_pins.rows[NIST-P-384].source | ['3.2', '1.4'] | 'inputs/SAFECURVES-20260825/specs/sp800-186.txt, PR-SP800, block \"3.2.1.4.\"'\ntyped | change.D1_pins.rows[NIST-P-521].source | ['3.2', '1.5'] | 'inputs/SAFECURVES-20260825/specs/sp800-186.txt, PR-SP800, block \"3.2.1.5.\"'\ntyped | change.D1_pins.rows[Ed25519-L].source | ['3.2', '3.1'] | 'inputs/SAFECURVES-20260825/specs/sp800-186.txt, PR-SP800, block \"3.2.3.1.\"'\ntyped | change.D2_typed_costs.source_statement | ['4004'] | 'J. H. Cheon, Security Analysis of the Strong Diffie-Hellman Problem, EUROCRYPT 2006, LNCS 4004. Theorem 1: for d | p - 1, given g, g^alpha and g^(alpha^d), alpha is computed in O(log p * (sqrt((p-1)/d) + sqrt(d))) group operations. Theorem 2 (the theorem state'\ntyped | change.D9_labelling.rule | ['0.5'] | 'Per CORR-20260923-187ea3 labelling_rule_for_any_citing_record, with the unit statement of CORR-20260923-f5f060. The rho column is named rho_ordinary_input, value 0.5 (the frozen rho_baseline), and is annotated as the ordinary-input cost exponent of a different'\ntyped | conventions.Q0-2 | ['3600'] | \"Declared convention in change.D5_controls.expected_status_convention: the expected status of every construction-control branch is EXACT; the run observes the blind pipeline's status under 3600 seconds per integer; a difference fails the gate (N1).\"\ntyped | tools_and_admission.ecm_backend.minimum_version | ['7.0'] | '7.0.4'\ntyped | tools_and_admission.ecm_backend.version_command | ['2^89-1'] | 'printf \\'2^89-1\\\\n\\' | ecm -c 1 2000 ; the version is the dotted triple that follows \"GMP-ECM \" at the start of the first line of standard output (the banner of a factoring call; \"ecm -version\" and \"ecm -printconfig\" are NOT used, since per VAL-20260923-c3c90c F-'\ntyped | tools_and_admission.certificate_and_factoring_library.minimum_version | ['2.13'] | 'PARI 2.13.0'\ntyped | tools_and_admission.pdf_text_extractor.minimum_version | ['3.0'] | '3.0.0'\ntyped | tools_and_admission.path_b_arithmetic.minimum_version | ['3.10'] | 'Python 3.10'\ntyped | controls[C-PLANT-M].acceptance_rule | ['12'] | 'Accept the FIRST u in step order such that u is prime, u differs from d1 and from d2, r = 2 * D * u + 1 is prime, and v = (r + 1) / 12 is an integer and prime.'\ntyped | controls[C-PLANT-M].constructed_factorizations | ['2^2 '] | 'r - 1 = 2 * d1 * d2 * u; r + 1 = 2^2 * 3 * v.'\ntyped | controls[C-PLANT-P].search_start | ['12'] | 'd0 = icbrt(M0 / 4) (M0 / 4 is an integer). d = nextprime_ge(d0). w0 = ceildiv(M0, 12 * d).'\ntyped | controls[C-PLANT-P].acceptance_rule | ['12'] | 'Accept the FIRST w in step order such that w is prime, w differs from d, r = 12 * d * w - 1 is prime, and q = (r - 1) / 2 is prime.'\ntyped | controls[C-PLANT-P].constructed_factorizations | ['2^2 '] | 'r + 1 = 2^2 * 3 * d * w; r - 1 = 2 * q.'\ntyped | controls[C-INERT].search_start | ['2^(B-4)', '12'] | 'w0 = 2^(B-4) (so 12 * w0 = M0).'\ntyped | controls[C-INERT].acceptance_rule | ['12'] | 'Accept the FIRST w in step order such that w is prime, r = 12 * w - 1 is prime, and q = (r - 1) / 2 = 6 * w - 1 is prime.'\ntyped | controls[C-INERT].constructed_factorizations | ['2^2 '] | 'r - 1 = 2 * q; r + 1 = 2^2 * 3 * w.'\ntyped | controls[C-PLANT-PL].purpose | ['521'] | 'Known positive on the plus branch at B_L = 521 bits, under the typed cost, exercising F0, F1, F3, large-prime certification and evaluation.'\ntyped | controls[C-PLANT-PL].search_start | ['2^43)', '12'] | 'x_L = icbrt(M_L / 4) (M_L / 4 is an integer). f1 = nextprime_ge(2^43). f2 = nextprime_gt(f1). f3 = nextprime_gt(f2). G = f1 * f2 * f3. y = ceildiv(x_L, G). f4 = nextprime_ge(y). D_L = G * f4. w0 = ceildiv(M_L, 12 * D_L).'\ntyped | controls[C-PLANT-PL].acceptance_rule | ['12'] | 'Accept the FIRST w in step order such that w is prime, r = 12 * D_L * w - 1 is prime, and q = (r - 1) / 2 is prime.'\ntyped | controls[C-PLANT-PL].constructed_factorizations | ['2^2 '] | 'r + 1 = 2^2 * 3 * f1 * f2 * f3 * f4 * w; r - 1 = 2 * q.'\ntyped | controls[C-BOUND].states[BND-1].declared_state | ['2^1 and u'] | 'F = 2 * u with certified prime powers 2^1 and u^1; parts [D].'\ntyped | controls[C-BOUND].states[BND-2].declared_state | ['2^1'] | 'F = 2 with certified prime power 2^1; parts [d1 * d2 * u].'\ntyped | controls[C-BOUND].states[BND-3].declared_state | ['2^1'] | 'F = 2 with certified prime power 2^1; parts [2 * d, 3 * w].'\ntyped | controls[C-FIELD].cases[CF-1].value | ['2^255 - 19'] | '2^255 - 19'\ntyped | controls[C-FIELD].cases[CF-1].expression_provenance | ['2^255 - 19'] | 'Printed as \"2^255 - 19\" in inputs/SAFECURVES-20260825/specs/rfc7748.txt section 4.1 (read by this design session). In sp800-186.txt the same expression is printed with its superscript and minus sign lost.'\ntyped | controls[C-FIELD].cases[CF-2].value | ['2^256 - 2', '224', '2^192 + 2', '96'] | '2^256 - 2^224 + 2^192 + 2^96 - 1'\ntyped | null_arm.size_per_class | ['16'] | '16'\ntyped | null_arm.sampler | ['15', '2^(L-1)', '2^(L-1)', '2^L it continues from 2'] | 'For bit class L and index i = 0, 1, ..., 15: label is the ASCII string \"AMD-EXP-AUXIN-7e2e3d-20260923-d1d10/null/\" followed by L in decimal, \"/\", and i in decimal, with no padding and no trailing newline. k = ceildiv(L, 8). X = the big-endian integer of the fi'\ntyped | null_arm.size_disclosure | ['16'] | 'With 16 samples per class, any frequency read from the arm has a wide interval; this is one reason no rule reads it.'\ntyped | budget.factoring_seconds_per_integer | ['3600'] | '3600'\nnarrow | incorporates.span_hash_convention | ['1.1'] | 'A span is a contiguous substring of the string value of one held field as a YAML 1.1 safe loader returns it (folded scalars folded, so a line break inside a folded paragraph reads as one space). It begins at the first occurrence in that value of its \"from\" tex'\nnarrow | corrective.pins.rows_BN254-r_pinned_revision.expected_bytes | ['8727'] | '8727'\nnarrow | corrective.pins.rows_BLS12-381-r_expected_digest.expected_bytes | ['175678'] | '175678'\nnarrow | corrective.pins.pdf_digit_check_weakness.declaration | ['20'] | 'The check is a substring test and is kept as written, not made positional. Its weakness is declared: for a printed digit string that is short (a cofactor h of one or two digits, for example), occurrence somewhere in the normalized PDF text is near certain and '\nnarrow | corrective.tools.certificate_and_factoring_library.minimum_version.value | ['2.1', '2.15'] | 'cypari2 2.1.5 with its PARI library 2.15.4'\nnarrow | corrective.tools.certificate_and_factoring_library.declared_builds.declared_minimum | ['2.1', '1.11', '2.15', '3.12'] | 'cypari2 2.1.5, cysignals 1.11.4, PARI 2.15.4 (bundled), CPython 3.12'\nnarrow | corrective.tools.certificate_and_factoring_library.declared_builds.declared_latest | ['2.2', '1.12', '2.17', '3.12'] | 'cypari2 2.2.4, cysignals 1.12.6, PARI 2.17.2 (bundled), CPython 3.12'\nnarrow | corrective.tools.certificate_and_factoring_library.declared_builds.gp_builds_probed | ['2.15', '2.17', '2.17'] | 'gp 2.15.4 and gp 2.17.4 (built from source), gp 2.17.3 (Homebrew)'\nnarrow | corrective.tools.alarm_self_test_program | ['27', '32', '2^140)', '2^141)'] | \"import cypari2\\nfrom cysignals.signals import AlarmInterrupt\\np = cypari2.Pari(size=2**27, sizemax=2**32)\\nfor e in ('alarm(1, while(1, ))', 'alarm(1, factor(nextprime(2^140)*nextprime(2^141)))'):\\n    try:\\n        p(e)\\n        print('RETURNED')\\n    except AlarmIn\"\nnarrow | corrective.tools.admission_gate_items_added.items[1] | ['10'] | '(10) Environment location. The resolved sys.prefix of the admitted interpreter and the resolved file path of every installed third-party distribution module lie OUTSIDE the repository working tree. An environment inside the repository fails admission, because '\nnarrow | corrective.custody.run_entry_sys_path.rule | ['3.10', '3.12'] | 'Under python3 -I the directory of run.py is NOT on sys.path (executed at design time on CPython 3.10 and 3.12; execution-transcripts.json, isolated_mode_sys_path). run.py therefore inserts the absolute path of experiments/EXP-AUXIN-7e2e3d/implementation/typed/'\n",
+  "typed_D4_and_narrow_added_dump": "===typed D4\nchoice: (b) ESCALATE SEMANTICS REMOVED. The table is descriptive. The frozen e_inert_floor and e_escalate_ceiling are retired and no rule, stop\n  or reading uses them. A pre-registered null arm of random primes (amendment.null_arm) runs in the same package, is completed and written BEFORE\n  any deployed row is factored, and is reported beside the deployed rows with the same statuses, bins and strata.\nthreshold_inventory: '(F-J3-2, entry 15.) The COMPLETE list of numeric cut-offs and decision constants in this amendment, each with what it reads:\n  bin cut-offs 1/4 and 3/4 and boundary tolerance tau = 10^-45 (declared constants, applied to the depth s, whose normalisation F_b(r), C_b(r)\n  is a closed-form function of the row''s own pinned r, a Stage P input); tie tolerance 10^-100 relative in e (declared constant); precision floor\n  150 digits and path tolerance 10^-50 (declared); floor-invariant slack 10^-45 and the rule T_plus(d) >= d (declared constant and F_b(r)); control\n  gate tolerance 10^-6 (declared constant and F_b(r) of the control''s r); hasse bound 2*isqrt(p) + 2 (p, h, r of the same row, Stage P inputs);\n  windows 2^24, 2^43 and 2^48, B = 256, M0, B_L = 521, M_L (declared); null-arm size 16 per class (declared); null-arm bit classes (the exact\n  bit lengths of the pinned deployed r, Stage P inputs); factoring budget 3600 seconds per integer (frozen specification value); trial-division\n  bound 2^24; F2/F3 routing size 272 bits; the B1 ladder and its curves-per-level column (change.D6_factoring); certificate cut-over 2^64 (change.D7_certificates);\n  PDF digit check (substring test, no numeric cut-off). None of these is a function of any factoring or evaluation outcome of any deployed row,\n  and none is a function of any null-arm value. No threshold is set after any value is seen.'\nwhat_the_null_arm_is_for: Context only. It shows how often random primes of the same bit length receive each status and bin under the identical\n  pipeline and budget. It licenses no curve-specific reading of any deployed row. A later amendment may pre-register a rule on the basis of this\n  arm; this run's deployed rows are never re-scored by such a rule.\n\n===narrow threshold_inventory_added\nadds_to: change.D4_calibration.threshold_inventory\nitem: RI-5\nconstants: 'Admission timeouts: 600 seconds for the ECM self-test (item 2) and 10 seconds of wall clock for the alarm self-test child (item 3);\n  the alarm length A = 1 second inside that self-test. Minimum tool versions: GMP-ECM 7.0.4; cypari2 2.1.5 with PARI 2.15.4; pypdf 3.0.0 (held);\n  Python 3.10. PARI stack: initial 2^27 bytes, ceiling 2^32 bytes. The screen''s optional trial-division bound of at most 2^16 (conventions.Q0-5).\n  PR-SEC2''s continuation minimum of 4 characters. PR-EIP197''s required match count of exactly one. The PDF short-string length 20 of corrective.pins.pdf_digit_check_weakness\n  (a reporting label, no stop). Expected sha256 digests and byte counts of the two pinned-revision files (equality tests, no cut-off). No constant\n  in this list reads a deployed-row or null-arm outcome, and each was fixed before any such outcome existed.'\n\n"
+ }
+}

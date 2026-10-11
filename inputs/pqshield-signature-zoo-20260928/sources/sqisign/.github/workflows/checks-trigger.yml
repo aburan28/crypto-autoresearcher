@@ -1,0 +1,50 @@
+name: Check namespace (trigger and daily)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        type: string
+  schedule:
+    # Daily at 04:00 UTC
+    - cron: '0 4 * * *'
+
+jobs:
+  checks:
+    runs-on: [self-hosted, x64]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+      with:
+        # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. A SHA
+        # here must be the full 40 characters.
+        ref: ${{ inputs.commit_sha }}
+
+    #- name: Install dependencies
+    #  run: |
+    #    sudo apt -y update && sudo apt -y install gcc cmake scala
+
+    - name: Check namespace
+      id: check_namespace
+      run: scripts/check_namespace.sh
+      continue-on-error: true
+
+    - name: Upload regenerated sqisign_namespace.h
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: sqisign_namespace.h
+        path: build/sqisign_namespace.h
+        if-no-files-found: warn
+
+    - name: Report namespace check result
+      if: always()
+      run: |
+        if [ "${{ steps.check_namespace.outcome }}" = "success" ]; then
+          echo "Namespace is up to date."
+        else
+          echo "::warning::sqisign_namespace.h is out of date — see the uploaded artifact."
+          exit 1
+        fi

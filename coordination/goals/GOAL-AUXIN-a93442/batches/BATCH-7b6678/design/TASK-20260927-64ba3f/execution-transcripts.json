@@ -1,0 +1,2380 @@
+{
+ "schema": "crypto.autoresearch.design_execution_transcripts.v1",
+ "task_id": "TASK-20260927-64ba3f",
+ "amendment_id": "AMD-EXP-AUXIN-7e2e3d-20260927-narrow",
+ "assembled_utc": "2026-09-27T07:54:14Z",
+ "runs_launched": 0,
+ "run_ids_minted": [],
+ "what_this_is": "Zero-run design-time execution of every pin locator, the PARI version command, the in-process timeout path and the corrected admission items, per NP-4 of TASK-20260927-64ba3f. Tool probes and text locators only. No Cheon algorithm, no auxiliary power, no factoring of any frozen-list integer, no census value. Integers read from sources are recorded as bit length plus sha256 of the decimal string, never in decimal or hex.",
+ "scratch_root_outside_repository": "/Volumes/SSD990/tmp/auxin-64ba3f",
+ "host": "Darwin Adams-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:27 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6041 arm64",
+ "value_encoding": "bits + sha256(decimal string, ASCII, no sign, no leading zeros)",
+ "probe_programs": {
+  "locators.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/locators.py",
+   "sha256": "18918c59684f0d823a988deb4c174f219887863fb5fd9acced8a56663c093e42",
+   "source_text": "\"\"\"Pre-submission execution of every pin locator of EXP-AUXIN-7e2e3d (TASK-20260927-64ba3f, NP-4).\n\nImplements, literally, the parse rules of AMD-EXP-AUXIN-7e2e3d-20260926-typed\nchange.D1_pins.parse_rules (PR-SP800, PR-SEC2, PR-RFC5639, PR-RFC7748,\nPR-IETF-DRAFT) and BOTH the refused PR-EIP197 and the corrected locator\nPR-EIP197-C of AMD-EXP-AUXIN-7e2e3d-20260927-narrow, then the cross-source,\ninternal-consistency and family checks, the C-FIELD extraction cross-checks, and\nthe FP construction of the corrected confounder clause with its M-FP mutation.\n\nOUTPUT DISCIPLINE: no integer is printed in decimal or hex. Each extracted integer\nis reported by bit length and by sha256 of its ASCII decimal representation\n(no sign, no leading zeros, no newline). Match counts, line numbers and booleans\nare printed. Zero runs; nothing is factored; no primality is proved here.\n\nUsage: python3 -I locators.py <repo_root> <sources_dir>\n\"\"\"\nimport hashlib\nimport json\nimport re\nimport sys\n\nREPO = SRC = None\nWS = \"\\t\\n\\x0b\\x0c\\r \\x85\\xa0\"\nWS_RE = \"[\" + re.escape(WS) + \"]\"\n\n\nTYPED_REL = \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\"\nTYPED_SHA = \"3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6\"\n\n\ndef eval_pow2_sum(expr):\n    \"\"\"Exact value of a signed sum of terms, each 2^k or a decimal integer.\"\"\"\n    s = expr.replace(\" \", \"\")\n    assert re.fullmatch(r\"[0-9^+\\-]+\", s), \"unexpected expression form\"\n    total = 0\n    for sign, term in re.findall(r\"([+\\-]?)([0-9]+(?:\\^[0-9]+)?)\", s):\n        v = 2 ** int(term.split(\"^\")[1]) if \"^\" in term else int(term)\n        assert \"^\" not in term or term.split(\"^\")[0] == \"2\"\n        total += -v if sign == \"-\" else v\n    return total\n\n\ndef cfield_values():\n    text, digest = read_text(f\"{REPO}/{TYPED_REL}\")\n    assert digest == TYPED_SHA, \"held file digest mismatch\"\n    vals = {}\n    for cid in (\"CF-1\", \"CF-2\"):\n        m = re.search(r\"- id: \" + cid + r\"\\n\\s+value: ([^\\n]+)\\n\", text)\n        vals[cid] = eval_pow2_sum(m.group(1))\n    return vals[\"CF-1\"], vals[\"CF-2\"]\n\n\ndef dig(n):\n    return {\"bits\": n.bit_length(), \"sha256_dec\": hashlib.sha256(str(n).encode()).hexdigest()}\n\n\ndef read_text(path):\n    b = open(path, \"rb\").read()\n    return b.decode(\"utf-8\", errors=\"strict\"), hashlib.sha256(b).hexdigest()\n\n\ndef lines_of(text):\n    return text.split(\"\\n\")  # LF only (definitions.line_numbering)\n\n\ndef strip(s):\n    return s.strip(WS)\n\n\ndef rm_ws(s, backslash=False):\n    out = \"\".join(c for c in s if c not in WS)\n    return out.replace(\"\\\\\", \"\") if backslash else out\n\n\nclass LocatorFailure(Exception):\n    pass\n\n\n# ---------------------------------------------------------------- PR-SP800\ndef pr_sp800(text, section, label):\n    L = lines_of(text)\n    start = next((i for i, l in enumerate(L) if strip(l) == section), None)\n    if start is None:\n        raise LocatorFailure(\"block start not found\")\n    end = next((j for j in range(start + 1, len(L)) if re.fullmatch(r\"[0-9]+(\\.[0-9]+)*\\.\", strip(L[j]))), len(L))\n    block = L[start:end]\n    li = next((k for k, l in enumerate(block) if l.lstrip(WS).startswith(label + \":\")), None)\n    if li is None:\n        raise LocatorFailure(\"label line not found\")\n    # character stream of the block from after \"L:\"\n    first = block[li]\n    pos = first.index(label + \":\") + len(label) + 1\n    rest_lines = [first[pos:]] + block[li + 1:]\n    stream = \"\\n\".join(rest_lines)\n    # (b): start of the next line in block whose stripped content matches ^[A-Za-z]{1,4}:\n    b_off = None\n    off = len(rest_lines[0]) + 1\n    for k in range(1, len(rest_lines)):\n        if re.match(r\"^[A-Za-z]{1,4}:\", strip(rest_lines[k])):\n            b_off = off\n            break\n        off += len(rest_lines[k]) + 1\n    a_off = stream.find(\"(\")\n    a_off = None if a_off < 0 else a_off\n    if a_off is not None and (b_off is None or a_off < b_off):\n        span, ended_by_a = stream[:a_off], True\n    else:\n        span, ended_by_a = (stream[:b_off] if b_off is not None else stream), False\n    dec = rm_ws(span, backslash=True)\n    dec_clean = bool(dec) and dec.isdigit() and all(c in \"0123456789\" for c in dec)\n    hexv = None\n    if ended_by_a:\n        after = rm_ws(stream[a_off + 1:])\n        if after.startswith(\"=0x\"):\n            raw_after = stream[a_off + 1:]\n            k0 = raw_after.find(\"0x\") + 2\n            k1 = raw_after.find(\")\", k0)\n            h = rm_ws(raw_after[k0:k1]) if k1 >= 0 else \"\"\n            hexv = h if (h and all(c in \"0123456789abcdefABCDEF\" for c in h)) else \"CONTAMINATED\"\n    rec = {\"label_line\": start + li + 1, \"block_first_line\": start + 1, \"block_last_line\": end,\n           \"decimal_form\": \"clean\" if dec_clean else \"contaminated\",\n           \"hex_form\": \"absent\" if hexv is None else (\"contaminated\" if hexv == \"CONTAMINATED\" else \"clean\")}\n    if hexv not in (None, \"CONTAMINATED\"):\n        V = int(hexv, 16)\n        rec[\"representation\"] = \"hex\"\n        rec[\"printed_digits\"] = hexv.lower()\n        if dec_clean:\n            if len(dec) == len(str(V)):\n                if int(dec) != V:\n                    raise LocatorFailure(\"decimal form differs from hex form\")\n                rec[\"decimal_compared\"] = \"equal\"\n            else:\n                rec[\"decimal_compared\"] = \"decimal_span_not_a_literal\"\n        return V, rec\n    if dec_clean:\n        rec[\"representation\"] = \"decimal\"\n        rec[\"printed_digits\"] = dec\n        return int(dec), rec\n    raise LocatorFailure(\"neither form clean\")\n\n\n# ---------------------------------------------------------------- PR-SEC2\ndef pr_sec2(text, curve, label):\n    L = lines_of(text)\n    pat = re.compile(r\"^[0-9]+(\\.[0-9]+)+RecommendedParameters\" + re.escape(curve) + r\"$\")\n    start = next((i for i, l in enumerate(L) if pat.match(rm_ws(l))), None)\n    if start is None:\n        raise LocatorFailure(\"block start not found\")\n    end = next((j for j in range(start + 1, len(L)) if \"RecommendedParameters\" in L[j]), len(L))\n    B = L[start:end]\n\n    def next_nonempty(k):\n        for j in range(k + 1, len(B)):\n            if strip(B[j]):\n                return j\n        return None\n\n    li = None\n    for k, l in enumerate(B):\n        if strip(l) == label:\n            j = next_nonempty(k)\n            if j is not None and B[j].lstrip(WS).startswith(\"=\"):\n                li, eq = k, j\n                break\n    if li is None:\n        raise LocatorFailure(\"label line not found\")\n    after_eq = rm_ws(B[eq].lstrip(WS)[1:])\n    if after_eq:\n        vals, nxt = [after_eq], eq + 1\n    else:\n        j = next_nonempty(eq)\n        if j is None:\n            raise LocatorFailure(\"no value line\")\n        vals, nxt = [rm_ws(B[j])], j + 1\n    if not vals[0] or not all(c in \"0123456789abcdefABCDEF\" for c in vals[0]):\n        raise LocatorFailure(\"first value line not hex\")\n    for j in range(nxt, len(B)):\n        s = rm_ws(B[j])\n        if len(s) >= 4 and all(c in \"0123456789abcdefABCDEF\" for c in s):\n            vals.append(s)\n        else:\n            break\n    h = \"\".join(vals)\n    return int(h, 16), {\"label_line\": start + li + 1, \"block_first_line\": start + 1, \"value_lines\": len(vals),\n                        \"representation\": \"hex\", \"printed_digits\": h.lower()}\n\n\n# ---------------------------------------------------------------- PR-RFC5639\ndef pr_rfc5639(text, curve, label):\n    L = lines_of(text)\n    start = next((i for i, l in enumerate(L) if strip(l) == \"Curve-ID: \" + curve), None)\n    if start is None:\n        raise LocatorFailure(\"block start not found\")\n    end = len(L)\n    for j in range(start + 1, len(L)):\n        s = strip(L[j])\n        if s.startswith(\"Curve-ID:\") or s.startswith(\"#Twisted\") or re.match(r\"^[0-9]+(\\.[0-9]+)*\\.\\s\", s):\n            end = j\n            break\n    B = L[start:end]\n    li = next((k for k, l in enumerate(B) if strip(l).startswith(label + \" =\") or strip(l) == label + \" =\"), None)\n    if li is None:\n        raise LocatorFailure(\"label line not found\")\n    parts = [B[li].split(\"=\", 1)[1]]\n    for j in range(li + 1, len(B)):\n        s = strip(B[j])\n        if s and all(c in \"0123456789abcdefABCDEF\" for c in rm_ws(s)):\n            parts.append(B[j])\n        else:\n            break\n    h = rm_ws(\"\".join(parts))\n    if not h or not all(c in \"0123456789abcdefABCDEF\" for c in h):\n        raise LocatorFailure(\"value not hex\")\n    return int(h, 16), {\"label_line\": start + li + 1, \"block_first_line\": start + 1, \"representation\": \"hex\"}\n\n\n# ---------------------------------------------------------------- PR-RFC7748\ndef pr_rfc7748(text, label):\n    L = lines_of(text)\n    start = next((i for i, l in enumerate(L) if strip(l) == \"4.1.  Curve25519\"), None)\n    if start is None:\n        raise LocatorFailure(\"section 4.1 not found\")\n    end = next((j for j in range(start + 1, len(L)) if re.match(r\"^[0-9]+(\\.[0-9]+)*\\.\\s\", strip(L[j]))), len(L))\n    B = L[start:end]\n    li = next((k for k, l in enumerate(B) if re.match(\"^\" + re.escape(label) + WS_RE + \"+\", strip(l))), None)\n    if li is None:\n        raise LocatorFailure(\"label line not found\")\n    expr = rm_ws(strip(B[li])[len(label):])\n    m1 = re.fullmatch(r\"2\\^([0-9]+)\\+0x([0-9A-Fa-f]+)\", expr)\n    m2 = re.fullmatch(r\"2\\^([0-9]+)-([0-9]+)\", expr)\n    if m1:\n        v = 2 ** int(m1.group(1)) + int(m1.group(2), 16)\n    elif m2:\n        v = 2 ** int(m2.group(1)) - int(m2.group(2))\n    else:\n        raise LocatorFailure(\"expression form not recognised\")\n    return v, {\"label_line\": start + li + 1, \"form\": \"2^E + 0xH\" if m1 else \"2^E - S\"}\n\n\n# ---------------------------------------------------------------- PR-IETF-DRAFT\ndef pr_ietf(text, label):\n    L = lines_of(text)\n    start = next((i for i, l in enumerate(L) if re.match(r\"^[0-9]+(\\.[0-9]+)*\\.\\s.*\\(BLS12-381\\)$\", strip(l))), None)\n    if start is None:\n        raise LocatorFailure(\"block start not found\")\n    end = next((j for j in range(start + 1, len(L)) if re.match(r\"^[0-9]+(\\.[0-9]+)*\\.\\s\", strip(L[j]))), len(L))\n    B = L[start:end]\n\n    def norm(l):\n        s = strip(l)\n        if s.startswith(\"*\"):\n            s = strip(s[1:])\n        return s\n\n    li = next((k for k, l in enumerate(B) if re.match(\"^\" + re.escape(label) + r\"\\s*[:=]\", norm(l))), None)\n    if li is None:\n        raise LocatorFailure(\"label line not found\")\n    s = norm(B[li])\n    cut = min([p for p in (s.find(\":\"), s.find(\"=\")) if p >= 0])\n    parts = [s[cut + 1:]]\n    allowed = re.compile(r\"^(?:[0-9A-Fa-f]|0x|x|\\^|\\+|-|\" + WS_RE + \")+$\")\n    for j in range(li + 1, len(B)):\n        t = strip(B[j])\n        if t and allowed.match(t):\n            parts.append(t)\n        else:\n            break\n    v = rm_ws(\"\".join(parts))\n    if re.fullmatch(r\"-?0x[0-9A-Fa-f]+\", v):\n        val = int(v, 16)\n        form = \"hex\"\n    elif re.fullmatch(r\"-?[0-9]+\", v):\n        val = int(v)\n        form = \"decimal\"\n    elif re.fullmatch(r\"-?2\\^[0-9]+([+-]2\\^[0-9]+)*\", v):\n        val = 0\n        for sign, e in re.findall(r\"([+-]?)2\\^([0-9]+)\", v):\n            val += -(2 ** int(e)) if sign == \"-\" else 2 ** int(e)\n        form = \"powers_of_two\"\n    else:\n        raise LocatorFailure(\"value text form not recognised\")\n    return val, {\"label_line\": start + li + 1, \"block_first_line\": start + 1, \"form\": form}\n\n\n# ---------------------------------------------------------------- PR-EIP197\nEIP_REFUSED_R = r\"prime order q\\s*=\\s*([0-9]+)\"\nEIP_REFUSED_P = r\"(?<![A-Za-z0-9_])p\\s*=\\s*([0-9]+)\"\nEIP_C_R = r\"prime order \\x60q\\s*=\\s*([0-9]+)\\x60\"\nEIP_C_P = r\"over the field \\x60F_p\\x60 with \\x60p\\s*=\\s*([0-9]+)\\x60\"\n\n\ndef eip(text, rx):\n    ms = list(re.finditer(rx, text))\n    rec = {\"regex\": rx, \"match_count\": len(ms)}\n    if ms:\n        rec[\"first_match_line\"] = text.count(\"\\n\", 0, ms[0].start()) + 1\n    return (int(ms[0].group(1)) if ms else None), rec\n\n\n# ---------------------------------------------------------------- run\ndef run():\n    S = REPO + \"/inputs/SAFECURVES-20260825/specs/\"\n    T = {}\n    H = {}\n    for n in [\"sp800-186.txt\", \"sec2-v2.txt\", \"rfc5639.txt\", \"rfc7748.txt\"]:\n        T[n], H[n] = read_text(S + n)\n    T[\"eip-197.md\"], H[\"eip-197.md\"] = read_text(SRC + \"/eip-197.md\")\n    dname = \"draft-irtf-cfrg-pairing-friendly-curves-14.txt\"\n    T[dname], H[dname] = read_text(SRC + \"/\" + dname)\n    out = {\"source_sha256\": H, \"rows\": {}, \"values_withheld\": \"decimal and hex never printed\"}\n    V = {}\n\n    def do(row, key, fn, *a):\n        try:\n            v, rec = fn(*a)\n            rec = {k: w for k, w in rec.items() if k != \"printed_digits\"}\n            rec.update(dig(v))\n            rec[\"result\"] = \"value\"\n            V[(row, key)] = v\n        except LocatorFailure as e:\n            rec = {\"result\": \"locator_failure\", \"reason\": str(e)}\n        out[\"rows\"].setdefault(row, {})[key] = rec\n\n    sp = T[\"sp800-186.txt\"]\n    for row, sec, sc in [(\"NIST-P-224\", \"3.2.1.2.\", \"secp224r1\"), (\"NIST-P-256\", \"3.2.1.3.\", \"secp256r1\"),\n                         (\"NIST-P-384\", \"3.2.1.4.\", \"secp384r1\"), (\"NIST-P-521\", \"3.2.1.5.\", \"secp521r1\")]:\n        for lab, key in [(\"n\", \"r\"), (\"p\", \"p\"), (\"h\", \"h\")]:\n            do(row, key, pr_sp800, sp, sec, lab)\n        do(row, \"cross_source_n\", pr_sec2, T[\"sec2-v2.txt\"], sc, \"n\")\n    for lab, key in [(\"n\", \"r\"), (\"p\", \"p\"), (\"h\", \"h\")]:\n        do(\"secp256k1\", key, pr_sec2, T[\"sec2-v2.txt\"], \"secp256k1\", lab)\n    for row in [\"brainpoolP256r1\", \"brainpoolP384r1\"]:\n        for lab, key in [(\"q\", \"r\"), (\"p\", \"p\"), (\"h\", \"h\")]:\n            do(row, key, pr_rfc5639, T[\"rfc5639.txt\"], row, lab)\n    for lab, key in [(\"n\", \"r\"), (\"p\", \"p\"), (\"h\", \"h\")]:\n        do(\"Ed25519-L\", key, pr_sp800, sp, \"3.2.3.1.\", lab)\n    do(\"Ed25519-L\", \"cross_source_order\", pr_rfc7748, T[\"rfc7748.txt\"], \"order\")\n    for lab, key in [(\"r\", \"r\"), (\"p\", \"p\"), (\"h\", \"h\"), (\"t\", \"t\")]:\n        do(\"BLS12-381-r\", key, pr_ietf, T[dname], lab)\n    # EIP-197: refused locator and corrected locator\n    e = T[\"eip-197.md\"]\n    rv, rrec = eip(e, EIP_REFUSED_R)\n    pv, prec = eip(e, EIP_REFUSED_P)\n    out[\"rows\"][\"BN254-r\"] = {\"refused_PR-EIP197_r\": rrec, \"refused_PR-EIP197_p\": prec}\n    if pv is not None:\n        out[\"rows\"][\"BN254-r\"][\"refused_PR-EIP197_p\"].update(dig(pv))\n    cr, crec = eip(e, EIP_C_R)\n    cp, cprec = eip(e, EIP_C_P)\n    if cr is not None:\n        crec.update(dig(cr))\n        V[(\"BN254-r\", \"r\")] = cr\n    if cp is not None:\n        cprec.update(dig(cp))\n        V[(\"BN254-r\", \"p\")] = cp\n    crec[\"result\"] = \"value\" if crec[\"match_count\"] == 1 else \"locator_failure\"\n    cprec[\"result\"] = \"value\" if cprec[\"match_count\"] == 1 else \"locator_failure\"\n    out[\"rows\"][\"BN254-r\"][\"corrected_PR-EIP197-C_r\"] = crec\n    out[\"rows\"][\"BN254-r\"][\"corrected_PR-EIP197-C_p\"] = cprec\n    out[\"rows\"][\"BN254-r\"][\"refused_p_equals_corrected_p\"] = (pv is not None and pv == cp)\n\n    # cross-checks (booleans only)\n    chk = {}\n    for row, key in [(\"NIST-P-224\", \"cross_source_n\"), (\"NIST-P-256\", \"cross_source_n\"),\n                     (\"NIST-P-384\", \"cross_source_n\"), (\"NIST-P-521\", \"cross_source_n\")]:\n        chk[row + \":sec2_n_equals_sp800_n\"] = V.get((row, \"r\")) is not None and V.get((row, \"r\")) == V.get((row, key))\n    chk[\"Ed25519-L:rfc7748_order_equals_sp800_n\"] = V.get((\"Ed25519-L\", \"r\")) == V.get((\"Ed25519-L\", \"cross_source_order\"))\n    # internal consistency vs specification.yaml (compare only)\n    try:\n        import yaml  # optional; stdlib-only fallback below\n        spec = yaml.safe_load(open(REPO + \"/experiments/EXP-AUXIN-7e2e3d/specification.yaml\"))\n        fl = spec[\"experiment\"][\"inputs\"][\"parameters\"][\"frozen_curve_list\"]\n        for rr in fl:\n            if \"r_hex_pinned_internal\" in rr:\n                chk[rr[\"id\"] + \":internal_consistency_r_hex_pinned_internal\"] = (\n                    int(str(rr[\"r_hex_pinned_internal\"]), 16) == V.get((rr[\"id\"], \"r\")))\n    except ImportError:\n        chk[\"internal_consistency\"] = \"not evaluated (yaml unavailable under -I)\"\n    # BN family check\n    p = V.get((\"BN254-r\", \"p\"))\n    r = V.get((\"BN254-r\", \"r\"))\n    bn_ok, bn_u_found = False, False\n    if p is not None and r is not None:\n        def iroot4(n):\n            x = int(round(n ** 0.25)) if n < 2 ** 1000 else 1 << (n.bit_length() // 4)\n            while x ** 4 > n:\n                x -= 1\n            while (x + 1) ** 4 <= n:\n                x += 1\n            return x\n        base = iroot4(p // 36)\n        for u in list(range(base - 3, base + 4)) + list(range(-base - 3, -base + 4)):\n            if 36 * u ** 4 + 36 * u ** 3 + 24 * u ** 2 + 6 * u + 1 == p:\n                bn_u_found = True\n                bn_ok = (36 * u ** 4 + 36 * u ** 3 + 18 * u ** 2 + 6 * u + 1 == r)\n                chk[\"BN254-r:family_u\"] = dig(abs(u)) | {\"sign\": \"+\" if u > 0 else \"-\"}\n    chk[\"BN254-r:family_u_found\"] = bn_u_found\n    chk[\"BN254-r:family_check\"] = bn_ok\n    t = V.get((\"BLS12-381-r\", \"t\"))\n    rb, pb = V.get((\"BLS12-381-r\", \"r\")), V.get((\"BLS12-381-r\", \"p\"))\n    if None not in (t, rb, pb):\n        num = (t - 1) ** 2 * (t ** 4 - t ** 2 + 1)\n        chk[\"BLS12-381-r:family_check\"] = (rb == t ** 4 - t ** 2 + 1) and num % 3 == 0 and pb == num // 3 + t\n    # C-FIELD extraction cross-checks (held clause). The two closed-form case values are\n    # read from the hash-bound held file at run time and never written in this program.\n    CF1, CF2 = cfield_values()\n    chk[\"CF-1_equals_Ed25519-L_extracted_p\"] = V.get((\"Ed25519-L\", \"p\")) == CF1\n    chk[\"CF-2_equals_NIST-P-256_extracted_p\"] = V.get((\"NIST-P-256\", \"p\")) == CF2\n    out[\"checks\"] = chk\n\n    # corrected FP and its mutation (booleans and counts only)\n    rows = [\"NIST-P-224\", \"NIST-P-256\", \"NIST-P-384\", \"NIST-P-521\", \"secp256k1\", \"brainpoolP256r1\",\n            \"brainpoolP384r1\", \"Ed25519-L\", \"BN254-r\", \"BLS12-381-r\"]\n    extracted = {row: V[(row, \"p\")] for row in rows if (row, \"p\") in V}\n    FP = set(extracted.values())\n    MFP = {CF1, CF2}\n    fp = {\"rows_with_extracted_field_prime\": len(extracted), \"distinct_extracted_field_primes\": len(FP),\n          \"rows_without_extracted_field_prime\": [x for x in rows if x not in extracted]}\n\n    def clause1(c, S):\n        return c in S\n\n    # C-FIELD-EXTRACTED: every extracted field prime, presented as r, must carry field_prime first.\n    ok_correct = all(clause1(v, FP) for v in extracted.values())\n    fails_under_mfp = [row for row, v in extracted.items() if not clause1(v, MFP)]\n    fp[\"C-FIELD-EXTRACTED_passes_under_corrected_FP\"] = ok_correct\n    fp[\"C-FIELD-EXTRACTED_cases_failing_under_M-FP\"] = fails_under_mfp\n    fp[\"C-FIELD-EXTRACTED_fails_under_M-FP\"] = len(fails_under_mfp) > 0\n    fp[\"PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_corrected_FP\"] = clause1(extracted.get(\"brainpoolP384r1\"), FP)\n    fp[\"PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_M-FP\"] = clause1(extracted.get(\"brainpoolP384r1\"), MFP)\n    fp[\"CF-1_in_corrected_FP\"] = CF1 in FP\n    fp[\"CF-2_in_corrected_FP\"] = CF2 in FP\n    # no deployed r collides with any extracted field prime (clause (1) on deployed rows)\n    fp[\"deployed_r_values_in_corrected_FP\"] = [row for row in rows if V.get((row, \"r\")) in FP]\n    out[\"fp_and_mutation\"] = fp\n    out[\"pdf_printed_digit_sha256\"] = {}\n    return out, V\n\n\nif __name__ == \"__main__\":\n    REPO, SRC = sys.argv[1], sys.argv[2]\n    o, _ = run()\n    print(json.dumps(o, indent=1, sort_keys=True))\n"
+  },
+  "pdfcheck.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/pdfcheck.py",
+   "sha256": "cfdd8d9d29d40710db5d14da0d86db98dd53bc7d7b9b96b99566f20ceaf0230d",
+   "source_text": "\"\"\"Execute change.D1_pins.pdf_digit_check (held text) on every derived-.txt read (zero-run probe).\n\nUsage: <venv-python> -I pdfcheck.py <repo_root>. Reports pass/fail and the LENGTH of\neach printed digit string; never the string itself. Also the admission item (8) self-test.\n\"\"\"\nimport hashlib\nimport importlib.metadata as md\nimport json\nimport sys\n\nimport os; sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))\nimport locators as L  # noqa: E402\nfrom pypdf import PdfReader  # noqa: E402\n\nREPO = sys.argv[1]\nS = REPO + \"/inputs/SAFECURVES-20260825/specs/\"\n\n\ndef norm_pdf(path):\n    t = \"\\n\".join(page.extract_text() for page in PdfReader(path).pages)\n    t = \"\".join(c for c in t if c not in L.WS).replace(\"\\\\\", \"\").lower()\n    return t\n\n\nout = {\"pypdf\": md.version(\"pypdf\"), \"checks\": []}\nN = {}\nfor pdf in [\"sp800-186.pdf\", \"sec2-v2.pdf\"]:\n    N[pdf] = norm_pdf(S + pdf)\n    out[pdf + \"_normalized_sha256\"] = hashlib.sha256(N[pdf].encode()).hexdigest()\n    out[pdf + \"_normalized_length\"] = len(N[pdf])\nout[\"admission_item_8_discretelogarithm_in_sp800_pdf\"] = \"discretelogarithm\" in N[\"sp800-186.pdf\"]\n\nsp, _ = L.read_text(S + \"sp800-186.txt\")\nsec, _ = L.read_text(S + \"sec2-v2.txt\")\njobs = []\nfor row, secn, sc in [(\"NIST-P-224\", \"3.2.1.2.\", \"secp224r1\"), (\"NIST-P-256\", \"3.2.1.3.\", \"secp256r1\"),\n                      (\"NIST-P-384\", \"3.2.1.4.\", \"secp384r1\"), (\"NIST-P-521\", \"3.2.1.5.\", \"secp521r1\")]:\n    for lab in \"nph\":\n        jobs.append((row, lab, \"sp800-186.pdf\", L.pr_sp800, (sp, secn, lab)))\n    jobs.append((row, \"cross_source_n\", \"sec2-v2.pdf\", L.pr_sec2, (sec, sc, \"n\")))\nfor lab in \"nph\":\n    jobs.append((\"secp256k1\", lab, \"sec2-v2.pdf\", L.pr_sec2, (sec, \"secp256k1\", lab)))\n    jobs.append((\"Ed25519-L\", lab, \"sp800-186.pdf\", L.pr_sp800, (sp, \"3.2.3.1.\", lab)))\nfor row, lab, pdf, fn, args in jobs:\n    v, rec = fn(*args)\n    s = rec[\"printed_digits\"].lower()\n    out[\"checks\"].append({\"row\": row, \"label\": lab, \"pdf\": pdf, \"printed_length\": len(s),\n                          \"representation\": rec[\"representation\"], \"pass\": s in N[pdf]})\nout[\"all_pass\"] = all(c[\"pass\"] for c in out[\"checks\"])\nout[\"short_strings_len_lt_20\"] = sum(1 for c in out[\"checks\"] if c[\"printed_length\"] < 20)\nprint(json.dumps(out, indent=1))\n"
+  },
+  "probe_steps.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/probe_steps.py",
+   "sha256": "58f34f14a8158a266b217b8c0be2f9fe0f934858cd126af6dc1aced4db27f4e9",
+   "source_text": "\"\"\"Step-isolated pre-submission probe of the cypari2 version and timeout paths.\n\nZero-run tool probe for TASK-20260927-64ba3f (NP-4). Each step runs in its own\n`python -I -c` subprocess so a crash in one step is recorded, not fatal. No curve\nand no census integer is evaluated. Usage: probe_steps.py <venv-python>. Prints JSON.\n\"\"\"\nimport json\nimport subprocess\nimport sys\nimport time\n\nPY = sys.argv[1]\nHARD = \"nextprime(2^140)*nextprime(2^141)\"\n\nPRE = (\n    \"import sys, json, time, importlib.metadata as md\\n\"\n    \"import cypari2\\n\"\n    \"from cysignals.signals import AlarmInterrupt\\n\"\n)\n\nSTEPS = {\n    \"S1_version_command_as_written_in_typed\": (\n        \"import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))\"\n    ),\n    \"S2_version_via_metadata_and_version_tuple\": PRE + (\n        \"p = cypari2.Pari()\\n\"\n        \"print(json.dumps({'cypari2': md.version('cypari2'), 'cysignals': md.version('cysignals'),\"\n        \" 'pari_version': [int(x) for x in p.version()[:3]]}))\\n\"\n    ),\n    \"S3_stack_declaration\": PRE + (\n        \"p = cypari2.Pari(size=2**27, sizemax=2**32)\\n\"\n        \"print(json.dumps({'stacksize': int(p.stacksize()), 'stacksizemax': int(p.stacksizemax())}))\\n\"\n    ),\n    \"S4_alarm_mro\": PRE + (\n        \"print(json.dumps({'mro': [c.__module__ + '.' + c.__name__ for c in AlarmInterrupt.__mro__],\"\n        \" 'is_Exception': issubclass(AlarmInterrupt, Exception)}))\\n\"\n    ),\n}\n\nALARM_TEMPLATE = PRE + (\n    \"p = cypari2.Pari(size=2**27, sizemax=2**32)\\n\"\n    \"t0 = time.monotonic(); rec = {}\\n\"\n    \"try:\\n\"\n    \"    r = p(%r)\\n\"\n    \"    rec['outcome'] = 'returned'; rec['type'] = str(p.type(r))\\n\"\n    \"    if rec['type'] == 't_ERROR': rec['errname'] = str(p.errname(r))\\n\"\n    \"except AlarmInterrupt as e:\\n\"\n    \"    rec['outcome'] = 'raised'; rec['class'] = type(e).__module__ + '.' + type(e).__name__\\n\"\n    \"except Exception as e:\\n\"\n    \"    rec['outcome'] = 'raised_Exception_subclass'; rec['class'] = type(e).__module__ + '.' + type(e).__name__\\n\"\n    \"    rec['message_head'] = str(e)[:100]\\n\"\n    \"rec['elapsed_s'] = round(time.monotonic() - t0, 3)\\n\"\n    \"rec['pari_usable_after'] = str(p('2+2')) == '4'\\n\"\n    \"print(json.dumps(rec))\\n\"\n)\n\nSTEPS[\"S5_admission_item3_expr_via_cypari2\"] = ALARM_TEMPLATE % \"alarm(1, while(1, ))\"\nSTEPS[\"S6_f2_shape_timeout\"] = ALARM_TEMPLATE % (\"alarm(1, factor(%s))\" % HARD)\nSTEPS[\"S7_f2_shape_completes\"] = ALARM_TEMPLATE % \"alarm(5, factor(2^64+1))\"\nSTEPS[\"S8_iferr_wrapped\"] = ALARM_TEMPLATE % \"iferr(alarm(1, while(1, )), E, E)\"\nSTEPS[\"S9_except_Exception_only\"] = PRE + (\n    \"p = cypari2.Pari(size=2**27, sizemax=2**32)\\n\"\n    \"t0 = time.monotonic()\\n\"\n    \"try:\\n\"\n    \"    try:\\n\"\n    \"        p('alarm(1, while(1, ))'); print(json.dumps({'caught_by_except_Exception': None}))\\n\"\n    \"    except Exception:\\n\"\n    \"        print(json.dumps({'caught_by_except_Exception': True}))\\n\"\n    \"except BaseException as e:\\n\"\n    \"    print(json.dumps({'caught_by_except_Exception': False, 'escaped_as': type(e).__module__ + '.' + type(e).__name__,\"\n    \" 'elapsed_s': round(time.monotonic() - t0, 3)}))\\n\"\n)\n\nresults = []\nfor name, code in STEPS.items():\n    t0 = time.monotonic()\n    try:\n        cp = subprocess.run([PY, \"-I\", \"-c\", code], capture_output=True, text=True, timeout=60)\n        rec = {\"step\": name, \"exit_status\": cp.returncode,\n               \"stdout\": cp.stdout.strip()[-600:], \"stderr_tail\": cp.stderr.strip()[-300:]}\n    except subprocess.TimeoutExpired:\n        rec = {\"step\": name, \"exit_status\": \"killed_after_60s\"}\n    rec[\"wall_s\"] = round(time.monotonic() - t0, 3)\n    results.append(rec)\nprint(json.dumps({\"python_under_test\": PY, \"steps\": results}, indent=1))\n"
+  },
+  "probe_cysalarm.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/probe_cysalarm.py",
+   "sha256": "cb6071ecc3e5d180caea41b4aa8f6c0806f132033528dd32f471e58d64815a1c",
+   "source_text": "\"\"\"Probe the cysignals Python-level alarm around a cypari2 call (zero-run tool probe).\n\nUsage: probe_cysalarm.py <venv-python>. Each case in its own subprocess. Prints JSON.\n\"\"\"\nimport json\nimport subprocess\nimport sys\nimport time\n\nPY = sys.argv[1]\nHARD = \"nextprime(2^140)*nextprime(2^141)\"\n\nTEMPLATE = (\n    \"import json, time, importlib.metadata as md\\n\"\n    \"import cypari2\\n\"\n    \"from cysignals.alarm import alarm, cancel_alarm\\n\"\n    \"from cysignals.signals import AlarmInterrupt\\n\"\n    \"p = cypari2.Pari(size=2**27, sizemax=2**32)\\n\"\n    \"n = p(%r)\\n\"\n    \"rec = {'cypari2': md.version('cypari2'), 'cysignals': md.version('cysignals'),\"\n    \" 'pari_version': [int(x) for x in p.version()[:3]]}\\n\"\n    \"t0 = time.monotonic()\\n\"\n    \"try:\\n\"\n    \"    alarm(%s)\\n\"\n    \"    try:\\n\"\n    \"        f = p.factor(n)\\n\"\n    \"        rec['outcome'] = 'returned'; rec['type'] = str(p.type(f))\\n\"\n    \"    finally:\\n\"\n    \"        cancel_alarm()\\n\"\n    \"except AlarmInterrupt as e:\\n\"\n    \"    rec['outcome'] = 'raised'; rec['class'] = type(e).__module__ + '.' + type(e).__name__\\n\"\n    \"rec['elapsed_s'] = round(time.monotonic() - t0, 3)\\n\"\n    \"rec['pari_usable_after'] = str(p('2+2')) == '4'\\n\"\n    \"g = p.factor(p('2^64+1'))\\n\"\n    \"rec['factor_after_alarm_ok'] = str(p.type(g)) == 't_MAT'\\n\"\n    \"print(json.dumps(rec))\\n\"\n)\n\ncases = {\n    \"C1_cysignals_alarm_timeout\": TEMPLATE % (HARD, \"1.0\"),\n    \"C2_cysignals_alarm_completes\": TEMPLATE % (\"2^64+1\", \"5.0\"),\n}\nout = []\nfor name, code in cases.items():\n    t0 = time.monotonic()\n    try:\n        cp = subprocess.run([PY, \"-I\", \"-c\", code], capture_output=True, text=True, timeout=60)\n        out.append({\"case\": name, \"exit_status\": cp.returncode, \"stdout\": cp.stdout.strip()[-500:],\n                    \"stderr_tail\": cp.stderr.strip()[-200:], \"wall_s\": round(time.monotonic() - t0, 3)})\n    except subprocess.TimeoutExpired:\n        out.append({\"case\": name, \"exit_status\": \"killed_after_60s\"})\nprint(json.dumps({\"python_under_test\": PY, \"cases\": out}, indent=1))\n"
+  },
+  "probe_timeout.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/probe_timeout.py",
+   "sha256": "ad0f15fd7a5991fe014709cde05a62ff743aa12a856e5f1500298c1b30b3acdc",
+   "source_text": "\"\"\"Pre-submission probe of the PARI in-process timeout interface through cypari2.\n\nZero-run tool probe for TASK-20260927-64ba3f (NP-4). Evaluates no curve and no\ncensus integer. Prints one JSON object.\n\"\"\"\nimport importlib.metadata as md\nimport json\nimport sys\nimport time\n\nimport cypari2\nfrom cysignals.signals import AlarmInterrupt\n\nout = {\n    \"python\": sys.version.split()[0],\n    \"cypari2\": md.version(\"cypari2\"),\n    \"cysignals\": md.version(\"cysignals\"),\n    \"has___version__\": hasattr(cypari2, \"__version__\"),\n}\npari = cypari2.Pari(size=2**27, sizemax=2**32)\nout[\"pari_version_tuple\"] = list(pari.version())\nout[\"pari_version_gp_string\"] = str(pari(\"version()\"))\nout[\"alarm_interrupt_mro\"] = [c.__module__ + \".\" + c.__name__ for c in AlarmInterrupt.__mro__]\nout[\"alarm_interrupt_is_Exception_subclass\"] = issubclass(AlarmInterrupt, Exception)\nout[\"stack_size_after_init\"] = int(pari.stacksize())\nout[\"stack_sizemax_after_init\"] = int(pari.stacksizemax())\n\n# Composite without small factors: product of two 100-bit primes, fixed by expression.\nHARD = \"nextprime(2^140)*nextprime(2^141)\"\n\n\ndef probe(label, expr):\n    rec = {\"label\": label, \"expr\": expr}\n    t0 = time.monotonic()\n    try:\n        res = pari(expr)\n        rec[\"outcome\"] = \"returned\"\n        rec[\"return_type\"] = str(pari.type(res))\n        if str(pari.type(res)) == \"t_ERROR\":\n            rec[\"errname\"] = str(pari.errname(res))\n    except AlarmInterrupt as e:\n        rec[\"outcome\"] = \"raised\"\n        rec[\"exception_class\"] = type(e).__module__ + \".\" + type(e).__name__\n    except Exception as e:  # noqa: BLE001\n        rec[\"outcome\"] = \"raised_exception_subclass\"\n        rec[\"exception_class\"] = type(e).__module__ + \".\" + type(e).__name__\n        rec[\"message_head\"] = str(e)[:80]\n    rec[\"elapsed_s\"] = round(time.monotonic() - t0, 3)\n    return rec\n\n\ndef caught_by_except_exception(expr):\n    t0 = time.monotonic()\n    try:\n        try:\n            pari(expr)\n            return {\"caught_by_except_Exception\": None, \"note\": \"returned\"}\n        except Exception:  # noqa: BLE001\n            return {\"caught_by_except_Exception\": True}\n    except BaseException as e:  # noqa: BLE001\n        return {\n            \"caught_by_except_Exception\": False,\n            \"escaped_as\": type(e).__module__ + \".\" + type(e).__name__,\n            \"elapsed_s\": round(time.monotonic() - t0, 3),\n        }\n\n\nout[\"probes\"] = [\n    probe(\"admission_item_3_as_written\", \"alarm(1, while(1, ))\"),\n    probe(\"f2_call_shape_timeout\", \"alarm(1, factor(%s))\" % HARD),\n    probe(\"f2_call_shape_fast\", \"alarm(5, factor(2^64+1))\"),\n    probe(\"iferr_wrapped\", \"iferr(alarm(1, while(1, )), E, E)\"),\n]\nout[\"except_Exception_check\"] = caught_by_except_exception(\"alarm(1, while(1, ))\")\nout[\"pari_usable_after_alarm\"] = str(pari(\"2+2\")) == \"4\"\nprint(json.dumps(out, indent=1))\n",
+   "status": "SUPERSEDED by probe_steps.py: a single-process probe that died with the first segfault on cypari2 2.1.5 + cysignals 1.12.6 and had a JSON-cast bug on 2.2.4; its outputs are not used."
+  },
+  "admission_items.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/admission_items.py",
+   "sha256": "789077fc8225796ce16f7faab31172fc71f1554df02c501a04bbfc0d7d8f540d",
+   "source_text": "\"\"\"Execute the CORRECTED admission items 1 (PARI line), 3 and 4 exactly as written in\nAMD-EXP-AUXIN-7e2e3d-20260927-narrow (zero-run tool probe, TASK-20260927-64ba3f).\n\nUsage: python3 admission_items.py <venv-python> [<venv-python> ...]. Prints JSON.\nThe program texts below are the texts the amendment quotes; their sha256 digests are\nprinted so the amendment and this transcript can be compared byte for byte.\n\"\"\"\nimport hashlib\nimport json\nimport re\nimport subprocess\nimport sys\nimport time\n\nITEM1_PARI_PROGRAM = (\n    \"import importlib.metadata as m, cypari2; p = cypari2.Pari(); \"\n    \"print(m.version('cypari2')); print(m.version('cysignals')); \"\n    \"print('.'.join(str(int(x)) for x in p.version()[:3]))\"\n)\n\nITEM3_PROGRAM = \"\"\"import cypari2\nfrom cysignals.signals import AlarmInterrupt\np = cypari2.Pari(size=2**27, sizemax=2**32)\nfor e in ('alarm(1, while(1, ))', 'alarm(1, factor(nextprime(2^140)*nextprime(2^141)))'):\n    try:\n        p(e)\n        print('RETURNED')\n    except AlarmInterrupt:\n        print('ALARM')\nprint(p('2+2'))\n\"\"\"\n\nITEM4_STACK_PROGRAM = \"\"\"import time, cypari2\np = cypari2.Pari(size=2**27, sizemax=2**32)\nfor e in ('2^89-1', '2^607-1'):\n    t0 = time.monotonic()\n    c = p.primecert(p(e))\n    ok = int(p.primecertisvalid(c))\n    print(e, 'valid' if ok == 1 else 'INVALID', round(time.monotonic() - t0, 3))\n\"\"\"\n\n\ndef three_ints(s):\n    return bool(re.fullmatch(r\"[0-9]+\\.[0-9]+\\.[0-9]+\", s))\n\n\ndef ge(a, b):\n    return tuple(int(x) for x in a.split(\".\")) >= tuple(int(x) for x in b.split(\".\"))\n\n\nout = {\"program_sha256\": {k: hashlib.sha256(v.encode()).hexdigest() for k, v in\n                          [(\"ITEM1_PARI_PROGRAM\", ITEM1_PARI_PROGRAM), (\"ITEM3_PROGRAM\", ITEM3_PROGRAM),\n                           (\"ITEM4_STACK_PROGRAM\", ITEM4_STACK_PROGRAM)]},\n       \"builds\": []}\nfor py in sys.argv[1:]:\n    rec = {\"python\": py}\n    cp = subprocess.run([py, \"--version\"], capture_output=True, text=True)\n    rec[\"python_version\"] = (cp.stdout or cp.stderr).strip()\n    cp = subprocess.run([py, \"-I\", \"-c\", ITEM1_PARI_PROGRAM], capture_output=True, text=True, timeout=60)\n    lines = cp.stdout.strip().split(\"\\n\")\n    rec[\"item1\"] = {\"exit_status\": cp.returncode, \"stdout_lines\": lines, \"stderr_tail\": cp.stderr.strip()[-200:]}\n    if cp.returncode == 0 and len(lines) == 3 and three_ints(lines[0]) and three_ints(lines[2]):\n        rec[\"item1\"][\"verdict\"] = \"pass\" if (ge(lines[0], \"2.1.5\") and ge(lines[2], \"2.15.4\")) else \"fail_below_minimum\"\n    else:\n        rec[\"item1\"][\"verdict\"] = \"fail_not_executable_or_unparseable\"\n    t0 = time.monotonic()\n    try:\n        cp = subprocess.run([py, \"-I\", \"-c\", ITEM3_PROGRAM], capture_output=True, text=True, timeout=10)\n        lines = cp.stdout.strip().split(\"\\n\") if cp.stdout.strip() else []\n        rec[\"item3\"] = {\"exit_status\": cp.returncode, \"stdout_lines\": lines,\n                        \"stderr_tail\": cp.stderr.strip()[-160:],\n                        \"verdict\": \"pass\" if (cp.returncode == 0 and lines == [\"ALARM\", \"ALARM\", \"4\"]) else \"fail\"}\n    except subprocess.TimeoutExpired:\n        rec[\"item3\"] = {\"exit_status\": \"killed_at_10s\", \"verdict\": \"fail\"}\n    rec[\"item3\"][\"wall_s\"] = round(time.monotonic() - t0, 3)\n    try:\n        cp = subprocess.run([py, \"-I\", \"-c\", ITEM4_STACK_PROGRAM], capture_output=True, text=True, timeout=900)\n        rec[\"item4_stack\"] = {\"exit_status\": cp.returncode, \"stdout_lines\": cp.stdout.strip().split(\"\\n\"),\n                              \"stderr_tail\": cp.stderr.strip()[-160:]}\n    except subprocess.TimeoutExpired:\n        rec[\"item4_stack\"] = {\"exit_status\": \"killed_at_900s\"}\n    out[\"builds\"].append(rec)\nprint(json.dumps(out, indent=1))\n"
+  },
+  "gp_probe.gp": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/gp/gp_probe.gp",
+   "sha256": "53706b4f01100e1509d4ad90315112628644284b236b1cc6467fddc8043af45c",
+   "source_text": "print(\"version=\", version());\nmy(t0=getabstime()); e = alarm(1, while(1, )); print(\"item3_type=\", type(e), \" errname=\", if(type(e)==\"t_ERROR\", errname(e), \"NA\"), \" ms=\", getabstime()-t0);\nmy(t1=getabstime()); f = alarm(1, factor(nextprime(2^140)*nextprime(2^141))); print(\"f2_type=\", type(f), \" errname=\", if(type(f)==\"t_ERROR\", errname(f), \"NA\"), \" ms=\", getabstime()-t1);\ng = alarm(5, factor(2^64+1)); print(\"f2_fast_type=\", type(g));\nprint(\"usable_after=\", 2+2);\nquit\n"
+  },
+  "run_plain.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_plain.py",
+   "sha256": "5125c2daa98d9fe15d65f1cba7fd5de3e18d9f4abfad4a05d532b931b4714c5d",
+   "source_text": "import json, sys\nr = {\"python\": sys.version.split()[0], \"script_dir_on_sys_path\": sys.path[0] == __file__.rsplit(\"/\", 1)[0], \"sys_path_0\": sys.path[0][-40:]}\ntry:\n    import mod; r[\"import_mod\"] = \"ok\"\nexcept ImportError as e:\n    r[\"import_mod\"] = \"ImportError\"\nprint(json.dumps(r))\n"
+  },
+  "run_insert.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_insert.py",
+   "sha256": "33e40699a380774a249f57829f37a8da114c68344386f3f857b22457e96cf892",
+   "source_text": "import json, os, sys\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport mod\nprint(json.dumps({\"python\": sys.version.split()[0], \"import_mod_after_insert\": mod.VALUE == \"mod-loaded\"}))\n"
+  },
+  "mod.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/mod.py",
+   "sha256": "659943de94a72d8a95d08e1f76bdb696183af964fa938c424441a94526fe6541",
+   "source_text": "VALUE = \"mod-loaded\"\n"
+  },
+  "build_narrow.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/build_narrow.py",
+   "sha256": "61fd3497fa25ab820e406e0c382c2f2fff2f3a2ed41c3a99b7544903fd42c4fe",
+   "source_text": "\"\"\"Build AMD-20260927-narrow.yaml from narrow_template.yaml (TASK-20260927-64ba3f).\n\nFills every span digest from the hash-bound held file, generates the governing-text\ntable, and checks the result: spans resolve uniquely, program digests equal the executed\nones, no incorporated held field is retyped, no forbidden value appears, and the table is\ntotal with exactly one layer per field. Prints a JSON check report.\n\"\"\"\nimport hashlib\nimport json\nimport re\nimport sys\n\nimport yaml\n\nS = \"/Volumes/SSD990/tmp/auxin-64ba3f\"\nREPO = sys.argv[1]\nOUT = sys.argv[2]\nREPORT = sys.argv[3]\nTYPED_PATH = f\"{REPO}/experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\"\nSPEC_PATH = f\"{REPO}/experiments/EXP-AUXIN-7e2e3d/specification.yaml\"\nTYPED_SHA = \"3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6\"\n\n\ndef sha(s):\n    return hashlib.sha256(s if isinstance(s, bytes) else s.encode(\"utf-8\")).hexdigest()\n\n\ntyped_bytes = open(TYPED_PATH, \"rb\").read()\nassert sha(typed_bytes) == TYPED_SHA\ntyped = yaml.safe_load(typed_bytes)[\"amendment\"]\nspec = yaml.safe_load(open(SPEC_PATH))[\"experiment\"]\ntmpl = open(f\"{S}/narrow_template.yaml\").read()\ndraft = yaml.safe_load(tmpl.replace(\"@@GOVERNING_TEXT_TABLE@@\", \"    []\"))[\"amendment\"]\nchecks = {}\n\n\ndef resolve(root, path):\n    node = root\n    for seg in path.split(\".\"):\n        m = re.fullmatch(r\"([^\\[]+)(?:\\[([^\\]]+)\\])?\", seg)\n        key, sel = m.group(1), m.group(2)\n        node = node[key]\n        if sel is not None:\n            hits = [x for x in node if isinstance(x, dict) and x.get(\"id\") == sel]\n            assert len(hits) == 1, (path, sel)\n            node = hits[0]\n    return node\n\n\n# ------------------------------------------------------------------ spans\nspan_report = {}\nfilled = tmpl\nfor sp in draft[\"span_rules\"]:\n    val = resolve(typed, sp[\"field\"])\n    assert isinstance(val, str), sp[\"id\"]\n    assert val.count(sp[\"from\"]) == 1, (sp[\"id\"], \"from not unique\", val.count(sp[\"from\"]))\n    i = val.index(sp[\"from\"])\n    j = val.index(sp[\"through\"], i) + len(sp[\"through\"])\n    span = val[i:j]\n    d = sha(span)\n    span_report[sp[\"id\"]] = {\"field\": sp[\"field\"], \"chars\": len(span), \"sha256\": d}\n    filled = filled.replace(f'\"@@SPAN:{sp[\"id\"]}@@\"', d)\nassert \"@@SPAN:\" not in filled\n\n# whole-field replacements: record the held digest of what is replaced\nwhole = {\n    \"tools_and_admission.certificate_and_factoring_library.minimum_version\":\n        typed[\"tools_and_admission\"][\"certificate_and_factoring_library\"][\"minimum_version\"],\n    \"tools_and_admission.certificate_and_factoring_library.version_command\":\n        typed[\"tools_and_admission\"][\"certificate_and_factoring_library\"][\"version_command\"],\n    \"change.D3_descriptive_bins.bin_by_status\": typed[\"change\"][\"D3_descriptive_bins\"][\"bin_by_status\"],\n    \"interpretation_limits item 6\": typed[\"interpretation_limits\"][5],\n}\nassert typed[\"interpretation_limits\"][5].startswith(\"On the two pairing-family rows\")\nchecks[\"whole_field_replacements_held_sha256\"] = {k: sha(v) for k, v in whole.items()}\n\n# ------------------------------------------------------------------ governing table\nspan_by_field = {}\nfor sp in draft[\"span_rules\"]:\n    span_by_field.setdefault(sp[\"field\"], []).append(sp[\"id\"])\nwhole_fields = {\n    \"tools_and_admission.certificate_and_factoring_library.minimum_version\": \"corrective.tools.certificate_and_factoring_library.minimum_version\",\n    \"tools_and_admission.certificate_and_factoring_library.version_command\": \"corrective.tools.certificate_and_factoring_library.version_command\",\n    \"change.D3_descriptive_bins.bin_by_status\": \"corrective.bin_by_status\",\n    \"interpretation_limits item 6\": \"corrective.interpretation_limits_item_6\",\n}\nenvelope = {\"id\", \"predecessor_amendment\", \"predecessor_status\", \"batch_id\", \"producer_task\",\n            \"producer_snapshot\", \"review_plan_id\", \"decision_id\", \"decision_id_note\", \"recorded_at\",\n            \"kind\", \"status\", \"approval\", \"defect\", \"cites\", \"authorization\"}\nidentity_same = {\"experiment_id\", \"hypothesis_id\", \"question_id\", \"goal_id\"}\n\n\ndef leaves(node, path):\n    if isinstance(node, dict):\n        for k, v in node.items():\n            yield from leaves(v, f\"{path}.{k}\" if path else str(k))\n    elif isinstance(node, list) and node and all(isinstance(x, dict) and \"id\" in x for x in node):\n        for x in node:\n            for k, v in x.items():\n                if k == \"id\":\n                    continue\n                yield from leaves(v, f\"{path}[{x['id']}].{k}\")\n    elif isinstance(node, list) and node and not any(isinstance(x, (dict, list)) for x in node):\n        for n, x in enumerate(node, 1):\n            yield f\"{path} item {n}\"\n    else:\n        yield path\n\n\nrows = []\nfor top, v in typed.items():\n    if top in envelope:\n        for p in leaves(v, top):\n            rows.append({\"field\": f\"typed:{p}\", \"layer\": \"corrective\",\n                         \"via\": \"envelope_not_incorporated; this file's field of the same role governs\"})\n        continue\n    if top in identity_same:\n        rows.append({\"field\": f\"typed:{top}\", \"layer\": \"corrective\",\n                     \"via\": \"identity field; this file states the same value\"})\n        continue\n    for p in leaves(v, top):\n        if p in whole_fields:\n            rows.append({\"field\": f\"typed:{p}\", \"layer\": \"corrective\", \"via\": whole_fields[p]})\n        elif p in span_by_field:\n            ids = span_by_field[p]\n            for sid in ids:\n                rows.append({\"field\": f\"typed:{p} span {sid}\", \"layer\": \"corrective\", \"via\": f\"span_rules[{sid}].replacement\"})\n            rows.append({\"field\": f\"typed:{p} outside span{'s' if len(ids) > 1 else ''} {', '.join(ids)}\",\n                         \"layer\": \"refused-typed-by-hash\", \"via\": \"incorporates.sha256\"})\n        else:\n            rows.append({\"field\": f\"typed:{p}\", \"layer\": \"refused-typed-by-hash\", \"via\": \"incorporates.sha256\"})\n\nassert {r[\"field\"] for r in rows if r[\"field\"].startswith(\"typed:interpretation_limits item 6\")}\n\nV1_TYPED = [\n    (r\"^hypothesis_id$\", \"held supersedes_fields item 1\"),\n    (r\"^inputs\\.procedure$\", \"held supersedes_fields item 2 (replaced by held stages)\"),\n    (r\"^inputs\\.instrument$\", \"held supersedes_fields item 3\"),\n    (r\"^inputs\\.parameters\\.frozen_curve_list\\[[^\\]]+\\]\\.r_pin_source$\", \"held supersedes_fields item 4 (held change.D1_pins.rows)\"),\n    (r\"^inputs\\.parameters\\.confounder_field_vs_order$\", \"held supersedes_fields item 5\"),\n    (r\"^inputs\\.parameters\\.(cost_expression|E_r)$\", \"held supersedes_fields item 6\"),\n    (r\"^inputs\\.parameters\\.(e_inert_floor|e_escalate_ceiling)$\", \"held supersedes_fields item 7 (retired)\"),\n    (r\"^controls\\[(positive_planted_divisor|null_safeprime_r_minus_1)\\]\", \"held supersedes_fields item 8\"),\n    (r\"^controls\\[ordering\\]\", \"held supersedes_fields item 9 (held stages and C-ORDER)\"),\n    (r\"^independent_variables\\[curve_id\\]\\.values item (11|12)$\", \"held supersedes_fields item 10 (PLANTED, SAFEPRIME)\"),\n    (r\"^metrics\\.\", \"held supersedes_fields items 11 and 18\"),\n    (r\"^preregistered_prediction\\.\", \"held supersedes_fields item 12\"),\n    (r\"^tail_checks item 4$\", \"held supersedes_fields item 13 (removed)\"),\n    (r\"^replication\\.seeds\", \"held supersedes_fields item 14\"),\n    (r\"^stopping_rules item (1|4)$\", \"held supersedes_fields item 15\"),\n    (r\"^(success_criterion|falsification_criterion)\", \"held supersedes_fields item 16\"),\n    (r\"^required_artifacts\", \"held supersedes_fields item 17\"),\n    (r\"^launch_gate\\.blocks_scientific_run_until item (1|3)$\", \"held supersedes_fields item 18 (meaning fixed by held D7, D8)\"),\n    (r\"^cost_model_disclosure\\.(model|unit)$\", \"held supersedes_fields item 19\"),\n    (r\"^stages\\[(stage0_order_pin|stage1_divisor_census)\\]\\.purpose$\", \"held supersedes_fields item 2 (Stage 0 and Stage 1 steps replaced by held stages)\"),\n]\n\n\ndef v1_leaves(node, path):\n    if isinstance(node, dict):\n        for k, v in node.items():\n            yield from v1_leaves(v, f\"{path}.{k}\" if path else str(k))\n    elif isinstance(node, list) and node and all(isinstance(x, dict) for x in node):\n        for x in node:\n            key = x.get(\"id\") or x.get(\"kind\") or x.get(\"name\")\n            for k, v in x.items():\n                if x.get(k) == key and k in (\"id\", \"kind\", \"name\"):\n                    continue\n                yield from v1_leaves(v, f\"{path}[{key}].{k}\")\n    elif isinstance(node, list) and node:\n        for n, _ in enumerate(node, 1):\n            yield f\"{path} item {n}\"\n    else:\n        yield path\n\n\nv1_rows = []\nfor p in v1_leaves(spec, \"\"):\n    via = next((why for rx, why in V1_TYPED if re.search(rx, p)), None)\n    if via:\n        v1_rows.append({\"field\": f\"v1:{p}\", \"layer\": \"refused-typed-by-hash\", \"via\": via})\n    else:\n        v1_rows.append({\"field\": f\"v1:{p}\", \"layer\": \"v1\", \"via\": \"not superseded by the held text or by this file\"})\n# sanity: independent_variables item 11/12 are PLANTED/SAFEPRIME\nassert spec[\"independent_variables\"][0][\"values\"][10:12] == [\"PLANTED\", \"SAFEPRIME\"]\nfor rx, _ in V1_TYPED:\n    assert any(re.search(rx, r[\"field\"][3:]) for r in v1_rows), (\"unused v1 rule\", rx)\n\nother_rows = [\n    {\"field\": \"file:AMD-20260916-bands.yaml (every field)\", \"layer\": \"refused-typed-by-hash\",\n     \"via\": \"held supersedes_fields last item: no field governs a run\"},\n    {\"field\": \"file:AMD-20260923-d1d10.yaml (every field)\", \"layer\": \"corrective\",\n     \"via\": \"governs_nothing (refused by DEC-20260923-a4c3d5)\"},\n]\nnarrow_rows = []\ndraft_amd = draft\nfor top in (\"incorporates\", \"envelope_not_incorporated\", \"supersedes_fields\", \"custody_consequences\",\n            \"span_rules\", \"corrective\", \"precedence\", \"governs_nothing\", \"authorization\", \"non_claims\"):\n    for p in leaves(draft_amd[top], top):\n        if top == \"span_rules\":\n            continue\n        narrow_rows.append({\"field\": f\"narrow:{p}\", \"layer\": \"corrective\", \"via\": \"this file\"})\nfor sp in draft[\"span_rules\"]:\n    narrow_rows.append({\"field\": f\"narrow:span_rules[{sp['id']}]\", \"layer\": \"corrective\", \"via\": \"this file\"})\n\ntable = rows + v1_rows + other_rows + narrow_rows\nfields = [r[\"field\"] for r in table]\nassert len(fields) == len(set(fields)), \"duplicate field in table\"\nassert all(r[\"layer\"] in (\"v1\", \"refused-typed-by-hash\", \"corrective\") for r in table)\nchecks[\"governing_text_table\"] = {\n    \"rows\": len(table),\n    \"by_layer\": {k: sum(1 for r in table if r[\"layer\"] == k) for k in (\"v1\", \"refused-typed-by-hash\", \"corrective\")},\n    \"typed_rows\": len(rows), \"v1_rows\": len(v1_rows), \"narrow_rows\": len(narrow_rows),\n    \"duplicates\": 0, \"fields_with_two_layers\": 0,\n}\nlines = []\nfor r in table:\n    lines.append(\"    - {field: %s, layer: %s, via: %s}\" % (json.dumps(r[\"field\"]), r[\"layer\"], json.dumps(r[\"via\"])))\nfilled = filled.replace(\"@@GOVERNING_TEXT_TABLE@@\", \"\\n\".join(lines))\nassert \"@@\" not in filled\n\n# ------------------------------------------------------------------ final checks\nfinal = yaml.safe_load(filled)[\"amendment\"]\nassert final[\"governing_text_table\"] and len(final[\"governing_text_table\"]) == len(table)\ntools = final[\"corrective\"][\"tools\"]\nexecuted = json.load(open(f\"{S}/admission_items.json\"))[\"program_sha256\"]\nchecks[\"programs\"] = {\n    \"version_program\": [sha(tools[\"version_program\"]), tools[\"version_program_sha256\"], executed[\"ITEM1_PARI_PROGRAM\"]],\n    \"alarm_self_test_program\": [sha(tools[\"alarm_self_test_program\"]), tools[\"alarm_self_test_program_sha256\"], executed[\"ITEM3_PROGRAM\"]],\n}\nfor k, v in checks[\"programs\"].items():\n    assert v[0] == v[1] == v[2], k\n\n# spans re-verified from the final file\nfor sp in final[\"span_rules\"]:\n    assert sp[\"replaced_span_sha256\"] == span_report[sp[\"id\"]][\"sha256\"]\nchecks[\"spans\"] = span_report\n\n# retyping scan: no incorporated held string of >= 60 chars, and no 60-char window of one, appears in the narrow file\nflat = re.sub(r\"\\s+\", \" \", filled)\nretyped = []\nfor p in leaves(typed, \"\"):\n    pass\ndef strings(node, path=\"\"):\n    if isinstance(node, dict):\n        for k, v in node.items():\n            yield from strings(v, f\"{path}.{k}\")\n    elif isinstance(node, list):\n        for n, x in enumerate(node):\n            yield from strings(x, f\"{path}[{n}]\")\n    elif isinstance(node, str):\n        yield path, node\nsuperseded_spans = []\nfor sp in draft[\"span_rules\"]:\n    val = resolve(typed, sp[\"field\"])\n    i = val.index(sp[\"from\"]); j = val.index(sp[\"through\"], i) + len(sp[\"through\"])\n    superseded_spans.append(val[i:j])\nanchors = [sp[\"from\"] for sp in draft[\"span_rules\"]] + [sp[\"through\"] for sp in draft[\"span_rules\"]]\nW = 60\nfor path, s in strings(typed):\n    s2 = re.sub(r\"\\s+\", \" \", s)\n    if len(s2) < W:\n        continue\n    for k in range(0, len(s2) - W + 1, 10):\n        win = s2[k:k + W]\n        if win in flat and not any(win in a for a in anchors) and not any(win in re.sub(r\"\\s+\", \" \", x) for x in superseded_spans):\n            retyped.append({\"held_field\": path, \"window\": win})\n            break\nchecks[\"retyping_scan\"] = {\"window_chars\": W, \"step\": 10, \"hits\": retyped}\n\n# forbidden values\nforbidden = {\n    \"decimal_run_ge_16\": re.findall(r\"(?<![0-9A-Za-z])[0-9]{16,}(?![0-9A-Za-z])\", filled),\n    \"hex_literal_0x_ge_16\": re.findall(r\"0x[0-9A-Fa-f]{16,}\", filled),\n    \"c_field_expressions\": [c[\"id\"] for c in typed[\"controls\"][[x[\"id\"] for x in typed[\"controls\"]].index(\"C-FIELD\")][\"cases\"]\n                            if any(t in filled.replace(\" \", \"\") for t in re.findall(r\"2\\^[0-9]+\", c[\"value\"].replace(\" \", \"\")))],\n    \"long_hex_not_digest_or_commit\": [m for m in re.findall(r\"(?<![0-9A-Za-z])[0-9a-fA-F]{20,}(?![0-9A-Za-z])\", filled)\n                                      if len(m) not in (40, 64)],\n}\nchecks[\"forbidden_value_scan\"] = forbidden\nopen(OUT, \"w\").write(filled)\nchecks[\"output_sha256\"] = sha(filled)\nchecks[\"output_bytes\"] = len(filled.encode())\njson.dump(checks, open(REPORT, \"w\"), indent=1)\nprint(json.dumps({k: (v if k != \"spans\" else len(v)) for k, v in checks.items() if k not in (\"retyping_scan\",)}, indent=1))\nprint(\"retyping hits:\", len(retyped))\nfor h in retyped[:20]:\n    print(h)\n"
+  },
+  "narrow_template.yaml": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/narrow_template.yaml",
+   "sha256": "aa7507318c2af8b8f776c046f528c35114006a1a6ef6038f6b95550e1b04c4d7",
+   "source_text": "# =============================================================================\n# AMD-EXP-AUXIN-7e2e3d-20260927-narrow -- versioned ADDITIVE corrective\n# amendment to EXP-AUXIN-7e2e3d, stated against H-AUXIN-6db354.\n#\n# NEW FILE. It rewrites nothing. specification.yaml, AMD-20260916-bands.yaml,\n# AMD-20260923-d1d10.yaml, AMD-20260926-typed.yaml and H-AUXIN-6db354 stay\n# byte-for-byte as committed. Any later change to this text is a NEW file under\n# a NEW id, never an edit of this one.\n#\n# NARROW. It supersedes only the fields named by DEC-20260926-96f970 DF-1 to\n# DF-6 and RI-1 to RI-9 (plus the custody consequences of adding one governing\n# file, listed separately). Every other field of AMD-EXP-AUXIN-7e2e3d-20260926-typed\n# is INCORPORATED BY CONTENT HASH and is not retyped, paraphrased or restated\n# here. Where a held field is superseded only in part, the replaced span is\n# identified by its first and last characters and by the sha256 of its exact\n# text, and the rest of that field stays incorporated by hash.\n#\n# OUTCOME DISCIPLINE. This file states no census value, no minimising divisor,\n# no list of curves from any earlier reading, no reviewer finding value and no\n# integer that any control recipe produces. Records are cited by id. Design-time\n# tool and locator transcripts are in the design directory named below and\n# record integers only as bit length plus sha256.\n# =============================================================================\namendment:\n  id: AMD-EXP-AUXIN-7e2e3d-20260927-narrow\n  experiment_id: EXP-AUXIN-7e2e3d\n  hypothesis_id: H-AUXIN-6db354\n  question_id: RQ-AUXIN-f8d8c0\n  goal_id: GOAL-AUXIN-a93442\n  batch_id: BATCH-7b6678\n  producer_task: TASK-20260927-64ba3f\n  producer_snapshot: TASK-20260927-f24bb2\n  review_plan_id: REVIEW-AUXIN-20260927-7b6678\n  decision_id: DEC-20260927-f680f7\n  decision_id_note: >-\n    The composing decision that approves or refuses this amendment. It does not\n    exist when this file is written. See approval.\n  recorded_at: '2026-09-27'\n  kind: additive_corrective_amendment\n  status: review_required\n\n  # ---------------------------------------------------------------------------\n  # APPROVAL GATE (NP-8).\n  # ---------------------------------------------------------------------------\n  approval:\n    status: review_required\n    approved_by: null\n    approved_if_and_only_if: >-\n      DEC-20260927-f680f7 is OFFICIAL (its ledger archive TASK-20260927-f77bfc\n      verified against Git by tools/research_dispatch.py) AND its decision is\n      approve AND it names AMD-EXP-AUXIN-7e2e3d-20260927-narrow. Under any other\n      state of DEC-20260927-f680f7, or in its absence, this amendment is NOT\n      approved, the held text it incorporates is NOT approved through it, and\n      nothing is authorized.\n    how_approval_is_recorded: >-\n      In DEC-20260927-f680f7 only. Nothing in this file is edited afterwards,\n      not even this block or the status field. A reader determines approval by\n      reading that decision, never by reading this file.\n    until_approved: >-\n      No run, no implementation dispatch and no executor card may rely on this\n      text or on the held text it incorporates. It is a design under review\n      (REVIEW-AUXIN-20260927-7b6678).\n    immutability: >-\n      Bound by content in the producer snapshot TASK-20260927-f24bb2\n      (path_sha256). Any revision, including one that a review requires, is a\n      new file with a new id that cites this one.\n\n  # ---------------------------------------------------------------------------\n  # INCORPORATION BY HASH (NP-2).\n  # ---------------------------------------------------------------------------\n  incorporates:\n    file: experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\n    id: AMD-EXP-AUXIN-7e2e3d-20260926-typed\n    sha256: 3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6\n    status_of_that_file: >-\n      Refused by DEC-20260926-96f970 and never approved. It governs nothing on\n      its own. Its fields govern a run only through this amendment, only as the\n      governing_text_table below assigns them, and only if this amendment is\n      approved.\n    what_is_incorporated: >-\n      Every field under the top-level key amendment of that file, read by a YAML\n      safe loader, EXCEPT (a) the fields and spans listed in supersedes_fields\n      and span_rules below, and (b) the envelope fields listed in\n      envelope_not_incorporated. Each incorporated field governs exactly as its\n      bytes read in the file whose sha256 is stated above.\n    hash_check: >-\n      Before any use, a reader or executor computes the sha256 of the named file\n      and compares it with the value above. A mismatch means the incorporated\n      text is not determined; the reader stops, and for a run it is an\n      evidence-integrity stop before Stage A0 completes.\n    span_hash_convention: >-\n      A span is a contiguous substring of the string value of one held field as\n      a YAML 1.1 safe loader returns it (folded scalars folded, so a line break\n      inside a folded paragraph reads as one space). It begins at the first\n      occurrence in that value of its \"from\" text and ends at the end of the\n      first occurrence of its \"through\" text at or after that point. Its\n      sha256 is taken over the UTF-8 bytes of the span. Each \"from\" text occurs\n      exactly once in its field's value.\n    reading_of_self_references: >-\n      In incorporated text, \"this file\" means AMD-20260926-typed.yaml as bound by\n      the sha256 above. \"This text\", \"this amendment\", \"this protocol\" and a\n      reference of the form amendment.<path> mean the combined governing text:\n      each field resolved through governing_text_table, so a reference to a\n      superseded field or span reads its corrective replacement, and a\n      reference to a field that this file adds under the same path (for example\n      controls[C-FIELD].cases_extracted) reads that addition.\n\n  envelope_not_incorporated:\n    rule: >-\n      These fields of AMD-20260926-typed.yaml describe that file's own identity,\n      review round, approval route or authorization. They are NOT incorporated.\n      The field of the same role in this file governs instead. They are not in\n      supersedes_fields, because they carry no protocol content and no DF or RI\n      item names them.\n    fields:\n      - id\n      - predecessor_amendment\n      - predecessor_status\n      - batch_id\n      - producer_task\n      - producer_snapshot\n      - review_plan_id\n      - decision_id\n      - decision_id_note\n      - recorded_at\n      - kind\n      - status\n      - approval (every sub-field)\n      - defect (a provenance statement about the earlier refusal)\n      - cites (provenance only; this file's cites apply)\n      - authorization (bound to DEC-20260926-96f970, which refused; see authorization below)\n\n  # ---------------------------------------------------------------------------\n  # SUPERSEDED FIELDS (NP-2): exactly the DF/RI fields.\n  # A field marked (span) is superseded only in the span given in span_rules;\n  # the rest of that field stays incorporated by hash. A field marked (whole)\n  # is replaced as a whole by the corrective text named.\n  # ---------------------------------------------------------------------------\n  supersedes_fields:\n    - {field: change.D1_pins.parse_rules.PR-EIP197, extent: span EIP-R, item: DF-1}\n    - {field: \"change.D1_pins.rows[BN254-r].source\", extent: span BN-K, item: \"DF-1, RI-6\"}\n    - {field: change.D1_pins.confounder_check.clauses_in_order, extent: span FP-DEF, item: DF-2}\n    - {field: what_the_controls_exercise, extent: span CTRL-FIELD, item: DF-2}\n    - {field: tools_and_admission.certificate_and_factoring_library.minimum_version, extent: whole, replaced_by: corrective.tools.certificate_and_factoring_library.minimum_version, item: DF-3}\n    - {field: tools_and_admission.certificate_and_factoring_library.version_command, extent: whole, replaced_by: corrective.tools.certificate_and_factoring_library.version_command, item: DF-3}\n    - {field: tools_and_admission.admission_gate, extent: span ADM-3, item: DF-4}\n    - {field: change.D6_factoring.timeouts, extent: span F2-RECOG, item: DF-4}\n    - {field: interpretation_limits item 6 (the item beginning \"On the two pairing-family rows\"), extent: whole, replaced_by: corrective.interpretation_limits_item_6, item: DF-5}\n    - {field: definitions.bins, extent: span BINS-EXACT, item: \"DF-6, RI-2\"}\n    - {field: change.D3_descriptive_bins.bin_by_status, extent: whole, replaced_by: corrective.bin_by_status, item: DF-6}\n    - {field: change.D6_factoring.ecm_curves_per_level, extent: span ECM-PROV, item: RI-7}\n    - {field: change.D4_calibration.threshold_inventory, extent: span INV-CLAIM, item: RI-5}\n    - {field: \"success_criterion.outcomes[S_VALID_TABLE].condition\", extent: span SV-NULL, item: RI-8}\n    - {field: \"success_criterion.outcomes[S_PARTIAL_TABLE].condition\", extent: span SP-VOID, item: RI-8}\n  custody_consequences:\n    rule: >-\n      Adding one governing file changes how many governing-text hashes custody\n      must bind. These spans are superseded ONLY to add this file to the hash\n      set and to the dirty-path refusal. They change nothing else and are\n      necessary for NP-1: without them this file would govern a run without\n      being hash-bound. No DF or RI item names them; they are listed here, apart\n      from supersedes_fields, so that list stays exactly the DF/RI fields.\n    fields:\n      - {field: change.D8_custody.trial_plan, extent: span TP-FOUR}\n      - {field: change.D8_custody.manifest, extent: \"spans MAN-FOUR and MAN-DIRTY\"}\n      - {field: tools_and_admission.admission_gate, extent: span ADM-7}\n\n  span_rules:\n    - id: EIP-R\n      field: change.D1_pins.parse_rules.PR-EIP197\n      from: \"r is the decimal integer captured by the FIRST match\"\n      through: \"prime order q\\\\s*=\\\\s*([0-9]+) .\"\n      replaced_span_sha256: \"@@SPAN:EIP-R@@\"\n      replacement: >-\n        r is the decimal integer captured by the regular expression\n        prime order `q\\s*=\\s*([0-9]+)` , in which each ` is the single character\n        GRAVE ACCENT (U+0060) and every other character is read exactly as\n        printed (Python re syntax, applied to the whole decoded file). This\n        expression must match EXACTLY ONCE in the file; zero matches or more\n        than one match is locator_failure.\n    - id: BN-K\n      field: \"change.D1_pins.rows[BN254-r].source\"\n      from: \"where K is the most recent commit\"\n      through: \"records K, and retrieves\"\n      replaced_span_sha256: \"@@SPAN:BN-K@@\"\n      replacement: >-\n        where K is the commit stated in rows[BN254-r].pinned_revision of\n        AMD-EXP-AUXIN-7e2e3d-20260927-narrow. The executor does not resolve K\n        again; it records K and retrieves\n    - id: FP-DEF\n      field: change.D1_pins.confounder_check.clauses_in_order\n      from: \"defined as every field prime extracted in Stage P\"\n      through: \"together with the two C-FIELD expression values.\"\n      replaced_span_sha256: \"@@SPAN:FP-DEF@@\"\n      replacement: >-\n        defined as the set of every field prime extracted in Stage P (by the\n        row's field_prime_label or field_prime_locator) for any row, whether or\n        not that row pinned, and NOTHING ELSE. No C-FIELD expression value,\n        control integer or other constant of this text is a member of FP by\n        definition. A C-FIELD case meets clause (1) only by being equal to an\n        extracted field prime.\n    - id: CTRL-FIELD\n      field: what_the_controls_exercise\n      from: \"C-FIELD and C-FIELD-MUTATION exercise the confounder check on two rows.\"\n      through: \"C-FIELD and C-FIELD-MUTATION exercise the confounder check on two rows.\"\n      replaced_span_sha256: \"@@SPAN:CTRL-FIELD@@\"\n      replacement: >-\n        C-FIELD exercises the confounder check on its two closed-form cases and,\n        through controls[C-FIELD].cases_extracted, on every extracted field\n        prime presented as r. C-FIELD-MUTATION exercises it on the two\n        closed-form cases with clause (1) disabled.\n    - id: ADM-3\n      field: tools_and_admission.admission_gate\n      from: \"(3) PARI alarm self-test:\"\n      through: \"within 10 seconds of wall clock.\"\n      replaced_span_sha256: \"@@SPAN:ADM-3@@\"\n      replacement: >-\n        (3) PARI alarm self-test: the program\n        corrective.tools.alarm_self_test_program is run as a CHILD process,\n        python3 -I -c \"<program>\", with the admitted interpreter, and the child\n        is killed if it has not exited 10 seconds of wall clock after it was\n        started. The item PASSES if and only if the child exits with status 0\n        within those 10 seconds and its standard output, split on LF with the\n        final empty string after the last LF dropped, is exactly the three lines\n        ALARM, ALARM, 4. Any other exit status (including death by a signal), a\n        kill, or any other output FAILS the item.\n    - id: ADM-7\n      field: tools_and_admission.admission_gate\n      from: \"(7) The four governing-text hashes match trial-plan.json.\"\n      through: \"(7) The four governing-text hashes match trial-plan.json.\"\n      replaced_span_sha256: \"@@SPAN:ADM-7@@\"\n      replacement: >-\n        (7) The five governing-text hashes of change.D8_custody.trial_plan match\n        trial-plan.json.\n    - id: F2-RECOG\n      field: change.D6_factoring.timeouts\n      from: \"An alarm return (PARI error e_ALARM) means the call timed out;\"\n      through: \"the timeout is recorded.\"\n      replaced_span_sha256: \"@@SPAN:F2-RECOG@@\"\n      replacement: >-\n        The call is evaluated by the cypari2 Pari instance of\n        corrective.tools.certificate_and_factoring_library.stack_allocation, as\n        p(\"alarm(A, factor(n))\") with A and n written in decimal. RECOGNITION,\n        in this order: (i) if the call raises cysignals.signals.AlarmInterrupt,\n        caught by naming that class, the call timed out (that class derives from\n        KeyboardInterrupt, not from Exception, so a handler for Exception does\n        not catch it); (ii) if the call returns a PARI object of type t_ERROR\n        whose errname is e_ALARM (the gp-interface form of the same event), the\n        call timed out; in case (i) or (ii) the part stays unfactored and the\n        timeout is recorded together with which form was observed; (iii) if the\n        call returns an object of type t_MAT, the call completed and that matrix\n        is its factorization; (iv) any other exception, any other return type,\n        or termination of the process by a signal is a crash under\n        stopping_rules (memory protection or crash), never a timeout. After (i)\n        or (ii) the same Pari instance serves later calls; admission item (3)\n        checks that it remains usable.\n    - id: BINS-EXACT\n      field: definitions.bins\n      from: \"For an EXACT value: NEAR_FLOOR if\"\n      through: \"INTERMEDIATE otherwise.\"\n      replaced_span_sha256: \"@@SPAN:BINS-EXACT@@\"\n      replacement: >-\n        For an EXACT value the rules are applied IN THIS ORDER and the first that\n        applies gives the bin: (i) if boundary_flag is true, the value takes the\n        bin on its lower-depth side, so s within tau of 3/4 gives INTERMEDIATE\n        and s within tau of 1/4 gives NEAR_CEILING; (ii) NEAR_FLOOR if\n        s >= 3/4 + tau; (iii) NEAR_CEILING if s <= 1/4 - tau; (iv) INTERMEDIATE\n        otherwise. PRECEDENCE: the flag rule (i) precedes the cut-off rules (ii)\n        and (iii). So s = 3/4 + tau exactly is flagged and gives INTERMEDIATE,\n        s = 1/4 - tau exactly is flagged and gives NEAR_CEILING, and no s\n        receives two bins.\n    - id: ECM-PROV\n      field: change.D6_factoring.ecm_curves_per_level\n      from: \"Provenance: the values follow\"\n      through: \"not a claim about the tool.\"\n      replaced_span_sha256: \"@@SPAN:ECM-PROV@@\"\n      replacement: >-\n        Provenance: none external is claimed. The attribution of this column to\n        a GMP-ECM README table, which an earlier design session made from\n        recollection, is WITHDRAWN (VAL-20260927-b99738 coverage entry 8 found\n        that it does not match the README it retrieved). The column is a\n        declared constant of this protocol, fixed before any value was seen, and\n        its determinacy does not depend on any external table.\n    - id: INV-CLAIM\n      field: change.D4_calibration.threshold_inventory\n      from: \"The COMPLETE list of numeric cut-offs and decision constants in this amendment, each with what it reads:\"\n      through: \"The COMPLETE list of numeric cut-offs and decision constants in this amendment, each with what it reads:\"\n      replaced_span_sha256: \"@@SPAN:INV-CLAIM@@\"\n      replacement: >-\n        The list of numeric cut-offs and decision constants, each with what it\n        reads, is this field TOGETHER WITH corrective.threshold_inventory_added;\n        only the two together are claimed complete:\n    - id: SV-NULL\n      field: \"success_criterion.outcomes[S_VALID_TABLE].condition\"\n      from: \"the null arm is complete;\"\n      through: \"the null arm is complete;\"\n      replaced_span_sha256: \"@@SPAN:SV-NULL@@\"\n      replacement: >-\n        no deployed row is rejected by the confounder check; the null arm is\n        complete, meaning that every sample of every bit class carries a recorded\n        outcome (a status for each branch, or rejected by the confounder check\n        and flagged); no null-arm branch is VOID and no null-arm sample is\n        rejected;\n    - id: SP-VOID\n      field: \"success_criterion.outcomes[S_PARTIAL_TABLE].condition\"\n      from: \"one or more deployed branches are VOID\"\n      through: \"The void branches are listed with reasons.\"\n      replaced_span_sha256: \"@@SPAN:SP-VOID@@\"\n      replacement: >-\n        one or more of the following holds and nothing else differs: a deployed\n        branch is VOID under a validity rule; a deployed row is rejected by the\n        confounder check (invalid_measurement for that row, never factored,\n        change.D1_pins.confounder_check.evaluation_and_recording); a null-arm\n        branch is VOID; a null-arm sample is rejected by the confounder check\n        (kept, flagged, not factored). Every such branch, row or sample is\n        listed with its reasons.\n    - id: TP-FOUR\n      field: change.D8_custody.trial_plan\n      from: \"and of THIS file. The run recomputes all four\"\n      through: \"and of THIS file. The run recomputes all four\"\n      replaced_span_sha256: \"@@SPAN:TP-FOUR@@\"\n      replacement: >-\n        of AMD-20260926-typed.yaml, and of AMD-20260927-narrow.yaml. The run\n        recomputes all five\n    - id: MAN-FOUR\n      field: change.D8_custody.manifest\n      from: \"the four governing-text hashes\"\n      through: \"the four governing-text hashes\"\n      replaced_span_sha256: \"@@SPAN:MAN-FOUR@@\"\n      replacement: the five governing-text hashes\n    - id: MAN-DIRTY\n      field: change.D8_custody.manifest\n      from: \"or this file.\"\n      through: \"or this file.\"\n      replaced_span_sha256: \"@@SPAN:MAN-DIRTY@@\"\n      replacement: or either amendment file (AMD-20260926-typed.yaml, AMD-20260927-narrow.yaml).\n\n  # ---------------------------------------------------------------------------\n  # CORRECTIVE FIELDS. Whole-field replacements and additions. An addition\n  # supersedes nothing; it adds a rule under the path it names.\n  # ---------------------------------------------------------------------------\n  corrective:\n\n    pins:\n      rows_BN254-r_pinned_revision:\n        adds_to: \"change.D1_pins.rows[BN254-r]\"\n        item: \"DF-1, RI-6\"\n        K: 9e393a79d9937f579acbdcb234a67869259d5a96\n        how_K_was_resolved: >-\n          At design time, by the GitHub commits API query that the held text\n          names (path EIPS/eip-197.md, until=2026-09-26T00:00:00Z, per_page=1).\n          The API's until filter bounds the committer date; K's committer date,\n          2022-05-06T07:29:09Z, lies years before the bound, so \"strictly\n          before\" and \"on or before\" select the same commit. K is now a stated\n          constant of this text and is not resolved again at run time.\n        raw_url: https://raw.githubusercontent.com/ethereum/EIPs/9e393a79d9937f579acbdcb234a67869259d5a96/EIPS/eip-197.md\n        expected_bytes: 8727\n        expected_sha256: 96355ab680ea8fae76e05c69009e30bd0ec87f352bec9312515b1cbabc6fe89d\n      rows_BLS12-381-r_expected_digest:\n        adds_to: \"change.D1_pins.rows[BLS12-381-r]\"\n        item: RI-6\n        source: the pinned-revision file named in the held rows[BLS12-381-r].source (not restated)\n        expected_bytes: 175678\n        expected_sha256: deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a\n      retrieval_digest_check:\n        adds_to: change.D1_pins.retrieval_rule\n        item: RI-6\n        rule: >-\n          After writing each retrieved pinned-revision file and before any parse,\n          the executor compares its sha256 with the expected_sha256 stated above\n          for that source. A mismatch is an evidence-integrity stop of the\n          package in Stage P before any factoring (outcome I_INFRA). No row is\n          pinned from a file that does not match, and no other revision is\n          substituted.\n      null_arm_class_consequence:\n        adds_to: null_arm.bit_classes\n        item: DF-1\n        rule: >-\n          The null-arm bit classes are the exact bit lengths of the PINNED\n          deployed r (held text). If a deployed row is UNPINNED and no other\n          pinned deployed r has its bit length, that bit class has no samples.\n          The null arm is then reported with that class named as absent and the\n          reason (the UNPINNED row it would have mirrored). An absent class is\n          not a VOID branch, does not by itself move the outcome from\n          S_VALID_TABLE, and is not negative about any curve.\n      pdf_digit_check_weakness:\n        adds_to: change.D1_pins.pdf_digit_check\n        item: RI-6\n        declaration: >-\n          The check is a substring test and is kept as written, not made\n          positional. Its weakness is declared: for a printed digit string that\n          is short (a cofactor h of one or two digits, for example), occurrence\n          somewhere in the normalized PDF text is near certain and the check\n          then has almost no discriminating power. A PASS on a string shorter\n          than 20 characters is recorded in pdf_check.json with its length and is\n          not read as evidence that the value was checked against the PDF. The\n          value itself stays governed by its parse rule and, where it applies, by\n          the hasse clause of the confounder check.\n      deployed_rows_roles_and_order:\n        adds_to: definitions.deployed_row\n        item: RI-5\n        rule: >-\n          Deployed-row ids, roles and order are READ FROM specification.yaml\n          frozen_curve_list (governing layer v1). change.D1_pins.rows lists the\n          same ten ids in the same order; that list governs each row's source,\n          parse rule and cross-checks only. The two lists were compared at\n          design time and agree (design report). A run that finds them different\n          stops in Stage P with outcome I_TEXT.\n\n    controls:\n      C-FIELD_cases_extracted:\n        adds_to: \"controls[C-FIELD]\"\n        item: DF-2\n        path_name: controls[C-FIELD].cases_extracted\n        rule: >-\n          For EVERY row whose field prime was extracted in Stage P (whether or\n          not the row pinned) there is one case, id CF-X-<row id>. Its value is\n          that extracted field prime, taken from the Stage P record and not\n          restated in any text. It is presented to the confounder check as an r\n          with NO printed cofactor, so the hasse clause does not apply to it.\n          Expected reason list: exactly [field_prime]. No integer of any such\n          case is written in this text.\n        why_the_expected_reasons_are_fixed: >-\n          Each extracted field prime is proved prime at run time\n          (change.D7_certificates); hence not_prime does not fire. Under the\n          corrected FP each value is a member of FP, so field_prime fires. The\n          hasse clause does not apply because no cofactor is presented.\n        mutation_sensitivity: >-\n          If FP omits the extracted field prime of any row, that row's case is\n          admitted and the gate below fails with outcome N2. In particular an FP\n          built from the two C-FIELD expression values only (reviewer mutation\n          M-FP of DEC-20260926-96f970 DF-2) admits every case whose row's field\n          prime is not one of those two values, and the gate fails. The\n          design-time locator run evaluated both FP definitions against these\n          cases (execution-transcripts.json, pin_locators.fp_and_mutation).\n      C-FIELD_gates_added:\n        adds_to: \"controls[C-FIELD].gates\"\n        item: DF-2\n        gates:\n          - >-\n            Each case of cases_extracted must be rejected before any factoring,\n            and its recorded reason list under the confounder check as written\n            must be exactly [field_prime]. Any other result is outcome N2\n            (success_criterion N2_CONFOUNDER_CHECK_FALSIFIED reads \"a C-FIELD\n            case\", which includes these cases).\n          - >-\n            Order of evaluation: the extraction_cross_check gate of every\n            closed-form case (outcome I_TEXT on failure) is evaluated first, then\n            the reason-list gates of all cases, closed-form and extracted. The\n            results of cases_extracted are written to confounder_receipt.json\n            under their own key.\n\n    tools:\n      certificate_and_factoring_library:\n        minimum_version:\n          item: DF-3\n          value: cypari2 2.1.5 with its PARI library 2.15.4\n          rule: >-\n            Admission item (1) requires the cypari2 distribution version to be at\n            least 2.1.5 and the PARI library version reported through it to be\n            at least 2.15.4. cysignals has no minimum version; its version is\n            recorded, and admission item (3) decides whether the installed\n            cypari2 and cysignals pairing can be admitted.\n        version_command:\n          item: DF-3\n          command: python3 -I -c \"<program>\" with <program> equal to corrective.tools.version_program\n          parse: >-\n            Standard output, split on LF with the final empty string after the\n            last LF dropped, must be exactly three lines. Line 1 is the cypari2\n            distribution version and line 3 the PARI library version; each must\n            fully match [0-9]+\\.[0-9]+\\.[0-9]+ . Line 2 is the cysignals\n            distribution version, recorded as printed. A non-zero exit status,\n            another line count or a non-matching line 1 or 3 FAILS admission\n            item (1). Versions are compared as integer triples.\n          why: >-\n            No cypari2 release executed at design time defines\n            cypari2.__version__ (execution-transcripts.json,\n            cypari2_builds.*.typed_version_command_as_held). The distribution\n            version comes from importlib.metadata and the PARI version from\n            Pari.version(), whose first three entries are the PARI version\n            integers.\n        declared_builds:\n          item: DF-3\n          declared_minimum: cypari2 2.1.5, cysignals 1.11.4, PARI 2.15.4 (bundled), CPython 3.12\n          declared_latest: cypari2 2.2.4, cysignals 1.12.6, PARI 2.17.2 (bundled), CPython 3.12\n          gp_builds_probed: gp 2.15.4 and gp 2.17.4 (built from source), gp 2.17.3 (Homebrew)\n          note: >-\n            These are the builds on which admission items (1), (3) and (4) and the\n            timeout recognition of change.D6_factoring.timeouts were executed at\n            design time. Admission decides for any other build. The pairings\n            cypari2 2.1.5 or 2.2.0 with cysignals 1.12.6 pass item (1) and FAIL\n            item (3) (the child dies by signal), so admission refuses them as an\n            infrastructure stop.\n        stack_allocation:\n          item: RI-7\n          rule: >-\n            Every cypari2 Pari instance that path A uses (factoring, primecert,\n            primecertisvalid and high-precision evaluation) is created as\n            cypari2.Pari(size=2**27, sizemax=2**32): an initial PARI stack of\n            2^27 bytes, allowed to grow to 2^32 bytes. A PARI stack overflow at\n            that ceiling is a crash under stopping_rules, never a result.\n      version_program: |-\n        import importlib.metadata as m, cypari2; p = cypari2.Pari(); print(m.version('cypari2')); print(m.version('cysignals')); print('.'.join(str(int(x)) for x in p.version()[:3]))\n      version_program_sha256: 5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5\n      alarm_self_test_program: |\n        import cypari2\n        from cysignals.signals import AlarmInterrupt\n        p = cypari2.Pari(size=2**27, sizemax=2**32)\n        for e in ('alarm(1, while(1, ))', 'alarm(1, factor(nextprime(2^140)*nextprime(2^141)))'):\n            try:\n                p(e)\n                print('RETURNED')\n            except AlarmInterrupt:\n                print('ALARM')\n        print(p('2+2'))\n      alarm_self_test_program_sha256: fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776\n      program_hash_convention: sha256 of the UTF-8 bytes of the string value as a YAML safe loader returns it (the second program ends with one LF, the first with none).\n      admission_gate_items_added:\n        adds_to: tools_and_admission.admission_gate\n        item: RI-7\n        items:\n          - >-\n            (9) Execution audit. The AST audit of admission item (6) also FAILS if\n            any module under implementation/typed/ calls exec, eval, compile or\n            __import__, imports runpy, or uses importlib other than\n            importlib.metadata. Code from any repository file outside\n            implementation/typed/ is never executed by any route, whether import,\n            exec or loading by path.\n          - >-\n            (10) Environment location. The resolved sys.prefix of the admitted\n            interpreter and the resolved file path of every installed\n            third-party distribution module lie OUTSIDE the repository working\n            tree. An environment inside the repository fails admission, because\n            its modules would be both allowed (import_rule class b) and\n            forbidden (inside the repository, outside implementation/typed/).\n\n    custody:\n      run_entry_sys_path:\n        adds_to: change.D8_custody.import_rule\n        item: RI-7\n        rule: >-\n          Under python3 -I the directory of run.py is NOT on sys.path (executed\n          at design time on CPython 3.10 and 3.12; execution-transcripts.json,\n          isolated_mode_sys_path). run.py therefore inserts the absolute path of\n          experiments/EXP-AUXIN-7e2e3d/implementation/typed/ at sys.path[0]\n          before its first import of any module under that directory, importing\n          only sys and os before doing so. That is the only change to sys.path\n          the run makes, and it is recorded in import_audit.json.\n      invalidation_rules_added:\n        adds_to: invalidation_rules\n        rules:\n          - Any edit of AMD-20260927-narrow.yaml after approval - evidence-integrity failure.\n          - Any byte difference between AMD-20260926-typed.yaml and the sha256 in incorporates.sha256 - evidence-integrity failure.\n\n    bin_by_status:\n      replaces: change.D3_descriptive_bins.bin_by_status\n      item: DF-6\n      text: >-\n        For every branch of every deployed row, construction control, C-BOUND\n        state and null-arm sample, three fields are reported: bin, bin_at_least\n        and boundary_flag, each with exactly the value given here. EXACT: bin is\n        given by definitions.bins; bin_at_least equals bin; boundary_flag is as\n        definitions.bins defines it. BOUND: let s be the depth of the witnessed\n        upper bound and boundary_flag the flag that definitions.bins computes on\n        s. If boundary_flag is false and s >= 3/4 + tau, bin is NEAR_FLOOR and\n        bin_at_least is NEAR_FLOOR (the true value is at least as deep).\n        Otherwise bin is UNDETERMINED and bin_at_least is the bin that\n        definitions.bins gives an EXACT value of depth s (so a witnessed depth\n        within tau of 3/4 gives UNDETERMINED, bin_at_least INTERMEDIATE and\n        boundary_flag true). VOID: bin, bin_at_least and boundary_flag are all\n        null. UNPINNED rows have no branches and report none of the three. This\n        clause and definitions.bins never give two answers, and no status and\n        bin combination leaves bin_at_least undefined.\n      totality_table:\n        - {status: EXACT, bin: NEAR_FLOOR, bin_at_least: NEAR_FLOOR}\n        - {status: EXACT, bin: INTERMEDIATE, bin_at_least: INTERMEDIATE}\n        - {status: EXACT, bin: NEAR_CEILING, bin_at_least: NEAR_CEILING}\n        - {status: BOUND, bin: NEAR_FLOOR, bin_at_least: NEAR_FLOOR}\n        - {status: BOUND, bin: UNDETERMINED, bin_at_least: \"INTERMEDIATE or NEAR_CEILING (the EXACT bin of s)\"}\n        - {status: VOID, bin: null, bin_at_least: null}\n        - {status: UNPINNED, bin: none reported, bin_at_least: none reported}\n\n    interpretation_limits_item_6:\n      replaces: interpretation_limits item 6 (the item beginning \"On the two pairing-family rows\")\n      item: DF-5\n      text: >-\n        BN254-r and BLS12-381-r are reported in their own stratum\n        (expected_structure_flag true, change.D3_descriptive_bins.stratification).\n        No status, bin, depth or other category is predicted for them, and no\n        value on them is read as family-caused.\n      reading_of_the_held_stratification_parenthetical: >-\n        The parenthetical in change.D3_descriptive_bins.stratification (the two\n        rows \"whose family polynomials force divisors, CORR-20260923-187ea3\")\n        stays incorporated. It fixes stratum MEMBERSHIP only and cites the\n        record behind that membership. It predicts no category and licenses no\n        family-caused reading; the item above governs how those rows are read.\n      not_edited: >-\n        H-AUXIN-6db354 interpretation_limits, from which the replaced sentence was\n        imported, is not edited by this file; its correction is a later card.\n\n    threshold_inventory_added:\n      adds_to: change.D4_calibration.threshold_inventory\n      item: RI-5\n      constants: >-\n        Admission timeouts: 600 seconds for the ECM self-test (item 2) and 10\n        seconds of wall clock for the alarm self-test child (item 3); the alarm\n        length A = 1 second inside that self-test. Minimum tool versions: GMP-ECM\n        7.0.4; cypari2 2.1.5 with PARI 2.15.4; pypdf 3.0.0 (held); Python 3.10.\n        PARI stack: initial 2^27 bytes, ceiling 2^32 bytes. The screen's optional\n        trial-division bound of at most 2^16 (conventions.Q0-5). PR-SEC2's\n        continuation minimum of 4 characters. PR-EIP197's required match count\n        of exactly one. The PDF short-string length 20 of\n        corrective.pins.pdf_digit_check_weakness (a reporting label, no stop).\n        Expected sha256 digests and byte counts of the two pinned-revision files\n        (equality tests, no cut-off). No constant in this list reads a\n        deployed-row or null-arm outcome, and each was fixed before any such\n        outcome existed.\n\n    falsification_condition_mapping:\n      item: RI-1\n      rule: >-\n        Each falsification condition of H-AUXIN-6db354 (in its listed order,\n        FC1 to FC6) is mapped to the outcome of this protocol that decides it.\n        None is retired. Two are demoted, with reason.\n      rows:\n        - fc: FC1 (a constructed control fails a gate)\n          outcome: N1_INSTRUMENT_FALSIFIED\n          status: kept\n        - fc: FC2 (a field prime presented as r is admitted)\n          outcome: N2_CONFOUNDER_CHECK_FALSIFIED\n          status: demoted in part\n          reason: >-\n            The controls can present only field primes that the text or Stage P\n            makes available: the two closed-form C-FIELD cases and every\n            extracted field prime (cases_extracted). A field prime of a curve\n            outside the frozen list, or one no locator extracts, cannot be\n            presented, so FC2 is decided for the extracted set only. A deployed\n            row whose own r equals a member of FP is invalid_measurement for that\n            row (held invalidation rule), not N2.\n        - fc: FC3 (a reported exponent or bound below its analytic floor, or T_plus(d) < d)\n          outcome: N3_FLOOR_VIOLATION\n          status: kept\n        - fc: FC4 (reported prime factors of an EXACT branch do not multiply back)\n          outcome: >-\n            N1 when the branch belongs to a construction control (its EXACT gate\n            fails); for a deployed or null-arm branch the product check makes\n            the branch VOID (C-PRODUCT; held invalidation rules), which gives\n            S_PARTIAL_TABLE\n          status: demoted\n          reason: >-\n            On a deployed or null-arm branch a product mismatch shows a defect in\n            that branch's factorization record, not in the instrument as a whole,\n            so the held text voids the branch instead of falsifying the\n            instrument. On construction controls, where the correct factorization\n            is fixed by the recipe, it falsifies the instrument as H states.\n        - fc: FC5 (a declared-state BOUND evaluator control returns a value other than the one fixed)\n          outcome: N4_BOUND_EVALUATOR_FALSIFIED\n          status: kept\n        - fc: FC6 (a row omits either branch)\n          outcome: >-\n            The row is incomplete, not negative. specification.yaml tail_checks\n            item 1 (v1, \"a missing branch voids the row\") makes each omitted\n            branch VOID, which gives S_PARTIAL_TABLE; an omission caused by a\n            crash is I_INFRA.\n          status: kept (as H states it, incomplete and not negative)\n\n    reviewer_convention_zero_runs:\n      item: RI-9\n      convention: >-\n        At zero runs a reviewer reads each gate that needs a pipeline\n        factorization (the blind EXACT status of a construction control, the F3\n        routing observation of C-PLANT-PL) as a RUN OBSERVATION. Its text is\n        judged determinate when the expected value is fixed by the text alone\n        (change.D5_controls.expected_status_convention); whether the pipeline\n        attains that value is not reviewable before a run and is neither a\n        pass nor a break of the text.\n\n    declared_not_superseded:\n      - item: \"RI-3 (C-PLANT-PL tolerance)\"\n        field: \"controls[C-PLANT-PL].declared_properties\"\n        declaration: >-\n          The phrase giving an absolute tolerance on s is kept. The declared\n          property is a design statement read by no gate; C-PLANT-PL's gates\n          (plus minimiser, gap within the control gate tolerance, bin) are\n          unaffected by it, and the conclusion it supports survives with a\n          relative bound. Editing a construction-control field would reopen\n          regression group R-D4, which held twice. Revisit when any later\n          amendment edits C-PLANT-PL for another reason.\n      - item: \"RI-3 (minus-branch generator label)\"\n        field: change.D2_typed_costs.input_models\n        declaration: >-\n          Kept as written. The split of the label into the 2010 source's two\n          cases cannot be written by this session, which has not read that\n          source (a recalled reference would be a pointer only); and D2 lies in\n          regression group R-D2D3. The typed costs, which the label annotates,\n          are unchanged. Revisit: a later card whose producer has read the 2010\n          source and records it as retrieved.\n      - item: RI-4\n        field: none in this file\n        declaration: >-\n          Addressed in the design report's route_ruling, which names the\n          superseded cost fields and lists the extensions not named in\n          H-AUXIN-6db354. This file carries no route ruling.\n      - item: \"observation (not a DF or RI item): pypdf minimum\"\n        field: tools_and_admission.pdf_text_extractor.minimum_version\n        declaration: >-\n          Kept as written (pypdf 3.0.0). PyPI has no pypdf 3.0.0 release; the\n          first 3.x release is 3.1.0 (execution-transcripts.json). The minimum\n          still decides admission determinately, since every existing release\n          compares as an integer triple, so this is not a defect and NP-2 keeps\n          the field held.\n\n  # ---------------------------------------------------------------------------\n  # PRECEDENCE AND GOVERNANCE.\n  # ---------------------------------------------------------------------------\n  precedence: >-\n    Every field the protocol reads has exactly one governing layer, named in\n    governing_text_table: v1 (specification.yaml), refused-typed-by-hash\n    (AMD-20260926-typed.yaml, bound by sha256 and incorporated through this\n    file), or corrective (this file). No field is decided by reading two layers.\n    A v1 field that the held text supersedes is governed by the held text; a\n    held field or span that this file supersedes is governed by this file.\n  governs_nothing:\n    - experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260916-bands.yaml (every field, every committed version; the held supersedes_fields last item)\n    - experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260923-d1d10.yaml (refused by DEC-20260923-a4c3d5; no field governs)\n  does_not_rewrite:\n    - experiments/EXP-AUXIN-7e2e3d/specification.yaml\n    - experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260916-bands.yaml\n    - experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260923-d1d10.yaml\n    - experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\n    - experiments/EXP-AUXIN-7e2e3d/implementation/ (every existing file)\n    - experiments/EXP-AUXIN-7e2e3d/runs/ (every existing run)\n    - ledger/hypotheses/H-AUXIN-6db354.yaml\n    - ledger/goals/GOAL-AUXIN-a93442.yaml\n  cites:\n    - DEC-20260926-96f970 (the refusal whose DF-1 to DF-6 and RI-1 to RI-9 this file discharges)\n    - DEC-20260927-35dc6c (the opening decision of BATCH-7b6678; scope fixed at the narrow corrective amendment)\n    - coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-2fc87b/rescope-ranking.yaml (ranking option 3)\n    - REVIEW-AUXIN-20260927-7b6678 (the plan this file is reviewed under)\n    - H-AUXIN-6db354 (the governing statement)\n    - AMD-EXP-AUXIN-7e2e3d-20260926-typed (incorporated by hash)\n    - VAL-20260927-b99738, RT-20260926-40d75b, VAL-20260927-b27125 (the findings behind DF and RI items; cited by id, no value carried)\n  design_record: >-\n    coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-7b6678/design/TASK-20260927-64ba3f/design-report.yaml\n    and execution-transcripts.json in the same directory (provenance only).\n\n  authorization: >-\n    This file authorizes NO run. If DEC-20260927-f680f7 approves it, the\n    combined governing text (v1 as amended by the held text incorporated by hash\n    and by this file) is an approved protocol under which a later Coordinator\n    decision may mint an executor card for ONE census package (maximum_runs 1)\n    running stages A0, P, C, N, D, R and T only. Under no outcome does it\n    authorize running Cheon's algorithms, generating or using an auxiliary\n    power, a protocol-supply audit, or stage2_protocol_supply_join.\n    RUN-AUXIN-fd1edc and RUN-AUXIN-6117d3 are not rehabilitated. The first\n    dispatch precondition of any executor card is an environment, outside the\n    repository, that passes tools_and_admission.admission_gate as corrected\n    here.\n  non_claims:\n    - AMD-20260927-narrow records no measurement and states no value for any curve; the held non_claims stay incorporated.\n    - Design-time tool and locator executions are probes of the text's executability, not runs; no RUN-* id exists for them.\n\n  # ---------------------------------------------------------------------------\n  # GOVERNING-TEXT TABLE (NP-3). Generated from the three files by the\n  # producer's builder and checked total: every v1 field and every held field\n  # appears once with exactly one layer.\n  # ---------------------------------------------------------------------------\n  governing_text_table:\n@@GOVERNING_TEXT_TABLE@@\n"
+  },
+  "build_transcripts.py": {
+   "path_outside_repo": "/Volumes/SSD990/tmp/auxin-64ba3f/build_transcripts.py",
+   "sha256": "a1e1ee0f8923eeae6507772eea292601d47ad480ec613f3a3c352472062b83c2",
+   "source_text": "\"\"\"Assemble execution-transcripts.json for TASK-20260927-64ba3f (zero-run design probes).\n\nRe-runs the fast probes (gp interface, -I sys.path, version listings, corrected admission\nitems) and folds in the recorded outputs of the slower probes. Every probe program is\nembedded with its sha256. Integers from sources appear only as bit length plus sha256 of\ntheir decimal string (the probes themselves never print them).\n\"\"\"\nimport datetime\nimport glob\nimport hashlib\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\n\nS = \"/Volumes/SSD990/tmp/auxin-64ba3f\"\nOUT = sys.argv[1]\nREPO = sys.argv[2]\n\n\ndef sha(b):\n    return hashlib.sha256(b).hexdigest()\n\n\ndef fsha(p):\n    with open(p, \"rb\") as f:\n        return sha(f.read())\n\n\ndef run(cmd, env=None, timeout=900, cwd=None, shell=False):\n    t0 = datetime.datetime.now(datetime.timezone.utc)\n    cp = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout, cwd=cwd, shell=shell)\n    return {\"command\": cmd if isinstance(cmd, str) else \" \".join(cmd), \"started_utc\": t0.strftime(\"%Y-%m-%dT%H:%M:%SZ\"),\n            \"exit_status\": cp.returncode, \"stdout\": cp.stdout, \"stderr_tail\": cp.stderr[-400:]}\n\n\ndef load(p):\n    with open(p) as f:\n        return json.load(f)\n\n\ndef program(p):\n    with open(p, \"rb\") as f:\n        b = f.read()\n    return {\"path_outside_repo\": p, \"sha256\": sha(b), \"source_text\": b.decode()}\n\n\nVENVS = [\"venv-cypari2-2.1.5-cys1.11.4\", \"venv-cypari2-2.2.4\", \"venv-cypari2-2.2.3\",\n         \"venv-cypari2-2.2.0\", \"venv-cypari2-2.1.5\"]\nPDFVENVS = [\"venv-pypdf-3.1.0\", \"venv-pypdf-6.19.0\"]\n\nT = {\n    \"schema\": \"crypto.autoresearch.design_execution_transcripts.v1\",\n    \"task_id\": \"TASK-20260927-64ba3f\",\n    \"amendment_id\": \"AMD-EXP-AUXIN-7e2e3d-20260927-narrow\",\n    \"assembled_utc\": datetime.datetime.now(datetime.timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\"),\n    \"runs_launched\": 0,\n    \"run_ids_minted\": [],\n    \"what_this_is\": (\n        \"Zero-run design-time execution of every pin locator, the PARI version command, the in-process \"\n        \"timeout path and the corrected admission items, per NP-4 of TASK-20260927-64ba3f. Tool probes and \"\n        \"text locators only. No Cheon algorithm, no auxiliary power, no factoring of any frozen-list integer, \"\n        \"no census value. Integers read from sources are recorded as bit length plus sha256 of the decimal \"\n        \"string, never in decimal or hex.\"),\n    \"scratch_root_outside_repository\": S,\n    \"host\": run([\"uname\", \"-a\"])[\"stdout\"].strip(),\n    \"value_encoding\": \"bits + sha256(decimal string, ASCII, no sign, no leading zeros)\",\n}\n\n# ---------------------------------------------------------------- programs\nT[\"probe_programs\"] = {os.path.basename(p): program(p) for p in [\n    f\"{S}/locators.py\", f\"{S}/pdfcheck.py\", f\"{S}/probe_steps.py\", f\"{S}/probe_cysalarm.py\",\n    f\"{S}/probe_timeout.py\", f\"{S}/admission_items.py\", f\"{S}/gp/gp_probe.gp\",\n    f\"{S}/syspath_probe/typed/run_plain.py\", f\"{S}/syspath_probe/typed/run_insert.py\",\n    f\"{S}/syspath_probe/typed/mod.py\", f\"{S}/build_narrow.py\", f\"{S}/narrow_template.yaml\",\n    os.path.abspath(__file__)]}\nT[\"amendment_build_checks\"] = load(f\"{S}/narrow_checks.json\")\nT[\"amendment_build_checks\"][\"installed_amendment_sha256\"] = fsha(\n    f\"{REPO}/experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260927-narrow.yaml\")\nT[\"probe_programs\"][\"probe_timeout.py\"][\"status\"] = (\n    \"SUPERSEDED by probe_steps.py: a single-process probe that died with the first segfault on \"\n    \"cypari2 2.1.5 + cysignals 1.12.6 and had a JSON-cast bug on 2.2.4; its outputs are not used.\")\n\n# ---------------------------------------------------------------- held-text binding\ntyped = f\"{REPO}/experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\"\nT[\"held_text_binding\"] = {\n    \"file\": \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\",\n    \"sha256_observed\": fsha(typed),\n    \"sha256_card\": \"3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6\",\n}\nT[\"held_text_binding\"][\"equal\"] = T[\"held_text_binding\"][\"sha256_observed\"] == T[\"held_text_binding\"][\"sha256_card\"]\nT[\"frozen_file_digests_at_design\"] = {p: fsha(f\"{REPO}/{p}\") for p in [\n    \"experiments/EXP-AUXIN-7e2e3d/specification.yaml\",\n    \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260916-bands.yaml\",\n    \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260923-d1d10.yaml\",\n    \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\",\n    \"ledger/hypotheses/H-AUXIN-6db354.yaml\"]}\n\n# ---------------------------------------------------------------- pinned retrieval\ndef headers(p):\n    lines = open(p, encoding=\"latin-1\").read().splitlines()\n    st = [l for l in lines if l.startswith(\"HTTP/\")]\n    cl = [l for l in lines if l.lower().startswith(\"content-length\")]\n    return {\"status_lines\": st, \"content_length\": cl}\n\n\napi = load(f\"{S}/sources/commits_api.json\")\nT[\"pinned_retrieval\"] = {\n    \"EIP-197\": {\n        \"commits_api_url\": \"https://api.github.com/repos/ethereum/EIPs/commits?path=EIPS/eip-197.md&until=2026-09-26T00:00:00Z&per_page=1\",\n        \"commits_api_headers\": headers(f\"{S}/sources/commits_api.headers\"),\n        \"commits_api_entries_returned\": len(api),\n        \"resolved_K\": api[0][\"sha\"],\n        \"K_committer_date\": api[0][\"commit\"][\"committer\"][\"date\"],\n        \"raw_url\": f\"https://raw.githubusercontent.com/ethereum/EIPs/{api[0]['sha']}/EIPS/eip-197.md\",\n        \"raw_headers\": headers(f\"{S}/sources/eip197.headers\"),\n        \"bytes\": os.path.getsize(f\"{S}/sources/eip-197.md\"),\n        \"sha256\": fsha(f\"{S}/sources/eip-197.md\"),\n        \"until_filter_note\": (\n            \"The API 'until' parameter bounds the committer date; K's date is years before the bound, so \"\n            \"'strictly before' and 'on or before' select the same commit. An unfiltered listing made in the same \"\n            \"session named the same latest commit (recorded in the session log, not re-run here).\"),\n    },\n    \"draft-irtf-cfrg-pairing-friendly-curves-14\": {\n        \"url\": \"https://www.ietf.org/archive/id/draft-irtf-cfrg-pairing-friendly-curves-14.txt\",\n        \"headers\": headers(f\"{S}/sources/draft14.headers\"),\n        \"bytes\": os.path.getsize(f\"{S}/sources/draft-irtf-cfrg-pairing-friendly-curves-14.txt\"),\n        \"sha256\": fsha(f\"{S}/sources/draft-irtf-cfrg-pairing-friendly-curves-14.txt\"),\n    },\n}\n\n# ---------------------------------------------------------------- locators\nT[\"pin_locators\"] = {\n    \"command_py39\": \"python3 -I locators.py <repo> <scratch>/sources  (CPython 3.9.10; PyYAML available)\",\n    \"output_py39\": load(f\"{S}/locators_out.json\"),\n    \"command_py312\": \"<venv-cypari2-2.2.4>/bin/python -I locators.py <repo> <scratch>/sources  (CPython 3.12.13; no PyYAML, so the specification internal-consistency lookup is skipped)\",\n    \"output_py312\": load(f\"{S}/locators_out_py312.json\"),\n}\na, b = T[\"pin_locators\"][\"output_py39\"], T[\"pin_locators\"][\"output_py312\"]\nT[\"pin_locators\"][\"rows_equal_across_interpreters\"] = a.get(\"rows\") == b.get(\"rows\")\nT[\"pin_locators\"][\"fp_and_mutation_equal_across_interpreters\"] = a.get(\"fp_and_mutation\") == b.get(\"fp_and_mutation\")\n\n# ---------------------------------------------------------------- pdf\nT[\"pdf_digit_check\"] = {}\nfor v in PDFVENVS:\n    py = f\"{S}/{v}/bin/python\"\n    T[\"pdf_digit_check\"][v] = {\n        \"version_command\": run([py, \"-I\", \"-c\", \"import pypdf; print(pypdf.__version__)\"]),\n        \"command\": f\"{py} -I pdfcheck.py <repo>\",\n        \"output\": load(f\"{S}/pdf_{v.split('-')[-1]}.json\"),\n    }\nT[\"pdf_digit_check\"][\"pypdf_3.0.0\"] = run(\n    f\"curl -s -o /dev/null -w '%{{http_code}}' https://pypi.org/pypi/pypdf/3.0.0/json\", shell=True)\nT[\"pdf_digit_check\"][\"pypdf_3.0.0\"][\"reading\"] = \"404 means no pypdf 3.0.0 release exists on PyPI\"\nT[\"pdf_digit_check\"][\"pypdf_first_3x\"] = run(\n    f\"curl -s https://pypi.org/pypi/pypdf/json | python3 -c \\\"import json,sys; r=json.load(sys.stdin)['releases']; \"\n    f\"v=sorted((k for k in r if k.startswith('3.') and r[k]), key=lambda s: tuple(int(x) for x in s.split('.'))); \"\n    f\"print(v[0], r[v[0]][0]['upload_time'][:10])\\\"\", shell=True)\n\n# ---------------------------------------------------------------- cypari2 builds\nT[\"cypari2_builds\"] = {}\nfor v in VENVS:\n    py = f\"{S}/{v}/bin/python\"\n    rec = {\n        \"python_version\": run([py, \"--version\"])[\"stdout\"].strip(),\n        \"distributions\": run(\n            [py, \"-I\", \"-c\", \"import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})\"]),\n        \"typed_version_command_as_held\": run(\n            [py, \"-I\", \"-c\", \"import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))\"]),\n        \"step_probe_output\": load(f\"{S}/steps_{v}.json\"),\n        \"cysignals_alarm_probe_output\": load(f\"{S}/cysalarm_{v}.json\"),\n    }\n    T[\"cypari2_builds\"][v] = rec\nT[\"latest_release_listing\"] = {\n    k: run(f\"curl -s https://pypi.org/pypi/{k}/json | python3 -c \\\"import json,sys; print(json.load(sys.stdin)['info']['version'])\\\"\", shell=True)\n    for k in (\"cypari2\", \"cysignals\", \"pypdf\")}\nT[\"latest_release_listing\"][\"pari_stable\"] = run(\n    \"curl -s https://pari.math.u-bordeaux.fr/pub/pari/unix/ | grep -o 'pari-2\\\\.[0-9]*\\\\.[0-9]*\\\\.tar\\\\.gz' | sort -uV | tail -3\", shell=True)\n\n# ---------------------------------------------------------------- corrected admission items\nT[\"corrected_admission_items\"] = {\n    \"command\": \"python3 admission_items.py <python of each venv>\",\n    \"run\": run([sys.executable, f\"{S}/admission_items.py\"] + [f\"{S}/{v}/bin/python\" for v in VENVS], timeout=3600),\n}\ntry:\n    T[\"corrected_admission_items\"][\"parsed\"] = json.loads(T[\"corrected_admission_items\"][\"run\"][\"stdout\"])\nexcept Exception as e:\n    T[\"corrected_admission_items\"][\"parse_error\"] = repr(e)\n\n# ---------------------------------------------------------------- gp builds\ngp = {}\nfor v, sub in ((\"2.15.4\", \"Odarwin-arm\"), (\"2.17.4\", \"Odarwin-aarch64\")):\n    d = f\"{S}/gp/pari-{v}/{sub}\"\n    env = dict(os.environ, DYLD_LIBRARY_PATH=d)\n    gp[f\"pari-{v}-source-build\"] = {\n        \"tarball_sha256\": open(f\"{S}/gp/pari-{v}.tar.gz.sha256\").read().split()[0],\n        \"tarball_sha256_recomputed\": fsha(f\"{S}/gp/pari-{v}.tar.gz\"),\n        \"probe\": run(f\"{d}/gp-dyn -q -f --default parisize=100000000 < {S}/gp/gp_probe.gp\", env=env, shell=True, timeout=120),\n    }\ngp[\"homebrew-gp\"] = {\"path\": run([\"which\", \"gp\"])[\"stdout\"].strip(),\n                     \"probe\": run(f\"gp -q -f < {S}/gp/gp_probe.gp\", shell=True, timeout=120)}\ngp[\"note\"] = \"ms in the probe output is getabstime() CPU milliseconds, not wall clock.\"\nT[\"gp_builds\"] = gp\n\n# ---------------------------------------------------------------- -I sys.path\nsp = {}\nfor label, py in ((\"3.12\", \"/Users/adamburan/.local/bin/python3.12\"),\n                  (\"3.10\", run([\"uv\", \"python\", \"find\", \"3.10\"])[\"stdout\"].strip())):\n    sp[label] = {\n        \"isolated_plain\": run([py, \"-I\", f\"{S}/syspath_probe/typed/run_plain.py\"], cwd=\"/Volumes/SSD990/tmp\"),\n        \"isolated_after_insert\": run([py, \"-I\", f\"{S}/syspath_probe/typed/run_insert.py\"], cwd=\"/Volumes/SSD990/tmp\"),\n        \"non_isolated_plain\": run([py, f\"{S}/syspath_probe/typed/run_plain.py\"], cwd=\"/Volumes/SSD990/tmp\"),\n    }\nT[\"isolated_mode_sys_path\"] = sp\n\nT[\"not_provisioned\"] = [\n    {\"tool\": \"GMP-ECM\", \"reason\": (\n        \"Not required by NP-4 (pin locators, PARI version command, in-process timeout path). Its version \"\n        \"command and self-test were executed by VAL-20260927-b99738 and held; provisioning remains a dispatch \"\n        \"precondition of any executor card (typed tools_and_admission.absence_rule).\")},\n]\n\n# ---------------------------------------------------------------- guard\ntext = json.dumps(T, indent=1, sort_keys=False)\nbad = re.findall(r\"(?<![0-9A-Za-z])[0-9]{25,}(?![0-9A-Za-z])\", text)\nassert not bad, f\"decimal run found: {len(bad)}\"\nwith open(OUT, \"w\") as f:\n    f.write(text + \"\\n\")\nprint(\"wrote\", OUT, sha(open(OUT, \"rb\").read()))\n"
+  }
+ },
+ "amendment_build_checks": {
+  "whole_field_replacements_held_sha256": {
+   "tools_and_admission.certificate_and_factoring_library.minimum_version": "eac56d3e216e460054757a9cf75241125319c0d8288371917a2e107cd3eb0b11",
+   "tools_and_admission.certificate_and_factoring_library.version_command": "53ce384e2be44fdf69fd1bf078d87d27188c18d7e08a60e4720d05ab87b857ea",
+   "change.D3_descriptive_bins.bin_by_status": "0bd5901004e702bc5f971f22d5a7169d6b732a300e57cd0a7ddc73955fd0a617",
+   "interpretation_limits item 6": "8664f2f3d20fe15666cef3c0c9ee9716b79ac97ea746183a1782bb7efadb22b7"
+  },
+  "governing_text_table": {
+   "rows": 842,
+   "by_layer": {
+    "v1": 112,
+    "refused-typed-by-hash": 540,
+    "corrective": 190
+   },
+   "typed_rows": 530,
+   "v1_rows": 180,
+   "narrow_rows": 130,
+   "duplicates": 0,
+   "fields_with_two_layers": 0
+  },
+  "programs": {
+   "version_program": [
+    "5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5",
+    "5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5",
+    "5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5"
+   ],
+   "alarm_self_test_program": [
+    "fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776",
+    "fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776",
+    "fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776"
+   ]
+  },
+  "spans": {
+   "EIP-R": {
+    "field": "change.D1_pins.parse_rules.PR-EIP197",
+    "chars": 121,
+    "sha256": "3979d5e344c063097593eba562276028f04e27a044d00be3580cf9502b8ad847"
+   },
+   "BN-K": {
+    "field": "change.D1_pins.rows[BN254-r].source",
+    "chars": 309,
+    "sha256": "01a5b3f33eb1ef5871fd38542c61e7f74ace7a3967506669166e2fe50c6f7b2b"
+   },
+   "FP-DEF": {
+    "field": "change.D1_pins.confounder_check.clauses_in_order",
+    "chars": 143,
+    "sha256": "c812fad5a24211149d4598cd04a1d781774b17625c81b9ff577eab60d03e2de2"
+   },
+   "CTRL-FIELD": {
+    "field": "what_the_controls_exercise",
+    "chars": 71,
+    "sha256": "16f68c86a5cd7c9ef3f68a9c2daeceb3dfd48879c9d3d4259859ff25239f92d8"
+   },
+   "ADM-3": {
+    "field": "tools_and_admission.admission_gate",
+    "chars": 120,
+    "sha256": "21abc1bc242c70c94a0ef4021640ea56da77b17b33c687445f801f7281e54bfd"
+   },
+   "ADM-7": {
+    "field": "tools_and_admission.admission_gate",
+    "chars": 57,
+    "sha256": "35728537764f80250992085aec42b22dc8c90c64b1fcd9805284fd48393d7157"
+   },
+   "F2-RECOG": {
+    "field": "change.D6_factoring.timeouts",
+    "chars": 117,
+    "sha256": "18a07fd86e7c84bb512cae7abe4f977932e2b0f80a57b640e7afcf12a338e103"
+   },
+   "BINS-EXACT": {
+    "field": "definitions.bins",
+    "chars": 241,
+    "sha256": "7398d9d75b5a3f762dc5aadc5c57e3fb92c84297cb8c226a4572ecdd72b8211b"
+   },
+   "ECM-PROV": {
+    "field": "change.D6_factoring.ecm_curves_per_level",
+    "chars": 280,
+    "sha256": "39b36767d111ecf061c4daaea499dd403ed5c590e648992fe86fab43a3c72dc9"
+   },
+   "INV-CLAIM": {
+    "field": "change.D4_calibration.threshold_inventory",
+    "chars": 104,
+    "sha256": "1f990bde9f4110cb577cbb7bd2c9c4da9d76be72aef25ffed799e8d2f6625db4"
+   },
+   "SV-NULL": {
+    "field": "success_criterion.outcomes[S_VALID_TABLE].condition",
+    "chars": 25,
+    "sha256": "227e7d8109d43aef495a62e7ee5d6d2f6cf1d174ce98eb5868ccfac98a5d4fb7"
+   },
+   "SP-VOID": {
+    "field": "success_criterion.outcomes[S_PARTIAL_TABLE].condition",
+    "chars": 104,
+    "sha256": "629f35ca7b7eed522d6963f2be1928bec61464e7fa082f0af666f2227f2ee3fd"
+   },
+   "TP-FOUR": {
+    "field": "change.D8_custody.trial_plan",
+    "chars": 45,
+    "sha256": "e46004cf1ba43b254cbda9556e0d2513cb2573417fb2bd500cf763f8939359e7"
+   },
+   "MAN-FOUR": {
+    "field": "change.D8_custody.manifest",
+    "chars": 30,
+    "sha256": "54e0af4b03ed9e1c065dd5273fbd3c72eb870cd6d979e50636c39ae838926552"
+   },
+   "MAN-DIRTY": {
+    "field": "change.D8_custody.manifest",
+    "chars": 13,
+    "sha256": "10f130cb58593ed9210b1411626353f9322c69c6e4e603686a5c60e18d1b10ca"
+   }
+  },
+  "retyping_scan": {
+   "window_chars": 60,
+   "step": 10,
+   "hits": [
+    {
+     "held_field": ".decision_id_note",
+     "window": "The composing decision that approves or refuses this amendme"
+    },
+    {
+     "held_field": ".approval.approved_if_and_only_if",
+     "window": "d against Git by tools/research_dispatch.py) AND its decisio"
+    },
+    {
+     "held_field": ".approval.how_approval_is_recorded",
+     "window": "othing in this file is edited afterwards, not even this bloc"
+    },
+    {
+     "held_field": ".approval.until_approved",
+     "window": "No run, no implementation dispatch and no executor card may "
+    },
+    {
+     "held_field": ".approval.immutability",
+     "window": "ha256). Any revision, including one that a review requires, "
+    },
+    {
+     "held_field": ".does_not_rewrite[1]",
+     "window": "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260916-bands.y"
+    },
+    {
+     "held_field": ".does_not_rewrite[2]",
+     "window": "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260923-d1d10.y"
+    },
+    {
+     "held_field": ".does_not_rewrite[3]",
+     "window": "experiments/EXP-AUXIN-7e2e3d/implementation/ (every existing"
+    },
+    {
+     "held_field": ".change.D3_descriptive_bins.bin_by_status",
+     "window": "in is UNDETERMINED and bin_at_least is the bin that definiti"
+    },
+    {
+     "held_field": ".stages[0].does",
+     "window": "change.D8_custody.implementation_snapshot_and_launch_compari"
+    }
+   ]
+  },
+  "forbidden_value_scan": {
+   "decimal_run_ge_16": [],
+   "hex_literal_0x_ge_16": [],
+   "c_field_expressions": [],
+   "long_hex_not_digest_or_commit": []
+  },
+  "output_sha256": "ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd",
+  "output_bytes": 144585,
+  "installed_amendment_sha256": "ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd"
+ },
+ "held_text_binding": {
+  "file": "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml",
+  "sha256_observed": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+  "sha256_card": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+  "equal": true
+ },
+ "frozen_file_digests_at_design": {
+  "experiments/EXP-AUXIN-7e2e3d/specification.yaml": "1f803aa0a535e4c0a321dfcb3851b89cbd4cae23596ad70e1aa1fd1b06639fbc",
+  "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260916-bands.yaml": "8dcd725a316ab61c216dacba3b2575c86fb7830a0941316f74e7bb3b9f339372",
+  "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260923-d1d10.yaml": "dfda903076ba6976ae0812d1f25f1e7a44fe3a026862ffabc2a633a37e6ae5e5",
+  "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+  "ledger/hypotheses/H-AUXIN-6db354.yaml": "6455dd07ad9dd4872c0f9af6a43e3be763307fbaf029cd255807466963ea73d5"
+ },
+ "pinned_retrieval": {
+  "EIP-197": {
+   "commits_api_url": "https://api.github.com/repos/ethereum/EIPs/commits?path=EIPS/eip-197.md&until=2026-09-26T00:00:00Z&per_page=1",
+   "commits_api_headers": {
+    "status_lines": [
+     "HTTP/2 200 "
+    ],
+    "content_length": [
+     "content-length: 7638"
+    ]
+   },
+   "commits_api_entries_returned": 1,
+   "resolved_K": "9e393a79d9937f579acbdcb234a67869259d5a96",
+   "K_committer_date": "2022-05-06T07:29:09Z",
+   "raw_url": "https://raw.githubusercontent.com/ethereum/EIPs/9e393a79d9937f579acbdcb234a67869259d5a96/EIPS/eip-197.md",
+   "raw_headers": {
+    "status_lines": [
+     "HTTP/2 200 "
+    ],
+    "content_length": [
+     "content-length: 8727"
+    ]
+   },
+   "bytes": 8727,
+   "sha256": "96355ab680ea8fae76e05c69009e30bd0ec87f352bec9312515b1cbabc6fe89d",
+   "until_filter_note": "The API 'until' parameter bounds the committer date; K's date is years before the bound, so 'strictly before' and 'on or before' select the same commit. An unfiltered listing made in the same session named the same latest commit (recorded in the session log, not re-run here)."
+  },
+  "draft-irtf-cfrg-pairing-friendly-curves-14": {
+   "url": "https://www.ietf.org/archive/id/draft-irtf-cfrg-pairing-friendly-curves-14.txt",
+   "headers": {
+    "status_lines": [
+     "HTTP/2 200 "
+    ],
+    "content_length": [
+     "content-length: 175678"
+    ]
+   },
+   "bytes": 175678,
+   "sha256": "deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a"
+  }
+ },
+ "pin_locators": {
+  "command_py39": "python3 -I locators.py <repo> <scratch>/sources  (CPython 3.9.10; PyYAML available)",
+  "output_py39": {
+   "checks": {
+    "BLS12-381-r:family_check": true,
+    "BN254-r:family_check": true,
+    "BN254-r:family_u": {
+     "bits": 63,
+     "sha256_dec": "4366d89011831eb6b903d18444f90c660ba043ea146dc1c0963ebb654fb9baf5",
+     "sign": "+"
+    },
+    "BN254-r:family_u_found": true,
+    "CF-1_equals_Ed25519-L_extracted_p": true,
+    "CF-2_equals_NIST-P-256_extracted_p": true,
+    "Ed25519-L:rfc7748_order_equals_sp800_n": true,
+    "NIST-P-224:sec2_n_equals_sp800_n": true,
+    "NIST-P-256:internal_consistency_r_hex_pinned_internal": true,
+    "NIST-P-256:sec2_n_equals_sp800_n": true,
+    "NIST-P-384:sec2_n_equals_sp800_n": true,
+    "NIST-P-521:sec2_n_equals_sp800_n": true,
+    "secp256k1:internal_consistency_r_hex_pinned_internal": true
+   },
+   "fp_and_mutation": {
+    "C-FIELD-EXTRACTED_cases_failing_under_M-FP": [
+     "NIST-P-224",
+     "NIST-P-384",
+     "NIST-P-521",
+     "secp256k1",
+     "brainpoolP256r1",
+     "brainpoolP384r1",
+     "BN254-r",
+     "BLS12-381-r"
+    ],
+    "C-FIELD-EXTRACTED_fails_under_M-FP": true,
+    "C-FIELD-EXTRACTED_passes_under_corrected_FP": true,
+    "CF-1_in_corrected_FP": true,
+    "CF-2_in_corrected_FP": true,
+    "PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_M-FP": false,
+    "PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_corrected_FP": true,
+    "deployed_r_values_in_corrected_FP": [],
+    "distinct_extracted_field_primes": 10,
+    "rows_with_extracted_field_prime": 10,
+    "rows_without_extracted_field_prime": []
+   },
+   "pdf_printed_digit_sha256": {},
+   "rows": {
+    "BLS12-381-r": {
+     "h": {
+      "bits": 126,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 972,
+      "result": "value",
+      "sha256_dec": "feecc6bb4574fecdd48650003c1613e22225fd2981bb9c3395f8a511543dd7ef"
+     },
+     "p": {
+      "bits": 381,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 957,
+      "result": "value",
+      "sha256_dec": "f1d1a4e67c30dac479d77d256759e57978474b1f151d4e934d0b33d5a7437df4"
+     },
+     "r": {
+      "bits": 255,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 961,
+      "result": "value",
+      "sha256_dec": "aa917e17db0c312e93a4d768b74d4142d45ac18f4164905aed4617055d45cb93"
+     },
+     "t": {
+      "bits": 64,
+      "block_first_line": 887,
+      "form": "powers_of_two",
+      "label_line": 904,
+      "result": "value",
+      "sha256_dec": "99f1e1231e3115361731618dbe10f3767c7c92d2dab82076fa7dc561cf05de55"
+     }
+    },
+    "BN254-r": {
+     "corrected_PR-EIP197-C_p": {
+      "bits": 254,
+      "first_match_line": 57,
+      "match_count": 1,
+      "regex": "over the field \\x60F_p\\x60 with \\x60p\\s*=\\s*([0-9]+)\\x60",
+      "result": "value",
+      "sha256_dec": "cd1c2ee3756631911353b4ef9efce6e166e891bfcc978d2005d4f16e7665331c"
+     },
+     "corrected_PR-EIP197-C_r": {
+      "bits": 254,
+      "first_match_line": 55,
+      "match_count": 1,
+      "regex": "prime order \\x60q\\s*=\\s*([0-9]+)\\x60",
+      "result": "value",
+      "sha256_dec": "f67f22c9fe4c6a37416bfa2e64f7ab1295bd69d4ed531284345e062d1205c87e"
+     },
+     "refused_PR-EIP197_p": {
+      "bits": 254,
+      "first_match_line": 57,
+      "match_count": 1,
+      "regex": "(?<![A-Za-z0-9_])p\\s*=\\s*([0-9]+)",
+      "sha256_dec": "cd1c2ee3756631911353b4ef9efce6e166e891bfcc978d2005d4f16e7665331c"
+     },
+     "refused_PR-EIP197_r": {
+      "match_count": 0,
+      "regex": "prime order q\\s*=\\s*([0-9]+)"
+     },
+     "refused_p_equals_corrected_p": true
+    },
+    "Ed25519-L": {
+     "cross_source_order": {
+      "bits": 253,
+      "form": "2^E + 0xH",
+      "label_line": 191,
+      "result": "value",
+      "sha256_dec": "aa97a81cdd16abd3839629f50c344eba369675286d4ba3c56ad696d846b44e96"
+     },
+     "h": {
+      "bits": 4,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 3072,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+     },
+     "p": {
+      "bits": 255,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_compared": "decimal_span_not_a_literal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 3065,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "bb1ec6c14b050f459cc53ac9fc53bfa6320e308cffc577bbd8874b7c0d378ac9"
+     },
+     "r": {
+      "bits": 253,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 3075,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "aa97a81cdd16abd3839629f50c344eba369675286d4ba3c56ad696d846b44e96"
+     }
+    },
+    "NIST-P-224": {
+     "cross_source_n": {
+      "bits": 224,
+      "block_first_line": 1475,
+      "label_line": 1547,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "82aa335d35770761390d6beceff73ad6d530cfc8ae70027485ebee1e892b1484",
+      "value_lines": 1
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2004,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 224,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 1990,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "ad6d9fe11f6a0b05c3636eb4f8214bcfe32be9e1464a3ac0ccffc5f7070e94dc"
+     },
+     "r": {
+      "bits": 224,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2007,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "82aa335d35770761390d6beceff73ad6d530cfc8ae70027485ebee1e892b1484"
+     }
+    },
+    "NIST-P-256": {
+     "cross_source_n": {
+      "bits": 256,
+      "block_first_line": 1684,
+      "label_line": 1778,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "2de60ca5eb7b55eefa5eeb725b8a9051d661ea37a8cb4b5a3e7bd97728c26fd0",
+      "value_lines": 2
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2136,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2095,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "816d5b091688e7719db27ead768a76fe9b6de8b7c338ec1bba55baaec7d42561"
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2139,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "2de60ca5eb7b55eefa5eeb725b8a9051d661ea37a8cb4b5a3e7bd97728c26fd0"
+     }
+    },
+    "NIST-P-384": {
+     "cross_source_n": {
+      "bits": 384,
+      "block_first_line": 1802,
+      "label_line": 1898,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "9a7f2107b0cfeb84eef6b8d949fd622b6ec0d300122bb0e18758bb0451a3ee38",
+      "value_lines": 2
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2285,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 384,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2247,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "48a177648d538deb396820ae93ff6d9c852f2d36529e38460b1f5c6f93ad40ec"
+     },
+     "r": {
+      "bits": 384,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2288,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "9a7f2107b0cfeb84eef6b8d949fd622b6ec0d300122bb0e18758bb0451a3ee38"
+     }
+    },
+    "NIST-P-521": {
+     "cross_source_n": {
+      "bits": 521,
+      "block_first_line": 1922,
+      "label_line": 2015,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "fcdfb8e23ddc730c9fb54df5748ba375f01a05c09f4eae4a1f0d119a9f5f5124",
+      "value_lines": 3
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2432,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 521,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2393,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "06514590f94c1d4595274279dfb1568077269f22e4258a5c9f928fe07e832e0e"
+     },
+     "r": {
+      "bits": 521,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2434,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "fcdfb8e23ddc730c9fb54df5748ba375f01a05c09f4eae4a1f0d119a9f5f5124"
+     }
+    },
+    "brainpoolP256r1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 569,
+      "label_line": 589,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 569,
+      "label_line": 571,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "45da75d78c6b212824aa4e421f57a6c737fc29d844429296789adc55d1b26d86"
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 569,
+      "label_line": 586,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "562ed7a1677d304533ef2153258e899c0bc13c79fe87c9311209b471c9aaee79"
+     }
+    },
+    "brainpoolP384r1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 681,
+      "label_line": 701,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 384,
+      "block_first_line": 681,
+      "label_line": 683,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "dae3a6ad62c4b2975adb5c244bd072697ed0ec4930cc971b1e742c50bf0c450c"
+     },
+     "r": {
+      "bits": 384,
+      "block_first_line": 681,
+      "label_line": 698,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "5ac142ade0691242d416b8dd7adbe15a2431d9975b96556aece1c48743018861"
+     }
+    },
+    "secp256k1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 1594,
+      "label_line": 1681,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "value_lines": 1
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 1594,
+      "label_line": 1609,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "4da9030b69fe4f935c3b3e50af329e7439a0a43fb912db43c9c0019709461702",
+      "value_lines": 2
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 1594,
+      "label_line": 1677,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "23867dfb22358427b418b8951030a4a37803b9da376533a00dc762187633a366",
+      "value_lines": 2
+     }
+    }
+   },
+   "source_sha256": {
+    "draft-irtf-cfrg-pairing-friendly-curves-14.txt": "deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a",
+    "eip-197.md": "96355ab680ea8fae76e05c69009e30bd0ec87f352bec9312515b1cbabc6fe89d",
+    "rfc5639.txt": "d19949766009ac82b69e46b09f3a08d712908381300a340d3fa3b1478f4b215e",
+    "rfc7748.txt": "279ca0ecc5e92e2962e27b846986aeb74729d9dd34bd4a04a362f80dcb596ad3",
+    "sec2-v2.txt": "579265ec54e2ed9d77ec85929da3cc130d2997f6acb2ccada17dfa812af1daeb",
+    "sp800-186.txt": "286001ea961ad675593bf67ca6ef4097c781f841fed3c2d52ae18ae2e73db2a2"
+   },
+   "values_withheld": "decimal and hex never printed"
+  },
+  "command_py312": "<venv-cypari2-2.2.4>/bin/python -I locators.py <repo> <scratch>/sources  (CPython 3.12.13; no PyYAML, so the specification internal-consistency lookup is skipped)",
+  "output_py312": {
+   "checks": {
+    "BLS12-381-r:family_check": true,
+    "BN254-r:family_check": true,
+    "BN254-r:family_u": {
+     "bits": 63,
+     "sha256_dec": "4366d89011831eb6b903d18444f90c660ba043ea146dc1c0963ebb654fb9baf5",
+     "sign": "+"
+    },
+    "BN254-r:family_u_found": true,
+    "CF-1_equals_Ed25519-L_extracted_p": true,
+    "CF-2_equals_NIST-P-256_extracted_p": true,
+    "Ed25519-L:rfc7748_order_equals_sp800_n": true,
+    "NIST-P-224:sec2_n_equals_sp800_n": true,
+    "NIST-P-256:sec2_n_equals_sp800_n": true,
+    "NIST-P-384:sec2_n_equals_sp800_n": true,
+    "NIST-P-521:sec2_n_equals_sp800_n": true,
+    "internal_consistency": "not evaluated (yaml unavailable under -I)"
+   },
+   "fp_and_mutation": {
+    "C-FIELD-EXTRACTED_cases_failing_under_M-FP": [
+     "NIST-P-224",
+     "NIST-P-384",
+     "NIST-P-521",
+     "secp256k1",
+     "brainpoolP256r1",
+     "brainpoolP384r1",
+     "BN254-r",
+     "BLS12-381-r"
+    ],
+    "C-FIELD-EXTRACTED_fails_under_M-FP": true,
+    "C-FIELD-EXTRACTED_passes_under_corrected_FP": true,
+    "CF-1_in_corrected_FP": true,
+    "CF-2_in_corrected_FP": true,
+    "PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_M-FP": false,
+    "PTM-B_brainpoolP384r1_p_rejected_by_field_prime_under_corrected_FP": true,
+    "deployed_r_values_in_corrected_FP": [],
+    "distinct_extracted_field_primes": 10,
+    "rows_with_extracted_field_prime": 10,
+    "rows_without_extracted_field_prime": []
+   },
+   "pdf_printed_digit_sha256": {},
+   "rows": {
+    "BLS12-381-r": {
+     "h": {
+      "bits": 126,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 972,
+      "result": "value",
+      "sha256_dec": "feecc6bb4574fecdd48650003c1613e22225fd2981bb9c3395f8a511543dd7ef"
+     },
+     "p": {
+      "bits": 381,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 957,
+      "result": "value",
+      "sha256_dec": "f1d1a4e67c30dac479d77d256759e57978474b1f151d4e934d0b33d5a7437df4"
+     },
+     "r": {
+      "bits": 255,
+      "block_first_line": 887,
+      "form": "hex",
+      "label_line": 961,
+      "result": "value",
+      "sha256_dec": "aa917e17db0c312e93a4d768b74d4142d45ac18f4164905aed4617055d45cb93"
+     },
+     "t": {
+      "bits": 64,
+      "block_first_line": 887,
+      "form": "powers_of_two",
+      "label_line": 904,
+      "result": "value",
+      "sha256_dec": "99f1e1231e3115361731618dbe10f3767c7c92d2dab82076fa7dc561cf05de55"
+     }
+    },
+    "BN254-r": {
+     "corrected_PR-EIP197-C_p": {
+      "bits": 254,
+      "first_match_line": 57,
+      "match_count": 1,
+      "regex": "over the field \\x60F_p\\x60 with \\x60p\\s*=\\s*([0-9]+)\\x60",
+      "result": "value",
+      "sha256_dec": "cd1c2ee3756631911353b4ef9efce6e166e891bfcc978d2005d4f16e7665331c"
+     },
+     "corrected_PR-EIP197-C_r": {
+      "bits": 254,
+      "first_match_line": 55,
+      "match_count": 1,
+      "regex": "prime order \\x60q\\s*=\\s*([0-9]+)\\x60",
+      "result": "value",
+      "sha256_dec": "f67f22c9fe4c6a37416bfa2e64f7ab1295bd69d4ed531284345e062d1205c87e"
+     },
+     "refused_PR-EIP197_p": {
+      "bits": 254,
+      "first_match_line": 57,
+      "match_count": 1,
+      "regex": "(?<![A-Za-z0-9_])p\\s*=\\s*([0-9]+)",
+      "sha256_dec": "cd1c2ee3756631911353b4ef9efce6e166e891bfcc978d2005d4f16e7665331c"
+     },
+     "refused_PR-EIP197_r": {
+      "match_count": 0,
+      "regex": "prime order q\\s*=\\s*([0-9]+)"
+     },
+     "refused_p_equals_corrected_p": true
+    },
+    "Ed25519-L": {
+     "cross_source_order": {
+      "bits": 253,
+      "form": "2^E + 0xH",
+      "label_line": 191,
+      "result": "value",
+      "sha256_dec": "aa97a81cdd16abd3839629f50c344eba369675286d4ba3c56ad696d846b44e96"
+     },
+     "h": {
+      "bits": 4,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 3072,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+     },
+     "p": {
+      "bits": 255,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_compared": "decimal_span_not_a_literal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 3065,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "bb1ec6c14b050f459cc53ac9fc53bfa6320e308cffc577bbd8874b7c0d378ac9"
+     },
+     "r": {
+      "bits": 253,
+      "block_first_line": 3024,
+      "block_last_line": 3148,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 3075,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "aa97a81cdd16abd3839629f50c344eba369675286d4ba3c56ad696d846b44e96"
+     }
+    },
+    "NIST-P-224": {
+     "cross_source_n": {
+      "bits": 224,
+      "block_first_line": 1475,
+      "label_line": 1547,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "82aa335d35770761390d6beceff73ad6d530cfc8ae70027485ebee1e892b1484",
+      "value_lines": 1
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2004,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 224,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 1990,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "ad6d9fe11f6a0b05c3636eb4f8214bcfe32be9e1464a3ac0ccffc5f7070e94dc"
+     },
+     "r": {
+      "bits": 224,
+      "block_first_line": 1954,
+      "block_last_line": 2059,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2007,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "82aa335d35770761390d6beceff73ad6d530cfc8ae70027485ebee1e892b1484"
+     }
+    },
+    "NIST-P-256": {
+     "cross_source_n": {
+      "bits": 256,
+      "block_first_line": 1684,
+      "label_line": 1778,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "2de60ca5eb7b55eefa5eeb725b8a9051d661ea37a8cb4b5a3e7bd97728c26fd0",
+      "value_lines": 2
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2136,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2095,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "816d5b091688e7719db27ead768a76fe9b6de8b7c338ec1bba55baaec7d42561"
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 2060,
+      "block_last_line": 2212,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2139,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "2de60ca5eb7b55eefa5eeb725b8a9051d661ea37a8cb4b5a3e7bd97728c26fd0"
+     }
+    },
+    "NIST-P-384": {
+     "cross_source_n": {
+      "bits": 384,
+      "block_first_line": 1802,
+      "label_line": 1898,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "9a7f2107b0cfeb84eef6b8d949fd622b6ec0d300122bb0e18758bb0451a3ee38",
+      "value_lines": 2
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2285,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 384,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2247,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "48a177648d538deb396820ae93ff6d9c852f2d36529e38460b1f5c6f93ad40ec"
+     },
+     "r": {
+      "bits": 384,
+      "block_first_line": 2213,
+      "block_last_line": 2357,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2288,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "9a7f2107b0cfeb84eef6b8d949fd622b6ec0d300122bb0e18758bb0451a3ee38"
+     }
+    },
+    "NIST-P-521": {
+     "cross_source_n": {
+      "bits": 521,
+      "block_first_line": 1922,
+      "label_line": 2015,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "fcdfb8e23ddc730c9fb54df5748ba375f01a05c09f4eae4a1f0d119a9f5f5124",
+      "value_lines": 3
+     },
+     "h": {
+      "bits": 1,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_form": "clean",
+      "hex_form": "absent",
+      "label_line": 2432,
+      "representation": "decimal",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 521,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_form": "contaminated",
+      "hex_form": "clean",
+      "label_line": 2393,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "06514590f94c1d4595274279dfb1568077269f22e4258a5c9f928fe07e832e0e"
+     },
+     "r": {
+      "bits": 521,
+      "block_first_line": 2358,
+      "block_last_line": 2562,
+      "decimal_compared": "equal",
+      "decimal_form": "clean",
+      "hex_form": "clean",
+      "label_line": 2434,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "fcdfb8e23ddc730c9fb54df5748ba375f01a05c09f4eae4a1f0d119a9f5f5124"
+     }
+    },
+    "brainpoolP256r1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 569,
+      "label_line": 589,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 569,
+      "label_line": 571,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "45da75d78c6b212824aa4e421f57a6c737fc29d844429296789adc55d1b26d86"
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 569,
+      "label_line": 586,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "562ed7a1677d304533ef2153258e899c0bc13c79fe87c9311209b471c9aaee79"
+     }
+    },
+    "brainpoolP384r1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 681,
+      "label_line": 701,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+     },
+     "p": {
+      "bits": 384,
+      "block_first_line": 681,
+      "label_line": 683,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "dae3a6ad62c4b2975adb5c244bd072697ed0ec4930cc971b1e742c50bf0c450c"
+     },
+     "r": {
+      "bits": 384,
+      "block_first_line": 681,
+      "label_line": 698,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "5ac142ade0691242d416b8dd7adbe15a2431d9975b96556aece1c48743018861"
+     }
+    },
+    "secp256k1": {
+     "h": {
+      "bits": 1,
+      "block_first_line": 1594,
+      "label_line": 1681,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "value_lines": 1
+     },
+     "p": {
+      "bits": 256,
+      "block_first_line": 1594,
+      "label_line": 1609,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "4da9030b69fe4f935c3b3e50af329e7439a0a43fb912db43c9c0019709461702",
+      "value_lines": 2
+     },
+     "r": {
+      "bits": 256,
+      "block_first_line": 1594,
+      "label_line": 1677,
+      "representation": "hex",
+      "result": "value",
+      "sha256_dec": "23867dfb22358427b418b8951030a4a37803b9da376533a00dc762187633a366",
+      "value_lines": 2
+     }
+    }
+   },
+   "source_sha256": {
+    "draft-irtf-cfrg-pairing-friendly-curves-14.txt": "deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a",
+    "eip-197.md": "96355ab680ea8fae76e05c69009e30bd0ec87f352bec9312515b1cbabc6fe89d",
+    "rfc5639.txt": "d19949766009ac82b69e46b09f3a08d712908381300a340d3fa3b1478f4b215e",
+    "rfc7748.txt": "279ca0ecc5e92e2962e27b846986aeb74729d9dd34bd4a04a362f80dcb596ad3",
+    "sec2-v2.txt": "579265ec54e2ed9d77ec85929da3cc130d2997f6acb2ccada17dfa812af1daeb",
+    "sp800-186.txt": "286001ea961ad675593bf67ca6ef4097c781f841fed3c2d52ae18ae2e73db2a2"
+   },
+   "values_withheld": "decimal and hex never printed"
+  },
+  "rows_equal_across_interpreters": true,
+  "fp_and_mutation_equal_across_interpreters": true
+ },
+ "pdf_digit_check": {
+  "venv-pypdf-3.1.0": {
+   "version_command": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-pypdf-3.1.0/bin/python -I -c import pypdf; print(pypdf.__version__)",
+    "started_utc": "2026-09-27T07:54:14Z",
+    "exit_status": 0,
+    "stdout": "3.1.0\n",
+    "stderr_tail": ""
+   },
+   "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-pypdf-3.1.0/bin/python -I pdfcheck.py <repo>",
+   "output": {
+    "pypdf": "3.1.0",
+    "checks": [
+     {
+      "row": "NIST-P-224",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 131,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 131,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 132,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 76,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "p",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "h",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 2,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     }
+    ],
+    "sp800-186.pdf_normalized_sha256": "83e00d5e30cab38b71c3f6b020dc9499a3d35100ce8d8e021e820f1cfa46a5cc",
+    "sp800-186.pdf_normalized_length": 115985,
+    "sec2-v2.pdf_normalized_sha256": "9a8e4ae2211dfdb386bb8eb3d63cffadbf5a2a35e6f1767a674f48abc5b81e5d",
+    "sec2-v2.pdf_normalized_length": 52168,
+    "admission_item_8_discretelogarithm_in_sp800_pdf": true,
+    "all_pass": true,
+    "short_strings_len_lt_20": 6
+   }
+  },
+  "venv-pypdf-6.19.0": {
+   "version_command": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-pypdf-6.19.0/bin/python -I -c import pypdf; print(pypdf.__version__)",
+    "started_utc": "2026-09-27T07:54:14Z",
+    "exit_status": 0,
+    "stdout": "6.19.0\n",
+    "stderr_tail": ""
+   },
+   "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-pypdf-6.19.0/bin/python -I pdfcheck.py <repo>",
+   "output": {
+    "pypdf": "6.19.0",
+    "checks": [
+     {
+      "row": "NIST-P-224",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-224",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 56,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-256",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-384",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 96,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 131,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 131,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "NIST-P-521",
+      "label": "cross_source_n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 132,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "n",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "n",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 76,
+      "representation": "decimal",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "p",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "p",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 64,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "secp256k1",
+      "label": "h",
+      "pdf": "sec2-v2.pdf",
+      "printed_length": 2,
+      "representation": "hex",
+      "pass": true
+     },
+     {
+      "row": "Ed25519-L",
+      "label": "h",
+      "pdf": "sp800-186.pdf",
+      "printed_length": 1,
+      "representation": "decimal",
+      "pass": true
+     }
+    ],
+    "sp800-186.pdf_normalized_sha256": "83e00d5e30cab38b71c3f6b020dc9499a3d35100ce8d8e021e820f1cfa46a5cc",
+    "sp800-186.pdf_normalized_length": 115985,
+    "sec2-v2.pdf_normalized_sha256": "6248a430bb7ac2de5bf711c56c40fb6ff3768deb49e12ca4de7c2951cba0b035",
+    "sec2-v2.pdf_normalized_length": 52156,
+    "admission_item_8_discretelogarithm_in_sp800_pdf": true,
+    "all_pass": true,
+    "short_strings_len_lt_20": 6
+   }
+  },
+  "pypdf_3.0.0": {
+   "command": "curl -s -o /dev/null -w '%{http_code}' https://pypi.org/pypi/pypdf/3.0.0/json",
+   "started_utc": "2026-09-27T07:54:14Z",
+   "exit_status": 0,
+   "stdout": "404",
+   "stderr_tail": "",
+   "reading": "404 means no pypdf 3.0.0 release exists on PyPI"
+  },
+  "pypdf_first_3x": {
+   "command": "curl -s https://pypi.org/pypi/pypdf/json | python3 -c \"import json,sys; r=json.load(sys.stdin)['releases']; v=sorted((k for k in r if k.startswith('3.') and r[k]), key=lambda s: tuple(int(x) for x in s.split('.'))); print(v[0], r[v[0]][0]['upload_time'][:10])\"",
+   "started_utc": "2026-09-27T07:54:15Z",
+   "exit_status": 0,
+   "stdout": "3.1.0 2022-12-23\n",
+   "stderr_tail": ""
+  }
+ },
+ "cypari2_builds": {
+  "venv-cypari2-2.1.5-cys1.11.4": {
+   "python_version": "Python 3.12.13",
+   "distributions": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python -I -c import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})",
+    "started_utc": "2026-09-27T07:54:15Z",
+    "exit_status": 0,
+    "stdout": "{'cypari2': '2.1.5', 'cysignals': '1.11.4'}\n",
+    "stderr_tail": ""
+   },
+   "typed_version_command_as_held": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python -I -c import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))",
+    "started_utc": "2026-09-27T07:54:15Z",
+    "exit_status": 1,
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\n"
+   },
+   "step_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python",
+    "steps": [
+     {
+      "step": "S1_version_command_as_written_in_typed",
+      "exit_status": 1,
+      "stdout": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'",
+      "wall_s": 8.843
+     },
+     {
+      "step": "S2_version_via_metadata_and_version_tuple",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.1.5\", \"cysignals\": \"1.11.4\", \"pari_version\": [2, 15, 4]}",
+      "stderr_tail": "",
+      "wall_s": 0.734
+     },
+     {
+      "step": "S3_stack_declaration",
+      "exit_status": 0,
+      "stdout": "{\"stacksize\": 134217728, \"stacksizemax\": 4294967296}",
+      "stderr_tail": "",
+      "wall_s": 0.544
+     },
+     {
+      "step": "S4_alarm_mro",
+      "exit_status": 0,
+      "stdout": "{\"mro\": [\"cysignals.signals.AlarmInterrupt\", \"builtins.KeyboardInterrupt\", \"builtins.BaseException\", \"builtins.object\"], \"is_Exception\": false}",
+      "stderr_tail": "",
+      "wall_s": 0.599
+     },
+     {
+      "step": "S5_admission_item3_expr_via_cypari2",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.015, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.529
+     },
+     {
+      "step": "S6_f2_shape_timeout",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.461
+     },
+     {
+      "step": "S7_f2_shape_completes",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.001, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.449
+     },
+     {
+      "step": "S8_iferr_wrapped",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.013, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.48
+     },
+     {
+      "step": "S9_except_Exception_only",
+      "exit_status": 0,
+      "stdout": "{\"caught_by_except_Exception\": false, \"escaped_as\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01}",
+      "stderr_tail": "",
+      "wall_s": 2.206
+     }
+    ]
+   },
+   "cysignals_alarm_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python",
+    "cases": [
+     {
+      "case": "C1_cysignals_alarm_timeout",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.1.5\", \"cysignals\": \"1.11.4\", \"pari_version\": [2, 15, 4], \"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.816
+     },
+     {
+      "case": "C2_cysignals_alarm_completes",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.1.5\", \"cysignals\": \"1.11.4\", \"pari_version\": [2, 15, 4], \"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.0, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.521
+     }
+    ]
+   }
+  },
+  "venv-cypari2-2.2.4": {
+   "python_version": "Python 3.12.13",
+   "distributions": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python -I -c import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})",
+    "started_utc": "2026-09-27T07:54:15Z",
+    "exit_status": 0,
+    "stdout": "{'cypari2': '2.2.4', 'cysignals': '1.12.6'}\n",
+    "stderr_tail": ""
+   },
+   "typed_version_command_as_held": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python -I -c import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))",
+    "started_utc": "2026-09-27T07:54:16Z",
+    "exit_status": 1,
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\n"
+   },
+   "step_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python",
+    "steps": [
+     {
+      "step": "S1_version_command_as_written_in_typed",
+      "exit_status": 1,
+      "stdout": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'",
+      "wall_s": 0.397
+     },
+     {
+      "step": "S2_version_via_metadata_and_version_tuple",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.4\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2]}",
+      "stderr_tail": "",
+      "wall_s": 0.417
+     },
+     {
+      "step": "S3_stack_declaration",
+      "exit_status": 0,
+      "stdout": "{\"stacksize\": 134217728, \"stacksizemax\": 4294967296}",
+      "stderr_tail": "",
+      "wall_s": 0.274
+     },
+     {
+      "step": "S4_alarm_mro",
+      "exit_status": 0,
+      "stdout": "{\"mro\": [\"cysignals.signals.AlarmInterrupt\", \"builtins.KeyboardInterrupt\", \"builtins.BaseException\", \"builtins.object\"], \"is_Exception\": false}",
+      "stderr_tail": "",
+      "wall_s": 0.264
+     },
+     {
+      "step": "S5_admission_item3_expr_via_cypari2",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.008, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.311
+     },
+     {
+      "step": "S6_f2_shape_timeout",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.009, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.277
+     },
+     {
+      "step": "S7_f2_shape_completes",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.007, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.275
+     },
+     {
+      "step": "S8_iferr_wrapped",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.266
+     },
+     {
+      "step": "S9_except_Exception_only",
+      "exit_status": 0,
+      "stdout": "{\"caught_by_except_Exception\": false, \"escaped_as\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.008}",
+      "stderr_tail": "",
+      "wall_s": 1.233
+     }
+    ]
+   },
+   "cysignals_alarm_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python",
+    "cases": [
+     {
+      "case": "C1_cysignals_alarm_timeout",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.4\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2], \"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.652
+     },
+     {
+      "case": "C2_cysignals_alarm_completes",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.4\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2], \"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.001, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.343
+     }
+    ]
+   }
+  },
+  "venv-cypari2-2.2.3": {
+   "python_version": "Python 3.12.13",
+   "distributions": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python -I -c import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})",
+    "started_utc": "2026-09-27T07:54:16Z",
+    "exit_status": 0,
+    "stdout": "{'cypari2': '2.2.3', 'cysignals': '1.12.6'}\n",
+    "stderr_tail": ""
+   },
+   "typed_version_command_as_held": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python -I -c import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))",
+    "started_utc": "2026-09-27T07:54:16Z",
+    "exit_status": 1,
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\n"
+   },
+   "step_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python",
+    "steps": [
+     {
+      "step": "S1_version_command_as_written_in_typed",
+      "exit_status": 1,
+      "stdout": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'",
+      "wall_s": 4.439
+     },
+     {
+      "step": "S2_version_via_metadata_and_version_tuple",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.3\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2]}",
+      "stderr_tail": "",
+      "wall_s": 0.251
+     },
+     {
+      "step": "S3_stack_declaration",
+      "exit_status": 0,
+      "stdout": "{\"stacksize\": 134217728, \"stacksizemax\": 4294967296}",
+      "stderr_tail": "",
+      "wall_s": 0.209
+     },
+     {
+      "step": "S4_alarm_mro",
+      "exit_status": 0,
+      "stdout": "{\"mro\": [\"cysignals.signals.AlarmInterrupt\", \"builtins.KeyboardInterrupt\", \"builtins.BaseException\", \"builtins.object\"], \"is_Exception\": false}",
+      "stderr_tail": "",
+      "wall_s": 0.249
+     },
+     {
+      "step": "S5_admission_item3_expr_via_cypari2",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.012, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.275
+     },
+     {
+      "step": "S6_f2_shape_timeout",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.018, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.237
+     },
+     {
+      "step": "S7_f2_shape_completes",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.007, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.63
+     },
+     {
+      "step": "S8_iferr_wrapped",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.01, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.333
+     },
+     {
+      "step": "S9_except_Exception_only",
+      "exit_status": 0,
+      "stdout": "{\"caught_by_except_Exception\": false, \"escaped_as\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.009}",
+      "stderr_tail": "",
+      "wall_s": 1.4
+     }
+    ]
+   },
+   "cysignals_alarm_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python",
+    "cases": [
+     {
+      "case": "C1_cysignals_alarm_timeout",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.3\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2], \"outcome\": \"raised\", \"class\": \"cysignals.signals.AlarmInterrupt\", \"elapsed_s\": 1.015, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 1.731
+     },
+     {
+      "case": "C2_cysignals_alarm_completes",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.3\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 17, 2], \"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.001, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.382
+     }
+    ]
+   }
+  },
+  "venv-cypari2-2.2.0": {
+   "python_version": "Python 3.12.13",
+   "distributions": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python -I -c import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})",
+    "started_utc": "2026-09-27T07:54:17Z",
+    "exit_status": 0,
+    "stdout": "{'cypari2': '2.2.0', 'cysignals': '1.12.6'}\n",
+    "stderr_tail": ""
+   },
+   "typed_version_command_as_held": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python -I -c import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))",
+    "started_utc": "2026-09-27T07:54:17Z",
+    "exit_status": 1,
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\n"
+   },
+   "step_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python",
+    "steps": [
+     {
+      "step": "S1_version_command_as_written_in_typed",
+      "exit_status": 1,
+      "stdout": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'",
+      "wall_s": 4.829
+     },
+     {
+      "step": "S2_version_via_metadata_and_version_tuple",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.0\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 15, 4]}",
+      "stderr_tail": "",
+      "wall_s": 0.282
+     },
+     {
+      "step": "S3_stack_declaration",
+      "exit_status": 0,
+      "stdout": "{\"stacksize\": 134217728, \"stacksizemax\": 4294967296}",
+      "stderr_tail": "",
+      "wall_s": 0.241
+     },
+     {
+      "step": "S4_alarm_mro",
+      "exit_status": 0,
+      "stdout": "{\"mro\": [\"cysignals.signals.AlarmInterrupt\", \"builtins.KeyboardInterrupt\", \"builtins.BaseException\", \"builtins.object\"], \"is_Exception\": false}",
+      "stderr_tail": "",
+      "wall_s": 0.27
+     },
+     {
+      "step": "S5_admission_item3_expr_via_cypari2",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 2.164
+     },
+     {
+      "step": "S6_f2_shape_timeout",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 1.721
+     },
+     {
+      "step": "S7_f2_shape_completes",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.0, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.315
+     },
+     {
+      "step": "S8_iferr_wrapped",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 1.66
+     },
+     {
+      "step": "S9_except_Exception_only",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 1.801
+     }
+    ]
+   },
+   "cysignals_alarm_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python",
+    "cases": [
+     {
+      "case": "C1_cysignals_alarm_timeout",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "ed because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 2.25
+     },
+     {
+      "case": "C2_cysignals_alarm_completes",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.2.0\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 15, 4], \"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.0, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.329
+     }
+    ]
+   }
+  },
+  "venv-cypari2-2.1.5": {
+   "python_version": "Python 3.12.13",
+   "distributions": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python -I -c import importlib.metadata as m; print({d: m.version(d) for d in ('cypari2','cysignals')})",
+    "started_utc": "2026-09-27T07:54:17Z",
+    "exit_status": 0,
+    "stdout": "{'cypari2': '2.1.5', 'cysignals': '1.12.6'}\n",
+    "stderr_tail": ""
+   },
+   "typed_version_command_as_held": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python -I -c import cypari2; print(cypari2.__version__); print(cypari2.Pari()('version()'))",
+    "started_utc": "2026-09-27T07:54:18Z",
+    "exit_status": 1,
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\n"
+   },
+   "step_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python",
+    "steps": [
+     {
+      "step": "S1_version_command_as_written_in_typed",
+      "exit_status": 1,
+      "stdout": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'",
+      "wall_s": 0.34
+     },
+     {
+      "step": "S2_version_via_metadata_and_version_tuple",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.1.5\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 15, 4]}",
+      "stderr_tail": "",
+      "wall_s": 0.418
+     },
+     {
+      "step": "S3_stack_declaration",
+      "exit_status": 0,
+      "stdout": "{\"stacksize\": 134217728, \"stacksizemax\": 4294967296}",
+      "stderr_tail": "",
+      "wall_s": 0.771
+     },
+     {
+      "step": "S4_alarm_mro",
+      "exit_status": 0,
+      "stdout": "{\"mro\": [\"cysignals.signals.AlarmInterrupt\", \"builtins.KeyboardInterrupt\", \"builtins.BaseException\", \"builtins.object\"], \"is_Exception\": false}",
+      "stderr_tail": "",
+      "wall_s": 0.993
+     },
+     {
+      "step": "S5_admission_item3_expr_via_cypari2",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 3.043
+     },
+     {
+      "step": "S6_f2_shape_timeout",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 1.905
+     },
+     {
+      "step": "S7_f2_shape_completes",
+      "exit_status": 0,
+      "stdout": "{\"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.002, \"pari_usable_after\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.354
+     },
+     {
+      "step": "S8_iferr_wrapped",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 2.198
+     },
+     {
+      "step": "S9_except_Exception_only",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "-----------------------------\nUnhandled SIGSEGV: A segmentation fault occurred.\nThis probably occurred because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 3.437
+     }
+    ]
+   },
+   "cysignals_alarm_probe_output": {
+    "python_under_test": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python",
+    "cases": [
+     {
+      "case": "C1_cysignals_alarm_timeout",
+      "exit_status": -11,
+      "stdout": "",
+      "stderr_tail": "ed because a *compiled* module has a bug\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "wall_s": 2.21
+     },
+     {
+      "case": "C2_cysignals_alarm_completes",
+      "exit_status": 0,
+      "stdout": "{\"cypari2\": \"2.1.5\", \"cysignals\": \"1.12.6\", \"pari_version\": [2, 15, 4], \"outcome\": \"returned\", \"type\": \"t_MAT\", \"elapsed_s\": 0.001, \"pari_usable_after\": true, \"factor_after_alarm_ok\": true}",
+      "stderr_tail": "",
+      "wall_s": 0.343
+     }
+    ]
+   }
+  }
+ },
+ "latest_release_listing": {
+  "cypari2": {
+   "command": "curl -s https://pypi.org/pypi/cypari2/json | python3 -c \"import json,sys; print(json.load(sys.stdin)['info']['version'])\"",
+   "started_utc": "2026-09-27T07:54:18Z",
+   "exit_status": 0,
+   "stdout": "2.2.4\n",
+   "stderr_tail": ""
+  },
+  "cysignals": {
+   "command": "curl -s https://pypi.org/pypi/cysignals/json | python3 -c \"import json,sys; print(json.load(sys.stdin)['info']['version'])\"",
+   "started_utc": "2026-09-27T07:54:18Z",
+   "exit_status": 0,
+   "stdout": "1.12.6\n",
+   "stderr_tail": ""
+  },
+  "pypdf": {
+   "command": "curl -s https://pypi.org/pypi/pypdf/json | python3 -c \"import json,sys; print(json.load(sys.stdin)['info']['version'])\"",
+   "started_utc": "2026-09-27T07:54:19Z",
+   "exit_status": 0,
+   "stdout": "6.19.0\n",
+   "stderr_tail": ""
+  },
+  "pari_stable": {
+   "command": "curl -s https://pari.math.u-bordeaux.fr/pub/pari/unix/ | grep -o 'pari-2\\.[0-9]*\\.[0-9]*\\.tar\\.gz' | sort -uV | tail -3",
+   "started_utc": "2026-09-27T07:54:19Z",
+   "exit_status": 0,
+   "stdout": "pari-2.17.2.tar.gz\npari-2.17.3.tar.gz\npari-2.17.4.tar.gz\n",
+   "stderr_tail": ""
+  }
+ },
+ "corrected_admission_items": {
+  "command": "python3 admission_items.py <python of each venv>",
+  "run": {
+   "command": "/Users/adamburan/.pyenv/versions/3.9.10/bin/python3 /Volumes/SSD990/tmp/auxin-64ba3f/admission_items.py /Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python /Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python /Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python /Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python /Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python",
+   "started_utc": "2026-09-27T07:54:20Z",
+   "exit_status": 0,
+   "stdout": "{\n \"program_sha256\": {\n  \"ITEM1_PARI_PROGRAM\": \"5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5\",\n  \"ITEM3_PROGRAM\": \"fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776\",\n  \"ITEM4_STACK_PROGRAM\": \"13b8cbe44cecc41a5290cbbd46546984b998e2062f552f894e7f3a3304bae8d6\"\n },\n \"builds\": [\n  {\n   \"python\": \"/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python\",\n   \"python_version\": \"Python 3.12.13\",\n   \"item1\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2.1.5\",\n     \"1.11.4\",\n     \"2.15.4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\"\n   },\n   \"item3\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"ALARM\",\n     \"ALARM\",\n     \"4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\",\n    \"wall_s\": 2.173\n   },\n   \"item4_stack\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2^89-1 valid 0.075\",\n     \"2^607-1 valid 1.666\"\n    ],\n    \"stderr_tail\": \"\"\n   }\n  },\n  {\n   \"python\": \"/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python\",\n   \"python_version\": \"Python 3.12.13\",\n   \"item1\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2.2.4\",\n     \"1.12.6\",\n     \"2.17.2\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\"\n   },\n   \"item3\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"ALARM\",\n     \"ALARM\",\n     \"4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\",\n    \"wall_s\": 2.189\n   },\n   \"item4_stack\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2^89-1 valid 0.055\",\n     \"2^607-1 valid 1.729\"\n    ],\n    \"stderr_tail\": \"\"\n   }\n  },\n  {\n   \"python\": \"/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python\",\n   \"python_version\": \"Python 3.12.13\",\n   \"item1\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2.2.3\",\n     \"1.12.6\",\n     \"2.17.2\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\"\n   },\n   \"item3\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"ALARM\",\n     \"ALARM\",\n     \"4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\",\n    \"wall_s\": 2.265\n   },\n   \"item4_stack\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2^89-1 valid 0.038\",\n     \"2^607-1 valid 0.945\"\n    ],\n    \"stderr_tail\": \"\"\n   }\n  },\n  {\n   \"python\": \"/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python\",\n   \"python_version\": \"Python 3.12.13\",\n   \"item1\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2.2.0\",\n     \"1.12.6\",\n     \"2.15.4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\"\n   },\n   \"item3\": {\n    \"exit_status\": -11,\n    \"stdout_lines\": [],\n    \"stderr_tail\": \"\\nin it and is not properly wrapped with sig_on(), sig_off().\\nPython will now terminate.\\n------------------------------------------------------------------------\",\n    \"verdict\": \"fail\",\n    \"wall_s\": 1.371\n   },\n   \"item4_stack\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2^89-1 valid 0.037\",\n     \"2^607-1 valid 0.594\"\n    ],\n    \"stderr_tail\": \"\"\n   }\n  },\n  {\n   \"python\": \"/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python\",\n   \"python_version\": \"Python 3.12.13\",\n   \"item1\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2.1.5\",\n     \"1.12.6\",\n     \"2.15.4\"\n    ],\n    \"stderr_tail\": \"\",\n    \"verdict\": \"pass\"\n   },\n   \"item3\": {\n    \"exit_status\": -11,\n    \"stdout_lines\": [],\n    \"stderr_tail\": \"\\nin it and is not properly wrapped with sig_on(), sig_off().\\nPython will now terminate.\\n------------------------------------------------------------------------\",\n    \"verdict\": \"fail\",\n    \"wall_s\": 1.48\n   },\n   \"item4_stack\": {\n    \"exit_status\": 0,\n    \"stdout_lines\": [\n     \"2^89-1 valid 0.038\",\n     \"2^607-1 valid 0.797\"\n    ],\n    \"stderr_tail\": \"\"\n   }\n  }\n ]\n}\n",
+   "stderr_tail": ""
+  },
+  "parsed": {
+   "program_sha256": {
+    "ITEM1_PARI_PROGRAM": "5701a5e33b9bb8e413374fbdd4715ec3fc08f442d589a7080694b4eab0709dc5",
+    "ITEM3_PROGRAM": "fb9b43c9ba30c664e436a6ef945fd0ca6a3a3196773b1be15dde8aefe6075776",
+    "ITEM4_STACK_PROGRAM": "13b8cbe44cecc41a5290cbbd46546984b998e2062f552f894e7f3a3304bae8d6"
+   },
+   "builds": [
+    {
+     "python": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5-cys1.11.4/bin/python",
+     "python_version": "Python 3.12.13",
+     "item1": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2.1.5",
+       "1.11.4",
+       "2.15.4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass"
+     },
+     "item3": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "ALARM",
+       "ALARM",
+       "4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass",
+      "wall_s": 2.173
+     },
+     "item4_stack": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2^89-1 valid 0.075",
+       "2^607-1 valid 1.666"
+      ],
+      "stderr_tail": ""
+     }
+    },
+    {
+     "python": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.4/bin/python",
+     "python_version": "Python 3.12.13",
+     "item1": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2.2.4",
+       "1.12.6",
+       "2.17.2"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass"
+     },
+     "item3": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "ALARM",
+       "ALARM",
+       "4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass",
+      "wall_s": 2.189
+     },
+     "item4_stack": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2^89-1 valid 0.055",
+       "2^607-1 valid 1.729"
+      ],
+      "stderr_tail": ""
+     }
+    },
+    {
+     "python": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.3/bin/python",
+     "python_version": "Python 3.12.13",
+     "item1": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2.2.3",
+       "1.12.6",
+       "2.17.2"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass"
+     },
+     "item3": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "ALARM",
+       "ALARM",
+       "4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass",
+      "wall_s": 2.265
+     },
+     "item4_stack": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2^89-1 valid 0.038",
+       "2^607-1 valid 0.945"
+      ],
+      "stderr_tail": ""
+     }
+    },
+    {
+     "python": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.2.0/bin/python",
+     "python_version": "Python 3.12.13",
+     "item1": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2.2.0",
+       "1.12.6",
+       "2.15.4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass"
+     },
+     "item3": {
+      "exit_status": -11,
+      "stdout_lines": [],
+      "stderr_tail": "\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "verdict": "fail",
+      "wall_s": 1.371
+     },
+     "item4_stack": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2^89-1 valid 0.037",
+       "2^607-1 valid 0.594"
+      ],
+      "stderr_tail": ""
+     }
+    },
+    {
+     "python": "/Volumes/SSD990/tmp/auxin-64ba3f/venv-cypari2-2.1.5/bin/python",
+     "python_version": "Python 3.12.13",
+     "item1": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2.1.5",
+       "1.12.6",
+       "2.15.4"
+      ],
+      "stderr_tail": "",
+      "verdict": "pass"
+     },
+     "item3": {
+      "exit_status": -11,
+      "stdout_lines": [],
+      "stderr_tail": "\nin it and is not properly wrapped with sig_on(), sig_off().\nPython will now terminate.\n------------------------------------------------------------------------",
+      "verdict": "fail",
+      "wall_s": 1.48
+     },
+     "item4_stack": {
+      "exit_status": 0,
+      "stdout_lines": [
+       "2^89-1 valid 0.038",
+       "2^607-1 valid 0.797"
+      ],
+      "stderr_tail": ""
+     }
+    }
+   ]
+  }
+ },
+ "gp_builds": {
+  "pari-2.15.4-source-build": {
+   "tarball_sha256": "c3545bfee0c6dfb40b77fb4bbabaf999d82e60069b9f6d28bcb6cf004c8c5c0f",
+   "tarball_sha256_recomputed": "c3545bfee0c6dfb40b77fb4bbabaf999d82e60069b9f6d28bcb6cf004c8c5c0f",
+   "probe": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/gp/pari-2.15.4/Odarwin-arm/gp-dyn -q -f --default parisize=100000000 < /Volumes/SSD990/tmp/auxin-64ba3f/gp/gp_probe.gp",
+    "started_utc": "2026-09-27T07:54:37Z",
+    "exit_status": 0,
+    "stdout": "version=[2, 15, 4]\nitem3_type=t_ERROR errname=e_ALARM ms=935\nf2_type=t_ERROR errname=e_ALARM ms=978\nf2_fast_type=t_MAT\nusable_after=4\n",
+    "stderr_tail": ""
+   }
+  },
+  "pari-2.17.4-source-build": {
+   "tarball_sha256": "02651d99c391007d384b3fadbc20abc6916b77036f9e496c99e9ce8688ca4b53",
+   "tarball_sha256_recomputed": "02651d99c391007d384b3fadbc20abc6916b77036f9e496c99e9ce8688ca4b53",
+   "probe": {
+    "command": "/Volumes/SSD990/tmp/auxin-64ba3f/gp/pari-2.17.4/Odarwin-aarch64/gp-dyn -q -f --default parisize=100000000 < /Volumes/SSD990/tmp/auxin-64ba3f/gp/gp_probe.gp",
+    "started_utc": "2026-09-27T07:54:40Z",
+    "exit_status": 0,
+    "stdout": "version=[2, 17, 4]\nitem3_type=t_ERROR errname=e_ALARM ms=966\nf2_type=t_ERROR errname=e_ALARM ms=945\nf2_fast_type=t_MAT\nusable_after=4\n",
+    "stderr_tail": ""
+   }
+  },
+  "homebrew-gp": {
+   "path": "/opt/homebrew/bin/gp",
+   "probe": {
+    "command": "gp -q -f < /Volumes/SSD990/tmp/auxin-64ba3f/gp/gp_probe.gp",
+    "started_utc": "2026-09-27T07:54:42Z",
+    "exit_status": 0,
+    "stdout": "version=[2, 17, 3]\nitem3_type=t_ERROR errname=e_ALARM ms=906\nf2_type=t_ERROR errname=e_ALARM ms=923\nf2_fast_type=t_MAT\nusable_after=4\n",
+    "stderr_tail": ""
+   }
+  },
+  "note": "ms in the probe output is getabstime() CPU milliseconds, not wall clock."
+ },
+ "isolated_mode_sys_path": {
+  "3.12": {
+   "isolated_plain": {
+    "command": "/Users/adamburan/.local/bin/python3.12 -I /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_plain.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.12.13\", \"script_dir_on_sys_path\": false, \"sys_path_0\": \".13-macos-aarch64-none/lib/python312.zip\", \"import_mod\": \"ImportError\"}\n",
+    "stderr_tail": ""
+   },
+   "isolated_after_insert": {
+    "command": "/Users/adamburan/.local/bin/python3.12 -I /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_insert.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.12.13\", \"import_mod_after_insert\": true}\n",
+    "stderr_tail": ""
+   },
+   "non_isolated_plain": {
+    "command": "/Users/adamburan/.local/bin/python3.12 /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_plain.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.12.13\", \"script_dir_on_sys_path\": true, \"sys_path_0\": \"990/tmp/auxin-64ba3f/syspath_probe/typed\", \"import_mod\": \"ok\"}\n",
+    "stderr_tail": ""
+   }
+  },
+  "3.10": {
+   "isolated_plain": {
+    "command": "/Users/adamburan/.local/share/uv/python/cpython-3.10-macos-aarch64-none/bin/python3.10 -I /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_plain.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.10.20\", \"script_dir_on_sys_path\": false, \"sys_path_0\": \".10-macos-aarch64-none/lib/python310.zip\", \"import_mod\": \"ImportError\"}\n",
+    "stderr_tail": ""
+   },
+   "isolated_after_insert": {
+    "command": "/Users/adamburan/.local/share/uv/python/cpython-3.10-macos-aarch64-none/bin/python3.10 -I /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_insert.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.10.20\", \"import_mod_after_insert\": true}\n",
+    "stderr_tail": ""
+   },
+   "non_isolated_plain": {
+    "command": "/Users/adamburan/.local/share/uv/python/cpython-3.10-macos-aarch64-none/bin/python3.10 /Volumes/SSD990/tmp/auxin-64ba3f/syspath_probe/typed/run_plain.py",
+    "started_utc": "2026-09-27T07:54:44Z",
+    "exit_status": 0,
+    "stdout": "{\"python\": \"3.10.20\", \"script_dir_on_sys_path\": true, \"sys_path_0\": \"990/tmp/auxin-64ba3f/syspath_probe/typed\", \"import_mod\": \"ok\"}\n",
+    "stderr_tail": ""
+   }
+  }
+ },
+ "not_provisioned": [
+  {
+   "tool": "GMP-ECM",
+   "reason": "Not required by NP-4 (pin locators, PARI version command, in-process timeout path). Its version command and self-test were executed by VAL-20260927-b99738 and held; provisioning remains a dispatch precondition of any executor card (typed tools_and_admission.absence_rule)."
+  }
+ ]
+}

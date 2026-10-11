@@ -1,0 +1,217 @@
+# TASK-20260929-accb8e -- conventions chosen BEFORE any J2a/J3 quantity was computed.
+# Written 2026-09-29 ~07:50Z, after reading only: the task card, the role contracts,
+# specification.yaml v1, AMD-20260929-1de84f, AMD-20260929-430f44, H-PFDR-4765e4,
+# H-PFDR-0cc7e8, stats.py, README 3-5, and the STRUCTURE (keys, field names, status
+# strings, file layout) of the raw inputs listed on the card. No count, kappa, z,
+# slope, ratio, rank or floor value had been computed or read when this was written.
+# Its sha256 is logged in checks/read-log.txt at write time; it is copied verbatim into
+# sealed-section.yaml. Any later change is a new file naming this one.
+conventions:
+  - id: CV-1
+    topic: A1 censoring at A_fix
+    text_leaves_open: which field defines "censored at A_fix", and whether the drop applies to TT and TB cells or only to SS
+    reading: >-
+      An instance is censored at A_fix iff harvest.SS.at_A_fix.censored is true.
+      Cross-checked against attempts < harvest.attempt_budget_A_fix; any
+      disagreement is reported. Literal reading of A1: the drop rule sits in the
+      cell definition with no class restriction, so a census-mode curve on which
+      A or any of R(A) is censored is dropped for all four arms in the TT, TB and
+      SS cells of that rung. Only census-mode instances enter A1, so censoring of
+      on-mode instances is irrelevant to A1. Sensitivity (labelled, not primary):
+      drop only in SS cells.
+  - id: CV-2
+    topic: A1 "failed or invalid"
+    reading: >-
+      Any census-mode instance whose status is not completed_valid (failed,
+      failed_infrastructure including C-3 attempt_limit and M-5 placeholders,
+      invalid) drops the curve for all four arms of that cell (C-4). A
+      completed_valid main-arm instance with k_verified not true would be
+      reported as a G4 defect.
+  - id: CV-3
+    topic: C-4 unmatched_size
+    reading: >-
+      For structured arm A on curve j at (m, rung): compare fb_size of A's census
+      row with fb_size of its matched random arms' census rows on that curve
+      (random_sub_r0..2 for subgroup and small_x, random_dick_r0..2 for dickson).
+      If the three random sizes disagree among themselves, report it. If
+      fb_size(A) != the random size, curve j is dropped for A and R(A) in every
+      class cell of that rung, reason unmatched_size, whatever the statuses. The
+      same instance (both modes) is excluded from A3, A4 and A7.
+  - id: CV-4
+    topic: A1 arithmetic
+    reading: >-
+      n_{X,j} = harvest.<c>.at_stop.pairs_nonformal for TT and TB,
+      harvest.SS.at_A_fix.pairs_nonformal for SS (raw kappa: pairs_raw at the
+      same place). s_j^2 = sample variance with ddof 1 of the three random counts
+      on curve j. C_A = sum_j n_A; C_R = sum_{r,j} n_r / 3; kappa = C_A/C_R
+      (undefined if C_R = 0). V = max(sum_j s_j^2, C_R); SD_null =
+      sqrt(V*4/3); z = (C_A - C_R)/SD_null (undefined if V = 0). Resolved iff
+      C_R >= 10. Exact rational arithmetic is used for C_R, V and s_j^2
+      (fractions.Fraction), converted to float only for sqrt and z.
+  - id: CV-5
+    topic: A1 curves
+    reading: >-
+      Main panel cells use curves 0..4 of the rung; Stage R cells use curves
+      5..9; PC-2 uses the 35 (rung, curve) units of 12..24. A curve is used iff
+      not dropped under CV-1..CV-3.
+  - id: CV-6
+    topic: A2 x_b
+    text_leaves_open: which curves "the rung's curves" are
+    reading: >-
+      Primary: x_b = arithmetic mean of the rows' log2N over all five curves of
+      the rung (the literal "the rung's curves"; log2N is a property of the curve,
+      identical across arms). Sensitivity (labelled): mean over the curves used
+      in the cell after drops. x_b is fixed in the bootstrap (A2 lists only C_A,
+      C_R, V, kappa and y_b as recomputed).
+  - id: CV-7
+    topic: A2 bootstrap mechanics
+    reading: >-
+      One fresh random.Random(0) per (A, c, m) test. For each of 2000 replicates,
+      for each resolved rung in ascending bits order, draw n_b indices with
+      rng.choice over the list of the cell's used curve ids in ascending curve
+      order (n_b draws, one per used curve); the same draws index A and its three
+      randoms. Recompute C_A*, C_R*, s_j^2 (per resampled curve, summed with
+      multiplicity), V*, SD*, kappa*, y*_b = log2(max(kappa* - 1, SD*/C_R*)).
+      Slope* = OLS of y* on the fixed x_b. A replicate with C_R* = 0 at some rung
+      has an undefined slope and is dropped (count reported). 95% interval: sorted
+      replicate slopes, lo = s[floor(0.025*(n-1))], hi = s[ceil(0.975*(n-1))]
+      (the stats.bootstrap_slope quantile rule). One-sided p = (1 + #{slope* <=
+      0}) / 2001 as the text states. Fewer than 4 resolved rungs among 20..32:
+      UNRESOLVED, p = 1. y_b uses log2. OLS as stats.ols_slope's formula, own code.
+  - id: CV-8
+    topic: Holm
+    reading: >-
+      Holm step-down adjusted p over the fixed 18 tests {subgroup, small_x,
+      dickson} x {TT, SS} x {3, 4, 5}: sort ascending, adj_(i) = max_{k<=i}
+      min(1, (18 - k + 1) * p_(k)). "Holm-adjusted p < 0.05" is read on adj.
+  - id: CV-9
+    topic: A3
+    reading: >-
+      Census-mode instances only. rho_c = at_stop.informative_rank_c /
+      min(at_stop.rows_emitted_c, harvest.U); qualifies iff rows_emitted_c >= 10,
+      status completed_valid and not unmatched_size (C-4). O-ALIVE's "median
+      rho_c >= 0.95 for A": median over A's qualifying census instances of class c
+      at that m, all rungs (O-ALIVE is per (A, c, m)). Prediction (4): per main-
+      panel arm name and class, pooled over m and rungs, evaluated when >= 5
+      qualifying instances; known_log rho_TT and rho_TB <= 0.05 on every
+      qualifying instance; known_log SS reported, not evaluated. Median of an
+      even count = mean of the two middle values.
+  - id: CV-10
+    topic: A4 instance set and ordering
+    reading: >-
+      An A4 instance is a (m, bits, curve, arm) whose census and on rows are both
+      completed_valid with k_found and k_verified true, not unmatched_size.
+      Bases: subgroup, dickson, small_x, random_sub = pool of random_sub_r0..2,
+      random_dick = pool of random_dick_r0..2. Medians at rungs 24..32 for m in
+      {3, 5} (statistics.median). (1a) met iff all 50 medians >= 1.3, else not
+      met. Exponent fits: stats.fit_exponent(rows, "s3_solves") with its
+      defaults (x_key log2N, group_key bits, reps 2000, level 0.95, seed 0),
+      loaded by file path, over the paired instance set at bits 12..32, rows
+      in ascending (bits, curve, arm) order; census and on fitted separately;
+      delta = slope_on - slope_census. (1b) met iff |delta| <= 0.03 for all ten
+      (m in {3,5}) x base, else not met. (2) uses the same paired small_x m = 4
+      set: met iff on-slope <= 0.66, falsified iff its lo > 0.66, else not met.
+  - id: CV-11
+    topic: A4 paired bootstrap of delta (seed not fixed by the text)
+    reading: >-
+      random.Random(0), 2000 replicates. Strata = bits ascending; members = the
+      paired instances of the stratum in (bits, curve, arm) order; per replicate
+      idx = [rng.choice(members) for each stratum in order for each member]
+      (stats.bootstrap_slope's draw pattern); both slopes computed on the same
+      idx; delta* = on* - census*; interval by the CV-7 quantile rule.
+  - id: CV-12
+    topic: A5
+    reading: >-
+      Census mode. PC-1: units = (rung 12..24, curve 0..4) with A = known_log and
+      R(A) = random_sub_r0..2; A1's drop rules (CV-1..CV-3) applied per unit;
+      raw kappa_TT = sum pairs_raw(known_log TT) / (sum over units and three
+      randoms of pairs_raw TT / 3); plus rho_TT, rho_TB <= 0.05 on every
+      qualifying known_log census instance (CV-9). PC-2: units = 35 j0 (rung,
+      curve); A = j0_coset, R = j0_random_r0..2; kappa_TB_before = sum raw TB
+      pairs of A / (sum raw TB pairs of the randoms / 3); nonformal z per A1 on
+      TB at_stop.pairs_nonformal over the units, resolved iff C_R >= 10; G6
+      formal_basis_rank == 2*fb_size/3 on every j0_coset instance (both modes).
+  - id: CV-13
+    topic: A7 / TW-FLOOR (RV-4)
+    reading: >-
+      ratio = s3_solves / (0.5 * sqrt(r * N)); r = relations (census);
+      r = relations + on.rows_fed.TT + on.rows_fed.TB + on.rows_fed.SS (on).
+      Evaluated in memory on every completed_valid census/on solver instance of
+      R10, R11 (canonical), R12 (canonical) and R14 (canonical), main and j0
+      panels, known_log included, excluding unmatched_size; r = 0 instances are
+      listed as not evaluable. R16 instances evaluated separately. Output is ONLY
+      the boolean, the count and the keys (bits, curve, m, arm, mode). The second
+      disjunct (EXP-PFDR-7c8bf2 OUT-FLOOR-VIOLATION) is read only if an outcome
+      id is present in the permitted fits.json, extracted programmatically
+      without printing any numeric value; otherwise reported as not determinable
+      from the permitted inputs.
+  - id: CV-14
+    topic: Stage R
+    reading: >-
+      For each excursion cell (A, c, m, rung): A1 with CV-1..CV-5 on curves 5..9
+      from R16's canonical rows, same class. Replicated iff Stage R z has the
+      same sign as the discovery z and |z| > 3. Stage R resolution (C_R >= 10) is
+      reported beside it; an unresolved Stage R cell is reported as such and is
+      not called replicated. Final structural reading: if none replicates,
+      "O-NULL with the excursion list attached" (outcome table); if any
+      replicates, REPLICATED ANOMALY (TW-ALIVE); O-ALIVE only if its conditions
+      hold.
+  - id: CV-15
+    topic: outcome table order
+    reading: >-
+      O-INVALID (any G1-G7 fails) -> O-NO-DYNAMIC-RANGE (PC-1 or PC-2 fails) ->
+      O-ALIVE -> O-NULL -> O-EXCURSION; O-GENERIC alongside when G1-G7 pass.
+      G4-G7 are evaluated here from the committed rows; G1-G3 are J1 checks made
+      after the seal, so the sealed outcome id is stated conditional on G1-G3.
+  - id: CV-16
+    topic: J2a canonical-set mechanics (M-5)
+    reading: >-
+      Key = (panel, m, bits, curve, arm, mode) for solver rows; (panel, "rho",
+      bits, curve) for rho rows. m = row["m"] if present else int(method[4:]).
+      U(R11) = U(R12) = main x m x 11 rungs x curves 0..4 x 9 arms x {census, on}
+      (990); U(R14) = j0 x 3 x 7 rungs x 0..4 x 4 arms x 2 modes (280) + 35 j0
+      rho keys; U(R16) = for each (m, bits, A) of R16's jobs-index arm lists,
+      curves 5..9 x {A, R(A)} x 2 modes, cross-checked against my own Q3
+      excursion list. R11 resume set = jobs (bits, curve) whose every attempt-1
+      root row has status_reason starting "job crashed:". Rule (1): R11 keys of
+      resume-set jobs take the attempt-2/jobs row, all others the attempt-1 root
+      row; R12, R14, R16 take attempt-1/jobs rows. Placeholders per (2) if a key
+      has no row: {panel, m, bits, curve, arm, mode, status:
+      failed_infrastructure, status_reason: "no row: <exit status>",
+      placeholder: true}. Rows outside U are non-cell and listed. Duplicate key
+      within an attempt: stop. Staircase records from the same file as the row.
+      Order: stable sort by (bits, curve, m, arm, mode) with rho rows arm "" and
+      mode "" and m = 0 (any m <= 3 gives the same order because arm "" sorts
+      first). Serialisation: json.dumps(record, sort_keys=True,
+      separators=(",", ":")) per record, lines joined with "\n" plus a final
+      "\n"; digest = sha256 of those bytes (UTF-8). Records are the parsed source
+      records, unmodified.
+  - id: CV-17
+    topic: Q6 formal-duplicate recount from harvest rows
+    reading: >-
+      Retention is complete for an (instance, class) iff the number of harvest
+      rows found equals at_stop.rows_emitted. Groups: TT/SS star rows grouped by
+      the first element's descriptor (elements[0], JSON-canonical); k' = rows in
+      group + 1; pairs_raw = sum C(k', 2). TB: pairs_raw = number of TB rows.
+      SS at A_fix: an element counts iff recorded within the first A_fix
+      attempts (enc[0] <= A_fix if attempts are numbered from 1, < A_fix if from
+      0; the numbering base is detected from the encodings, not from any count).
+      Formal flag recomputed: generic census arms (empty basis) -> never formal;
+      known_log -> formal iff kcoef == rhs == 0 and sum_i c_i*(i+1) == 0 mod N
+      (coefficient indices are 0-based positions in the base list, logs 1-based
+      per the text); j0 -> needs base coordinates that the committed rows do not
+      carry; recomputation attempted only by an independent reconstruction
+      validated by the row certificates, otherwise declared blocked. Rows with an
+      empty coefficient vector and kcoef == rhs == 0 are counted (must be 0).
+  - id: CV-18
+    topic: A6 (Q9, optional)
+    reading: >-
+      Main-panel random arms, census mode, per (class, m); mu =
+      harvest.<c>.at_stop.poisson_mean (TT, TB) or harvest.SS.at_A_fix.poisson_mean
+      (SS); n = the matching pairs_nonformal; censored instances excluded from
+      SS only; non-completed_valid excluded. u = F(n-1) + V*(F(n) - F(n-1)) with
+      F the Poisson(mu) CDF (F(-1) = 0) and V =
+      random.Random(f"pit-1b78f7|{bits}|{c}|{m}|{arm}|{class}").random(). KS
+      one-sample against U(0,1), two-sided D, p from the exact Kolmogorov
+      distribution (own implementation, Marsaglia-Tsang-Wang). Rejection at p <
+      0.01.

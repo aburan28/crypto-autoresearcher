@@ -1,0 +1,108 @@
+# EXP-BINSTD-9082a9
+# Step 0 parameter identity and S_3 coefficient check.
+# Approved by DEC-20261001-727450. No solver.
+experiment:
+  id: EXP-BINSTD-9082a9
+  hypothesis_id: H-BINSTD-26471b
+  source_idea: IDEA-20260922-8ac1ea
+  question_id: RQ-BINSTD-b6f698
+  version: 1
+  title: K-163/B-163 parameter identity and the a-free shape of S_3
+  status: approved
+  frozen: true
+  designed_at: '2026-10-01'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261001-727450
+  objective: >-
+    Parse sect163k1 and sect163r2, compare field polynomial, A and cofactor,
+    compute the Hamming weights of both B values, and expand S_3 to show that
+    a is absent and b is degree 0. A mutant that adds a*x1 must be detected.
+  inputs:
+    parameter_file: analysis/binstd-curve-audit/binary-curve-params.txt
+    curves: [sect163k1, sect163r2]
+    predicted:
+      field_polynomial: x^163 + x^7 + x^6 + x^3 + 1
+      A: 1
+      cofactor: 2
+      b_weight: {sect163k1: 1, sect163r2: 69}
+    summation_polynomial: (x1*x2 + x1*x3 + x2*x3)^2 + x1*x2*x3 + b
+    mutant: (x1*x2 + x1*x3 + x2*x3)^2 + x1*x2*x3 + b + a*x1
+  controls:
+    - >-
+      Mutant nearby object. The checker must report that the mutant contains
+      a. Reporting it a-free invalidates the run.
+    - Two implementations. Neither imports the other.
+    - Parsers read the parameter file. Hard-coded weights without a parse are not a pass.
+  independent_variables:
+    - curve in {sect163k1, sect163r2}
+    - formula in {stated S_3, mutant}
+  metrics:
+    primary:
+      - field_polynomials_equal
+      - field_polynomial_is_pentanomial
+      - A_values
+      - cofactors
+      - b_hamming_weight
+      - s3_contains_a
+      - s3_b_x_degree
+      - mutant_contains_a
+      - implementations_agree
+    secondary:
+      - parsed_b_integer_bit_length
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: Parameter identity, B weights, and S_3 coefficients.
+    formula: >-
+      S_3 as written. b_weight is the population count of the parsed B integer.
+    source: >-
+      IDEA-20260922-8ac1ea claim (P1) and the parameter blocks read on
+      2026-10-01. Design-time popcount of sect163r2 B was 69. The NIST
+      pentanomial matched the parsed polynomial integer.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      Both curves are the deployed 163-bit FIPS pair. The work is parsing and
+      polynomial expansion, not an attack.
+    correspondence: null
+  tail_checks:
+    - sect163r2 B is the large integer. Both implementations must agree on all bits of the weight, not a truncated hex parse.
+  replication:
+    seeds: []
+    independent_instances: 2
+    replication_note: Deterministic. The second run is the second implementation.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after two runs.
+    - Disagreement or a mutant reported a-free invalidates the attempt.
+    - A crash is incomplete, not a negative result.
+  invalidation_rules:
+    - Either implementation imports the other.
+    - mutant_contains_a is false.
+    - The output claims a solver cost, a discrete log, or a rho comparison.
+  success_criterion: >-
+    Both runs agree, the field polynomials are equal to each other and to the
+    pentanomial, both A values are 1, both cofactors are 2, the B weights are
+    1 and 69, s3_contains_a is false, s3_b_x_degree is 0, and
+    mutant_contains_a is true.
+  falsification_criterion: >-
+    The implementations agree, the mutant is detected, and at least one of
+    the polynomial identity, the A or cofactor match, the weights, or the
+    S_3 coefficient statement fails. That failed identity is the negative
+    result.
+  required_artifacts:
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/command.txt
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-BINSTD-9082a9/runs/<RUN-ID>/certificate.yaml
+  assigned_to: executor
+  out_of_scope:
+    - Toy 2x2 solver cells, Macaulay ranks, WDSat, and rho rows.
+    - The other four FIPS Koblitz/random pairs.

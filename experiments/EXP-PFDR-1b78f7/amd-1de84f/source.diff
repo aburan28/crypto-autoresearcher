@@ -1,0 +1,819 @@
+--- a/src/crypto_autoresearcher/index_calculus/__main__.py (1a037688c)
++++ b/src/crypto_autoresearcher/index_calculus/__main__.py (amended)
+@@ -537,11 +537,29 @@
+     return accept
+ 
+ 
+-def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None):
+-    """_instance with the j = 0 generator (same target-log rule)."""
++def _j0_exclude_primes(bits: int, curve_seed: int, p_filter=None) -> tuple[int, ...]:
++    """AMD-20260929-1de84f C-1 exclusion_set_rule: the primes SELECTED by the
++    amended j0 generator for curve seeds 0, 1, ..., curve_seed - 1 at the same
++    bits and filter, computed in that order from c' = 0 (curve 0: empty)."""
+     from .curve import generate_prime_order_curve_j0
+ 
+-    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter)
++    selected: list[int] = []
++    for c in range(curve_seed):
++        E, _ = generate_prime_order_curve_j0(bits, c, p_filter=p_filter,
++                                             exclude_primes=tuple(selected))
++        selected.append(E.p)
++    return tuple(selected)
++
++
++def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None,
++                 generation_log: list | None = None):
++    """_instance with the j = 0 generator (same target-log rule, AMD-20260929-1de84f
++    C-5) and the C-1 prime rule: exclude_primes by the C-1 exclusion_set_rule."""
++    from .curve import generate_prime_order_curve_j0
++
++    excl = _j0_exclude_primes(bits, curve_seed, p_filter)
++    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter,
++                                         exclude_primes=excl, generation_log=generation_log)
+     k = random.Random(f"target|{bits}|{curve_seed}|{target_seed}").randrange(1, E.order)
+     Q = E.mul(k, P)
+     E.ops.group_ops = 0
+@@ -648,10 +666,21 @@
+         return head | tail | {"ok": False, "status": "invalid",
+                               "status_reason": f"I-3 certificate failure: {exc}",
+                               "checks": checks, "seconds": time.perf_counter() - t0}, True
+-    except (_InstanceTimeout, MemoryError) as exc:
++    except _InstanceTimeout as exc:
+         _alarm_off()
+         return head | tail | {"ok": False, "status": "failed_infrastructure",
+                               "status_reason": f"{type(exc).__name__}: {exc}",
++                              "checks": checks, "seconds": time.perf_counter() - t0}, False
++    except MemoryError as exc:
++        # AMD-20260929-1de84f C-8 D-2: the stop is labelled "address-space cap" and the
++        # row records ru_maxrss, so an AS stop with RSS below the cap is visible as such.
++        _alarm_off()
++        import resource
++
++        return head | tail | {"ok": False, "status": "failed_infrastructure",
++                              "status_reason": f"address-space cap: {type(exc).__name__}: {exc}",
++                              "ru_maxrss_bytes":
++                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
+                               "checks": checks, "seconds": time.perf_counter() - t0}, False
+     _alarm_off()
+     h = ic.harvest
+@@ -674,6 +703,12 @@
+     if bad:
+         row["status"], row["status_reason"] = "invalid", "gate failure: " + ", ".join(bad)
+         return row, True
++    if not ok and h["terminated_by"] == "attempt_limit" and ic.k is None:
++        # AMD-20260929-1de84f C-3: an attempt-limit stop without k is an
++        # infrastructure / feasibility signal, never evidence; the run continues.
++        row["status"] = "failed_infrastructure"
++        row["status_reason"] = "attempt_limit_without_k (AMD-20260929-1de84f C-3)"
++        return row, False
+     if not ok:
+         row["status"] = "invalid"
+         row["status_reason"] = "instance stopped without a verified k and without the attempt cap"
+@@ -710,13 +745,17 @@
+     rows: list[dict] = []
+     hrows: list[dict] = []
+     stairs: list[dict] = []
++    gen_log: list[dict] = []
+     if panel in ("main", "rho"):
+         pf = subgroup_prime_filter([3, 4, 5], 0.15)
+         E, P, Q, k = _instance(bits, c, 0, pf)
+     else:
+         pf = j0_prime_filter(0.15)
+-        E, P, Q, k = _instance_j0(bits, c, 0, pf)
++        E, P, Q, k = _instance_j0(bits, c, 0, pf, generation_log=gen_log)
+     base = _curve_fields(E, bits, c, pf.label)
++    if panel == "j0":
++        # AMD-20260929-1de84f C-1: every j0-panel row carries the generation log
++        base = base | {"j0_generation": gen_log}
+     if panel == "rho":
+         rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd))
+         return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": False}
+--- a/src/crypto_autoresearcher/index_calculus/curve.py (1a037688c)
++++ b/src/crypto_autoresearcher/index_calculus/curve.py (amended)
+@@ -256,7 +256,9 @@
+ 
+ def generate_prime_order_curve_j0(bits: int, seed: int = 0,
+                                   p_filter: Callable[[int], bool] | None = None,
+-                                  max_prime_draws: int = 100_000) -> tuple[Curve, Point]:
++                                  max_prime_draws: int = 100_000, *,
++                                  exclude_primes=(),
++                                  generation_log: list | None = None) -> tuple[Curve, Point]:
+     """A deterministic j = 0 curve y^2 = x^3 + b over F_p, p = 1 (mod 3), of prime order.
+ 
+     The j = 0 positive control: E has the order-3 automorphism
+@@ -265,17 +267,40 @@
+     lambda^2 + lambda + 1 = 0 mod N.  The prime is drawn as in
+     ``generate_prime_order_curve`` (same filter semantics) but must also satisfy
+     p % 3 == 1; the order is certified exactly as there.
++
++    Prime rule of AMD-20260929-1de84f C-1: a drawn prime is skipped, and the
++    same rng stream continues to the next prime, when it is in
++    ``exclude_primes`` (reason duplicate_prime) or when none of its six sextic
++    twists has certified prime order (reason no_prime_order_twist; decided by
++    ``_j0_has_prime_order_twist``, which consumes no draw of the stream).  The
++    b-loop runs unchanged on the first prime that survives.  With the default
++    arguments and a first prime that has a prime-order twist the result is the
++    frozen generator's.  When ``generation_log`` is a list it receives one dict
++    {p, reason} per skipped prime in draw order and finally
++    {prime_draws, p, b}.
+     """
+     if bits < 8:
+         raise ValueError("bits must be >= 8")
+     rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
+-    for _ in range(max_prime_draws):
+-        p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
+-        if p.bit_length() == bits and p % 3 == 1 and (p_filter is None or p_filter(p)):
+-            break
+-    else:
+-        raise ValueError(f"no {bits}-bit prime p = 1 mod 3 passed the filter in "
+-                         f"{max_prime_draws} draws")
++    draws = 0
++    while True:
++        while True:
++            if draws == max_prime_draws:
++                raise ValueError(f"no {bits}-bit prime p = 1 mod 3 passed the filter "
++                                 f"and the j0 prime rule in {max_prime_draws} draws")
++            draws += 1
++            p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
++            if p.bit_length() == bits and p % 3 == 1 and (p_filter is None or p_filter(p)):
++                break
++        if p in exclude_primes:
++            if generation_log is not None:
++                generation_log.append({"p": p, "reason": "duplicate_prime"})
++            continue
++        if not _j0_has_prime_order_twist(p, bits, seed):
++            if generation_log is not None:
++                generation_log.append({"p": p, "reason": "no_prime_order_twist"})
++            continue
++        break
+     while True:
+         b = rng.randrange(1, p)
+         E = Curve(p, 0, b)
+@@ -288,4 +313,27 @@
+             continue
+         E.order = m
+         E.ops.group_ops = 0
++        if generation_log is not None:
++            generation_log.append({"prime_draws": draws, "p": p, "b": b})
+         return E, P
++
++
++def _j0_has_prime_order_twist(p: int, bits: int, seed: int) -> bool:
++    """AMD-20260929-1de84f C-1 (c): does some twist y^2 = x^3 + g^i (i = 0..5) of
++    the j = 0 curve over F_p pass the frozen order certification on one point?
++
++    Exact, not probabilistic: the six classes exhaust the group orders the b-loop
++    can meet, and the certification on any finite point decides "#E prime, != p".
++    Uses its own stream, so the generator's stream is not consumed.
++    """
++    g = primitive_root(p)
++    trng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0.twistcheck", bits, seed, p)
++    for i in range(6):
++        E = Curve(p, 0, pow(g, i, p))
++        P = E.random_point(trng)
++        hits = E.point_order_in_hasse(P)
++        if len(hits) == 1:
++            m = hits[0]
++            if m != p and m > 4 * math.isqrt(p) + 4 and is_probable_prime(m):
++                return True
++    return False
+--- a/tests/test_index_calculus_harvest.py (1a037688c)
++++ b/tests/test_index_calculus_harvest.py (amended)
+@@ -498,3 +498,148 @@
+     assert main(["sweep", "--bits", "12", "--curves", "1", "--engine", "enumerate",
+                  "--harvest", "census", "--quiet"]) == 2
+     capsys.readouterr()
++
++
++# -- AMD-20260929-1de84f C-1: the amended j = 0 prime rule (T1-T3; T4 is the test above) ----
++
++J0_BITS = (12, 14, 16, 18, 20, 22, 24)
++
++
++def _j0_panel_curves(bits, pf, curves=5):
++    """The C-1 j0 panel at one rung: curves c = 0..curves-1 in order, each with the
++    primes selected for the lower curves excluded; (E, P, log, excluded) per curve."""
++    out, selected = [], []
++    for c in range(curves):
++        log: list = []
++        excl = tuple(selected)
++        E, P = generate_prime_order_curve_j0(bits, c, p_filter=pf, exclude_primes=excl,
++                                             generation_log=log)
++        out.append((E, P, log, excl))
++        selected.append(E.p)
++    return out
++
++
++def _twist_orders_exhaustive(p):
++    """#E for y^2 = x^3 + g^i, i = 0..5, by the Legendre-symbol sum over every x (no BSGS)."""
++    from crypto_autoresearcher.index_calculus.curve import primitive_root
++
++    sq = bytearray(p)
++    for y in range(1, p):
++        sq[y * y % p] = 1
++    g = primitive_root(p)
++    orders = []
++    for i in range(6):
++        b = pow(g, i, p)
++        s = 0
++        for x in range(p):
++            v = (x * x * x + b) % p
++            if v:
++                s += 1 if sq[v] else -1
++        orders.append(p + 1 + s)
++    return orders
++
++
++def test_j0_twist_check_agrees_with_exhaustive_point_counts_at_12_bits():
++    """T1: for every prime selected or skipped at 12 bits in the j0 panel,
++    _j0_has_prime_order_twist equals the exhaustive six-twist verdict."""
++    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
++
++    pf = j0_prime_filter(0.15)
++    primes = set()
++    for E, _, log, _ in _j0_panel_curves(12, pf):
++        primes.add(E.p)
++        primes.update(e["p"] for e in log)
++    verdicts = {}
++    for p in sorted(primes):
++        orders = _twist_orders_exhaustive(p)
++        expect = any(n != p and n > 4 * math.isqrt(p) + 4 and is_probable_prime(n) for n in orders)
++        # exact: the verdict does not depend on the point drawn, so any stream seed agrees
++        assert _j0_has_prime_order_twist(p, 12, 0) == expect, p
++        verdicts[p] = expect
++    # the helper is called with the curve seed that drew the prime; check each (p, seed) pair
++    for c, (E, _, log, _) in enumerate(_j0_panel_curves(12, pf)):
++        for p in [e["p"] for e in log if "reason" in e] + [E.p]:
++            assert _j0_has_prime_order_twist(p, 12, c) == verdicts[p], (c, p)
++        for e in log:
++            if e.get("reason") == "no_prime_order_twist":
++                assert verdicts[e["p"]] is False
++        assert verdicts[E.p] is True
++    assert any(v is False for v in verdicts.values())  # a twist-free prime was met and skipped
++
++
++def test_j0_amended_generator_terminates_on_all_35_cells():
++    """T2: all 35 j0 cells terminate with a == 0, p = 1 mod 3, p passing j0_filter,
++    certified prime order, and five distinct primes per rung; the CLI's
++    _instance_j0 path (exclusion recomputed from c' = 0) gives the same curves."""
++    pf = j0_prime_filter(0.15)
++    for bits in J0_BITS:
++        cur = _j0_panel_curves(bits, pf)
++        ps = [E.p for E, _, _, _ in cur]
++        assert len(set(ps)) == 5, (bits, ps)
++        for c, (E, P, log, excl) in enumerate(cur):
++            p, N = E.p, E.order
++            assert E.a == 0 and p % 3 == 1 and pf(p) and p.bit_length() == bits
++            assert p not in excl
++            assert is_probable_prime(N) and N != p and N > 4 * math.isqrt(p) + 4
++            assert abs(N - (p + 1)) <= 2 * math.isqrt(p) + 2
++            Ev = Curve(p, 0, E.b)
++            assert Ev.is_on_curve(P) and Ev.mul(N, P) is None
++            R = Ev.random_point(random.Random(f"t2|{bits}|{c}"))
++            assert Ev.mul(N, R) is None
++            assert log[-1] == {"prime_draws": log[-1]["prime_draws"], "p": p, "b": E.b}
++            assert all(e["reason"] in ("duplicate_prime", "no_prime_order_twist") for e in log[:-1])
++            glog: list = []
++            E2, P2, Q2, k2 = _instance_j0(bits, c, 0, pf, generation_log=glog)
++            assert (E2.p, E2.b, E2.order, P2) == (p, E.b, N, P)
++            assert glog == log
++            assert E2.mul(k2, P2) == Q2
++
++
++def _frozen_j0_first_prime(bits, seed, pf, max_prime_draws=100_000):
++    """Inline copy of the frozen (v1) generator's prime draw."""
++    from crypto_autoresearcher.index_calculus.curve import _seeded_rng, next_prime
++
++    rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
++    for _ in range(max_prime_draws):
++        p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
++        if p.bit_length() == bits and p % 3 == 1 and (pf is None or pf(p)):
++            break
++    else:
++        raise ValueError("no prime")
++    return p, rng
++
++
++def _frozen_j0_b_loop(p, rng):
++    """Inline copy of the frozen (v1) generator's b-loop."""
++    while True:
++        b = rng.randrange(1, p)
++        E = Curve(p, 0, b)
++        P = E.random_point(rng)
++        hits = E.point_order_in_hasse(P)
++        if len(hits) != 1:
++            continue
++        m = hits[0]
++        if m == p or m <= 4 * math.isqrt(p) + 4 or not is_probable_prime(m):
++            continue
++        E.order = m
++        return E, P
++
++
++def test_j0_amended_generator_equals_frozen_where_the_first_prime_survives():
++    """T3: where the frozen stream's first accepted prime is neither excluded nor
++    twist-free, the amended output equals the frozen algorithm's."""
++    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
++
++    pf = j0_prime_filter(0.15)
++    compared = 0
++    for bits in J0_BITS:
++        for c, (E, P, log, excl) in enumerate(_j0_panel_curves(bits, pf)):
++            p0, rng = _frozen_j0_first_prime(bits, c, pf)
++            if p0 in excl or not _j0_has_prime_order_twist(p0, bits, c):
++                assert log[0].get("p") == p0 and "reason" in log[0]
++                continue
++            Ef, Pf = _frozen_j0_b_loop(p0, rng)
++            assert (E.p, E.a, E.b, E.order, P) == (Ef.p, Ef.a, Ef.b, Ef.order, Pf), (bits, c)
++            assert log == [{"prime_draws": log[0]["prime_draws"], "p": p0, "b": Ef.b}]
++            compared += 1
++    assert compared > 0
+--- a/tests/test_index_calculus_harvest.py (1a037688c)
++++ b/tests/test_index_calculus_harvest.py (amended)
+@@ -498,3 +498,148 @@
+     assert main(["sweep", "--bits", "12", "--curves", "1", "--engine", "enumerate",
+                  "--harvest", "census", "--quiet"]) == 2
+     capsys.readouterr()
++
++
++# -- AMD-20260929-1de84f C-1: the amended j = 0 prime rule (T1-T3; T4 is the test above) ----
++
++J0_BITS = (12, 14, 16, 18, 20, 22, 24)
++
++
++def _j0_panel_curves(bits, pf, curves=5):
++    """The C-1 j0 panel at one rung: curves c = 0..curves-1 in order, each with the
++    primes selected for the lower curves excluded; (E, P, log, excluded) per curve."""
++    out, selected = [], []
++    for c in range(curves):
++        log: list = []
++        excl = tuple(selected)
++        E, P = generate_prime_order_curve_j0(bits, c, p_filter=pf, exclude_primes=excl,
++                                             generation_log=log)
++        out.append((E, P, log, excl))
++        selected.append(E.p)
++    return out
++
++
++def _twist_orders_exhaustive(p):
++    """#E for y^2 = x^3 + g^i, i = 0..5, by the Legendre-symbol sum over every x (no BSGS)."""
++    from crypto_autoresearcher.index_calculus.curve import primitive_root
++
++    sq = bytearray(p)
++    for y in range(1, p):
++        sq[y * y % p] = 1
++    g = primitive_root(p)
++    orders = []
++    for i in range(6):
++        b = pow(g, i, p)
++        s = 0
++        for x in range(p):
++            v = (x * x * x + b) % p
++            if v:
++                s += 1 if sq[v] else -1
++        orders.append(p + 1 + s)
++    return orders
++
++
++def test_j0_twist_check_agrees_with_exhaustive_point_counts_at_12_bits():
++    """T1: for every prime selected or skipped at 12 bits in the j0 panel,
++    _j0_has_prime_order_twist equals the exhaustive six-twist verdict."""
++    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
++
++    pf = j0_prime_filter(0.15)
++    primes = set()
++    for E, _, log, _ in _j0_panel_curves(12, pf):
++        primes.add(E.p)
++        primes.update(e["p"] for e in log)
++    verdicts = {}
++    for p in sorted(primes):
++        orders = _twist_orders_exhaustive(p)
++        expect = any(n != p and n > 4 * math.isqrt(p) + 4 and is_probable_prime(n) for n in orders)
++        # exact: the verdict does not depend on the point drawn, so any stream seed agrees
++        assert _j0_has_prime_order_twist(p, 12, 0) == expect, p
++        verdicts[p] = expect
++    # the helper is called with the curve seed that drew the prime; check each (p, seed) pair
++    for c, (E, _, log, _) in enumerate(_j0_panel_curves(12, pf)):
++        for p in [e["p"] for e in log if "reason" in e] + [E.p]:
++            assert _j0_has_prime_order_twist(p, 12, c) == verdicts[p], (c, p)
++        for e in log:
++            if e.get("reason") == "no_prime_order_twist":
++                assert verdicts[e["p"]] is False
++        assert verdicts[E.p] is True
++    assert any(v is False for v in verdicts.values())  # a twist-free prime was met and skipped
++
++
++def test_j0_amended_generator_terminates_on_all_35_cells():
++    """T2: all 35 j0 cells terminate with a == 0, p = 1 mod 3, p passing j0_filter,
++    certified prime order, and five distinct primes per rung; the CLI's
++    _instance_j0 path (exclusion recomputed from c' = 0) gives the same curves."""
++    pf = j0_prime_filter(0.15)
++    for bits in J0_BITS:
++        cur = _j0_panel_curves(bits, pf)
++        ps = [E.p for E, _, _, _ in cur]
++        assert len(set(ps)) == 5, (bits, ps)
++        for c, (E, P, log, excl) in enumerate(cur):
++            p, N = E.p, E.order
++            assert E.a == 0 and p % 3 == 1 and pf(p) and p.bit_length() == bits
++            assert p not in excl
++            assert is_probable_prime(N) and N != p and N > 4 * math.isqrt(p) + 4
++            assert abs(N - (p + 1)) <= 2 * math.isqrt(p) + 2
++            Ev = Curve(p, 0, E.b)
++            assert Ev.is_on_curve(P) and Ev.mul(N, P) is None
++            R = Ev.random_point(random.Random(f"t2|{bits}|{c}"))
++            assert Ev.mul(N, R) is None
++            assert log[-1] == {"prime_draws": log[-1]["prime_draws"], "p": p, "b": E.b}
++            assert all(e["reason"] in ("duplicate_prime", "no_prime_order_twist") for e in log[:-1])
++            glog: list = []
++            E2, P2, Q2, k2 = _instance_j0(bits, c, 0, pf, generation_log=glog)
++            assert (E2.p, E2.b, E2.order, P2) == (p, E.b, N, P)
++            assert glog == log
++            assert E2.mul(k2, P2) == Q2
++
++
++def _frozen_j0_first_prime(bits, seed, pf, max_prime_draws=100_000):
++    """Inline copy of the frozen (v1) generator's prime draw."""
++    from crypto_autoresearcher.index_calculus.curve import _seeded_rng, next_prime
++
++    rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
++    for _ in range(max_prime_draws):
++        p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
++        if p.bit_length() == bits and p % 3 == 1 and (pf is None or pf(p)):
++            break
++    else:
++        raise ValueError("no prime")
++    return p, rng
++
++
++def _frozen_j0_b_loop(p, rng):
++    """Inline copy of the frozen (v1) generator's b-loop."""
++    while True:
++        b = rng.randrange(1, p)
++        E = Curve(p, 0, b)
++        P = E.random_point(rng)
++        hits = E.point_order_in_hasse(P)
++        if len(hits) != 1:
++            continue
++        m = hits[0]
++        if m == p or m <= 4 * math.isqrt(p) + 4 or not is_probable_prime(m):
++            continue
++        E.order = m
++        return E, P
++
++
++def test_j0_amended_generator_equals_frozen_where_the_first_prime_survives():
++    """T3: where the frozen stream's first accepted prime is neither excluded nor
++    twist-free, the amended output equals the frozen algorithm's."""
++    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
++
++    pf = j0_prime_filter(0.15)
++    compared = 0
++    for bits in J0_BITS:
++        for c, (E, P, log, excl) in enumerate(_j0_panel_curves(bits, pf)):
++            p0, rng = _frozen_j0_first_prime(bits, c, pf)
++            if p0 in excl or not _j0_has_prime_order_twist(p0, bits, c):
++                assert log[0].get("p") == p0 and "reason" in log[0]
++                continue
++            Ef, Pf = _frozen_j0_b_loop(p0, rng)
++            assert (E.p, E.a, E.b, E.order, P) == (Ef.p, Ef.a, Ef.b, Ef.order, Pf), (bits, c)
++            assert log == [{"prime_draws": log[0]["prime_draws"], "p": p0, "b": Ef.b}]
++            compared += 1
++    assert compared > 0
+--- a/experiments/EXP-PFDR-1b78f7/analyze_census.py (1a037688c)
++++ b/experiments/EXP-PFDR-1b78f7/analyze_census.py (amended)
+@@ -15,6 +15,12 @@
+ 
+ stats.bootstrap_slope / fit_exponent (unchanged) are loaded from their file by
+ importlib (no solver module is imported).
++
++Protocol version 2 (AMD-20260929-1de84f): C-4 unmatched-size exclusion and
++failed-instance treatment in A1, A3, A4, A6 and A7, with the excluded_instances
++and incomplete_cells blocks; C-6 poisson_mean source and a conformance check;
++G3 read from R01 and R01a (C-2 E-5); the script's own sha256 in analysis.json
++(C-7).
+ """
+ from __future__ import annotations
+ 
+@@ -198,23 +204,53 @@
+     return idx
+ 
+ 
++def unmatched_size(idx, m, bits, j, A, panel="main"):
++    """AMD-20260929-1de84f C-4: (True, |A|, |R|) when the structured arm A's base on
++    curve j differs in size from its matched random arms' base (s_sub for subgroup
++    and small_x, s_dick for dickson), whatever the instance statuses.  Sizes are read
++    from the rows' fb_size (either mode); undeterminable sizes give False."""
++    if panel != "main" or A not in STRUCT:
++        return False, None, None
++    sA = sR = None
++    for mode in ("census", "on"):
++        r = idx.get((panel, m, bits, j, A, mode))
++        if sA is None and r is not None and r.get("fb_size") is not None:
++            sA = r["fb_size"]
++        for arm in RANDOMS[A]:
++            r = idx.get((panel, m, bits, j, arm, mode))
++            if sR is None and r is not None and r.get("fb_size") is not None:
++                sR = r["fb_size"]
++    if sA is None or sR is None:
++        return False, sA, sR
++    return sA != sR, sA, sR
++
++
+ def kappa_cell(idx, m, bits, cname, A, curves, kind="pairs_nonformal", panel="main", rands=None):
+     rands = rands or RANDOMS[A]
+     kept, dropped = [], []
+     for j in curves:
+         rs = [idx.get((panel, m, bits, j, arm, "census")) for arm in (A,) + tuple(rands)]
++        um, sA, sR = unmatched_size(idx, m, bits, j, A, panel)
++        if um:
++            # C-4: curve j dropped for A AND R(A) in this cell, whatever the statuses
++            dropped.append({"curve": j, "why": [f"{A}:unmatched_size(|F_A|={sA},|F_R|={sR})"],
++                            "rule": "unmatched_size"})
++            continue
+         if all(usable(r) for r in rs) and not any(censored(r) for r in rs):
+             kept.append((j, rs))
+         else:
+-            why = []
++            why, rules = [], []
+             for arm, r in zip((A,) + tuple(rands), rs):
+                 if r is None:
+                     why.append(f"{arm}:missing")
++                    rules.append("missing")
+                 elif not usable(r):
+                     why.append(f"{arm}:{r.get('status')}")
++                    rules.append(str(r.get("status")))
+                 elif censored(r):
+                     why.append(f"{arm}:censored_at_A_fix")
+-            dropped.append({"curve": j, "why": why})
++                    rules.append("censored")
++            dropped.append({"curve": j, "why": why, "rule": rules[0] if rules else None})
+     nA = [count(rs[0], cname, kind) for _, rs in kept]
+     nR = [[count(r, cname, kind) for r in rs[1:]] for _, rs in kept]
+     st = kappa_stats(nA, nR)
+@@ -304,8 +340,12 @@
+             else:
+                 det[rid] = {"pass": False, "missing": True}
+         g[gate] = {"pass": all(d["pass"] for d in det.values()), "runs": det}
+-    p = os.path.join(runs_dir, P + "tests", "raw-result.json")
+-    g["G3"] = {"pass": os.path.exists(p) and json.load(open(p)).get("G3_pass", False)}
++    # G3 under protocol v2: R01 (frozen build) and R01a (amended build, AMD-20260929-1de84f C-2 E-5)
++    g3 = {}
++    for rid in ("tests", "tests-amd1de84f"):
++        p = os.path.join(runs_dir, P + rid, "raw-result.json")
++        g3[rid] = bool(os.path.exists(p) and json.load(open(p)).get("G3_pass", False))
++    g["G3"] = {"pass": all(g3.values()), "runs": g3}
+     reg_census = []
+     for rid in regs["G2"]:
+         reg_census += rows_of(os.path.join(runs_dir, P + rid, "rows.jsonl"))
+@@ -361,9 +401,24 @@
+     rho_rows = rows_of(os.path.join(rd, P + "rho", "rows.jsonl"))
+     stairs = []
+     for name in ("census-m3", "census-m4", "census-m5", "j0"):
+-        stairs += rows_of(os.path.join(rd, P + name, "staircase.jsonl"))
++        for s in rows_of(os.path.join(rd, P + name, "staircase.jsonl")):
++            s["_panel"] = "j0" if name == "j0" else "main"
++            stairs.append(s)
+     panel_rows = main_rows + j0_rows + rho_rows
+     idx = build_index(main_rows + j0_rows)
++
++    # AMD-20260929-1de84f C-4: unmatched-size structured instances (main panel)
++    um_info = {}
++    for r in main_rows:
++        if r.get("arm") in STRUCT:
++            key = (m_of(r) or r.get("m"), r["bits"], r["curve"], r["arm"])
++            if key not in um_info:
++                um_info[key] = unmatched_size(idx, *key)
++    UM = {k for k, v in um_info.items() if v[0]}
++
++    def is_um(r) -> bool:
++        return (r.get("panel") == "main"
++                and (m_of(r) or r.get("m"), r.get("bits"), r.get("curve"), r.get("arm")) in UM)
+     out: dict = {"inputs": {"main_rows": len(main_rows), "j0_rows": len(j0_rows),
+                             "rho_rows": len(rho_rows), "staircase_records": len(stairs)}}
+     # expected instance count (cells): 3040 main + 280 j0 solver instances, 110 + 35 rho
+@@ -434,12 +489,58 @@
+     out["A2_slopes"] = {"tests": slopes, "family": sorted(pvals), "holm_alpha": ALPHA,
+                         "tail_check_max_abs_z": tail}
+ 
++    # C-4 reporting: excluded_instances and incomplete_cells ------------------------------------
++    excl = []
++    for r in main_rows + j0_rows:
++        if r.get("method") == "rho" or not r.get("arm"):
++            continue
++        rules = []
++        if is_um(r):
++            rules.append("unmatched_size")
++        st_ = r.get("status")
++        if st_ == "invalid":
++            rules.append("invalid")
++        elif st_ == "failed_infrastructure":
++            rules.append("failed_infrastructure")
++        elif (r.get("panel") == "main" and r.get("mode") == "census" and usable(r)
++              and r["arm"] in STRUCT + RANDOM_ARMS and censored(r)):
++            rules.append("censored")
++        if not rules:
++            continue
++        frm = set()
++        for rule in rules:
++            if rule == "censored":
++                frm.add("A1")
++            elif rule == "unmatched_size":
++                frm |= {"A1", "A3", "A4", "A7"}
++            else:
++                frm |= {"A3", "A4", "A7"}
++                if r.get("panel") == "main" and r["arm"] in STRUCT + RANDOM_ARMS:
++                    frm.add("A1")
++                if r.get("panel") == "main" and r["arm"] in RANDOM_ARMS:
++                    frm.add("A6")
++                if r["arm"] in ("known_log",) + J0_RANDOMS + ("j0_coset",):
++                    frm.add("A5")
++        excl.append({"panel": r.get("panel"), "bits": r.get("bits"), "curve": r.get("curve"),
++                     "m": m_of(r) or r.get("m"), "arm": r["arm"], "mode": r.get("mode"),
++                     "status": st_, "status_reason": r.get("status_reason"),
++                     "rule": rules[0], "rules": rules, "excluded_from": sorted(frm)})
++    excl.sort(key=lambda e: (e["panel"] or "", e["bits"] or 0, e["curve"] or 0, e["m"] or 0,
++                             e["arm"], e["mode"] or ""))
++    out["excluded_instances"] = excl
++    out["incomplete_cells"] = [
++        {"arm": A, "class": cn, "m": m, "bits": b, "curves_used": len(v["curves_kept"]),
++         "curves_kept": v["curves_kept"], "curves_dropped": v["curves_dropped"]}
++        for (A, cn, m, b), v in sorted(cells.items(), key=lambda kv: (kv[0][2], kv[0][3], kv[0][0], kv[0][1]))
++        if len(v["curves_kept"]) < 5]
++    out["unmatched_size_instances"] = sorted([list(k) + [um_info[k][1], um_info[k][2]] for k in UM])
++
+     # A3 -------------------------------------------------------------------------------------
+     rho_tab = defaultdict(list)
+     per_m = defaultdict(list)
+     h3_rank = defaultdict(lambda: [0, 0])
+     for r in main_rows + j0_rows:
+-        if not usable(r) or r.get("mode") != "census":
++        if not usable(r) or r.get("mode") != "census" or is_um(r):
+             continue
+         for cname in CLASSES:
+             rho, n = a3_rho(r, cname)
+@@ -473,6 +574,10 @@
+     for s in stairs:
+         if s.get("mode") != "census" or s.get("perm_saturation_indices") is None:
+             continue
++        # C-4: only instances that qualify for A3 (usable, not unmatched_size)
++        sr = idx.get((s["_panel"], s.get("m"), s.get("bits"), s.get("curve"), s.get("arm"), "census"))
++        if not usable(sr) or is_um(sr):
++            continue
+         if s["rows_emitted"] < 10 or s.get("saturation_index") is None:
+             continue
+         ps = [v for v in s["perm_saturation_indices"] if v is not None]
+@@ -492,15 +597,33 @@
+               "random_sub": ("random_sub_r0", "random_sub_r1", "random_sub_r2"),
+               "random_dick": ("random_dick_r0", "random_dick_r1", "random_dick_r2")}
+     pairs = defaultdict(list)
++    a4_excluded = defaultdict(list)  # C-4: every instance of a group not in its fit, with the reason
+     for r in main_rows:
+-        if r.get("mode") != "census" or not usable(r) or not r.get("k_verified"):
+-            continue
+-        on = idx.get(("main", m_of(r), r["bits"], r["curve"], r["arm"], "on"))
+-        if not usable(on) or not on.get("k_verified"):
+-            continue
+-        for gname, arms in groups.items():
+-            if r["arm"] in arms:
+-                pairs[(m_of(r), gname)].append((r, on))
++        if r.get("mode") != "census" or r.get("arm") not in sum(groups.values(), ()):
++            continue
++        mm = m_of(r) or r.get("m")
++        gname = next(g for g, arms in groups.items() if r["arm"] in arms)
++        on = idx.get(("main", mm, r["bits"], r["curve"], r["arm"], "on"))
++        why = None
++        if is_um(r):
++            why = "unmatched_size"
++        elif not usable(r):
++            why = f"census:{r.get('status')}"
++        elif not r.get("k_verified"):
++            why = "census:k_not_verified"
++        elif on is None:
++            why = "on:missing"
++        elif not usable(on):
++            why = f"on:{on.get('status')}"
++        elif not on.get("k_verified"):
++            why = "on:k_not_verified"
++        if why is not None:
++            a4_excluded[(mm, gname)].append({"bits": r["bits"], "curve": r["curve"], "arm": r["arm"],
++                                             "why": why,
++                                             "status_reason": r.get("status_reason") if why.startswith("census")
++                                             else (on or {}).get("status_reason")})
++            continue
++        pairs[(mm, gname)].append((r, on))
+     a4 = {"ratio_medians": {}, "exponents": {}}
+     met_1a, met_1b = True, True
+     for m in (3, 4, 5):
+@@ -536,7 +659,10 @@
+                     boots.append(so - sc)
+             dci = list(pct(boots)) if boots else None
+             rec = {"n_pairs": len(sel), "census": fc, "on": fo, "delta": delta, "delta_ci95_paired": dci,
+-                   "range_bits": [min(c["bits"] for c, _ in sel), max(c["bits"] for c, _ in sel)]}
++                   "range_bits": [min(c["bits"] for c, _ in sel), max(c["bits"] for c, _ in sel)],
++                   "fit_uses": "the completed instances (both modes solved and verified); "
++                               "excluded instances listed (AMD-20260929-1de84f C-4)",
++                   "excluded_instances": a4_excluded.get((m, gname), [])}
+             if m in (3, 5) and delta is not None:
+                 rec["abs_delta_le_0_03"] = abs(delta) <= 0.03
+                 met_1b &= rec["abs_delta_le_0_03"]
+@@ -598,16 +724,38 @@
+ 
+     # A6 -------------------------------------------------------------------------------------
+     a6 = {}
++    c6 = {"checked_values": 0, "mismatches": []}
+     for cname in CLASSES:
+         for m in (3, 4, 5):
+             us_all, us_hi = [], []
+             per_rung = defaultdict(list)
+             n_cens = 0
++            a6_excl = []
+             for r in main_rows:
+-                if r.get("arm") not in RANDOM_ARMS or r.get("mode") != "census" or not usable(r):
++                if r.get("arm") not in RANDOM_ARMS or r.get("mode") != "census":
+                     continue
+-                if m_of(r) != m:
++                if (m_of(r) or r.get("m")) != m:
+                     continue
++                if not usable(r):
++                    # C-4: failed_infrastructure (and invalid) random-arm instances are excluded and listed
++                    a6_excl.append({"bits": r["bits"], "curve": r["curve"], "arm": r["arm"],
++                                    "status": r.get("status"), "status_reason": r.get("status_reason")})
++                    continue
++                # C-6: the harvest block's poisson_mean is the HEUR-4765e4-H1 operational form;
++                # recomputed here from the block's own counts as a conformance check
++                hb, NN = r["harvest"], r["N"]
++                Et = hb["table"]["formally_distinct_tails"]
++                if cname == "TT":
++                    ref = Et * (Et - 1) / 2 * 2 / NN
++                elif cname == "TB":
++                    ref = Et * r["fb_size"] * 2 / NN
++                else:
++                    Xs = hb["SS"]["at_A_fix"]["formally_distinct_encodings"]
++                    ref = Xs * (Xs - 1) / 2 * 2 / NN
++                got = hb["SS"]["at_A_fix"]["poisson_mean"] if cname == "SS" else hb[cname]["at_stop"]["poisson_mean"]
++                c6["checked_values"] += 1
++                if not math.isclose(got, ref, rel_tol=1e-12, abs_tol=1e-300):
++                    c6["mismatches"].append([r["bits"], r["curve"], m, r["arm"], cname, got, ref])
+                 h = r["harvest"]
+                 if cname == "SS":
+                     blk = h["SS"]["at_A_fix"]
+@@ -632,12 +780,23 @@
+                 tails[str(b)] = {"max_count": mx, "p_max_ge_observed": pmax, "flag_lt_0_001": pmax < 0.001}
+             a6[f"{cname}|{m}"] = {"ks_12_32": ks_uniform(us_all), "ks_20_32": ks_uniform(us_hi),
+                                   "ss_censored_instances_included": n_cens if cname == "SS" else None,
+-                                  "max_count_tail": tails}
++                                  "max_count_tail": tails,
++                                  "excluded_instances": a6_excl}
+     out["A6_poisson"] = a6
++    out["A6_poisson_mean_source"] = {
++        "text": ("mu per class from the harvest block poisson_mean (SS at A_fix): mu_TT = C(E'_t, 2)*2/N; "
++                 "mu_TB = E'_t*|F|*2/N; mu_SS = C(X'_s, 2)*2/N; AMD-20260929-1de84f C-6 = "
++                 "H-PFDR-4765e4 HEUR-4765e4-H1 specification_of_means"),
++        "conformance_check": {"checked_values": c6["checked_values"],
++                              "mismatch_count": len(c6["mismatches"]),
++                              "mismatches": c6["mismatches"][:50]}}
+ 
+     # A7 -------------------------------------------------------------------------------------
+-    a7, below1, below09, excluded = [], [], [], 0
++    a7, below1, below09, excluded, excluded_um = [], [], [], 0, 0
+     for r in main_rows + j0_rows:
++        if is_um(r):
++            excluded_um += 1  # C-4
++            continue
+         if not usable(r) or not r.get("k_verified"):
+             excluded += 1
+             continue
+@@ -658,6 +817,7 @@
+             below09.append(rec)
+     stage0 = json.load(open(a.stage0)) if a.stage0 and os.path.exists(a.stage0) else None
+     out["A7_floor"] = {"instances": len(a7), "excluded_no_verified_k_or_r0": excluded,
++                       "excluded_unmatched_size": excluded_um,
+                        "min": min(a7, key=lambda x: x["ratio"]) if a7 else None,
+                        "below_1_0": below1, "below_0_9": below09,
+                        "per_mode_m_median": {f"{mo}|{m}": statistics.median(x["ratio"] for x in a7 if x["mode"] == mo and x["m"] == m)
+@@ -788,6 +948,9 @@
+         print(json.dumps({"replicated": res["replicated"], "reading": res["reading"]}, indent=2))
+         return 0
+     out, cell_lines, slopes = analyze(a)
++    import hashlib
++    with open(os.path.abspath(__file__), "rb") as fh:
++        out["analysis_script_sha256"] = hashlib.sha256(fh.read()).hexdigest()  # C-7
+     with open(os.path.join(a.out, "analysis.json"), "w") as fh:
+         json.dump(out, fh, indent=2, sort_keys=True, default=str)
+     with open(os.path.join(a.out, "kappa-cells.jsonl"), "w") as fh:
+@@ -799,7 +962,14 @@
+     raw = {"outcomes": out["outcomes"], "gates": out["gates"],
+            "positive_controls": out["A5_positive_controls"],
+            "instance_accounting": out["instance_accounting"],
+-           "metrics_file": "analysis.json (A1-A9 in full)",
++           "excluded_instances_count": len(out["excluded_instances"]),
++           "excluded_instances_by_rule": dict(sorted(
++               (rule, sum(1 for e in out["excluded_instances"] if e["rule"] == rule))
++               for rule in {e["rule"] for e in out["excluded_instances"]})),
++           "incomplete_cells_count": len(out["incomplete_cells"]),
++           "unmatched_size_instances": out["unmatched_size_instances"],
++           "analysis_script_sha256": out["analysis_script_sha256"],
++           "metrics_file": "analysis.json (A1-A9 in full, excluded_instances, incomplete_cells)",
+            "certificate": {"kind": "none", "note": "analysis of certified runs; no new solve or relation"}}
+     with open(os.path.join(a.out, "raw-result.json"), "w") as fh:
+         json.dump(raw, fh, indent=2, sort_keys=True, default=str)

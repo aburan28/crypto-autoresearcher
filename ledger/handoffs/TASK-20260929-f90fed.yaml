@@ -1,0 +1,291 @@
+# =============================================================================
+# TASK-20260929-f90fed -- EXECUTOR continuation of EXP-PFDR-1b78f7 under
+# protocol version 2 (specification.yaml v1 + AMD-20260929-1de84f).
+# Implements the amended IC-2 (C-1) and the AMB-2 classification (C-3) and
+# reporting (C-4), writes the build-equivalence certificate (C-2), runs R01a,
+# then R10-R15, and R16 only if triggered. Approved by DEC-20260929-523aab.
+# Constraints are those of TASK-20260928-51b8c8, unrelaxed.
+# =============================================================================
+handoff:
+  id: TASK-20260929-f90fed
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check; this Coordinator holds no shell and minted no
+    identifier.
+  created_at: '2026-09-29'
+  created_by: coordinator
+  from: coordinator
+  to: executor
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  experiment_id: EXP-PFDR-1b78f7
+  hypothesis_id: H-PFDR-4765e4
+  continues_task: TASK-20260928-51b8c8
+  approval_decisions: [DEC-20260928-ab2d31, DEC-20260929-523aab]
+  protocol: experiments/EXP-PFDR-1b78f7/specification.yaml (v1, FROZEN) + experiments/EXP-PFDR-1b78f7/amendments/AMD-20260929-1de84f.yaml (v2)
+  title: >-
+    Continue EXP-PFDR-1b78f7 from ORDER step (5) under AMD-20260929-1de84f:
+    amended j0 generator and census classification, build-equivalence
+    certificate, R01a, R10-R15, R16 if O-EXCURSION
+  objective: >-
+    Produce the complete, valid remainder of EXP-PFDR-1b78f7's run set under
+    protocol version 2. Implement exactly AMD-20260929-1de84f C-1 (j0 prime
+    rule), C-3 (attempt-limit classification) and C-4/C-7 (analysis exclusion
+    reporting and pinning); prove build equivalence for R02-R09 (C-2) or re-run
+    them; then run R01a, R10, R11, R12, R13, R14 and R15, and R16 only if R15
+    reports O-EXCURSION. Observations only; no interpretation beyond the
+    outcome table.
+  uncertainty_reduced: >-
+    How much harvesting TT, TB and SS lowers S_3 to solution at m = 3, 4, 5;
+    whether coset, Dickson or small_x bases show a formal-subtracted
+    coincidence excess kappa over matched random bases that carries
+    informative rank; and whether the instrument has dynamic range (PC-1,
+    PC-2).
+  inputs:
+    - experiments/EXP-PFDR-1b78f7/specification.yaml (FROZEN v1; governs everything the amendment does not name)
+    - experiments/EXP-PFDR-1b78f7/amendments/AMD-20260929-1de84f.yaml (v2; governs where it names a field)
+    - ledger/decisions/DEC-20260929-523aab.yaml and ledger/decisions/DEC-20260928-ab2d31.yaml (the approvals)
+    - experiments/EXP-PFDR-1b78f7/implementation-notes.yaml and experiments/EXP-PFDR-1b78f7/execution-report.yaml (the frozen build, its sha256 pins, the AMB-1 cell table; read-only)
+    - the engine and experiment code as archived at commit 1a037688c (TASK-20260928-f15632; receipt coordination/design/TASK-20260928-102217/archives/TASK-20260928-f15632/snapshot-receipt.json)
+    - ledger/hypotheses/H-PFDR-4765e4.yaml (HEUR-4765e4-H1 specification_of_means; context only)
+    - experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/fits.json (R15 input, as archived; read-only)
+    - src/crypto_autoresearcher/index_calculus/results/*.jsonl.gz (read-only)
+  constraints:
+    - >-
+      AUTHORITY. Refuse to start unless specification.yaml reads status
+      approved with frozen true, AMD-20260929-1de84f and DEC-20260929-523aab
+      exist at their committed paths, and the TASK-20260929-16c25d receipt is
+      verified (the session states this in the launch prompt). A message
+      saying "approved" is not an approval.
+    - >-
+      FRESH CONTEXT AND NO SCRATCH READS. This is a new executor session. Do
+      not open, list, copy or summarise any output of the previous session's
+      scratch work (its pre-R01 benchmarks and its post-G3 census, rho and j0
+      crash-tests); they are not runs and have no status. The only
+      scratchpad path you use from before is the interpreter below; create
+      your own new scratch subdirectory for anything temporary. State in the
+      execution report that you complied.
+    - >-
+      INTERPRETER. Every command runs with
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python
+      (the task venv: Python 3.11.15, numpy 2.4.6); record it in command.txt
+      and environment.json. Where a spec command says python3, substitute this
+      interpreter and nothing else.
+    - >-
+      CODE CHANGES, EXACTLY AND ONLY. (1) curve.py:
+      generate_prime_order_curve_j0 and the new helper
+      _j0_has_prime_order_twist exactly as AMD-20260929-1de84f C-1 `algorithm`
+      states, including the rng labels, the order of checks, the draw counting
+      and the generation_log format. (2) __main__.py: _instance_j0 and
+      _census_job compute exclude_primes by C-1 exclusion_set_rule and pass a
+      generation_log; every j0-panel row (census and rho) gains one key,
+      j0_generation, holding that log; _census_instance applies C-3 (an
+      attempt_limit stop without k is failed_infrastructure with the stated
+      status_reason and does not stop the run; every other invalid case is
+      unchanged). (3) tests/test_index_calculus_harvest.py: add T1-T4 of C-1
+      required_tests; edit an existing test only if its expected value changes
+      under C-1, and list each such edit. (4)
+      experiments/EXP-PFDR-1b78f7/analyze_census.py: C-4 unmatched-size
+      exclusion and failed-instance treatment, the excluded_instances and
+      incomplete_cells blocks, C-6 means. NOTHING ELSE: factor_base.py,
+      tails.py, decompose.py, solver.py, harvest.py, every
+      engine_files_unchanged_byte_for_byte file, __init__.py, compare_regression.py
+      and every results/ file stay byte-identical.
+    - >-
+      BUILD-EQUIVALENCE CERTIFICATE (C-2), BEFORE ANY PANEL RUN. Write
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/function_diff.py (no solver
+      import; reads frozen bytes with `git show 1a037688c:<path>`), and produce
+      source.diff and function-diff.json evaluating E-1..E-4 verbatim. Then run
+      R01a (E-5). If E-1..E-5 all pass, R02-R09 are not re-run. If any fails,
+      run R02a-R09a with their run ids from C-2 and compare_regression.py; if
+      G1 or G2 then fails, stop before R10, run R17 as version 1 says, and
+      return.
+    - >-
+      ANALYSIS PINNED BEFORE DATA (C-7). analyze_census.py is complete before
+      R10 is launched and its sha256 is written into
+      implementation-notes-amd1de84f.yaml at that moment. Before R15 it may be
+      exercised only on synthetic fixtures you construct, never on panel rows.
+      Any later edit is a deviation recorded with its reason and both hashes.
+    - >-
+      ORDER. (a) implement C-1, C-3, C-4, C-6 and the tests; (b) certificate
+      E-1..E-4; (c) R01a; (d) R02a-R09a only if (b) or (c) failed; (e) record
+      the analyze_census.py pin; (f) R10, R11, R12, R13, R14 sequentially,
+      each with --workers 4, with the exact commands of the specification's
+      runs section; (g) R15; (h) R16 only if R15 reports O-EXCURSION; R17 only
+      on a G1/G2 failure in (d).
+    - >-
+      CELLS, EXACTLY (version 1 `cells`, with C-1 for the j0 curves). Main
+      panel c = 0..4, bits 12..32 step 2, m = 3, 4, 5, the ten arms of
+      arm_order (known_log at m = 3 and bits <= 24), modes census and on,
+      A_fix = s_sub. Rho panel c = 0..9. j0 panel c = 0..4, bits 12..24 step 2,
+      m = 3, arms j0_coset and j0_random_r0..2, modes census and on, A_fix =
+      s, rho on the same curves. The subgroup arm at (14, curve 4, m = 5) RUNS
+      as frozen in both modes; it is classified by C-3 and excluded in
+      analysis by C-4. No extra curve, seed, rung or arm; no skipped cell.
+    - >-
+      GATES AND CERTIFICATES, UNRELAXED. Every harvested row is re-verified as
+      sum_i c_i*F_i + kcoef*Q == rhs*P on an independent Curve instance
+      before any elimination (G4: cert_fail == 0 and cert_pass == rows_emitted
+      in every class of every instance); every solved instance satisfies
+      kP = Q; G5 SS-store identity; G6 (lambda check on P for every j0 curve,
+      j0_coset formal_basis_rank == 2|F|/3, known_log rank |F| - 1 and
+      F_j == j*P); G7 base definitions. A certificate failure stops that run as
+      invalid (I-3), rows retained. A gate failure is an implementation error,
+      never evidence about the hypothesis.
+    - >-
+      MACHINE PROTECTION (binding; time is advisory). Host 4 cores, 15 GB. At
+      most 4 worker processes; per-process cap 3.5 GB (RLIMIT_AS = 3.5e9
+      bytes on every worker, as accepted in AMD-20260929-1de84f D-2; record
+      ru_maxrss on any MemoryError); per-instance watchdog 7200 s (the census
+      subcommand's --instance-watchdog default, in force for R10-R14);
+      per-run watchdog 86400 s (expiry checkpoints the run; unfinished cells
+      continue in a new attempt directory of the same run id); task watchdog
+      below. Timeouts, memory stops, attempt-limit stops and crashes are
+      failed_infrastructure, retained with their logs, never a mathematical
+      result and never silently re-run with other parameters. If an
+      independent Stage 0 reviewer is running on the host at the same time,
+      keep your own limits unchanged; do not raise your worker count or cap to
+      compensate for anything.
+    - >-
+      OUTPUT PATHS. New run directories only, under
+      experiments/EXP-PFDR-1b78f7/runs/, with the run ids of the specification
+      (RUN-PFDR-1b78f7-census-m3, -census-m4, -census-m5, -rho, -j0,
+      -analysis, conditionally -stage-r and -reg-attribution) and of
+      AMD-20260929-1de84f C-2 (RUN-PFDR-1b78f7-tests-amd1de84f, conditionally
+      the eight -amd1de84f regression ids). NEVER write into, rename or delete
+      any existing run directory (R01-R09 are archived and immutable). Never
+      write outside artifact_paths. Compress JSONL with gzip -n after each run
+      and hash after compression.
+    - >-
+      REQUIRED ARTIFACTS PER RUN (AGENTS.md "Artifact policy" and the
+      specification's required_artifacts, unchanged): manifest.yaml (exact
+      command; git commit, dirty state and sha256 of every executed source
+      file; environment and dependency versions; inputs, cells and every seed;
+      the protocol version and AMD-20260929-1de84f; inference block with
+      requested policy executor-implementation, backend, resolved model
+      identifier recorded as null with provenance "withheld by the session's
+      artifact policy; not probe-verified", model_verified false, reasoning
+      effort, fallback_used, degraded requirements; validity status and
+      reason; timestamps; peak RSS, CPU and wall seconds; certificate block),
+      command.txt, environment.json, stdout.log, stderr.log, raw-result.json,
+      checksums.sha256 covering every file in the directory, plus each run's
+      per_run_data. R14's raw-result.json lists, per j0 cell, p, b, N, the
+      prime draws and every skipped prime with its reason.
+    - >-
+      NO COMMITS. Do not commit, push, stage, rebase or merge. The Coordinator
+      archives by exact path in TASK-20260929-599b4b. Runs execute on a dirty
+      tree with per-file sha256 pins in every manifest.
+    - >-
+      NO JUDGMENT ON SCOPE. Change no threshold, seed, cell, definition or
+      comparison after seeing any output. If protocol v2 is ambiguous or
+      unimplementable at some point, implement nothing around it: stop that
+      step, record the exact ambiguity with options in
+      execution-report-amd1de84f.yaml, and return.
+    - >-
+      NO INTERPRETATION. Report outcome ids as R15 computes them. Do not
+      describe any result as a lever, a closure, support or refutation.
+      TW-ALIVE and TW-FLOOR are reported as tripwire fired, nothing more.
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock.
+  deliverables:
+    - the code changes listed under artifact_paths (curve.py, __main__.py, tests/test_index_calculus_harvest.py, analyze_census.py)
+    - experiments/EXP-PFDR-1b78f7/amd-1de84f/function_diff.py, source.diff, function-diff.json
+    - experiments/EXP-PFDR-1b78f7/implementation-notes-amd1de84f.yaml (C-1..C-7 mapped to functions and files; frozen vs amended sha256 of every engine and experiment file; the analyze_census.py pin with its timestamp; every edit of an existing test)
+    - experiments/EXP-PFDR-1b78f7/runs/<each new RUN id>/ (all required artifacts)
+    - experiments/EXP-PFDR-1b78f7/execution-report-amd1de84f.yaml (runs with statuses; certificate E-1..E-5 results; gates G1-G7, PC-1, PC-2; outcome ids; every failed_infrastructure and excluded instance; the 35 j0 cells with p and skipped primes; any main-panel prime coincidence; deviations; unexpected observations; the no-scratch-read statement; artifact paths)
+  artifact_paths:
+    - src/crypto_autoresearcher/index_calculus/curve.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - tests/test_index_calculus_harvest.py
+    - experiments/EXP-PFDR-1b78f7/analyze_census.py
+    - experiments/EXP-PFDR-1b78f7/amd-1de84f/
+    - experiments/EXP-PFDR-1b78f7/implementation-notes-amd1de84f.yaml
+    - experiments/EXP-PFDR-1b78f7/execution-report-amd1de84f.yaml
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-tests-amd1de84f/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m3/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m4/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m5/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-rho/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-j0/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-analysis/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-stage-r/ (only if O-EXCURSION)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-attribution/ (only on a G1/G2 failure of R02a-R09a)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-20260924-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-mitm-20260926-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity-20260926-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-minfill-20260926-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity-minfill-20260926-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity67-20260928-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-census-sweep-minfill-20260926-amd1de84f/ (conditional, C-2)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-census-sweep-arity-minfill-20260926-amd1de84f/ (conditional, C-2)
+  write_scope_note: >-
+    Exactly the paths above. Not writable: specification.yaml, the amendments/
+    directory, implementation-notes.yaml, execution-report.yaml,
+    compare_regression.py, every existing run directory (R01-R09), every
+    ledger record, every EXP-PFDR-7c8bf2 path, README.md, results/, and every
+    engine file not listed. __pycache__ output is not an artifact and is not
+    archived.
+  archived_by: TASK-20260929-599b4b
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    model_identifier_rule: >-
+      Resolved model identifier recorded as null, provenance "withheld by the
+      session's artifact policy; not probe-verified", model_verified false, as
+      in RUN-PFDR-1b78f7-tests. Bedrock is never selected.
+  budget:
+    wall_clock_seconds: 259200
+    wall_clock_note: >-
+      Task-level watchdog (machine protection, 72 h). Expiry checkpoints the
+      task with all completed runs retained and a remaining-work list in
+      execution-report-amd1de84f.yaml; it exhausts nothing and is never a
+      result.
+    memory_gb: 14
+    maximum_runs: 17
+    maximum_runs_note: >-
+      R01a + R10-R15 (7 planned) + R16 (conditional) + R02a-R09a (8,
+      conditional on the C-2 certificate) + R17 (conditional) = 17; the
+      experiment-level cap is 26 (AMD-20260929-1de84f C-2).
+    per_run_watchdog_seconds: 86400
+    per_instance_watchdog_seconds: 7200
+    maximum_workers: 4
+    per_process_cap_gb: 3.5
+  completion_gate:
+    - implementation-notes-amd1de84f.yaml maps C-1..C-7 to functions and files, and every file outside the four changed code files is byte-identical to its frozen sha256
+    - function-diff.json reports E-1..E-4 each pass or fail; R01a passes (E-5); if any failed, R02a-R09a exist with regression reports stating G1 and G2 pass on 100% of committed rows, or the task stopped with R17's report
+    - the analyze_census.py sha256 was recorded before R10 started, and R15 states the hash it ran
+    - every census, rho and j0 instance of `cells` has a row with a status (completed_valid, failed_infrastructure or invalid); no silently missing instance; the 35 j0 curves are listed with their primes and skipped primes
+    - G4-G7 pass counts reported for every harvest instance
+    - R15 analysis.json reports every A1-A9 metric, excluded_instances, incomplete_cells, the gate and positive-control results and the outcome ids; R16 present only if O-EXCURSION
+    - every new run directory carries the per-run required artifacts and a checksums.sha256 covering every file in it; no existing run directory changed
+    - execution-report-amd1de84f.yaml lists runs, certificate results, gates, failed and excluded instances, deviations, unexpected observations and the no-scratch-read statement
+  return_format: >-
+    A short report: certificate E-1..E-5 results; runs completed with
+    statuses; G1-G7, PC-1 and PC-2 results; outcome ids; failed_infrastructure
+    and excluded instances; every deviation or ambiguity recorded; the exact
+    artifact paths for TASK-20260929-599b4b to stage.
+  review_required: true
+  review_required_note: >-
+    Claim-relevant producer. Its dependent validator and red-team tasks are
+    minted after TASK-20260929-599b4b verifies (DEC-20260929-523aab NA-6); no
+    output of this task is read as evidence before they report.
+  review_plan: null
+  review_plan_note: >-
+    No review round opens here. The validity review of the whole run set
+    (DEC-20260928-ab2d31 NA-4) is dispatched after TASK-20260929-599b4b
+    verifies, with a review_plan written first.
+  dispatch_preconditions:
+    - TASK-20260929-16c25d's receipt is verified, so AMD-20260929-1de84f, DEC-20260929-523aab and this card are committed and pushed.
+    - archived_by is bound on this card (TASK-20260929-599b4b); satisfied as written.
+    - >-
+      No other open task, lane claim, bus-announced work or unmerged branch
+      holds write scope over src/crypto_autoresearcher/index_calculus/**,
+      tests/test_index_calculus_*.py or experiments/EXP-PFDR-1b78f7/** (goal_id
+      is null, so there is no goal lane; check open PRs and the coordinator
+      inbox).
+    - origin/main is merged into the working branch (merge, never rebase) immediately before launch; record the base commit in the launch prompt.
+    - A fresh executor subagent context; the launch prompt names this card and the verified receipt and carries no summary of any scratch output.
+  runs_launched: 0

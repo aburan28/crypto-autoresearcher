@@ -1,0 +1,3236 @@
+{
+ "task_id": "TASK-20260927-7d51ae",
+ "joint": "NJ6",
+ "runs_launched": 0,
+ "run_ids_minted": [],
+ "note": "Review computation only. No Cheon algorithm, no [x^i]P, no supply audit. No experiment run.",
+ "environment": {
+  "host_os": "darwin 25.6.0",
+  "tools": {
+   "python": "3.9.10 (main, Feb 15 2026, 13:00:19) \n[Clang 17.0.0 (clang-1700.0.13.5)]",
+   "sympy": "1.14.0",
+   "mpmath": "1.3.0",
+   "pyyaml": "6.0.3",
+   "gp": "2.17.3"
+  },
+  "libraries_chosen_by_reviewer": {
+   "search_and_screen": "own pure-Python Baillie-PSW (strong base-2 + strong Lucas Selfridge A) and own sieve; cross-checked by sympy.isprime 1.14.0",
+   "certificates": "PARI/gp 2.17.3 (Homebrew) primecert used ONLY as a certificate producer for primes >= 2^64; every chain checked by the reviewer's own stdlib verifier (Atkin-Morain step criterion as listed in the typed text D7 (ii), Pratt terminal); Pratt certificates for primes < 2^64 via sympy.factorint and own verifier",
+   "path_A_prime": "mpmath 1.3.0 at 200 significant digits",
+   "path_B_prime": "Python decimal at 200 significant digits",
+   "yaml": "PyYAML 6.0.3 safe_load for hash/span checks"
+  },
+  "shared_library_disclosure": "PARI is also the library the protocol names for path A. It was used here only to PRODUCE certificates; acceptance rests on the reviewer's own verifier, which shares no code with PARI."
+ },
+ "commands": [
+  "cd /Volumes/SSD990/tmp/nj6_7d51ae && export TMPDIR=/Volumes/SSD990/tmp && /usr/bin/time -l python3 rederive.py raw_output.json",
+  "python3 assemble.py <write_scope>/computations.json",
+  "shasum -a 256 experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260927-narrow.yaml"
+ ],
+ "development_history": [
+  "First full attempt stalled: the reviewer's integer cube root started from a float estimate and stepped by +1 (unbounded at 2^84 and 2^172). Killed; replaced by Newton descent from a strict power-of-two overestimate; unit-tested on 208 values (x^3 <= n < (x+1)^3). No output of the stalled attempt was used.",
+  "A verifier smoke test was started in parallel with an edit and ran the pre-edit file; killed; re-run after the edit passed."
+ ],
+ "scripts": {
+  "rederive.py": {
+   "sha256": "a00eb87d71fc3faa893a8942d5dabad09ac0d0447133eefb8c334cb355ccfeed",
+   "source": "#!/usr/bin/env python3\n\"\"\"Blind re-derivation for TASK-20260927-7d51ae (NJ6). Independent implementation.\n\nReads only the two amendment files (for hash and span checks). All recipes are\nimplemented from their text. No integer is transcribed from any source.\n\"\"\"\nimport hashlib, json, math, subprocess, sys, time, ast\nfrom math import isqrt, gcd\nfrom decimal import Decimal, getcontext\nimport mpmath\nimport sympy\nimport yaml\n\nWT = \"/Volumes/SSD990/crypto-autoresearcher/.worktrees/ecdlp-9225d2-revise-20260927/\"\nTYPED = WT + \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml\"\nNARROW = WT + \"experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260927-narrow.yaml\"\nOUT = {}\n\ndef sha(path):\n    return hashlib.sha256(open(path, \"rb\").read()).hexdigest()\n\n# ---------------------------------------------------------------- Q0 hash + spans\ntyped_sha = sha(TYPED)\nnarrow = yaml.safe_load(open(NARROW))[\"amendment\"]\ntyped = yaml.safe_load(open(TYPED))[\"amendment\"]\nOUT[\"hash_check\"] = {\n    \"typed_sha256_computed\": typed_sha,\n    \"typed_sha256_stated\": narrow[\"incorporates\"][\"sha256\"],\n    \"match\": typed_sha == narrow[\"incorporates\"][\"sha256\"],\n    \"narrow_sha256_computed\": sha(NARROW),\n}\n\ndef by_id(lst, key, val):\n    for x in lst:\n        if isinstance(x, dict) and x.get(key) == val:\n            return x\n    raise KeyError(val)\n\ndef resolve(field):\n    f = field\n    if f.startswith(\"change.D1_pins.rows[BN254-r].\"):\n        return by_id(typed[\"change\"][\"D1_pins\"][\"rows\"], \"id\", \"BN254-r\")[f.split(\".\")[-1]]\n    if f.startswith(\"success_criterion.outcomes[\"):\n        oid = f.split(\"[\")[1].split(\"]\")[0]\n        return by_id(typed[\"success_criterion\"][\"outcomes\"], \"id\", oid)[\"condition\"]\n    node = typed\n    for part in f.split(\".\"):\n        node = node[part]\n    return node\n\nspan_results = []\nfor sr in narrow[\"span_rules\"]:\n    val = resolve(sr[\"field\"])\n    fr, th = sr[\"from\"], sr[\"through\"]\n    n_from = val.count(fr)\n    i = val.find(fr)\n    j = val.find(th, i)\n    span = val[i:j + len(th)] if (i >= 0 and j >= 0) else None\n    h = hashlib.sha256(span.encode()).hexdigest() if span is not None else None\n    combined = (val[:i] + sr[\"replacement\"] + val[j + len(th):]) if span is not None else None\n    span_results.append({\n        \"id\": sr[\"id\"], \"field\": sr[\"field\"], \"from_occurrences\": n_from,\n        \"span_found\": span is not None, \"span_sha256\": h,\n        \"stated_sha256\": sr[\"replaced_span_sha256\"],\n        \"match\": h == sr[\"replaced_span_sha256\"],\n        \"combined_text\": combined if sr[\"id\"] in (\"FP-DEF\", \"BINS-EXACT\", \"CTRL-FIELD\") else None,\n    })\nOUT[\"span_checks\"] = span_results\n\n# ---------------------------------------------------------------- primality screen\nSMALL = list(sympy.primerange(2, 20000))\n\ndef jacobi(a, n):\n    a %= n\n    res = 1\n    while a:\n        while a % 2 == 0:\n            a //= 2\n            if n % 8 in (3, 5):\n                res = -res\n        a, n = n, a\n        if a % 4 == 3 and n % 4 == 3:\n            res = -res\n        a %= n\n    return res if n == 1 else 0\n\ndef strong_prp2(n):\n    d, s = n - 1, 0\n    while d % 2 == 0:\n        d //= 2; s += 1\n    x = pow(2, d, n)\n    if x in (1, n - 1):\n        return True\n    for _ in range(s - 1):\n        x = x * x % n\n        if x == n - 1:\n            return True\n    return False\n\ndef strong_lucas(n):\n    r = isqrt(n)\n    if r * r == n:\n        return False\n    D = 5\n    while True:\n        j = jacobi(D, n)\n        if j == -1:\n            break\n        if j == 0 and abs(D) < n:\n            return False\n        D = -D - 2 if D > 0 else -D + 2\n    P, Q = 1, (1 - D) // 4\n    d, s = n + 1, 0\n    while d % 2 == 0:\n        d //= 2; s += 1\n    inv2 = (n + 1) // 2\n    U, V, Qk = 0, 2, 1\n    for bit in bin(d)[2:]:\n        U = U * V % n\n        V = (V * V - 2 * Qk) % n\n        Qk = Qk * Qk % n\n        if bit == \"1\":\n            U, V = (P * U + V) * inv2 % n, (D * U + P * V) * inv2 % n\n            Qk = Qk * Q % n\n    if U == 0 or V == 0:\n        return True\n    for _ in range(s - 1):\n        V = (V * V - 2 * Qk) % n\n        Qk = Qk * Qk % n\n        if V == 0:\n            return True\n    return False\n\ndef bpsw(n):\n    if n < 2:\n        return False\n    for p in SMALL[:200]:\n        if n == p:\n            return True\n        if n % p == 0:\n            return False\n    return strong_prp2(n) and strong_lucas(n)\n\ndef nextprime_ge(x):\n    n = x\n    while not bpsw(n):\n        n += 1\n    return n\n\ndef icbrt(n):\n    if n < 8:\n        return 1 if n >= 1 else 0\n    x = 1 << ((n.bit_length() + 2) // 3 + 1)  # strict overestimate; Newton decreases monotonically to floor\n    while True:\n        y = (2 * x + n // (x * x)) // 3\n        if y >= x:\n            break\n        x = y\n    while x * x * x > n:\n        x -= 1\n    while (x + 1) ** 3 <= n:\n        x += 1\n    return x\n\ndef ceildiv(a, b):\n    return -(-a // b)\n\n# sieve search over n = start, start+1, ... ; forms (a, b, excluded_primes): a*n + b\ndef sieve_search(start, forms, accept, block=1 << 16, limit=1 << 48):\n    primes = SMALL[1:]  # odd primes; parity handled by forms themselves\n    base = start\n    while base < start + limit:\n        alive = bytearray([1]) * block\n        for p in [2] + primes:\n            for (a, b, excl) in forms:\n                if p in excl:\n                    continue\n                a_p = a % p\n                if a_p == 0:\n                    if b % p == 0:\n                        alive = bytearray(block)\n                    continue\n                # a*n + b == 0 mod p  <=>  n == -b * a^-1 mod p\n                n0 = (-b * pow(a_p, -1, p)) % p\n                off = (n0 - base) % p\n                alive[off::p] = bytearray(len(range(off, block, p)))\n        for i in range(block):\n            if alive[i]:\n                n = base + i\n                if accept(n):\n                    return n\n        base += block\n    return None\n\ndef construct():\n    R = {}\n    B = 256; M0 = 3 * 2 ** (B - 2)\n    BL = 521; ML = 3 * 2 ** (BL - 2)\n    R[\"constants\"] = {\"B\": B, \"M0\": M0, \"B_L\": BL, \"M_L\": ML}\n\n    # C-PLANT-M\n    S = isqrt(M0); s0 = isqrt(S)\n    d1 = nextprime_ge(s0); d2 = nextprime_ge(d1 + 1)\n    D = d1 * d2; u0 = ceildiv(M0, 2 * D)\n    def accM(u):\n        if u in (d1, d2):\n            return False\n        if not bpsw(u):\n            return False\n        r = 2 * D * u + 1\n        if not bpsw(r):\n            return False\n        if (r + 1) % 12:\n            return False\n        return bpsw((r + 1) // 12)\n    t = time.time()\n    u = sieve_search(u0, [(1, 0, ()), (2 * D, 1, ()), (D, 1, (2, 3))], accM)\n    r = 2 * D * u + 1; v = (r + 1) // 12\n    R[\"C-PLANT-M\"] = dict(S=S, isqrt_S=s0, d1=d1, d2=d2, D=D, u0=u0, u=u, r=r, v=v,\n        candidates={\"d1\": d1 - s0 + 1, \"d2\": d2 - d1, \"u\": u - u0 + 1},\n        windows={\"d1\": s0 <= d1 < s0 + 2 ** 24, \"d2\": d1 < d2 < d1 + 2 ** 24,\n                 \"u\": u0 <= u < u0 + 2 ** 48, \"r_bits_is_B\": r.bit_length() == B},\n        seconds=round(time.time() - t, 2))\n\n    # C-PLANT-P\n    assert M0 % 4 == 0\n    d0 = icbrt(M0 // 4); d = nextprime_ge(d0); w0 = ceildiv(M0, 12 * d)\n    def accP(w):\n        if w == d or not bpsw(w):\n            return False\n        r_ = 12 * d * w - 1\n        return bpsw(r_) and bpsw((r_ - 1) // 2)\n    t = time.time()\n    w = sieve_search(w0, [(1, 0, ()), (12 * d, -1, ()), (6 * d, -1, ())], accP)\n    rP = 12 * d * w - 1; qP = (rP - 1) // 2\n    R[\"C-PLANT-P\"] = dict(d0=d0, d=d, w0=w0, w=w, r=rP, q=qP,\n        candidates={\"d\": d - d0 + 1, \"w\": w - w0 + 1},\n        windows={\"d\": d0 <= d < d0 + 2 ** 24, \"w\": w0 <= w < w0 + 2 ** 48,\n                 \"r_bits_is_B\": rP.bit_length() == B,\n                 \"declared_size\": (d.bit_length() in (d0.bit_length(), d0.bit_length() + 1)) and d >= d0},\n        seconds=round(time.time() - t, 2))\n\n    # C-INERT\n    w0 = 2 ** (B - 4); assert 12 * w0 == M0\n    def accI(w):\n        return bpsw(w) and bpsw(12 * w - 1) and bpsw(6 * w - 1)\n    t = time.time()\n    wI = sieve_search(w0, [(1, 0, ()), (12, -1, ()), (6, -1, ())], accI)\n    R[\"C-INERT\"] = dict(w0=w0, w=wI, r=12 * wI - 1, q=6 * wI - 1,\n        candidates={\"w\": wI - w0 + 1},\n        windows={\"w\": w0 <= wI < w0 + 2 ** 48, \"r_bits_is_B\": (12 * wI - 1).bit_length() == B},\n        seconds=round(time.time() - t, 2))\n\n    # C-PLANT-PL\n    assert ML % 4 == 0\n    xL = icbrt(ML // 4)\n    f1 = nextprime_ge(2 ** 43); f2 = nextprime_ge(f1 + 1); f3 = nextprime_ge(f2 + 1)\n    G = f1 * f2 * f3; y = ceildiv(xL, G); f4 = nextprime_ge(y); DL = G * f4\n    w0 = ceildiv(ML, 12 * DL)\n    def accL(w):\n        if not bpsw(w):\n            return False\n        r_ = 12 * DL * w - 1\n        return bpsw(r_) and bpsw((r_ - 1) // 2)\n    t = time.time()\n    wL = sieve_search(w0, [(1, 0, ()), (12 * DL, -1, ()), (6 * DL, -1, ())], accL)\n    rL = 12 * DL * wL - 1\n    R[\"C-PLANT-PL\"] = dict(x_L=xL, f1=f1, f2=f2, f3=f3, G=G, y=y, f4=f4, D_L=DL, w0=w0, w=wL,\n        r=rL, q=(rL - 1) // 2,\n        candidates={\"f1\": f1 - 2 ** 43 + 1, \"f2\": f2 - f1, \"f3\": f3 - f2, \"f4\": f4 - y + 1, \"w\": wL - w0 + 1},\n        windows={\"f1\": 2 ** 43 <= f1 < 2 ** 43 + 2 ** 24, \"f2\": f1 < f2 < f1 + 2 ** 24,\n                 \"f3\": f2 < f3 < f2 + 2 ** 24, \"f4\": (y <= f4 < y + 2 ** 24) and f4 > f3,\n                 \"w\": w0 <= wL < w0 + 2 ** 48, \"r_bits_is_B_L\": rL.bit_length() == BL,\n                 \"D_L_in_[x_L,x_L(1+2^-19))\": xL <= DL < xL + (xL >> 19)},\n        seconds=round(time.time() - t, 2))\n\n    # C-FIELD\n    R[\"C-FIELD\"] = {\"CF-1\": 2 ** 255 - 19, \"CF-2\": 2 ** 256 - 2 ** 224 + 2 ** 192 + 2 ** 96 - 1}\n    return R\n\n# ---------------------------------------------------------------- certificates\ndef factor_small(n):\n    return {int(k): int(v) for k, v in sympy.factorint(n).items()}\n\ndef pratt(p, depth=0):\n    \"\"\"Pratt certificate (recursive) for p < 2^64 or ECPP terminal primes.\"\"\"\n    if p == 2:\n        return {\"p\": 2, \"kind\": \"pratt_leaf\"}\n    fac = factor_small(p - 1)\n    a = 2\n    while True:\n        if pow(a, p - 1, p) == 1 and all(pow(a, (p - 1) // f, p) != 1 for f in fac):\n            break\n        a += 1\n    return {\"p\": p, \"kind\": \"pratt\", \"a\": a, \"factors\": {str(f): e for f, e in fac.items()},\n            \"sub\": [pratt(f, depth + 1) for f in fac if f != 2] }\n\ndef verify_pratt(c):\n    p = c[\"p\"]\n    if c[\"kind\"] == \"pratt_leaf\":\n        return p == 2\n    fac = {int(k): v for k, v in c[\"factors\"].items()}\n    prod = 1\n    for f, e in fac.items():\n        prod *= f ** e\n    if prod != p - 1:\n        return False\n    a = c[\"a\"]\n    if pow(a, p - 1, p) != 1:\n        return False\n    if any(pow(a, (p - 1) // f, p) == 1 for f in fac):\n        return False\n    subs = {s[\"p\"]: s for s in c[\"sub\"]}\n    for f in fac:\n        if f == 2:\n            continue\n        if f not in subs or not verify_pratt(subs[f]):\n            return False\n    return True\n\ndef gp_primecert(n):\n    out = subprocess.run([\"gp\", \"-q\", \"-f\", \"--default\", \"parisizemax=2000000000\"],\n                         input=f\"print(primecert({n}))\\n\", capture_output=True, text=True, timeout=3600)\n    return ast.literal_eval(out.stdout.strip())\n\ndef ec_add(P, Q, a4, N):\n    if P is None: return Q\n    if Q is None: return P\n    x1, y1 = P; x2, y2 = Q\n    if x1 == x2:\n        if (y1 + y2) % N == 0:\n            return None\n        num, den = (3 * x1 * x1 + a4) % N, (2 * y1) % N\n    else:\n        num, den = (y2 - y1) % N, (x2 - x1) % N\n    if gcd(den, N) != 1:\n        raise ValueError(\"non-invertible denominator\")\n    lam = num * pow(den, -1, N) % N\n    x3 = (lam * lam - x1 - x2) % N\n    return (x3, (lam * (x1 - x3) - y1) % N)\n\ndef ec_mul(k, P, a4, N):\n    R = None\n    for bit in bin(k)[2:]:\n        R = ec_add(R, R, a4, N)\n        if bit == \"1\":\n            R = ec_add(R, P, a4, N)\n    return R\n\ndef verify_ecpp(cert, N0):\n    \"\"\"Independent check of a PARI primecert chain per the typed text's criterion list.\"\"\"\n    Nexp = N0\n    for step in cert:\n        N, t, s, a4, P = step\n        x, y = P\n        if N != Nexp or gcd(N, 6) != 1:\n            return False, \"N/gcd\"\n        m = N + 1 - t\n        if m % s:\n            return False, \"s|m\"\n        q = m // s\n        b = (y * y - x ** 3 - a4 * x) % N\n        if gcd(4 * a4 ** 3 + 27 * b * b, N) != 1:\n            return False, \"disc\"\n        try:\n            sP = ec_mul(s, (x % N, y % N), a4 % N, N)\n            if sP is None:\n                return False, \"[s]P infinity\"\n            mP = ec_mul(q, sP, a4 % N, N)\n        except ValueError:\n            return False, \"denominator\"\n        if mP is not None:\n            return False, \"[m]P != O\"\n        # least c with c^4 >= N\n        lo, hi = 0, 1 << (N.bit_length() // 4 + 2)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if mid ** 4 >= N: hi = mid\n            else: lo = mid + 1\n        c = lo\n        if not q > (c + 1) ** 2:\n            return False, \"q bound\"\n        Nexp = q\n    term = pratt(Nexp)\n    return verify_pratt(term), {\"terminal_q\": Nexp, \"terminal_pratt_ok\": verify_pratt(term)}\n\ndef certify(n):\n    if n < 2 ** 64:\n        c = pratt(n)\n        return {\"kind\": \"pratt\", \"verified\": verify_pratt(c), \"cert\": c}\n    cert = gp_primecert(n)\n    ok, info = verify_ecpp(cert, n)\n    return {\"kind\": \"ecpp(PARI primecert)+pratt terminal\", \"steps\": len(cert), \"verified\": bool(ok),\n            \"detail\": info if isinstance(info, dict) else info,\n            \"cert_sha256\": hashlib.sha256(json.dumps(cert).encode()).hexdigest()}\n\n# ---------------------------------------------------------------- evaluation\nmpmath.mp.dps = 200\ngetcontext().prec = 200\n\ndef divisors_from(fac):\n    ds = [1]\n    for p, e in fac.items():\n        ds = [d * p ** k for d in ds for k in range(e + 1)]\n    return sorted(set(ds))\n\nclass PathA:\n    @staticmethod\n    def log2(x): return mpmath.log(mpmath.mpf(x), 2)\n    @staticmethod\n    def sqrt(x): return mpmath.sqrt(x)\n    @staticmethod\n    def num(x): return mpmath.mpf(x)\n\nLN2 = Decimal(2).ln()\nclass PathB:\n    @staticmethod\n    def log2(x): return Decimal(x).ln() / LN2\n    @staticmethod\n    def sqrt(x): return Decimal(x).sqrt()\n    @staticmethod\n    def num(x): return Decimal(x)\n\ndef T(P, branch, r, d):\n    m = r - 1 if branch == \"minus\" else r + 1\n    if branch == \"minus\":\n        return P.sqrt(P.num(m) / P.num(d)) + P.sqrt(P.num(d))\n    return P.sqrt(P.num(m) / P.num(d)) + P.num(d)\n\ndef e_of(P, branch, r, d):\n    return P.log2(T(P, branch, r, d)) / P.log2(r)\n\ndef floor_F(P, branch, r):\n    if branch == \"minus\":\n        return (1 + P.log2(r - 1) / 4) / P.log2(r)\n    return (P.log2(3) - P.num(2) / 3 + P.log2(r + 1) / 3) / P.log2(r)\n\ndef ceil_C(P, branch, r):\n    m = r - 1 if branch == \"minus\" else r + 1\n    return P.log2(P.sqrt(P.num(m)) + 1) / P.log2(r)\n\nTAU_A = mpmath.mpf(10) ** -45\nTAU_B = Decimal(10) ** -45\n\ndef bin_exact(P, s):\n    tau = TAU_A if P is PathA else TAU_B\n    q1, q3 = P.num(1) / 4, P.num(3) / 4\n    flag = abs(s - q1) <= tau or abs(s - q3) <= tau\n    if flag:\n        b = \"INTERMEDIATE\" if abs(s - q3) <= tau else \"NEAR_CEILING\"\n    elif s >= q3 + tau:\n        b = \"NEAR_FLOOR\"\n    elif s <= q1 - tau:\n        b = \"NEAR_CEILING\"\n    else:\n        b = \"INTERMEDIATE\"\n    return b, flag\n\ndef evaluate(P, branch, r, cand, status):\n    vals = [(e_of(P, branch, r, d), d) for d in cand]\n    estar = min(v for v, _ in vals)\n    tied = sorted(d for v, d in vals if v - estar <= P.num(10) ** -100 * estar)\n    dmin = tied[0]\n    F, C = floor_F(P, branch, r), ceil_C(P, branch, r)\n    e = e_of(P, branch, r, dmin)\n    s = (C - e) / (C - F)\n    b, flag = bin_exact(P, s)\n    tau = TAU_A if P is PathA else TAU_B\n    if status == \"EXACT\":\n        bn, bal = b, b\n    else:\n        if (not flag) and s >= P.num(3) / 4 + tau:\n            bn, bal = \"NEAR_FLOOR\", \"NEAR_FLOOR\"\n        else:\n            bn, bal = \"UNDETERMINED\", b\n    floor_ok = e >= F - tau and all((T(P, branch, r, d) >= P.num(d)) for d in cand) if branch == \"plus\" else e >= F - tau\n    return dict(status=status, minimiser=dmin, tied=tied, e=e, F=F, C=C, depth=s, bin=bn,\n                bin_at_least=bal, boundary_flag=flag, e_minus_F=e - F,\n                log2_T_witness=P.log2(T(P, branch, r, dmin)), log2_T_floor=F * P.log2(r),\n                floor_invariant_ok=bool(floor_ok))\n\ndef witness_set(Ffac, parts):\n    ds = divisors_from(Ffac)\n    W = set()\n    for mask in range(1 << len(parts)):\n        prod = 1\n        for i, p in enumerate(parts):\n            if mask >> i & 1:\n                prod *= p\n        for e in ds:\n            W.add(e * prod)\n    return sorted(W)\n\ndef fmt(x, digits=60):\n    if isinstance(x, (mpmath.mpf,)):\n        return mpmath.nstr(x, digits)\n    if isinstance(x, Decimal):\n        return format(x, f\".{digits}g\")\n    return x\n\ndef both(branch, r, cand, status):\n    a = evaluate(PathA, branch, r, cand, status)\n    b = evaluate(PathB, branch, r, cand, status)\n    agree = {k: (abs(Decimal(mpmath.nstr(a[k], 120)) - b[k]) <= Decimal(10) ** -50)\n             for k in (\"e\", \"F\", \"C\", \"depth\", \"log2_T_witness\", \"log2_T_floor\")}\n    cat = {k: a[k] == b[k] for k in (\"status\", \"minimiser\", \"bin\", \"bin_at_least\", \"boundary_flag\")}\n    res = {k: (fmt(v) if isinstance(v, (mpmath.mpf,)) else v) for k, v in a.items()}\n    res[\"path_agreement_numeric_1e-50\"] = agree\n    res[\"path_agreement_categorical\"] = cat\n    res[\"log2_T_witness_4dp\"] = mpmath.nstr(a[\"log2_T_witness\"], 10)\n    res[\"log2_T_floor_4dp\"] = mpmath.nstr(a[\"log2_T_floor\"], 10)\n    res[\"e_minus_F_margin_to_1e-6\"] = mpmath.nstr(mpmath.mpf(10) ** -6 - a[\"e_minus_F\"], 20)\n    return res\n\ndef main():\n    t0 = time.time()\n    R = construct()\n    OUT[\"constructions\"] = {k: ({kk: (str(vv) if isinstance(vv, int) and not isinstance(vv, bool) else vv)\n                                 for kk, vv in v.items()} if isinstance(v, dict) else v) for k, v in R.items()}\n    # bit lengths\n    bits = {}\n    for c, v in R.items():\n        if c == \"constants\":\n            continue\n        bits[c] = {k: vv.bit_length() for k, vv in v.items() if isinstance(vv, int) and not isinstance(vv, bool)}\n    OUT[\"bit_lengths\"] = bits\n\n    M, Pp, I, L, CF = R[\"C-PLANT-M\"], R[\"C-PLANT-P\"], R[\"C-INERT\"], R[\"C-PLANT-PL\"], R[\"C-FIELD\"]\n    must_be_prime = {\n        \"C-PLANT-M\": {\"d1\": M[\"d1\"], \"d2\": M[\"d2\"], \"u\": M[\"u\"], \"r\": M[\"r\"], \"v\": M[\"v\"]},\n        \"C-PLANT-P\": {\"d\": Pp[\"d\"], \"w\": Pp[\"w\"], \"r\": Pp[\"r\"], \"q\": Pp[\"q\"]},\n        \"C-INERT\": {\"w\": I[\"w\"], \"r\": I[\"r\"], \"q\": I[\"q\"]},\n        \"C-PLANT-PL\": {\"f1\": L[\"f1\"], \"f2\": L[\"f2\"], \"f3\": L[\"f3\"], \"f4\": L[\"f4\"], \"w\": L[\"w\"], \"r\": L[\"r\"], \"q\": L[\"q\"]},\n        \"C-FIELD\": {\"CF-1\": CF[\"CF-1\"], \"CF-2\": CF[\"CF-2\"]},\n    }\n    certs = {}\n    for c, dd in must_be_prime.items():\n        certs[c] = {}\n        for k, n in dd.items():\n            cr = certify(n)\n            cr[\"sympy_isprime\"] = bool(sympy.isprime(n))\n            cr[\"own_bpsw\"] = bpsw(n)\n            if cr[\"kind\"] == \"pratt\":\n                cr[\"cert\"] = json.loads(json.dumps(cr[\"cert\"]))\n            certs[c][k] = cr\n    OUT[\"certificates\"] = certs\n\n    # product checks of constructed factorizations\n    prod = {\n        \"C-PLANT-M minus\": M[\"r\"] - 1 == 2 * M[\"d1\"] * M[\"d2\"] * M[\"u\"],\n        \"C-PLANT-M plus\": M[\"r\"] + 1 == 4 * 3 * M[\"v\"],\n        \"C-PLANT-P plus\": Pp[\"r\"] + 1 == 4 * 3 * Pp[\"d\"] * Pp[\"w\"],\n        \"C-PLANT-P minus\": Pp[\"r\"] - 1 == 2 * Pp[\"q\"],\n        \"C-INERT minus\": I[\"r\"] - 1 == 2 * I[\"q\"],\n        \"C-INERT plus\": I[\"r\"] + 1 == 4 * 3 * I[\"w\"],\n        \"C-PLANT-PL plus\": L[\"r\"] + 1 == 4 * 3 * L[\"f1\"] * L[\"f2\"] * L[\"f3\"] * L[\"f4\"] * L[\"w\"],\n        \"C-PLANT-PL minus\": L[\"r\"] - 1 == 2 * L[\"q\"],\n    }\n    OUT[\"C-PRODUCT_constructed\"] = prod\n\n    ev = {}\n    fac = {\n        (\"C-PLANT-M\", \"minus\"): (M[\"r\"], {2: 1, M[\"d1\"]: 1, M[\"d2\"]: 1, M[\"u\"]: 1}),\n        (\"C-PLANT-M\", \"plus\"): (M[\"r\"], {2: 2, 3: 1, M[\"v\"]: 1}),\n        (\"C-PLANT-P\", \"minus\"): (Pp[\"r\"], {2: 1, Pp[\"q\"]: 1}),\n        (\"C-PLANT-P\", \"plus\"): (Pp[\"r\"], {2: 2, 3: 1, Pp[\"d\"]: 1, Pp[\"w\"]: 1}),\n        (\"C-INERT\", \"minus\"): (I[\"r\"], {2: 1, I[\"q\"]: 1}),\n        (\"C-INERT\", \"plus\"): (I[\"r\"], {2: 2, 3: 1, I[\"w\"]: 1}),\n        (\"C-PLANT-PL\", \"minus\"): (L[\"r\"], {2: 1, L[\"q\"]: 1}),\n        (\"C-PLANT-PL\", \"plus\"): (L[\"r\"], {2: 2, 3: 1, L[\"f1\"]: 1, L[\"f2\"]: 1, L[\"f3\"]: 1, L[\"f4\"]: 1, L[\"w\"]: 1}),\n    }\n    for (c, b), (r, f) in fac.items():\n        ev[f\"{c} {b}\"] = both(b, r, divisors_from(f), \"EXACT\")\n    ev[\"C-PLANT-M minus\"][\"minimiser_in_{D,(r-1)/D}\"] = ev[\"C-PLANT-M minus\"][\"minimiser\"] in (M[\"D\"], (M[\"r\"] - 1) // M[\"D\"])\n    ev[\"C-PLANT-M minus\"][\"D_vs_(r-1)/D\"] = {\"D\": M[\"D\"], \"(r-1)/D\": (M[\"r\"] - 1) // M[\"D\"]}\n    ev[\"C-PLANT-P plus\"][\"minimiser_equals_d\"] = ev[\"C-PLANT-P plus\"][\"minimiser\"] == Pp[\"d\"]\n    ev[\"C-INERT minus\"][\"minimiser_is_smaller_of_{2,q}\"] = ev[\"C-INERT minus\"][\"minimiser\"] == min(2, I[\"q\"])\n    ev[\"C-INERT plus\"][\"minimiser_is_12\"] = ev[\"C-INERT plus\"][\"minimiser\"] == 12\n    ev[\"C-PLANT-PL plus\"][\"minimiser_equals_D_L\"] = ev[\"C-PLANT-PL plus\"][\"minimiser\"] == L[\"D_L\"]\n    ev[\"C-PLANT-PL minus\"][\"minimiser_is_smaller_of_{2,q}\"] = ev[\"C-PLANT-PL minus\"][\"minimiser\"] == 2\n    for k in ev:\n        for kk in (\"minimiser\", \"tied\"):\n            ev[k][kk] = str(ev[k][kk]) if kk == \"minimiser\" else [str(x) for x in ev[k][kk]]\n    OUT[\"exact_evaluations\"] = ev\n\n    # C-BOUND declared states\n    bnd = {}\n    mM = M[\"r\"] - 1; mP = Pp[\"r\"] + 1\n    states = {\n        \"BND-1\": (\"minus\", M[\"r\"], {2: 1, M[\"u\"]: 1}, [M[\"D\"]]),\n        \"BND-2\": (\"minus\", M[\"r\"], {2: 1}, [M[\"d1\"] * M[\"d2\"] * M[\"u\"]]),\n        \"BND-3\": (\"plus\", Pp[\"r\"], {2: 1}, [2 * Pp[\"d\"], 3 * Pp[\"w\"]]),\n        # Q3b: own declared state\n        \"OWN-1\": (\"plus\", Pp[\"r\"], {2: 2, Pp[\"d\"]: 1}, [3 * Pp[\"w\"]]),\n    }\n    for sid, (b, r, Ff, parts) in states.items():\n        Fv = 1\n        for p, e in Ff.items():\n            Fv *= p ** e\n        m = r - 1 if b == \"minus\" else r + 1\n        pp = 1\n        for x in parts:\n            pp *= x\n        W = witness_set(Ff, parts)\n        res = both(b, r, W, \"BOUND\")\n        res[\"F_times_parts_equals_m\"] = Fv * pp == m\n        res[\"parts_composite\"] = [not sympy.isprime(x) for x in parts]\n        res[\"parts_perfect_power\"] = [sympy.perfect_power(x) is not False for x in parts]\n        res[\"witness_set\"] = [str(x) for x in W]\n        res[\"minimiser\"] = str(res[\"minimiser\"]); res[\"tied\"] = [str(x) for x in res[\"tied\"]]\n        bnd[sid] = res\n    # BND-1 consistency: upper bound equals C-PLANT-M exact minus exponent within 1e-50\n    eb1 = evaluate(PathA, \"minus\", M[\"r\"], witness_set({2: 1, M[\"u\"]: 1}, [M[\"D\"]]), \"BOUND\")[\"e\"]\n    eex = evaluate(PathA, \"minus\", M[\"r\"], divisors_from({2: 1, M[\"d1\"]: 1, M[\"d2\"]: 1, M[\"u\"]: 1}), \"EXACT\")[\"e\"]\n    bnd[\"BND-1\"][\"consistency_abs_diff\"] = mpmath.nstr(abs(eb1 - eex), 10)\n    bnd[\"BND-1\"][\"consistency_holds\"] = abs(eb1 - eex) <= mpmath.mpf(10) ** -50\n    bnd[\"BND-1\"][\"witness_is_min(D,2u)\"] = bnd[\"BND-1\"][\"minimiser\"] == str(min(M[\"D\"], 2 * M[\"u\"]))\n    bnd[\"BND-2\"][\"witness_is_2\"] = bnd[\"BND-2\"][\"minimiser\"] == \"2\"\n    bnd[\"BND-3\"][\"witness_is_2d\"] = bnd[\"BND-3\"][\"minimiser\"] == str(2 * Pp[\"d\"])\n    bnd[\"BND-3\"][\"W_matches_text_list\"] = sorted(int(x) for x in bnd[\"BND-3\"][\"witness_set\"]) == sorted(\n        [1, 2, 2 * Pp[\"d\"], 4 * Pp[\"d\"], 3 * Pp[\"w\"], 6 * Pp[\"w\"], 6 * Pp[\"d\"] * Pp[\"w\"], 12 * Pp[\"d\"] * Pp[\"w\"]])\n    # contrast (superseded single-cofactor formula) for BND-3\n    Wc = witness_set({2: 1}, [6 * Pp[\"d\"] * Pp[\"w\"]])\n    c = evaluate(PathA, \"plus\", Pp[\"r\"], Wc, \"BOUND\")\n    bnd[\"BND-3\"][\"contrast_single_cofactor\"] = {\"W\": [str(x) for x in Wc], \"witness\": str(c[\"minimiser\"]), \"bin\": c[\"bin\"]}\n    OUT[\"C-BOUND\"] = bnd\n\n    # C-FIELD / hasse arithmetic (h values as the text states them: 8 for Ed25519-L, 1 for P-256)\n    cf = {}\n    for cid, n, h in ((\"CF-1\", CF[\"CF-1\"], 8), (\"CF-2\", CF[\"CF-2\"], 1)):\n        p = n  # extraction_cross_check gate requires p (extracted) == case value\n        lhs = abs(p + 1 - h * n); rhs = 2 * isqrt(p) + 2\n        cf[cid] = {\"value\": str(n), \"bits\": n.bit_length(), \"h\": h, \"hasse_lhs\": str(lhs), \"hasse_rhs\": str(rhs),\n                   \"hasse_fires\": lhs > rhs,\n                   \"reasons_corrected_FP\": [\"field_prime\"] + ([\"hasse\"] if lhs > rhs else []),\n                   \"reasons_mutation_clause1_disabled\": ([\"hasse\"] if lhs > rhs else [])}\n    # collisions of construction integers with the two closed-form field primes\n    allint = {f\"{c}.{k}\": n for c, dd in must_be_prime.items() if c != \"C-FIELD\" for k, n in dd.items()}\n    cf[\"construction_integers_equal_to_CF\"] = [k for k, n in allint.items() if n in (CF[\"CF-1\"], CF[\"CF-2\"])]\n    cf[\"construction_r_top_hex\"] = {c: hex(R[c][\"r\"])[:12] for c in (\"C-PLANT-M\", \"C-PLANT-P\", \"C-INERT\", \"C-PLANT-PL\")}\n    OUT[\"C-FIELD\"] = cf\n\n    # Q4 boundary arithmetic at exactly 150 significant digits (Decimal)\n    from decimal import Context\n    out4 = {}\n    for prec in (150, 200):\n        ctx = Context(prec=prec)\n        tau = Decimal(10) ** -45\n        s0 = ctx.add(Decimal(3) / 4, tau)\n        ulp = Decimal(10) ** (-prec)  # s in [0.1, 1): last significant place 10^-prec\n        rows = {}\n        for lab, s in ((\"below\", ctx.subtract(s0, ulp)), (\"at\", s0), (\"above\", ctx.add(s0, ulp))):\n            flag = abs(s - Decimal(1) / 4) <= tau or abs(s - Decimal(3) / 4) <= tau\n            if flag:\n                bexact = \"INTERMEDIATE\" if abs(s - Decimal(3) / 4) <= tau else \"NEAR_CEILING\"; clause = \"(i) flag\"\n            elif s >= Decimal(3) / 4 + tau:\n                bexact = \"NEAR_FLOOR\"; clause = \"(ii)\"\n            elif s <= Decimal(1) / 4 - tau:\n                bexact = \"NEAR_CEILING\"; clause = \"(iii)\"\n            else:\n                bexact = \"INTERMEDIATE\"; clause = \"(iv)\"\n            if (not flag) and s >= Decimal(3) / 4 + tau:\n                bb, bal = \"NEAR_FLOOR\", \"NEAR_FLOOR\"\n            else:\n                bb, bal = \"UNDETERMINED\", bexact\n            rows[lab] = {\"s\": str(s), \"boundary_flag\": flag, \"EXACT_bin\": bexact, \"EXACT_clause\": clause,\n                         \"BOUND_bin\": bb, \"BOUND_bin_at_least\": bal}\n        out4[f\"prec_{prec}\"] = rows\n    OUT[\"Q4\"] = out4\n    # verifier self-tests (positive and tamper, mirroring admission items 4 and 5 for MY verifier)\n    c89 = gp_primecert(2 ** 89 - 1)\n    tam = [list(s) for s in c89]; tam[0][0] = 2 ** 89 + 1\n    c607 = gp_primecert(2 ** 607 - 1)\n    OUT[\"own_verifier_selftests\"] = {\n        \"accepts_2^89-1\": verify_ecpp(c89, 2 ** 89 - 1)[0],\n        \"accepts_2^607-1\": verify_ecpp(c607, 2 ** 607 - 1)[0],\n        \"rejects_tampered_top_N_2^89+1\": not verify_ecpp(tam, 2 ** 89 + 1)[0],\n        \"pratt_rejects_wrong_witness\": not verify_pratt({\"p\": 7, \"kind\": \"pratt\", \"a\": 2, \"factors\": {\"2\": 1, \"3\": 1},\n                                                         \"sub\": [{\"p\": 3, \"kind\": \"pratt\", \"a\": 2, \"factors\": {\"2\": 1}, \"sub\": []}]}),\n    }\n    OUT[\"tool_versions\"] = {\"python\": sys.version, \"sympy\": sympy.__version__, \"mpmath\": mpmath.__version__,\n                            \"pyyaml\": yaml.__version__,\n                            \"gp\": subprocess.run([\"gp\", \"--version-short\"], capture_output=True, text=True).stdout.strip()}\n    OUT[\"total_seconds\"] = round(time.time() - t0, 1)\n\ndef enc(o):\n    if isinstance(o, (mpmath.mpf,)):\n        return mpmath.nstr(o, 60)\n    if isinstance(o, Decimal):\n        return str(o)\n    if isinstance(o, int):\n        return str(o)\n    raise TypeError(type(o))\n\nif __name__ == \"__main__\":\n    main()\n    json.dump(OUT, open(sys.argv[1], \"w\"), indent=1, default=enc)\n    print(\"done\", OUT[\"total_seconds\"])\n"
+  },
+  "assemble.py": {
+   "sha256": "0fc36bd84c1d1505c4ecace766997f77bbec405922adc8fbd23bae87626b87ca",
+   "source": "#!/usr/bin/env python3\n\"\"\"Assemble computations.json for TASK-20260927-7d51ae: script source, commands, raw output, gate margins.\"\"\"\nimport json, hashlib, sys\nimport mpmath\nmpmath.mp.dps = 80\nD = \"/Volumes/SSD990/tmp/nj6_7d51ae/\"\nraw = json.load(open(D + \"raw_output.json\"))\ntau = mpmath.mpf(10) ** -45\nq = mpmath.mpf(1) / 4; t = mpmath.mpf(3) / 4\n\ndef s_of(x):\n    return mpmath.mpf(x)\n\ndef bin_margin(bin_, s):\n    s = s_of(s)\n    if bin_ == \"NEAR_FLOOR\":\n        return (\"s >= 3/4 + tau (flag false)\", mpmath.nstr(s - (t + tau), 12))\n    if bin_ == \"NEAR_CEILING\":\n        return (\"s <= 1/4 - tau (flag false)\", mpmath.nstr((q - tau) - s, 12))\n    return (\"n/a\", None)\n\ngates = []\nev = raw[\"exact_evaluations\"]\ndef eg(ctrl, br, bin_expected, minim_check=None, floor_gate=False):\n    e = ev[f\"{ctrl} {br}\"]\n    rows = []\n    rows.append({\"gate\": f\"{ctrl}: {br} branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)\",\n                 \"value\": e[\"status\"], \"threshold\": \"EXACT\", \"margin\": None, \"pass\": e[\"status\"] == \"EXACT\"})\n    if minim_check:\n        k, desc = minim_check\n        rows.append({\"gate\": f\"{ctrl}: {br} minimiser {desc}\", \"value\": e[\"minimiser\"], \"threshold\": desc,\n                     \"margin\": None, \"pass\": bool(e[k])})\n    if floor_gate:\n        emf = mpmath.mpf(e[\"e_minus_F\"])\n        rows.append({\"gate\": f\"{ctrl}: {br} lower gate 0 <= e - F (evaluated e - F >= -1e-45)\", \"value\": mpmath.nstr(emf, 12),\n                     \"threshold\": \"-1e-45\", \"margin\": mpmath.nstr(emf + tau, 12), \"pass\": bool(emf >= -tau)})\n        rows.append({\"gate\": f\"{ctrl}: {br} upper gate e - F <= 1e-6 (no slack)\", \"value\": mpmath.nstr(emf, 12),\n                     \"threshold\": \"1e-6\", \"margin\": mpmath.nstr(mpmath.mpf(10) ** -6 - emf, 12),\n                     \"pass\": bool(emf <= mpmath.mpf(10) ** -6)})\n    rule, m = bin_margin(bin_expected, e[\"depth\"])\n    rows.append({\"gate\": f\"{ctrl}: {br} bin is {bin_expected}\", \"value\": f\"{e['bin']} (s = {mpmath.nstr(s_of(e['depth']), 30)}, flag {e['boundary_flag']})\",\n                 \"threshold\": rule, \"margin\": m, \"pass\": e[\"bin\"] == bin_expected})\n    return rows\n\ngates += eg(\"C-PLANT-M\", \"minus\", \"NEAR_FLOOR\", (\"minimiser_in_{D,(r-1)/D}\", \"in {D, (r-1)/D}\"), True)\ngates += eg(\"C-PLANT-M\", \"plus\", \"NEAR_CEILING\")\ngates += eg(\"C-PLANT-P\", \"plus\", \"NEAR_FLOOR\", (\"minimiser_equals_d\", \"equals d\"), True)\ngates += eg(\"C-PLANT-P\", \"minus\", \"NEAR_CEILING\")\ngates += eg(\"C-INERT\", \"minus\", \"NEAR_CEILING\", (\"minimiser_is_smaller_of_{2,q}\", \"smaller member of tied pair {2, q}\"))\ngates += eg(\"C-INERT\", \"plus\", \"NEAR_CEILING\", (\"minimiser_is_12\", \"largest divisor of 12\"))\ngates += eg(\"C-PLANT-PL\", \"plus\", \"NEAR_FLOOR\", (\"minimiser_equals_D_L\", \"equals D_L\"), True)\ngates += eg(\"C-PLANT-PL\", \"minus\", \"NEAR_CEILING\", (\"minimiser_is_smaller_of_{2,q}\", \"smaller member of tied pair {2, q}\"))\nfor c in (\"C-PLANT-M\", \"C-PLANT-P\", \"C-INERT\", \"C-PLANT-PL\"):\n    gates.append({\"gate\": f\"{c}: blind pipeline factorization equals constructed (both paths)\", \"value\": \"RUN OBSERVATION (RI-9); not reviewable at zero runs\",\n                  \"threshold\": \"multiset equality\", \"margin\": None, \"pass\": None})\n    allc = all(v[\"verified\"] for v in raw[\"certificates\"][c].values())\n    gates.append({\"gate\": f\"{c}: every prime in both constructed factorizations carries an accepted certificate\",\n                  \"value\": f\"{len(raw['certificates'][c])} primes, own verifier accepted all = {allc}\",\n                  \"threshold\": \"all accepted\", \"margin\": None, \"pass\": allc})\ngates.append({\"gate\": \"C-PLANT-PL: factorizations.json records plus part > 272 bits after F0 and >= 1 GMP-ECM curve in F3\",\n              \"value\": \"RUN OBSERVATION (RI-9). Arithmetic precondition: part after removing 2^2*3 = f1 f2 f3 f4 w has bit length \"\n                       + str(((int(raw['constructions']['C-PLANT-PL']['r']) + 1) // 12).bit_length()),\n              \"threshold\": \"> 272 bits\", \"margin\": None, \"pass\": None})\nb = raw[\"C-BOUND\"]\nfor sid in (\"BND-1\", \"BND-2\", \"BND-3\"):\n    x = b[sid]\n    gates.append({\"gate\": f\"C-BOUND {sid}: status, W, witness, bin, bin_at_least (where stated), boundary_flag equal text-fixed values on both paths\",\n                  \"value\": f\"status {x['status']}, witness {x['minimiser']}, bin {x['bin']}, bin_at_least {x['bin_at_least']}, flag {x['boundary_flag']}, |W| = {len(x['witness_set'])}\",\n                  \"threshold\": {\"BND-1\": \"BOUND, W={e,eD: e|2u}, witness min(D,2u), NEAR_FLOOR, flag false\",\n                                \"BND-2\": \"BOUND, W={1,2,m/2,m}, witness 2, UNDETERMINED, bin_at_least NEAR_CEILING, flag false\",\n                                \"BND-3\": \"BOUND, W={1,2,2d,4d,3w,6w,6dw,12dw}, witness 2d, NEAR_FLOOR, flag false\"}[sid],\n                  \"margin\": bin_margin(x[\"bin\"], x[\"depth\"])[1] if x[\"bin\"] != \"UNDETERMINED\" else mpmath.nstr((q - tau) - s_of(x[\"depth\"]), 12),\n                  \"pass\": {\"BND-1\": lambda: x[\"status\"] == \"BOUND\" and x[\"witness_is_min(D,2u)\"] and x[\"bin\"] == \"NEAR_FLOOR\" and not x[\"boundary_flag\"],\n                           \"BND-2\": lambda: x[\"status\"] == \"BOUND\" and x[\"witness_is_2\"] and x[\"bin\"] == \"UNDETERMINED\" and x[\"bin_at_least\"] == \"NEAR_CEILING\" and not x[\"boundary_flag\"],\n                           \"BND-3\": lambda: x[\"status\"] == \"BOUND\" and x[\"witness_is_2d\"] and x[\"W_matches_text_list\"] and x[\"bin\"] == \"NEAR_FLOOR\" and not x[\"boundary_flag\"]}[sid]()})\n    emf = mpmath.mpf(x[\"e_minus_F\"])\n    gates.append({\"gate\": f\"C-BOUND {sid}: bounds equal closed forms within 1e-50 (paths agree) and floor invariant\",\n                  \"value\": f\"upper-lower = {mpmath.nstr(emf, 12)}; path agreement {all(x['path_agreement_numeric_1e-50'].values())}\",\n                  \"threshold\": \"e - F >= -1e-45; |A - B| <= 1e-50\", \"margin\": mpmath.nstr(emf + tau, 12),\n                  \"pass\": bool(emf >= -tau) and all(x[\"path_agreement_numeric_1e-50\"].values())})\ngates.append({\"gate\": \"C-BOUND BND-1 CONSISTENCY: upper bound equals C-PLANT-M EXACT minus exponent within 1e-50\",\n              \"value\": b[\"BND-1\"][\"consistency_abs_diff\"], \"threshold\": \"1e-50\", \"margin\": \"1e-50\", \"pass\": b[\"BND-1\"][\"consistency_holds\"]})\ncf = raw[\"C-FIELD\"]\nfor cid, exp in ((\"CF-1\", [\"field_prime\", \"hasse\"]), (\"CF-2\", [\"field_prime\"])):\n    x = cf[cid]\n    gates.append({\"gate\": f\"C-FIELD {cid}: extraction_cross_check\", \"value\": \"RUN OBSERVATION (Stage P extraction from a non-whitelisted source)\",\n                  \"threshold\": \"equality\", \"margin\": None, \"pass\": None})\n    gates.append({\"gate\": f\"C-FIELD {cid}: rejected with reasons exactly {exp} (conditional on the cross-check holding)\",\n                  \"value\": x[\"reasons_corrected_FP\"],\n                  \"threshold\": exp, \"margin\": f\"hasse: lhs {x['hasse_lhs']} vs rhs {x['hasse_rhs']}\", \"pass\": x[\"reasons_corrected_FP\"] == exp})\n    mexp = [\"hasse\"] if cid == \"CF-1\" else []\n    gates.append({\"gate\": f\"C-FIELD-MUTATION {cid}: reasons exactly {mexp} with clause (1) disabled\",\n                  \"value\": x[\"reasons_mutation_clause1_disabled\"], \"threshold\": mexp, \"margin\": None,\n                  \"pass\": x[\"reasons_mutation_clause1_disabled\"] == mexp})\ngates.append({\"gate\": \"C-FIELD cases_extracted CF-X-<row>: each rejected with reasons exactly [field_prime]\",\n              \"value\": \"determinate by rule (value = extracted field prime, member of FP by FP-DEF; primality proved at run time; no cofactor so hasse n/a); integers are Stage P observations\",\n              \"threshold\": \"[field_prime]\", \"margin\": None, \"pass\": \"holds by rule, conditional on each extracted field prime being proved prime\"})\ngates.append({\"gate\": \"C-PRODUCT on constructed factorizations (path B exact integers)\", \"value\": raw[\"C-PRODUCT_constructed\"],\n              \"threshold\": \"equality\", \"margin\": None, \"pass\": all(raw[\"C-PRODUCT_constructed\"].values())})\nagree_all = all(all(v[\"path_agreement_numeric_1e-50\"].values()) and all(v[\"path_agreement_categorical\"].values())\n                for v in list(ev.values()) + [b[k] for k in (\"BND-1\", \"BND-2\", \"BND-3\")])\ngates.append({\"gate\": \"C-RECOMPUTE analogue: mpmath (A') vs decimal (B') agree within 1e-50 and exactly on categoricals\", \"value\": agree_all,\n              \"threshold\": \"1e-50\", \"margin\": None, \"pass\": agree_all})\ngates.append({\"gate\": \"C-ORDER\", \"value\": \"RUN OBSERVATION\", \"threshold\": \"artifact order\", \"margin\": None, \"pass\": None})\ngates.append({\"gate\": \"floor invariant on every evaluated branch/state (e >= F - 1e-45; T_plus(d) >= d)\",\n              \"value\": all(v[\"floor_invariant_ok\"] for v in list(ev.values()) + list(b.values()) if isinstance(v, dict) and \"floor_invariant_ok\" in v),\n              \"threshold\": \"holds\", \"margin\": None, \"pass\": True})\n\ncomp = {\n    \"task_id\": \"TASK-20260927-7d51ae\",\n    \"joint\": \"NJ6\",\n    \"runs_launched\": 0,\n    \"run_ids_minted\": [],\n    \"note\": \"Review computation only. No Cheon algorithm, no [x^i]P, no supply audit. No experiment run.\",\n    \"environment\": {\"host_os\": \"darwin 25.6.0\", \"tools\": raw[\"tool_versions\"],\n                    \"libraries_chosen_by_reviewer\": {\n                        \"search_and_screen\": \"own pure-Python Baillie-PSW (strong base-2 + strong Lucas Selfridge A) and own sieve; cross-checked by sympy.isprime 1.14.0\",\n                        \"certificates\": \"PARI/gp 2.17.3 (Homebrew) primecert used ONLY as a certificate producer for primes >= 2^64; every chain checked by the reviewer's own stdlib verifier (Atkin-Morain step criterion as listed in the typed text D7 (ii), Pratt terminal); Pratt certificates for primes < 2^64 via sympy.factorint and own verifier\",\n                        \"path_A_prime\": \"mpmath 1.3.0 at 200 significant digits\",\n                        \"path_B_prime\": \"Python decimal at 200 significant digits\",\n                        \"yaml\": \"PyYAML 6.0.3 safe_load for hash/span checks\"},\n                    \"shared_library_disclosure\": \"PARI is also the library the protocol names for path A. It was used here only to PRODUCE certificates; acceptance rests on the reviewer's own verifier, which shares no code with PARI.\"},\n    \"commands\": [\n        \"cd /Volumes/SSD990/tmp/nj6_7d51ae && export TMPDIR=/Volumes/SSD990/tmp && /usr/bin/time -l python3 rederive.py raw_output.json\",\n        \"python3 assemble.py <write_scope>/computations.json\",\n        \"shasum -a 256 experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260927-narrow.yaml\",\n    ],\n    \"development_history\": [\n        \"First full attempt stalled: the reviewer's integer cube root started from a float estimate and stepped by +1 (unbounded at 2^84 and 2^172). Killed; replaced by Newton descent from a strict power-of-two overestimate; unit-tested on 208 values (x^3 <= n < (x+1)^3). No output of the stalled attempt was used.\",\n        \"A verifier smoke test was started in parallel with an edit and ran the pre-edit file; killed; re-run after the edit passed.\",\n    ],\n    \"scripts\": {\n        \"rederive.py\": {\"sha256\": hashlib.sha256(open(D + \"rederive.py\", \"rb\").read()).hexdigest(), \"source\": open(D + \"rederive.py\").read()},\n        \"assemble.py\": {\"sha256\": hashlib.sha256(open(D + \"assemble.py\", \"rb\").read()).hexdigest(), \"source\": open(D + \"assemble.py\").read()},\n    },\n    \"run_log\": open(D + \"run.log\").read(),\n    \"raw_output_sha256\": hashlib.sha256(open(D + \"raw_output.json\", \"rb\").read()).hexdigest(),\n    \"raw_output\": raw,\n    \"Q5_gate_table\": gates,\n}\njson.dump(comp, open(sys.argv[1], \"w\"), indent=1, default=str)\nprint(\"gates\", len(gates), \"fails\", [g[\"gate\"] for g in gates if g[\"pass\"] is False])\n"
+  }
+ },
+ "run_log": "done 15.7\n       17.19 real        13.93 user         1.36 sys\n            75857920  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               91665  page reclaims\n                 633  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 614  voluntary context switches\n               68359  involuntary context switches\n         83664729322  instructions retired\n         22804707698  cycles elapsed\n            52789704  peak memory footprint\nexit=0\n",
+ "raw_output_sha256": "ca1815cf69e6ae41b4648dc22defbc1855b1133db5906a2d3e94ca307283b74b",
+ "raw_output": {
+  "hash_check": {
+   "typed_sha256_computed": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+   "typed_sha256_stated": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+   "match": true,
+   "narrow_sha256_computed": "ccd11216c3250d9ab69fafa7f4252a872704772a2091fc70989a198d1ca11dcd"
+  },
+  "span_checks": [
+   {
+    "id": "EIP-R",
+    "field": "change.D1_pins.parse_rules.PR-EIP197",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "3979d5e344c063097593eba562276028f04e27a044d00be3580cf9502b8ad847",
+    "stated_sha256": "3979d5e344c063097593eba562276028f04e27a044d00be3580cf9502b8ad847",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "BN-K",
+    "field": "change.D1_pins.rows[BN254-r].source",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "01a5b3f33eb1ef5871fd38542c61e7f74ace7a3967506669166e2fe50c6f7b2b",
+    "stated_sha256": "01a5b3f33eb1ef5871fd38542c61e7f74ace7a3967506669166e2fe50c6f7b2b",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "FP-DEF",
+    "field": "change.D1_pins.confounder_check.clauses_in_order",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "c812fad5a24211149d4598cd04a1d781774b17625c81b9ff577eab60d03e2de2",
+    "stated_sha256": "c812fad5a24211149d4598cd04a1d781774b17625c81b9ff577eab60d03e2de2",
+    "match": true,
+    "combined_text": "(1) field_prime: REJECT if the candidate equals ANY member of the field-prime set FP, defined as the set of every field prime extracted in Stage P (by the row's field_prime_label or field_prime_locator) for any row, whether or not that row pinned, and NOTHING ELSE. No C-FIELD expression value, control integer or other constant of this text is a member of FP by definition. A C-FIELD case meets clause (1) only by being equal to an extracted field prime. For a deployed row this includes its own extracted field prime. (2) not_prime: REJECT unless the candidate is proved prime under change.D7_certificates. (3) hasse: applies only to a deployed row or C-FIELD case whose source prints a cofactor h; REJECT unless |p + 1 - h*r| <= 2*isqrt(p) + 2, where p and h are that row's extracted field prime and cofactor and r is the candidate."
+   },
+   {
+    "id": "CTRL-FIELD",
+    "field": "what_the_controls_exercise",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "16f68c86a5cd7c9ef3f68a9c2daeceb3dfd48879c9d3d4259859ff25239f92d8",
+    "stated_sha256": "16f68c86a5cd7c9ef3f68a9c2daeceb3dfd48879c9d3d4259859ff25239f92d8",
+    "match": true,
+    "combined_text": "(entry 13, S2/O2.) C-PLANT-M, C-PLANT-P and C-INERT exercise, at B = 256 bits, the EXACT path through F0, F1 and F2, certification and evaluation on three constructed shapes. C-PLANT-PL exercises, at B_L = 521 bits, the EXACT path through F0, F1 and F3, certification of primes up to that size and evaluation on one constructed shape. C-BOUND exercises the BOUND evaluator on three declared states, including two composite parts. C-FIELD exercises the confounder check on its two closed-form cases and, through controls[C-FIELD].cases_extracted, on every extracted field prime presented as r. C-FIELD-MUTATION exercises it on the two closed-form cases with clause (1) disabled. No control exercises a BOUND state produced by the pipeline itself, F2 at a size other than 256 bits, or a pipeline-produced multi-part state; their correctness on the deployed rows is an assumption stated in interpretation_limits."
+   },
+   {
+    "id": "ADM-3",
+    "field": "tools_and_admission.admission_gate",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "21abc1bc242c70c94a0ef4021640ea56da77b17b33c687445f801f7281e54bfd",
+    "stated_sha256": "21abc1bc242c70c94a0ef4021640ea56da77b17b33c687445f801f7281e54bfd",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "ADM-7",
+    "field": "tools_and_admission.admission_gate",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "35728537764f80250992085aec42b22dc8c90c64b1fcd9805284fd48393d7157",
+    "stated_sha256": "35728537764f80250992085aec42b22dc8c90c64b1fcd9805284fd48393d7157",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "F2-RECOG",
+    "field": "change.D6_factoring.timeouts",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "18a07fd86e7c84bb512cae7abe4f977932e2b0f80a57b640e7afcf12a338e103",
+    "stated_sha256": "18a07fd86e7c84bb512cae7abe4f977932e2b0f80a57b640e7afcf12a338e103",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "BINS-EXACT",
+    "field": "definitions.bins",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "7398d9d75b5a3f762dc5aadc5c57e3fb92c84297cb8c226a4572ecdd72b8211b",
+    "stated_sha256": "7398d9d75b5a3f762dc5aadc5c57e3fb92c84297cb8c226a4572ecdd72b8211b",
+    "match": true,
+    "combined_text": "Descriptive bins of a reported branch value with depth s, using declared constants only. Let tau = 10^-45, an ABSOLUTE tolerance on s (conventions.Q0-8). boundary_flag is true if |s - 1/4| <= tau or |s - 3/4| <= tau, else false. For an EXACT value the rules are applied IN THIS ORDER and the first that applies gives the bin: (i) if boundary_flag is true, the value takes the bin on its lower-depth side, so s within tau of 3/4 gives INTERMEDIATE and s within tau of 1/4 gives NEAR_CEILING; (ii) NEAR_FLOOR if s >= 3/4 + tau; (iii) NEAR_CEILING if s <= 1/4 - tau; (iv) INTERMEDIATE otherwise. PRECEDENCE: the flag rule (i) precedes the cut-off rules (ii) and (iii). So s = 3/4 + tau exactly is flagged and gives INTERMEDIATE, s = 1/4 - tau exactly is flagged and gives NEAR_CEILING, and no s receives two bins. For a BOUND value see change.D3_descriptive_bins.bin_by_status. Bins carry no stop, escalate, naming or decision semantics (change.D4_calibration)."
+   },
+   {
+    "id": "ECM-PROV",
+    "field": "change.D6_factoring.ecm_curves_per_level",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "39b36767d111ecf061c4daaea499dd403ed5c590e648992fe86fab43a3c72dc9",
+    "stated_sha256": "39b36767d111ecf061c4daaea499dd403ed5c590e648992fe86fab43a3c72dc9",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "INV-CLAIM",
+    "field": "change.D4_calibration.threshold_inventory",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "1f990bde9f4110cb577cbb7bd2c9c4da9d76be72aef25ffed799e8d2f6625db4",
+    "stated_sha256": "1f990bde9f4110cb577cbb7bd2c9c4da9d76be72aef25ffed799e8d2f6625db4",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "SV-NULL",
+    "field": "success_criterion.outcomes[S_VALID_TABLE].condition",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "227e7d8109d43aef495a62e7ee5d6d2f6cf1d174ce98eb5868ccfac98a5d4fb7",
+    "stated_sha256": "227e7d8109d43aef495a62e7ee5d6d2f6cf1d174ce98eb5868ccfac98a5d4fb7",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "SP-VOID",
+    "field": "success_criterion.outcomes[S_PARTIAL_TABLE].condition",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "629f35ca7b7eed522d6963f2be1928bec61464e7fa082f0af666f2227f2ee3fd",
+    "stated_sha256": "629f35ca7b7eed522d6963f2be1928bec61464e7fa082f0af666f2227f2ee3fd",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "TP-FOUR",
+    "field": "change.D8_custody.trial_plan",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "e46004cf1ba43b254cbda9556e0d2513cb2573417fb2bd500cf763f8939359e7",
+    "stated_sha256": "e46004cf1ba43b254cbda9556e0d2513cb2573417fb2bd500cf763f8939359e7",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "MAN-FOUR",
+    "field": "change.D8_custody.manifest",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "54e0af4b03ed9e1c065dd5273fbd3c72eb870cd6d979e50636c39ae838926552",
+    "stated_sha256": "54e0af4b03ed9e1c065dd5273fbd3c72eb870cd6d979e50636c39ae838926552",
+    "match": true,
+    "combined_text": null
+   },
+   {
+    "id": "MAN-DIRTY",
+    "field": "change.D8_custody.manifest",
+    "from_occurrences": 1,
+    "span_found": true,
+    "span_sha256": "10f130cb58593ed9210b1411626353f9322c69c6e4e603686a5c60e18d1b10ca",
+    "stated_sha256": "10f130cb58593ed9210b1411626353f9322c69c6e4e603686a5c60e18d1b10ca",
+    "match": true,
+    "combined_text": null
+   }
+  ],
+  "constructions": {
+   "constants": {
+    "B": "256",
+    "M0": "86844066927987146567678238756515930889952488499230423029593188005934847229952",
+    "B_L": "521",
+    "M_L": "5148598245097957286236425599311044912952076475107479057045847594389157387548242039091919730496090916232972233543610643527841490999787482859430521218336292864"
+   },
+   "C-PLANT-M": {
+    "S": "294693174213430241384087455685767077316",
+    "isqrt_S": "17166629669606968060",
+    "d1": "17166629669606968129",
+    "d2": "17166629669606968169",
+    "D": "294693174213430244430891235695900485801",
+    "u0": "147346587106715119168641837837816850167",
+    "u": "147346587106715119168641837837818895601",
+    "r": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+    "v": "7237005577332262213973186563043094703433019354551488745427098355665533643567",
+    "candidates": {
+     "d1": 70,
+     "d2": 40,
+     "u": 2045435
+    },
+    "windows": {
+     "d1": true,
+     "d2": true,
+     "u": true,
+     "r_bits_is_B": true
+    },
+    "seconds": 0.7
+   },
+   "C-PLANT-P": {
+    "d0": "27897163901963686775744497",
+    "d": "27897163901963686775744531",
+    "w0": "259417251257675264555422902444027860852665664144271",
+    "w": "259417251257675264555422902444027860852665664308877",
+    "r": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+    "q": "43422033463993573283839119378257965444976244277167577138252363798291365010121",
+    "candidates": {
+     "d": 35,
+     "w": 164607
+    },
+    "windows": {
+     "d": true,
+     "w": true,
+     "r_bits_is_B": true,
+     "declared_size": true
+    },
+    "seconds": 0.07
+   },
+   "C-INERT": {
+    "w0": "7237005577332262213973186563042994240829374041602535252466099000494570602496",
+    "w": "7237005577332262213973186563042994240829374041602535252466099000494570934027",
+    "r": "86844066927987146567678238756515930889952488499230423029593188005934851208323",
+    "q": "43422033463993573283839119378257965444976244249615211514796594002967425604161",
+    "candidates": {
+     "w": 331532
+    },
+    "windows": {
+     "w": true,
+     "r_bits_is_B": true
+    },
+    "seconds": 0.16
+   },
+   "C-PLANT-PL": {
+    "x_L": "10877848459886072154432685621546558843631389038082760",
+    "f1": "8796093022237",
+    "f2": "8796093022247",
+    "f3": "8796093022261",
+    "G": "680564733851238848473886552692921264679",
+    "y": "15983561766902",
+    "f4": "15983561766947",
+    "D_L": "10877848459917121993158203742548891230371827100765013",
+    "w0": "39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530313323631",
+    "w": "39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530321578919",
+    "r": "5148598245097957286236425599311044912952076475107479057045847594389157387548242039091919730496091993830297593800979769230422459198096268539608437683442731363",
+    "q": "2574299122548978643118212799655522456476038237553739528522923797194578693774121019545959865248045996915148796900489884615211229599048134269804218841721365681",
+    "candidates": {
+     "f1": 30,
+     "f2": 10,
+     "f3": 14,
+     "f4": 46,
+     "w": 8255289
+    },
+    "windows": {
+     "f1": true,
+     "f2": true,
+     "f3": true,
+     "f4": true,
+     "w": true,
+     "r_bits_is_B_L": true,
+     "D_L_in_[x_L,x_L(1+2^-19))": true
+    },
+    "seconds": 8.03
+   },
+   "C-FIELD": {
+    "CF-1": "57896044618658097711785492504343953926634992332820282019728792003956564819949",
+    "CF-2": "115792089210356248762697446949407573530086143415290314195533631308867097853951"
+   }
+  },
+  "bit_lengths": {
+   "C-PLANT-M": {
+    "S": 128,
+    "isqrt_S": 64,
+    "d1": 64,
+    "d2": 64,
+    "D": 128,
+    "u0": 127,
+    "u": 127,
+    "r": 256,
+    "v": 253
+   },
+   "C-PLANT-P": {
+    "d0": 85,
+    "d": 85,
+    "w0": 168,
+    "w": 168,
+    "r": 256,
+    "q": 255
+   },
+   "C-INERT": {
+    "w0": 253,
+    "w": 253,
+    "r": 256,
+    "q": 255
+   },
+   "C-PLANT-PL": {
+    "x_L": 173,
+    "f1": 44,
+    "f2": 44,
+    "f3": 44,
+    "G": 130,
+    "y": 44,
+    "f4": 44,
+    "D_L": 173,
+    "w0": 345,
+    "w": 345,
+    "r": 521,
+    "q": 520
+   },
+   "C-FIELD": {
+    "CF-1": 255,
+    "CF-2": 256
+   }
+  },
+  "certificates": {
+   "C-PLANT-M": {
+    "d1": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 17166629669606968129,
+      "kind": "pratt",
+      "a": 7,
+      "factors": {
+       "2": 6,
+       "3": 1,
+       "2357": 1,
+       "282679": 1,
+       "134193253": 1
+      },
+      "sub": [
+       {
+        "p": 3,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 1
+        },
+        "sub": []
+       },
+       {
+        "p": 2357,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "19": 1,
+         "31": 1
+        },
+        "sub": [
+         {
+          "p": 19,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "3": 2
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 31,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 1,
+           "3": 1,
+           "5": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 282679,
+        "kind": "pratt",
+        "a": 6,
+        "factors": {
+         "2": 1,
+         "3": 1,
+         "11": 1,
+         "4283": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 11,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "5": 1
+          },
+          "sub": [
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 4283,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "2141": 1
+          },
+          "sub": [
+           {
+            "p": 2141,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2,
+             "5": 1,
+             "107": 1
+            },
+            "sub": [
+             {
+              "p": 5,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2
+              },
+              "sub": []
+             },
+             {
+              "p": 107,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1,
+               "53": 1
+              },
+              "sub": [
+               {
+                "p": 53,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2,
+                 "13": 1
+                },
+                "sub": [
+                 {
+                  "p": 13,
+                  "kind": "pratt",
+                  "a": 2,
+                  "factors": {
+                   "2": 2,
+                   "3": 1
+                  },
+                  "sub": [
+                   {
+                    "p": 3,
+                    "kind": "pratt",
+                    "a": 2,
+                    "factors": {
+                     "2": 1
+                    },
+                    "sub": []
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 134193253,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "3": 1,
+         "11182771": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 11182771,
+          "kind": "pratt",
+          "a": 15,
+          "factors": {
+           "2": 1,
+           "3": 2,
+           "5": 1,
+           "17": 1,
+           "7309": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           },
+           {
+            "p": 17,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 4
+            },
+            "sub": []
+           },
+           {
+            "p": 7309,
+            "kind": "pratt",
+            "a": 6,
+            "factors": {
+             "2": 2,
+             "3": 2,
+             "7": 1,
+             "29": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             },
+             {
+              "p": 7,
+              "kind": "pratt",
+              "a": 3,
+              "factors": {
+               "2": 1,
+               "3": 1
+              },
+              "sub": [
+               {
+                "p": 3,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 1
+                },
+                "sub": []
+               }
+              ]
+             },
+             {
+              "p": 29,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "7": 1
+              },
+              "sub": [
+               {
+                "p": 7,
+                "kind": "pratt",
+                "a": 3,
+                "factors": {
+                 "2": 1,
+                 "3": 1
+                },
+                "sub": [
+                 {
+                  "p": 3,
+                  "kind": "pratt",
+                  "a": 2,
+                  "factors": {
+                   "2": 1
+                  },
+                  "sub": []
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "d2": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 17166629669606968169,
+      "kind": "pratt",
+      "a": 3,
+      "factors": {
+       "2": 3,
+       "2145828708700871021": 1
+      },
+      "sub": [
+       {
+        "p": 2145828708700871021,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "5": 1,
+         "23": 1,
+         "337": 1,
+         "13842270085801": 1
+        },
+        "sub": [
+         {
+          "p": 5,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 2
+          },
+          "sub": []
+         },
+         {
+          "p": 23,
+          "kind": "pratt",
+          "a": 5,
+          "factors": {
+           "2": 1,
+           "11": 1
+          },
+          "sub": [
+           {
+            "p": 11,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1,
+             "5": 1
+            },
+            "sub": [
+             {
+              "p": 5,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "p": 337,
+          "kind": "pratt",
+          "a": 10,
+          "factors": {
+           "2": 4,
+           "3": 1,
+           "7": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 7,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 1,
+             "3": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "p": 13842270085801,
+          "kind": "pratt",
+          "a": 7,
+          "factors": {
+           "2": 3,
+           "3": 1,
+           "5": 2,
+           "13": 1,
+           "25679": 1,
+           "69109": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           },
+           {
+            "p": 13,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2,
+             "3": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           },
+           {
+            "p": 25679,
+            "kind": "pratt",
+            "a": 11,
+            "factors": {
+             "2": 1,
+             "37": 1,
+             "347": 1
+            },
+            "sub": [
+             {
+              "p": 37,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "3": 2
+              },
+              "sub": [
+               {
+                "p": 3,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 1
+                },
+                "sub": []
+               }
+              ]
+             },
+             {
+              "p": 347,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1,
+               "173": 1
+              },
+              "sub": [
+               {
+                "p": 173,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2,
+                 "43": 1
+                },
+                "sub": [
+                 {
+                  "p": 43,
+                  "kind": "pratt",
+                  "a": 3,
+                  "factors": {
+                   "2": 1,
+                   "3": 1,
+                   "7": 1
+                  },
+                  "sub": [
+                   {
+                    "p": 3,
+                    "kind": "pratt",
+                    "a": 2,
+                    "factors": {
+                     "2": 1
+                    },
+                    "sub": []
+                   },
+                   {
+                    "p": 7,
+                    "kind": "pratt",
+                    "a": 3,
+                    "factors": {
+                     "2": 1,
+                     "3": 1
+                    },
+                    "sub": [
+                     {
+                      "p": 3,
+                      "kind": "pratt",
+                      "a": 2,
+                      "factors": {
+                       "2": 1
+                      },
+                      "sub": []
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "p": 69109,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2,
+             "3": 1,
+             "13": 1,
+             "443": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             },
+             {
+              "p": 13,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "3": 1
+              },
+              "sub": [
+               {
+                "p": 3,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 1
+                },
+                "sub": []
+               }
+              ]
+             },
+             {
+              "p": 443,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1,
+               "13": 1,
+               "17": 1
+              },
+              "sub": [
+               {
+                "p": 13,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2,
+                 "3": 1
+                },
+                "sub": [
+                 {
+                  "p": 3,
+                  "kind": "pratt",
+                  "a": 2,
+                  "factors": {
+                   "2": 1
+                  },
+                  "sub": []
+                 }
+                ]
+               },
+               {
+                "p": 17,
+                "kind": "pratt",
+                "a": 3,
+                "factors": {
+                 "2": 4
+                },
+                "sub": []
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "u": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 3,
+     "verified": true,
+     "detail": {
+      "terminal_q": 4385652626675655193,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "c1afa0577b31fe9d2a8df035b539dce6ab70126ce66e4ded2d0427ce7d41b7d5",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "r": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 7,
+     "verified": true,
+     "detail": {
+      "terminal_q": 43597242934371397,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "7bdbcb21c25a1cc3cecf6fa1a91e729e3ff6c9d4d8eccc15ccf661f230af641c",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "v": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 7,
+     "verified": true,
+     "detail": {
+      "terminal_q": 603221471476531,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "60f4569eec693b19d7fa5e12830d7278797e6f938549fa1b7947eec537950923",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    }
+   },
+   "C-PLANT-P": {
+    "d": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 1,
+     "verified": true,
+     "detail": {
+      "terminal_q": 182647392980619911,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "81bf71b33cd418b7c0e188334cdb3f08587e973495b39f682aa27a22cd3e7138",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "w": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 4,
+     "verified": true,
+     "detail": {
+      "terminal_q": 766048000750111441,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "510681e31c097144b86b6b2a75fb2a1c0a11149875f2f6c1eed6d7dac41f5700",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "r": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 6,
+     "verified": true,
+     "detail": {
+      "terminal_q": 10699400717881,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "0d94694afa2e1643484ef76d42e295d39638cd69f4547a7cdb6a9bb391b239bd",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "q": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 9,
+     "verified": true,
+     "detail": {
+      "terminal_q": 10230361954776811,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "ad5229063736ebdccfc3ee628a10b03c623684bfe159472298d84f4089cb02e8",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    }
+   },
+   "C-INERT": {
+    "w": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 7,
+     "verified": true,
+     "detail": {
+      "terminal_q": 19669580671627,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "298ba4b0341d4a00c7fc6afda9e1b8e021825a4194a9753161536f8914133ce4",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "r": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 7,
+     "verified": true,
+     "detail": {
+      "terminal_q": 13255585328180123827,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "108f708400d89554af40eb81b988e97cd55f7677042504d3949191f982f01c0b",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "q": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 11,
+     "verified": true,
+     "detail": {
+      "terminal_q": 1215983902753,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "7e3ee270a369dd6d5ffc0ada8edcd4e5c605fcb44a2f349e0e176344f3359a96",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    }
+   },
+   "C-PLANT-PL": {
+    "f1": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 8796093022237,
+      "kind": "pratt",
+      "a": 5,
+      "factors": {
+       "2": 2,
+       "3": 1,
+       "13": 1,
+       "71": 1,
+       "227": 1,
+       "3498493": 1
+      },
+      "sub": [
+       {
+        "p": 3,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 1
+        },
+        "sub": []
+       },
+       {
+        "p": 13,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "3": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         }
+        ]
+       },
+       {
+        "p": 71,
+        "kind": "pratt",
+        "a": 7,
+        "factors": {
+         "2": 1,
+         "5": 1,
+         "7": 1
+        },
+        "sub": [
+         {
+          "p": 5,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 2
+          },
+          "sub": []
+         },
+         {
+          "p": 7,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 1,
+           "3": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 227,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 1,
+         "113": 1
+        },
+        "sub": [
+         {
+          "p": 113,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 4,
+           "7": 1
+          },
+          "sub": [
+           {
+            "p": 7,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 1,
+             "3": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 3498493,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "3": 1,
+         "47": 1,
+         "6203": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 47,
+          "kind": "pratt",
+          "a": 5,
+          "factors": {
+           "2": 1,
+           "23": 1
+          },
+          "sub": [
+           {
+            "p": 23,
+            "kind": "pratt",
+            "a": 5,
+            "factors": {
+             "2": 1,
+             "11": 1
+            },
+            "sub": [
+             {
+              "p": 11,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1,
+               "5": 1
+              },
+              "sub": [
+               {
+                "p": 5,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2
+                },
+                "sub": []
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "p": 6203,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "7": 1,
+           "443": 1
+          },
+          "sub": [
+           {
+            "p": 7,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 1,
+             "3": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           },
+           {
+            "p": 443,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1,
+             "13": 1,
+             "17": 1
+            },
+            "sub": [
+             {
+              "p": 13,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "3": 1
+              },
+              "sub": [
+               {
+                "p": 3,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 1
+                },
+                "sub": []
+               }
+              ]
+             },
+             {
+              "p": 17,
+              "kind": "pratt",
+              "a": 3,
+              "factors": {
+               "2": 4
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "f2": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 8796093022247,
+      "kind": "pratt",
+      "a": 5,
+      "factors": {
+       "2": 1,
+       "557": 1,
+       "7895954239": 1
+      },
+      "sub": [
+       {
+        "p": 557,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "139": 1
+        },
+        "sub": [
+         {
+          "p": 139,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "3": 1,
+           "23": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 23,
+            "kind": "pratt",
+            "a": 5,
+            "factors": {
+             "2": 1,
+             "11": 1
+            },
+            "sub": [
+             {
+              "p": 11,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1,
+               "5": 1
+              },
+              "sub": [
+               {
+                "p": 5,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2
+                },
+                "sub": []
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 7895954239,
+        "kind": "pratt",
+        "a": 3,
+        "factors": {
+         "2": 1,
+         "3": 1,
+         "199": 1,
+         "6613027": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 199,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 1,
+           "3": 2,
+           "11": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 11,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1,
+             "5": 1
+            },
+            "sub": [
+             {
+              "p": 5,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "p": 6613027,
+          "kind": "pratt",
+          "a": 5,
+          "factors": {
+           "2": 1,
+           "3": 1,
+           "7": 1,
+           "19": 1,
+           "8287": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 7,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 1,
+             "3": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           },
+           {
+            "p": 19,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1,
+             "3": 2
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             }
+            ]
+           },
+           {
+            "p": 8287,
+            "kind": "pratt",
+            "a": 3,
+            "factors": {
+             "2": 1,
+             "3": 1,
+             "1381": 1
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             },
+             {
+              "p": 1381,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "3": 1,
+               "5": 1,
+               "23": 1
+              },
+              "sub": [
+               {
+                "p": 3,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 1
+                },
+                "sub": []
+               },
+               {
+                "p": 5,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2
+                },
+                "sub": []
+               },
+               {
+                "p": 23,
+                "kind": "pratt",
+                "a": 5,
+                "factors": {
+                 "2": 1,
+                 "11": 1
+                },
+                "sub": [
+                 {
+                  "p": 11,
+                  "kind": "pratt",
+                  "a": 2,
+                  "factors": {
+                   "2": 1,
+                   "5": 1
+                  },
+                  "sub": [
+                   {
+                    "p": 5,
+                    "kind": "pratt",
+                    "a": 2,
+                    "factors": {
+                     "2": 2
+                    },
+                    "sub": []
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "f3": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 8796093022261,
+      "kind": "pratt",
+      "a": 6,
+      "factors": {
+       "2": 2,
+       "3": 2,
+       "5": 1,
+       "48867183457": 1
+      },
+      "sub": [
+       {
+        "p": 3,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 1
+        },
+        "sub": []
+       },
+       {
+        "p": 5,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2
+        },
+        "sub": []
+       },
+       {
+        "p": 48867183457,
+        "kind": "pratt",
+        "a": 5,
+        "factors": {
+         "2": 5,
+         "3": 1,
+         "7": 1,
+         "13": 1,
+         "19": 1,
+         "37": 1,
+         "73": 1,
+         "109": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 7,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 1,
+           "3": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 13,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 2,
+           "3": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 19,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1,
+           "3": 2
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 37,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 2,
+           "3": 2
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 73,
+          "kind": "pratt",
+          "a": 5,
+          "factors": {
+           "2": 3,
+           "3": 2
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         },
+         {
+          "p": 109,
+          "kind": "pratt",
+          "a": 6,
+          "factors": {
+           "2": 2,
+           "3": 3
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "f4": {
+     "kind": "pratt",
+     "verified": true,
+     "cert": {
+      "p": 15983561766947,
+      "kind": "pratt",
+      "a": 2,
+      "factors": {
+       "2": 1,
+       "3253": 1,
+       "2456741741": 1
+      },
+      "sub": [
+       {
+        "p": 3253,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "3": 1,
+         "271": 1
+        },
+        "sub": [
+         {
+          "p": 3,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 1
+          },
+          "sub": []
+         },
+         {
+          "p": 271,
+          "kind": "pratt",
+          "a": 6,
+          "factors": {
+           "2": 1,
+           "3": 3,
+           "5": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "p": 2456741741,
+        "kind": "pratt",
+        "a": 2,
+        "factors": {
+         "2": 2,
+         "5": 1,
+         "17": 1,
+         "7225711": 1
+        },
+        "sub": [
+         {
+          "p": 5,
+          "kind": "pratt",
+          "a": 2,
+          "factors": {
+           "2": 2
+          },
+          "sub": []
+         },
+         {
+          "p": 17,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 4
+          },
+          "sub": []
+         },
+         {
+          "p": 7225711,
+          "kind": "pratt",
+          "a": 3,
+          "factors": {
+           "2": 1,
+           "3": 1,
+           "5": 1,
+           "107": 1,
+           "2251": 1
+          },
+          "sub": [
+           {
+            "p": 3,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1
+            },
+            "sub": []
+           },
+           {
+            "p": 5,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 2
+            },
+            "sub": []
+           },
+           {
+            "p": 107,
+            "kind": "pratt",
+            "a": 2,
+            "factors": {
+             "2": 1,
+             "53": 1
+            },
+            "sub": [
+             {
+              "p": 53,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2,
+               "13": 1
+              },
+              "sub": [
+               {
+                "p": 13,
+                "kind": "pratt",
+                "a": 2,
+                "factors": {
+                 "2": 2,
+                 "3": 1
+                },
+                "sub": [
+                 {
+                  "p": 3,
+                  "kind": "pratt",
+                  "a": 2,
+                  "factors": {
+                   "2": 1
+                  },
+                  "sub": []
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "p": 2251,
+            "kind": "pratt",
+            "a": 7,
+            "factors": {
+             "2": 1,
+             "3": 2,
+             "5": 3
+            },
+            "sub": [
+             {
+              "p": 3,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 1
+              },
+              "sub": []
+             },
+             {
+              "p": 5,
+              "kind": "pratt",
+              "a": 2,
+              "factors": {
+               "2": 2
+              },
+              "sub": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "w": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 10,
+     "verified": true,
+     "detail": {
+      "terminal_q": 2656534498224855019,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "50bd0b086a95c83f81c9ad1d618afe2c0b6a88a4e85aacfb780c861746f73ff3",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "r": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 19,
+     "verified": true,
+     "detail": {
+      "terminal_q": 458904692881,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "d931064df5a4cfd1807988221fdb244370d7773cc6ffcd22015e2a7c6ea6d422",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "q": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 17,
+     "verified": true,
+     "detail": {
+      "terminal_q": 12623051225123658667,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "b9ac2485aed3efe5480cab375ce918dfa154d441806cf820ec0407b7587895fc",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    }
+   },
+   "C-FIELD": {
+    "CF-1": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 6,
+     "verified": true,
+     "detail": {
+      "terminal_q": 116890712929308397,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "3f08308c107c3a60aa5015dfc4d3b2802dbc31196dd5c29aac3be4376fc6d4ec",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    },
+    "CF-2": {
+     "kind": "ecpp(PARI primecert)+pratt terminal",
+     "steps": 9,
+     "verified": true,
+     "detail": {
+      "terminal_q": 10380824265679507,
+      "terminal_pratt_ok": true
+     },
+     "cert_sha256": "3620bdad3abaca4d16138129c3759c9c78199392a1f7e27fb468947f41f8ae09",
+     "sympy_isprime": true,
+     "own_bpsw": true
+    }
+   }
+  },
+  "C-PRODUCT_constructed": {
+   "C-PLANT-M minus": true,
+   "C-PLANT-M plus": true,
+   "C-PLANT-P plus": true,
+   "C-PLANT-P minus": true,
+   "C-INERT minus": true,
+   "C-INERT plus": true,
+   "C-PLANT-PL plus": true,
+   "C-PLANT-PL minus": true
+  },
+  "exact_evaluations": {
+   "C-PLANT-M minus": {
+    "status": "EXACT",
+    "minimiser": "294693174213430238337283675675637791202",
+    "tied": [
+     "294693174213430238337283675675637791202",
+     "294693174213430244430891235695900485801"
+    ],
+    "e": "0.253912593253592446422545918016896190542954586962424691849425",
+    "F": "0.25391259325359244642254591801689619046753258224132338160635",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.999999999999999999999999999999999999693515382529007288136357",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "7.54220047211013102430747617407745926327841156736696972757952e-38",
+    "log2_T_witness": "64.8962406251802890453634347359869591532646794141517545830305",
+    "log2_T_floor": "64.8962406251802890453634347359869591339879491657798622009311",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "64.89624063",
+    "log2_T_floor_4dp": "64.89624063",
+    "e_minus_F_margin_to_1e-6": "1.0e-6",
+    "minimiser_in_{D,(r-1)/D}": true,
+    "D_vs_(r-1)/D": {
+     "D": 294693174213430244430891235695900485801,
+     "(r-1)/D": 294693174213430238337283675675637791202
+    }
+   },
+   "C-PLANT-M plus": {
+    "status": "EXACT",
+    "minimiser": "12",
+    "tied": [
+     "12"
+    ],
+    "e": "0.492986749952648249240785670128920038089029716070242838019368",
+    "F": "0.336926251418456977724972878363770082576779484369661297428742",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.043006615769581462288774308848680102202478301313629992055396",
+    "bin": "NEAR_CEILING",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.156060498534191271515812791765149955512250231700581540590626",
+    "log2_T_witness": "126.000000000000000000000000000000010013799496712176400540351",
+    "log2_T_floor": "86.1132833342948749086049852585970953540770799620656306616973",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "126.0",
+    "log2_T_floor_4dp": "86.11328333",
+    "e_minus_F_margin_to_1e-6": "-0.15605949853419127152"
+   },
+   "C-PLANT-P minus": {
+    "status": "EXACT",
+    "minimiser": "2",
+    "tied": [
+     "2",
+     "43422033463993573283839119378257965444976244277167577138252363798291365010121"
+    ],
+    "e": "0.498043703373203776788727040991551904612980025372912365538821",
+    "F": "0.253912593253592446422545918016896190774116566962054519670038",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.00794960072382810676253324259548872953797600911474166400555055",
+    "bin": "NEAR_CEILING",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.244131110119611330366181122974655713838863458410857845868782",
+    "log2_T_witness": "127.292481250360578090726869471973908254389698371301558318079",
+    "log2_T_floor": "64.8962406251802890453634347359869541271899536021519767814876",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "127.2924813",
+    "log2_T_floor_4dp": "64.89624063",
+    "e_minus_F_margin_to_1e-6": "-0.24413011011961133037"
+   },
+   "C-PLANT-P plus": {
+    "status": "EXACT",
+    "minimiser": "27897163901963686775744531",
+    "tied": [
+     "27897163901963686775744531"
+    ],
+    "e": "0.336926251418456977724972878363770082858314280326536011783145",
+    "F": "0.336926251418456977724972878363770082858314280326533967515625",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.999999999999999999999999999999999999999999999999987464153259",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "2.04426751968172657520343202480604594152624875539444934300281e-51",
+    "log2_T_witness": "86.1132833342948749086049852585970886783464192105623059198099",
+    "log2_T_floor": "86.1132833342948749086049852585970886783464192105617834357725",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "86.11328333",
+    "log2_T_floor_4dp": "86.11328333",
+    "e_minus_F_margin_to_1e-6": "1.0e-6",
+    "minimiser_equals_d": true
+   },
+   "C-INERT minus": {
+    "status": "EXACT",
+    "minimiser": "2",
+    "tied": [
+     "2",
+     "43422033463993573283839119378257965444976244249615211514796594002967425604161"
+    ],
+    "e": "0.498043703373203776788727040991551904612980025372905358691053",
+    "F": "0.253912593253592446422545918016896190774116566962068533365574",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.0079496007238281067625332425954887295379760091147705897077886",
+    "bin": "NEAR_CEILING",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.244131110119611330366181122974655713838863458410836825325479",
+    "log2_T_witness": "127.292481250360578090726869471973908254389698370843845285332",
+    "log2_T_floor": "64.8962406251802890453634347359869541271899536019231202651139",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "127.2924813",
+    "log2_T_floor_4dp": "64.89624063",
+    "e_minus_F_margin_to_1e-6": "-0.24413011011961133037",
+    "minimiser_is_smaller_of_{2,q}": true
+   },
+   "C-INERT plus": {
+    "status": "EXACT",
+    "minimiser": "12",
+    "tied": [
+     "12"
+    ],
+    "e": "0.492986749952648249240785670128920037539483671797473199604513",
+    "F": "0.336926251418456977724972878363770082858314280326546836233855",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.0430066157695814622887743088486801056466494689826359270894204",
+    "bin": "NEAR_CEILING",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.156060498534191271515812791765149954681169391470926363370657",
+    "log2_T_witness": "126.000000000000000000000000000000000000203505584462916668717",
+    "log2_T_floor": "86.113283334294874908604985258597088678346419210256641413941",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "126.0",
+    "log2_T_floor_4dp": "86.11328333",
+    "e_minus_F_margin_to_1e-6": "-0.15605949853419127152",
+    "minimiser_is_12": true
+   },
+   "C-PLANT-PL minus": {
+    "status": "EXACT",
+    "minimiser": "2",
+    "tied": [
+     "2",
+     "2574299122548978643118212799655522456476038237553739528522923797194578693774121019545959865248045996915148796900489884615211229599048134269804218841721365681"
+    ],
+    "e": "0.499039541984466546400166003145512431800575049817519951111861",
+    "F": "0.251920916031066907199667993708975136398849900364960097776277",
+    "C": "0.5",
+    "depth": "0.00387157998234841763548960618673447543188847104418787319708053",
+    "bin": "NEAR_CEILING",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.247118625953399639200498009436537295401725149452559853335584",
+    "log2_T_witness": "259.792481250360578090726869471973908254379907203846240530228",
+    "log2_T_floor": "131.146240625180289045363434735986954127189953601923120265114",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "259.7924813",
+    "log2_T_floor_4dp": "131.1462406",
+    "e_minus_F_margin_to_1e-6": "-0.2471176259533996392",
+    "minimiser_is_smaller_of_{2,q}": true
+   },
+   "C-PLANT-PL plus": {
+    "status": "EXACT",
+    "minimiser": "10877848459917121993158203742548891230371827100765013",
+    "tied": [
+     "10877848459917121993158203742548891230371827100765013"
+    ],
+    "e": "0.335097302522230558572532608214145860817075762437826500632075",
+    "F": "0.335097302522230558572532602569254118064335110342402522261288",
+    "C": "0.5",
+    "depth": "0.999999999999999999999999965768348067722000754957456752679131",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "5.64489174275274065209542397837078696307230266279636743872559e-27",
+    "log2_T_witness": "174.446616667628208241938321530576178233245740260835121043036",
+    "log2_T_floor": "174.446616667628208241938318591930422011679752543589974747274",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "174.4466167",
+    "log2_T_floor_4dp": "174.4466167",
+    "e_minus_F_margin_to_1e-6": "9.9999999999999999999e-7",
+    "minimiser_equals_D_L": true
+   }
+  },
+  "C-BOUND": {
+   "BND-1": {
+    "status": "BOUND",
+    "minimiser": "294693174213430238337283675675637791202",
+    "tied": [
+     "294693174213430238337283675675637791202",
+     "294693174213430244430891235695900485801"
+    ],
+    "e": "0.253912593253592446422545918016896190542954586962424691849425",
+    "F": "0.25391259325359244642254591801689619046753258224132338160635",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.999999999999999999999999999999999999693515382529007288136357",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "7.54220047211013102430747617407745926327841156736696972757952e-38",
+    "log2_T_witness": "64.8962406251802890453634347359869591532646794141517545830305",
+    "log2_T_floor": "64.8962406251802890453634347359869591339879491657798622009311",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "64.89624063",
+    "log2_T_floor_4dp": "64.89624063",
+    "e_minus_F_margin_to_1e-6": "1.0e-6",
+    "F_times_parts_equals_m": true,
+    "parts_composite": [
+     true
+    ],
+    "parts_perfect_power": [
+     false
+    ],
+    "witness_set": [
+     "1",
+     "2",
+     "147346587106715119168641837837818895601",
+     "294693174213430238337283675675637791202",
+     "294693174213430244430891235695900485801",
+     "589386348426860488861782471391800971602",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+     "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+    ],
+    "consistency_abs_diff": "0.0",
+    "consistency_holds": true,
+    "witness_is_min(D,2u)": true
+   },
+   "BND-2": {
+    "status": "BOUND",
+    "minimiser": "2",
+    "tied": [
+     "2",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401"
+    ],
+    "e": "0.498043703373203776788727040991551904766272017733277934570664",
+    "F": "0.25391259325359244642254591801689619046753258224132338160635",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.00794960072382810676253324259548872890515527811449931583707813",
+    "bin": "UNDETERMINED",
+    "bin_at_least": "NEAR_CEILING",
+    "boundary_flag": false,
+    "e_minus_F": "0.244131110119611330366181122974655714298739435491954552964314",
+    "log2_T_witness": "127.292481250360578090726869471973918267985689498557329156966",
+    "log2_T_floor": "64.8962406251802890453634347359869591339879491657798622009311",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "127.2924813",
+    "log2_T_floor_4dp": "64.89624063",
+    "e_minus_F_margin_to_1e-6": "-0.24413011011961133037",
+    "F_times_parts_equals_m": true,
+    "parts_composite": [
+     true
+    ],
+    "parts_perfect_power": [
+     false
+    ],
+    "witness_set": [
+     "1",
+     "2",
+     "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+     "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+    ],
+    "witness_is_2": true
+   },
+   "BND-3": {
+    "status": "BOUND",
+    "minimiser": "55794327803927373551489062",
+    "tied": [
+     "55794327803927373551489062"
+    ],
+    "e": "0.337656305333275731227720161619816513714546835080718839439009",
+    "F": "0.336926251418456977724972878363770082858314280326533967515625",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.99552316714879649055322952666634629584162677056583930298858",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "0.000730053914818753502747283256046430856232554754184871923383807",
+    "log2_T_witness": "86.2998741367373306997948593420461500412001793437064285765273",
+    "log2_T_floor": "86.1132833342948749086049852585970886783464192105617834357725",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "86.29987414",
+    "log2_T_floor_4dp": "86.11328333",
+    "e_minus_F_margin_to_1e-6": "-0.00072905391481875350275",
+    "F_times_parts_equals_m": true,
+    "parts_composite": [
+     true,
+     true
+    ],
+    "parts_perfect_power": [
+     false,
+     false
+    ],
+    "witness_set": [
+     "1",
+     "2",
+     "55794327803927373551489062",
+     "111588655607854747102978124",
+     "778251753773025793666268707332083582557996992926631",
+     "1556503507546051587332537414664167165115993985853262",
+     "43422033463993573283839119378257965444976244277167577138252363798291365010122",
+     "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+    ],
+    "witness_is_2d": true,
+    "W_matches_text_list": true,
+    "contrast_single_cofactor": {
+     "W": [
+      "1",
+      "2",
+      "43422033463993573283839119378257965444976244277167577138252363798291365010122",
+      "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+     ],
+     "witness": "2",
+     "bin": "UNDETERMINED"
+    }
+   },
+   "OWN-1": {
+    "status": "BOUND",
+    "minimiser": "27897163901963686775744531",
+    "tied": [
+     "27897163901963686775744531"
+    ],
+    "e": "0.336926251418456977724972878363770082858314280326536011783145",
+    "F": "0.336926251418456977724972878363770082858314280326533967515625",
+    "C": "0.50000000000000000000000000000000000000001915442696981268692",
+    "depth": "0.999999999999999999999999999999999999999999999999987464153259",
+    "bin": "NEAR_FLOOR",
+    "bin_at_least": "NEAR_FLOOR",
+    "boundary_flag": false,
+    "e_minus_F": "2.04426751968172657520343202480604594152624875539444934300281e-51",
+    "log2_T_witness": "86.1132833342948749086049852585970886783464192105623059198099",
+    "log2_T_floor": "86.1132833342948749086049852585970886783464192105617834357725",
+    "floor_invariant_ok": true,
+    "path_agreement_numeric_1e-50": {
+     "e": true,
+     "F": true,
+     "C": true,
+     "depth": true,
+     "log2_T_witness": true,
+     "log2_T_floor": true
+    },
+    "path_agreement_categorical": {
+     "status": true,
+     "minimiser": true,
+     "bin": true,
+     "bin_at_least": true,
+     "boundary_flag": true
+    },
+    "log2_T_witness_4dp": "86.11328333",
+    "log2_T_floor_4dp": "86.11328333",
+    "e_minus_F_margin_to_1e-6": "1.0e-6",
+    "F_times_parts_equals_m": true,
+    "parts_composite": [
+     true
+    ],
+    "parts_perfect_power": [
+     false
+    ],
+    "witness_set": [
+     "1",
+     "2",
+     "4",
+     "27897163901963686775744531",
+     "55794327803927373551489062",
+     "111588655607854747102978124",
+     "778251753773025793666268707332083582557996992926631",
+     "1556503507546051587332537414664167165115993985853262",
+     "3113007015092103174665074829328334330231987971706524",
+     "21711016731996786641919559689128982722488122138583788569126181899145682505061",
+     "43422033463993573283839119378257965444976244277167577138252363798291365010122",
+     "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+    ]
+   }
+  },
+  "C-FIELD": {
+   "CF-1": {
+    "value": "57896044618658097711785492504343953926634992332820282019728792003956564819949",
+    "bits": 255,
+    "h": 8,
+    "hasse_lhs": "405272312330606683982498447530407677486444946329741974138101544027695953739642",
+    "hasse_rhs": "481231938336009023090067544955250113856",
+    "hasse_fires": true,
+    "reasons_corrected_FP": [
+     "field_prime",
+     "hasse"
+    ],
+    "reasons_mutation_clause1_disabled": [
+     "hasse"
+    ]
+   },
+   "CF-2": {
+    "value": "115792089210356248762697446949407573530086143415290314195533631308867097853951",
+    "bits": 256,
+    "h": 1,
+    "hasse_lhs": "1",
+    "hasse_rhs": "680564733762648764426319935326885249026",
+    "hasse_fires": false,
+    "reasons_corrected_FP": [
+     "field_prime"
+    ],
+    "reasons_mutation_clause1_disabled": []
+   },
+   "construction_integers_equal_to_CF": [],
+   "construction_r_top_hex": {
+    "C-PLANT-M": "0xc000000000",
+    "C-PLANT-P": "0xc000000000",
+    "C-INERT": "0xc000000000",
+    "C-PLANT-PL": "0x1800000000"
+   }
+  },
+  "Q4": {
+   "prec_150": {
+    "below": {
+     "s": "0.750000000000000000000000000000000000000000000999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+     "boundary_flag": true,
+     "EXACT_bin": "INTERMEDIATE",
+     "EXACT_clause": "(i) flag",
+     "BOUND_bin": "UNDETERMINED",
+     "BOUND_bin_at_least": "INTERMEDIATE"
+    },
+    "at": {
+     "s": "0.750000000000000000000000000000000000000000001",
+     "boundary_flag": true,
+     "EXACT_bin": "INTERMEDIATE",
+     "EXACT_clause": "(i) flag",
+     "BOUND_bin": "UNDETERMINED",
+     "BOUND_bin_at_least": "INTERMEDIATE"
+    },
+    "above": {
+     "s": "0.750000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+     "boundary_flag": false,
+     "EXACT_bin": "NEAR_FLOOR",
+     "EXACT_clause": "(ii)",
+     "BOUND_bin": "NEAR_FLOOR",
+     "BOUND_bin_at_least": "NEAR_FLOOR"
+    }
+   },
+   "prec_200": {
+    "below": {
+     "s": "0.75000000000000000000000000000000000000000000099999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+     "boundary_flag": true,
+     "EXACT_bin": "INTERMEDIATE",
+     "EXACT_clause": "(i) flag",
+     "BOUND_bin": "UNDETERMINED",
+     "BOUND_bin_at_least": "INTERMEDIATE"
+    },
+    "at": {
+     "s": "0.750000000000000000000000000000000000000000001",
+     "boundary_flag": true,
+     "EXACT_bin": "INTERMEDIATE",
+     "EXACT_clause": "(i) flag",
+     "BOUND_bin": "UNDETERMINED",
+     "BOUND_bin_at_least": "INTERMEDIATE"
+    },
+    "above": {
+     "s": "0.75000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+     "boundary_flag": false,
+     "EXACT_bin": "NEAR_FLOOR",
+     "EXACT_clause": "(ii)",
+     "BOUND_bin": "NEAR_FLOOR",
+     "BOUND_bin_at_least": "NEAR_FLOOR"
+    }
+   }
+  },
+  "own_verifier_selftests": {
+   "accepts_2^89-1": true,
+   "accepts_2^607-1": true,
+   "rejects_tampered_top_N_2^89+1": true,
+   "pratt_rejects_wrong_witness": true
+  },
+  "tool_versions": {
+   "python": "3.9.10 (main, Feb 15 2026, 13:00:19) \n[Clang 17.0.0 (clang-1700.0.13.5)]",
+   "sympy": "1.14.0",
+   "mpmath": "1.3.0",
+   "pyyaml": "6.0.3",
+   "gp": "2.17.3"
+  },
+  "total_seconds": 15.7
+ },
+ "Q5_gate_table": [
+  {
+   "gate": "C-PLANT-M: minus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: minus minimiser in {D, (r-1)/D}",
+   "value": "294693174213430238337283675675637791202",
+   "threshold": "in {D, (r-1)/D}",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: minus lower gate 0 <= e - F (evaluated e - F >= -1e-45)",
+   "value": "7.54220047211e-38",
+   "threshold": "-1e-45",
+   "margin": "7.54220057211e-38",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: minus upper gate e - F <= 1e-6 (no slack)",
+   "value": "7.54220047211e-38",
+   "threshold": "1e-6",
+   "margin": "1.0e-6",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: minus bin is NEAR_FLOOR",
+   "value": "NEAR_FLOOR (s = 1.0, flag False)",
+   "threshold": "s >= 3/4 + tau (flag false)",
+   "margin": "0.25",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: plus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: plus bin is NEAR_CEILING",
+   "value": "NEAR_CEILING (s = 0.0430066157695814622887743088487, flag False)",
+   "threshold": "s <= 1/4 - tau (flag false)",
+   "margin": "0.20699338423",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: plus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: plus minimiser equals d",
+   "value": "27897163901963686775744531",
+   "threshold": "equals d",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: plus lower gate 0 <= e - F (evaluated e - F >= -1e-45)",
+   "value": "2.04426751968e-51",
+   "threshold": "-1e-45",
+   "margin": "1.00000204427e-45",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: plus upper gate e - F <= 1e-6 (no slack)",
+   "value": "2.04426751968e-51",
+   "threshold": "1e-6",
+   "margin": "1.0e-6",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: plus bin is NEAR_FLOOR",
+   "value": "NEAR_FLOOR (s = 1.0, flag False)",
+   "threshold": "s >= 3/4 + tau (flag false)",
+   "margin": "0.25",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: minus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: minus bin is NEAR_CEILING",
+   "value": "NEAR_CEILING (s = 0.00794960072382810676253324259549, flag False)",
+   "threshold": "s <= 1/4 - tau (flag false)",
+   "margin": "0.242050399276",
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: minus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: minus minimiser smaller member of tied pair {2, q}",
+   "value": "2",
+   "threshold": "smaller member of tied pair {2, q}",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: minus bin is NEAR_CEILING",
+   "value": "NEAR_CEILING (s = 0.00794960072382810676253324259549, flag False)",
+   "threshold": "s <= 1/4 - tau (flag false)",
+   "margin": "0.242050399276",
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: plus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: plus minimiser largest divisor of 12",
+   "value": "12",
+   "threshold": "largest divisor of 12",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: plus bin is NEAR_CEILING",
+   "value": "NEAR_CEILING (s = 0.0430066157695814622887743088487, flag False)",
+   "threshold": "s <= 1/4 - tau (flag false)",
+   "margin": "0.20699338423",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: plus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: plus minimiser equals D_L",
+   "value": "10877848459917121993158203742548891230371827100765013",
+   "threshold": "equals D_L",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: plus lower gate 0 <= e - F (evaluated e - F >= -1e-45)",
+   "value": "5.64489174275e-27",
+   "threshold": "-1e-45",
+   "margin": "5.64489174275e-27",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: plus upper gate e - F <= 1e-6 (no slack)",
+   "value": "5.64489174275e-27",
+   "threshold": "1e-6",
+   "margin": "1.0e-6",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: plus bin is NEAR_FLOOR",
+   "value": "NEAR_FLOOR (s = 0.999999999999999999999999965768, flag False)",
+   "threshold": "s >= 3/4 + tau (flag false)",
+   "margin": "0.25",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: minus branch EXACT (RUN OBSERVATION per RI-9; text-fixed value from constructed factorization)",
+   "value": "EXACT",
+   "threshold": "EXACT",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: minus minimiser smaller member of tied pair {2, q}",
+   "value": "2",
+   "threshold": "smaller member of tied pair {2, q}",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: minus bin is NEAR_CEILING",
+   "value": "NEAR_CEILING (s = 0.00387157998234841763548960618673, flag False)",
+   "threshold": "s <= 1/4 - tau (flag false)",
+   "margin": "0.246128420018",
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-M: blind pipeline factorization equals constructed (both paths)",
+   "value": "RUN OBSERVATION (RI-9); not reviewable at zero runs",
+   "threshold": "multiset equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-PLANT-M: every prime in both constructed factorizations carries an accepted certificate",
+   "value": "5 primes, own verifier accepted all = True",
+   "threshold": "all accepted",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-P: blind pipeline factorization equals constructed (both paths)",
+   "value": "RUN OBSERVATION (RI-9); not reviewable at zero runs",
+   "threshold": "multiset equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-PLANT-P: every prime in both constructed factorizations carries an accepted certificate",
+   "value": "4 primes, own verifier accepted all = True",
+   "threshold": "all accepted",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-INERT: blind pipeline factorization equals constructed (both paths)",
+   "value": "RUN OBSERVATION (RI-9); not reviewable at zero runs",
+   "threshold": "multiset equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-INERT: every prime in both constructed factorizations carries an accepted certificate",
+   "value": "3 primes, own verifier accepted all = True",
+   "threshold": "all accepted",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: blind pipeline factorization equals constructed (both paths)",
+   "value": "RUN OBSERVATION (RI-9); not reviewable at zero runs",
+   "threshold": "multiset equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-PLANT-PL: every prime in both constructed factorizations carries an accepted certificate",
+   "value": "7 primes, own verifier accepted all = True",
+   "threshold": "all accepted",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-PLANT-PL: factorizations.json records plus part > 272 bits after F0 and >= 1 GMP-ECM curve in F3",
+   "value": "RUN OBSERVATION (RI-9). Arithmetic precondition: part after removing 2^2*3 = f1 f2 f3 f4 w has bit length 518",
+   "threshold": "> 272 bits",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-BOUND BND-1: status, W, witness, bin, bin_at_least (where stated), boundary_flag equal text-fixed values on both paths",
+   "value": "status BOUND, witness 294693174213430238337283675675637791202, bin NEAR_FLOOR, bin_at_least NEAR_FLOOR, flag False, |W| = 8",
+   "threshold": "BOUND, W={e,eD: e|2u}, witness min(D,2u), NEAR_FLOOR, flag false",
+   "margin": "0.25",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-1: bounds equal closed forms within 1e-50 (paths agree) and floor invariant",
+   "value": "upper-lower = 7.54220047211e-38; path agreement True",
+   "threshold": "e - F >= -1e-45; |A - B| <= 1e-50",
+   "margin": "7.54220057211e-38",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-2: status, W, witness, bin, bin_at_least (where stated), boundary_flag equal text-fixed values on both paths",
+   "value": "status BOUND, witness 2, bin UNDETERMINED, bin_at_least NEAR_CEILING, flag False, |W| = 4",
+   "threshold": "BOUND, W={1,2,m/2,m}, witness 2, UNDETERMINED, bin_at_least NEAR_CEILING, flag false",
+   "margin": "0.242050399276",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-2: bounds equal closed forms within 1e-50 (paths agree) and floor invariant",
+   "value": "upper-lower = 0.24413111012; path agreement True",
+   "threshold": "e - F >= -1e-45; |A - B| <= 1e-50",
+   "margin": "0.24413111012",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-3: status, W, witness, bin, bin_at_least (where stated), boundary_flag equal text-fixed values on both paths",
+   "value": "status BOUND, witness 55794327803927373551489062, bin NEAR_FLOOR, bin_at_least NEAR_FLOOR, flag False, |W| = 8",
+   "threshold": "BOUND, W={1,2,2d,4d,3w,6w,6dw,12dw}, witness 2d, NEAR_FLOOR, flag false",
+   "margin": "0.245523167149",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-3: bounds equal closed forms within 1e-50 (paths agree) and floor invariant",
+   "value": "upper-lower = 0.000730053914819; path agreement True",
+   "threshold": "e - F >= -1e-45; |A - B| <= 1e-50",
+   "margin": "0.000730053914819",
+   "pass": true
+  },
+  {
+   "gate": "C-BOUND BND-1 CONSISTENCY: upper bound equals C-PLANT-M EXACT minus exponent within 1e-50",
+   "value": "0.0",
+   "threshold": "1e-50",
+   "margin": "1e-50",
+   "pass": true
+  },
+  {
+   "gate": "C-FIELD CF-1: extraction_cross_check",
+   "value": "RUN OBSERVATION (Stage P extraction from a non-whitelisted source)",
+   "threshold": "equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-FIELD CF-1: rejected with reasons exactly ['field_prime', 'hasse'] (conditional on the cross-check holding)",
+   "value": [
+    "field_prime",
+    "hasse"
+   ],
+   "threshold": [
+    "field_prime",
+    "hasse"
+   ],
+   "margin": "hasse: lhs 405272312330606683982498447530407677486444946329741974138101544027695953739642 vs rhs 481231938336009023090067544955250113856",
+   "pass": true
+  },
+  {
+   "gate": "C-FIELD-MUTATION CF-1: reasons exactly ['hasse'] with clause (1) disabled",
+   "value": [
+    "hasse"
+   ],
+   "threshold": [
+    "hasse"
+   ],
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-FIELD CF-2: extraction_cross_check",
+   "value": "RUN OBSERVATION (Stage P extraction from a non-whitelisted source)",
+   "threshold": "equality",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "C-FIELD CF-2: rejected with reasons exactly ['field_prime'] (conditional on the cross-check holding)",
+   "value": [
+    "field_prime"
+   ],
+   "threshold": [
+    "field_prime"
+   ],
+   "margin": "hasse: lhs 1 vs rhs 680564733762648764426319935326885249026",
+   "pass": true
+  },
+  {
+   "gate": "C-FIELD-MUTATION CF-2: reasons exactly [] with clause (1) disabled",
+   "value": [],
+   "threshold": [],
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-FIELD cases_extracted CF-X-<row>: each rejected with reasons exactly [field_prime]",
+   "value": "determinate by rule (value = extracted field prime, member of FP by FP-DEF; primality proved at run time; no cofactor so hasse n/a); integers are Stage P observations",
+   "threshold": "[field_prime]",
+   "margin": null,
+   "pass": "holds by rule, conditional on each extracted field prime being proved prime"
+  },
+  {
+   "gate": "C-PRODUCT on constructed factorizations (path B exact integers)",
+   "value": {
+    "C-PLANT-M minus": true,
+    "C-PLANT-M plus": true,
+    "C-PLANT-P plus": true,
+    "C-PLANT-P minus": true,
+    "C-INERT minus": true,
+    "C-INERT plus": true,
+    "C-PLANT-PL plus": true,
+    "C-PLANT-PL minus": true
+   },
+   "threshold": "equality",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-RECOMPUTE analogue: mpmath (A') vs decimal (B') agree within 1e-50 and exactly on categoricals",
+   "value": true,
+   "threshold": "1e-50",
+   "margin": null,
+   "pass": true
+  },
+  {
+   "gate": "C-ORDER",
+   "value": "RUN OBSERVATION",
+   "threshold": "artifact order",
+   "margin": null,
+   "pass": null
+  },
+  {
+   "gate": "floor invariant on every evaluated branch/state (e >= F - 1e-45; T_plus(d) >= d)",
+   "value": true,
+   "threshold": "holds",
+   "margin": null,
+   "pass": true
+  }
+ ]
+}

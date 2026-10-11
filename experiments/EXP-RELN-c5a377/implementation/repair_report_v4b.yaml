@@ -1,0 +1,218 @@
+repair_report:
+  id: repair_report_v4b
+  task_id: TASK-20260929-b81ea5
+  experiment_id: EXP-RELN-c5a377
+  hypothesis_id: H-RELN-4d092c
+  batch_id: BATCH-229ce4
+  role: executor
+  archived_by: TASK-20260929-a68d0c
+  generated_at: '2026-09-29T20:27:19.474080+00:00'
+  protocol_version: 4
+  protocol_changed: false
+  responds_to: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20260929-2ec518/validation_report.yaml
+  repaired_snapshot: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-3f7b98/snapshot-receipt.json
+  supersedes_by_reference:
+  - record: experiments/EXP-RELN-c5a377/implementation/repair_report_v4.yaml
+    record_sha256: a1afa2ee4a1df5dcac95dc699fa01923dfb4f0c3c25f83e3054153b75b281baf
+    location: repair_report.fixes[id=FX-1].change
+    superseded_claim: child process killed on interruption
+    correction: The claim was false for the TASK-20260929-3f7b98 snapshot. run_cell killed the child only when status
+      is None, but os.wait4(pid, WNOHANG) returns (0, 0) for a live child, so after SIGTERM/SIGHUP/SIGINT or an
+      exception the celltask child was orphaned (reproduced by the re-check, TASK-20260929-2ec518 R-1). Fixed in
+      this task (R-1 below). repair_report_v4.yaml is not edited.
+  worktree: /Volumes/SSD990/wt-amend-ic
+  branch: coord/ic-leads-impl-20260928
+  head_at_report: d0a56317826c28058890d737a00fbf6abbdf8b58
+  scientific_runs: 0
+  run_directories_created: []
+  frozen_labels_evaluated: false
+  commits_made: false
+  new_smoke_directories: []
+  findings:
+  - id: R-1
+    severity: major (must fix)
+    status: fixed
+    files:
+    - driver.py
+    - celltask.py
+    - tests/test_v4.py
+    change: 'run_cell starts each cell with start_new_session=True (own process group) and tracks reaping explicitly
+      (reaped flag set only when os.wait4 returns the child pid). If the loop is left unreaped (signal, exception),
+      the finally clause SIGKILLs the process group and reaps the child with a blocking wait4 before the exception
+      propagates, so the final manifest is written only after the child is gone. The memory watchdog kills the group.
+      Added: every child gets RELN_C5A377_DRIVER_PID, refuses to start if it is not its parent, and a watch thread
+      exits (code 9) once re-parented, which covers an uncatchable SIGKILL of the driver (beyond the requested fix;
+      OQ-29).'
+    tests:
+    - 'test_r1_signal_kills_and_reaps_real_child (real celltask child, SIGTERM to the driver mid-cell: child pid
+      and group gone; manifest failed_infrastructure/signal; run directory byte/size-identical 1.5 s later; no cell
+      JSON)'
+    - test_r1_exception_kills_and_reaps_real_child (real child, exception injected in the watchdog poll)
+    - test_r1_real_child_completes_in_own_group
+    - test_r1_watch_parent_exits_on_reparent
+    - test_r1_child_exits_when_driver_is_sigkilled (stand-in driver SIGKILLs itself; real child exits, writes no
+      cell JSON)
+    regression_check: 'test_r1_signal_kills_and_reaps_real_child was run once with driver.run_cell replaced by the
+      HEAD (3f7b98) version: it FAILED (child alive after the driver returned). The orphan it left was killed. With
+      the fix it passes.'
+  - id: R-2
+    severity: minor
+    status: fixed
+    files:
+    - driver.py
+    - tests/test_v4.py
+    change: 'execute writes a stub run: manifest (status running, stub: true) right after command.txt and before
+      the environment/Sage probe; if the full RunRecord never exists, the except branch rewrites the stub as failed_infrastructure
+      with failure_class and failure_reason.'
+    tests:
+    - test_r2_exception_before_full_record_leaves_manifest
+  - id: R-3
+    severity: minor
+    status: fixed
+    files:
+    - driver.py
+    - smoke.py
+    - tests/test_v4.py
+    change: 'driver.smoke_budget_violations refuses a smoke budget equal to any frozen A1/A2 of any fixture or within
+      a factor 1.25 (inclusive: max/min <= 1.25) of the same fixture''s frozen A1 or A2; used by driver --smoke-dry-run
+      and smoke.check_budgets. Existing smoke/v4 budgets pass (nearest ratios 1.286 and 1.435).'
+    tests:
+    - test_r3_margin_same_fixture
+    - test_fx6_driver_refuses_frozen_budgets (adds 198/573, 160, 717 on b16-s13)
+    - test_fx6_smoke_configs_avoid_frozen_budgets (160 refused, 159 accepted)
+  - id: R-4
+    severity: informational
+    status: no code change (per task); to be noted in the admission decision
+  - id: R-5
+    severity: low
+    status: fixed
+    files:
+    - driver.py
+    - celltask.py
+    - tests/test_v4.py
+    change: verify_snapshot refuses a receipt outside the repository, not kind snapshot, not under an archives/
+      directory, untracked, dirty, or differing from its HEAD blob. The driver generates a random per-run token,
+      gives it only to frozen-namespace children, and records run.inputs.driver_pid and run.inputs.run_token_sha256;
+      celltask.admission_guard requires the token to match and the manifest driver_pid to be its live parent running
+      driver.py.
+    tests:
+    - test_r5_snapshot_receipt_must_be_committed_clean_snapshot
+    - test_r5_celltask_guard_refuses_hand_written_manifest
+    - test_r5_parent_is_driver_checks_pid
+    - test_r5_driver_passes_token_and_pid_to_child (execute with the frozen plan and a capturing run_cell that raises
+      before launching anything; no frozen draw)
+    - test_fx5_* updated to committed archives/ receipts and the token
+  tests:
+    command: TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider
+      -q -rs tests
+    log: test-results.txt
+    passed: 127
+    failed: 0
+    skipped: 0
+    previous: 116 passed (TASK-20260929-b72e82)
+  process_hygiene: Every celltask started by the tests was killed or exited; pgrep found no celltask process after
+    each run. One orphan from the deliberate regression check was killed with SIGKILL.
+  trial_plan:
+    path: trial-plan-v2.json
+    sha256: 7fb5e40dffa543feb25ea97fc62a8be16baf2db170df6025ec5f1cb7bbef29cf
+    changed: false
+  files_changed_this_task:
+  - ' M experiments/EXP-RELN-c5a377/implementation/celltask.py'
+  - ' M experiments/EXP-RELN-c5a377/implementation/driver.py'
+  - ' M experiments/EXP-RELN-c5a377/implementation/implementation.md'
+  - ' M experiments/EXP-RELN-c5a377/implementation/implementation_report.yaml'
+  - ' M experiments/EXP-RELN-c5a377/implementation/make_report.py'
+  - ' M experiments/EXP-RELN-c5a377/implementation/smoke.py'
+  - ' M experiments/EXP-RELN-c5a377/implementation/test-results.txt'
+  - ' M experiments/EXP-RELN-c5a377/implementation/tests/test_v4.py'
+  implementation_files_sha256:
+    analysis.py: 7dc7fdada7d87e12620544d8d0236d2850a8b1c8a39ac33b7d0efd84bc7d989c
+    audit.py: 81508b3f39e153a4f9559924bd345e8b7e5183a8b31405b3323f2c84b9d7a0aa
+    celltask.py: f02c3c03e17beb88fa4a3677f39e2786ada5a106c53bb221848d437f6646c39f
+    driver.py: ce4fc91e78190a38dde49f99b0a4c9c58e7ef9917d2ea29c7cb1541199f86eb5
+    ecarith.py: 72d51323fa78c9f1495e9fce193ccca638eb73c198e062b8fb87e1f5df22e095
+    fixtures.py: b4598b5c2d0e6100a1dcef12b179ea3ec0cc174dfe2abb0d5fb7b709c83d3e60
+    hostinfo.py: d4805bdd32c251472a5de0ebf3e02735b6908ad5bc041022e7f674c92f0feb43
+    implementation.md: c950fcc2d4794228ab655ac69edb0a83e3cce31ceb058ee18a24550996edb104
+    implementation_report.yaml: a2a4e48605fad0f56933fa3048298ffef3e4fc3305d3168025b67a754cd2b0cc
+    labels.py: d9d8d7875866ef68a49c64c0770fa8b627b6d367227905a2f74f81b32d6baf63
+    lpgraph.py: d23c65c0fa4d32df90224bb245f5fce0bc9420f603f59aa30a994f142dd562ad
+    make_report.py: e42d9d13a480af7b4a80b82942e5492ebaf6c6b14b67072e519a91393ce720ab
+    make_trial_plan.py: 1e7e45a3f37adc97cc4a138e0e174b72c88c0bea9f3d88e9843d071d0df748dd
+    nulls.py: 9e8f8f02ff20a279e5a2910c5039de9d39941c954e0c4cfa8af2d8d1a0da23fb
+    recovery.py: 6173442676ea689239267f759b2515d323c417d7a99a9e7095a46894ed65f7d3
+    relgen.py: 57a7bc8d79aaab6b9c4c9a3846f8a0d4f6ae037e70ce52787f9aee38a6944f30
+    repair_report_v4.yaml: a1afa2ee4a1df5dcac95dc699fa01923dfb4f0c3c25f83e3054153b75b281baf
+    rho.py: 89e9b2997bd4bcddfc165e5a5d6101fde8f962a21037f6a431771c6bea1fe372
+    smoke/dry/DRYRUN-controls/cells/b16-s11.attempts.jsonl: e940e2890047ac6eeae0275a10f3b1b2940cba93bbcd38ceedbacac7d94156c6
+    smoke/dry/DRYRUN-controls/cells/b16-s11.json: 260254b194f1672acef04ee07271a54a5580c6eecac7fdb89f858fa5d2875de9
+    smoke/dry/DRYRUN-controls/cells/b16-s11.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/dry/DRYRUN-controls/cells/b16-s11.stdout.log: d9c444ac602b2ac6d257dc25532c1053408622c9d18a1fce9395e225e6f612a3
+    smoke/dry/DRYRUN-controls/command.txt: 60b917db206c3f80f5bc59134bbac65ddde60c76b8e1508da4a84c2e166d9945
+    smoke/dry/DRYRUN-controls/environment.json: 913e5fd9bbb1cc78ceadc893ff8ac4fc720d30c98a64dc14851a6951e2a975d7
+    smoke/dry/DRYRUN-controls/manifest.yaml: 0abe9362a122d9f7a4d71352b2270cf5ab962a14c4b5a2ddcb613c3674ece616
+    smoke/dry/DRYRUN-controls/raw-result.json: cb93c5b9343e13a042bc62680973d7ed3ddb3f23c6f0a86ae387f5b6a62b32f1
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.attempts.jsonl: 76ba2150aaa1c02775385d50d0f5da3a6087a8dc0998c8f3c9c9a614f4905ab9
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.json: 54d7179e6ca7ccc3c1dc9a82fa6de515232cd68fa02880280c15fd83124acc7a
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.stdout.log: 77bcc5a79f3b94612bfaf43f0cea9b385f6a8fb355eacb1fa41344e6ed051a71
+    smoke/dry/DRYRUN-tiny/command.txt: 60b917db206c3f80f5bc59134bbac65ddde60c76b8e1508da4a84c2e166d9945
+    smoke/dry/DRYRUN-tiny/environment.json: 913e5fd9bbb1cc78ceadc893ff8ac4fc720d30c98a64dc14851a6951e2a975d7
+    smoke/dry/DRYRUN-tiny/manifest.yaml: 51d11007253348cfd46e3f0df468efcc2596cd2b32be7e6cf333b2a8839b67c6
+    smoke/dry/DRYRUN-tiny/raw-result.json: 194496ab83cb9038039b03aa92b8820754585b17aef7bfb389667085e7d25f1a
+    smoke/smoke_summary.json: 25ade8cd77e77725774820c430f5c3622c8aff248f16a3c68e0ac18d0921ef54
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.attempts.jsonl: c0801fd823b4a1d79954386134bd79a18198a6faffa9399f973db47c35020768
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.json: 13ac17805349283377c761da67c0065b016b2ae498bd8e9c41cd451c36e3383d
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.stdout.log: 97e61eef98c2993449e1ef143ab3348cd606cd9b423d0e16a64a87b0408fff36
+    smoke/v4/dry/DRYRUN-v4-controls/command.txt: 414191bbfa74bbfd0cd97cd0e2b027fa11cc066c60e432b1d21a9f65acd85afa
+    smoke/v4/dry/DRYRUN-v4-controls/environment.json: f49a4650818648212cad3550ff9800c616686df16c9a56fa1b3fdd12cafc4998
+    smoke/v4/dry/DRYRUN-v4-controls/manifest.yaml: 8100eae3127e6294aeafbd55496c658cdda31dfbc5b358389ab3c3009d481bc4
+    smoke/v4/dry/DRYRUN-v4-controls/raw-result.json: 0a160f6f3bb40a66812f3b09a54ab51df56346e9a5e818d224890471dd790368
+    smoke/v4/dry/DRYRUN-v4-controls/stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-controls/stdout.log: 725dcf6832d3a4180fdeb1eae1f6d78b612284baf8e9ad9c21d898e598ba465d
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.attempts.jsonl: 6374ba04081507c440e64cc012c564848319503d4e7c9799691a3d48190b3a0f
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.json: 35c6ecab6816456a0f3378ce9313f4268b662f294d00426422468f41f23d1ae7
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.stdout.log: 41d4959d5561fca865772f9edc765d6a973ca6912a6ebef4264aa634373e4fbc
+    smoke/v4/dry/DRYRUN-v4-tiny/command.txt: ef550532975557727db19d8d1f372e2121280fc52fcdb4ac35cdae87e6da1092
+    smoke/v4/dry/DRYRUN-v4-tiny/environment.json: f49a4650818648212cad3550ff9800c616686df16c9a56fa1b3fdd12cafc4998
+    smoke/v4/dry/DRYRUN-v4-tiny/manifest.yaml: fec9304b9d2227d9b571be0a780464c1ff4006f096037f52719e3c6b8ba9a7bb
+    smoke/v4/dry/DRYRUN-v4-tiny/raw-result.json: 4f8ea8807ed08818eaf601ec9252ebffa774d61e2517f92587251a4e5cb65669
+    smoke/v4/dry/DRYRUN-v4-tiny/stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-tiny/stdout.log: 1e94e6efcc087971b30555829e57dbd9d950fd6138cc47ab19437018e5146ef4
+    smoke/v4/smoke_summary.json: c6d61be4e9f888637ff39d0afb7733ecd18b615652c996d763c37d1a074a0e46
+    smoke.py: da0ac749c0ba12b7180874362cb16b0956508eff41e957e061f58b33e6bff1ec
+    test-results.txt: c19388e0c3383cbd8334080085c62722068706222d3cdadae43f999e220d6ab0
+    tests/conftest.py: c50c8305f585c9551191788e47ab0cbebac1b54229902d72a7bd11ce8f5ae4b5
+    tests/test_analysis.py: e4653310872bd18fbbac072eb622cf3d6cf627eafca68be33bbc65e050df64ed
+    tests/test_charging.py: 0286aea50d4d0d897fdf2f498df9d8d8bf445f2f2b91f90314652fa3a053bf4f
+    tests/test_controls.py: a24cbb8f0473a042e2f596b854731bcb0fac9a1b0d56c5b570b511bb8a875217
+    tests/test_driver.py: 3edabb5f37bc47fdbd3b035f058e99c2c95c8fc631f29d690e185d200d190bc2
+    tests/test_fixtures.py: 62df12fc5267a84be8b490b6965193acc1de96d66bf4e96fc934c815027a5be5
+    tests/test_graph.py: bbc174ebd54a557a9d841bec1861e2f20faf592705ce2ba8245cb84cc71b9d0a
+    tests/test_v4.py: 37e5e8178ff61fbbbfcbfc4ce533e787c3d3316380ec299f2fce466e13372d49
+    trial-plan-v2.json: 7fb5e40dffa543feb25ea97fc62a8be16baf2db170df6025ec5f1cb7bbef29cf
+    vcurve.py: fc97b0616b54f42e3569cdad95b634c8e6f30b5e712e6f271dd862d36b3e926f
+  implementation_files_note: every file under implementation/ except this report; repair_report_v4.yaml and all
+    smoke files unchanged.
+  open_questions:
+  - id: OQ-27
+    topic: R-3 margin boundary and scope
+    reading: inclusive (<= 1.25 refused), same fixture only, plus exact equality with any fixture's frozen budget;
+      cross-fixture near values (256 vs 249) allowed.
+  - id: OQ-28
+    topic: R-5 strength
+    reading: stops hand-written manifests and hand-launched cells, not a same-user process that reads the child
+      environment; pinning the receipt task id or sha256 in the admission decision is left to the Coordinator (not
+      enforced by code).
+  - id: OQ-29
+    topic: driver SIGKILL
+    reading: cells exit within about 1 s of re-parenting and write no cell JSON; the manifest stays running (OQ-26
+      status).
+  inference:
+    requested_policy: executor-implementation
+    resolved_model_id: unverified
+    fallback_used: true
+    fallback_reason: 'Cursor runtime: subagent runs on the inherited session model'
+    degraded_requirements: []

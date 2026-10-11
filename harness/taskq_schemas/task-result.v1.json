@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "taskq.task-result/v1",
+  "title": "taskq task result v1",
+  "description": "Written once per task by the worker holding the current fence. Never overwritten.",
+  "type": "object",
+  "required": [
+    "schema",
+    "task_id",
+    "attempt",
+    "fence",
+    "spec_sha256",
+    "status",
+    "outcome_class",
+    "worker",
+    "environment",
+    "source",
+    "timing",
+    "runs",
+    "artifacts"
+  ],
+  "properties": {
+    "schema": {
+      "const": "taskq.task-result/v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "spec_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "timeout",
+        "cancelled",
+        "infra_error"
+      ]
+    },
+    "outcome_class": {
+      "enum": [
+        "completed",
+        "not_completed"
+      ],
+      "description": "completed = the command ran to exit (succeeded or failed). not_completed = timeout, cancelled or infra_error: never negative evidence about the thing measured."
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "worker": {
+      "type": "object",
+      "required": [
+        "id",
+        "hostname"
+      ]
+    },
+    "environment": {
+      "type": "object"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "repo",
+        "commit",
+        "resolved_commit"
+      ],
+      "properties": {
+        "resolved_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": [
+        "queued_at",
+        "started_at",
+        "finished_at",
+        "setup_wall_seconds"
+      ]
+    },
+    "setup": {
+      "type": "array"
+    },
+    "runs": {
+      "type": "array",
+      "description": "One entry per timed execution of argv (1 for command; repetitions for benchmark). Warmups are recorded with warmup=true.",
+      "items": {
+        "type": "object",
+        "required": [
+          "index",
+          "warmup",
+          "exit_code",
+          "wall_seconds",
+          "user_cpu_seconds",
+          "sys_cpu_seconds",
+          "max_rss_kb",
+          "timed_out"
+        ],
+        "properties": {
+          "metrics": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "verification": {
+            "type": "object",
+            "required": [
+              "status",
+              "verifier"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "verified",
+                  "refuted",
+                  "no_claim",
+                  "error"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "bytes"
+        ]
+      }
+    },
+    "verification": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "status",
+        "counts"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "refuted",
+            "no_claim",
+            "error"
+          ]
+        },
+        "counts": {
+          "type": "object"
+        }
+      },
+      "description": "Present when the spec had verify. refuted if any run's certificate failed; error if any verifier could not decide; verified if at least one run verified; else no_claim."
+    }
+  }
+}

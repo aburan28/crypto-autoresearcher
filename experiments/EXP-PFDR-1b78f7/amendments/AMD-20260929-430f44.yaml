@@ -1,0 +1,487 @@
+# =============================================================================
+# AMD-20260929-430f44 -- PRE-DATA protocol amendment of EXP-PFDR-1b78f7,
+# protocol version 2 -> 3. ADDITIVE: specification.yaml (v1) and
+# AMD-20260929-1de84f (v2) are NOT edited. Approved by DEC-20260929-bb40ce
+# under the standing user authorization of 2026-09-06.
+# Rules on STOP-1 of experiments/EXP-PFDR-1b78f7/execution-report-amd1de84f.yaml
+# (R11 process-pool break), on the executor's deviations DEV-1..DEV-4, on the
+# run-level label "partial_failed_infrastructure", and on the 66 non-cell
+# known_log rows of R11. Changes the INVOCATION of the census panels and
+# fixes how R15 reads them. It changes no code of the engine, CLI, tests or
+# analysis, and no threshold, prediction, statistic, cell, arm, seed, mode,
+# gate or outcome condition.
+# =============================================================================
+protocol_amendment:
+  id: AMD-20260929-430f44
+  amendment_id: AMD-20260929-430f44
+  experiment_id: EXP-PFDR-1b78f7
+  hypothesis_id: H-PFDR-4765e4
+  calibration_experiment: EXP-PFDR-7c8bf2
+  kind: additive
+  version_from: 2
+  version_to: 3
+  recorded_at: '2026-09-29'
+  authored_by: coordinator
+  approved_by: coordinator
+  approval_decision: DEC-20260929-bb40ce
+  execution_handoff: TASK-20260929-89c123
+  archived_by: TASK-20260929-335bc4
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check; supplied to this Coordinator, which holds no shell and
+    minted no identifier.
+  authority: >-
+    Coordinator, under the standing user authorization of 2026-09-06
+    (AGENTS.md "Standing user authorization for ideas and experiments").
+    CLAUDE.md: "Changing a frozen scientific protocol uses an additive
+    amendment; never rewrite historical records". specification.yaml (v1),
+    AMD-20260929-1de84f (v2) and every archived run file (R01-R10, R01a, and
+    R11's attempt-1 files at the run root) are untouched.
+
+  precedence: >-
+    Protocol version 3 = specification.yaml (v1) + AMD-20260929-1de84f (v2) +
+    this file. This file governs exactly where it names a field. Every other
+    field of versions 1 and 2 governs unchanged.
+
+  reason: >-
+    R11 (RUN-PFDR-1b78f7-census-m4) ran the exact frozen command under the
+    binding limits. At 3803 s its process pool broke (BrokenProcessPool).
+    Every job that had not returned was written failed_infrastructure by the
+    frozen job_failure path. That was 594 cell instances: bits 12-22, every
+    curve; bits 24, curves 1, 3 and 4. No instance of those jobs produced
+    data. Version 2 allows a continuation in a new attempt directory only for
+    per-run watchdog expiry, and forbids re-running failed instances with
+    other parameters without a Coordinator decision (AMD-20260929-1de84f C-8
+    D-2). R12 (m = 5) and R14 (j0, bits <= 24) retain every harvested row at
+    bits <= 24 (IC-5 RETENTION) and share the failure mechanism. R15's pinned
+    analysis reads census-m4/rows.jsonl(.gz) from the run root, so rows from
+    a continuation attempt need a ruled read procedure.
+
+  diagnosis_basis: >-
+    A derivation from the committed code, not a proof, recorded because it
+    fixes the choice below. In cmd_census (__main__.py, amended build b9211a81)
+    the parallel path keeps every Future in the dict `futs` until the pool
+    context exits. A completed Future holds its result, which is the job's
+    rows, harvest rows (hrows) and staircases. So the pool parent's memory
+    grows with the cumulative retained harvest rows of every completed job,
+    and each result is also pickled in the worker and unpickled in the parent
+    under the parent's own 3.5e9-byte address-space cap. This is consistent
+    with the executor's samples (parent 0.74 -> 1.38 -> 2.57 GB while 24-bit
+    results arrived) and with CPython's BrokenProcessPool message on a
+    parent-side receive failure. In the single-process path (--workers 1) no
+    pool, Future or pickle exists. With one job per process, the process
+    holds exactly one job's working set, the same working set a pool worker
+    held in attempt 1, minus the pickling buffer. Whatever the exact cause,
+    a pool break is an infrastructure event and never evidence (AGENTS.md
+    core rule 5).
+
+  # ---------------------------------------------------------------------------
+  pre_data_assessment:
+    question: >-
+      Is this amendment written before any observation of a quantity that
+      R11-R15 measure (kappa and z per class, arm, m and rung; A2 slopes;
+      informative rank and saturation; S_3 harvest ratios and exponents;
+      Poisson PIT/KS; floor ratios; j0 kappa before and after formal
+      subtraction)?
+    exposures_examined:
+      - item: R10 (completed) and R11 attempt 1 (396 completed cell instances)
+        what_was_observed_by_the_coordinator: >-
+          Only the executor's report and implementation notes, which carry
+          statuses, counts, gate and certificate pass counts, total
+          harvested-row counts, wall and CPU seconds, and RSS peaks. Also
+          R11's command.txt, execution.json and manifest status line. No row
+          file, raw-result.json or staircase was opened. No kappa, rank,
+          ratio, exponent, Poisson or floor value was computed or read.
+        measured_quantity_exposed: >-
+          None of the R11-R15 quantities. A total count of certified harvest
+          rows over all arms carries no kappa, which needs a structured arm
+          against its matched random arms on the same curve.
+      - item: executor exposure
+        what_was_observed: >-
+          The executor produced R10 and R11 attempt 1 and summarised them with
+          summarize_run.py (statuses, gates and certificate counts only). It
+          states that analyze_census.py has not been run on panel data.
+        measured_quantity_exposed: none, on the executor's attestation
+    independence_of_the_changes: >-
+      Every change below is determined by the pool-break mechanism, by the
+      frozen job structure of cmd_census/_census_job, and by the version 1
+      and 2 rules on infrastructure failure. None depends on any measured
+      value. None changes a cell, arm, seed, mode, A_fix, gate, statistic,
+      threshold, Holm family, resolution floor, prediction, outcome condition
+      or line of analyze_census.py (pin c40ea02f...).
+    order_note: >-
+      One pre-data choice can move a Monte Carlo-level result: the row order
+      in the files R15 reads (EXP-PFDR-7c8bf2 review, finding G-1). M-5 fixes
+      that order by rule, before any R11 attempt-2, R12 or R14 row exists,
+      without reference to any value.
+    residual_risk: >-
+      The executor's attestation that no measured quantity was read is not
+      independently checkable. It is mitigated by a fresh executor session,
+      the unchanged analysis pin, and a mechanical merge rule that reads only
+      keys and statuses.
+    conclusion: >-
+      PRE-DATA for every quantity R11-R15 measure. Confirmatory status of
+      every prediction and outcome condition is preserved.
+
+  # ---------------------------------------------------------------------------
+  changes:
+    - id: M-1
+      name: per-job invocation procedure (PJ)
+      field: runs (R11 continuation, R12, R14, R16) and run_procedures
+      definition: >-
+        A JOB is one (panel, m, bits, curve) of `cells`, exactly the unit
+        cmd_census builds. Under PJ each job runs in its own process as one
+        census invocation with --workers 1, using the frozen flags of its run
+        restricted to that job:
+        MAIN PANEL: <interpreter> -m crypto_autoresearcher.index_calculus
+        census --panel main --m <m> --bits <B> --curve-offset <c> --curves 1
+        --known-log-max-bits <K> --workers 1 --out <jobdir>/rows.jsonl
+        --rows-out <jobdir>/harvest-rows.jsonl --staircase-out
+        <jobdir>/staircase.jsonl, with K the frozen value of the run (0 for
+        R11 and R12). No --arms flag, except under M-4 and in R16, which
+        passes its frozen --arms list.
+        J0 PANEL: ... census --panel j0 --m 3 --bits <B> --curve-offset <c>
+        --curves 1 --rho-curves 5 --workers 1 --out ... --rows-out ...
+        --staircase-out ...
+        RHO PANEL (only under the M-2 general rule): ... census --panel rho
+        --bits <B> --curve-offset <c> --rho-curves 1 --workers 1 --out
+        <jobdir>/rows.jsonl.
+        No --instance-watchdog and no --quiet, so the frozen defaults apply
+        (7200 s per instance).
+      equivalence: >-
+        With these flags cmd_census builds for curve c exactly the job dict
+        that the frozen command builds for c: panel, bits, curve, m, arms,
+        known_log_max_bits, rho_curves and watchdog. The j0 exclusion set is
+        recomputed from c' = 0 in every job (AMD-20260929-1de84f C-1). Rows
+        are a function of the job dict alone, and invalidation rule I-5
+        requires identity across worker counts (tested by the IC-8
+        census-CLI determinism test, passed in R01a). M-3 checks it directly.
+      launcher: >-
+        experiments/EXP-PFDR-1b78f7/amd-430f44/run_jobs.py, new harness code
+        written by the executor. It imports no engine module. It runs each
+        job through the archived wrapper
+        experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py `exec`
+        (RLIMIT_AS 3.5e9 on the job process; per-job watchdog equal to the
+        remaining per-run watchdog), with at most 4 job processes at once. It
+        starts no new job while host MemAvailable is below 4 GB, and runs
+        jobs in descending bits, then curve, as the frozen sort does. It
+        writes <run>/<attempt>/jobs-index.json with one entry per job: the
+        command, start and end times, exit code or signal, peak RSS, CPU
+        seconds and the sha256 of every output file. Pinned by sha256 in the
+        implementation notes before first use. Before use it may be exercised
+        only on a dummy command that runs no solver.
+      layout: >-
+        <run>/<attempt>/jobs/b<BB>-c<C>/ holds rows.jsonl.gz,
+        harvest-rows.jsonl.gz, staircase.jsonl.gz (gzip -n after the job
+        ends, hashed after compression), command.txt, stdout.log, stderr.log
+        and execution.json. <run>/<attempt>/ also holds jobs-index.json, a
+        manifest.yaml (the attempt's trigger, command template, job list,
+        code pins, inference block and statuses), command.txt,
+        environment.json, stdout.log, stderr.log and checksums.sha256
+        covering every file of the attempt directory. Attempt directories
+        are attempt-1 for a run executed under PJ from its start (R12, R14,
+        R16), and attempt-N (N >= 2) for every continuation. R11's attempt 1
+        is its root files as archived.
+      run_stop_rule: >-
+        Version 1's stopping rules apply per run. If any job's rows contain
+        an instance with status invalid (certificate or gate failure), the
+        run stops as version 1 says. The launcher starts no further job and
+        lets running jobs finish; their rows are retained. Unstarted jobs are
+        listed as not_started_after_run_stop. The run is invalid, and the
+        executor returns.
+      abnormal_job_end: >-
+        A job process that exits without writing its rows (signal, watchdog
+        kill, uncaught error) is recorded in jobs-index.json with its exit
+        status. M-5 gives each of its missing cell instances a placeholder
+        failed_infrastructure row. A job-level failure is never evidence.
+    - id: M-2
+      name: where PJ applies
+      field: runs R11-R16
+      rules:
+        - >-
+          R11 (census-m4): the RESUME SET is exactly the jobs whose every
+          attempt-1 row carries a status_reason beginning "job crashed:".
+          merge_census.py computes it from the archived root rows.jsonl.gz
+          and asserts it equals {12, 14, 16, 18, 20, 22} x {0..4} plus
+          {24} x {1, 3, 4}: 33 jobs, 594 cell instances. If it differs, the
+          executor stops and returns. The resume set runs under PJ in
+          attempt-2. No other R11 job is re-run, except the M-3 check job,
+          whose rows never enter the canonical set.
+        - R12 (census-m5) runs under PJ from its start (attempt-1, all 55 jobs). The frozen single invocation is not attempted, because it shares the failure mechanism.
+        - R14 (j0) runs under PJ from its start (attempt-1, all 35 jobs). Every R14 job is at bits <= 24 and retains every harvested row.
+        - R13 (rho) runs its frozen command unchanged (--workers 4). Rho rows carry no harvest block.
+        - R16 (stage-r, only on O-EXCURSION) runs under PJ, one job per (m, bits, curve c in 5..9) with its frozen --arms list.
+        - >-
+          GENERAL RULE. Any run executed by its frozen single invocation whose
+          attempt ends with job-crash rows resumes exactly those jobs under PJ
+          in the next attempt-N, with its canonical files in <run>/merged/.
+          This is what R11 does, and it covers R13.
+        - >-
+          Per-run watchdog expiry (86400 s per attempt) checkpoints the
+          attempt, as version 1 says. Jobs not started, or killed by the
+          expiry, resume under PJ in the next attempt-N.
+        - >-
+          NO OTHER RETRY. A job that ends abnormally, or with an instance
+          failed_infrastructure for any cause other than the address-space
+          cap, is final. An attempt-limit stop (C-3), an instance watchdog
+          expiry, and a second abnormal end are all final. The only further
+          attempt is M-4.
+    - id: M-3
+      name: build identity and invocation equivalence (no new C-2 certificate)
+      field: AMD-20260929-1de84f C-2 (scope note) and run_procedures
+      ruling: >-
+        No new build-equivalence certificate of the C-2 kind is required.
+        C-2 certified code changes between the frozen build and the amended
+        build. Version 3 changes no code of the engine, CLI, tests or
+        analysis. It adds only harness scripts that import no engine module
+        (M-1 launcher, M-5 merge). What changes is the invocation, and that
+        is covered by I-5 and the IC-8 determinism test (R01a), and checked
+        directly below. R01a remains the G3 check of this build. R02-R09 are
+        unaffected.
+      BI-1_build_identity: >-
+        Before any run, every file pinned in RUN-PFDR-1b78f7-census-m4's
+        attempt-1 execution.json source_sha256 must have its recorded
+        sha256, except summarize_run.py, whose DEV-4-corrected hash
+        68165e094c51f90c2aafd4e51510f414622b53b2145a0af6c279c32af93f5e68
+        governs. That covers the engine, CLI, curve, tests, analyze_census.py
+        (c40ea02f...), compare_regression.py and the amd-1de84f scripts. The
+        same files must equal their bytes at the archive commit dc61c5e1e
+        (git show). A mismatch is a stop, never a repair.
+      IE-1_invocation_equivalence: >-
+        Before any resumed job, run ONE R11 job that completed in attempt 1,
+        (m = 4, bits 26, curve 0), under PJ into
+        <R11>/attempt-2/invocation-check/b26-c0/. Compare with attempt 1's
+        rows, staircase records and harvest rows for the keys (main, 4, 26,
+        0, *, *) using merge_census.py compare. All three sets must be equal,
+        record by record, in emission order, after removing only keys named
+        `seconds`, keys ending in `_seconds`, `worker_maxrss_bytes` and
+        `ru_maxrss_bytes`, at any depth. Any other difference: STOP before
+        any resumed job, and return with the differing key names and record
+        counts. That is a harness finding for the Coordinator to rule, not
+        an I-5 invalidation by itself. The check's rows never enter any
+        canonical set.
+      IE-2_per_arm_equivalence: >-
+        Run only if M-4 is triggered, and before the first M-4 job. Same as
+        IE-1, but with the nine main arms of (4, 26, 0) run as nine per-arm
+        invocations (--arms <arm>) into <R11>/attempt-2/invocation-check/b26-c0-per-arm/.
+        The same equality is required. If IE-2 fails, M-4 is not used and the
+        affected instances stay failed_infrastructure.
+    - id: M-4
+      name: per-arm fallback (bounded, main panel only)
+      field: run_procedures
+      trigger: >-
+        A main-panel job run under PJ in R11 attempt-2, R12 or R16 ends with
+        at least one instance failed_infrastructure whose status_reason
+        begins "address-space cap:", or ends abnormally (M-1). This is an
+        infrastructure outcome. No instance value is read to decide it.
+      rule: >-
+        For every such job, each arm with an address-space-cap instance or a
+        missing or placeholder instance is re-run once, in the run's next
+        attempt-N. The arm runs as its own process (PJ flags plus --arms
+        <arm>, both modes), after IE-2 has passed. The fallback applies once
+        per (job, arm). Its outcome is final whatever it is. It never applies
+        to R14 (j0 jobs also run a rho row, so per-arm splitting would
+        duplicate it), to R10, or to known_log.
+      why_allowed: >-
+        AMD-20260929-1de84f C-8 D-2 bars re-running a memory-stopped instance
+        with other parameters without a Coordinator decision. This change is
+        that decision, made before any such stop exists. The scientific
+        parameters of the instance (curve, base, seeds, m, mode, A_fix, cap)
+        are unchanged. Only the process that runs it changes. The trigger is
+        infrastructure, never a measured value. Where a fallback re-runs an
+        instance that earlier completed_valid, M-5 compares the two, which
+        is a further I-5 check.
+    - id: M-5
+      name: canonical row set and merge rule
+      field: runs (R11, R12, R14, R16) and required_artifacts
+      script: >-
+        experiments/EXP-PFDR-1b78f7/amd-430f44/merge_census.py, new code
+        written by the executor, with subcommands `compare` (M-3), `merge`
+        and `view` (M-6). It imports no engine module, computes no kappa,
+        rank, ratio, exponent, Poisson or floor value, and reads only keys,
+        statuses, status_reasons and record identity. It is pinned by sha256
+        in the implementation notes before first use, and before that may be
+        exercised only on synthetic fixtures the executor constructs, never
+        on panel files.
+      cell_universe: >-
+        U(run) is the set of cell-instance keys (panel, m, bits, curve, arm,
+        mode) that `cells` defines for the run. R11: 11 rungs x 5 curves x 9
+        arms x 2 modes = 990 (no known_log at m = 4). R12: 990. R14: 7 x 5 x 4
+        x 2 = 280 solver keys, plus 35 j0 rho keys (panel j0, method rho,
+        bits, curve). R13, only under the M-2 general rule: 11 x 10 = 110 rho
+        keys (panel rho, bits, curve). R16: its excursion cells. A row is a
+        CELL ROW iff its key is in U.
+      rule: >-
+        (1) For each key in U, the canonical row is taken from the latest
+        attempt that ran that key's arm in that job: attempt-1 (R11: root
+        files), then attempt-2, and so on, with an M-4 per-arm attempt
+        superseding for the arms it re-ran. For R11 the resume set of M-2 is
+        the only source of attempt-2 rows. A key outside the resume set keeps
+        its attempt-1 row, and an attempt-2 row for such a key (other than
+        the IE-1 check) is a stop.
+        (2) A key with no row in any attempt gets a PLACEHOLDER row:
+        failed_infrastructure, status_reason "no row: <job exit status from
+        jobs-index.json>", placeholder true, the key fields and nothing else.
+        (3) Rows outside U are NON-CELL rows. They are excluded from the
+        canonical set and listed in merge-report.json. They are never counted
+        as instances or failures (M-9).
+        (4) Two rows for one key within one attempt are a harness defect:
+        stop.
+        (5) Where a later attempt re-ran a key whose earlier row was
+        completed_valid (M-4), the two rows must be equal after the M-3 key
+        exclusions. If they differ, that is an I-5 nondeterminism
+        invalidation: stop, the run is invalid, and both rows are retained.
+        (6) Staircase records are taken from the same attempt and job
+        directory as their instance's canonical row.
+        (7) ORDER: the canonical rows and staircase records are written
+        sorted by (bits, curve, m, arm, mode), stable. m is read as the row's
+        m key or int(method[4:]), and rho rows sort with arm "". This fixes
+        by rule the row order the pinned analysis's seeded bootstraps depend
+        on.
+        (8) Harvest rows are not merged or copied. Each instance's harvest
+        rows stay in the file that produced them, and merge-report.json maps
+        every canonical instance to its harvest-rows file and sha256.
+        Harvest rows are not read by R15. For per-job runs this replaces the
+        single run-level harvest-rows.jsonl.gz of per_run_data (a layout
+        deviation declared here).
+      outputs: >-
+        R11 has root files that hold attempt 1 as archived, so its canonical
+        files go to <R11>/merged/: rows.jsonl.gz, staircase.jsonl.gz,
+        execution.json, merge-report.json, manifest.yaml, raw-result.json and
+        checksums.sha256. For R12, R14 and R16 (PJ from the start) the
+        canonical rows.jsonl.gz, staircase.jsonl.gz, execution.json,
+        merge-report.json, raw-result.json, manifest.yaml and checksums.sha256
+        are written at the run root. R13 keeps its frozen root layout. A run
+        has a merged/ directory iff its root holds a frozen-invocation
+        attempt that was later resumed.
+      execution_json_aggregate: >-
+        The canonical execution.json carries the three keys the pinned A9
+        reads: peak_rss_bytes_max_descendant = max over every attempt and
+        job process; cpu_seconds_descendants = sum; wall_seconds = sum of
+        attempt wall spans. It is labelled "aggregated over attempts and
+        jobs by AMD-20260929-430f44 M-5; not one process tree".
+      merge_report: >-
+        merge-report.json holds: the input files with sha256 (verified
+        against the archive receipts where archived); U's size; the resume
+        set; per key, its source attempt and file; placeholders; non-cell
+        rows excluded, with their keys and status_reasons; determinism
+        comparisons; the canonical files' sha256; and the counts by status.
+        It holds no measured quantity.
+    - id: M-6
+      name: R15 read procedure
+      field: runs.R15 (command) and runs.R16 (analysis step)
+      rule: >-
+        merge_census.py view builds a VIEW directory in the executor's
+        scratch. It holds one symbolic link per run directory
+        experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-*, named as that
+        run directory. The link points to <run>/merged/ if that directory
+        exists and to the run root otherwise. The R15 command is the frozen
+        one with only --runs-dir changed:
+        <interpreter> experiments/EXP-PFDR-1b78f7/analyze_census.py
+        --runs-dir <view> --stage0
+        experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/fits.json
+        --out experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-analysis.
+        analyze_census.py stays byte-identical to its pin c40ea02f..., and
+        R15 states that hash. R15's run directory archives view-map.json
+        (link name, target path, and the sha256 of every file in each target
+        directory at the time of the run). The view itself is derived and is
+        not archived. R16's analysis step runs `analyze_census.py --stage-r
+        --runs-dir <view> --out <R16 root>` over R16's canonical root rows.
+    - id: M-7
+      name: run-level status vocabulary; attempt records
+      field: required_artifacts.per_run (manifest status)
+      rule: >-
+        Run-level and attempt-level statuses are completed_valid,
+        failed_infrastructure or invalid, with a separate `completeness`
+        field (instances by status). Instance statuses are unchanged.
+        R11's attempt-1 manifest label "partial_failed_infrastructure" is
+        immutable and is read as failed_infrastructure (attempt level;
+        completeness 396 completed_valid, 594 failed_infrastructure). It is
+        not a status value, and later records do not use it. The status of
+        R11 as a whole is the status in <R11>/merged/manifest.yaml:
+        completed_valid iff every key of U has exactly one canonical row, no
+        canonical row is invalid, and no run-stop rule fired. Instance-level
+        failed_infrastructure rows, placeholders included, are allowed and
+        listed, as R10's convention and version 1 allow. The same rule gives
+        the status of R12, R14 and R16.
+    - id: M-8
+      name: rulings on the executor's recorded deviations (TASK-20260929-f90fed)
+      field: implementation-notes-amd1de84f deviations_from_the_card_or_amendment
+      rulings:
+        - id: DEV-1
+          ruling: >-
+            RATIFIED. The ru_maxrss recording and the "address-space cap:"
+            label in _census_instance are what AMD-20260929-1de84f C-8 D-2
+            requires. They sit in a C-2 E-3-allowed function, and E-3 and E-4
+            passed with them in place (function-diff.json). M-4's trigger
+            relies on this label.
+        - id: DEV-2
+          ruling: >-
+            RATIFIED as the protocol-v2 reading of G3: G3 passes iff both R01
+            (frozen build) and R01a (amended build, C-2 E-5) pass. It was
+            pinned before R10.
+        - id: DEV-3
+          ruling: >-
+            RATIFIED. The H3 permutation-stability tally is restricted to
+            A3-qualifying instances (usable, not unmatched_size). This is
+            C-4's exclusion applied consistently, and it was pinned before
+            R10.
+        - id: DEV-4
+          ruling: >-
+            ACCEPTED as recorded. summarize_run.py was corrected after its
+            first R11 invocation: rows without p are skipped in the
+            prime-coincidence listing. It is post-processing, touches no
+            measured quantity, and R10 is unaffected. Both hashes are
+            recorded. The corrected hash 68165e09... governs BI-1.
+    - id: M-9
+      name: the 66 non-cell known_log rows of R11 attempt 1
+      field: runs.R11
+      ruling: >-
+        The frozen job_failure path writes a failed row for every arm of the
+        job's --arms list, 10 arms x 2 modes, without the known_log
+        applicability rule (m = 3 and bits <= 24). R11 attempt 1 therefore
+        holds 33 jobs x 2 = 66 known_log rows at m = 4. They are not cells.
+        They stay in the archived attempt-1 rows.jsonl.gz, unedited. They are
+        excluded from R11's canonical set by M-5 (3), listed in its
+        merge-report.json, and are neither instances, failures nor evidence.
+        The same rule covers any non-cell row a later job_failure writes. The
+        frozen job_failure code is not changed.
+    - id: M-10
+      name: budget and run count
+      field: budget
+      text: >-
+        maximum_runs stays 26 (AMD-20260929-1de84f C-2). Attempts, job
+        processes and the M-3 checks belong to their run id and are not new
+        runs. Machine protection is unchanged: at most 4 solver processes at
+        once (the frozen R13 command uses its 4 workers with nothing else
+        running), 3.5e9 bytes of address space per process, 7200 s per
+        instance, 86400 s per attempt, 14 GB in total. Time is advisory.
+
+  affected_runs:
+    - "R11 (continuation: attempt-2 under PJ, IE-1, conditional M-4 attempt, merged/)"
+    - R12 (PJ from its start; conditional M-4 attempt; canonical files at root)
+    - R14 (PJ from its start; canonical files at root)
+    - R15 (--runs-dir through the M-6 view; analysis unchanged)
+    - R16 (conditional; PJ, M-4, M-6)
+  unaffected_runs:
+    - R01-R10 and R01a (valid, immutable records; not re-scored)
+    - R13 (frozen command; general rule of M-2 only if its pool breaks)
+  what_this_does_not_change:
+    - every threshold, prediction, outcome condition, tripwire, success or falsification criterion of versions 1 and 2
+    - every cell, curve, base, arm, seed, rung, m, mode, A_fix, attempt cap and known_log rule
+    - engine, CLI, curve, test and analysis code (BI-1); the analyze_census.py pin c40ea02f...
+    - the matched-random design, the Holm family, the resolution floor, and the bootstrap, permutation and PIT seeds
+    - machine protection limits
+    - any hypothesis status
+  confirmatory_status: preserved
+  claim_ceiling_unchanged: >-
+    Toy scale, one engine, generated curves. A kappa-positive outcome is a
+    lever candidate for independent review, never a result. A pool break,
+    placeholder, attempt-limit stop or memory stop is failed_infrastructure
+    and never evidence.
+  supersedes: null
+  superseded_by: null
+  validation_note: >-
+    tools/validate_ledger.py does not read experiment amendment files. This
+    file is a protocol record whose authority is DEC-20260929-bb40ce. It is
+    official only once the TASK-20260929-335bc4 receipt verifies.

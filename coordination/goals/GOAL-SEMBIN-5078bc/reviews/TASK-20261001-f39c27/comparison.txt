@@ -1,0 +1,202 @@
+COMPARISON (POST-REVEAL) -- TASK-20261001-f39c27
+Validator, blind re-derivation of the EXP-SEMBIN-04ec3c construction-charged
+TOTAL and its margin against 0.886 sqrt(N)
+Written 2026-10-02, after pre_reveal_hashes.txt was sealed.
+(.txt rather than .md for the same harness reason as blind_derivation.txt.)
+
+======================================================================
+0. REVEAL RECORD
+======================================================================
+Sealed at 2026-10-02T22:01:27Z, repo HEAD 4a0b13aec8a48b49d6dd66c3dbefe986c51dc625.
+  pre_reveal_hashes.txt sha256 671e4de8aa78c1db75c40ee74135600d87f6c7981712be41f639642d13a105fc
+  That hash was sent to the Coordinator (SendMessage to main) BEFORE reveal.
+  It is a live-session pointer, not a durable record.
+`sha256sum -c pre_reveal_hashes.txt` passed immediately before reveal, and
+again after the incident in section 1.
+Opened at reveal (both committed in b8019a6fb, clean in the working tree):
+  experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/raw-result.json
+      sha256 4df28d20eeb3c5b4d8512e4afa7f8483b507cedb3d7a363122d191b4dbff5ca6
+  experiments/EXP-SEMBIN-04ec3c/RESULTS-amd-e61f2b.md
+      sha256 f0a0fa7e9ae5934b5ea94dfc9e12648cbabc7dc964ac1aa0b04484a66aaa18d5
+Nothing else on the blind list was opened, before or after reveal. That
+includes code/, the rest of runs/, amendments/, DEC-20261001-5c9e7a,
+CORR-20261001-a38d14, TASK-20261001-41f6b3, other reviews, and
+TASK-20260929-c05f6e.
+`git status` did print the NAMES of two untracked sibling directories,
+reviews/TASK-20261001-0e7f53/ and reviews/TASK-20261001-b2c916/. Neither was
+listed or opened.
+
+======================================================================
+1. INCIDENT AND ERRATUM (my own artifacts)
+======================================================================
+I1. At 2026-10-02T22:0xZ I mistakenly appended a post-reveal timing line to
+    the sealed run_log.txt (a `tee -a`). The sealed hash check had already
+    run and passed before the append. I restored the file to its sealed
+    bytes by removing exactly that line, and `sha256sum -c` passed again
+    for all five sealed files. Post-reveal logs now go to
+    post_reveal_log.txt. No sealed content was changed in substance at any
+    point, and the hashes are the check on that.
+E1. blind_derivation.txt section 3 gives log2(0.886 sqrt N) as
+    log2(N)/2 - 0.17455. The correct constant is log2(0.886) = -0.174621.
+    The script used the correct value, and every rho column and margin in
+    the sealed outputs is correct. The structural bound still holds:
+    0.5 + 0.1746 = 0.67 bits. Only the prose constant was wrong.
+
+======================================================================
+2. HEADLINE
+======================================================================
+The two implementations compute the SAME objective and apply the SAME
+exclusion rule. Every per-degree difference between the producer's reported
+minimum and the blind value comes from one domain choice. The producer
+minimises over d in {1.0, 1.25, ...} (raw-result parameters.d_grid
+"1.0 .. bound step 0.25 (v1)"). The quantity in this task's statement is
+minimised over REAL d. The grid minimum is an upper bound on the real-d
+minimum. It exceeds it by +0.004 to +0.230 bits per degree, and at n = 571
+the grid moves the arg-min from (m=14, s=7) to (m=12, s=6).
+Sign agreement is total: every margin is positive in both. The blind
+structural bound proves margin > 0.67 bits for every (m, s, d) and every N
+under this cost model.
+
+======================================================================
+3. K1 -- POINTWISE OBJECTIVE AGREEMENT (post_reveal_compare.py, post_reveal_k1b.py)
+======================================================================
+I evaluated the sealed blind objective (blind_rederive.components/total,
+unmodified) at every producer argmin row:
+  MITM          300 rows   PROBE/TOTAL max |diff| 5.7e-14   FILL, LA exact
+  MITM_CAPPED  2700 rows   PROBE/TOTAL max |diff| 5.7e-14   FILL, LA exact
+  ENUM          300 rows   the producer labels these s = 0 but charges oracle
+                           |F|^(m-1) with FILL = 0 (RESULTS PD-6 "FILL = 0
+                           literal"). Mapped to the statement's s = 1:
+                           PROBE/TOTAL max |diff| 2.8e-14. FILL differs by
+                           exactly d (statement |F|^1, producer 0), which
+                           never moves TOTAL measurably because PROBE = L
+                           dominates. This is a labelling difference, not an
+                           arithmetic one. ENUM is never near the minimum.
+  FREE          300 rows   skipped (control with oracle cost 1; outside the statement)
+  TPR (log2 trials/relation) and CALLS (log2 total trials) agree to 6e-14.
+  The producer's exclusion "CALLS < 0" is exactly the statement's "total
+  trials < 1", which is my convention C1.
+
+======================================================================
+4. K2 -- GRID REPRODUCTION
+======================================================================
+I ran the sealed blind objective on the producer's declared domain (d from
+1.0 to n in steps of 0.25, CALLS >= 0, every s in 0..floor(m/2)). It
+reproduces the producer's per-degree primary minimum with |diff| = 0.0 and
+the identical (m, s, d) at all 10 degrees.
+
+======================================================================
+5. K3 -- PER-DEGREE COMPARISON (margin vs 0.886 sqrt N; + = IC costs more)
+======================================================================
+  n  | producer (0.25 grid)        | blind (real d)               | prod-blind | E-2   | blind-E-2
+     | m  s  d      TOTAL   margin | m  s  d       TOTAL   margin |   bits     |       |
+  97 | 6  3  21.25  64.876  16.551 | 6  3  21.181  64.866  16.541 | +0.0099    | 16.54 | +0.0007
+ 109 | 8  4  17.75  72.025  17.699 | 8  4  17.698  72.013  17.688 | +0.0115    | 17.69 | -0.0020
+ 131 | 8  4  20.50  83.454  19.129 | 8  4  20.555  83.442  19.117 | +0.0123    | 19.12 | -0.0035
+ 163 | 8  4  25.25 102.973  21.648 | 8  4  25.412 102.870  21.545 | +0.1028    | 21.55 | -0.0049
+ 191 | 8  4  29.25 118.973  23.648 | 8  4  29.412 118.870  23.545 | +0.1028    | 23.55 | -0.0049
+ 233 |10  5  28.25 142.546  26.220 |10  5  28.274 142.542  26.216 | +0.0041    | 26.22 | -0.0037
+ 239 |10  5  28.75 146.105  26.779 |10  5  28.941 145.875  26.550 | +0.2299    | 26.55 | -0.0004
+ 283 |10  5  33.75 170.362  29.037 |10  5  33.830 170.319  28.994 | +0.0430    | 29.00 | -0.0059
+ 409 |12  6  39.75 239.822  35.497 |12  6  39.779 239.813  35.488 | +0.0089    | 35.49 | -0.0020
+ 571 |12  6  54.50 328.177  42.852 |14  7  46.702 328.027  42.701 | +0.1508    | 42.70 | +0.0013
+VOW / rho column: identical in both, 48.32537860389293 at n = 97 and so on.
+  Both use log2(0.886) = -0.174621.
+n = 131 against the ECC2K-130 published-rho column: the producer gives
+  +22.645 (PUB rounded to 60.809). Blind gives +22.633 (60.80904 recomputed
+  as log2 sqrt(pi ell/(4*131))). The difference is the grid effect plus
+  3.7e-5 bits of rounding in PUB.
+ell: identical value. The producer read it from talk-35minutes_text.md and
+  checked it with 16-base Miller-Rabin. Blind read it from paper_fulltext.md
+  Appendix A, re-derived #E(F_2^131) = 4 ell from the Frobenius trace, and
+  checked it with sympy plus 78-base Miller-Rabin.
+
+======================================================================
+6. LOCALISATION -- WHY THE GRID MISSES, AND BY HOW MUCH
+======================================================================
+Blind section 3 shows that the real-d optimum for m = 2s lies a distance
+delta = log2(s/(s-1)) / (2s - 1) below the CALLS = 0 exclusion boundary.
+The measured values are 0.117 (s=3), 0.059 (s=4), 0.036 (s=5), 0.024 (s=6)
+and 0.017 (s=7), all smaller than one 0.25 grid step. So:
+  (a) every grid minimum is the last in-domain grid point. That is why
+      the producer's "argmin adjacent to C-2 domain edge" is "yes" at every
+      degree (T5), and why 120 of 150 MITM argmin rows have their next grid
+      point out of domain (RESULTS, unexpected observations).
+  (b) The grid excess is set by where the boundary falls relative to the
+      0.25 lattice. Near d* it is about ln2 * s(s-1) * Delta^2 / 2, with
+      Delta the distance from the grid point to d*. Measured over
+      (n, even m, s = m/2), the excess is 0.0001 to 0.76 bits. It is
+      largest at s = 7 and 8 (e.g. n = 233, m = 16: 0.759; n = 571, m = 14:
+      0.505).
+  (c) At n = 571 the m = 14 grid excess (0.505) is larger than the real gap
+      between m = 14 and m = 12 (0.15), so the grid's arg-min moves to
+      m = 12. The producer's n = 571 arg-min is a grid artifact.
+  (d) n = 239: the m = 10 grid excess is 0.230 bits. n = 163 and 191: the
+      m = 8 grid excess is 0.103 bits.
+This resolves the item RESULTS left open (headline 5, "Over 0.1 bit from
+E-2: n = 239 (+0.229) and n = 571 (+0.152) ... not resolved"; "163 and 191
+differ by +0.098"). E-2 is the continuous-d quantity. The blind real-d
+values match E-2 to within E-2's two-decimal rounding (|diff| <= 0.006) at
+all 10 degrees. Every v2-minus-E-2 difference is the producer's 0.25 grid.
+
+======================================================================
+7. WHAT THE BLIND DERIVATION ADDS BEYOND AGREEMENT
+======================================================================
+A1. Model-family coverage. The producer's primary family covers s = S
+    (MITM), s = min(S, floor(log2 B / d)) (MITM_CAPPED) and ENUM. The blind
+    scan covers every s in 0..floor(m/2) at every real d and finds the
+    global optimum at s = S = m/2 at every degree. The restricted family
+    therefore loses nothing at the per-degree minimum.
+A2. The "0 sub-rho cells" result (T4, 362,219 in-domain cells) holds for
+    all d, not only the grid, and for all N: TOTAL >= sL/(2s-1) > L/2 for
+    s >= 2, and TOTAL >= L for s <= 1, so margin > 0.67 bits everywhere.
+    T4's zero is a theorem of the cost model, not an empirical tally over
+    a grid.
+A3. Every per-degree optimum, in both implementations, sits at p > 1. The
+    producer's TPR is negative at every per-degree minimum, e.g. -26.71 at
+    n = 239 (row d = 28.75); blind log2 p ranges from 17.3 to 46.5. There,
+    "trials_per_relation = 1/p" is an expected-decompositions count, not an
+    inverse probability. The cost is meaningful only if one oracle call
+    returns all ~p decompositions of a target AND those are ~p linearly
+    useful relations. Both implementations inherit this from the statement,
+    so blind re-derivation cannot surface it as a disagreement. It is
+    flagged as an unvalidated modelling assumption. Imposing p <= 1 (blind
+    C3, not in the statement) raises every margin by 5.3 to 18.1 bits. That
+    is the direction AGAINST index calculus, so the null result is not at
+    risk from it, but the margin values are model-dependent at that scale.
+A4. Memory at the optimum is within 1.12 to 1.32 bits of TOTAL (store
+    |F|^(m/2)). The producer reports it as "log2 table entries (reported,
+    not charged)" in T5, and the values agree: 63.75 at the n = 97 grid
+    point equals s*d = 3*21.25.
+
+======================================================================
+8. JOINT RESULT (this task's re-derivation joint only; no whole-claim verdict)
+======================================================================
+  objective and exclusion rule identical ........................ HOLDS (6e-14)
+  per-degree minimum on the producer's declared grid ............ HOLDS (bit-exact)
+  sign of every margin / zero sub-rho ........................... HOLDS (and proved structurally)
+  reported per-degree values equal the stated REAL-d quantity
+    to within 0.1 bit ........................................... BREAKS at n in {163, 191, 239, 571}
+                                                                  (+0.103, +0.103, +0.230, +0.151); grid
+                                                                  effect, conservative direction (overstates
+                                                                  IC cost, so overstates margin)
+  reported arg-min equals the real-d arg-min .................... BREAKS at n = 571 only (m=12 vs m=14)
+Overall on this joint: HOLDS for the producer's computation of its
+declared (grid) quantity. Its T5 / headline-5 figures should be read as
+0.25-grid upper bounds on the real-d minimum, not as the real-d minimum.
+
+======================================================================
+9. LIMITS OF THIS COMPARISON
+======================================================================
+- Independence: the producer's code is independent of mine (sealed before
+  reveal). E-2's provenance is a reviewer I cannot see. If E-2 came from
+  the same underlying model family as this session, the E-2/blind agreement
+  is correlated and adds less than a cross-model agreement would.
+- Not checked (outside this task's permitted read set): run manifest,
+  command, revision and dirty-tree record, environment, seeds/determinism,
+  stdout/stderr, gate/gate_report.json, artifact-digests.json, the C-IMPL-GATE
+  mutants, and the X-block exploratory values.
+- Whether the frozen protocol defines d on the v1 0.25 grid or as real d
+  could not be checked: the amendment and the rest of the specification are
+  blinded. If the protocol fixes the grid, the producer computed its
+  protocol quantity exactly. The task statement given here says real d.
