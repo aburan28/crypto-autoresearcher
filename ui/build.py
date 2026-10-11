@@ -147,6 +147,8 @@ def build(repo: Path, out: Path, clean: bool = True,
     total += write_json(data / "overview.json", payloads.overview_payload(index))
     total += write_json(data / "progress.json", payloads.progress_payload(index, progress_snapshot))
     total += write_json(data / "comparisons.json", payloads.comparisons_payload(index))
+    total += write_json(data / "curves.json", payloads.curves_payload(index))
+    total += write_json(data / "provenance.json", payloads.provenance_payload(index))
     total += write_json(data / "goals.json", payloads.goals_payload(index))
     total += write_json(data / "experiments.json", payloads.experiments_payload(index))
     total += write_json(data / "findings.json", payloads.findings_payload(index))
@@ -221,3 +223,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

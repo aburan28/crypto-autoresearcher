@@ -32,8 +32,8 @@ ell-isogenies, whether any small fundamental discriminant is present, and the
 class size h ~ sqrt|D|.
 
 With `--neighbours` it additionally computes the neighbouring curves explicitly:
-the Elkies kernel polynomial is obtained as the eigenspace of Frobenius on
-E[ell] via h = gcd(psi_ell, x^p * psi_lambda^2 - phi_lambda), then Velu's
+for ell > 3 the Elkies kernel polynomial is obtained as a Frobenius eigenspace;
+for ell = 3, fixed x-roots are split into individual kernels before Velu's
 formulae give the codomain (a', b') and j'.
 
 Self-verification (all on by default, none of it optional):
@@ -48,6 +48,7 @@ A failure of any check aborts rather than reporting a number.
 
 Usage
 -----
+    python3 tools/isogeny_class_screen.py --curve p224 --neighbours --ell 3
     python3 tools/isogeny_class_screen.py --curve p256
     python3 tools/isogeny_class_screen.py --curve p256 --neighbours --ell 3,5,11,13
     python3 tools/isogeny_class_screen.py --p ... --a ... --b ... --n ...
@@ -69,6 +70,14 @@ import sys
 # Named curves. Each entry carries a base point so the parameters self-check.
 # --------------------------------------------------------------------------
 CURVES = {
+    "p224": dict(
+        p=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000000001,
+        a=-3,
+        b=0xB4050A850C04B3ABF54132565044B0B7D7BFD8BA270B39432355FFB4,
+        Gx=0xB70E0CBD6BB4BF7F321390B94A03C1D356C21122343280D6115C1D21,
+        Gy=0xBD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34,
+        n=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF16A2E0B8F03E13DD29455C5C2A3D,
+    ),
     "p256": dict(
         p=0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF,
         a=-3,
@@ -193,6 +202,48 @@ def small_fundamental_discriminants(D: int, limit: int) -> list[tuple[int, int]]
     return hits
 
 
+def sqrt_mod(a: int, p: int) -> int | None:
+    """Return the canonical square root modulo an odd prime, or None."""
+    if p <= 2 or p % 2 == 0:
+        raise ValueError("p must be an odd prime")
+    a %= p
+    if a == 0:
+        return 0
+    if pow(a, (p - 1) // 2, p) != 1:
+        return None
+
+    if p % 4 == 3:
+        r = pow(a, (p + 1) // 4, p)
+        return min(r, p - r)
+
+    q, s = p - 1, 0
+    while q % 2 == 0:
+        q //= 2
+        s += 1
+
+    z = 2
+    while pow(z, (p - 1) // 2, p) != p - 1:
+        z += 1
+
+    m = s
+    c = pow(z, q, p)
+    t = pow(a, q, p)
+    r = pow(a, (q + 1) // 2, p)
+    while t != 1:
+        i, tt = 1, t * t % p
+        while tt != 1:
+            i += 1
+            if i >= m:
+                raise ArithmeticError("Tonelli-Shanks invariant failed")
+            tt = tt * tt % p
+        step = pow(c, 1 << (m - i - 1), p)
+        r = r * step % p
+        t = t * step * step % p
+        c = step * step % p
+        m = i
+    return min(r, p - r)
+
+
 # --------------------------------------------------------------------------
 # Curve arithmetic over F_p
 # --------------------------------------------------------------------------
@@ -242,14 +293,13 @@ class Curve:
         return num * pow(den, -1, p) % p
 
     def some_points(self, count: int):
-        """Yield up to `count` affine points with small x. Requires p = 3 mod 4."""
+        """Yield up to `count` affine points with small x."""
         p = self.p
-        assert p % 4 == 3, "point search here assumes p = 3 mod 4"
         out = []
         for x in range(2, 5000):
             rhs = (x * x % p * x + self.a * x + self.b) % p
-            y = pow(rhs, (p + 1) // 4, p)
-            if y * y % p == rhs:
+            y = sqrt_mod(rhs, p)
+            if y is not None:
                 out.append((x, y))
                 if len(out) == count:
                     break
@@ -326,6 +376,89 @@ class Poly:
         return r
 
 
+    def divexact(self, f, g):
+        """Return f/g and reject a nonzero remainder without mutating inputs."""
+        f, g = self.trim(f[:]), self.trim(g[:])
+        if g == [0]:
+            raise ZeroDivisionError("polynomial division by zero")
+        if len(f) < len(g):
+            raise ValueError("polynomial division is not exact")
+        q = [0] * (len(f) - len(g) + 1)
+        inv = pow(g[-1], -1, self.p)
+        while len(f) >= len(g) and f != [0]:
+            d = len(f) - len(g)
+            coeff = f[-1] * inv % self.p
+            q[d] = coeff
+            for i, gc in enumerate(g):
+                f[i + d] = (f[i + d] - coeff * gc) % self.p
+            self.trim(f)
+        if f != [0]:
+            raise ValueError("polynomial division is not exact")
+        return self.trim(q)
+
+    def linear_factors(self, f, *, max_shifts=256):
+        """Split a squarefree F_p-split polynomial into monic linears.
+
+        The deterministic character splits are bounded. A budget hit raises
+        rather than returning a partial factorization.
+        """
+        if max_shifts < 1:
+            raise ValueError("max_shifts must be positive")
+        f = self.trim(f[:])
+        if f == [0]:
+            raise ValueError("cannot factor the zero polynomial")
+        f = self.scal(f, pow(f[-1], -1, self.p))
+        if len(f) == 1:
+            return []
+
+        x = [0, 1]
+        split_check = self.mod(
+            self.sub(self.powmod(x, self.p, f), x),
+            f,
+        )
+        if split_check != [0]:
+            raise ValueError("polynomial is not squarefree and split over F_p")
+
+        def split(g):
+            degree = len(g) - 1
+            if degree == 1:
+                return [g]
+            for shift in range(min(self.p, max_shifts)):
+                base = [shift, 1]
+
+                factor = self.gcd(g, base)
+                factor_degree = len(factor) - 1
+                if 0 < factor_degree < degree:
+                    return split(factor) + split(self.divexact(g, factor))
+
+                residue = self.sub(
+                    self.powmod(base, (self.p - 1) // 2, g),
+                    [1],
+                )
+                factor = self.gcd(g, residue)
+                factor_degree = len(factor) - 1
+                if 0 < factor_degree < degree:
+                    return split(factor) + split(self.divexact(g, factor))
+            raise RuntimeError(
+                f"factorization incomplete after {max_shifts} shifts"
+            )
+
+        factors = sorted(split(f), key=lambda h: (-h[0]) % self.p)
+        product = [1]
+        roots = set()
+        for factor in factors:
+            if len(factor) != 2 or factor[-1] != 1:
+                raise ArithmeticError("nonlinear or nonmonic factor produced")
+            root = (-factor[0]) % self.p
+            if root in roots:
+                raise ArithmeticError("duplicate linear factor produced")
+            roots.add(root)
+            product = self.mul(product, factor)
+        if product != f:
+            raise ArithmeticError("linear factors do not reconstruct input")
+        return factors
+
+
 class DivisionPolys:
     """f_m with psi_m = f_m (m odd) and psi_m = 2y * f_m (m even)."""
 
@@ -385,6 +518,32 @@ class DivisionPolys:
             P.mul([0, 1], P.mul(P.scal(self.Y, 4), P.mul(f[m], f[m]))),
             P.mul(f[m + 1], f[m - 1]),
         )
+
+
+def rational_3_kernel_polynomials(
+    DP: DivisionPolys, *, max_shifts: int = 256
+) -> list[list[int]]:
+    """Return each F_p-rational order-3 kernel as one monic linear."""
+    P = DP.P
+    psi3 = DP.f[3]
+    xp = P.powmod([0, 1], P.p, psi3)
+    rational = P.gcd(psi3, P.sub(xp, [0, 1]))
+    return P.linear_factors(rational, max_shifts=max_shifts)
+
+
+def three_kernel_eigenvalue(curve: Curve, h: list[int]) -> int:
+    """Recover Frobenius' sign on an F_p-rational order-3 kernel."""
+    p = curve.p
+    if len(h) != 2 or h[-1] % p != 1:
+        raise ValueError("order-3 kernel factor must be monic linear")
+    x = (-h[0]) % p
+    rhs = (x * x % p * x + curve.a * x + curve.b) % p
+    chi = pow(rhs, (p - 1) // 2, p)
+    if chi == 1:
+        return 1
+    if chi == p - 1:
+        return 2
+    raise ArithmeticError("3-kernel root has zero or invalid curve RHS")
 
 
 def velu(curve: Curve, h: list[int]) -> tuple[int, int]:
@@ -542,6 +701,31 @@ def neighbours(E: Curve, t: int, n: int, ells):
     P = DP.P
     print(f"j(E) = {jE}\n")
 
+    def report_kernel(ell: int, h: list[int], label: str):
+        dh = len(h) - 1
+        assert dh == (ell - 1) // 2, (
+            f"kernel polynomial degree {dh}, expected {(ell - 1) // 2}"
+        )
+        a2, b2 = velu(E, h)
+        E2 = Curve(p, a2, b2)
+        j2 = E2.j()
+
+        # check 1: same point count
+        pts = E2.some_points(3)
+        assert pts, "no point found on codomain"
+        for Q in pts:
+            assert E2.mul(n, Q) is None, "codomain point count != n"
+        # check 2: modular polynomial, where hard-coded
+        modcheck = ""
+        if ell in MODULAR:
+            ok = MODULAR[ell](jE, j2, p) == 0
+            assert ok, f"Phi_{ell}(j(E), j') != 0"
+            modcheck = f", Phi_{ell}(j,j')=0 OK"
+        print(f"   {label}: ker deg {dh} OK, #E'=n OK{modcheck}")
+        print(f"              a' = {a2}")
+        print(f"              b' = {b2}")
+        print(f"              j' = {j2}")
+
     for ell in ells:
         if ell == 2:
             xp = P.powmod([0, 1], p, DP.Y)
@@ -554,6 +738,17 @@ def neighbours(E: Curve, t: int, n: int, ells):
         lams = [x for x in range(1, ell) if (x * x - t * x + p) % ell == 0]
         print(f"ell = {ell:2d} : deg psi_ell = {len(psil)-1}, Frobenius eigenvalues "
               f"mod {ell} = {lams or 'none (inert -> 0 isogenies)'}")
+
+        if ell == 3:
+            for h in rational_3_kernel_polynomials(DP):
+                x = (-h[0]) % p
+                lam = three_kernel_eigenvalue(E, h)
+                assert lam in lams, "kernel sign is not a Frobenius eigenvalue"
+                assert (lam * lam - t * lam + p) % 3 == 0
+                report_kernel(ell, h, f"lambda={lam:3d}, kernel x={x}")
+            print()
+            continue
+
         if not lams:
             print()
             continue
@@ -566,27 +761,7 @@ def neighbours(E: Curve, t: int, n: int, ells):
             dh = len(h) - 1
             if dh == 0:
                 continue
-            assert dh == (ell - 1) // 2, (
-                f"kernel polynomial degree {dh}, expected {(ell-1)//2}")
-            a2, b2 = velu(E, h)
-            E2 = Curve(p, a2, b2)
-            j2 = E2.j()
-
-            # check 1: same point count
-            pts = E2.some_points(3)
-            assert pts, "no point found on codomain"
-            for Q in pts:
-                assert E2.mul(n, Q) is None, "codomain point count != n"
-            # check 2: modular polynomial, where hard-coded
-            modcheck = ""
-            if ell in MODULAR:
-                ok = MODULAR[ell](jE, j2, p) == 0
-                assert ok, f"Phi_{ell}(j(E), j') != 0"
-                modcheck = f", Phi_{ell}(j,j')=0 OK"
-            print(f"   lambda={lam:3d}: ker deg {dh} OK, #E'=n OK{modcheck}")
-            print(f"              a' = {a2}")
-            print(f"              b' = {b2}")
-            print(f"              j' = {j2}")
+            report_kernel(ell, h, f"lambda={lam:3d}")
         print()
 
 
