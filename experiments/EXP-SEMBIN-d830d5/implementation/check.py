@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent checker for EXP-SEMBIN-d830d5 Stage 0-2 run artifacts.
+"""Independent checker for EXP-SEMBIN-d830d5 Stage 0-1 run artifacts.
 
 Recomputes the EXP-SEMBIN-92724f D1 finite-k counting-cap identity without
 importing run.py stage drivers. Verifies raw-result.json / manifest.yaml.
@@ -24,6 +25,7 @@ STAGE2_OK = {
 }
 CANDIDATE_CELLS = [(24, 6, 3), (30, 7, 3), (36, 8, 4)]
 STAGE2_CELLS = [(30, 7, 3), (36, 8, 4)]
+CANDIDATE_CELLS = [(24, 6, 3), (30, 7, 3), (36, 8, 4)]
 
 
 def exact_counting_identity(k: int, m: int) -> bool:

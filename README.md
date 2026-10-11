@@ -66,7 +66,9 @@ orchestration/eval/                    Capability and discipline measurement, wi
 evals/suites/                          Eval tasks: verifiable answers and trap cases
 docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
 docs/inventor-protocol.md              Object-first ideation, closure, and proof-architecture search
+docs/scheme-construction-contract.md   Security games and six obligations for new cryptographic schemes
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
+docs/batch-inference.md                Message Batches: delivery routing, registry, escalation
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria
@@ -76,6 +78,7 @@ docs/github-automation.md              PR review, @claude agent, and periodic br
 REVIEW.md                              Contract for automated pull-request review
 tools/sync_open_branches.py            Merges main into stale PR branches; never rebases
 templates/research-records.md          YAML templates for all shared records
+templates/scheme-construction-contract.yaml  Companion drafting template for scheme proposals
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 orchestration/cli.py                   The `autoresearch` entry point (doctor, loop, status)
 pyproject.toml                         Editable install and console scripts

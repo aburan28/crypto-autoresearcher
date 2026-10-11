@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """EXP-SEMBIN-d830d5 Stages 0-2 launcher (in-regime coset conservation).
+"""EXP-SEMBIN-d830d5 Stages 0-1 launcher (in-regime coset conservation).
 
 Stage 0: Freeze preregistered C1/C2 thresholds, candidate cells, cost-model
          schema, seeds, held-out split; probe msolve / pure-Python Macaulay /
@@ -14,6 +15,12 @@ Stage 2: Typed / untyped / degenerate / randomized-null ladder on Stage-0
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve / exponent /
 FIPS claim.
+         and untyped Semaev descend+verify path on a smoke cell. Missing
+         primary solver backend → O-IMPEDIMENT (never evidence against C1–C3).
+
+Observations only. Stage 2 remains on design card TASK-20261002-8f23fa and
+is NOT enumerated in trial-plan-v1. No Magma/Sage/AUXIN/Bedrock. No ECDLP
+solve / exponent / FIPS claim.
 """
 from __future__ import annotations
 
@@ -23,6 +30,8 @@ import json
 import math
 import random
 import resource
+import json
+import math
 import shutil
 import sys
 import time
@@ -30,7 +39,6 @@ from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
-
 
 EXPERIMENT_ID = "EXP-SEMBIN-d830d5"
 HYPOTHESIS_ID = "H-SEMBIN-558848"
@@ -55,6 +63,7 @@ STAGE2_OK = {
     "O-IMPEDIMENT",
 }
 EXHAUSTIVE_DOMAIN_CAP = 2_500_000
+GOAL_ID = "GOAL-SEMBIN-cbf422"
 MASTER_SEED = 2026091805
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EXP_ROOT.parents[1]
@@ -1148,6 +1157,9 @@ def stage2(run_dir: Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stage", type=int, required=True, choices=[0, 1])
     parser.add_argument("--trial-plan", required=True)
     parser.add_argument("--run-dir", required=True)
     args = parser.parse_args(argv)
@@ -1165,6 +1177,8 @@ def main(argv: list[str] | None = None) -> int:
         stage1(run_dir)
     else:
         stage2(run_dir)
+    else:
+        stage1(run_dir)
     print(json.dumps({"ok": True, "stage": args.stage, "run_dir": str(run_dir)}))
     return 0
 
