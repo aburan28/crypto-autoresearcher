@@ -60,6 +60,7 @@ separate instrument; declare it as such.
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from itertools import combinations
 from math import comb
@@ -194,9 +195,9 @@ def f5_keep(nv, D, eqs, threads=None):
 
 def cert_sums_to_one(cert, eqs, nv, threads=None):
     """Does sum over (mu, k) in cert of mu*f_k equal 1 in B? Same parity
-    computation as closure.eval_cert(cert, eqs) == [0], done natively: build
-    every certificate row, XOR them together, and require that only the
-    constant column remains."""
+    computation as closure.eval_cert(cert, eqs) == [0], done natively: XOR
+    every certificate row into one accumulator (kernels.rows_sum, no row is
+    materialised) and require that only the constant column remains."""
     if not cert:
         return False
     mu = np.array([m for m, _ in cert], dtype=np.uint64)
@@ -204,8 +205,7 @@ def cert_sums_to_one(cert, eqs, nv, threads=None):
     Dp = min(nv, int(_popcount(mu).max()) + 2)
     sh = shape(nv, Dp)
     eoff, emon = kernels.pack_eqs(eqs)
-    rows, _, _ = kernels.build_rows(eoff, emon, nv, Dp, mu, k, W=sh.W, threads=threads)
-    acc = np.bitwise_xor.reduce(rows, axis=0)
+    acc = kernels.rows_sum(eoff, emon, nv, Dp, mu, k, sh.W)
     want = np.zeros(sh.W, dtype=np.uint64)
     want[sh.const_col >> 6] = np.uint64(1 << (sh.const_col & 63))
     return bool(np.array_equal(acc, want))
@@ -237,8 +237,34 @@ def lead_desc_order(M, C):
 
 SPLIT = 1.0                 # M_D primal prefix: the first SPLIT * C rows in key order
 PASS_ALGORITHM = "blocked"  # measured faster than "sb" on lead-descending rows, 1 and 4 threads
+GPU = os.environ.get("CRYPTO_AR_GF2_GPU", "auto")   # auto | 1 | 0: GPU column pass (gpu/rankpass.py)
+GPU_MIN_WORDS = int(os.environ.get("CRYPTO_AR_GF2_GPU_MIN_WORDS", str(1 << 23)))   # smaller passes stay on CPU
 RESTACK = 1 / 16            # a block larger than RESTACK * rank is stacked under a copy of the basis
 MAX_SYNDROME_WORDS = 256    # beyond f = 64 * this, candidates are eliminated without the test
+
+
+class _Pivots:
+    """Pivot rows and columns of a pass run without an op log."""
+
+    def __init__(self, ps, cs):
+        self.ps, self.cs, self.K = ps, cs, len(ps)
+
+
+_gpu_ok = None
+
+
+def _gpu_on(gpu):
+    """Whether this call uses the GPU column pass: gpu=True requires a device,
+    False forbids it, None follows GPU (env CRYPTO_AR_GF2_GPU)."""
+    global _gpu_ok
+    if gpu is False or (gpu is None and GPU == "0"):
+        return False
+    if _gpu_ok is None:
+        from . import gpu as _g
+        _gpu_ok = _g.available()[0]
+    if gpu and not _gpu_ok:
+        raise RuntimeError("gpu=True but no usable CUDA device (gf2.gpu.available())")
+    return _gpu_ok
 
 
 class _Space:
@@ -254,8 +280,8 @@ class _Space:
     the monomial mask[q], or the Macaulay row mu[q] * f_{k[q]} (prev = -1);
     the reduction added the basis rows with gids extra[q]."""
 
-    def __init__(self, C, threads, dual=True):
-        self.C, self.threads, self.dual = C, threads, dual
+    def __init__(self, C, threads, dual=True, gpu=False):
+        self.C, self.threads, self.dual, self.gpu = C, threads, dual, gpu
         self.blocks = []
         self.next_gid = 0
 
@@ -344,14 +370,23 @@ class _Space:
                     cnt = xoff[o + 1] - xoff[o]
                     extra = (np.concatenate([[0], np.cumsum(cnt)]).astype(np.int64),
                              xs[_csr_ranges(xoff[o], cnt)])
-        log = kernels.column_pass(rows, self.C, keep_ops=keep_ops, algorithm=PASS_ALGORITHM,
-                                  threads=self.threads)
+        log = self._pass(rows, keep_ops)
         self.blocks.append({"M": rows, "ps": log.ps.astype(np.int64), "cs": log.cs.astype(np.int64),
                             "base": self.next_gid, "log": log if keep_ops else None,
                             "prev": np.asarray(prev, np.int64), "mask": np.asarray(mask, np.uint64),
                             "mu": np.asarray(mu, np.uint64), "k": np.asarray(k, np.int32),
                             "extra": extra, "active": True})
         self.next_gid += len(rows)
+
+    def _pass(self, rows, keep_ops):
+        """Column pass over ``rows`` in place: on the GPU when this space may
+        use one, no op log is needed and the matrix is large enough."""
+        if self.gpu and not keep_ops and rows.size >= GPU_MIN_WORDS:
+            from .gpu import rankpass
+            ps, cs = rankpass.column_pass(rows, self.C)
+            return _Pivots(ps, cs)
+        return kernels.column_pass(rows, self.C, keep_ops=keep_ops, algorithm=PASS_ALGORITHM,
+                                   threads=self.threads)
 
     def _annihilator(self):
         """K for the current space, or None when the test is not worth it."""
@@ -518,7 +553,7 @@ def _key_order(mu, k):
     return np.lexsort((~mu, _popcount(mu), k))
 
 
-def _m_space(eqs, nv, D, keep_ops, use_f5=True, order="lead_desc", dual=True, threads=None):
+def _m_space(eqs, nv, D, keep_ops, use_f5=True, order="lead_desc", dual=True, threads=None, gpu=False):
     """Span of the Macaulay rows of M_D as a _Space, and the row counts."""
     neq = len(eqs)
     sh = shape(nv, D)
@@ -527,7 +562,7 @@ def _m_space(eqs, nv, D, keep_ops, use_f5=True, order="lead_desc", dual=True, th
     eoff, emon = kernels.pack_eqs(eqs)
     mu = sh.mu_mask[idx // max(neq, 1)]
     k = (idx % max(neq, 1)).astype(np.int32)
-    sp = _Space(sh.C, threads, dual)
+    sp = _Space(sh.C, threads, dual, gpu)
     n = len(mu)
     split = n if not dual else min(n, max(1, int(SPLIT * sh.C)))
     if dual and split < n:
@@ -555,7 +590,7 @@ def _m_space(eqs, nv, D, keep_ops, use_f5=True, order="lead_desc", dual=True, th
 
 
 def macaulay_profile(eqs, nv, D, want_cert=True, use_f5=True, order="lead_desc", threads=None,
-                     dual=True):
+                     dual=True, gpu=None):
     """M_D record by rank profile -> (record, certificate or None, info).
 
     record: {"rank", "one", "dims_by_deg"}, equal to Closure.macaulay_closure.
@@ -563,8 +598,19 @@ def macaulay_profile(eqs, nv, D, want_cert=True, use_f5=True, order="lead_desc",
     (pivcols = sorted pivot columns in Closure(nv, D, neq) column order;
     rows_eliminated = rows that went through a column pass, the rest were
     proved to lie in the span by the annihilator test)."""
+    if _gpu_on(gpu):
+        # No op log on the GPU: run without one, and redo the solve on the CPU
+        # only when a certificate turns out to be needed.
+        rec, _, info = _macaulay_profile(eqs, nv, D, False, use_f5, order, threads, dual, True)
+        if not (rec["one"] and want_cert):
+            info["gpu"] = True
+            return rec, None, info
+    return _macaulay_profile(eqs, nv, D, want_cert, use_f5, order, threads, dual, False)
+
+
+def _macaulay_profile(eqs, nv, D, want_cert, use_f5, order, threads, dual, gpu):
     sh = shape(nv, D)
-    sp, R, n, sent = _m_space(eqs, nv, D, want_cert, use_f5, order, dual, threads)
+    sp, R, n, sent = _m_space(eqs, nv, D, want_cert, use_f5, order, dual, threads, gpu)
     leads = np.sort(sp.cs)
     one = bool(sp.rank) and int(leads[-1]) == sh.const_col
     deg = sh.col_deg(leads)
@@ -580,7 +626,7 @@ def macaulay_profile(eqs, nv, D, want_cert=True, use_f5=True, order="lead_desc",
     return rec, cert, info
 
 
-def w_profile(eqs, nv, D, want_cert=True, threads=None, dual=True):
+def w_profile(eqs, nv, D, want_cert=True, threads=None, dual=True, gpu=None):
     """W_D record by rank profile -> (record, certificate or None, info).
 
     record: the fields of Closure.w_closure (iterations_to_fixpoint, dims,
@@ -612,14 +658,23 @@ def w_profile(eqs, nv, D, want_cert=True, threads=None, dual=True):
     space, one per lead, are therefore new and independent, and are added
     without reduction (the prediction is checked against the formed row). The
     rest go through the syndrome test of _Space.grow_products."""
+    if _gpu_on(gpu):
+        rec, _, info = _w_profile(eqs, nv, D, False, threads, dual, True)
+        if not (rec["one"] and want_cert):
+            info["gpu"] = True
+            return rec, None, info
+    return _w_profile(eqs, nv, D, want_cert, threads, dual, False)
+
+
+def _w_profile(eqs, nv, D, want_cert, threads, dual, gpu):
     sh = shape(nv, D)
     col_deg = sh.col_deg(np.arange(sh.C))
-    sp, R_full, n_kept, sent = _m_space(eqs, nv, D, want_cert, dual=dual, threads=threads)
+    sp, R_full, n_kept, sent = _m_space(eqs, nv, D, want_cert, dual=dual, threads=threads, gpu=gpu)
     dims = [sp.rank]
     one_first = 0 if sp.rank and int(sp.cs.max()) == sh.const_col else None
     covered = set()
     if D >= 3:
-        _, _, info_lo = macaulay_profile(eqs, nv, D - 1, want_cert=False, threads=threads, dual=dual)
+        _, _, info_lo = macaulay_profile(eqs, nv, D - 1, want_cert=False, threads=threads, dual=dual, gpu=gpu)
         lo_masks = shape(nv, D - 1).masks[np.asarray(info_lo["pivcols"], dtype=np.int64)]
         covered = set(sh.cols_of(lo_masks).tolist())
     prev_low_exact = set()
