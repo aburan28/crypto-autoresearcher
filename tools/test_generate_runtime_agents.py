@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -21,7 +22,8 @@ import generate_runtime_agents as generator
 from orchestration.role_registry import (REPO, check, effective_capabilities,
                                          expected_tools, load_policies,
                                          load_roles, over_granted,
-                                         read_binding, role_spec)
+                                         parse_frontmatter, read_binding,
+                                         role_spec)
 
 
 class GeneratedBindingTests(unittest.TestCase):
@@ -51,6 +53,25 @@ class GeneratedBindingTests(unittest.TestCase):
                     self.assertEqual(name, role)
                     self.assertEqual(
                         granted, set(expected_tools(self.roles_doc, role, runtime)))
+
+    def test_opencode_cairn_tools_follow_the_role_boundary(self) -> None:
+        config = json.loads((REPO / "opencode.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["mcp"]["cairn"]["command"],
+                         ["sh", "tools/cairn_mcp.sh"])
+        self.assertEqual(config["permission"]["cairn_*"], "deny")
+        for role, spec in self.roles_doc["roles"].items():
+            path = (spec.get("runtime_bindings") or {}).get("opencode")
+            if not path:
+                continue
+            permission = parse_frontmatter(REPO / path)["permission"]
+            with self.subTest(role=role):
+                self.assertEqual(permission["cairn_*"], "deny")
+                self.assertNotIn("cairn_post_objective", permission)
+                actual = {key for key, decision in permission.items()
+                          if key.startswith("cairn_") and decision == "allow"}
+                expected = {key for key in expected_tools(
+                    self.roles_doc, role, "opencode") if key.startswith("cairn_")}
+                self.assertEqual(actual, expected)
 
     def test_codex_files_are_valid_toml_with_only_known_keys(self) -> None:
         """Codex rejects unknown keys outright, so an invented one is fatal."""
