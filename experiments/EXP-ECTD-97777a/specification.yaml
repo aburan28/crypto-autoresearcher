@@ -1,0 +1,172 @@
+experiment:
+  id: EXP-ECTD-97777a
+  hypothesis_id: H-ECTD-cda162
+  question_id: RQ-ECTD-001
+  goal_id: GOAL-ECTD-001
+  source_idea: IDEA-20261006-4e7025
+  version: 1
+  designed_at: '2026-10-10'
+  title: Exact public affine x-sum census over F_89
+  status: approved
+  approved_by: coordinator
+  frozen: true
+  execution_authorized: true
+  claim_tier: toy
+  objective: >-
+    Count every eligible unordered pair on y^2=x^3+x+1 over F_89
+    for which x(P+Q)=x(P)+x(Q), and report a deterministic
+    permuted-label count beside it. The only scientific verdict is
+    whether the exact count W is positive on this one public model.
+  inputs:
+    field_prime: 89
+    curve: y^2 = x^3 + x + 1 over F_89
+    point_representation: >-
+      Affine coordinates are integer residues 0 through 88;
+      O is a separate identity value. Enumerate x ascending, then
+      y ascending, and retain exactly every pair satisfying the
+      equation. Include O in the point count but not in pair input.
+    admission: >-
+      Verify p=89 is prime by trial division and 4a^3+27b^2 is
+      nonzero modulo 89 for a=b=1. Count all rational points with
+      O, set t=90-#E(F_89), check 72<=#E(F_89)<=108, and require
+      t nonzero. A failed admission leaves W unmeasured.
+    pair_selection: >-
+      Let A be the ordered affine list. Enumerate indices i<j in
+      lexicographic order. Eligible means y(P),y(Q) both nonzero,
+      P is not -Q, and the actual group-law sum R=P+Q is affine.
+      A pair is scored once, irrespective of input order. Retain
+      total candidate and eligible counts, exclusive counts for
+      zero-y, opposite-point, and infinite-sum exclusions, and
+      check that these counts partition all candidate pairs.
+    scoring: >-
+      For every eligible pair, compute R using chord-and-tangent
+      addition, then test (x(R)-x(P)-x(Q)) mod 89=0. W is the count
+      of true tests. Preserve every satisfying pair and its sum in
+      sorted enumeration order; W=0 requires an explicit empty list.
+      Never replace addition with a slope-square shortcut.
+    label_null: >-
+      Construct a permutation pi of integer labels 0..88 by
+      Fisher-Yates: start the array [0,1,...,88] and s=5140517;
+      for i=88 down to 1, advance
+      s=(1103515245*s+12345) mod 2^31, set j=s mod(i+1), and
+      swap positions i and j. On the same eligible pairs and true
+      group-law sums, count W_perm where
+      (pi[x(R)]-pi[x(P)]-pi[x(Q)]) mod 89=0. Record W_perm and
+      the final permutation separately; it never changes W or
+      eligibility.
+    driver: experiments/EXP-ECTD-97777a/implementation/run.py
+    checker: experiments/EXP-ECTD-97777a/implementation/check.py
+    queue: experiments/EXP-ECTD-97777a/implementation/queue.json
+    trial_plan: experiments/EXP-ECTD-97777a/trial-plan.json
+  controls:
+    - id: prime-discriminant-and-ordinary
+      statement: >-
+        Independently verify primality, nonzero discriminant, exact
+        point count including O, Hasse interval, and t nonzero.
+        Failure leaves this cell unmeasured.
+    - id: complete-eligible-pairs
+      statement: >-
+        Check all i<j pairs from the complete affine list, both
+        nonzero y values, nonopposite points, affine sum, and one
+        score per eligible pair. Verify the candidate, eligible,
+        and three exclusive exclusion counts partition all pairs
+        so missing pairs cannot masquerade as W=0.
+    - id: group-law-round-trip
+      statement: >-
+        For every eligible pair with R=P+Q, verify R+(-Q)=P.
+        Separately identify a scored nonhit for the equality, if
+        one exists; absence because all eligible pairs are hits
+        is not an instrument failure.
+        Also test the first excluded pair with a finite group
+        sum, if one exists, and report its selection or absence.
+        One mismatch invalidates the instrument.
+    - id: independent-replay
+      statement: >-
+        The separate checker reconstructs the affine point set,
+        eligible pairs, sums, W, W_perm, permutation, and explicit
+        hit list from p,a,b and the frozen rules, then compares them
+        to the raw result. It must not trust the producer's counts.
+    - id: permuted-label-null
+      statement: >-
+        Verify the LCG and Fisher-Yates permutation is a bijection
+        on 0..88. Score exactly the same eligible pairs under pi.
+        Report its count beside W without making it an admission
+        requirement or a substitute for W.
+  independent_variables:
+    - true affine x labels versus one frozen permutation of field labels
+  metrics:
+    primary:
+      - id: W
+        statement: Exact number of eligible unordered pairs satisfying x(P+Q)=x(P)+x(Q) mod 89.
+    secondary:
+      - id: W_perm
+        statement: Count for the same pairs under the frozen permuted labels.
+      - id: population_counts
+        statement: Affine point count, full group order, candidate-pair count, eligible-pair count, and exclusion counts.
+      - id: hit_witnesses
+        statement: Ordered list of all satisfying pairs and their sums, or an explicit empty list.
+      - id: controls
+        statement: Prime/discriminant/ordinary values, round-trip checks, permutation, and independent checker verdict.
+      - id: resources
+        statement: Exact command, source and environment identity, timestamps, wall/CPU time, and peak memory.
+  heuristic_under_test: HEUR-1
+  preregistered_prediction:
+    quantity: W
+    formula: >-
+      Positive if all admission and instrument controls pass and W>=1;
+      negative if they pass and W=0. The null count is descriptive.
+    source: IDEA-20261006-4e7025
+  scale_relevance:
+    tier: toy
+    justification: One curve over F_89 and every eligible pair on that curve.
+    correspondence: Exact finite-field enumeration within the stated model.
+  tail_checks:
+    - Preserve every true-x hit, not only the first witness.
+    - Preserve all exclusive exclusion counts and the first finite-sum excluded-pair round trip.
+    - Report W_perm separately even when it differs sharply from W.
+  replication:
+    seeds:
+      - 5140517
+    independent_instances: 1
+    future_run_slot: RUN-ECTD-63f478
+    note: >-
+      The census is deterministic. check.py independently recomputes
+      the entire finite instance; no second scientific run is planned.
+  budget:
+    enforcement: advisory
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    maximum_workers: 1
+    budget_note: >-
+      Machine protection only. A resource stop or code failure is
+      infrastructure, not evidence for W=0.
+  stopping_rules:
+    - Enumerate the complete affine point set and every i<j pair before scoring a positive or negative verdict.
+    - Do not stop after the first hit; preserve the exact count W and every witness.
+    - Do not alter p, coefficients, eligibility, label seed, or permutation after seeing any result.
+  invalidation_rules:
+    - Prime, discriminant, Hasse, or ordinarity admission failure leaves the cell unmeasured.
+    - A missed point or pair, failed round trip, malformed permutation, checker disagreement, or missing required artifact invalidates the measurement.
+    - A crash, timeout, or resource stop is infrastructure and cannot be read as W=0.
+  success_criterion: >-
+    All controls pass and the complete exact enumeration has W>=1.
+  falsification_criterion: >-
+    All controls pass and the complete exact enumeration has W=0.
+  decision_impact:
+    on_positive: >-
+      After independent evidence review, record one or more explicit
+      public coordinate-equality witnesses on this fixed curve.
+      No secret-endpoint or ECDLP-cost conclusion follows.
+    on_negative: >-
+      After independent evidence review, record that no eligible
+      pair on this exact public model satisfies the equality.
+      Other models and fields remain unresolved.
+  required_artifacts:
+    - experiments/EXP-ECTD-97777a/runs/RUN-ECTD-63f478/manifest.yaml
+    - experiments/EXP-ECTD-97777a/runs/RUN-ECTD-63f478/raw-result.json
+  run_report: >-
+    After sealing a future run, write an observation report, source
+    graph or diagram, and inspected PDF under a fresh
+    experiments/EXP-ECTD-97777a/reports/run-<UTC timestamp>/ directory
+    using research-visuals.
+  assigned_to: executor

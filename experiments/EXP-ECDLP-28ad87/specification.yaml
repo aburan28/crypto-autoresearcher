@@ -1,0 +1,180 @@
+# =============================================================================
+# EXP-ECDLP-28ad87 -- L2 of H-ECDLP-bd1572: a cover C -> E defined over F_p
+# ITSELF does not shrink the base field, so index calculus on Jac(C)(F_p)
+# costs at least p, against rho's p^{1/2}, and the exponent does not care
+# about the form of p. This contract measures the two ingredients that force
+# the floor (decomposition probability over a reduced factor base and the
+# cost per decomposition test) on genus-2 covers at toy p, on both prime arms.
+# status review_required: DESIGN ONLY. The genus-2 Jacobian arithmetic is not
+# implemented in this session; the nearest instrument is aburan28/crypto
+# src/cryptanalysis/jv_cover.rs (genus-3 cover over F_{p^2}, a different
+# regime). No run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-28ad87
+  hypothesis_id: H-ECDLP-bd1572
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Cover floor over F_p itself: measured decomposition probability and cost
+    exponent of reduced-factor-base index calculus on the Jacobian of the
+    genus-2 double cover y^2 = f(x^2) of E: y^2 = f(x), at toy p on special
+    and matched random primes, against Pollard rho on E measured on the same
+    instances
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  limb: L2
+  objective: >-
+    Measure, rather than quote, the mechanism behind O~(p^{2-2/g}) >= p for a
+    cover over the SAME field: with a factor base of |S| = ceil(c p^{1/2})
+    degree-one divisors, the probability that a random reduced divisor of
+    degree 2 decomposes over the base is (|S|/p)^2 / 2 up to lower order, so
+    collecting |S| relations costs about 2 p^{3/2} / c decomposition tests for
+    the basic variant and p^{1+o(1)} with double large primes (KN-LIT-002),
+    both above rho's p^{1/2}. The contract fits the decomposition-probability
+    exponent and the relation-collection cost exponent in p over a toy ladder
+    and asks whether either depends on the prime arm. H-ECDLP-bd1572 predicts
+    exponent >= 1 for relation collection (>= 1.4 for the basic variant
+    implemented here) and no arm dependence.
+  inputs:
+    cover: >-
+      E: y^2 = f(x) = x^3 + a x + b over F_p with b != 0 and 4a^3 + 27b^2 != 0,
+      so C: y^2 = f(x^2) = x^6 + a x^2 + b is a squarefree sextic, hence a
+      genus-2 hyperelliptic curve, and phi(x, y) = (x^2, y) is a degree-2
+      cover C -> E defined over F_p. The pullback phi^*: E(F_p) -> Jac_C(F_p)
+      restricted to the odd-order subgroup is injective (its kernel lies in
+      E[2]); the ECDLP instance (P, Q = [k]P) of prime order l > 2 is carried
+      to (phi^* P, phi^* Q).
+    jacobian_arithmetic: >-
+      Mumford representation (u, v) with deg u <= 2, Cantor composition and
+      reduction over F_p; every operation counted in F_p multiplications and
+      inversions.
+    factor_base: >-
+      S = the first ceil(c * sqrt(p)) elements x of F_p (c = 1) for which
+      f(x^2) is a square; base elements are the classes [(x, y) - infinity]
+      with y the smaller root; a reduced divisor decomposes when u(X) splits
+      into linear factors over F_p with both roots in S.
+    relation_search: >-
+      Seeded random walk R_i = [r_i] phi^*P + [s_i] phi^*Q with fresh seeded
+      (r_i, s_i); each step is one decomposition test; the run stops when
+      |S| + 10 relations are found or the test budget is exhausted.
+    ladder:
+      p_bits: [10, 12, 14, 16]
+      prime_arms: >-
+        special p = m^d - c (d in {2, 3}) and matched random prime, three
+        primes per (bits, arm), from the EXP-ECDLP-2535ec generator.
+      curves_per_prime: 3
+      seeds: [1, 2, 3]
+    rho_control: >-
+      Pollard rho with the standard r-adding walk and distinguished points on
+      the same (E, P, Q) instances, counted in group operations, to give the
+      measured p^{1/2} row on identical instances.
+    implementation_plan: >-
+      Pure Python 3, experiments/EXP-ECDLP-28ad87/implementation/run.py (to
+      be written by the executor lane): polynomial arithmetic over F_p,
+      Cantor add/reduce, root finding of a quadratic over F_p, the walk, and
+      the rho control. Expected size about 400 lines; smoke test: on p = 1009
+      a relation set whose kernel vector recovers k on the instance.
+  controls:
+    - >-
+      CTRL-PULLBACK: [l] phi^*P = 0 in Jac_C and phi^*P != 0, checked before
+      any walk; the cover must carry the order-l subgroup faithfully.
+    - >-
+      CTRL-PROBABILITY: the empirical decomposition probability per test is
+      compared with (|S|/p)^2 / 2; a deviation beyond a factor 2 at p >= 2^12
+      is reported as a mechanism finding, not suppressed.
+    - >-
+      CTRL-RHO-SAME-INSTANCE: the rho control runs on identical instances
+      and seeds and must recover k; its op count anchors the 1/2 exponent.
+    - >-
+      CTRL-LINEAR-ALGEBRA: at least one toy instance per cell is solved end
+      to end (relations -> kernel vector -> k) and k verified by [k]P = Q,
+      so the counted relations are real relations.
+    - CTRL-REPLAY: seeded replay byte-identical.
+  independent_variables:
+    - "p_bits in {10, 12, 14, 16}"
+    - "prime arm: special | random"
+    - "d in {2, 3} (special arm)"
+    - "seed in {1, 2, 3}"
+  metrics:
+    primary:
+      - decomposition_probability_per_test_with_predicted_value
+      - relation_collection_cost_exponent_in_p_fitted_over_ladder_per_arm
+      - rho_cost_exponent_in_p_fitted_over_same_ladder
+    secondary:
+      - field_multiplications_per_decomposition_test
+      - inversions_per_test
+      - relations_found_and_tests_spent_per_cell
+      - arm_difference_of_fitted_exponents_with_bootstrap_interval
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: fitted relation-collection cost exponent in p, per arm
+    formula: >-
+      exponent = 1.5 +/- 0.15 for the basic reduced-base variant (tests
+      needed = |S| / Pr[decomposition] = c sqrt(p) * 2 p / c^2 = 2 p^{3/2}/c),
+      against rho at 0.5 +/- 0.1; |special - random| <= 0.1. The published
+      p^{1+o(1)} with double large primes (KN-LIT-002) is quoted, not
+      measured, and is still above 0.5.
+    source: KN-LIT-002 (Gaudry), KN-LIT-003 (Diem), KN-LIT-007 (GHS).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      10-16 bit primes; the exponent fit over four sizes with six instances
+      each is a mechanism check, not a cost claim at any real size.
+    correspondence: null
+  tail_checks:
+    - Report the cell with the highest decomposition probability and check it against (|S|/p)^2.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 72
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 6
+    maximum_memory_gb: 2
+    maximum_runs: 80
+  stopping_rules:
+    - Stop a cell at 3600 s and record resource_exhaustion; never as evidence.
+    - Stop the ladder at 6 CPU hours and fit on the completed sizes only if at least three sizes completed on both arms.
+  invalidation_rules:
+    - A cell failing CTRL-PULLBACK or CTRL-LINEAR-ALGEBRA is invalid.
+    - A rho control that does not recover k invalidates the instance.
+    - Fewer than three completed sizes per arm makes the exponent fit unreported, not zero.
+  success_criterion: >-
+    Fitted relation-collection exponent >= 1.4 on both arms with rho at
+    0.5 +/- 0.1 on the same instances and |special - random| <= 0.1, with the
+    decomposition probability within a factor 2 of (|S|/p)^2 / 2: the cover
+    over F_p itself costs at least p^{1+} and the form of p is invisible to
+    it.
+  falsification_criterion: >-
+    A fitted relation-collection exponent below 0.9 on either arm with the
+    controls passing, or an arm gap above 0.1 in the exponent: either the
+    cover route is cheaper than the hypothesis says or the form of p is
+    visible to it.
+  decision_impact:
+    on_positive: >-
+      L2 is supported in scope; the Coordinator records the measured floor and
+      closes the "covers over F_p itself" branch for special primes at toy
+      scale with a measured obstruction block.
+    on_negative: >-
+      The cover lane is reopened under RQ-ECDLP-002 with the measured
+      exponent as the resource; a below-0.9 exponent is routed to
+      review-breakthrough before any repeat.
+  required_artifacts:
+    - experiments/EXP-ECDLP-28ad87/specification.yaml
+    - experiments/EXP-ECDLP-28ad87/implementation/run.py
+    - experiments/EXP-ECDLP-28ad87/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-28ad87/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: null
+    runnable_state_at_design: >-
+      NOT RUNNABLE: implementation/run.py does not exist yet. The missing
+      piece is the genus-2 Cantor arithmetic and the decomposition test
+      (about 400 lines of pure Python); aburan28/crypto
+      src/cryptanalysis/jv_cover.rs contains Nagao-style decomposition code
+      for a genus-3 cover over F_{p^2} that can be adapted but is not a
+      binding.
+  assigned_to: executor
