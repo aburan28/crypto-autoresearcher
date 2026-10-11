@@ -5,6 +5,11 @@ ledger record depends on it, and adopting it is a Coordinator decision that
 needs its own `DEC-*` record plus an `AGENTS.md` amendment — this document
 grants no authority by existing.*
 
+The Stage 1 tool inventory below describes the original proposal. Cairn 1.17
+also exposes `post_objective` over MCP. The current runtime denies Cairn tools
+by default and grants only the exact tools listed for each role in
+`orchestration/roles.yaml`; posting and funding remain Coordinator decisions.
+
 Target: `aburan28/distributed-researcher` (the `cairn` crate) becomes the
 verification and distribution layer under this program, so that every claimed
 solve is re-checked by an independent implementation, every measurement-style
@@ -324,6 +329,23 @@ reads as the plan and this reads as the ledger of it.
   standing up), both optional capabilities as `send_messages` is, and the
   Claude Code bindings carry the tools; `tools/check_runtime_bindings.py`
   holds them to it.
+- **Stage 2, the shape (2026-10-06).** The first ratchet objective,
+  `cairn/objectives/bound-frontier-ecdlp-prime-toy.json`, is in cairn's own
+  evaluator shape, confirmed against cairn at commit
+  `b93dd9aa7d2840e46b7b7136afb8fc7c1fec3b6a` with the built binary rather
+  than against §1's table: `verifier.evaluator`/`evaluator_sha256`,
+  `entrypoint: score`, an integer `threshold`, a `direction`, and a
+  `ratchet` of `{baseline, target, reward, direction, min_improvement}` whose
+  pool equals the objective's reward. Two rules the table did not carry:
+  the evaluator never raises (a raise is `unavailable`, so a refused record
+  scores a sentinel the threshold rejects), and the canonical encoding has no
+  floats, so a bound record is submitted as a rendering with every
+  non-integer number as a decimal string (`tools/bound_artifact.py`).
+  `post` took the objective; the two committed records scored `accept` at
+  682064 and 866743 and an altered copy `reject score 0`
+  (`docs/bounds-and-frontiers.md` §5). Shaped and scored, not yet posted on
+  the program's node: Stage 2's exit -- three claims from two sessions and a
+  rerank reading `frontier_status` -- is not met.
 - **On the network side** (cairn `v1.16`): a node runs the validator loop
   (`cairn run --attest-identity`, `cairn attest serve`) that re-verifies every
   claim and stands behind what it finds under bond; `GET /knowledge/{claim}`
@@ -350,7 +372,26 @@ reads as the plan and this reads as the ledger of it.
 - Relations (`replicates`, `refutes`, ...) are not exposed to agents over
   MCP on cairn's side, so the Validator's "author relations" half of Stage 1
   is still CLI-only.
-- Stages 2 to 4 are as the sections above say.
+- Stage 2 is shaped (above) and not exercised: no claim has been committed
+  against the bound-frontier objective on any node of this program. Stages 3
+  to 4 are as the sections above say.
+
+## 6b. Continuous local runtime, 2026-10-05
+
+`opencode.json` and generated role bindings now make Cairn MCP available to
+the OpenCode campaign dispatcher. `tools/cairn_autopilot_service.py` keeps one
+reader-enabled Cairn node attached to the bounded-action supervisor, with a
+private node log and a separate Stage 0 certificate log. The MCP launcher caps
+spend at zero. `tools/cairn_autopilot_launchd.py` renders a restart-on-login
+service for a local Mac. A connect-only check and the fixed certificate seam
+have run successfully; continuous research has **not** started because the
+configured local inference proxy's AWS account is blocked. See
+`docs/research-throughput-autopilot.md` for the exact launch and status commands.
+
+This runtime connection does not post a matching objective for every campaign
+action. General replay wrappers, Coordinator funding records, settlement
+reconciliation into `EV-*`, and multi-node work assignment remain open. A
+model action without a posted objective is harness work, not a network claim.
 
 ## 7. Work items, by file
 
