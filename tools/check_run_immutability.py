@@ -128,6 +128,18 @@ def main() -> int:
               f"immutability check")
         return 0
 
+    # Scope the diff to what HEAD itself introduced. With a merge-commit
+    # checkout the merge-base is the live base tip; without one (e.g. the
+    # conflict fallback to the bare PR head) it still excludes main-side
+    # drift, so other lanes' landings are never attributed to this PR.
+    # If the merge-base cannot be resolved, keep the base tip (prior
+    # behavior) rather than skipping the gate.
+    merge_base = subprocess.run(
+        ["git", "merge-base", base_sha, head],
+        capture_output=True, text=True)
+    if merge_base.returncode == 0 and merge_base.stdout.strip():
+        base_sha = merge_base.stdout.strip()
+
     # --no-renames is load-bearing. With rename detection on, moving a run
     # directory is reported as R and slips past --diff-filter=MD entirely, so
     # the gate would permit any rename -- including one that edited content,
