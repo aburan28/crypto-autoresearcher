@@ -24,6 +24,14 @@ STAGE1_OK = {
     "O-ARTIFACT",
     "O-IMPEDIMENT",
 }
+STAGE23_OK = {
+    "O-STAGES-2-PARTIAL",
+    "O-POSITIVE",
+    "O-SURPRISE",
+    "O-NEGATIVE",
+    "O-ARTIFACT",
+    "O-IMPEDIMENT",
+}
 
 
 def clmul(a: int, b: int) -> int:
@@ -105,7 +113,7 @@ def main() -> int:
 
     raw = json.loads(raw_path.read_text(encoding="utf-8"))
     stage = raw.get("stage")
-    if stage not in (0, 1):
+    if stage not in (0, 1, 2, 3):
         errs.append(f"bad stage {stage!r}")
 
     # Independent P2 fixture at l=6
@@ -151,6 +159,48 @@ def main() -> int:
                     errs.append(f"missing {rel}")
             if raw.get("p2_ok") is not True:
                 errs.append("O-STAGES-0-1-COMPLETE requires p2_ok true")
+
+    tag = raw.get("artifact_tag") or ""
+    s2_prefix = f"stage2-{tag}" if tag else "stage2"
+    s3_prefix = f"stage3-{tag}" if tag else "stage3"
+    results_s23 = f"RESULTS-stages2-3-{tag}.md" if tag else "RESULTS-stages2-3.md"
+
+    if stage == 2:
+        outcome = raw.get("outcome")
+        if outcome not in STAGE23_OK:
+            errs.append(f"bad stage2 outcome {outcome!r}")
+        for rel in (
+            f"{s2_prefix}/random-subspace-summary.json",
+            f"{s2_prefix}/p1-fillin-summary.json",
+            "stage2/random-subspace-summary.json",
+            "stage2/p1-fillin-summary.json",
+        ):
+            if not (EXP_ROOT / rel).is_file():
+                errs.append(f"missing {rel}")
+        if not (EXP_ROOT / "RESULTS.md").is_file():
+            errs.append("RESULTS.md (Stages 0-1) missing")
+        # Prior stage2/ must remain if this is a tagged replication
+        if tag and not (EXP_ROOT / "stage2/random-subspace-summary.json").is_file():
+            errs.append("prior stage2/ missing — replication must not erase original")
+
+    if stage == 3:
+        outcome = raw.get("outcome")
+        if outcome not in STAGE23_OK:
+            errs.append(f"bad stage3 outcome {outcome!r}")
+        for rel in (
+            f"{s3_prefix}/frobenius-arm-summary.json",
+            f"{s3_prefix}/p4-comparison.json",
+            results_s23,
+            "stage3/frobenius-arm-summary.json",
+            "stage3/p4-comparison.json",
+            "RESULTS-stages2-3.md",
+        ):
+            if not (EXP_ROOT / rel).is_file():
+                errs.append(f"missing {rel}")
+        if not (EXP_ROOT / "RESULTS.md").is_file():
+            errs.append("RESULTS.md (Stages 0-1) missing — must not be rewritten away")
+        if tag and not (EXP_ROOT / "RESULTS-stages2-3.md").is_file():
+            errs.append("prior RESULTS-stages2-3.md missing — replication must not erase original")
 
     man = man_path.read_text(encoding="utf-8")
     if EXPERIMENT_ID not in man and "experiment_id" not in man:
