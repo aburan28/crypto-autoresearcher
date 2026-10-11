@@ -1,0 +1,240 @@
+validation_report:
+  id: VAL-20261011-1ac785
+  task_id: TASK-20261011-1fdb6e
+  readiness_only: true
+  run_ids: []
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - ledger/handoffs/TASK-20261011-1fdb6e.yaml
+    - experiments/EXP-RELN-dc761f/specification.yaml
+    - experiments/EXP-RELN-dc761f/amendments/AMD-20261011-594c01.yaml
+    - ledger/decisions/DEC-20261011-09f449.yaml
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/archives/TASK-20261011-e070a8/snapshot-receipt.json
+    - "snapshot 5c0db3566e84bdb38872376a7c51f330fd5bf958: experiments/EXP-RELN-dc761f/implementation/implementation.md"
+    - "snapshot 5c0db3566e84bdb38872376a7c51f330fd5bf958: experiments/EXP-RELN-dc761f/implementation/run_reln.py"
+    - "snapshot 5c0db3566e84bdb38872376a7c51f330fd5bf958: experiments/EXP-RELN-dc761f/implementation/check.py"
+    - "snapshot 5c0db3566e84bdb38872376a7c51f330fd5bf958: experiments/EXP-RELN-dc761f/trial-plan-v1.json"
+  blind_from:
+    - experiments/EXP-RELN-dc761f/implementation/implementation_report.yaml
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/tasks/TASK-20261011-e03266/
+    - executor reasoning notes and any uncommitted task-directory contents
+  blind_from_respected: true
+  read_sibling_reports: []
+  checks:
+    - id: J1
+      joint: implementation-to-specification binding
+      verdict: holds
+      checks:
+        - check: snapshot binding
+          result: pass
+          evidence: >-
+            The receipt is a kind:snapshot archive at commit
+            5c0db3566e84bdb38872376a7c51f330fd5bf958 and its five path hashes
+            match the bytes retrieved from that commit. The receipt records
+            scientific_runs_performed: 0 and protocol_labels_drawn: false.
+        - check: frozen F-2 and P-5 values
+          result: pass
+          evidence: >-
+            The committed run_reln.py constants and trial plan agree with the
+            amendment's three F-2 fixture rows, P-5 columns, and P-5 values.
+            amendment_frozen_values() and validate_plan() reject a mismatch;
+            the safe checker passed these checks.
+        - check: fixture and cell coverage
+          result: pass
+          evidence: >-
+            The plan has 12 unique fixtures, exactly four unique kappa cells per
+            fixture for kappas 1/4, 1/2, 1, and 2, and 48 unique cells total;
+            24 cells are marked primary. The plan retains execution_state:
+            ready, execution_authorized: false, and
+            protocol_label_draws_performed: false.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/specification.yaml:48-55
+            - experiments/EXP-RELN-dc761f/specification.yaml:126-151
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:257-310
+            - experiments/EXP-RELN-dc761f/implementation/check.py:30-44
+        - check: protocol-record binding
+          result: pass
+          evidence: >-
+            The plan carries hashes for the specification, amendment, and
+            decision; validate_plan() compares them against the live frozen
+            records before reporting readiness.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:186-189
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:279-287
+            - experiments/EXP-RELN-dc761f/trial-plan-v1.json:1512-1521
+    - id: J2
+      joint: admission refusal and C-7/M-1 machine guards
+      verdict: holds
+      checks:
+        - check: readiness is not admission
+          result: pass
+          evidence: >-
+            The plan and readiness result keep execution_authorized false;
+            ready is treated as structural plan readiness only.
+        - check: fail-closed C-7/M-1 guard
+          result: pass
+          evidence: >-
+            The safe committed-snapshot checker passed injected failures for
+            unreadable load, insufficient system/repository free space, missing
+            RSS-watchdog availability, unwritable TMPDIR, wrong worker count,
+            and wrong nice requirement. The live invocation also refused before
+            execution because load could not be read and system free space was
+            0.18462753295898438 GiB, below 5 GiB. No RUN directory was made.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/specification.yaml:477-483
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:328-384
+            - experiments/EXP-RELN-dc761f/implementation/check.py:47-60
+        - check: known-invalid closed-admission decision
+          result: pass
+          evidence: >-
+            With machine readings forced to an otherwise passing fixture, the
+            driver rejected DEC-20261011-09f449 with
+            "decision is 'hold_approval', not execution admission", returned
+            code 4 from main(), and created no RUN directory. The decision
+            itself records hold_approval, protocol approval withheld, and
+            execution_admission: false.
+          source_lines:
+            - ledger/decisions/DEC-20261011-09f449.yaml:17-46
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:387-424
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:1006-1044
+        - check: no protocol-labelled values in readiness/refusal checks
+          result: pass
+          evidence: >-
+            The safe checker monkeypatched the sole protocol sampler and
+            observed no calls during plan construction/readiness; its output
+            reported scientific_execution: false and no run directories.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/implementation/check.py:62-76
+            - experiments/EXP-RELN-dc761f/implementation/check.py:79-106
+    - id: J3
+      joint: control and artifact completeness
+      verdict: breaks
+      checks:
+        - check: required scientific artifacts
+          result: incomplete
+          evidence: >-
+            The frozen specification requires a manifest, exact command and
+            stdout/stderr/environment records, per-fixture attempt JSONL,
+            per-cell JSON, pooled analysis JSON, an accounting/certificate
+            report, and git/resource/failure provenance. The committed
+            run_scientific() path writes only raw-result.json and returns
+            status completed_unanalysed; it does not emit the required artifact
+            set or an allowed completed_valid/invalid status.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/specification.yaml:489-500
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:933-970
+        - check: validity-control execution
+          result: incomplete
+          evidence: >-
+            run_scientific() does not invoke control_summary(), pooled_s5(),
+            planted_positive(), pseudo_treatment(), certificate replay, or a
+            K-FALSE-2 implementation, and it does not apply the specification's
+            all-controls-and-all-cells validity gate. The defined K-POS helper
+            also stops at C34 >= 1 rather than the frozen ceil(1.5 mu_c)
+            target. These are static code findings; no scientific path was run.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/specification.yaml:333-401
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:832-887
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:890-917
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:933-970
+        - check: memory protection implementation
+          result: incomplete
+          evidence: >-
+            machine_readings() checks whether psutil.Process is callable, but
+            the scientific path does not install or run a 4 GiB RSS watchdog;
+            main() only catches MemoryError after entering the path. This does
+            not establish the frozen M-2 fail-closed watchdog requirement.
+          source_lines:
+            - experiments/EXP-RELN-dc761f/specification.yaml:477-479
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:328-356
+            - experiments/EXP-RELN-dc761f/implementation/run_reln.py:1040-1050
+  artifact_checks:
+    - name: committed snapshot path hashes
+      result: pass
+      details: >-
+        All five receipt hashes matched committed snapshot bytes; the
+        implementation_report.yaml was hash-checked only and not semantically
+        read because it is in blind_from.
+    - name: RELN-scoped working tree
+      result: pass
+      details: >-
+        No RELN implementation, plan, run, or requested review path was dirty
+        before the report write. Unrelated untracked artifacts from other
+        sessions were preserved and are outside this review's write scope.
+  metric_recomputations:
+    - name: frozen plan shape
+      result: pass
+      details: 12 fixtures x 4 kappas = 48 unique cells; no run metrics were recomputed.
+  control_checks:
+    - name: C-7/M-1 injected fail-closed checks
+      result: pass
+    - name: current closed-admission decision refusal
+      result: pass
+    - name: scientific validity gate and output contract
+      result: incomplete
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  commands_run:
+    - >-
+      PYTHONDONTWRITEBYTECODE=1 python3 -B
+      experiments/EXP-RELN-dc761f/implementation/check.py
+    - >-
+      PYTHONDONTWRITEBYTECODE=1 TMPDIR=/tmp python3 -B
+      experiments/EXP-RELN-dc761f/implementation/run_reln.py --plan
+      experiments/EXP-RELN-dc761f/trial-plan-v1.json --repo-root . --run-id
+      RUN-invalid-admission-review --admission-decision
+      DEC-20261011-09f449 --snapshot-receipt
+      coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/archives/TASK-20261011-e070a8/snapshot-receipt.json
+    - >-
+      read-only committed-snapshot hash verification using git show
+      5c0db3566e84bdb38872376a7c51f330fd5bf958:<path> and SHA-256
+      comparison against snapshot-receipt.json
+    - >-
+      read-only JSON plan coverage check confirming 12 unique fixtures, 48
+      unique fixture/kappa cells, four kappas per fixture, and 24 primary cells
+  verdict: incomplete
+  verdict_basis: >-
+    The implementation is structurally ready only at the plan/readiness layer:
+    frozen inputs, 12-fixture/48-cell coverage, no-draw readiness, C-7/M-1
+    refusal, and closed-admission refusal all hold. The committed scientific
+    path is not complete against the frozen control, status, artifact, and M-2
+    requirements, so this report cannot support execution approval. This is a
+    readiness finding only and makes no scientific claim or research-status
+    transition.
+  limitations:
+    - No scientific trial, protocol-labelled draw, RUN-* directory, or run metric was created.
+    - The blind implementation_report.yaml and executor task-directory contents were not read.
+    - The live host's C-7/M-1 refusal is an infrastructure observation, not mathematical evidence.
+    - The report does not approve EXP-RELN-dc761f and does not change any official state.
+  artifact_paths:
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/reviews/TASK-20261011-1fdb6e/validation_report.yaml
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/archives/TASK-20261011-e070a8/snapshot-receipt.json
+    - experiments/EXP-RELN-dc761f/specification.yaml
+    - experiments/EXP-RELN-dc761f/amendments/AMD-20261011-594c01.yaml
+    - ledger/decisions/DEC-20261011-09f449.yaml
+    - experiments/EXP-RELN-dc761f/implementation/implementation.md
+    - experiments/EXP-RELN-dc761f/implementation/run_reln.py
+    - experiments/EXP-RELN-dc761f/implementation/check.py
+    - experiments/EXP-RELN-dc761f/trial-plan-v1.json
+  review_attestation:
+    joints_owned:
+      - implementation-to-specification binding
+      - admission refusal and machine guards
+      - control and artifact completeness
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/handoffs/TASK-20261011-1fdb6e.yaml
+      - experiments/EXP-RELN-dc761f/specification.yaml
+      - experiments/EXP-RELN-dc761f/amendments/AMD-20261011-594c01.yaml
+      - ledger/decisions/DEC-20261011-09f449.yaml
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/archives/TASK-20261011-e070a8/snapshot-receipt.json
+      - committed snapshot artifacts other than blind implementation_report.yaml
+    read_sibling_reports: []
+    blind_from:
+      - experiments/EXP-RELN-dc761f/implementation/implementation_report.yaml
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-5e6d19/tasks/TASK-20261011-e03266/
+    blind_from_respected: true
+    verdict: incomplete
