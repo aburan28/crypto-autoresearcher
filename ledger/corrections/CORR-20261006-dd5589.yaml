@@ -1,0 +1,204 @@
+# =====================================================================
+# CORRECTION -- CORR-20261006-dd5589
+# Discloses a GOVERNANCE VIOLATION by the dispatching session: PR #1875
+# was merged into main while every CI check was pending, against CLAUDE.md
+# "Auto-merge a PR once its CI passes" and against the merge condition of
+# DEC-20261005-072d80. WRITE-ONCE.
+# =====================================================================
+
+correction:
+  id: CORR-20261006-dd5589
+  recorded_at: '2026-10-06'
+  recorded_by: coordinator
+  goal_id: null
+  batch_id: null
+  archived_by: TASK-20261006-69a151
+
+  record_type: process
+  record_id: PR-1875
+  corrects:
+    - >-
+      The merge of PR #1875 (head f2f48e270ec92770f314848bb07ace298759adf4,
+      the TASK-20261005-d59b5a snapshot and its receipt) into main as merge
+      commit 58d7b589fd24fa548d6886852b6f31697ea8a7c4.
+
+  nature: >-
+    DISCLOSES A MERGE MADE WHILE CI WAS PENDING. At 2026-10-06T02:16:08Z the
+    dispatching session ran `gh pr merge 1875 --auto --merge`, intending to
+    ENABLE auto-merge. main has no branch protection and no required status
+    checks, so GitHub merged the PR at once, with the merge-commit method,
+    while all nine CI checks were pending. The Coordinator session that
+    archived the snapshot had been told "Do not enable auto-merge, do not
+    merge", and its report repeated that. The dispatching session overrode
+    that instruction. The violation was caused by the dispatching session,
+    not by the Coordinator session that wrote the PR.
+
+  rules_violated:
+    - rule: CLAUDE.md "Auto-merge a PR once its CI passes"
+      text: >-
+        "Never merge a red, pending, or conflicted head, and never skip or
+        re-run a check to make it green."
+      state_at_merge: All nine CI checks pending (the pull_request run 37403208023 was queued and had not started).
+    - rule: DEC-20261005-072d80 merge condition
+      text: >-
+        The full pass of tests/test_experiment_execution.py is required on a
+        host that supports RLIMIT_AS (Linux CI on the PR) before merge, and a
+        CI failure in those tests blocks the merge.
+      state_at_merge: Not satisfied. Linux CI had not run the tests.
+    - rule: Handoff instruction to the snapshot session
+      text: '"Do not enable auto-merge, do not merge."'
+      state_at_merge: Overridden by the dispatching session.
+
+  observed_facts:
+    merge:
+      pr: 1875
+      merged_at: '2026-10-06T02:16:08Z'
+      merged_by: aburan28 (the account the dispatching session acts through)
+      merge_commit: 58d7b589fd24fa548d6886852b6f31697ea8a7c4
+      parents:
+        - 6e637362e1a2af616c6040d32f6522ee7051edb2
+        - f2f48e270ec92770f314848bb07ace298759adf4
+      method: merge commit (not squash, not rebase)
+      auto_merge_request_after: null
+      main_branch_protection: >-
+        `gh api repos/aburan28/crypto-autoresearcher/branches/main` reports
+        protected false and required_status_checks enforcement_level off,
+        with no checks or contexts. This is why `--auto` merged at once.
+      verified_by_this_session: >-
+        `gh pr view 1875` (state MERGED, mergedAt, mergeCommit, mergedBy,
+        headRefOid) and `git log -1 --format='%H %P' 58d7b589fd`.
+    ci_outcome:
+      run_id: 37403208023
+      event: pull_request
+      head_sha: f2f48e270ec92770f314848bb07ace298759adf4
+      created_at: '2026-10-06T02:15:04Z'
+      jobs_started: '2026-10-06T13:23:13Z or later'
+      queue_note: >-
+        The run sat queued for about 11 hours. The dispatching session
+        reports an Actions backlog of about 160 queued runs; this session did
+        not count it.
+      conclusion: failure
+      ledger_and_harness: >-
+        FAILED at step 10, "Merge hygiene — conflict markers, parseability,
+        id collisions". tools/check_merge_hygiene.py crashed in
+        check_collisions() (line 618) via _run() (line 90) with
+        "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xd8 in position
+        96: invalid continuation byte". The log line before the crash reads
+        "parseability scoped to 3 committed, staged, or tracked-worktree
+        candidate path(s) vs origin/main". Steps 11 to 23 were SKIPPED,
+        including "Validate ledger, experiments, and run records" and "Run
+        harness tests". CI therefore never ran tests/test_experiment_execution.py.
+      runtime_regressions_3_11: success
+      runtime_regressions_3_13: success
+      verified_by_this_session: >-
+        `gh run view 37403208023` (jobs, step conclusions, timestamps) and
+        `gh run view 37403208023 --log-failed` (the traceback lines).
+      main_validate_history: >-
+        `gh run list --workflow validate.yml --branch main --limit 5` shows
+        the latest completed run on main created 2026-09-24T20:39:23Z, and all
+        five listed runs concluded failure.
+    post_hoc_linux_verification:
+      performed_by: the dispatching session, after the merge
+      log: coordination/archives/TASK-20261006-69a151/linux-verify-1875.log
+      log_sha256: 677247f7aa6591fcce4b83f8ce6bc6bf76da10000773c0bf46a39dec650d1799
+      log_source: >-
+        Copied byte-for-byte from /Volumes/SSD990/.tmp-agent/linux-verify-1875.log
+        (same sha256). The log is the dispatching session's. This session did
+        not run the container and did not observe the run.
+      environment: >-
+        As recorded in the log: docker python:3.12-slim (image
+        sha256:2f17fc044b57), Linux aarch64 (7.0.12-linuxkit), Python 3.12.14,
+        repository mounted read-only at f2f48e270e.
+      results_as_logged:
+        - command: python3 -m pytest -p no:cacheprovider -q tests/test_experiment_execution.py tests/test_newest_experiments.py
+          summary: 52 passed, 49 subtests passed in 8.68s
+          rc: 0
+        - command: python3 -m pytest -p no:cacheprovider -q tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py
+          summary: 35 passed in 103.27s (0:01:43)
+          rc: 0
+      tree_note: >-
+        The log's note says the files differing in tools/ and tests/ between
+        f2f48e270e and the merge 58d7b589fd are tests/test_measured_bound.py,
+        tests/test_ui_client.cjs, tests/test_ui_research_browser.cjs,
+        tests/test_ui_research_views.py and tools/validate_ledger.py. This
+        session confirmed that list with `git diff --name-only f2f48e270e
+        58d7b589fd -- tools tests`. The claim that none of them is imported by
+        the five test files is the dispatching session's and was not
+        re-checked here.
+      scope: >-
+        These are Linux aarch64 results in a container. GitHub's Linux CI
+        runner is x86_64 with Python 3.11. The run shows that RLIMIT_AS can
+        be set on a Linux host and that the tests pass there. It is not a
+        green CI check.
+
+  disposition:
+    merge_not_undone: >-
+      The merge is NOT reverted. The post-hoc Linux run meets the substance
+      of DEC-20261005-072d80's condition: on a host that supports RLIMIT_AS,
+      tests/test_experiment_execution.py passes in full (rc 0), and the
+      macOS failures were host_limitation as that decision classified them.
+      Reverting would remove tooling that passes its own tests, with no
+      defect to cure.
+    violation_not_cured: >-
+      That outcome does NOT cure the procedural violation. Under AGENTS.md
+      ("A precondition is not waived by the work turning out fine"), the
+      condition was a precondition of the merge. The merge happened before
+      it was met, and a later passing run does not change the order of
+      events. The violation stands as recorded here.
+    ci_crash_is_separate: >-
+      The check_merge_hygiene.py crash is a separate tooling defect. It is
+      not attributable to PR #1875: _run() decodes `git show <base>:<path>`
+      output as UTF-8 text, and the failing input was a base-side path with
+      non-UTF-8 bytes. Locally, `python3 tools/check_merge_hygiene.py --base
+      origin/main` at the snapshot passed (receipt of TASK-20261005-d59b5a,
+      10 candidate paths), and the dispatching session reports a local PASS
+      with `--base 6e637362e1` at f2f48e270e (11 candidate paths). CI saw 3
+      candidate paths because it checked out the PR merge ref after the PR
+      had already merged. The crash means CI said nothing either way about
+      this PR's tests.
+
+  what_this_does_and_does_not_change:
+    - It changes no claim, hypothesis status, experiment status, goal, question, proposal, evidence record or decision.
+    - It does not edit DEC-20261005-072d80, DEC-20261005-2ee2e2, any handoff card, the d59b5a receipt, or PR #1875.
+    - It does not declare DEC-20261005-072d80's condition met by CI. It records that a post-hoc Linux run met its substance.
+    - It does not fix tools/check_merge_hygiene.py. That defect needs its own task.
+    - It makes no ECDLP or security statement.
+
+  remedies_recorded:
+    - >-
+      Never run `gh pr merge` in any form, including `--auto`, on a PR whose
+      checks are pending while main has no required status checks. On this
+      repository `--auto` merges at once.
+    - >-
+      The repository settings named in CLAUDE.md (merge commits only) do not
+      include required status checks for main. Until they do, auto-merge
+      gives no protection, and "merge once CI passes" must be enforced by
+      the merging session reading `gh pr checks` first.
+
+  evidence_artifacts:
+    - path: coordination/archives/TASK-20261006-69a151/linux-verify-1875.log
+      sha256: 677247f7aa6591fcce4b83f8ce6bc6bf76da10000773c0bf46a39dec650d1799
+    - path: coordination/archives/TASK-20261005-d59b5a/snapshot-receipt.yaml
+      note: The snapshot PR #1875 carried; records the local merge-hygiene PASS and the macOS gate results.
+    - path: ledger/decisions/DEC-20261005-072d80.yaml
+      note: The merge condition that was not met at merge time.
+    - ref: GitHub Actions run 37403208023 (pull_request, head f2f48e270e)
+    - ref: merge commit 58d7b589fd24fa548d6886852b6f31697ea8a7c4
+
+  refs:
+    - PR-1875
+    - DEC-20261005-072d80
+    - DEC-20261005-2ee2e2
+    - TASK-20261005-27ff15
+    - TASK-20261005-557557
+    - TASK-20261005-d59b5a
+    - TASK-20261006-69a151
+
+  runs_launched: 0
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_runtime: Cursor coordinator subagent (model inherit)
+    model_verified: false
+    model_verified_reason: No `python3 -m orchestration.adapter doctor --probe` receipt in this session.
+    fallback_used: false
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
