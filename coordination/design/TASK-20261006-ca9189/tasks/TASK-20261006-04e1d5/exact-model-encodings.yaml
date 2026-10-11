@@ -1,0 +1,82 @@
+task_id: TASK-20261006-04e1d5
+artifact: exact_model_encodings
+status: derived
+version: ssi-admission-v1
+parameter_family:
+  prime: "p > 3 prime, p = 3 (mod 4)"
+  field_size: "q=p^2"
+  powers: "D=2^a, N=5^b, a>=2, b>=1, N>4D"
+  valuation_slice: "v_2(p+1)=a and v_5(p+1)=b"
+  source_curve: "E0: y^2=x^3+x over F_(p^2)"
+  rationale: >-
+    This exact slice gives a canonical quadratic field representation and a
+    source model with q-Frobenius [-p], so E0(F_(p^2))=E0[p+1].  The valuation
+    conditions make multiplication by (p+1)/D and (p+1)/N exact uniform
+    projections onto E0[D] and E0[N].  Producing an unbounded family of base
+    primes and a complete evaluable End(E0) representation remains an inherited
+    base-parameter obligation, not an admission or evaluator result.
+field_encoding:
+  tag: Fp2_i_v1
+  definition: "F_p[i]/(i^2+1); irreducible because p=3 (mod 4)"
+  element: "ordered pair (c0,c1), 0<=c0,c1<p, denoting c0+c1*i"
+  bytes: >-
+    Version octet, minimally encoded p, then fixed-width big-endian c0 and c1;
+    reject nonminimal p, residues >=p, wrong widths, trailing bytes, and every
+    alternate polynomial-basis tag.
+  equality: "literal equality of the complete canonical byte string"
+  checks: [deterministic_primality, p_gt_3, p_mod_4_eq_3, coefficient_ranges]
+curve_encoding:
+  tag: short_weierstrass_v1
+  definition: "y^2=x^3+A*x+B over the exact field tag"
+  bytes: "field encoding followed by canonical A then canonical B"
+  checks:
+    - "4*A^3+27*B^2 != 0"
+    - "source E bytes equal the registered E0 bytes A=1,B=0"
+    - "codomain C has #C(F_(p^2))=(p+1)^2, checked by a deterministic polynomial-time point-count routine"
+  equality: >-
+    Literal equality of full field/model/coefficient bytes.  A j-invariant,
+    field size, isomorphism class, short alias, or digest alone is never exact
+    curve identity.
+  digest_rule: "A digest may index bytes but never replaces full-byte equality."
+point_encoding:
+  infinity: "one dedicated infinity tag plus the complete curve tag"
+  affine: "one affine tag, complete curve tag, canonical x, and canonical signed y"
+  checks: [exact_curve_tag_match, canonical_coordinates, curve_equation]
+  forbidden: [x_only, parity_only_without_y_recovery_and_recheck, alias_curve_tag, trailing_bytes]
+  equality: "literal canonical point bytes after successful parse"
+ordered_basis_encoding:
+  form: "role-tagged ordered tuple (U_role,U,V_role,V) bound inside the public-key bytes"
+  equality: "ordered byte equality; (U,V) and (V,U) are distinct keys"
+  semantic_check: >-
+    U,V are exact D-order points and the Weil pairing e_D(U,V), represented as
+    an Fp2_i_v1 element, has exact order D.
+  swap_boundary: >-
+    A swap relative to an already bound public key fails literal public-key
+    equality.  A freshly generated key that intentionally binds (V,U) is a
+    different valid key and uses that different slope convention.
+quotient_model_encoding:
+  construction: >-
+    Honest encryption factors the cyclic kernel <U+sV> through a normalized
+    sequence of a degree-two Velu quotients.  Each step uses the unique nonzero
+    order-two point in the current cyclic kernel, the fixed short-Weierstrass
+    formulas, and the normalization phi_i^*(omega_(i+1))=omega_i.
+  result: >-
+    The resulting exact coefficient bytes are C and the composition is the
+    honest normalized f_s:E->C.  The chain and f_s are sender work products,
+    not recipient inputs and not retained ciphertext advice.
+  public_admission_limit: >-
+    Pre-admission checks canonical C and its exact model properties, but cannot
+    certify that an arbitrary submitted C is the honest quotient without the
+    separately missing exact-map/two-point evaluator relation.
+costs:
+  parse_and_equality: "linear in encoded bytes"
+  scalar_order_checks: "O(log N+log D) curve doublings/additions each"
+  weil_pairing: >-
+    Exact Miller double-and-add on the canonical models, O(log D) Miller steps
+    and polynomially many F_(p^2) operations; divisor exceptional cases are
+    tagged failures rather than accepted alternate representations.
+  codomain_point_count: "polynomial in log p by a deterministic Schoof-type algorithm"
+claims_not_made:
+  - "No curve alias is inferred to denote an exact model."
+  - "No canonical encoding constructs the missing recipient evaluator."
+  - "No security, novelty, practicality, or deployment property follows."
