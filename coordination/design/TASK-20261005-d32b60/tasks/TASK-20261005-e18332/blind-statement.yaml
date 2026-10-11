@@ -1,0 +1,221 @@
+statement_id: TASK-20261005-e18332
+parameters:
+  lambda: unary integer at least 8
+  a: lambda
+  k: floor(lambda/2)
+  D: 2^lambda
+  b: min {j>=1:5^j>4D}
+  N: 5^b,strictly 4D<N<=20D
+  L: lambda^2 total edges
+  h: floor(log_3(lambda^2))
+  B_h: 2*3^h-1 including length zero
+  M0: 3*2^(a+2)*5^b
+  p: least prime in [2^lambda,2^(lambda^2)) congruent to -1 modulo M0,undefined if absent
+  F: F_p[z]/(z^2+1)
+  E_star: y^2=x^3+x
+  source_input: certified full integral End(E_star),four evaluable maps,rational coordinates and table,at most lambda^4 encoded bits
+  serializer_parameters: Sigma_pub,Sigma_sk and verifier programs fixed before sampling
+encodings:
+  integer: signed length-delimited binary,lambda additionally unary; canonical signs and ranges
+  field: two padded canonical residues in [0,p),with exact field label
+  curve: short Weierstrass coefficient pair,field label and nonzero discriminant
+  point: infinity tag or canonical coordinate pair with curve label
+  order: four labelled evaluated E-to-E maps,rational quaternion coordinates,integral multiplication table and certificates
+  map: domain/codomain-labelled circuit or composition DAG; all coefficients,nodes and intermediate evaluation work count
+  equality: exact field and expanded polynomial map identities,with work charged
+  order_equivalence: simultaneous GL_4(Z) basis change and curve-model conjugation
+  normalization: least coefficient pair among all F-isomorphic short Weierstrass models,then least simultaneous retained point tuple under residual automorphisms
+  target_normalization: same curve rule,then least retained X tuple
+  fixed_model_isomorphisms: all roots of constant-degree u equations,with coordinate/map transports and root order/coins counted
+  basis_labels: sampled ordered U,V,P,Q; relabellings transport slope/message coordinates
+  Sigma_pub_fields: field,model,scalar-Frobenius,torsion orders,primitive pairings,normalization certificates
+  Sigma_sk_fields: integral order,coordinates,table,map/evaluation identities,trace discriminant certificates
+  Sigma_program_parameters: complete byte serializers and semantic verifier programs are unspecified fixed parameters
+parser:
+  steps:
+    - Parse under the fixed serializer/verifier parameters; reject truncated,noncanonical,out-of-range or mismatched labels.
+    - Verify prime,field,curve membership,nonsingularity,source order and every declared certificate.
+    - Verify exact orders and primitive pairings for U,V and P,Q,plus X membership/order and D,N,k consistency.
+    - Verify order multiplication,trace,norm,involution and evaluated labelled-map identities.
+    - If a required verifier is unavailable return bottom(UNINSTANTIATED_CERTIFICATE_INTERFACE).
+    - If a check fails return bottom(INVALID).
+  wrong_key: reject detected source/domain/table/action mismatch; no universal rejection specification for plausible geometrically incompatible secrets
+  nonhonest_input: correctness statements below quantify only over admitted honest observations
+evaluator:
+  source: Eval_E(beta_i,R:E)->point E or failure
+  map: Eval_f(f:E->C,R:E)->point C or failure
+  dual: Eval_dual(fdual:C->E,S:C)->point E or failure
+  constants: only represented implemented field/group/map operations with exact domain tags
+  unknown_operation: unavailable target-map,ideal,Hom or embedding operation returns its tagged failure
+  division: denominator-kernel tests and exact [n]f=numerator identities
+  accounting: all node evaluations,field/extension/root operations,intermediate bit lengths,degree/modulus growth,workspace and output bits
+Setup:
+  steps:
+    - Search prescribed progression/interval for least prime and certify primality.
+    - Verify F,E_star,source full integral order,multiplication/evaluation identities and trace discriminant p^2.
+    - Publish source ring,field,parameters,factorizations and arithmetic conventions; otherwise bottom.
+  Frobenius: scalar [-p] over F,with 3DN dividing p+1
+  cost: all search,construction,source inputs,verification and intermediate work
+KeyGen:
+  trial:
+    - Choose first cyclic order-3 subgroup uniformly among four,ordered by encoded coordinates modulo generator sign.
+    - Perform exactly L-1 continuation edges,excluding precisely preceding dual subgroup; each remaining subgroup has probability 1/3.
+    - Choose subgroup before normalization; sum identified endpoint multiplicities with no inverse-automorphism weight; longer cycles allowed.
+    - Retain domain-labelled tau and dual(tau) of degree 3^L during trial.
+    - Form transported R=Z*1+tau End(E_star) dual(tau) in rational coordinates.
+    - Enumerate trace-dual quotient subgroup overorders in lexicographic HNF order; retain integral multiplicatively closed order of trace discriminant p^2.
+    - Realize basis maps by denominator-kernel tests and increasing-encoding-length coefficient search for exact rational division.
+    - Retain first certified full evaluated order before cap; otherwise reject.
+    - Sample rational point slots,project by (p+1)/D or (p+1)/N and retain exact rank-two U,V and P,Q with primitive pairings.
+    - Normalize source model and transport all retained points and order maps simultaneously.
+    - Apply all rejection predicates and erase tau,dual,kernels,walk,connecting ideals,orientations and temporary witnesses.
+  point_slots: uniform {infinity} union (F x {0,1}); reject nonexistent roots and duplicate zero-root slot; lexicographic root ordering
+  coins: exact finite-range fair-bit rejection,all random-bit reads counted
+  word_count: 4*3^(L-1) before identifications
+  caps: lambda^12 bit operations/random-bit reads and lambda^12 total pk/sk/certificate encoded bits/nodes per trial
+  rejection:
+    - any cap exceeded
+    - any field/model/scalar-Frobenius/order/pairing/integral-order/map/table/discriminant/normalization certificate fails
+    - normalized E lies in public nonbacktracking degree-3 endpoints of lengths 0 through h from E_star,modulo F-isomorphism
+  trials: lambda^3 independent identical capped trials
+  output: first accepted complete tuple,otherwise bottom
+  pk: E,U,V,P,Q,p,F,D,N,k,encodings,public certificate bytes
+  sk: only full integral End(E),four evaluable E-to-E maps,rational coordinates,table and secret certificates
+  q: Pr[complete single trial accepts | successful Setup,fixed serializer/verifier parameters]
+  joint_law: complete single-trial law conditioned on acceptance,including representation,basis,normalization and certificate coins
+  key_failure: (1-q)^(lambda^3) conditional on successful Setup
+  capped_work: O(lambda^15) bit time and O(lambda^12) transient memory/output plus Setup input
+  unlimited_retry_mean: w/q when q>0 and finite expected single-trial work w
+admission_conditions:
+  A_PRIME_SOURCE: all sufficiently large defined lambda admit prescribed prime/source and uniform polynomial Setup work
+  A_ACCEPT: for all sufficiently large defined lambda,the complete SAME capped law has q>=lambda^-2
+  A_SAT_DIV: saturation,division,map realization and certificates fit caps on sufficient accepted mass
+  A_SUPPORT: every uniformly polynomial publicly enumerable normalized endpoint support has negligible mass under this accepted law
+  A_CERT: fixed exact public/secret byte schemas and verifiers use polynomial work without extra connecting/target-response data
+  A_NORM: required global normalization and simultaneous point/map conversion use uniform polynomial bit time
+  A_EVAL: admitted represented maps/divisions/certificates have polynomial evaluated work,workspace and intermediate bits
+  conditional_key_bound: A_ACCEPT implies key_failure<=exp(-lambda)
+types:
+  O: full integral represented End(E),beta_i:E->E for i=1..4,coordinates,table and certificates
+  E_C: represented certified F-curves with separate model labels
+  P_Q: ordered rank-two rational E[N] basis
+  X: order-N point on observed C
+  U_V: ordered rank-two rational E[D] basis
+  alpha: integral evaluated E-to-E endomorphism
+  W_Y: actual points on C[N]
+  f: evaluated separable cyclic degree-D E-to-C map with f(P)=X
+  ideal: primitive integral proper left O-ideal,lattice representation,not a point
+  target_order: full integral evaluated End(C)
+  H: Hom(E,C),left End(C)/right O action
+  failure: tagged bottom
+Encrypt:
+  m: integer in [0,2^k)
+  r: uniform integer in [0,2^(a-k))
+  s: m+2^k*r in [0,D)
+  steps:
+    - Validate pk,m,r; otherwise bottom.
+    - Construct cyclic kernel <U+sV> and exactly a degree-2 quotient steps.
+    - Normalize codomain and first image simultaneously under the declared convention.
+    - Return C_s,X=phi_s(P) with exact labels.
+fiber:
+  F_z: '{t modulo D: exists F-isomorphism i:C_t->C with i(phi_t(P))=X}'
+  q_k_z: cardinality {t mod 2^k:t in F_z}
+  quantified_claim: forall successful Setup,admitted keys,all honest m,r; strict N>4D,ord(P)=N,gcd(N,pD)=1 and all compatible normalized maps imply F_(C_s,phi_s(P))={s},q_k=1
+  claimed_failure: 0 on that honest conditional domain
+source_prefix:
+  steps:
+    - Run parser and propagate failures.
+    - Evaluate beta_i(P),beta_i(Q) on E.
+    - Extract source coordinates by pairings e_N(R,Q),e_N(P,R) against e_N(P,Q),using 5-power digits.
+    - Form M_i and solve sum c_i M_i e_1=e_2 modulo N by SNF,successive coordinate gcd restrictions giving least residue solution.
+    - Set alpha=sum_i[c_i]beta_i:E->E and check alpha(P)=Q; otherwise bottom(SOURCE_ACTION).
+  cap: lambda^12 work/random-bit reads; overflow bottom(PREFIX_CAP)
+  claim: genuine full maximal evaluated O with prime-to-p rank-two N-action admits such alpha
+A:
+  ideal_convention: I_K={u in O:u annihilates K},left action by postcomposition
+  constraints: integral left stability,index D^2,nrd(I)=D,primitive cyclic local type,geometric degree-D f_I:E->C with f_I(P)=X
+  program:
+    - Run source_prefix.
+    - Record O multiplication/norm and ideal/geometric constraints.
+    - Candidate ideal checks use represented HNF/SNF.
+    - No geometric selector operation is installed; return bottom(MISSING_GEOMETRIC_IDEAL_SELECTOR).
+  extension:
+    - If a computed certified calibrated I and its realized f are returned,verify index,norm,cyclic type,degree,model labels and f(P)=X.
+    - Return f,Y=f(Q); optional W=f(alpha(dual(f)(X))).
+    - Run map_decoder(f,U,V,k).
+B:
+  target_objects: gamma_i:C->C,integral evaluated maps
+  equations:
+    product: gamma_i gamma_j=[D] composed with sum_l[mu_ijl]gamma_l
+    trace: tr(gamma_i)=D*tr(beta_i)
+    degree: deg(gamma_i)=D^2*nrd(beta_i)
+    identity: supplied identity coordinates combine to [D]
+    involution: scaled transported dual/polarization equations
+    geometry: actual curve maps,common degree-D E-to-C calibration,first column X and exact pairings
+  program:
+    - Run source_prefix.
+    - Record scaled product,identity,trace,norm,involution and geometric equations with gamma_i labelled C->C.
+    - No integral simultaneous geometric realization operation is installed; return bottom(MISSING_SIMULTANEOUS_GEOMETRIC_REALIZATION).
+  extension:
+    - If computed calibrated gamma_i evaluators are returned,verify exact map/degree/product/polarization identities.
+    - Evaluate W=sum_i[c_i]gamma_i(X); check W in C[N]; set Y=[D inverse modulo N]W.
+    - Run point_decoder(W or Y); if an evaluated f is also returned,run map_decoder(f,U,V,k).
+C:
+  target_objects: evaluated R=End(C),geometric left R/right O H=Hom(E,C),degree-D cyclic member f with f(P)=X
+  program:
+    - Run source_prefix.
+    - Request TargetEndRingEval(C); operation unavailable,return bottom(MISSING_TARGET_ORDER_PROGRAM).
+  second_stage:
+    - If computed R is returned,verify its full evaluated maps,table,coordinates and certificates.
+    - Record compatible order/bimodule/norm constraints.
+    - Request calibrated GeometricHomRealizer(O,E,R,C) and exact degree-D member selector.
+    - Operations unavailable,return bottom(MISSING_CALIBRATED_HOM_REALIZATION).
+  extension:
+    - If computed calibrated f is returned,verify degree,cyclic kernel,model labels and f(P)=X.
+    - Return f,Y=f(Q); optional W=f(alpha(dual(f)(X))).
+    - Run map_decoder(f,U,V,k).
+map_decoder:
+  program: |
+    Verify f:E->C,degree D,f(P)=X,cyclic kernel and all labels/certificates.
+    Evaluate A0=f(U),B0=f(V) on C; require ord(B0)=D.
+    Set H=[2^(a-k)]B0,G=-[2^(a-k)]A0; require ord(H)=2^k.
+    Set t=0,J=[2^(k-1)]H.
+    For j=0..k-1:
+      Set Z=[2^(k-1-j)](G-[t]H).
+      If Z=0 set d=0; if Z=J set d=1; otherwise bottom(SLOPE_SHAPE).
+      Set t=t+d*2^j.
+    Require [t]H=G; return t,otherwise bottom(SLOPE_CHECK).
+  quantified_claim: forall admitted honest keys,m,r and actually certified sender-compatible f; return m=s mod 2^k
+  conditional_failure: 0 with exact total certified map arithmetic
+point_decoder:
+  program:
+    - If W is returned,verify W in C[N] and compute Y=[D inverse modulo N]W.
+    - Verify complete (X,Y) N-basis and e_N(X,Y)=e_N(P,Q)^D.
+    - Request FULL_LABELLED_ACTION_RECOVER(E,C,P,Q,X,Y,D,N,U,V) giving evaluated f or evaluated D-kernel.
+    - Operation unavailable,return bottom(MISSING_FULL_ACTION_DECODER).
+    - If implemented recovery returns certified f,run map_decoder.
+  premises: smooth known coprime factors,N>D,rational labelled N-bases,rational D-basis,kernel ranks,exact embedding/product/curve models,output preprocessing
+correctness_failure_cost:
+  desired_quantifiers: exists one fixed uniform program and polynomial bounds before forall successful Setup,admitted keys,all honest m,r; recipient coins have uniform failure <=epsilon_T(lambda)
+  desired_response: W=phi_s alpha dual(phi_s)(X) or Y=phi_s(Q),then actual m
+  conditional_identity: actual compatible phi_s,dual,alpha with alpha(P)=Q and X=phi_s(P) give W=[D]Y
+  partial_output: A,B,C return tagged bottom; decoder propagates bottom(TRANSPORT_FAILED)
+  partial_response_failure: 1 on every admitted honest instance
+  partial_message_failure: 1 on every admitted honest instance
+  sizes: lambda,log p,log D,log N,B=all public/secret encoded bits
+  bit_time: partial work <=lambda^12 plus input reading; uncapped verifier/source costs parameterized by actual evaluations
+  memory: B+maximum verifier/evaluator workspace and finite-rank constraint data
+  output_length: constant tagged bottom; conditional ideal/order/Hom/map outputs require separate byte bounds
+  preprocessing: all field,source,certificate,factorization,root,extension,pairing and coordinate work
+  field_map_kernel_evaluation: twelve source-map calls in successful prefix; each conditional target/dual/realization/kernel call charged
+  normalization: H_global+H_iso for global model selection and simultaneous transports
+  saturation_division: T_sat+T_div for integral-order,ideal,Hom and map identity/division steps
+  norm_KLPT_enumeration: T_norm+T_KLPT+T_enum with exact norm,codomain,column,factoring,smoothness and success parameters
+  representation_conversion: T_ideal_to_map,T_finite_action_to_map,T_targetorder_to_geometric_Hom,T_kernel_to_slope
+  degree_growth: D^2*nrd(beta_i) for B's target maps; dense rational representations have degree-sized coefficient data
+  modulus_growth: D=2^lambda,N=5^b in O(lambda) bits; looping over D or N values does not give bit-polynomial work
+  point_decoder_cost: inverse-D+basis/pairing checks+T_full,M_full,B_full+map decoder
+  point_decoder_failure: epsilon_full+epsilon_model+epsilon_decode; unavailable operation returns failure 1
+  map_decoder_cost: two complete f evaluations,all certificate/kernel checks and O(k^2+a) group operations
+  amplification: every unprovided per-attempt success eta requires explicit T_attempt/eta,workspace and failure bound
+  independent_losses: Setup,admission,source evaluation,target transport,fiber,conversion and decoder

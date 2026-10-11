@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_bus as ab
+agent_bus = ab
 
 
 def run(root, *argv) -> int:
@@ -427,3 +428,62 @@ class Consolidation(BusTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ShelfLifeAndDigest(unittest.TestCase):
+    """P3.16: a message with --ttl-days leaves inboxes once expired; the
+    inbox is a bounded, newest-first digest and says how many it did not show."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = os.path.join(self.tmp.name, "bus")
+        subprocess.run(["git", "init", "-q"], cwd=self.tmp.name, check=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _send(self, i, **extra):
+        argv = ["send", "--from", "coordinator", "--to", "executor",
+                "--subject", f"m{i}", "--body", "x", "--no-sync-hint",
+                "--seed", str(i)]
+        for k, v in extra.items():
+            argv += [k, str(v)]
+        self.assertEqual(0, run(self.root, *argv))
+
+    def test_expired_message_is_hidden_but_not_deleted(self):
+        self._send(1, **{"--ttl-days": "0.0000001"})
+        time.sleep(0.05)
+        self.assertEqual(agent_bus.inbox_for(self.root, "executor"), [])
+        shown = agent_bus.inbox_for(self.root, "executor", include_expired=True)
+        self.assertEqual(len(shown), 1)
+        self.assertTrue(shown[0]["expires_at"])
+        self.assertEqual(len(os.listdir(os.path.join(self.root, "messages"))), 1)
+
+    def test_no_ttl_never_expires(self):
+        self._send(2)
+        rec = agent_bus.inbox_for(self.root, "executor")[0]
+        self.assertIsNone(rec.get("expires_at"))
+        self.assertFalse(agent_bus.is_expired(rec))
+
+    def test_non_positive_ttl_is_refused(self):
+        with self.assertRaises(SystemExit):
+            run(self.root, "send", "--from", "coordinator", "--to", "executor",
+                "--subject", "s", "--body", "x", "--ttl-days", "0", "--no-sync-hint")
+
+    def test_inbox_digest_is_bounded_and_counts_the_rest(self):
+        n = agent_bus.INBOX_DIGEST_ROWS + 3
+        for i in range(n):
+            self._send(100 + i)
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            run(self.root, "inbox", "--as", "executor")
+        out = buf.getvalue()
+        self.assertIn(f"{n} unread for executor", out)
+        self.assertIn("3 older unread not shown", out)
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            run(self.root, "inbox", "--as", "executor", "--full")
+        self.assertNotIn("not shown", buf.getvalue())
+
+    def test_unread_counts_per_registered_address(self):
+        run(self.root, "register", "--as", "executor")
+        self._send(7)
+        self.assertEqual(agent_bus.unread_counts(self.root).get("executor"), 1)
