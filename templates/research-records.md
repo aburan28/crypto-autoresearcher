@@ -641,8 +641,9 @@ handoff:
     # Canonical policy ids; the pre-2.0 aliases still resolve for records
     # already committed. See docs/inference-backends.md.
     policy: coordinator-orchestration-code | coordinator-orchestration |
-            research-deep | executor-implementation | executor-mechanical |
-            review-adversarial | review-breakthrough | consolidation-routing
+            research-deep | research-synthesis | executor-implementation |
+            executor-mechanical | review-adversarial | review-breakthrough |
+            consolidation-routing
             # review-breakthrough only for a claimed break, a closure result,
             # or a contradiction between validated evidence records. It cannot
             # be degraded and refuses a backend that cannot reach `max`.
