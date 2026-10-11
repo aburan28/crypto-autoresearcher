@@ -43,10 +43,18 @@ bindings:
   # confirms the backend serves it.
   #
   # Claude 5 bindings use `anthropic_adaptive` (adaptive thinking + a named
-  # `output_config.effort`); the Haiku 4.5 binding keeps `anthropic_thinking`
-  # (an explicit `budget_tokens`, 0 to disable), which is what that model
-  # takes. Sending a budget to a Claude 5 model is a 400, caught at
-  # `batch submit` preflight or on the first synchronous call.
+  # `output_config.effort`). Sending a budget to a Claude 5 model is a 400,
+  # caught at `batch submit` preflight or on the first synchronous call.
+  #
+  # Tiering (2026-10-07, cost): Opus 5.5 keeps the policies whose output is a
+  # judgment the program acts on -- coordination and both review tiers.
+  # Generation and routing (research-deep, consolidation-routing) and
+  # implementation run on Sonnet 5.5; fully specified mechanical work runs on
+  # Haiku 5.5. Ideas and pointers are cheap to discard because every one is
+  # gated downstream by an Opus-tier Validator/Red Team; a review is not.
+  # The new Sonnet/Haiku ids are operator-supplied until `adapter doctor
+  # --backend anthropic --probe` confirms them, and their `high`/`medium`
+  # ceilings are conservative assertions, not probed values.
   anthropic:
     coordinator-orchestration-code:
       model: claude-opus-5-5
@@ -93,11 +101,11 @@ bindings:
           mode: anthropic_adaptive
 
     research-deep:
-      model: claude-opus-5-5
+      model: claude-sonnet-5-5
       provenance: operator-supplied
       last_probed: null
       capabilities:
-        max_reasoning_effort: max
+        max_reasoning_effort: high
         tool_use: true
         structured_output: true
         context_tokens: 200000
@@ -122,11 +130,11 @@ bindings:
     # provenance is operator-supplied, not inherited: the model id is already
     # asserted above, but THIS binding has not been probed.
     consolidation-routing:
-      model: claude-opus-5-5
+      model: claude-sonnet-5-5
       provenance: operator-supplied
       last_probed: null
       capabilities:
-        max_reasoning_effort: max
+        max_reasoning_effort: high
         tool_use: true
         structured_output: true
         context_tokens: 200000
@@ -164,8 +172,16 @@ bindings:
           # tier is low effort rather than no thinking.
           mode: anthropic_adaptive
 
+    # Claude Fable 5.1, the Mythos-tier model, on the one decision class the
+    # program cannot recover from (claimed break, closure, contradiction).
+    # Rare by construction, so the per-token premium is bounded, and it puts
+    # a DIFFERENT model on the final gate than the Opus coordinator that
+    # approved the work -- model-level independence, not only a new session.
+    # Fable carries extra cybersecurity safeguards; a refusal here stalls the
+    # review (degradable: false, no fallback) rather than weakening it, so
+    # probe it on a realistic breakthrough review before relying on it.
     review-breakthrough:
-      model: claude-opus-5-5
+      model: claude-fable-5-1
       provenance: operator-supplied
       last_probed: null
       capabilities:
@@ -177,18 +193,27 @@ bindings:
       request:
         max_tokens: 64000
         reasoning:
-          # Claude 5 models think adaptively and take depth as a named effort
-          # (`output_config.effort`); `thinking.budget_tokens` and
-          # `temperature` are rejected with a 400. The policy's requested
-          # effort maps onto the API's names 1:1 (`none` -> low, `ultra` ->
-          # max); override with `effort_map:` only for a model that lacks a
-          # tier. Thinking cannot be disabled on these models, so the `low`
-          # tier is low effort rather than no thinking.
+          mode: anthropic_adaptive
+
+    # Same model for the big-picture ideation pass (idea-synthesist).
+    research-synthesis:
+      model: claude-fable-5-1
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
           mode: anthropic_adaptive
 
     executor-implementation:
-      model: claude-sonnet-5
-      provenance: runtime-verified
+      model: claude-sonnet-5-5
+      provenance: operator-supplied
       last_probed: null
       capabilities:
         max_reasoning_effort: high
@@ -208,12 +233,14 @@ bindings:
           # tier is low effort rather than no thinking.
           mode: anthropic_adaptive
 
-    # Fully specified, deterministic work: a small fast model at zero
-    # temperature with thinking off. Effort spent here would only invent
-    # variation in work whose value is that it does not vary.
+    # Fully specified, deterministic work: the smallest Claude 5 model at
+    # `low` effort. Claude 5 models think adaptively, so there is no
+    # thinking-off switch and no temperature (both are a 400); `low` is the
+    # floor. Effort spent here would only invent variation in work whose value
+    # is that it does not vary.
     executor-mechanical:
-      model: claude-haiku-4-5-20251001
-      provenance: runtime-verified
+      model: claude-haiku-5-5
+      provenance: operator-supplied
       last_probed: null
       capabilities:
         max_reasoning_effort: medium
@@ -223,10 +250,8 @@ bindings:
         max_output_tokens: 32000
       request:
         max_tokens: 16000
-        temperature: 0.0
         reasoning:
-          mode: anthropic_thinking
-          budget_by_effort: {none: 0, low: 0, medium: 4000}
+          mode: anthropic_adaptive
 
   # -------------------------------------------------------------------------
   # GLM via the Z.ai OpenAI-compatible endpoint.
@@ -383,6 +408,7 @@ bindings:
         max_output_tokens: 32000
       request:
         max_tokens: 32000
+    research-synthesis: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Same models, Anthropic wire format — this is what an Anthropic-protocol CLI
@@ -498,6 +524,7 @@ bindings:
         max_output_tokens: 32000
       request:
         max_tokens: 32000
+    research-synthesis: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Declared but unbound. The program refuses to guess an identifier: fill
@@ -637,6 +664,7 @@ bindings:
       request:
         max_tokens: 16000
         temperature: 0.0
+    research-synthesis: {model: null, provenance: unbound}
 
   # Same models over the Anthropic wire. `review-breakthrough` has a `max`
   # floor, so it will refuse here unless a binding genuinely declares that
@@ -653,6 +681,7 @@ bindings:
     review-breakthrough: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   openai:
     coordinator-orchestration-code:
@@ -746,6 +775,7 @@ bindings:
       request:
         max_tokens: 128000
         reasoning: {mode: openai_effort, effort_map: {xhigh: xhigh}}
+    research-synthesis: {model: null, provenance: unbound}
 
   openrouter:
     coordinator-orchestration-code: {model: null, provenance: unbound}
@@ -758,6 +788,7 @@ bindings:
     executor-implementation: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Self-hosted Qwen3.8-27B-FP8 on vLLM, reached through the lazy-launch proxy
   # (LOCAL_LLM_BASE_URL=http://127.0.0.1:8787/v1 -> ALB -> g6e GPU box). Set
@@ -872,6 +903,7 @@ bindings:
         temperature: 0.0
 
     review-breakthrough: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Abliteration.ai. Identifiers and capability numbers are the vendor's
   # published model page (retrieved 2026-10-01): three ids, tool use,
@@ -986,6 +1018,7 @@ bindings:
         reasoning:
           mode: openai_effort
           effort_map: {low: low, medium: medium}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Same models, Anthropic Messages wire. Effort is `output_config.effort`.
   abliteration-anthropic:
@@ -1076,3 +1109,4 @@ bindings:
         reasoning:
           mode: output_effort
           effort_map: {low: low, medium: medium}
+    research-synthesis: {model: null, provenance: unbound}
