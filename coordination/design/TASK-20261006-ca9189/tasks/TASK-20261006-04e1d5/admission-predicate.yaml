@@ -1,0 +1,105 @@
+task_id: TASK-20261006-04e1d5
+artifact: staged_admission_predicate
+status: derived
+mechanism: canonical_staged_admission_and_checked_slope_decode
+parameters:
+  field: "F_(p^2) with exact Fp2_i_v1 encoding"
+  curves: "exact labelled E,C in short_weierstrass_v1"
+  powers: "D=2^a, N=5^b, a>=2, b>=1, N>4D"
+  message_bits: "k=floor(a/2)"
+inputs:
+  public_parameters: [p, a, b, D, N, k, field_tag, source_curve_tag]
+  public_key: [E, P, U_role, U, V_role, V, public_key_bytes]
+  ciphertext: [C, X]
+  post_evaluation_only: [pre_admission_receipt, A0, B0, evaluator_status]
+exact_order_macros:
+  ord_5_power: "OrdN(T): T is on its labelled curve; [N]T=O; [N/5]T!=O"
+  ord_2_power: "OrdD(T): T is on its labelled curve; [D]T=O; [D/2]T!=O"
+  ord_2k: "Ord2k(T): [2^k]T=O; [2^(k-1)]T!=O"
+  validity: >-
+    For a point killed by a prime power l^e, nonvanishing under l^(e-1)
+    is equivalent to exact order l^e.  Here a>=2 and k>=1.
+basis_macro:
+  name: OrderedBasisD
+  predicate: >-
+    OrdD(U) and OrdD(V), exact role/order binding, and w=e_D(U,V) satisfies
+    w^D=1 and w^(D/2)!=1 in the canonical F_(p^2) multiplicative group.
+  representation: "w is a canonical Fp2_i_v1 field element returned by exact Miller evaluation"
+  consequence: "(U,V) is an ordered Z/DZ-basis of E[D]"
+public_pre_admission:
+  name: PreAdmit
+  availability: "before any recipient evaluation"
+  pseudocode: |
+    PreAdmit(pp, pk, ct):
+      1. Canonically parse pp, pk=(E,P,U,V), ct=(C,X); reject aliases,
+         x-only points, wrong roles, nonminimal values, or trailing bytes.
+      2. Check p>3 prime, p=3 mod 4, D=2^a, N=5^b, a>=2, b>=1,
+         k=floor(a/2), v2(p+1)=a, v5(p+1)=b, and N>4D.
+      3. Check exact field/model tags; E is the registered E0; E and C are
+         nonsingular; check #C(F_(p^2))=(p+1)^2.
+      4. Check OrdN(P) on E and OrdN(X) on C.
+      5. Check OrdD(U), OrdD(V), and OrderedBasisD(E,U,V).
+      6. Return PRE_OK with a collision-resistant cache digest plus the full
+         canonical pp/pk/ct bytes; the full bytes, not the digest, bind equality.
+  unavailable_checks:
+    - "No f(U), f(V), their orders, or decoder relation is read here."
+    - "No existence/construction of the exact degree-D f is inferred here."
+post_evaluation_admission:
+  name: PostAdmitDecode
+  availability: "only after a separately invoked evaluator has returned A0,B0"
+  pseudocode: |
+    PostAdmitDecode(pre_receipt, A0, B0, evaluator_status):
+      1. Require an unchanged PRE_OK receipt and evaluator_status=RETURNED;
+         this status does not itself prove evaluator semantic correctness.
+      2. Canonically parse A0,B0 as full signed points on the exact C bytes
+         bound by PRE_OK; reject infinity for B0.
+      3. Check [D]A0=O.  Check OrdD(B0).
+      4. Compute H=[2^(a-k)]B0 and G=-[2^(a-k)]A0.
+      5. Check Ord2k(H).
+      6. Run Decode2Power(G,H,k); require every digit test to be O or
+         [2^(k-1)]H and require the final equality [t]H=G.
+      7. Return POST_OK and message t in [0,2^k).
+  semantic_boundary: >-
+    Correct-message theorems additionally assume A0=f(U), B0=f(V) for the
+    exact admitted degree-D f with f(P)=X and kernel <U+sV>.  Shape/order
+    admission alone cannot verify this unconstructed evaluator contract.
+decoder:
+  name: Decode2Power
+  pseudocode: |
+    Decode2Power(G,H,k):
+      T=[2^(k-1)]H; R=G; t=0; Q=H.
+      For j=0,...,k-1:
+        Z=[2^(k-1-j)]R.
+        If Z=O set bit=0; else if Z=T set bit=1; else fail DECODER_DIGIT.
+        If bit=1: R=R-Q; t=t+2^j.
+        Q=[2]Q.
+      Require R=O and [t]H=G; return t.
+  cost: "O(k^2) group doublings/additions naively, plus O(a) to form G,H"
+failure_partition:
+  malformed_input:
+    prefix: MALFORMED_
+    examples: [noncanonical_bytes, invalid_field_element, off_curve_point, x_only_point, trailing_bytes]
+  admission:
+    prefix: ADMISSION_
+    examples: [parameter_mismatch, wrong_model_tag, P_order, X_order, U_order, V_order, pairing_order, curve_order]
+  evaluator:
+    prefix: EVALUATOR_
+    examples: [missing, timeout_or_internal_failure, wrong_output_model, unverified_semantic_relation]
+  decoder:
+    prefix: DECODER_
+    examples: [A0_not_D_torsion, B0_not_exact_D, H_not_exact_2k, digit_not_binary, final_equality]
+  wrong_key:
+    prefix: WRONG_KEY_
+    examples: [pre_receipt_key_mismatch, detectable_evaluator_relation_failure]
+    limitation: >-
+      This is not ciphertext authentication.  A plausible wrong key/output pair
+      that passes all local checks is not promised universal rejection.
+decidability_and_cost:
+  result: >-
+    Both predicates use exact parsing, primality/valuation arithmetic, scalar
+    multiplication, one Weil pairing, polynomial-time point counting, and a
+    power-of-two digit loop; all are polynomial in the declared encoded input.
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  experiment_runs: 0
