@@ -9,10 +9,10 @@ Stage 1: C-PIN (e94b27 instruments), C-SELF (Stage-0 hash replay), archived
          arm-(a) random-basis re-descent via basis_swap.py (IMP-ARM-A-BASIS-SWAP
          cleared under AMD-20261003-9ef431 / DEC-20261003-954f1b).
 Stage 2: Arms (b)–(d) structured V rates + Prop F orbit check under
-         AMD-20261003-894083 / DEC-20261003-ed98c2 (S62/oracle localization
-         re-admit after EV-CERTBIN-383c07), citing Stage-1 O-ARM-A-PASS
-         288/288 (EV-CERTBIN-f218ae). Prior Stage-2 RUN-CERTBIN-9dcb6d
-         under AMD-20261003-9e0869 remains immutable.
+         AMD-20261003-d292c9 / DEC-20261003-ed98c2 (S62/oracle localization
+         re-admit after EV-CERTBIN-383c07; new RUN after b76bbc infra
+         failure), citing Stage-1 O-ARM-A-PASS 288/288 (EV-CERTBIN-f218ae).
+         Prior Stage-2 RUN-CERTBIN-9dcb6d remains immutable.
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No break / exponent.
 """
@@ -35,10 +35,10 @@ ADMIT_BY = "DEC-20261003-f1d0f6"
 READMIT_BY = "DEC-20261003-954f1b"
 STAGE2_ADMIT_BY = "DEC-20261003-ed98c2"
 AMENDMENT_ID = "AMD-20261003-9ef431"
-STAGE2_AMENDMENT_ID = "AMD-20261003-894083"
-PRIOR_STAGE2_AMENDMENT_ID = "AMD-20261003-9e0869"
+STAGE2_AMENDMENT_ID = "AMD-20261003-d292c9"
+PRIOR_STAGE2_AMENDMENT_ID = "AMD-20261003-894083"
 TASK_ID = "TASK-20261003-1782c9"
-STAGE2_TASK_ID = "TASK-20261003-aba7b1"
+STAGE2_TASK_ID = "TASK-20261003-737cc7"
 SEED = 2026092691
 # Stage-1 outcomes include O-ARM-A-PASS (identity gate). Stage 2 assigns
 # O-E-SET / O-E-POLY / O-MIXED from structured W_4 rates.
