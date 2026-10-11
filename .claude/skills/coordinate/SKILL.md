@@ -16,7 +16,8 @@ capacity is not (`AGENTS.md`, "Approval is bounded by execution").
 Public **coordination** entry point. The session drives the Coordinator role
 (`agents/coordinator.md`, `.claude/agents/coordinator.md`). Detailed procedure:
 `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/WORKFLOW.md`
-and `references/lifecycle.md`. Do not copy or weaken `AGENTS.md`.
+and `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/references/lifecycle.md`.
+Do not copy or weaken `AGENTS.md`.
 
 This is **not** `/run`. Do not launch scientific trials, implement experiment
 code, or treat a Ready executor card as something this skill executes. When the
@@ -94,6 +95,9 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    - run isolated snapshot then ledger archives; verify the Git receipt
      before treating a record as official;
    - fill `knowledge_promotion` on every evidence-review decision;
+   - leave a decision report with its graph and PDF on every evidence-review
+     decision, and refresh the canonical graphs it changes, in the same
+     ledger archive (`research-visuals`, "Every evidence review");
    - record impediments on an **active** goal — never `paused` or `blocked`.
 6. **Publish.** After every archive that adds `GOAL-*` / `RQ-*` / `IDEA-*` /
    `H-*` / `EXP-*` / `EV-*` / `DEC-*` / `TASK-*` / `KN-*` records: push the
