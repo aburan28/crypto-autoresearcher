@@ -1,0 +1,310 @@
+schema: crypto.autoresearch.endring_public_binding_interface.v1
+identity:
+  name: RCF-Bind
+  candidate_id: IDEA-20261008-305a07
+  producer_task_id: TASK-20261008-ba8247
+  status: typed_obstruction
+
+endring_problem:
+  field_and_curve_distribution: >-
+    A symbolic bare-EndRing distribution D_ER(lambda) over canonically encoded
+    supersingular curves E/F_(p^2). The current goal does not fix a complete
+    sampler for D_ER, so no replacement by a uniform, oriented, special-locus,
+    or key-generated distribution is asserted.
+  challenge_input: >-
+    Only the canonical field and curve bytes (p,E). No ring basis, orientation,
+    torsion basis, ideal, connecting isogeny, endpoint, or secret-derived tag.
+  allowed_auxiliary_information: >-
+    Public bounds lambda and D(lambda), canonical rational-map grammar,
+    integer arithmetic, and deterministic public verification algorithms.
+    Auxiliary information correlated with End(E) is forbidden.
+  required_complete_evaluable_output: >-
+    Four normalized evaluable endomorphisms B=(beta_1,...,beta_4) that form a
+    saturated Z-basis of exactly End(E), with multiplication, reduced-trace and
+    reduced-norm tables. A non-scalar endomorphism, quadratic suborder, torsion
+    action, or abstract maximal order alone is not a solution.
+  conditional_dependencies: >-
+    The binding lemma uses the recalled quaternion fact that noncentral
+    elements of a quaternion algebra with the same reduced characteristic
+    polynomial are conjugate over B_(p,infinity)^*. No primary source or
+    formal proof is supplied. Polynomial public sampling, polynomial every-
+    basis inversion, and reconstruction from one quadratic embedding are open.
+
+domains:
+  X_E: >-
+    Canonical tuples x=(alpha,alpha_dual), where alpha and alpha_dual are
+    normalized rational maps E->E over a declared extension, alpha is a
+    primitive noncentral separable endomorphism, 1<=deg(alpha)<=D(lambda), and
+    both maps have polynomial-length encodings. The relation verifies rather
+    than trusts the dual certificate.
+  Y_E: >-
+    Canonical integer pairs y=(t,n) with 1<=n<=D(lambda), |t|<=2*sqrt(n), and
+    discriminant Delta=t^2-4n<0. Delta<0 excludes scalar repeated-root fibers.
+  byte_grammar: >-
+    Versioned length-prefixed tuple bytes. Integers use minimal signed big-
+    endian encoding. Field elements and rational maps use the fixed canonical
+    E model, coprime normalized numerator/denominator pairs, monic
+    denominators, and one canonical infinity representation. Nonminimal,
+    reducible, ambiguous, or trailing-byte encodings are rejected.
+  equality: >-
+    y equality is bytewise after canonical parsing. x equality is equality of
+    normalized rational maps alpha and alpha_dual, not equality on a finite
+    point set.
+  public_equivalence: >-
+    For fixed E and y, x~_y x' iff both R_E(x,y)=R_E(x',y)=1. Semantically the
+    proposed lemma identifies their alpha maps up to conjugacy by
+    B_(p,infinity)^*. The public equivalence test merely runs R_E twice and
+    compares y; it need not find a conjugator.
+  validation: >-
+    Parse canonically; verify alpha and alpha_dual are nonconstant morphisms
+    E->E preserving O; compute n=deg(alpha); verify
+    alpha_dual o alpha=[n], alpha+alpha_dual=[t], the same dual identities on
+    the other side, primitivity, the declared degree bound, and Delta<0.
+  failure_symbols:
+    parse: FAIL_PARSE
+    invalid_map: FAIL_MAP
+    invalid_relation: FAIL_REL
+    no_preimage: FAIL_EMPTY
+    unavailable_algorithm: FAIL_UNAVAILABLE
+
+relation:
+  R_E: >-
+    R_E((alpha,alpha_dual),(t,n))=1 exactly when all domain and validation
+    checks pass and the verified identities show that alpha has reduced
+    characteristic polynomial Z^2-tZ+n.
+  decision_algorithm: >-
+    RCF.Decide parses x,y; performs symbolic rational-function composition,
+    addition, scalar-map construction, normalization and equality; recomputes
+    degree; then checks the two dual identities, bounds, primitivity and
+    negative discriminant. It evaluates no finite tuple of points.
+  decision_runtime: >-
+    Polynomial in p-bit length and the explicit rational-map byte lengths when
+    those lengths and D are polynomial in lambda. Coefficient swell and exact
+    normalization are charged; no cryptographic-size implementation evidence
+    is claimed.
+  honest_support: >-
+    Intended support is y=Eval(E,x) for x output by the missing
+    SampleNoncentralEnd(E,D). Central multiplication maps and dual-edge
+    backtracks are outside support because Delta=0.
+  binding_statement: >-
+    Conditional on the quaternion-conjugacy fact, for every honest y and all
+    x,x' accepted by R_E, alpha and alpha' lie in one B_(p,infinity)^*
+    conjugacy class. This is rational quaternion conjugacy, not equality of
+    maps, conjugacy by an automorphism of E, or an efficiently supplied
+    conjugator.
+  message_recovery_invariance: >-
+    A PKE adapter would have to specify Rec with
+    Rec(E,x,c)=Rec(E,x',c) for every accepted x~_y x' and every valid
+    ciphertext c. No such nonpublic Rec is supplied. Functions depending only
+    on (t,n) are invariant but public; representative-dependent functions are
+    not justified invariant. This missing functionality is a typed
+    obstruction, not an implicit oracle.
+
+algorithms:
+  Sample_from_bare_E:
+    interface: "SampleNoncentralEnd(E,D;rho) -> (x,y) or FAIL_EMPTY"
+    specification: >-
+      Using only bare E and public coins rho, output a canonically represented
+      primitive noncentral separable alpha of degree at most D, its verified
+      dual, and y=Eval(E,x), with inverse-polynomial success and polynomial
+      runtime.
+    status: missing_first_public_algorithm
+    obstruction: >-
+      The packet supplies no polynomial way to produce a noncentral
+      endomorphism from bare E. Scalars and immediate dual backtracks have
+      Delta=0 and are rejected. Naming SampleNoncentralEnd would assume the
+      OneEnd-like object the interface is meant to expose.
+  Eval_from_bare_E:
+    interface: "Eval(E,x) -> (t,n) or a declared failure symbol"
+    specification: >-
+      Run relation-side map validation, compute n=deg(alpha), and recover the
+      unique integer t certified by alpha+alpha_dual=[t]; return canonical
+      (t,n). It uses E and explicit x, not End(E), an orientation, or a finite
+      evaluation tuple.
+    status: proposed_polynomial_in_explicit_map_size
+  Inv_from_every_complete_basis:
+    interface: "Inv(E,B,y) -> x with R_E(x,y)=1 or FAIL_EMPTY"
+    specification: >-
+      Express a general element sum_i z_i beta_i, impose reduced trace t and
+      reduced norm n, solve the resulting integral quadratic equation, convert
+      the selected solution and its dual to canonical rational maps, and run
+      RCF.Decide. The output may be any accepted conjugate.
+    status: missing_polynomial_algorithm
+    obstruction: >-
+      Exhaustive bounded lattice enumeration is finite for fixed y but is not
+      polynomial in log(n). No uniform polynomial trace-norm representation
+      solver, rational-map conversion bound, or honest-fiber success theorem
+      is supplied.
+  runtimes: >-
+    Decide/Eval are proposed polynomial in explicit map size. Sample has no
+    algorithm. Inv has only a finite potentially exponential definition.
+  retries: >-
+    Sample's success probability and retry tail are undefined because the
+    sampler is missing. Inv must not retry over hidden basis alignments; it
+    either solves the public trace-norm equation or returns FAIL_EMPTY.
+  failure_bounds: >-
+    No negligible or inverse-polynomial bound is established for Sample or
+    Inv. Decide and Eval are deterministic after parsing.
+
+any_basis_statement:
+  basis_representation: >-
+    B is any ordered evaluable saturated Z-basis of End(E), with exact
+    multiplication/trace/norm tables and normalized rational-map conversion.
+    Valid representations related by any U in GL_4(Z) are all quantified.
+  quantified_correctness: >-
+    Required but unproved: for every E in D_ER, every honest
+    (x_0,y)<-Sample(E), and every valid complete basis B of End(E),
+    Inv(E,B,y) terminates in poly(lambda) and returns x with R_E(x,y)=1 except
+    with one explicitly bounded failure probability independent of the basis.
+  change_of_basis_audit: >-
+    Under B'=BU, coefficient vectors transform by U^-1 while reduced trace and
+    norm are intrinsic. A correct solver may return a different conjugate but
+    must preserve y and Rec. No planted short basis, LLL tie rule, or
+    lexicographic representative may enter the definition. The packet has no
+    algorithm proving runtime or output-law invariance under large unimodular U.
+
+repeated_use:
+  adversary_class: "classical PPT; no QPT or QROM statement"
+  input_lengths: >-
+    Canonical E and y bytes are polynomial in lambda; accepted x bytes must be
+    polynomial. Malformed or super-polynomial declared lengths are rejected
+    before algebraic operations.
+  query_bound: "q(lambda) adaptive binding challenges/evaluation calls for any fixed polynomial q"
+  adaptive_history: >-
+    The adversary sees E, all prior y values, every public evaluation and
+    rejection response, and its own accepted outputs before choosing later
+    actions. No independence is inferred merely from fresh sampler coins.
+  state: >-
+    Honest Sample is required to be stateless apart from public parameters;
+    the game records an append-only transcript. Inv/extraction state and every
+    accumulated suborder generator must be explicit.
+  randomness_coupling: >-
+    Each honest Sample call would use fresh independent public coins. Attacker
+    outputs may be arbitrarily correlated across calls. No epsilon^q product
+    or independent-saturation factor is allowed without proof.
+  abort_behavior: >-
+    Parse/validation failures use the declared symbols. Sample and Inv
+    unavailability abort the interface game and assert no mathematical
+    evidence. Reduction abort mass must be charged separately.
+  complete_public_view: >-
+    Canonical E, p, lambda, D, relation and parser code, every y, all Eval and
+    rejection responses, query order, timing only if later claimed, and the
+    full adaptive transcript. B, secret alignments and unreported selectors
+    are absent.
+
+necessity:
+  smallest_known_sufficient_witness: >-
+    For one y, an embedding of the quadratic order Z[Z]/(Z^2-tZ+n) into
+    End(E), equivalently one accepted noncentral alpha with its dual, is
+    sufficient to invert. This is strictly less output than a rank-four
+    saturated basis unless a reconstruction theorem is supplied.
+  factorization_search: >-
+    The inverse architecture factors as complete B -> trace/norm equation
+    solver -> one quadratic-order embedding -> accepted x. Repeated accepted
+    preimages may all generate one proper quadratic suborder; attacker outputs
+    are not independent samples from End(E).
+  non_factorization_or_reconstruction_theorem: >-
+    Missing. There is no theorem that one accepted embedding, or q adaptive
+    embeddings, reconstructs End(E) with positive rank-and-saturation
+    probability. Failure to derive a positive bound is not a proof that the
+    infimum is zero.
+
+reduction:
+  first_security_game: >-
+    OW-RCF: sample bare E, run Sample(E) to obtain (x,y), give (E,y) and the
+    complete public view to A, and accept iff A outputs x' with R_E(x',y)=1.
+    The game is not currently instantiable because Sample is missing.
+  challenge_embedding: >-
+    A correctly directed solver receives a bare EndRing challenge E and must
+    generate the OW-RCF challenge using only E. This stops at the missing
+    SampleNoncentralEnd algorithm; no secret-correlated setup may be inserted.
+  oracle_simulation: >-
+    Decide and Eval are public. For q repeated challenges, the simulator must
+    generate their exact joint law and preserve the adaptive transcript. No
+    decryption oracle or random oracle is declared.
+  attacker_to_preimage_or_class: >-
+    Direct: a successful A already returns an accepted x'. Binding places its
+    alpha' in the public y-class, conditional on the conjugacy lemma.
+  preimage_or_class_to_complete_ring: >-
+    Missing. x' supplies one quadratic-order embedding, not four independent
+    saturated generators. No rank-growth, discriminant, index, saturation, or
+    reconstruction algorithm is established.
+  loss_runtime_abort: >-
+    The desired direction would require
+    Adv_OW-RCF(A) <= L(lambda)*Succ_EndRing(S)+delta(lambda), with polynomial
+    L, negligible delta, and polynomial S. No values are established. For q
+    calls, no epsilon^q or positive saturation multiplier is used; sampler
+    abort, simulation distance, rank failure and saturation failure remain
+    separate undefined terms.
+
+audits:
+  CEST_RWCT_regression: >-
+    RCF-Bind uses neither a scalar-transfer finite point tuple nor a walk
+    endpoint/path selector. It nevertheless repeats their decisive
+    complete-ring-necessity failure: functionality factors through one
+    endomorphism/quadratic embedding.
+  accepted_preimage_collisions: >-
+    Hold y=(t,n) fixed and search for distinct accepted rational maps. Such
+    maps are expected to be conjugate, not equal. A pair on which a proposed
+    Rec differs refutes message-recovery invariance; a pair not conjugate
+    refutes the binding lemma or its scope.
+  quantifier_order: >-
+    First fix lambda and bare E, then quantify over every honest Sample output
+    y, every accepted preimage x of y, every valid complete basis B and every
+    U in GL_4(Z), and finally every adaptive adversary transcript. A solver may
+    depend on A but not on hidden W, Sample witnesses, or a planted basis.
+  known_false_controls:
+    - "Leak alpha or an embedding certificate: inversion becomes public and must not imply EndRing."
+    - "Allow a public inverse: OW-RCF advantage is one while complete-ring extraction remains missing."
+    - "Allow scalar alpha=[a]: y=(2a,a^2) is uniquely binding but publicly invertible."
+    - "Replace y by an ordinary walk endpoint: many-to-one endpoint ambiguity returns."
+    - "Replace x by finite torsion action or point evaluations: the smaller-witness regression must trigger."
+    - "Add an orientation/torsion basis: record a different auxiliary-data problem, not bare EndRing."
+  method_ceiling: >-
+    At best this method can certify public decidability and conjugacy-class
+    binding of the trace/norm fiber. It cannot certify a bare-E sampler,
+    polynomial every-basis inversion, nonpublic message recovery, complete-
+    ring necessity, IND-CPA, or an attacker-to-EndRing reduction.
+
+obligations:
+  O1: "open: D_ER is symbolic and the quaternion-conjugacy source is unverified"
+  O2: "contradicted for this packet: public Sample is missing and Inv is not polynomial"
+  O3: "open: no PKE wrapper or actual-message correctness theorem is supplied"
+  O4: "contradicted for this packet: no nonpublic conjugacy-invariant Rec exists"
+  O5: "contradicted for this packet: challenge sampling and preimage-to-complete-ring arrows are missing"
+  O6: "proposed_discharge: byte grammar, failure symbols and repeated public view are explicit but unreviewed"
+  C1: "open: primary PKE sources were not read; novelty remains unverified"
+  C2: "open: this is an interface obstruction, not complete PKE syntax"
+  C3: "open: no selected-message recovery algorithm exists"
+  C4: "contradicted for this packet: no quantitative correctly directed EndRing reduction"
+  C5: "open: non-duplication and concrete costs are not independently reviewed"
+  C6: "open: no independent review artifact exists yet"
+
+provenance:
+  sources_read:
+    - research/ssi-endring-pke/2026-10-08-public-binding-interface/methodology.md
+    - research/ssi-endring-pke/2026-10-08-public-binding-interface/binding-interface-schema.yaml
+    - research/ssi-endring-pke/2026-10-07-trapdoor-interface/report.md
+    - ledger/goals/GOAL-SSI-2fa82a.yaml
+    - ledger/questions/RQ-SSI-1946c9.yaml
+    - docs/scheme-construction-contract.md
+    - docs/target-result-profile.md
+    - knowledge/literature/KN-LIT-6572.md
+    - knowledge/literature/KN-LIT-6628.md
+    - knowledge/literature/KN-LIT-827.md
+    - knowledge/literature/KN-LIT-1260.md
+  prior_art_delta: >-
+    The KB pointers describe torsion-attack, public-point/action,
+    key-updatable, and LIT-diagram PKE at abstract/first-pages scope. RCF-Bind
+    instead studies a global rational-map reduced-characteristic fiber. This
+    does not establish novelty, and no primary specification was read.
+  novelty_status: unverified
+  overlap_screen: >-
+    Required local frontier match returned KR-RHO-53c89f (score 17),
+    KR-IC-f5c584 (15), KR-IC-f3da82 (10), KR-IC-cd159a (8), and lower hits;
+    their displayed claims concern transfer attacks, trace equations in index
+    calculus, or unrelated ECDLP mechanisms, not this interface. CEST, ER-McE,
+    UTTK, RWER and remote IDEA-20261007-{20f660,cd446e,81e7ef,670f01} were
+    screened only through the frozen methodology/predecessor report; their
+    full records were outside this blind task's read scope, so overlap remains
+    unverified rather than absent.
