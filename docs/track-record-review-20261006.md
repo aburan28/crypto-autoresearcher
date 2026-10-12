@@ -348,20 +348,78 @@ independence in `AGENTS.md`; several make an existing rule enforceable.
 
 ## 6. Checklist
 
-- [ ] P0.1 approval capacity gate (validator warning → error)
-- [ ] P0.2 runnable-at-approval in `design-experiment`
-- [ ] P0.3 decision-aware readiness-first selector; `/run` may publish
-- [ ] P0.4 additive amendment bounding "designed, not shelved"
-- [ ] P0.5 pre-written-outcome validator check
-- [ ] P1.6 instruction diet with word budgets in CI
-- [ ] P1.7 goal-head/`next_action` caps, `--ready-only` render, cached health
-- [ ] P1.8 generated ledger indexes
-- [ ] P1.9 remove ceremony fields from templates
-- [ ] P1.10 proposal size cap
-- [ ] P2.11 session receipts
-- [ ] P2.12 eval harness baseline + weekly run
-- [ ] P2.13 `tune-skill` round 1
-- [ ] P2.14 portfolio KPIs in `/research-status`
-- [ ] P3.15 stale identifier/PR instructions
-- [ ] P3.16 bus hygiene
-- [ ] P3.17 handoff-return warning
+Ticked on 2026-10-07 by the branch `cursor/track-record-actions-23b4`
+(PR [#1941](https://github.com/aburan28/crypto-autoresearcher/pull/1941)).
+Each line names where the item landed; a tick means the change exists and
+its tests pass, not that the problem it addresses has been shown to shrink
+-- that is the next review's job, read from the receipts and the KPIs.
+
+- [x] P0.1 approval capacity gate (validator warning → error) —
+  `tools/validate_ledger.py` `check_approval_capacity`, advisory for
+  decisions before `APPROVAL_CAPACITY_ENFORCED_FROM` (2026-10-07) and an
+  error after; `tools/portfolio_kpis.py --capacity GOAL|area:AREA` answers
+  the question before approving; `AGENTS.md`, "Approval is bounded by
+  execution"
+- [x] P0.2 runnable-at-approval in `design-experiment` — step 2 of
+  `.claude/skills/design-experiment/SKILL.md` runs the capacity query and
+  `tools/newest_experiments.py --experiment` (`execution_state: ready`) and
+  refuses to design at the cap with `--outcome refused_capacity`
+- [x] P0.3 decision-aware readiness-first selector; `/run` may publish —
+  `tools/newest_experiments.py` readiness-first order with off-main run
+  discovery; the `run` skill publishes run records
+- [x] P0.4 additive amendment bounding "designed, not shelved" —
+  `AGENTS.md` `### Approval is bounded by execution` under "ECC comes
+  first"; the original wording stands and the amendment adds the cap and
+  the runnable rule
+- [x] P0.5 pre-written-outcome validator check — `check_outcome_not_prewritten`
+  in `tools/validate_ledger.py`, enforced for specifications designed on or
+  after `OUTCOME_RULE_ENFORCED_FROM`
+- [x] P1.6 instruction diet with word budgets in CI — `AGENTS.md` 12,146 →
+  3,772 always-loaded words with `CLAUDE.md` a 306-word pointer; verbatim
+  narratives in `docs/agent-contract-extended.md` and
+  `docs/claude-code-runtime.md`; `tools/check_instruction_budget.py`
+  (always-loaded ≤ 4,000, wake ≤ 7,000) in `validate.yml`
+- [x] P1.7 goal-head/`next_action` caps, `--ready-only` render, cached health
+  — `NEXT_ACTION_CAP_CHARS` advisory, `tools/research_dispatch.py
+  --ready-only`, `tools/portfolio_health_cache.py` refreshed by
+  `main-health.yml` into `coordination/portfolio_health/latest.json`
+- [x] P1.8 generated ledger indexes — `tools/build_ledger_index.py` writes
+  gitignored `ledger/.index/{proposals,hypotheses,experiments}.jsonl`;
+  `propose-ideas`, `deep-research` and `tune-skill` read it first
+- [x] P1.9 remove ceremony fields from templates — handoff `budget: {}`,
+  no `amazon_bedrock` attestation block (`templates/research-records.md`,
+  `agents/*.md`, `.claude/agents/*.md`); `check_ceremony` advises on new
+  records that copy the old shape or shout in `next_action`
+- [x] P1.10 proposal size cap — `IDEA_CAP_BYTES` (8 KiB) advisory for
+  proposals added on or after 2026-10-07; `propose-ideas` step 5 moves
+  derivations to a sibling `.notes.md`
+- [x] P2.11 session receipts — `tools/session_receipt.py` (write-once,
+  closed outcome list, usage only from runtime counters, `--bounced`),
+  `docs/session-receipts.md`, every public skill ends with one;
+  `ledger_summary.py` and `/research-status` print the summary
+- [x] P2.12 eval harness baseline + weekly run — `.github/workflows/
+  weekly-evals.yml` validates every suite and runs them only when `doctor`
+  shows a served backend; `evals/README.md` "Run log" records that the
+  2026-10-07 attempt validated OK and could not run (no credential), which
+  is an infrastructure stop and not a baseline
+- [x] P2.13 `tune-skill` round 1 — `tools/tune_skill_batch.py` makes the
+  chain walk reproducible; `coordination/skill-tuning/{propose-ideas,
+  design-experiment}/round-*.yaml` record round 1 over full history as
+  `deferred`. Measured, against this review's expectation of "too thin":
+  `propose-ideas` 119 scored terminal items of 2,319 ideas (149 of 205
+  terminals found by free text only; 342 ideas appear only in decisions
+  that list them), `design-experiment` 319 of 2,502 specifications, with
+  871 specifications that never reached evidence. The bounce-count gap is
+  closed going forward by `--bounced` on the receipt
+- [x] P2.14 portfolio KPIs in `/research-status` — `tools/portfolio_kpis.py`
+  (approved-unrun per goal, proposal→evidence conversion, decision
+  outcomes), printed by `ledger_summary.py`
+- [x] P3.15 stale identifier/PR instructions — `<NNN>` and "next free
+  number" replaced by `allocate_id.py` placeholders in skills, agent
+  contracts and `.claude/agents/`; `gh pr create` text replaced by the
+  runtime's PR tool with `gh` only where `gh auth status` succeeds
+- [x] P3.16 bus hygiene — `tools/agent_bus.py` `--ttl-days`/`expires_at`,
+  inbox digest, unread count in `/research-status`
+- [x] P3.17 handoff-return warning — `check_aged_handoffs` in
+  `tools/validate_ledger.py` lists dispatched `TASK-*` records past their
+  window with no receipt

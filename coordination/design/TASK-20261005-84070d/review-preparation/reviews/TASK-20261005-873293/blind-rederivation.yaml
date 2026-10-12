@@ -1,0 +1,232 @@
+blind_rederivation:
+  id: BLIND-REDERIVATION-TASK-20261005-873293
+  task_id: TASK-20261005-873293
+  goal_id: GOAL-SSI-2fa82a
+  batch_id: BATCH-576c9f
+  role: validator
+  scope:
+    joints_owned: [J1, J2]
+    statement_only: true
+    producer_specific_verdict: false
+    whole_claim_verdict: false
+    experiments_run: 0
+
+  J1:
+    stable_id: J1
+    name: projection_correctness_and_actual_message_separation
+    verdict: holds
+    verdict_scope: >-
+      The stated abstract conditions are the right logical obligations for
+      actual-message correctness and the stated separation condition is
+      necessary. This verdict evaluates no construction or candidate.
+    worked_derivation:
+      honest_domain: >-
+        Fix an accepted PP and a pair (pk,sk) in KeyGen(PP)'s support. Let H be
+        the set of admitted (m,r) for which FullEnc and Pi are defined, and set
+        ct(m,r)=Pi(PP,pk,FullEnc(PP,pk,m;r)). Every quantifier below ranges over
+        this declared honest domain; a randomized or partial algorithm must
+        first declare its success event and failure probability.
+      totality_and_validation:
+        - >-
+          FullEnc and Pi must be typed and defined on every claimed honest
+          input, so Encrypt returns a CProj element rather than bottom on that
+          event.
+        - >-
+          Validate(PP,pk,ct(m,r),Aux_public) must accept every honest projected
+          ciphertext on that event. Correctness alone does not imply any
+          unstated malformed-ciphertext rejection property; such a property
+          needs its own condition.
+        - >-
+          SecretLift must be defined on every accepted honest ciphertext, and
+          Decode must be a single-valued total map on every resulting honest
+          recipient view. Existential selection of a lift, path, kernel, ideal,
+          or branch is insufficient unless the selection and all data it uses
+          are declared and typed.
+      recipient_view_definition: >-
+        Define Z_sk(m,r) as the complete typed tuple consumed by Decode after
+        validation and lifting: the accepted ct, z, and every declared public
+        or secret auxiliary input. Message-dependent state cannot be omitted
+        from Z and then invoked as an implicit witness.
+      left_inverse_identity: >-
+        With D_sk denoting the declared Validate/SecretLift/Decode composition
+        on an honest view, actual-message correctness is exactly
+        D_sk(Z_sk(m,r))=m for every (m,r) in H; equivalently,
+        D_sk composed with Z_sk is the projection pr_M from H to M.
+      separation_proof: >-
+        Suppose Z_sk(m,r)=Z_sk(m_prime,r_prime). Applying the same
+        single-valued D_sk to both sides and using the left-inverse identity
+        gives m=D_sk(Z_sk(m,r))=D_sk(Z_sk(m_prime,r_prime))=m_prime. Thus
+        cross-message collisions in the entire recipient view are impossible.
+        Collisions between different randomness values for the same message
+        are allowed. Separation alone is necessary but not sufficient: it does
+        not construct a total decoder or prove honest validation and lift
+        totality.
+      public_sender_condition: >-
+        The sender-facing computation of Encrypt from (PP,pk,m,r), including
+        FullEnc and Pi, must use only declared public inputs. Any retained setup
+        trapdoor, sk, secret path or tau, connecting ideal, hidden orientation,
+        or oracle is an additional secret or assumption. Likewise, any claimed
+        public-key derivation must expose all dependencies instead of hiding one
+        in setup.
+      recipient_only_condition: >-
+        The left-inverse identity proves correctness only. If a public
+        algorithm computes the same complete view Z, or directly computes m,
+        at comparable declared complexity, correctness can still hold and the
+        message-separation lemma can still hold, but no exclusive
+        recipient-only recovery advantage follows.
+      claim_separation:
+        actual_message_correctness: D_sk(Z_sk(m,r))=m on the declared honest event
+        public_recovery: existence and complexity of a public algorithm recovering Z or m
+        recipient_only_advantage: a comparative game excluding comparable public recovery
+        security: an independently declared PKE game and reduction
+
+  J2:
+    stable_id: J2
+    name: EndRing_reduction_direction
+    verdict: holds
+    verdict_scope: >-
+      The abstract direction audit and advantage implications are logically
+      correct. This verdict does not assert a PKE security claim, a novelty
+      claim, or a result about any candidate.
+    notation: >-
+      X <=_T Y means that an algorithm for Y is used as an oracle to solve X,
+      with all distributions, public inputs, auxiliary data, time overhead,
+      and probability loss stated.
+    direction_A_solver_to_break:
+      oracle_arrow: 'S_EndRing -> B_break^S_EndRing'
+      reduction_order: 'PKEBreak <=_T EndRingSolve'
+      admissible_bounds:
+        time: 'T_break(B^S) <= T_ER(S) + poly(lambda)'
+        success: >-
+          Adv_break(B^S) >= g(Succ_ER(S),lambda)-delta_A(lambda), or an
+          equivalent lower bound on the constructed breaker's success.
+      implication: >-
+        An efficient EndRing solver supplies an attack or decryption method.
+        Hence breaking is no harder than EndRing for this interface. EndRing
+        hardness gives no upper bound on arbitrary PKE breakers from this
+        arrow: the premise that an efficient S exists is precisely what the
+        hardness assumption denies.
+      refused_inference: >-
+        A solver-to-sk or solver-to-decrypt construction cannot establish
+        semantic security from EndRing hardness.
+    direction_B_break_to_solver:
+      oracle_arrow: 'A_break -> S_EndRing^A_break'
+      reduction_order: 'EndRingSolve <=_T PKEBreak'
+      required_bounds:
+        time: 'T_ER(S^A) <= T_break(A) + poly(lambda)'
+        advantage: >-
+          Succ_ER(S^A) >= f(Adv_break(A),lambda)-delta_B(lambda), where f of a
+          non-negligible advantage remains non-negligible and all losses are
+          explicit.
+      contrapositive: >-
+        If every solver in the resulting resource class has
+        Succ_ER <= epsilon_ER(lambda), then
+        f(Adv_break(A),lambda) <= epsilon_ER(lambda)+delta_B(lambda). When f is
+        monotone and invertible on the relevant range this yields
+        Adv_break(A) <= f^{-1}(epsilon_ER+delta_B). This is the direction that
+        can transfer EndRing hardness to the declared PKE game.
+      proof_obligations:
+        - The reduction works for every adversary in the declared PKE game.
+        - The simulated public key, challenge, oracle, and setup distributions match the game.
+        - The exact EndRing instance distribution and all auxiliary level/setup data are preserved.
+        - Advantage loss and polynomial time/query overhead are explicit.
+        - The construction does not assume the secret, lift, orientation, or connecting object it must recover.
+    intermediate_problem_chain: >-
+      With an intermediate solver I, the hardness-transferring chain must have
+      EndRingSolve <=_T IntermediateSolve <=_T PKEBreak, so an arbitrary PKE
+      breaker ultimately yields an EndRing solver. The reverse chain
+      PKEBreak <=_T IntermediateSolve <=_T EndRingSolve is only an attack
+      chain. If either required arrow is absent, the intermediate assumption
+      and the unresolved bridge must remain explicit.
+    distinction_table:
+      correctness: the honest left-inverse identity; no adversary bound
+      public_recovery: an algorithmic capability available from public inputs
+      recipient_only_advantage: a comparative exclusive-recovery property
+      attack_upper_bound: a construction of a breaker from an EndRing solver
+      security_reduction: a construction of an EndRing solver from every PKE breaker
+
+  controls:
+    - id: C1_constant_projection
+      joint: J1
+      expected_refusal: MESSAGE_SEPARATION_FAILS
+      observed_reasoning: >-
+        For two admitted messages m0 != m1, Pi_const gives the same ct. Under
+        the control's condition that every other decoder input is
+        message-independent, Z_sk(m0,r0)=Z_sk(m1,r1). A single-valued decoder
+        cannot satisfy both D_sk(Z)=m0 and D_sk(Z)=m1. Disclosure of End(E)
+        adds no message distinction and cannot repair the contradiction.
+      result: refused_as_expected
+      next_obligation: >-
+        Supply a declared nonconstant recipient view and prove the left-inverse
+        identity and cross-message separation on the full admitted domain, or
+        narrow the domain explicitly.
+
+    - id: C2_full_public_inverse
+      joint: J1
+      expected_refusal: RECIPIENT_ONLY_ADVANTAGE_NOT_ESTABLISHED
+      observed_reasoning: >-
+        Identity projection may preserve enough information for exact
+        correctness, so neither correctness nor separation necessarily fails.
+        But PublicInverse produces the same message from public inputs at the
+        declared comparable complexity, leaving no demonstrated exclusive
+        recipient inversion capability.
+      result: refused_as_expected
+      next_obligation: >-
+        State a recipient-only game and complexity measure, then prove a bound
+        excluding comparable public recovery; otherwise limit the conclusion
+        to correctness.
+
+    - id: C3_unique_object_without_message_arrow
+      joint: J1
+      expected_refusal: UNIQUE_OBJECT_IS_NOT_ACTUAL_MESSAGE_RECOVERY
+      observed_reasoning: >-
+        Uniqueness of a Hom, kernel, path, ideal, or branch identifies at most
+        an intermediate object. Without a typed total arrow from the complete
+        recipient view through that object to M, existence and uniqueness do
+        not imply that Decode returns the actual input message.
+      result: refused_as_expected
+      next_obligation: >-
+        Define the total typed object-to-message map, declare every auxiliary
+        dependency and failure event, and prove its composition with projected
+        encryption equals pr_M.
+
+    - id: C4_endring_derived_elgamal
+      joint: J2
+      expected_refusal: DERIVED_SECRET_WRAPPER_IS_NOT_ENDRING_REDUCTION
+      observed_reasoning: >-
+        The ciphertext is standard EC ElGamal syntax under X=[x]G, regardless
+        of whether x was deterministically encoded from an EndRing
+        description. An EndRing-solver-to-x or solver-to-decrypt procedure has
+        direction PKEBreak <=_T EndRingSolve. It supplies an attack upper bound
+        and does not turn an arbitrary ElGamal breaker into an EndRing solver.
+        The deterministic derivation may also require its key distribution to
+        be accounted for, but that issue does not reverse the arrow.
+      result: refused_as_expected
+      next_obligation: >-
+        Construct S_EndRing^A for every breaker A, including a faithful
+        embedding of the exact EndRing instance distribution into X and the
+        challenge simulation with explicit loss; otherwise state the actual
+        standard EC assumption and encoded-key distribution supporting the
+        wrapper.
+
+    - id: C5_named_intermediate_oracle
+      joint: J2
+      expected_refusal: INTERMEDIATE_ASSUMPTION_MUST_BE_NAMED_AND_SEPARATED
+      observed_reasoning: >-
+        Replacing SecretLift by OracleLift, or assuming a connecting ideal or
+        orientation, adds an oracle or witness stronger than the declared
+        EndRing interface unless its construction is reduced from that exact
+        game. It can prove only a result relative to the named intermediate.
+        An EndRing-solver-to-intermediate-to-decrypt chain remains the attack
+        direction.
+      result: refused_as_expected
+      next_obligation: >-
+        Define the intermediate problem and oracle distribution, account for
+        its setup and queries, and supply the hardness-transferring chain
+        EndRingSolve <=_T IntermediateSolve <=_T PKEBreak with explicit
+        advantage losses; otherwise keep it as a separate assumption.
+
+  limitations:
+    - No producer artifact, source material, implementation, experiment, or sibling report was inspected.
+    - The statement supplies abstract games rather than a concrete construction, so no candidate-level correctness or security conclusion is made.
+    - Separation is a necessary consequence of actual-message correctness, not by itself a decoder construction or a security property.
