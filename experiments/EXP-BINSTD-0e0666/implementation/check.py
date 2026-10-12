@@ -88,8 +88,11 @@ def main() -> int:
         if outcome not in STAGE1_OUTCOMES:
             errs.append(f"bad stage1 outcome {outcome!r}")
         man = man_path.read_text(encoding="utf-8")
+        # Accept flat or nested run.result.outcome (top-level run: / manifest_v2).
         if outcome and f"outcome: {outcome}" not in man:
             errs.append("manifest outcome disagrees with raw-result")
+        if not man.lstrip().startswith("run:"):
+            errs.append("manifest missing top-level run: (use nested shape or manifest_v2)")
         if outcome == "SETUP_PASS":
             for rel in (
                 "stage1/curves-bases-lambda.json",
@@ -100,6 +103,8 @@ def main() -> int:
                     errs.append(f"missing {rel}")
             if raw.get("f0_overall_ok") is not True:
                 errs.append("SETUP_PASS requires f0_overall_ok true")
+            if raw.get("lambda") in (None, 0):
+                errs.append("SETUP_PASS requires nonzero lambda")
         if ords[17] != 8:
             errs.append("ord_17(2) self-check failed")
     else:
