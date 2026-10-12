@@ -60,11 +60,12 @@ should be reproduced byte for byte. Content hashes are in that run's `manifest.y
 
 ## Building
 
-`paper.tex` **has not been compiled** — no LaTeX toolchain is present in the
-environment where it was written. Its structure was checked programmatically (balanced
-environments, no dangling `\ref`/`\cite`), but it has never been typeset, so expect the
-usual first-compile friction.
-
 ```sh
-latexmk -pdf paper.tex
+make           # PDF (pdflatex, no bibliography); the rules are the shared ../paper.mk
+make check     # unresolved refs, LaTeX errors, overfull boxes, page count
+make clean
 ```
+
+The built `paper.pdf` is committed. Anonymized (`\author{Anonymous}`); restore
+the authors with `make deanonymize` after copying `../AUTHORS.example` to
+`AUTHORS`.
