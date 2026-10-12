@@ -196,7 +196,9 @@ def products(polys: list, monomials: list, degree: int, reduced: bool) -> list:
         if generator_degree < 0:
             continue
         for monomial in monomials:
-            if sum(monomial) + generator_degree > degree:
+            # Definition 5 keeps the formal bound. Definition 6 admits a row
+            # once the product has degree at most D after X_i^2 -> X_i.
+            if not reduced and sum(monomial) + generator_degree > degree:
                 continue
             product = multiply_by(poly, monomial)
             if reduced:
