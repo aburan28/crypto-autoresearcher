@@ -77,6 +77,13 @@ class Message:
     content: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
     tool_results: list[ToolResult] = field(default_factory=list)
+    # The provider's exact assistant content blocks (Anthropic wire), kept so
+    # a tool loop replays its own turns verbatim. Two reasons, both binding:
+    # Claude 5 models think on every turn and their `thinking` blocks must go
+    # back unchanged (stripping them can 400 a tool turn and makes the model
+    # re-plan), and the prompt cache only hits on a byte-identical prefix.
+    # Ignored by every other wire protocol.
+    blocks: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -96,6 +103,9 @@ class Completion:
     tool_calls: list[ToolCall] = field(default_factory=list)
     latency_seconds: float = 0.0
     raw: dict[str, Any] = field(default_factory=dict)
+    # Anthropic wire only: the response's content blocks as returned, for
+    # verbatim replay as the next request's assistant turn.
+    content_blocks: list[dict[str, Any]] = field(default_factory=list)
 
 
 def translate_tools(tools: list[Tool], wire: str) -> list[dict[str, Any]]:
@@ -145,6 +155,9 @@ def render_messages(messages: list[Message], wire: str,
                     {"type": "tool_result", "tool_use_id": r.id,
                      "content": r.content, "is_error": r.is_error}
                     for r in message.tool_results]})
+            elif message.role == "assistant" and message.blocks:
+                rendered.append({"role": "assistant",
+                                 "content": [dict(b) for b in message.blocks]})
             elif message.tool_calls:
                 blocks: list[dict[str, Any]] = []
                 if message.content:
@@ -226,13 +239,34 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         }
         if system:
             body["system"] = system
-        budget = _thinking_budget(reasoning, resolution.reasoning_effort, limit)
-        if budget:
-            body["thinking"] = {"type": "enabled", "budget_tokens": budget}
-        elif temperature is not None:
-            # Extended thinking pins temperature; only set it when off -- which
-            # is exactly the case for the calibrated-low tiers.
-            body["temperature"] = temperature
+        if reasoning.get("mode") == "anthropic_adaptive":
+            # Claude 4.6+ models think adaptively and take depth as a named
+            # effort: `thinking.budget_tokens` and `temperature` are rejected
+            # with a 400 on Opus 5 / Sonnet 5, so neither is ever sent here.
+            # The policy's effort selects the name, so calibrating a role
+            # still changes what is sent, not only what is recorded.
+            body["thinking"] = {"type": "adaptive"}
+            body["output_config"] = {"effort": _adaptive_effort(
+                reasoning, resolution.reasoning_effort)}
+        elif reasoning.get("mode") == "output_effort":
+            # Some Anthropic-compatible gateways (Abliteration) take a named
+            # effort and, if also given a thinking budget, ignore the budget.
+            # Send the name the binding asked for and nothing else, so the
+            # manifest's effort and the wire agree.
+            effort_map = reasoning.get("effort_map") or {}
+            mapped = effort_map.get(resolution.reasoning_effort)
+            if mapped:
+                body["output_config"] = {"effort": mapped}
+            elif temperature is not None:
+                body["temperature"] = temperature
+        else:
+            budget = _thinking_budget(reasoning, resolution.reasoning_effort, limit)
+            if budget:
+                body["thinking"] = {"type": "enabled", "budget_tokens": budget}
+            elif temperature is not None:
+                # Extended thinking pins temperature; only set it when off -- which
+                # is exactly the case for the calibrated-low tiers.
+                body["temperature"] = temperature
     elif resolution.wire == "openai_chat":
         body = {
             "model": resolution.resolved_model_id,
@@ -271,6 +305,31 @@ def build_request(config, resolution: Resolution, *, system: str | None,
     return url, headers, body
 
 
+# This program's effort lattice -> the Messages API's `output_config.effort`
+# vocabulary. `none` has no API counterpart (thinking cannot be disabled on
+# the models that take this mode) and `ultra` sits above the API's top value.
+ADAPTIVE_EFFORT_DEFAULT = {"none": "low", "low": "low", "medium": "medium",
+                           "high": "high", "xhigh": "xhigh", "max": "max",
+                           "ultra": "max"}
+
+
+def _adaptive_effort(reasoning: dict[str, Any], effort: str) -> str:
+    """The named effort for an `anthropic_adaptive` binding.
+
+    A binding may override the default map (a model that lacks `xhigh`, say),
+    and an effort the map does not name is a configuration error rather than
+    a silent nearest match.
+    """
+    effort_map = dict(ADAPTIVE_EFFORT_DEFAULT)
+    effort_map.update(reasoning.get("effort_map") or {})
+    try:
+        return effort_map[effort]
+    except KeyError:
+        raise ConfigError(
+            f"anthropic_adaptive binding has no effort_map entry for "
+            f"{effort!r}; known: {', '.join(sorted(effort_map))}") from None
+
+
 def _thinking_budget(reasoning: dict[str, Any], effort: str,
                      max_tokens: int) -> int:
     """Anthropic thinking budget for the effort this policy asked for.
@@ -302,7 +361,8 @@ def parse_response(wire: str, payload: dict[str, Any]) -> Completion:
             stop_reason=payload.get("stop_reason"),
             usage={"input_tokens": usage.get("input_tokens", 0),
                    "output_tokens": usage.get("output_tokens", 0)},
-            tool_calls=calls, raw=payload)
+            tool_calls=calls, raw=payload,
+            content_blocks=[dict(b) for b in blocks if isinstance(b, dict)])
     if wire == "openai_chat":
         choices = payload.get("choices") or [{}]
         message = choices[0].get("message") or {}

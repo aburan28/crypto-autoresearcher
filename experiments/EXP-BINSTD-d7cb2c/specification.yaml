@@ -1,0 +1,155 @@
+# EXP-BINSTD-d7cb2c
+# Frozen Stage 0-1 contract for H-BINSTD-42720d / IDEA-20260922-7ab503.
+# Approved by DEC-20261001-e53d22. SAT stages are out of scope.
+experiment:
+  id: EXP-BINSTD-d7cb2c
+  hypothesis_id: H-BINSTD-42720d
+  source_idea: IDEA-20260922-7ab503
+  question_id: RQ-BINSTD-b6f698
+  version: 1
+  title: >-
+    Stabilizer census and normal-basis Frobenius shift on twelve named binary curves
+  status: approved
+  frozen: true
+  designed_at: '2026-10-01'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261001-e53d22
+  objective: >-
+    Parse (a, b) for twelve named curves from the repository parameter file,
+    compute the Frobenius stabilizer order mu, and test that squaring is a
+    cyclic coordinate shift in one exhibited normal basis of F_{2^13} and is
+    not a cyclic shift in the polynomial basis. Check the endomorphism
+    identity on 100000 sampled point pairs of one toy curve.
+  inputs:
+    parameter_file: analysis/binstd-curve-audit/binary-curve-params.txt
+    parser_reference: analysis/binstd-curve-audit/subfield_scan.py
+    rows:
+      - {name: sect163k1, role: koblitz, predicted_mu: 163}
+      - {name: sect233k1, role: koblitz, predicted_mu: 233}
+      - {name: sect283k1, role: koblitz, predicted_mu: 283}
+      - {name: sect409k1, role: koblitz, predicted_mu: 409}
+      - {name: sect571k1, role: koblitz, predicted_mu: 571}
+      - {name: sect239k1, role: koblitz, predicted_mu: 239}
+      - {name: c2pnb176v1, role: composite, predicted_mu: 11}
+      - {name: c2pnb208w1, role: composite, predicted_mu: 13}
+      - {name: c2pnb272w1, role: composite, predicted_mu: 17}
+      - {name: c2pnb304w1, role: composite, predicted_mu: 19}
+      - {name: c2pnb368w1, role: composite, predicted_mu: 23}
+      - {name: sect163r2, role: pseudorandom_control, predicted_mu: 1}
+    toy:
+      field_degree: 13
+      curve: y^2 + xy = x^3 + x^2 + 1
+      shift_elements: 32
+      endomorphism_pairs: 100000
+      seed: 20261001
+    design_time_coefficient_lines_read:
+      - {name: sect163k1, A: "1 (0x1)", B: "1 (0x1)"}
+      - {name: sect233k1, A: "0", B: "1 (0x1)"}
+      - {name: sect283k1, A: "0", B: "1 (0x1)"}
+      - {name: sect409k1, A: "0", B: "1 (0x1)"}
+      - {name: sect571k1, A: "0", B: "1 (0x1)"}
+      - {name: sect239k1, A: "0", B: "1 (0x1)"}
+  controls:
+    - >-
+      Polynomial-basis nearby object: the same 32 elements, encoded in the
+      polynomial basis of the same field. At least one square must fail to be
+      a cyclic shift. Zero such failures invalidates the instrument.
+    - >-
+      sect163r2 is the preregistered mu = 1 row. The constraint-free arithmetic
+      must report mu = 1 or the row is a negative census result.
+    - >-
+      Two implementations. Neither imports the other. Each writes its mu table
+      and shift-failure count before the comparison.
+    - >-
+      Record current subfield_scan.hexblob output beside the independent parse.
+      Disagreement is reported and does not by itself score a mathematical pass.
+  independent_variables:
+    - curve name among the twelve rows
+    - basis: normal versus polynomial, on F_{2^13} only
+  metrics:
+    primary:
+      - stabilizer_mu_by_curve
+      - mu_matches_prediction
+      - implementations_agree
+      - normal_basis_shift_failures
+      - polynomial_basis_nonshift_count
+      - endomorphism_failures
+    secondary:
+      - subfield_degree_s
+      - hexblob_agrees_with_independent_parse
+      - normal_basis_polynomial
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      Stabilizer orders on the twelve rows, and zero normal-basis shift
+      failures on 32 elements of F_{2^13}.
+    formula: >-
+      mu = |{j mod m : a^{2^j}=a and b^{2^j}=b}|. Predicted values are the
+      predicted_mu column. Normal-basis shift failures = 0. Polynomial-basis
+      nonshift count >= 1. Endomorphism failures = 0 on the 100000 pairs.
+    source: >-
+      IDEA-20260922-7ab503 claims (A) and (B), restricted to these twelve
+      curves. Koblitz coefficient lines were read from binary-curve-params.txt
+      in this design session. The mu values themselves were not computed by
+      running the stabilizer loop in this session.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      Six of the rows are deployed Koblitz fields of 163 to 571 bits. The
+      computation is stabilizer arithmetic on published coefficients, plus a
+      toy check in F_{2^13}. The toy check does not transfer to the deployed
+      SAT claim.
+    correspondence: null
+  tail_checks:
+    - >-
+      sect571k1 is the largest Koblitz row. Both implementations must report
+      mu = 571, not a truncated loop.
+  replication:
+    seeds: [20261001]
+    independent_instances: 12
+    replication_note: >-
+      One seed draws the 32 field elements and the point pairs. The second
+      run is the second implementation on that same seed.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 2
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after the two authorised runs.
+    - >-
+      If the implementations disagree, or the polynomial-basis control has
+      nonshift count 0, stop and mark the attempt invalid.
+    - A crash or timeout is an incomplete attempt, not a negative result.
+    - >-
+      Failure to construct a normal basis of F_{2^13} is an infrastructure
+      stop. It is not evidence against the stabilizer census.
+  invalidation_rules:
+    - Either implementation imports the other.
+    - The polynomial-basis nonshift count is 0.
+    - A named curve block cannot be parsed.
+    - The output claims a SAT leaf count, a discrete log, or a cost versus rho.
+  success_criterion: >-
+    Both runs finish, implementations_agree is true, every row matches its
+    predicted_mu, normal_basis_shift_failures is 0, polynomial_basis_nonshift_count
+    is at least 1, and endomorphism_failures is 0.
+  falsification_criterion: >-
+    The two implementations agree, the polynomial-basis control has nonshift
+    count at least 1, and at least one row has a different mu, or the
+    normal-basis shift fails on a sampled element, or an endomorphism pair
+    fails. That row or that identity is a negative result. The other rows
+    stay scoped to what they themselves showed.
+  required_artifacts:
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/command.txt
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-BINSTD-d7cb2c/runs/<RUN-ID>/certificate.yaml
+  assigned_to: executor
+  out_of_scope:
+    - SAT leaf counts, WDSat constraints, and heuristics H1 and H2.
+    - Primary-source re-derivation from FIPS 186-4 or ANSI X9.62.
+    - The pseudorandom rows other than sect163r2.

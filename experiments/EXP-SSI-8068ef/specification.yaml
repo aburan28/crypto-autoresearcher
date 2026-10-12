@@ -1,0 +1,288 @@
+# =============================================================================
+# EXP-SSI-8068ef — version 1, approved by DEC-20261006-b5e14c.
+# Frozen comparison: internal 2-isogeny edges of the F_11 supersingular
+# subset against the cut edges that leave that subset. No kernel was
+# enumerated in this design. Source idea IDEA-20261005-5cbadc is copied
+# unchanged from origin/design/hyper-fb6ec7-richelot because it is not on
+# origin/main.
+# =============================================================================
+experiment:
+  id: EXP-SSI-8068ef
+  hypothesis_id: H-SSI-aa45d9
+  question_id: RQ-SSI-001
+  source_idea: IDEA-20261005-5cbadc
+  goal_id: null
+  version: 1
+  title: >-
+    Internal versus cut 2-isogeny edges of the F_11 supersingular subset
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-b5e14c
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the internal edges differ from the cut edges, and it does not
+      assert a path-finding algorithm or a change to p^{1/4} or p^{1/3}.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether the internal edge set and the cut edge set of the
+    supersingular 2-isogeny graph at p = 11 have different cardinalities,
+    or whether those cardinalities are equal. Equality of the two edge
+    sets is a negative. Do not search for a path.
+
+  inputs:
+    named_prime: 11
+    prime_cap: 300
+    predicted_subset:
+      prime: 11
+      j_invariants: [0, 1]
+      note: 1 ≡ 1728 (mod 11). This list is the design-session census, not an edge count.
+    design_session_census:
+      method: >-
+        For each j in F_p, one short-Weierstrass model, point count over
+        F_p, supersingular when p divides the trace. Run by the design
+        session for p = 5, 7, and 11 only. No order-2 kernel was enumerated.
+      observed:
+        - prime: 5
+          subset: [0]
+        - prime: 7
+          subset: [6]
+          note: 6 ≡ 1728 (mod 7)
+        - prime: 11
+          subset: [0, 1]
+      not_computed_here: characteristic 3 model. The executor must supply a nonsingular model at p = 3.
+    edge_rule: >-
+      From each curve in S, enumerate order-2 kernels over the 2-torsion
+      extension, apply Vélu, and keep the target j when it is supersingular
+      and distinct from the source. Store each undirected pair once.
+      Classify it as internal when both ends are in S and as cut when
+      exactly one end is in S. Loops go to a separate counter.
+    forbidden:
+      - Do not compute pairwise distances or any path length.
+      - Do not search for an isogeny path.
+      - Do not claim a change to the p^{1/2}, p^{1/4}, or p^{1/3} baselines.
+      - Do not replace p = 11 after seeing the edge sets. A wrong prime is invalid, not a new protocol.
+
+  controls:
+    - id: supersingular-neighbor
+      statement: >-
+        Every retained neighbor of a supersingular source is supersingular.
+      pass_condition: each retained target j passes the same trace test as the sources
+      on_fail: The run is invalid. A non-supersingular neighbor is not a cut edge.
+    - id: unique-undirected-pair
+      statement: Each undirected pair is stored once.
+      pass_condition: a second insertion of the same pair is detected and is not added to either set
+      on_fail: The run is invalid. Do not report a difference created by a double count.
+    - id: loops-apart
+      statement: >-
+        A loop is neither internal nor cut. It is counted in loop_count
+        and is absent from both edge sets.
+      pass_condition: no pair with equal ends appears in I or in C
+      on_fail: The run is invalid.
+    - id: second-model
+      statement: >-
+        The lexicographically second short-Weierstrass model of one j in
+        S, when two nonsingular models exist, yields the same neighbor set.
+      pass_condition: the neighbor sets agree, or a single model is recorded with the reason that no second nonsingular model exists
+      on_fail: The run is invalid.
+    - id: prime-minimality
+      statement: >-
+        Among odd primes q ≤ 11, the first q with at least two supersingular
+        j-invariants in F_q is q = 11, and that set is {0, 1}.
+      pass_condition: the recomputed census agrees with the frozen prime and the frozen set
+      on_fail: >-
+        The named prime is not the smallest such prime, or the set differs.
+        The run is invalid. Do not move the edge comparison to another prime
+        inside this protocol.
+
+  independent_variables:
+    - which j in the frozen set S is the source of the Vélu census
+    - which of two short-Weierstrass models of one frozen j supplies the kernels, when a second model exists
+
+  metrics:
+    primary:
+      - id: cardinality_gap
+        statement: Absolute difference between the number of internal edges and the number of cut edges at p = 11.
+      - id: sets_equal
+        statement: >-
+          Whether the internal edge set and the cut edge set are equal as
+          sets of undirected pairs. Equality is a negative.
+    secondary:
+      - id: selected_prime
+        statement: The prime at which the edge sets were built. The frozen value is 11.
+      - id: s_p_cardinality
+        statement: Number of supersingular j-invariants in F_11.
+      - id: internal_edge_count
+        statement: Cardinality of the internal edge set.
+      - id: cut_edge_count
+        statement: Cardinality of the cut edge set.
+      - id: loop_count
+        statement: Number of 2-isogenies from a j-invariant to itself, excluded from both sets.
+      - id: internal_edges
+        statement: The internal undirected pairs, listed in lexicographic order.
+      - id: cut_edges
+        statement: The cut undirected pairs, listed in lexicographic order.
+
+  heuristic_under_test: HA-1
+  heuristic_under_test_note: >-
+    HA-1 is the single-prime imitation of a random partition of incident
+    ends. The experiment records the two sets. A cardinality match is a
+    negative on this prime. It is not an ECDLP exponent.
+
+  preregistered_prediction:
+    quantity: >-
+      The cardinalities of the internal edge set and the cut edge set at
+      p = 11.
+    formula: >-
+      The absolute difference of those cardinalities is at least 1. The
+      two edge sets are not equal. Equality of the sets, and equality of
+      the cardinalities, are the negatives. No numeral for either
+      cardinality is written here.
+    source: >-
+      The inequality is the prediction in IDEA-20261005-5cbadc, copied
+      before any run of EXP-SSI-8068ef, with the prime named by the
+      design-session point-count census. The idea cites KN-TECH-024,
+      KN-LIT-078, and KN-OPEN-013 as opened by that idea-generator. This
+      design session read the idea and RQ-SSI-001. It did not re-open
+      those three notes, and it did not enumerate a kernel.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested parameter is p = 11, under a search cap of 300 that is
+      used only to confirm minimality. A result at p = 11 is not a result
+      at a larger prime and is not a cryptographic path-finding result.
+      No extrapolation is authorized.
+    correspondence: >-
+      Direct enumeration of j-invariants and of order-2 kernels at p = 11.
+      No Deuring sampling equivalence is used to reach a larger prime.
+
+  tail_checks:
+    - >-
+      There is no sampled tail. The census is one prime. The extreme
+      check is the loop counter: loops must stay outside both edge sets.
+      A positive loop count does not by itself pass or fail the
+      cardinality comparison. It is reported.
+
+  replication:
+    seeds:
+      - name: arithmetic
+        algorithm: deterministic point counts and a deterministic Vélu enumeration of order-2 kernels
+        seed: 0
+        note: >-
+          No random generator is consulted. seed 0 records that fact.
+          Substituting a random sample of primes or of kernels is forbidden.
+    independent_instances: 1
+    independent_instances_note: >-
+      The one instance is p = 11. The primes 3, 5, and 7 are minimality
+      controls, not extra draws of the edge comparison.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not cap the frozen prime.
+      maximum_runs is 2 so one infrastructure retry may take a new run
+      id. Watch expiry is failed_infrastructure, never a negative
+      mathematical result.
+
+  procedure:
+    confirm_prime: >-
+      For each odd prime q from 3 through 11, list j in F_q, test
+      supersingularity by a point count on a nonsingular short-Weierstrass
+      model, and record the subset. Proceed to the edge census only when
+      the first q with at least two elements is 11 and that subset is
+      {0, 1}. Otherwise stop as invalid.
+    enumerate_edges: >-
+      From each j in the confirmed subset, enumerate order-2 kernels over
+      the 2-torsion field, apply Vélu, and classify each undirected pair
+      of distinct supersingular j-invariants as internal or cut. Count
+      loops separately. Do not compute distances.
+    mechanism_assignment:
+      - observation: >-
+          The minimality control passes, every retained neighbor is
+          supersingular, pairs are unique, loops are absent from both
+          sets, the second-model control passes, and the absolute
+          difference of the two cardinalities is at least 1.
+        assigns_to: >-
+          The internal edges and the cut edges differ at p = 11. This
+          does not produce a path and does not change an exponent.
+      - observation: >-
+          The same controls pass and the two cardinalities are equal,
+          including the case where the two edge sets are equal as sets.
+        assigns_to: >-
+          Negative. Equality of the two edge sets, or equality of their
+          cardinalities, removes this split at p = 11.
+      - observation: >-
+          A smaller odd prime has at least two rational supersingular
+          j-invariants, the subset at p = 11 is not {0, 1}, a neighbor
+          fails the supersingularity test, a pair is stored twice, a loop
+          is folded into either set, or two models of one j disagree.
+        assigns_to: >-
+          Invalid. Not evidence for either edge set.
+      - observation: >-
+          The watch expires, a dependency is missing, or the run crashes.
+        assigns_to: >-
+          failed_infrastructure. Not evidence against the hypothesis.
+
+  stopping_rules:
+    - Stop when the minimality census, both edge sets, the loop count, and one assignment row are recorded.
+    - Do not continue to a second prime after p = 11.
+    - Do not compute a path or a distance.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing dependency is failed_infrastructure and is not evidence against the hypothesis.
+    - Reporting a cardinality difference when the minimality control failed invalidates the run.
+    - Counting a directed dual twice, or folding a loop into either set, invalidates the run.
+    - Changing the pre-registered prediction after seeing the edge sets is forbidden. A correction is a new amendment record, and existing runs are not re-scored against it.
+
+  success_criterion: >-
+    The run is a success for the difference reading exactly when the first
+    row of mechanism_assignment holds. Any other completed assignment is
+    not this success. Equality of the cardinalities is a negative, so
+    success can fail.
+
+  falsification_criterion: >-
+    The prediction that the internal edges and the cut edges differ at
+    p = 11 is falsified when the second row of mechanism_assignment
+    holds. Equality of the two edge sets is that negative, and so is
+    equality of their cardinalities. The third row falsifies nothing.
+    The fourth row falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-SSI-8068ef/runs/RUN-*/manifest.yaml
+    - experiments/EXP-SSI-8068ef/runs/RUN-*/stdout.txt
+    - experiments/EXP-SSI-8068ef/runs/RUN-*/stderr.txt
+    - experiments/EXP-SSI-8068ef/runs/RUN-*/raw-result.json
+    - experiments/EXP-SSI-8068ef/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      selected_prime, the subsets for odd primes q ≤ 11, s_p_cardinality,
+      internal_edges, cut_edges, internal_edge_count, cut_edge_count,
+      loop_count, sets_equal, and the cardinality gap. No path is included.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row. It
+      does not change hypothesis status.
+
+  assigned_to: executor
+  zero_runs_in_design: true

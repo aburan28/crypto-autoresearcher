@@ -3,7 +3,7 @@
 # Source: orchestration/roles.yaml -> roles.validator
 # No `model` key on purpose: the model comes from the policy layer.
 description: >-
-  Independent evidence validator for the ECDLP autoresearch program. Use after a Coordinator snapshot commit to verify run receipts, controls, metrics, and reproducibility bindings. Never changes research status or raw artifacts.
+  Independent evidence validator after a Coordinator snapshot commit: verifies run receipts, controls, metrics and reproducibility bindings. Never changes research status or raw artifacts.
 mode: subagent
 temperature: 0.1
 permission:
@@ -15,6 +15,12 @@ permission:
   bash: allow
   webfetch: deny
   websearch: deny
+  "cairn_*": deny
+  cairn_audit: allow
+  cairn_frontier_status: allow
+  cairn_get_claim: allow
+  cairn_get_objective: allow
+  cairn_list_objectives: allow
   # A subagent never delegates: the Coordinator owns dispatch.
   task:
     "*": deny

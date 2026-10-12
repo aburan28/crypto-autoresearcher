@@ -1,0 +1,83 @@
+hypothesis:
+  id: H-ICPERF-cf04e0
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  experiment_id: EXP-ICPERF-104054
+  status: specified
+  proposed_by: coordinator
+  specified_at: '2026-10-11'
+  title: D6 permits sub-poll wall timing without changing solver or watchdog outcomes
+  statement: >-
+    On a quiet Linux host, Runner.run at the post-D6 bench.py bytes records
+    wall_s for a child shorter than its 0.25-second poll interval as a duration
+    consistent with an independent monotonic clock, while the accepted pre-D6
+    bytes cluster such readings at the poll boundary. For the two frozen
+    WDSat C-SATREG instances, D6 leaves status and deterministic conflict
+    counts unchanged. The resident-growth and address-reservation watchdog
+    controls retain their distinct outcomes. This is an instrument hypothesis
+    only; it asserts no solver advantage or ECDLP attack cost.
+  mechanism: >-
+    The old loop slept a full 0.25 seconds after launching a child and checked
+    its exit on the next iteration. D6 replaces that sleep with bounded
+    Popen.wait, which returns on child exit. D6 touches the loop that also
+    polls RSS and makes timeout decisions, so latency and watchdog behavior
+    must be tested together at the same exact source bytes.
+  predictions:
+    - id: P1
+      metric: short_child_wall_s
+      statement: >-
+        Across five repetitions each of calibrated 0.05-second and 0.10-second
+        children, every valid D6 wall_s is below 0.20 seconds and its absolute
+        difference from an independently measured enclosing monotonic duration
+        is at most 0.05 seconds. Child-reported sleep duration is recorded
+        separately; scheduling delay is not silently subtracted.
+      falsified_by: >-
+        A valid, quiet-host repetition above either threshold, with the
+        independent timer and child receipt intact.
+    - id: P2
+      metric: c_satreg_status_and_conflicts
+      statement: >-
+        WDSat default on n15l5-1-S remains SAT with 26 conflicts and on
+        n15l5-11-U remains UNSAT with 31257 conflicts.
+      falsified_by: A completed deterministic row with a different status or conflict count.
+    - id: P3
+      metric: watchdog_null_outcomes
+      statement: >-
+        A child touching 12 GiB resident memory under the declared 8 GiB
+        RSS watchdog is killed with rss_limit_breached true. A child reserving
+        at least 64 GiB of address space while touching under 512 MiB exits
+        zero without an RSS breach. Both use the D6 loop.
+      falsified_by: A completed, fully admitted control with either outcome reversed.
+  known_false_control: >-
+    Run the same short-child panel through the immutable accepted pre-D6
+    bench.py bytes d835b1ead969989d58857bfd46d107f2bd42ec2faa8be80fa3bd203e9016cc05.
+    It is expected to cluster near a 0.25-second boundary. If both versions
+    pass the sub-poll threshold, the test cannot discriminate D6.
+  test_boundary: >-
+    Linux process-group Runner.run on this host class; two WDSat n15l5
+    instances and two synthetic memory controls. No all-engine benchmark,
+    curve comparison, end-to-end index calculus measurement, or transfer
+    from these instances to deployed parameters.
+  decision_impact:
+    all_controls_pass: >-
+      Independent review may accept the D6 wall channel for these tested
+      short-child and watchdog scopes; AP-6 of EXP-ICPERF-13f001 may then cite
+      that reviewed acceptance, subject to its other preconditions.
+    valid_short_child_failure: >-
+      Keep D6 unaccepted and require repair or a duration floor before any
+      comparative wall claim.
+    solver_or_watchdog_regression: >-
+      Keep D6 unaccepted, preserve the raw counterexample, and return the
+      instrument for correction. This is not evidence about ECDLP.
+    infrastructure_or_memory_stop: >-
+      Record unevaluable controls and keep D6 unaccepted; do not treat a
+      timeout or insufficient memory headroom as falsification.
+  limitations:
+    - The threshold is an instrument-resolution test, not an engine speedup.
+    - A host scheduler may invalidate a noisy repetition; preserve it and apply the frozen admission rule.
+    - RSS sampling may miss a sub-poll peak; the full memory controls test only their declared outcomes.
+  evidence_refs:
+    - ledger/decisions/DEC-20260915-927eaa.yaml
+    - ledger/corrections/CORR-20260916-d51133.yaml
+    - ledger/corrections/CORR-20260916-33068f.yaml
+  claim_tier: measurement

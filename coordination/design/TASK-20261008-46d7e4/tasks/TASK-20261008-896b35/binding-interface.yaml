@@ -1,0 +1,240 @@
+schema: crypto.autoresearch.endring_public_binding_interface.v1
+identity:
+  name: bounded-degree endomorphism evaluation binding (BDEB)
+  candidate_id: IDEA-20261008-71a5ca
+  producer_task_id: TASK-20261008-896b35
+  status: typed_obstruction
+
+endring_problem:
+  field_and_curve_distribution: >-
+    p(lambda)>3, q=p^2, and canonical short-Weierstrass E/F_q sampled from the
+    exact declared bare-EndRing distribution D_ER(lambda); its sampler and
+    hardness are inputs, not established by this packet.
+  challenge_input: [p, canonical_F_q, canonical_curve_E, public_encoding_rules]
+  allowed_auxiliary_information: >-
+    None beyond public parameters D,M,T and parsing rules. In particular no
+    orientation, torsion basis, ideal, connecting isogeny, secret tag, planted
+    basis, endpoint order, or secret-correlated public value.
+  required_complete_evaluable_output: >-
+    Four canonical evaluable rational maps forming a saturated Z-basis of
+    End(E), with exact equality, addition, composition, trace, degree, and
+    maximal-order checks.
+  conditional_dependencies: >-
+    No GRH or hardness theorem is asserted. The internal binding derivation
+    depends on the degree-norm triangle bound and kernel-cardinality bound;
+    FORMAL-BDEB-1 records their unformalized status.
+
+domains:
+  X_E: >-
+    Canonical reduced rational-map encodings of endomorphisms alpha:E->E with
+    degree at most public D=poly(lambda). Honest support is the scalar maps
+    [a], 1<=|a|<=floor(sqrt(D)).
+  Y_E: >-
+    (version,D,Q_1,...,Q_M,Z_1,...,Z_M), M=4D+1, with distinct nonzero
+    Q_i in E(F_q) and Z_i in E(F_q).
+  byte_grammar: >-
+    Fixed version and integer widths; canonical F_q coefficients; canonical
+    curve and point encodings; reduced rational-function numerator/denominator
+    arrays with monic denominators; exact list lengths; trailing bytes reject.
+  equality: >-
+    Bytes are equal only after strict canonical parsing; point equality is
+    canonical geometric point equality; rational maps use reduced-fraction
+    cross multiplication modulo the curve equation.
+  public_equivalence: >-
+    x ~_E x' iff they evaluate to the same rational endomorphism of E. The
+    equivalence representative is CanMap_E(x), obtained by polynomial gcd,
+    denominator normalization, and fixed coefficient ordering.
+  validation: >-
+    Check p>3, nonsingularity, parameter inequality M<#E(F_q)-1, all domain
+    memberships, map endomorphism identity and degree<=D, distinct/nonzero
+    Q_i, and exact complete-projective evaluations Z_i=x(Q_i). Affine poles
+    representing O use its canonical encoding; genuinely ill-defined maps reject.
+  failure_symbols:
+    PARAM_FAIL: invalid public parameter or insufficient point domain
+    POINT_FAIL: point sampling cap T exhausted
+    SAMPLE_FAIL: honest sampling produced no transcript
+    NO_PREIMAGE: inverse found no honest scalar representative
+    PARSE_FAIL: malformed or noncanonical bytes
+
+relation:
+  R_E: >-
+    R_E(x,y)=1 iff x is a validated degree<=D endomorphism and every full
+    point pair in y satisfies Z_i=x(Q_i); otherwise 0.
+  decision_algorithm: >-
+    Strictly parse, validate the map by substituting its rational functions in
+    E's equation, compute its degree, and evaluate at every listed point.
+  decision_runtime: >-
+    Polynomial in the rational-map encoding length, M, and log(q); D and M
+    are polynomial in lambda.
+  honest_support: >-
+    Scalar maps [a] for uniformly sampled nonzero integers |a|<=floor(sqrt(D)),
+    evaluated on an independently sampled list of M public points.
+  binding_statement: >-
+    If R_E(x,y)=R_E(x',y)=1 then delta=x-x' kills M=4D+1 distinct points,
+    while deg(delta)<=4D; hence delta=0 and x~_E x'. This is an internal
+    derivation pending FORMAL-BDEB-1, not an independently reviewed theorem.
+  message_recovery_invariance: >-
+    The mask is XOF(domain||E||CanMap_E(x)||y,|m|). Binding makes CanMap_E(x)
+    identical for every accepted representative, so all accepted inverses
+    recover the actual same selected message. The public inverse also recovers
+    it, which contradicts recipient confidentiality for this family.
+
+algorithms:
+  Sample_from_bare_E: >-
+    Validate E,D,M,T; sample a uniformly from nonzero integers with a^2<=D;
+    construct [a] by division polynomials; sample M distinct public points by
+    capped uniform-x/square-root rejection; return ([a],Eval(E,[a],Q-list)) or
+    the declared failure symbol. No secret datum is read.
+  Eval_from_bare_E: >-
+    On E, a validated x in X_E, and a public point list or its public coins,
+    return the full evaluation transcript y; uses no endpoint or secret data.
+  Inv_from_every_complete_basis: >-
+    Validate B, then ignore it. Enumerate all nonzero a with a^2<=D and return
+    the first canonical [a] accepted by R_E; return NO_PREIMAGE otherwise.
+    This succeeds for every honest y and every valid complete basis, including
+    all GL_4(Z) changes, because it is a public inverse.
+  runtimes:
+    Sample: poly(D,log(q),T); division-polynomial output is charged
+    Eval: poly(D,M,log(q))
+    Inv: O(sqrt(D)*M*C_mul(D,log(q))), polynomial for D=poly(lambda)
+    relation: poly(D,M,log(q))
+  retries: >-
+    PointList stops at public cap T. With rho_E>=1/2-1/p-M/q, its declared
+    conservative failure tail is sum_{j=0}^{M-1} binom(T,j) rho_E^j
+    (1-rho_E)^(T-j). No concrete T is selected.
+  failure_bounds: >-
+    Honest binding and inversion are conditional on an accepted transcript.
+    Per-call sampling failure is at most delta_pts above; q_S calls contribute
+    at most q_S*delta_pts by union bound, without an independence claim.
+
+any_basis_statement:
+  basis_representation: >-
+    Any four evaluable rational maps whose saturated Z-span is exactly End(E),
+    with arbitrary unimodular changes and canonical or equivalent map encodings.
+  quantified_correctness: >-
+    For every E in the declared support, every valid complete evaluable basis
+    B of End(E), every honest accepted Sample output (x,y), and every accepted
+    x' returned by Inv(E,B,y), R_E(x',y)=1 and x'~_E x. Inv ignores B.
+  change_of_basis_audit: >-
+    Replacing B by BU for any U in GL_4(Z) changes neither enumeration,
+    relation checks, output, runtime, nor failures; this invariance exposes the
+    smaller-witness collapse instead of demonstrating ring dependence.
+
+repeated_use:
+  adversary_class: classical PPT; no QPT or QROM claim
+  input_lengths: >-
+    Equal-length selected messages of polynomial bit length; rational maps and
+    each transcript have O(D log(q)) and O(M log(q)) public length.
+  query_bound: q_S(lambda), any fixed polynomial number of accepted CPA encryptions
+  adaptive_history: >-
+    Messages may depend on E and all previous Q/Z lists, masks, parser results,
+    and public failure symbols.
+  state: stateless KeyGen interface and stateless Sample/Eval/Inv; transcript history is adversary state only
+  randomness_coupling: independent a_i and point-list coins per call; no cross-call reuse or hidden shared seed
+  abort_behavior: >-
+    SAMPLE_FAIL occurs before ciphertext output and is public. Total abort mass
+    is at most q_S*delta_pts by union bound.
+  complete_public_view: >-
+    p,F_q,E,D,M,T, encoding and validation algorithms, all Q_i,Z_i, message
+    masks z_i, parse/rejection outcomes, hash/XOF interfaces, and timing only
+    at abstract algorithmic step count; physical side channels are unsupported.
+
+necessity:
+  smallest_known_sufficient_witness: >-
+    One small integer a, or equivalently the single canonical scalar map [a],
+    per accepted transcript. The complete basis is unused.
+  factorization_search: >-
+    Delete B and run identical Inv; success and runtime are unchanged. Across
+    q_S uses the witnesses span only the rank-one subring Z[1]. UTTK/CEST
+    finite-action and one-endomorphism controls therefore trigger.
+  non_factorization_or_reconstruction_theorem: >-
+    Contradicted for the honest scalar support: an explicit factorization
+    through [a] exists. No reconstruction theorem from scalar maps to a
+    saturated rank-four End(E) basis is supplied or claimed.
+
+reduction:
+  first_security_game: >-
+    BDEB-OW gives E and honest y and asks for any accepted x'. The PKE-shaped
+    IND-CPA adapter masks a selected message with XOF(CanMap_E(x),y).
+  challenge_embedding: >-
+    Bare E is used verbatim and all transcripts are publicly sampled; no
+    secret-correlated data must be simulated. A polynomial trapdoored KeyGen
+    producing both E and B on exactly D_ER is nevertheless not supplied.
+  oracle_simulation: >-
+    CPA encryption, parsing, failures, relation evaluation, and hashes are
+    public and stateless; no decryption oracle exists.
+  attacker_to_preimage_or_class: >-
+    A_pub runs the public scalar inverse. Conditional on an accepted honest y,
+    Succ_BDEB-OW(A_pub)=1 and it recovers the unique equivalence class.
+  preimage_or_class_to_complete_ring: >-
+    Missing. The recovered [a] lies in Z[1] and provides no supplied algorithm
+    for three additional independent endomorphisms or maximal-order saturation.
+  loss_runtime_abort: >-
+    IND A_pub wins with probability 1 on accepted ciphertexts and advantage
+    1/2. Any bound Adv<=L*Succ_EndRing+delta with polynomial L and negligible
+    delta would require an unsupported nonnegligible EndRing solver from the
+    public scalar enumerator. Aborts add at most q_S*delta_pts.
+
+audits:
+  CEST_RWCT_regression: >-
+    The relation is not an endpoint or path selector, but it reproduces the
+    finite-witness failure: one scalar/evaluable map suffices and B is deleted.
+    Exact CEST/RWCT remote contents were unavailable in declared read scope;
+    overlap beyond the frozen control description remains unverified.
+  accepted_preimage_collisions: >-
+    Different byte encodings of the same map normalize to one equivalence
+    class. Distinct maps cannot share an accepted M-point transcript under the
+    internal degree/kernel derivation. With M<=4D this guarantee is withdrawn.
+  quantifier_order: >-
+    For all sampled E, for all valid complete bases B chosen after E, for all
+    honest Sample coins yielding y, every accepted representative is map-equal;
+    then Inv must succeed. The scalar sampler and public inverse are fixed
+    before any attacker is chosen. A reconstruction solver must receive only
+    bare E and the attacker's output, never B.
+  known_false_controls:
+    - delete B; inversion and message recovery remain unchanged
+    - append a leaked a; no preimage-to-ring extractor appears
+    - replace Inv by the same public enumerator; the alleged trapdoor theorem still cannot conclude EndRing
+    - use M<=4D; binding is no longer certified
+    - add an orientation or torsion basis; classify as a different auxiliary problem
+  method_ceiling: >-
+    BDEB can certify map-equality fibers and representation-invariant
+    actual-message recovery for bounded degree. With scalar honest support it
+    cannot certify confidential recipient advantage, complete-ring necessity,
+    or attacker-to-EndRing extraction. FORMAL-BDEB-1 blocks theorem language.
+
+obligations:
+  O1: {status: proposed_discharge, note: exact bare input and complete evaluable output specified; hardness unreviewed}
+  O2: {status: open, note: interface algorithms explicit; exact-distribution polynomial trapdoored KeyGen absent}
+  O3: {status: proposed_discharge, note: actual-message invariance follows conditionally from binding}
+  O4: {status: contradicted, note: recipient inverse is public and ignores B}
+  O5: {status: contradicted, note: proposed chain stops at scalar preimage and has no complete-ring extractor}
+  O6: {status: open, note: public/repeated view specified but not independently reviewed or implementation-audited}
+  C1: {status: open, note: primary texts not read and novelty unverified}
+  C2: {status: contradicted, note: adapter publicly decryptable and exact key generator missing}
+  C3: {status: open, note: no implementation or independent correctness validation}
+  C4: {status: contradicted, note: no correctly directed EndRing reduction}
+  C5: {status: open, note: no concrete parameters, cost table, or reviewed non-duplication result}
+  C6: {status: open, note: independent T1-T5 review pending}
+
+provenance:
+  sources_read:
+    - research/ssi-endring-pke/2026-10-08-public-binding-interface/methodology.md
+    - research/ssi-endring-pke/2026-10-08-public-binding-interface/binding-interface-schema.yaml
+    - research/ssi-endring-pke/2026-10-07-trapdoor-interface/report.md
+    - knowledge/literature/KN-LIT-6572.md
+    - knowledge/literature/KN-LIT-6628.md
+    - knowledge/literature/KN-LIT-827.md
+    - knowledge/literature/KN-LIT-1260.md
+  prior_art_delta: >-
+    Unlike RWER it binds a source self-map, not an endpoint. Unlike UTTK it
+    uses no quotient curve or transported basis; nevertheless both factor
+    through one finite endomorphism/action witness. Corpus literature records
+    are abstract/first-page pointers only. Frontier-match rows concern ECDLP
+    degree/transfer mechanisms and provide no direct matching construction.
+  novelty_status: unverified
+  overlap_screen: >-
+    Seta, SiGamal, UPKE, LIT-SiGamal, CEST, ER-McE, UTTK, RWER, RWCT, and the
+    four frozen remote idea IDs were screened only to the extent described by
+    declared local inputs. Primary-source and unavailable remote-record overlap
+    remain open; no novelty claim is made.

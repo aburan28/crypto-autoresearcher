@@ -32,6 +32,7 @@ class AvailabilityTests(unittest.TestCase):
     def test_unset_env_and_no_path_binary_is_unavailable(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop(cb.ENV_BIN, None)
+            os.environ.pop(cb.ENV_CLI, None)
             with mock.patch("shutil.which", return_value=None):
                 self.assertFalse(cb.available())
 
@@ -50,8 +51,18 @@ class AvailabilityTests(unittest.TestCase):
     def test_path_binary_is_used_when_env_is_unset(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop(cb.ENV_BIN, None)
+            os.environ.pop(cb.ENV_CLI, None)
             with mock.patch("shutil.which", return_value="/usr/local/bin/cairn-mcp"):
                 self.assertTrue(cb.available())
+
+    def test_old_cairn_without_mcp_is_unavailable(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(cb.ENV_BIN, None)
+            os.environ.pop(cb.ENV_CLI, None)
+            with mock.patch("shutil.which", side_effect=[None, "/bin/cairn"]):
+                with mock.patch("subprocess.run", return_value=_completed(
+                        returncode=0, stdout="  post <objective.json>\n")):
+                    self.assertFalse(cb.available())
 
 
 class UnsupportedInputTests(unittest.TestCase):
@@ -251,7 +262,16 @@ class LiveCairnTests(unittest.TestCase):
             "kind": "discrete_log",
             "statement": {"curve": {"p": 223, "a": 0, "b": 171}, "P": [105, 42], "Q": [81, 42], "k": 999},
         })
-        with open(cb._log_path(), encoding="utf-8") as fh:
+        log = Path(cb._log_path())
+        if not log.read_text(encoding="utf-8").startswith("{"):
+            # Current Cairn seals its local store. Export is the supported
+            # read path for an independently auditable plaintext log.
+            exported = Path(self.tmp.name) / "export.jsonl"
+            result = cb._run_cli(cb._cairn_mcp_bin(), str(log),
+                                 "store", "export", "--out", str(exported))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            log = exported
+        with log.open(encoding="utf-8") as fh:
             entries = [json.loads(line) for line in fh if line.strip()]
         self.assertEqual(len(entries), 2)
         self.assertTrue(all(e["kind"] == "objective" for e in entries))
