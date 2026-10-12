@@ -50,3 +50,13 @@ def test_committed_durations_cover_most_of_the_suite():
     on_disk = [f for f in durations if (shard.REPO / f).is_file()]
     assert len(durations) > 100 and len(on_disk) >= 0.9 * len(durations)
     assert all(seconds >= 0 for seconds in durations.values())
+
+
+def test_failed_collection_never_returns_a_partial_test_list(monkeypatch, tmp_path):
+    import subprocess
+    import pytest
+    monkeypatch.setattr(shard.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(
+        a, 2, stdout="tests/test_passes.py::test_one\nERROR tests/test_broken.py\n",
+        stderr="collection failed"))
+    with pytest.raises(SystemExit, match="pytest collection failed"):
+        shard.collected_files(tmp_path)

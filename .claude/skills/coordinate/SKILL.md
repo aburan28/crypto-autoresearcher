@@ -10,8 +10,8 @@ description: >-
 
 # Coordinate
 
-Budget estimates are advisory (`docs/research-budget-policy.md`); approval
-capacity is not (`AGENTS.md`, "Approval is bounded by execution").
+Budget estimates and the approved-unrun backlog are advisory
+(`docs/research-budget-policy.md`; `AGENTS.md`, "Approval is bounded by execution").
 
 Public **coordination** entry point. The session drives the Coordinator role
 (`agents/coordinator.md`, `.claude/agents/coordinator.md`). Detailed procedure:
@@ -58,10 +58,12 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    second batch on a goal another session already holds.
 3. **Orient.** Read the cached portfolio health first
    (`coordination/portfolio_health/latest.json`, refreshed by
-   `main-health.yml` with its `generated_at` and commit); run
-   `python3 tools/goal_portfolio_health.py` yourself only when the cache is
-   older than the merge digest you just read, or when the task is a goal's
-   own deepening (add `--no-deepen` in **status**). Read the KPI block of
+   `main-health.yml` with its `generated_at` and commit). A stale cache is a
+   shortlist hint, not a reason to sweep every active goal before work can
+   begin: use the selector and ECC priority to shortlist, then run
+   `python3 tools/goal_portfolio_health.py --goal <GOAL-ID> --no-deepen` for
+   each goal whose queue state affects the decision. Use the unfiltered sweep
+   only when a portfolio-wide health report is itself the task. Read the KPI block of
    `python3 tools/ledger_summary.py` (approved-unrun, approvals per evidence
    record, aged handoffs); a session that raises approved-unrun says why in
    its checkpoint. Read the bound goal head, the Ready Tasks only
@@ -70,9 +72,8 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    open lanes (`goal_lanes.py lanes <GOAL-ID>`), and `python3
    tools/ecc_priority.py` (`--classify`, `--open-ideas`) at every selection
    point. ECC first; unlimited ECC budget is not a license to dispatch
-   unranked work, and an open ECC idea is designed only when it can be
-   approved under the capacity and runnable rules below — otherwise it stays
-   `proposed` with the reason recorded, which is not shelving.
+   unranked work. Design ranked open ECC ideas; make complete contracts
+   runnable before approval. The approved-unrun count does not block design.
 4. **Dispatch the coordinator subagent** for any act that ranks, approves,
    changes official status, writes a `DEC-*`/`TASK-*`, or opens a batch. The
    top-level session may do git, PR, and tool invocations; it must not change
@@ -81,13 +82,10 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    `python3 -m orchestration.adapter resolve --role coordinator`. Refuse
    Bedrock before any inference call.
 5. **Do the ranked Coordinator act**, then stop or continue by mode:
-   - complete a protocol and record approval (`/design-experiment`) — only
-     when `python3 tools/portfolio_kpis.py --capacity <goal>` shows headroom
-     (or the decision names the `supersedes_experiments` it replaces) **and**
+   - complete a protocol and record approval (`/design-experiment`) when
      `python3 tools/newest_experiments.py --experiment <EXP-ID> --json`
-     reports `execution_state: ready`. An approval over capacity is refused
-     by `tools/validate_ledger.py`; an approval of an unready contract is the
-     backlog the program pays for. Write neither;
+     reports `execution_state: ready`. Use approved-unrun counts to rank
+     execution work, never as an approval gate;
    - open a bounded batch and write handoffs with exclusive `write_scope`,
      budget, and completion gate (`tools/research_dispatch.py`);
    - freeze a `review_plan` **before** reviewers run, then dispatch

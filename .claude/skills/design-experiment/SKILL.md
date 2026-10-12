@@ -9,8 +9,8 @@ description: >-
 
 # Design experiment
 
-Budget estimates are advisory (`docs/research-budget-policy.md`); approval
-capacity is not (`AGENTS.md`, "Approval is bounded by execution").
+Budget estimates and the approved-unrun backlog are advisory
+(`docs/research-budget-policy.md`; `AGENTS.md`, "Approval is bounded by execution").
 
 Run lifecycle steps 3–5 (`docs/task-lifecycle.md`): hypothesis
 specification, experiment design, approval, and handoff.
@@ -25,19 +25,9 @@ specification, experiment design, approval, and handoff.
    for per-idea selection or approval. Before designing, merge `origin/main`
    into the working branch (merge, never rebase) so the hypothesis and contract
    are drafted against current ledger state — see "Branch and PR hygiene" below.
-2. **Check approval capacity first.** Run
-   `python3 tools/portfolio_kpis.py --capacity <GOAL-ID or area:AREA>`. It
-   exits 1 when the goal already holds the cap (3) of approved contracts with
-   no run. At the cap, the only contracts this turn may approve are ones that
-   supersede or withdraw one of the listed ids (`supersedes_experiments` /
-   `withdraws_experiments` on the approval decision). Otherwise **do not
-   design**: the idea stays `proposed`, the reason goes in the session
-   receipt (`--outcome refused_capacity`) and the goal's `next_action`, and
-   the proposal record is not edited (`AGENTS.md`, "Approval is bounded by
-   execution"). The validator refuses the approval decision anyway
-   (`check_approval_capacity`), and a hypothesis plus contract that cannot be
-   approved is the backlog this program is paying for. Say in the report
-   which ids hold the capacity.
+2. Inspect `python3 tools/portfolio_kpis.py --goal-backlog <GOAL-ID or area:AREA>`
+   to rank ready execution work. The command reports backlog and always exits
+   successfully; it does not limit design or approval.
 3. Dispatch the **coordinator** subagent to:
    - mint ids with `python3 tools/allocate_id.py --next hypothesis --area <AREA>`
      and `--next experiment --area <AREA>` (confirm each with `--check`; never
@@ -53,18 +43,6 @@ specification, experiment design, approval, and handoff.
      (status stays `review_required`). Advisory research estimates and unlimited
      campaign budgets may be null under the current budget policy; that alone
      does not prevent approval.
-3. Create the experiment directory:
-   `experiments/EXP-<AREA>-<NNN>/specification.yaml` (plus empty
-   `amendments/` and `runs/`).
-4. Under the standing user authorization in `AGENTS.md`, the Coordinator
-   records approval of the complete frozen contract with
-     criteria that name a metric the run produces and differ from each other,
-     `designed_at`, a `decision_impact` block (`on_positive` / `on_negative`:
-     what decision changes on each outcome; the two must differ), and
-     required artifacts. No `outcome`, `result`, `conclusion` or `verdict`
-     field exists before a run (`check_outcome_not_prewritten`);
-   - refuse approval while any of those fields is null (status stays
-     `review_required`).
 4. Create the experiment directory:
    `experiments/<EXP-ID>/specification.yaml` (plus empty `amendments/` and
    `runs/`).
@@ -96,8 +74,8 @@ specification, experiment design, approval, and handoff.
    contract that exists only in a local commit is not approved — it is
    unpublished.
 10. End with a session receipt: `python3 tools/session_receipt.py --skill
-    design-experiment --role coordinator --outcome <approved|review_required|
-    refused_capacity> --created EXP-...,H-...,TASK-...` (see
+    design-experiment --role coordinator --outcome <approved|review_required>
+    --created EXP-...,H-...,TASK-...` (see
     `docs/session-receipts.md`).
 
 ## Branch and PR hygiene
