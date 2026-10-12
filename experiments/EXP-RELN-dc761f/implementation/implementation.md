@@ -64,8 +64,39 @@ raw attempt records beneath the admitted `RUN-*` directory. The protocol
 sampler is not called by plan construction, readiness, static checks, or
 absent-admission refusal.
 
-The current handoff does not exercise that path. It therefore reports no
-observation about the RELN hypothesis and makes no claim about any verdict.
+The admitted scientific path now emits the complete frozen run package:
+
+- `manifest.yaml`, `command.txt`, `stdout.log`, `stderr.log`, and
+  `environment.json`;
+- one `attempts/<fixture>.jsonl` stream per fixture;
+- one `cells/<fixture>-k<kappa>.json` record per all 48 cells, including the
+  graph, S-1--S-4 values, every N-1 rewire metric, every N-2 ER metric,
+  timing/RSS, and control details;
+- `pooled-analysis.json` for S-5--S-9 and the frozen tail checks;
+- `accounting-certificate.json` for G-6 certificates and the L-8 independent
+  audit replay; and
+- `provenance/git.json`, `provenance/resource.json`, and
+  `provenance/failures.json`.
+
+The validity gate is fail-closed and requires all 48 cells plus K-POS,
+K-FALSE-1, K-FALSE-2, K-ID, and K-AUD. K-POS uses the frozen
+`ceil(1.5 * mu_c)` target; K-FALSE-2 runs all 100 pooled pseudo-treatment
+replicates; K-AUD verifies every kept relation and independently replays the
+L-8 selected attempts. A failed gate produces `invalid` with a procedure
+failure record and no verdict; an RSS, signal, or other runtime failure
+produces `failed_infrastructure` with partial artifacts preserved.
+
+M-2 is implemented as a main-thread-installed, daemon polling watchdog at
+4 GiB RSS. It checks its sampler and thread liveness, raises a distinct
+resource-exhaustion failure on sampling failure or limit breach, and restores
+the prior signal handler after finalization. It is installed before the first
+protocol draw and cannot be bypassed by the readiness path.
+
+This handoff itself does not exercise the scientific path. The self-checks
+exercise plan binding, artifact/control-path presence, injected M-2 failure,
+machine fail-closed fields, admission refusal, and no-protocol-draw
+readiness. Therefore it reports no observation about the RELN hypothesis and
+makes no claim about any verdict.
 
 ## Deviations
 

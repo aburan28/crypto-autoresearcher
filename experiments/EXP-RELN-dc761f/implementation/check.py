@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import inspect
 import subprocess
 import sys
 import tempfile
@@ -59,6 +60,61 @@ def check_machine_fail_closed() -> None:
         expect(not ok and reasons, f"fail-closed machine field {field}")
 
 
+def check_artifact_and_gate_contract() -> None:
+    source = inspect.getsource(run_reln.run_scientific)
+    for name in ("manifest.yaml", "command.txt", "stdout.log", "stderr.log",
+                 "environment.json", "attempts", "cells", "pooled-analysis.json",
+                 "accounting-certificate.json", "provenance/failures.json",
+                 "provenance/git.json", "provenance/resource.json"):
+        expect(name in source or name in run_reln.REQUIRED_RUN_ARTIFACTS,
+               f"scientific artifact contract missing {name}")
+    for name in ("control_summary", "pooled_s5", "planted_positive",
+                 "pseudo_treatment", "audit_replay", "K-FALSE-2",
+                 "RSSWatchdog"):
+        expect(name in inspect.getsource(run_reln), f"required path missing {name}")
+    expect(run_reln.REQUIRED_RUN_ARTIFACTS == tuple(run_reln.REQUIRED_RUN_ARTIFACTS),
+           "artifact contract must be immutable sequence")
+
+
+def check_watchdog_injected_failure() -> None:
+    live = run_reln.RSSWatchdog(interval_seconds=0.01)
+    try:
+        live.start()
+        live.check()
+        expect(live._thread is not None and live._thread.is_alive(),
+               "M-2 watchdog thread should be alive")
+    finally:
+        live.stop()
+
+    def fail_factory():
+        raise RuntimeError("injected psutil failure")
+    watchdog = run_reln.RSSWatchdog(process_factory=fail_factory)
+    try:
+        watchdog.start()
+    except run_reln.RSSWatchdogFailure as exc:
+        expect("injected psutil failure" in str(exc), "watchdog failure reason")
+    else:
+        raise AssertionError("M-2 watchdog did not fail closed under injected failure")
+    finally:
+        watchdog.stop()
+
+
+def check_pooled_analysis_without_protocol_draws() -> None:
+    rows = []
+    for kappa in ("1", "2"):
+        rows.append({"cell_id": f"synthetic-k{kappa}", "fixture_id": "synthetic",
+                     "bits": 16, "kappa": kappa, "primary": True, "L": 10,
+                     "treatment": {"C34": 1, "cycle_rank": 1},
+                     "rewire_c34": [1] * run_reln.MAX_REWIRE,
+                     "rewire_cycle_rank": [1] * run_reln.MAX_REWIRE})
+    controls = {name: {"pass": True} for name in
+                ("K-POS", "K-FALSE-1", "K-FALSE-2", "K-ID", "K-AUD")}
+    result = run_reln.pooled_analysis(rows, controls)
+    expect(set(("S-5", "S-6_delta_short", "S-7_v4_continuity",
+                "S-8", "S-9_trend", "tail_checks", "controls")) <= set(result),
+           "pooled analysis path")
+
+
 def check_no_protocol_draws() -> None:
     # The plan and readiness path may construct label templates, but must not
     # invoke the protocol sampler.  Monkeypatching catches accidental future
@@ -99,7 +155,10 @@ def main() -> int:
     errors = run_reln.validate_plan(plan, ROOT)
     expect(not errors, "plan validation: " + "; ".join(errors))
     check_frozen_inputs(plan)
+    check_artifact_and_gate_contract()
     check_machine_fail_closed()
+    check_watchdog_injected_failure()
+    check_pooled_analysis_without_protocol_draws()
     check_no_protocol_draws()
     check_absent_admission_refuses()
     print(json.dumps({"status": "pass", "protocol_label_draws_performed": False,

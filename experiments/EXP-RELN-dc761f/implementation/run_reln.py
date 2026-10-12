@@ -22,12 +22,15 @@ import math
 import os
 import platform
 import resource
+import shlex
 import shutil
 import signal
 import statistics
 import subprocess
 import sys
+import threading
 import time
+import traceback
 from collections import Counter, defaultdict, deque
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -63,6 +66,8 @@ MAX_ER = 199
 MAX_PSEUDO = 100
 MAX_REWIRE_TRIES = 100_000
 SMOKE_MARGIN = 1.25
+WATCHDOG_INTERVAL_SECONDS = 0.25
+M4_CANDIDATE_LIMIT = 300_000
 
 # This is the exact F-1 table in specification.yaml, copied as immutable
 # implementation data.  It is used for plan construction only; no labels are
@@ -233,6 +238,9 @@ def build_plan(root: Path = REPO_ROOT) -> dict[str, Any]:
                         "c34": "C3+C4", "rewire_condition": "no root-root edge",
                         "rewire_replicates": MAX_REWIRE, "er_replicates": MAX_ER,
                         "pseudo_treatments": MAX_PSEUDO},
+        "validity_gate": ["K-POS", "K-FALSE-1", "K-FALSE-2", "K-ID", "K-AUD",
+                          "all_48_cells_completed"],
+        "required_run_artifacts": list(REQUIRED_RUN_ARTIFACTS),
         "execution": {"command": "env TMPDIR=$TMPDIR nice -n 10 python3 experiments/EXP-RELN-dc761f/implementation/run_reln.py",
                       "workers": 1, "nice": NICE_REQUIRED, "rss_limit_bytes": RSS_LIMIT_BYTES,
                       "tmpdir_required": True, "stop_on_first_procedure_defect": True,
@@ -307,7 +315,203 @@ def validate_plan(plan: dict[str, Any], root: Path = REPO_ROOT) -> list[str]:
                           ("tmpdir_required", True), ("no_protocol_draw_before_admission", True)):
         if execution.get(key) != expected:
             errors.append(f"execution.{key} is not fail-closed at {expected!r}")
+    if plan.get("validity_gate") != ["K-POS", "K-FALSE-1", "K-FALSE-2", "K-ID", "K-AUD",
+                                      "all_48_cells_completed"]:
+        errors.append("validity gate is incomplete or reordered")
+    if plan.get("required_run_artifacts") != list(REQUIRED_RUN_ARTIFACTS):
+        errors.append("required run artifact contract is incomplete")
     return errors
+
+
+REQUIRED_RUN_ARTIFACTS = (
+    "manifest.yaml",
+    "command.txt",
+    "stdout.log",
+    "stderr.log",
+    "environment.json",
+    "attempts/<fixture>.jsonl",
+    "cells/<fixture>-k<kappa>.json",
+    "pooled-analysis.json",
+    "accounting-certificate.json",
+    "provenance/git.json",
+    "provenance/resource.json",
+    "provenance/failures.json",
+)
+
+
+class ProcedureDefect(RuntimeError):
+    """A deterministic protocol or control failure that invalidates a run."""
+
+
+class SignalFailure(RuntimeError):
+    """An external signal interrupted a scientific run."""
+
+
+class RSSWatchdogFailure(RuntimeError):
+    """The M-2 RSS watchdog exceeded its limit or could not sample RSS."""
+
+
+class RSSWatchdog:
+    """Fail-closed 4 GiB RSS watchdog used for the admitted scientific path.
+
+    The watchdog is deliberately independent of the experiment's protocol
+    sampler.  It is installed before the first protocol draw and its failure
+    is surfaced as infrastructure/resource exhaustion, never as a result.
+    """
+
+    def __init__(self, limit_bytes: int = RSS_LIMIT_BYTES,
+                 interval_seconds: float = WATCHDOG_INTERVAL_SECONDS,
+                 process_factory: Callable[[], Any] | None = None) -> None:
+        self.limit_bytes = limit_bytes
+        self.interval_seconds = interval_seconds
+        self._process_factory = process_factory
+        self._process: Any = None
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+        self._failure: str | None = None
+        self._exceeded = False
+        self._previous_handler: Any = None
+        self.peak_rss_bytes = 0
+
+    @staticmethod
+    def available() -> bool:
+        try:
+            import psutil  # type: ignore
+            process = getattr(psutil, "Process", None)
+            if not callable(process):
+                return False
+            process().memory_info().rss
+            return True
+        except Exception:
+            return False
+
+    def _signal_handler(self, signum: int, _frame: Any) -> None:
+        if self._exceeded:
+            raise RSSWatchdogFailure(
+                f"RSS watchdog exceeded {self.limit_bytes} bytes")
+        raise SignalFailure(f"received signal {signum}")
+
+    def _poll(self) -> None:
+        while not self._stop.wait(self.interval_seconds):
+            try:
+                rss = int(self._process.memory_info().rss)
+                self.peak_rss_bytes = max(self.peak_rss_bytes, rss)
+                if rss > self.limit_bytes:
+                    self._exceeded = True
+                    os.kill(os.getpid(), signal.SIGTERM)
+                    return
+            except Exception as exc:  # fail closed if sampling stops
+                self._failure = f"RSS watchdog sampling failed: {exc}"
+                os.kill(os.getpid(), signal.SIGTERM)
+                return
+
+    def start(self) -> None:
+        if threading.current_thread() is not threading.main_thread():
+            raise RSSWatchdogFailure("M-2 watchdog must be installed on the main thread")
+        try:
+            if self._process_factory is None:
+                import psutil  # type: ignore
+                process_factory = getattr(psutil, "Process", None)
+            else:
+                process_factory = self._process_factory
+            if not callable(process_factory):
+                raise RuntimeError("psutil.Process is unavailable")
+            self._process = process_factory()
+            initial = int(self._process.memory_info().rss)
+            self.peak_rss_bytes = initial
+            if initial > self.limit_bytes:
+                self._exceeded = True
+                raise RSSWatchdogFailure(
+                    f"RSS already exceeds {self.limit_bytes} bytes")
+            self._previous_handler = signal.getsignal(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, self._signal_handler)
+            self._thread = threading.Thread(target=self._poll,
+                                             name="reln-rss-watchdog",
+                                             daemon=True)
+            self._thread.start()
+            if not self._thread.is_alive():
+                raise RSSWatchdogFailure("M-2 watchdog thread did not start")
+        except RSSWatchdogFailure:
+            self.stop()
+            raise
+        except Exception as exc:
+            self.stop()
+            raise RSSWatchdogFailure(f"M-2 watchdog unavailable: {exc}") from exc
+
+    def check(self) -> None:
+        if self._failure:
+            raise RSSWatchdogFailure(self._failure)
+        if self._exceeded:
+            raise RSSWatchdogFailure(
+                f"RSS watchdog exceeded {self.limit_bytes} bytes")
+        if self._thread is None or not self._thread.is_alive():
+            raise RSSWatchdogFailure("M-2 watchdog thread stopped")
+        try:
+            rss = int(self._process.memory_info().rss)
+            self.peak_rss_bytes = max(self.peak_rss_bytes, rss)
+            if rss > self.limit_bytes:
+                self._exceeded = True
+                raise RSSWatchdogFailure(
+                    f"RSS watchdog exceeded {self.limit_bytes} bytes")
+        except RSSWatchdogFailure:
+            raise
+        except Exception as exc:
+            raise RSSWatchdogFailure(f"RSS watchdog sampling failed: {exc}") from exc
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+        if self._previous_handler is not None:
+            signal.signal(signal.SIGTERM, self._previous_handler)
+            self._previous_handler = None
+
+
+def peak_rss_bytes() -> int:
+    """Return process peak RSS with platform-specific getrusage units."""
+    value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    return value if sys.platform == "darwin" else value * 1024
+
+
+def dependency_versions() -> dict[str, Any]:
+    versions: dict[str, Any] = {"python": sys.version, "platform": platform.platform()}
+    for name in ("numpy", "scipy", "networkx", "sageall"):
+        try:
+            module = __import__(name)
+            versions[name] = getattr(module, "__version__", "installed")
+        except Exception as exc:
+            versions[name] = {"available": False, "error": str(exc)}
+    return versions
+
+
+def json_write(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def yaml_write(path: Path, value: Any) -> None:
+    if yaml is None:
+        raise RuntimeError("PyYAML is unavailable; cannot write manifest")
+    path.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
+
+
+def git_provenance(root: Path) -> dict[str, Any]:
+    def git(*args: str) -> str:
+        proc = subprocess.run(["git", *args], cwd=root, capture_output=True,
+                              text=True, check=True, timeout=30)
+        return proc.stdout.strip()
+    try:
+        status = git("status", "--porcelain=v1")
+        return {"commit": git("rev-parse", "HEAD"),
+                "branch": git("branch", "--show-current"),
+                "dirty": bool(status), "status_porcelain": status.splitlines(),
+                "root": str(root)}
+    except Exception as exc:
+        return {"available": False, "error": str(exc), "root": str(root)}
+
+
+def command_text(argv: Iterable[str] | None = None) -> str:
+    return shlex.join(list(argv if argv is not None else sys.argv))
 
 
 def _read_load_raw() -> str:
@@ -751,6 +955,8 @@ def graph_metrics(graph: dict[str, Any]) -> dict[str, Any]:
         ecount[comp[u]] += 1
     cr = len(edges) - n + len(ccs)
     c3, c4, ctot = c34(graph)
+    m3, m3_status = short_cycle_basis_rank(graph, max_length=3)
+    m4, m4_status = short_cycle_basis_rank(graph, max_length=4)
     giant = max((len(x) for x in ccs), default=0)
     return {"V": n, "E": len(edges), "components": len(ccs), "cycle_rank": cr,
             "components_with_cycle": sum(e - len(cc) + 1 > 0 for e, cc in zip(ecount, ccs)),
@@ -758,7 +964,9 @@ def graph_metrics(graph: dict[str, Any]) -> dict[str, Any]:
             "loops": sum(u == v for u, v in edges), "C1": sum(u == v for u, v in edges),
             "C2": sum(sum(1 for x, y in edges if {x, y} == {u, v}) *
                       (sum(1 for x, y in edges if {x, y} == {u, v}) - 1) // 2
-                      for u in range(n) for v in range(u + 1, n)), "C3": c3, "C4": c4, "C34": ctot}
+                      for u in range(n) for v in range(u + 1, n)), "C3": c3, "C4": c4,
+            "C34": ctot, "M3": m3, "M3_status": m3_status,
+            "M4": m4, "M4_status": m4_status}
 
 
 def degree_sequence(graph: dict[str, Any]) -> list[int]:
@@ -783,6 +991,98 @@ def gf2_cycle_rank(graph: dict[str, Any]) -> int:
                 rank += 1
                 break
     return len(graph["edges"]) - rank
+
+
+def _basis_insert(basis: dict[int, int], vector: int) -> bool:
+    while vector:
+        lead = vector.bit_length() - 1
+        if lead in basis:
+            vector ^= basis[lead]
+        else:
+            basis[lead] = vector
+            return True
+    return False
+
+
+def short_cycle_basis_rank(graph: dict[str, Any], max_length: int = 4) -> tuple[int | None, str]:
+    """Compute the S-3 rank of all loops, digons, triangles and 4-cycles."""
+    edges = graph["edges"]
+    by_pair: dict[tuple[int, int], list[int]] = defaultdict(list)
+    loops: list[int] = []
+    simple: dict[int, set[int]] = defaultdict(set)
+    for edge_index, (u, v) in enumerate(edges):
+        if u == v:
+            loops.append(edge_index)
+            continue
+        pair = (u, v) if u < v else (v, u)
+        by_pair[pair].append(edge_index)
+        simple[pair[0]].add(pair[1])
+        simple[pair[1]].add(pair[0])
+
+    basis: dict[int, int] = {}
+    candidates = 0
+    target_rank = gf2_cycle_rank(graph)
+
+    if target_rank == 0:
+        return 0, "computed"
+
+    class _CycleBasisComplete(Exception):
+        pass
+
+    def add_cycle(groups: list[list[int]]) -> None:
+        nonlocal candidates
+        candidates += 1 + sum(max(0, len(group) - 1) for group in groups)
+        if candidates > M4_CANDIDATE_LIMIT:
+            raise OverflowError("short-cycle candidate limit exceeded")
+        base = 0
+        for group in groups:
+            base |= 1 << group[0]
+        _basis_insert(basis, base)
+        for group in groups:
+            for alternate in group[1:]:
+                _basis_insert(basis, base ^ (1 << group[0]) ^ (1 << alternate))
+        if len(basis) >= target_rank:
+            raise _CycleBasisComplete
+
+    try:
+        for edge_index in loops:
+            add_cycle([[edge_index]])
+        for group in by_pair.values():
+            if len(group) >= 2:
+                candidates += len(group) - 1
+                if candidates > M4_CANDIDATE_LIMIT:
+                    raise OverflowError("short-cycle candidate limit exceeded")
+                for alternate in group[1:]:
+                    _basis_insert(basis, (1 << group[0]) | (1 << alternate))
+                if len(basis) >= target_rank:
+                    raise _CycleBasisComplete
+        if max_length >= 4:
+            vertices = sorted(simple)
+            for a_index, a in enumerate(vertices):
+                for d in vertices[a_index + 1:]:
+                    common = sorted(simple[a].intersection(simple[d]))
+                    for b_index, b in enumerate(common):
+                        for c in common[b_index + 1:]:
+                            if len({a, b, c, d}) != 4:
+                                continue
+                            add_cycle([by_pair[tuple(sorted((a, b)))],
+                                       by_pair[tuple(sorted((b, d)))],
+                                       by_pair[tuple(sorted((d, c)))],
+                                       by_pair[tuple(sorted((c, a)))]] )
+        vertices = sorted(simple)
+        for a_index, a in enumerate(vertices):
+            for b in vertices[a_index + 1:]:
+                for c in sorted(simple[a].intersection(simple[b])):
+                    if not (a < b < c):
+                        continue
+                    add_cycle([by_pair[tuple(sorted((a, b)))],
+                               by_pair[tuple(sorted((b, c)))],
+                               by_pair[tuple(sorted((a, c)))]] )
+    except _CycleBasisComplete:
+        return target_rank, "computed"
+    except OverflowError:
+        return None, "skipped_memory_protection"
+    return len(basis), "computed"
 
 
 def certificate_check(curve: Curve, fx: dict[str, Any], Q, record: dict[str, Any]) -> bool:
@@ -833,58 +1133,112 @@ def pseudo_treatment(graph: dict[str, Any], fx: dict[str, Any], kappa: str, i: i
     return rewire_with_prefix(graph, _label(NAMESPACE, "pseudo", i, fx["bits"], fx["seed"], kappa))
 
 
-def planted_positive(graph: dict[str, Any], fx: dict[str, Any], kappa: str) -> dict[str, Any]:
+def planted_positive(graph: dict[str, Any], fx: dict[str, Any], kappa: str,
+                     target_c34: int) -> dict[str, Any]:
     """K-POS: degree-preserving vertex-anchored strictly improving swaps."""
     current = {"n": graph["n"], "edges": list(graph["edges"])}
     reference = graph_metrics(current)
     d = Draws(_label(NAMESPACE, "planted", fx["bits"], fx["seed"], kappa))
     proposals = 0
-    while reference["C34"] < 1 and proposals < 20_000:
-        # The full gate is still evaluated using the exact edge lists.  A
-        # proposal is accepted only if it strictly increases C34 and preserves
-        # the degree sequence; invalid proposals are simply rejected.
+    while reference["C34"] < target_c34 and proposals < 20_000:
+        # The full gate is evaluated using the exact edge lists.  A proposal
+        # is accepted only if it strictly increases C34 and preserves every
+        # vertex degree; invalid proposals are simply rejected.
         if not current["edges"]:
             break
         i = d.uniform(len(current["edges"]))
         o = d.uniform(2)
         u, v = current["edges"][i]
         a, b = (u, v) if o == 0 else (v, u)
-        candidates = [k for k, (x, y) in enumerate(current["edges"])
-                      if k != i and a in (x, y) and b not in (x, y) and x != y]
+        candidates = []
+        for k, (x, y) in enumerate(current["edges"]):
+            if k == i or x == y or b not in (x, y):
+                continue
+            c = y if x == b else x
+            if c not in {a, b}:
+                candidates.append((k, c))
         if not candidates:
             proposals += 1
             continue
-        j = candidates[d.uniform(len(candidates))]
-        x, y = current["edges"][j]
-        c = y if x == b else x
+        j, c = candidates[d.uniform(len(candidates))]
+        ka_candidates = [k for k, edge in enumerate(current["edges"])
+                         if k not in {i, j} and a in edge]
+        kc_candidates = [k for k, edge in enumerate(current["edges"])
+                         if k not in {i, j} and c in edge]
+        if not ka_candidates or not kc_candidates:
+            proposals += 1
+            continue
+        ka = ka_candidates[d.uniform(len(ka_candidates))]
+        kc = kc_candidates[d.uniform(len(kc_candidates))]
+        if ka == kc:
+            proposals += 1
+            continue
+        ka_u, ka_v = current["edges"][ka]
+        kc_u, kc_v = current["edges"][kc]
+        x = ka_v if ka_u == a else ka_u
+        y = kc_v if kc_u == c else kc_u
         trial = list(current["edges"])
-        trial[i] = (a, c)
-        trial[j] = (x if x != c else y, y if y != c else x)
+        trial[ka] = (a, c)
+        trial[kc] = (x, y)
         candidate = {"n": current["n"], "edges": trial}
         metric = graph_metrics(candidate)
         if degree_sequence(candidate) == degree_sequence(graph) and metric["C34"] > reference["C34"]:
             current, reference = candidate, metric
         proposals += 1
     return {"graph": current, "proposals": proposals, "metric": reference,
-            "reached": reference["C34"] >= 1}
+            "target_c34": target_c34, "reached": reference["C34"] >= target_c34}
+
+
+def audit_replay(curve: Curve, points: list[tuple[int, int]], fx: dict[str, Any],
+                 B: int, B2: int, Q, records: list[dict[str, Any]]) -> dict[str, Any]:
+    selected = 0
+    failures: list[dict[str, Any]] = []
+    certificates = 0
+    certificate_failures: list[int] = []
+    for record in records:
+        if record.get("outcome") in {"full", "lp1", "lp2"}:
+            certificates += 1
+            if not certificate_check(curve, fx, Q, record):
+                certificate_failures.append(record["j"])
+        label = _label(NAMESPACE, "audit", fx["bits"], fx["seed"], record["j"])
+        if protocol_hash(label) % 10 != 0:
+            continue
+        selected += 1
+        replay = relation_attempt(curve, points, fx, B, B2, Q, record["j"])
+        comparable = ("outcome", "relation", "n_decomp", "charged_group_ops")
+        if any(replay.get(key) != record.get(key) for key in comparable):
+            failures.append({"j": record["j"], "expected":
+                             {key: record.get(key) for key in comparable},
+                             "replayed": {key: replay.get(key) for key in comparable}})
+    return {"selected": selected, "replayed": selected,
+            "certificates_checked": certificates,
+            "certificate_failures": certificate_failures,
+            "replay_failures": failures,
+            "passed": not certificate_failures and not failures}
 
 
 def control_summary(graph: dict[str, Any], records: list[dict[str, Any]], curve: Curve,
-                    fx: dict[str, Any], Q, kappa: str, i: int) -> dict[str, Any]:
+                    points: list[tuple[int, int]], fx: dict[str, Any], Q,
+                    B: int, B2: int, kappa: str, i: int) -> dict[str, Any]:
     defects = []
-    if graph_metrics(graph)["cycle_rank"] != gf2_cycle_rank(graph):
+    metrics = graph_metrics(graph)
+    if metrics["cycle_rank"] != gf2_cycle_rank(graph):
         defects.append("K-ID cycle_rank/GF(2) mismatch")
-    if degree_sequence(rewire(graph, fx, kappa, i)) != degree_sequence(graph):
+    rewire_graph = rewire(graph, fx, kappa, i)
+    if degree_sequence(rewire_graph) != degree_sequence(graph):
         defects.append("K-ID rewire changed degree sequence")
-    if any(not certificate_check(curve, fx, Q, record) for record in records):
-        defects.append("K-AUD relation certificate failure")
+    if metrics["M4"] is None or metrics["M4"] > metrics["cycle_rank"]:
+        defects.append("K-ID M4 rank unavailable or exceeds cycle rank")
+    audit = audit_replay(curve, points, fx, B, B2, Q, records)
+    if not audit["passed"]:
+        defects.append("K-AUD certificate or replay failure")
     forest = forest_graph(graph)
     if graph_metrics(forest)["C34"] != 0:
         defects.append("K-FALSE-1 forest contains a short cycle")
-    return {"K-ID": not any("K-ID" in x for x in defects),
-            "K-AUD": not any("K-AUD" in x for x in defects),
-            "K-FALSE-1": not any("K-FALSE-1" in x for x in defects),
-            "defects": defects}
+    return {"K-ID": not any(x.startswith("K-ID") for x in defects),
+            "K-AUD": not any(x.startswith("K-AUD") for x in defects),
+            "K-FALSE-1": not any(x.startswith("K-FALSE-1") for x in defects),
+            "audit": audit, "defects": defects}
 
 
 def pooled_s5(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -917,6 +1271,113 @@ def pooled_s5(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "cells": n}
 
 
+def er_reference(graph: dict[str, Any], fx: dict[str, Any], kappa: str,
+                 replicate: int) -> dict[str, Any]:
+    """N-2 simple ER reference, retaining zero-cycle replicates."""
+    d = Draws(_label(NAMESPACE, "er", replicate, fx["bits"], fx["seed"], kappa))
+    target = len({tuple(sorted(edge)) for edge in graph["edges"] if edge[0] != edge[1]})
+    edges: set[tuple[int, int]] = set()
+    while len(edges) < target:
+        u, v = d.uniform(graph["n"]), d.uniform(graph["n"])
+        if u == v:
+            continue
+        edges.add((u, v) if u < v else (v, u))
+    return graph_metrics({"n": graph["n"], "edges": sorted(edges)})
+
+
+def _mean(values: Iterable[float]) -> float | None:
+    values = list(values)
+    return statistics.fmean(values) if values else None
+
+
+def _sample_sd(values: Iterable[float]) -> float | None:
+    values = list(values)
+    return statistics.stdev(values) if len(values) > 1 else (0.0 if values else None)
+
+
+def _ols_slope(points: list[tuple[float, float]]) -> dict[str, Any]:
+    if len(points) < 2:
+        return {"slope": None, "intercept": None, "t_interval_95": None,
+                "n": len(points)}
+    xs = [x for x, _ in points]
+    ys = [y for _, y in points]
+    xm, ym = statistics.fmean(xs), statistics.fmean(ys)
+    denominator = sum((x - xm) ** 2 for x in xs)
+    if denominator == 0:
+        return {"slope": None, "intercept": None, "t_interval_95": None,
+                "n": len(points)}
+    slope = sum((x - xm) * (y - ym) for x, y in points) / denominator
+    intercept = ym - slope * xm
+    residuals = [y - (intercept + slope * x) for x, y in points]
+    if len(points) > 2:
+        se = math.sqrt(sum(x * x for x in residuals) / (len(points) - 2) / denominator)
+        interval = [slope - 4.302653 * se, slope + 4.302653 * se]
+    else:
+        interval = None
+    return {"slope": slope, "intercept": intercept,
+            "t_interval_95": interval, "n": len(points)}
+
+
+def pooled_analysis(rows: list[dict[str, Any]], control_results: dict[str, Any]) -> dict[str, Any]:
+    primary = [row for row in rows if row["primary"]]
+    s5 = pooled_s5(primary)
+    by_kappa = {k: pooled_s5([row for row in primary if row["kappa"] == k])
+                for k in ("1", "2")}
+    by_size = {str(bits): pooled_s5([row for row in primary if row["bits"] == bits])
+               for bits in (16, 20, 24, 28)}
+    delta_short: dict[str, Any] = {}
+    for bits in (16, 20, 24, 28):
+        values = []
+        for row in primary:
+            if row["bits"] != bits:
+                continue
+            mean_c = _mean(row["rewire_c34"])
+            if mean_c is not None:
+                values.append(math.log((row["treatment"]["C34"] + 1) / (mean_c + 1)) /
+                              math.log(row["L"]))
+        delta_short[str(bits)] = {"mean": _mean(values), "values": values}
+    continuity = []
+    for row in rows:
+        if row["kappa"] != "2":
+            continue
+        mean_rank = _mean(row["rewire_cycle_rank"])
+        observed_rank = row["treatment"]["cycle_rank"]
+        if mean_rank and observed_rank:
+            continuity.append(math.log(observed_rank / mean_rank, row["L"]))
+    trend_points = []
+    for row in primary:
+        if row["kappa"] != "2":
+            continue
+        mean_c = _mean(row["rewire_c34"])
+        if mean_c is not None:
+            trend_points.append((float(row["bits"]),
+                                 math.log((row["treatment"]["C34"] + 1) / (mean_c + 1))))
+    excess = []
+    low_information = []
+    for row in rows:
+        mean_c = _mean(row["rewire_c34"])
+        sd_c = _sample_sd(row["rewire_c34"])
+        if mean_c is not None and sd_c and sd_c > 0:
+            excess.append({"cell_id": row["cell_id"],
+                           "standardized_excess": (row["treatment"]["C34"] - mean_c) / sd_c})
+        if mean_c is not None and mean_c < 1:
+            low_information.append(row["cell_id"])
+    expected_max = None
+    if len(excess) > 0:
+        n = len(excess)
+        expected_max = statistics.NormalDist().inv_cdf((n - 0.375) / (n + 0.25))
+    return {"S-5": s5, "S-8": {"by_kappa": by_kappa, "by_size": by_size},
+            "S-6_delta_short": delta_short,
+            "S-7_v4_continuity": {"values": continuity, "mean": _mean(continuity),
+                                   "sd": _sample_sd(continuity)},
+            "S-9_trend": _ols_slope(trend_points),
+            "tail_checks": {"largest_standardized_excess": max(excess,
+                              key=lambda item: item["standardized_excess"], default=None),
+                            "expected_max_normal": expected_max,
+                            "low_information_cells": low_information},
+            "controls": control_results}
+
+
 def rewire(graph: dict[str, Any], fixture: dict[str, Any], kappa: str, i: int) -> dict[str, Any]:
     stubs = [x for e in graph["edges"] for x in e]
     prefix = _label(NAMESPACE, "rewire", i, fixture["bits"], fixture["seed"], kappa)
@@ -930,44 +1391,317 @@ def rewire(graph: dict[str, Any], fixture: dict[str, Any], kappa: str, i: int) -
     raise RuntimeError("N-1 exhausted 100000 conditioned rewire tries")
 
 
-def run_scientific(plan: dict[str, Any], run_dir: Path, fixture_ids: list[str] | None = None) -> dict[str, Any]:
-    """Run the admitted generator/statistics path.
+def run_scientific(plan: dict[str, Any], run_dir: Path,
+                   fixture_ids: list[str] | None = None,
+                   argv: Iterable[str] | None = None) -> dict[str, Any]:
+    """Run the admitted generator and emit the complete frozen run package.
 
-    This function is intentionally unreachable without the driver admission
-    checks.  It writes only beneath a caller-provided RUN-* directory.
+    This function is unreachable from readiness-only operation.  It creates a
+    RUN directory only after the caller has passed admission, C-7 and M-1.
+    Every phase writes incrementally so a procedure defect, signal, or RSS
+    failure leaves partial raw artifacts plus an explicit final status.
     """
     selected = {x["id"]: x for x in plan["fixtures"]}
     ids = fixture_ids or list(selected)
+    if set(ids) != set(selected):
+        raise ProcedureDefect("scientific run must cover all 12 fixtures and 48 cells")
     run_dir.mkdir(parents=True, exist_ok=False)
-    results = []
-    for fid in ids:
-        item = selected[fid]
-        fx = {k: item[k] for k in ("id", "bits", "seed", "p", "a", "b", "N", "G")}
-        p5 = item["p5"]
-        curve = Curve(fx["p"], fx["a"], fx["b"])
-        k = protocol_uniform(_label(NAMESPACE, "target", fx["bits"], fx["seed"]), fx["N"])
-        Q = curve.mul(k, tuple(fx["G"]))
-        S, fb, lp = scan_points(curve, p5["B"], p5["B2"])
-        max_attempts = p5["A_2"]
-        records = [relation_attempt(curve, S, fx, p5["B"], p5["B2"], Q, j) for j in range(max_attempts)]
-        for kappa in KAPPAS:
-            A = item["budgets"][kappa]
-            graph = graph_from_records(records[:A], p5["B"])
-            observed = graph_metrics(graph)
-            nulls = []
-            for i in range(MAX_REWIRE):
-                rg = rewire(graph, fx, kappa, i)
-                nulls.append({**graph_metrics(rg), "tries": rg["tries"]})
-            results.append({"fixture_id": fid, "kappa": kappa, "attempts": A,
-                            "target_k": k, "Q": list(Q) if Q is not None else None,
-                            "scan_size": len(S), "factor_base_classes": len(fb),
-                            "large_prime_classes": len(lp), "treatment": observed,
-                            "rewire": nulls, "records": records[:A]})
-    output = {"experiment_id": EXPERIMENT_ID, "status": "completed_unanalysed",
-              "protocol_label_draws_performed": True, "cells": results,
-              "implementation": str(Path(__file__).relative_to(REPO_ROOT))}
-    (run_dir / "raw-result.json").write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
-    return output
+    (run_dir / "attempts").mkdir()
+    (run_dir / "cells").mkdir()
+    (run_dir / "provenance").mkdir()
+    stdout_path, stderr_path = run_dir / "stdout.log", run_dir / "stderr.log"
+    stdout_path.write_text("", encoding="utf-8")
+    stderr_path.write_text("", encoding="utf-8")
+    environment = dependency_versions()
+    machine = machine_readings(REPO_ROOT)
+    json_write(run_dir / "environment.json", environment)
+    json_write(run_dir / "provenance/resource.json", {
+        "machine_readings": machine, "rss_limit_bytes": RSS_LIMIT_BYTES,
+        "peak_rss_bytes_at_start": peak_rss_bytes(),
+    })
+    (run_dir / "command.txt").write_text(command_text(argv), encoding="utf-8")
+    failures: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
+    accounting: dict[str, Any] = {"fixtures": {}, "certificates_checked": 0,
+                                   "certificate_failures": [], "audit_selected": 0,
+                                   "audit_failures": [], "charged_group_ops": 0}
+    control_results: dict[str, Any] = {}
+    start = time.monotonic()
+    status = "running"
+    watchdog: RSSWatchdog | None = None
+
+    def log(path: Path, message: str) -> None:
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(message.rstrip() + "\n")
+
+    def record_failure(failure_class: str, phase: str, exc: BaseException) -> None:
+        failures.append({"failure_class": failure_class, "phase": phase,
+                         "type": type(exc).__name__, "message": str(exc),
+                         "traceback": traceback.format_exc(),
+                         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat()})
+        log(stderr_path, f"{failure_class} [{phase}]: {type(exc).__name__}: {exc}")
+
+    def initial_manifest() -> dict[str, Any]:
+        fixture_receipt = (REPO_ROOT / "coordination/goals/GOAL-RELN-001/batches/BATCH-79a580/archives/TASK-20261001-93c38a/snapshot-receipt.json")
+        fixture_receipt_path = fixture_receipt if fixture_receipt.exists() else AMENDMENT_PATH
+        declared_hashes = {}
+        for relative in (
+            "experiments/EXP-RELN-dc761f/implementation/run_reln.py",
+            "experiments/EXP-RELN-dc761f/implementation/check.py",
+            "experiments/EXP-RELN-dc761f/implementation/implementation.md",
+            "experiments/EXP-RELN-dc761f/implementation/implementation_report.yaml",
+            "experiments/EXP-RELN-dc761f/trial-plan-v1.json",
+        ):
+            path = REPO_ROOT / relative
+            if path.exists():
+                declared_hashes[relative] = sha256_file(path)
+        return {"run": {"id": run_dir.name, "experiment_id": EXPERIMENT_ID,
+                         "status": status, "code": {"implementation": str(Path(__file__).relative_to(REPO_ROOT)),
+                         "implementation_file_hashes": declared_hashes},
+                         "environment": "environment.json", "inputs": {
+                             "protocol_sha256": protocol_hashes(REPO_ROOT),
+                             "fixture_receipt_sha256": sha256_file(fixture_receipt_path),
+                             "fixture_receipt_path": str(fixture_receipt_path.relative_to(REPO_ROOT)),
+                             "trial_plan_sha256": sha256_file(PLAN_PATH),
+                             "fixtures": ids},
+                         "timing": {"started_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                                   "wall_seconds": time.monotonic() - start},
+                         "result": {"validity_gate": "pending", "protocol_label_draws_performed": True}},
+                "protocol_sha256": protocol_hashes(REPO_ROOT),
+                "fixture_receipt_sha256": sha256_file(fixture_receipt_path),
+                "implementation_file_hashes": declared_hashes,
+                "artifacts": list(REQUIRED_RUN_ARTIFACTS),
+                "failure_provenance": "provenance/failures.json"}
+
+    yaml_write(run_dir / "manifest.yaml", initial_manifest())
+    try:
+        watchdog = RSSWatchdog()
+        watchdog.start()
+        log(stdout_path, f"started {run_dir.name}; M-2 RSS watchdog active")
+        for fid in ids:
+            item = selected[fid]
+            fx = {k: item[k] for k in ("id", "bits", "seed", "p", "a", "b", "N", "G")}
+            p5 = item["p5"]
+            curve = Curve(fx["p"], fx["a"], fx["b"])
+            k = protocol_uniform(_label(NAMESPACE, "target", fx["bits"], fx["seed"]), fx["N"])
+            Q = curve.mul(k, tuple(fx["G"]))
+            S, fb, lp = scan_points(curve, p5["B"], p5["B2"])
+            attempts_path = run_dir / "attempts" / f"{fid}.jsonl"
+            attempts_path.write_text("", encoding="utf-8")
+            records: list[dict[str, Any]] = []
+            for j in range(p5["A_2"]):
+                watchdog.check()
+                record = relation_attempt(curve, S, fx, p5["B"], p5["B2"], Q, j)
+                records.append(record)
+                with attempts_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(record, sort_keys=True) + "\n")
+                accounting["charged_group_ops"] += record["charged_group_ops"]
+            fixture_audit = {"certificates_checked": 0, "certificate_failures": [],
+                             "audit_selected": 0, "audit_failures": []}
+            fixture_rows: list[dict[str, Any]] = []
+            for kappa in KAPPAS:
+                watchdog.check()
+                cell_start = time.monotonic()
+                A = item["budgets"][kappa]
+                graph = graph_from_records(records[:A], p5["B"])
+                observed = graph_metrics(graph)
+                if observed["M4"] is None:
+                    raise ProcedureDefect(f"{fid}/{kappa}: M4 exceeded memory-protection boundary")
+                rewires: list[dict[str, Any]] = []
+                rewire_c34: list[int] = []
+                rewire_cycle_rank: list[int] = []
+                for i in range(MAX_REWIRE):
+                    watchdog.check()
+                    rg = rewire(graph, fx, kappa, i)
+                    if degree_sequence(rg) != degree_sequence(graph):
+                        raise ProcedureDefect(f"{fid}/{kappa}: K-ID rewire degree mismatch")
+                    rm = graph_metrics(rg)
+                    if rm["M4"] is None or rm["M4"] > rm["cycle_rank"]:
+                        raise ProcedureDefect(f"{fid}/{kappa}: rewire M4 rank unavailable or exceeds cycle rank")
+                    rewires.append({**rm, "tries": rg["tries"]})
+                    rewire_c34.append(rm["C34"])
+                    rewire_cycle_rank.append(rm["cycle_rank"])
+                ers = [er_reference(graph, fx, kappa, i) for i in range(MAX_ER)]
+                summary = control_summary(graph, records[:A], curve, S, fx, Q,
+                                          p5["B"], p5["B2"], kappa, 0)
+                audit = summary["audit"]
+                fixture_audit["certificates_checked"] += audit["certificates_checked"]
+                fixture_audit["certificate_failures"].extend(audit["certificate_failures"])
+                fixture_audit["audit_selected"] += audit["selected"]
+                fixture_audit["audit_failures"].extend(audit["replay_failures"])
+                if summary["defects"]:
+                    raise ProcedureDefect(f"{fid}/{kappa}: {summary['defects']}")
+                c_sub = ("ineligible" if observed["V"] <= 40 else
+                         "certified" if (observed["giant_component_fraction"] < 0.05 and
+                                          observed["cycle_rank"] <=
+                                          2 * observed["components_with_cycle"]) else
+                         "not_certified")
+                forest = forest_graph(graph)
+                row = {"cell_id": f"{fid}-k{kappa.replace('/', '')}", "fixture_id": fid,
+                       "bits": fx["bits"], "seed": fx["seed"], "kappa": kappa,
+                       "primary": kappa in ("1", "2"), "attempts": A, "L": p5["L"],
+                       "target_k": k, "Q": list(Q) if Q is not None else None,
+                       "scan_size": len(S), "factor_base_classes": len(fb),
+                       "large_prime_classes": len(lp), "treatment": observed,
+                       "C-SUB": c_sub,
+                       "graph": {"n": graph["n"], "edges": [list(edge) for edge in graph["edges"]],
+                                 "lp_x": graph.get("lp_x", [])},
+                       "statistics": {"S-1": {"C3": observed["C3"], "C4": observed["C4"],
+                                                "C34": observed["C34"]},
+                                      "S-2": {"C1": observed["C1"], "C2": observed["C2"]},
+                                      "S-3": {"M3": observed["M3"], "M4": observed["M4"]},
+                                      "S-4": {key: observed[key] for key in
+                                              ("V", "E", "components", "cycle_rank",
+                                               "components_with_cycle",
+                                               "giant_component_fraction", "root_degree")}},
+                       "rewire": rewires, "rewire_c34": rewire_c34,
+                       "rewire_cycle_rank": rewire_cycle_rank,
+                       "er": ers, "forest": graph_metrics(forest),
+                       "controls": {"K-ID": summary["K-ID"], "K-AUD": summary["K-AUD"],
+                                    "K-FALSE-1": summary["K-FALSE-1"],
+                                    "audit": audit},
+                       "timing": {"wall_seconds": time.monotonic() - cell_start,
+                                  "peak_rss_bytes": max(peak_rss_bytes(), watchdog.peak_rss_bytes)},
+                       "records_file": f"attempts/{fid}.jsonl"}
+                rows.append(row)
+                fixture_rows.append(row)
+                json_write(run_dir / "cells" / f"{row['cell_id']}.json", row)
+            accounting["fixtures"][fid] = fixture_audit
+            accounting["fixtures"][fid]["charged_group_ops_over_sqrt_q"] = (
+                sum(record["charged_group_ops"] for record in records) / math.sqrt(fx["N"]))
+            accounting["certificates_checked"] += fixture_audit["certificates_checked"]
+            accounting["certificate_failures"].extend(fixture_audit["certificate_failures"])
+            accounting["audit_selected"] += fixture_audit["audit_selected"]
+            accounting["audit_failures"].extend(fixture_audit["audit_failures"])
+
+        primary = [row for row in rows if row["primary"]]
+        planted_rows = []
+        forest_rows = []
+        for row in primary:
+            fx = selected[row["fixture_id"]]
+            # Reconstruct the treatment graph from the kept attempt records;
+            # this keeps controls independent of a second protocol draw.
+            attempts = []
+            for line in (run_dir / row["records_file"]).read_text().splitlines():
+                attempts.append(json.loads(line))
+            graph = graph_from_records(attempts[:row["attempts"]], fx["p5"]["B"])
+            mu_c = _mean(row["rewire_c34"]) or 0.0
+            planted = planted_positive(graph, fx, row["kappa"], math.ceil(1.5 * mu_c))
+            planted_rows.append({"kappa": row["kappa"], "primary": True,
+                                 "treatment": planted["metric"],
+                                 "rewire_c34": row["rewire_c34"]})
+            forest_graph_value = forest_graph(graph)
+            forest_rows.append({"kappa": row["kappa"], "primary": True,
+                                "treatment": graph_metrics(forest_graph_value),
+                                "rewire_c34": [
+                                    graph_metrics(rewire_with_prefix(
+                                        forest_graph_value,
+                                        _label(NAMESPACE, "forestnull", i,
+                                               fx["bits"], fx["seed"], row["kappa"])
+                                    ))["C34"] for i in range(MAX_REWIRE)]})
+            row["controls"]["K-POS"] = {"target_c34": planted["target_c34"],
+                                          "reached": planted["reached"],
+                                          "proposals": planted["proposals"],
+                                          "metric": planted["metric"]}
+            row["controls"]["K-FALSE-1"] = {"metric": graph_metrics(forest_graph_value)}
+            json_write(run_dir / "cells" / f"{row['cell_id']}.json", row)
+
+        pseudo_enriched = 0
+        pseudo_results = []
+        for i in range(MAX_PSEUDO):
+            pseudo_rows = []
+            for row in primary:
+                fx = selected[row["fixture_id"]]
+                attempts = [json.loads(line) for line in
+                            (run_dir / row["records_file"]).read_text().splitlines()]
+                graph = graph_from_records(attempts[:row["attempts"]], fx["p5"]["B"])
+                pseudo = pseudo_treatment(graph, fx, row["kappa"], i)
+                pseudo_rows.append({"kappa": row["kappa"], "primary": True,
+                                    "treatment": graph_metrics(pseudo),
+                                    "rewire_c34": row["rewire_c34"]})
+            pseudo_s5 = pooled_s5(pseudo_rows)
+            pseudo_results.append({"index": i, "S-5": pseudo_s5})
+            if pseudo_s5.get("verdict") == "ENRICHED":
+                pseudo_enriched += 1
+        control_results = {
+            "K-POS": {"S-5": pooled_s5(planted_rows),
+                      "all_cells_reached_target": all(row["controls"]["K-POS"]["reached"]
+                                                       for row in primary)},
+            "K-FALSE-1": {"S-5": pooled_s5(forest_rows)},
+            "K-FALSE-2": {"replicates": pseudo_results,
+                          "enriched_count": pseudo_enriched,
+                          "pass": pseudo_enriched <= 4},
+            "K-ID": {"pass": all(row["controls"]["K-ID"] for row in rows)},
+            "K-AUD": {"pass": all(row["controls"]["K-AUD"] for row in rows),
+                      "certificates_checked": accounting["certificates_checked"],
+                      "audit_selected": accounting["audit_selected"]},
+        }
+        control_results["K-POS"]["pass"] = (
+            control_results["K-POS"]["S-5"].get("verdict") == "ENRICHED" and
+            control_results["K-POS"]["all_cells_reached_target"])
+        control_results["K-FALSE-1"]["pass"] = (
+            control_results["K-FALSE-1"]["S-5"].get("verdict") != "ENRICHED")
+        gate = (len(rows) == 48 and all(control_results[key]["pass"]
+                                        for key in ("K-POS", "K-FALSE-1", "K-FALSE-2",
+                                                    "K-ID", "K-AUD")))
+        pooled = pooled_analysis(rows, control_results)
+        json_write(run_dir / "pooled-analysis.json", pooled)
+        json_write(run_dir / "accounting-certificate.json", {
+            "accounting": accounting, "certificate_replay": {
+                "certificates_checked": accounting["certificates_checked"],
+                "certificate_failures": accounting["certificate_failures"],
+                "audit_selected": accounting["audit_selected"],
+                "audit_failures": accounting["audit_failures"]},
+            "controls": control_results})
+        if not gate:
+            raise ProcedureDefect("all-controls/all-cells validity gate failed")
+        status = "completed_valid"
+    except ProcedureDefect as exc:
+        status = "invalid"
+        record_failure("invalid_measurement", "validity_gate", exc)
+    except RSSWatchdogFailure as exc:
+        status = "failed_infrastructure"
+        record_failure("resource_exhaustion", "M-2", exc)
+    except SignalFailure as exc:
+        status = "failed_infrastructure"
+        record_failure("infrastructure_error", "signal", exc)
+    except Exception as exc:
+        status = "failed_infrastructure"
+        record_failure("exception", "scientific_path", exc)
+    finally:
+        if watchdog is not None:
+            try:
+                watchdog.stop()
+            except Exception as exc:
+                record_failure("infrastructure_error", "M-2-stop", exc)
+        if not (run_dir / "pooled-analysis.json").exists():
+            json_write(run_dir / "pooled-analysis.json", {"status": status,
+                       "partial_cells": len(rows), "controls": control_results})
+        if not (run_dir / "accounting-certificate.json").exists():
+            json_write(run_dir / "accounting-certificate.json", {"accounting": accounting,
+                       "certificate_replay": {"partial": True}, "controls": control_results})
+        json_write(run_dir / "provenance/failures.json", {"status": status, "failures": failures})
+        json_write(run_dir / "provenance/git.json", git_provenance(REPO_ROOT))
+        json_write(run_dir / "provenance/resource.json", {
+            "machine_readings": machine, "rss_limit_bytes": RSS_LIMIT_BYTES,
+            "peak_rss_bytes": max(peak_rss_bytes(), watchdog.peak_rss_bytes if watchdog else 0),
+            "watchdog_installed": watchdog is not None,
+            "watchdog_failure": getattr(watchdog, "_failure", None) if watchdog else None,
+        })
+        log(stdout_path, f"finished status={status} cells={len(rows)}")
+        final_manifest = initial_manifest()
+        final_manifest["run"]["status"] = status
+        final_manifest["run"]["timing"]["finished_at"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        final_manifest["run"]["timing"]["wall_seconds"] = time.monotonic() - start
+        final_manifest["run"]["result"] = {
+            "validity_gate": "pass" if status == "completed_valid" else "fail",
+            "cells_completed": len(rows), "controls": control_results,
+            "protocol_label_draws_performed": True,
+            "failure_count": len(failures)}
+        yaml_write(run_dir / "manifest.yaml", final_manifest)
+    return {"experiment_id": EXPERIMENT_ID, "status": status,
+            "protocol_label_draws_performed": True, "cells_completed": len(rows),
+            "failures": failures, "run_dir": str(run_dir)}
 
 
 def readiness(root: Path = REPO_ROOT, plan_path: Path = PLAN_PATH) -> dict[str, Any]:
@@ -1041,7 +1775,7 @@ def main(argv: list[str] | None = None) -> int:
         print("REFUSED: TMPDIR/M-1 admission is not satisfied", file=sys.stderr)
         return 3
     try:
-        result = run_scientific(plan, run_dir)
+        result = run_scientific(plan, run_dir, argv=(argv if argv is not None else sys.argv))
     except MemoryError:
         print("failed_infrastructure: resource_exhaustion (4 GiB RSS watchdog)", file=sys.stderr)
         return 8

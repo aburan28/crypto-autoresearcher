@@ -1,5 +1,5 @@
 schema: crypto.autoresearch.implementation_report.v1
-task_id: TASK-20261011-e03266
+task_id: TASK-20261011-e79680
 experiment_id: EXP-RELN-dc761f
 implementation_commit: UNCOMMITTED_WORKTREE
 owner: executor
@@ -18,20 +18,37 @@ files:
   - path: experiments/EXP-RELN-dc761f/trial-plan-v1.json
     sha256: computed in the later Coordinator snapshot receipt
 commands:
-  - python3 -B -c 'import run_reln; run_reln.write_plan()'
-  - env TMPDIR=<declared writable directory> python3 -B implementation/check.py
-  - python3 -B implementation/run_reln.py --readiness
+  - PYTHONDONTWRITEBYTECODE=1 python3 -B -c 'import run_reln; run_reln.write_plan()'
+  - PYTHONDONTWRITEBYTECODE=1 TMPDIR=/private/tmp python3 -B experiments/EXP-RELN-dc761f/implementation/check.py
+  - PYTHONDONTWRITEBYTECODE=1 TMPDIR=/private/tmp python3 -B experiments/EXP-RELN-dc761f/implementation/run_reln.py --readiness --plan experiments/EXP-RELN-dc761f/trial-plan-v1.json --repo-root .
+  - PYTHONDONTWRITEBYTECODE=1 python3 -B -c 'import ast; ast.parse(open("experiments/EXP-RELN-dc761f/implementation/run_reln.py", encoding="utf-8").read())'
+  - git diff --check -- experiments/EXP-RELN-dc761f/implementation experiments/EXP-RELN-dc761f/trial-plan-v1.json
 results:
   runner_status: implementation_ready_no_scientific_execution
   execution_state: ready
   protocol_label_draws_performed: false
   scientific_runs_performed: 0
   run_directories_created: []
+  f1_fixtures: preserved_exactly
   f2_fixture_values: exact amendment match
   p5_budget_values: exact frozen match
+  artifact_contract: complete
+  validity_gate: complete_all_48_cells_and_K_POS_K_FALSE_1_K_FALSE_2_K_ID_K_AUD
+  certificate_replay: complete_L_8_selected_attempts_plus_all_kept_relations
+  self_checks:
+    static_source_contract: pass
+    plan_binding: pass
+    machine_fail_closed_injected_fields: pass
+    watchdog_injected_sampler_failure: pass
+    pooled_analysis_without_protocol_draws: pass
+    no_protocol_draw_readiness: pass
+    absent_admission_refusal: pass
+    readiness_command: pass
+    diff_check: pass
 machine_protection:
   C-7: implemented fail-closed
   M-1: implemented fail-closed
+  M-2: installed before first protocol draw; fail-closed under sampler or limit failure
   rss_limit_gib: 4
   workers: 1
   nice: 10
@@ -40,15 +57,18 @@ admission:
   current_decision: DEC-20261011-09f449
   decision_effect: hold_approval
   execution_admission: false
-  absent_admission_refusal: required and checked
+  absent_admission_refusal: preserved_and_checked
 protocol_deviations: []
 observations: []
-anomalies: []
+anomalies:
+  - class: infrastructure_error
+    scope: self_check_environment
+    detail: /tmp could not create a temporary here-document because the host volume was full; checks used /private/tmp and did not run a scientific path
 executor_assessment:
   protocol_complete: true
   data_quality: good
   requires_rerun: false
-  note: implementation/readiness checks only; no scientific run exists to rerun
+  note: implementation and readiness checks only; no scientific run or protocol-labelled draw exists
 impediments:
   - class: admission
     reason: DEC-20261011-09f449 withholds approval and execution admission
