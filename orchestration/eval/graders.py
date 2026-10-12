@@ -118,13 +118,15 @@ def field_equals(context: GradingContext, spec: dict[str, Any]) -> Verdict:
     and a field to put it in, so scoring needs no interpretation.
     """
     import yaml
+
+    from orchestration import fast_yaml
     path = context.sandbox / spec["path"]
     if not path.is_file():
         return Verdict("field_equals", False, f"{spec['path']} missing", critical=True)
     try:
         text = path.read_text(encoding="utf-8")
         document = (json.loads(text) if path.suffix == ".json"
-                    else yaml.safe_load(text))
+                    else fast_yaml.safe_load(text))
     except (json.JSONDecodeError, yaml.YAMLError) as exc:
         return Verdict("field_equals", False, f"unparseable: {exc}", critical=True)
     actual = document
@@ -167,11 +169,13 @@ def no_scope_violations(context: GradingContext, spec: dict[str, Any]) -> Verdic
 @grader("yaml_parses")
 def yaml_parses(context: GradingContext, spec: dict[str, Any]) -> Verdict:
     import yaml
+
+    from orchestration import fast_yaml
     path = context.sandbox / spec["path"]
     if not path.is_file():
         return Verdict("yaml_parses", False, f"{spec['path']} missing", critical=True)
     try:
-        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        document = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as exc:
         return Verdict("yaml_parses", False, f"invalid YAML: {exc}", critical=True)
     missing = [key for key in spec.get("required_keys", [])

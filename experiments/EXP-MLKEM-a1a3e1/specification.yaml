@@ -1,0 +1,390 @@
+# =============================================================================
+# EXP-MLKEM-a1a3e1 — version 1, approved by DEC-20261006-fa4684.
+# Frozen attribution control for IDEA-20261005-0e9abf. A bit gap is assigned
+# to coefficient isometry only when the ring cell moves by at least 2 bits
+# and the plain LWE cell stays under 1 bit. The same gap on plain LWE is
+# not an isometry discount. No attack. No exponent. No run in this design.
+# Source idea IDEA-20261005-0e9abf is already on origin/main.
+# =============================================================================
+experiment:
+  id: EXP-MLKEM-a1a3e1
+  hypothesis_id: H-MLKEM-201e11
+  question_id: RQ-MLKEM-003
+  source_idea: IDEA-20261005-0e9abf
+  goal_id: null
+  version: 1
+  title: >-
+    Toy attribution of a coefficient-isometry bit gap against the same gap
+    on plain LWE, n=64, weight 8, q=3329
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-fa4684
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that an isometry discount exists, does not assert an attack, and does
+      not treat the reported 15-bit or 2–3-bit figures as verified.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide which observation the eight seeds support. The observation that
+    assigns a bit gap to coefficient isometry is a median gap of at least
+    2 bits on the ring cell together with a median gap under 1 bit on plain
+    LWE, in model ISO-CTRL-1, with no bit gap on the ideal cell. The
+    observation that shows the same gap on plain LWE is a median gap of at
+    least 2 bits on the plain LWE cell, and that observation means the gap
+    is not an isometry discount.
+
+  inputs:
+    n: 64
+    hamming_weight: 8
+    secret_coefficients: "{0,1}"
+    q: 3329
+    ring: Z[x]/(x^64+1)
+    plain_lwe_rows: 64
+    error: 0
+    error_note: >-
+      The admission predicate is an equality in the ring or in the matrix
+      equation. Noise is zero so the equality is algebraic. This is not an
+      error-distribution experiment.
+    symmetry:
+      maps: x |-> x^r for r odd, 0 < r < 128
+      expected_count: 64
+      count_rule: >-
+        Count the odd residues. If the count is not 64, the run is invalid.
+        Do not substitute a remembered group order.
+    model:
+      id: ISO-CTRL-1
+      expression: >-
+        cost_bits(cell, fold) = log2(binom(64, 8) / orbit_index(cell, fold))
+        + 0.292 * 40. orbit_index is 1 when fold is false. When fold is
+        true, orbit_index is the number of distinct images of the sampled
+        secret under the maps if the admission predicate holds, and 1 if
+        the predicate fails. gap_bits = cost_bits(cell, false) -
+        cost_bits(cell, true). The binomial and the constant 0.292 * 40
+        cancel, so gap_bits equals log2(orbit_index) when the predicate
+        holds and equals 0 when it fails. Report both cost_bits values.
+        If they fail to cancel to the gap within 1e-9, the run is invalid.
+      lattice_term_disclosure: >-
+        0.292 * 40 is a constant written into the expression so the model
+        has a lattice term to cancel. It is not the output of a BKZ
+        simulator, not a core-SVP estimate, and not a security level.
+      not_the_unread_paper: >-
+        ISO-CTRL-1 is this protocol's expression. It is not claimed to be
+        the cost model in KN-LIT-7663. That file was not opened.
+    cells:
+      S: >-
+        One public polynomial a of degree below 64 and one weight-8 secret.
+        Ring multiplication is modulo x^64+1 and modulo q.
+      U: >-
+        One 64 by 64 matrix A over Z/qZ and one weight-8 secret. No ring
+        multiplication is used to build the samples.
+      I: >-
+        No samples. Record the token absent for the bit gap. Record
+        not_returned for a log-unit certificate and for an approximation
+        factor. Compute t = exp(sqrt(64)) and t/2 and store them. Do not
+        convert t into bits.
+    seeds: [2026100601, 2026100602, 2026100603, 2026100604, 2026100605, 2026100606, 2026100607, 2026100608]
+    sampling:
+      secret: >-
+        Python random.Random(seed).sample(range(64), 8). Coefficients on
+        that support are 1. Sort the support before writing it down.
+      ring_a: >-
+        Python random.Random(seed + 10000).randrange(3329), sixty-four
+        coefficients, in index order.
+      plain_A: >-
+        Python random.Random(seed + 20000).randrange(3329), row-major,
+        64 rows of 64 entries.
+    forbidden:
+      - Do not claim an attack or an exponent improvement.
+      - Do not report a result as a statement about FIPS 203 or an ML-KEM category.
+      - Do not re-derive or target the 15-bit or 2–3-bit reports.
+      - Do not evaluate q / (0.004 * n ** 2.484). Do not import EXP-NTRU-fe4ae9. Do not merge this run with the NTRU dense-sublattice line.
+      - Do not score cell I in bits. Do not merge this run with the class-group or unit-lattice line.
+      - Do not change ISO-CTRL-1 after seeing a gap.
+
+  controls:
+    - id: plain-lwe
+      statement: >-
+        Cell U uses the same n, weight, q, seeds' secret draws, and the
+        same cost expression. There is no ring automorphism to admit.
+      pass_condition: >-
+        gap_U is computed from ISO-CTRL-1. The admission predicate is
+        checked, not assumed false.
+      on_fail: >-
+        If the predicate is skipped, the run is invalid. If the median
+        gap on U is at least 2 bits, that is a completed negative: the
+        gap is not an isometry discount.
+    - id: unfolded-ring
+      statement: >-
+        The same ring samples are costed with fold false. That charge uses
+        orbit index 1.
+      pass_condition: orbit_index(S, false) is 1 on every seed
+      on_fail: The run is invalid.
+    - id: ideal-cell-not-bits
+      statement: >-
+        Cell I records an approximation-factor threshold and does not
+        record a bit gap. exp(sqrt(64)) is about 2981. Half of that is
+        about 1490. Those sentences are thresholds, not bit discounts.
+      pass_condition: >-
+        isometry_bit_gap on I is the token absent, and log_unit_certificate
+        on I, S, and U is not_returned unless a certificate was actually
+        produced, in which case its approximation factor is stored and
+        still not converted to bits.
+      on_fail: >-
+        A numeric bit gap on I is the mislabel row or the lines-not-separated
+        row. It is not success.
+    - id: group-count
+      statement: The set of odd r with 0 < r < 128 has size 64.
+      pass_condition: the counted size is 64
+      on_fail: The run is invalid. Do not continue with a different count.
+
+  independent_variables:
+    - cell, one of S, U, I
+    - fold, true or false, on S and on U
+    - the seed, eight frozen values
+
+  metrics:
+    primary:
+      - id: median_gap_S
+        statement: Median of the eight per-seed gap_bits values on cell S.
+      - id: median_gap_U
+        statement: >-
+          Median of the eight per-seed gap_bits values on cell U. This is
+          the plain-LWE gap. At least 2 bits means the gap is not an
+          isometry discount.
+      - id: ideal_bit_gap
+        statement: The token absent, or a number if the mislabel occurred.
+    secondary:
+      - id: per_seed_gap_S
+        statement: Eight gap_bits values on S.
+      - id: per_seed_gap_U
+        statement: Eight gap_bits values on U.
+      - id: orbit_sizes
+        statement: For each seed, the number of distinct images of the secret.
+      - id: predicate_S
+        statement: Whether the ring identity held on that seed.
+      - id: predicate_U
+        statement: Whether the matrix identity held on that seed.
+      - id: spread_S
+        statement: Maximum gap on S minus minimum gap on S.
+      - id: spread_U
+        statement: Maximum gap on U minus minimum gap on U.
+      - id: exp_sqrt_n
+        statement: The computed value exp(sqrt(64)) and half of it.
+      - id: approximation_factor_I
+        statement: not_returned, or a positive real if a vector was produced.
+      - id: log_unit_certificate
+        statement: not_returned on I, S, and U, or a path if one was produced.
+      - id: ntru_ratio_evaluated
+        statement: false. The fatigue ratio is not computed.
+      - id: model_id
+        statement: ISO-CTRL-1, plus the expression copied from this file.
+
+  heuristic_under_test: HA-1
+  heuristic_under_test_note: >-
+    HA-1 is the attribution split. A median gap of at least 2 bits on U
+    falsifies it. A median gap under 1 bit on S falsifies the claim that
+    this toy point sees a discount. Neither is an exponent result.
+
+  preregistered_prediction:
+    quantity: >-
+      Median ISO-CTRL-1 gap on the ring cell, median gap on plain LWE, and
+      the absence of a bit gap on the ideal cell.
+    formula: >-
+      median_gap_S >= 2 and median_gap_U < 1 and ideal_bit_gap is absent.
+      gap_bits equals log2 of the measured orbit index when the admission
+      predicate holds, and equals 0 when it fails. A median_gap_U of at
+      least 2 is the negative that refuses the attribution. No numeral for
+      the orbit size is written here. The executor measures it.
+    source: >-
+      The thresholds are copied from IDEA-20261005-0e9abf before any run of
+      EXP-MLKEM-a1a3e1. The reported 15-bit and 2–3-bit figures are reports
+      in KN-OPEN-026, provenance internal for that open-problem note, and
+      they are not this formula. KN-LIT-7663 was not opened.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested parameters are n = 64, weight 8, q = 3329, and eight
+      seeds. A result here is not a result at a FIPS 203 parameter set,
+      not a result about ML-KEM categories, and not an exponent. No
+      extrapolation is authorized. RQ-MLKEM-003's sieve question is not
+      answered.
+    correspondence: >-
+      Direct samples at these parameters. No Deuring correspondence and
+      no sampling equivalence to a larger ring is used.
+
+  tail_checks:
+    - >-
+      There is no smoothness tail. The extreme check is the seed whose
+      orbit index is smallest on S, and the seed whose plain-LWE predicate
+      is true if any is. Report those seeds. A single seed with a large
+      plain-LWE gap does not by itself set the median. The median rule
+      still decides.
+
+  replication:
+    seeds:
+      - name: secret-and-samples
+        algorithm: Python random.Random as specified in inputs.sampling
+        seed: [2026100601, 2026100602, 2026100603, 2026100604, 2026100605, 2026100606, 2026100607, 2026100608]
+        note: >-
+          Eight seeds, not a draw from a larger population. Adding a ninth
+          seed is a protocol amendment.
+    independent_instances: 8
+    independent_instances_note: >-
+      Eight frozen secrets. Cell I is not a ninth instance. It has no secret.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 2
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not change the eight frozen
+      seeds. maximum_runs is 2 so one infrastructure retry may take a new
+      run id. Watch expiry is failed_infrastructure, never a negative
+      mathematical result.
+
+  procedure:
+    group: >-
+      Enumerate odd r with 0 < r < 128. Record the list and its length.
+    maps: >-
+      For a coefficient vector c of length 64, sigma_r(c) is the coefficient
+      vector of sum_i c_i x^{i*r} reduced modulo x^64+1, using x^64 = -1,
+      then modulo q. Represent q-1 as -1 when reporting a signed image, and
+      also keep the residue mod q for the identity check.
+    orbit: >-
+      The orbit of s is the set of distinct residue vectors sigma_r(s).
+      Its size is counted. Do not insert 64 without listing the images.
+    predicate_S: >-
+      For every odd r, check sigma_r(a) * sigma_r(s) ≡ sigma_r(a*s) in
+      Z[x]/(x^64+1) modulo q. The predicate holds only if every r passes.
+    predicate_U: >-
+      Interpret each row of A as a polynomial, apply sigma_r to each row
+      to form A', and set s' = sigma_r(s). The predicate holds only if
+      A' s' ≡ sigma_r(A s) as length-64 vectors modulo q, for every odd r,
+      where the right-hand side treats A s as a polynomial.
+    gap: >-
+      Apply the ISO-CTRL-1 expression. Record cost_bits for fold true and
+      fold false, the orbit index used, and gap_bits.
+    ideal: >-
+      Set isometry_bit_gap to absent. Set log_unit_certificate to
+      not_returned on I, S, and U. Set approximation_factor to
+      not_returned. Compute exp(sqrt(64)) with the runtime's math library
+      and store that float and its half. Do not start a unit-group
+      computation. If some other subroutine nevertheless returns a vector,
+      store its Euclidean length and do not divide it into a bit gap.
+    ntru: >-
+      Do not compute the fatigue ratio. Set ntru_ratio_evaluated to false.
+    mechanism_assignment:
+      - observation: >-
+          The group count is 64, both spreads are at most 2 bits, the
+          binomial and lattice terms cancel within 1e-9, median_gap_S is
+          at least 2, median_gap_U is under 1, ideal_bit_gap is absent,
+          and ntru_ratio_evaluated is false.
+        assigns_to: >-
+          Coefficient isometry, at this toy point only. The ring cell
+          moved and the plain LWE cell did not. This is not a bit-security
+          claim and not an exponent.
+      - observation: >-
+          The group count is 64, the cancellation check passed, and
+          median_gap_U is at least 2.
+        assigns_to: >-
+          Not an isometry discount. The same gap, at least 2 bits, is
+          present on plain LWE.
+      - observation: >-
+          The group count is 64, the cancellation check passed, and
+          median_gap_S is under 1.
+        assigns_to: >-
+          This toy design does not see an isometry discount. The unread
+          15-bit report is neither confirmed nor refuted.
+      - observation: >-
+          ideal_bit_gap is a number of at least 2 and an approximation
+          factor strictly below exp(sqrt(64))/2 was stored, with no orbit
+          folded on I.
+        assigns_to: >-
+          The lines are not separated. Do not call the ideal-cell number
+          an isometry discount.
+      - observation: >-
+          The only numeric separation stored for I is an approximation
+          factor at least exp(sqrt(64)), and a bit gap in the closed
+          interval from 2 to 15 was written for I.
+        assigns_to: >-
+          Mislabel of the class-group line. That factor is not a 2–15 bit
+          isometry discount.
+      - observation: >-
+          A spread is above 2 bits, or a median sits at 1 bit or above and
+          strictly below 2 bits, and no earlier row applies.
+        assigns_to: >-
+          Inconclusive. The 2-bit minimum effect is unreadable on that
+          cell. Not a negative and not a success.
+      - observation: >-
+          The group count is not 64, the cancellation check fails, the
+          watch expires, a dependency is missing, or the NTRU fatigue
+          ratio was evaluated.
+        assigns_to: >-
+          Invalid or failed_infrastructure. Not evidence for either reading.
+
+  stopping_rules:
+    - Stop when all eight seeds have gaps on S and on U, or an invalid row fires.
+    - Stop when cell I has recorded absent or a mislabel, the float exp(sqrt(64)), and the certificate token.
+    - Do not add a ninth seed, another q, another weight, or a FIPS parameter set.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing dependency is failed_infrastructure and is not evidence against the hypothesis.
+    - Inserting orbit index 64 without listing images invalidates the run.
+    - Evaluating the NTRU fatigue ratio invalidates the run.
+    - Using a cost expression other than ISO-CTRL-1, or editing the expression after seeing gaps, invalidates the run.
+    - Reporting success when median_gap_U is at least 2 bits invalidates the run.
+    - Converting cell I into a bit-security claim invalidates the success row. The mislabel row may still be recorded.
+
+  success_criterion: >-
+    The run is a success for the isometry attribution exactly when the
+    first row of mechanism_assignment holds. Any other completed assignment
+    is not this success. In particular the second row is a negative, so
+    success can fail, and the third row is also a negative.
+
+  falsification_criterion: >-
+    The attribution is falsified when the second row holds: the same gap
+    of at least 2 bits is on plain LWE, so it is not an isometry discount.
+    The claim that this toy design sees a discount is falsified when the
+    third row holds. The fourth and fifth rows falsify the separation of
+    lines. The sixth row falsifies nothing. The seventh row falsifies
+    nothing.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-a1a3e1/runs/RUN-*/manifest.yaml
+    - experiments/EXP-MLKEM-a1a3e1/runs/RUN-*/stdout.txt
+    - experiments/EXP-MLKEM-a1a3e1/runs/RUN-*/stderr.txt
+    - experiments/EXP-MLKEM-a1a3e1/runs/RUN-*/raw-result.json
+    - experiments/EXP-MLKEM-a1a3e1/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      model id ISO-CTRL-1, the eight secrets by support, orbit sizes,
+      predicate bits, both cost_bits values, gap_bits on S and on U,
+      medians, spreads, exp(sqrt(64)), ideal_bit_gap, approximation_factor,
+      log_unit_certificate on I, S, and U, and ntru_ratio_evaluated false.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row. It
+      does not change hypothesis status. It does not claim an attack.
+
+  assigned_to: executor
+  zero_runs_in_design: true

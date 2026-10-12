@@ -1,0 +1,65 @@
+name: progress-fidelity
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+# The pull_request event is the required check. Pushing a PR branch also fired
+# this workflow through `push` (every branch, no filter), so each PR push ran it
+# twice on a full checkout, and nothing cancelled a superseded run. Run on
+# pull_request and on main only, one run per ref, newest PR revision wins.
+concurrency:
+  group: progress-fidelity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+permissions:
+  contents: read
+jobs:
+  progress-fidelity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The claim checker reads claims/ only; never fetch multi-GB run archives.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: |
+            /.github/scripts/
+            /claims/
+            /tests/test_progress_*.py
+            /tools/progress_fidelity.py
+            /tools/progress_dashboard.py
+          sparse-checkout-cone-mode: false
+      - id: scope
+        run: python3 .github/scripts/ci_scope.py
+      - name: Require a complete CI scope decision
+        env:
+          SCOPE_RESULT: ${{ steps.scope.outcome }}
+          RUN_PROGRESS: ${{ steps.scope.outputs.progress }}
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_PROGRESS" = true ] || [ "$RUN_PROGRESS" = false ] || exit 1
+      - name: No submitted claims or checker changes
+        if: steps.scope.outputs.progress == 'false'
+        run: echo "Progress fidelity unchanged; required check completed without scanning unrelated files."
+      - uses: actions/setup-python@v5
+        if: steps.scope.outputs.progress == 'true'
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        if: steps.scope.outputs.progress == 'true'
+        run: python3 -m unittest discover -s tests -p 'test_progress_*.py' -v
+      - name: Validate all submitted claims
+        if: steps.scope.outputs.progress == 'true'
+        run: python3 -m tools.progress_fidelity portfolio claims/
+      - name: Generate dashboard artifacts
+        if: steps.scope.outputs.progress == 'true'
+        run: |
+          python3 -m tools.progress_dashboard claims/ --json progress-report.json --html progress-report.html
+      - uses: actions/upload-artifact@v4
+        if: steps.scope.outputs.progress == 'true'
+        with:
+          name: progress-fidelity-dashboard
+          path: |
+            progress-report.json
+            progress-report.html
