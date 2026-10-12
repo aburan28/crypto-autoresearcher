@@ -1,0 +1,152 @@
+# =============================================================================
+# EXP-ECDLP-ad27ad -- H-ECDLP-986bab (SNFS-G4): rotation-class factor base
+# control. For Mersenne p = 2^c - 1 multiplication by 2 is a bit rotation of
+# F_p; D_rot(m) = {P : rotmin(x(P)) < 2^(c-m)} is a cost-free, cheaply
+# decidable subset of density ~2^-m. The contract measures its closure and
+# decomposition ratios against a keyed-hash subset of the same density on the
+# same curve and a size-based subset over a matched random prime, with exact
+# cross-checks at c <= 17. Second control arm of SNFS-A4 and HEUR-002 of
+# H-ECDLP-bd1572. status review_required: implemented and smoke-tested, not
+# approved (capacity cap), no run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-ad27ad
+  hypothesis_id: H-ECDLP-986bab
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-354b14
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Rotation-class factor base over Mersenne primes: closure ratio and
+    decomposition ratio of D_rot(m) at c in {13, 17, 19, 31, 61} and
+    m in {1, 2, 4}, against a keyed-hash subset of the same density and a
+    size-based subset over a matched random prime, with exact cross-checks
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Put a number on the intuition that the cost-free Z/c action of
+    multiplication by 2 on F_p (p Mersenne) could define a structured factor
+    base: measure Pr[P + Q in D | P, Q in D] / Pr[P in D] and
+    Pr[R - P in D | P in D] / Pr[P in D] for D = D_rot(m), and compare with
+    two null subsets of the same density. H-ECDLP-986bab predicts ratios of
+    1 within sampling error on every cell and no difference from the nulls.
+  inputs:
+    primes: "p = 2^c - 1 for c in {13, 17, 19, 31, 61}; matched random prime of the same bit length per (c, seed) from the byte-identical battery primeset.py (tag rot-c<c>)"
+    curves: "2 seeded random (a, b) per prime per seed with nonzero discriminant; a separate seeded curve over the matched random prime; m = 8 is excluded because rejection sampling into a density-2^-8 subset costs 256 point samples per accepted point (first amendment candidate)"
+    membership:
+      rot: "rotmin(x) < 2^(c - m), rotmin = least of the c cyclic rotations of the c-bit string of x (x = p reads as 0)"
+      hash: "blake2b-64(key || x) < 2^(64 - m) with key = seed:c:curve (same density, no structure, same curve)"
+      size_random_prime: "x < p' >> m over the matched random prime p' (the SNFS-A-type size base)"
+    sampling: >-
+      Points by uniform x, Legendre test, Tonelli-Shanks, random sign.
+      Density on points from 20000 samples; closure from 4 x 10^4 pairs drawn
+      by rejection into D; decomposition from 100 random targets R with 400
+      P in D each. Ratios reported with binomial standard errors divided by
+      the density; the acceptance band is max(0.03, 3 SE) for closure and
+      max(0.05, 3 SE) for decomposition, pre-registered because the SE at
+      m = 4 is about 0.02.
+    exhaustive_cross_check: >-
+      For c <= 17 and the first curve: every point of E(F_p) enumerated, the
+      exact density of D_rot, and the exact decomposition fraction for 20
+      random targets over all of D_rot; must agree with the sampled values
+      within their binomial intervals (CTRL-EXACT).
+    membership_cost: "microseconds per rotmin over 20000 random inputs per c (cost claim only)"
+  controls:
+    - "CTRL-HASH: keyed-hash subset of the same density on the same curve; its ratios must be 1 within sampling error (validates the estimator)."
+    - "CTRL-SIZE: size-based subset of the same density over a matched random prime (removes the rotation structure entirely)."
+    - "CTRL-EXACT: exhaustive enumeration at c <= 17 agrees with the sampler."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "c in {13, 17, 19, 31, 61}"
+    - "m in {1, 2, 4}"
+    - "subset kind: rot | hash | size_random_prime"
+    - "curve 0..1 x seeds {1, 2, 3}"
+  metrics:
+    primary:
+      - closure_ratio_per_cell_with_se
+      - decomposition_ratio_per_cell_with_se
+      - rot_minus_hash_closure_difference_in_se_units_per_cell
+      - max_abs_closure_deviation_per_kind
+    secondary:
+      - exact_vs_sampled_density_and_decomposition_at_c_le_17
+      - membership_cost_microseconds_per_c
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: closure and decomposition ratios of D_rot and the two nulls
+    formula: >-
+      closure ratio within max(0.03, 3 SE) of 1 and decomposition ratio
+      within max(0.05, 3 SE) of 1 on every (c, m, curve) for all three kinds;
+      rot - hash difference within 3 SE on every cell; exact and sampled
+      values agree within the binomial interval.
+    source: >-
+      HEUR-001 of H-ECDLP-986bab (the rotation action induces nothing on E);
+      KR-IC-5931ee; HEUR-002 of H-ECDLP-bd1572.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The closure statistic is scale-free; c = 61 is included so that the
+      density estimate does not rely on exhaustive enumeration anywhere.
+      Nothing is extrapolated.
+    correspondence: null
+  tail_checks:
+    - Report the cell with the largest |ratio - 1| per kind with its (c, m, curve, seed).
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 30
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 2
+    maximum_memory_gb: 1
+    maximum_runs: 6
+  stopping_rules:
+    - Stop at 7200 s and record what completed; never as evidence.
+  invalidation_rules:
+    - A CTRL-EXACT disagreement beyond the binomial interval invalidates the run (instrument).
+    - A CTRL-HASH closure ratio outside its max(0.03, 3 SE) band invalidates the cell's estimator (instrument).
+  success_criterion: >-
+    Every rot cell has closure ratio within max(0.03, 3 SE) of 1 and
+    decomposition ratio within max(0.05, 3 SE) of 1, no rot - hash difference
+    beyond 3 SE on more than one cell, CTRL-HASH and CTRL-SIZE inside their
+    bands, CTRL-EXACT agreeing:
+    the rotation structure is invisible to the group law at every tested
+    density.
+  falsification_criterion: >-
+    A rot cell with closure ratio outside its max(0.03, 3 SE) band or
+    decomposition ratio outside its max(0.05, 3 SE) band with CTRL-HASH
+    inside its band and CTRL-EXACT
+    agreeing, or rot - hash differences beyond 3 SE on two or more cells
+    (HEUR-001 of H-ECDLP-986bab fails: the rotation structure is seen by the
+    group law).
+  decision_impact:
+    on_positive: >-
+      The Coordinator records the closure receipt beside SNFS-A4's digit
+      grading as a measured control for HEUR-002 of H-ECDLP-bd1572 and the
+      rotation-class base is not revisited; the measured numbers are cited
+      when the next cheaply decidable base over a special prime is proposed.
+    on_negative: >-
+      A new RQ is opened on the mechanism by which the rotation action
+      reaches the group law, with an independent re-implementation as the
+      first task, before any factor-base design uses it.
+  required_artifacts:
+    - experiments/EXP-ECDLP-ad27ad/specification.yaml
+    - experiments/EXP-ECDLP-ad27ad/implementation/run.py
+    - experiments/EXP-ECDLP-ad27ad/implementation/primeset.py
+    - experiments/EXP-ECDLP-ad27ad/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-ad27ad/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      python3 experiments/EXP-ECDLP-ad27ad/implementation/run.py
+      --c 13 17 19 31 61 --m 1 2 4 --curves 2 --pairs 40000 --targets 100
+      --per-target 400 --seeds 1 2 3 --out <run_dir>
+    runnable_state_at_design: >-
+      Implementation committed and smoke-tested at reduced size (c in {13,
+      17}, m in {1, 4}, one curve, 3000 pairs) in the design session; no run
+      record was written from the smoke test. Not selectable by
+      tools/newest_experiments.py until a Coordinator approval decision sets
+      status approved, which GOAL-ECDLP-001's capacity cap prevents in this
+      session; the missing pieces are the approval ceremony and a frozen
+      trial plan, not code.
+  assigned_to: executor

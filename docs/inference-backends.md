@@ -62,6 +62,26 @@ or a regional deployment). Nothing else.
 one key. Pick by what is calling: `zai-anthropic` to point an Anthropic-protocol
 CLI at GLM, `zai` for everything else.
 
+For both Coordinator policies, explicit backend selections pin the
+requested model without changing the role contract:
+
+| `--backend` / `AUTORESEARCH_BACKEND` | Coordinator model |
+|---|---|
+| `anthropic` | Claude Opus 5.5 (existing default) |
+| `anthropic-fable` | Claude Fable 5.1 |
+| `anthropic-mythos` | Claude Mythos 5 |
+| `zai-glm53` | GLM-5.3 |
+| `fireworks` | Fireworks GLM-5p3 (existing binding) |
+| `openai-gpt6` | GPT-6 Sol |
+| `openai-gpt61` | GPT-6.1 Sol |
+
+For example, `python3 -m orchestration.adapter resolve --role coordinator
+--backend openai-gpt61` prints the exact model selection. These aliases use
+their provider's existing endpoint and credential. Other policies are explicitly
+unbound on the new aliases, and the aliases are outside the automatic fallback
+order. Probe the selected backend with `doctor --backend <name> --probe` before
+relying on its availability; a configured binding alone does not verify access.
+
 **Protocol compatibility is not model access.** Fireworks speaks both wire
 formats but serves *open-weight* models — GLM, Kimi, DeepSeek, Qwen, Llama.
 `fireworks-anthropic` lets an Anthropic-protocol CLI talk to those models; it

@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import io
 import json
 import os
 import re
@@ -62,18 +63,28 @@ _CSafeLoader = getattr(yaml, "CSafeLoader", None)
 
 
 def _safe_load(source):
-    """yaml.safe_load, through libyaml when it is installed."""
+    """yaml.safe_load, through libyaml when it is installed.
+
+    A standalone copy of orchestration/fast_yaml.py's safe_load: this file
+    (and check_merge_hygiene.py beside it) must run without the package.
+    """
     if _CSafeLoader is None:
         return yaml.safe_load(source)
-    stream = hasattr(source, "read")
-    data = source.read() if stream else source
+    if not hasattr(source, "read"):
+        try:
+            return yaml.load(source, Loader=_CSafeLoader)
+        except yaml.YAMLError:
+            return yaml.safe_load(source)
+    data = source.read()
     try:
         return yaml.load(data, Loader=_CSafeLoader)
     except yaml.YAMLError:
-        if stream:
-            source.seek(0)
-            return yaml.safe_load(source)
-        return yaml.safe_load(data)
+        # Replay what was read under the stream's name, so the pure loader's
+        # marks read as they would have on `source`, seekable or not.
+        replay = io.BytesIO(data) if isinstance(data, bytes) else io.StringIO(data)
+        if hasattr(source, "name"):
+            replay.name = source.name
+        return yaml.safe_load(replay)
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 
 # Certificate kinds a run may CLAIM, each of which carries a verification duty
@@ -2849,9 +2860,13 @@ def check_approval_capacity(ctx: Ctx) -> None:
                 released.update(str(x) for x in raw)
         targets = [str(t) for t in (body.get("target_ids") or [])
                    if str(t).startswith("EXP-")]
+        # A target that already has runs is a continuation of an approved
+        # contract, not a new approval; it adds nothing to the unrun backlog
+        # (user ruling 2026-10-09; DEC-20261009-ff58fe).
         approved_here = {t for t in targets
                          if ctx.record_types.get(t) == "experiment"
-                         and ctx.records[t].get("status") == "approved"}
+                         and ctx.records[t].get("status") == "approved"
+                         and not _experiment_has_runs(t, ctx)}
         for exp_id in sorted(approved_here):
             goal = _goal_of(exp_id, ctx.records[exp_id])
             standing = backlog.get(goal, set()) - approved_here - released

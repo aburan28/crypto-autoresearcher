@@ -1,13 +1,13 @@
 ---
 name: tune-skill
 description: >-
-  Propose a reward-guided textual revision to another skill's instructions
-  (and its dispatched agent contract, if any), using that skill's own
-  downstream ledger records as the reward signal. Standalone prototype: reads
-  ledger/experiments state but writes no ledger record and holds no
-  Coordinator authority — every diff is a normal code change a human approves
-  before it is applied. Use when asked to tune, improve, or "RL" a skill's
-  prompt against its track record, e.g. `/tune-skill propose-ideas`.
+  Propose a reward-guided revision of another skill's instructions (and its
+  dispatched agent contract) using that skill's downstream ledger records as
+  the reward. Writes no ledger record and holds no Coordinator authority;
+  every diff is a code change a human approves. Use when asked to tune,
+  improve or "RL" a skill against its track record, e.g. `/tune-skill
+  propose-ideas`.
+
 ---
 
 # Tune skill

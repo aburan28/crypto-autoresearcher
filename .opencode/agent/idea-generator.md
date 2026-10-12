@@ -3,7 +3,7 @@
 # Source: orchestration/roles.yaml -> roles.idea-generator
 # No `model` key on purpose: the model comes from the policy layer.
 description: >-
-  Hypothesis and idea generator for the ECDLP autoresearch program. Use when a research question needs structured, falsifiable proposals: new mechanisms, algorithms, representations, measurements, compositions, controls, or tooling ideas. Produces YAML idea records with predictions, minimal discriminating tests, and falsification criteria. Never assigns work or changes hypothesis status.
+  Generates structured, falsifiable proposals for a research question (mechanisms, algorithms, representations, measurements, compositions, controls, tooling) as YAML idea records with predictions, minimal discriminating tests and falsification criteria. Never assigns work or changes hypothesis status.
 mode: subagent
 temperature: 0.1
 permission:

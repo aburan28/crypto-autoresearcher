@@ -39,6 +39,10 @@ try:
 except ImportError:  # pragma: no cover - the repo pins PyYAML
     print("PyYAML is required: pip install pyyaml", file=sys.stderr)
     raise
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTIER_ROOT = os.path.join(REPO, "knowledge", "frontiers", "ecdlp")
@@ -86,7 +90,7 @@ def load_rows() -> list[dict[str, Any]]:
     rows = []
     for path in row_paths():
         with open(path, encoding="utf-8") as fh:
-            body = yaml.safe_load(fh) or {}
+            body = fast_yaml.safe_load(fh) or {}
         body["_path"] = os.path.relpath(path, REPO)
         body["_area_dir"] = os.path.basename(os.path.dirname(path))
         rows.append(body)
