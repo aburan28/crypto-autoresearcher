@@ -1,15 +1,14 @@
 ---
 name: consolidate-lanes
 description: >-
-  Run a cross-lane consolidation pass over the agent bus: read traffic ACROSS
-  lanes that cannot see each other and carry pointers between them, so two
-  sessions circling one experiment find out before the second spends its
-  budget. Use on a schedule (hourly to daily) while several sessions work one
-  goal, when opening a second lane on a goal another session is already
-  working, before approving a batch that overlaps another lane, or when asked
-  to cross-pollinate or reconcile what parallel sessions are doing. Dispatches
-  the consolidator subagent. Carries pointers, never findings; writes no
-  ledger record and changes no status.
+  Cross-lane consolidation over the agent bus: read traffic across lanes that
+  cannot see each other and carry pointers between them, so two sessions
+  circling one experiment find out before the second spends its budget. Use
+  on a schedule while several sessions work one goal, when opening a second
+  lane on a goal, before approving a batch that overlaps another lane, or
+  when asked to reconcile parallel sessions. Dispatches the consolidator;
+  pointers only, changes no status.
+
 ---
 
 # Consolidate lanes
@@ -71,6 +70,10 @@ Contract: `docs/inter-agent-messaging.md` ("The consolidation pass") and
 4. **Report** the window, message and sender counts, what was carried and to
    whom, and what was considered and deliberately not carried. That last item
    is the one a reader cannot reconstruct from the bus.
+5. **Receipt.** `python3 tools/session_receipt.py --skill consolidate-lanes
+   --role consolidator --outcome no_change` (or `impeded` when a
+   precondition failed), `docs/session-receipts.md`. The receipt counts the
+   pass; the bus messages it carried are the only other trace it leaves.
 
 ## What is worth carrying
 

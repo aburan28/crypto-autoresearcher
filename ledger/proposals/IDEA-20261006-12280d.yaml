@@ -1,0 +1,169 @@
+# IDEA-20261006-12280d — proposal only. No hypothesis and no run.
+idea:
+  id: IDEA-20261006-12280d
+  question_id: RQ-GRUMPY-964876
+  added: '2026-10-06'
+  status: proposed
+  approved_by: null
+  title: >-
+    Grumpy-giant successes minus BSGS successes at the 1.5 sqrt(l) cutoff
+    on Z/251Z
+  class: measurement
+  claim: >-
+    In the generic group Z/251Z, with handles that hide the integer
+    representative, 64 planted targets, and both algorithms stopped at
+    23 group operations, the two-grumpy-giants success count g exceeds
+    the baby-step giant-step success count b by at least 8.
+  mechanism: >-
+    The tracked object is the pair of success counts at a frozen
+    operation cutoff. The representation is a handle for a group
+    element. The algorithm may add two handles and test equality. It
+    may not read the secret integer. The cutoff 23 is floor of
+    1.5 times the square root of 251, computed in this design session
+    as arithmetic on the cutoff and not as a success count. KR-RHO-fbd7b1
+    states that after 1.5 sqrt(l) operations the published grumpy-giant
+    success probability is 0.71875 and the BSGS probability is 0.5625.
+    This proposal does not re-derive those probabilities. It asks
+    whether a 64-target sample at l=251 separates the two counts by at
+    least 8. The projection from a walk to a single success bit is
+    lossy. No discrete log below the generic floor is claimed.
+  assumptions:
+    - The group is Z/251Z written additively. 251 is prime. Generator handles are distinct from the identity.
+    - Each target is a uniform secret scalar in 1..250, presented only as a handle. The sampler is SHA-256 rejection on the UTF-8 string IDEA-20261006-12280d|{i}|{counter} for i in 0..63.
+    - Both algorithms stop at 23 group operations. An unfound target is a failure, not a longer run.
+    - The grumpy schedule is the two-grumpy-giants schedule whose probabilities are the ones stated on KR-RHO-fbd7b1. BSGS is the standard baby-step table of width ceil(sqrt(251)), also stopped at 23 operations.
+  predictions:
+    - metric: grumpy_minus_bsgs_successes
+      direction: higher
+      minimum_effect: >-
+        g - b is at least 8 on the 64 targets, with both algorithms
+        stopped at 23 group operations.
+  minimal_test:
+    design: >-
+      Draw the 64 handles. Run BSGS and the two-grumpy-giants schedule
+      on each handle. Count a success only when the planted scalar is
+      recovered within 23 group operations. Compare g - b with 8 and
+      with 0. As a null, run the same BSGS twice under two labels and
+      record that the two BSGS counts are equal. As a cost control,
+      record one distinguished-point rho step count on target index 0,
+      capped at 2000 steps, and do not enter that count in g or b.
+    controls:
+      - Two independent BSGS implementations on the same 64 handles return the same success count. A mismatch means the counter is wrong and the gap is not scored.
+      - A planted carrier that returns the secret scalar agrees with all 64 secrets. A miss means the handle table is wrong and the gap is not scored.
+      - Distinguished-point rho on index 0 is recorded and is not a grumpy success.
+    required_metrics:
+      - g and b
+      - the difference g - b
+      - the carrier agreement count
+      - the rho step count or cap on index 0
+  falsification_conditions:
+    - g - b is less than or equal to 0, with the carrier and the two BSGS counters agreeing.
+    - The two BSGS counters disagree, in which case the gap is not evidence.
+    - The carrier misses a secret, in which case the gap is not evidence.
+  confounders:
+    - At l=251 the published probabilities are asymptotic statements. A miss of the gap of 8 can be a finite-size effect and still falsifies this sample claim.
+    - Stopping at 23 operations can cut a search that would have succeeded on step 24. That cutoff is the claim, not a defect to be repaired after seeing g.
+  interpretation_limits:
+    - A gap of 8 on 64 targets does not certify the leading constant asked by RQ-GRUMPY-964876.
+    - The exponent 1/2 does not move. Memory stays on the order of sqrt(l).
+    - This is not a negation-map experiment and not a summation-polynomial experiment.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        At the cutoff floor(1.5 * sqrt(251)) = 23, independent trials
+        have success probabilities near 0.71875 for grumpy giants and
+        near 0.5625 for BSGS, so the expected difference on 64 trials
+        is about 10, and a difference of at least 8 is the
+        pre-registered sample effect.
+      rigorous_support: >-
+        KR-RHO-fbd7b1 states those two probabilities after 1.5 sqrt(l)
+        operations. This session opened that row and did not open
+        Bernstein-Lange. The finite-l sample at 251 is not a theorem.
+      validation_plan: >-
+        Compare g - b with 8 on the frozen 64 handles. The same
+        handles are scored by both algorithms. A second BSGS counter
+        must agree before the difference is believed.
+  target_complexity:
+    time_exponent: >-
+      Unchanged at 1/2. A better average-case success probability
+      inside an O(sqrt(l)) budget is a constant-factor ordering, as
+      KR-RHO-fbd7b1 already records. It does not beat generic rho.
+    memory_exponent: >-
+      Unchanged. Both algorithms store O(sqrt(l)) group elements at
+      this cutoff. The sample does not shrink that table.
+    best_known: >-
+      Pollard rho at exponent 1/2 (KR-RHO-13bf67), and the grumpy
+      ordering probabilities on KR-RHO-fbd7b1. This sample does not
+      beat either statement.
+    hidden_overhead: >-
+      None claimed. The cutoff 23 and the sample 64 are explicit. No
+      o(1) improvement is claimed.
+    tradeoff_note: >-
+      Grumpy giants use sqrt-size memory, the same order as BSGS.
+      This proposal is not a van Oorschot-Wiener point.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  novelty_status: unverified
+  citations:
+    - ref: ledger/questions/RQ-GRUMPY-964876.yaml
+      provenance: internal
+      claim: >-
+        The question asks for the average-case constant of
+        two-grumpy-giants on a generic prime-order group, with an
+        elliptic arm that may not change the constant.
+      verified_by: ledger/questions/RQ-GRUMPY-964876.yaml
+    - ref: KR-RHO-fbd7b1
+      provenance: internal
+      claim: >-
+        After 1.5 sqrt(l) operations the stated success probabilities
+        are BSGS 0.5625, random walk 0.6753, and grumpy giants 0.71875,
+        at square-root memory.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd7b1.yaml
+    - ref: KR-RHO-13bf67
+      provenance: internal
+      claim: >-
+        A generic discrete logarithm in a prime-order group needs
+        Omega(sqrt(l)) group operations.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml
+    - ref: KR-RHO-fbd582
+      provenance: internal
+      claim: >-
+        A shared inversion makes x(P-Q) cheap next to x(P+Q), and that
+        trick is used inside grumpy giants. This proposal does not
+        count that inversion.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd582.yaml
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+      - KR-RHO-fbd7b1
+      - KR-RHO-13bf67
+      - KR-RHO-fbd582
+    nearest:
+      - ref: KR-RHO-fbd7b1
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row states the probabilities 0.71875 and 0.5625 after
+          1.5 sqrt(l) operations. This proposal asks for a difference
+          of at least 8 successes on 64 targets at l=251 with cutoff
+          23. The exponent movement is 0.
+        verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-fbd7b1.yaml
+      - ref: KR-RHO-13bf67
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row is the Omega(sqrt(l)) floor. A gap of 8 successes
+          inside a budget of 23 operations does not cross it. The
+          exponent movement is 0.
+  dominated_by: >-
+    Pollard rho at exponent 1/2 and polynomial memory dominates any
+    reading of this sample as an attack. KR-RHO-fbd7b1 already states
+    the ordering probabilities this sample is compared with. The
+    sample does not beat rho or that row.
+  sota_delta: >-
+    The separator is a difference of 8 successes in 64 trials at
+    cutoff 23 on Z/251Z, against the probabilities already stated on
+    KR-RHO-fbd7b1. The distance to a sub-square-root algorithm is the
+    full exponent 1/2, and this proposal moves that exponent by 0.

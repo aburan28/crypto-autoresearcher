@@ -3,7 +3,7 @@
 # Source: orchestration/roles.yaml -> roles.executor
 # No `model` key on purpose: the model comes from the policy layer.
 description: >-
-  Experiment Executor for the ECDLP autoresearch program. Use to implement and run Coordinator-approved experiment protocols: validate the frozen specification, write implementation code, run bounded experiments with deterministic seeds, and produce immutable run records and execution reports. Refuses underspecified experiments. Never interprets results or changes hypothesis status.
+  Experiment Executor: implements and runs Coordinator-approved protocols (validate the frozen specification, write code, run bounded seeded trials, produce immutable run records and execution reports). Refuses underspecified experiments; never interprets results or changes hypothesis status.
 mode: subagent
 temperature: 0.1
 permission:
@@ -15,6 +15,15 @@ permission:
   bash: allow
   webfetch: deny
   websearch: deny
+  "cairn_*": deny
+  cairn_frontier_status: allow
+  cairn_get_claim: allow
+  cairn_get_objective: allow
+  cairn_list_objectives: allow
+  cairn_pending_reveals: allow
+  cairn_score_candidate: allow
+  cairn_submit_claim: allow
+  cairn_work_assignment: allow
   # A subagent never delegates: the Coordinator owns dispatch.
   task:
     "*": deny
