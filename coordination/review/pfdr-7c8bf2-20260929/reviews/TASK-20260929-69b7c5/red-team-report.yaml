@@ -1,0 +1,774 @@
+# =============================================================================
+# RED TEAM REPORT -- TASK-20260929-69b7c5 (review-adversarial, independent session)
+# Round: Stage 0 review of EXP-PFDR-7c8bf2 / RUN-PFDR-7c8bf2-stage0 (H-PFDR-0cc7e8).
+# Plan: inline on ledger/handoffs/TASK-20260929-c40e48.yaml (handoff.review_plan),
+#       read at commit bb73251ee.
+# Package reviewed: commit 1a037688c88a9f84c88acd49e45dba04f235cc5c, read from a
+#       detached worktree at that commit with PYTHONDONTWRITEBYTECODE=1 (RT-1).
+# Joints owned: J4, J5, J6, proves_too_much. No whole-claim verdict and no status
+# reading of H-PFDR-0cc7e8 is offered (RT-3). The per-joint verdicts are also in
+# attestation.yaml, which is the only file in this directory that carries the
+# attestation block.
+# Verdict semantics used here:
+#   J4/J5/J6        holds  = the joint as stated in the plan survives the attack;
+#                   breaks = the plan's breaking_artifact for the joint was produced;
+#   proves_too_much breaks = the frozen argument shows the declared failure
+#                   signature on objects where its conclusion is known false.
+# =============================================================================
+red_team_report:
+  id: RT-20260929-58a1c7
+  id_provenance: >-
+    RT is not a tools/allocate_id.py record type; the 6-hex token was drawn with
+    Python secrets.token_hex(3) without scanning repository state.
+  task_id: TASK-20260929-69b7c5
+  experiment_id: EXP-PFDR-7c8bf2
+  hypothesis_id: H-PFDR-0cc7e8
+  run_id: RUN-PFDR-7c8bf2-stage0
+  question_id: RQ-PFDR-ae2fba
+  snapshot_reviewed: >-
+    1a037688c88a9f84c88acd49e45dba04f235cc5c (detached worktree
+    /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/wt-stage0-1a037688c;
+    `git status --short --ignored` empty after all computations: nothing written there).
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5-5
+    fallback_used: true
+    fallback_reason: Claude Code subagent with model inherit (runtime inheritance permitted by the card); not a tier downgrade.
+    model_verified: false
+    independent_session: true
+  joints_owned: [J4, J5, J6, proves_too_much]
+  claim_under_review: >-
+    As the plan states it: RUN-PFDR-7c8bf2-stage0 yields OUT-SLOPE-INTERVAL, met by
+    S6-smallx alone (12..32 interval [0.0841, 0.1242] excludes 1/12, F-3 as worded);
+    anomalies P7(a) n = 92 vs 110 and P7(c) m = 7 KS rejection at 1%. This report
+    attacks only the reading of that outcome (J4), the rho anomaly (J5), hidden
+    conventions and the P7(c) label (J6), and the proves-too-much control.
+  verdicts:
+    J4: breaks
+    J5: holds
+    J6: breaks
+    proves_too_much: breaks
+
+  # ---------------------------------------------------------------------------
+  joints:
+    J4:
+      verdict: breaks
+      joint_as_planned: >-
+        OUT-SLOPE-INTERVAL is not overread: S6's exclusion of 1/12 is evidence against
+        the even-m gap explanation at the strength the outcome table assigns, and no
+        stronger.
+      breaking_artifact_produced: >-
+        A coverage and family-wise table showing that an exclusion like S6's is
+        expected under the model (attacks/out/j4_coverage.json), plus two results the
+        plan did not anticipate: the outcome id is bootstrap-seed contingent
+        (attacks/out/j4_seed_dependence.json) and the S6 exclusion disappears under
+        every lower-order specification tried (attacks/out/j4_lower_order.json).
+      objection: >-
+        The outcome table reads OUT-SLOPE-INTERVAL as "the falsification condition is
+        met on 12..32 for that series" and allows a weaken. On the committed rows the
+        event carries no weight against the even-m gap explanation beyond what that
+        explanation itself produces. (a) At the family level it is the more likely
+        outcome under the model: with every model value true, the frozen procedure
+        excludes at least one of the eight model values with probability 0.57-0.61.
+        (b) At the S6 level it depends on the Monte Carlo draw of seed 0. Over 500
+        bootstrap seeds S6 excludes 1/12 in 0.446 of seeds, with a seed-averaged
+        lower end of 0.0833 +- 0.0006, which is 1/12 to four decimals. The same rows
+        sorted by (bits, curve) give [0.0817, 0.1242] at seed 0, which includes 1/12.
+        (c) The exclusion does not survive a 1/log2N term, a curvature term, removal
+        of the 12-bit rung, the declared 20..32 range, or the same-curve S6 - S7
+        contrast. An undeclared 24..32 look, on 5 rungs, excludes again by 0.0002
+        (J4-g), and this is reported rather than discounted. (d) The 0.0008 margin is smaller than every lower-order component
+        identified in the S6 slope (0.005-0.019 each).
+      computations:
+        - id: J4-a coverage
+          what: >-
+            Each of the eight series and both ranges, on its own design (rows'
+            log2N, bits strata, row order). Truth = the model value. Noise R1 = the
+            fit's residuals resampled within rung (plan); R2 = pooled Gaussian with
+            RSS/(n-2) (plan); R3 = per-rung Gaussian with the rung's own SD (added).
+            The frozen interval is computed with common.FastBoot, the exact linear
+            form of stats.bootstrap_slope's seed-0 draws, checked literally on 200
+            replicates per cell for S6, S4 and S7 x R1 and R2 (max |fast - literal| <= 1.42e-15).
+          command: sh attacks/run.sh j4_coverage.py
+          seeds: numpy default_rng([0x69b7c5, series, range, model]); frozen bootstrap seed 0; K = 20000 per cell
+          outputs:
+            S6_primary_vs_1_12: {R1: {coverage: 0.895, p_lo_above: 0.059, p_hi_below: 0.046}, R2: {coverage: 0.906, p_lo_above: 0.046, p_hi_below: 0.048}, R3: {coverage: 0.893, p_lo_above: 0.054, p_hi_below: 0.053}}
+            S4_primary_vs_1_8: {R1: {coverage: 0.889, p_lo_above: 0.060, p_hi_below: 0.050}, R2: {coverage: 0.908, p_lo_above: 0.046, p_hi_below: 0.045}, R3: {coverage: 0.888, p_lo_above: 0.054, p_hi_below: 0.059}}
+            S7_primary_vs_0_odd_m: {R1: {coverage: 0.904, p_lo_above: 0.054, p_hi_below: 0.042}, R2: {coverage: 0.907, p_lo_above: 0.048, p_hi_below: 0.045}, R3: {coverage: 0.898, p_lo_above: 0.051, p_hi_below: 0.051}}
+            all_48_cells_coverage_range: [0.857, 0.909]
+            mc_se_per_cell: 0.002
+            mean_width_over_required_width: 0.84-0.89 (sqrt((n-1)/n) = 0.894 at n = 5 curves per rung)
+            literal_first_200: {S6_R1: 0.860, S6_R2: 0.910, S4_R1: 0.905, S4_R2: 0.905, S7_R1: 0.900, S7_R2: 0.905}
+        - id: J4-b family-wise
+          what: >-
+            P(at least one of the eight F-2/F-3 intervals excludes its model value |
+            all true), 12..32. Draws are independent, or joint, where the same curve
+            index is resampled for every series of a curve set so that cross-series
+            residual correlation is kept.
+          command: sh attacks/run.sh j4_coverage.py
+          outputs:
+            R1_independent: 0.612
+            R1_joint_shared_curves: 0.570
+            R3_independent: 0.606
+            R3_joint_shared_curves: 0.582
+            mc_se: 0.0035
+            p_at_least_one_even_m_S4_or_S6: 0.189-0.213
+            mean_number_of_exclusions: 0.88-0.89
+            residual_correlation_on_shared_curves: filtered S3 bases 0.60-0.70; unfiltered set |r| <= 0.21
+        - id: J4-c seed and row-order dependence
+          what: >-
+            stats.bootstrap_slope called literally for seeds 0..499 on all eight
+            series (12..32). The outcome is recomputed with every other condition at
+            its archived value. S6 is also refitted at seed 0 with its rows sorted by
+            (bits, curve).
+          command: sh attacks/run.sh j4_seed_dependence.py
+          outputs:
+            S6_p_exclude_over_seeds: 0.446
+            S6_lower_end_mean_sd_over_seeds: [0.0833, 0.0006]
+            S7_p_exclude_0_over_seeds: 0.352
+            S7_lower_end_mean_sd_over_seeds: [-0.0002, 0.0006]
+            outcome_over_seeds: {OUT-SLOPE-INTERVAL: 0.648, OUT-CONSISTENT: 0.352, S6_only: 0.296, S6_and_S7: 0.150}
+            S6_rows_sorted_seed0: [0.1036, 0.0817, 0.1242]
+            other_six_series: exclude in 0 of 500 seeds
+        - id: J4-d lower-order fits
+          what: >-
+            S6, 12..32: y = a + b x + c/x (b = the asymptotic slope), and a quadratic
+            whose tangent is taken at the 32-bit rung mean. Each uses a stratified
+            bootstrap with the frozen resampling scheme (seed 0, 2000 reps). Also
+            leave-one-rung-out, the 20..32 range, and the |F|-adjusted residual slope
+            y - [0.5 log2N + (0.5 - h) log2 fb_size], whose model value is 0.
+          command: sh attacks/run.sh j4_lower_order.py
+          outputs:
+            frozen_12_32: [0.1036, 0.0841, 0.1242]
+            inverse_x_term_asymptotic_slope: [0.0269, -0.0441, 0.0941]
+            quadratic_tangent_at_32_bits: [0.0396, -0.0191, 0.0968]
+            sensitivity_20_32: [0.0843, 0.0651, 0.1029]
+            drop_12_bit_rung: [0.0865, 0.0671, 0.1069]
+            single_rung_deletions_including_1_12: 8 of 11 (drop 12, 14, 18, 20, 22, 28, 30 or 32; dropping 16, 24 or 26 keeps the exclusion)
+            F_adjusted_residual_slope: [0.0073, -0.0092, 0.0249]
+            every_variant_contains_1_12: true
+        - id: J4-e same-curve contrasts
+          what: >-
+            Frozen fit of the paired difference log2 ratio(A) - log2 ratio(B) on
+            identical (bits, curve) instances (N equal, asserted). Lower-order terms
+            shared by arities on the same curves cancel in the difference.
+          command: sh attacks/run.sh j4_lower_order.py
+          outputs:
+            S6_minus_S7: {model: 0.0833, p12_32: [0.0860, 0.0568, 0.1192], s20_32: [0.0964, 0.0585, 0.1376]}
+            S6_minus_S5: {model: 0.0833, p12_32: [0.0978, 0.0772, 0.1214], s20_32: [0.0728, 0.0479, 0.0973]}
+            S4_minus_S5: {model: 0.125, p12_32: [0.1263, 0.1085, 0.1453]}
+            S4_minus_S3unf: {model: 0.125, p12_32: [0.1338, 0.1152, 0.1520]}
+            S6_minus_S4: {model: -0.0417, p12_32: [-0.0286, -0.0500, -0.0072]}
+            odd_odd_S7_minus_S3unf: {model: 0.0, p12_32: [0.0193, 0.0004, 0.0402], s20_32: [-0.0138, -0.0448, 0.0150]}
+            reading: >-
+              Every even-m contrast contains its model difference. The one contrast
+              that excludes its model value is odd-odd (S7 - S3unf at 12..32). The
+              12..32 excess sits in the high-m, small-|F| series (S6 and S7 on the
+              same curves), not in the even-m gap.
+        - id: J4-f slope attribution and design model value
+          what: >-
+            Exact OLS additivity. log2 ratio = log2(S/search) + log2(search/attempts)
+            + log2(attempts/r) + 0.5 log2(r/|F|) + 0.5 log2|F| - 0.5 log2N - 1, set
+            against the model's component values at the design's own |F| slope b_F
+            (fb_size = max(4, ceil(((m! N)/2)^(1/m)/2)), checked row by row, so b_F
+            is a function of N only and uses no cost measurement).
+          command: sh attacks/run.sh j4_lower_order.py
+          outputs:
+            S6_b_F: 0.1615 (1/6 = 0.1667)
+            S6_observed_components: {table_share: -0.0121, search_per_attempt: 0.5033, attempts_per_relation: 0.0368, half_r_over_F: -0.0052, half_log2F: 0.0807, minus_half_log2N: -0.5}
+            S6_observed_minus_model_at_design: {table_share: -0.0121, search_per_attempt: 0.0188, attempts_per_relation: 0.0057, half_r_over_F: -0.0052}
+            S6_same_in_20_32: {table_share: -0.0028, search_per_attempt: -0.0040, attempts_per_relation: 0.0031, half_r_over_F: -0.0027}
+            theta_design_search_only: {S6: 0.0963, S4: 0.1315, S7: 0.0160, S5: 0.0123}
+            theta_star_table_plus_search: {S6: 0.0855, S4: 0.1264, S7: 0.0049, S5: 0.0042}
+            S6_interval_contains: {one_twelfth: false, theta_design: true, theta_star: true}
+        - id: J4-g range scan and its calibration
+          what: >-
+            Frozen fit of S6, S7, S4 and S5 on lo..32 for lo = 12..24, and the
+            probability, under the model, of the same seven overlapping looks at one
+            synthetic series.
+          command: sh attacks/run.sh j4_range_scan.py
+          seeds: numpy default_rng([0x69b7c5, 19, j]); K = 20000
+          outputs:
+            S6_excess_over_1_12_by_lower_end: {12: +0.0202 (excludes), 14: +0.0032, 16: -0.0013, 18: +0.0039, 20: +0.0010, 22: -0.0049, 24: +0.0347 (excludes; lower end 0.0002 above; 5 rungs)}
+            S6_minus_S7_by_lower_end: all seven contain 1/12
+            under_model_7_looks: {p_at_least_one: 0.46, p_at_least_two: 0.197, p_first_and_last_both: 0.014}
+            honesty_note: >-
+              The S6 excess does not decay monotonically with the lower end. It
+              reappears at 24..32, the highest-N look. "First and last both exclude"
+              is a pattern named after seeing the scan (p = 0.014 under the model),
+              and it is recorded, not discounted. The pre-nameable count (>= 2 of 7)
+              has p = 0.20. The data do not show a persistent excess, and they do not
+              rule out an excess of about 0.03.
+        - id: J4-h lack of fit
+          what: >-
+            Between-rung lack-of-fit F statistic. The null is a per-rung Gaussian
+            with the observed within-rung SD around the fitted line (K = 20000).
+          command: sh attacks/run.sh j4_lack_of_fit.py
+          outputs:
+            S6: {F_lof: 1.54, p: 0.182, rung12_mean_residual_log2: -0.504}
+            all_series_p_range: [0.18, 0.98]
+            reading: >-
+              With 5 curves per rung the rows cannot distinguish curvature from
+              scatter. Lower-order specifications therefore cannot be excluded,
+              which is why the M1/M2 intervals are wide.
+      prior_comparison: >-
+        The Coordinator's prior is confirmed in direction and exceeded in strength.
+        It expected a marginal exclusion (0.0008), an undercovering bootstrap
+        (0.86-0.91) and a family-wise rate of 0.2-0.4 (measured 0.57-0.61). It did
+        not anticipate that the S6 exclusion is seed-contingent: the lower end
+        averaged over seeds equals 1/12, and 35% of seeds give OUT-CONSISTENT.
+      narrowest_supported_statement: >-
+        OUT-SLOPE-INTERVAL is what the frozen procedure returns at seed 0 on the
+        committed rows. It is not a stable property of the rows: it holds in 0.648
+        of bootstrap seeds, and under the model it occurs with probability 0.57-0.61
+        (K = 20000). On 12..32 the S6 ratio slope is 0.104 with a 95% interval whose
+        seed-averaged lower end is 1/12. The same-curve S6 - S7 contrast is 0.086
+        [0.057, 0.119] and the 20..32 slope is 0.084 [0.065, 0.103]. These rows are
+        consistent with the even-m gap N^(1/12) at 12..32 bits on this engine and
+        give no evidence against it beyond what the gap itself produces. They also
+        do not resolve the even-m slope more finely than about +-0.03.
+
+    J5:
+      verdict: holds
+      joint_as_planned: >-
+        The frozen de-duplication key (p, a, b, curve, bits) and the first-seen rule
+        do what the specification intends, and the anomaly affects no outcome
+        condition.
+      objection_tested: >-
+        Is the first-seen rule discarding different runs of one curve rather than
+        duplicates? It is not.
+      computations:
+        - id: J5-a listing and key groups
+          command: sh attacks/run.sh j5_rho.py
+          outputs:
+            rho_rows_per_file: 110 in each of the five files (550)
+            listing: attacks/out/j5_rho_rows.jsonl (every rho row, every field, with file of origin)
+            distinct_keys: 202 (92 keys x 2 filtered-only, 92 x 3 unfiltered-only, 18 x 5 in both labels)
+            within_label_duplicate_pairs_identical_instance: 294 of 294 (every field equal except wall-clock seconds)
+            cross_label_pairs: 54, differing ONLY in p_filter (p, a, b, N, walk_ops, setup_ops, walks, dp_bits all equal)
+            shared_curves_filtered_vs_unfiltered: 18 (by bits {12:1, 14:3, 16:3, 18:3, 20:1, 22:2, 24:2, 26:1, 28:1, 30:1, 32:0}); walk_ops equal in 18 of 18
+        - id: J5-b walk exponent under conventions (frozen stats.bootstrap_slope)
+          command: sh attacks/run.sh j5_rho.py
+          outputs:
+            archived_first_seen: {filtered: [0.5012, 0.4804, 0.5214, n 110], unfiltered: [0.5088, 0.4835, 0.5361, n 92]}
+            within_label_each_set_keeps_its_copy: {filtered: [0.5012, 0.4804, 0.5214, n 110], unfiltered: [0.5066, 0.4825, 0.5317, n 110]}
+            per_file: {sweep-minfill: [0.5012, 0.4804, 0.5214], sweep-arity-minfill: [0.5066, 0.4825, 0.5317], sweep-arity67: [0.5066, 0.4824, 0.5322]}
+            archived_values_reproduced: true (fits.json rho block)
+            side_note: >-
+              arity-minfill and arity67 hold identical rho rows in different file
+              orders, and their intervals differ in the fourth decimal. The frozen
+              interval depends on row order through the seed-0 draws (see J4-c).
+        - id: J5-c what reads the rho set
+          command: sh attacks/run.sh j5_rho.py (static read)
+          outputs:
+            analyze_floor_outcome_block_lines: 428-457
+            names_the_conditions_read: p5 (min ratio, rows below 0.9), fits (primary intervals and point estimates), pairs (P6 overlap); p7 is only stored into the result
+            spec_analysis_outcomes_mentions_rho: false
+            tripwire_TW-FLOOR_reads: IC rows below 0.9 only
+      prior_comparison: >-
+        Confirmed. The prior expected n = 92 to be first-seen de-duplication of
+        instances the two curve sets share, a labelling artefact with no outcome
+        effect.
+      narrowest_supported_statement: >-
+        The first-seen rule removes only exact duplicates, so no rho data is
+        discarded. n = 92 is a labelling artefact: 18 curves of the unfiltered set
+        (identical p, a, b, N and walk) are credited to the filtered label, which
+        comes first in the P0 file order. The specification's cross-file
+        de-duplication and its "per curve set" summary conflict when sets share
+        instances. Under the per-set reading the unfiltered walk exponent is
+        0.5066 [0.4825, 0.5317] (n = 110), beside the archived 0.5088 [0.4835,
+        0.5361] (n = 92). Both contain 1/2, and no outcome condition or tripwire
+        reads the rho set. Why the two sets share 18 curves (the report says the
+        filter accepted the first prime drawn) is consistent with the data (9 of
+        the 18 shared curves are at 14-18 bits) but was not verified against the
+        prime-selection code.
+
+    J6:
+      verdict: breaks
+      joint_as_planned: >-
+        The outcome rests only on assumptions the specification declares, and the
+        P7(c) rejection is correctly labelled non-decision-bearing.
+      breaking_artifact_produced: >-
+        Both breaking artifacts were produced. (i) Undeclared, or inconsistently
+        declared, conventions whose single alternative changes the outcome id to
+        OUT-CONSISTENT. (ii) Evidence that the P7(c) rejection is not explained by
+        the stopping-rule confound. The non-decision-bearing label itself is correct.
+      assumptions_enumerated:
+        - id: A-S-table
+          assumption: S includes the table S_3 (table_s3_solves)
+          declared: yes (H-PFDR-0cc7e8 statement "(table included)"; P2 S = s3_solves)
+          alternative: A1 S = search only
+          S4_12_32: [0.1356, 0.1203, 0.1523]
+          S6_12_32: [0.1157, 0.0920, 0.1411]
+          outcome: OUT-FLOOR-VIOLATION (min ratio 0.396; 20 rows < 1.0, 14 < 0.9; S3 x3, S6, S7 intervals exclude)
+          note: Not a plausible reading of the lemma, which counts table encodings. It shows that F-1's non-firing needs the table in S.
+        - id: A-r
+          assumption: r = logged relation count at a data-dependent stop
+          declared: >-
+            Yes, but inconsistently. The hypothesis glosses r as "independent
+            relations needed before k is fixed, read from each row's logged relation
+            count". On all 440 primary rows the logged rank is relations - 1.
+          alternative: A2a r = rank
+          S4_12_32: [0.1277, 0.1131, 0.1435]
+          S6_12_32: [0.0984, 0.0790, 0.1192]
+          outcome: OUT-CONSISTENT (min ratio 1.557)
+          second_alternative: A2b r = fb_size + 1 -> S4 [0.1340, 0.1182, 0.1507]; S6 [0.1035, 0.0840, 0.1240]; S7 [0.0182, 0.0004, 0.0358] also excludes -> OUT-SLOPE-INTERVAL (min 1.333)
+        - id: A-encodings
+          assumption: two encodings per S_3 unit; two points per x-key
+          declared: yes (quantifier_order of H-PFDR-0cc7e8)
+          alternative: A3a one encoding per unit (floor sqrt(rN)); A3b one point per key (floor sqrt(rN/2))
+          S4_S6_slopes: identical to archived (constant factors)
+          outcome: A3a OUT-FLOOR-VIOLATION (min 0.742; 26 rows < 1.0, 8 < 0.9); A3b unchanged OUT-SLOPE-INTERVAL (min 1.049)
+          note: Declared and load-bearing for F-1 only.
+        - id: A-table-charge
+          assumption: one S_3 unit per (F_a, stored tail) pair, i.e. per shared inversion (README "How cost is counted")
+          declared: yes in the README, implicitly by the row's table_s3_solves
+          alternative: A3c one unit per stored tail (S = search + table_entries)
+          S4_12_32: [0.1295, 0.1152, 0.1447]
+          S6_12_32: [0.0975, 0.0798, 0.1163]
+          outcome: OUT-CONSISTENT (min 1.983)
+          note: A mixed convention, less principled than A2a/A6/A7; shown because it moves S6 across the boundary.
+        - id: A-regressor
+          assumption: row log2N as the regressor
+          declared: yes (P4)
+          alternative: A4a nominal bits; A4b log2 p
+          S4_12_32: A4a [0.1331, 0.1185, 0.1486]; A4b [0.1322, 0.1174, 0.1481]
+          S6_12_32: A4a [0.1042, 0.0846, 0.1246]; A4b [0.1036, 0.0842, 0.1242]
+          outcome: unchanged OUT-SLOPE-INTERVAL
+        - id: A-min-fill
+          assumption: min_fill rows only
+          declared: yes (P3)
+          alternative: A5 min_index twins where they exist (S3 x4, S4, S5)
+          S4_12_32: '[0.1321, 0.1173, 0.1486] (identical data, different file order)'
+          S6_12_32: unchanged (no twin)
+          outcome: unchanged
+        - id: A-model-value
+          assumption: >-
+            The F-2/F-3 comparator is the asymptotic exponent 0 or 1/(2m), which is
+            right for the finite-range OLS slope only if |F| grows as N^(1/m). The
+            committed design has fb_size = max(4, ceil(((m! N)/2)^(1/m)/2)), with b_F
+            = 0.1615 (S6), 0.1383 (S7), 0.2456 (S4), 0.1951 (S5), 0.3303 (S3
+            unfiltered).
+          declared: no
+          alternative: A6a theta_design (search-only model at the design); A6b theta_star (table + search, theory exponents, calibrated constants)
+          S4_comparator: A6a 0.1315; A6b 0.1264 (interval [0.1174, 0.1480] contains both)
+          S6_comparator: A6a 0.0963; A6b 0.0855 (interval [0.0841, 0.1242] contains both)
+          outcome: OUT-CONSISTENT under both
+        - id: A-estimand
+          assumption: >-
+            The slope of the per-row mean of log2 ratio (a geometric-mean
+            estimand). The hypothesis states that the ratio rises as N^(1/(2m)) but
+            does not fix the location statistic. The within-rung variance of log2
+            ratio shrinks with N (small |F| at low rungs), so mean-log and log-mean
+            slopes differ.
+          declared: no (the method fixes it; no assumption records it)
+          alternative: A7 log2 of the rung arithmetic mean; A8 log2 of the rung median
+          S4_12_32: A7 [0.1273, 0.1140, 0.1450]; A8 [0.1343, 0.1069, 0.1551]
+          S6_12_32: A7 [0.0962, 0.0795, 0.1202]; A8 [0.1076, 0.0703, 0.1350]
+          outcome: OUT-CONSISTENT under both
+        - id: A-calibration
+          assumption: the stratified percentile interval has 95% coverage
+          declared: no
+          measured: 0.857-0.909 over 48 cells (J4-a)
+        - id: A-seed-and-order
+          assumption: bootstrap seed 0 and the committed row order
+          declared: seed yes (P4); row order no
+          measured: OUT-SLOPE-INTERVAL in 0.648 of 500 seeds; S6 sorted rows include 1/12 at seed 0 (J4-c)
+        - id: A-multiplicity
+          assumption: eight per-series tests read without multiplicity control
+          declared: no
+          measured: family-wise 0.57-0.61 under the model (J4-b)
+      alternatives_tally: >-
+        Of the 13 single-convention alternatives computed, six give OUT-CONSISTENT
+        (A2a, A3c, A6a, A6b, A7, A8), two give OUT-FLOOR-VIOLATION (A1, A3a, both
+        rejected by conventions the hypothesis declares), and five leave
+        OUT-SLOPE-INTERVAL (A2b, A3b, A4a, A4b, A5). S4's interval contains 1/8
+        under all 13.
+      p7c:
+        observed_anchor: {m3: [0.0867, 0.0688, n 220], m4: [0.1200, 0.3771, n 55], m5: [0.1671, 0.0824, n 55], m6: [0.1685, 0.0781, n 55], m7: [0.2161, 0.0098, n 55], exact_1pct_D_crit_n55: 0.2157}
+        decision_bearing: >-
+          No. analysis_outcomes and the analyze_floor outcome block do not read
+          P7(c). The descriptive-only label is correct.
+        nulls_K2000_per_m:
+          S0_correct_poisson_at_fixed_effort: {reject_1pct_each_m: 0.000, family_wise_5m: 0.000, note: conservative because c_m is estimated}
+          S1_poisson_arrivals_stop_at_observed_r: {reject_1pct_per_m: 0.0015-0.009, family_wise_5m: 0.0155, p_D_ge_0.2161_at_m7: 0.0015}
+          S2_poisson_arrivals_stop_at_F_plus_1: {reject_1pct_per_m: 0.001-0.0095, family_wise_5m: 0.016, p_D_ge_0.2161_at_m7: 0.001}
+          S3_upper_bracket_row_yield_planted_per_attempt_arrivals: {reject_1pct_m7: 0.70, p_D_ge_obs_m7: 0.69, but_p_D_ge_obs_m3: 0.9985, reading: 'over-predicts m = 3, so it brackets rather than explains'}
+          nominal_independence_formula: 0.049
+        pattern_across_m: >-
+          Four of five observed p-values are below 0.09 (0.069, 0.082, 0.078,
+          0.0098). S0, S1 and S2 each produced this in 0 of 2000 replicates.
+        dispersion_index: >-
+          Within-rung variance of c*mu/r times mean r, about 1 under S1. Observed:
+          1.455, 1.243, 2.328, 1.318, 2.785 for m = 3..7. S1 medians are
+          0.97-1.02, and S1 never reached the observed value at m = 3, 5, 7
+          (2000 replicates).
+        trimmed_m7: {drop_12: [0.217, 0.0151], drop_12_14: [0.211, 0.0309]}
+        q_vs_lambda_within_rung_corr: {m3: 0.11, m4: -0.35, m5: 0.40, m6: 0.41, m7: 0.60}
+        rung12_median_q_over_c: {m6: 2.02, m7: 2.19}
+        commands: [sh attacks/run.sh j6_p7c.py, sh attacks/run.sh j6_q_lambda.py]
+        seeds: numpy default_rng([0x69b7c5, 7, m, model]); fresh PIT randomisation per replicate
+        reading: >-
+          The stopping rule with Poisson arrivals, which is the confound the
+          specification names, makes the test conservative. It produces the m = 7
+          statistic with probability about 0.001 and never produces the across-m
+          pattern. The rejection instead reflects extra-Poisson dispersion of
+          relation yield per unit mu_TS around one pooled constant. The pattern is
+          present at every m and crosses 1% only at m = 7, and it persists without
+          the 12-bit rung. The mechanism is not identified. The yield tracks the
+          design's decomposition density within rung at m = 5..7 (not at m = 3, and
+          with the opposite sign at m = 4), which is a partial candidate only.
+          P7(c) also tests relations, which are capped at one per target,
+          first-found, and counted at a stop, against a Poisson law that
+          HEUR-0cc7e8-H1 states for x-key coincidences. It is therefore a
+          different object from H1's.
+      prior_comparison: >-
+        Partly overturned. The prior expected the m = 7 rejection to be borderline
+        (it is, p = 0.0098), non-decision-bearing (it is) and confounded by the
+        stopping rule. It is not produced by the stopping rule under Poisson
+        arrivals.
+      narrowest_supported_statement: >-
+        The Stage 0 outcome id depends on conventions the specification left
+        undeclared or declared inconsistently. With r = logged rank (the
+        specification's own "independent relations"), with the F-3 comparator
+        evaluated at the committed |F| design, or with log-of-mean or median
+        estimands, the same rows give OUT-CONSISTENT. The P7(c) m = 7 rejection is
+        correctly non-decision-bearing but is not explained by the stopping-rule
+        confound. It is a descriptive, across-m departure of relation yield from a
+        single pooled Poisson constant at 12..32 bits on this engine, and it says
+        nothing about H1's coincidence counts, which these rows do not record.
+
+    proves_too_much:
+      verdict: breaks
+      objects_and_results:
+        - object: rho r = 1 slice of the committed files (the known exponent 1/2)
+          result: >-
+            Survives. The frozen interval contains 1/2 under all three conventions:
+            filtered 0.5012 [0.4804, 0.5214]; unfiltered archived 0.5088 [0.4835,
+            0.5361]; unfiltered per-set 0.5066 [0.4825, 0.5317]. On synthetic rho
+            designs with 1/2 true (10 curves per rung, R1/R3, K = 20000) coverage is
+            0.918-0.935, and the width factor is 0.92-0.95.
+          command: sh attacks/run.sh j5_rho.py
+        - object: synthetic S6 and S4 designs with 1/12 and 1/8 true (plan's object)
+          result: >-
+            Fails. The exclusion rate is 0.094-0.107 (S6) and 0.092-0.112 (S4)
+            against the nominal 0.05, and 0.091-0.143 across all eight series. At
+            least one of the eight fires with probability 0.57-0.61 when all are
+            true.
+          command: sh attacks/run.sh j4_coverage.py
+        - object: >-
+            (added, more inconvenient) The model true by construction with its own
+            exponents, evaluated at the committed per-row (N, fb_size, relations), so
+            that the design's lower-order structure is present.
+          result: >-
+            Fails. Under V2 (table + search), the per-series exclusion of the
+            asymptotic value is 0.085-0.142 (S6 0.107-0.109) and the family-wise
+            rate is 0.62-0.64. The V1 bracket (search only) gives S6 0.28-0.30 and
+            family-wise 0.93-0.94. Bias curve for S6: P(lower end > 1/12) is 0.055,
+            0.113, 0.218, 0.353 and 0.518 at a finite-range excess of 0, 0.005,
+            0.010, 0.015 and 0.020.
+          command: sh attacks/run.sh ptm_design_null.py
+          seeds: numpy default_rng([0x69b7c5, 11, series, variant, noise]); K = 20000
+        - object: (added) the committed rows under other bootstrap seeds
+          result: The same data give OUT-SLOPE-INTERVAL in 0.648 of 500 seeds and OUT-CONSISTENT in 0.352.
+          command: sh attacks/run.sh j4_seed_dependence.py
+      failure_signature_met: >-
+        Yes. The frozen procedure excludes known-true values about twice as often as
+        5% per series. At the level the outcome table reads (any of eight), it
+        "falsifies" true models more often than not.
+      where_the_argument_survives: >-
+        The argument is "an interval that excludes the model value falsifies the
+        model". It goes through on known-true objects at four steps. (1)
+        Calibration: resampling 5 curves within each rung deflates the bootstrap
+        variance by (n-1)/n = 0.8 (derived; measured width factor 0.84-0.89). (2)
+        Aggregation: OUT-SLOPE-INTERVAL fires on any one of eight series with no
+        multiplicity control. (3) Comparator: a finite-range slope is compared with
+        an asymptotic exponent, with no allowance for lower-order terms, whose
+        identified components (0.005-0.019) exceed S6's margin. (4) Monte Carlo
+        error of the endpoints (SD 0.0006 over seeds) is comparable to the margin
+        (0.0008). The rho slice survives because steps (1) and (2) are milder there:
+        10 curves per rung and a single test.
+
+  # ---------------------------------------------------------------------------
+  objections:
+    - id: O1
+      joint: J4
+      text: >-
+        OUT-SLOPE-INTERVAL is seed-contingent. The seed-averaged S6 lower end is 1/12
+        (0.0833 +- 0.0006), and 35% of bootstrap seeds give OUT-CONSISTENT on the
+        same rows. Reordering S6's rows alone removes the exclusion at seed 0.
+    - id: O2
+      joint: J4
+      text: >-
+        Under the model, the family-wise probability of OUT-SLOPE-INTERVAL is
+        0.57-0.61. The outcome that fired is the modal outcome of a true model.
+    - id: O3
+      joint: J4
+      text: >-
+        The S6 excess is not robust. It is absent from the 20..32 range, the
+        1/log2N and quadratic fits, the drop-12-bit fit, the |F|-adjusted slope,
+        and the same-curve S6 - S7 contrast. The shared high-m excess (S7 - S3unf
+        excludes 0 at 12..32) is not an even-m effect.
+    - id: O4
+      joint: J6
+      text: >-
+        F-3's comparator 1/(2m) presumes |F| proportional to N^(1/m). The committed
+        |F| = max(4, ceil(.)) has b_F = 0.1615 at m = 6, and the model evaluated at
+        this design predicts 0.0855-0.0963, inside S6's interval. This assumption is
+        not declared.
+    - id: O5
+      joint: J6
+      text: >-
+        The specification glosses r as "independent relations" and reads it from
+        the logged relation count, but rank = relations - 1 on every primary row.
+        The declared meaning (rank) gives OUT-CONSISTENT.
+    - id: O6
+      joint: J6
+      text: >-
+        The P7(c) label names the stopping rule as the confound. With Poisson
+        arrivals the stopping rule makes the test conservative (family-wise 0.016)
+        and cannot produce the m = 7 statistic (p about 0.001) or the four-of-five
+        pattern (0 of 2000). The rejection is extra-Poisson dispersion of yield
+        around one pooled constant, and it measures relations rather than H1's
+        coincidences.
+    - id: O7
+      joint: proves_too_much
+      text: >-
+        The frozen F-2/F-3 argument falsifies true models at the family level more
+        often than not (0.57-0.64), which meets the declared failure signature.
+
+  required_controls:
+    - id: C1
+      text: >-
+        Any reading of F-2/F-3 on these rows reports the seed-averaged endpoints (or
+        >= 20000 bootstrap replicates) beside seed 0. Zero runs; attacks/j4_seed_dependence.py is the template.
+    - id: C2
+      text: >-
+        Compare the finite-range slope with the model value evaluated at the committed
+        |F| design (theta_star), or use the same-curve paired contrast, never the
+        asymptotic exponent alone.
+    - id: C3
+      text: >-
+        Control multiplicity over the eight series: calibrate the family-wise level by
+        the simulation in attacks/j4_coverage.py, or pre-register one primary series.
+    - id: C4
+      text: >-
+        Calibrate the per-series interval for 5 curves per rung, for example by
+        rescaling by sqrt(n/(n-1)) or with a studentized interval. Check it on the
+        synthetic designs before use.
+    - id: C5
+      text: >-
+        State r's convention (logged relations or rank) in writing. The two differ by
+        exactly 1 per row and move the outcome id.
+    - id: C6
+      text: >-
+        H1's Poisson form is tested on raw x-key coincidence counts at a fixed effort,
+        not on relations counted at a stop. Per H-PFDR-0cc7e8's validation_note that
+        clean test is assigned to EXP-PFDR-1b78f7, which this reviewer did not read
+        (read_scope_excludes).
+
+  counterexample_or_mutation: >-
+    Six mutations of the frozen procedure each move the outcome id from
+    OUT-SLOPE-INTERVAL to OUT-CONSISTENT on the same committed rows: r := rank (a
+    change of 1 in r per row), the bootstrap seed (35% of seeds), S6's row order
+    sorted by (bits, curve), the comparator evaluated at the committed |F| design,
+    and the log-of-mean or median estimand. The cheapest to run is the row-order
+    sort, one call: stats.bootstrap_slope on S6 sorted by (bits, curve) at seed 0
+    gives [0.0817, 0.1242].
+
+  baseline_comparison: >-
+    No algorithm or cost gain is claimed by EXP-PFDR-7c8bf2 (a zero-run re-read;
+    claim_tier toy). README sections 3-5 (read) place every arity above Pollard
+    rho's exponent (0.58-0.75 vs 0.51 walk) and at 15-183x rho's walk at 32 bits,
+    and the joints reviewed here move no Pareto position. BSGS and the specialised
+    baselines are not engaged by a re-read of cost ratios. The source proposal's
+    dominated_by (24 KR-IC rows and 3 KR-RHO rows, counted) was not audited: it
+    lies outside J4-J6.
+
+  heuristic_challenges:
+    - heuristic: HEUR-0cc7e8-H1
+      challenge: >-
+        Random-model transfer fails at the object level for P7(c). Relations are at
+        most one per target (decompose keeps the first hit; decompose.py docstring,
+        read), are counted at a stop, and track decomposition density within rung
+        at m = 5..7. H1's "deterministic ordering constant" is not constant across
+        rows at 12..32 bits (dispersion index 1.2-2.8 against about 1). The cheapest
+        exposing experiment is the fixed-budget coincidence census named in C6.
+    - heuristic: HEUR-0cc7e8-H2
+      challenge: >-
+        At m = 6 and 7, r = |F| or |F| + 1 on every row, so c_m = 1 + O(1/|F|). This
+        is a deterministic lower-order term that contributes -0.005 to the S6 12..32
+        slope (component half_r_over_F). It sits inside H2's +-0.03 window but is
+        of the order of S6's exclusion margin.
+
+  cost_model_challenges:
+    - >-
+      The floor's constants (two encodings per S_3 unit, two points per x-key) and
+      the inclusion of the table in S are declared. They are load-bearing for F-1
+      only: one encoding per unit gives min ratio 0.742, and a search-only S gives
+      0.396. They are slope-invariant, apart from the table term.
+    - >-
+      Lower-order ("o(1)") terms are the whole S6 story. At 12..32 the attribution
+      gives table-share decline -0.012, search per attempt +0.019, attempts per
+      relation +0.006 and r/|F| -0.005 relative to the model at the design. The
+      comparator evaluated at the committed |F| design sits +0.013 (search-only)
+      or +0.002 (table + search) above 1/12.
+
+  reduction_and_scope_challenges:
+    - >-
+      Scope of OUT-SLOPE-INTERVAL: one series (S6) at 12..32 bits, one engine, toy
+      scale, seed 0 and committed row order. The specification already forbids
+      reject_scoped. On this evidence the F-3 event is below the strength the
+      outcome table's reading presumes. The composition should weigh it as
+      seed-contingent and family-wise-expected; the weighing is the Coordinator's.
+    - >-
+      The eight series are not independent replications. The three filtered S3 bases
+      share curves (residual correlation 0.60-0.70), and S3-unfiltered, S4, S5, S6
+      and S7 share curves.
+
+  proof_architecture_challenges:
+    - kind: quantifier_order
+      text: >-
+        F-3 quantifies over the finite-range OLS slope, while the mechanism is an
+        asymptotic statement (exponent (m+1)/(2m) at beta = 1/m, with o(1) terms).
+        The test compares objects of different quantifier scope and has no
+        tolerance for the o(1).
+    - kind: method_ceiling
+      text: >-
+        With 5 curves per rung over 11 rungs, the 12..32 slope half-width is about
+        0.02 and the endpoint Monte Carlo SD is 0.0006. The identified lower-order
+        components are 0.005-0.019. At this design F-3 cannot tell 1/12 from
+        1/12 +- 0.02 however it is tuned.
+    - kind: nearby_object
+      text: >-
+        S7 (odd m, same curves, model value 0) shows the same 12..32 excess (+0.018;
+        lower end -0.0002; excludes 0 in 35% of seeds). An argument that reads S6's
+        excess as against the even-m gap would read S7's as against the odd-m
+        identity. The shared cause is the missing separator.
+
+  resource_reading:
+    examined: true
+    reading: >-
+      A candidate reading only, not evidence, and it changes no status. At m = 5..7
+      relation yield per unit of collision opportunity rises with decomposition
+      density within rung. If that survives a fixed-budget test, the floor ratio's
+      constant is a function of |F| through lambda. Stage 1 of IDEA-20260928-ce3ab0
+      (non-default |F|) is where it would show up as a measurable constant-factor
+      lever, not an exponent lever.
+    spawned_ids: []
+
+  scope_limits:
+    - Committed rows only (the five sweep files at 1a037688c), 12..32-bit generated prime-order curves, one engine; no transfer beyond 32 bits is asserted.
+    - All simulations are synthetic nulls built on the committed designs. They calibrate the frozen procedure and are not new observations of the engine.
+    - The design-model values theta_design and theta_star use theory exponents with constants calibrated from the committed columns. They are comparators, not fitted exponents, and theta_star depends on the table-plus-search form.
+    - The P7(c) S3 bracket plants each row's observed yield as truth and over-predicts at m = 3. It brackets the observation and does not model the engine.
+    - No statement is made about J1-J3 (the validator's) or about H-PFDR-0cc7e8 as a whole.
+
+  narrowest_supported_statement: >-
+    On J4: OUT-SLOPE-INTERVAL is seed 0's outcome, not a stable property of the
+    committed rows (0.648 over 500 seeds). It is the modal outcome under the model
+    (0.57-0.61), and S6's exclusion vanishes under every lower-order specification
+    and in the same-curve S6 - S7 contrast. The rows are consistent with the
+    even-m gap and do not resolve it more finely than about +-0.03. On J5: n = 92 is
+    a labelling artefact of first-seen de-duplication of exact duplicates, with no
+    outcome effect. On J6: the outcome id changes under six single-convention
+    alternatives, and the P7(c) rejection is not the stopping-rule confound. On
+    proves-too-much: the frozen F-2/F-3 argument falsifies true models more often
+    than not at the family level, and survives only on the rho slice.
+
+  next_concrete_action: >-
+    Needed only if the even-m gap matters downstream. Design, as a zero-run
+    Coordinator task, a paired m = 6 / m = 7 replication on the arity67 curves plus
+    fresh curves to at least 15 per rung over 12..26 bits. Its pre-registered
+    primary is the same-curve S6 - S7 slope, compared with the design-evaluated
+    model difference (theta_star 0.0806 at 12..32), with a family-wise-calibrated
+    interval and at least 20000 bootstrap replicates. Only new rows can separate
+    1/12 from 1/12 + 0.03. No zero-run re-read of these rows can.
+
+  # ---------------------------------------------------------------------------
+  knowledge_index:
+    available: false
+    note: >-
+      No search_knowledge tool was exposed to this subagent session (RT-7).
+      Nothing in this report is called "known". The bootstrap deflation (n-1)/n is
+      derived here, with Var of a with-replacement mean of n draws = (n-1)/n * s^2/n,
+      and measured (width factor 0.84-0.89). The Poisson-arrival stop null is
+      simulated, not cited.
+  citations:
+    - ref: experiments/EXP-PFDR-7c8bf2/specification.yaml
+      provenance: internal
+      use: P2-P7, analysis_outcomes, windows
+    - ref: ledger/hypotheses/H-PFDR-0cc7e8.yaml
+      provenance: internal
+      use: statement, assumptions (the r gloss), quantifier_order conventions, H1 and H2
+    - ref: ledger/proposals/IDEA-20260928-ce3ab0.yaml
+      provenance: internal
+      use: falsification conditions, confounders, dominated_by (counted, not audited)
+    - ref: src/crypto_autoresearcher/index_calculus/README.md (How cost is counted; sections 1 and 3-5; Caveats)
+      provenance: internal
+      use: charging convention, design, rho baseline
+    - ref: src/crypto_autoresearcher/index_calculus/factor_base.py (default_fb_size)
+      provenance: internal
+      use: fb_size formula, verified row by row in check_pipeline.py
+    - ref: src/crypto_autoresearcher/index_calculus/decompose.py and tails.py (module docstrings)
+      provenance: internal
+      use: one relation per target, early exit, table charge
+    - ref: experiments/EXP-PFDR-7c8bf2/analyze_floor.py
+      provenance: internal
+      use: outcome block lines 428-457; ks_pvalue and poisson_cdf loaded by file path for J6
+  computations_declared:
+    launcher: >-
+      attacks/run.sh (sets PYTHONDONTWRITEBYTECODE=1, OMP/OPENBLAS/MKL threads 1,
+      nice 19, ulimit -v 1 GiB, and refuses to start below 3 GB MemAvailable).
+      Interpreter
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python
+      (Python 3.11.15, numpy 2.4.6). The working directory is attacks/, and
+      outputs go to attacks/out/.
+    order_and_peak_rss_mb:
+      - {cmd: sh run.sh check_pipeline.py, peak_rss_mb: 35.8, note: my P3 series equal the archived floor-rows membership; frozen intervals equal fits.json exactly; FastBoot equals the literal function to <= 1.3e-15}
+      - {cmd: sh run.sh j4_coverage.py, peak_rss_mb: 466.7}
+      - {cmd: sh run.sh j4_lower_order.py, peak_rss_mb: 34.6}
+      - {cmd: sh run.sh j6_p7c.py, peak_rss_mb: 157.7, note: final run after a docstring-only edit; outputs identical (seeded)}
+      - {cmd: sh run.sh j6_alternatives.py, peak_rss_mb: 32.3}
+      - {cmd: sh run.sh j5_rho.py, peak_rss_mb: 440.6}
+      - {cmd: sh run.sh ptm_design_null.py, peak_rss_mb: 418.3}
+      - {cmd: sh run.sh j4_lack_of_fit.py, peak_rss_mb: 74.2}
+      - {cmd: sh run.sh j4_range_scan.py, peak_rss_mb: 411.6}
+      - {cmd: sh run.sh j6_q_lambda.py, peak_rss_mb: 33.4}
+      - {cmd: sh run.sh j4_seed_dependence.py, peak_rss_mb: 32.0}
+    infrastructure_failures: none (no crash, timeout or numerical failure in any computation)
+    runs: 0 (no RUN id; no solver module imported; each script asserts or records that no crypto_autoresearcher module is loaded)
+  procedure_notes:
+    - >-
+      The plan was read with `git show bb73251ee:ledger/handoffs/TASK-20260929-c40e48.yaml`.
+      That displays the whole validator card, and only handoff.review_plan was used.
+      The card is not a sibling report, and the validator's review directory was
+      not opened.
+    - >-
+      Before the declared scripts existed, three ad hoc read-only inspections (a
+      slope attribution, a per-rung q/attempts table and a q-lambda correlation)
+      ran with the same interpreter and without the launcher. Every number from
+      them used here was reproduced by a declared script (j4_lower_order.py,
+      j6_p7c.py, j6_q_lambda.py). They wrote only an attacks/__pycache__
+      directory, which was deleted.
+    - >-
+      `git log --oneline -5` in the shared tree displayed five commit subject
+      lines. Commit messages are not in this card's read_scope_excludes.
+    - >-
+      To check this directory's attestation against the committed
+      tools/check_review_independence.py (1a037688c), a temporary copy of the plan
+      card (git show bb73251ee) was written to the session scratchpad, outside the
+      repository, and deleted after the check. The check ran on this directory only
+      and did not read the validator's directory. My joints parse as claimed with
+      verdicts; the tool's other messages concern only the validator's absence from
+      that restricted run.
+  paths_needed_not_read:
+    - experiments/EXP-PFDR-1b78f7/ (excluded by the card). The clean H1 test (C6) lives there.
+  artifact_paths:
+    - coordination/review/pfdr-7c8bf2-20260929/reviews/TASK-20260929-69b7c5/red-team-report.yaml
+    - coordination/review/pfdr-7c8bf2-20260929/reviews/TASK-20260929-69b7c5/attestation.yaml
+    - coordination/review/pfdr-7c8bf2-20260929/reviews/TASK-20260929-69b7c5/attacks/
+  asserts_nothing_about: >-
+    H-PFDR-0cc7e8's status, J1-J3, EXP-PFDR-1b78f7, any deployed curve, or any
+    ECDLP cost. This report is scrutiny of three joints and one control, returned
+    to the archival task TASK-20260929-599b4b.

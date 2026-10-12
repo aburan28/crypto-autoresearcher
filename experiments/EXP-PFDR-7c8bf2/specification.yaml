@@ -1,0 +1,275 @@
+# =============================================================================
+# EXP-PFDR-7c8bf2 -- Stage 0 of IDEA-20260928-ce3ab0: the generic collision
+# floor (1/2)*sqrt(r*N), re-read on the committed mitm result rows.
+# ZERO NEW SOLVER RUNS. One analysis run over committed, immutable rows.
+# Calibration for EXP-PFDR-1b78f7 (the kappa census).
+# =============================================================================
+experiment:
+  id: EXP-PFDR-7c8bf2
+  hypothesis_id: H-PFDR-0cc7e8
+  question_id: RQ-PFDR-ae2fba
+  version: 1
+  title: >-
+    Generic collision floor re-read: S_3 / ((1/2)*sqrt(r*N)) on every
+    committed mitm row, slopes per (m, base), minimum ratio, base overlap at m = 3
+  status: approved
+  frozen: true
+  frozen_at: '2026-09-29'
+  approved_by: coordinator
+  approved_at: '2026-09-29'
+  approval_decision: DEC-20260928-b3afc2
+  approval_basis: >-
+    Standing user authorization, AGENTS.md "Standing user authorization for
+    ideas and experiments" (user, 2026-09-06). Protocol completeness checked by
+    the Coordinator in DEC-20260928-b3afc2. No user confirmation is outstanding.
+  execution_authorized: true
+  execution_handoff: TASK-20260928-51b8c8
+  evidence_eligible_before_review: false
+  designed_by: coordinator
+  designed_under_task: TASK-20260928-102217
+  source_proposal: IDEA-20260928-ce3ab0
+  source_proposal_scope: Stage 0 only; Stage 1 is not designed, approved or scheduled here
+  class: measurement (re-analysis of committed rows; heuristic validation of HEUR-0cc7e8-H1/H2)
+  claim_tier: toy
+  certificate:
+    kind: none
+    note: >-
+      No solve and no relation is claimed. The committed rows carry their own
+      provenance (README sections 3-5: every logarithm verified against
+      kP = Q). This experiment computes ratios and fits from them.
+
+  objective: >-
+    Decide whether the measured cost of the engine's mitm relation collection
+    sits on the generic x-key collision floor (1/2)*sqrt(r*N): a constant
+    multiple of it at odd m, an N^{1/(2m)}-growing multiple at even m, never
+    below it, and base-independent at m = 3. Fix, from committed data, the
+    generic floor that EXP-PFDR-1b78f7's kappa is read against.
+
+  inputs:
+    committed_result_files:
+      - path: src/crypto_autoresearcher/index_calculus/results/sweep-minfill-20260926.jsonl.gz
+        role: primary (m=3 mitm; small_x, random, subgroup; filtered curves; min_fill)
+      - path: src/crypto_autoresearcher/index_calculus/results/sweep-arity-minfill-20260926.jsonl.gz
+        role: primary (m=3,4,5 mitm small_x; unfiltered curves; min_fill)
+      - path: src/crypto_autoresearcher/index_calculus/results/sweep-arity67-20260928.jsonl.gz
+        role: primary (m=6,7 mitm small_x; plus 12-14-bit enumerate rows; min_fill)
+      - path: src/crypto_autoresearcher/index_calculus/results/sweep-mitm-20260926.jsonl.gz
+        role: consistency twin of sweep-minfill (min_index); its enumerate rows enter the minimum-ratio check only
+      - path: src/crypto_autoresearcher/index_calculus/results/sweep-arity-20260926.jsonl.gz
+        role: consistency twin of sweep-arity-minfill (min_index); its enumerate rows enter the minimum-ratio check only
+    input_binding: >-
+      The executor records the sha256 and line count of each file in the run
+      manifest before reading it. The files are immutable committed results;
+      any difference between the recorded digest and the digest at the design
+      packet's archive commit is an invalid input.
+    code_used: >-
+      crypto_autoresearcher.index_calculus.stats.bootstrap_slope (unchanged) and
+      a new script experiments/EXP-PFDR-7c8bf2/analyze_floor.py. No solver code
+      is imported or executed.
+    readme_reference: src/crypto_autoresearcher/index_calculus/README.md sections 3-5
+    expected_row_counts_from_readme: >-
+      Cross-checks only, not gates (the files are authoritative): sweep-mitm-20260926
+      380 rows; the min_fill sweeps 330 index-calculus rows between them plus
+      rho rows; sweep-arity67-20260928 110 mitm + 20 enumerate + 110 rho. A
+      difference is reported, never reconciled.
+
+  procedure:
+    - id: P0
+      step: >-
+        Read all five files. Record per file: sha256, line count, count by
+        (method, fb, engine, la_pivot). A row with ok = false is excluded from
+        every fit and listed by key; README reports none.
+    - id: P1-consistency
+      step: >-
+        Twin check. For every mitm row of sweep-mitm-20260926 find the row of
+        sweep-minfill-20260926 with the same (bits, curve, method, fb, engine);
+        for every mitm row of sweep-arity-20260926 the row of
+        sweep-arity-minfill-20260926 with the same key. Require equality of p,
+        a, b, N, fb_size, s3_solves, table_s3_solves, table_entries, relations,
+        attempts, rank, target_ops. README section 4 states this holds. Any
+        missing twin or unequal value makes the run invalid (invalidation I-2).
+    - id: P2-per-row
+      step: >-
+        For every index-calculus row (method starts with ic_) with ok = true in
+        the five files: S = s3_solves; T = table_s3_solves (0 for enumerate);
+        search = S - T; r = relations; N = N; floor = 0.5 * sqrt(r * N); ratio =
+        S / floor; table_share = T / S; log2N = row log2N. Rows are written to
+        floor-rows.jsonl with their file of origin and key. For every rho row:
+        rho_ratio = walk_ops / (0.886 * sqrt(N)); rho rows are deduplicated by
+        (p, a, b, curve, bits) across files before any summary.
+    - id: P3-series
+      step: >-
+        Primary series, one per (file, m, fb) on engine mitm: S3-smallx-filtered,
+        S3-random-filtered, S3-subgroup-filtered (sweep-minfill-20260926);
+        S3-smallx-unfiltered, S4-smallx, S5-smallx (sweep-arity-minfill-20260926);
+        S6-smallx, S7-smallx (sweep-arity67-20260928). The min_index twins are
+        never fitted (they would double-count identical instances).
+    - id: P4-fits
+      step: >-
+        For each primary series: slope of log2(ratio) against log2N via
+        stats.bootstrap_slope(xs, ys, groups=bits, reps=2000, level=0.95,
+        seed=0), i.e. the README's stratified percentile bootstrap. Primary
+        range: all rungs 12..32. Sensitivity range: 20..32 (reported beside,
+        never substituted).
+    - id: P5-min
+      step: >-
+        Minimum of ratio over every index-calculus row of the five files (mitm
+        and enumerate, twins included). Every row with ratio < 1.0 is listed
+        individually with its key and values.
+    - id: P6-bases
+      step: >-
+        At m = 3 on sweep-minfill-20260926: for each of small_x, random,
+        subgroup, the geometric mean of ratio over rows at 20..32 bits, with a
+        95% percentile bootstrap interval (2000 reps, seed 0) that resamples
+        curves with replacement within each rung. Report the three intervals and
+        whether each pair overlaps.
+    - id: P7-controls
+      step: >-
+        (a) rho r = 1 slice: per curve set, median rho_ratio per rung and the
+        slope of log2(walk_ops) vs log2N (README reports 0.50-0.51). (b) H2:
+        per primary series, slope of log2(relations / fb_size) vs log2N over
+        20..32 with the same bootstrap. (c) H1, descriptive only: per mitm row,
+        X_t = table_entries, X_s = 2 * search, mu_TS = 2 * X_t * X_s / N,
+        q = relations / mu_TS; per m the pooled constant c_m = sum(relations) /
+        sum(mu_TS) (the ordering constant, about 0.46 at m = 3 by the
+        generator's estimate); randomized-PIT KS of relations against
+        Poisson(c_m * mu_TS) at 1%, PIT randomness from
+        random.Random("pit-7c8bf2|<file>|<bits>|<curve>|<fb>|<m>"). Labelled
+        DESCRIPTIVE: relations are counted at a data-dependent stop, so this
+        comparison is confounded and is not decision-bearing. (d) table share
+        of S at 32 bits per series.
+
+  controls:
+    - rho walk on the same curves as the r = 1 slice of the floor (walk / (0.886*sqrt(N)))
+    - random base at matched |F| on identical curves at m = 3 (the generic null for the base comparison)
+    - min_index twin files as an exact consistency control on s3_solves and relations
+    - sensitivity range 20..32 beside every primary fit (lower-order terms)
+  independent_variables:
+    - m in {3, 4, 5, 6, 7}
+    - base in {small_x, random, subgroup} at m = 3; small_x at m = 4..7
+    - log2 N over 12..32 bits
+  metrics:
+    primary:
+      - per-series slope of log2(S_3/((1/2)*sqrt(r*N))) vs log2 N, with 95% CI (12..32)
+      - minimum over all committed IC rows of S_3/((1/2)*sqrt(r*N)); list of rows below 1.0
+      - m = 3 geometric-mean ratio per base (20..32) with 95% CI; pairwise overlap
+    secondary:
+      - sensitivity slopes (20..32)
+      - rho_ratio per rung and rho walk exponent
+      - r/|F| slope per series (HEUR-0cc7e8-H2)
+      - descriptive TS Poisson comparison and ordering constant c_m (HEUR-0cc7e8-H1)
+      - table share of S_3 at 32 bits
+      - twin-consistency counts
+  heuristic_under_test: [HEUR-0cc7e8-H1 (descriptive only here), HEUR-0cc7e8-H2]
+  preregistered_prediction:
+    quantity: ratio S_3 / ((1/2)*sqrt(r*N)) per committed mitm row, its slope in log2 N per (m, base), its minimum, and its base dependence at m = 3
+    formula: >-
+      Verbatim IDEA-20260928-ce3ab0 predictions: slope odd m within [-0.03,
+      +0.03]; m=4 within 0.125 +- 0.03; m=6 within 0.083 +- 0.03. Min >= 1.0
+      on every row; any row < 1 is flagged individually. Random vs small_x vs
+      subgroup at m=3, matched |F|: bootstrap intervals overlap. Generator's
+      back-of-envelope from 32-bit medians (not a threshold): m=3 about
+      1.5-1.7; m=5 about 3.3; m=7 about 6.9; m=4 about 27; m=6 about 25.
+    source: >-
+      IDEA-20260928-ce3ab0 claim (A) (GGM collision count, derivation tier,
+      unreviewed) and section (D); Shoup's technique (KN-LIT-011, KN-TECH-005);
+      Yun eprint 2014/637 (abstract retrieved). Written before this run and
+      not adjustable after it except by a versioned protocol_amendment.
+  scale_relevance:
+    tier: toy
+    justification: Committed rows at log2 p in 12..32 on generated prime-order curves. No transfer beyond 32 bits is asserted.
+    correspondence: null
+  tail_checks:
+    - Every row below 1.0 is listed individually (the floor's tail).
+    - The row with the smallest ratio per series is reported with its bits, curve and base.
+    - For each primary series, the largest absolute residual of the log2(ratio) fit is reported with its row key.
+  replication:
+    seeds: [0]
+    seeds_note: bootstrap seed 0, 2000 replicates, as the README's stats.py convention; the rows' own curve and target seeds are fixed by the committed files
+    independent_instances: 5
+    independent_instances_note: five curves per rung per series (committed design); no new instances
+
+  analysis_outcomes:
+    - id: OUT-CONSISTENT
+      condition: >-
+        Every primary odd-m slope point estimate within [-0.03, 0.03]; S4 within
+        [0.095, 0.155]; S6 within [0.053, 0.113]; min ratio >= 1.0; the three
+        m = 3 base intervals pairwise overlap; no falsification condition met.
+      reading: The committed engine sits on the generic floor as the source record predicts, at the tested scale.
+    - id: OUT-FLOOR-VIOLATION
+      condition: any IC row with ratio < 0.9 (falsification F-1)
+      reading: >-
+        The lemma, its constants or the charging convention is wrong, or a
+        non-generic effect was measured. Tripwire TW-FLOOR: routed to
+        review-breakthrough at max before any reading; every floor-relative
+        reading of EXP-PFDR-1b78f7 is withheld until resolved.
+    - id: OUT-SLOPE-INTERVAL
+      condition: >-
+        An odd-m primary slope CI excludes 0 (F-2), or an even-m primary slope
+        CI excludes 1/(2m) (F-3), whatever the point estimate.
+      reading: >-
+        The falsification condition is met on 12..32 for that series. The 20..32
+        sensitivity fit is reported beside it. This is a single, unreplicated,
+        empirical-only re-read: the Coordinator's evidence review may weaken
+        and request a derivation note or replication, and may not reject_scoped
+        on it.
+    - id: OUT-PREDICTION-MISS
+      condition: a primary point estimate outside its window, or a pair of m = 3 base intervals that do not overlap, or 0.9 <= min ratio < 1.0
+      reading: The prediction failed for the named series or rows; recorded as such, scoped to the series.
+    - id: OUT-INVALID
+      condition: invalidation I-1..I-4
+      reading: Nothing is read; returned to the executor with the defect named.
+  success_criterion: OUT-CONSISTENT.
+  falsification_criterion: >-
+    F-1: any committed IC row with ratio < 0.9. F-2: an odd-m primary slope
+    interval excluding 0. F-3: an even-m primary slope interval excluding
+    1/(2m). (IDEA-20260928-ce3ab0 falsification conditions 1-3, verbatim in
+    H-PFDR-0cc7e8.) Negative outcomes close only the tested series and range.
+
+  budget:
+    enforcement: advisory
+    advisory_scope: Time is advisory; memory and the zero-solver-run rule bind.
+    wall_clock_seconds_per_run: 3600
+    wall_clock_note: process watchdog for one analysis script (machine protection); expiry checkpoints the task and is never a result
+    total_cpu_hours: 0.5
+    total_cpu_note: advisory estimate
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    maximum_workers: 1
+    solver_runs: 0
+  stopping_rules:
+    - Stop after P0-P7 are written once. No re-fit with other ranges, bases or conventions beyond those declared.
+    - Stop at P1-consistency on any twin mismatch (invalidation I-2) and report.
+    - A crash or timeout is failed_infrastructure, never a mathematical result.
+  invalidation_rules:
+    - I-1 an input file unreadable, or its digest differs from the archived one
+    - I-2 twin-consistency mismatch or missing twin
+    - I-3 any solver module executed, or any committed results file written or modified
+    - I-4 a missing required artifact, or an overwritten existing run record
+
+  runs:
+    - run_id: RUN-PFDR-7c8bf2-stage0
+      command: python3 experiments/EXP-PFDR-7c8bf2/analyze_floor.py --results-dir src/crypto_autoresearcher/index_calculus/results --out experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0
+      outputs:
+        - experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/floor-rows.jsonl.gz
+        - experiments/EXP-PFDR-7c8bf2/runs/RUN-PFDR-7c8bf2-stage0/fits.json
+  required_artifacts:
+    per_run:
+      - manifest.yaml (run id, experiment id, status and validity reason; code commit, dirty state and sha256 of every executed source file; command; environment and dependency versions; inputs with file digests and line counts; bootstrap seed and reps; executor session inference block per AGENTS.md artifact policy -- requested policy, backend, resolved model id, provenance, model_verified, reasoning effort, fallback_used, degraded requirements; started/finished timestamps; peak RSS and CPU seconds; result.certificate.kind none)
+      - command.txt
+      - environment.json
+      - stdout.log
+      - stderr.log
+      - raw-result.json (all metrics of P1-P7, the outcome id, and the list of rows below 1.0)
+      - floor-rows.jsonl.gz
+      - fits.json
+      - checksums.sha256 (every file in the run directory)
+    per_experiment:
+      - experiments/EXP-PFDR-7c8bf2/analyze_floor.py
+      - experiments/EXP-PFDR-7c8bf2/execution-report.yaml (what ran, gate outcomes, deviations, unexpected observations, the outcome id; no interpretation beyond the declared outcome table)
+  assigned_to: executor
+  interpretation_limits:
+    - Numerical consequence only; the GGM derivation is not reviewed by this experiment.
+    - One engine, toy scale, generated curves. No statement about deployed curves or non-generic engines.
+    - The H1 Poisson comparison on committed rows is descriptive (stopping-rule confound).
+    - Claims (C1) and (C2) of IDEA-20260928-ce3ab0 are untested here.

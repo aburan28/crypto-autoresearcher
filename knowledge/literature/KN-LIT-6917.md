@@ -17,7 +17,7 @@ tags: [curve-arithmetic, dlp, ecdlp, elliptic-curve, extension-field, finite-fie
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-bba0c6
 ---
 
 ## Contribution

@@ -63,7 +63,7 @@ citation_verified_note: |-
   four authors exists on the IACR ePrint Archive, received 2026-08-07 and
   posted 2026-08-10, as rendered by the landing page. Nothing else.
 added: "2026-08-10"
-superseded_by: null
+superseded_by: KN-LIT-b97b9f
 ---
 
 ## Contribution

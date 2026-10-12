@@ -122,8 +122,13 @@ class Fixture:
 
     def git(self, *args: str, check: bool = True,
             input_data: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+        # Auto gc / maintenance may detach a background process that is still
+        # writing into .git when TemporaryDirectory.cleanup() runs, which fails
+        # teardown with "Directory not empty: '.git'" (seen in CI on PR #1453
+        # and PR #1479); same fix as tools/test_validate_dispatch_reference.py.
         proc = subprocess.run(
-            ["git", *args], cwd=self.repo, env=self.env, input=input_data,
+            ["git", "-c", "gc.auto=0", "-c", "maintenance.auto=false", *args],
+            cwd=self.repo, env=self.env, input=input_data,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         if check and proc.returncode != 0:
             self.fail_command(args, proc)

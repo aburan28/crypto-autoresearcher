@@ -1,0 +1,2106 @@
+{
+ "schema": "TASK-20260926-b99738 computations",
+ "task_id": "TASK-20260926-b99738",
+ "section_1_control_build": {
+  "recorded_at_utc": "2026-09-27T04:29:54Z",
+  "recorded_before_reading_any_BATCH-09aadd_value": true,
+  "note": "VB-3: built from AMD-20260926-typed text only (bytes sha256 3c57978c...eaad6 at 799387d940). No BATCH-09aadd report had been opened when this section was written.",
+  "implementation_A": {
+   "script": "build_controls.py",
+   "library": "Python 3.9.10 standard library only (own BPSW)",
+   "source": "#!/usr/bin/env python3\n\"\"\"TASK-20260926-b99738 J3(i): build every control integer of\nAMD-EXP-AUXIN-7e2e3d-20260926-typed from the draft text alone.\nPython standard library only. Own Baillie-PSW (strong base-2 + strong Lucas,\nSelfridge method A). Candidates counted per conventions.Q0-4 (every integer\nstepped by +1 from the search start up to and including the accepted one).\"\"\"\nimport json, math, sys, time\nfrom math import gcd, isqrt\n\n# ---------------- primality: own BPSW ----------------\nSMALL = []\n_s = bytearray([1]) * 20000\n_s[0] = _s[1] = 0\nfor i in range(2, 20000):\n    if _s[i]:\n        SMALL.append(i)\n        for j in range(i * i, 20000, i):\n            _s[j] = 0\nPRIMORIAL = 1\nfor p in SMALL[:300]:\n    PRIMORIAL *= p\n\ndef jacobi(a, n):\n    a %= n; res = 1\n    while a:\n        while a % 2 == 0:\n            a //= 2\n            if n % 8 in (3, 5): res = -res\n        a, n = n, a\n        if a % 4 == 3 and n % 4 == 3: res = -res\n        a %= n\n    return res if n == 1 else 0\n\ndef strong_prp(n, a):\n    d = n - 1; s = 0\n    while d % 2 == 0: d //= 2; s += 1\n    x = pow(a, d, n)\n    if x == 1 or x == n - 1: return True\n    for _ in range(s - 1):\n        x = x * x % n\n        if x == n - 1: return True\n    return False\n\ndef strong_lucas(n):\n    if isqrt(n) ** 2 == n: return False\n    D = 5\n    while True:\n        j = jacobi(D, n)\n        if j == -1: break\n        if j == 0 and abs(D) < n: return False\n        D = -D - 2 if D > 0 else -D + 2\n    P, Q = 1, (1 - D) // 4\n    d = n + 1; s = 0\n    while d % 2 == 0: d //= 2; s += 1\n    # compute U_d, V_d via binary method\n    U, V, Qk = 1, P, Q % n\n    inv2 = (n + 1) // 2\n    for bit in bin(d)[3:]:\n        U, V = U * V % n, (V * V - 2 * Qk) % n\n        Qk = Qk * Qk % n\n        if bit == '1':\n            U, V = (P * U + V) * inv2 % n, (D * U + P * V) * inv2 % n\n            Qk = Qk * Q % n\n    if U == 0 or V == 0: return True\n    for _ in range(s - 1):\n        V = (V * V - 2 * Qk) % n\n        Qk = Qk * Qk % n\n        if V == 0: return True\n    return False\n\ndef is_prime(n):\n    if n < 2: return False\n    for p in SMALL[:300]:\n        if n == p: return True\n        if n % p == 0: return False\n    return strong_prp(n, 2) and strong_lucas(n)\n\ndef quick_ok(n):\n    return n > SMALL[299] and gcd(n, PRIMORIAL) == 1\n\ndef nextprime_ge(x):\n    \"\"\"returns (p, candidates_examined) counting every integer from x.\"\"\"\n    n = x\n    while not is_prime(n): n += 1\n    return n, n - x + 1\n\ndef nextprime_gt(x):\n    p, c = nextprime_ge(x + 1)\n    return p, c\n\ndef icbrt(n):\n    x = int(round(n ** (1.0 / 3))) if n < 2 ** 1000 else 1 << ((n.bit_length() + 2) // 3)\n    # Newton to exact\n    x = 1 << ((n.bit_length() + 2) // 3)\n    while True:\n        y = (2 * x + n // (x * x)) // 3\n        if y >= x: break\n        x = y\n    while x ** 3 > n: x -= 1\n    while (x + 1) ** 3 <= n: x += 1\n    return x\n\ndef ceildiv(a, b): return -(-a // b)\n\nout = {}\nB = 256; M0 = 3 * 2 ** (B - 2)\nBL = 521; ML = 3 * 2 ** (BL - 2)\nassert (M0 - 2 ** (B - 3)).bit_length() == B and (M0 + 2 ** (B - 3)).bit_length() == B\n\n# ---------------- C-PLANT-M ----------------\nt0 = time.time()\nS = isqrt(M0)\nd1, c_d1 = nextprime_ge(isqrt(S))\nd2, c_d2 = nextprime_gt(d1)\nD = d1 * d2\nu0 = ceildiv(M0, 2 * D)\nu = u0\nwhile True:\n    if quick_ok(u):\n        r = 2 * D * u + 1\n        if (r + 1) % 12 == 0:\n            v = (r + 1) // 12\n            if quick_ok(r) and quick_ok(v) and u != d1 and u != d2 and is_prime(u) and is_prime(r) and is_prime(v):\n                break\n    u += 1\nassert isqrt(S) <= d1 < isqrt(S) + 2 ** 24 and d1 < d2 < d1 + 2 ** 24 and u0 <= u < u0 + 2 ** 48\nassert r.bit_length() == B\nout['C-PLANT-M'] = dict(S=S, isqrtS=isqrt(S), d1=d1, d2=d2, D=D, u0=u0, u=u, r=r, v=v,\n    candidates=dict(d1=c_d1, d2=c_d2, u=u - u0 + 1), r_bits=r.bit_length(),\n    check_minus=(r - 1 == 2 * d1 * d2 * u), check_plus=(r + 1 == 12 * v), seconds=time.time() - t0)\nprint('C-PLANT-M done', time.time() - t0, file=sys.stderr)\n\n# ---------------- C-PLANT-P ----------------\nt0 = time.time()\nassert M0 % 4 == 0\nd0 = icbrt(M0 // 4)\ndP, c_d = nextprime_ge(d0)\nw0 = ceildiv(M0, 12 * dP)\nw = w0\nwhile True:\n    if quick_ok(w) and w != dP:\n        rP = 12 * dP * w - 1\n        qP = (rP - 1) // 2\n        if quick_ok(rP) and quick_ok(qP) and is_prime(w) and is_prime(rP) and is_prime(qP):\n            break\n    w += 1\nassert d0 <= dP < d0 + 2 ** 24 and w0 <= w < w0 + 2 ** 48 and rP.bit_length() == B\nout['C-PLANT-P'] = dict(d0=d0, d=dP, w0=w0, w=w, r=rP, q=qP,\n    candidates=dict(d=c_d, w=w - w0 + 1), r_bits=rP.bit_length(),\n    d_bits=dP.bit_length(), d0_bits=d0.bit_length(),\n    check_plus=(rP + 1 == 12 * dP * w), check_minus=(rP - 1 == 2 * qP), seconds=time.time() - t0)\nprint('C-PLANT-P done', time.time() - t0, file=sys.stderr)\n\n# ---------------- C-INERT ----------------\nt0 = time.time()\nw0 = 2 ** (B - 4)\nassert 12 * w0 == M0\nw = w0\nwhile True:\n    if quick_ok(w):\n        rI = 12 * w - 1; qI = 6 * w - 1\n        if quick_ok(rI) and quick_ok(qI) and is_prime(w) and is_prime(rI) and is_prime(qI):\n            break\n    w += 1\nassert w0 <= w < w0 + 2 ** 48 and rI.bit_length() == B\nout['C-INERT'] = dict(w0=w0, w=w, r=rI, q=qI, candidates=dict(w=w - w0 + 1), r_bits=rI.bit_length(),\n                      seconds=time.time() - t0)\nprint('C-INERT done', time.time() - t0, file=sys.stderr)\n\n# ---------------- C-PLANT-PL ----------------\nt0 = time.time()\nassert ML % 4 == 0\nxL = icbrt(ML // 4)\nf1, c1 = nextprime_ge(2 ** 43)\nf2, c2 = nextprime_gt(f1)\nf3, c3 = nextprime_gt(f2)\nG = f1 * f2 * f3\ny = ceildiv(xL, G)\nf4, c4 = nextprime_ge(y)\nDL = G * f4\nw0 = ceildiv(ML, 12 * DL)\nw = w0\nwhile True:\n    if quick_ok(w):\n        rL = 12 * DL * w - 1; qL = (rL - 1) // 2\n        if quick_ok(rL) and quick_ok(qL) and is_prime(w) and is_prime(rL) and is_prime(qL):\n            break\n    w += 1\nwin = dict(f1=2 ** 43 <= f1 < 2 ** 43 + 2 ** 24, f2=f1 < f2 < f1 + 2 ** 24, f3=f2 < f3 < f2 + 2 ** 24,\n           f4=(y <= f4 < y + 2 ** 24) and f4 > f3, w=w0 <= w < w0 + 2 ** 48, r_bits=rL.bit_length() == BL)\nout['C-PLANT-PL'] = dict(xL=xL, f1=f1, f2=f2, f3=f3, G=G, y=y, f4=f4, D_L=DL, w0=w0, w=w, r=rL, q=qL,\n    candidates=dict(f1=c1, f2=c2, f3=c3, f4=c4, w=w - w0 + 1), windows=win, r_bits=rL.bit_length(),\n    check_plus=(rL + 1 == 12 * f1 * f2 * f3 * f4 * w), check_minus=(rL - 1 == 2 * qL),\n    DL_rel_to_xL=float((DL - xL) / xL) if False else (DL - xL) * 2 ** 64 // xL,\n    seconds=time.time() - t0)\nprint('C-PLANT-PL done', time.time() - t0, file=sys.stderr)\n\n# ---------------- C-FIELD ----------------\nout['C-FIELD'] = dict(CF1=2 ** 255 - 19, CF2=2 ** 256 - 2 ** 224 + 2 ** 192 + 2 ** 96 - 1,\n                      CF1_bpsw=is_prime(2 ** 255 - 19),\n                      CF2_bpsw=is_prime(2 ** 256 - 2 ** 224 + 2 ** 192 + 2 ** 96 - 1))\n\njson.dump({k: {kk: (str(vv) if isinstance(vv, int) and not isinstance(vv, bool) and abs(vv) > 2 ** 53 else vv)\n               for kk, vv in v.items()} for k, v in out.items()},\n          open('/tmp/b99738/controls_build.json', 'w'), indent=1, default=str)\nprint('ok')\n",
+   "stdout": "ok\n",
+   "stderr": "C-PLANT-M done 13.305830955505371\nC-PLANT-P done 2.41109299659729\nC-INERT done 4.01275897026062\nC-PLANT-PL done 122.79159903526306\n",
+   "raw_output": {
+    "C-PLANT-M": {
+     "S": "294693174213430241384087455685767077316",
+     "isqrtS": "17166629669606968060",
+     "d1": "17166629669606968129",
+     "d2": "17166629669606968169",
+     "D": "294693174213430244430891235695900485801",
+     "u0": "147346587106715119168641837837816850167",
+     "u": "147346587106715119168641837837818895601",
+     "r": "86844066927987146567678238756517136441196232254617864945125180267986403722803",
+     "v": "7237005577332262213973186563043094703433019354551488745427098355665533643567",
+     "candidates": {
+      "d1": 70,
+      "d2": 40,
+      "u": 2045435
+     },
+     "r_bits": 256,
+     "check_minus": true,
+     "check_plus": true,
+     "seconds": 13.305828094482422
+    },
+    "C-PLANT-P": {
+     "d0": "27897163901963686775744497",
+     "d": "27897163901963686775744531",
+     "w0": "259417251257675264555422902444027860852665664144271",
+     "w": "259417251257675264555422902444027860852665664308877",
+     "r": "86844066927987146567678238756515930889952488554335154276504727596582730020243",
+     "q": "43422033463993573283839119378257965444976244277167577138252363798291365010121",
+     "candidates": {
+      "d": 35,
+      "w": 164607
+     },
+     "r_bits": 256,
+     "d_bits": 85,
+     "d0_bits": 85,
+     "check_plus": true,
+     "check_minus": true,
+     "seconds": 2.4110889434814453
+    },
+    "C-INERT": {
+     "w0": "7237005577332262213973186563042994240829374041602535252466099000494570602496",
+     "w": "7237005577332262213973186563042994240829374041602535252466099000494570934027",
+     "r": "86844066927987146567678238756515930889952488499230423029593188005934851208323",
+     "q": "43422033463993573283839119378257965444976244249615211514796594002967425604161",
+     "candidates": {
+      "w": 331532
+     },
+     "r_bits": 256,
+     "seconds": 4.012755870819092
+    },
+    "C-PLANT-PL": {
+     "xL": "10877848459886072154432685621546558843631389038082760",
+     "f1": 8796093022237,
+     "f2": 8796093022247,
+     "f3": 8796093022261,
+     "G": "680564733851238848473886552692921264679",
+     "y": 15983561766902,
+     "f4": 15983561766947,
+     "D_L": "10877848459917121993158203742548891230371827100765013",
+     "w0": "39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530313323631",
+     "w": "39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530321578919",
+     "r": "5148598245097957286236425599311044912952076475107479057045847594389157387548242039091919730496091993830297593800979769230422459198096268539608437683442731363",
+     "q": "2574299122548978643118212799655522456476038237553739528522923797194578693774121019545959865248045996915148796900489884615211229599048134269804218841721365681",
+     "candidates": {
+      "f1": 30,
+      "f2": 10,
+      "f3": 14,
+      "f4": 46,
+      "w": 8255289
+     },
+     "windows": {
+      "f1": true,
+      "f2": true,
+      "f3": true,
+      "f4": true,
+      "w": true,
+      "r_bits": true
+     },
+     "r_bits": 521,
+     "check_plus": true,
+     "check_minus": true,
+     "DL_rel_to_xL": 52654569,
+     "seconds": 122.79158306121826
+    },
+    "C-FIELD": {
+     "CF1": "57896044618658097711785492504343953926634992332820282019728792003956564819949",
+     "CF2": "115792089210356248762697446949407573530086143415290314195533631308867097853951",
+     "CF1_bpsw": true,
+     "CF2_bpsw": true
+    }
+   }
+  },
+  "implementation_B": {
+   "script": "build_controls.gp",
+   "library": "PARI/GP 2.17.3 (Homebrew /opt/homebrew/bin/gp): nextprime, ispseudoprime, isprime(x,2) proof",
+   "source": "\\\\ Second implementation (PARI/GP 2.17.3), shares no code with build_controls.py.\n\\\\ Uses ispseudoprime (BPSW) for the screen and isprime (proof) on accepted integers.\ncnt(x,p)=p-x+1;\nB=256; M0=3*2^(B-2); BL=521; ML=3*2^(BL-2);\ncd(a,b)=-((-a)\\b);\nS=sqrtint(M0); a=sqrtint(S); d1=nextprime(a); d2=nextprime(d1+1); D=d1*d2; u0=cd(M0,2*D);\nu=u0; while(!(ispseudoprime(u) && u!=d1 && u!=d2 && ispseudoprime(2*D*u+1) && (2*D*u+2)%12==0 && ispseudoprime((2*D*u+2)/12)), u++);\nrM=2*D*u+1;\nprint(\"PLANTM d1=\",d1,\" d2=\",d2,\" u0=\",u0,\" u=\",u,\" r=\",rM,\" cands_d1=\",cnt(a,d1),\" cands_d2=\",cnt(d1+1,d2),\" cands_u=\",u-u0+1,\" proof=\",isprime(u,2)*isprime(rM,2)*isprime((rM+1)/12,2)*isprime(d1,2)*isprime(d2,2));\nd0=sqrtnint(M0/4,3); dP=nextprime(d0); w0=cd(M0,12*dP);\nw=w0; while(!(ispseudoprime(w) && w!=dP && ispseudoprime(12*dP*w-1) && ispseudoprime((12*dP*w-2)/2)), w++);\nrP=12*dP*w-1;\nprint(\"PLANTP d0=\",d0,\" d=\",dP,\" w0=\",w0,\" w=\",w,\" r=\",rP,\" cands_d=\",cnt(d0,dP),\" cands_w=\",w-w0+1,\" proof=\",isprime(dP,2)*isprime(w,2)*isprime(rP,2)*isprime((rP-1)/2,2));\nw0=2^(B-4); w=w0; while(!(ispseudoprime(w) && ispseudoprime(12*w-1) && ispseudoprime(6*w-1)), w++);\nrI=12*w-1;\nprint(\"INERT w0=\",w0,\" w=\",w,\" r=\",rI,\" cands_w=\",w-w0+1,\" proof=\",isprime(w,2)*isprime(rI,2)*isprime(6*w-1,2));\nxL=sqrtnint(ML/4,3); f1=nextprime(2^43); f2=nextprime(f1+1); f3=nextprime(f2+1); G=f1*f2*f3; y=cd(xL,G); f4=nextprime(y); DL=G*f4; w0=cd(ML,12*DL);\nw=w0; while(!(ispseudoprime(w) && ispseudoprime(12*DL*w-1) && ispseudoprime(6*DL*w-1)), w++);\nrL=12*DL*w-1;\nprint(\"PLANTPL xL=\",xL,\" f1=\",f1,\" f2=\",f2,\" f3=\",f3,\" f4=\",f4,\" w0=\",w0,\" w=\",w,\" r=\",rL,\" cands=\",[cnt(2^43,f1),cnt(f1+1,f2),cnt(f2+1,f3),cnt(y,f4),w-w0+1],\" bits=\",#binary(rL));\nprint(\"PLANTPL_proof=\",isprime(f1,2)*isprime(f2,2)*isprime(f3,2)*isprime(f4,2)*isprime(w,2)*isprime(rL,2)*isprime((rL-1)/2,2));\nprint(\"CF1_proof=\",isprime(2^255-19,2),\" CF2_proof=\",isprime(2^256-2^224+2^192+2^96-1,2));\nquit;\n",
+   "output": "PLANTM d1=17166629669606968129 d2=17166629669606968169 u0=147346587106715119168641837837816850167 u=147346587106715119168641837837818895601 r=86844066927987146567678238756517136441196232254617864945125180267986403722803 cands_d1=70 cands_d2=40 cands_u=2045435 proof=1\nPLANTP d0=27897163901963686775744497 d=27897163901963686775744531 w0=259417251257675264555422902444027860852665664144271 w=259417251257675264555422902444027860852665664308877 r=86844066927987146567678238756515930889952488554335154276504727596582730020243 cands_d=35 cands_w=164607 proof=1\nINERT w0=7237005577332262213973186563042994240829374041602535252466099000494570602496 w=7237005577332262213973186563042994240829374041602535252466099000494570934027 r=86844066927987146567678238756515930889952488499230423029593188005934851208323 cands_w=331532 proof=1\nPLANTPL xL=10877848459886072154432685621546558843631389038082760 f1=8796093022237 f2=8796093022247 f3=8796093022261 f4=15983561766947 w0=39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530313323631 w=39442529038636012160247599452157713158266107711444780752327163708276453393988500677631451138530321578919 r=5148598245097957286236425599311044912952076475107479057045847594389157387548242039091919730496091993830297593800979769230422459198096268539608437683442731363 cands=[30, 10, 14, 46, 8255289] bits=521\nPLANTPL_proof=1\nCF1_proof=1 CF2_proof=1\n"
+  },
+  "A_B_agreement_on_every_r": {
+   "C-PLANT-M": true,
+   "C-PLANT-P": true,
+   "C-INERT": true,
+   "C-PLANT-PL": true
+  },
+  "gate_evaluation": {
+   "script": "eval_controls.py",
+   "library": "Python 3.9.10 decimal, prec 170",
+   "source": "#!/usr/bin/env python3\n\"\"\"TASK-20260926-b99738 J3(iii): evaluate every declared gate on the controls\nbuilt by build_controls.py, under the draft's definitions (typed_costs,\nanalytic_floors_and_ceiling, depth, bins, minimiser_and_ties,\ngate_evaluation_mode, D3 BOUND rules). Standard library decimal at 170 digits.\"\"\"\nimport json, itertools\nfrom decimal import Decimal as Dm, getcontext\ngetcontext().prec = 170\nC = json.load(open('/tmp/b99738/controls_build.json'))\nI = lambda x: int(x)\nLN2 = Dm(2).ln()\ndef log2(x): return Dm(x).ln() / LN2\ndef sqrt(x): return Dm(x).sqrt()\nTAU = Dm(10) ** -45\nTIE = Dm(10) ** -100\n\ndef T(b, m, d):\n    return sqrt(Dm(m // d)) + (sqrt(Dm(d)) if b == 'minus' else Dm(d))\ndef e(b, r, m, d): return log2(T(b, m, d)) / log2(r)\ndef F(b, r):\n    if b == 'minus': return (1 + log2(r - 1) / 4) / log2(r)\n    return (log2(3) - Dm(2) / 3 + log2(r + 1) / 3) / log2(r)\ndef Cc(b, r, m): return log2(sqrt(Dm(m)) + 1) / log2(r)\ndef depth(b, r, m, ev): return (Cc(b, r, m) - ev) / (Cc(b, r, m) - F(b, r))\ndef bin_exact(s):\n    flag = abs(s - Dm(1) / 4) <= TAU or abs(s - Dm(3) / 4) <= TAU\n    if abs(s - Dm(3) / 4) <= TAU: return 'INTERMEDIATE', flag\n    if abs(s - Dm(1) / 4) <= TAU: return 'NEAR_CEILING', flag\n    if s >= Dm(3) / 4 + TAU: return 'NEAR_FLOOR', flag\n    if s <= Dm(1) / 4 - TAU: return 'NEAR_CEILING', flag\n    return 'INTERMEDIATE', flag\ndef bin_bound(s):\n    b, flag = bin_exact(s)\n    if s >= Dm(3) / 4 + TAU: return 'NEAR_FLOOR', None, flag\n    return 'UNDETERMINED', b, flag\n\ndef divisors(fact):\n    ds = [1]\n    for p, k in fact.items():\n        ds = [d * p ** i for d in ds for i in range(k + 1)]\n    return sorted(set(ds))\ndef minimise(b, r, m, cands):\n    vals = {d: e(b, r, m, d) for d in cands}\n    es = min(vals.values())\n    tied = sorted(d for d, v in vals.items() if v - es <= TIE * es)\n    return tied[0], es, tied\n\ndef exact_branch(b, r, fact):\n    m = r - 1 if b == 'minus' else r + 1\n    prod = 1\n    for p, k in fact.items(): prod *= p ** k\n    assert prod == m, (b, 'product')\n    d, es, tied = minimise(b, r, m, divisors(fact))\n    s = depth(b, r, m, es)\n    bn, flag = bin_exact(s)\n    return dict(status='EXACT', minimiser=str(d), minimiser_bits=d.bit_length(), tied=[str(t) for t in tied],\n                e=str(es)[:60], F=str(F(b, r))[:60], e_minus_F=str(es - F(b, r))[:30], C=str(Cc(b, r, m))[:40],\n                depth=str(s)[:40], bin=bn, boundary_flag=flag,\n                floor_ok=bool(es - F(b, r) >= -TAU), le_1e6=bool(es - F(b, r) <= Dm(10) ** -6),\n                memory_elements_log2=str(log2(max(sqrt(Dm(m // d)), sqrt(Dm(d)))))[:20]), d, es\n\ndef smallest_strong_witness(n):\n    if n % 2 == 0: return 'even'\n    dd = n - 1; s = 0\n    while dd % 2 == 0: dd //= 2; s += 1\n    a = 2\n    while True:\n        x = pow(a, dd, n)\n        ok = x == 1 or x == n - 1\n        for _ in range(s - 1):\n            if ok: break\n            x = x * x % n\n            ok = x == n - 1\n        if not ok: return a\n        a += 1\n\ndef bound_branch(b, r, Fprimes, parts):\n    m = r - 1 if b == 'minus' else r + 1\n    Fb = 1\n    for p, k in Fprimes.items(): Fb *= p ** k\n    P = 1\n    for x in parts: P *= x\n    assert Fb * P == m\n    W = set()\n    for eF in divisors(Fprimes):\n        for k in range(len(parts) + 1):\n            for S in itertools.combinations(parts, k):\n                pr = 1\n                for x in S: pr *= x\n                W.add(eF * pr)\n    assert all(m % x == 0 for x in W)\n    d, ub, tied = minimise(b, r, m, W)\n    s = depth(b, r, m, ub)\n    bn, atl, flag = bin_bound(s)\n    return dict(status='BOUND', W_size=len(W), W=[str(x) for x in sorted(W)], witness=str(d), tied=[str(t) for t in tied],\n                upper=str(ub)[:60], lower=str(F(b, r))[:60], depth=str(s)[:40], bin=bn, bin_at_least=atl,\n                boundary_flag=flag, floor_ok=bool(ub - F(b, r) >= -TAU),\n                part_witnesses=[smallest_strong_witness(x) for x in parts]), d, ub\n\nR = {}\npm = C['C-PLANT-M']; r = I(pm['r']); d1, d2, u, v = I(pm['d1']), I(pm['d2']), I(pm['u']), I(pm['v']); D = d1 * d2\nmi, dmi, emi = exact_branch('minus', r, {2: 1, d1: 1, d2: 1, u: 1})\npl, _, _ = exact_branch('plus', r, {2: 2, 3: 1, v: 1})\nR['C-PLANT-M'] = dict(minus=mi, plus=pl, gates=dict(\n    minus_minimiser_in_D_pair=dmi in (D, (r - 1) // D), minus_gap=mi['le_1e6'] and mi['floor_ok'],\n    minus_NEAR_FLOOR=mi['bin'] == 'NEAR_FLOOR', plus_NEAR_CEILING=pl['bin'] == 'NEAR_CEILING'))\nb1, w1, ub1 = bound_branch('minus', r, {2: 1, u: 1}, [D])\nb2, w2, ub2 = bound_branch('minus', r, {2: 1}, [d1 * d2 * u])\nR['BND-1'] = dict(b1, expected_witness=str(min(D, 2 * u)), witness_ok=w1 == min(D, 2 * u),\n                  bin_ok=b1['bin'] == 'NEAR_FLOOR' and not b1['boundary_flag'],\n                  consistency_abs_diff=str(abs(ub1 - emi)), consistency_ok=abs(ub1 - emi) <= Dm(10) ** -50)\nR['BND-2'] = dict(b2, witness_ok=w2 == 2, bin_ok=(b2['bin'] == 'UNDETERMINED' and b2['bin_at_least'] == 'NEAR_CEILING' and not b2['boundary_flag']),\n                  W_ok=set(b2['W']) == {str(1), str(2), str((r - 1) // 2), str(r - 1)})\n\npp = C['C-PLANT-P']; rP = I(pp['r']); dP, wP, qP = I(pp['d']), I(pp['w']), I(pp['q'])\npl, dpl, _ = exact_branch('plus', rP, {2: 2, 3: 1, dP: 1, wP: 1})\nmi, _, _ = exact_branch('minus', rP, {2: 1, qP: 1})\nR['C-PLANT-P'] = dict(minus=mi, plus=pl, gates=dict(plus_minimiser_eq_d=dpl == dP, plus_gap=pl['le_1e6'] and pl['floor_ok'],\n    plus_NEAR_FLOOR=pl['bin'] == 'NEAR_FLOOR', minus_NEAR_CEILING=mi['bin'] == 'NEAR_CEILING',\n    d_bits_decl=(dP.bit_length() in (I(pp['d0']).bit_length(), I(pp['d0']).bit_length() + 1)) and dP >= I(pp['d0'])))\nb3, w3, _ = bound_branch('plus', rP, {2: 1}, [2 * dP, 3 * wP])\nexp3 = sorted([1, 2, 2 * dP, 4 * dP, 3 * wP, 6 * wP, 6 * dP * wP, 12 * dP * wP])\nb3s, w3s, _ = bound_branch('plus', rP, {2: 1}, [6 * dP * wP])\nR['BND-3'] = dict(b3, W_ok=[I(x) for x in b3['W']] == exp3, witness_ok=w3 == 2 * dP,\n                  bin_ok=b3['bin'] == 'NEAR_FLOOR' and not b3['boundary_flag'],\n                  contrast_single_cofactor=dict(witness=str(w3s), bin=b3s['bin'], bin_at_least=b3s['bin_at_least']))\n\nci = C['C-INERT']; rI = I(ci['r']); wI, qI = I(ci['w']), I(ci['q'])\nmi, dmi, _ = exact_branch('minus', rI, {2: 1, qI: 1})\npl, dpl, _ = exact_branch('plus', rI, {2: 2, 3: 1, wI: 1})\nR['C-INERT'] = dict(minus=mi, plus=pl, gates=dict(minus_min_2=dmi == 2, minus_NC=mi['bin'] == 'NEAR_CEILING',\n                    plus_min_12=dpl == 12, plus_NC=pl['bin'] == 'NEAR_CEILING'))\n\ncl = C['C-PLANT-PL']; rL = I(cl['r']); f = [I(cl[k]) for k in ('f1', 'f2', 'f3', 'f4')]; wL, qL = I(cl['w']), I(cl['q'])\nDL = f[0] * f[1] * f[2] * f[3]; xL = I(cl['xL'])\npl, dpl, _ = exact_branch('plus', rL, {2: 2, 3: 1, f[0]: 1, f[1]: 1, f[2]: 1, f[3]: 1, wL: 1})\nmi, dmi, _ = exact_branch('minus', rL, {2: 1, qL: 1})\npart_after_F0 = (rL + 1) // 12\nR['C-PLANT-PL'] = dict(minus=mi, plus=pl, gates=dict(plus_min_DL=dpl == DL, plus_gap=pl['le_1e6'] and pl['floor_ok'],\n    plus_NEAR_FLOOR=pl['bin'] == 'NEAR_FLOOR', minus_min_2=dmi == 2, minus_NC=mi['bin'] == 'NEAR_CEILING',\n    routing_part_bits=part_after_F0.bit_length(), all_factors_gt_2e24=all(x > 2 ** 24 for x in f + [wL]),\n    DL_in_xL_window=(xL <= DL < xL + xL // 2 ** 19), DL_rel_minus_xL_log2=str(log2(Dm(DL - xL) / Dm(xL)))[:10] if DL > xL else 'neg'))\njson.dump(R, open('/tmp/b99738/controls_eval.json', 'w'), indent=1)\nfor k, v in R.items():\n    print(k, v.get('gates'), {kk: v[kk] for kk in v if kk.endswith('_ok')})\n    for br in ('minus', 'plus'):\n        if br in v: print('   ', br, v[br]['minimiser_bits'], v[br]['depth'][:12], v[br]['bin'], v[br]['e_minus_F'][:12])\n    if 'status' in v: print('   ', v['witness'][:20], v['depth'][:12], v['bin'], v['bin_at_least'], v['part_witnesses'])\n",
+   "stdout": "C-PLANT-M {'minus_minimiser_in_D_pair': True, 'minus_gap': True, 'minus_NEAR_FLOOR': True, 'plus_NEAR_CEILING': True} {}\n    minus 128 0.9999999999 NEAR_FLOOR 7.5422004721\n    plus 4 0.0430066157 NEAR_CEILING 0.1560604985\nBND-1 None {'floor_ok': True, 'witness_ok': True, 'bin_ok': True, 'consistency_ok': True}\n    29469317421343023833 0.9999999999 NEAR_FLOOR None [2]\nBND-2 None {'floor_ok': True, 'witness_ok': True, 'bin_ok': True, 'W_ok': True}\n    2 0.0079496007 UNDETERMINED NEAR_CEILING [2]\nC-PLANT-P {'plus_minimiser_eq_d': True, 'plus_gap': True, 'plus_NEAR_FLOOR': True, 'minus_NEAR_CEILING': True, 'd_bits_decl': True} {}\n    minus 2 0.0079496007 NEAR_CEILING 0.2441311101\n    plus 85 0.9999999999 NEAR_FLOOR 2.0442675196\nBND-3 None {'floor_ok': True, 'W_ok': True, 'witness_ok': True, 'bin_ok': True}\n    55794327803927373551 0.9955231671 NEAR_FLOOR None ['even', 2]\nC-INERT {'minus_min_2': True, 'minus_NC': True, 'plus_min_12': True, 'plus_NC': True} {}\n    minus 2 0.0079496007 NEAR_CEILING 0.2441311101\n    plus 4 0.0430066157 NEAR_CEILING 0.1560604985\nC-PLANT-PL {'plus_min_DL': True, 'plus_gap': True, 'plus_NEAR_FLOOR': True, 'minus_min_2': True, 'minus_NC': True, 'routing_part_bits': 518, 'all_factors_gt_2e24': True, 'DL_in_xL_window': True, 'DL_rel_minus_xL_log2': '-38.349944'} {}\n    minus 2 0.0038715799 NEAR_CEILING 0.2471186259\n    plus 173 0.9999999999 NEAR_FLOOR 5.6448917427\n",
+   "raw_output": {
+    "C-PLANT-M": {
+     "minus": {
+      "status": "EXACT",
+      "minimiser": "294693174213430238337283675675637791202",
+      "minimiser_bits": 128,
+      "tied": [
+       "294693174213430238337283675675637791202",
+       "294693174213430244430891235695900485801"
+      ],
+      "e": "0.2539125932535924464225459180168961905429545869624246918494",
+      "F": "0.2539125932535924464225459180168961904675325822413233816063",
+      "e_minus_F": "7.5422004721101310243074761740",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.99999999999999999999999999999999999969",
+      "bin": "NEAR_FLOOR",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": true,
+      "memory_elements_log2": "63.89624062518028905"
+     },
+     "plus": {
+      "status": "EXACT",
+      "minimiser": "12",
+      "minimiser_bits": 4,
+      "tied": [
+       "12"
+      ],
+      "e": "0.4929867499526482492407856701289200380890297160702428380193",
+      "F": "0.3369262514184569777249728783637700825767794843696612974287",
+      "e_minus_F": "0.1560604985341912715158127917",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.04300661576958146228877430884868010220",
+      "bin": "NEAR_CEILING",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": false,
+      "memory_elements_log2": "126.0000000000000000"
+     },
+     "gates": {
+      "minus_minimiser_in_D_pair": true,
+      "minus_gap": true,
+      "minus_NEAR_FLOOR": true,
+      "plus_NEAR_CEILING": true
+     }
+    },
+    "BND-1": {
+     "status": "BOUND",
+     "W_size": 8,
+     "W": [
+      "1",
+      "2",
+      "147346587106715119168641837837818895601",
+      "294693174213430238337283675675637791202",
+      "294693174213430244430891235695900485801",
+      "589386348426860488861782471391800971602",
+      "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+      "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+     ],
+     "witness": "294693174213430238337283675675637791202",
+     "tied": [
+      "294693174213430238337283675675637791202",
+      "294693174213430244430891235695900485801"
+     ],
+     "upper": "0.2539125932535924464225459180168961905429545869624246918494",
+     "lower": "0.2539125932535924464225459180168961904675325822413233816063",
+     "depth": "0.99999999999999999999999999999999999969",
+     "bin": "NEAR_FLOOR",
+     "bin_at_least": null,
+     "boundary_flag": false,
+     "floor_ok": true,
+     "part_witnesses": [
+      2
+     ],
+     "expected_witness": "294693174213430238337283675675637791202",
+     "witness_ok": true,
+     "bin_ok": true,
+     "consistency_abs_diff": "0E-170",
+     "consistency_ok": true
+    },
+    "BND-2": {
+     "status": "BOUND",
+     "W_size": 4,
+     "W": [
+      "1",
+      "2",
+      "43422033463993573283839119378258568220598116127308932472562590133993201861401",
+      "86844066927987146567678238756517136441196232254617864945125180267986403722802"
+     ],
+     "witness": "2",
+     "tied": [
+      "2",
+      "43422033463993573283839119378258568220598116127308932472562590133993201861401"
+     ],
+     "upper": "0.4980437033732037767887270409915519047662720177332779345706",
+     "lower": "0.2539125932535924464225459180168961904675325822413233816063",
+     "depth": "0.00794960072382810676253324259548872890",
+     "bin": "UNDETERMINED",
+     "bin_at_least": "NEAR_CEILING",
+     "boundary_flag": false,
+     "floor_ok": true,
+     "part_witnesses": [
+      2
+     ],
+     "witness_ok": true,
+     "bin_ok": true,
+     "W_ok": true
+    },
+    "C-PLANT-P": {
+     "minus": {
+      "status": "EXACT",
+      "minimiser": "2",
+      "minimiser_bits": 2,
+      "tied": [
+       "2",
+       "43422033463993573283839119378257965444976244277167577138252363798291365010121"
+      ],
+      "e": "0.4980437033732037767887270409915519046129800253729123655388",
+      "F": "0.2539125932535924464225459180168961907741165669620545196700",
+      "e_minus_F": "0.2441311101196113303661811229",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.00794960072382810676253324259548872953",
+      "bin": "NEAR_CEILING",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": false,
+      "memory_elements_log2": "127.2924812503605780"
+     },
+     "plus": {
+      "status": "EXACT",
+      "minimiser": "27897163901963686775744531",
+      "minimiser_bits": 85,
+      "tied": [
+       "27897163901963686775744531"
+      ],
+      "e": "0.3369262514184569777249728783637700828583142803265360117831",
+      "F": "0.3369262514184569777249728783637700828583142803265339675156",
+      "e_minus_F": "2.0442675196817265752034320248",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.99999999999999999999999999999999999999",
+      "bin": "NEAR_FLOOR",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": true,
+      "memory_elements_log2": "85.52832083357371872"
+     },
+     "gates": {
+      "plus_minimiser_eq_d": true,
+      "plus_gap": true,
+      "plus_NEAR_FLOOR": true,
+      "minus_NEAR_CEILING": true,
+      "d_bits_decl": true
+     }
+    },
+    "BND-3": {
+     "status": "BOUND",
+     "W_size": 8,
+     "W": [
+      "1",
+      "2",
+      "55794327803927373551489062",
+      "111588655607854747102978124",
+      "778251753773025793666268707332083582557996992926631",
+      "1556503507546051587332537414664167165115993985853262",
+      "43422033463993573283839119378257965444976244277167577138252363798291365010122",
+      "86844066927987146567678238756515930889952488554335154276504727596582730020244"
+     ],
+     "witness": "55794327803927373551489062",
+     "tied": [
+      "55794327803927373551489062"
+     ],
+     "upper": "0.3376563053332757312277201616198165137145468350807188394390",
+     "lower": "0.3369262514184569777249728783637700828583142803265339675156",
+     "depth": "0.99552316714879649055322952666634629584",
+     "bin": "NEAR_FLOOR",
+     "bin_at_least": null,
+     "boundary_flag": false,
+     "floor_ok": true,
+     "part_witnesses": [
+      "even",
+      2
+     ],
+     "W_ok": true,
+     "witness_ok": true,
+     "bin_ok": true,
+     "contrast_single_cofactor": {
+      "witness": "2",
+      "bin": "UNDETERMINED",
+      "bin_at_least": "NEAR_CEILING"
+     }
+    },
+    "C-INERT": {
+     "minus": {
+      "status": "EXACT",
+      "minimiser": "2",
+      "minimiser_bits": 2,
+      "tied": [
+       "2",
+       "43422033463993573283839119378257965444976244249615211514796594002967425604161"
+      ],
+      "e": "0.4980437033732037767887270409915519046129800253729053586910",
+      "F": "0.2539125932535924464225459180168961907741165669620685333655",
+      "e_minus_F": "0.2441311101196113303661811229",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.00794960072382810676253324259548872953",
+      "bin": "NEAR_CEILING",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": false,
+      "memory_elements_log2": "127.2924812503605780"
+     },
+     "plus": {
+      "status": "EXACT",
+      "minimiser": "12",
+      "minimiser_bits": 4,
+      "tied": [
+       "12"
+      ],
+      "e": "0.4929867499526482492407856701289200375394836717974731996045",
+      "F": "0.3369262514184569777249728783637700828583142803265468362338",
+      "e_minus_F": "0.1560604985341912715158127917",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.04300661576958146228877430884868010564",
+      "bin": "NEAR_CEILING",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": false,
+      "memory_elements_log2": "126.0000000000000000"
+     },
+     "gates": {
+      "minus_min_2": true,
+      "minus_NC": true,
+      "plus_min_12": true,
+      "plus_NC": true
+     }
+    },
+    "C-PLANT-PL": {
+     "minus": {
+      "status": "EXACT",
+      "minimiser": "2",
+      "minimiser_bits": 2,
+      "tied": [
+       "2",
+       "2574299122548978643118212799655522456476038237553739528522923797194578693774121019545959865248045996915148796900489884615211229599048134269804218841721365681"
+      ],
+      "e": "0.4990395419844665464001660031455124318005750498175199511118",
+      "F": "0.2519209160310669071996679937089751363988499003649600977762",
+      "e_minus_F": "0.2471186259533996392004980094",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.00387157998234841763548960618673447543",
+      "bin": "NEAR_CEILING",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": false,
+      "memory_elements_log2": "259.7924812503605780"
+     },
+     "plus": {
+      "status": "EXACT",
+      "minimiser": "10877848459917121993158203742548891230371827100765013",
+      "minimiser_bits": 173,
+      "tied": [
+       "10877848459917121993158203742548891230371827100765013"
+      ],
+      "e": "0.3350973025222305585725326082141458608170757624378265006320",
+      "F": "0.3350973025222305585725326025692541180643351103424025222612",
+      "e_minus_F": "5.6448917427527406520954239783",
+      "C": "0.50000000000000000000000000000000000000",
+      "depth": "0.99999999999999999999999996576834806772",
+      "bin": "NEAR_FLOOR",
+      "boundary_flag": false,
+      "floor_ok": true,
+      "le_1e6": true,
+      "memory_elements_log2": "173.8616541669049930"
+     },
+     "gates": {
+      "plus_min_DL": true,
+      "plus_gap": true,
+      "plus_NEAR_FLOOR": true,
+      "minus_min_2": true,
+      "minus_NC": true,
+      "routing_part_bits": 518,
+      "all_factors_gt_2e24": true,
+      "DL_in_xL_window": true,
+      "DL_rel_minus_xL_log2": "-38.349944"
+     }
+    }
+   }
+  },
+  "file_sha256_when_section_1_alone_was_written": "e0bad7958840d97c72178c74fb9384ccce9743aa163ff0448e77a0e29f68d6f8"
+ },
+ "custody": {
+  "snapshot_commit": "799387d94043e3cb4f595eff9a5645d945a97bb5",
+  "producer_archive_commit": "f4478e588544758f33da210ca2cccb75125ae483",
+  "command": "git show <commit>:<path> | shasum -a 256 (also the worktree file)",
+  "results": {
+   "experiments/EXP-AUXIN-7e2e3d/amendments/AMD-20260926-typed.yaml": {
+    "at_799387d940": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+    "at_f4478e5885": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+    "worktree": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+    "receipt": "3c57978c91b632226c0e0543913f8a122bb16d121b0a308254b1c99cedeeaad6",
+    "match": true
+   },
+   "coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-2fc87b/design/TASK-20260926-9b3d5e/design-report.yaml": {
+    "at_799387d940": "4d1cdadbb382391f643d2addb29aad9b5426fa2f1157a6dcc5b0ced81fb07d7b",
+    "at_f4478e5885": "4d1cdadbb382391f643d2addb29aad9b5426fa2f1157a6dcc5b0ced81fb07d7b",
+    "worktree": "4d1cdadbb382391f643d2addb29aad9b5426fa2f1157a6dcc5b0ced81fb07d7b",
+    "receipt": "4d1cdadbb382391f643d2addb29aad9b5426fa2f1157a6dcc5b0ced81fb07d7b",
+    "match": true
+   }
+  },
+  "staged_source_digests_all_match_amendment": true,
+  "d10_frozen_files_git_blobs": {
+   "specification.yaml": "e64fcb1e69f386c13c6ae2c6031d2e26b67e565b (identical at f4478e5885^, f4478e5885, 799387d940, worktree HEAD 47331813b9)",
+   "AMD-20260916-bands.yaml": "bab7c2a1f6daa4d6cb094e16c597501ff6338146 (identical at all four)",
+   "AMD-20260923-d1d10.yaml": "9e17f96571164ac8dc7743a64ee8dbd51511a876 (identical at all four)",
+   "git_diff_f4478e5885^..799387d940_over_experiments/EXP-AUXIN-7e2e3d": "A amendments/AMD-20260926-typed.yaml only"
+  }
+ },
+ "section_2_J1_pins": {
+  "library": "Python 3.9.10 stdlib re (pins.py, pin_bls.py, confounder.py, pin_checks.py); pypdf 6.19.0 and 3.1.0 (pdf_check.py)",
+  "pins_py": "#!/usr/bin/env python3\n\"\"\"TASK-20260926-b99738 J1(i): follow each PR-* parse rule of\nAMD-20260926-typed change.D1_pins literally. Python 3.9 stdlib (re).\"\"\"\nimport re, json, hashlib, sys\nWS = '\\u0009\\u000a\\u000b\\u000c\\u000d\\u0020\\u0085\\u00a0'\ndef strip_ws(s): return s.strip(WS)\ndef rm_ws(s, bs=True):\n    s = ''.join(c for c in s if c not in WS)\n    return s.replace('\\\\', '') if bs else s\ndef lines_of(path):\n    return open(path, 'rb').read().decode('utf-8', 'strict').split('\\n')\nHEX = set('0123456789abcdefABCDEF'); DEC = set('0123456789')\nCHOICES = []  # every point where the text left the implementation a choice\n\ndef pr_sp800(path, section, label):\n    L = lines_of(path)\n    start = next(i for i, l in enumerate(L) if strip_ws(l) == section)\n    end = next((i for i in range(start + 1, len(L)) if re.match(r'^[0-9]+(\\.[0-9]+)*\\.$', strip_ws(L[i]))), len(L))\n    blk = list(range(start, end))\n    lab = next((i for i in blk if L[i].lstrip(WS).startswith(label + ':')), None)\n    if lab is None: return dict(result='locator_failure', why='no label line')\n    col = L[lab].index(label + ':') + len(label) + 1\n    # text stream from after \"L:\" to end of block, with line indices\n    stream = []  # (lineidx, char)\n    for c in L[lab][col:]: stream.append((lab, c))\n    stream.append((lab, '\\n'))\n    nxt_label_line = None\n    for i in range(lab + 1, end):\n        if nxt_label_line is None and re.match(r'^[A-Za-z]{1,4}:', strip_ws(L[i])):\n            nxt_label_line = i\n        for c in L[i]: stream.append((i, c))\n        stream.append((i, '\\n'))\n    # (a) first \"(\" after \"L:\" ; (b) start of next label line\n    pos_a = next((k for k, (i, c) in enumerate(stream) if c == '('), None)\n    pos_b = next((k for k, (i, c) in enumerate(stream) if nxt_label_line is not None and i == nxt_label_line), None)\n    cands = [p for p in (pos_a, pos_b) if p is not None]\n    if not cands: return dict(result='locator_failure', why='span unterminated')\n    endpos = min(cands); ended_by = 'a' if endpos == pos_a else 'b'\n    span = ''.join(c for _, c in stream[:endpos])\n    span_lines = sorted({i + 1 for i, _ in stream[:endpos]})\n    dec = rm_ws(span)\n    dec_clean = bool(dec) and set(dec) <= DEC\n    hexv = None; hex_clean = False; hex_str = None\n    if ended_by == 'a':\n        rest = ''.join(c for _, c in stream[endpos + 1:])\n        rest_nows = rm_ws(rest, bs=False)\n        if rest_nows[:3] == '=0x':\n            # from after \"=0x\" to first \")\" after it (in raw text)\n            k = rest.index('0x') + 2  # first \"=0x\" once ws removed; locate raw\n            # locate raw position of \"=0x\": walk\n            raw = rest; j = 0; seen = ''\n            while len(seen) < 3:\n                if raw[j] not in WS: seen += raw[j]\n                j += 1\n            close = raw.index(')', j)\n            hex_str = rm_ws(raw[j:close], bs=False)\n            hex_clean = bool(hex_str) and set(hex_str) <= HEX\n            span_lines = sorted(set(span_lines) | {stream[endpos + 1 + t][0] + 1 for t in range(close + 1)})\n            if hex_clean: hexv = int(hex_str, 16)\n    ignored = []\n    if hexv is not None:\n        V = hexv; rep = 'hex'\n        if dec_clean:\n            if len(dec) == len(str(V)):\n                if int(dec) != V: return dict(result='locator_failure', why='hex/dec mismatch')\n            else:\n                ignored.append(('decimal', 'decimal_span_not_a_literal'))\n        else:\n            ignored.append(('decimal', 'contaminated'))\n    elif dec_clean:\n        V = int(dec); rep = 'decimal'\n        if hex_str is not None: ignored.append(('hex', 'contaminated'))\n    else:\n        return dict(result='locator_failure', why='neither clean', dec=dec[:80], hex=hex_str)\n    return dict(result='ok', value=V, representation=rep, ended_by=ended_by, label_line=lab + 1,\n                lines=[min(span_lines), max(span_lines)], ignored=ignored, dec_form=dec if dec_clean else None,\n                hex_form=hex_str if hex_clean else None, block=[start + 1, end])\n\ndef pr_sec2(path, curve, label):\n    L = lines_of(path)\n    start = next((i for i, l in enumerate(L) if re.match(r'^[0-9]+(\\.[0-9]+)+RecommendedParameters' + curve + '$', rm_ws(l, bs=False))), None)\n    if start is None: return dict(result='locator_failure', why='no block')\n    end = next((i for i in range(start + 1, len(L)) if 'RecommendedParameters' in L[i]), len(L))\n    lab = None\n    for i in range(start, end):\n        if strip_ws(L[i]) == label:\n            j = i + 1\n            while j < end and strip_ws(L[j]) == '': j += 1\n            if j < end and L[j].lstrip(WS).startswith('='):\n                lab = (i, j); break\n    if lab is None: return dict(result='locator_failure', why='no label')\n    i, j = lab\n    after = rm_ws(L[j].lstrip(WS)[1:], bs=False)\n    vals = []\n    if after:\n        first = j\n        vals.append(after)\n    else:\n        first = j + 1\n        while first < end and strip_ws(L[first]) == '': first += 1\n        vals.append(rm_ws(L[first], bs=False))\n    if not (vals[0] and set(vals[0]) <= HEX): return dict(result='locator_failure', why='first value line not hex', line=first + 1, text=L[first])\n    k = first + 1; last = first\n    while k < end:\n        s = rm_ws(L[k], bs=False)\n        if s and set(s) <= HEX and len(s) >= 4:\n            vals.append(s); last = k; k += 1\n        else:\n            break\n    return dict(result='ok', value=int(''.join(vals), 16), hex_form=''.join(vals), label_line=i + 1,\n                lines=[first + 1, last + 1], block=[start + 1, end], stop_line=(k + 1, L[k] if k < len(L) else None))\n\ndef pr_rfc5639(path, curve, label):\n    L = lines_of(path)\n    start = next((i for i, l in enumerate(L) if strip_ws(l) == 'Curve-ID: ' + curve), None)\n    if start is None: return dict(result='locator_failure', why='no block')\n    end = next((i for i in range(start + 1, len(L)) if strip_ws(L[i]).startswith('Curve-ID:') or strip_ws(L[i]).startswith('#Twisted') or re.match(r'^[0-9]+(\\.[0-9]+)*\\.\\s', strip_ws(L[i]))), len(L))\n    lab = next((i for i in range(start, end) if strip_ws(L[i]).startswith(label + ' =') or strip_ws(L[i]) == label + ' ='), None)\n    if lab is None: return dict(result='locator_failure', why='no label')\n    parts = [L[lab][L[lab].index('=') + 1:]]\n    k = lab + 1\n    while k < end:\n        s = strip_ws(L[k])\n        if s and set(rm_ws(s, bs=False)) <= HEX:\n            parts.append(L[k]); k += 1\n        else: break\n    h = rm_ws(''.join(parts), bs=False)\n    if not (h and set(h) <= HEX): return dict(result='locator_failure', why='non-hex', text=h[:80])\n    return dict(result='ok', value=int(h, 16), hex_form=h, label_line=lab + 1, lines=[lab + 1, k], block=[start + 1, end])\n\ndef pr_rfc7748(path, label):\n    L = lines_of(path)\n    start = next(i for i, l in enumerate(L) if strip_ws(l) == '4.1.  Curve25519')\n    end = next((i for i in range(start + 1, len(L)) if re.match(r'^[0-9]+(\\.[0-9]+)*\\.\\s', strip_ws(L[i]))), len(L))\n    lab = next((i for i in range(start, end) if re.match('^' + re.escape(label) + '[' + re.escape(WS) + ']', strip_ws(L[i]))), None)\n    if lab is None: return dict(result='locator_failure', why='no label')\n    rem = rm_ws(strip_ws(L[lab])[len(label):], bs=False)\n    m1 = re.fullmatch(r'2\\^([0-9]+)\\+0x([0-9A-Fa-f]+)', rem); m2 = re.fullmatch(r'2\\^([0-9]+)-([0-9]+)', rem)\n    if m1: v = 2 ** int(m1.group(1)) + int(m1.group(2), 16)\n    elif m2: v = 2 ** int(m2.group(1)) - int(m2.group(2))\n    else: return dict(result='locator_failure', why='form', text=rem)\n    return dict(result='ok', value=v, expression=rem, label_line=lab + 1, block=[start + 1, end])\n\nif __name__ == '__main__':\n    S = '/tmp/b99738/src/'\n    out = {}\n    for rid, sec in [('NIST-P-224', '3.2.1.2.'), ('NIST-P-256', '3.2.1.3.'), ('NIST-P-384', '3.2.1.4.'), ('NIST-P-521', '3.2.1.5.'), ('Ed25519-L', '3.2.3.1.')]:\n        out[rid] = {lab: pr_sp800(S + 'sp800-186.txt', sec, lab) for lab in ('n', 'p', 'h')}\n    for rid, cv in [('NIST-P-224', 'secp224r1'), ('NIST-P-256', 'secp256r1'), ('NIST-P-384', 'secp384r1'), ('NIST-P-521', 'secp521r1'), ('secp256k1', 'secp256k1')]:\n        out.setdefault(rid, {})['sec2'] = {lab: pr_sec2(S + 'sec2-v2.txt', cv, lab) for lab in ('n', 'p', 'h')}\n    for rid in ('brainpoolP256r1', 'brainpoolP384r1'):\n        out[rid] = {lab: pr_rfc5639(S + 'rfc5639.txt', rid, lab) for lab in ('q', 'p', 'h')}\n    out['Ed25519-L']['rfc7748'] = {lab: pr_rfc7748(S + 'rfc7748.txt', lab) for lab in ('order', 'p')}\n    def conv(o):\n        if isinstance(o, dict): return {k: conv(v) for k, v in o.items()}\n        if isinstance(o, (list, tuple)): return [conv(v) for v in o]\n        if isinstance(o, int) and not isinstance(o, bool) and o > 2 ** 53: return {'dec': str(o), 'hex': hex(o)}\n        return o\n    json.dump(conv(out), open('/tmp/b99738/pins_out.json', 'w'), indent=1)\n    for rid, d in out.items():\n        for k, v in d.items():\n            if 'result' in v:\n                print(rid, k, v['result'], v.get('representation', ''), v.get('ended_by', ''), (hex(v['value'])[:20] if 'value' in v else v.get('why')), v.get('ignored', ''), v.get('lines', ''))\n            else:\n                for kk, vv in v.items():\n                    print(rid, k, kk, vv['result'], (hex(vv['value'])[:20] if 'value' in vv else vv.get('why')), vv.get('lines', ''), vv.get('stop_line', ''))\n",
+  "pins_out": {
+   "NIST-P-224": {
+    "n": {
+     "result": "ok",
+     "value": {
+      "dec": "26959946667150639794667015087019625940457807714424391721682722368061",
+      "hex": "0xffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2007,
+     "lines": [
+      2007,
+      2015
+     ],
+     "ignored": [],
+     "dec_form": "26959946667150639794667015087019625940457807714424391721682722368061",
+     "hex_form": "ffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d",
+     "block": [
+      1954,
+      2059
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "26959946667150639794667015087019630673557916260026308143510066298881",
+      "hex": "0xffffffffffffffffffffffffffffffff000000000000000000000001"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 1990,
+     "lines": [
+      1990,
+      2003
+     ],
+     "ignored": [
+      [
+       "decimal",
+       "contaminated"
+      ]
+     ],
+     "dec_form": null,
+     "hex_form": "ffffffffffffffffffffffffffffffff000000000000000000000001",
+     "block": [
+      1954,
+      2059
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "representation": "decimal",
+     "ended_by": "b",
+     "label_line": 2004,
+     "lines": [
+      2004,
+      2006
+     ],
+     "ignored": [],
+     "dec_form": "1",
+     "hex_form": null,
+     "block": [
+      1954,
+      2059
+     ]
+    },
+    "sec2": {
+     "n": {
+      "result": "ok",
+      "value": {
+       "dec": "26959946667150639794667015087019625940457807714424391721682722368061",
+       "hex": "0xffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFF16A2E0B8F03E13DD29455C5C2A3D",
+      "label_line": 1547,
+      "lines": [
+       1549,
+       1549
+      ],
+      "block": [
+       1475,
+       1593
+      ],
+      "stop_line": [
+       1550,
+       "h"
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "26959946667150639794667015087019630673557916260026308143510066298881",
+       "hex": "0xffffffffffffffffffffffffffffffff000000000000000000000001"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000000001",
+      "label_line": 1489,
+      "lines": [
+       1491,
+       1491
+      ],
+      "block": [
+       1475,
+       1593
+      ],
+      "stop_line": [
+       1492,
+       "=2"
+      ]
+     },
+     "h": {
+      "result": "ok",
+      "value": 1,
+      "hex_form": "01",
+      "label_line": 1550,
+      "lines": [
+       1552,
+       1552
+      ],
+      "block": [
+       1475,
+       1593
+      ],
+      "stop_line": [
+       1553,
+       ""
+      ]
+     }
+    }
+   },
+   "NIST-P-256": {
+    "n": {
+     "result": "ok",
+     "value": {
+      "dec": "115792089210356248762697446949407573529996955224135760342422259061068512044369",
+      "hex": "0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2139,
+     "lines": [
+      2139,
+      2150
+     ],
+     "ignored": [],
+     "dec_form": "115792089210356248762697446949407573529996955224135760342422259061068512044369",
+     "hex_form": "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+     "block": [
+      2060,
+      2212
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "115792089210356248762697446949407573530086143415290314195533631308867097853951",
+      "hex": "0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2095,
+     "lines": [
+      2095,
+      2134
+     ],
+     "ignored": [
+      [
+       "decimal",
+       "contaminated"
+      ]
+     ],
+     "dec_form": null,
+     "hex_form": "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
+     "block": [
+      2060,
+      2212
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "representation": "decimal",
+     "ended_by": "b",
+     "label_line": 2136,
+     "lines": [
+      2136,
+      2138
+     ],
+     "ignored": [],
+     "dec_form": "1",
+     "hex_form": null,
+     "block": [
+      2060,
+      2212
+     ]
+    },
+    "sec2": {
+     "n": {
+      "result": "ok",
+      "value": {
+       "dec": "115792089210356248762697446949407573529996955224135760342422259061068512044369",
+       "hex": "0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"
+      },
+      "hex_form": "FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
+      "label_line": 1778,
+      "lines": [
+       1780,
+       1781
+      ],
+      "block": [
+       1684,
+       1801
+      ],
+      "stop_line": [
+       1782,
+       "h"
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "115792089210356248762697446949407573530086143415290314195533631308867097853951",
+       "hex": "0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"
+      },
+      "hex_form": "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
+      "label_line": 1712,
+      "lines": [
+       1714,
+       1715
+      ],
+      "block": [
+       1684,
+       1801
+      ],
+      "stop_line": [
+       1716,
+       "=2"
+      ]
+     },
+     "h": {
+      "result": "ok",
+      "value": 1,
+      "hex_form": "01",
+      "label_line": 1782,
+      "lines": [
+       1784,
+       1784
+      ],
+      "block": [
+       1684,
+       1801
+      ],
+      "stop_line": [
+       1785,
+       "2.5Recommended384-bitEllipticCurveDomainParametersover"
+      ]
+     }
+    }
+   },
+   "NIST-P-384": {
+    "n": {
+     "result": "ok",
+     "value": {
+      "dec": "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643",
+      "hex": "0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2288,
+     "lines": [
+      2288,
+      2303
+     ],
+     "ignored": [],
+     "dec_form": "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643",
+     "hex_form": "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973",
+     "block": [
+      2213,
+      2357
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319",
+      "hex": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2247,
+     "lines": [
+      2247,
+      2270
+     ],
+     "ignored": [
+      [
+       "decimal",
+       "contaminated"
+      ]
+     ],
+     "dec_form": null,
+     "hex_form": "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff",
+     "block": [
+      2213,
+      2357
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "representation": "decimal",
+     "ended_by": "b",
+     "label_line": 2285,
+     "lines": [
+      2285,
+      2287
+     ],
+     "ignored": [],
+     "dec_form": "1",
+     "hex_form": null,
+     "block": [
+      2213,
+      2357
+     ]
+    },
+    "sec2": {
+     "n": {
+      "result": "ok",
+      "value": {
+       "dec": "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643",
+       "hex": "0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973",
+      "label_line": 1898,
+      "lines": [
+       1900,
+       1901
+      ],
+      "block": [
+       1802,
+       1921
+      ],
+      "stop_line": [
+       1902,
+       "h"
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319",
+       "hex": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
+      "label_line": 1830,
+      "lines": [
+       1832,
+       1833
+      ],
+      "block": [
+       1802,
+       1921
+      ],
+      "stop_line": [
+       1834,
+       "=2"
+      ]
+     },
+     "h": {
+      "result": "ok",
+      "value": 1,
+      "hex_form": "01",
+      "label_line": 1902,
+      "lines": [
+       1904,
+       1904
+      ],
+      "block": [
+       1802,
+       1921
+      ],
+      "stop_line": [
+       1905,
+       "2.6Recommended521-bitEllipticCurveDomainParametersover"
+      ]
+     }
+    }
+   },
+   "NIST-P-521": {
+    "n": {
+     "result": "ok",
+     "value": {
+      "dec": "6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449",
+      "hex": "0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2434,
+     "lines": [
+      2434,
+      2454
+     ],
+     "ignored": [],
+     "dec_form": "6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449",
+     "hex_form": "1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
+     "block": [
+      2358,
+      2562
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151",
+      "hex": "0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 2393,
+     "lines": [
+      2393,
+      2417
+     ],
+     "ignored": [
+      [
+       "decimal",
+       "contaminated"
+      ]
+     ],
+     "dec_form": null,
+     "hex_form": "1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "block": [
+      2358,
+      2562
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "representation": "decimal",
+     "ended_by": "b",
+     "label_line": 2432,
+     "lines": [
+      2432,
+      2433
+     ],
+     "ignored": [],
+     "dec_form": "1",
+     "hex_form": null,
+     "block": [
+      2358,
+      2562
+     ]
+    },
+    "sec2": {
+     "n": {
+      "result": "ok",
+      "value": {
+       "dec": "6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449",
+       "hex": "0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409"
+      },
+      "hex_form": "01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409",
+      "label_line": 2015,
+      "lines": [
+       2017,
+       2019
+      ],
+      "block": [
+       1922,
+       3063
+      ],
+      "stop_line": [
+       2020,
+       "h"
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151",
+       "hex": "0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "hex_form": "01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      "label_line": 1950,
+      "lines": [
+       1952,
+       1954
+      ],
+      "block": [
+       1922,
+       3063
+      ],
+      "stop_line": [
+       1955,
+       "=2"
+      ]
+     },
+     "h": {
+      "result": "ok",
+      "value": 1,
+      "hex_form": "01",
+      "label_line": 2020,
+      "lines": [
+       2022,
+       2022
+      ],
+      "block": [
+       1922,
+       3063
+      ],
+      "stop_line": [
+       2023,
+       ""
+      ]
+     }
+    }
+   },
+   "Ed25519-L": {
+    "n": {
+     "result": "ok",
+     "value": {
+      "dec": "7237005577332262213973186563042994240857116359379907606001950938285454250989",
+      "hex": "0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
+     },
+     "representation": "decimal",
+     "ended_by": "a",
+     "label_line": 3075,
+     "lines": [
+      3075,
+      3081
+     ],
+     "ignored": [],
+     "dec_form": "7237005577332262213973186563042994240857116359379907606001950938285454250989",
+     "hex_form": null,
+     "block": [
+      3024,
+      3148
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "57896044618658097711785492504343953926634992332820282019728792003956564819949",
+      "hex": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed"
+     },
+     "representation": "hex",
+     "ended_by": "a",
+     "label_line": 3065,
+     "lines": [
+      3065,
+      3070
+     ],
+     "ignored": [
+      [
+       "decimal",
+       "decimal_span_not_a_literal"
+      ]
+     ],
+     "dec_form": "225519",
+     "hex_form": "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
+     "block": [
+      3024,
+      3148
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 8,
+     "representation": "decimal",
+     "ended_by": "b",
+     "label_line": 3072,
+     "lines": [
+      3072,
+      3074
+     ],
+     "ignored": [],
+     "dec_form": "8",
+     "hex_form": null,
+     "block": [
+      3024,
+      3148
+     ]
+    },
+    "rfc7748": {
+     "order": {
+      "result": "ok",
+      "value": {
+       "dec": "7237005577332262213973186563042994240857116359379907606001950938285454250989",
+       "hex": "0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
+      },
+      "expression": "2^252+0x14def9dea2f79cd65812631a5cf5d3ed",
+      "label_line": 191,
+      "block": [
+       177,
+       239
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "57896044618658097711785492504343953926634992332820282019728792003956564819949",
+       "hex": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed"
+      },
+      "expression": "2^255-19",
+      "label_line": 187,
+      "block": [
+       177,
+       239
+      ]
+     }
+    }
+   },
+   "secp256k1": {
+    "sec2": {
+     "n": {
+      "result": "ok",
+      "value": {
+       "dec": "115792089237316195423570985008687907852837564279074904382605163141518161494337",
+       "hex": "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+      "label_line": 1677,
+      "lines": [
+       1679,
+       1680
+      ],
+      "block": [
+       1594,
+       1683
+      ],
+      "stop_line": [
+       1681,
+       "h"
+      ]
+     },
+     "p": {
+      "result": "ok",
+      "value": {
+       "dec": "115792089237316195423570985008687907853269984665640564039457584007908834671663",
+       "hex": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+      },
+      "hex_form": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+      "label_line": 1609,
+      "lines": [
+       1611,
+       1612
+      ],
+      "block": [
+       1594,
+       1683
+      ],
+      "stop_line": [
+       1613,
+       "=2"
+      ]
+     },
+     "h": {
+      "result": "ok",
+      "value": 1,
+      "hex_form": "01",
+      "label_line": 1681,
+      "lines": [
+       1683,
+       1683
+      ],
+      "block": [
+       1594,
+       1683
+      ],
+      "stop_line": [
+       1684,
+       "2.4.2RecommendedParameterssecp256r1"
+      ]
+     }
+    }
+   },
+   "brainpoolP256r1": {
+    "q": {
+     "result": "ok",
+     "value": {
+      "dec": "76884956397045344220809746629001649092737531784414529538755519063063536359079",
+      "hex": "0xa9fb57dba1eea9bc3e660a909d838d718c397aa3b561a6f7901e0e82974856a7"
+     },
+     "hex_form": "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7",
+     "label_line": 586,
+     "lines": [
+      586,
+      587
+     ],
+     "block": [
+      569,
+      590
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "76884956397045344220809746629001649093037950200943055203735601445031516197751",
+      "hex": "0xa9fb57dba1eea9bc3e660a909d838d726e3bf623d52620282013481d1f6e5377"
+     },
+     "hex_form": "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377",
+     "label_line": 571,
+     "lines": [
+      571,
+      572
+     ],
+     "block": [
+      569,
+      590
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "hex_form": "1",
+     "label_line": 589,
+     "lines": [
+      589,
+      589
+     ],
+     "block": [
+      569,
+      590
+     ]
+    }
+   },
+   "brainpoolP384r1": {
+    "q": {
+     "result": "ok",
+     "value": {
+      "dec": "21659270770119316173069236842332604979796116387017648600075645274821611501358515537962695117368903252229601718723941",
+      "hex": "0x8cb91e82a3386d280f5d6f7e50e641df152f7109ed5456b31f166e6cac0425a7cf3ab6af6b7fc3103b883202e9046565"
+     },
+     "hex_form": "8CB91E82A3386D280F5D6F7E50E641DF152F7109ED5456B31F166E6CAC0425A7CF3AB6AF6B7FC3103B883202E9046565",
+     "label_line": 698,
+     "lines": [
+      698,
+      699
+     ],
+     "block": [
+      681,
+      702
+     ]
+    },
+    "p": {
+     "result": "ok",
+     "value": {
+      "dec": "21659270770119316173069236842332604979796116387017648600081618503821089934025961822236561982844534088440708417973331",
+      "hex": "0x8cb91e82a3386d280f5d6f7e50e641df152f7109ed5456b412b1da197fb71123acd3a729901d1a71874700133107ec53"
+     },
+     "hex_form": "8CB91E82A3386D280F5D6F7E50E641DF152F7109ED5456B412B1DA197FB71123ACD3A729901D1A71874700133107EC53",
+     "label_line": 683,
+     "lines": [
+      683,
+      684
+     ],
+     "block": [
+      681,
+      702
+     ]
+    },
+    "h": {
+     "result": "ok",
+     "value": 1,
+     "hex_form": "1",
+     "label_line": 701,
+     "lines": [
+      701,
+      701
+     ],
+     "block": [
+      681,
+      702
+     ]
+    }
+   }
+  },
+  "pin_checks_py": "import json\nfrom math import isqrt\nexec(open('build_controls.py').read().split('out = {}')[0])\nP=json.load(open('pins_out.json'))\ndef v(x): return int(x['value']['dec']) if isinstance(x['value'],dict) else x['value']\nres={}\nFP=set()\nrows={}\nfor rid in ['NIST-P-224','NIST-P-256','NIST-P-384','NIST-P-521','Ed25519-L']:\n    rows[rid]=dict(r=v(P[rid]['n']),p=v(P[rid]['p']),h=v(P[rid]['h']))\nrows['secp256k1']=dict(r=v(P['secp256k1']['sec2']['n']),p=v(P['secp256k1']['sec2']['p']),h=v(P['secp256k1']['sec2']['h']))\nfor rid in ['brainpoolP256r1','brainpoolP384r1']:\n    rows[rid]=dict(r=v(P[rid]['q']),p=v(P[rid]['p']),h=v(P[rid]['h']))\nfor rid,x in rows.items(): FP.add(x['p'])\nfor rid,x in rows.items():\n    r,p,h=x['r'],x['p'],x['h']\n    c=dict(r_bits=r.bit_length(),p_bits=p.bit_length(),h=h,r_prime=is_prime(r),p_prime=is_prime(p),\n      hasse=abs(p+1-h*r)<=2*isqrt(p)+2, r_in_FP=r in FP)\n    if rid in P and 'sec2' in P[rid] and rid!='secp256k1':\n        c['cross_sec2_n_equal']=v(P[rid]['sec2']['n'])==r\n        c['cross_sec2_p_equal']=v(P[rid]['sec2']['p'])==p\n    if rid=='Ed25519-L':\n        c['cross_rfc7748_order_equal']=v(P[rid]['rfc7748']['order'])==r\n        c['rfc7748_p_eq_2^255-19']=v(P[rid]['rfc7748']['p'])==2**255-19\n        c['CF1_eq_extracted_p']=(2**255-19)==p\n    if rid=='NIST-P-256':\n        c['CF2_eq_extracted_p']=(2**256-2**224+2**192+2**96-1)==p\n    res[rid]=c\n    print(rid,c)\njson.dump({'checks':res,'rows_hex':{k:{kk:hex(vv) for kk,vv in x.items()} for k,x in rows.items()}},open('pin_checks.json','w'),indent=1)\n",
+  "pin_checks": {
+   "checks": {
+    "NIST-P-224": {
+     "r_bits": 224,
+     "p_bits": 224,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false,
+     "cross_sec2_n_equal": true,
+     "cross_sec2_p_equal": true
+    },
+    "NIST-P-256": {
+     "r_bits": 256,
+     "p_bits": 256,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false,
+     "cross_sec2_n_equal": true,
+     "cross_sec2_p_equal": true,
+     "CF2_eq_extracted_p": true
+    },
+    "NIST-P-384": {
+     "r_bits": 384,
+     "p_bits": 384,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false,
+     "cross_sec2_n_equal": true,
+     "cross_sec2_p_equal": true
+    },
+    "NIST-P-521": {
+     "r_bits": 521,
+     "p_bits": 521,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false,
+     "cross_sec2_n_equal": true,
+     "cross_sec2_p_equal": true
+    },
+    "Ed25519-L": {
+     "r_bits": 253,
+     "p_bits": 255,
+     "h": 8,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false,
+     "cross_rfc7748_order_equal": true,
+     "rfc7748_p_eq_2^255-19": true,
+     "CF1_eq_extracted_p": true
+    },
+    "secp256k1": {
+     "r_bits": 256,
+     "p_bits": 256,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false
+    },
+    "brainpoolP256r1": {
+     "r_bits": 256,
+     "p_bits": 256,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false
+    },
+    "brainpoolP384r1": {
+     "r_bits": 384,
+     "p_bits": 384,
+     "h": 1,
+     "r_prime": true,
+     "p_prime": true,
+     "hasse": true,
+     "r_in_FP": false
+    }
+   },
+   "rows_hex": {
+    "NIST-P-224": {
+     "r": "0xffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d",
+     "p": "0xffffffffffffffffffffffffffffffff000000000000000000000001",
+     "h": "0x1"
+    },
+    "NIST-P-256": {
+     "r": "0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+     "p": "0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
+     "h": "0x1"
+    },
+    "NIST-P-384": {
+     "r": "0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973",
+     "p": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff",
+     "h": "0x1"
+    },
+    "NIST-P-521": {
+     "r": "0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
+     "p": "0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "h": "0x1"
+    },
+    "Ed25519-L": {
+     "r": "0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed",
+     "p": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
+     "h": "0x8"
+    },
+    "secp256k1": {
+     "r": "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+     "p": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
+     "h": "0x1"
+    },
+    "brainpoolP256r1": {
+     "r": "0xa9fb57dba1eea9bc3e660a909d838d718c397aa3b561a6f7901e0e82974856a7",
+     "p": "0xa9fb57dba1eea9bc3e660a909d838d726e3bf623d52620282013481d1f6e5377",
+     "h": "0x1"
+    },
+    "brainpoolP384r1": {
+     "r": "0x8cb91e82a3386d280f5d6f7e50e641df152f7109ed5456b31f166e6cac0425a7cf3ab6af6b7fc3103b883202e9046565",
+     "p": "0x8cb91e82a3386d280f5d6f7e50e641df152f7109ed5456b412b1da197fb71123acd3a729901d1a71874700133107ec53",
+     "h": "0x1"
+    }
+   }
+  },
+  "bls": {
+   "script": "import re, json, hashlib\nfrom math import isqrt\nexec(open('/tmp/b99738/build_controls.py').read().split('out = {}')[0])\nWS='\\u0009\\u000a\\u000b\\u000c\\u000d\\u0020\\u0085\\u00a0'\ndef pr_ietf(path, label):\n    L=open(path,'rb').read().decode('utf-8','strict').split('\\n')\n    st=next((i for i,l in enumerate(L) if re.match(r'^[0-9]+(\\.[0-9]+)*\\.\\s.*\\(BLS12-381\\)$', l.strip(WS))),None)\n    if st is None: return dict(result='locator_failure',why='no block')\n    en=next((i for i in range(st+1,len(L)) if re.match(r'^[0-9]+(\\.[0-9]+)*\\.\\s', L[i].strip(WS))),len(L))\n    lab=None\n    for i in range(st,en):\n        s=L[i].strip(WS)\n        if s.startswith('*'): s=s[1:].lstrip(WS)\n        if re.match('^'+label+r'\\s*[:=]', s): lab=i; break\n    if lab is None: return dict(result='locator_failure',why='no label')\n    s=L[lab]; k=min([x for x in (s.find(':'),s.find('=')) if x>=0])\n    vt=[s[k+1:]]; j=lab+1\n    allowed=re.compile(r'^(?:[0-9A-Fa-f]|0x|x|\\^|\\+|-|['+re.escape(WS)+'])+$')\n    while j<en:\n        ss=L[j].strip(WS)\n        if ss and allowed.match(ss): vt.append(L[j]); j+=1\n        else: break\n    v=''.join(c for c in ''.join(vt) if c not in WS)\n    if re.fullmatch(r'-?0x[0-9A-Fa-f]+',v): val=int(v,16)\n    elif re.fullmatch(r'-?[0-9]+',v): val=int(v)\n    elif re.fullmatch(r'-?2\\^[0-9]+([+-]2\\^[0-9]+)*',v):\n        val=0\n        for sg,e in re.findall(r'(-?|\\+|-)2\\^([0-9]+)', v): val+= -2**int(e) if sg=='-' else 2**int(e)\n    else: return dict(result='locator_failure',why='form',text=v[:80])\n    return dict(result='ok',value=val,text=v,block=[st+1,en],label_line=lab+1,lines=[lab+1,j])\nout={}\nfor rev in ['draft-14.txt','draft-13.txt','draft-11.txt']:\n    P='/tmp/b99738/src/'+rev\n    R={l:pr_ietf(P,l) for l in ('p','r','h','t')}\n    if all(x['result']=='ok' for x in R.values()):\n        p,r,h,t=(R[l]['value'] for l in ('p','r','h','t'))\n        num=(t-1)**2*(t**4-t**2+1)\n        fam=dict(r_eq=r==t**4-t**2+1, p_div_exact=num%3==0, p_eq=(num%3==0 and p==num//3+t),\n                 hasse=abs(p+1-h*r)<=2*isqrt(p)+2, r_prime=is_prime(r), p_prime=is_prime(p), r_bits=r.bit_length(), p_bits=p.bit_length(), r_hex=hex(r))\n    else: fam=None\n    out[rev]=dict(sha256=hashlib.sha256(open(P,'rb').read()).hexdigest(),\n                  parse={l:{k:(hex(v) if isinstance(v,int) and not isinstance(v,bool) else v) for k,v in x.items()} for l,x in R.items()},family=fam)\n    print(rev, {l:(x['result'],x.get('lines'),x.get('text','')[:24]) for l,x in R.items()}, fam)\njson.dump(out,open('/tmp/b99738/pin_bls.json','w'),indent=1)\n",
+   "out": {
+    "draft-14.txt": {
+     "sha256": "deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a",
+     "parse": {
+      "p": {
+       "result": "ok",
+       "value": "0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab",
+       "text": "0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab",
+       "block": [
+        887,
+        1018
+       ],
+       "label_line": "0x3bd",
+       "lines": [
+        957,
+        959
+       ]
+      },
+      "r": {
+       "result": "ok",
+       "value": "0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001",
+       "text": "0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001",
+       "block": [
+        887,
+        1018
+       ],
+       "label_line": "0x3c1",
+       "lines": [
+        961,
+        962
+       ]
+      },
+      "h": {
+       "result": "ok",
+       "value": "0x396c8c005555e1568c00aaab0000aaab",
+       "text": "0x396c8c005555e1568c00aaab0000aaab",
+       "block": [
+        887,
+        1018
+       ],
+       "label_line": "0x3cc",
+       "lines": [
+        972,
+        972
+       ]
+      },
+      "t": {
+       "result": "ok",
+       "value": "-0xd201000000010000",
+       "text": "-2^63-2^62-2^60-2^57-2^48-2^16",
+       "block": [
+        887,
+        1018
+       ],
+       "label_line": "0x388",
+       "lines": [
+        904,
+        904
+       ]
+      }
+     },
+     "family": {
+      "r_eq": true,
+      "p_div_exact": true,
+      "p_eq": true,
+      "hasse": true,
+      "r_prime": true,
+      "p_prime": true,
+      "r_bits": 255,
+      "p_bits": 381,
+      "r_hex": "0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"
+     }
+    },
+    "draft-13.txt": {
+     "sha256": "673acfc76ccb9549fdf14e21859131f0c976aefaa72672dc9efd376f73ac07b5",
+     "parse": {
+      "p": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "r": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "h": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "t": {
+       "result": "locator_failure",
+       "why": "no block"
+      }
+     },
+     "family": null
+    },
+    "draft-11.txt": {
+     "sha256": "a257d9594e33ce6ebd8d06ec44b22e5779ccd0b97766d926e1a718b92d4ddc8b",
+     "parse": {
+      "p": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "r": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "h": {
+       "result": "locator_failure",
+       "why": "no block"
+      },
+      "t": {
+       "result": "locator_failure",
+       "why": "no block"
+      }
+     },
+     "family": null
+    }
+   },
+   "retrieval": {
+    "utc": "2026-09-27T04:37:23Z",
+    "urls": "https://www.ietf.org/archive/id/draft-irtf-cfrg-pairing-friendly-curves-{10..15}.txt",
+    "http": {
+     "10": 200,
+     "11": 200,
+     "12": 200,
+     "13": 200,
+     "14": 200,
+     "15": 404
+    },
+    "draft-14_bytes": 175678,
+    "draft-14_sha256": "deb806a9ab85ec417cb523524830354829e5e44d3bee11f077d9421bc128f67a",
+    "note": "-14 is both the pinned and the latest archived revision on this date (-15 returns 404)."
+   }
+  },
+  "eip197": {
+   "api_call": "GET https://api.github.com/repos/ethereum/EIPs/commits?path=EIPS/eip-197.md&until=2026-09-26T00:00:00Z&per_page=1 -> HTTP 200",
+   "K": "9e393a79d9937f579acbdcb234a67869259d5a96",
+   "K_committer_date": "2022-05-06T07:29:09Z",
+   "raw_url": "https://raw.githubusercontent.com/ethereum/EIPs/9e393a79d9937f579acbdcb234a67869259d5a96/EIPS/eip-197.md",
+   "http": 200,
+   "bytes": 8727,
+   "sha256": "96355ab680ea8fae76e05c69009e30bd0ec87f352bec9312515b1cbabc6fe89d",
+   "r_regex_as_written": "prime order q\\s*=\\s*([0-9]+)",
+   "r_regex_result": "NO MATCH (locator_failure)",
+   "why": "line 55 of the file reads: The groups `G_1` and `G_2` are cyclic groups of prime order `q = 2188...5617`. -- a markdown backtick sits between 'order ' and 'q'; the first 'prime order' occurrence reads 'of prime order `q` let'.",
+   "p_regex_result": "matches line 57 (254-bit p)",
+   "master_branch_same_bytes": "8727 bytes, 3 occurrences of prime order `q"
+  },
+  "pdf_check": {
+   "script": "import sys, json, hashlib, pypdf\nfrom pypdf import PdfReader\nWS='\\u0009\\u000a\\u000b\\u000c\\u000d\\u0020\\u0085\\u00a0'\ndef norm(path):\n    t=\"\\n\".join(page.extract_text() for page in PdfReader(path).pages)\n    t=''.join(c for c in t if c not in WS).replace('\\\\','').lower()\n    return t\nP=json.load(open('/tmp/b99738/pins_out.json'))\nS='/tmp/b99738/src/'\nout={'pypdf':pypdf.__version__}\nfor pdf in ('sp800-186.pdf','sec2-v2.pdf'):\n    n=norm(S+pdf); out[pdf+'_normalized_sha256']=hashlib.sha256(n.encode()).hexdigest(); out[pdf+'_len']=len(n)\n    out[pdf+'_contains_discretelogarithm']='discretelogarithm' in n\n    if pdf=='sp800-186.pdf':\n        for rid in ['NIST-P-224','NIST-P-256','NIST-P-384','NIST-P-521','Ed25519-L']:\n            for lab in ('n','p','h'):\n                x=P[rid][lab]; s=(x.get('hex_form') if x.get('representation')=='hex' else x.get('dec_form'))\n                out[f'{rid}.{lab}']=dict(form=x.get('representation'),digits=len(s),PASS=s.lower() in n)\n    else:\n        for rid in ['NIST-P-224','NIST-P-256','NIST-P-384','NIST-P-521','secp256k1']:\n            for lab in ('n','p','h'):\n                s=P[rid]['sec2'][lab]['hex_form']\n                out[f'{rid}.sec2.{lab}']=dict(digits=len(s),PASS=s.lower() in n)\nprint(json.dumps(out,indent=0))\n",
+   "pypdf_6_19_0": {
+    "pypdf": "6.19.0",
+    "sp800-186.pdf_normalized_sha256": "83e00d5e30cab38b71c3f6b020dc9499a3d35100ce8d8e021e820f1cfa46a5cc",
+    "sp800-186.pdf_len": 115985,
+    "sp800-186.pdf_contains_discretelogarithm": true,
+    "NIST-P-224.n": {
+     "form": "hex",
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.p": {
+     "form": "hex",
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-256.n": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.p": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-384.n": {
+     "form": "hex",
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.p": {
+     "form": "hex",
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-521.n": {
+     "form": "hex",
+     "digits": 131,
+     "PASS": true
+    },
+    "NIST-P-521.p": {
+     "form": "hex",
+     "digits": 131,
+     "PASS": true
+    },
+    "NIST-P-521.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "Ed25519-L.n": {
+     "form": "decimal",
+     "digits": 76,
+     "PASS": true
+    },
+    "Ed25519-L.p": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "Ed25519-L.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "sec2-v2.pdf_normalized_sha256": "6248a430bb7ac2de5bf711c56c40fb6ff3768deb49e12ca4de7c2951cba0b035",
+    "sec2-v2.pdf_len": 52156,
+    "sec2-v2.pdf_contains_discretelogarithm": false,
+    "NIST-P-224.sec2.n": {
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.sec2.p": {
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.n": {
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.p": {
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.n": {
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.p": {
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.n": {
+     "digits": 132,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.p": {
+     "digits": 132,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "secp256k1.sec2.n": {
+     "digits": 64,
+     "PASS": true
+    },
+    "secp256k1.sec2.p": {
+     "digits": 64,
+     "PASS": true
+    },
+    "secp256k1.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    }
+   },
+   "pypdf_3_1_0": {
+    "pypdf": "3.1.0",
+    "sp800-186.pdf_normalized_sha256": "83e00d5e30cab38b71c3f6b020dc9499a3d35100ce8d8e021e820f1cfa46a5cc",
+    "sp800-186.pdf_len": 115985,
+    "sp800-186.pdf_contains_discretelogarithm": true,
+    "NIST-P-224.n": {
+     "form": "hex",
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.p": {
+     "form": "hex",
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-256.n": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.p": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-384.n": {
+     "form": "hex",
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.p": {
+     "form": "hex",
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "NIST-P-521.n": {
+     "form": "hex",
+     "digits": 131,
+     "PASS": true
+    },
+    "NIST-P-521.p": {
+     "form": "hex",
+     "digits": 131,
+     "PASS": true
+    },
+    "NIST-P-521.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "Ed25519-L.n": {
+     "form": "decimal",
+     "digits": 76,
+     "PASS": true
+    },
+    "Ed25519-L.p": {
+     "form": "hex",
+     "digits": 64,
+     "PASS": true
+    },
+    "Ed25519-L.h": {
+     "form": "decimal",
+     "digits": 1,
+     "PASS": true
+    },
+    "sec2-v2.pdf_normalized_sha256": "9a8e4ae2211dfdb386bb8eb3d63cffadbf5a2a35e6f1767a674f48abc5b81e5d",
+    "sec2-v2.pdf_len": 52168,
+    "sec2-v2.pdf_contains_discretelogarithm": false,
+    "NIST-P-224.sec2.n": {
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.sec2.p": {
+     "digits": 56,
+     "PASS": true
+    },
+    "NIST-P-224.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.n": {
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.p": {
+     "digits": 64,
+     "PASS": true
+    },
+    "NIST-P-256.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.n": {
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.p": {
+     "digits": 96,
+     "PASS": true
+    },
+    "NIST-P-384.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.n": {
+     "digits": 132,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.p": {
+     "digits": 132,
+     "PASS": true
+    },
+    "NIST-P-521.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    },
+    "secp256k1.sec2.n": {
+     "digits": 64,
+     "PASS": true
+    },
+    "secp256k1.sec2.p": {
+     "digits": 64,
+     "PASS": true
+    },
+    "secp256k1.sec2.h": {
+     "digits": 2,
+     "PASS": true
+    }
+   },
+   "note": "normalized sec2-v2 text differs between versions; every verdict identical; pypdf 3.0.0 is not on PyPI (uv resolution error)"
+  },
+  "confounder": {
+   "script": "#!/usr/bin/env python3\n\"\"\"TASK-20260926-b99738 J1(iv),(v) and J3 C-FIELD gates: the confounder check of\nAMD-20260926-typed change.D1_pins.confounder_check, implemented from the text,\nwith a switch that disables clause (1) (C-FIELD-MUTATION) and a reviewer\nmutation that builds FP without the extracted primes.\"\"\"\nimport json, re\nfrom math import isqrt\nexec(open('/tmp/b99738/build_controls.py').read().split('out = {}')[0])\npc = json.load(open('/tmp/b99738/pin_checks.json'))['rows_hex']\nbls = json.load(open('/tmp/b99738/pin_bls.json'))['draft-14.txt']['parse']\nrows = {k: {kk: int(vv, 16) for kk, vv in v.items()} for k, v in pc.items()}\nrows['BLS12-381-r'] = dict(r=int(bls['r']['value'], 16), p=int(bls['p']['value'], 16), h=int(bls['h']['value'], 16))\neip = open('/tmp/b99738/src/eip-197.md', 'rb').read().decode('utf-8')\nbn_p = int(re.search(r'(?<![A-Za-z0-9_])p\\s*=\\s*([0-9]+)', eip).group(1))\nbn_r_match = re.search(r'prime order q\\s*=\\s*([0-9]+)', eip)\nCF1 = 2 ** 255 - 19; CF2 = 2 ** 256 - 2 ** 224 + 2 ** 192 + 2 ** 96 - 1\nFP_extracted = {x['p'] for x in rows.values()} | {bn_p}\nFP = FP_extracted | {CF1, CF2}\n\ndef check(cand, p=None, h=None, fp=FP, clause1=True):\n    reasons = []; verdicts = {}\n    verdicts['field_prime'] = (cand in fp) if clause1 else 'DISABLED'\n    if clause1 and cand in fp: reasons.append('field_prime')\n    verdicts['not_prime'] = not is_prime(cand)\n    if not is_prime(cand): reasons.append('not_prime')\n    if h is not None:\n        hv = abs(p + 1 - h * cand) > 2 * isqrt(p) + 2\n        verdicts['hasse'] = hv\n        if hv: reasons.append('hasse')\n    else:\n        verdicts['hasse'] = 'n/a'\n    return reasons, verdicts\n\nout = {'FP_size': len(FP), 'FP_extracted_size': len(FP_extracted), 'BN254_r_regex_match': bool(bn_r_match),\n       'BN254_p_bits': bn_p.bit_length()}\n# BN family u from p alone (text requires r too; r is locator_failure)\nlo, hi = 0, 1 << 80\nwhile lo < hi:\n    mid = (lo + hi) // 2\n    if 36 * mid ** 4 + 36 * mid ** 3 + 24 * mid ** 2 + 6 * mid + 1 < bn_p: lo = mid + 1\n    else: hi = mid\nu = lo\nout['BN254_u_from_p_exists'] = 36 * u ** 4 + 36 * u ** 3 + 24 * u ** 2 + 6 * u + 1 == bn_p\nout['BN254_r_from_u_bits'] = (36 * u ** 4 + 36 * u ** 3 + 18 * u ** 2 + 6 * u + 1).bit_length()\n# deployed rows (pinned r) must pass\nout['deployed'] = {k: check(v['r'], v['p'], v['h'])[0] for k, v in rows.items()}\n# C-FIELD cases (as written)\nout['CF-1'] = check(CF1, rows['Ed25519-L']['p'], rows['Ed25519-L']['h'])\nout['CF-2'] = check(CF2, rows['NIST-P-256']['p'], rows['NIST-P-256']['h'])\nout['CF_extraction_cross_check'] = dict(CF1=CF1 == rows['Ed25519-L']['p'], CF2=CF2 == rows['NIST-P-256']['p'])\n# C-FIELD-MUTATION (clause 1 disabled)\nout['MUT CF-1'] = check(CF1, rows['Ed25519-L']['p'], rows['Ed25519-L']['h'], clause1=False)\nout['MUT CF-2'] = check(CF2, rows['NIST-P-256']['p'], rows['NIST-P-256']['h'], clause1=False)\n# J1(iv) substitutions\nout['SUB brainpoolP384r1 p as r'] = check(rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['h'])\nout['SUB NIST-P-384 p as r (h=1)'] = check(rows['NIST-P-384']['p'], rows['NIST-P-384']['p'], rows['NIST-P-384']['h'])\nout['SUB brainpoolP384r1 p as r, clause1 disabled'] = check(rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['h'], clause1=False)\n# J1(v) two reasons at once\nout['SUB BLS12-381 p as r (two reasons)'] = check(rows['BLS12-381-r']['p'], rows['BLS12-381-r']['p'], rows['BLS12-381-r']['h'])\nout['SUB composite with h: Ed25519 p+1 as r'] = check(CF1 + 1, rows['Ed25519-L']['p'], rows['Ed25519-L']['h'])\n# Reviewer mutation M-FP: FP built WITHOUT the extracted primes (FP = {CF1, CF2} only)\nfp_bad = {CF1, CF2}\nout['M-FP CF-1'] = check(CF1, rows['Ed25519-L']['p'], rows['Ed25519-L']['h'], fp=fp_bad)\nout['M-FP CF-2'] = check(CF2, rows['NIST-P-256']['p'], rows['NIST-P-256']['h'], fp=fp_bad)\nout['M-FP MUT CF-2'] = check(CF2, rows['NIST-P-256']['p'], rows['NIST-P-256']['h'], fp=fp_bad, clause1=False)\nout['M-FP brainpoolP384r1 p as r'] = check(rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['p'], rows['brainpoolP384r1']['h'], fp=fp_bad)\n# controls vs FP (Q0-3 expected NOT REJECTED)\ncb = json.load(open('/tmp/b99738/controls_build.json'))\nout['controls'] = {k: check(int(cb[k]['r']))[0] for k in ('C-PLANT-M', 'C-PLANT-P', 'C-INERT', 'C-PLANT-PL')}\n# internal consistency rows\nout['internal_consistency'] = dict(P256=hex(rows['NIST-P-256']['r'])[2:].upper() == 'FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551',\n                                   secp256k1=hex(rows['secp256k1']['r'])[2:].upper() == 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141')\nout['null_arm_bit_classes_if_BN_unpinned'] = sorted({v['r'].bit_length() for v in rows.values()})\nfor k, v in out.items(): print(k, v)\njson.dump(out, open('/tmp/b99738/confounder_out.json', 'w'), indent=1, default=str)\n",
+   "out": {
+    "FP_size": 10,
+    "FP_extracted_size": 10,
+    "BN254_r_regex_match": false,
+    "BN254_p_bits": 254,
+    "BN254_u_from_p_exists": true,
+    "BN254_r_from_u_bits": 254,
+    "deployed": {
+     "NIST-P-224": [],
+     "NIST-P-256": [],
+     "NIST-P-384": [],
+     "NIST-P-521": [],
+     "Ed25519-L": [],
+     "secp256k1": [],
+     "brainpoolP256r1": [],
+     "brainpoolP384r1": [],
+     "BLS12-381-r": []
+    },
+    "CF-1": [
+     [
+      "field_prime",
+      "hasse"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": true
+     }
+    ],
+    "CF-2": [
+     [
+      "field_prime"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "CF_extraction_cross_check": {
+     "CF1": true,
+     "CF2": true
+    },
+    "MUT CF-1": [
+     [
+      "hasse"
+     ],
+     {
+      "field_prime": "DISABLED",
+      "not_prime": false,
+      "hasse": true
+     }
+    ],
+    "MUT CF-2": [
+     [],
+     {
+      "field_prime": "DISABLED",
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "SUB brainpoolP384r1 p as r": [
+     [
+      "field_prime"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "SUB NIST-P-384 p as r (h=1)": [
+     [
+      "field_prime"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "SUB brainpoolP384r1 p as r, clause1 disabled": [
+     [],
+     {
+      "field_prime": "DISABLED",
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "SUB BLS12-381 p as r (two reasons)": [
+     [
+      "field_prime",
+      "hasse"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": true
+     }
+    ],
+    "SUB composite with h: Ed25519 p+1 as r": [
+     [
+      "not_prime",
+      "hasse"
+     ],
+     {
+      "field_prime": false,
+      "not_prime": true,
+      "hasse": true
+     }
+    ],
+    "M-FP CF-1": [
+     [
+      "field_prime",
+      "hasse"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": true
+     }
+    ],
+    "M-FP CF-2": [
+     [
+      "field_prime"
+     ],
+     {
+      "field_prime": true,
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "M-FP MUT CF-2": [
+     [],
+     {
+      "field_prime": "DISABLED",
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "M-FP brainpoolP384r1 p as r": [
+     [],
+     {
+      "field_prime": false,
+      "not_prime": false,
+      "hasse": false
+     }
+    ],
+    "controls": {
+     "C-PLANT-M": [],
+     "C-PLANT-P": [],
+     "C-INERT": [],
+     "C-PLANT-PL": []
+    },
+    "internal_consistency": {
+     "P256": true,
+     "secp256k1": true
+    },
+    "null_arm_bit_classes_if_BN_unpinned": [
+     224,
+     253,
+     255,
+     256,
+     384,
+     521
+    ]
+   }
+  }
+ },
+ "section_3_cross_round_comparison": {
+  "performed_at_utc": "2026-09-27T04:42:01Z",
+  "after_section_1": true,
+  "BATCH-09aadd_first_opened_at_utc": "2026-09-27T04:39:22Z",
+  "source": "coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-09aadd/reviews/TASK-20260923-c78ddf/validation-report.yaml attack_i_controls_built",
+  "result": {
+   "C-PLANT-M.d1": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-M.d2": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-M.u0": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-M.u": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-M.r": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-M.v": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.d0": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.d": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.w0": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.w": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.r": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-PLANT-P.q": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-INERT.w": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-INERT.r": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "C-INERT.q": {
+    "prev_equal": true,
+    "prev_found": true
+   },
+   "counts": {
+    "PLANTM_d1": [
+     true,
+     70
+    ],
+    "PLANTM_d2": [
+     true,
+     40
+    ],
+    "PLANTM_u": [
+     true,
+     2045435
+    ],
+    "PLANTP_d": [
+     true,
+     35
+    ],
+    "PLANTP_w": [
+     true,
+     164607
+    ],
+    "INERT_w": [
+     true,
+     331532
+    ]
+   }
+  }
+ },
+ "section_4_J6_tools": {
+  "admission_log": "## base environment (before provisioning)\nwhich ecm: ABSENT\nbase python3: Python 3.9.10\nbase cypari2 2.2.2\nbase gp: 2.17.3\n## scratch-provisioned: GMP-ECM 7.0.6 (source ecm-7.0.6.tar.gz sha256 7d20ece6...e8a5, GMP 6.3.0), uv venv python 3.12.13 + cypari2 2.2.4 + cysignals 1.12.6 + pypdf 6.19.0\n## (1) versions as written\n$ printf \"2^89-1\n\" | ecm -c 1 2000 | head -1\nGMP-ECM 7.0.6 [configured with GMP 6.3.0] [ECM]\n$ python3 -I -c \"import cypari2; print(cypari2.__version__); print(cypari2.Pari()(\\\"version()\\\"))\"\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError: module 'cypari2' has no attribute '__version__'\nexit=1\n$ (diagnostic, NOT the written command) python3 -I -c \"import cypari2; print(cypari2.Pari()(\\\"version()\\\"))\"\n[2, 17, 2]\n$ python3 -I -c \"import pypdf; print(pypdf.__version__)\"\n6.19.0\n$ python3 --version\nPython 3.12.13\n## (2) ECM self-test\nFound prime factor of 10 digits: 2147483647\n## (3) PARI alarm self-test via cypari2 (see alarm_test.py)\nalarm(1,while(1,)) RAISED cysignals.signals.AlarmInterrupt mro= ['AlarmInterrupt', 'KeyboardInterrupt', 'BaseException', 'object'] '' 1.008\nafter: 2+2 RETURNED 4 Gen 0.001\niferr alarm RAISED cysignals.signals.AlarmInterrupt mro= ['AlarmInterrupt', 'KeyboardInterrupt', 'BaseException', 'object'] '' 1.007\nalarm(2,factor(semiprime282)) RAISED cysignals.signals.AlarmInterrupt mro= ['AlarmInterrupt', 'KeyboardInterrupt', 'BaseException', 'object'] '' 2.012\nalarm(2,factor(small)) RETURNED [274177, 1; 67280421310721, 1] Gen 0.003\ncysignals n/a\n## (8) pdf machinery self-test: see pdf_619.json key sp800-186.pdf_contains_discretelogarithm\n",
+  "alarm_test_py": "import time, cypari2, cysignals\npari = cypari2.Pari()\ndef run(label, f):\n    t=time.monotonic()\n    try:\n        x=f(); print(label,'RETURNED',repr(x)[:100],type(x).__name__,round(time.monotonic()-t,3))\n    except BaseException as e:\n        print(label,'RAISED',type(e).__module__+'.'+type(e).__name__,'mro=',[c.__name__ for c in type(e).__mro__],repr(str(e))[:60],round(time.monotonic()-t,3))\nrun('alarm(1,while(1,))', lambda: pari('alarm(1, while(1, ))'))\nrun('after: 2+2', lambda: pari('2+2'))\nrun('iferr alarm', lambda: pari('iferr(alarm(1, while(1,)), E, errname(E))'))\nrun('alarm(2,factor(semiprime282))', lambda: pari('my(n=nextprime(2^140)*nextprime(2^141)); alarm(2, factor(n))'))\nrun('alarm(2,factor(small))', lambda: pari('alarm(2, factor(2^64+1))'))\nprint('cysignals', cysignals.__version__ if hasattr(cysignals,'__version__') else 'n/a')\n",
+  "cypari2_version_attribute_by_source_inspection": {
+   "2.1.3_sdist": "no __version__ anywhere in cypari2/",
+   "2.2.0_sdist": "no __version__ anywhere in cypari2/",
+   "2.2.2_base_env": "AttributeError (executed)",
+   "2.2.4_scratch": "AttributeError (executed)"
+  },
+  "gp_direct_alarm": "gp 2.17.3: x=alarm(1, while(1,)) -> type t_ERROR, errname e_ALARM (returns); through cypari2 the same expression raises cysignals.signals.AlarmInterrupt",
+  "ecm_build": {
+   "url": "https://gitlab.inria.fr/zimmerma/ecm/uploads/ad3e5019fef98819ceae58b78f4cce93/ecm-7.0.6.tar.gz",
+   "sha256": "7d20ece61ab6a20ad85f2c18064cabd77dc46a96ff894b5220dbb16e4666e8a5",
+   "configure": "./configure --prefix=/tmp/b99738/ecm/inst --with-gmp=/opt/homebrew/opt/gmp",
+   "result": "configure 0, make 0, install 0"
+  },
+  "ecm_readme_7_0_6_table_1": "digits/B1/-power 1/default poly: 20 11e3 74/74; 25 5e4 221/214; 30 25e4 453/430; 35 1e6 984/904; 40 3e6 2541/2350; 45 11e6 4949/4480; 50 43e6 8266/7553; 55 11e7 20158/17769; 60 26e7 47173/42017; 65 85e7 77666/69408 (no 2e3 row)",
+  "ecm_diag_C-PLANT-PL_part": "printf <(r+1)/12> | ecm -one -c 25 2e3 -> factor 8796093022261 (=f3) found on run 5 in step 2 (diagnostic only; not a run)",
+  "isolated_mode_sibling_import": "python3 -I typed/run.py with sibling typed/sib.py: ModuleNotFoundError (script dir not on sys.path under -I)",
+  "primecert_default_stack": "cypari2 2.2.4 default stack 8e6 bytes: primecert(2^607-1) -> PariError stack overflow; succeeds after pari.allocatemem(2e9)",
+  "certificates": {
+   "producer_py": "#!/usr/bin/env python3\n\"\"\"Path-A style producer (reviewer's own) using PARI through cypari2: ECPP via\nprimecert for p >= 2^64, Pratt for p < 2^64 and for the terminal prime.\"\"\"\nimport json, sys, cypari2\npari = cypari2.Pari()\npari.allocatemem(2*10**9, silent=True) if False else pari.allocatemem(2*10**9)\n\ndef pratt(p):\n    if p == 2: return None\n    fac = pari.factor(p - 1)\n    fs = [(int(fac[0][i]), int(fac[1][i])) for i in range(len(fac[0]))]\n    a = 2\n    while not (pow(a, p - 1, p) == 1 and all(pow(a, (p - 1) // f, p) != 1 for f, _ in fs)):\n        a += 1\n    return {'p': p, 'a': a, 'factors': [[f, k, pratt(f)] for f, k in fs]}\n\ndef produce(p):\n    if p < 2 ** 64:\n        return {'p': p, 'kind': 'pratt', 'pratt': pratt(p)}\n    c = pari.primecert(p)\n    assert int(pari.primecertisvalid(c)) == 1\n    steps = [[int(s[0]), int(s[1]), int(s[2]), int(s[3]), [int(s[4][0]), int(s[4][1])]] for s in c]\n    last = steps[-1]; q = (last[0] + 1 - last[1]) // last[2]\n    return {'p': p, 'kind': 'ecpp', 'ecpp': steps, 'terminal': pratt(q), 'producer_check': 1}\n\nif __name__ == '__main__':\n    for name, expr in [a.split('=', 1) for a in sys.argv[1:]]:\n        p = int(pari(expr))\n        json.dump(produce(p), open(f'/tmp/b99738/cert_{name}.json', 'w'))\n        print(name, p.bit_length(), 'written')\n",
+   "verifier_py": "#!/usr/bin/env python3\n\"\"\"TASK-20260926-b99738 J6(v): a library-free verifier written by the reviewer\nfrom AMD-20260926-typed change.D7_certificates.independent_verifier text.\nImports ONLY the Python standard library (json, math, sys).\"\"\"\nimport json, sys\nfrom math import gcd\n\ndef pratt_ok(p, cert):\n    \"\"\"cert = {'p': p, 'a': a, 'factors': [[f, k, subcert_or_None], ...]}; leaf 2.\"\"\"\n    if p == 2: return True\n    if cert['p'] != p: return False\n    prod = 1\n    for f, k, _ in cert['factors']: prod *= f ** k\n    if prod != p - 1: return False\n    a = cert['a']\n    if pow(a, p - 1, p) != 1: return False\n    for f, k, sub in cert['factors']:\n        if pow(a, (p - 1) // f, p) == 1: return False\n        if f != 2 and not pratt_ok(f, sub): return False\n    return True\n\ndef inv(x, N):\n    g = gcd(x % N, N)\n    if g != 1: raise ValueError('non-invertible')\n    return pow(x, -1, N)\n\ndef ec_add(P, Q, a4, N):\n    if P is None: return Q\n    if Q is None: return P\n    x1, y1 = P; x2, y2 = Q\n    if (x1 - x2) % N == 0:\n        if (y1 + y2) % N == 0: return None\n        lam = (3 * x1 * x1 + a4) * inv(2 * y1, N) % N\n    else:\n        lam = (y2 - y1) * inv(x2 - x1, N) % N\n    x3 = (lam * lam - x1 - x2) % N\n    return (x3, (lam * (x1 - x3) - y1) % N)\n\ndef ec_mul(k, P, a4, N):\n    R = None\n    for bit in bin(k)[2:]:\n        R = ec_add(R, R, a4, N)\n        if bit == '1': R = ec_add(R, P, a4, N)\n    return R\n\ndef icbrt4_c(N):\n    c = 1\n    while c ** 4 < N: c *= 2\n    lo, hi = c // 2, c\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if mid ** 4 >= N: hi = mid\n        else: lo = mid + 1\n    return lo\n\ndef ecpp_step_ok(N, t, s, a4, P):\n    if gcd(N, 6) != 1: return False, None\n    m = N + 1 - t\n    if s <= 0 or m % s: return False, None\n    q = m // s\n    x, y = P[0] % N, P[1] % N\n    b = (y * y - x ** 3 - a4 * x) % N\n    if gcd((4 * a4 ** 3 + 27 * b * b) % N, N) != 1: return False, None\n    try:\n        S = ec_mul(s, (x, y), a4, N)        # [s]P must be affine, denominators invertible\n        if S is None: return False, None\n        Qm1 = ec_mul(q - 1, S, a4, N)       # [m]P = O  <=>  [q-1]([s]P) = -[s]P\n        if Qm1 is None or Qm1[0] != S[0] or (Qm1[1] + S[1]) % N != 0: return False, None\n    except ValueError:\n        return False, None\n    c = icbrt4_c(N)\n    if not q > (c + 1) ** 2: return False, None\n    return True, q\n\ndef verify(cert):\n    p = cert['p']\n    if cert['kind'] == 'pratt':\n        return pratt_ok(p, cert['pratt'])\n    steps = cert['ecpp']\n    if steps[0][0] != p: return False\n    q = None\n    for i, (N, t, s, a4, P) in enumerate(steps):\n        if i > 0 and N != q: return False\n        ok, q = ecpp_step_ok(N, t, s, a4, P)\n        if not ok: return False\n    return cert['terminal']['p'] == q and pratt_ok(q, cert['terminal'])\n\ndef smallest_strong_witness_ok(C, a):\n    if C % 2 == 0: return a == 'even'\n    d = C - 1; s = 0\n    while d % 2 == 0: d //= 2; s += 1\n    def fails(b):\n        x = pow(b, d, C)\n        if x in (1, C - 1): return False\n        for _ in range(s - 1):\n            x = x * x % C\n            if x == C - 1: return False\n        return True\n    return fails(a) and all(not fails(b) for b in range(2, a))\n\nif __name__ == '__main__':\n    for path in sys.argv[1:]:\n        c = json.load(open(path), parse_int=int)\n        print(path, 'ACCEPT' if verify(c) else 'REJECT')\n",
+   "verifier_imports": "json, math, sys (AST audit, all in sys.stdlib_module_names on 3.12)",
+   "results": {
+    "2^89-1": "ACCEPT",
+    "2^607-1": "ACCEPT",
+    "2^255-19 (255 bits, J6 v)": "ACCEPT",
+    "2^521-1": "ACCEPT",
+    "2^89-1 with top N := 2^89+1": "REJECT",
+    "2^255-19 with last-step t := t+2": "REJECT"
+   },
+   "primecert_small": "primecert(2^61-1) returns t_INT 2305843009213693951 (bare integer), confirming the draft statement"
+  }
+ },
+ "environment": {
+  "machine": "darwin 25.6.0 arm64, 14 cpu",
+  "python_base": "3.9.10 (pyenv)",
+  "python_scratch": "3.12.13 (uv venv /tmp/b99738/venv)",
+  "pari_gp": "2.17.3 Homebrew",
+  "cypari2": "2.2.2 base / 2.2.4 scratch (PARI 2.17.2 bundled)",
+  "gmp_ecm": "7.0.6 scratch build",
+  "pypdf": "6.19.0 scratch; 3.1.0 second scratch venv",
+  "pyyaml": "installed in scratch venv for the d1d10-vs-typed field diff only"
+ },
+ "runs_launched": 0,
+ "note": "All scripts ran under /tmp/b99738 (scratch). No EXP-AUXIN-7e2e3d driver was executed; no Cheon algorithm; no auxiliary power; no deployed order factored."
+}

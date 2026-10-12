@@ -17,7 +17,7 @@ tags: [cryptanalysis, dlp, ecdlp, elliptic-curve, pollard-rho, pqc, prime-field,
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-8cc29a
 ---
 
 ## Contribution

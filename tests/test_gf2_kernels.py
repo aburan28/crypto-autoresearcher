@@ -86,15 +86,48 @@ def _same_log(ref, log, keep=True):
 # native == reference
 # ---------------------------------------------------------------------------
 @native
-@pytest.mark.parametrize("algorithm", ["blocked", "direct"])
-def test_column_pass_matches_reference(algorithm):
+@pytest.mark.parametrize("algorithm,threads", [("blocked", 1), ("blocked", 4), ("sb", 1), ("sb", 4),
+                                               ("direct", 1), ("auto", None)])
+def test_column_pass_matches_reference(algorithm, threads):
     for M, C in _random_cases():
         A, B, B2 = M.copy(), M.copy(), M.copy()
         ref = reference.column_pass(A, C, True)
-        assert _same_log(ref, kernels.column_pass(B, C, True, algorithm=algorithm))
+        assert _same_log(ref, kernels.column_pass(B, C, True, algorithm=algorithm, threads=threads))
         assert np.array_equal(A, B), "final matrix differs"
-        assert _same_log(ref, kernels.column_pass(B2, C, False, algorithm=algorithm), keep=False)
+        assert _same_log(ref, kernels.column_pass(B2, C, False, algorithm=algorithm, threads=threads),
+                         keep=False)
         assert np.array_equal(A, B2)
+
+
+@native
+def test_column_pass_large_paths_agree(monkeypatch):
+    """Matrices big enough for the threaded trailing update, the multi-word
+    super-block coefficients and every super-block width: all forms give the
+    op log and final matrix of the column-at-a-time "direct" pass (itself
+    checked against the reference above)."""
+    rng = np.random.default_rng(7)
+    cases = []
+    for nv, D in ((14, 5), (16, 4)):
+        cl = fc.Closure(nv, D, nv - 1)
+        monos = [0] + [1 << i for i in range(nv)] + [(1 << i) | (1 << j)
+                                                    for i in range(nv) for j in range(i + 1, nv)]
+        cases.append((cl.build_M([[m for m in monos if rng.random() < 0.5] for _ in range(nv - 1)]), cl.C))
+    R, C = 1500, 1100                                  # low rank: long X sets, many zero rows
+    base = (rng.random((200, C)) < 0.4).astype(np.uint8)
+    comb = (rng.random((R, 200)) < 0.3).astype(np.uint8)
+    cases.append((_pack((comb @ base % 2).astype(np.uint8), C), C))
+    for M, C in cases:
+        want_M = M.copy()
+        want = kernels.column_pass(want_M, C, True, algorithm="direct")
+        ref = (want.ps, want.cs, list(want.Xs), want.ops_strict)
+        for sb in (1, 2, 3, 4, 8):
+            monkeypatch.setattr(kernels, "SB_WORDS", sb)
+            for algorithm in ("sb", "blocked"):
+                for threads in (1, 4):
+                    B = M.copy()
+                    assert _same_log(ref, kernels.column_pass(B, C, True, algorithm=algorithm,
+                                                              threads=threads)), (algorithm, sb, threads)
+                    assert np.array_equal(want_M, B), (algorithm, sb, threads)
 
 
 @native

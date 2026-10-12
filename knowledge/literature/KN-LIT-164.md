@@ -18,7 +18,7 @@ tags: [dlp, elliptic-curve, factoring, finite-field, hyperelliptic, index-calcul
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-92caf4
 ---
 
 ## Contribution

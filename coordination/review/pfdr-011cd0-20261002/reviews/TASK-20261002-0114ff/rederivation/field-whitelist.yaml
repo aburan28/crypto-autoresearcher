@@ -1,0 +1,95 @@
+# =============================================================================
+# TASK-20261002-0114ff -- FIELD WHITELIST for census rows (RV-2 (b)).
+# Written BEFORE this task opened any rows.jsonl.gz (root or job). Never edited
+# afterwards; a correction is a new file that names this one.
+# Applies to: experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-table/rows.jsonl.gz,
+#   experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-search/rows.jsonl.gz and
+#   their attempt-1/jobs/*/rows.jsonl.gz (package commit 5753edf2e).
+# Reader: rederivation/census_fields.py (the ONLY code of this task that opens a
+#   rows.jsonl.gz before the seal).
+# =============================================================================
+field_whitelist:
+  task_id: TASK-20261002-0114ff
+  written_before_first_open_of_any_rows_jsonl_gz: true
+  reading_rule: >-
+    Each line is decoded with json.loads (the decoder necessarily materialises
+    the whole line in memory). Immediately after decoding, the reader copies
+    ONLY the whitelisted paths below into a new dict and drops the decoded
+    object. No other value is accessed, printed, logged, compared or stored.
+    No raw line is ever printed. Nothing derived from a non-whitelisted value
+    is computed.
+  purpose: >-
+    J3 needs, per instance: its key, its status (CC-6 failed_infrastructure
+    drops and the instance universe), its base size (CC-6 unmatched_size and
+    |F| matching), and the planted declarations (PC-R (iii)). Relation counts
+    are derived ONLY from harvest-rows.jsonl.gz; no harvester count is read.
+  top_level_scalar_paths:
+    # instance key
+    - bits
+    - curve
+    - m
+    - arm
+    - fb
+    - mode
+    - panel
+    # status and termination (no count)
+    - status
+    - status_reason
+    - reason
+    - error
+    - terminated_by
+    # curve fields
+    - p
+    - a
+    - b
+    - N
+    - order
+    - P
+    - Q
+    - target_label
+    - target_seed
+    - solver_seed
+    # base size fields
+    - fb_size
+    - size
+    - s
+    - s_sub
+    - s_dick
+    # exposure field (a design constant, 20*isqrt(N))
+    - X_fix
+    - x_fix
+    - encoding_budget_lambda
+  nested_container_names:
+    # if one of these top-level keys holds a dict (a FactorBase.describe()
+    # style block), ONLY the subkeys listed under nested_subkeys are read
+    - fb
+    - factor_base
+    - base
+    - fb_params
+    - fb_describe
+  nested_subkeys:
+    - kind
+    - size
+    - seed
+    - d
+    - target_size
+    - n_tt
+    - n_tb
+    - planted_relations     # planted declarations: {class, indices, signs}
+    - skipped_tuples        # planted declarations: skipped tuples
+    - logs                  # known_log formal-basis declaration ("1..s")
+    - note
+  key_name_discovery: >-
+    To map the semantic fields above onto the file's actual key names, the
+    reader may list the NAMES (strings only, never values) of the top-level
+    keys of the decoded line and the names of the keys inside any
+    nested_container_names dict. Names only are recorded, in
+    rederivation/outputs/census-schema.json. If a needed semantic field is
+    absent under every name listed here, a NEW whitelist file naming this one
+    is written before any value of a newly named field is read.
+  forbidden_name_substrings_never_read: [relations, pairs, R_star, rank, kappa, multiplicity, dup, poisson]
+  forbidden_rule: >-
+    No path whose name contains any forbidden substring (case-insensitive) is
+    read, even if it is listed above; the reader asserts this at start-up. No
+    harvest block, at_X_fix or at_stop block, rows_digest-bearing block, or
+    solver column is read.

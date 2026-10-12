@@ -1,0 +1,148 @@
+# TASK-20260929-f29c96 -- declared choices (RT-2), written 2026-09-29T07:50Z-07:52Z (hashed 07:52:45Z),
+# BEFORE any alternative-convention kappa/z table (J7), any null-generator run (J6),
+# any seed/order sweep (MC-1..MC-3) or any PTM computation was produced as a file.
+#
+# DISCLOSED EXPOSURE BEFORE WRITING THIS FILE (what had been looked at):
+#   * analysis.json (A7 block stripped on load), kappa-cells.jsonl, R16 analysis.json;
+#   * attacks/out/01_row_inventory.json and attacks/out/02_bundles.jsonl (the J7(a)
+#     cluster-pair inventory the plan asks for: pairs, distinct relations, multiplicity);
+#   * per-arm exposure at the four excursion cells (SS: formally distinct encodings X and
+#     the harvest block's poisson_mean at A_fix; TT: formally distinct tails), printed
+#     to the console, discovery and Stage R curves.
+#   The alternatives below are the ones the plan names for each convention, or their
+#   direct operationalisation; where two are equally plausible both are computed and
+#   both are reported (sensitivity), so neither is selected on its result.
+#
+convention_alternatives:
+  a_formal_duplicates_and_counting_unit:
+    frozen: >-
+      pairs_nonformal per class (C(k, 2) per x-key group after dropping identical oriented
+      elements); SS at A_fix.
+    primary_alternative: ALT-a1 relation-level count
+    why: >-
+      The plan names it ("one relation counted as C(k, 2) pairs"; "cluster pairs that
+      count one relation several times"). A pair that repeats an identical relation
+      (same normalised row up to sign) carries no new information, and A3's informative
+      rank -- the mandatory companion of kappa -- counts relations, not pairs. Operational:
+      per instance and class, the number of DISTINCT normalised relations among all pairs
+      (star rows and within-group differences), SS restricted to attempt <= A_fix.
+      Computable only where every row is retained (bits <= 24; TT and TB at every rung;
+      SS at m = 3 every rung; SS at m = 5 on the 175/180 complete instances); elsewhere
+      the cell is reported BLOCKED (rows past census saturation are not retained), never
+      imputed.
+    secondary_alternatives:
+      - ALT-a2 "count dup_formal pairs as pairs" (the plan's first named option): TT and TB
+        n + dup_formal at stop; SS n + (encodings_recorded - formally_distinct_encodings)
+        at A_fix.
+      - ALT-a3 "pairs as specified (C(k, 2) per group) recomputed from the rows" -- the
+        implemented SS counter misses members of a group that sit in a later unmerged
+        sorted run (harvest.py end_attempt keeps only the first run's descriptors per x);
+        this is the count IC-5 specifies. Where rows are complete.
+      - "treat sign-flipped vectors as formal": already the implemented behaviour for
+        elements of one x-group (orientation by y-bit makes v and -v identical); it is the
+        relation-level identification of ALT-a1 across groups. Not computed separately.
+  b_matched_random_construction:
+    frozen: >-
+      structured arm vs three random bases of equal |F| on the same curve, same targets,
+      same A_fix (attempts).
+    primary_alternative: ALT-b1 exposure-normalised comparison
+    why: >-
+      The design equalises attempts and |F| but not the number of formally distinct
+      encodings X (SS) or tails E't (TT) that the H1 Poisson mean says the pair count scales
+      with (mu_SS = C(X, 2) 2/N); the specification's own confounders_note concedes
+      "to within per-target early stopping", which is a base-dependent (solve-speed)
+      variable. Operational: each count is divided by its own instance's harvest-block
+      poisson_mean (SS at A_fix, TT/TB at stop) and multiplied by the cell's mean random
+      poisson_mean on that curve, so every arm is compared at equal exposure; then A1 as
+      frozen. For TT/TB with identical E't across arms this is the identity.
+    secondary_alternatives:
+      - ALT-b2 six-random reference: where |F_sub| == |F_dick| on a curve, the three
+        randoms of the other family are pooled in (6 randoms, SD_null = sqrt(V (1 + 1/6)),
+        V = max(sum s_j^2, C_R) over 5 df per curve); else frozen.
+    checks: FactorBase.random draws x uniformly among x-coordinates of curve points
+      (rejection sampling of uniform x in [0, p), y != 0), read from factor_base.py;
+      |F| equality, distinct bases, equal target stream and A_fix read from the rows.
+  c_poisson_mean:
+    frozen: harvest block poisson_mean (C-6), E't = formally distinct tails.
+    alternative: ALT-c E't replaced by stored table entries (tab.entries) in mu_TT and mu_TB;
+      A6 KS recomputed with the frozen PIT seeds.
+    note: A1 never reads poisson_mean (analyze_census.py kappa_stats), so kappa, z and the
+      excursion count are unchanged under ALT-c by construction; that is verified, not assumed.
+  d_exclusions:
+    frozen: a curve with any of A, R(A) censored at A_fix, failed or invalid is dropped for
+      all four in every class; unmatched_size drops the curve for A and R(A).
+    alternatives:
+      - ALT-d1 no drop for censoring (the censored instance's at_A_fix snapshot, taken at
+        its stop, is used as its count; unmatched_size and status drops kept).
+      - ALT-d2 drop only the affected arm (a censored random is removed from that curve's
+        reference, the curve kept with two randoms; a censored structured arm drops the curve).
+    why: the two alternatives the plan names.
+    test: censoring rates by arm (structured vs random) with Fisher's exact test.
+  e_variance_model:
+    frozen: V = max(sum_j s_j^2, C_R) from the three random counts (10 df), SD = sqrt(4V/3).
+    primary_alternative: ALT-e1 larger of the random-arm spread and the structured arm's
+      own residual spread (the plan's named alternative). Residuals are taken around the
+      cell's fitted proportional excess, so a genuine constant excess does not inflate its
+      own variance estimate: e_j = n_Aj - kappa_hat * rbar_j, kappa_hat = C_A / C_R;
+      V_A = max(0, (5/4) sum_j e_j^2 - kappa_hat^2 sum_j s_j^2 / 3) (one fitted parameter
+      over five curves; the random mean's own noise removed); SD_alt = sqrt(V_A +
+      V_R/3) with V_R = max(sum_j s_j^2, C_R), used only when larger than the frozen SD.
+      Computed per cell, and pooled per (class, m) as the ratio sum V_A / sum V_R.
+    secondary_alternative: ALT-e2 dispersion-floored null: V = max(sum_j s_j^2, D_rung C_R),
+      D_rung = the pooled index of dispersion of every random triple at that (class, m,
+      rung) (both random families, five curves: 10 triples, 20 df), i.e. the Poisson floor
+      replaced by the floor the random arms themselves imply for pair counts.
+    why_both: ALT-e1 is the plan's; ALT-e2 is the direct repair of the unit mismatch the
+      J7(a) inventory exposes (pairs come in bundles), and it uses no structured-arm data.
+  f_ss_budget:
+    frozen: SS at A_fix; TT and TB at stop (table-only, budget-free).
+    alternative: ALT-f SS at stop (census mode). Check: TT and TB counts identical between
+      census and on modes on every instance (table-only).
+null_generators_J6:
+  G-POIS: per curve j, all four arms Poisson(rbar_j) (rbar_j = mean of the cell's three
+    random counts on curve j; the model the test assumes).
+  G-NB: gamma-Poisson with mean rbar_j and variance D_rung * rbar_j (D_rung as ALT-e2;
+    D_rung < 1 is set to 1).
+  G-CP: compound: K relations ~ gamma-Poisson(mean rbar_j / E[B], index D_rel,rung), each
+    carrying B pairs drawn from the pooled empirical multiplicity distribution of the random
+    arms at that (class, m, rung) (02_bundles.jsonl, complete instances). Where the rung is
+    not complete (SS m = 4 at 26..32 bits; SS m = 5 cells short of instances) the nearest
+    complete rung's multiplicity distribution is used with every multiplicity > 6 scaled
+    by |F|_rung / |F|_ref (the big bundles are 4|F| - 2 for 2-term target relations and
+    ~3 A_fix for base relations, both proportional to |F|); declared as an extrapolation.
+  G-RES: residual bootstrap: standardised within-triple deviations of the random counts,
+    (n - rbar)/sqrt(max(rbar, 1)) * sqrt(3/2), pooled per (class, m) over every rung and
+    triple, drawn with replacement and added to rbar_j (then rounded, floored at 0).
+  shared_structure: subgroup and small_x cells of one (class, m, rung) share one simulated
+    random triple per curve; TT and SS are simulated independently (their instances are
+    shared but no coupling model is assumed; stated as a limitation).
+  resolution: C_R >= 10 applied to the simulated counts; the family is every (A, c in
+    {TT, SS}, m, rung) cell, resolved or not, re-evaluated per replicate.
+seeds:
+  J6_family_null: numpy.random.default_rng(seed) with seed = 20260929 + k, k = 0..3 for
+    G-POIS, G-NB, G-CP, G-RES; 20000 family replicates each.
+  J6_stageR: numpy.random.default_rng(20261001 + k), 200000 replicates per cell.
+  PTM2: numpy.random.default_rng(20261101), 20000 pipeline replicates per generator.
+  PTM3: numpy.random.default_rng(20261201 + i), 4000 replicates per (cell, kappa_true).
+  MC1: random.Random(0) at 20000 replicates (frozen scheme, more replicates).
+  MC2: numpy.random.default_rng(s), s = 1..200, frozen replicate count (2000), and the
+    frozen scheme's own random.Random(s) for s = 1..200 where the element is cheap.
+  MC3: random.Random(s).shuffle, s = 1..20, on the canonical row order; plus reversal.
+  A6_alt_PIT: random.Random(f"rt-f29c96-pit|{s}|{bits}|{c}|{m}|{arm}|{class}"), s = 1..200.
+ptm1_choice:
+  chosen: own-triple (the other two randoms of the arm's own triple; C_R the mean of two,
+    SD_null = sqrt(V * 3/2), V = max(sum_j s_j^2, C_R) with s_j^2 over the two, 5 df).
+  why: always available with |F| equal by construction; the other-family option exists
+    only on curves where |F_sub| == |F_dick| and would change the reference set from cell to
+    cell. Its 5 df make it heavier-tailed than the frozen 10-df test, so its rate is an
+    upper comparison for the random-as-structured object; the other-family variant (10 df)
+    is computed as a secondary where available.
+ptm3_choice:
+  augmentation: n'_Aj = n_Aj + Poisson((kappa_true - 1) * rbar_j) on the committed structured
+    counts (random arms unchanged), at 30 and 32 bits and at each excursion rung, per
+    (A, class, m); detection = procedure leaves O-NULL: discovery z > 3 AND a Stage R
+    replication z > 3 on synthetic fresh curves (the cell's own design, G-CP null + the same
+    planted kappa); X = the smallest kappa_true in {1.1, 1.25, 1.5, 2.0, 3.0, 5.0} with
+    P(not O-NULL) >= 0.5, per (class, m). A compound (bundle-shaped) augmentation is
+    computed as a sensitivity, because Poisson augmentation is the most detectable form an
+    excess could take.

@@ -1,0 +1,245 @@
+review:
+  idea_id: IDEA-20260922-7ab503
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-843cf5
+  ranking_context:
+    rank: 32
+    disposition: return_for_revision
+    hold_id: HOLD-R
+  claim_restated: >-
+    In a normal basis the absolute Frobenius x -> x^2 is a cyclic shift of
+    the coordinate vector. The record claims that on every curve whose (a, b)
+    Frobenius fixes (mu = |Stab(a, b)| > 1, i.e. every FIPS/SECG Koblitz row
+    with a, b in F_2 and the five composite ANSI rows with a, b in F_{2^16})
+    the shift is a genuine symmetry of the descended point-decomposition
+    Boolean system, usable as a WDSat-style canonical-representative
+    constraint composing with the m! arity symmetry; that this is free only in
+    a normal basis and dense in the polynomial basis the program's tooling
+    uses; that a parser regex in analysis/binstd-curve-audit/subfield_scan.py
+    hid the Koblitz rows' a, b in F_2; and it predicts a leaf-count reduction
+    close to mu in normal basis and near 1 in polynomial basis.
+  core_argument_check:
+    - step: x -> x^2 is the cyclic shift of normal-basis coordinates
+      verdict: holds
+      note: x = sum_j x_j alpha^{2^j} gives x^2 = sum_j x_j alpha^{2^{j+1}} by additivity of squaring in characteristic 2; unconditional.
+    - step: the shift is a symmetry of the descended system of ONE instance (claim A, "genuine EXTRA search-tree symmetry ... exactly the role WDSat's lexicographic order plays for the m! symmetry")
+      verdict: defective
+      note: >-
+        Re-derived. With a, b in F_2 the summation polynomial S_{m+1} has
+        F_2-coefficients, so sigma maps a solution (x_1, ..., x_m) of
+        S_{m+1}(x_1, ..., x_m, x_R) = 0 to a solution of
+        S_{m+1}(x_1^2, ..., x_m^2, x_R^2) = 0 -- the system for the CONJUGATE
+        target sigma(R), not the same instance. This is IDEA-20260906-a77711
+        Lemma A1 (sigma(I_R) = I_{R^pi}) read at q = 2, and Lemma A2 says
+        V(I_R) and V(I_{sigma R}) are disjoint for R in G (a common tuple
+        would force R = sigma R, impossible since sigma acts on G as a scalar
+        of order n and R != O). On ECC2K-130 sigma acts on G by a scalar mu
+        with mu^131 = 1, mu != 1, so sigma R != R for every R != O. The m!
+        leg-permutation symmetry that WDSat breaks IS an automorphism of the
+        same instance; the Frobenius shift is an equivariance between 131
+        different instances. A canonical-representative constraint imposed on
+        a single instance therefore DROPS solutions, and the record's own
+        falsification condition 4 (constrained and unconstrained certificate
+        sets must be equal) is predicted to fire. HOLD-R confirmed.
+    - step: the legs stay in the factor base under the shift
+      verdict: defective
+      note: >-
+        x_i in V implies x_i^2 in sigma(V), which equals V only for a
+        Frobenius-stable V. At prime n the stable F_2-subspaces are the
+        F_2[T]/(T^n - 1)-submodules, of dimensions that are subset sums of
+        {1, ord_n(2), ord_n(2), ...}. Computed this session -- ord_131(2) = 130
+        and ord_163(2) = 162, so ECC2K-130 and K-163 host only dimensions
+        0, 1, n-1, n (KN-OPEN-095df5, IDEA-20260918-9abf42 as summarised in the
+        brief). Even the orbit-batched form has no useful stable V on those two
+        rows. By contrast ord_233(2) = 29, ord_283(2) = 94, ord_409(2) = 204,
+        ord_571(2) = 114, ord_239(2) = 119 (computed), so K-233 (dimensions
+        29, 30, 58, ...), K-283, K-409, K-571 and sect239k1 DO host stable
+        subspaces; the hold's statement is about K-163 and ECC2K-130 only and
+        is correct as scoped.
+    - step: what the symmetry does buy -- the orbit-batched solve (one solve per 131 conjugate targets with a stable V)
+      verdict: holds
+      note: >-
+        a77711 arm A and the GGMP constants (1/n on the number of systems, n^2
+        on linear algebra, retrieved at abstract level by a77711); the
+        (representative, shift) parameterisation of an orbit UNION is measured
+        cost-neutral at m = 2 (KN-FIND-47da4e, unverified provenance). None of
+        this is a per-instance leaf-count division, and none is available on
+        ECC2K-130 at the subspace level.
+    - step: the parser bug in subfield_scan.py hexblob()
+      verdict: superseded_by_program_state
+      note: >-
+        The current third fallback regex (line 17) is
+        label:\s*(\d+)(?:\s*\(0x[0-9a-fA-F]+\))?\s*\n -- the "(0x1)" form is
+        handled. HOLD-R's "already fixed" is confirmed on the current tree;
+        whether the regex was defective when the record was written was not
+        checked (no git history in this container). The census facts stand --
+        sect163k1 A = 1 (0x1), B = 1 (0x1) and sect239k1 A = 0 re-read from the
+        dump this session; the other four Koblitz rows relied on from the record
+        and from 1b16d7's agreeing read.
+    - step: mu = m for prime m with a, b in F_2; mu divides k for m = 16k with a, b in F_{2^16}
+      verdict: holds
+      note: trivial once a, b in the subfield; but the consequence claimed for mu is the defective step above.
+    - step: basis dependence (C)/(D) -- dense Frobenius matrix in polynomial basis, so the constraint is expensive there
+      verdict: unchecked
+      note: >-
+        The density claim is plausible and computable from the field
+        polynomial, but the prediction (D) is moot because the constrained
+        single-instance arm is unsound in either basis. The surviving
+        representation question -- whether a normal basis changes the
+        solving/refutation degree of the ORBIT system for a stable V -- is
+        HOLD-I's controlled-confound seam, not this record's.
+    - step: the matched-rho control "sqrt(n) Frobenius-class gain"
+      verdict: holds
+      note: consistent with sqrt(pi r/(4k)), k = n; reproduced 2^60.809 on ECC2K-130.
+  verdict: defective
+  defects:
+    - what: the central claim -- Frobenius as a per-instance symmetry of the descended system -- is false; it is an equivariance between conjugate targets
+      where: title, claim (A), (D), mechanism (LOSSY-PROJECTION TEST), predictions 2-3, heuristic H1
+      fix: >-
+        Rewrite around the orbit system I_orb = intersection over k of
+        I_{sigma^k R}: the shift acts on ITS solution set, freely, so the only
+        gain is one solve per orbit with a Frobenius-stable V and orbit-size
+        bookkeeping in linear algebra (a77711 arm A). Predict NO per-instance
+        leaf-count division and state that a canonical-representative
+        constraint on one instance is unsound.
+    - what: the census cell is empty on K-163 and ECC2K-130 and the record does not say which rows host a stable V
+      where: claim (B), constructive_transforms (stronger_invariant), Stage 4
+      fix: >-
+        Add the ord_n(2) column per row (ord 162, 29, 119, 94, 204, 114 for
+        n = 163, 233, 239, 283, 409, 571; 130 at n = 131) and the stable
+        dimension set; mark K-163 and ECC2K-130 structurally empty for the
+        orbit-batched form; route the live rows (K-233 and up) to RQ-FROB-7d8dd4.
+    - what: the parser-bug section is stale
+      where: claim (B), citations (subfield_scan.py), priority_rationale reason (1)
+      fix: drop it, or restate as a regression fixture already satisfied by the current regex.
+    - what: polynomial-basis toy pick -- the RC-1 cell (A = 97044) is not usable for any Frobenius test
+      where: minimal_test Stage 1-2 (not naming a cell)
+      fix: >-
+        Say explicitly that a test curve must have a, b in F_2 (sigma is not
+        even an endomorphism of RC-1's curve, whose A is a generic field
+        element); use the Koblitz siblings at n = 19 or 23 (orders computed --
+        4 * 130873 and 4 * 2095853, both l prime).
+    - what: no arity m or oracle budget for ECC2K-130
+      where: target_complexity, sota_delta
+      fix: state zero at every m (see ecc2k130_bearing).
+  ecc2k130_bearing: >-
+    Nil. The 131-fold Frobenius gain is already inside the matched rho
+    2^60.809 (reproduced). On the decomposition side, per-instance symmetry
+    does not exist (equivariance only), the orbit-batched solve needs a
+    Frobenius-stable V and none exists at n = 131 beyond dimensions 0, 1, 130,
+    131 (ord_131(2) = 130), and orbit UNIONS are measured cost-neutral at
+    m = 2 (KN-FIND-47da4e, unverified). No arity changes and no per-attempt
+    oracle budget moves at any m; the m <= 3 rows stay closed (finding 2^68.58
+    at m = 3, my standard-balance re-derivation 2^66.79; finding's constants
+    unchecked) and the m = 4 budget of 2^4.4 to 2^6.6 is untouched. The
+    residual true content -- normal-basis representation as a confound in
+    solving degree -- is HOLD-I's seam, owned by the NISTBIN/FROB design, and
+    is not an ECC2K-130 lever until a stable-V-free formulation exists.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-R is confirmed on all three points (equivariance not symmetry; no
+    stable V on K-163 and ECC2K-130; parser gap already fixed). Re-entry
+    through FROB is right for the rows that host stable subspaces (ord_n(2)
+    < n - 1 -- K-233, K-283, K-409, K-571, sect239k1), and the revision must
+    carry the ord_n(2) column so the routing is visible. As a BINSTD record
+    nothing rankable remains beyond the corrected census cells.
+  concrete_experiment:
+    cell:
+      curve: >-
+        Koblitz y^2 + xy = x^3 + 1 over F_2[t]/(t^19 + t^5 + t^2 + t + 1),
+        #E = 4 * 130873 (l prime, computed); sigma IS an endomorphism here.
+        Stable subspaces at n = 19 have dimensions in {0, 1, 18, 19}
+        (ord_19(2) = 18, computed), so V = {deg < 10} is NOT stable -- the same
+        situation as ECC2K-130.
+      m: 2
+      l: 10
+      factor_base: V = {deg < 10} polynomial-basis window (about 512 points)
+      targets: 50 targets R in G (order l) that have at least one m = 2 decomposition over V, found by exhaustive census
+      seeds: fixed recorded integer seed for the target draw; census exhaustive
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/gf2n.py and curve.py (scalar arithmetic; group law)
+      - 'missing: numpy (top-level import; absent here)'
+      - new 100-line script -- census, shift test, scalar-action replica in Z/l
+    procedure:
+      - For each target R, census all unordered pairs {P_1, P_2} of V-points with P_1 + P_2 = +-R; record the certified tuples (x_1, x_2).
+      - Test (a) -- does (x_1^2, x_2^2) decompose the SAME R (lift both squares to points, check every sign pattern)? Prediction -- never, for R != sigma R.
+      - Test (b) -- does (x_1^2, x_2^2) decompose sigma(R) = (x_R^2, y_R^2)? Prediction -- always as points; record the fraction of shifted tuples whose legs both lie in V (prediction about 2^{-9}, i.e. essentially never, since V is not stable).
+      - Test (c), symmetry control -- (x_2, x_1) decomposes R. Prediction -- always.
+      - Test (d), generic replica -- in Z/l let "sigma" be multiplication by the scalar mu by which sigma acts on G (compute mu from one point); apply the same tests to a random 512-subset "window"; the (a)/(b) statistics must coincide (equivariance of a scalar action, no curve geometry).
+      - Test (e), unsound-constraint demonstration -- impose "x_1 is the lexicographically smallest of its shift orbit" on the census and count the certified decompositions lost per target (prediction about (1 - 1/19) of them).
+    metrics:
+      - name: same_instance_hits
+        unit: count over all certified tuples
+        definition: shifted tuples that decompose the same R; predicted 0
+      - name: conjugate_instance_hits
+        unit: fraction
+        definition: shifted tuples that decompose sigma(R) as points; predicted 1.0
+      - name: shifted_legs_in_V_fraction
+        unit: fraction
+        definition: shifted tuples with both legs in V; predicted about 2^{-(l-1)}
+      - name: solutions_lost_under_canonical_constraint
+        unit: fraction per target
+        definition: certified decompositions rejected by the per-instance canonical-representative rule
+      - name: curve_over_generic_ratio
+        unit: dimensionless
+        definition: each statistic divided by the Z/l replica value
+    controls:
+      - leg-swap (c) as the genuine same-instance symmetry (must be 100 percent)
+      - Z/l scalar-action replica (blocking -- the claim is about equivariance of a group action)
+      - a non-Koblitz null (RC-1, A = 97044) where sigma(P) is not on the curve at all; the shift test must report "not on curve" for every tuple, confirming the instrument distinguishes endomorphism from non-endomorphism
+      - a stable-V positive control at n = 17 (ord_17(2) = 8 -- stable dimensions include 8 and 9) where shifted legs DO stay in V and the orbit-batched form is realisable; conjugate hits with legs in V must be 100 percent there
+    outcomes:
+      positive: >-
+        same_instance_hits = 0, conjugate hits = 1.0, in-V fraction about
+        2^{-9}, replica matching, stable-V control at n = 17 giving in-V
+        fraction 1.0 -- the symmetry claim is refuted and the equivariance
+        reading (a77711) is confirmed at q = 2 with a not-stable V, exactly
+        ECC2K-130's situation.
+      negative: >-
+        a same-instance hit on a target with sigma R != R -- Lemma A2 fails at
+        q = 2 (the sign-pattern loophole a77711 does not discuss); headline,
+        replicate before interpretation.
+      artifact: >-
+        leg-swap control below 100 percent or the RC-1 null reporting on-curve
+        images -- the lift or the group law is wrong; nothing is read.
+    falsification_threshold: >-
+      one same-instance hit with sigma R != R (exact) falsifies the equivariance
+      reading; a stable-V control with in-V fraction below 1.0 falsifies the
+      stable-subspace bookkeeping (ord_n(2)).
+    estimated_cost:
+      implementation: low
+      compute: 'ESTIMATE -- 50 targets x about 512 lookups for the census plus a few thousand lifts; seconds in pure Python.'
+    zero_run_prerequisites:
+      - the ord_n(2) column and stable-dimension sets written for every named row
+      - the orbit-system restatement (a77711 arm A at q = 2) replacing claim (A)
+      - numpy or lifted scalar arithmetic
+  successor_seam: >-
+    NORMAL-BASIS DESCENT AS A CONTROLLED CONFOUND AT A STABLE-V CELL (HOLD-I's
+    generator seam, G3 lane TASK-20260926-b3c93a; owner RQ-FROB-7d8dd4 for the
+    mechanism, RQ-CERTBIN-836ce2 for a measured Certicom-sibling cost). At
+    n = 17 (ord 8) or n = 23 (ord 11) a Frobenius-stable V of dimension 8 or
+    11 exists and the orbit system of a Koblitz toy in a normal basis is a
+    circulant stack of one descended polynomial; the open, runnable question
+    is whether the W_4 refutation share and the sat/unsat cost of that orbit
+    system in normal basis differ from the polynomial-basis single-instance
+    system at matched (n, m, l) -- the only place the record's basis
+    dependence (C) is a real measurement. It transfers to ECC2K-130 only if a
+    stable-V-free (orbit-union) formulation shows the same effect, which
+    KN-FIND-47da4e's cost-neutral m = 2 measurement makes unlikely.
+  records_read:
+    - analysis/binstd-idea-review-20260926/BRIEF.md
+    - analysis/binstd-idea-review-20260926/handoffs/TASK-20260926-843cf5.yaml
+    - analysis/binstd-idea-review-20260926/ranking-context-DEC-20260924-99ce20.yaml
+    - ledger/proposals/IDEA-20260922-7ab503.yaml (in full)
+    - ledger/proposals/IDEA-20260906-a77711.yaml (in full)
+    - ledger/decisions/DEC-20260924-99ce20.yaml (HOLD-R, A10)
+    - analysis/binstd-curve-audit/subfield_scan.py (hexblob regexes, lines 8-17) and binary-curve-params.txt (sect163k1, sect239k1 rows)
+    - knowledge/findings/KN-FIND-47da4e.md (head); knowledge/open-problems/KN-OPEN-095df5.md (head); ledger/proposals/IDEA-20260918-9abf42.yaml (ord_n(2) lines)
+    - knowledge/findings/KN-FIND-aa2efc.md; ledger/evidence/EV-ICPERF-10c5fc.yaml (product-law lines)
+    - experiments/EXP-CERTBIN-e94b27/specification.yaml (cell lines) and impl/README.md, curve.py, gf2n.py
+    - AGENTS.md (Core rules, Inventor protocol); docs/inventor-protocol.md sections 2, 4, 5
+  not_read:
+    - IDEA-20260922-29b1c5, IDEA-20260904-3c7a91, IDEA-20260922-2a3771, IDEA-20260922-493606 (siblings; out of this half-lane)
+    - RQ-FROB-7d8dd4 (relied on via a77711 and the brief)
+    - eprint 2020/1315 (GGMP) and Lidl-Niederreiter (recalled by the records; not opened)
+    - git history of subfield_scan.py (not a git checkout here)

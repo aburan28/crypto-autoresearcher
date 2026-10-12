@@ -17,7 +17,7 @@ tags: [dlp, ecdlp, elliptic-curve, finite-field, hyperelliptic, jacobian, pairin
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-a5c59c
 ---
 
 ## Contribution

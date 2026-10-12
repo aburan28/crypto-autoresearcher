@@ -1,0 +1,166 @@
+report:
+  id: independence-report-v2
+  experiment: EXP-CRYPTO-9225d2
+  author_role: independent second checker/predictor author (blinded)
+
+  read: >-
+    I read exactly one file before or during this task:
+    experiments/EXP-CRYPTO-9225d2/specification.yaml (all of it, top to
+    bottom). I did not read, open, grep, or otherwise consult
+    implementation/arithmetic.py, implementation/independent_checker.py,
+    implementation/count_predictor.py, any preparation-report.yaml,
+    repair-report.yaml, implementation-manifest.yaml, any ledger record or
+    handoff about this experiment, AGENTS.md, or this batch's batch.yaml /
+    dispatch_queue.json. No deviation from that blinding constraint occurred.
+    Everything in independent_checker_v2.py and count_predictor_v2.py is
+    derived from specification.yaml's text alone, quoted or paraphrased
+    inline in each module's docstrings/comments so a reviewer can trace every
+    formula back to its source line.
+
+  algorithmic_route: >-
+    independent_checker_v2.py implements the group law with classical affine
+    slope formulas: ADD uses lam=(y2-y1)/(x2-x1) mod p and DOUBLE uses the
+    tangent slope lam=(3x^2+a)/(2y) mod p, operating directly on canonical
+    (x,y) pairs with a distinct Identity sentinel for O. This is structurally
+    different from specification.arithmetic's own main route in several
+    concrete, non-cosmetic ways, not merely relabeled variable names:
+    (1) Representation: the spec's producer route is Jacobian-style (X,Y,Z)
+    with x=X/Z^2,y=Y/Z^3 -- an equivalence class of representatives under
+    (X,Y,Z)~(r^2X,r^3Y,rZ). The affine route has no Z coordinate and no such
+    equivalence class; every point has exactly one representation.
+    (2) Where inversion happens: the spec's route inverts a field element
+    exactly once per whole scalar multiply, at the very end, inside
+    normalize() (I(Z)). The affine route inverts inside every single
+    non-exceptional ADD and DOUBLE call, which is the defining reason
+    Jacobian/projective coordinates exist in the literature (to defer/batch
+    inversions) -- so an affine implementation is not a stylistic variant of
+    a Jacobian one, it inverts on a completely different schedule.
+    (3) Inversion algorithm: I additionally used Fermat's little theorem
+    (pow(x, p-2, p)) rather than the spec's own stated extended-Euclid
+    method for I, which is itself a second, independent axis of difference
+    from the producer's field_api.I.
+    (4) Cost shape: the spec's ADD is a two-stage pipeline
+    (rescale_finite's 7M+2S, then common_z_formula's 5M+2S) that exists only
+    because Jacobian ADD must clear denominators between two differently
+    scaled Z's; the affine ADD has no such two-stage structure -- it is a
+    single slope computation (1 inversion, ~2-3 M, 1 S). There is no
+    natural way to derive one route's operation sequence from the other by
+    substitution; they are different algorithms for the same group law.
+    A curve/generator's a=0 (secp256k1) or a=1 (reduced rho curves) selects
+    the DOUBLE tangent-slope formula's numerator identically to how the spec
+    selects between its own doubling.specializations, but the underlying
+    computation route (affine tangent slope vs. Jacobian EFD polynomial) is
+    unrelated.
+
+  normalize_composition_reasoning: >-
+    specification.arithmetic.scalar_algorithm ends with the sentence
+    "Normalize the final R once." -- stated as the very last step of the
+    scalar-multiply loop, after all 256 DOUBLE/ADD bit-steps, not once per
+    bit and not once per DOUBLE or ADD call. specification.arithmetic.
+    normalization separately states the charge for that single call:
+    "Charge three M, one S, one I; O has no inversion." Combining these two
+    sentences: exactly one normalize() call, charging 3M+1S+1I (or 0 if the
+    final R is O), occurs per scalar-multiply cell, regardless of how many
+    bits/branches were processed in the loop above it. count_predictor_v2.py's
+    scalar_multiply_reference_cost() therefore accumulates DOUBLE/ADD costs
+    inside its per-bit loop and adds NORMALIZE (or NORMALIZE_IDENTITY)
+    exactly once after that loop, never inside it. For the planted routine,
+    specification.arithmetic.planted.definition states planted duplication
+    applies to "each top-level M(a,b)" call, with exact_count_identity
+    stating globally "M_planted=2*M_reference ... for the same input and
+    branch trace" -- since the reference total already includes the 3 M's
+    from the single normalize() call as top-level M(a,b) calls, doubling the
+    whole M total (apply_planted()) necessarily doubles those 3 normalize-M's
+    too, without introducing a second normalize() call. That is the "3 of
+    those M going through the planted-doubling path" referred to in the task
+    instructions: they are 3 of the M's inside the one normalize() call that
+    happens once per cell, not a second normalize.
+
+  no_scientific_run_attestation: >-
+    No fixture, certificate, curve point, scalar, or scientific test result
+    was generated, executed, or self-tested by me at any point while
+    authoring these files. The only command I ran against my own delivered
+    files was "python3 -m py_compile
+    experiments/EXP-CRYPTO-9225d2/implementation/independent_checker_v2.py
+    experiments/EXP-CRYPTO-9225d2/implementation/count_predictor_v2.py",
+    which succeeded. No function inside either module was ever imported or
+    called by me. Both modules are written so that every function requiring
+    real certificate/trail/curve/scalar input either takes such input purely
+    as a caller-supplied parameter (never fabricated here) or explicitly
+    raises RuntimeError when no genuine input exists (verify_pocklington_
+    certificate, replay_rho_trail in independent_checker_v2.py). Note for
+    transparency: count_predictor_v2.py contains a small number of
+    module-level `assert` statements that cross-check internal arithmetic
+    identities transcribed directly from the specification text (e.g. that
+    rescale_finite + common_z_formula's generic cost sums to the spec's
+    stated 12M+4S generic full ADD, and that the rho generic-mean transition
+    numerator equals the spec's stated 34M+18S+3I). These are plain integer
+    arithmetic self-consistency checks on the transcribed constants, not
+    evaluations against any curve, scalar, or fixture; python3 -m py_compile
+    does not execute them (it only compiles to bytecode), so they were never
+    run in the course of this task, but a reviewer should know they exist
+    and will execute automatically on a future `import` of the module.
+
+  limitations:
+    - >-
+      scalar_multiply_reference_cost() and its ScalarBitStep records take
+      the DOUBLE/ADD branch classification (generic vs. exceptional vs.
+      identity) as an explicit caller-supplied parameter per bit, rather than
+      deriving it purely from a bit-length and Hamming-weight count. I judged
+      that deriving branch occurrence (e.g. whether a same-x collision or a
+      Y=0 doubling happens partway through a real 256-bit scalar multiply)
+      from bit-pattern statistics alone would require assuming something
+      about the actual curve/point trajectory that the specification does
+      not state as a closed-form fact, and doing so without evaluating real
+      points felt like it would risk quietly fabricating an occurrence rate.
+      The one branch I *did* treat as structurally certain rather than
+      caller-supplied is the very first loop iteration (DOUBLE(O) then, since
+      the leading bit of a positive scalar is 1, ADD(O,G)=G via the identity
+      branch), which follows deductively from R starting at O and the loop
+      always processing the MSB first -- but I left this implicit rather than
+      hard-coding it as a special first step, so a caller must still supply a
+      ScalarBitStep with double_exceptional=True and add_branch="identity"
+      for that first bit themselves. This is a judgment call: a different
+      independent author might instead hard-code that first-bit case.
+    - >-
+      specification.arithmetic.doubling.specializations only names a=0 and
+      a=1 formulas explicitly ("No multiplication by a is introduced in
+      these two specializations"). double_cost() therefore only defines
+      costs for a in {0,1} and raises ValueError for any other a, since the
+      spec gives no general-a polynomial cost to fall back on.
+    - >-
+      C=sqrt(pi*N/2) in count_predictor_v2.py is computed via Python's
+      decimal module seeded from a 100-digit pi literal I transcribed from
+      memory rather than deriving pi algorithmically from the spec (the spec
+      does not specify a pi algorithm, only "a recorded high-precision
+      pi/square-root implementation" under rho_mean_definition, which is a
+      measurement-time instruction, not a predictor-formula instruction). I
+      judged 100 digits of pi to be more than sufficient precision headroom
+      for any plausible N and requested decimal precision here, but this
+      literal itself was not independently re-derived or verified against a
+      second source within this task, since doing so would have required
+      executing code.
+    - >-
+      transition_GOE_total() mixes a Decimal total-transitions figure
+      (irrational, via sqrt) with the exact rational 22/3 weight by
+      converting 22/3 to Decimal rather than keeping the whole computation
+      as a Fraction; I judged this acceptable because L itself is already
+      irrational (contains sqrt(pi*N/2)) so an exact Fraction result is not
+      achievable at that stage regardless, unlike raw_GOE() and
+      planted_expected_factor() (pure integer M/S/I counts), which I did keep
+      as exact Fraction per specification.goe_ruler.exact_representation's
+      explicit requirement to "compare counts and ratios as exact rationals
+      before rendering decimals."
+    - >-
+      independent_checker_v2.py's scalar_multiply() follows the spec's own
+      described MSB-first double-and-add loop shape (same high-level
+      algorithm, e.g. "for every bit ... DOUBLE ... if bit=1 ... ADD") since
+      the specification states this is the required scalar algorithm, not an
+      implementation choice open to the checker; the required independence
+      is in the underlying ADD/DOUBLE arithmetic route (affine slope vs.
+      Jacobian EFD), not in reinventing a different scalar-multiplication
+      strategy, which the spec does not offer as a degree of freedom.
+    - >-
+      I could not verify any of the above against real values, since doing
+      so would have required executing code, which was prohibited for this
+      task. All of the reasoning above is textual derivation only.

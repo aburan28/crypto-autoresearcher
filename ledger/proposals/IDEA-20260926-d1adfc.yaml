@@ -1,0 +1,506 @@
+idea:
+  id: IDEA-20260926-d1adfc
+  question_id: RQ-ICPERF-94c86e
+  added: '2026-09-26'
+  status: proposed
+  approved_by: null
+  title: >-
+    PER-ATTEMPT COST DISTRIBUTION COLUMNS FOR THE BOUNDARY TABLE (CV,
+    max/median, Hill tail index with interval, censored fraction, sat and
+    unsat separately), populated first by zero-run re-analysis of committed
+    rows: the 687 msolve per-target timings of engines-20260924 and the
+    per-instance closure timings of RUN-CERTBIN-c417e0 and RUN-CERTBIN-a3fc60,
+    with the Groebner sat/unsat asymmetry as the discriminating reading
+  class: measurement
+
+  claim: >-
+    CEILING FIRST. No exponent, no attack. Representation R1; the attack
+    stage is the PER-ATTEMPT DECOMPOSITION ORACLE; the quantity added is the
+    SHAPE of its cost distribution, which every mean-based column in this
+    program discards. Target arity: m in {2, 3} on the committed data; the
+    columns are m-agnostic and cannot move a row.
+
+    THE GAP. RQ-ICPERF-94c86e's constraints already require SAT and UNSAT
+    reported separately and forbid reading a timeout as evidence, but its
+    decision target asks only for "the measured cost of each phase" -- a
+    location, not a distribution. The review of IDEA-20260922-793fd8 derived
+    that a restart portfolio against rho can only pay if the per-attempt
+    tail index alpha is at most 1 (infinite mean), not merely CV above 1,
+    and closed the portfolio; its successor_seam asked that the boundary
+    table carry per-attempt distribution columns "as bycatch of every cell,
+    because a measured alpha <= 1 anywhere would matter to attempt-cap
+    design (IDEA-20260805-45bf55)". IDEA-20260805-45bf55 showed that a fixed
+    attempt cap drives a fitted exponent to 0 or 1 depending on which
+    aggregate is charged when the censoring fraction is unreported. No cell
+    in the corpus reports CV, a tail index or a censoring fraction. The
+    columns are cheap and the data to populate them ALREADY EXISTS on main.
+
+    THE COLUMNS, DEFINED. Per (cell, engine, arm in {sat, unsat}): (c1) CV =
+    standard deviation over mean of the per-attempt cost in the cell's
+    primary unit (or wall-clock where that is all that was archived, flagged
+    secondary); (c2) max/median; (c3) alpha_Hill, the Hill estimator on the
+    upper 20 percent order statistics, with a 10^4-resample bootstrap 95
+    percent interval; (c4) censored fraction = attempts that hit a watchdog,
+    a memory cap or a solver failure, NEVER placed in the denominator of a
+    mean; when it is nonzero the mean is reported as a lower bound and the
+    median only if the censored count is below half the sample. A pooled
+    sat+unsat row is never emitted (composition artifact, per the question's
+    own constraint).
+
+    THE DATA THAT EXISTS, AND WHAT IT CAN DECIDE. ARM A (prime field, m = 2
+    and 3, msolve 0.6.5): src/crypto_autoresearcher/index_calculus/results/
+    engines-20260924.jsonl.gz, 687 per-target rows with fields msolve_seconds,
+    msolve_net_seconds, msolve_status, enum_decomps, planted, fb, fb_size, m
+    (field list from __main__.py _engines_task, read this session); README
+    section 2 reports 417 targets with a decomposition and 2 censored at 900
+    s. The sat arm is enum_decomps > 0, the unsat arm enum_decomps = 0,
+    decided by exhaustive enumeration, never by the engine. ARM B (binary,
+    m = 2, degree-4 closures): RUN-CERTBIN-c417e0 closures.jsonl.gz carries
+    rec.wall_seconds per instance for W_4 and M_5 on U62, S62, C20 and the
+    null sets (driver.py closure_set, read this session), and RUN-CERTBIN-
+    a3fc60 carries the n = 19 analogue on 400 unsat, 300 sat and the null
+    families. No operation counter was archived, so arm B's primary unit is
+    wall-clock on the recorded host, flagged secondary; the word-operation
+    unit of IDEA-20260926-c98e92 (this lane) is the successor.
+
+    THE TWO DISCRIMINATING READINGS. (R1, tail) E-LIGHT: on every arm alpha_Hill
+    exceeds 2 with the interval excluding 1, and CV is below 0.5 within a cell;
+    per-attempt cost is size-determined and the restart-portfolio route stays
+    closed with a number. E-HEAVY: some (cell, engine, arm) has alpha_Hill
+    at most 1 with the interval excluding 1 and censored fraction below 5
+    percent; then attempt-cap design (45bf55) must charge the cap, and the
+    engine on that arm has a data-dependent blow-up worth a mechanism record.
+    (R2, asymmetry) E-SYM: the Groebner engine's median cost on unsat targets
+    is within [0.7, 1.5] of its median on sat targets at matched (m, fb,
+    fb_size), because F4 computes the full basis either way; E-ASYM: the
+    ratio lies outside that band. E-ASYM in the cheap direction (unsat
+    cheaper) would mean a Groebner engine already exhibits the early-abort
+    asymmetry that IDEA-20260926-89886c seeks from a mutant closure; in the
+    expensive direction it would mean unsatisfiable systems are HARDER for
+    F4, which bears on every "cheap refutation" lever. The record's prior is
+    E-LIGHT and E-SYM on arm A, and E-LIGHT with a sat/unsat wall difference
+    on arm B explained by the fixpoint iteration count (satisfiable systems
+    run W_4 to the fixpoint, unsatisfiable ones are recorded at the first
+    iteration containing 1 but the closure still ran to the fixpoint in RC-1;
+    both readings are recorded per instance and the ratio is read against
+    the iteration counts, not assumed).
+
+  mechanism: >-
+    OBJECT FRAME. Representation R1; Sigma = translation by factor-base
+    elements (Class I), unchanged; no tracked object is added. TRICHOTOMY and
+    LOSSY-PROJECTION TEST: not applicable to a statistic of an existing
+    measurement, stated rather than omitted. THE ONE OPEN NUMBER is
+    alpha_Hill per (cell, engine, arm), and the sat/unsat median ratio. WHY A
+    DISTRIBUTION AND NOT A MEAN: the ECC2K-130 budget column is a per-attempt
+    MEAN in group-op equivalents; an oracle whose mean meets the budget but
+    whose tail has alpha near 1 has a mean dominated by rare attempts and a
+    charged cap changes the exponent (45bf55); conversely an oracle with a
+    heavy tail could be run with a cap and restarts at a cost the mean does
+    not show. Either way the mean is not the number an attack pays, and the
+    table should say which case it is in. WHY THE GROEBNER ASYMMETRY ROW:
+    every cheap-refutation proposal in this lane compares itself to "the
+    full solve"; whether the full solve is itself asymmetric on sat versus
+    unsat inputs is a question the committed rows can already answer.
+    OFF-LIMITS COMPONENTS: F2 only, as the family whose oracle is being
+    described.
+
+  novelty_status: unverified
+
+  origin:
+    kind: generator_search
+    date: '2026-09-26'
+    scope: >-
+      Lane TASK-20260926-e93f77 (round 2, seam S6). Seeded by the
+      successor_seam of the review of IDEA-20260922-793fd8 (credited: the
+      distribution columns as a schema request for RQ-ICPERF-94c86e's
+      boundary table, with the tightened release condition alpha <= 1) and by
+      IDEA-20260805-45bf55's censoring analysis. OWNERSHIP (R2 rule):
+      RQ-ICPERF-94c86e, because the deliverable is a set of columns of that
+      question's boundary table and the primary data arm is the prime-field
+      index_calculus results committed on main; the binary arm reuses
+      RQ-CERTBIN-836ce2's archived runs by reference.
+    overlap_review: >-
+      Grepped ledger/ and knowledge/ for "tail index", "Hill estimator",
+      "max/median", "coefficient of variation", "heavy tail", "censored",
+      "distribution". Nearest, read: IDEA-20260922-793fd8 and its review (the
+      portfolio claim, closed; the columns requested); IDEA-20260805-45bf55
+      (censoring drives the fitted exponent; asks for a censoring fraction
+      and survival estimator on the ICEX contract, prime field, never filled);
+      RQ-ICPERF-94c86e constraints (sat/unsat separately; timeouts never
+      evidence); H-ICPERF-cc4847 (censored medians in its P3 rule);
+      EXP-CERTBIN-e94b27 secondary metrics (wall time and peak RSS per closure
+      AND SET, not per instance -- the per-instance wall_seconds exists in the
+      run artifact but is not a reported metric). No record computes a tail
+      index, a CV or a sat/unsat cost ratio for any engine in this program.
+
+  citations:
+    - ref: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-793fd8.yaml
+      provenance: internal
+      claim: >-
+        A sum of many i.i.d. attempt costs with finite mean concentrates, so
+        only alpha_tail <= 1 could rescue a restart portfolio; the tail-shape
+        measurement should be re-homed as boundary-table columns.
+      verified_by: idea-generator, this session, review read in full.
+    - ref: IDEA-20260805-45bf55
+      provenance: internal
+      claim: >-
+        A fixed attempt cap drives the measured exponent to 0 or 1 depending
+        on the charged aggregate when the censoring fraction is unreported.
+      verified_by: idea-generator, this session, title and claim read via Grep; body not reopened.
+    - ref: src/crypto_autoresearcher/index_calculus/README.md
+      provenance: internal
+      claim: >-
+        Section 2: 687 targets, 345 planted, 417 with at least one
+        decomposition, 2 censored at 900 s; per-target msolve times with
+        agreement on all 685 finished; results/engines-20260924.jsonl.gz
+        regenerates the tables.
+      verified_by: idea-generator, this session, README read in full.
+    - ref: src/crypto_autoresearcher/index_calculus/__main__.py
+      provenance: internal
+      claim: >-
+        _engines_task emits per-target rows with msolve_seconds,
+        msolve_net_seconds, msolve_status, msolve_runs, enum_decomps, planted,
+        fb, fb_size, m, agree.
+      verified_by: idea-generator, this session, lines 293-320 read.
+    - ref: experiments/EXP-CERTBIN-e94b27/impl/driver.py
+      provenance: internal
+      claim: >-
+        closure_set records rec.wall_seconds per instance and per closure;
+        peak_rss_bytes per set; W_5 watchdog expiries labelled
+        UNDETERMINED(budget).
+      verified_by: idea-generator, this session, lines 142-186 read.
+    - ref: KN-FIND-5a8d3e and KN-FIND-c3a917
+      provenance: internal
+      claim: >-
+        The archived instance sets and their labels at n = 17 and n = 19;
+        W_4 at iteration 1 on every unsatisfiable primary instance; no cost
+        claim in either.
+      verified_by: idea-generator, this session, both findings read in full.
+    - ref: >-
+        Hill, "A simple general approach to inference about the tail of a
+        distribution", Annals of Statistics 1975
+      provenance: recalled
+      claim: >-
+        RECALLED, NOT RETRIEVED. The Hill estimator of the tail index from
+        the top-k order statistics; used here with a fixed k = 20 percent of
+        the arm and a bootstrap interval, and cross-checked against the
+        max/median row.
+      verified_by: null
+
+  citation_note: >-
+    No web search. The Hill estimator is recalled; its use here is
+    descriptive and is cross-checked by the model-free max/median column.
+    Every data reference is to a committed artifact whose field names were
+    read from the producing code this session; the artifacts' contents were
+    NOT opened, so row counts are quoted from the README and are verified at
+    step 1 of the procedure.
+
+  assumptions:
+    - >-
+      The committed JSONL rows are read as literal inputs and their sha256
+      recorded; no solver is run (msolve is not installed in this container
+      and is not needed).
+    - >-
+      Arm B's unit is wall-clock seconds on the archived host, a secondary
+      unit by RQ-ICPERF-94c86e's convention, flagged in every row; the
+      operation-count successor is IDEA-20260926-c98e92.
+    - >-
+      Within a cell the attempts are exchangeable; the sat and unsat arms are
+      never pooled.
+    - >-
+      OFF-LIMITS COMPONENT DECLARED: F2 only.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether any measured decomposition engine in this program has a
+      per-attempt cost tail heavy enough (alpha <= 1) to change what a
+      budget MEAN means, and whether the Groebner full solve is itself
+      asymmetric on sat versus unsat inputs.
+    baseline_embedding:
+      parameter_slice: >-
+        The README's own per-cell medians (section 2 table: m = 2 small_x
+        0.120 s at |F| = 104, 3.55 s at 258; m = 3 small_x 6.97 s at 25, 52.9
+        s at 39) must be reproduced from the rows before any new column is
+        read; for arm B the archived refutation counts and iteration counts.
+      reproduction_check: >-
+        Frozen fixture: the section-2 medians to three digits and the 685/2
+        finished/censored split; the 62/62, 400/400 W_4 counts.
+    observation_collision:
+      observable: The tuple (CV, max/median, alpha_Hill, censored fraction) per (cell, engine, arm).
+      distinct_preimage_search: >-
+        A heavy Hill reading can come from (i) a genuine tail, (ii) a
+        mixture of two sizes inside one cell (planted versus random targets,
+        or two |F| pooled), or (iii) censored rows placed in the sample. (ii)
+        is separated by stratifying on planted and fb_size before any
+        statistic; (iii) by the censored-fraction column and by never
+        including a censored row in the sample. The max/median row is the
+        model-free cross-check on (i).
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          The four columns per (cell, engine, arm) added to the boundary
+          table schema, with a censoring rule that keeps the censored count
+          out of every denominator.
+        predicted_gain: >-
+          No cost gain; the table stops reporting a mean that a cap or a
+          tail could invalidate without saying so.
+    quantifier_order: >-
+      FOR the committed cells and engines, the columns are as computed;
+      E-HEAVY is EXISTS one (cell, engine, arm) with alpha <= 1 and interval
+      excluding 1; E-LIGHT is FOR ALL of them alpha > 2 with interval
+      excluding 1. Nothing is claimed for engines not in the data (WDSat,
+      CaDiCaL, F4 in Macaulay2), which are named as missing arms.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "On the 687 msolve rows and the 268 + about 1300 closure instances,
+        the distribution columns read [values]; the sat/unsat median ratio at
+        matched cells is [values]." It certifies nothing about SAT engines,
+        about m >= 4, or about any per-attempt cost at n = 131.
+      nearby_object_control: >-
+        Arm B's degree-4 closure, a fixed-shape linear-algebra pass, is the
+        object where the tail MUST be light (CV near 0 up to the iteration
+        count); if the Hill column reads heavy there, the estimator or the
+        data handling is wrong before anything on arm A is believed.
+    proof_obligations:
+      - claim: The README medians and counts are reproduced from the rows.
+        responsibility: baseline
+      - claim: No censored row enters any mean, median or Hill sample.
+        responsibility: correctness
+      - claim: Planted and random targets, and distinct fb_size, are never pooled.
+        responsibility: correctness
+      - claim: Arm B reads light-tailed as the nearby-object control.
+        responsibility: feasibility
+      - claim: Every column carries its unit and its arm.
+        responsibility: interface
+    not_applicable_reason: null
+
+  predictions:
+    - metric: alpha_Hill per (cell, engine, arm) with bootstrap 95 percent interval
+      direction: higher
+      minimum_effect: 'E-LIGHT iff above 2 with interval excluding 1 on every arm; E-HEAVY iff at most 1 with interval excluding 1 on any arm with censored fraction below 5 percent'
+    - metric: cv_per_attempt within a (cell, engine, arm)
+      direction: lower
+      minimum_effect: 'below 0.5 on arm A cells with at least 12 finished targets; below 0.3 on arm B per set'
+    - metric: sat_unsat_median_ratio (msolve, matched m, fb, fb_size)
+      direction: same
+      minimum_effect: 'E-SYM iff in [0.7, 1.5]; E-ASYM otherwise, direction reported'
+    - metric: censored_fraction per cell
+      direction: lower
+      minimum_effect: 'arm A: 2 of 687 overall, concentrated in the m = 3 |F| = 64 cell (README: 1 of 3 finished); arm B: 0 except any W_5 UNDETERMINED(budget)'
+    - metric: arm B sat/unsat wall ratio explained by iteration count
+      direction: same
+      minimum_effect: 'the ratio of per-set median wall_seconds tracks the ratio of median W_4 iterations to the fixpoint within a factor 2'
+
+  minimal_test:
+    design: >-
+      DATA. Arm A: src/crypto_autoresearcher/index_calculus/results/
+      engines-20260924.jsonl.gz (687 rows; sha256 recorded at step 1). Arm B:
+      experiments/EXP-CERTBIN-e94b27/runs/RUN-CERTBIN-c417e0/closures.jsonl.gz
+      (RC-1: n = 17, m = 2, l = 9, U62/S62/C20/N-AFF62/N-F262 under W_4 and
+      M_5) and experiments/EXP-CERTBIN-060020/runs/RUN-CERTBIN-a3fc60/
+      closures.jsonl.gz (n = 19, m = 2, l = 10, 400 unsat, 300 sat, null
+      families), field wall_seconds per instance and the per-instance
+      iteration and dimension records. CELLS. Arm A: every (m, fb, fb_size)
+      with at least 12 finished targets, stratified by planted; arm B: every
+      (closure, set). INSTRUMENT. A new analysis script of about 120 lines
+      (Python, math and fractions for exact CP95 where counts are reported,
+      a bootstrap for the Hill interval); no solver; nothing missing.
+      PROCEDURE. (1) Hash the inputs; reproduce the README section-2 medians
+      and the 685/2 split; reproduce the archived refutation counts. (2) For
+      each cell and arm compute c1-c4 with the censoring rule. (3) Compute the
+      sat/unsat median ratio at matched arm-A cells and the arm-B wall ratio
+      beside the iteration-count ratio. (4) Emit the column table with units
+      and arms, and the schema addition for the boundary table. SEEDS: one
+      recorded seed for the bootstrap. METRICS (units): CV (dimensionless),
+      max/median (dimensionless), alpha_Hill (dimensionless, with interval),
+      censored fraction (count / count), medians (seconds, secondary).
+      CONTROLS. Nearby-object control: arm B (fixed-shape elimination) must
+      read light; null-object control: arm B's same-support null sets, whose
+      W_4 runs to the fixpoint on every instance, give the tightest expected
+      distribution; a synthetic heavy-tailed sample (Pareto alpha = 0.8, seed
+      recorded) run through the same script must read alpha in [0.6, 1.0]
+      (estimator positive control); a synthetic exponential sample must read
+      alpha large (estimator negative control). No relabelled Z/NZ control:
+      no group-structure claim. OUTCOME TABLE. POSITIVE (E-LIGHT and E-SYM,
+      controls passing): the columns are filled for every committed cell, the
+      restart-portfolio closure carries a number, and the schema addition is
+      proposed to the boundary table; the Groebner full solve is recorded as
+      symmetric on sat/unsat at toy scale. NEGATIVE, i.e. the interesting
+      reading (E-HEAVY on any arm, or E-ASYM): a mechanism record is owed
+      (which engine, which arm, which direction), attempt-cap design must
+      charge the cap, and 89886c's comparator "the full solve" acquires the
+      measured asymmetry. ARTIFACT (README medians not reproduced; arm B
+      reading heavy; synthetic controls failing): the script is wrong;
+      nothing is read. FALSIFICATION THRESHOLD, FIXED NOW: E-LIGHT is
+      falsified by one (cell, engine, arm) with alpha_Hill <= 1, interval
+      excluding 1, censored fraction below 5 percent and at least 12 finished
+      attempts; E-SYM is falsified by a sat/unsat median ratio outside
+      [0.7, 1.5] at two or more matched cells. COST (estimate): implementation
+      low; compute seconds (zero solver runs).
+    controls:
+      - 'Reproduction of the README section-2 medians and the 685/2 split from the rows (blocking).'
+      - 'Arm B fixed-shape closure as the light-tail nearby-object control (blocking).'
+      - 'Synthetic Pareto (alpha 0.8) and exponential samples through the same script (estimator positive and negative controls).'
+      - 'Censored rows counted in c4 and excluded from every other statistic; planted and random never pooled.'
+    required_metrics:
+      - 'c1-c4 per (cell, engine, arm) with units'
+      - 'sat/unsat median ratio at matched arm-A cells'
+      - 'arm-B wall ratio beside the iteration-count ratio'
+      - 'input sha256 and row counts'
+      - 'the schema addition text for the boundary table'
+
+  falsification_conditions:
+    - 'E-LIGHT falsified iff any qualifying (cell, engine, arm) reads alpha_Hill <= 1 with interval excluding 1.'
+    - 'E-SYM falsified iff the msolve sat/unsat median ratio lies outside [0.7, 1.5] at two or more matched cells.'
+    - 'The script is falsified (run void) iff the README medians are not reproduced or the synthetic controls misread.'
+
+  confounders:
+    - >-
+      Arm A cells are small (12 targets per cell in the README's design), so
+      Hill intervals will be wide; the record reports intervals and refuses a
+      verdict on cells below 12 finished attempts.
+    - >-
+      msolve process start-up (about 4 ms) is subtracted in msolve_net_seconds;
+      both columns are reported and the net one is primary.
+    - >-
+      Wall-clock on a shared host carries load noise; arm B rows are from a
+      pinned single worker (RC-1 README), arm A from a 4-core container with
+      3 workers, and neither is a hardware-independent unit; the unit is
+      flagged secondary throughout.
+    - >-
+      The RC-1 W_4 ran to the fixpoint on every instance while recording the
+      first iteration containing 1; a sat/unsat wall difference there is an
+      iteration-count effect, not an early-abort effect, and is read as such.
+
+  interpretation_limits:
+    - 'Toy tier; committed data only; two engines (msolve 0.6.5 below 2^16, the pure-Python closure at n in {17, 19}); nothing about SAT engines or m >= 4.'
+    - 'Wall-clock arms are secondary units; the operation-count successor is IDEA-20260926-c98e92.'
+    - 'A light tail on these engines says nothing about a backtracking engine (the object 793fd8 was about), which stays a missing arm.'
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Exchangeability within a cell.) Per-attempt costs within one
+        (cell, engine, arm) are exchangeable draws from one distribution, so
+        CV and a tail index are meaningful summaries.
+      rigorous_support: >-
+        Holds by construction of the producing sweeps (targets drawn i.i.d.
+        from a seeded stream at fixed curve and base); imitates the i.i.d.
+        model of the restart-portfolio derivation.
+      validation_plan: >-
+        SAMPLE: the rows themselves. COMPARISON: a runs test on the
+        target-order sequence of costs per cell against exchangeability. TAIL:
+        the top order statistic against the fitted tail. TRANSFER: none.
+
+  heuristic_note: >-
+    The columns are descriptive statistics on committed data; H1 is the only
+    modelling assumption and is testable on the same rows.
+
+  target_complexity:
+    time_exponent: Unchanged; a table-column record.
+    memory_exponent: Unchanged.
+    best_known: Rho 2^60.81 on ECC2K-130; at the toy cells rho dominates every engine.
+    hidden_overhead: None.
+    tradeoff_note: Not applicable.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+    qualification: Estimate. About 120 lines; seconds of CPU; zero solver runs; the inputs are committed artifacts.
+
+  asymptotic_claim:
+    problem: Per-attempt oracle cost distribution columns for RQ-ICPERF-94c86e's boundary table
+    prior_best: n/a (column record); 793fd8's portfolio closed by derivation
+    time_exponent: unchanged
+    memory_exponent: unchanged
+    hidden_cofactor: none
+    claim_kind: table_column_measurement
+
+  dominated_by: >-
+    n/a (no result claimed). Every frontier row checked; the record adds
+    columns to a table and occupies no point on any cost axis.
+
+  sota_delta:
+    time: Zero. Against the program's prior state, the first tail-shape and censoring columns for any measured engine and the first sat/unsat cost ratio for a Groebner engine.
+    memory: Zero.
+    data_queries: Not applicable.
+
+  frontier_check:
+    status: pending
+    note: >-
+      No web search. Heavy-tailed solver runtimes and restart strategies are
+      a known SAT-literature phenomenon (Gomes-Selman-Crato, recalled in
+      793fd8); whether anyone has published tail indices for Groebner-based
+      point decomposition was not checked.
+
+  recommended_priority: medium
+  priority_rationale: >-
+    Zero-run, seconds of compute, on data already on main, and it either
+    closes the restart-portfolio route with a number or exposes a
+    data-dependent blow-up in an engine the program uses; medium because its
+    expected outcome is a controlled light tail that moves no number on the
+    curve.
+
+  first_deliverable: >-
+    The reproduction of the README medians and the four columns for arm A,
+    stratified by planted and fb_size, with the E-LIGHT / E-SYM readings.
+
+  next_gate: >-
+    Coordinator decision on adding c1-c4 to the boundary-table schema of
+    RQ-ICPERF-94c86e (and to IDEA-20260922-6028ed's carrier if adopted) and on
+    whether any E-HEAVY or E-ASYM reading warrants a mechanism design.
+
+  discriminated_from: >-
+    IDEA-20260922-793fd8 proposed a rho portfolio on the strength of a tail
+    it never measured and was closed by derivation; this record measures the
+    tail and files the columns, claiming no portfolio. IDEA-20260805-45bf55
+    derived the censoring effect on a prime-field contract; this record
+    applies its censoring rule as a column on committed rows.
+    IDEA-20260926-89886c seeks a sat/unsat asymmetry in a mutant closure at
+    m = 3; this record asks whether the Groebner full solve has one at all
+    on data already collected. IDEA-20260926-c98e92 (this lane) fixes the
+    UNIT of per-attempt cost; this record fixes its SHAPE.
+
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-IC-5765d2, KR-IC-0d2021, KR-IC-1fcdbc, KR-IC-5931ee, KR-RHO-93979e, KR-RHO-cd86f5]
+    nearest:
+      - ref: KR-IC-5765d2
+        provenance: retrieved
+        relation: adjacent
+        delta: >-
+          Published SAT-versus-F4 PDP comparisons report speed-up factors,
+          not cost distributions or sat/unsat ratios; this record adds the
+          distribution columns on the program's own committed rows.
+      - ref: KR-IC-0d2021
+        provenance: retrieved
+        relation: adjacent
+        delta: >-
+          Las Vegas F4 (Demin 2026, as recorded) has a proven probability
+          bound on its cost; a measured tail index on a deterministic F4
+          engine is a different quantity and is not in any row.
+    searched:
+      corpus_grep: ['tail index', 'Hill estimator', 'max/median', 'coefficient of variation', 'heavy tail', 'censored', 'distribution', 'sat and unsat']
+      web: []
+      blocked: []
+
+  source_refs:
+    - RQ-ICPERF-94c86e
+    - RQ-CERTBIN-836ce2
+    - GOAL-ICPERF-e6b6a4
+    - IDEA-20260922-793fd8
+    - IDEA-20260805-45bf55
+    - IDEA-20260926-89886c
+    - IDEA-20260926-c98e92
+    - KN-FIND-5a8d3e
+    - KN-FIND-c3a917
+    - src/crypto_autoresearcher/index_calculus/README.md
+    - src/crypto_autoresearcher/index_calculus/results/engines-20260924.jsonl.gz
+    - experiments/EXP-CERTBIN-e94b27/runs/RUN-CERTBIN-c417e0/closures.jsonl.gz
+    - experiments/EXP-CERTBIN-060020/runs/RUN-CERTBIN-a3fc60/closures.jsonl.gz
+    - analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-793fd8.yaml
+
+  id_allocation_provenance: >-
+    ID pre-minted and assigned by the dispatching session (top-level,
+    2026-09-26, round 2) for lane TASK-20260926-e93f77; not minted by this
+    agent.

@@ -1,0 +1,191 @@
+review:
+  idea_id: IDEA-20260922-1a081a
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-002d0e
+  ranking_context:
+    rank: 7
+    disposition: queued_for_design
+    hold_id: HOLD-B
+  claim_restated: >-
+    Every index-calculus cost law this program has filed for binary curves is a
+    function of the field degree and the attacker's parameters plus one
+    curve-dependent scalar (the yield lambda_x), so the ten FIPS binary curves
+    present five attack columns; the matched rho baseline is curve-specific
+    (negation on every row, the m-fold Frobenius class on Koblitz rows, the
+    cofactor split h = 4 versus 2), so the K/B rho gap at equal m is exactly
+    0.5*log2(m) + (h-bit); and the sign of the per-curve margin difference
+    Delta(m) flips according to whether the attack line is Frobenius-blind (the
+    B curve falls first) or Frobenius-aware with a full factor-m relation gain
+    (the K curve falls first). Zero compute, an indexing theorem plus a census.
+  core_argument_check:
+    - step: 'C2 rho table: twelve rows recomputed from analysis/binstd-curve-audit/binary-curve-params.txt under sqrt(pi*r/(4k)), k = m on Koblitz rows, k = 1 elsewhere'
+      verdict: holds
+      note: >-
+        Re-derived here (Python, dump parsed, orders read as integers): K-163
+        77.15 / B-163 80.83, K-233 111.39 / B-233 115.83, K-283 136.25 /
+        B-283 140.83, K-409 198.99 / B-409 203.83, K-571 279.75 / B-571 284.83,
+        sect193r1/r2 95.83, sect239k1 114.38 (A = 0, B = 1, h = 4). The record's
+        values agree to 0.01 bit (rounding). log2 r: 162.000, 231.000 (h = 4),
+        232.000 (h = 2), 281/282, 407/408, 569/570 as the record states.
+    - step: 'K/B gap Delta_rho(m) = 0.5*log2(m) + (h-bit): 3.67, 4.43, 4.57, 4.84, 5.08'
+      verdict: holds
+      note: >-
+        Re-derived 3.674, 4.432, 4.572, 4.838, 5.079; the h-bit is 0 at m = 163
+        (both h = 2) and 0.5 at the other four (K h = 4, B h = 2), read off the dump.
+    - step: 'sqrt(m) versus sqrt(2m) label on IDEA-20260915-8fe0ef (227 -> 55 at n = 17)'
+      verdict: holds
+      note: 227/55 = 4.127; sqrt(17) = 4.123; sqrt(34) = 5.83. Same reading as CORR-20260922-81aeab.
+    - step: 'C3 Frobenius-blind branch: Delta(m) = +(0.5*log2 m + h-bit) > 0, magnitude >= 3.6 bits'
+      verdict: holds
+      note: Minimum 3.67 at m = 163; the B curve is the easier target for any curve-blind line.
+    - step: 'C3 Frobenius-aware branch: Delta(m) = h-bit - 0.5*log2(m) < 0 "for every m >= 5", magnitude >= 3.1'
+      verdict: holds
+      note: >-
+        Values -3.67, -3.43, -3.57, -3.84, -4.08 (min magnitude 3.43 >= 3.1).
+        The threshold is stated loosely: 0.5 - 0.5*log2(m) < 0 already for m >= 3,
+        and at m = 163 the h-bit is 0. Harmless at deployed m. The branch assumes
+        a FULL factor-m relation gain; GGMP (KN-LIT-796, abstract-level in corpus)
+        gives at most 1/n on the system count, and whether tau-shifted relations
+        add rank is IDEA-20260922-b19793's open question (S2), so the magnitude is
+        an upper bound. Stated as a threshold: the sign flips iff the realised
+        relation gain G exceeds 2^(0.5*log2 m + h-bit) = sqrt(2m) at m >= 233
+        (sqrt(m) at m = 163); an aware line realising less than sqrt(2m) leaves
+        the B curve the easier target. The record does not state this threshold form.
+    - step: 'C1 curve-blindness census of every filed binary cost law'
+      verdict: unchecked
+      note: >-
+        Not performed here (corpus enumeration is the record's own deliverable).
+        One pre-registrable exception: the trace-parity constraint Tr(x_P)+Tr(a)
+        (H-SEMBIN-83a856; IDEA-20260915-8fe0ef's even-m confinement) reads a and
+        enters as a constraint on admissible arity, not as a multiplicative cost;
+        the record's HB1-2 half-acknowledges it ("factor of at most 2"). The
+        S_3 constant term b moves the descended system's constant part only
+        (top-degree part identical across curves over one field): holds as
+        algebra; whether any filed solving-degree law reads it is the census.
+    - step: 'Controls: sect193r1/r2 receive no Frobenius row; sect239k1 does while c2tnb239v1/v2/v3 do not'
+      verdict: holds
+      note: Dump confirms sect193r1/r2 have A and B in no proper subfield (h = 2, 192.0-bit r); sect239k1 has A = 0, B = 1, h = 4, r 237.0 bits; c2tnb239v1/v2/v3 have A, B in no proper subfield.
+    - step: 'Baseline embedding at m_a = 1, |Fb| = 1 reduces Delta to the pure baseline gap'
+      verdict: holds
+      note: Trivial algebra.
+  verdict: sound_with_corrections
+  defects:
+    - what: 'C3 sign statement "< 0 for every m >= 5" is imprecise (true for m >= 3; h-bit is 0 at m = 163) and hides the real discriminator, which is a threshold on the realised relation gain G, not a binary aware/blind flag'
+      where: claim (C3); predictions 4
+      fix: 'State the discriminator as G_threshold(m) = sqrt(2m) for m in {233, 283, 409, 571} and sqrt(163) at m = 163, with G measured (rank of tau-shifted relations, S2 / IDEA-20260922-b19793) rather than assumed equal to m.'
+    - what: 'The one Certicom row of the population with a public target is missing from the twelve-row table: ECC2K-130 versus its random sibling ECC2-131'
+      where: mechanism, PROPOSAL-TIME ARITHMETIC table; dominated_by
+      fix: 'Add the row. Re-derived here: ECC2K-130 rho_tau = 60.81 (sqrt(pi*l/(4*131)), l the 129-bit prime, re-derived from the Weil recursion with t = -1: 4l = 2^131 + 1 - s_131 checks, l probable prime); sect131r1 as the ECC2-131 stand-in (h = 2, 130.0-bit r) rho_neg = 64.83; Delta_rho = 4.02 = 0.5*log2(131) + 0.5. A Frobenius-blind line reaches ECC2-131 about 4 bits before ECC2K-130.'
+    - what: 'IDEA-20260913-9c54f9 is the source of the fan''s four Assumption-1 columns but was not opened ("title and scope line read")'
+      where: citations
+      fix: Read it in full before the fan's column definitions are frozen; until then the fan carries OPEN columns, not four resolutions.
+    - what: 'KN-LIT-096 is cited as kb and not opened; KN-LIT-661e97 supersedes it (retrieved, read at source) and carries the 2^60.8090 / 2^60.9 figures and the 2^58.3 progress'
+      where: citations
+      fix: Cite KN-LIT-661e97.
+    - what: 'C1 is stated unqualified although the trace-parity arity constraint reads Tr(a)'
+      where: claim (C1); heuristic HB1-1
+      fix: Pre-register the parity constraint as the expected exception class (a constraint on m, not a cost factor) so the census cannot be read as falsified by it.
+  ecc2k130_bearing: >-
+    The record implies no arity m; it is an indexing record. On ECC2K-130 it says
+    two things. (i) Any Frobenius-blind decomposition line, at any m, reaches the
+    random sibling ECC2-131 (rho_neg 64.83 with sect131r1 as stand-in) about
+    4.0 bits before it reaches ECC2K-130 (matched rho 2^60.81); the product-law
+    floor is itself curve-blind (it reads only N and m: min over l of
+    m!*2^(131-(m-1)l) + m*2^(2l), reproduced here exactly as 89.25, 68.58, 56.40,
+    48.44, 42.85, 35.61 at m = 2..8), which is C1 restated at the floor. (ii) The
+    Frobenius-aware branch, if it realised relations/131 and linear algebra/131^2
+    on an orbit-union base, would move the floor to 79.87, 58.03, 45.15, 36.71,
+    30.79, 23.10 (my variant of the same minimisation), i.e. 11.25 bits at m = 4
+    against rho's 3.52 -- the sign flip at the floor level -- but no oracle this
+    program has measured realises that gain (KN-FIND-47da4e: orbit-union
+    parameterisation cost-neutral at m = 2; KN-FIND-aa2efc withdrew an 11.44-bit
+    headroom overstatement that assumed a materialised orbit-union base). So on
+    ECC2K-130 the record's own threshold form applies: the aware branch wins only
+    if G > sqrt(2*131) = 16.2 in relation count, and the measured G so far is 1.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-B is right that the baseline column already matches the corrected
+    convention (re-derived, 0.01-bit agreement) and that the C3 sign is S2's
+    question. The design that follows S2 should carry (a) C3 in threshold form
+    (G versus sqrt(2m)), (b) the Certicom pair row, (c) c07598's symmetry ledger
+    as a section with sqrt(k), and (d) the trace-parity exception pre-registered.
+  concrete_experiment:
+    cell:
+      curve: 'Deployed rows: the ten FIPS curves, sect193r1/r2, sect239k1, sect131r1/r2 (ECC2-131 stand-in) and ECC2K-130 (y^2+xy=x^3+1 over F_2[z]/(z^131+z^13+z^2+z+1), order 4l) as computed rows only. Toy cell for HB1-2 (yield parity): the two n = 17 curves over F_2[t]/(t^17+t^3+1): Koblitz a = 1, b = 1 (order 2*65587, r = 65587 prime, re-derived) beside the RC-1 ordinary curve A = 97044, B = 126251 (DEC-20260926-cb4487).'
+      m: 2
+      l: 9
+      factor_base: 'V = {deg < 9} in the polynomial basis (RC-1''s V), the same V on both n = 17 curves; deployed rows use no factor base'
+      targets: 'Deployed rows: none (arithmetic). Toy: every point of the prime-order subgroup on each curve (65587 on the Koblitz cell), exhaustive'
+      seeds: 'none needed (exhaustive); record the dump sha256 and the script version'
+    instrument:
+      - analysis/binstd-curve-audit/binary-curve-params.txt (parsed as integers; my parser is in the review scratch, 40 lines)
+      - a new zero-compute script under analysis/ that emits the thirteen rho rows, the (227, 55) gate and Delta_rho(m), with per-row k and h read per curve
+      - 'rg over ledger/ and knowledge/ for the C1 census (cost laws mentioning a, b, Tr(a), #E)'
+      - 'experiments/EXP-CERTBIN-e94b27/impl/gf2n.py and curve.py for the toy yield census (Field(n, mod) is generic; both import numpy: missing: numpy in this container, a numpy-free port of the two classes is about 150 lines)'
+      - 'missing: FIPS 186-4 / ANSI X9.62 primary text (not vendored) for the claim-strength re-derivation of orders and cofactors'
+    procedure:
+      - '1. Emit the thirteen-row baseline table from the dump under sqrt(pi*r/(4k)); gate on reproducing 8fe0ef''s (227, 55) at n = 17 and the ECC2K-130 2^60.81.'
+      - '2. Emit Delta_rho(m) and the threshold G_threshold(m) = 2^(0.5*log2 m + h-bit) per K/B pair, plus the Certicom pair.'
+      - '3. Run the C1 census: list every filed binary cost law, two bits each (reads a/b? Frobenius-aware?), with the trace-parity constraint pre-classified as an arity constraint.'
+      - '4. Toy HB1-2: on both n = 17 curves count |x(E) cap V| (Tr(x + a + b/x^2) = 0 test over the 512 elements of V) and the exact m = 2 decomposition yield over the whole prime-order subgroup; report the K/B ratio.'
+      - '5. Write the GHS column STRUCTURALLY EMPTY on every prime-degree row citing the audit certificate.'
+    metrics:
+      - name: rho_row_bits
+        unit: log2 group operations
+        definition: 0.5*log2 r + 0.5*log2(pi/4) - 0.5*log2 k per curve, k read per curve
+      - name: Delta_rho_m
+        unit: bits
+        definition: rho_neg(B-m) - rho_tau(K-m)
+      - name: G_threshold_m
+        unit: dimensionless factor
+        definition: 2^Delta_rho_m, the realised Frobenius relation gain above which the K curve becomes the easier target
+      - name: c1_exception_count
+        unit: count of filed laws
+        definition: laws reading a, b or #E other than through lambda_x, r, or the pre-registered trace-parity arity constraint
+      - name: yield_ratio_KB
+        unit: dimensionless
+        definition: exact m = 2 decomposition yield on K-17 divided by that on the RC-1 ordinary curve at identical V
+    controls:
+      - sect193r1/r2 must receive no Frobenius row (pipeline keyed on the curve, not the degree)
+      - sect239k1 receives one; c2tnb239v1/v2/v3 over the same field do not
+      - known-false: charge the K rows negation-only and confirm every verdict moves by exactly 0.5*log2 m
+      - random V of dimension 9 on both n = 17 curves as the null for the yield ratio
+      - reconstruction of orders and cofactors from the hex by a second parser (done once here; matches the record)
+    outcomes:
+      positive: 'Census returns zero exceptions beyond the parity constraint and the table reproduces: five attack columns, Delta_rho as tabulated, G_threshold per m; the reach fan is a lookup.'
+      negative: 'A filed law reads a or b as a cost factor: that law gets ten columns and is named; C3 applies to the rest.'
+      artifact: 'A row differs from the table by more than 0.05 bits, or (227, 55) is not reproduced: a transcription or convention error, located before anything else is read.'
+    falsification_threshold: 'Any recomputed Delta_rho(m) differing from 0.5*log2 m + (h-bit) by more than 0.05 bits; any filed law with a curve-coefficient cost factor; a toy yield ratio outside [1/4, 4] at l = 9 (HB1-2).'
+    estimated_cost:
+      implementation: low
+      compute: 'seconds for the table and census; about a minute for the exhaustive n = 17 yield census in pure Python (estimate, not measured)'
+    zero_run_prerequisites:
+      - read IDEA-20260913-9c54f9 in full and fix the fan's column definitions
+      - fix the primary unit per column (rho in group operations; SAT conflicts and field operations need a declared exchange rate)
+      - S2 (IDEA-20260922-261004) composing decision on whether one relation is m relations
+  successor_seam: >-
+    A measurement proposal that turns C3 into a number: the realised Frobenius
+    relation gain G on a toy Koblitz cell with a tau-stable factor base (n = 17,
+    dim-9 stable subspace, or an orbit-union set at n = 17/23), read as the rank
+    of the tau-shifted relation block against the plain block on the same
+    instance set, compared with the per-curve threshold sqrt(2m). Owner
+    RQ-FROB-7d8dd4 for the mechanism, RQ-BINSTD-b6f698 for the column. It is the
+    quantity 1a081a's sign depends on and neither 1a081a nor S2's designs measure
+    it directly on a matched rho scale.
+  records_read:
+    - IDEA-20260922-1a081a (full)
+    - analysis/binstd-curve-audit/binary-curve-params.txt and README.md
+    - CORR-20260922-81aeab
+    - KN-FIND-aa2efc
+    - EV-ICPERF-10c5fc (lines 138-150, product-law derivation)
+    - KN-LIT-661e97
+    - RQ-BINSTD-b6f698
+    - DEC-20260924-99ce20 (HOLD-B text, A4/A5 notes)
+    - IDEA-20260915-8fe0ef (lines with the 227/55 figures)
+    - IDEA-20260904-96c4f3 (lines 9-73)
+    - KN-OPEN-095df5
+  not_read:
+    - IDEA-20260913-9c54f9
+    - IDEA-20260913-41c4f0
+    - KN-LIT-796 full text
+    - FIPS 186-4 primary text

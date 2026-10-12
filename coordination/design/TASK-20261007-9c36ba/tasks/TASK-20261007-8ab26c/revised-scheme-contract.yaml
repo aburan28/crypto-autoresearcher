@@ -1,0 +1,453 @@
+format: scheme-construction-contract/v1
+title: RWCT-PKE ring-word compiled transfer scoped obstruction
+primitive: pke
+parent_record_ids:
+  - GOAL-SSI-2fa82a
+  - RQ-SSI-1946c9
+  - TASK-20261007-8ab26c
+artifact_revision: null
+author: idea-generator session for TASK-20261007-8ab26c
+security_parameter: >-
+  lambda; message length L(lambda), slot count t(lambda), and ring-word
+  straight-line-program length d(lambda) are polynomially bounded.
+domains:
+  public_parameters: >-
+    Canonical finite-field, supersingular-curve, point, and integer encodings;
+    L, t, d; an admissible prime-torsion rule; and a random oracle
+    H_RWCT:{0,1}*->{0,1}^L with domain RWCT-PKE-v1.
+  public_key: >-
+    pk=(E,((w_j,N_j,P_j,A_j))_{j=1}^t), where every w_j is a canonical
+    noncommutative straight-line program containing X_1,...,X_4, P_j has exact
+    prime order N_j, and A_j=w_j(B)(P_j) has exact order N_j for the planted
+    complete evaluable basis B.
+  secret_key: >-
+    The planted ordered complete evaluable Z-basis B=(beta_1,...,beta_4) of
+    End(E). An arbitrary EndRing solution B' is not assumed aligned with B.
+  message: Fixed-length selected plaintexts m in {0,1}^L.
+  ciphertext: >-
+    Canonical ct=((R_j)_{j=1}^t,C), with R_j in the declared exact-order
+    subgroup and C in {0,1}^L.
+  signature: not applicable to PKE
+  key_space: >-
+    Internal L-bit random-oracle pad; RWCT-PKE is PKE, not a KEM, and Dec
+    returns the selected plaintext.
+  encoding_and_equality: >-
+    Bytewise canonical serialization after curve, subgroup, exact-order, word
+    length, and point checks. Alternate encodings are rejected rather than
+    quotient-identified. Challenge-ciphertext equality is exact byte equality,
+    although no decryption oracle exists in the claimed CPA game.
+  inapplicable_reasons:
+    signature: PKE has no signature object.
+
+security_claims:
+  - name: IND-CPA-from-bare-EndRing-via-RWCT
+    primitive: pke
+    status: refuted_scoped
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: >-
+      KeyGen draws a real RWCT key; the adversary receives pk and classical
+      H_RWCT access, submits equal-length m0,m1 in {0,1}^L, receives
+      Enc(pk,m_b) for uniform b, and outputs b'. There is no decryption oracle.
+    advantage_convention: "abs(Pr[b'=b]-1/2)"
+    query_bounds:
+      random_oracle_queries: polynomial in lambda
+      encryption_computations: unrestricted polynomial self-encryption using pk
+      decryption_queries: 0
+    oracle_access_and_challenge_exclusions: >-
+      Classical random-oracle queries are allowed before and after the
+      challenge. No ciphertext is excluded because no decryption oracle exists.
+    assumptions:
+      - >-
+        Bare-EndRing(D_curve): given only a canonical curve E from the curve
+        marginal of the real pair distribution, output any complete evaluable
+        Z-basis spanning exactly End(E).
+    theorem_artifact: >-
+      No theorem. revised-candidate.md records the failed embedding,
+      basis-alignment, and complete-ring extraction arrows.
+    review_artifact: null
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: >-
+      Sample (E,B) from the attempted joint distribution D_pair(lambda) and
+      erase B; output only E. This defines the Bare-EndRing curve marginal but
+      D_pair itself has no supplied efficient sampler in this packet.
+    real_key_distribution: >-
+      Sample (E,B) from D_pair; sample t canonical word descriptors w_j that
+      each use all four planted basis variables; choose exact-order torsion
+      points P_j; set A_j=w_j(B)(P_j); reject order failures; publish
+      E and every (w_j,N_j,P_j,A_j).
+    adversary_input_and_auxiliary_data: >-
+      Bare-EndRing input is only pp and E. The real PKE adversary additionally
+      sees every word, torsion order, base point, planted word image, ciphertext
+      point, masked plaintext, validation rule, and random-oracle transcript.
+    solution_representation_and_success_predicate: >-
+      Output four evaluable endomorphisms B' with a rank-four Z-basis and
+      maximal-order certificate whose Z-span is exactly End(E), not one
+      endomorphism, a point-action oracle, a torsion matrix, a transfer tuple,
+      or an endpoint. All maps must have canonical finite descriptions and
+      polynomial evaluation algorithms in the declared representation.
+    setup_trust_and_erasure: >-
+      The attempted setup is transparent apart from the ROM idealization. The
+      planted B and word-evaluation intermediates must be erased outside sk.
+      No trapdoored setup is allowed. Efficient generation and erasure are not
+      implemented or measured.
+    secret_representation_and_conversion_costs: >-
+      B is an ordered complete evaluable basis with polynomial-time addition,
+      composition, integer scaling, and point evaluation. Conversion from an
+      arbitrary EndRing basis B' to the planted ordered word evaluators needs
+      BasisAlign(B',pk); its representation, runtime, uniqueness, and failure
+      bound are unavailable.
+    assumptions:
+      - name: Bare-EndRing(D_curve)
+        formal_game: >-
+          Given E from D_curve(lambda), output a complete evaluable rank-four
+          Z-basis spanning exactly End(E) with the stated certificate.
+        distribution: D_curve, the curve marginal of D_pair
+        model: classical PPT search hardness; no quantum claim
+        source_artifact: revised-candidate.md
+        provenance: internal
+        verified_by: TASK-20261007-8ab26c idea-generator
+      - name: Aux-RWCT-EndRing
+        formal_game: >-
+          Given the entire real public key correlated with a planted basis,
+          output any complete evaluable basis of End(E).
+        distribution: exact real RWCT public-key distribution
+        model: separately named auxiliary-data search problem
+        source_artifact: revised-candidate.md
+        provenance: internal
+        verified_by: TASK-20261007-8ab26c idea-generator
+        relation_to_bare_endring: open; no reduction is supplied
+    cited_equivalences_and_hypotheses: []
+    evidence_artifacts:
+      - revised-candidate.md
+      - revision-map.yaml
+    review_artifact: null
+    remaining_gap: >-
+      Bare E does not permit exact sampling of planted A_j values, and the
+      auxiliary-data variant has no proved relation to bare EndRing.
+    next_action: >-
+      Supply an exact public-key distribution compiler from bare E or retain
+      Aux-RWCT-EndRing as a separate, strictly named assumption.
+
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: Setup
+        inputs: 1^lambda
+        outputs: canonical parameter record pp
+        randomness: parameter-family generation only
+        validation: check L,t,d are polynomial and all encoders are canonical
+        failure_behavior: return bottom if no admissible parameter record exists
+        pseudocode_artifact: revised-candidate.md#setup1lambda
+        time: polynomial conditional on parameter generation
+        memory: polynomial
+        bit_length_bounds: polynomial in lambda
+      - name: KeyGen
+        inputs: pp
+        outputs: pk and planted complete-basis sk=B
+        randomness: D_pair sample, word descriptors, torsion points
+        validation: exact curve, word, subgroup, and order checks
+        failure_behavior: reject a slot if A_j lacks exact order N_j; retry
+        pseudocode_artifact: revised-candidate.md#keygenpp
+        time: >-
+          Word compilation and evaluation are polynomial for a supplied valid
+          evaluable B; expected sampling time is open.
+        memory: polynomial in t,d and evaluable-word representations
+        bit_length_bounds: polynomial if the unavailable sampler enforces them
+      - name: Enc
+        inputs: canonical pk and m in {0,1}^L
+        outputs: canonical ct=((R_j)_j,C)
+        randomness: independent uniform r_j in Z/N_j Z
+        validation: exact public-key parsing, subgroup, order, and word bounds
+        failure_behavior: return bottom on invalid pk or message length
+        pseudocode_artifact: revised-candidate.md#encpkm
+        time: t scalar multiplications plus one random-oracle query
+        memory: O(t) encoded points plus the message
+        bit_length_bounds: O(sum_j log N_j + L + size(pk))
+      - name: Dec
+        inputs: planted B, associated pk, and canonical ct
+        outputs: m in {0,1}^L or bottom
+        randomness: none
+        validation: canonical parsing and exact subgroup membership
+        failure_behavior: bottom on structural failure; wrong valid key can yield an unrelated message
+        pseudocode_artifact: revised-candidate.md#decskct
+        time: O(t*d) evaluable endomorphism operations plus one random-oracle query
+        memory: polynomial in t,d and evaluator representations
+        bit_length_bounds: polynomial in declared parameter sizes
+    preprocessing_and_retry_costs: >-
+      Rejection on order failure is explicit, but no tail bound for D_pair or
+      admissible torsion selection is supplied.
+    complexity_guarantee: >-
+      Enc and valid-key Dec are worst-case polynomial under the evaluable-basis
+      representation. Full KeyGen expected polynomial time is not established.
+    unavailable_subroutines:
+      - Efficient exact sampler for D_pair with a bounded rejection tail.
+      - BasisAlign from an arbitrary valid EndRing output to the planted basis-dependent word evaluators.
+      - RestrictedEvaluatorsToCompleteRing from the decryption quotient to a complete basis.
+    evidence_artifacts:
+      - revised-candidate.md
+    review_artifact: null
+    remaining_gap: KeyGen is not a complete polynomial-time algorithm without the declared sampler and tail proof.
+    next_action: Do not implement before O1's sampler and O2's rejection bound exist.
+
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: >-
+      For every valid (pk,B) output by KeyGen, every m in {0,1}^L, and every
+      encryption coin vector (r_1,...,r_t), Dec(B,Enc(pk,m;r_1,...,r_t))=m.
+    probability_space: >-
+      Deterministic equality conditioned on a valid key; probability is over
+      KeyGen and Enc only when discussing generation success, not the identity.
+    valid_key_and_message_scope: >-
+      Accepted exact-order slot keys and all L-bit selected plaintexts.
+    per_key_or_average_guarantee: Per valid key, not merely average over keys.
+    failure_probability_bound: >-
+      epsilon_pke=0 conditional on valid KeyGen output and canonical inputs;
+      unconditional KeyGen abort probability is unbounded in this packet.
+    actual_message_or_key_recovery: >-
+      Exact selected plaintext m is recovered because w_j(B)([r_j]P_j)=[r_j]A_j
+      in every slot and both sides hash identical canonical strings.
+    exceptional_inputs:
+      - Invalid or noncanonical public keys and ciphertexts return bottom.
+      - KeyGen slot order failures trigger retry with no proved retry bound.
+      - A structurally valid ciphertext under a wrong key may return an unrelated L-bit string.
+    theorem_artifact: revised-candidate.md#actual-message-correctness
+    supporting_test_artifacts: []
+    review_artifact: null
+    remaining_gap: Independent proof review and unconditional KeyGen-success bound are absent.
+    next_action: Review the symbolic identity only if O1/O2 become viable.
+
+  O4:
+    name: functionality_mechanism
+    status: proposed_discharge
+    public_operation: >-
+      The sender samples r_j and computes R_j=[r_j]P_j and Z_j=[r_j]A_j in
+      every public slot, then masks the selected message with H_RWCT(T,(Z_j)_j).
+    private_operation: >-
+      The recipient uses the planted complete basis B to compile gamma_j=w_j(B)
+      and evaluates Z'_j=gamma_j(R_j) for every slot.
+    agreement_or_message_binding_lemma: >-
+      For each j, gamma_j([r_j]P_j)=[r_j]gamma_j(P_j)=[r_j]A_j; canonical
+      transcript binding makes the pads identical and recovers the selected m.
+    extra_recipient_secrets:
+      - The planted ordering/alignment of B used by the public word variables.
+    recipient_lift:
+      applicability: false
+      inapplicable_reason: >-
+        No SecretLift, Complete_2, or EndpointLift is invoked. The new missing
+        interface is BasisAlign for arbitrary EndRing outputs, and it remains open.
+      interface: null
+      inputs: null
+      output_representation_and_equivalence: null
+      uniqueness_or_acceptance_condition: null
+      polynomial_algorithm_and_cost: null
+      failure_bound: null
+      recovery_of_actual_message_or_key: null
+      identical_public_data_control: >-
+        Publishing q_j=w_j(B)|<P_j> or a composable public evaluator computes
+        every Z'_j and destroys the private-operation asymmetry.
+    identification_and_transform:
+      applicability: false
+      inapplicable_reason: This is PKE, not an identification/Fiat-Shamir construction.
+      relation: null
+      completeness: null
+      soundness_extractor_and_knowledge_error: null
+      simulator_and_verifier_scope: null
+      challenge_space: null
+      transcript_message_key_and_context_binding: null
+      transform_theorem_and_hypotheses: null
+    ake_identity_and_session_binding: not applicable to PKE
+    evidence_artifacts:
+      - revised-candidate.md#quotientfactorization-audit
+    review_artifact: null
+    remaining_gap: >-
+      Recipient behavior factors through Q(pk,B), a finite tuple of restricted
+      evaluators. Complete-ring functional necessity is therefore not discharged.
+    next_action: >-
+      Replace the compiled-word table only with a basis-independent public
+      trapdoor map that does not expose the identical recovery operation.
+
+  O5:
+    name: correctly_directed_security_reduction
+    status: contradicted
+    reductions:
+      - security_claim: IND-CPA-from-bare-EndRing-via-RWCT
+        solver_input_distribution: E from D_curve(lambda), with no planted basis or correlated A_j values
+        scheme_attacker: PPT IND-CPA attacker on the exact real RWCT public-key distribution
+        assumption_problem_solved: Bare-EndRing(D_curve)
+        challenge_embedding: >-
+          Failed: real A_j=w_j(B)(P_j) cannot be generated from bare E. Random
+          replacements require an unproved distribution compiler and may have
+          no consistent secret key.
+        real_key_distribution_argument: unavailable
+        oracle_simulation: Classical H_RWCT simulation is syntactically possible only after a real pk exists.
+        extraction: >-
+          Failed: the attacker emits a bit and the scheme transcript factors
+          through Q(pk,B); no RestrictedEvaluatorsToCompleteRing map is supplied.
+        aborts: KeyGen order rejection and embedding failure are unbounded.
+        advantage_loss_bound: no bound to Bare-EndRing exists
+        solver_runtime: unavailable
+        model: classical PPT in the ROM; no QPT or QROM claim
+        theorem_artifact: revised-candidate.md#real-distribution-and-extraction-map
+        independently_reviewed_artifact: null
+        scoped_contradiction: >-
+          The proposed transcript-only compiled-word route does not yield the
+          required reduction; this is not a universal no-reduction theorem.
+      - security_claim: conditional IND-CPA-to-HRT-RWCT hybrid
+        solver_input_distribution: >-
+          Exact real RWCT pk and transfer points R_j, with a challenge pad that
+          is either H_RWCT(T,([r_j]A_j)_j) or uniform.
+        scheme_attacker: PPT IND-CPA attacker with classical ROM access
+        assumption_problem_solved: HRT-RWCT real-or-random distinguishing
+        challenge_embedding: Use the supplied pad to mask the attacker's selected challenge plaintext.
+        real_key_distribution_argument: The HRT game is defined on the exact real distribution.
+        oracle_simulation: Same classical random oracle, consistently programmed by the HRT challenger.
+        extraction: Output the induced real-or-random pad guess; no ring is extracted.
+        aborts: No additional abort beyond the underlying valid-key game.
+        advantage_loss_bound: Adv_IND-CPA(A) <= 2 * Adv_HRT-RWCT(D)
+        solver_runtime: Time(A) plus polynomial parsing and XOR overhead
+        model: classical PPT in the ROM only
+        theorem_artifact: revised-candidate.md#real-distribution-and-extraction-map
+        independently_reviewed_artifact: null
+        limitation: HRT-RWCT is separate and scheme-shaped; no relation to Bare-EndRing is proved.
+    intermediate_assumptions:
+      - name: HRT-RWCT
+        game: >-
+          Given a real RWCT pk, R_j=[r_j]P_j, and either the consistent hash of
+          ([r_j]A_j)_j or an independent uniform L-bit pad, distinguish which.
+        distribution: exact real RWCT key and encryption-coin distribution
+        relation_to_endring: open; it must not be renamed EndRing
+      - name: Aux-RWCT-EndRing
+        game: Given the exact real pk including planted word images, output a complete evaluable basis of End(E).
+        distribution: exact real RWCT public-key distribution
+        relation_to_endring: open; no reduction from bare curve-only EndRing is supplied
+    multiple_assumption_dependency: >-
+      The proposed hybrid would establish IND-CPA only from HRT-RWCT. Adding
+      Aux-RWCT-EndRing does not supply the missing HRT-to-complete-ring or
+      attacker-to-complete-ring reduction. No EndRing-only bound exists.
+    classical_quantum_and_rewinding_scope: >-
+      Classical PPT/ROM only; no rewinding, QPT adversary, superposition query,
+      or QROM statement is covered.
+    evidence_artifacts:
+      - revised-candidate.md
+      - revision-map.yaml
+    review_artifact: null
+    remaining_gap: >-
+      Three arrows are missing: E to real pk, arbitrary complete basis to
+      planted evaluators, and IND advantage to a complete basis.
+    next_action: >-
+      Supply a basis-independent publicly samplable trapdoor map with an
+      explicit attacker-to-complete-ring extraction theorem before another PKE wrapper.
+
+  O6:
+    name: complete_adversarial_view
+    status: proposed_discharge
+    public_disclosures:
+      - Public parameters, field, curve E, and canonical encoding rules.
+      - Every word descriptor w_j, torsion order N_j, base point P_j, and planted word image A_j.
+      - Every challenge point R_j and masked plaintext C.
+      - Classical random-oracle access and all repeated honest ciphertexts generated by the adversary.
+      - Validation rules and structural rejection symbol bottom.
+    allowed_oracles_and_query_history: >-
+      Polynomially many classical H_RWCT queries before and after the challenge;
+      no decryption oracle. The adversary can run public Enc itself and retain
+      complete local randomness and query histories.
+    validation_rejection_and_failure_observables: >-
+      Noncanonical encodings, invalid curves, invalid word programs, and points
+      outside declared exact-order subgroups return bottom. Constant-time
+      rejection is not claimed or measured.
+    malformed_inputs_and_alternate_encodings: >-
+      Alternate encodings are rejected bytewise after canonical parsing;
+      mathematical equivalence does not create additional challenge exclusions.
+    repeated_use_and_collision_analysis: >-
+      Repeated or zero r_j values, word collisions, scalar/zero evaluated words,
+      correlated A_j values, hash-input collisions, and repeated ciphertexts
+      remain in the game. Only the exact-order A_j failure is rejected by the
+      written KeyGen, and collision probabilities are not bounded here.
+    side_channel_scope_and_exclusions: >-
+      Timing, cache, power, fault, and memory-disclosure channels are excluded.
+      No implementation-security claim is made.
+    public_data_and_known_false_controls:
+      - name: public-data control
+        result: >-
+          Publishing Q(pk,B) or composable public evaluators computes recipient
+          transfer points and destroys the claimed asymmetry.
+      - name: leaked-plaintext known-false control
+        result: >-
+          If m is appended to ct, an attacker wins independently of E; a generic
+          IND-transcript-to-EndRing extractor therefore fails at extraction.
+      - name: quotient control
+        result: Replacing B by Q(pk,B) leaves every valid decryption transcript unchanged.
+      - name: distribution control
+        result: Bare E cannot generate the correlated planted A_j values; the bridge is open.
+      - name: actual-message control
+        result: The displayed identity recovers the selected L-bit message exactly for valid keys.
+      - name: prior-failure regression
+        result: >-
+          No C-star, SecretLift, EndpointLift, target-frame reconstruction,
+          evaluator reconstruction, admission decoder, digit-loop tie rule, or
+          ER-McE residual decoder is assumed.
+    concrete_parameter_security: No parameter set or bit-security estimate is supplied.
+    asymptotic_to_concrete_limitations: >-
+      No asymptotic EndRing reduction exists, and no concrete conclusion follows
+      from the symbolic correctness or HRT hybrid.
+    evidence_artifacts:
+      - revised-candidate.md#complete-adversarial-view
+    review_artifact: null
+    remaining_gap: Collision/rejection probabilities and all implementation channels remain unanalyzed.
+    next_action: Preserve this view unchanged in any fresh independent review.
+
+assessment:
+  verdict: scoped_obstruction
+  finite_functionality_status: established_for_valid_keys_by_unreviewed_symbolic_identity
+  efficient_functionality_status: conditional_on_an_unavailable_D_pair_sampler_and_rejection_bound
+  security_status: not_established
+  named_conditions:
+    - Correctness is conditioned on a valid planted evaluable basis and accepted exact-order slots.
+    - The only quantitative security hybrid targets separate HRT-RWCT, not EndRing.
+    - All derivations are symbolic, unreviewed, and unmeasured.
+  open_obligations:
+    - O1
+    - O2
+    - O5
+  obstruction:
+    affected_obligation: O5, with upstream O1 and complete-ring-sensitivity part of O4
+    exact_family_and_parameter_scope: >-
+      Polynomial-size public keys that compile finitely many planted-basis
+      ring words to point-image slots, with ciphertext points restricted to
+      scalar multiples of the corresponding public base points.
+    counterexample_or_argument_artifact: revised-candidate.md#why-the-complete-ring-repair-fails
+    what_remains_open: >-
+      Basis-independent, publicly samplable trapdoor maps whose inversion from
+      any complete EndRing basis and complete-ring extraction from IND advantage
+      are both proved without a smaller evaluator quotient.
+  independent_review_artifacts: []
+  next_action: >-
+    Specify one exact candidate Trap_E map satisfying public sampling,
+    inversion from any complete EndRing basis, quotient non-factorization, and
+    attacker-to-complete-ring extraction before constructing another wrapper.
+  official_state_transition_record: null
+
+citations:
+  - source: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571/gap-packet.yaml
+    section: complete file
+    provenance: internal
+    verified_by: TASK-20261007-8ab26c idea-generator
+    inspected_scope: Frozen failed joints, controls, and acceptance gate only.
+  - source: research/ssi-endring-pke/2026-10-07-candidate-funnel/methodology.md
+    section: complete file
+    provenance: internal
+    verified_by: TASK-20261007-8ab26c idea-generator
+    inspected_scope: Alternating loop, O1-O6 gates, controls, and stopping rule.
+  - source: docs/scheme-construction-contract.md
+    section: complete file
+    provenance: internal
+    verified_by: TASK-20261007-8ab26c idea-generator
+    inspected_scope: PKE game and all six construction obligations.

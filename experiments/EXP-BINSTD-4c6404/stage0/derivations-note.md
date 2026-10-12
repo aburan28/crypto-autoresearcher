@@ -1,0 +1,1 @@
+Square race matrix = XOR-fold of a surplus-s rectangular sparse GF(2) matrix onto r(n) rows. IC-like rows have exact weight 6; null rows are Bernoulli with mean weight 6. Both solvers receive identical packed rows. tau=1.0 frozen before any scientific timing.

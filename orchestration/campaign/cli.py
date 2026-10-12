@@ -1,9 +1,7 @@
-"""Read-only campaign-observer commands.
+"""Campaign observation and an opt-in supervisor over existing skills.
 
-The command deliberately exposes inspection and daemon startup only.  It does
-not have a ``run``, ``dispatch``, or ``advance`` subcommand: those actions
-remain behind the existing Coordinator/archive lifecycle until the proposed
-frontier, verifier, and controller phases have been implemented.
+The supervisor invokes the existing run/coordinate agents as separate bounded
+actions. It does not edit the ledger or grant itself Coordinator authority.
 """
 from __future__ import annotations
 
@@ -11,6 +9,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .checkpoint import checkpoint_by_batch, checkpoints
 from .mcp_server import current_source_commit, workspace_fingerprint
@@ -77,6 +76,128 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return mcp_main(argv)
 
 
+def _apply_preset(args: argparse.Namespace) -> None:
+    """Fill runtime/backends/delivery from the preset; explicit flags win."""
+    from . import presets
+
+    preset = presets.get(args.preset) if args.preset else None
+    if args.backend is None:
+        args.backend = list(preset.backends) if preset else list(
+            presets.get(presets.DEFAULT_PRESET).backends)
+    if args.runtime is None:
+        args.runtime = preset.runtime if preset else "opencode"
+    if args.delivery is None:
+        args.delivery = preset.delivery if preset else "interactive"
+    if args.batch_backend is None:
+        args.batch_backend = preset.batch_backend if preset else "anthropic"
+
+
+def _unbound_hint(backends: list[str]) -> str:
+    from orchestration.adapter.config import load as load_config
+    cfg = load_config()
+    unbound = []
+    for backend in backends:
+        table = cfg.binding_table.get(backend) or {}
+        if not any((entry or {}).get("model") for entry in table.values()):
+            unbound.append(backend)
+    if not unbound:
+        return ""
+    return (f" Backend(s) {', '.join(unbound)} have no model bound: copy "
+            "orchestration/model-bindings.local.example.yaml to "
+            "orchestration/model-bindings.local.yaml, or pass --model ID "
+            "--model-caps effort=...,context=...,output=... for this run.")
+
+
+def cmd_autopilot(args: argparse.Namespace) -> int:
+    import os
+    import shutil
+
+    from orchestration.adapter.config import BINDINGS_OVERLAY_ENV
+    from orchestration.adapter.config import load as load_config
+
+    from . import presets, workers
+    from .autopilot import candidates, report, select_next, supervise
+
+    if args.list_presets:
+        _emit({"default": presets.DEFAULT_PRESET, "presets": presets.describe()})
+        return 0
+    _apply_preset(args)
+    repo = Path(args.repo).expanduser().resolve()
+    state_dir = (Path(args.state_dir).expanduser().resolve() if args.state_dir
+                 else repo / ".git" / "autoresearch-autopilot")
+    if args.report:
+        _emit(report(state_dir))
+        return 0
+    if args.model:
+        if not args.model_caps:
+            print("autopilot: --model needs --model-caps "
+                  "effort=<tier>,context=<tokens>,output=<tokens>", file=sys.stderr)
+            return 2
+        try:
+            caps = presets.parse_caps(args.model_caps)
+            overlay = presets.write_model_overlay(
+                state_dir / "model-overlay.yaml", backends=args.backend,
+                model=args.model, caps=caps)
+        except (ValueError, Exception) as exc:  # noqa: BLE001 - reported, not hidden
+            print(f"autopilot: --model binding rejected: {exc}", file=sys.stderr)
+            return 2
+        os.environ[BINDINGS_OVERLAY_ENV] = str(overlay)
+    try:
+        cfg = load_config()
+        workers.check_compatibility(cfg, args.runtime, args.backend)
+    except Exception as exc:  # noqa: BLE001 - configuration, reported verbatim
+        print(f"autopilot: {exc}", file=sys.stderr)
+        return 2
+    eligible = candidates("coordinator", args.backend, args.runtime, cfg)
+    plan = {"preset": args.preset, "runtime": args.runtime, "backends": args.backend,
+            "delivery": args.delivery, "batch_backend": args.batch_backend,
+            "bindings_overlay": cfg.paths.get("bindings_overlay"),
+            "coordinator_candidates": [
+                {"backend": b, "model": m, "model_verified": r["verified_model"]}
+                for b, m, r in eligible],
+            "worker_binary": shutil.which(workers.binary_for(args.runtime))}
+    if args.dry_run:
+        action = select_next(repo)
+        _emit({"action": action.as_dict() if action else None, "plan": plan,
+               "advisory_only": True, "model_calls": 0})
+        return 0
+    if not plan["worker_binary"]:
+        print(f"autopilot: the {workers.binary_for(args.runtime)} CLI is unavailable; "
+              f"install it before starting a live supervisor with runtime "
+              f"{args.runtime}", file=sys.stderr)
+        return 2
+    if not eligible:
+        print("autopilot: no role-eligible coordinator binding on "
+              f"{', '.join(args.backend)} for runtime {args.runtime}."
+              + _unbound_hint(args.backend), file=sys.stderr)
+        return 2
+    if not repo.joinpath(".git").exists():
+        print("autopilot: --repo must be a Git checkout", file=sys.stderr)
+        return 2
+    lane = None
+    if args.delivery != "interactive":
+        from .batch_lane import BatchLane
+        try:
+            lane = BatchLane(args.batch_backend, config=cfg, repo=repo)
+        except Exception as exc:  # noqa: BLE001 - configuration, reported verbatim
+            print(f"autopilot: batch lane unavailable: {exc}", file=sys.stderr)
+            return 2
+    state = supervise(repo, state_dir, backends=args.backend,
+                      max_actions=1 if args.once else args.max_actions,
+                      idle_seconds=args.idle_seconds,
+                      retry_seconds=args.retry_seconds,
+                      timeout=args.timeout, attach=args.attach,
+                      runtime=args.runtime, delivery=args.delivery, batch_lane=lane,
+                      batch_poll_seconds=args.batch_poll_seconds,
+                      wait_batches=args.wait_batches)
+    _emit({"attempts": state["attempts"],
+           "completed_actions": state["completed_actions"],
+           "pending_reconcile": state.get("pending_reconcile"),
+           "pending_batches": state.get("pending_batches"),
+           "plan": plan, "metrics": report(state_dir)})
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="autoresearch campaign",
@@ -115,11 +236,70 @@ def build_parser() -> argparse.ArgumentParser:
         help="loopback address only (default: 127.0.0.1)",
     )
     serve.set_defaults(func=cmd_serve)
+
+    autopilot = sub.add_parser(
+        "autopilot", help="keep selecting bounded run/design/coordination actions")
+    autopilot.add_argument("--repo", type=Path, default=Path.cwd())
+    autopilot.add_argument("--state-dir", type=Path,
+                           help="local private state (default: .git/autoresearch-autopilot)")
+    autopilot.add_argument("--preset",
+                           help="named runtime/backend/delivery set-up; "
+                                "--list-presets shows them")
+    autopilot.add_argument("--list-presets", action="store_true")
+    autopilot.add_argument("--backend", action="append",
+                           default=None, help="ordered model backends; repeat to enable failover")
+    autopilot.add_argument("--runtime", choices=("opencode", "claude_code", "codex_cli"),
+                           help="which agent CLI runs each action (preset default)")
+    autopilot.add_argument("--delivery", choices=("interactive", "batch", "auto"),
+                           help="draft design/portfolio actions through the Message "
+                                "Batches API before filing them (preset default)")
+    autopilot.add_argument("--batch-backend",
+                           help="backend serving the draft lane (default anthropic)")
+    autopilot.add_argument("--batch-poll-seconds", type=int, default=300)
+    autopilot.add_argument("--wait-batches", type=int, default=0,
+                           help="with --once/--max-actions, keep polling a pending "
+                                "draft for up to this many seconds")
+    autopilot.add_argument("--model",
+                           help="bind this model id to the chosen backends for this "
+                                "run (operator-supplied; needs --model-caps)")
+    autopilot.add_argument("--model-caps",
+                           help="effort=<tier>,context=<tokens>,output=<tokens> as "
+                                "the provider documents them")
+    autopilot.add_argument("--once", action="store_true")
+    autopilot.add_argument("--max-actions", type=int)
+    autopilot.add_argument("--dry-run", action="store_true")
+    autopilot.add_argument("--report", action="store_true")
+    autopilot.add_argument("--idle-seconds", type=int, default=60)
+    autopilot.add_argument("--retry-seconds", type=int, default=300)
+    autopilot.add_argument("--timeout", type=int, default=7200,
+                           help="per-worker watchdog in seconds, not a campaign cap")
+    autopilot.add_argument("--attach", help="reuse a running local opencode serve URL")
+    autopilot.set_defaults(func=cmd_autopilot)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "autopilot":
+        if (args.max_actions is not None and args.max_actions < 1
+                or args.idle_seconds < 1 or args.retry_seconds < 1 or args.timeout < 1
+                or args.batch_poll_seconds < 1 or args.wait_batches < 0):
+            print("autopilot: action count and durations must be positive", file=sys.stderr)
+            return 2
+        if args.preset:
+            from .presets import PRESETS
+            if args.preset not in PRESETS:
+                print(f"autopilot: unknown preset {args.preset!r}; one of "
+                      f"{', '.join(sorted(PRESETS))}", file=sys.stderr)
+                return 2
+        if args.attach:
+            parsed = urlsplit(args.attach)
+            if (parsed.scheme != "http" or parsed.hostname not in
+                    ("localhost", "127.0.0.1", "::1") or parsed.username
+                    or parsed.password or parsed.path not in ("", "/")):
+                print("autopilot: --attach requires a local HTTP OpenCode server",
+                      file=sys.stderr)
+                return 2
     try:
         return int(args.func(args))
     except ProjectionError as exc:

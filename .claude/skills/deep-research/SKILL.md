@@ -1,15 +1,13 @@
 ---
 name: deep-research
 description: >-
-  Deeply analyze the whole research portfolio -- ledger, knowledge corpus, and
-  literature -- and produce a ranked, justified shortlist of what experiments
-  to run next. Dispatches idea-generator for fresh divergent candidates and
-  the coordinator for portfolio-wide prioritization, with an optional
-  red-team stress-test of the shortlist. Read-only: writes no ledger record
-  and changes no status. Use when the user asks what to work on next, wants a
-  research roadmap or priority ranking, a goal's next_action needs deeper
-  justification than the mechanical fallback order, or before opening a new
-  campaign against an open question.
+  Analyze the whole portfolio (ledger, knowledge corpus, literature) and
+  produce a ranked, justified shortlist of experiments to run next,
+  dispatching idea-generator and the coordinator, with an optional red-team
+  stress test. Read-only. Use when asked what to work on next, for a roadmap
+  or priority ranking, when a goal's next_action needs deeper justification,
+  or before a new campaign on an open question.
+
 ---
 
 # Deep research
@@ -72,16 +70,20 @@ scan. Read broadly before ranking anything:
   fabrication), `docs/target-result-profile.md` (Parts A-C, the C1-C18
   checklist), `docs/inventor-protocol.md` (all 8 sections),
   `docs/claims-and-verification.md`, `docs/task-lifecycle.md`.
-- **Ledger, the whole tree**: `ledger/questions/`, `ledger/proposals/` (not
-  yet converted to hypotheses), `ledger/hypotheses/` grouped by status,
-  `ledger/evidence/`, `ledger/decisions/` (recent `next_actions`),
-  `ledger/goals/` — including sharded goals under
+- **Ledger, the whole tree — through its indexes**: `ledger/questions/`,
+  `ledger/proposals/` (not yet converted to hypotheses), `ledger/hypotheses/`
+  grouped by status, `ledger/evidence/`, `ledger/decisions/` (recent
+  `next_actions`), `ledger/goals/` — including sharded goals under
   `ledger/goals/GOAL-*/{goal.yaml,checkpoints/*.yaml}` — and
-  `ledger/handoffs/`. Grep the whole tree recursively
-  (`grep -rl <term> ledger/ knowledge/`), never just the top-level
-  `ledger/*.yaml` files: those are frozen legacy records covering a fraction
-  of the area codes, and a top-level-only scan reports a clean "free" for an
-  area that is in fact heavily worked.
+  `ledger/handoffs/`. Inventory proposals, hypotheses and experiments from
+  `ledger/.index/*.jsonl` (`python3 tools/build_ledger_index.py`), goals with
+  `tools/goal_head.py list` / `show`, and everything else with
+  `rg -l <term> ledger/ knowledge/` over the whole tree recursively; open
+  only the records those hits put in scope (`docs/agent-runtime-core.md`,
+  "Reading discipline"). Never stop at the top-level `ledger/*.yaml` files:
+  those are frozen legacy records covering a fraction of the area codes, and
+  a top-level-only scan reports a clean "free" for an area that is in fact
+  heavily worked.
 - **Knowledge corpus, every subtype**: `knowledge/open-problems/` (read the
   "why it matters" / forward-guidance text on every `KN-OPEN-*` record in
   scope — this is the program's own list of promising, unresolved leads),
@@ -113,8 +115,11 @@ scan. Read broadly before ranking anything:
   no index built (`:memory:` / empty), say so plainly rather than silently
   skipping novelty checks.
 
-Build, in your own working notes (not committed anywhere), a frontier map per
-live target problem in scope: current best internal/external result,
+Start from the committed known-results map for ECDLP
+(`knowledge/frontiers/ecdlp/`, rendered by `python3 tools/build_frontier_map.py`);
+any external result you find that it lacks is a proposed new row for
+`/curate-knowledge`, not a private note. Then build, in your working notes, a
+frontier map per live target problem in scope: current best internal/external result,
 `dominated_by` and `sota_delta` as last honestly recorded (never assume
 `null` without checking — `docs/inventor-protocol.md` §5), and which open
 problems or findings bound it.
@@ -146,6 +151,14 @@ Take its full output, including the mandatory §5 honest-accounting block
 (`dominated_by`, `sota_delta`, enumerated closures, open directions) even
 when it proposes nothing usable — a session that finds nothing still owes
 that block.
+
+When the scope spans more than one goal, or a goal has stalled across
+sessions, also dispatch the **idea-synthesist** (Fable tier, `research-synthesis`)
+in parallel with the idea-generator, giving it the same inputs plus the
+ledger's `reject_scoped`, `inconclusive` and `weaken` decisions in scope. It
+returns at most five cross-goal ideas, each naming the records it bridges;
+hand both sets to step 4 unmerged, labelled by source. Skip it for a
+single-RQ scope — that is the idea-generator's job, at a fraction of the cost.
 
 ## 4. Convergent pass — portfolio ranking (dispatch coordinator)
 
@@ -230,6 +243,11 @@ Present, in this order:
    changed; every recommendation still needs its normal lifecycle skill and,
    where applicable, Coordinator approval and a ledger archive commit before
    it is official.
+6. **Receipt.** `python3 tools/session_receipt.py --skill deep-research
+   --role <role> --outcome no_change --files-read <n>`
+   (`docs/session-receipts.md`). A synthesis pass is the most expensive
+   read-only wake the program runs; it is the one whose cost most needs a
+   record.
 
 ## Rules
 

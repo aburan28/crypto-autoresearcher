@@ -1,0 +1,291 @@
+repair_report:
+  task_id: TASK-20260929-b72e82
+  experiment_id: EXP-RELN-c5a377
+  hypothesis_id: H-RELN-4d092c
+  batch_id: BATCH-229ce4
+  role: executor
+  archived_by: TASK-20260929-3f7b98
+  generated_at: '2026-09-29T20:15:09.093492+00:00'
+  protocol_version: 4
+  protocol: specification.yaml + AMD-20260926-a7d25d + AMD-20260929-988139 + AMD-20260929-cc7226 (DEC-20260929-7a62cc)
+  repaired_snapshot:
+    receipt: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-03d6bf/snapshot-receipt.json
+    audit: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20260929-4626a5/validation_report.yaml
+  worktree: /Volumes/SSD990/wt-amend-ic
+  branch: coord/ic-leads-impl-20260928
+  head_at_report: e07dec588b99e660510e2bd50ce8791b787b7f65
+  head_note: HEAD moved from 0de5586916 to this commit during the repair (another session committed); nothing under
+    experiments/EXP-RELN-c5a377 was committed by this task.
+  scientific_runs: 0
+  run_directories_created: []
+  frozen_labels_evaluated: false
+  commits_made: false
+  fixes:
+  - id: FX-1
+    finding: F-1
+    status: done
+    files:
+    - driver.py
+    - smoke.py
+    - tests/test_v4.py
+    change: 'manifest.yaml now has a top-level run: block (id, experiment_id, hypothesis_id, protocol_version, status,
+      code, inference, environment, inputs, timing, resources, result{metrics, valid, invalid_reason, raw, certificate},
+      artifacts, depends_on_runs) plus a driver: companion with per-cell details; written with status running before
+      the first cell and rewritten atomically (tmp + os.replace) with raw-result.json after every cell; driver console
+      teed to run-level stdout.log / stderr.log; exceptions and SIGTERM/SIGHUP/SIGINT recorded as failed_infrastructure
+      (failure_class exception|signal), child process killed on interruption, signal handlers restored; procedure
+      defect -> invalid; environment.json lists OS, Python, Sage version and pyyaml/scipy/networkx/psutil/numpy/pytest
+      versions.'
+    tests:
+    - test_fx1_canonical_manifest_written_before_first_cell_and_updated
+    - test_fx1_exception_recorded_as_failed_infrastructure
+    - test_fx1_signal_recorded_as_failed_infrastructure
+    - test_fx1_procedure_defect_is_invalid
+    - 'smoke/v4: both manifests have the run: block, protocol_version 4 and all six run files'
+    mirrors: experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/manifest_v2.yaml and docs/evidence-and-reproducibility.md
+      minimum run manifest
+  - id: FX-2
+    finding: F-5
+    status: done
+    files:
+    - driver.py
+    - tests/test_v4.py
+    change: driver.PROTOCOL_VERSION = 4 (plan check keeps PLAN_PROTOCOL_VERSION = 2, so the frozen trial plan is
+      unchanged); run.inputs.protocol records path + sha256 of specification, AMD-20260926-a7d25d, AMD-20260929-988139,
+      AMD-20260929-cc7226, DEC-20260929-3d166b, DEC-20260929-7a62cc, fixture JSON and generator; a scientific run
+      is refused unless the v3/v4 amendments match the pinned sha256 and their decisions' amendment_sha256_at_decision.
+    tests:
+    - test_fx2_protocol_binding_v4
+    - test_fx2_binding_refuses_tampered_or_missing
+    - test_fx2_trial_plan_unchanged
+  - id: FX-3
+    finding: F-3, F-4
+    status: done
+    files:
+    - analysis.py
+    - celltask.py
+    - tests/test_v4.py
+    change: 'F-3: per size x budget cell, feasible ER replicates counted; zero feasible -> er_exceeds_quarter =
+      undetermined; if all other supercritical clauses hold and no determined cell exceeds, supercritical_rule =
+      undetermined and the verdict is inconclusive (reason cites F-3 and the cells). F-4: celltask.planted_gate_min_v(L)
+      (2,5,5,7,8,10 for L=2,6,7,10,12,14; none for L<2); below it known_positive = not_exercised with gate_min_V,
+      no defect, run continues; FAIL where reachable stays a procedure defect; analysis lists cells lacking known-positive
+      power confirmation and the negative-conclusion scope cells; verdict unchanged.'
+    tests:
+    - test_fx3_gate_min_v[*] (6 cases)
+    - test_fx3_known_positive_not_exercised_below_gate
+    - test_fx3_known_positive_pass_at_gate
+    - test_fx3_known_positive_fail_when_reachable_is_defect
+    - test_fx3_er_infeasible_everywhere_blocks_supercritical
+    - test_fx3_one_infeasible_cell_blocks_supercritical
+    - test_fx3_partially_feasible_cell_is_determined
+    - test_fx3_er_infeasible_does_not_change_other_verdicts
+    - test_fx3_known_positive_not_exercised_listed_verdict_unchanged
+    smoke_note: F-3/F-4 branches are not reached on b16-s13 at the smoke budgets (ER feasible, |V| >= gate minimum);
+      covered by unit tests.
+  - id: FX-4
+    finding: F-6
+    status: done
+    files:
+    - analysis.py
+    - tests/test_v4.py
+    change: analysis.table reports lp_recovery_fraction = "undetermined" where known_false = not_exercised, and
+      carries known_false_status / known_positive_status per row.
+    tests:
+    - test_fx4_recovery_fraction_undetermined_when_known_false_not_exercised
+  - id: FX-5
+    finding: F-7, F-9
+    status: done
+    files:
+    - driver.py
+    - celltask.py
+    - tests/test_v4.py
+    change: 'check_decision refuses status superseded/withdrawn or a non-null superseded_by (coordinator_decision,
+      document or execution_admission) and a decision listed under supersedes by a later ledger decision; --snapshot-receipt
+      PATH is required for a scientific run: every receipt entry under implementation/ must match the working tree
+      (receipt itself excluded), every implementation *.py, tests/*.py and trial-plan-v2.json must be pinned, and
+      git status of implementation/ must be clean (exit 10 otherwise); celltask.run/main refuse a non-smoke namespace
+      unless the environment names an admission decision that check_decision accepts and a run manifest that is
+      running for that decision and namespace (exit 3).'
+    tests:
+    - test_fx5_superseded_or_withdrawn_decisions_refused
+    - test_fx5_decision_superseded_by_later_decision_refused
+    - test_fx5_snapshot_receipt_match_and_clean
+    - test_fx5_snapshot_receipt_excludes_itself
+    - test_fx5_snapshot_refuses_mismatch_dirty_unpinned
+    - test_fx5_main_requires_snapshot_receipt (also refuses the old TASK-20260929-03d6bf receipt)
+    - test_fx5_celltask_refuses_frozen_namespace_without_admitted_driver
+    - test_fx5_celltask_guard_accepts_running_admitted_manifest
+  - id: FX-6
+    finding: F-2
+    status: done
+    files:
+    - smoke.py
+    - driver.py
+    - tests/test_v4.py
+    change: 'Chosen branch: refuse. driver --smoke-dry-run and smoke.py refuse any smoke budget equal to any of
+      the 18 frozen A1/A2 values; new smoke writes under smoke/v4/ (refuses to overwrite), uses b16-s13 (smallest
+      q) at 64/256 and 400/1500, and its summary omits treatment delta, ER-null delta and subcritical-rule inputs.
+      Existing smoke/ artifacts untouched (17 v2 smoke files re-hashed equal to the TASK-20260929-03d6bf receipt).'
+    tests:
+    - test_fx6_driver_refuses_frozen_budgets
+    - test_fx6_smoke_configs_avoid_frozen_budgets
+  - id: FX-7
+    finding: F-10
+    status: done
+    files:
+    - driver.py
+    - tests/test_v4.py
+    change: command.txt records "<python> <implementation>/driver.py <argv passed to main>" (also when called from
+      smoke.py); driver refuses to start (exit 9) and run_cell raises if psutil is missing. Also fixed the F-10
+      text nit in analysis.definitional_impediment (no amendment through v4 maps delta_proof).
+    tests:
+    - test_fx7_command_txt_records_driver_argv
+    - test_fx7_watchdog_fails_closed_without_psutil
+    - smoke/v4 command.txt shows the driver argv
+  rulings_implemented:
+    F-3: ER infeasible in a cell -> undetermined -> cannot support supercritical-enriched; inconclusive where it
+      otherwise would be; feasible ER replicates reported per cell.
+    F-4: known_positive = not_exercised below the gate-reachable |V| for the fixture's L; not a defect; run continues;
+      flagged (cells lacking power confirmation, negative-conclusion scope).
+    F-2_binding: smoke/dry/DRYRUN-controls delta / ER / subcritical values were not opened, printed or summarised
+      by this task.
+  tests:
+    command: TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider
+      -q -rs tests
+    log: test-results.txt
+    passed: 116
+    failed: 0
+    skipped: 0
+    previous: 82 passed
+    new_tests: tests/test_v4.py (34)
+  smoke_v4:
+    summary: smoke/v4/smoke_summary.json
+    summary_sha256: c6d61be4e9f888637ff39d0afb7733ecd18b615652c996d763c37d1a074a0e46
+    command: nice -n 10 python3 smoke.py
+    fixture: b16-s13
+    namespace: smoke|EXP-RELN-c5a377/v2
+    runs:
+      DRYRUN-v4-tiny:
+        budgets:
+        - 64
+        - 256
+        exit: 0
+        status: completed_valid
+      DRYRUN-v4-controls:
+        budgets:
+        - 400
+        - 1500
+        exit: 0
+        status: completed_valid
+    observed: all identities held; rewire/ER (all feasible) replicates ran; known positive pass (|V| >= gate minimum
+      5, L=6); known false not_exercised (tiny) and fails_verification (controls); treatment recovery verified;
+      audit accepted, 0 replay mismatches, 0 certificate failures; rho targets all solved and verified; peak RSS
+      about 25 MB; C-7 recorded, not enforced (smoke).
+    verdict_reported: false
+    snapshot_receipt_exercised: false
+  trial_plan:
+    path: trial-plan-v2.json
+    sha256: 7fb5e40dffa543feb25ea97fc62a8be16baf2db170df6025ec5f1cb7bbef29cf
+    changed: false
+  implementation_files_sha256:
+    analysis.py: 7dc7fdada7d87e12620544d8d0236d2850a8b1c8a39ac33b7d0efd84bc7d989c
+    audit.py: 81508b3f39e153a4f9559924bd345e8b7e5183a8b31405b3323f2c84b9d7a0aa
+    celltask.py: e5d3c642e6766db72b97c253814f46430f4ee4a0d7367cdf63ab507fdb0e253f
+    driver.py: b63c217006f65ea72e516fd070c6ce47257226b4193b1564d59ad7e4bcfd4f78
+    ecarith.py: 72d51323fa78c9f1495e9fce193ccca638eb73c198e062b8fb87e1f5df22e095
+    fixtures.py: b4598b5c2d0e6100a1dcef12b179ea3ec0cc174dfe2abb0d5fb7b709c83d3e60
+    hostinfo.py: d4805bdd32c251472a5de0ebf3e02735b6908ad5bc041022e7f674c92f0feb43
+    implementation.md: 453d64d083c30439f34e0c1f1c628e6815bd18941c2fc8c0119de9c65d051701
+    implementation_report.yaml: a79020afbba21ac613f9cda4afe42e594d15fa01b780b16e912dce644cab5c31
+    labels.py: d9d8d7875866ef68a49c64c0770fa8b627b6d367227905a2f74f81b32d6baf63
+    lpgraph.py: d23c65c0fa4d32df90224bb245f5fce0bc9420f603f59aa30a994f142dd562ad
+    make_report.py: 7b3b331f3b058b5fbd3478967ba193abeee1b53ae912431d1224293dbc410b01
+    make_trial_plan.py: 1e7e45a3f37adc97cc4a138e0e174b72c88c0bea9f3d88e9843d071d0df748dd
+    nulls.py: 9e8f8f02ff20a279e5a2910c5039de9d39941c954e0c4cfa8af2d8d1a0da23fb
+    recovery.py: 6173442676ea689239267f759b2515d323c417d7a99a9e7095a46894ed65f7d3
+    relgen.py: 57a7bc8d79aaab6b9c4c9a3846f8a0d4f6ae037e70ce52787f9aee38a6944f30
+    rho.py: 89e9b2997bd4bcddfc165e5a5d6101fde8f962a21037f6a431771c6bea1fe372
+    smoke/dry/DRYRUN-controls/cells/b16-s11.attempts.jsonl: e940e2890047ac6eeae0275a10f3b1b2940cba93bbcd38ceedbacac7d94156c6
+    smoke/dry/DRYRUN-controls/cells/b16-s11.json: 260254b194f1672acef04ee07271a54a5580c6eecac7fdb89f858fa5d2875de9
+    smoke/dry/DRYRUN-controls/cells/b16-s11.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/dry/DRYRUN-controls/cells/b16-s11.stdout.log: d9c444ac602b2ac6d257dc25532c1053408622c9d18a1fce9395e225e6f612a3
+    smoke/dry/DRYRUN-controls/command.txt: 60b917db206c3f80f5bc59134bbac65ddde60c76b8e1508da4a84c2e166d9945
+    smoke/dry/DRYRUN-controls/environment.json: 913e5fd9bbb1cc78ceadc893ff8ac4fc720d30c98a64dc14851a6951e2a975d7
+    smoke/dry/DRYRUN-controls/manifest.yaml: 0abe9362a122d9f7a4d71352b2270cf5ab962a14c4b5a2ddcb613c3674ece616
+    smoke/dry/DRYRUN-controls/raw-result.json: cb93c5b9343e13a042bc62680973d7ed3ddb3f23c6f0a86ae387f5b6a62b32f1
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.attempts.jsonl: 76ba2150aaa1c02775385d50d0f5da3a6087a8dc0998c8f3c9c9a614f4905ab9
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.json: 54d7179e6ca7ccc3c1dc9a82fa6de515232cd68fa02880280c15fd83124acc7a
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/dry/DRYRUN-tiny/cells/b16-s11.stdout.log: 77bcc5a79f3b94612bfaf43f0cea9b385f6a8fb355eacb1fa41344e6ed051a71
+    smoke/dry/DRYRUN-tiny/command.txt: 60b917db206c3f80f5bc59134bbac65ddde60c76b8e1508da4a84c2e166d9945
+    smoke/dry/DRYRUN-tiny/environment.json: 913e5fd9bbb1cc78ceadc893ff8ac4fc720d30c98a64dc14851a6951e2a975d7
+    smoke/dry/DRYRUN-tiny/manifest.yaml: 51d11007253348cfd46e3f0df468efcc2596cd2b32be7e6cf333b2a8839b67c6
+    smoke/dry/DRYRUN-tiny/raw-result.json: 194496ab83cb9038039b03aa92b8820754585b17aef7bfb389667085e7d25f1a
+    smoke/smoke_summary.json: 25ade8cd77e77725774820c430f5c3622c8aff248f16a3c68e0ac18d0921ef54
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.attempts.jsonl: c0801fd823b4a1d79954386134bd79a18198a6faffa9399f973db47c35020768
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.json: 13ac17805349283377c761da67c0065b016b2ae498bd8e9c41cd451c36e3383d
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-controls/cells/b16-s13.stdout.log: 97e61eef98c2993449e1ef143ab3348cd606cd9b423d0e16a64a87b0408fff36
+    smoke/v4/dry/DRYRUN-v4-controls/command.txt: 414191bbfa74bbfd0cd97cd0e2b027fa11cc066c60e432b1d21a9f65acd85afa
+    smoke/v4/dry/DRYRUN-v4-controls/environment.json: f49a4650818648212cad3550ff9800c616686df16c9a56fa1b3fdd12cafc4998
+    smoke/v4/dry/DRYRUN-v4-controls/manifest.yaml: 8100eae3127e6294aeafbd55496c658cdda31dfbc5b358389ab3c3009d481bc4
+    smoke/v4/dry/DRYRUN-v4-controls/raw-result.json: 0a160f6f3bb40a66812f3b09a54ab51df56346e9a5e818d224890471dd790368
+    smoke/v4/dry/DRYRUN-v4-controls/stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-controls/stdout.log: 725dcf6832d3a4180fdeb1eae1f6d78b612284baf8e9ad9c21d898e598ba465d
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.attempts.jsonl: 6374ba04081507c440e64cc012c564848319503d4e7c9799691a3d48190b3a0f
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.json: 35c6ecab6816456a0f3378ce9313f4268b662f294d00426422468f41f23d1ae7
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-tiny/cells/b16-s13.stdout.log: 41d4959d5561fca865772f9edc765d6a973ca6912a6ebef4264aa634373e4fbc
+    smoke/v4/dry/DRYRUN-v4-tiny/command.txt: ef550532975557727db19d8d1f372e2121280fc52fcdb4ac35cdae87e6da1092
+    smoke/v4/dry/DRYRUN-v4-tiny/environment.json: f49a4650818648212cad3550ff9800c616686df16c9a56fa1b3fdd12cafc4998
+    smoke/v4/dry/DRYRUN-v4-tiny/manifest.yaml: fec9304b9d2227d9b571be0a780464c1ff4006f096037f52719e3c6b8ba9a7bb
+    smoke/v4/dry/DRYRUN-v4-tiny/raw-result.json: 4f8ea8807ed08818eaf601ec9252ebffa774d61e2517f92587251a4e5cb65669
+    smoke/v4/dry/DRYRUN-v4-tiny/stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    smoke/v4/dry/DRYRUN-v4-tiny/stdout.log: 1e94e6efcc087971b30555829e57dbd9d950fd6138cc47ab19437018e5146ef4
+    smoke/v4/smoke_summary.json: c6d61be4e9f888637ff39d0afb7733ecd18b615652c996d763c37d1a074a0e46
+    smoke.py: 99bee21bba2e3a2b970dc84aa22077dcc5c961fd95d35834b1a8c8e3b9a248f7
+    test-results.txt: 95c7f5db270db1cf52a3e5af2a6bcd45ffeedafd114504359d5ae3a6dbfd761e
+    tests/conftest.py: c50c8305f585c9551191788e47ab0cbebac1b54229902d72a7bd11ce8f5ae4b5
+    tests/test_analysis.py: e4653310872bd18fbbac072eb622cf3d6cf627eafca68be33bbc65e050df64ed
+    tests/test_charging.py: 0286aea50d4d0d897fdf2f498df9d8d8bf445f2f2b91f90314652fa3a053bf4f
+    tests/test_controls.py: a24cbb8f0473a042e2f596b854731bcb0fac9a1b0d56c5b570b511bb8a875217
+    tests/test_driver.py: 3edabb5f37bc47fdbd3b035f058e99c2c95c8fc631f29d690e185d200d190bc2
+    tests/test_fixtures.py: 62df12fc5267a84be8b490b6965193acc1de96d66bf4e96fc934c815027a5be5
+    tests/test_graph.py: bbc174ebd54a557a9d841bec1861e2f20faf592705ce2ba8245cb84cc71b9d0a
+    tests/test_v4.py: b629e9cb0b4901c3c7c4ca4ebca31451979b1d3745793d6c0a81369e5c547cd7
+    trial-plan-v2.json: 7fb5e40dffa543feb25ea97fc62a8be16baf2db170df6025ec5f1cb7bbef29cf
+    vcurve.py: fc97b0616b54f42e3569cdad95b634c8e6f30b5e712e6f271dd862d36b3e926f
+  implementation_files_note: every file under implementation/ except this report (which cannot hash itself); __pycache__
+    excluded (gitignored, none present).
+  open_questions:
+  - id: OQ-21
+    topic: F-3 when the subcritical rule also fires
+    reading: 'fail closed: inconclusive, never certified-subcritical.'
+  - id: OQ-22
+    topic: F-4 cell-level power confirmation
+    reading: a size x budget cell is power-confirmed only if all three fixtures pass; planted cycle-rank construction
+      check remains a defect even below the gate.
+  - id: OQ-23
+    topic: 'FX-5 superseded_by: null'
+    reading: null does not refuse (3 committed decisions carry it); non-null refuses; reverse supersedes scan added.
+  - id: OQ-24
+    topic: FX-6 exact inequality
+    reading: budgets adjacent to a frozen value (e.g. 750 vs 751) pass the literal rule though nearly exchangeable;
+      v4 smoke stays far away. Coordinator may want a margin.
+  - id: OQ-25
+    topic: FX-5 dirty-tree rule vs post-snapshot files
+    reading: any file added under implementation/ after the snapshot (smoke output included) blocks a scientific
+      run until a new snapshot covers it; the new snapshot TASK-20260929-3f7b98 must include smoke/v4/ and repair_report_v4.yaml.
+  - id: OQ-26
+    topic: run status vocabulary
+    reading: completed_valid | invalid (procedure_defect) | failed_infrastructure (exception|signal|infrastructure_error|resource_exhaustion)
+      | running.
+  write_scope_check: git status shows changes only under experiments/EXP-RELN-c5a377/implementation/ from this task
+    (coordination/.../tasks/ untracked pre-existed).
+  inference:
+    requested_policy: executor-implementation
+    resolved_model_id: unverified
+    fallback_used: true
+    fallback_reason: 'Cursor runtime: subagent runs on the inherited session model'
+    degraded_requirements: []

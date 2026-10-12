@@ -66,7 +66,9 @@ orchestration/eval/                    Capability and discipline measurement, wi
 evals/suites/                          Eval tasks: verifiable answers and trap cases
 docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
 docs/inventor-protocol.md              Object-first ideation, closure, and proof-architecture search
+docs/scheme-construction-contract.md   Security games and six obligations for new cryptographic schemes
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
+docs/batch-inference.md                Message Batches: delivery routing, registry, escalation
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria
@@ -76,6 +78,7 @@ docs/github-automation.md              PR review, @claude agent, and periodic br
 REVIEW.md                              Contract for automated pull-request review
 tools/sync_open_branches.py            Merges main into stale PR branches; never rebases
 templates/research-records.md          YAML templates for all shared records
+templates/scheme-construction-contract.yaml  Companion drafting template for scheme proposals
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 orchestration/cli.py                   The `autoresearch` entry point (doctor, loop, status)
 pyproject.toml                         Editable install and console scripts
@@ -224,6 +227,15 @@ For explicitly requested experiment preparation and scientific review:
 
 ## Host plugins
 
+Use [Skills and tool routing](docs/skill-routing.md) to choose the workflow for
+curve records, endomorphisms, transfers, relation/solver diagnostics, benchmarks,
+GPU engineering, infrastructure, schemes, proofs, UI work and PR delivery.
+`$route` locates the right skill; `make skills` lists the catalog and
+`make check-skills` checks its discovery surfaces and tool references. Canonical
+skills under `.claude/skills/` have matching `.agents/skills/` adapters.
+Explicit scientific execution still goes directly to `$run`, without a catalog
+or subject-assessment preflight.
+
 The repository ships a thin, portable
 [`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)
 plugin package for Codex, Claude Code, and OpenCode. It supplies a shared
@@ -335,3 +347,10 @@ python3 -m unittest tools/test_research_dispatch.py
 
 See `docs/dynamic-subagent-dispatch.md` for the state machine and promotion
 rules.
+
+## Verified Boolean solver comparisons
+
+See [the Gröbner comparison protocol](groebner_compare/README.md) for the bounded
+Boolean worker runner, independent basis certificates, learn/apply fallback
+accounting, and immutable diagnostic receipts. These are solver-stage controls;
+no full-DLP speedup or research-state transition is implied.

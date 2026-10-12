@@ -1,0 +1,173 @@
+handoff:
+  id: TASK-20260929-3b3e0b
+  from: coordinator
+  to: executor
+  goal_ids: [GOAL-SEMBIN-fcb7a2]
+  question_id: RQ-DREG-bd6c86
+  experiment_id: EXP-SEMBIN-473340
+  hypothesis_id: H-SEMBIN-d8c4fe
+  run_id: RUN-SEMBIN-3a4248
+  authorised_by: DEC-20260929-0d6685
+  archived_by: TASK-20260929-d98ee8
+  archived_by_note: >-
+    TASK-20260929-d98ee8 is the Coordinator's post-run snapshot archive of
+    the run directory. The session minted and checked it on 2026-09-29. The
+    executor makes no git write.
+
+  objective: >-
+    Execute the approved, frozen EXP-SEMBIN-473340 exactly once, from a clean
+    checkout of the approved commit, and preserve every output unaltered.
+    From the repository root, first run the pre-launch gate
+    python3 experiments/EXP-SEMBIN-473340/src/test_boolean_macaulay.py
+    and, only if it exits 0, run the exact launcher
+    python3 experiments/EXP-SEMBIN-473340/src/remeasure.py experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248
+  uncertainty_reduced: >-
+    Whether the FFD_SEMAEV_MEASUREMENT1 section 2 claims (P1 to P3) survive
+    the corrected Boolean-ring product under the reduced and formal
+    conventions on the same systems. Scoring happens later, at evidence
+    review, by the contract's frozen scoring_rule. The executor interprets
+    and scores nothing.
+
+  inputs:
+    - experiments/EXP-SEMBIN-473340/specification.yaml (the frozen contract; read in full before launch)
+    - experiments/EXP-SEMBIN-473340/src/remeasure.py, boolean_macaulay.py, ffd_semaev_core_v1.py, test_boolean_macaulay.py (execute only; never edit)
+    - experiments/EXP-SEMBIN-e76704/validation/validator-20260929/boolring.py (imported by the gate; execute only)
+    - ledger/decisions/DEC-20260929-0d6685.yaml
+    - ledger/hypotheses/H-SEMBIN-d8c4fe.yaml
+    - templates/research-records.md and tools/validate_ledger.py check_run (run-record schema for manifest.yaml)
+
+  dispatch_preconditions:
+    - >-
+      The session's commit of the specification, IDEA-20260929-688ea4,
+      H-SEMBIN-d8c4fe, DEC-20260929-0d6685 and this handoff is verified and
+      pushed (DEC-20260929-0d6685 NA-1). Until then, do not launch.
+    - >-
+      archived_by is bound (TASK-20260929-d98ee8) and a lane is claimed with
+      tools/goal_lanes.py, respecting GOAL-SEMBIN-fcb7a2 max_concurrent 2.
+    - >-
+      At the checkout, the sha256 of each src/*.py equals
+      specification.inputs.source_files: 20f70ad5... boolean_macaulay.py,
+      f1ee28dc... remeasure.py, 15acdaec... ffd_semaev_core_v1.py and
+      87f38ff8... test_boolean_macaulay.py. boolring.py must equal
+      ff9d6d80.... Full values are in the specification. On a mismatch,
+      stop (SR-3).
+    - >-
+      experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/ does not exist.
+      If it does, stop (SR-3).
+
+  constraints:
+    - >-
+      Order. Create the run directory. Run the gate with stdout and stderr
+      redirected into run_dir/prelaunch_test.log. If the gate exits non-zero,
+      stop: do not launch, and return an instrument failure. Otherwise run
+      the launcher once, with stdout and stderr redirected into stdout.log and
+      stderr.log. Redirection does not change the launcher. Record both exact
+      command lines in command.txt.
+    - >-
+      Run the launcher exactly once (SR-1). A run that exits 0 is final
+      whatever results.json shows, including a false
+      control_C1_legacy_reproduces_all. It is never re-run.
+    - >-
+      Never edit anything under experiments/EXP-SEMBIN-473340/src/, the
+      PUBLISHED block, the specification or the validator directory. Never
+      write outside the run directory. Set PYTHONDONTWRITEBYTECODE=1 for both
+      commands so imports write no __pycache__ into src/ or the validator
+      directory, and record it in environment.json. This is environment, not
+      a change to the launcher. Any pre-existing __pycache__ is a derived
+      artifact and is ignored.
+    - >-
+      Exit 3, any other non-zero exit, or a watchdog kill is an
+      infrastructure event, not evidence (SR-2). Preserve every file the
+      attempt wrote, report the traceback, and do NOT re-attempt in this
+      task.
+    - >-
+      Run a single process with no parallelism (maximum_workers 1). The
+      watchdog kills at 86,400 s wall clock or 4 GB resident; report which
+      limit fired.
+    - >-
+      Do not interpret, score, compute medians or deficits, summarise as
+      support or refutation, or describe anything as a finding. Report
+      control_C1_legacy_reproduces_all and elapsed_seconds verbatim.
+    - >-
+      No git write operations, no subagents, no edits to any ledger record.
+      Create no EV-* record.
+    - >-
+      In manifest.yaml, record inference.requested_policy
+      executor-implementation and the model actually serving. If they
+      differ, record fallback_used and the reason; never silently
+      substitute.
+
+  deliverables:
+    - prelaunch_test.log, written by the executor from the gate's stdout and stderr
+    - results.json, manifest.json and log.txt, written by the runner itself and left unaltered
+    - stdout.log, stderr.log, command.txt and environment.json (python version, platform, CPU count, memory), captured by the executor
+    - raw-result.json, a byte-identical copy of results.json with its sha256 recorded in manifest.yaml
+    - >-
+      manifest.yaml: the run record in the schema checked by
+      tools/validate_ledger.py. Top-level key run, with id
+      RUN-SEMBIN-3a4248, experiment_id EXP-SEMBIN-473340, status, code
+      {commit, dirty, command}, environment, inputs {parameters: cells,
+      field_bits [4, 5, 6, 7], N [6, 8], Dmax 6, draws 10/25, conventions,
+      seed formulas}, timing, and result {exit_code, gate_exit_code,
+      control_C1_legacy_reproduces_all copied verbatim, certificate {kind
+      none, verified true, verifier no-claim}}. Also the sha256 of every
+      src/*.py and of boolring.py as observed at launch.
+    - a short task report in the return message (not a file)
+
+  artifact_paths:
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/prelaunch_test.log
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/results.json
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/manifest.json
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/log.txt
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/stdout.log
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/stderr.log
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/command.txt
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/environment.json
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/raw-result.json
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/manifest.yaml
+  write_scope:
+    - experiments/EXP-SEMBIN-473340/runs/RUN-SEMBIN-3a4248/
+
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 86400
+    memory_gb: 4
+    maximum_runs: 1
+  budget_note: >-
+    These are machine-protection ceilings, not estimates. The expected
+    runtime is tens of minutes, and it is unmeasured. Watchdog expiry
+    checkpoints the task as an infrastructure event. It is never evidence
+    and never exhausts the campaign.
+
+  completion_gate:
+    - The pre-launch gate exited 0 and prelaunch_test.log is written.
+    - The launcher exited 0 and results.json is written in the run directory.
+    - manifest.json source_sha256 equals specification.inputs.source_files for all four files (IR-1).
+    - Every path in artifact_paths exists and nothing outside write_scope was written.
+    - raw-result.json is byte-identical to results.json.
+    - >-
+      A gate failure or a non-zero launcher exit does NOT meet this gate. The
+      task returns as an infrastructure or instrument failure with the
+      preserved partial files and the traceback. That is a complete, honest
+      return, not a result.
+
+  return_format: >-
+    A plain report containing: the gate exit code and its final "N failed"
+    line; the launcher exit code; wall time; control_C1_legacy_reproduces_all
+    and elapsed_seconds copied verbatim from results.json; the observed
+    sha256 values; the list of files written with sizes; and any deviation
+    from this card. No interpretation, no medians and no scoring.
+
+  review_required: true
+  review_plan: null
+  review_plan_note: >-
+    This producer task opens no review round. After TASK-20260929-d98ee8
+    archives the run and before any reviewer runs, the Coordinator writes
+    the review_plan on the validator handoff (DEC-20260929-0d6685 NA-3). The
+    recorded prior is DEC-20260929-0d6685 coordinator_prior.
