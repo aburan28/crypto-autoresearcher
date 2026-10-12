@@ -1,0 +1,224 @@
+# =============================================================================
+# H-ECDLP-2f1033 -- SNFS-G1 specified: lifting E to a subfield K of Q(zeta_c)
+# in which the Mersenne prime p = 2^c - 1 splits completely gives, per
+# K-point, [K:Q] residues in E(F_p) and one free Galois trace relation among
+# them; the canonical-height obstruction keeps the relation yield ratio below
+# one and the covering exponent at the random-field value. The honest
+# analogue of the Cunningham-project SNFS (which worked in Z[zeta_c]).
+# Derived from IDEA-20261009-57140c (addendum G). Status proposed with
+# specified_by; nothing here asserts an outcome. Toy primes only. The
+# contract EXP-ECDLP-84af7b is implemented in Rust (nfield library + g1 binary,
+# optional libpari FFI for cross-checks)
+# (number-field arithmetic, complete-splitting check, exact square roots,
+# bounded point search, residues and the trace relation); 2-descent over K
+# is not available, so the rank arm reports proven non-torsion new points,
+# not rank.
+# =============================================================================
+hypothesis:
+  id: H-ECDLP-2f1033
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-57140c
+  added: '2026-10-09'
+  statement: >-
+    Let p = 2^c - 1 be a Mersenne prime with c prime, so ord_p(2) = c, p = 1
+    mod c, and p splits completely in Q(zeta_c) and in every subfield K of
+    degree d | c - 1. Let E/Q have rank 0, good reduction at p, and let P_1,
+    ..., P_d be the primes of K above p (each with residue field F_p). For a
+    K-point P the residues r_i(P) = P mod P_i lie in E(F_p) and satisfy
+    sum_i r_i(P) = Tr_{K/Q}(P) mod p, a torsion point, so each K-point of
+    height <= H gives up to d factor-base residues and one linear relation
+    among them. (Claim) For every tested (c, d) and curve, the relation yield
+    ratio R(H) = #relations / #distinct residues from K-points of height <= H
+    stays below 1 and decreases in H, the covering exponent gamma =
+    dlog(#distinct residues)/dlog(enumeration work) does not exceed that of
+    a random field of the same degree in which p splits completely by more
+    than 0.2, and rank E(K) - rank E(Q) matches matched random fields. Alive
+    only if R(H) >= 1 with the random-field control below 1, or gamma exceeds
+    the null by > 0.2 across >= 3 primes.
+  mechanism: >-
+    The Cunningham SNFS exploited that 2^c - 1 = prod_{d | c} Phi_d(2) and
+    that Z[zeta_c] maps onto Z/N: a ring of small-height elements with a
+    homomorphism onto the target ring. For E(F_p) the only analogue of that
+    ring is E(K) for a number field K, and the price is canonical height
+    (face F4b of KN-TECH-06bb4e; H-ECDLP-bd1572 HEUR-003). What complete
+    splitting adds is a Galois multiplier: one K-point reduces at d distinct
+    degree-one primes, giving d residues and, through the trace, one free
+    relation. Index calculus needs at least one relation per residue, so the
+    multiplier helps only if residues of distinct K-points coincide often or
+    small points are dense, both of which the height obstruction forbids.
+    The measurement is whether R(H) and gamma on the cyclotomic arm differ
+    from a random completely split field of the same degree; the prediction
+    is that they do not.
+  assumptions:
+    - "E(Q) finite (rank 0 from small-conductor tables) so that Tr(P) is torsion and the trace relation is free; a rank > 0 curve makes the relation depend on Tr(P), which the record then treats as an extra factor-base element."
+    - "Complete splitting is verified per (p, K) by factoring p in O_K; a field in which p does not split completely is an invalid cell, not evidence."
+    - "Descent or bounded point search over degree <= 12 fields is feasible at toy conductor in PARI/GP or Magma; the Q(c^{1/d}) degree ladder of EXP-ECDLP-3e8403 is the sibling null."
+    - "Residue coincidences (r_i(P) = r_j(P) or residues shared between K-points) are counted, since they raise R(H) without new information."
+  proof_search_map:
+    bottleneck: >-
+      one relation per residue: each small K-point yields d residues and one
+      trace relation, so relations / residues ~ 1/d unless residues coincide
+      or small points are dense; the canonical height forbids density.
+    baseline_embedding:
+      parameter_slice: >-
+        d = 1 is the Q-lift arm of EXP-ECDLP-3e8403 (coverage only, no
+        relation); SNFS-F1 (IDEA-20261009-4b1724) is the Q(c^{1/d}) arm.
+      reproduction_check: >-
+        the d = 1 cell must reproduce EXP-ECDLP-3e8403's covering numbers on
+        the shared curves and boxes.
+    observation_collision:
+      observable: R(H) and gamma as functions of d
+      distinct_preimage_search: >-
+        random completely split fields of the same degree and similar
+        discriminant, same curves: a gain present there is a degree effect,
+        not a cyclotomic one.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: E over a subfield K of Q(zeta_c) in which p = 2^c - 1 splits completely, with the Galois trace as relation generator
+        predicted_gain: none in exponent predicted; R(H) < 1 and gamma at the random-field value
+    quantifier_order: >-
+      For all tested (c, d) and curves, R(H) < 1 for every H reached and
+      gamma(cyclotomic) - gamma(random) <= 0.2; there exists no (c, d) with
+      R(H) >= 1 while the control stays below 1.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        a yield-ratio and covering-exponent table at four toy Mersenne
+        primes and degrees <= 12; no asymptotic statement.
+      nearby_object_control: random completely split fields; rank-0 curves so the trace is torsion
+    proof_obligations:
+      - claim: trace relations verified in E(F_p) by exact arithmetic on every K-point found
+        responsibility: correctness
+      - claim: complete splitting verified per (p, K)
+        responsibility: scope
+      - claim: enumeration work counted (points tried), not only points found
+        responsibility: runtime
+      - claim: R(H) and gamma computed identically on both arms
+        responsibility: baseline
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        For E/Q of rank 0 and K a completely split subfield of Q(zeta_c) of
+        degree d, the number of K-points of canonical height <= H is
+        c_K * H^{r_K/2} with r_K = rank E(K) distributed as for a random
+        field of the same degree and discriminant, and the residues of
+        distinct points at the d primes above p are distributed as d
+        independent uniform points of E(F_p); hence R(H) <= (1 + o(1))/d
+        and gamma equals the random-field value.
+      random_model_justification: >-
+        Canonical heights are positive definite on E(K)/tors (KN-LIT-7621,
+        KN-TECH-060); the count of points of bounded height is governed by
+        rank and regulator, not by the Galois structure of K; reduction at
+        distinct primes above p is independent in the absence of a
+        structural coincidence (HEUR-002 of H-ECDLP-bd1572).
+      supporting_results:
+        - KN-LIT-6935a1 (four faces of lifting; global nontorsion face blocked by canonical height)
+        - KN-LIT-021 (xedni fails asymptotically; lifted points have large height)
+        - H-ECDLP-bd1572 HEUR-003 and EXP-ECDLP-3e8403 (bounded-box covering on Q(c^{1/d}))
+      validation_experiment_ids: [EXP-ECDLP-84af7b]
+      falsification_condition: >-
+        R(H) >= 1 at some H on a cyclotomic arm with the random-field
+        control below 1, reproduced at >= 2 primes; or gamma on the
+        cyclotomic arm exceeding the random-field null by > 0.2 across >= 3
+        primes with splitting verified and trace relations exact.
+  structural_ingredients:
+    - description: The four faces of lifting for ECDLP; the global nontorsion face is blocked by canonical height.
+      citation: KN-LIT-6935a1
+      provenance: kb
+      verified_by: knowledge/literature/KN-LIT-6935a1.md
+      role: the obstruction the Galois multiplier must beat
+    - description: Analysis of the xedni calculus; lifting to characteristic zero fails.
+      citation: KN-LIT-021
+      provenance: kb
+      verified_by: knowledge/literature/KN-LIT-021.md
+      role: the Q-side negative this record extends to cyclotomic fields
+    - description: Formal group, reduction and canonical heights (textbook).
+      citation: KN-LIT-7621
+      provenance: kb
+      verified_by: knowledge/literature/KN-LIT-7621.md
+      role: height formalism and reduction at primes of K
+    - description: Lifting-obstruction taxonomy (face F4b).
+      citation: KN-TECH-06bb4e
+      provenance: internal
+      verified_by: knowledge/techniques/KN-TECH-06bb4e.md
+      role: the cell this hypothesis occupies
+    - description: Kilobit SNFS factorization of 2^1039 - 1 (the Cunningham-project sieve this record mirrors).
+      citation: KN-LIT-2090
+      provenance: kb
+      verified_by: knowledge/literature/KN-LIT-2090.md
+      role: the special structure (Z[zeta_c] -> Z/N) whose curve analogue is tested
+    - description: Splitting of p in Q(zeta_c) and its subfields.
+      citation: Washington, Introduction to Cyclotomic Fields, ch. 2
+      provenance: recalled
+      verified_by: null
+      role: pointer; the splitting is verified computationally per cell, never assumed
+    - description: Rank growth in towers of number fields (control theorem).
+      citation: Mazur 1972, Rational points of abelian varieties with values in towers of number fields
+      provenance: recalled
+      verified_by: null
+      role: pointer for the rank-gain arm; never support
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: relation_yield_ratio_R_H_max_over_H
+      direction: lower
+      minimum_effect: "< 1 at every (c, d, curve); decreasing in H"
+    - metric: covering_exponent_gamma_cyclotomic_minus_random_field
+      direction: different
+      minimum_effect: "|difference| <= 0.2 at every d"
+    - metric: rank_gain_E_K_minus_E_Q_cyclotomic_minus_random_field
+      direction: different
+      minimum_effect: within sampling error of 0
+    - metric: complete_splitting_verified_cells
+      direction: higher
+      minimum_effect: 100 % of cyclotomic cells (instrument)
+  test_boundary:
+    instances:
+      - "p = 2^c - 1 for c in {13, 17, 19, 31}; subfields K of Q(zeta_c) of degree d | c - 1, d <= 12"
+      - "7 rank-0 curves E/Q (y^2 = x^3 - x, x^3 - 4x, x^3 - 9x, x^3 + 1, x^3 - 1, Cremona 11a1 and 14a1; conductors <= 288) with good reduction at every p; rank 0 re-verified by PARI/GP ellrank over Q when gp is present (CTRL-RANK0)"
+      - "controls per (p, d): three cyclic degree-d subfields of Q(zeta_m), m prime, m != c, in which p splits completely (abelian controls), and two random completely split small-coefficient fields where the seeded search finds them (d <= 4 in practice)"
+    parameters:
+      claim_tier: toy
+      work_ladder: "W in {300, 1000, 3000, 10000, 30000, 100000} candidates x = a(t)/e tried, a in sup-norm shells on the power basis, e <= 4"
+      rank_method: "no 2-descent over K (PARI/GP ellrank is over Q only); new K-points proven non-torsion by reduction are counted, a lower bound on the rank gain only if independent, which is not certified; ellrank over Q verifies rank 0 of each E/Q"
+    implementation: >-
+      IMPLEMENTED in the design session in Rust: experiments/EXP-ECDLP-84af7b/
+      implementation/ (nfield library: Gaussian-period polynomials of
+      Q(zeta_m), Q[t]/(g) arithmetic on exact rationals, exact discriminant,
+      roots and factorisation mod q, complete-splitting check, exact square
+      root by finite-field Tonelli-Shanks, CRT, ring Hensel lift and rational
+      reconstruction, sup-norm-shell point search sieved at 8 degree-one
+      auxiliary primes, residues at the degree-one primes above p, torsion
+      bound and the trace relation; g1 binary). libpari 2.15 is linked
+      through an FFI shim behind the `pari` feature and used only as a
+      cross-check (ellrank over Q for CTRL-RANK0, nfdisc for CTRL-DISC); the
+      run proceeds without it. Smoke-tested at c = 13, d <= 4, W <= 10000 (91
+      cells, no trace-relation failure, byte-identical replay, deterministic
+      cells equal to the earlier Python prototype). See the EXP-ECDLP-84af7b
+      launcher.
+    budget:
+      enforcement: advisory
+      total_cpu_hours: 60
+      maximum_memory_gb: 4
+  falsification_conditions:
+    - "HEUR-001 (alive condition): R(H) >= 1 on a cyclotomic arm with the random-field control below 1, reproduced at >= 2 primes."
+    - "HEUR-001 (alive condition): gamma on the cyclotomic arm exceeds the random-field null by > 0.2 across >= 3 primes."
+    - "A cell whose field does not split p completely, or whose curve has E(Q) infinite, is invalid, not evidence."
+    - "A positive signal at a single toy prime is a finite control until reproduced across c (claim boundary)."
+  interpretation_limits:
+    - Toy primes and conductors only; nothing is extrapolated.
+    - "A null result supports the hypothesis in the exact tested scope and closes nothing (AGENTS.md rules 5 and 6)."
+    - "Residue coincidences inflate R(H) without information; they are counted and reported separately."
+    - No statement about any deployed parameter set is made or implied.
+  status: proposed
+  proposed_by: user
+  specified_by: coordinator-design-session-20261009-G
+  related_records:
+    - H-ECDLP-bd1572
+    - EXP-ECDLP-3e8403
+    - IDEA-20261009-4b1724
+    - GOAL-XEDN-001

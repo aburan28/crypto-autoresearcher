@@ -47,7 +47,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 
 def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
@@ -64,7 +67,7 @@ def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
         # real id is the parent directory name, not the file stem.
         fallback_id = p.parent.name if p.name == "goal.yaml" else p.stem
         try:
-            doc = yaml.safe_load(p.read_text())
+            doc = fast_yaml.safe_load(p.read_text())
         except Exception as exc:  # noqa: BLE001 - reported per-goal, not raised
             goals.append({
                 "id": fallback_id,
