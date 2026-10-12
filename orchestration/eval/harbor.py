@@ -36,8 +36,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-import yaml
-
+from orchestration import fast_yaml
 from orchestration.adapter import config as config_module
 
 from . import graders as graders_module
@@ -113,7 +112,7 @@ class HarborSuite:
 
 
 def load_suite(path: str | Path) -> HarborSuite:
-    document = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    document = fast_yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     suite = document["harbor_suite"]
     tasks: list[HarborTask] = []
     seen: set[str] = set()
