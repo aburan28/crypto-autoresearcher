@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sweep every `active` goal's current dispatch queue and classify it.
+"""Classify selected or all `active` goals' current dispatch queues.
 
 This exists because the harness kept stalling on a per-goal basis: a session
 would pick one `active` goal, spend its whole budget discovering that its
@@ -29,7 +29,8 @@ bucket:
                  queue or the local worktree, never a research result, and
                  it is never negative evidence about the goal's hypothesis.
 
-Use `--json` for machine consumption (the launch-research-harness skill
+Use repeatable `--goal GOAL-*` to inspect only shortlisted goals; without it,
+the full portfolio sweep remains available. Use `--json` for machine consumption (the launch-research-harness skill
 reads this to pick a goal without re-deriving the sweep by hand) or the
 default table for a human-readable status board.
 
@@ -47,7 +48,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 
 def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
@@ -64,7 +68,7 @@ def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
         # real id is the parent directory name, not the file stem.
         fallback_id = p.parent.name if p.name == "goal.yaml" else p.stem
         try:
-            doc = yaml.safe_load(p.read_text())
+            doc = fast_yaml.safe_load(p.read_text())
         except Exception as exc:  # noqa: BLE001 - reported per-goal, not raised
             goals.append({
                 "id": fallback_id,
@@ -224,19 +228,18 @@ def deepen_clone(repo_root: Path) -> tuple[bool, str]:
     nothing to dispatch.
     """
 
-    proc = subprocess.run(
-        ["git", "-C", str(repo_root), "fetch", "--unshallow", "origin"],
-        capture_output=True, text=True,
-    )
-    if proc.returncode == 0 and not is_shallow_clone(repo_root):
-        return True, "deepened via `git fetch --unshallow origin`"
-    detail = (proc.stderr or proc.stdout).strip().splitlines()
-    return False, detail[-1] if detail else f"git exited {proc.returncode}"
+    # Commits and trees only (`--filter=blob:none`): reachability needs no
+    # historical file contents, and the full unshallow fetched every blob of
+    # every branch. docs/sparse-checkout.md.
+    import sparse_checkout
+    return sparse_checkout.deepen(repo_root)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo-root", default=".", help="Repository root (default: cwd)")
+    parser.add_argument("--goal", action="append", metavar="GOAL_ID",
+                        help="classify one selected goal; repeat for a shortlist")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a table")
     parser.add_argument(
         "--no-deepen", action="store_true",
@@ -245,6 +248,9 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
+    import sparse_checkout
+    if sparse_checkout.refuse_if_sparse("goal_portfolio_health", repo_root):
+        return 2
 
     # A shallow clone makes research_dispatch.py's commit-reachability checks
     # fail for perfectly good archives whose commit is real but older than the
@@ -273,6 +279,14 @@ def main() -> int:
         )
 
     goals = discover_active_goals(repo_root)
+    if args.goal:
+        requested = set(args.goal)
+        found = {goal["id"] for goal in goals}
+        missing = requested - found
+        if missing:
+            print(f"unknown or inactive goal(s): {', '.join(sorted(missing))}", file=sys.stderr)
+            return 2
+        goals = [goal for goal in goals if goal["id"] in requested]
 
     with tempfile.TemporaryDirectory(prefix="goal_portfolio_health_") as tmp:
         out_dir = Path(tmp)
