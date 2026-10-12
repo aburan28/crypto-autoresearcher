@@ -26,6 +26,11 @@ from typing import Any, Callable
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sparse_checkout  # noqa: E402
 
@@ -105,7 +110,7 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     if sha256(spec_path) != plan["specification_sha256"]:
         raise ExecutionError("specification hash changed; use an additive amendment")
     try:
-        document = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+        document = fast_yaml.safe_load(spec_path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ExecutionError(f"malformed specification: {error}") from error
     if not isinstance(document, dict):

@@ -3,7 +3,7 @@
 # Source: orchestration/roles.yaml -> roles.consolidator
 # No `model` key on purpose: the model comes from the policy layer.
 description: >-
-  Cross-lane consolidator for the ECDLP autoresearch program. Use to read agent-bus traffic ACROSS lanes that cannot see each other and carry pointers between them -- two sessions circling one experiment, a lane about to spend budget another lane already spent. Carries pointers, never findings. Changes no research state and assigns no work.
+  Reads agent-bus traffic across lanes that cannot see each other and carries pointers between them: two sessions circling one experiment, a lane about to spend budget another already spent. Pointers, never findings; changes no research state and assigns no work.
 mode: subagent
 temperature: 0.1
 permission:
