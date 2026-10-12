@@ -53,9 +53,12 @@ def load_renames() -> dict[str, tuple[str, list[tuple[str, str]]]]:
     declared substitution is still verified byte for byte; nothing is waived.
     """
     try:
-        import yaml
+        try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+            import fast_yaml
+        except ImportError:  # imported as tools.<name>, the repository root importable
+            from orchestration import fast_yaml
         with open(REMAP_PATH, encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh) or {}
+            doc = fast_yaml.safe_load(fh) or {}
     except (OSError, ImportError):
         return {}
     if doc.get("schema") != "run-id-remap-v1":
@@ -127,6 +130,18 @@ def main() -> int:
         print(f"NOTICE: base ref '{base}' not resolvable; skipping "
               f"immutability check")
         return 0
+
+    # Scope the diff to what HEAD itself introduced. With a merge-commit
+    # checkout the merge-base is the live base tip; without one (e.g. the
+    # conflict fallback to the bare PR head) it still excludes main-side
+    # drift, so other lanes' landings are never attributed to this PR.
+    # If the merge-base cannot be resolved, keep the base tip (prior
+    # behavior) rather than skipping the gate.
+    merge_base = subprocess.run(
+        ["git", "merge-base", base_sha, head],
+        capture_output=True, text=True)
+    if merge_base.returncode == 0 and merge_base.stdout.strip():
+        base_sha = merge_base.stdout.strip()
 
     # --no-renames is load-bearing. With rename detection on, moving a run
     # directory is reported as R and slips past --diff-filter=MD entirely, so

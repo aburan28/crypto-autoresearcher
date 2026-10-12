@@ -1,0 +1,527 @@
+red_team_report:
+  schema: crypto.autoresearch.red_team_report.v1
+  id: RT-20261007-385334
+  task_id: TASK-20261007-385334
+  role: red-team
+  goal_id: GOAL-SSI-2fa82a
+  question_id: RQ-SSI-1946c9
+  batch_id: BATCH-65c2dd
+  claim_under_review: >-
+    Each frozen producer packet is an explicit EndRing-based PKE candidate
+    with a defined functionality mechanism and accurately scoped security
+    dependency.
+  review_boundary: >-
+    This report owns only J3/O4, J4/O5, and J5/O6. It does not adjudicate
+    O1-O3, change any ledger or queue state, establish security, establish
+    novelty, or generalize a candidate-specific break to EndRing-based PKE.
+  snapshot:
+    receipt: coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-0ec6c3/snapshot-receipt.json
+    packet_hashes_recomputed: true
+    all_eight_candidate_packet_hashes_match_receipt: true
+    packet_bytes_modified_by_reviewer: false
+
+  requirement_to_evidence:
+    - requirement: "Return per-candidate verdicts on J3-J5."
+      status: verified_complete
+      evidence: "candidates.CEST-PKE.joints and candidates.ER-McE.joints"
+    - requirement: "Execute public-data and leaked-plaintext proves-too-much controls symbolically."
+      status: verified_complete
+      evidence: "controls"
+    - requirement: "Cover malformed/wrong-key, distribution, and actual-message attacks."
+      status: verified_complete
+      evidence: "candidate joint findings and controls"
+    - requirement: "Scope prior-art comparison to declared source pointers."
+      status: verified_complete
+      evidence: "prior_art"
+    - requirement: "Run zero experiments and report runtime truthfully."
+      status: verified_complete
+      evidence: coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/runtime-session-receipt.json
+
+  candidates:
+    CEST-PKE:
+      producer_task: TASK-20261007-913665
+      candidate_name: canonical-endomorphism scalar-transfer PKE
+      joints:
+        J3_O4:
+          verdict: inconclusive
+          claim_tested: >-
+            The public sender computes R=[r]P and S_snd=[r]A, while the
+            recipient uses a secret complete End(E) witness to derive psi_E
+            and computes S_rec=psi_E(R).
+          attacks:
+            identical_public_data: >-
+              With only (P,A,R) and the public pairing, recovery is the
+              same-scalar transfer problem: compute [r]A from R=[r]P. The
+              pairing publicly verifies a proposed S because
+              e_q(P,S)=e_q(R,A), and it exposes a target-group discrete-log
+              route to r, but this review did not derive a classical PPT
+              recovery algorithm under the stated asymptotic model. No
+              experiment or concrete work-factor estimate was run.
+            complete_witness_quotient: >-
+              Replace the complete rank-four witness W by one evaluator for
+              psi_E. Key validation of psi_E(P)=A and every decryption value
+              psi_E(R) remain identical. Therefore the functionality factors
+              through a strict quotient of the alleged EndRing secret.
+            prior_failure_regression: >-
+              The packet does not invoke SecretLift, EndpointLift, Complete_2,
+              C-star, BaseGen, Eval2, public label transport, or target-frame
+              reconstruction. The prior missing-lift failures are therefore
+              not silently reused.
+          reason: >-
+            A precise conditional recipient operation exists and no public
+            polynomial transfer algorithm was exhibited, so the functionality
+            mechanism is not broken. However, the claimed secret advantage is
+            only the separate scalar-transfer assumption, and complete EndRing
+            information is unnecessary for decryption. An EndRing-specific
+            recipient asymmetry is not established.
+          narrow_surviving_statement: >-
+            For an accepted key and an available evaluator for psi_E, the
+            recipient can compute the same transfer point as the sender. This
+            says nothing about the public hardness of transfer or the necessity
+            of a complete endomorphism-ring witness.
+          exact_gap: >-
+            Prove either a classical-PPT public-transfer attack or a reduction
+            relating scalar transfer or recovery of psi_E to the exact complete
+            EndRing problem on the real key distribution.
+          falsifiers:
+            - "A classical PPT algorithm computing [r]A from (P,A,[r]P)."
+            - "A proof that the psi_E evaluator quotient can be recovered publicly."
+            - "A reduction from the strict quotient to a complete evaluable End(E) basis."
+
+        J4_O5:
+          verdict: breaks
+          endring_challenge_embedding: >-
+            Starting from a bare EndRing challenge E does not supply the real
+            auxiliary public fields P and A=psi_E(P), because producing A
+            already requires the hidden action or a distribution compiler.
+            Redefining the challenge as AuxEndRing_CEST supplies the real pk,
+            but it does not solve extraction.
+          extraction_failure: >-
+            A successful IND-CPA or transfer adversary returns a bit or, at
+            most, exposes one transfer value. The required solver must output
+            a complete evaluable rank-four basis for End(E). The decryption
+            observable is unchanged when W is replaced by the psi_E evaluator
+            quotient, so the present black-box transcript does not identify
+            the required full witness. This is a scoped failure of the supplied
+            reduction, not a proof that every non-black-box reduction is
+            impossible.
+          direction_check: >-
+            The available implication is complete EndRing solver -> derive
+            psi_E -> compute psi_E(R) -> decrypt. That is an attack route, not
+            the required scheme attacker -> EndRing solver direction.
+          intermediate_reduction: >-
+            The classical-ROM masking step from IND-CPA to the separately
+            defined CEST-XFER-KI real-or-random game is directionally
+            consistent on its exact real distribution. It is essentially a
+            hashed same-scalar-transfer assumption and is not EndRing hardness.
+          quantitative_status: >-
+            No EndRing advantage bound, abort probability, complete-ring
+            extractor, or bare-to-real distribution loss is supplied.
+          narrow_surviving_statement: >-
+            Conditional on the exact CEST-XFER-KI game and the honest
+            interfaces, the packet sketches a classical-ROM IND-CPA hybrid.
+            It does not establish confidentiality from EndRing hardness.
+          exact_gap: >-
+            Given the exact intended EndRing challenge, simulate the complete
+            real public key and random-oracle view and use the adversary to
+            output a complete evaluable End(E) basis with quantified polynomial
+            loss.
+          falsifiers:
+            - "A real-key distribution field that cannot be generated from the stated EndRing challenge."
+            - "Two complete-witness worlds inducing the same reachable-line transfer transcript but requiring different solver outputs."
+            - "An extractor that returns only a transfer point, one endomorphism, or a torsion action instead of a complete ring basis."
+
+        J5_O6:
+          verdict: inconclusive
+          complete_view_check: >-
+            The packet lists the curve and field data, q, d, B, P, A, pairing,
+            validation algorithms, full pk bytes, (R,v), classical random
+            oracle, repeated encryptions, and parsing outcomes. It explicitly
+            excludes decryption oracles, CCA, QPT/QROM, malicious keys,
+            side channels, and concrete parameters. No undeclared oracle was
+            found inside the stated single-user classical IND-CPA scope.
+          malformed_and_wrong_key: >-
+            Bytewise pk binding and canonical parsing reject wrong-key,
+            alternate-encoding, off-curve, infinity, wrong-order,
+            outside-<P>, and wrong-length inputs before returning a secret
+            result. Valid in-line changes to v are malleable and yield related
+            plaintexts, but no CCA or non-malleability claim is made.
+          repeated_use: >-
+            The packet correctly records that nonce reuse repeats R and the
+            pad and reveals message XORs, with a stated birthday term. It does
+            not give a concrete q, target-group DLP cost, hash-collision bound,
+            or multi-user analysis, so no concrete security statement follows.
+          pairing_view: >-
+            The public pairing makes proposed transfer points efficiently
+            recognizable. The packet correctly avoids a DDH claim, but this
+            gap-style verification surface and the target-group DLP route must
+            be included in any later hardness or parameter analysis.
+          prior_art_result: >-
+            The abstract-level SiGamal pointer also describes ElGamal-like PKE
+            from a public point and a hidden isogeny image, so CEST-PKE has a
+            high-level action-transfer overlap. The declared records are
+            insufficient to decide exact duplication or novelty. Seta, LIT-
+            SiGamal, and supersingular UPKE do not establish an exact syntax
+            match at the inspected pointer scope.
+          narrow_surviving_statement: >-
+            The declared classical single-user IND-CPA view is substantially
+            enumerated, but public-transfer hardness, concrete parameters, and
+            primary-source prior-art separation remain unverified.
+          exact_gap: >-
+            Complete a primary-source syntax comparison and a parameterized
+            public-transfer analysis that charges curve and target-group DLP,
+            pairing verification, repeated-use collision terms, and all
+            structured-key auxiliary data.
+          falsifiers:
+            - "An accepted alternate encoding or omitted public response that changes the game."
+            - "A primary-source construction with the same public/secret transfer syntax and assumption."
+            - "A polynomial public transfer algorithm or parameter family with polynomially easy target-group DLP."
+
+      candidate_verdict: >-
+        Candidate only. It retains a clean conditional message-transfer
+        mechanism and a possible intermediate co-scalar-transfer research
+        object, but O5 breaks for EndRing-based security and J3/J5 remain
+        inconclusive. It is not a reviewed EndRing-secure PKE construction.
+      narrowest_supported_statement: >-
+        CEST-PKE is an explicit conditional hashed same-scalar-transfer PKE
+        shell whose decryption can use a canonical endomorphism evaluator;
+        complete EndRing necessity and EndRing-based confidentiality are not
+        established.
+      next_concrete_action: >-
+        Analyze the strict psi_E-evaluator quotient and the exact public
+        same-scalar-transfer problem before attempting implementation or an
+        EndRing security theorem.
+
+    ER-McE:
+      producer_task: TASK-20261007-61f3bc
+      candidate_name: ER-seeded McEliece PKE
+      decisive_counterexample:
+        name: chosen-pair exact-weight residual test
+        scope: >-
+          Every accepted ER-McE key for which G_pub has full row rank and the
+          public code has minimum distance at least 2t+1, with two distinct
+          adversarially selected messages m0 and m1.
+        adversary: >-
+          On challenge c=m_b G_pub+e, compute x_i=c-m_i G_pub for i in {0,1}
+          and output the unique i for which wt(x_i)=t.
+        proof: >-
+          The true residual x_b=e has weight exactly t. If the other residual
+          also had weight t, then the nonzero codeword
+          (m0-m1)G_pub=x_0+x_1 would have weight at most 2t, contradicting the
+          declared minimum distance at least 2t+1. Full row rank and m0!=m1
+          ensure that codeword is nonzero. Thus the adversary recovers b with
+          probability 1 and has advantage 1/2 under the packet's convention.
+        evidence_kind: symbolic_derivation
+        experiments_run: 0
+        limitation: >-
+          This breaks only the exact plaintext-plus-exact-weight-error ER-McE
+          syntax. It is not a break of general McEliece, EndRing, or every
+          EndRing-derived composition.
+      joints:
+        J3_O4:
+          verdict: breaks
+          private_operation_check: >-
+            Conditional on a valid Goppa trapdoor and decoder, bounded-distance
+            decoding is a precise secret-dependent message-recovery operation.
+            It does not use any missing isogeny lift.
+          public_data_attack: >-
+            For the actual selected-message IND-CPA interface, the adversary
+            does not need generic decoding. The public exact-weight predicate
+            applied to its two selected messages identifies the encrypted
+            message exactly by the decisive counterexample above. Therefore
+            recipient-only recovery, as needed for confidentiality of the
+            selected message, is false for this ciphertext syntax.
+          endring_specificity: >-
+            Even absent that break, decryption factors through the stored code
+            trapdoor; the complete ring is merely a seed source. The recipient
+            advantage would be code-decoding hardness, not an EndRing-specific
+            private operation.
+          narrow_surviving_statement: >-
+            A valid secret Goppa decoder conditionally recovers arbitrary
+            plaintexts, but the exact encryption syntax does not hide which of
+            two chosen plaintexts was encrypted.
+          exact_gap: >-
+            Replace the raw exact-weight McEliece encoding with a separately
+            specified, reviewed IND-CPA-secure code-based transform before
+            asking whether an EndRing-derived seed contributes anything.
+          falsifiers:
+            - "The public residual-weight test above on any two distinct messages."
+            - "A public structural decoder or deterministic-seed recovery algorithm."
+
+        J4_O5:
+          verdict: breaks
+          challenge_embedding: >-
+            A bare Walk-ER challenge supplies only E. The real G_pub is derived
+            from r=CanRing(E,W), so the simulator cannot generate the real
+            public-key distribution without already knowing a valid End(E)
+            witness. Aux-ER-McE can include G_pub by definition, but does not
+            provide an extractor.
+          extraction_failure: >-
+            An IND-CPA output bit or code decoder is not a complete evaluable
+            rank-four End(E) basis. The decisive public adversary does not use
+            any ring-dependent feature at all, making the missing extraction
+            especially explicit. This observation breaks the supplied proof
+            architecture but does not prove that every non-black-box
+            reduction is impossible.
+          separate_assumption: >-
+            Seeded-Goppa-IND is not implied by EndRing in the packet. Moreover,
+            as defined for c=mG_pub+e with exact wt(e)=t and distance at least
+            2t+1, it is false by the public chosen-pair attack.
+          direction_check: >-
+            Complete EndRing solver -> regenerate the code trapdoor -> decrypt
+            remains only an attack route. The required attacker -> complete
+            EndRing solver direction is absent.
+          quantitative_status: >-
+            No real-distribution embedding, extractor, advantage loss, abort
+            bound, or runtime theorem is supplied.
+          narrow_surviving_statement: >-
+            A complete ring witness is sufficient to regenerate this
+            deterministic code trapdoor, assuming canonicalization, but neither
+            confidentiality nor an EndRing security reduction follows.
+          exact_gap: >-
+            Any revision must first remove the unconditional IND-CPA break,
+            then produce the real public key from the exact EndRing challenge
+            and extract a complete ring solution from the revised attack game.
+          falsifiers:
+            - "Witness-dependent public-key generation that cannot be simulated from the challenge."
+            - "An adversary whose transcript contains no information needed for a complete ring output."
+            - "Any separately necessary code assumption with no reduction to EndRing."
+
+        J5_O6:
+          verdict: breaks
+          complete_view_break: >-
+            The public view includes G_pub, both chosen messages, and c. These
+            values expose the two efficiently computable residual weights.
+            The packet's view enumeration does not evaluate this attack, and
+            its own distance condition proves the predicate unique.
+          actual_message_result: >-
+            The chosen-pair attack recovers the challenge bit and therefore
+            the actual selected plaintext from the two allowed candidates.
+            It is not merely an endpoint, seed, codeword, or invariant attack.
+          malformed_and_wrong_key: >-
+            Canonical parsing and the key tag give a single bottom outcome for
+            the listed malformed cases. Accidental wrong-key acceptance remains
+            unanalyzed, but it is not needed for the IND-CPA break and no CCA
+            or robustness theorem survives or is claimed.
+          repeated_use: >-
+            Repetition and multi-target effects remain unanalyzed, but the
+            one-challenge public attack already succeeds with probability 1;
+            additional ciphertexts are unnecessary.
+          prior_art_result: >-
+            None of the four abstract-level supersingular-PKE pointers states
+            this ring-seeded Goppa composition. That is not a novelty finding:
+            the sources are corpus summaries rather than complete primary-text
+            audits, and generic secret-seeding compositions were not searched.
+          narrow_surviving_statement: >-
+            The packet enumerates parsing and disclosure fields, but its exact
+            adversarial view contains an unconditional selected-message test;
+            hence the proposed IND-CPA assumption and confidentiality claim
+            are contradicted for the stated ciphertext syntax.
+          exact_gap: >-
+            Adopt a code-based encryption transform whose selected-message
+            security theorem covers the exact public-key distribution,
+            encodings, coins, and model; then repeat O4-O6 review from scratch.
+          falsifiers:
+            - "For distinct m0,m1, exactly one residual c-m_iG_pub has weight t."
+            - "Any challenge syntax that leaves an efficiently testable validity predicate tied to the selected message."
+
+      candidate_verdict: >-
+        Contradicted as an IND-CPA candidate in its exact stated syntax. The
+        conditional bounded-distance decoder remains a functionality shell,
+        but J3 and J5 break by a public selected-message test and J4 breaks by
+        both the absent EndRing reduction and the false intermediate
+        Seeded-Goppa-IND assumption.
+      narrowest_supported_statement: >-
+        ER-McE specifies a deterministic EndRing-seeded Goppa trapdoor and a
+        conditional secret decoder, but raw c=mG_pub+e with exact weight t and
+        distance at least 2t+1 is perfectly distinguishable for two distinct
+        selected messages.
+      next_concrete_action: >-
+        Do not implement this ciphertext syntax. A gap-fed revision should
+        replace the raw McEliece layer with a separately reviewed
+        selected-message-secure code-based transform and must still keep code
+        hardness distinct from EndRing hardness.
+
+  controls:
+    proves_too_much:
+      leaked_plaintext_control:
+        executed_symbolically: true
+        object: "Enc(pk,m)=(original_ciphertext,m), with Dec returning m."
+        CEST_PKE_result: >-
+          The IND-CPA adversary reads m. In the proposed CEST-XFER-KI hybrid,
+          the random-pad world is no longer independent of beta because the
+          appended component reveals m_beta. The argument stops at the
+          message-independence step and therefore does not prove the known-
+          false object secure.
+        ER_McE_result: >-
+          The IND-CPA adversary reads m and obtains no EndRing witness. Any
+          claimed extractor that accepts this advantage unchanged would prove
+          too much. The supplied packet has no such extractor; its reduction
+          remains open. The unmodified ER-McE syntax is already distinguishable
+          by the residual-weight test.
+        control_outcome: expected_failure_observed
+      public_recovery_control:
+        executed_symbolically: true
+        object: >-
+          Copy the alleged private recovery operation into the public key.
+        CEST_PKE_result: >-
+          A public psi_E evaluator computes S=psi_E(R); querying H_pad on the
+          resulting transcript decrypts and distinguishes real from random in
+          CEST-XFER-KI. Recipient asymmetry and the intermediate assumption
+          fail at the public-transfer step.
+        ER_McE_result: >-
+          A public Goppa decoder recovers m directly. Recipient asymmetry fails
+          at decoding; no complete EndRing output follows. Independently, the
+          stated unmodified ciphertext is already selected-message
+          distinguishable without publishing the decoder.
+        control_outcome: expected_failure_observed
+      overall: >-
+        Both known-false objects cause the claimed confidentiality argument to
+        fail at a named step. No argument in the packets survives the controls
+        and falsely proves those objects secure.
+
+    distribution_bridge:
+      executed_symbolically: true
+      CEST_PKE: >-
+        Bare E does not generate A=psi_E(P); AuxEndRing_CEST matches the real
+        auxiliary view only by changing the hard problem. No distance,
+        compiler, or witness-pullback theorem is supplied.
+      ER_McE: >-
+        Bare E does not generate the ring-seeded G_pub without W. Defining an
+        auxiliary challenge containing G_pub matches the view but does not
+        extract W.
+    malformed_and_wrong_key:
+      executed_symbolically: true
+      CEST_PKE: >-
+        Declared malformed and wrong-key encodings return one failure symbol;
+        valid in-line ciphertext changes remain malleable outside any CCA claim.
+      ER_McE: >-
+        Declared malformed and wrong-tag cases return bottom; wrong-key
+        accidental acceptance is open and irrelevant to the one-challenge CPA break.
+    actual_message:
+      executed_symbolically: true
+      CEST_PKE: >-
+        Conditional transfer agreement feeds an XOR pad and returns the chosen
+        bit string; public hardness remains unestablished.
+      ER_McE: >-
+        The public residual-weight predicate identifies the actual selected
+        message among m0,m1 with certainty for distinct messages.
+    prior_failure_regression:
+      executed_symbolically: true
+      result: >-
+        Neither packet reuses the named C-star, lift, target-frame, BaseGen, or
+        Eval2 interfaces. Candidate-specific failures therefore do not support
+        a universal obstruction to other EndRing PKE mechanisms.
+
+  prior_art:
+    source_scope: >-
+      Only the four declared knowledge records were read. Each is a corpus
+      pointer based on an abstract or first pages and explicitly disclaims a
+      complete verification. No linked PDF or external primary text was read.
+    comparisons:
+      - source: knowledge/literature/KN-LIT-6572.md
+        inspected_scope: complete_40_line_record_only
+        result: >-
+          Seta uses a torsion-attack trapdoor one-way function and an
+          endomorphism/torsion route to an isogeny. Neither packet establishes
+          an exact match at this source scope.
+      - source: knowledge/literature/KN-LIT-6628.md
+        inspected_scope: complete_40_line_record_only
+        result: >-
+          SiGamal/C-SiGamal is described as ElGamal-like with an auxiliary
+          point and hidden-isogeny image assumption. CEST-PKE has a material
+          high-level action-transfer overlap requiring primary-text review;
+          ER-McE uses a code trapdoor instead.
+      - source: knowledge/literature/KN-LIT-827.md
+        inspected_scope: complete_40_line_record_only
+        result: >-
+          The pointer concerns key-updatable PKE and update security. Neither
+          candidate defines key updates, so no exact overlap is established.
+      - source: knowledge/literature/KN-LIT-1260.md
+        inspected_scope: complete_38_line_record_only
+        result: >-
+          LIT-SiGamal uses a commutative LIT diagram with horizontal and
+          vertical isogenies. Neither packet uses that diagram; exact novelty
+          remains unverified.
+    novelty_verdict: unverified
+    exact_match_found: false_at_pointer_scope_only
+    limitation: >-
+      Absence of an exact match in four abstract-level records is not evidence
+      of novelty or nonexistence in the literature.
+
+  objections:
+    - id: OBJ-CEST-O5-REDUCTION-DIRECTION
+      candidate: CEST-PKE
+      joint: J4_O5
+      severity: blocking_for_endring_security
+      finding: >-
+        The only EndRing implication is solver-to-break; no scheme-attacker-to-
+        complete-ring extractor or bare-distribution compiler exists.
+    - id: OBJ-CEST-O4-WITNESS-QUOTIENT
+      candidate: CEST-PKE
+      joint: J3_O4
+      severity: assumption_scope
+      finding: >-
+        Every decryption output factors through one psi_E evaluator, so full
+        EndRing necessity is not established.
+    - id: OBJ-ERMCE-CPA-WEIGHT-TEST
+      candidate: ER-McE
+      joint: J3_O4_and_J5_O6
+      severity: decisive_candidate_break
+      finding: >-
+        The chosen-pair residual-weight test recovers the challenge bit with
+        probability 1 for every accepted key and two distinct messages.
+    - id: OBJ-ERMCE-O5-EMBED-EXTRACT
+      candidate: ER-McE
+      joint: J4_O5
+      severity: blocking_for_endring_security
+      finding: >-
+        The real code key requires the hidden ring seed, while an IND bit or
+        code decoder does not output a complete ring witness.
+
+  baseline_comparison: >-
+    CEST-PKE's functionality is a hashed cross-base same-scalar transfer shell
+    and is provisionally governed by group/target-group discrete-log or
+    co-scalar-transfer hardness, not a demonstrated EndRing theorem. ER-McE's
+    private operation is ordinary bounded-distance Goppa decoding, but its raw
+    encryption syntax fails IND-CPA before any comparison to decoding or
+    EndRing hardness.
+  heuristic_challenges:
+    - "CEST-XFER-KI hardness remains conjectural in the presence of public pairing verification and structured keys."
+    - "No concrete q, extension degree, target-group DLP cost, or quantum scope supports CEST parameters."
+    - "ER-McE's Seeded-Goppa-IND is contradicted for the stated exact-weight syntax, not merely unsupported."
+  cost_model_challenges:
+    - "CEST must charge target-group DLP/pairing-assisted attacks, complete-ring generation, canonical selection, and extension-field arithmetic."
+    - "ER-McE never reaches a meaningful security-cost comparison because the public weight test is polynomial and exact."
+  reduction_and_scope_challenges:
+    - "Real-key auxiliary data is not compiled from the intended bare EndRing challenge for either candidate."
+    - "Neither adversary output is shown to determine a complete evaluable End(E) basis."
+    - "Intermediate transfer/code assumptions must remain separate; one cannot be renamed EndRing hardness."
+  proof_architecture_challenges:
+    - "CEST observable-fiber attack: W and the psi_E evaluator quotient have identical decryption behavior but different EndRing status."
+    - "ER-McE nearby-object attack: the adversary's public residual test ignores the ring seed entirely."
+    - "Known-false leaked-plaintext and public-recovery objects fail at the expected confidentiality/simulation steps."
+
+  narrowest_supported_statement: >-
+    CEST-PKE remains a conditional same-scalar-transfer candidate with a
+    precise algebraic receiver interface but no EndRing security reduction.
+    ER-McE is contradicted as an IND-CPA candidate for its exact raw
+    exact-weight ciphertext syntax. These findings neither establish a secure
+    PKE nor rule out other EndRing-based constructions.
+  next_concrete_action: >-
+    Feed two gaps into the next ideation round: first, require any CEST revision
+    to connect the strict psi_E quotient to complete EndRing on the exact real
+    distribution; second, require any ER-seeded code revision to start from a
+    separately reviewed selected-message-secure code transform rather than raw
+    c=mG+e. Preserve both intermediate assumptions as distinct from EndRing.
+  experiment_accounting:
+    scientific_runs: 0
+    implementation_runs: 0
+    formalizer_runs: 0
+    benchmark_runs: 0
+    measured_observations: []
+    interpretation_basis: "static symbolic review of frozen artifacts only"
+  artifact_paths:
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/red-team-report.yaml
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/review-attestation.yaml
+    - coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/runtime-session-receipt.json

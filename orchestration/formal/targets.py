@@ -27,10 +27,10 @@ class TargetError(ValueError):
 
 
 def load_spec(path: str | Path) -> dict[str, Any]:
-    import yaml
+    from orchestration import fast_yaml
 
     text = Path(path).read_text(encoding="utf-8")
-    spec = yaml.safe_load(text)
+    spec = fast_yaml.safe_load(text)
     if not isinstance(spec, Mapping):
         raise TargetError(f"{path}: spec must be a mapping")
     if spec.get("schema") != SCHEMA_FORMAL_TASK_V1:
