@@ -1,0 +1,271 @@
+# =============================================================================
+# TASK-20261008-e2830e -- B0: BLIND READING OF THE G-REPRO EXCLUSION CLAUSE
+# Written BEFORE any AFTER-B0 input was opened (implementation-notes.yaml,
+# reproduce_check.py, analyze_a.py: none opened). Never edited after its seal
+# (b0-seal.txt). Corrections, if any, go into adjudication.yaml as an addendum.
+# =============================================================================
+b0_blind_reading:
+  task_id: TASK-20261008-e2830e
+  experiment_id: EXP-PFDR-0b3699
+  role: validator (fresh review-adversarial session)
+  branch_head_read: 02878b94d6eaf85e46076aabe0eacfd6af162a08
+  after_b0_inputs_opened_before_this_file: none
+  sources_used_for_b0:
+    - experiments/EXP-PFDR-0b3699/specification.yaml gates G-REPRO (and the rest of the frozen contract, read in full)
+    - "experiments/EXP-PFDR-011cd0/specification.yaml gates G1' (text), with its context clauses read: counting_conventions, cells.design_curves, analysis.A-CAL_calibration, analysis.A-INT_intervals, gates G4 and G7, run_procedures, invalidation_rules I-5"
+    - tests/test_index_calculus_relcensus.py (T-DET test_census_cli_determinism_table_and_search, lines 601-627; _strip_census, lines 589-598; _strip_seconds, lines 529-532)
+    - src/crypto_autoresearcher/index_calculus/ (__main__.py, harvest.py, solver.py, factor_base.py read; tails.py, decompose.py, _accel.py read at the cited lines)
+    - "key paths only (151 paths, no values) of line 1 of experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-table/attempt-1/jobs/4-b30-c10/rows.jsonl.gz, printed by attacks/keypaths_first_census_row.py into attacks/keypaths_first_census_row.out.txt"
+  not_read_for_b0: >-
+    experiments/EXP-PFDR-1b78f7/compare_regression.py, which G1' names as its
+    comparator ("compare_regression.py of EXP-PFDR-1b78f7, unchanged"), is not
+    an input of this task and was not opened. B0 reads G1' from its text
+    alone. If that comparator defines "timing key" operationally (for example
+    by a key-name pattern), that definition is not seen here.
+
+  clause_texts:
+    G-REPRO: >-
+      "after gzip decompression and JSON parse, every census row (timing keys
+      excluded, as EXP-PFDR-011cd0 G1'), every harvest row and every staircase
+      row equals the archived rows.jsonl.gz, harvest-rows.jsonl.gz and
+      staircase.jsonl.gz of the same job; then the same two jobs with --arms
+      extended by planted_sub and small_x_offset give identical rows for every
+      pre-existing arm. Comparator reproduce_check.py only."
+    G1_prime: >-
+      "harvest-off regression -- every row of all six committed sweep files
+      reproduced, every non-timing key equal after JSON parse (seconds
+      excluded), exact row count, no duplicate key, with --solve-certs passed
+      (compare_regression.py of EXP-PFDR-1b78f7, unchanged)"
+    T_DET_convention: >-
+      _strip_census (tests/test_index_calculus_relcensus.py 589-598) removes
+      top-level "seconds", and inside "harvest" removes "harvest_seconds" and
+      "worker_maxrss_bytes"; it is applied to every line of the census rows,
+      harvest rows and staircase rows before the w1 / w2 / split comparison
+      (lines 621-623). It removes nothing else.
+    G1_prime_context_from_code: >-
+      G1' compares harvest-off SWEEP rows. Sweep rows carry "seconds"
+      (__main__.py 117 for rho rows, 151 for ic rows) and carry a "harvest"
+      block only when harvest != "off" (__main__.py 152-153). So in G1''s own
+      rows the only timing key is "seconds", and no row has
+      harvest_seconds, worker_maxrss_bytes or ru_maxrss_bytes. "(seconds
+      excluded)" therefore exhausts the timing keys of G1''s rows; G1' had no
+      occasion to rule on a harvest-block key or on a memory key.
+
+  a_key_inventory:
+    scope_note: >-
+      Census rows of `census --panel main --modes table --relcount --retain
+      all` (the R12 / RA-04 shape). The key set below is the one the engine
+      code emits (__main__.py 713-717, 772-784, 804; harvest.py 916-968), and
+      it equals the 151 key paths printed from the first archived 011cd0 census
+      row (attacks/keypaths_first_census_row.out.txt), with two conditional
+      additions: ru_maxrss_bytes (address-space-cap rows only) and the reduced
+      key sets of failure rows (__main__.py 739-757, 1065-1068).
+      Harvest rows (key fields bits, curve, m, arm, mode + class, attempt,
+      elements, coeffs, kcoef, rhs, formal, cert_ok, census_rank_after;
+      __main__.py 703-706, harvest.py 628-631) and staircase rows (key fields +
+      class, rows_emitted, rows_fed, formal_rank, U, final_informative_rank,
+      increments, saturation_index, perm_saturation_indices; __main__.py
+      708-710, harvest.py 882-885) contain NO key that measures time, CPU,
+      memory or another host resource. They are all class C.
+    timing_and_host_keys:
+      - key: seconds
+        class: T
+        engine_lines:
+          - "__main__.py 779: \"seconds\": ic.seconds_total (completed and gate-failed rows)"
+          - "solver.py 132, 241, 273: t0 = time.perf_counter(); t2 = time.perf_counter(); seconds_total=t2 - t0 (wall-clock elapsed time of the whole instance)"
+          - "__main__.py 729, 741, 746, 757: \"seconds\": time.perf_counter() - t0 on the certificate-failure, watchdog and address-space-cap rows"
+        present_in_archived_first_row: true
+        note: absent from job-crash rows (__main__.py 1065-1068)
+      - key: harvest.harvest_seconds
+        class: T
+        engine_lines:
+          - "harvest.py 966: block[\"harvest_seconds\"] = self.seconds + rec.seconds"
+          - "harvest.py 487/523, 644/713, 784/840, 906/965 (Harvester.seconds += time.perf_counter() - t0) and 188, 219/228 (SearchRecorder.seconds)"
+        present_in_archived_first_row: true
+      - key: harvest.worker_maxrss_bytes
+        class: H
+        engine_lines:
+          - "harvest.py 968: block[\"worker_maxrss_bytes\"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024"
+        measures: the high-water mark of resident memory of the whole worker process up to the moment finish() runs; not a function of the instance's computation
+        present_in_archived_first_row: true
+      - key: ru_maxrss_bytes
+        class: H
+        engine_lines:
+          - "__main__.py 747-757: on MemoryError, \"ru_maxrss_bytes\": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024"
+        present_in_archived_first_row: false
+        note: >-
+          Conditional. Present only on a row with status failed_infrastructure
+          and status_reason "address-space cap: MemoryError: ..."; such a row
+          has no harvest block.
+    resource_named_or_cost_keys_classified_C:
+      - key: harvest.ss_store.peak_bytes
+        class: C
+        engine_lines: ["harvest.py 81: BYTES_PER_ENCODING = 12", "harvest.py 955-960: peak = self.store_entries; \"peak_bytes\": peak * BYTES_PER_ENCODING"]
+        reason: >-
+          A modelled byte figure: a deterministic counter of SS-store entries
+          times a constant. It is not read from the host. It is "bytes" by name
+          only. A name-pattern exclusion (e.g. *bytes*) would wrongly drop it.
+      - key: harvest.ss_store.peak_entries
+        class: C
+        engine_lines: ["harvest.py 955, 960"]
+        reason: a counter of entries appended (harvest.py 795)
+      - key: "table_entries; harvest.table.entries, .distinct_x_keys, .formally_distinct_tails, .scratch_statistic"
+        class: C
+        engine_lines: ["__main__.py 774", "solver.py 268", "harvest.py 706-711"]
+        reason: sizes and a statistic of the computed table
+      - key: "s3_solves, table_s3_solves, membership_tests, group_ops, target_ops, decomp_ops, la_ops, search_s3; harvest.harvest_verify_group_ops; harvest.ss_store.encodings_recorded, .search_s3_charged, .degenerate_roots, .identity_ok"
+        class: C
+        engine_lines: ["__main__.py 773-780", "harvest.py 956-960, 967", "solver.py 243, 263-269"]
+        reason: >-
+          Operation counters of the computation (the engine's cost unit is a
+          count, __main__.py docstring 19-23), deterministic given the inputs
+          and the code path. They are not host measurements.
+      - key: accelerated
+        class: C
+        engine_lines: ["__main__.py 778", "solver.py 137", "decompose.py 70-73", "_accel.py 33-34 (numpy importable and p < 2^32)"]
+        reason: >-
+          Records the code path taken. It depends on the environment (numpy
+          present) but measures nothing.
+      - key: log2N
+        class: C
+        engine_lines: ["__main__.py 59"]
+        reason: float computed from N
+      - key: "status, status_reason, ok, k_found, k_verified, checks.*"
+        class: C
+        engine_lines: ["__main__.py 739-757, 772-805, 942-953"]
+        reason: >-
+          Outputs and verdicts of the run. On the failure paths their values
+          (and the row's key set) depend on host limits (SIGALRM watchdog,
+          __main__.py 620-627 and 742-746; RLIMIT_AS MemoryError, 747-757).
+          See c.
+
+  b_exclusion_by_the_frozen_phrase:
+    - key: seconds
+      excluded: true
+      confidence: high
+      reason: >-
+        It is a timing key. G1' names it ("seconds excluded"), and T-DET strips
+        it (_strip_census line 591).
+    - key: harvest.harvest_seconds
+      excluded: true
+      confidence: high
+      reason: >-
+        Read on the plain words, it is a timing key: elapsed perf_counter time
+        (harvest.py 966). G-REPRO says "timing keys", a plural class, not the
+        single key "seconds". G1' defines the compared set as "every
+        non-timing key", so the excluded class is timing keys. G1''s
+        parenthetical "(seconds excluded)" names the only timing key its
+        harvest-off rows have, so it does not narrow the class. The committed
+        T-DET convention strips it too (_strip_census 595-596). The only
+        reading that keeps it compared takes "(seconds excluded)" to mean
+        exactly the key named "seconds". That reading contradicts G-REPRO's
+        plural "timing keys", and it makes the gate unsatisfiable in practice.
+    - key: harvest.worker_maxrss_bytes
+      excluded: false
+      confidence: medium
+      reason: >-
+        On the plain words it is not a timing key. It is a host memory
+        measurement. The frozen phrase excludes "timing keys", and G1' compares
+        "every non-timing key". So the literal text keeps it in the comparison.
+        Against that: the committed T-DET convention, the program's own
+        determinism comparison of exactly these three row files, strips it
+        together with the two timing keys (_strip_census 595-596). And G1' had
+        no occasion to address it, because harvest-off sweep rows have no
+        harvest block. So one reading is admissible but not compelled: "timing
+        keys excluded, as G1'" was meant to drop the process measurements
+        that are not outputs of the computation, which is what T-DET drops.
+        But "as EXP-PFDR-011cd0 G1'" points to G1', not to T-DET, and G1''s
+        words reach only timing keys. The text therefore does not exclude the
+        key; whether its drafters meant to is undecided (d).
+    - key: ru_maxrss_bytes
+      excluded: false
+      confidence: medium-high
+      reason: >-
+        Not a timing key on the plain words, and T-DET does not strip it either
+        (_strip_census pops only seconds, harvest.harvest_seconds and
+        harvest.worker_maxrss_bytes). Its presence implies an
+        address-space-cap failure row. Equality then needs both the archived
+        and the re-run row to stop on the same instance with equal peak RSS.
+        In practice it bears on G-REPRO only when such a row exists in either
+        file, and then status and the key set already differ unless both runs
+        stopped there.
+
+  c_expected_to_differ_between_identical_runs_on_one_host:
+    - key: harvest.worker_maxrss_bytes
+      answer: yes, it can differ; equality is not guaranteed by the code
+      from_code: >-
+        ru_maxrss (RUSAGE_SELF) is the high-water mark of resident pages of the
+        whole process, read at the end of each instance (harvest.py 968). With
+        --workers 1 every instance of a job runs in the one CLI process
+        (__main__.py 1072-1081). Each row's value is therefore the peak over
+        the process's whole history before it: imports, every earlier curve and
+        arm, and this instance's table. Nothing in the code ties it to the
+        instance's inputs. It depends on allocator and garbage-collector
+        behaviour, numpy temporary buffers, interpreter and library builds,
+        and the kernel's resident-page accounting (pages reclaimed or swapped
+        under memory pressure do not count). For two byte-identical commands
+        on one idle host with one environment, equal values are plausible but
+        are not guaranteed by the code. Two conditions make a difference
+        expected. (1) A changed environment: the G-REPRO first comparison is
+        against rows archived by another session, possibly with another
+        interpreter or numpy build. (2) A changed process history: the
+        G-REPRO second comparison adds planted_sub and small_x_offset, which
+        run inside the same process, in MAIN_ARMS_ALL order (__main__.py
+        563-566, 882), before every arm of the next curve (jobs sorted by
+        curve, 1036). That can raise the high-water mark seen by later
+        pre-existing-arm rows. The T-DET test compares w1, w2 and split runs,
+        whose process histories differ, and passes only because it strips
+        this key.
+    - key: ru_maxrss_bytes
+      answer: yes, by the same mechanism; the row exists only when RLIMIT_AS fires, which itself depends on host memory behaviour
+    - key: seconds, harvest.harvest_seconds
+      answer: yes (wall-clock perf_counter differences); T keys, excluded
+    - related_non_measurement_keys: >-
+        Not T or H keys, but host-dependent on failure paths only: status,
+        status_reason, ok and the row's key set change if the per-instance
+        watchdog (SIGALRM, __main__.py 620-627, 742-746) or the address-space
+        cap (747-757) fires. The frozen phrase excludes none of these. A
+        watchdog or cap stop in RA-02 would therefore make G-REPRO fail on an
+        infrastructure event. That follows from the text; it is not a gap in
+        it. Separately, "accelerated" and the TT/TB stored order depend on
+        numpy being importable (tails.py iter_keys docstring: stored order
+        differs between the numpy and dict paths). That is an environment
+        dependence, not a difference between identical runs.
+
+  d_keys_the_text_leaves_undecided:
+    keys:
+    - key: harvest.worker_maxrss_bytes
+      why: >-
+        The literal words compare it, because it is not a timing key. The
+        cited model G1' never met it. The committed determinism convention for
+        exactly these row files strips it. No frozen clause says which governs.
+    - key: "seconds, harvest.harvest_seconds, harvest.worker_maxrss_bytes in the SECOND G-REPRO comparison"
+      why: >-
+        "give identical rows for every pre-existing arm" states no exclusion.
+        Read literally, T keys must be identical, which no run can meet. The
+        only executable reading carries the first sentence's exclusion over.
+        Whether that carried exclusion is "timing keys" only, or the T-DET set
+        that adds worker_maxrss_bytes, is undecided. That clause also leaves
+        open whether "rows" covers harvest and staircase rows as well as census
+        rows, and whether the comparand is the archived rows or the first
+        re-run.
+    related_points_not_keys:
+      - >-
+        G-REPRO does not say whether rows are matched by order of file or by
+        key, or whether G1''s "exact row count, no duplicate key" is imported
+        with "as G1'". On the words, "as G1'" attaches to the timing exclusion
+        only. "every census row ... equals the archived rows" implies a
+        one-to-one correspondence but does not name the matching key.
+      - >-
+        ru_maxrss_bytes is decided (compared) by both the words and T-DET, but
+        it can matter only on an address-space-cap row.
+  summary: >-
+    Blind reading: the frozen phrase excludes seconds and
+    harvest.harvest_seconds (high confidence). Read on its plain words, it
+    does not exclude harvest.worker_maxrss_bytes or ru_maxrss_bytes (medium;
+    medium-high). harvest.worker_maxrss_bytes is the one census-row key the
+    text leaves undecided. Its exclusion is an admissible reading, supported
+    by the committed T-DET convention, but the words do not compel it, and
+    the engine code gives no guarantee that it is equal across runs (c).
+    Harvest and staircase rows contain no T or H key. No data value of either
+    experiment was read for this reading.

@@ -26,6 +26,14 @@ from typing import Any, Callable
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sparse_checkout  # noqa: E402
+
 PLAN_SCHEMA = "crypto.autoresearch.trial_plan.v1"
 RECEIPT_SCHEMA = "crypto.autoresearch.trial_receipt.v1"
 REPO = Path(__file__).resolve().parents[1]
@@ -102,16 +110,21 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     if sha256(spec_path) != plan["specification_sha256"]:
         raise ExecutionError("specification hash changed; use an additive amendment")
     try:
-        document = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+        document = fast_yaml.safe_load(spec_path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
         raise ExecutionError(f"malformed specification: {error}") from error
     if not isinstance(document, dict):
         raise ExecutionError("specification is not a mapping")
     spec = document.get("experiment", document)
+    # Expand after a Stages 0-1 package review may leave status=running while
+    # further execution_authorized stages remain runnable (DEC expand).
+    # Expand after Stages 0-1 review leaves status=running while further
+    # execution_authorized stages remain runnable (DEC expand / standing auth).
     if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
-            or spec.get("status") != "approved" or spec.get("frozen") is not True
+            or spec.get("status") not in ("approved", "running")
+            or spec.get("frozen") is not True
             or not spec.get("approved_by") or spec.get("execution_authorized") is False):
-        raise ExecutionError("specification is not approved, frozen and execution-authorized")
+        raise ExecutionError("specification is not approved/running, frozen and execution-authorized")
     safe_path(root, plan["queue"])
     sources = plan.get("source_sha256")
     if not isinstance(sources, dict) or not sources:
@@ -191,7 +204,9 @@ def run_root(root: Path, plan: dict[str, Any], trial: dict[str, Any]) -> Path:
 def trial_state(root: Path, plan: dict[str, Any], trial: dict[str, Any], plan_hash: str) -> str:
     directory = run_root(root, plan, trial)
     if not directory.exists():
-        return "planned"
+        # A sparse checkout can leave a committed run off disk: unknown, never planned.
+        relative = directory.relative_to(root.resolve()).as_posix() + "/"
+        return "not_materialized" if sparse_checkout.tracked_absent(root, relative) else "planned"
     # Mere existence is NOT completion and is NOT permission to launch again.
     try:
         receipt = read_json(safe_path(directory, "execution-receipt.json"))
@@ -226,6 +241,7 @@ def coverage(root: Path, path: Path) -> dict[str, Any]:
             "remaining": len(states) - counts["output_validated"],
             "planned": counts["planned"], "waiting_on_dependencies": counts["waiting_on_dependencies"],
             "needs_reconciliation": counts["needs_reconciliation"],
+            "not_materialized": counts["not_materialized"],
             "measurement_complete": counts["output_validated"] == len(states),
             "publication_verified": False, "scientific_review_verified": False,
             "trials": states}
@@ -310,6 +326,23 @@ def authorize(root: Path, path: Path, plan: dict[str, Any], owner: str, epoch: i
             raise ExecutionError("trial memory exceeds handoff protection")
     return {"owner": owner, "epoch": epoch, "expires_at": expires.isoformat(),
             "dispatch_plan_sha256": dispatch.get("plan_sha256"), "commit": git(root, "rev-parse", "HEAD")}
+
+
+def materialized(root: Path, plan: dict[str, Any]) -> None:
+    """Refuse a launch a sparse checkout would make unsafe or unpublishable.
+
+    A committed run left off disk reads as not_materialized, so coverage cannot
+    say whether it is done; and `git add` refuses a new run directory outside
+    the sparse rules, so its records could never be published. A full checkout
+    passes trivially.
+    """
+    runs = [run_root(root, plan, t).relative_to(root.resolve()).as_posix() for t in plan["trials"]]
+    absent = [r for r in runs if sparse_checkout.tracked_absent(root, r + "/")]
+    outside = sparse_checkout.outside_definition(root, [f"{r}/execution-receipt.json" for r in runs])
+    if absent or outside:
+        raise ExecutionError(
+            f"sparse checkout leaves run directories of {plan['experiment_id']} off disk; "
+            f"run `{sparse_checkout.materialize_hint(plan['experiment_id'])}` and retry")
 
 
 @contextmanager
@@ -438,6 +471,7 @@ def run_plan(root: Path, path: Path, owner: str, epoch: int, *,
     if os.name != "posix":
         raise ExecutionError("process-group and address-space guards require POSIX")
     plan = load_plan(root, path)
+    materialized(root, plan)
     with task_lock(root, plan["task_id"]) as fd:
         digest = sha256(path)
         for trial in plan["trials"]:
