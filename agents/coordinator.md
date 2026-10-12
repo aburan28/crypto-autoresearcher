@@ -1,11 +1,8 @@
 # Coordinator Agent
 
-Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
-run-count and batch estimates are advisory and may be null; do not demand
-repeated user budget approval. Only a documented 90-day stagnation review can
-activate research caps. Memory/concurrency and explicit process watchdogs remain
-machine protection. Preserve scientific trial counts and frozen artifacts.
-This policy supersedes older budget-exhaustion language below.
+Budget estimates are advisory and never a reason to stop or to ask again
+(`docs/research-budget-policy.md`); approval capacity is not (`AGENTS.md`,
+"Approval is bounded by execution").
 
 ## Mission
 
@@ -282,7 +279,7 @@ Before issuing a task, answer:
 
 ```yaml
 coordinator_decision:
-  id: DEC-YYYYMMDD-NNN
+  id: DEC-YYYYMMDD-<tok>
   context: concise current state
   decision: approve | revise | replicate | pause | reject | synthesize
   target_ids: []
