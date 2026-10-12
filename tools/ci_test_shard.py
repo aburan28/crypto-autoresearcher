@@ -9,6 +9,11 @@ the median. Every collected file lands in exactly one shard, so the shards'
 union is the whole suite, and a file that fails to collect still lands in one
 (and fails there, as it would serially).
 
+Shard 1 is the one shard with a full checkout; the others check out the
+`harness` sparse profile. The files in `.github/test-full-checkout.txt` read
+what that profile leaves off disk, so they are pinned to shard 1 first and the
+rest is balanced around them.
+
     python3 tools/ci_test_shard.py --shard 1 --of 4      # shard 1's files, one per line
     python3 tools/ci_test_shard.py --of 4 --plan         # every shard and its estimate
     python3 tools/ci_test_shard.py --update harness-tests-*.xml   # refresh durations
@@ -31,6 +36,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 DURATIONS = REPO / ".github" / "test-durations.json"
+FULL_CHECKOUT = REPO / ".github" / "test-full-checkout.txt"
+FULL_SHARD = 1  # the shard validate.yml gives a full checkout
 _ERROR = re.compile(r"^ERROR (?:collecting )?(\S+?\.py)\b")
 
 
@@ -57,15 +64,32 @@ def load_durations(path: Path = DURATIONS) -> dict[str, float]:
         return {}
 
 
-def plan(files: list[str], shards: int, durations: dict[str, float]) -> list[list[str]]:
-    """LPT: longest file first onto the least-loaded shard; deterministic."""
+def load_full_checkout(path: Path = FULL_CHECKOUT) -> list[str]:
+    """Test files that need the full checkout; `#` starts a comment."""
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return []
+    return [entry for line in lines if (entry := line.split("#", 1)[0].strip())]
+
+
+def plan(files: list[str], shards: int, durations: dict[str, float],
+         full: list[str] = ()) -> list[list[str]]:
+    """LPT: longest file first onto the least-loaded shard; deterministic.
+
+    Files in `full` go to shard FULL_SHARD before anything else.
+    """
     if shards < 1:
         raise ValueError("need at least one shard")
     default = statistics.median(durations.values()) if durations else 1.0
     weight = {f: durations.get(f, default) for f in files}
     loads = [0.0] * shards
     out: list[list[str]] = [[] for _ in range(shards)]
-    for f in sorted(files, key=lambda f: (-weight[f], f)):
+    pinned = set(full) & set(files)
+    for f in sorted(pinned):
+        out[FULL_SHARD - 1].append(f)
+        loads[FULL_SHARD - 1] += weight[f]
+    for f in sorted(set(files) - pinned, key=lambda f: (-weight[f], f)):
         i = min(range(shards), key=lambda i: (loads[i], i))
         out[i].append(f)
         loads[i] += weight[f]
@@ -108,12 +132,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.of or args.of < 1:
         parser.error("--of N is required")
     durations = load_durations()
-    shards = plan(collected_files(), args.of, durations)
+    shards = plan(collected_files(), args.of, durations, load_full_checkout())
     if args.plan:
         default = statistics.median(durations.values()) if durations else 1.0
         for i, files in enumerate(shards, 1):
             est = sum(durations.get(f, default) for f in files)
-            print(f"shard {i}/{args.of}: {len(files)} files, ~{est:.0f}s")
+            kind = "full checkout" if i == FULL_SHARD else "sparse checkout"
+            print(f"shard {i}/{args.of}: {len(files)} files, ~{est:.0f}s ({kind})")
         return 0
     if not args.shard or not 1 <= args.shard <= args.of:
         parser.error("--shard must be between 1 and --of")

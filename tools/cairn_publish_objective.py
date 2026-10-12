@@ -18,7 +18,10 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 from exp_to_objective import (BridgeError, REPO, approval, check, infer_kind,
                               load_manifest, load_spec, pinned_replay_command,
@@ -59,7 +62,7 @@ def funding(repo: Path, exp_id: str, reward: int, decision_id: str | None,
     path = repo / "ledger" / "decisions" / f"{decision_id}.yaml"
     if not path.is_file():
         raise BridgeError(f"funding decision {decision_id} is missing")
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     dec = doc.get("coordinator_decision") if isinstance(doc, dict) else None
     budget = dec.get("cairn_funding") if isinstance(dec, dict) else None
     targets = dec.get("target_ids") if isinstance(dec, dict) else None
