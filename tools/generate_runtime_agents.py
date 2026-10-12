@@ -237,6 +237,13 @@ def _opencode_agent(roles_doc: dict[str, Any], role: str) -> str:
         f"  {key}: {'allow' if capability in capabilities else 'deny'}"
         for key, capability in _OPENCODE_PERMISSIONS
     ]
+    # OpenCode permits MCP tools unless a rule says otherwise. Deny the whole
+    # server first, then expose only this role's named network capability.
+    permissions.append('  "cairn_*": deny')
+    network_tools = sorted({tool for capability in capabilities
+                            for tool in roles_doc["capabilities"].get(capability, {})
+                            .get("opencode", []) if tool.startswith("cairn_")})
+    permissions.extend(f"  {tool}: allow" for tool in network_tools)
 
     body = _contract_pointer(role, spec)
     notes = _authority_notes(spec)

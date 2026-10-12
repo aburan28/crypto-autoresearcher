@@ -1,0 +1,32 @@
+--- 38be58dad/factor_base.py
++++ HEAD/factor_base.py
+@@ -325,6 +325,29 @@
+                   "n_tb": 1, "planted_relations": planted_rel, "skipped_tuples": skipped}
+         return cls("planted", pts, params, E.p)
+ 
++    @classmethod
++    def small_x_offset(cls, E: Curve, size: int, seed: int = 0) -> "FactorBase":
++        """EXP-PFDR-0b3699 EC-A1: the ``size`` smallest liftable x at or above a seeded offset.
++
++        x0 = p//4 + random.Random(f"fb-smallx-offset|{p}|{a}|{b}|{size}|{seed}").randrange(p//2);
++        walk x = x0, x0+1, x0+2, ..., appending E.lift_x(x) when it exists with
++        y != 0, until ``size`` points.  Kind "small_x_offset"; params {x0, bound
++        (last x + 1), seed}.  The membership polynomial is the generic product.
++        """
++        p = E.p
++        rng = random.Random(f"fb-smallx-offset|{p}|{E.a}|{E.b}|{size}|{seed}")
++        x0 = p // 4 + rng.randrange(p // 2)
++        pts: list[Point] = []
++        x = x0
++        while len(pts) < size:
++            if x >= p:
++                raise ValueError(f"small_x_offset: walk from x0 = {x0} reached p = {p}")
++            P = E.lift_x(x)
++            if P is not None and P[1] != 0:
++                pts.append(P)
++            x += 1
++        return cls("small_x_offset", pts, {"x0": x0, "bound": x, "seed": seed}, E.p)
++
+ 
+ def build_factor_base(E: Curve, kind: str, size: int, seed: int = 0) -> FactorBase:
+     if kind == "small_x":
