@@ -1,0 +1,156 @@
+task_id: TASK-20261005-47d13a
+packet_kind: bounded_route_c_projection_search
+families_considered: 3
+selected_finalist: null
+novelty_status: unverified
+security_status: unclaimed
+common:
+  Setup:
+    input: >-
+      Security index encoded by certified p>5; represented finite extension
+      F/F_(p^2); certified supersingular E_star/F_(p^2); evaluable integral
+      basis of End(E_star); integers L,a,k,b with 1<=k<a.
+    derived: 'D=2^a; N=5^b; gcd(D,N*p)=1; N^2>4D'
+    output: >-
+      Public field/model encodings, arithmetic and equality conventions,
+      factorization of D and N, and rejection rules. F contains the declared
+      D- and N-torsion; its degree and construction cost are charged.
+    hidden_setup: none
+    failure: reject invalid certificates, parameters, torsion containment, or encodings
+  KeyGen:
+    coins: L independent uniform cyclic order-3 kernels among the four choices at each step
+    algorithm: >-
+      Build tau:E_star->E; form R=Z*1+tau End(E_star) dual(tau); enumerate
+      multiplicative overorders R<=O'<=R# of trace discriminant p^2; realize
+      basis maps by denominator-kernel vanishing and division; retain the
+      maximal integral evaluable O=End(E). Derive canonical public bases U,V
+      of E[D] and P,Q of E[N]. Erase tau, kernels, transcript, ideals and orientations.
+    public_key: '(E,U,V,P,Q,D,N,k,F,encodings,certificates)'
+    secret_key: '(O_basis[4], multiplication_table, rational_coordinates, evaluation_representations)'
+    distribution: stated length-L degree-3 walk pushforward plus deterministic level selection
+    failure: reject any saturation, integrality, evaluation, torsion-basis, or canonicalization failure
+    complexity: finite specification; uniform polynomial time/output bound K0 unproved
+  message_domain: 'M={0,...,2^k-1}'
+  base_randomness_domain: 'R={0,...,2^(a-k)-1}, uniform'
+  encoding: 's=m+2^k*r in Z/DZ; K_s=<U+sV>'
+  map: 'phi_s:E->C_s=E/K_s, separable degree D, evaluated by a public chain of a degree-2 quotients'
+  normalization: canonical curve plus simultaneous least model-isomorphism transport of all retained points
+  failure_symbol: bottom
+  validation: exact canonical encodings, curve membership, point order, pairing compatibility where applicable
+  public_sender: true for all three attempted families
+families:
+  - id: P1_one_column
+    projection_family: partial torsion action
+    distinctness: deletes one column of the full action; neither a mask parameter change nor a wrapper
+    ciphertext_domain: canonical pairs '(C,X)' with C/F supersingular and X in C[N]
+    ciphertext_encoding: normalized curve and affine/infinity-tag point encoding
+    randomness_domain: R
+    Encrypt:
+      input: '(pk,m,r) in PK x M x R'
+      algorithm: compute s,K_s,phi_s and return '(C_s,phi_s(P))'
+      secret_inputs: []
+      failure: bottom on quotient, transport, or canonicalization failure
+    SecretLift:
+      input: '(sk,ct=(C,X))'
+      output: "finite set S={(t,phi_t): normalized (C_t,phi_t(P))=(C,X)}"
+      algorithm: enumerate all t in Z/DZ and reenact public encryption; sk is unused
+      complexity: D public quotient computations; streaming memory plus one map; exponential in a
+      failure: bottom if malformed or S empty; AMBIGUOUS if low-k residues in S differ
+      polynomial_EndE_only_status: fail
+      exact_missing_arrow: >-
+        No algorithm derives phi_s(Q), an evaluated degree-D map, or a
+        connecting Hom(E,C) basis from O and one image X.
+    Decode:
+      input: '(sk,ct)'
+      algorithm: run SecretLift; return common t mod 2^k only if all retained t share it; else bottom
+      output_domain: 'M union {bottom}'
+    quantified_correctness: >-
+      Not established. For all keys,m,r, the true s is retained, but the
+      required implication that every compatible t has t mod 2^k=m is unproved.
+    actual_message_trace: '(C,X) -> compatible coefficient set -> common low-k residue; commonness unproved'
+    validation_limits: one point does not certify full action or membership in the intended encryption image
+    verdict: failed_definition
+    failure_scope: missing message-separation proof and no polynomial End(E)-only lift
+  - id: P2_fresh_mask_orbit
+    projection_family: quotient by independent full-rank torsion-basis mask
+    distinctness: discards source-basis labels through fresh ciphertext randomness
+    mask_group: 'G_N=SL_2(Z/NZ), canonical finite encoding and uniform declared sampler'
+    ciphertext_domain: canonical triples '(C,X_A,Y_A)' forming an N-torsion basis
+    ciphertext_encoding: normalized curve and two masked point encodings
+    randomness_domain: 'R x G_N, uniform product'
+    Encrypt:
+      input: '(pk,m,(r,A))'
+      algorithm: >-
+        Compute s,K_s,phi_s and ordered row Y_s=(phi_s(P),phi_s(Q));
+        return (C_s,Y_s*A).
+      secret_inputs: []
+      failure: bottom on invalid A, quotient, basis, transport, or canonicalization
+    SecretLift:
+      input: '(sk,ct=(C,Z_1,Z_2))'
+      output: "finite set T={(t,B): normalized (C_t,Y_t*B)=ct}"
+      algorithm: enumerate every t in Z/DZ and B in G_N; sk is unused
+      complexity: 'D*|G_N| reenactments; exponential; streaming memory'
+      failure: bottom if malformed or T empty; AMBIGUOUS if low-k residues differ
+      polynomial_EndE_only_status: fail
+      exact_missing_arrow: 'End(E) and the masked pair do not recover independent fresh A or the source-basis labeling.'
+    Decode:
+      input: '(sk,ct)'
+      algorithm: return common t mod 2^k over T if unique as a message; otherwise bottom
+      output_domain: 'M union {bottom}'
+    quantified_correctness: >-
+      Not established. The actual (s,A) is retained, but different compatible
+      (t,B) can carry different messages and no separation theorem is supplied.
+    actual_message_trace: 'masked pair -> unmask/source labeling -> s -> low-k message; first arrow absent'
+    extra_secret_variants:
+      publish_A: makes inverse public and restores full-action public recovery
+      receiver_gets_A: adds per-ciphertext secret outside KeyGen
+      long_term_mask_or_connecting_isogeny: different FESTA/LIT-style construction and assumption
+    verdict: failed_definition
+    failure_scope: fresh-mask recovery is not an End(E)-only operation; exhaustive public fallback is exponential
+  - id: P3_pairing_determinant
+    projection_family: invariant compression
+    distinctness: retains only the alternating determinant invariant of the full action
+    ciphertext_domain: 'mu_N(F)'
+    ciphertext_encoding: canonical field-element encoding
+    randomness_domain: R
+    Encrypt:
+      input: '(pk,m,r)'
+      algorithm: compute phi_s then return 'e_N(phi_s(P),phi_s(Q))'
+      secret_inputs: []
+      failure: bottom on quotient, pairing, or encoding failure
+    SecretLift:
+      input: '(sk,c)'
+      output: the validated invariant c
+      algorithm: check 'c=e_N(P,Q)^D'; return c if equal, else bottom; sk is unused
+      complexity: polynomial field arithmetic in represented F; no map output
+      failure: bottom on malformed or unequal input
+      polynomial_EndE_only_status: vacuous_but_nondecoding
+      exact_missing_arrow: the constant invariant has no message-dependent preimage selector
+    Decode:
+      input: '(sk,c)'
+      algorithm: return bottom for every valid constant ciphertext
+      output_domain: '{bottom}'
+    quantified_correctness: 'forall generated keys,m in M,r in R: Dec(sk,Enc(pk,m;r))=bottom != m'
+    collision_equation: 'e_N(phi_s(P),phi_s(Q))=e_N(P,Q)^deg(phi_s)=e_N(P,Q)^D for all s'
+    actual_message_trace: absent; all message/randomness pairs share the same observation
+    verdict: failed_definition
+    failure_scope: exact constant-projection collision
+security_game:
+  id: IND_CPA_first_target
+  challenger: run Setup and KeyGen; give pk; accept equal-length m0,m1; sample beta and declared randomness; return Enc(pk,m_beta); accept guess
+  advantage: 'abs(Pr[guess=beta]-1/2)'
+  claim_status: no finalist and no reduction
+  attack_direction: 'EndRingEval solver -> evaluable sk -> valid SecretLift/Decode (if they existed) -> IND-CPA break'
+  attack_direction_meaning: upper bound on scheme breaking; not security from EndRing
+  required_security_direction: 'IND-CPA adversary -> EndRingEval solver, possibly through a named intermediate assumption'
+  required_direction_status: absent
+  distribution_caveat: bare D_curve and augmented level/ciphertext distributions are not identified without a reduction
+wrapper_gate:
+  prohibited_substitution: generic ElGamal, LWE, KEM, hash, or PKE secret derived from End(E)
+  result: no wrapper proposed
+remaining_obligation: >-
+  Give a uniform polynomial Complete_2(O,E,C,X,P,Q,D,N) for every valid P1
+  ciphertext, returning phi_s(Q) or an equivalent evaluated degree-D map from
+  only evaluable End(E) and public inputs, with polynomial output and explicit
+  failure, no connecting ideal/path/orientation/tau/trapdoor/extra secret; then
+  separate its output from every named public recovery control.

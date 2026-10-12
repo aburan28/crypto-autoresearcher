@@ -17,14 +17,22 @@ step 2).
 1. Identify the target research question. If the user named an `RQ-*` ID,
    read it from `ledger/questions/`. If no research question record exists
    yet, create one first from the template in `templates/research-records.md`
-   and save it as `ledger/questions/RQ-<AREA>-<NNN>.yaml` (next free number).
+   and save it as `ledger/questions/<RQ-ID>.yaml`, minting the id with
+   `python3 tools/allocate_id.py --next research_question --area <AREA>` and
+   confirming it with `--check` (never "the next free number", rule 14).
    Before generating, merge `origin/main` into the working branch (merge,
    never rebase) so ideation runs against current ledger state — see
    "Branch and PR hygiene" below.
 2. Gather context for the prompt: the research question record, relevant
-   entries from `knowledge/` (grep by area tags), existing hypotheses in
-   `ledger/hypotheses/`, and existing proposals in `ledger/proposals/` so
-   duplicates are avoided. For ECDLP questions, render the known-results map
+   entries from `knowledge/` (grep by area tags), and — for dedup — the
+   **generated indexes, never the corpus**: run
+   `python3 tools/build_ledger_index.py` once and grep
+   `ledger/.index/proposals.jsonl` and `hypotheses.jsonl` (id, area, status,
+   question id, 200-char claim and mechanism) by the question id and the
+   candidate mechanism's key terms. Open a full record only when its excerpt
+   says it may be the same object. Reading `ledger/proposals/` directly is
+   78 MB of context for a question the index answers in 0.5 MB. For ECDLP
+   questions, render the known-results map
    (`python3 tools/build_frontier_map.py --area index-calculus` or
    `--area generic-rho`, or both) and paste it into the handoff verbatim, with
    the commit it was rendered at. The idea generator has no Bash; the map is
@@ -57,7 +65,16 @@ step 2).
    assumptions each with an experimental validation route, target time and
    memory exponents versus the best known, and cost. Send incomplete
    ideas back to the subagent for completion — do not repair them yourself.
-5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
+   Count every idea you send back; the count goes in the session receipt
+   (step 7), which is the only place this signal exists (`tune-skill`,
+   "Bounces").
+5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-<tok>.yaml`
+   (`python3 tools/allocate_id.py --next idea --date YYYYMMDD`, then
+   `--check`). Keep a proposal under 8 KB: the claim, mechanism, predictions,
+   minimal test and falsification conditions are the record; a derivation,
+   literature walk or worked example goes in a sibling
+   `ledger/proposals/<IDEA-ID>.notes.md` that the index does not read.
+   `tools/validate_ledger.py` reports larger new proposals as advisories.
    The Coordinator then runs an isolated snapshot archive task that commits
    the exact research-question, proposal, and any literature-note paths before
    treating the ideas as filed. The task must pass the dispatcher's post-commit
@@ -66,7 +83,11 @@ step 2).
    `RQ-*`/`IDEA-*` records (see "Branch and PR hygiene"). A filed idea that
    exists only in a local commit is not a proposal the program can use.
 7. Report to the user: one-line summary per idea (ID, class, claim,
-   novelty status, cost) plus the generator's recommended first test.
+   novelty status, cost) plus the generator's recommended first test, and
+   end with `python3 tools/session_receipt.py --skill propose-ideas --role
+   coordinator --outcome proposed --created <RQ/IDEA ids> --bounced <n>`
+   (`docs/session-receipts.md`), where `<n>` is the step 4 count, `0` when
+   nothing was sent back.
 
 ## Branch and PR hygiene
 
@@ -77,9 +98,11 @@ pulls in `main` and surfaces the new proposals as a PR:
   never rebase. If the merge conflicts, stop and report; never resolve a
   conflict by editing a record (corrections supersede, per AGENTS.md rule 4).
   Re-run `tools/validate_ledger.py` after the merge.
-- **After the snapshot archive:** `git push -u origin <branch>` then
-  `gh pr create --base main --head <branch> --title "ideas: <summary>" --body "<RQ-*/IDEA-* IDs>"`
-  (or `gh pr edit <number>` when a PR for the branch already exists).
+- **After the snapshot archive:** `git push -u origin <branch>`, then open or
+  refresh a PR against `main` with the runtime's PR tool, titled
+  `ideas: <summary>` and naming the `RQ-*`/`IDEA-*` ids. Use `gh pr create`
+  only where `gh auth status` succeeds; a session with no PR tool reports the
+  pushed branch.
 
 ## Rules
 

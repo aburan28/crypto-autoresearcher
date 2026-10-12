@@ -1,0 +1,207 @@
+# =============================================================================
+# EXP-ECDLP-8cc60d -- H-ECDLP-281dd6 (SNFS-G2): embedding degree over Mersenne
+# primes is a Cunningham-table fact. Part A: toy census on 2^c - 1 versus
+# matched random primes with the exact identity k = ord_l(2)/gcd(ord_l(2), c)
+# checked on every row. Part B: small-ord_l(2) census against the index
+# heuristic. Part C: exact lower bounds on ord_l(p) for public curves (no
+# secret scalar). Part D: modeled algebraic-norm sizes for F_p^* at 2^521 - 1,
+# no sieving. status review_required: implemented and smoke-tested, not
+# approved (GOAL-ECDLP-001 at the approval capacity cap), no run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-8cc60d
+  hypothesis_id: H-ECDLP-281dd6
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-64a1c0
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Mersenne embedding degree: exact identity k(l) = ord_l(2)/gcd(ord_l(2), c)
+    on a toy census against matched random primes, the k = 2 exclusion, the
+    small-ord_l(2) count against the index heuristic, direct-exponentiation
+    lower bounds for P-521 / P-192 / P-224 / P-256, and the modeled
+    special-versus-base-m norm gap for F_p^* at p = 2^521 - 1
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    (A) Verify the identity on every census row and decide, under three
+    pre-registered arm tests, whether the Mersenne form shifts the
+    embedding-degree distribution beyond the exact exclusions it forces.
+    (B) Count curve orders whose large prime factor has ord_l(2) <= 10^4
+    and compare with the index-heuristic prediction (HEUR-002). (C) Record
+    ord_l(p) > 10^6 for four public curves by direct exponentiation and, for
+    P-521, ord_l(2) > 10^6 with the identity bound k > 10^6 / 521. (D) Record
+    the modeled mean log2 algebraic norm of x^5 - 16 against 2^101 x^4 - 1 at
+    the shared root m = 2^105 over seeded boxes of side 2^20, 2^30, 2^40,
+    against the derived prediction gap = 97 - log2 B; no sieving.
+  inputs:
+    part_a:
+      primes: >-
+        Mersenne arm: p = 2^c - 1 for c in {13, 17, 19, 31}; random arm: one
+        seeded random prime of the same bit length per (c, seed) from the
+        byte-identical battery primeset.py (tag mersenne-c<c>).
+      curves: >-
+        64 seeded random (a, b) per prime per seed with nonzero discriminant;
+        anomalous curves (#E = p), curves whose largest prime factor is 2,
+        and curves whose order is ambiguous after six BSGS points are counted
+        and excluded.
+      point_counting: >-
+        Exact Legendre-sum count for p < 2^20; baby-step giant-step order
+        candidates in the Hasse interval intersected over up to six random
+        points for 2^31 - 1; at p < 2^20 both are computed and must agree
+        (CTRL-COUNT).
+      statistic: >-
+        l = largest prime factor of #E; k = ord_l(p) and, on the Mersenne
+        arm, ord_l(2), both exact from the factorisation of l - 1; t =
+        (l - 1)/k. Identity check per Mersenne row: k == ord_l(2) /
+        gcd(ord_l(2), c).
+      tests: >-
+        Pre-registered, per seed and pooled: (i) permutation test (5000
+        shuffles) on the arm difference of mean log2 t; (ii) two-proportion
+        z on the k <= 20 fraction; (iii) two-sample Kolmogorov-Smirnov on
+        log2 t with a permutation p-value. alpha = 0.01 each. The exact
+        k = 2 counts per arm are reported separately (prediction: 0 on the
+        Mersenne arm, > 0 possible on the random arm).
+    part_b:
+      threshold_D: 10000
+      prediction: >-
+        expected count per (prime, seed) <= 3 * n_rows * D / l_mean; the
+        observed count is compared with the Poisson 99.9 % quantile of that
+        mean (HEUR-002). The minimum ord_l(2) per cell is reported.
+    part_c:
+      curves: P-521 (Mersenne, c = 521), P-256, P-224, P-192 (Solinas forms)
+      checks: >-
+        p and l prime (Miller-Rabin, 64 rounds); Hasse interval; base point
+        on curve; [l]G = O. P-521 and P-256 constants are those of
+        EXP-ECDLP-6dacdb; P-224 and P-192 constants are recalled FIPS 186-4
+        values and are REPORTED AS CONSTANT ERRORS if any check fails, never
+        corrected in place.
+      bound: >-
+        ord_l(p) by direct exponentiation to cap = 10^6; for P-521 also
+        ord_l(2) to the same cap and the identity bound k > cap / 521 when
+        ord_l(2) exceeds the cap; p + 1 is checked to be a power of 2.
+    part_d:
+      polynomials: >-
+        special f = x^5 - 16 with 16 p = m^5 - 16 at m = 2^105 (verified
+        exactly in the runner); comparator g = 2^101 x^4 - 1, the balanced
+        base-m expansion of p at the same root (p = 2^101 m^4 - 1, verified);
+        shared rational side x - m.
+      boxes: "|a| <= B, 1 <= b <= B, gcd(a, b) = 1, B in {2^20, 2^30, 2^40}; 10^5 seeded samples per box"
+      prediction: "mean log2|F(a, b)| gap special - basem = -(97 - log2 B) +/- 3 bits (derived: 5 log2 B + 4 against 101 + 4 log2 B)"
+      caveat: >-
+        Modeled arithmetic, not a sieve, not a polyselect optimum; GNFS
+        polynomial selection with skew would do better than the base-m
+        expansion, so the gap is an upper bound on the special advantage at
+        the same root, labelled modeled.
+  controls:
+    - "CTRL-COUNT: at p < 2^20 the exact count and the BSGS order agree on every curve; any disagreement invalidates the prime's cell."
+    - "CTRL-IDENTITY: every Mersenne row satisfies k == ord_l(2)/gcd(ord_l(2), c); a violation invalidates the run (arithmetic error, not evidence)."
+    - "CTRL-SUPERSINGULAR: y^2 = x^3 + x is scored on both arms where p = 3 mod 4; on the Mersenne arm its order 2^c is a 2-group (no odd l, so no k), on the random arm it must report k = 2 for its odd l: the nearby object the transfer reaches."
+    - "CTRL-ARM-SYMMETRY: identical code, seeds, curve counts and exclusions on both arms."
+    - "CTRL-CONSTANTS: every public curve passes primality, Hasse, on-curve and [l]G = O; a failing row is reported as a constant error and excluded."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "prime arm: mersenne | random (part A)"
+    - "c in {13, 17, 19, 31} (part A, B)"
+    - "curve seed 1..64 x seeds {1, 2, 3} (part A, B)"
+    - "box size B in {2^20, 2^30, 2^40} (part D)"
+  metrics:
+    primary:
+      - identity_violations_count
+      - k_equals_2_count_per_arm
+      - arm_test_rejections_at_alpha_0_01_per_seed_and_pooled
+      - small_ord_l_2_observed_vs_poisson_999_quantile_per_cell
+      - deployed_ord_l_p_lower_bound_per_curve_and_P521_ord_l_2_bound
+      - norm_gap_bits_per_box_vs_derived_prediction
+    secondary:
+      - anomalous_even_l_and_ambiguous_counts_per_arm
+      - supersingular_control_per_arm
+      - smallest_k_per_arm
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: identity violations; arm tests; small-ord count; deployed bounds; norm gap
+    formula: >-
+      violations = 0; k = 2 count on the Mersenne arm = 0; 0 rejections among
+      the three tests per seed and pooled; observed small-ord count <=
+      Poisson 99.9 % quantile of 3 n D / l_mean; ord_l(p) > 10^6 on all four
+      public curves and ord_l(2) > 10^6 for P-521; gap = -(97 - log2 B) +/- 3.
+    source: >-
+      the identity (elementary); Balasubramanian-Koblitz random model
+      (KN-LIT-086); index-distribution heuristic (recalled, c0 <= 3 flagged);
+      norm sizes derived from the polynomial degrees and coefficients.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The identity holds at every c; the census is a toy arm comparison;
+      part C is exact arithmetic on public constants; part D is modeled. No
+      cost is extrapolated.
+    correspondence: null
+  tail_checks:
+    - Report the three smallest k per arm with (p, a, b, l).
+    - Report the minimum ord_l(2) observed per Mersenne cell.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 8
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 3
+    maximum_memory_gb: 1
+    maximum_runs: 6
+  stopping_rules:
+    - Stop part A at 7200 s and record what completed; never as evidence.
+    - Parts C and D are deterministic given the seed and run once per invocation.
+  invalidation_rules:
+    - A CTRL-COUNT disagreement invalidates the prime's cell.
+    - A CTRL-IDENTITY violation invalidates the whole run.
+    - A random-arm supersingular control not reporting k = 2 invalidates part A.
+    - A public-curve row failing CTRL-CONSTANTS is excluded and reported as a constant error.
+  success_criterion: >-
+    identity_violations_count = 0 and k = 2 count on the Mersenne arm = 0 on
+    every cell; 0 rejections among the three pre-registered arm tests per
+    seed and pooled with CTRL-COUNT and CTRL-SUPERSINGULAR passing; every
+    small-ord cell within its Poisson 99.9 % quantile; ord_l(p) > 10^6 for all
+    four public curves with ord_l(2) > 10^6 for P-521; every box's norm gap
+    within 3 bits of -(97 - log2 B).
+  falsification_criterion: >-
+    Any arm test rejecting at alpha = 0.01 with the controls passing (the
+    Mersenne form shifts embedding degrees beyond its exact exclusions:
+    HEUR-001 fails), or a small-ord count above its Poisson 99.9 % quantile
+    (HEUR-002 fails), or a public curve with ord_l(p) <= 10^6 (routed to
+    review-breakthrough before anyone repeats it), or a norm gap more than 3
+    bits from the derived value (the modeled comparison is wrong and is
+    re-derived before any use).
+  decision_impact:
+    on_positive: >-
+      The Coordinator records the identity and the k = 2 exclusion as a
+      reusable public fact in the knowledge base (KN-TECH candidate), closes
+      SNFS-G2's census question in the toy scope, and cites the P-521 bound
+      and the 2^521 - 1 norm gap in the special-prime battery synthesis; the
+      transfer lane is not reopened for Mersenne primes.
+    on_negative: >-
+      An arm-test rejection opens an RQ on the mechanism by which the
+      Mersenne form shifts embedding degrees; a public-curve bound failure
+      goes to review-breakthrough; a norm-gap failure re-derives part D
+      under an amendment before the number is cited anywhere.
+  required_artifacts:
+    - experiments/EXP-ECDLP-8cc60d/specification.yaml
+    - experiments/EXP-ECDLP-8cc60d/implementation/run.py
+    - experiments/EXP-ECDLP-8cc60d/implementation/primeset.py
+    - experiments/EXP-ECDLP-8cc60d/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-8cc60d/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      python3 experiments/EXP-ECDLP-8cc60d/implementation/run.py --part A B C D
+      --c 13 17 19 31 --curves 64 --seeds 1 2 3 --cap 1000000
+      --boxes 20 30 40 --norm-samples 100000 --out <run_dir>
+    runnable_state_at_design: >-
+      Implementation committed and smoke-tested at reduced size (c in {13,
+      17}, 8 curves, cap 2000, 2000 norm samples) in the design session; no
+      run record was written from the smoke test. Not selectable by
+      tools/newest_experiments.py until a Coordinator approval decision sets
+      status approved, which GOAL-ECDLP-001's capacity cap prevents in this
+      session; the missing pieces are the approval ceremony (DEC-*, TASK-*,
+      handoff) and a frozen trial plan, not code.
+  assigned_to: executor
