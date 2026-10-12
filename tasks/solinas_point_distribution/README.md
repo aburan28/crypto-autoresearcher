@@ -21,6 +21,19 @@ hashes, input preparation, environment and all field artifacts. A different
 output directory is required for a new measurement; completed results cannot
 be overwritten. `progress.json` is a live derived view.
 
+For an archived clone, field JSON is stored losslessly in four compressed
+JSONL shards. Restore the exact original bytes before rerunning analysis:
+
+```sh
+python tasks/solinas_point_distribution/artifact_tools/records.py unpack tasks/solinas_point_distribution/runs/point-distribution-20261012
+```
+
+Large binary NPZ arrays are retained in the complete dataset ZIP and the
+execution workspace. The dated report includes the dataset's size, checksums
+and a per-file inventory. They are excluded from Git to keep normal repository
+checkouts manageable. Every field metric, input and raw-array hash is retained
+in the tracked records. Full array verification requires the complete ZIP.
+
 Each `.npz` file is loaded with `allow_pickle=False`. Coordinates are big-endian
 bytes, with width ceil(bit_length(p)/8). Uniform weights are 0, 1 or 2. Windows
 are determined by saved start coordinates and their length. Census masks use
