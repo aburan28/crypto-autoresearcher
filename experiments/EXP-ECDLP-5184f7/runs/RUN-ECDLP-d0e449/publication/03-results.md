@@ -1,0 +1,9 @@
+Solinas primes in the expanded toy sample take essentially the same normalized generic rho work as random controls: ratio 0.995249, 99.9% clustered CI [0.972470, 1.018543]. The entire interval lies inside the frozen practical-similarity margin [1/1.2, 1.2].
+
+The results preserve the original 36-prime experiment (RUN-ECDLP-a24605) and add a separately frozen prospective run (RUN-ECDLP-07aad1): 72 fresh Solinas primes across 24/28/32/36-bit strata, 288 distinct random control primes, 368,640 prepared models, 46,080 unconditional audit models, and 2,880 matched groups. All 150,864 attack jobs completed; main rho censoring is zero; all recovered scalars, collision equations, 768 exact controls and four BSGS positive controls passed. 6,480 arithmetic observations agreed exactly. Every contrast has a 99.9% marginal block-bootstrap interval; an additional Bonferroni interval reserves three primary family tests.
+
+BSGS counts are exactly accounted for by subgroup/table size and target scalar position. The unconditional subgroup-order proxy has no clear S/random difference. The Python folding prototype is slower than builtin reduction and is explicitly not a production assembly comparison. No deployed-size, structure-aware, asymptotic, sealed-bound or scientific-state claim is promoted. P-192 and P-224 are measured in a separate follow-up PR and are not pooled into these Solinas observations.
+
+Review entry points: each run's `report/report.md`, inspected `report/report.pdf`, `analysis/summary.json`, frozen source and contract, and content-hash manifests. Original records remain unchanged. The large matching array is preserved losslessly in per-block JSON shards with a verified reconstruction helper, avoiding GitHub's 100 MiB blob limit.
+
+Base: `run/solinas-prime-resistance-implementation-20261011`. Head: `run/solinas-prime-resistance-20261011`. Merge commits only, after CI passes; PR is ready, not draft.
