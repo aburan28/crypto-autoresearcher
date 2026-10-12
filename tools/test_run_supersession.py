@@ -90,6 +90,21 @@ def _is_experiment_correction(path: Path, repo_root: Path) -> bool:
     )
 
 
+def _is_experiment_supersession(path: Path, repo_root: Path, run_id: str) -> bool:
+    """True for experiments/<EXP>/supersessions/<run_id>/manifest_v2.yaml under repo_root."""
+    try:
+        parts = path.resolve().relative_to(repo_root).parts
+    except ValueError:
+        return False
+    return (
+        len(parts) == 5
+        and parts[0] == "experiments"
+        and parts[2] == "supersessions"
+        and parts[3] == run_id
+        and parts[4] == "manifest_v2.yaml"
+    )
+
+
 class SupersessionFixture(unittest.TestCase):
     """A temporary run directory with a defective manifest beside a repair."""
 
@@ -970,6 +985,27 @@ class CommittedRegistryTests(unittest.TestCase):
                 self.assertEqual(sha256_of(registry_original),
                                  entry["superseded_sha256"],
                                  str(registry_original))
+                continue
+            # Fifth vocabulary: experiment-level supersessions/<RUN-ID>/manifest_v2.yaml
+            # (DEC-20261009-ff58fe PROC-DEF1; DEC-20261009-629a6d). The record sits
+            # outside the run root and binds the original from its own side.
+            if _is_experiment_supersession(current, repo_root, entry["run_id"]):
+                doc = yaml.safe_load(current.read_text(encoding="utf-8"))
+                self.assertEqual(current.relative_to(repo_root).parts[1],
+                                 registry_original.relative_to(repo_root).parts[1],
+                                 str(current))
+                self.assertEqual(doc["run"].get("id"), entry["run_id"], str(current))
+                self.assertEqual(sha256_of(current),
+                                 entry["superseding_sha256"], str(current))
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"],
+                                 str(registry_original))
+                declared = doc.get("supersession") or {}
+                self.assertEqual(
+                    (repo_root / declared.get("supersedes_path", "")).resolve(),
+                    registry_original, str(current))
+                self.assertEqual(declared.get("supersedes_sha256"),
+                                 entry["superseded_sha256"], str(current))
                 continue
             self.assertEqual(current.parent, run_dir, str(current))
             if entry["run_id"] in PROSE_SUPERSESSION_SHA256:
