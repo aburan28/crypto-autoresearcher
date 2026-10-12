@@ -188,6 +188,8 @@ class Handler(BaseHTTPRequestHandler):
             "overview.json": lambda: payloads.overview_payload(index),
             "progress.json": lambda: payloads.progress_payload(index, self.holder.progress_snapshot),
             "comparisons.json": lambda: payloads.comparisons_payload(index),
+            "curves.json": lambda: payloads.curves_payload(index),
+            "provenance.json": lambda: payloads.provenance_payload(index),
             "goals.json": lambda: payloads.goals_payload(index),
             "experiments.json": lambda: payloads.experiments_payload(index),
             "findings.json": lambda: payloads.findings_payload(index),
@@ -297,3 +299,4 @@ def main(argv: list[str] | None = None) -> int:
     if not (repo / "ledger").is_dir():
         parser.error(f"no ledger/ under {repo}: not a crypto-autoresearcher checkout")
     return serve(repo, args.host, args.port, args.open, args.verbose, args.progress_snapshot)
+

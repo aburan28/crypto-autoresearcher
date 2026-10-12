@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""EXP-SEMBIN-04ec3c, PROTOCOL VERSION 2 -- the cost-model driver.
+
+Protocol version 2 = experiments/EXP-SEMBIN-04ec3c/specification.yaml (v1,
+unedited) + experiments/EXP-SEMBIN-04ec3c/amendments/AMD-20261001-e61f2b.yaml,
+approved by DEC-20261001-5c9e7a. Executed under TASK-20261001-c2a58e.
+
+This file is a NEW implementation written from the amendment's header block
+("The v2 model, stated exactly") and changes C-1 and C-2. It does not import or
+copy the v1 driver code/memory_charged_family.py.
+
+All quantities are log2. For a cell (n, m, d, s):
+
+    N     = log2 r at n = 131 (r the ECC2K-130 prime subgroup order from the
+            frozen input), n at every other degree
+    L     = log2(m!)
+    S     = floor(m/2)
+    K     = d                                 (relations)
+    TPR   = N + L - m*d                       (trials per relation, 1/p)
+    CALLS = K + TPR                           (oracle invocations; C-2 guard)
+    o     = FREE 0; ENUM (m-1)d; MITM (m-S)d with s = S;
+            MITM_CAPPED (m-s)d with s = min(S, floor(log2 B / d))
+    PROBE = K + TPR + o
+    FILL  = s*d for MITM / MITM_CAPPED when s >= 1; 0 otherwise
+    LA    = 2d
+    TOTAL = log2(2^PROBE + 2^FILL + 2^LA)
+
+The oracle table's construction is charged as operations, one per entry;
+memory is reported, not charged.
+
+FILL = 0 is read literally as a log2 exponent (one operation), exactly as the
+header's TOTAL formula is written; it changes no total by more than 2^-(2d)
+relative.
+
+Every line marked `# MUTATION SITE Mk` is the single line the gate-power
+self-test (C-4 (e)) rewrites to build mutant Mk; see make_mutants.py.
+
+Deterministic, seedless, standard library only. No curve, no factor base, no
+solver: every n is a parameter label in a cost formula.
+"""
+from __future__ import annotations
+
+import math
+
+LOG2_VOW_CONST = math.log2(0.886)
+PUB_131 = 60.8090          # published ECC2K-130 reference; used ONLY at n = 131
+LA_EXPONENT = 2.0          # sparse linear algebra |F|^2 (v1 convention)
+D_LO = 1.0                 # v1 d grid: 1.0 .. bound in steps of 0.25
+D_STEP = 0.25
+
+MODELS = ("FREE", "ENUM", "MITM", "MITM_CAPPED")
+PRIMARY_MODELS = ("ENUM", "MITM", "MITM_CAPPED")
+# v1 store budgets, log2 entries; None = unlimited (the v1 "unlimited" label)
+FINITE_BUDGETS = (30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0)
+BUDGETS = FINITE_BUDGETS + (None,)
+
+# Ten distinct degrees (C-9). 163 is in both v1 lists and appears once.
+DEGREES = (97, 109, 131, 163, 191, 233, 239, 283, 409, 571)
+
+_STATE = {"log2_r": None}
+
+
+def set_subgroup_order_log2(log2_r: float) -> None:
+    """Install log2 r for n = 131 (read by the caller from the frozen input)."""
+    _STATE["log2_r"] = float(log2_r)
+
+
+def log2_N(n: int) -> float:
+    if n == 131:
+        if _STATE["log2_r"] is None:
+            raise RuntimeError("subgroup order for n = 131 not installed")
+        return _STATE["log2_r"]
+    return float(n)
+
+
+def vow_column(n: int) -> float:
+    return LOG2_VOW_CONST + log2_N(n) / 2.0
+
+
+def pub_column(n: int):
+    return PUB_131 if n == 131 else None
+
+
+def log2_m_factorial(m: int) -> float:
+    # exact integer factorial, then log2 of the integer
+    return math.log2(math.factorial(m))
+
+
+def tabulated_half(m: int) -> int:
+    return m // 2  # MUTATION SITE M2
+
+
+def tabulated_count(model: str, m: int, d: float, log2_budget) -> int:
+    """s, the number of summands tabulated, per oracle law."""
+    if model in ("FREE", "ENUM"):
+        return 0
+    S = tabulated_half(m)
+    if model == "MITM" or log2_budget is None:
+        return S
+    return min(S, math.floor(log2_budget / d))  # MUTATION SITE M4
+
+
+def log2_sum(xs) -> float:
+    top = max(xs)
+    acc = 0.0
+    for x in xs:
+        acc += 2.0 ** (x - top)
+    return top + math.log2(acc)
+
+
+def evaluate(n: int, model: str, m: int, d: float, log2_budget):
+    """One cell. Returns a tuple, see CELL_FIELDS."""
+    N = log2_N(n)
+    L = log2_m_factorial(m)
+    s = tabulated_count(model, m, d, log2_budget)
+    K = d
+    TPR = N + L - m * d  # MUTATION SITE M1
+    CALLS = K + TPR
+    if model == "FREE":
+        o, FILL, table = 0.0, 0.0, None
+    elif model == "ENUM":
+        o, FILL, table = (m - 1) * d, 0.0, None
+    elif model in ("MITM", "MITM_CAPPED"):
+        time_half, store_half = (m - s) * d, s * d  # MUTATION SITE M3
+        o = math.log2((1 << int(d)) ** (m - s))  # JV-2 W1b: integer count for the time half too
+        FILL = math.log2((1 << int(d)) ** s) if s >= 1 else 0.0  # JV-2 W1b
+        table = store_half if s >= 1 else None
+    else:
+        raise ValueError(model)
+    PROBE = K + TPR + o
+    LA = LA_EXPONENT * d
+    TOTAL = log2_sum((PROBE, FILL, LA))
+    return (s, TPR, CALLS, PROBE, FILL, LA, TOTAL, table)
+
+
+CELL_FIELDS = ("s", "TPR", "CALLS", "PROBE", "FILL", "LA", "TOTAL",
+               "log2_table_entries")
+
+
+def probe_only_total(cell) -> float:
+    """v1-style probe-only total log2(2^PROBE + 2^LA). NOT A COST."""
+    return log2_sum((cell[3], cell[5]))
+
+
+def d_grid(bound: float):
+    """v1 d grid, 1.0 .. bound inclusive, step 0.25 (exact quarters)."""
+    k = 0
+    while True:
+        d = D_LO + k * D_STEP
+        if d > bound + 1e-9:
+            return
+        yield d
+        k += 1
+
+
+def budgets_for(model: str):
+    return BUDGETS if model == "MITM_CAPPED" else (None,)
+
+
+def sweep(degrees, m_values, models, visit, bound_of=lambda n: float(n)):
+    """Enumerate every cell (n, model, B, m, d) and hand it to visit()."""
+    for n in degrees:
+        grid = list(d_grid(bound_of(n)))
+        for model in models:
+            for b in budgets_for(model):
+                for m in m_values:
+                    for d in grid:
+                        visit(n, model, b, m, d, evaluate(n, model, m, d, b))

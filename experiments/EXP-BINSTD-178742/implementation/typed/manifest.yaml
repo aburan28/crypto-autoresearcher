@@ -1,38 +1,49 @@
 # Implementation manifest for EXP-BINSTD-178742 typed/ tree.
-# Packaging card: TASK-20260930-d007a4 under DEC-20260930-70bff3
-# (BATCH-8c7af6, GOAL-ECDLP2M-001). Contract approved by DEC-20260930-735b4d.
+# Packaging: TASK-20260930-d007a4 / DEC-20260930-70bff3 (BATCH-8c7af6)
+# Wiring: TASK-20260930-606126 / DEC-20260930-8de5ba (BATCH-ccfdc6)
+# Scoring-impl: TASK-20260930-8ec263 / DEC-20260930-780151 (BATCH-075541)
+# Contract approved by DEC-20260930-735b4d.
 #
-# scientific_execution_authorized: false
-# packaging_only: true
-# maximum_runs: 0
+# scientific_execution_authorized: true
+# packaging_only: false
+# maximum_runs: 4
 # runs_launched: 0
-# Opening/implementing is not a solve claim.
+# Opening/implementing/scoring-impl is not a solve claim.
 
 manifest:
   schema: crypto.autoresearch.implementation_manifest.v1
   experiment_id: EXP-BINSTD-178742
   hypothesis_id: H-BINSTD-ce4f38
   goal_id: GOAL-ECDLP2M-001
-  batch_id: BATCH-8c7af6
+  batch_id: BATCH-075541
   packaging_batch: BATCH-8c7af6
   packaging_task: TASK-20260930-d007a4
-  authorization_decision: DEC-20260930-70bff3
+  wiring_batch: BATCH-ccfdc6
+  wiring_task: TASK-20260930-606126
+  scoring_impl_batch: BATCH-075541
+  scoring_impl_task: TASK-20260930-8ec263
+  scoring_impl_decision: DEC-20260930-780151
+  authorization_decision: DEC-20260930-8de5ba
+  implementation_authorization_decision: DEC-20260930-70bff3
   approval_decision: DEC-20260930-735b4d
+  task_id: TASK-20260930-8ec263
   implementation_tree: experiments/EXP-BINSTD-178742/implementation/typed/
-  successor_contract_sha256: e841c33a30a4c8eaf1dc80f2199ec8dc34343bdb5d5e4ce38f918f055485d19f
+  successor_contract_sha256: ffacf110b050a93f1ee7b8bee132591a14cb96cb280dbafda81bbef2877b234b
   specification: experiments/EXP-BINSTD-178742/specification.yaml
-  scientific_execution_authorized: false
+  scientific_execution_authorized: true
   runs_launched: 0
-  maximum_runs: 0
-  packaging_only: true
+  maximum_runs: 4
+  packaging_only: false
 
   entry_point:
     command_prefix: python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py
     default_mode: --packaging-check
     run_mode: >-
-      --run loads trial-plan and REFUSES while scientific_execution_authorized
-      is false or packaging_only is true (exit 2 REFUSED_AUTH). Does not mint
-      RUN-*, does not score Part 1/Part 2.
+      --run enters authorized_dry_gate when scientific_execution_authorized
+      is true and packaging_only is false. Add --score-part1 / --score-part2
+      / --execute-scoring to enter in-memory scoring stage. Does not mint
+      RUN-* or write under experiments/.../runs/ from this entry path.
+      REFUSED while unauthorized or packaging_only.
     sys_path_rule: >-
       run.py inserts the absolute typed/ path at sys.path[0] after importing
       only sys and os (corrective.custody.run_entry_sys_path).
@@ -49,17 +60,36 @@ manifest:
       dependencies: Python standard library only
       pattern_source: experiments/EXP-CERTBIN-e94b27/impl/gf2n.py (schoolbook; numpy omitted)
     - path: part1_surface.py
-      role: part1_future_stage_surface
+      role: part1_scoring_surface
       dependencies: Python standard library only
-      note: Packaging dry probes on toy n only; deployed census not scored
+      note: >-
+        score_part1 computes ord_n(2) census and k|r-1 verdicts when invoked.
+        Packaging probes use toys only; deployed census not executed on
+        scoring-impl card.
     - path: part2_surface.py
-      role: part2_future_stage_surface
+      role: part2_scoring_surface
       dependencies: Python standard library only
-      note: Declares future rank-readout stage; does not execute
+      note: >-
+        score_part2 declares four bases/controls and returns structured
+        scoring shape; curve builds stub with
+        not_executed_on_scoring_impl_card unless execute_curve_builds.
     - path: trial-plan.json
       role: custody_trial_plan
     - path: manifest.yaml
       role: implementation_manifest
+
+  scoring_api:
+    part1: part1_surface.score_part1
+    part2: part2_surface.score_part2
+    invoke_part1: >-
+      python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py
+      --run --score-part1
+    invoke_part2: >-
+      python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py
+      --run --score-part2
+    invoke_both: >-
+      python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py
+      --run --execute-scoring
 
   third_party_distributions: []
 
@@ -78,15 +108,16 @@ manifest:
 
   inference:
     requested_policy: executor-implementation
-    packaging_task: TASK-20260930-d007a4
+    scoring_impl_task: TASK-20260930-8ec263
     note: >-
-      Packaging producer only. Scientific Part 1/Part 2 launch requires a later
-      ranked decision setting scientific_execution_authorized and clearing
-      packaging_only. This card asserts nothing about any curve's security.
+      Scoring-capability producer only. Scientific Part 1/Part 2 census
+      launch remains a later /run after scoring-impl snapshot
+      TASK-20260930-b2b33a. This card asserts nothing about any curve's
+      security.
 
   launch_fields_deferred_to_authorized_scientific_run:
     - dirty_summary
     - launch_commit
-    - live Part 1 census scoring
-    - live Part 2 rank readout
+    - artifact persistence under experiments/.../runs/RUN-*
     - admission_receipt.json under experiments/.../runs/RUN-*
+    - Part 2 full curve builds (stubbed until dependency amendment)
