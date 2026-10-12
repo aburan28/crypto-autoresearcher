@@ -1,0 +1,112 @@
+correction:
+  id: CORR-20261006-9ef467
+  recorded_at: '2026-10-06'
+  recorded_by: coordinator (GOAL-SCURVE-3e3cb4, BATCH-00628c)
+  type: p192_snapshot_path_and_run_registration_correction
+  severity: administrative_archive_integrity
+  supersedes: []
+  corrects:
+    - ledger/handoffs/TASK-20261006-11f0a2.yaml
+    - ledger/handoffs/TASK-20261006-d19969.yaml
+    - ledger/handoffs/TASK-20261006-183064.yaml
+    - coordination/goals/GOAL-SCURVE-3e3cb4/batches/BATCH-00628c/dispatch_queue.json
+
+  corrections:
+    - record_type: snapshot_handoff
+      record_id: TASK-20261006-11f0a2
+      field: archive.binding_mode and completion_gate
+      prior_value: >-
+        One reachable snapshot commit must introduce exactly both producers'
+        declared artifacts and the receipt, with binding_mode=commit.
+      corrected_value: >-
+        Use binding_mode=content_at_commit. The receipt binds the complete
+        recursive file set and SHA-256 of both run directories as they exist in
+        one named repository tree, while also recording each run's distinct
+        producer-origin commit. The receipt itself is committed afterward and
+        excludes its own digest. This is a content snapshot, not an assertion
+        that one Git diff originally introduced both independently committed
+        result sets.
+      reason: >-
+        The singular producer result was immutably committed at
+        8b81f8efa4c81604ee7259251c0291006109e395 before the sequential CM lane
+        ran. The CM result was then immutably committed at
+        9b2a47bcafd7299420d3ff84aed39d56469b980a. No later commit can honestly
+        introduce unchanged singular blobs in its diff without rewriting or
+        touching producer bytes. Content-at-commit plus origin commits supplies
+        the intended durable binding without a false changed-path claim.
+
+    - record_type: producer_handoffs
+      record_id: TASK-20261006-d19969 and TASK-20261006-183064
+      field: declared artifact path policy
+      prior_value: >-
+        The task cards enumerate nine singular paths and fifteen CM paths even
+        though the governing experiment specifications require stdout/stderr,
+        and honest execution generated verifier, isolation, preflight, launcher,
+        dependency, and failed-attempt provenance artifacts.
+      corrected_value: >-
+        The authoritative producer artifact set is every file covered by the
+        run directory's manifest.sha256. Preserve preflight refusals and failed
+        attempts rather than deleting them to fit the shorter task-card list.
+        Archive-generated registration envelopes are separately identified and
+        bound by the snapshot receipt; they are not retroactively claimed as
+        producer outputs and do not require editing either producer manifest.
+      reason: >-
+        Dropping required logs or failure provenance would weaken the evidence.
+        Editing immutable producer manifests after execution would be worse.
+        Recursive content binding makes the exact set explicit and retains the
+        discrepancy for review.
+
+    - record_type: run_registration
+      record_id: RUN-SCURVE-af5caf and RUN-SCURVE-81c5e4
+      field: discoverable ledger envelope
+      prior_value: >-
+        Each run records its authoritative execution in run.yaml, while the
+        repository ledger scanner discovers only manifest.yaml or
+        manifest_v2.yaml. Evidence records naming the real run IDs would
+        therefore be reported as referencing unknown runs.
+      corrected_value: >-
+        Add archive-generated manifest.yaml, command.txt, environment.json, and
+        raw-result.json registration envelopes beside each run, plus a
+        registration.sha256 hash chain covering those four files and the
+        immutable producer manifest.sha256. Each envelope
+        points to and hashes the existing authoritative artifacts, identifies
+        itself as post-producer archive metadata, and introduces no new
+        scientific observation. Existing run.yaml and producer result bytes
+        remain unchanged.
+      reason: >-
+        Run discovery is administrative indexing. The wrappers make the real
+        immutable runs citable without pretending that run.yaml followed a
+        schema it predates or fabricating a result absent from the producer.
+
+  preservation:
+    immutable_producer_artifacts_edited: false
+    frozen_specifications_edited: false
+    frozen_handoffs_edited: false
+    dispatch_queue_edited: false
+    scientific_quantity_changed: false
+    experiment_status_changed: false
+    claim_ceiling_changed: false
+
+  limitations:
+    - >-
+      The producer manifests intentionally do not cover the later registration
+      envelopes. Each registration.sha256 links the immutable producer manifest
+      to those envelopes, and the snapshot receipt must hash both sets.
+    - >-
+      This correction repairs archive semantics and run discovery only. It is
+      not independent validation and does not promote either result to
+      knowledge.
+
+  evidence_refs:
+    - experiments/EXP-SCURVE-29040c/runs/RUN-SCURVE-af5caf/manifest.sha256
+    - experiments/EXP-SCURVE-647ade/runs/RUN-SCURVE-81c5e4/manifest.sha256
+    - ledger/handoffs/TASK-20261006-11f0a2.yaml
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    runtime: codex
+    resolved_model_id: gpt-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
