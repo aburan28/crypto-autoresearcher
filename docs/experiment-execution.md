@@ -183,9 +183,15 @@ checked while a process runs. Size the published claim for the protocol. Expiry
 stops its process group and requires proper successor authorization, not a
 self-renewed claim.
 
-POSIX process groups and per-process address-space limits (`memory_mb`) are
-required. That limit is **not aggregate RSS or GPU memory enforcement**; size
-concurrency and use existing host/cgroup protections where required. An optional
+POSIX process groups and a `memory_mb` guard are required. Linux applies a hard
+per-process `RLIMIT_AS` address-space ceiling. macOS rejects finite
+`RLIMIT_AS` values, so the supervisor samples resident bytes across its process
+group through `libproc` and kills the group when the sum exceeds `memory_mb`.
+If it cannot read group memory, the trial stops as an infrastructure failure.
+The macOS guard is sampled, can miss a short peak between checks, and counts
+shared resident pages in each process; it is not a hard address-space limit.
+Neither guard limits GPU memory. Size concurrency and use existing host/cgroup
+protections where a strict aggregate limit is required. An optional
 per-command watchdog requires an explicit `watchdog_reason`; it is a machine
 protection, not a campaign spending cap. SIGINT/SIGTERM and watchdog expiry kill
 the owned process group and preserve a failure receipt where possible. SIGKILL
