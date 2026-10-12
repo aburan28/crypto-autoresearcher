@@ -1,0 +1,311 @@
+# =============================================================================
+# TASK-20261005-cf5839 -- LEDGER ARCHIVE of the composition of review round
+# REVIEW-SEMBIN-20261004-a47503: EV-SEMBIN-702d1d, DEC-20261005-859f40, one
+# write-once goal checkpoint shard, this card, and its receipt. ONE isolated
+# commit, exactly five paths. RUNS ALONE. WRITTEN, NOT DISPATCHED.
+#
+# What this card is: the Coordinator's ledger archive after independent review
+# (agents/coordinator.md "Dynamic dispatch"; lifecycle step 8 to 10). The reports it
+# rests on were archived earlier, as written, by TASK-20261004-5c21da act B; this card
+# does not re-commit them. It writes NO status change: H-SEMBIN-2d7708,
+# EXP-SEMBIN-7e1371 and the goal head are not in its commit. It launches nothing.
+# One of its gates (C5, C-DIGEST) computes a comparison the Coordinator could not
+# compute (no shell) and STOPS the archive on a mismatch, so the records are
+# durable only after that check.
+# =============================================================================
+handoff:
+  id: TASK-20261005-cf5839
+  from: coordinator
+  to: coordinator
+  kind: ledger_archive_review_round_composition
+  goal_id: GOAL-SEMBIN-5078bc
+  batch_id: BATCH-9d649f
+  question_id: RQ-SEMBIN-fa2e3f
+  experiment_id: EXP-SEMBIN-7e1371
+  hypothesis_id: H-SEMBIN-2d7708
+  recorded_at: '2026-10-05'
+  recorded_under: DEC-20261005-859f40
+
+  objective: >-
+    After verifying that the reviewed bytes are the bytes the records cite, commit exactly the five
+    declared paths in one isolated ledger commit, verify the receipt against Git, push, and open or
+    refresh the PR. Run gate C5 (the leading-set digest comparison) before staging and stop if any
+    comparable instance mismatches. Interpret nothing and edit no record content. If a gate marked
+    STOPS fails, commit nothing and return the computed values and the failure to the Coordinator.
+  uncertainty_reduced: >-
+    Whether the composed verdicts, the evidence record, the decision and the lane checkpoint exist as
+    fixed, verified, published bytes bound to the report bytes they cite, and whether the one
+    comparison the Coordinator could not compute (the leading-set SHA-256 of the blind lane against
+    the producer's recorded digests) agrees. No scientific uncertainty is reduced beyond that
+    comparison. Until this receipt verifies, none of the records is official.
+
+  inputs:
+    - ledger/evidence/EV-SEMBIN-702d1d.yaml
+    - ledger/decisions/DEC-20261005-859f40.yaml
+    - ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261005-859f40.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/snapshot-receipt.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/reports-snapshot-receipt.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-342564/snapshot-receipt.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-208b23/snapshot-receipt.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6/validation_report.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/red_team_report.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/blind_rederivation.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/results/closure/ (the twelve .lm files, read-only, gate C5)
+    - experiments/EXP-SEMBIN-7e1371/runs/RUN-SEMBIN-5ed13e/results-table.json (read-only, gate C5)
+    - experiments/EXP-SEMBIN-7e1371/code/closure_cert.py (the authority for the producer's digest format, read-only)
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6/scripts/w6_lmhash_and_table.py (the validator's verified reimplementation, read-only)
+    - tools/check_review_independence.py
+
+  procedure:
+    note: >-
+      The dispatching session runs these in this order and writes the receipt from what it computed.
+      A step marked STOPS ends the archive: nothing is staged, the receipt is not written, the failure
+      and the values computed so far are returned to the Coordinator, and nothing is repaired or
+      renamed. This Coordinator computed no hash and ran no command.
+    steps:
+      - id: C0
+        what: Preconditions.
+        do: >-
+          Confirm the four declared non-receipt paths exist in the working tree and are non-empty. Run
+          git grep -n -E "<(SHA256|GIT):" over the four files: the result must be empty (no placeholder
+          was left). Run yaml.safe_load on each of the four files. Record the outputs.
+        stops: A placeholder string, an empty file or a parse error.
+      - id: C1
+        what: Sync.
+        do: >-
+          git fetch origin. Merge origin/main into claude/ecdlp-index-calculus-grobner-xwr62t (merge, never
+          rebase). Record the base commit checked, the branch head before (the parent of the archive commit)
+          and the merge outcome. If TASK-20261005-4c1f86 or any other archive has landed on origin/main, the
+          merge brings it in; this card does not wait for it and does not touch goal.yaml.
+        stops: A conflict inside any ledger record or run file (resolved only by a new superseding record).
+      - id: C2
+        what: Predecessor receipts verify, and the reviewed bytes are the cited bytes.
+        do: >-
+          (a) For TASK-20261004-342564, TASK-20261004-208b23 and both receipts of TASK-20261004-5c21da:
+          the recorded commit is reachable from HEAD (or, if unreachable, the declared path_sha256 values
+          verify against the tree: content-first binding) and every path_sha256 verifies against the tree.
+          (b) Compute sha256 of the working-tree bytes of the files named in EV-SEMBIN-702d1d
+          input_hashes_as_recorded_in_receipts (validation_report.yaml, red_team_report.yaml,
+          blind_rederivation.yaml, the plan, and RUN-SEMBIN-5ed13e NOTES.md, manifest.yaml,
+          results-table.json, summary.json) and compare with the cited values; record eight pairs.
+          (c) Re-run python3 tools/check_review_independence.py --plan
+          coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml --reports
+          coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6
+          coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926 and record its full output;
+          it is expected to read 'PASS: 2 report(s), every joint owned and attested, blindness respected,
+          controls declared'.
+        stops: A predecessor path_sha256 mismatch, or any of the eight cited hashes differing from the tree, or the independence tool not printing PASS.
+      - id: C3
+        what: Identifier checks.
+        do: >-
+          For EV-SEMBIN-702d1d, DEC-20261005-859f40 and TASK-20261005-cf5839 run python3
+          tools/allocate_id.py --check <ID> and git grep -n -E "id: *[A-Z]+-[A-Za-z0-9-]*<token>" HEAD on the merged
+          tree, token = 702d1d, 859f40, cf5839. Expected working-tree hits are only the paths this card
+          commits (the shard path contains 859f40) and, after the commit, its receipt. Any other definition
+          of these ids is a COLLISION. A substring of a hash is not a collision.
+        stops: A real identifier collision.
+      - id: C4
+        what: Write-once and confinement.
+        do: >-
+          None of the five declared paths exists on origin/main (git cat-file -e origin/main:<path> fails for each).
+          After staging (C8), git diff --cached --name-only equals exactly the five declared paths.
+          ledger/goals/GOAL-SEMBIN-5078bc/goal.yaml, ledger/hypotheses/H-SEMBIN-2d7708.yaml,
+          experiments/EXP-SEMBIN-7e1371/specification.yaml and every file under either run directory
+          and either reviews directory are untouched.
+        stops: A declared path already on origin/main, or any other path in the staged set.
+      - id: C5
+        what: C-DIGEST. The leading-set SHA-256 comparison (EV-SEMBIN-702d1d RC-1).
+        do: >-
+          For each of the NINE comparable instances (n40 d1, n41 d0, n41 d4, n42 d1, n43 d0, n43 d5, n44 d5,
+          n45 d0, n45 d4; instance ids in EV quantity_comparison.instances): (i) read the blind file
+          coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/results/closure/<instance_id>.lm
+          (one decimal monomial bitmask per line; bit j-1 set iff x_j is in the monomial, x_j the j-th variable
+          name of line 1 of the instance .ms file; record the first and last variable names of line 1 for one
+          instance as the check that this equals the producer's var_names order); (ii) sanity: the number of
+          lines equals the blind rank of EV quantity_comparison for that instance, and the count of masks by
+          popcount 0..4 equals the blind lm_blind vector; (iii) order the masks by popcount DESCENDING, then mask
+          ASCENDING (the producer's row order: ascending leading column, size-descending blocks, ascending
+          bitmask within a block); (iv) concatenate each mask as 8 bytes BIG-endian (the empty monomial is 8 zero
+          bytes) and take the sha256, lowercase hex; (v) compare with the basis_lm_sha256 of the D = 4 per_D
+          record of that instance in experiments/EXP-SEMBIN-7e1371/runs/RUN-SEMBIN-5ed13e/results-table.json
+          (full 64 hex digits). The authority for the format is _lm_stats in
+          experiments/EXP-SEMBIN-7e1371/code/closure_cert.py (the validator verified the same procedure equal to
+          the library's lm_sha256 on 60 of 60 unmutated runs, scripts/w6_lmhash_and_table.py); if the session's
+          computation and that function disagree on the same list, use the function and record the
+          disagreement. Also compute the same digest for n40 d0 and record it: the recorded value
+          (8b168c1a...) is that of an early-stopped intermediate basis and is EXPECTED NOT to match; a match there is
+          recorded as unexpected and is not a stop. n42 d0 and n44 d0 are NOT comparable (recorded at D = 2) and are
+          skipped, with that stated. Record, per instance, the recorded digest, the computed digest and equal true or false.
+        stops: >-
+          Any mismatch among the nine comparable instances, a line count or per-size histogram that does not equal
+          the blind value, or a missing .lm file. On a stop, return the nine computed digests; the Coordinator then
+          composes the leading-set disagreement and rewrites EV-SEMBIN-702d1d and DEC-20261005-859f40 BEFORE any
+          commit (they are uncommitted, so this is not an edit of a committed record).
+      - id: C6
+        what: Validation before and after staging.
+        do: >-
+          python3 tools/validate_ledger.py before staging and after (with the receipt present). The condition is
+          zero NEW errors naming any staged path (the repository carries pre-existing errors, recorded 122 at the last
+          receipt, which are recorded and not fixed). Also confirm by reading the parsed files: EV has id,
+          hypothesis_id, run_ids, direction, strength, claim_tier, proof_status, proof_refs; DEC has id, decision,
+          target_ids, knowledge_promotion with a nonempty not_warranted, decided_by; the card has id, from, to, objective
+          and a budget whose three fields are non-null; every run id in EV run_ids resolves; every RQ-, H-, EXP-, EV- id
+          in DEC target_ids resolves.
+        stops: A new error naming a staged path.
+      - id: C7
+        what: Lanes and claim.
+        do: >-
+          python3 tools/goal_lanes.py lanes GOAL-SEMBIN-5078bc. Record the listing and whether a live lane or claim
+          exists. This card is in no dispatch queue, so tools/goal_lanes.py claim cannot be used; record that. This
+          card touches no shared file (the shard is write-once and new, goal.yaml is not touched), so it runs
+          even if another session holds a lane; it still RUNS ALONE among archive tasks in this worktree.
+      - id: C8
+        what: Stage and commit.
+        do: >-
+          Compute sha256 of the four non-receipt paths and write the receipt (below), without a self-hash and without
+          the commit's own sha. Stage ONLY the five paths. Never git add -A. Commit with a message that names
+          TASK-20261005-cf5839, EV-SEMBIN-702d1d, DEC-20261005-859f40 and GOAL-SEMBIN-5078bc and says "ledger archive,
+          composed review round; direction neutral; decision refine; no hypothesis, experiment or goal status change"
+          and nothing about any scientific value beyond that. After the commit confirm it changes exactly the five paths.
+        stops: A commit that changes any other path.
+      - id: C9
+        what: Publish.
+        do: >-
+          Push the branch. Open or refresh the PR against main naming EV-SEMBIN-702d1d, DEC-20261005-859f40,
+          TASK-20261005-cf5839 and GOAL-SEMBIN-5078bc, with the commit sha. Per CLAUDE.md, once every CI check on
+          the head is success or skipped, no conflict and no blocking thread is open, merge with the merge-commit
+          method only (never squash, never rebase), or enable GitHub auto-merge; never merge a red, pending or
+          conflicted head. The receipt cannot carry the sha of the commit that contains it; the dispatching session
+          records it in the PR description.
+
+  receipt_must_contain:
+    path: coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261005-cf5839/snapshot-receipt.yaml
+    filename_note: >-
+      The file name snapshot-receipt.yaml was fixed by the dispatching instructions. The authoritative kind
+      is the content field archive.kind, which is ledger.
+    shape: >-
+      The shape of coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/snapshot-receipt.yaml and
+      reports-snapshot-receipt.yaml (archive.task_id, act, kind, binding_mode content_first, goal_id, batch_id, authority,
+      record_ids, recorded_at, runs_launched 0, base_sync, parent_sha, commit_sha null with its note, commit_paths,
+      path_sha256 for the commit paths other than the receipt, identifier_checks, lanes, claim, validation, outcome_hygiene),
+      with the following fields.
+    fields:
+      archive:
+        task_id: TASK-20261005-cf5839
+        kind: ledger
+        binding_mode: content_first
+        authority: DEC-20261005-859f40
+        record_ids: [EV-SEMBIN-702d1d, DEC-20261005-859f40, TASK-20261005-cf5839]
+        runs_launched: 0
+        base_sync: 'checked, branch_head_before, origin_main_is_ancestor_of_branch_head, action, merge_outcome'
+        parent_sha: the branch head before the commit
+        commit_sha: null
+        commit_sha_note: A receipt is staged inside the commit it describes and cannot carry that commit's sha, nor hash itself.
+        commit_paths: the five declared paths
+        path_sha256: the four non-receipt paths
+        predecessor_receipts: 'C2(a) outcome per receipt'
+        cited_hash_pairs: 'C2(b), eight pairs, each with path, tree_sha256, cited_sha256, equal'
+        independence_recheck: 'command, exit_code, output_verbatim'
+        digest_gate: 'C5; per instance the recorded_digest, the computed_digest and equal true or false; n40_d0 recorded with its expected inequality; the two skipped instances named; the sanity results (line counts and per-size histograms); the var_names check'
+        identifier_checks: 'C3, per id'
+        write_once_and_confinement: 'C4'
+        lanes: 'C7'
+        claim: not possible (task in no dispatch queue)
+        validation: 'C6 before and after: command, rc, error count, new errors naming a staged path'
+        stops: >-
+          The list of stop conditions and, for each, triggered true or false. If any is true no receipt is written and
+          no commit is made.
+        outcome_hygiene: >-
+          The commit message and PR text name the IDs and the labels refine and neutral and state no value of the
+          quantity.
+
+  stop_conditions:
+    - S1 A placeholder string, an empty file or a parse error in a declared file (C0).
+    - S2 A merge conflict inside a ledger record or run file (C1).
+    - S3 A predecessor path_sha256 mismatch, a cited input hash differing from the tree, or the independence tool not printing PASS (C2).
+    - S4 A real identifier collision for EV-SEMBIN-702d1d, DEC-20261005-859f40 or TASK-20261005-cf5839 (C3).
+    - S5 A declared path already on origin/main, or a staged set other than exactly the five paths (C4, C8).
+    - S6 A leading-set digest mismatch among the nine comparable instances, a failed sanity check, or a missing .lm file (C5).
+    - S7 A new validate_ledger.py error naming a staged path (C6).
+    - S8 A commit that changes any path other than the five (C8).
+
+  must_not_claim:
+    - That any hypothesis, experiment, goal or run status changed. None did (DEC-20261005-859f40 official_transitions).
+    - That the pull request is merged, or that content binding implies reachability from main.
+    - That the leading-set comparison agreed, unless C5 computed it and every comparable instance matched. If C5 stopped, nothing is claimed.
+    - Anything about Semaev's Assumption 1, d_F4, n = 409 or 571, Kosters' figures or the security of any curve.
+    - That the 142 validator and 873 red-team scratch files were re-read by this card. They are bound by TASK-20261004-5c21da act B.
+
+  constraints:
+    - RUNS ALONE. No concurrent archive in this worktree. Stage only the declared paths. Never git add -A.
+    - >-
+      NO EDIT to any existing file: both run directories, both reviews directories, the plan, DEC-20261004-df2986,
+      DEC-20261004-6ac6bc, DEC-20261004-a47503, DEC-20261005-b7e3a9, the earlier shards, goal.yaml,
+      H-SEMBIN-2d7708, EXP-SEMBIN-7e1371/specification.yaml and every earlier receipt stay byte-identical.
+    - KNOWLEDGE INDEX. Not staged. knowledge/INDEX.md is gitignored. No knowledge record is in this archive.
+    - Never select Bedrock (AGENTS.md rule 16).
+
+  deliverables:
+    - one isolated ledger commit of exactly the five declared paths
+    - a post-commit receipt (kind ledger) at the declared path with the fields above
+    - a pushed branch and an open or refreshed PR against main naming EV-SEMBIN-702d1d, DEC-20261005-859f40, TASK-20261005-cf5839 and GOAL-SEMBIN-5078bc
+
+  artifact_paths:
+    - ledger/evidence/EV-SEMBIN-702d1d.yaml
+    - ledger/decisions/DEC-20261005-859f40.yaml
+    - ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261005-859f40.yaml
+    - ledger/handoffs/TASK-20261005-cf5839.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261005-cf5839/snapshot-receipt.yaml
+  commit_paths:
+    - ledger/evidence/EV-SEMBIN-702d1d.yaml
+    - ledger/decisions/DEC-20261005-859f40.yaml
+    - ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261005-859f40.yaml
+    - ledger/handoffs/TASK-20261005-cf5839.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261005-cf5839/snapshot-receipt.yaml
+  write_scope:
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261005-cf5839/
+  archived_by: TASK-20261005-cf5839
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+  budget_note: >-
+    Advisory machine protection. C5 reads about 1.3 million mask lines in total across the ten files it reads
+    (the two n = 45 files hold 166705 lines each) and hashes them; no closure is run. Zero scientific runs. An expiry
+    checkpoints the task and is never evidence.
+
+  dispatch_preconditions:
+    - DP-1. The four declared non-receipt paths exist in the working tree, are non-empty and carry no placeholder.
+    - DP-2. archived_by is bound (it is this card). No other archive task is running on this worktree.
+    - DP-3. The reports receipt of TASK-20261004-5c21da (act B) is committed and verifies (C2).
+    - DP-4. This card does not depend on TASK-20261005-4c1f86 and does not edit goal.yaml; it may run before or after it, never concurrently.
+
+  completion_gate:
+    - commit reachable from HEAD with the expected parent (the merge of origin/main, or HEAD after it)
+    - the commit changes exactly the five declared paths
+    - every path_sha256 verifies against the tree
+    - predecessor receipts verify, the eight cited hashes equal the tree, and the independence tool prints PASS
+    - every stopping identifier check passes, or the archive stopped and reported
+    - C5 computed and every comparable digest matches, or the archive stopped and reported
+    - validate_ledger.py shows zero new errors naming a staged path
+    - commit message names TASK-20261005-cf5839, EV-SEMBIN-702d1d, DEC-20261005-859f40 and GOAL-SEMBIN-5078bc and claims nothing beyond the ledger archive
+    - branch pushed and PR opened or refreshed naming the records
+  return_format: >-
+    Commit sha, receipt path, base commit and merge outcome, the cited-hash pairs, the independence-tool output, the
+    nine digest comparisons with the n = 40 draw 0 value, the identifier table, the validator outcome, the lanes
+    listing, and the PR number.
+  review_plan: null
+  review_plan_note: >-
+    This card opens no review round. The round it archives is REVIEW-SEMBIN-20261004-a47503, composed in
+    DEC-20261005-859f40.
+  state: written_not_dispatched
+  blocked_on: []
+  created_at: '2026-10-05'

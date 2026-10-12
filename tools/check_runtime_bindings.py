@@ -23,7 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from orchestration.role_registry import (  # noqa: E402
-    ROLES_PATH, check, effort_support, expected_effort, expected_tools,
+    ROLES_PATH, check, check_model_pin_table, effort_support,
+    expected_effort, expected_tools,
     load_policies, load_roles, parse_frontmatter, policy_reasoning_effort,
     role_spec)
 
@@ -68,7 +69,7 @@ def main() -> int:
                       f"{', '.join(tools) if tools else 'UNSUPPORTED'}")
         return 0
 
-    problems = check(roles_doc, policies_doc)
+    problems = check_model_pin_table(roles_doc) + check(roles_doc, policies_doc)
     if problems:
         print(f"{len(problems)} runtime-binding problem(s):")
         for problem in problems:

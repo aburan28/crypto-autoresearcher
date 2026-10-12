@@ -8,10 +8,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
+from . import transport as transport_module
 from .transport import Completion, Message, Tool, build_request
+
+# Cache controls are provider-specific, not wire-format capabilities. An
+# OpenAI-compatible gateway or local server must not receive first-party cache
+# parameters merely because it speaks the same protocol.
+CACHE_CAPABLE_BACKENDS = frozenset({"anthropic", "openai"})
 
 
 @dataclass(frozen=True)
@@ -29,12 +36,35 @@ class PromptCachePolicy:
     openai_retention: str | None = None
     cache_tools: bool = True
     cache_system: bool = True
+    # Cache the conversation itself, not only the fixed prefix. Right for a
+    # multi-turn tool loop, where every turn re-sends the whole transcript;
+    # wrong for a one-off prompt or a batch item, where the tail is unique and
+    # marking it pays the write premium on bytes nothing ever reads back.
+    cache_messages: bool = False
+    messages_ttl: str = "5m"
 
     def __post_init__(self) -> None:
         if self.anthropic_ttl not in {"5m", "1h"}:
             raise ValueError("anthropic_ttl must be '5m' or '1h'")
+        if self.messages_ttl not in {"5m", "1h"}:
+            raise ValueError("messages_ttl must be '5m' or '1h'")
         if self.openai_retention not in {None, "24h"}:
             raise ValueError("openai_retention must be None or '24h'")
+        if (self.cache_messages and self.messages_ttl == "1h"
+                and self.anthropic_ttl == "5m"
+                and (self.cache_system or self.cache_tools)):
+            # The API requires longer-lived entries to precede shorter ones.
+            raise ValueError("a 1h messages TTL cannot follow a 5m prefix TTL; "
+                             "longer-lived cache entries must come first")
+
+
+# The agent loop: the system prompt (role contract) and tools are large and
+# never change within a role, so they hold a 1-hour entry that survives slow
+# tool calls and long thinking turns and is shared across tasks of the same
+# role. The transcript grows every turn and is re-read on the next one within
+# seconds or minutes, so the cheaper 5-minute write is enough for it.
+AGENT_LOOP_CACHE = PromptCachePolicy(anthropic_ttl="1h", cache_messages=True,
+                                     messages_ttl="5m")
 
 
 def canonical_json(value: Any) -> str:
@@ -86,6 +116,13 @@ def apply_prompt_cache(body: Mapping[str, Any], *, wire: str, model: str,
                 "type": "ephemeral", "ttl": policy.anthropic_ttl,
             }
             rendered["tools"] = cached_tools
+        if policy.cache_messages and rendered.get("messages"):
+            # Top-level automatic caching: the API places the breakpoint on the
+            # last cacheable block and moves it forward as the transcript
+            # grows, so each turn reads everything before it and writes only
+            # the delta. One slot, after the system and tool markers.
+            rendered["cache_control"] = {"type": "ephemeral",
+                                         "ttl": policy.messages_ttl}
         return rendered
 
     if wire == "openai_chat":
@@ -111,6 +148,42 @@ def build_cached_request(config, resolution, *, system: str | None,
     return url, headers, apply_prompt_cache(
         body, wire=resolution.wire, model=resolution.resolved_model_id,
         system=system, tools=tools, policy=policy)
+
+
+def cached_complete(config, resolution, *, system: str | None,
+                    messages: list[Message], max_tokens: int | None = None,
+                    tools: list[Tool] | None = None,
+                    cache_policy: PromptCachePolicy | None = None,
+                    env: dict[str, str] | None = None,
+                    opener: Callable[..., Any] | None = None,
+                    sleep: Callable[[float], None] = time.sleep) -> Completion:
+    """`transport.complete`, with provider prompt caching where it is safe.
+
+    The one synchronous call path for every caller that wants caching: the
+    agent loop, `adapter complete`, and the interactive lane of `batch
+    submit`. A backend outside `CACHE_CAPABLE_BACKENDS` gets the plain request
+    unchanged. The usage block keeps the provider's cache counters, so a
+    receipt shows what was read from cache and what was written to it.
+    """
+    if resolution.backend not in CACHE_CAPABLE_BACKENDS:
+        return transport_module.complete(
+            config, resolution, system=system, messages=messages,
+            max_tokens=max_tokens, tools=tools, env=env, opener=opener,
+            sleep=sleep)
+    url, headers, body = build_cached_request(
+        config, resolution, system=system, messages=messages,
+        max_tokens=max_tokens, tools=tools, cache_policy=cache_policy, env=env)
+    defaults = config.providers.get("defaults", {})
+    started = time.time()
+    payload = transport_module.post_json(
+        config, url, headers, body,
+        timeout=float(defaults.get("request_timeout_seconds", 600)),
+        max_retries=int(defaults.get("max_retries", 3)),
+        opener=opener, sleep=sleep)
+    completion = transport_module.parse_response(resolution.wire, payload)
+    completion = attach_cache_usage(completion, resolution.wire, payload)
+    completion.latency_seconds = round(time.time() - started, 3)
+    return completion
 
 
 def normalize_usage(wire: str, payload: Mapping[str, Any]) -> dict[str, int]:

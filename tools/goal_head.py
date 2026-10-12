@@ -60,6 +60,11 @@ from typing import Any
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 # The fields that answer "where is this goal and what happens next". The first
 # nine are exactly those `launch-research-harness` step 2 names; the rest are
 # what a resuming coordinator needs to bind to committed state and to see
@@ -137,7 +142,7 @@ def load_goal(path: Path) -> dict[str, Any]:
     # directory name, not the file stem.
     fallback_id = path.parent.name if path.name == "goal.yaml" else path.stem
     try:
-        doc = yaml.safe_load(path.read_text())
+        doc = fast_yaml.safe_load(path.read_text())
     except Exception as exc:  # noqa: BLE001 - reported per goal, not raised
         return {"id": fallback_id, "path": str(path), "status": "unparseable",
                 "error": str(exc), "_record": {}}
