@@ -63,9 +63,14 @@ ownership and machine resource limits. For a prepared trial plan with its existi
 claim, use the process supervisor:
 
 ```sh
-python3 tools/experiment_execution.py run --plan <existing-plan-path> \
+PYTHONPATH=. python3 tools/experiment_execution.py run --plan <existing-plan-path> \
   --owner <claim-owner> --epoch <claim-epoch>
 ```
+
+Run repository tools with `PYTHONPATH=.` (or the equivalent checkout-local
+environment) so an adjacent checkout cannot satisfy imports. For a named run,
+do not invoke the portfolio-wide experiment selector as a prerequisite; use
+the named experiment's existing launcher and task handoff directly.
 
 The process supervisor accepts only `crypto.autoresearch.trial_plan.v1` plans.
 Some older or experiment-specific frozen protocols have a different plan
