@@ -67,6 +67,26 @@ python3 tools/experiment_execution.py run --plan <existing-plan-path> \
   --owner <claim-owner> --epoch <claim-epoch>
 ```
 
+The process supervisor accepts only `crypto.autoresearch.trial_plan.v1` plans.
+Some older or experiment-specific frozen protocols have a different plan
+schema and a documented command launcher. In that case, do not rewrite the
+plan, manufacture a generic wrapper, or retry the same schema refusal. Invoke
+the experiment's existing launcher with its declared admission arguments and
+preserve that launcher's own resource, authorization, and output checks. A
+schema mismatch is an execution-adapter mismatch, not evidence that the
+experiment is unavailable.
+
+For a named experiment, the dispatch order is therefore:
+
+1. use `tools/experiment_execution.py` only when the existing plan declares
+   the supported schema and has a live executor claim;
+2. otherwise use the existing command recorded by the experiment's launcher
+   or implementation handoff, without changing frozen inputs; and
+3. if the launcher refuses because the host is unsafe, record the exact
+   machine/resource refusal once and use an already authorized remote worker
+   only when the exact source and receipt transfer is authorized. Do not spin
+   on an unchanged refusal or silently weaken the check.
+
 Keep the runner's built-in admission, resource, and output-correctness checks.
 Do not duplicate them in an agent-led validation phase or disable them to force
 a launch. Routine trials are processes; they do not need a new agent per seed.
