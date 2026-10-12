@@ -20,17 +20,31 @@ set -uo pipefail
 
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}" || exit 0
 
+# Optional sparse checkout (docs/sparse-checkout.md). A full checkout is ~9 GB,
+# 7 GB of it run archives and reference bundles an execution session never
+# reads, and it leaves too little disk for SageMath below. Opt in per
+# environment with CRYPTO_AR_SPARSE_PROFILE=harness; `disable` undoes it.
+if [ -n "${CRYPTO_AR_SPARSE_PROFILE:-}" ]; then
+    python3 tools/sparse_checkout.py apply "$CRYPTO_AR_SPARSE_PROFILE" >&2 \
+        || echo "session-start: sparse profile '$CRYPTO_AR_SPARSE_PROFILE' not applied; checkout stays full" >&2
+elif [ "$(git config --bool core.sparseCheckout 2>/dev/null)" != "true" ] \
+    && [ "$(df -Pk . 2>/dev/null | awk 'NR==2{print $4}')" -lt 20971520 ] 2>/dev/null; then
+    echo "session-start: <20GiB free with a full checkout; 'python3 tools/sparse_checkout.py apply harness' frees ~7GB for run sessions" >&2
+fi
+
 # The declared toolchain. Small and slow-moving on purpose -- a run record has
 # to stay reproducible years from now (see requirements-agent.txt).
 python3 -m pip install -q --disable-pip-version-check -r requirements-dev.txt \
     || echo "session-start: dependency install failed; run 'pip install -r requirements-dev.txt'" >&2
 
 # Deepen the clone so archive verification sees real history. Only adds
-# objects: it rewrites nothing and touches no working tree.
+# objects: it rewrites nothing and touches no working tree. Commits and trees
+# only: reachability needs no old file contents, and a plain --unshallow pulled
+# every blob of all ~1,300 branches. Old blobs arrive on demand if read.
 if [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
-    echo "session-start: shallow clone, fetching full history for archive verification" >&2
-    git fetch --unshallow origin \
-        || echo "session-start: --unshallow failed; goal_portfolio_health.py retries it, and warns while it is shallow" >&2
+    echo "session-start: shallow clone, fetching history (commits and trees) for archive verification" >&2
+    python3 tools/sparse_checkout.py deepen >&2 \
+        || echo "session-start: unshallow failed; goal_portfolio_health.py retries it, and warns while it is shallow" >&2
 fi
 
 # The merge-hygiene pre-commit hook. CI is the backstop, not the gate: a new

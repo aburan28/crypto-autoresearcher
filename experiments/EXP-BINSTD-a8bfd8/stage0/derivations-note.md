@@ -6,4 +6,4 @@
 - E1 c-band frozen to [0.9, 1.0]; N_leaf band frozen to [0.95, 1.05].
 - Claim (A) direction holds on Stage-0 census: `True`.
 - No Magma/Sage/AUXIN/Bedrock. No Stage-1 metrics used as evidence before this freeze.
-- Recorded at 2026-10-03T05:56:43Z.
+- Recorded at 2026-10-03T01:22:01Z.
