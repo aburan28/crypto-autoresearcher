@@ -92,8 +92,8 @@ absence from the repository.**
 - `tools/validate_ledger.py`, `tools/goal_portfolio_health.py` and
   `tools/portfolio_kpis.py` sweep the whole repository and **refuse** a sparse
   checkout: off-disk run records read to them as missing (validate_ledger
-  reported 2,042 errors instead of 105) and as unrun contracts (which moves
-  approval capacity). Run them in a full checkout, or after `disable`.
+  reported 2,042 errors instead of 105) and as unrun contracts (which distorts
+  the backlog KPI). Run them in a full checkout, or after `disable`.
   `CRYPTO_AR_ALLOW_SPARSE=1` runs them over what is on disk, for diagnosis
   only.
 - CI checks out in full and is unaffected.
