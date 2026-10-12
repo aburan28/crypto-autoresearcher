@@ -1,0 +1,210 @@
+format: scheme-construction-contract/v1
+title: ER-seeded McEliece PKE
+primitive: pke
+parent_record_ids: [GOAL-SSI-2fa82a, RQ-SSI-1946c9, IDEA-20261007-6553d5, H-SSI-3dad1f, TASK-20261007-61f3bc]
+artifact_revision: unreviewed-task-output
+author: idea-generator-TASK-20261007-61f3bc
+security_parameter: lambda with log(p), n, k, t polynomially bounded in lambda
+domains:
+  public_parameters: canonical F_(p^2) and curve encodings; binary Goppa parameters (2^s,n,k,t); public domain-separated hashes and XOF
+  public_key: [version, supersingular_curve_E, salt_s, code_parameters, full_rank_binary_G_pub]
+  secret_key: [version, E, salt_s, code_parameters, G_pub, complete_evaluable_End_E_basis_W, canonical_ring_string_r, Goppa_support_L, polynomial_g, G_sec, S, P]
+  message: canonical k-bit strings identified with F_2^k
+  ciphertext: [version, key_id, canonical_n_bit_vector_c]
+  signature: null
+  key_space: null
+  encoding_and_equality: strict byte-canonical parsing; ciphertext equality is byte equality; alternate encodings reject
+  inapplicable_reasons:
+    signature: candidate is PKE
+    key_space: no KEM key is encapsulated
+
+security_claims:
+  - name: IND-CPA
+    primitive: pke
+    status: conjectured
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: Challenger generates pk,sk; adversary receives pk and submits equal-length m0,m1 in F_2^k; challenger samples b and an independent uniform weight-t error and returns Enc(pk,mb); adversary outputs b-prime.
+    advantage_convention: abs(Pr[b-prime=b]-1/2)
+    query_bounds: {hash_queries: polynomial, encryption_computations: polynomial}
+    oracle_access_and_challenge_exclusions: no decryption oracle; all hash/XOF interfaces are public and domain separated
+    assumptions: [Seeded-Goppa-IND, Aux-ER-McE only as a key-recovery attack target]
+    theorem_artifact: null
+    review_artifact: null
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: Walk-ER samples the curve marginal of KeyGen; Aux-ER-McE samples the complete real public key including the ring-seeded code matrix
+    real_key_distribution: walk-generated supersingular E followed by complete ring enumeration, public salt, deterministic ring-seeded GoppaGen, and certified code-key rejection
+    adversary_input_and_auxiliary_data: Walk-ER gives E only; Aux-ER-McE gives E,s,parameters,G_pub; the latter matches the real PKE view
+    solution_representation_and_success_predicate: four evaluable maps forming all End(E), accepted by closure, independence, maximal-discriminant, and exact-map checks
+    setup_trust_and_erasure: fixed public base parameters; sampled path is erased; setup transparency and path-generated distribution bias remain open
+    secret_representation_and_conversion_costs: CanRing shortlex canonicalization is exact and terminating but has no polynomial runtime bound
+    assumptions:
+      - name: Walk-ER hardness
+        formal_game: given E from the exact curve marginal, output an accepted complete evaluable End(E) basis
+        distribution: path-generated key marginal
+        model: PPT classical; QPT not claimed
+        source: internal candidate definition
+        provenance: internal
+        verified_by: idea-generator-TASK-20261007-61f3bc
+      - name: Aux-ER-McE hardness
+        formal_game: given the entire PKE public key, output an accepted complete evaluable End(E) basis
+        distribution: exact KeyGen public-key distribution
+        model: PPT classical; QPT not claimed
+        source: internal candidate definition
+        provenance: internal
+        verified_by: idea-generator-TASK-20261007-61f3bc
+    cited_equivalences_and_hypotheses: []
+    evidence_artifacts: [coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/candidate.md]
+    review_artifact: null
+    remaining_gap: hardness, public-auxiliary leakage, distribution bridge, and representation conversion are not established
+    next_action: audit whether real G_pub can be embedded from a bare E challenge without End(E)
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - {name: EnumerateEndRing, inputs: E, outputs: complete evaluable W, randomness: none, validation: exact map/order/maximal-discriminant checks, failure_behavior: continues enumeration, pseudocode_artifact: candidate.md, time: terminating but unbounded, memory: unbounded, bit_length_bounds: finite output}
+      - {name: CanRing, inputs: [E,W], outputs: canonical_r, randomness: none, validation: GL_4(Z) equality of bases, failure_behavior: continues enumeration, pseudocode_artifact: candidate.md, time: terminating but unbounded, memory: unbounded, bit_length_bounds: finite output}
+      - {name: KeyGen, inputs: 1^lambda, outputs: [pk,sk], randomness: curve walk and salt, validation: ring and code certificates, failure_behavior: retry, pseudocode_artifact: candidate.md, time: not proved polynomial, memory: not bounded, bit_length_bounds: intended polynomial except enumeration workspace}
+      - {name: Enc, inputs: [pk,m,rho], outputs: ciphertext, randomness: uniform weight-t error, validation: strict pk/message parse, failure_behavior: reject malformed input, pseudocode_artifact: candidate.md, time: polynomial, memory: polynomial, bit_length_bounds: n plus headers}
+      - {name: Dec, inputs: [sk,ciphertext], outputs: m_or_bottom, randomness: none, validation: strict parse, unique decode, exact weight recheck, failure_behavior: bottom, pseudocode_artifact: candidate.md, time: polynomial conditional on declared Patterson decoder, memory: polynomial, bit_length_bounds: k or bottom}
+    preprocessing_and_retry_costs: code-key rejection and ring enumeration are charged; no expected polynomial tail bound is supplied
+    complexity_guarantee: Enc and conditional Dec polynomial; KeyGen efficiency open
+    unavailable_subroutines: []
+    evidence_artifacts: [coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/candidate.md]
+    review_artifact: null
+    remaining_gap: prove polynomial complete-ring generation/canonicalization and GoppaGen rejection tail
+    next_action: separate finite correctness from efficient KeyGen and prove or falsify each runtime bound
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: for every accepted generated key, every m in F_2^k, and every encryption error e of exact weight t, Dec(sk,Enc(pk,m;e))=m
+    probability_space: KeyGen coins and uniform exact-weight encryption errors; conditional on KeyGen acceptance
+    valid_key_and_message_scope: certified Goppa distance at least 2t+1, total decoder on all errors of weight at most t, every canonical k-bit message
+    per_key_or_average_guarantee: per accepted key
+    failure_probability_bound: zero under the stated decoder and distance conditions
+    actual_message_or_key_recovery: Dec returns the selected k-bit message, not an endpoint, invariant, orbit, codeword, or key only
+    exceptional_inputs: [malformed encodings reject, decoder failure returns bottom, wrong key has no correctness guarantee]
+    theorem_artifact: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/candidate.md#conditional-actual-message-correctness
+    supporting_test_artifacts: []
+    review_artifact: null
+    remaining_gap: decoder theorem/certificate and derivation have not been independently reviewed or implemented
+    next_action: blind symbolic rederivation of cP^-1=(mS)G_sec+eP^-1 and decoder preconditions
+  O4:
+    name: functionality_mechanism
+    status: proposed_discharge
+    public_operation: sample exact-weight e and compute c=mG_pub+e
+    private_operation: derive/use the secret Goppa decoder fixed by CanRing(E,W), undo P, bounded-distance decode, undo S, and recheck error weight
+    agreement_or_message_binding_lemma: unique decoding within radius t of a code with distance at least 2t+1 returns mS and hence the selected m
+    extra_recipient_secrets: [Goppa support and polynomial, S, P; all deterministically derived from W and public salt but included in sk for efficiency]
+    recipient_lift:
+      applicability: false
+      inapplicable_reason: decryption is code decoding and does not reconstruct an isogeny endpoint, torsion lift, quotient lift, or evaluator frame
+      interface: null
+      inputs: null
+      output_representation_and_equivalence: null
+      uniqueness_or_acceptance_condition: null
+      polynomial_algorithm_and_cost: null
+      failure_bound: null
+      recovery_of_actual_message_or_key: null
+      identical_public_data_control: attempt generic and structural public decoding from exactly E,s,parameters,G_pub
+    identification_and_transform:
+      applicability: false
+      inapplicable_reason: not a signature or Fiat-Shamir construction
+      relation: null
+      completeness: null
+      soundness_extractor_and_knowledge_error: null
+      simulator_and_verifier_scope: null
+      challenge_space: null
+      transcript_message_key_and_context_binding: null
+      transform_theorem_and_hypotheses: null
+    ake_identity_and_session_binding: null
+    evidence_artifacts: [coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/candidate.md]
+    review_artifact: null
+    remaining_gap: recipient advantage is Seeded-Goppa-IND/code-decoding hardness, not derived from EndRing
+    next_action: public-data decode and seed-leakage audit
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions:
+      - security_claim: IND-CPA from Walk-ER or Aux-ER-McE
+        solver_input_distribution: exact named EndRing challenge
+        scheme_attacker: hypothetical PPT IND-CPA adversary
+        assumption_problem_solved: complete evaluable End(E) basis
+        challenge_embedding: open; bare E does not reveal the ring-derived G_pub needed for a real challenge
+        real_key_distribution_argument: absent
+        oracle_simulation: absent
+        extraction: absent; a plaintext distinguisher need not reveal a ring basis
+        aborts: unquantified
+        advantage_loss_bound: none established
+        solver_runtime: none established
+        model: classical ROM target only
+        theorem_artifact: null
+        independently_reviewed_artifact: null
+    intermediate_assumptions:
+      - name: Seeded-Goppa-IND
+        game: distinguish equal-length McEliece encryptions for matrices output by the ring-seeded deterministic GoppaGen
+        distribution: exact KeyGen matrix distribution
+        relation_to_EndRing: no reduction known; kept separate
+    multiple_assumption_dependency: a code-decoding/indistinguishability assumption is presently necessary and is not implied by EndRing
+    classical_quantum_and_rewinding_scope: classical PPT and classical random-oracle queries only; no QPT/QROM theorem
+    evidence_artifacts: [coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/proof-search-map.yaml]
+    review_artifact: null
+    remaining_gap: required attacker-to-EndRing reduction is entirely open; existing direction is EndRing-solver-to-decryption only
+    next_action: perform the frozen challenge-embedding and known-false audits before any implementation
+  O6:
+    name: complete_adversarial_view
+    status: open
+    public_disclosures: [field and curve parameters, E, salt, n, k, t, G_pub, hash/XOF specifications, key tag, complete ciphertext, strict parse outcomes]
+    allowed_oracles_and_query_history: IND-CPA has no decryption oracle; adversary may perform polynomial public encryption and classical hash/XOF queries
+    validation_rejection_and_failure_observables: public parsing is deterministic; Dec returns bottom for wrong tag, malformed length/encoding, decoder failure, or weight-check failure; timing is out of scope
+    malformed_inputs_and_alternate_encodings: noncanonical or wrong-length encodings reject; mathematical alternate encodings are not accepted
+    repeated_use_and_collision_analysis: independent exact-weight errors under one linear code; collision and multi-target effects are unanalyzed
+    side_channel_scope_and_exclusions: timing, cache, power, faults, malicious setup, and implementation leakage excluded and unsupported
+    public_data_and_known_false_controls:
+      - public data only generic/structural decoding and ring-seed leakage audit
+      - plaintext-appended ciphertext must make any claimed EndRing extractor fail at a named step
+      - wrong-key and malformed-ciphertext rejection/accidental-accept measurement
+    concrete_parameter_security: not supplied
+    asymptotic_to_concrete_limitations: no parameters, work factors, quantum costs, or deployment claim
+    evidence_artifacts: [coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/candidate.md]
+    review_artifact: null
+    remaining_gap: auxiliary leakage, structural code attacks, repeated use, wrong-key acceptance, side channels, and concrete costs are not analyzed
+    next_action: independent red-team review under the frozen O4-O6 plan
+
+assessment:
+  verdict: candidate
+  finite_functionality_status: conditionally specified with exact terminating KeyGen definitions and perfect per-key message recovery theorem
+  efficient_functionality_status: unresolved because ring enumeration/canonicalization are not proved polynomial
+  security_status: unresolved; EndRing-only security is not established and the available implication has the wrong direction
+  named_conditions: [certified binary Goppa distance >= 2t+1, total Patterson decoder through weight t, deterministic CanRing agreement, Seeded-Goppa-IND kept separate]
+  open_obligations: [O1, O2, O5, O6]
+  obstruction:
+    affected_obligation: O5
+    exact_family_and_parameter_scope: this ER-seeded deterministic-code composition and its bare-Walk-ER challenge embedding
+    counterexample_or_argument_artifact: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-61f3bc/proof-search-map.yaml
+    what_remains_open: other PKE mechanisms and non-black-box or auxiliary-challenge reductions
+  independent_review_artifacts: []
+  next_action: attempt the correctly directed bare-challenge embedding; if it fails, retain only the explicit composition and scoped obstruction
+  official_state_transition_record: null
+
+citations:
+  - source: IDEA-20261004-a09dd4
+    section: distribution bridge and pullback gate
+    provenance: internal
+    verified_by: idea-generator-TASK-20261007-61f3bc
+    inspected_scope: complete ledger proposal
+  - source: IDEA-20261004-e4c461
+    section: public evaluation boundary
+    provenance: internal
+    verified_by: idea-generator-TASK-20261007-61f3bc
+    inspected_scope: complete ledger proposal; used only as a regression boundary
+  - source: IDEA-20261004-edbd24
+    section: finite-witness quotient audit
+    provenance: internal
+    verified_by: idea-generator-TASK-20261007-61f3bc
+    inspected_scope: complete ledger proposal; used only as an assumption-separation control

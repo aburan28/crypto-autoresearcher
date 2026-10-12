@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""EXP-SEMBIN-509d41 Stages 0-1 launcher (Semaev chaining-topology closure).
+"""EXP-SEMBIN-509d41 Stages 0-2 launcher (Semaev chaining-topology closure).
 
 Stage 0: Zero-compute freeze of (C1)-(C6) statements, HEUR-TOP bands, DAG
          sketch, and design figures into stage0/.
 Stage 1: Independent re-enumeration of unordered full binary merge trees
          t=3..8; assert counts=(2t-3)!!; recompute sigma_top extremes;
          write DAG known-false control.
+Stage 2: HEUR-TOP cell (16,5,4) path / cherry-caterpillar / balanced(near-worst)
+         + random-Boolean null. Missing Groebner/Macaulay backend →
+         O-IMPEDIMENT / SKIPPED_IMPEDIMENT (never negative math vs C1-C5).
 
-Observations only. No Magma/Sage/AUXIN/Bedrock. No Stage 2. No ECDLP solve.
+Observations only. No Magma/Sage/AUXIN/Bedrock as success path. No ECDLP solve.
 Amazon Bedrock is not selected.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import time
 from datetime import datetime, timezone
@@ -24,7 +28,11 @@ from typing import Any, Iterable, Iterator
 EXPERIMENT_ID = "EXP-SEMBIN-509d41"
 HYPOTHESIS_ID = "H-SEMBIN-9af7e1"
 APPROVED_BY = "DEC-20261002-15b02c"
-TASK_ID = "TASK-20261003-af0d91"
+STAGE01_TASK_ID = "TASK-20261003-af0d91"
+STAGE2_TASK_ID = "TASK-20261002-d67dd7"
+STAGE2_ADMISSION = "DEC-20261003-054ae8"
+# Backward-compatible alias for Stage 0-1 freeze records.
+TASK_ID = STAGE01_TASK_ID
 MASTER_SEED = "20261002c94"
 EXP_ROOT = Path(__file__).resolve().parents[1]
 
@@ -122,10 +130,77 @@ def path_tree(t: int) -> Any:
 
 
 def balanced_tree(leaves: list[int]) -> Any:
+    """Recursive mid-split. At t=5,6 this coincides with the sigma_top MINIMISER."""
     if len(leaves) == 1:
         return leaves[0]
     mid = len(leaves) // 2
     return (balanced_tree(leaves[:mid]), balanced_tree(leaves[mid:]))
+
+
+def cherry_caterpillar_tree(t: int) -> Any:
+    """Caterpillar with a cherry at the tip: ((0,1),2) then path-attach."""
+    if t < 3:
+        return path_tree(t)
+    node: Any = ((0, 1), 2)
+    for i in range(3, t):
+        node = (node, i)
+    return node
+
+
+def probe_groebner_macaulay_backends() -> dict[str, Any]:
+    """Probe for admitted Semaev Groebner/Macaulay backends. No AUXIN/Bedrock."""
+    probes: dict[str, Any] = {
+        "sage": {"present": False, "how": "import sage / PATH sage"},
+        "magma": {"present": False, "how": "PATH magma"},
+        "macaulay2": {"present": False, "how": "PATH M2"},
+        "singular": {"present": False, "how": "PATH Singular"},
+        "sympy_groebner": {
+            "present": False,
+            "how": "import sympy; sympy.groebner",
+            "admitted_for_semaev_n68": False,
+            "note": (
+                "Sympy may be importable but is not an admitted Semaev "
+                "Groebner/Macaulay/F4 backend for N_boolean=68 under this card; "
+                "it is never the success path."
+            ),
+        },
+    }
+    try:
+        import sage  # type: ignore  # noqa: F401
+        probes["sage"]["present"] = True
+    except Exception:
+        probes["sage"]["present"] = shutil.which("sage") is not None
+    probes["magma"]["present"] = shutil.which("magma") is not None
+    probes["macaulay2"]["present"] = shutil.which("M2") is not None
+    probes["singular"]["present"] = shutil.which("Singular") is not None
+    try:
+        import sympy  # noqa: F401
+        from sympy import groebner  # noqa: F401
+        probes["sympy_groebner"]["present"] = True
+    except Exception:
+        probes["sympy_groebner"]["present"] = False
+
+    admitted = [
+        name
+        for name in ("sage", "magma", "macaulay2", "singular")
+        if probes[name]["present"]
+    ]
+    return {
+        "probes": probes,
+        "admitted_backends_present": admitted,
+        "backend_available": len(admitted) > 0,
+        "amazon_bedrock": "NOT SELECTED",
+        "auxin": "NOT USED",
+    }
+
+
+def peak_rss_bytes() -> int | None:
+    try:
+        import resource
+        # ru_maxrss is kilobytes on Linux.
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) * 1024
+    except Exception:
+        return None
 
 
 def sigma_top(tree: Any, n: int, k: int) -> tuple[int, list[dict[str, int]]]:
@@ -149,6 +224,22 @@ def sigma_top(tree: Any, n: int, k: int) -> tuple[int, list[dict[str, int]]]:
 
     walk(tree, True)
     return total, blocks
+
+
+def near_worst_balanced_tree(t: int, n: int, k: int) -> tuple[Any, int]:
+    """Bind Stage-2 'balanced' arm to a near-worst / max-sigma_top shape.
+
+    DEC-20261003-c77494: do not use the recursive mid-split minimiser at t=5.
+    """
+    trees = list(all_trees(frozenset(range(t))))
+    best_tree = trees[0]
+    best_sig = sigma_top(best_tree, n, k)[0]
+    for tree in trees[1:]:
+        sig = sigma_top(tree, n, k)[0]
+        if sig > best_sig:
+            best_sig = sig
+            best_tree = tree
+    return best_tree, best_sig
 
 
 def invariants_for_tree(tree: Any, n: int, k: int, t: int) -> dict[str, Any]:
@@ -513,9 +604,243 @@ def stage1(run_dir: Path) -> dict[str, Any]:
     return raw
 
 
+def stage2(run_dir: Path) -> dict[str, Any]:
+    """HEUR-TOP cell at (16,5,4). Missing admitted backend → O-IMPEDIMENT."""
+    stage0_pred = EXP_ROOT / "stage0" / "preregistered-predictions.json"
+    stage1_sigma = EXP_ROOT / "stage1" / "sigma-top-tables.json"
+    if not stage0_pred.is_file():
+        raise FileNotFoundError("Stage 0 freeze missing; refuse Stage 2")
+    if not stage1_sigma.is_file():
+        raise FileNotFoundError("Stage 1 sigma tables missing; refuse Stage 2")
+
+    stage2_dir = EXP_ROOT / "stage2"
+    stage2_dir.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
+    n, t, k = 16, 5, 4
+    n_bool = (t - 2) * n + t * k  # 68
+
+    path = path_tree(t)
+    cherry = cherry_caterpillar_tree(t)
+    mid_split = balanced_tree(list(range(t)))
+    near_worst, near_worst_sig = near_worst_balanced_tree(t, n, k)
+    path_sig = sigma_top(path, n, k)[0]
+    cherry_sig = sigma_top(cherry, n, k)[0]
+    mid_sig = sigma_top(mid_split, n, k)[0]
+
+    shape_binding = {
+        "schema": "sembin.topology.stage2_shape_binding.v1",
+        "experiment_id": EXPERIMENT_ID,
+        "cell": {"n": n, "t": t, "k": k, "N_boolean": n_bool},
+        "master_seed": MASTER_SEED,
+        "binding_rule": (
+            "DEC-20261003-c77494 / DEC-20261003-054ae8: bind Stage-2 'balanced' "
+            "arm to a near-worst / high-sigma_top shape, not the recursive "
+            "mid-split minimiser at t=5."
+        ),
+        "arms": {
+            "path": {
+                "tree": repr(path),
+                "sigma_top": path_sig,
+                "role": "baseline denominator",
+            },
+            "cherry_caterpillar": {
+                "tree": repr(cherry),
+                "sigma_top": cherry_sig,
+                "role": "proxy-minimiser / caterpillar-with-cherry",
+            },
+            "balanced": {
+                "tree": repr(near_worst),
+                "sigma_top": near_worst_sig,
+                "role": "near-worst / max-sigma_top shape (Stage-2 arm)",
+                "rejected_mid_split": {
+                    "tree": repr(mid_split),
+                    "sigma_top": mid_sig,
+                    "reason": (
+                        "mid-split coincides with sigma_top minimiser at t=5 "
+                        f"(balanced_over_path={mid_sig / path_sig:.6f} < 1)"
+                    ),
+                },
+            },
+            "random_boolean_null": {
+                "tree": None,
+                "sigma_top": None,
+                "role": (
+                    "same slot-size profile; random Boolean polys of matched "
+                    "degree profile (separates sparse-LA from summation structure)"
+                ),
+            },
+        },
+        "ratios_vs_path": {
+            "cherry_over_path": cherry_sig / path_sig,
+            "mid_split_over_path": mid_sig / path_sig,
+            "near_worst_balanced_over_path": near_worst_sig / path_sig,
+        },
+    }
+
+    backend = probe_groebner_macaulay_backends()
+    rss = peak_rss_bytes()
+    elapsed = time.perf_counter() - t0
+
+    if not backend["backend_available"]:
+        outcome = "O-IMPEDIMENT"
+        heur_top_verdict = "SKIPPED_IMPEDIMENT"
+        status = "completed_valid"
+        instances_per_arm = 0
+        note = (
+            "No admitted Groebner/Macaulay backend (sage/magma/M2/Singular) on "
+            "this host. Sympy is not the success path for N_boolean=68. Per "
+            "frozen stopping rule: Stage 2 stops as O-IMPEDIMENT with "
+            "heur_top_verdict=SKIPPED_IMPEDIMENT. This is never negative "
+            "mathematical evidence against (C1)-(C5). Stage-1 S1-INVARIANTS-OK "
+            "closure remains intact. Shape binding for the HEUR-TOP cell is "
+            "recorded for a future backend-capable re-run."
+        )
+    else:
+        # A present admitted backend would continue to system build + timing.
+        # Not reached on this host; kept as explicit non-path.
+        outcome = "O-IMPEDIMENT"
+        heur_top_verdict = "SKIPPED_IMPEDIMENT"
+        status = "failed_infrastructure"
+        instances_per_arm = 0
+        note = (
+            "Admitted backend reported present but Stage-2 Weil-descent timing "
+            "path is not implemented in this driver revision; refusing to "
+            "fabricate HEUR-TOP timings."
+        )
+
+    arm_summaries = {
+        "schema": "sembin.topology.stage2_arm_summaries.v1",
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "task_id": STAGE2_TASK_ID,
+        "admission_decision": STAGE2_ADMISSION,
+        "cell": {"n": n, "t": t, "k": k, "N_boolean": n_bool},
+        "instances_per_arm_requested": 100,
+        "instances_per_arm_completed": instances_per_arm,
+        "heur_top_verdict": heur_top_verdict,
+        "outcome_label": outcome,
+        "backend_probe": backend,
+        "shape_binding_ref": "stage2/shape-binding.json",
+        "arms": {
+            name: {
+                "median_wall_seconds": None,
+                "peak_rss_bytes": rss,
+                "sigma_top": shape_binding["arms"][name]["sigma_top"],
+                "instances": instances_per_arm,
+                "status": "SKIPPED_IMPEDIMENT",
+            }
+            for name in ("path", "cherry_caterpillar", "balanced", "random_boolean_null")
+        },
+        "spearman_sigma_vs_time": None,
+        "path_minimiser_median_time_ratio": None,
+        "wall_clock_seconds_stage2_probe": elapsed,
+        "peak_rss_bytes": rss,
+        "amazon_bedrock": "NOT SELECTED",
+        "claims": {"break": False, "exponent_move": False, "attack": False, "fips": False},
+        "note": note,
+    }
+
+    # Empty matched-instance stream: impediment before any instance timed.
+    per_instance_path = stage2_dir / "per-instance.jsonl"
+    if per_instance_path.exists():
+        raise FileExistsError(f"refusing overwrite: {per_instance_path}")
+    with per_instance_path.open("x", encoding="utf-8") as stream:
+        stream.write(
+            json.dumps(
+                {
+                    "schema": "sembin.topology.stage2_instance.v1",
+                    "status": "SKIPPED_IMPEDIMENT",
+                    "reason": "no_admitted_groebner_macaulay_backend",
+                    "instances_emitted": 0,
+                    "amazon_bedrock": "NOT SELECTED",
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
+
+    write_json(stage2_dir / "shape-binding.json", shape_binding)
+    write_json(stage2_dir / "arm-summaries.json", arm_summaries)
+    write_json(stage2_dir / "backend-probe.json", backend)
+    write_text(
+        stage2_dir / "impediment.md",
+        (
+            f"# EXP-SEMBIN-509d41 Stage 2 impediment\n\n"
+            f"- Outcome: `{outcome}`\n"
+            f"- HEUR-TOP verdict: `{heur_top_verdict}`\n"
+            f"- Cell: (n,t,k)=({n},{t},{k}), N_boolean={n_bool}\n"
+            f"- Task: `{STAGE2_TASK_ID}` · Admission: `{STAGE2_ADMISSION}`\n"
+            f"- Peak RSS (probe): {rss} bytes\n"
+            f"- Wall (probe): {elapsed:.6f} s\n\n"
+            f"{note}\n\n"
+            "Balanced arm bound to near-worst max-sigma_top shape "
+            f"`{near_worst!r}` (sigma_top={near_worst_sig}); mid-split "
+            f"`{mid_split!r}` (sigma_top={mid_sig}) rejected per DEC-20261003-c77494.\n\n"
+            "Amazon Bedrock: NOT SELECTED. No Magma/Sage/AUXIN success path.\n"
+        ),
+    )
+
+    raw = {
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "approved_by": APPROVED_BY,
+        "task_id": STAGE2_TASK_ID,
+        "admission_decision": STAGE2_ADMISSION,
+        "stage": 2,
+        "amazon_bedrock": "NOT SELECTED",
+        "claims": {"break": False, "exponent_move": False, "attack": False, "fips": False},
+        "result": {
+            "status": status,
+            "stage": 2,
+            "outcome": outcome,
+            "heur_top_verdict": heur_top_verdict,
+            "backend_available": backend["backend_available"],
+            "admitted_backends_present": backend["admitted_backends_present"],
+            "instances_per_arm_completed": instances_per_arm,
+            "wall_clock_seconds": elapsed,
+            "peak_rss_bytes": rss,
+            "shape_binding": {
+                "balanced_tree": repr(near_worst),
+                "balanced_sigma_top": near_worst_sig,
+                "mid_split_rejected_sigma_top": mid_sig,
+                "path_sigma_top": path_sig,
+                "cherry_sigma_top": cherry_sig,
+            },
+            "note": note,
+            "artifacts": [
+                "stage2/per-instance.jsonl",
+                "stage2/arm-summaries.json",
+                "stage2/shape-binding.json",
+                "stage2/backend-probe.json",
+                "stage2/impediment.md",
+            ],
+        },
+    }
+    write_json(run_dir / "raw-result.json", raw)
+    write_text(
+        run_dir / "manifest.yaml",
+        (
+            f"experiment_id: {EXPERIMENT_ID}\n"
+            f"hypothesis_id: {HYPOTHESIS_ID}\n"
+            f"approved_by: {APPROVED_BY}\n"
+            f"task_id: {STAGE2_TASK_ID}\n"
+            f"admission_decision: {STAGE2_ADMISSION}\n"
+            f"stage: 2\n"
+            f"outcome: {outcome}\n"
+            f"heur_top_verdict: {heur_top_verdict}\n"
+            f"status: {status}\n"
+            f"amazon_bedrock: NOT SELECTED\n"
+            f"wall_clock_seconds: {elapsed:.6f}\n"
+            f"peak_rss_bytes: {rss if rss is not None else 'null'}\n"
+            f"recorded_at: '{utc_now()}'\n"
+        ),
+    )
+    return raw
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", type=int, required=True, choices=[0, 1])
+    parser.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
     parser.add_argument("--trial-plan", required=True)
     parser.add_argument("--run-dir", required=True)
     args = parser.parse_args(argv)
@@ -529,8 +854,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.stage == 0:
         stage0(run_dir)
-    else:
+    elif args.stage == 1:
         stage1(run_dir)
+    else:
+        stage2(run_dir)
     print(json.dumps({"ok": True, "stage": args.stage, "run_dir": str(run_dir)}))
     return 0
 
