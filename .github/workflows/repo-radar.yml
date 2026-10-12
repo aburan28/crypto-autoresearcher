@@ -1,0 +1,98 @@
+name: repo-radar
+
+# Daily digest of cryptography repositories on GitHub: repository search,
+# followed repos, and yesterday's GH Archive (tools/repo_radar.py, configured
+# by orchestration/repo-radar.toml). State and digests are committed to the
+# orphan branch automation/repo-radar, which is never merged; each digest with
+# something in it is also opened as a `repo-radar` issue, so watchers get it by
+# email. See docs/repo-radar.md.
+
+on:
+  schedule:
+    # 06:41 UTC, off the hour: yesterday's GH Archive hours are published by then.
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+    inputs:
+      always_issue:
+        description: Open an issue even if nothing is new
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: repo-radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      STATE_BRANCH: automation/repo-radar
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check out radar state
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads origin "$STATE_BRANCH" >/dev/null; then
+            git fetch --depth=1 origin "$STATE_BRANCH"
+            git worktree add --detach radar-state FETCH_HEAD
+          else
+            git worktree add --detach radar-state HEAD
+            git -C radar-state switch --orphan "$STATE_BRANCH"
+          fi
+
+      # Exit 2 means the digest was written and lists problems in a warning
+      # box; the state is still saved and the issue still opened, and the
+      # last step then fails the job so the problem is visible in Actions.
+      - name: Search, check followed repos, scan GH Archive
+        id: radar
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          python3 tools/repo_radar.py run --state-dir radar-state
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+
+      - name: Save state
+        shell: bash
+        run: |
+          cd radar-state
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No state changes"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "radar: ${{ steps.radar.outputs.date }}"
+          git push origin "HEAD:refs/heads/$STATE_BRANCH"
+
+      - name: Open digest issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 tools/repo_radar.py publish-issue --state-dir radar-state
+          --repo "$GITHUB_REPOSITORY" --date "${{ steps.radar.outputs.date }}"
+          ${{ inputs.always_issue && '--always' || '' }}
+
+      - name: Job summary
+        if: always() && steps.radar.outputs.date
+        run: cat "radar-state/digests/${{ steps.radar.outputs.date }}.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on reported problems
+        if: steps.radar.outputs.code == '2'
+        run: |
+          echo "::error::The radar reported problems; they are listed at the top of today's digest."
+          exit 1

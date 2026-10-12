@@ -1,0 +1,336 @@
+# =============================================================================
+# EXP-ECTD-e1ccaf — version 1, approved by DEC-20261006-8d65cc.
+# Frozen comparison: invariant-factor pairs of E and its Vélu codomain
+# at p = 5. No group was decomposed in this design. Source idea
+# IDEA-20261005-1b41d9 is copied unchanged from
+# origin/design/hyper-fb6ec7-richelot because it is not on origin/main.
+# =============================================================================
+experiment:
+  id: EXP-ECTD-e1ccaf
+  hypothesis_id: H-ECTD-3e7660
+  question_id: RQ-ECTD-001
+  source_idea: IDEA-20261005-1b41d9
+  goal_id: null
+  version: 1
+  title: >-
+    Invariant-factor pairs across the ordinary 2-isogeny from
+    y^2 = x^3 + x + 2 to y^2 = x^3 + x over F_5
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-8d65cc
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the invariant-factor pairs differ, and it does not assert a trapdoor
+      or an ECDLP algorithm.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether the invariant-factor pairs of E(F_5) and E2(F_5)
+    differ, for E: y^2 = x^3 + x + 2 and E2: y^2 = x^3 + x. Equal pairs
+    are a negative. Do not compute a discrete logarithm and do not claim
+    a trapdoor.
+
+  inputs:
+    named_prime: 5
+    prime_cap: 64
+    source_curve:
+      model: "y^2 = x^3 + x + 2"
+      a: 1
+      b: 2
+      kernel_point: [4, 0]
+    codomain_curve:
+      model: "y^2 = x^3 + x"
+      a: 1
+      b: 0
+    point_count_census:
+      common_order_N: 4
+      trace: 2
+      j_source: 1
+      j_codomain: 3
+      note: >-
+        N = 4 = 2^2 is not square-free. These figures are point counts
+        and j-invariants. They are not invariant factors.
+    scaling_control_model:
+      model: "y^2 = x^3 + x + 3"
+      a: 1
+      b: 3
+      note: >-
+        (16*a, 64*b) reduced modulo 5. The isomorphism is scaling by
+        u = 2. The source pair must be unchanged.
+    selection_rule: >-
+      Odd primes p from 3 through 64. Coefficients a, b run through
+      {0, ..., p-1} in lexicographic order of (p, a, b). Reject a
+      singular model, one with 4a^3 + 27b^2 = 0. Reject a supersingular
+      model, one whose trace is divisible by p. On each remaining curve,
+      take only the least r in {0, ..., p-1} with r^3 + a*r + b = 0.
+      Do not try a later root on the same curve. Apply Vélu:
+      t = 3r^2 + a, a2 = a - 5t, b2 = b - 7*r*t, reduced into
+      {0, ..., p-1}. Accept the first codomain that is nonsingular,
+      ordinary, of the same trace, of different j, and whose common
+      order is not square-free.
+    design_session_census:
+      method: >-
+        Exact point counts and the j formula
+        6912*a^3 / (4a^3 + 27b^2). Run by the design session through
+        the first accepted model. No invariant factor was computed.
+      observed:
+        - prime: 3
+          note: >-
+            The six nonsingular short-Weierstrass models are all
+            supersingular. None is ordinary.
+        - prime: 5
+          model: [0, 0]
+          note: singular
+        - prime: 5
+          models: [[0, 1], [0, 2], [0, 3], [0, 4]]
+          note: supersingular, order 6, trace 0
+        - prime: 5
+          model: [1, 0]
+          order: 4
+          trace: 2
+          first_root: 0
+          other_roots_not_tried: [2, 3]
+          codomain: [1, 0]
+          j: 3
+          disposition: rejected, same j
+        - prime: 5
+          model: [1, 1]
+          order: 9
+          trace: -3
+          disposition: ordinary, no rational point of order 2
+        - prime: 5
+          model: [1, 2]
+          order: 4
+          trace: 2
+          first_root: 4
+          codomain: [1, 0]
+          j_source: 1
+          j_codomain: 3
+          disposition: accepted
+    forbidden:
+      - Do not compute a discrete logarithm.
+      - Do not run Pollard rho or baby-step giant-step as a metric.
+      - Do not use a division-polynomial root as a metric.
+      - Do not claim a trapdoor or a change to any ECDLP exponent.
+      - Do not replace the frozen curves after seeing the pairs. A wrong instance is invalid, not a new protocol.
+
+  controls:
+    - id: equal-traces
+      statement: The two traces are equal.
+      pass_condition: both recomputed traces equal 2, and both orders equal 4
+      on_fail: The run is invalid. A trace mismatch is not a difference of invariant factors.
+    - id: kernel-to-identity
+      statement: The kernel point (4, 0) maps to the identity on E2.
+      pass_condition: the Vélu image of (4, 0) is the point at infinity
+      on_fail: The run is invalid.
+    - id: not-square-free
+      statement: N = 4 is not square-free.
+      pass_condition: the recomputed common order is 4
+      on_fail: >-
+        The run is invalid. A square-free order is skipped by the
+        selection rule. It is not counted as agreement.
+    - id: scaling
+      statement: >-
+        The model y^2 = x^3 + x + 3 has the same invariant-factor pair
+        as the source y^2 = x^3 + x + 2.
+      pass_condition: the two source-side pairs are equal
+      on_fail: >-
+        The run is invalid. A change means the enumerator failed. Do not
+        report a difference of the isogeny ends.
+    - id: minimality
+      statement: >-
+        Under the frozen selection rule, the first accepted model is
+        (p, a, b) = (5, 1, 2) with codomain (1, 0).
+      pass_condition: the recomputed census agrees with the frozen prime and the two models
+      on_fail: >-
+        The named instance is not the first accepted pair. The run is
+        invalid. Do not move the comparison to another curve inside this
+        protocol.
+
+  independent_variables:
+    - which end of the frozen isogeny is enumerated, the source or the codomain
+    - whether the source model or the scaled model y^2 = x^3 + x + 3 supplies the source-side pair
+
+  metrics:
+    primary:
+      - id: coordinate_gap
+        statement: >-
+          Number of coordinates in which (n1, n2) and (m1, m2) differ.
+          The prediction is that this number is at least 1.
+      - id: pairs_equal
+        statement: >-
+          Whether (n1, n2) equals (m1, m2). Equality is a negative.
+    secondary:
+      - id: selected_prime
+        statement: The prime at which the pairs were built. The frozen value is 5.
+      - id: common_order_N
+        statement: The common order from a point count. The census value is 4.
+      - id: source_invariant_factors
+        statement: The pair (n1, n2) for E(F_5), with n2 dividing n1.
+      - id: codomain_invariant_factors
+        statement: The pair (m1, m2) for E2(F_5), with m2 dividing m1.
+      - id: scaling_control_pair
+        statement: The invariant-factor pair of y^2 = x^3 + x + 3 over F_5.
+      - id: traces
+        statement: The two traces. The census value is 2 for both curves.
+      - id: j_invariants
+        statement: j(E) and j(E2). The census values are 1 and 3.
+
+  heuristic_under_test: HA-1
+  heuristic_under_test_note: >-
+    HA-1 is the single-isogeny imitation of a uniform draw among the two
+    groups of order 4. The experiment records the two pairs. Equal pairs
+    are a negative on this edge. The imitation is not an ECDLP exponent.
+
+  preregistered_prediction:
+    quantity: >-
+      The invariant-factor pairs (n1, n2) of y^2 = x^3 + x + 2 and
+      (m1, m2) of y^2 = x^3 + x, both over F_5.
+    formula: >-
+      The pairs differ in at least one coordinate. Equal pairs are the
+      negative. No numeral for either pair is written here. The only
+      pairs an abelian group of order 4 can have are (4, 1) and (2, 2);
+      that sentence is the comparison alphabet, not a measured assignment.
+    source: >-
+      The inequality is the prediction in IDEA-20261005-1b41d9, copied
+      before any run of EXP-ECTD-e1ccaf, with the prime and both curves
+      named by the design-session point-count census. This design session
+      read the idea and RQ-ECTD-001. It did not decompose either group.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested parameter is p = 5, under a search cap of 64 that is
+      used only to confirm that this pair is the first accepted model.
+      A result at p = 5 is not a result at a larger prime and is not a
+      trapdoor. No extrapolation is authorized.
+    correspondence: >-
+      Direct point counts, one Vélu codomain, and two group
+      enumerations at p = 5. No Deuring sampling equivalence is used
+      to reach a larger prime.
+
+  tail_checks:
+    - >-
+      There is no sampled tail. The census is one isogeny. The extreme
+      check is the scaling control: y^2 = x^3 + x + 3 must reproduce
+      the source pair. A mismatch voids the run. It does not by itself
+      decide the isogeny comparison.
+
+  replication:
+    seeds:
+      - name: arithmetic
+        algorithm: deterministic point counts, one Vélu image, and a deterministic enumeration of both groups
+        seed: 0
+        note: >-
+          No random generator is consulted. seed 0 records that fact.
+          Substituting a random sample of primes or of kernels is forbidden.
+    independent_instances: 1
+    independent_instances_note: >-
+      The one instance is the frozen isogeny at p = 5. Earlier models in
+      the census are minimality controls, not extra draws of the pair
+      comparison.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not cap the frozen
+      curves. maximum_runs is 2 so one infrastructure retry may take a
+      new run id. Watch expiry is failed_infrastructure, never a
+      negative mathematical result.
+
+  procedure:
+    confirm_instance: >-
+      Recompute the selection census through (5, 1, 2). Proceed only
+      when that model is the first accepted pair, the codomain is
+      y^2 = x^3 + x, both orders are 4, and both traces are 2.
+      Otherwise stop as invalid.
+    enumerate_groups: >-
+      Enumerate the affine points and the identity on each curve by
+      adding every rational point. Record the invariant factors with
+      the second factor dividing the first. Apply the same enumerator
+      to y^2 = x^3 + x + 3. Do not compute a discrete logarithm.
+    mechanism_assignment:
+      - observation: >-
+          The minimality, trace, kernel, square-free, and scaling
+          controls pass, and (n1, n2) differs from (m1, m2) in at least
+          one coordinate.
+        assigns_to: >-
+          The invariant-factor pairs differ at this isogeny. This does
+          not produce a trapdoor and does not change an exponent.
+      - observation: >-
+          The same controls pass and (n1, n2) equals (m1, m2).
+        assigns_to: >-
+          Negative. Equal pairs mean this edge does not witness a
+          change of isomorphism type.
+      - observation: >-
+          An earlier model qualifies, the orders are not both 4, the
+          traces differ, the kernel misses the identity, the order is
+          square-free, or the scaled model changes the source pair.
+        assigns_to: >-
+          Invalid. Not evidence for either pair.
+      - observation: >-
+          The watch expires, a dependency is missing, or the run crashes.
+        assigns_to: >-
+          failed_infrastructure. Not evidence against the hypothesis.
+
+  stopping_rules:
+    - Stop when the minimality census, both pairs, the scaling pair, and one assignment row are recorded.
+    - Do not continue to a second isogeny after this pair.
+    - Do not compute a discrete logarithm.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing dependency is failed_infrastructure and is not evidence against the hypothesis.
+    - Reporting a difference of pairs when the minimality or scaling control failed invalidates the run.
+    - Dropping the point at infinity, so that the order is short by one, invalidates the run.
+    - Changing the pre-registered prediction after seeing the pairs is forbidden. A correction is a new amendment record, and existing runs are not re-scored against it.
+
+  success_criterion: >-
+    The run is a success for the difference reading exactly when the first
+    row of mechanism_assignment holds. Any other completed assignment is
+    not this success. Equal pairs are a negative, so success can fail.
+
+  falsification_criterion: >-
+    The prediction that the invariant-factor pairs differ is falsified
+    when the second row of mechanism_assignment holds. Equal pairs are
+    that negative. The third row falsifies nothing. The fourth row
+    falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-ECTD-e1ccaf/runs/RUN-*/manifest.yaml
+    - experiments/EXP-ECTD-e1ccaf/runs/RUN-*/stdout.txt
+    - experiments/EXP-ECTD-e1ccaf/runs/RUN-*/stderr.txt
+    - experiments/EXP-ECTD-e1ccaf/runs/RUN-*/raw-result.json
+    - experiments/EXP-ECTD-e1ccaf/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      selected_prime, source and codomain coefficients, common_order_N,
+      traces, j-invariants, source_invariant_factors,
+      codomain_invariant_factors, scaling_control_pair, coordinate_gap,
+      and pairs_equal. No discrete logarithm is included.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row. It
+      does not change hypothesis status.
+
+  assigned_to: executor
+  zero_runs_in_design: true
