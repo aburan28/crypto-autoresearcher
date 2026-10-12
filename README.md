@@ -227,6 +227,15 @@ For explicitly requested experiment preparation and scientific review:
 
 ## Host plugins
 
+Use [Skills and tool routing](docs/skill-routing.md) to choose the workflow for
+curve records, endomorphisms, transfers, relation/solver diagnostics, benchmarks,
+GPU engineering, infrastructure, schemes, proofs, UI work and PR delivery.
+`$route` locates the right skill; `make skills` lists the catalog and
+`make check-skills` checks its discovery surfaces and tool references. Canonical
+skills under `.claude/skills/` have matching `.agents/skills/` adapters.
+Explicit scientific execution still goes directly to `$run`, without a catalog
+or subject-assessment preflight.
+
 The repository ships a thin, portable
 [`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)
 plugin package for Codex, Claude Code, and OpenCode. It supplies a shared

@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from orchestration import fast_yaml
 from ..adapter import config as config_module
 
 
@@ -162,7 +163,7 @@ def write_model_overlay(path: Path, *, backends: list[str], model: str,
                               "notes": f"--model {model} for one autopilot run",
                               "bindings": {}}
     if standing is not None and Path(standing).exists():
-        loaded = yaml.safe_load(Path(standing).read_text(encoding="utf-8")) or {}
+        loaded = fast_yaml.safe_load(Path(standing).read_text(encoding="utf-8")) or {}
         merged["bindings"] = dict(loaded.get("bindings") or {})
     order = base_cfg.effort_order
     ceiling = order.index(caps["max_reasoning_effort"]) \

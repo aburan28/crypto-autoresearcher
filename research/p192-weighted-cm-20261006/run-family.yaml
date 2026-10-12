@@ -1,0 +1,282 @@
+schema: p192-weighted-cm-run-family-v1
+experiment_id: EXP-SCURVE-1a8daf
+family_status: pending_not_executed
+scientific_results: []
+created_at: '2026-10-06'
+protocol_base_commit: 96d15ed85c00fbbdd6205beb2bdf02099c576fb5
+native_source_pr: https://github.com/aburan28/crypto/pull/1507
+native_reviewed_head: 315c7b417305db4f34ad01cb07c18ca2c55181ee
+archive_reference_pr: https://github.com/aburan28/crypto-autoresearcher/pull/1942
+archive_reference_head: 5ed7dfbbc02a975e5919bc03b3020f1931e30813
+dispatch_status: blocked_pending_implementation_and_fresh_decision
+common:
+  curve_uid: urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646
+  factor_base_bound: 65521
+  mappable_base_bound: 4093
+  large_prime_bound: 2147483647
+  maximum_large_primes: 2
+  allow_dirty: false
+  workers: 32
+  memory_gb: 128
+  disk_gb: 512
+  timeout_seconds: 259200
+  output_rule: A fresh directory named by the newly allocated canonical RUN id; never overwrite or resume another run directory.
+  argv_resolution: >-
+    At dispatch allocate and recheck a fresh canonical RUN id for each label.
+    Resolve RUN_DIR and each named predecessor placeholder from hash-bound
+    supervised receipts; resolve FAMILY_RECEIPTS_1_TO_7 to the ordered receipt
+    manifest.  No shell expansion or implicit default is permitted.  Pin the
+    admitted binary SHA-256 and resolved argv in every supervised manifest.
+
+runs:
+  - planned_run_label: P192-WCM-PREFLIGHT
+    ordinal: 1
+    label: identity-order-factor-base-and-controls
+    status: pending_not_executed
+    role: generator_and_control
+    predecessor: null
+    argv_template:
+      - p192_weighted_cm
+      - preflight
+      - --curve
+      - p192
+      - --sieve-bound
+      - '65521'
+      - --map-bound
+      - '4093'
+      - --large-prime-bound
+      - '2147483647'
+      - --positive-control
+      - D=-23
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - identity.json
+      - maximal-order.json
+      - factor-base.json
+      - controls.json
+      - verification.json
+    advancement_gate: Every identity/order/base/control certificate passes producer and independent verifier.
+
+  - planned_run_label: P192-WCM-BOX0
+    ordinal: 2
+    label: box-0-census
+    status: pending_not_executed
+    role: generator
+    predecessor:
+      planned_run_label: P192-WCM-PREFLIGHT
+      artifact: factor-base.json
+    argv_template:
+      - p192_weighted_cm
+      - sieve
+      - --shell
+      - BOX-0
+      - --v-max
+      - '8'
+      - --x-max-inclusive
+      - '65536'
+      - --factor-base
+      - PREDECESSOR_DIR/factor-base.json
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - candidate-stream.json
+      - complete-relations.jsonl
+      - partial-relations.jsonl
+      - disposition.bin
+      - disposition-schema.json
+      - retained-candidates.jsonl
+      - verification.json
+    advancement_gate: Exact raw count 262148, stable stream digest, complete shell, and all replay checks pass.
+
+  - planned_run_label: P192-WCM-BOX1-SHELL
+    ordinal: 3
+    label: box-1-minus-box-0-census
+    status: pending_not_executed
+    role: generator
+    predecessor:
+      planned_run_label: P192-WCM-BOX0
+      artifact: candidate-stream.json
+    argv_template:
+      - p192_weighted_cm
+      - sieve
+      - --shell
+      - BOX-1-minus-BOX-0
+      - --v-max
+      - '64'
+      - --x-max-inclusive
+      - '1048576'
+      - --factor-base
+      - PREFLIGHT_DIR/factor-base.json
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - candidate-stream.json
+      - complete-relations.jsonl
+      - partial-relations.jsonl
+      - disposition.bin
+      - disposition-schema.json
+      - retained-candidates.jsonl
+      - verification.json
+    advancement_gate: Exact shell count 33292316, stable stream digest, complete shell, and all replay checks pass.
+
+  - planned_run_label: P192-WCM-BOX2-SHELL
+    ordinal: 4
+    label: box-2-minus-box-1-census
+    status: pending_not_executed
+    role: generator
+    predecessor:
+      planned_run_label: P192-WCM-BOX1-SHELL
+      artifact: candidate-stream.json
+    argv_template:
+      - p192_weighted_cm
+      - sieve
+      - --shell
+      - BOX-2-minus-BOX-1
+      - --v-max
+      - '256'
+      - --x-max-inclusive
+      - '4194304'
+      - --factor-base
+      - PREFLIGHT_DIR/factor-base.json
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - candidate-stream.json
+      - complete-relations.jsonl
+      - partial-relations.jsonl
+      - disposition.bin
+      - disposition-schema.json
+      - retained-candidates.jsonl
+      - verification.json
+    advancement_gate: Exact shell count 503316576, stable stream digest, complete shell, and all replay checks pass.
+
+  - planned_run_label: P192-WCM-RELATIONS
+    ordinal: 5
+    label: exact-recombination-high-column-elimination-and-solver-panel
+    status: pending_not_executed
+    role: generator_and_verifier
+    predecessor:
+      planned_run_label: P192-WCM-BOX2-SHELL
+      artifact: partial-relations.jsonl
+    argv_template:
+      - p192_weighted_cm
+      - optimize
+      - --run-family
+      - research/p192-weighted-cm-20261006/run-family.yaml
+      - --lll-proved
+      - --bkz-blocks
+      - 20,30,40
+      - --bkz-tours
+      - '2'
+      - --bkz-node-cap
+      - '10000000'
+      - --ilp-node-cap
+      - '50000000'
+      - --coefficient-bound
+      - '1048576'
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - recombination-kernel.json
+      - high-column-kernel.json
+      - lll.json
+      - bkz.json
+      - ilp.json
+      - selected-vectors.json
+      - verification.json
+    advancement_gate: Every selected vector has zero LP/high boundary and exact reconstruction; censored solvers are labeled.
+
+  - planned_run_label: P192-WCM-MAPS
+    ordinal: 6
+    label: q32-calibration-and-explicit-map-replay
+    status: pending_not_executed
+    role: generator_and_verifier
+    predecessor:
+      planned_run_label: P192-WCM-RELATIONS
+      artifact: selected-vectors.json
+    argv_template:
+      - p192_weighted_cm
+      - map-and-cost
+      - --candidates
+      - PREDECESSOR_DIR/selected-vectors.json
+      - --calibration-cases
+      - '16'
+      - --warmup
+      - '1'
+      - --repetitions
+      - '11'
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - q32-calibration.json
+      - operation-weights.json
+      - edge-certificates.jsonl
+      - composite-map-certificates.jsonl
+      - terminal-isomorphisms.jsonl
+      - subgroup-certificates.jsonl
+      - verification.json
+    advancement_gate: At least one candidate is fully mapped or the run reports exact unavailable coverage; every retained map passes all certificates.
+
+  - planned_run_label: P192-WCM-HOLDOUT
+    ordinal: 7
+    label: matched-bounded-planted-functional-holdout
+    status: pending_not_executed
+    role: generator
+    predecessor:
+      planned_run_label: P192-WCM-MAPS
+      artifact: composite-map-certificates.jsonl
+    argv_template:
+      - p192_weighted_cm
+      - planted-panel
+      - --widths
+      - 28,32,36
+      - --targets-per-width
+      - '31'
+      - --order
+      - ABBA
+      - --baseline
+      - matched-generic
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - planted-targets.json
+      - matched-baseline.jsonl
+      - paired-results.jsonl
+      - statistical-summary.json
+      - verification.json
+    advancement_gate: >-
+      This role is blocked until the versioned exact-consumer amendment is
+      approved.  Complete paired cells only; missing or failed cells remain in
+      the denominator.  Bounded planted recovery is functional evidence and
+      cannot by itself establish a full-order advantage.
+
+  - planned_run_label: P192-WCM-REPLICATION
+    ordinal: 8
+    label: independent-clean-rebuild-replay-and-replication
+    status: pending_not_executed
+    role: independent_verifier
+    predecessor:
+      planned_run_label: P192-WCM-HOLDOUT
+      artifact: paired-results.jsonl
+    argv_template:
+      - p192_weighted_cm_verify
+      - replay-family
+      - --source
+      - FAMILY_RECEIPTS_1_TO_7
+      - --independent-build
+      - --repeat-selected-panel
+      - --out
+      - RUN_DIR
+    required_outputs:
+      - independent-verification.json
+      - replication-results.jsonl
+      - replication-statistical-summary.json
+      - archive-readback.json
+    advancement_gate: Independent certificate replay and directionally agreeing paired replication; otherwise the result remains preliminary or invalid.
+
+family_stop_rules:
+  - A failed preflight blocks every successor.
+  - A census shell must be complete and verified before the next shell.
+  - Resource exhaustion or unavailable implementation yields incomplete; it does not consume an outcome label as a scientific null.
+  - Exactly these eight labels belong to version 1; canonical RUN ids are allocated and rechecked only at dispatch, and any additional run requires a new experiment version and decision.
