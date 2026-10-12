@@ -124,7 +124,7 @@ def first_hit(target: int, jumps: list[int], stored: dict[int, int]) -> tuple[in
     return None
 
 
-def arm(logs: list[int], jumps: list[int], start: int, distinguished, point_fn) -> tuple[int, int] | None:
+def arm(logs: list[int], jumps: list[int], start: int, distinguished, point_fn) -> tuple[int, int, int] | None:
     stored = dp_map(point_fn(start, jumps), distinguished)
     pairs: list[tuple[int, int]] = []
     for target in logs:
@@ -138,7 +138,7 @@ def arm(logs: list[int], jumps: list[int], start: int, distinguished, point_fn) 
     generator_cost = max(step for step, _ in pairs)
     separate = sum(generator + target for generator, target in pairs)
     joint = generator_cost + sum(target for _, target in pairs)
-    return joint, separate
+    return joint, separate, generator_cost
 
 
 def h1_holds(start: int, jumps: list[int], steps: int, distinguished) -> bool | None:
@@ -158,14 +158,14 @@ def labeling(distinguished, point_fn) -> dict:
         scored = arm(logs_for(seed), jumps_for(seed), start_for(seed), distinguished, point_fn)
         if scored is None:
             continue
-        joint, separate = scored
+        joint, separate, generator_steps = scored
         if joint <= 0:
             continue
         finished_seeds.append(seed)
         joint_steps.append(joint)
         separate_steps.append(separate)
         if first_h1 is None:
-            first_h1 = h1_holds(start_for(seed), jumps_for(seed), joint, distinguished)
+            first_h1 = h1_holds(start_for(seed), jumps_for(seed), generator_steps, distinguished)
     scored_ok = len(joint_steps) >= MIN_FINISH
     joint_median = separate_median = None
     at_least = below = False
