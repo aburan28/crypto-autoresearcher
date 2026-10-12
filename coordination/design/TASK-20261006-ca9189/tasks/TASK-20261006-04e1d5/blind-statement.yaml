@@ -1,0 +1,73 @@
+task_id: TASK-20261006-04e1d5
+statement_type: producer_authored_bare_definition
+parameters:
+  field: "F_(p^2)=F_p[i]/(i^2+1), p>3 prime, p=3 mod 4"
+  powers: "D=2^a, N=5^b, a>=2, b>=1, v2(p+1)=a, v5(p+1)=b, N>4D"
+  message_bits: "k=floor(a/2)"
+  source_curve: "E:y^2=x^3+x"
+definitions:
+  exact_encoding: >-
+    Fixed canonical field, short-Weierstrass curve, full signed point, and
+    role-tagged ordered-basis byte encodings; equality is full canonical-byte equality.
+  public_key: "pk=(E,P,U,V) with U and V in distinct ordered roles"
+  ciphertext: "ct=(C,X) with exact C and full signed X"
+  exact_order_N: "[N]T=O and [N/5]T!=O"
+  exact_order_D: "[D]T=O and [D/2]T!=O"
+  ordered_basis: >-
+    U,V have exact order D and e_D(U,V)^D=1 while
+    e_D(U,V)^(D/2)!=1.
+  honest_relation: >-
+    s=m+2^k r with 0<=m<2^k and 0<=r<2^(a-k);
+    f:E->C is the normalized separable degree-D homomorphism with
+    ker(f)=<U+sV> and f(P)=X.
+  evaluator_contract: "A0=f(U), B0=f(V) for the exact honest-relation f"
+pre_admission_pseudocode: |
+  Canonically parse pp, pk and ct.
+  Check the parameter equations and exact model tags.
+  Check E and C validity and #C(F_(p^2))=(p+1)^2.
+  Check exact order N for P and X.
+  Check exact order D for U and V.
+  Compute e_D(U,V) and check exact order D.
+  Return a receipt binding the full canonical pp/pk/ct bytes.
+post_evaluation_pseudocode: |
+  Require the unchanged pre-admission receipt and returned A0,B0.
+  Parse A0,B0 on the exact C; check [D]A0=O and exact order D for B0.
+  Set H=[2^(a-k)]B0 and G=-[2^(a-k)]A0.
+  Check H has exact order 2^k.
+  Recover t in [0,2^k) by checked binary digits from G=[t]H.
+  Recheck [t]H=G and return t.
+theorem_statements:
+  T1_decidability: "Pre-admission and post-evaluation admission are polynomial-time exact predicates."
+  T2_basis: "The ordered-basis predicate is equivalent to (U,V) being an ordered Z/DZ-basis of E[D]."
+  T3_honest_compatibility: >-
+    For every valid BaseGen output, bounded rejection sampling produces P and
+    (U,V) with failure at most
+    (t_P+2t_B)2^(-t_R)+(1/25)^t_P+(5/8)^t_B, in addition to BaseGen failure.
+  T4_honest_ciphertext: >-
+    For every admitted key, message and sender randomness, the normalized
+    degree-two quotient chain produces an exact ciphertext passing pre-admission.
+  T5_image_order: >-
+    If ker(f)=<U+sV> in an admitted basis, then ord(f(V))=D and
+    f(U)=-[s]f(V).
+  T6_injectivity: >-
+    For a fixed admitted public key, equality of exact honest ciphertext bytes
+    implies equality of the messages and sender randomness.
+  T7_decoder: >-
+    For every admitted honest relation and evaluator output satisfying the
+    evaluator contract, post-evaluation decoding returns the selected message m.
+claimed_quantities:
+  exact_map_observation_bound: "N>4D"
+  P_exact_order_trial_success: "24/25"
+  ordered_basis_trial_success: "3/8"
+  sender_quotient_steps: a
+  decoder_map_evaluations: 2
+  decoder_group_work: "O(a+k^2)"
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  experiment_runs: 0
+open_interfaces:
+  - "BaseGen for an autonomous complete represented/evaluable End(E) key distribution"
+  - "exact calibrated recipient map construction"
+  - "uniform bit-polynomial two-point evaluator Eval2"
+excluded_claims: [security, novelty, practicality, deployment, finalist, family_closure, universal_possibility_or_impossibility]

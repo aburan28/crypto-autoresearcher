@@ -44,6 +44,41 @@ cacheable content block and places a cache breakpoint on the final tool
 schema. Use `anthropic_ttl="1h"` only when the same large prefix will be reused
 across a sustained session; the default is five minutes.
 
+## Where caching is applied
+
+Every synchronous Claude call in the adapter goes through
+`prompt_cache.cached_complete`, which caches only on first-party backends
+(`CACHE_CAPABLE_BACKENDS`: `anthropic`, `openai`) and sends gateways the plain
+request.
+
+| path | stable prefix | conversation |
+|---|---|---|
+| `api_direct` agent loop | 1-hour entry | automatic, 5-minute entry |
+| `adapter complete` | 5-minute entry (`--no-cache` to skip) | not marked |
+| `batch submit`, interactive lane | 5-minute entry | not marked |
+| Message Batches items | 1-hour entry | not marked |
+
+The agent loop is where caching pays most. Every turn re-sends the whole
+transcript, so the policy `AGENT_LOOP_CACHE` adds top-level automatic caching:
+the API moves the breakpoint along the transcript, each turn reads everything
+before it, and only the new turn is written. The role contract and tools hold
+a 1-hour entry because a slow tool call or a long thinking turn can outlast
+five minutes; the transcript takes the cheaper 5-minute write because the next
+turn reads it almost at once. Longer-lived entries must precede shorter ones,
+and `PromptCachePolicy` refuses the reverse.
+
+A cache hit needs a byte-identical prefix, so the loop replays each assistant
+turn exactly as the provider returned it, `thinking` blocks included
+(`transport.Message.blocks`). Claude 5 models think on every turn, and a
+transcript that drops or rewrites those blocks can be rejected on a tool turn
+and never hits the cache. Single-turn prompts and batch items leave the
+conversation unmarked: their tail is unique, and marking it pays the write
+premium on bytes nothing reads back.
+
+Receipts keep the provider's counters (`cache_read_input_tokens`,
+`cache_creation_input_tokens`). A loop whose writes stay near the full
+conversation size on every turn has an invalidator upstream of the breakpoint.
+
 For OpenAI-compatible requests, the helper derives `prompt_cache_key` from the
 namespace, model, stable system prompt, and deterministic tool schemas. The
 messages are deliberately excluded so sibling tasks share the same key while

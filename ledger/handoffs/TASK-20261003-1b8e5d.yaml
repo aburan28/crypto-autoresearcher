@@ -1,0 +1,98 @@
+# =============================================================================
+# TASK-20261003-1b8e5d -- LEDGER ARCHIVE of DEC-20261003-e2a917 (the archive
+# substitution ruling) and the dispatcher's two corrections,
+# CORR-20261003-5d7c3b (PD-3) and CORR-20261003-b62e0d (PD-4). It runs ALONE and
+# BEFORE TASK-20261003-6d2f84, because 6d2f84 relies on DEC-20261003-e2a917 and
+# must not rely on an uncommitted ruling.
+# WRITTEN, NOT DISPATCHED.
+# =============================================================================
+handoff:
+  id: TASK-20261003-1b8e5d
+  from: coordinator
+  to: coordinator
+  objective: >-
+    Commit exactly the five declared paths in one isolated ledger commit,
+    verify the receipt, push, and open or refresh the PR. Interpret nothing and
+    edit no record content. If a check fails, stop and return the failure to
+    the Coordinator.
+  uncertainty_reduced: >-
+    Whether the ruling that lets TASK-20261003-6d2f84 proceed, and the two
+    dispatcher corrections that DEC-20261003-4e91b7 PD-3 and PD-4 owe, are
+    fixed, verified and published bytes before 6d2f84 relies on them.
+  inputs:
+    - ledger/decisions/DEC-20261003-e2a917.yaml
+    - ledger/corrections/CORR-20261003-5d7c3b.yaml
+    - ledger/corrections/CORR-20261003-b62e0d.yaml
+  constraints:
+    - RUNS ALONE. Stage only the declared paths, each by explicit path. No other record, and no edit inside any existing file.
+    - >-
+      DO NOT STAGE the other uncommitted files the same Coordinator session
+      wrote for TASK-20261003-6d2f84:
+      coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261003-6d2f84/ledger-receipt.yaml
+      and
+      ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261003-4e91b7.yaml.
+      They belong to 6d2f84's commit.
+    - Merge origin/main first; merge, never rebase. Record the base commit checked and the merge outcome.
+    - >-
+      IDENTIFIERS. For each of DEC-20261003-e2a917, CORR-20261003-5d7c3b,
+      CORR-20261003-b62e0d and TASK-20261003-1b8e5d, run
+      `python3 tools/allocate_id.py --check <ID>` and `git grep -l <token> HEAD`
+      (HEAD is the merged base, before staging). Pass rule: allocate_id reports
+      occurrences ONLY at the record's own declared path, plus, for the TASK id,
+      its own receipt directory. It exits 1 ("taken") because the file exists
+      in the working tree, and that is expected. In addition,
+      git grep at HEAD returns nothing. A hit at HEAD in any file that is not a
+      substring of a hash or digest is a real collision. It STOPS the archive
+      and returns the id to the Coordinator. Nothing is renamed here.
+    - >-
+      VALIDATION. Run `python3 tools/validate_ledger.py` on the merged base
+      (a clean worktree of origin/main) and on the working tree after staging.
+      Pass rule: exit status no worse than the base, and zero errors naming a
+      staged path in `python3 tools/validate_ledger.py --no-baseline`. Also
+      `python3 tools/check_merge_hygiene.py` if it runs on the branch.
+      Pre-existing origin/main errors are recorded, not fixed.
+    - >-
+      PARSE. Each staged YAML parses with yaml.safe_load, and the parsed
+      receipt contains no remaining placeholder value (the check command is in
+      the receipt's header comment; comments are ignored by it).
+  deliverables:
+    - one isolated ledger commit of exactly the declared paths
+    - a post-commit receipt (kind ledger) with base commit, merge outcome, parent, identifier checks, validator outcome and path_sha256 per staged file except the receipt itself
+    - a pushed branch and an open or refreshed PR against main naming DEC-20261003-e2a917, CORR-20261003-5d7c3b, CORR-20261003-b62e0d and TASK-20261003-1b8e5d
+  artifact_paths:
+    - ledger/decisions/DEC-20261003-e2a917.yaml
+    - ledger/corrections/CORR-20261003-5d7c3b.yaml
+    - ledger/corrections/CORR-20261003-b62e0d.yaml
+    - ledger/handoffs/TASK-20261003-1b8e5d.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261003-1b8e5d/ledger-receipt.yaml
+  archived_by: TASK-20261003-1b8e5d
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+  budget_note: Advisory machine protection; zero scientific runs. An expiry checkpoints the task and is never evidence.
+  dispatch_preconditions:
+    - No other archival commit is in flight on this branch.
+    - Every declared path exists in the working tree and is non-empty.
+  completion_gate:
+    - commit reachable from HEAD with the expected parent
+    - the commit changes exactly the five declared paths
+    - every path_sha256 verifies against the tree
+    - every identifier check passes, or the archive stopped and reported
+    - validate_ledger.py shows zero new errors naming a staged path
+    - commit message names TASK-20261003-1b8e5d, DEC-20261003-e2a917, CORR-20261003-5d7c3b and CORR-20261003-b62e0d, and claims nothing beyond "ledger archive"
+    - branch pushed and PR opened or refreshed
+  return_format: >-
+    Commit sha, receipt path, the identifier-check table, the validator
+    outcome, and the PR number.
+  review_plan: null
+  review_plan_note: An archival task opens no review round.
+  state: written_not_dispatched
+  created_at: '2026-10-03'
+  recorded_under: DEC-20261003-e2a917
