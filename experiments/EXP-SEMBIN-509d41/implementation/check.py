@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Independent checker for EXP-SEMBIN-509d41 Stage 0-1 run artifacts.
+"""Independent checker for EXP-SEMBIN-509d41 Stage 0-2 run artifacts.
 
 Recomputes (2t-3)!! and one sigma_top design figure without importing run.py
-stage drivers. Verifies raw-result.json / manifest.yaml agreement.
+stage drivers. Verifies raw-result.json / manifest.yaml agreement. Stage 2
+checks shape-binding (balanced = near-worst) and O-IMPEDIMENT discipline.
 """
 from __future__ import annotations
 
@@ -15,6 +16,14 @@ from typing import Any, Iterator
 EXPERIMENT_ID = "EXP-SEMBIN-509d41"
 STAGE0_OK = {"S0-FREEZE-OK"}
 STAGE1_OK = {"S1-INVARIANTS-OK", "O-C1-FAIL", "O-ARTIFACT", "O-IMPEDIMENT"}
+STAGE2_OK = {
+    "O-IMPEDIMENT",
+    "O-CLOSURE",
+    "O-PROXY-MISLEAD",
+    "O-ARTIFACT",
+    "O-C1-FAIL",
+}
+HEUR_OK = {"PREDICTIVE", "INERT", "MISLEADING", "SKIPPED_IMPEDIMENT"}
 
 
 def double_factorial_odd(m: int) -> int:
@@ -56,6 +65,13 @@ def path_tree(t: int) -> Any:
     return node
 
 
+def balanced_mid_split(leaves: list[int]) -> Any:
+    if len(leaves) == 1:
+        return leaves[0]
+    mid = len(leaves) // 2
+    return (balanced_mid_split(leaves[:mid]), balanced_mid_split(leaves[mid:]))
+
+
 def sigma_top(tree: Any, n: int, k: int) -> int:
     total = 0
 
@@ -73,6 +89,17 @@ def sigma_top(tree: Any, n: int, k: int) -> int:
 
     walk(tree, True)
     return total
+
+
+def max_sigma_tree(t: int, n: int, k: int) -> tuple[Any, int]:
+    trees = list(all_trees(frozenset(range(t))))
+    best = trees[0]
+    best_sig = sigma_top(best, n, k)
+    for tree in trees[1:]:
+        sig = sigma_top(tree, n, k)
+        if sig > best_sig:
+            best, best_sig = tree, sig
+    return best, best_sig
 
 
 def main() -> int:
@@ -150,6 +177,45 @@ def main() -> int:
         ):
             if not (root / rel).is_file():
                 errs.append(f"missing stage1 file {rel}")
+    elif stage == 2:
+        if outcome not in STAGE2_OK:
+            errs.append(f"stage2 outcome {outcome!r}")
+        heur = result.get("heur_top_verdict")
+        if heur not in HEUR_OK:
+            errs.append(f"heur_top_verdict {heur!r}")
+        for rel in (
+            "stage2/per-instance.jsonl",
+            "stage2/arm-summaries.json",
+            "stage2/shape-binding.json",
+            "stage2/backend-probe.json",
+        ):
+            if not (root / rel).is_file() or (root / rel).stat().st_size == 0:
+                errs.append(f"missing/empty stage2 file {rel}")
+        # Independent: balanced arm must match max sigma_top at (16,5,4)
+        n2, t2, k2 = 16, 5, 4
+        _, max_sig = max_sigma_tree(t2, n2, k2)
+        mid_sig = sigma_top(balanced_mid_split(list(range(t2))), n2, k2)
+        binding = json.loads((root / "stage2/shape-binding.json").read_text())
+        bal = (binding.get("arms") or {}).get("balanced") or {}
+        got_sig = bal.get("sigma_top")
+        if got_sig != max_sig:
+            errs.append(
+                f"balanced arm sigma_top {got_sig} != independent max {max_sig}"
+            )
+        if mid_sig == max_sig:
+            errs.append("unexpected: mid-split equals max at t=5 (binding test void)")
+        if got_sig == mid_sig:
+            errs.append("balanced arm bound to mid-split minimiser; forbidden by DEC-c77494")
+        probe = json.loads((root / "stage2/backend-probe.json").read_text())
+        if probe.get("amazon_bedrock") not in ("NOT SELECTED", "NOT_USED"):
+            errs.append("backend probe Bedrock marker invalid")
+        if outcome == "O-IMPEDIMENT" and heur != "SKIPPED_IMPEDIMENT":
+            errs.append("O-IMPEDIMENT requires heur_top_verdict=SKIPPED_IMPEDIMENT")
+        if result.get("peak_rss_bytes") is None and outcome != "O-IMPEDIMENT":
+            errs.append("peak_rss_bytes missing beside Stage-2 timing")
+        summaries = json.loads((root / "stage2/arm-summaries.json").read_text())
+        if summaries.get("outcome_label") != outcome:
+            errs.append("arm-summaries outcome_label mismatch")
     else:
         errs.append(f"unexpected stage {stage!r}")
 

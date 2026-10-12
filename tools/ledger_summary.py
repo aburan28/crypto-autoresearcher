@@ -46,6 +46,9 @@ from typing import Any
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import portfolio_kpis  # noqa: E402
+
 try:  # libyaml is ~10x faster and the ledger is ~60 MB of YAML
     from yaml import CSafeLoader as Loader
 except ImportError:  # pragma: no cover - fallback when libyaml is absent
@@ -196,8 +199,36 @@ def build(root: Path, recent: int) -> dict[str, Any]:
         "experiments": scan_experiments(root),
         "recent_decisions": recent_decisions(areas["decisions"]["_records"], recent),
         "open_handoffs": open_handoffs(areas["handoffs"]["_records"]),
+        "kpis": portfolio_kpis.build(root),
+        "bus_unread": bus_unread(root),
+        "session_receipts": session_receipts(root),
     }
     return report
+
+
+def session_receipts(root: Path) -> dict[str, Any]:
+    """Aggregate tools/session_receipt.py receipts (P2.11): the cost denominator."""
+    try:
+        import session_receipt
+    except ImportError:  # pragma: no cover
+        return {"receipts": 0, "usage_known": 0, "by_skill": {}, "records_created_by_skill": {}}
+    return session_receipt.summary(session_receipt.load_all(root))
+
+
+def bus_unread(root: Path) -> dict[str, int]:
+    """Unread, unexpired bus messages per registered address (P3.16).
+
+    A wake that does not see this number does not read its inbox, and the
+    measured ack rate was 11%.
+    """
+    bus = root / "coordination" / "bus"
+    if not bus.is_dir():
+        return {}
+    try:
+        import agent_bus
+    except ImportError:  # pragma: no cover
+        return {}
+    return {addr: n for addr, n in agent_bus.unread_counts(str(bus)).items() if n}
 
 
 def render(report: dict[str, Any], recent: int, max_open: int) -> str:
@@ -238,6 +269,26 @@ def render(report: dict[str, Any], recent: int, max_open: int) -> str:
         lines.append(f"- {row['id']} → {row['to']}: {row['objective']}")
     if len(openh) > max_open:
         lines.append(f"… +{len(openh) - max_open} more (--max-open)")
+
+    lines += ["", portfolio_kpis.render(report["kpis"])]
+
+    unread = report.get("bus_unread") or {}
+    lines += ["", "## Bus inbox", ""]
+    if unread:
+        ranked = sorted(unread.items(), key=lambda kv: -kv[1])
+        shown = ", ".join(f"{addr}:{n}" for addr, n in ranked[:8])
+        if len(ranked) > 8:
+            shown += f", +{len(ranked) - 8} more addresses"
+        lines.append(f"unread (unexpired) per address: {shown}")
+        lines.append("read yours: `python3 tools/agent_bus.py inbox --as <addr>` "
+                     "(newest 20; --full for all) and ack what you handle")
+    else:
+        lines.append("no unread messages for any registered address")
+
+    receipts = report.get("session_receipts")
+    if receipts is not None:
+        import session_receipt
+        lines += ["", "## Session receipts", "", session_receipt.render_summary(receipts)]
 
     bad = {a: d["unparseable"] for a, d in report["areas"].items() if d["unparseable"]}
     lines += ["", "## Unparseable records", ""]

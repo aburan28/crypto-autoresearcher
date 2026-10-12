@@ -25,7 +25,7 @@ from typing import Any
 from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
                     ResearchIndex, _neg_date, _epoch)
 from .scan import RECORD_ID_RE, STRUCTURED, id_kind
-from . import progress, comparisons
+from . import progress, comparisons, curves, provenance
 
 # `data/index.json` rows are positional, not objects. At 14.6k records the
 # repeated key names cost more than the values do: as objects the file is
@@ -254,6 +254,7 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
         "recent_work": recent_work(index),
         "current_work": current_work(index),
         "integrity_totals": integrity_totals(index),
+        "follow_up": {k: v for k, v in provenance.payload(index).items() if k != "experiments"},
     }
 
 
@@ -774,3 +775,12 @@ def progress_payload(index: ResearchIndex, snapshot=None) -> dict[str, Any]:
 def comparisons_payload(index: ResearchIndex) -> dict[str, Any]:
     from . import benchmarks
     return {**comparisons.payload(index.repo), "benchmarks": benchmarks.payload(index.repo)}
+
+
+
+def curves_payload(index):
+    return curves.payload(index.repo)
+
+
+def provenance_payload(index):
+    return provenance.payload(index)

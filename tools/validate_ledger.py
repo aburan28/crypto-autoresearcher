@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import io
 import json
 import os
 import re
@@ -53,6 +54,37 @@ from pathlib import Path, PurePosixPath
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# libyaml parses ~10x faster than the pure-Python loader, and parsing was 97%
+# of this validator's run time. The pure loader stays the reference: anything
+# libyaml rejects is re-parsed by it, so every error -- and its message, which
+# the baseline and the head/base CI gate compare -- is what yaml.safe_load says.
+_CSafeLoader = getattr(yaml, "CSafeLoader", None)
+
+
+def _safe_load(source):
+    """yaml.safe_load, through libyaml when it is installed.
+
+    A standalone copy of orchestration/fast_yaml.py's safe_load: this file
+    (and check_merge_hygiene.py beside it) must run without the package.
+    """
+    if _CSafeLoader is None:
+        return yaml.safe_load(source)
+    if not hasattr(source, "read"):
+        try:
+            return yaml.load(source, Loader=_CSafeLoader)
+        except yaml.YAMLError:
+            return yaml.safe_load(source)
+    data = source.read()
+    try:
+        return yaml.load(data, Loader=_CSafeLoader)
+    except yaml.YAMLError:
+        # Replay what was read under the stream's name, so the pure loader's
+        # marks read as they would have on `source`, seekable or not.
+        replay = io.BytesIO(data) if isinstance(data, bytes) else io.StringIO(data)
+        if hasattr(source, "name"):
+            replay.name = source.name
+        return yaml.safe_load(replay)
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 
 # Certificate kinds a run may CLAIM, each of which carries a verification duty
@@ -125,7 +157,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
     the check simply does not fire, and the must-not-grow test is what notices.
     """
     try:
-        document = yaml.safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
+        document = _safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
     except (OSError, yaml.YAMLError):
         return {}
     records = (document or {}).get("records") or {}
@@ -554,6 +586,8 @@ class Ctx:
     ):
         self.errors: list[str] = []
         self.legacy_warnings: list[str] = []
+        # Never fail the build. Visible every run so a backlog cannot hide.
+        self.advisories: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
         self.records: dict[str, dict] = {}      # id -> record body
         self.record_types: dict[str, str] = {}
@@ -585,6 +619,10 @@ class Ctx:
         else:
             self.errors.append(rendered)
 
+    def advise(self, path: str, msg: str):
+        msg = str(msg).splitlines()[0].strip()
+        self.advisories.append(f"{os.path.relpath(path, REPO)}: {msg}")
+
     def register(self, rec_id: str, path: str, body: dict, rec_type: str):
         if rec_id in self.ids:
             self.err(path, f"duplicate ID {rec_id} (also in "
@@ -600,10 +638,215 @@ def load_yaml(path: str, ctx: Ctx):
     source = ctx.source_path(path)
     try:
         with open(source, encoding="utf-8") as handle:
-            return yaml.safe_load(handle)
+            return _safe_load(handle)
     except yaml.YAMLError as e:
         ctx.err(source, f"invalid YAML: {e}")
         return None
+
+
+EXTERNAL_VERIFICATION_VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
+EXTERNAL_VERIFICATION_REQUIRED = ("network", "objective_id", "claim_id", "verdict", "node")
+
+
+def check_external_verification(path: str, body: dict, ctx: Ctx) -> None:
+    """An `external_verification:` block is a receipt from a network verifier
+    (docs/cairn-integration-plan.md section 7), and the one rule that makes it
+    safe to carry is invariant (b): a verdict that does not settle --
+    `unavailable`, `invalid_spec` -- says nothing about the artifact, so it may
+    back no direction and no proof. Collapsing "the node could not check" into
+    "the check failed" is the mistake cairn's own `Unavailable` exists to
+    refuse, and this check keeps the ledger from making it on the way in."""
+    blocks = body.get("external_verification")
+    if blocks is None:
+        return
+    if not isinstance(blocks, list):
+        ctx.err(path, "external_verification must be a list of receipt blocks")
+        return
+    refs = set()
+    for field in ("proof_refs", "certificate_refs"):
+        value = body.get(field)
+        if isinstance(value, list):
+            refs.update(str(item) for item in value)
+    for index, block in enumerate(blocks):
+        label = f"external_verification[{index}]"
+        if not isinstance(block, dict):
+            ctx.err(path, f"{label} must be a mapping")
+            continue
+        for field in EXTERNAL_VERIFICATION_REQUIRED:
+            if not block.get(field):
+                ctx.err(path, f"{label} missing '{field}'")
+        verdict = block.get("verdict")
+        if verdict not in EXTERNAL_VERIFICATION_VERDICTS:
+            ctx.err(path, f"{label} verdict must be one of "
+                          f"{'|'.join(EXTERNAL_VERIFICATION_VERDICTS)}")
+            continue
+        if "settled" in block and not isinstance(block["settled"], bool):
+            ctx.err(path, f"{label} settled must be true or false")
+        claim_id = str(block.get("claim_id") or "")
+        if verdict != "accept":
+            if claim_id and claim_id in refs:
+                ctx.err(path, f"{label} verdict '{verdict}' is cited in proof_refs or "
+                              f"certificate_refs; only an accepted claim backs a proof")
+            if block.get("backs_direction") is True:
+                ctx.err(path, f"{label} verdict '{verdict}' may not back a direction")
+        if verdict in ("unavailable", "invalid_spec") and body.get("proof_status") == "certificate" \
+                and not any(isinstance(other, dict) and other.get("verdict") == "accept"
+                            for other in blocks):
+            ctx.err(path, "proof_status 'certificate' with no accepted external_verification "
+                          "and a block that could not be checked: the receipt backs nothing; "
+                          "cite the local certificate or wait for a settling verdict")
+
+
+# ---- measured bounds (docs/bounds-and-frontiers.md) ------------------------
+# A `measured_bound` block carries a sealed bound record from the measuring
+# repository (aburan28/crypto docs/bounds/README.md): what a method costs, as
+# a constant and an exponent with intervals, scoped to a domain and a tier.
+# Optional-when-absent like the blocks above; a record that carries one must
+# respect the four rules that make it safe to carry.
+MEASURED_BOUND_REQUIRED = ("bound_id", "repository", "domain", "method", "level",
+                           "ops_ratio_to_floor", "verified_runs")
+MEASURED_BOUND_DOMAIN_REQUIRED = ("problem", "family", "target_kind", "unit",
+                                  "tier")
+MEASURED_BOUND_TIERS = ("toy", "medium", "crypto")
+MEASURED_BOUND_LEVELS = ("exponent", "constant")
+MEASURED_BOUND_OUTCOMES = ("advances", "trade", "matches", "regresses",
+                           "inadmissible")
+MEASURED_BOUND_IDS = {
+    "bound_id": re.compile(r"^ECBND1h[0-9a-f]{12}$"),
+    "domain_id": re.compile(r"^ECDOM1h[0-9a-f]{12}$"),
+    "verdict_id": re.compile(r"^ECVD1h[0-9a-f]{12}$"),
+    "challenge_id": re.compile(r"^ECCH1h[0-9a-f]{12}$"),
+}
+# A unit that reads a clock is not a bound's unit (cairn refuses the same
+# names as reproducible fields; this program refuses them as evidence).
+CLOCKED_UNIT = re.compile(r"wall|second|time|clock|_ns\b|^ns\b|_ms\b|^ms\b",
+                          re.IGNORECASE)
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _check_estimate(path: str, label: str, est, ctx: Ctx) -> None:
+    if not isinstance(est, dict) or not _is_number(est.get("value")):
+        ctx.err(path, f"{label}.value must be a number")
+        return
+    ci = est.get("ci95")
+    if ci is None:
+        return
+    if (not isinstance(ci, list) or len(ci) != 2
+            or not all(_is_number(x) for x in ci)):
+        ctx.err(path, f"{label}.ci95 must be [low, high]")
+        return
+    low, high = ci
+    if not low <= est["value"] <= high:
+        ctx.err(path, f"{label}.ci95 {ci} does not bracket value "
+                      f"{est['value']}")
+
+
+def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
+    """The four rules of docs/bounds-and-frontiers.md section 2: the tier is
+    the record's tier, the unit is counted and never clocked, an exponent
+    needs sizes and a scaling claim, and an inadmissible verdict is never
+    evidence for or against anything (AGENTS.md rule 3)."""
+    block = body.get("measured_bound")
+    if block is None:
+        return
+    label = "measured_bound"
+    if not isinstance(block, dict):
+        ctx.err(path, f"{label} must be a mapping")
+        return
+    for field in MEASURED_BOUND_REQUIRED:
+        if block.get(field) in (None, "", [], {}):
+            ctx.err(path, f"{label} missing '{field}'")
+    for name, pattern in MEASURED_BOUND_IDS.items():
+        value = block.get(name)
+        if value is not None and not pattern.match(str(value)):
+            ctx.err(path, f"{label}.{name} '{value}' is not a well-formed id")
+    domain = block.get("domain")
+    if isinstance(domain, dict):
+        for field in MEASURED_BOUND_DOMAIN_REQUIRED:
+            if not domain.get(field):
+                ctx.err(path, f"{label}.domain missing '{field}'")
+        tier = domain.get("tier")
+        if tier is not None and tier not in MEASURED_BOUND_TIERS:
+            ctx.err(path, f"{label}.domain.tier must be one of "
+                          f"{'|'.join(MEASURED_BOUND_TIERS)}")
+        elif tier is not None and "claim_tier" in body \
+                and body["claim_tier"] != tier:
+            ctx.err(path, f"{label}.domain.tier '{tier}' != claim_tier "
+                          f"'{body['claim_tier']}'; a bound is evidence at "
+                          f"its own tier and tiers are not fungible")
+        unit = str(domain.get("unit") or "")
+        if CLOCKED_UNIT.search(unit):
+            ctx.err(path, f"{label}.domain.unit '{unit}' reads a clock; a "
+                          f"bound is never a wall-clock figure")
+    elif domain is not None:
+        ctx.err(path, f"{label}.domain must be a mapping")
+    level = block.get("level")
+    if level is not None and level not in MEASURED_BOUND_LEVELS:
+        ctx.err(path, f"{label}.level must be exponent|constant")
+    alpha = block.get("alpha")
+    sizes = block.get("sizes_log2_r")
+    scaling = isinstance(alpha, dict) and alpha.get("scaling_claim") is True
+    if level == "exponent":
+        if not scaling:
+            ctx.err(path, f"{label}.level 'exponent' requires "
+                          f"alpha.scaling_claim: true")
+        if not (isinstance(sizes, list) and len(sizes) >= 4):
+            ctx.err(path, f"{label}.level 'exponent' requires at least four "
+                          f"sizes in sizes_log2_r")
+    if isinstance(alpha, dict) and "value" in alpha:
+        _check_estimate(path, f"{label}.alpha", alpha, ctx)
+    if block.get("ops_ratio_to_floor") is not None:
+        _check_estimate(path, f"{label}.ops_ratio_to_floor",
+                        block["ops_ratio_to_floor"], ctx)
+    runs = block.get("verified_runs")
+    if runs is not None and (not isinstance(runs, int)
+                             or isinstance(runs, bool) or runs <= 0):
+        ctx.err(path, f"{label}.verified_runs must be a positive integer")
+    verdict = block.get("verdict")
+    if verdict is None:
+        return
+    if not isinstance(verdict, dict):
+        ctx.err(path, f"{label}.verdict must be a mapping")
+        return
+    for name in ("verdict_id", "challenge_id"):
+        value = verdict.get(name)
+        if value is not None and not MEASURED_BOUND_IDS[name].match(str(value)):
+            ctx.err(path, f"{label}.verdict.{name} '{value}' is not a "
+                          f"well-formed id")
+    outcome = verdict.get("outcome")
+    if outcome not in MEASURED_BOUND_OUTCOMES:
+        ctx.err(path, f"{label}.verdict.outcome must be one of "
+                      f"{'|'.join(MEASURED_BOUND_OUTCOMES)}")
+    if outcome == "inadmissible" and body.get("direction") not in (None,
+                                                                   "neutral"):
+        ctx.err(path, f"{label}.verdict is inadmissible but direction is "
+                      f"'{body.get('direction')}'; an inadmissible verdict "
+                      f"is never evidence, so direction must be neutral "
+                      f"(AGENTS.md rule 3)")
+    for field in ("advances_on", "regresses_on", "improves_on"):
+        value = verdict.get(field)
+        if value is not None and not isinstance(value, list):
+            ctx.err(path, f"{label}.verdict.{field} must be a list")
+    for index, ref in enumerate(verdict.get("improves_on") or []):
+        if not MEASURED_BOUND_IDS["bound_id"].match(str(ref)):
+            ctx.err(path, f"{label}.verdict.improves_on[{index}] '{ref}' is "
+                          f"not a bound id")
+    moved = verdict.get("level_moved")
+    if moved is None:
+        return
+    if moved not in MEASURED_BOUND_LEVELS:
+        ctx.err(path, f"{label}.verdict.level_moved must be exponent|constant")
+    advances_on = verdict.get("advances_on") or []
+    if outcome != "advances" or "ops" not in advances_on:
+        ctx.err(path, f"{label}.verdict.level_moved is set but the verdict "
+                      f"does not advance on ops; a level is a statement "
+                      f"about operations")
+    if moved == "exponent" and not scaling:
+        ctx.err(path, f"{label}.verdict.level_moved 'exponent' requires "
+                      f"alpha.scaling_claim: true")
 
 
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
@@ -657,6 +900,9 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         check_prior_art(path, body, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
+    if rec_type == "evidence":
+        check_external_verification(path, body, ctx)
+        check_measured_bound(path, body, ctx)
     if rec_type == "handoff":
         check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
@@ -719,6 +965,7 @@ def check_experiment(path: str, ctx: Ctx):
                       "approved_by"):
             if not field_is_satisfied(body, field):
                 ctx.err(path, f"approved experiment has null '{field}'")
+    check_outcome_not_prewritten(path, body, ctx)
     ctx.register(str(rec_id), path, body, "experiment")
 
 
@@ -756,7 +1003,7 @@ def check_provenance_quarantine(path: str, body: dict, entry: dict | None,
         # original manifest actually retained. Malformed originals first need
         # their separate syntax-preserving repair, not a guessed omission.
         try:
-            original = yaml.safe_load(Path(entry["superseded_path"]).read_text())
+            original = _safe_load(Path(entry["superseded_path"]).read_text())
             original_body = original.get("run", original)
             original_code = original_body.get("code") or original_body.get("git") or {}
             if original_code.get("commit") or original_code.get("dirty") is not None:
@@ -1068,7 +1315,7 @@ def load_legacy_inventory() -> dict[str, str]:
 
 
 def load_legacy_id_remaps() -> dict[str, str]:
-    doc = yaml.safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
+    doc = _safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
     remaps = doc.get("remapped_ids", {}) if isinstance(doc, dict) else {}
     if not isinstance(remaps, dict):
         raise ValueError("legacy ledger inventory remapped_ids must be a mapping")
@@ -1076,7 +1323,7 @@ def load_legacy_id_remaps() -> dict[str, str]:
 
 
 def load_legacy_run_inventory() -> dict[str, str]:
-    doc = yaml.safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
+    doc = _safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
     if not isinstance(doc, dict) or doc.get("schema") != "legacy-run-inventory-v1":
         raise ValueError("invalid legacy run inventory schema")
     records = doc.get("records")
@@ -1097,7 +1344,7 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = yaml.safe_load(handle)
+        doc = _safe_load(handle)
     if not isinstance(doc, dict) or doc.get("schema") != RUN_SUPERSESSION_SCHEMA:
         raise ValueError("invalid run supersession registry schema")
     records = doc.get("records") or []
@@ -1203,7 +1450,7 @@ def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = yaml.safe_load(handle)
+        doc = _safe_load(handle)
     if (not isinstance(doc, dict)
             or doc.get("schema") != SCHEMA_SUPERSESSION_SCHEMA):
         raise ValueError("invalid schema supersession registry schema")
@@ -1531,7 +1778,7 @@ def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
         inspect(node)
         if identities != [("run_id", rec_id)]:
             return None
-        doc = yaml.safe_load("\n".join(repaired))
+        doc = _safe_load("\n".join(repaired))
         if not isinstance(doc, dict) or not isinstance(doc.get("git"), dict):
             return None
         if doc["git"].get("dirty_summary") != "\n".join(values):
@@ -1604,8 +1851,20 @@ def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None
 
     IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
                                    unique_mapping)
+    unparsed = object()
     try:
-        doc = yaml.load(text, Loader=IdentityLoader)
+        doc = unparsed
+        if _CSafeLoader is not None:
+            class FastIdentityLoader(_CSafeLoader):
+                pass
+            FastIdentityLoader.add_constructor(
+                yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+            try:
+                doc = yaml.load(text, Loader=FastIdentityLoader)
+            except yaml.YAMLError:
+                pass  # the pure loader below decides, as it always did
+        if doc is unparsed:
+            doc = yaml.load(text, Loader=IdentityLoader)
     except yaml.YAMLError:
         # Recovery is allowed only for a hash-verified registered original
         # with an explicit locator, never as ordinary identity parsing.
@@ -1642,7 +1901,7 @@ def _malformed_run_header_id(path: str, line_number: int) -> str | None:
         return None
     try:
         text = Path(path).read_text(encoding="utf-8")
-        yaml.safe_load(text)
+        _safe_load(text)
         return None
     except yaml.YAMLError:
         pass
@@ -1814,7 +2073,7 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                 ctx.err(path, "knowledge entry is missing YAML frontmatter")
                 continue
             try:
-                frontmatter = yaml.safe_load(text.split("---", 2)[1]) or {}
+                frontmatter = _safe_load(text.split("---", 2)[1]) or {}
             except yaml.YAMLError as error:
                 ctx.err(path, f"invalid knowledge frontmatter: {error}")
                 continue
@@ -2487,6 +2746,260 @@ def check_goals(ctx: Ctx):
                               "ledger archive may perform the transition")
 
 
+# ---------------------------------------------------------------------------
+# Portfolio hygiene (docs/track-record-review-20261006.md).
+#
+# Two hard rules and three advisories. The hard rules are DATE-GATED on the
+# record's own id or designed_at so that no immutable record predating them
+# can fail (the baseline is prune-only, so a rule that failed history could
+# never land). The advisories go to ctx.advisories, which never fails the
+# build: they exist so that the backlog is visible at every validation,
+# not so that history is re-litigated.
+
+# A coordinator_decision minted on or after this date that approves an
+# experiment is refused while the experiment's goal already holds
+# APPROVAL_CAPACITY_CAP approved contracts with no run. 1,137 of 1,473
+# approved contracts had never run when the rule was written; approving a
+# 1,138th does not reduce any uncertainty.
+APPROVAL_CAPACITY_ENFORCED_FROM = "20261007"
+APPROVE_DECISIONS = {"approve", "approved", "approve_protocol",
+                     "approve_experiment", "approval"}
+# A decision may name contracts it retires in the same act; they do not count
+# against the goal's capacity. Either key is accepted; both are lists of ids.
+CAPACITY_RELEASE_KEYS = ("supersedes_experiments", "withdraws_experiments")
+
+# A specification designed on or after this date must say, before any run,
+# what each outcome changes. A contract whose success and falsification
+# criteria are the same sentence, or whose outcome is already written into
+# the record, is a spec written to the answer (review finding F-2).
+OUTCOME_RULE_ENFORCED_FROM = "2026-10-07"
+DECISION_IMPACT_KEYS = ("on_positive", "on_negative")
+PREWRITTEN_OUTCOME_KEYS = ("outcome", "result", "observed_result",
+                           "conclusion", "verdict")
+
+# Advisory caps. A goal head past GOAL_HEAD_CAP_BYTES is read in full at every
+# wake by every session that touches the goal; next_action past
+# NEXT_ACTION_CAP_CHARS is a plan, not a pointer. Ideas past IDEA_CAP_BYTES
+# (new ones only) cost more to design than they save.
+GOAL_HEAD_CAP_BYTES = 64 * 1024
+NEXT_ACTION_CAP_CHARS = 1000
+IDEA_CAP_BYTES = 8 * 1024
+IDEA_CAP_ENFORCED_FROM = "20261007"
+AGED_HANDOFF_DAYS = 14
+
+# Ceremony (review item P1.9). 2,708 records carry an `amazon_bedrock:`
+# attestation that no template asked for and no check reads: the offline guard
+# in orchestration/adapter enforces core rule 16, and a field saying "NOT
+# USED" proves nothing a reader can verify. Null `budget.*` placeholders and
+# all-caps prose in next_action are the same habit. All three are advisories
+# on records minted on or after the date; history keeps its ceremony.
+CEREMONY_ENFORCED_FROM = "20261007"
+CEREMONY_KEY_PREFIXES = ("amazon_bedrock",)
+# Words of four or more capitals that are not identifiers (no digit, hyphen or
+# underscore). Five of them in one next_action is shouting, not pointing.
+_SHOUT_WORD = re.compile(r"(?<![\w-])[A-Z]{4,}(?![\w-])")
+SHOUT_WORDS_CAP = 5
+
+_ID_DATE = re.compile(r"-(\d{8})-")
+
+
+def _id_date(rec_id: str) -> str | None:
+    match = _ID_DATE.search(str(rec_id or ""))
+    return match.group(1) if match else None
+
+
+def _experiment_has_runs(exp_id: str, ctx: Ctx) -> bool:
+    path = ctx.ids.get(exp_id)
+    if not path:
+        return False
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import portfolio_kpis  # noqa: E402  (same scan the KPI census uses)
+    return portfolio_kpis.runs_present(Path(os.path.dirname(path)))
+
+
+def _goal_of(exp_id: str, body: dict) -> str:
+    goal = body.get("goal_id")
+    if isinstance(goal, str) and goal.strip():
+        return goal.strip()
+    match = re.match(r"^EXP-([A-Za-z0-9]+)-", exp_id)
+    return f"area:{match.group(1)}" if match else "area:unknown"
+
+
+def check_approval_capacity(ctx: Ctx) -> None:
+    """P0.1: refuse a new approval while the goal's approved-unrun backlog is at cap."""
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import portfolio_kpis  # noqa: E402
+    cap = portfolio_kpis.APPROVAL_CAPACITY_CAP
+
+    backlog: dict[str, set[str]] = {}
+    for exp_id, kind in ctx.record_types.items():
+        if kind != "experiment":
+            continue
+        body = ctx.records[exp_id]
+        if body.get("status") != "approved" or _experiment_has_runs(exp_id, ctx):
+            continue
+        backlog.setdefault(_goal_of(exp_id, body), set()).add(exp_id)
+
+    for dec_id, kind in ctx.record_types.items():
+        if kind != "coordinator_decision":
+            continue
+        when = _id_date(dec_id)
+        if when is None or when < APPROVAL_CAPACITY_ENFORCED_FROM:
+            continue
+        body = ctx.records[dec_id]
+        if str(body.get("decision") or "").strip().lower() not in APPROVE_DECISIONS:
+            continue
+        released: set[str] = set()
+        for key in CAPACITY_RELEASE_KEYS:
+            raw = body.get(key) or []
+            if isinstance(raw, list):
+                released.update(str(x) for x in raw)
+        targets = [str(t) for t in (body.get("target_ids") or [])
+                   if str(t).startswith("EXP-")]
+        # A target that already has runs is a continuation of an approved
+        # contract, not a new approval; it adds nothing to the unrun backlog
+        # (user ruling 2026-10-09; DEC-20261009-ff58fe).
+        approved_here = {t for t in targets
+                         if ctx.record_types.get(t) == "experiment"
+                         and ctx.records[t].get("status") == "approved"
+                         and not _experiment_has_runs(t, ctx)}
+        for exp_id in sorted(approved_here):
+            goal = _goal_of(exp_id, ctx.records[exp_id])
+            standing = backlog.get(goal, set()) - approved_here - released
+            if len(standing) >= cap:
+                ctx.err(ctx.ids[dec_id],
+                        f"approval capacity: {goal} already holds "
+                        f"{len(standing)} approved contract(s) with no run "
+                        f"(cap {cap}); run or supersede one before approving "
+                        f"{exp_id} (name retired ids under "
+                        f"{' or '.join(CAPACITY_RELEASE_KEYS)})")
+
+
+def check_outcome_not_prewritten(path: str, body: dict, ctx: Ctx) -> None:
+    """P0.5: a new contract declares what each outcome changes and no outcome."""
+    designed = str(body.get("designed_at") or "")[:10]
+    if not designed or designed < OUTCOME_RULE_ENFORCED_FROM:
+        return
+    for key in PREWRITTEN_OUTCOME_KEYS:
+        if body.get(key) not in (None, "", [], {}):
+            ctx.err(path, f"specification carries '{key}' before any run; an "
+                          "outcome belongs in a run record or evidence, never "
+                          "in the contract")
+    success = str(body.get("success_criterion") or "").strip()
+    falsify = str(body.get("falsification_criterion") or "").strip()
+    if success and falsify and success.lower() == falsify.lower():
+        ctx.err(path, "success_criterion and falsification_criterion are the "
+                      "same text; a contract that cannot fail decides nothing")
+    impact = body.get("decision_impact")
+    if not isinstance(impact, dict):
+        ctx.err(path, "missing 'decision_impact' (on_positive/on_negative): "
+                      "say before the run what each outcome changes")
+        return
+    for key in DECISION_IMPACT_KEYS:
+        if not str(impact.get(key) or "").strip():
+            ctx.err(path, f"decision_impact.{key} is empty")
+    pos = str(impact.get("on_positive") or "").strip().lower()
+    neg = str(impact.get("on_negative") or "").strip().lower()
+    if pos and pos == neg:
+        ctx.err(path, "decision_impact.on_positive equals on_negative; the "
+                      "experiment then changes nothing either way")
+
+
+def check_record_sizes(ctx: Ctx) -> None:
+    """P1.7 / P1.10 advisories: oversized goal heads, next_action, new ideas."""
+    for rec_id, kind in ctx.record_types.items():
+        path = ctx.ids[rec_id]
+        if kind == "research_goal":
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            if size > GOAL_HEAD_CAP_BYTES:
+                ctx.advise(path, f"goal head is {size // 1024} KiB (cap "
+                                 f"{GOAL_HEAD_CAP_BYTES // 1024} KiB); move "
+                                 "history to checkpoints or docs and keep a "
+                                 "pointer")
+            action = ctx.records[rec_id].get("next_action")
+            length = len(str(action or ""))
+            if length > NEXT_ACTION_CAP_CHARS:
+                ctx.advise(path, f"next_action is {length} chars (cap "
+                                 f"{NEXT_ACTION_CAP_CHARS}); a next action is "
+                                 "a pointer to a task, not a plan")
+        elif kind == "idea":
+            when = _id_date(rec_id)
+            if when is None or when < IDEA_CAP_ENFORCED_FROM:
+                continue
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            if size > IDEA_CAP_BYTES:
+                ctx.advise(path, f"proposal is {size // 1024} KiB (cap "
+                                 f"{IDEA_CAP_BYTES // 1024} KiB); split it or "
+                                 "move supporting material to knowledge/")
+
+
+def _ceremony_keys(body: dict) -> list[str]:
+    return sorted(k for k in body
+                  if str(k).lower().startswith(CEREMONY_KEY_PREFIXES))
+
+
+def check_ceremony(ctx: Ctx) -> None:
+    """P1.9 advisories: attestation fields, null budgets, shouted next_action."""
+    for rec_id, kind in ctx.record_types.items():
+        body = ctx.records[rec_id]
+        path = ctx.ids[rec_id]
+        if kind == "research_goal":
+            action = str(body.get("next_action") or "")
+            shouted = _SHOUT_WORD.findall(action)
+            if len(shouted) > SHOUT_WORDS_CAP:
+                ctx.advise(path, f"next_action has {len(shouted)} all-caps words "
+                                 f"({', '.join(sorted(set(shouted))[:4])}, ...); "
+                                 "emphasis is not instruction, write it plainly")
+            continue
+        if kind not in ("handoff", "coordinator_decision"):
+            continue
+        when = _id_date(rec_id)
+        if when is None or when < CEREMONY_ENFORCED_FROM:
+            continue
+        for key in _ceremony_keys(body):
+            ctx.advise(path, f"'{key}' is an attestation nothing reads; the "
+                             "adapter's offline guard enforces rule 16, drop "
+                             "the field")
+        if kind == "handoff":
+            budget = body.get("budget")
+            if isinstance(budget, dict) and budget and all(
+                    v is None for v in budget.values()):
+                ctx.advise(path, "budget holds only null placeholders; write "
+                                 "`budget: {}` and add a limit when you set "
+                                 "one")
+
+
+def check_aged_handoffs(ctx: Ctx, today: str | None = None) -> None:
+    """P3.17 advisory: dispatched handoffs with no return past AGED_HANDOFF_DAYS."""
+    import datetime as _dt
+    now = (_dt.datetime.strptime(today, "%Y%m%d").date() if today
+           else _dt.date.today())
+    for rec_id, kind in ctx.record_types.items():
+        if kind != "handoff" or ctx.records[rec_id].get("archived_by"):
+            continue
+        when = _id_date(rec_id)
+        if when is None:
+            continue
+        try:
+            age = (now - _dt.datetime.strptime(when, "%Y%m%d").date()).days
+        except ValueError:
+            continue
+        if age > AGED_HANDOFF_DAYS:
+            ctx.advise(ctx.ids[rec_id], f"handoff dispatched {age} days ago has "
+                                        "no archived_by; record its return or "
+                                        "a correction closing it")
+
+
 def check_knowledge_index(ctx: Ctx):
     # --verify-corpus, not --check. INDEX.md is generated and no longer
     # committed (see build_knowledge_index.py), so there is no file to be stale
@@ -2586,7 +3099,17 @@ def main() -> int:
                     help="prune baseline entries that no longer occur "
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
+    ap.add_argument("--advisories", action="store_true",
+                    help="list every non-failing advisory (oversized goal "
+                         "heads and proposals, aged open handoffs)")
     args = ap.parse_args()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import sparse_checkout
+    except ImportError:  # a standalone copy (tools/test_goal_id_random_suffix.py)
+        sparse_checkout = None
+    if sparse_checkout and sparse_checkout.refuse_if_sparse("validate_ledger", Path(REPO)):
+        return 2
 
     # This must precede every inventory, glob, supersession, and record read.
     # If ledger itself is an alias, even an apparently unrelated ledger glob
@@ -2658,6 +3181,10 @@ def main() -> int:
     check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
+    check_approval_capacity(ctx)
+    check_record_sizes(ctx)
+    check_ceremony(ctx)
+    check_aged_handoffs(ctx)
 
     current = set(ctx.errors)
     if args.update_baseline:
@@ -2695,6 +3222,19 @@ def main() -> int:
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
+    if ctx.advisories:
+        kinds = {"goal head": 0, "next_action": 0, "proposal": 0, "handoff": 0}
+        for line in ctx.advisories:
+            for key in kinds:
+                if f": {key}" in line:
+                    kinds[key] += 1
+                    break
+        summary = ", ".join(f"{v} {k}" for k, v in kinds.items() if v)
+        print(f"note: {len(ctx.advisories)} advisory(ies), not failures "
+              f"({summary}); list with --advisories")
+        if args.advisories:
+            for line in ctx.advisories:
+                print(f"  ~ {line}")
 
     if new:
         print(f"FAIL: {len(new)} new validation error(s):\n", file=sys.stderr)

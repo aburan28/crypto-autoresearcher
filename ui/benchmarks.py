@@ -8,14 +8,15 @@ from tools.curve_identity import inspect_manifest
 from .comparisons import _read
 
 
-def payload(repo: Path):
+def payload(repo: Path, pin=None):
     try:
-        catalog = repo / 'ui/benchmarks/catalog.json'
-        if not catalog.exists():
-            return {'rows': [], 'identities': {}, 'sources': {}, 'coverage': 'No snapshot supplied.'}
-        if catalog.stat().st_size > 8192:
-            raise ValueError('Oversized catalog')
-        pin = json.loads(catalog.read_text())
+        if pin is None:
+            catalog = repo / 'ui/benchmarks/catalog.json'
+            if not catalog.exists():
+                return {'rows': [], 'identities': {}, 'sources': {}, 'coverage': 'No snapshot supplied.'}
+            if catalog.stat().st_size > 8192:
+                raise ValueError('Oversized catalog')
+            pin = json.loads(catalog.read_text())
         raw, _ = _read(repo, pin)
         data = json.loads(raw)
         if data.get('schema') != 1 or not isinstance(data.get('rows'), list) or len(data['rows']) > 1000:
@@ -55,3 +56,4 @@ def payload(repo: Path):
         return data
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError, OverflowError):
         return {'rows': [], 'identities': {}, 'sources': {}, 'error': 'Benchmark snapshot is missing, invalid, or does not match its pin.'}
+
