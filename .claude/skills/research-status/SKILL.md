@@ -21,8 +21,8 @@ paying.
 1. Run the census and the cached portfolio view:
    - `python3 tools/ledger_summary.py` — questions, proposals, hypotheses by
      status, experiments by `execution_state`, recent decisions, open
-     handoffs, the portfolio KPIs (approved-unrun per goal against the
-     capacity cap, aged open handoffs, bus unread counts), and the session
+     handoffs, the portfolio KPIs (approved-unrun per goal, aged open
+     handoffs, bus unread counts), and the session
      receipt summary;
    - `python3 tools/portfolio_health_cache.py --show` — the goal-head
      classification `main-health.yml` refreshed on the last merge, with its

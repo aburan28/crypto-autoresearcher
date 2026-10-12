@@ -1,0 +1,55 @@
+review_plan:
+  id: REVIEW-ICPERF-BATCH-e261c2-D6
+  goal_id: GOAL-ICPERF-e6b6a4
+  batch_id: BATCH-e261c2
+  experiment_id: EXP-ICPERF-104054
+  status: prospective
+  prepared_before_review: true
+  coordinator_prior: >-
+    D6 will reduce the 0.25-second timing floor for the short-child panel,
+    and C-SATREG will retain its exact counts. The main risk is a false wall
+    pass from shared producer timing code or a watchdog regression hidden by
+    inadequate memory headroom. A full watchdog null may be unevaluable on
+    a host with insufficient free memory; that blocks acceptance.
+  claim_under_review: >-
+    Exact-byte D6 acceptance for short-child wall measurement and the tested
+    solver/watchdog controls. This review does not decide an ECDLP claim.
+  joints:
+    - id: J-TIMER
+      owner_role: validator
+      attack_plan: >-
+        Independently reconstruct each D6 wall duration from raw enclosing
+        monotonic timestamps and compare against Runner.wall_s and the child
+        receipt. Plot wall duration against intended sleep duration and
+        inspect the 0.25-second boundary. Recompute valid/noisy admission
+        from raw load and child timing; do not read the producer summary first.
+      blind_rederivation:
+        quantity: per-child independent duration, wall error and valid count
+        blind_from:
+          - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/report.md
+          - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/raw-result.json
+        source: raw monotonic timestamps, child stdout and frozen specification only
+    - id: J-CONTROLS
+      owner_role: red-team
+      attack_plan: >-
+        Verify the exact source and WDSat binary hashes, independently parse
+        status/conflicts for both C-SATREG rows, and check full-limit RSS kill
+        plus virtual-reservation survival. Try to make a scaled memory test
+        masquerade as the declared 8 GiB test; reject that interpretation.
+      blind_rederivation:
+        quantity: two solver outcomes and two watchdog outcome labels
+        blind_from:
+          - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/report.md
+          - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/raw-result.json
+        source: raw process logs, source/binary hashes and frozen specification only
+  blindness:
+    reviewers_cannot_read_each_other: true
+    lifted_for: []
+  proves_too_much_control: >-
+    The old accepted d835b1ea... loop, fed the same short children, should
+    show a poll-boundary timing artifact. A checker that accepts it as
+    sub-poll accurate cannot support D6 acceptance.
+  composition_rule: >-
+    The Coordinator composes after both independent joints report. A failed
+    or unevaluable load-bearing control leaves D6 unaccepted. Departures
+    from this plan are recorded in procedure_deviations, never hidden.

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-import yaml
+from orchestration import fast_yaml
 
 ADAPTER_VERSION = "1.2.0"
 
@@ -224,7 +224,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ConfigError(f"missing inference configuration file: {path}")
     with path.open(encoding="utf-8") as handle:
-        data = yaml.safe_load(handle)
+        data = fast_yaml.safe_load(handle)
     if not isinstance(data, dict):
         raise ConfigError(f"{path} must contain a YAML mapping")
     return data

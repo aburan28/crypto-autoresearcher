@@ -243,6 +243,31 @@ def test_resolves_to_a_concrete_model_on_the_default_backend(cfg):
     assert resolution.reasoning_effort == "high"
 
 
+@pytest.mark.parametrize("backend,model", [
+    ("anthropic", "claude-opus-5-5"),
+    ("anthropic-fable", "claude-fable-5-1"),
+    ("anthropic-mythos", "claude-mythos-5"),
+    ("zai-glm53", "glm-5.3"),
+    ("openai-gpt6", "gpt-6-sol"),
+    ("openai-gpt61", "gpt-6.1-sol"),
+])
+@pytest.mark.parametrize("policy", [
+    "coordinator-orchestration-code", "coordinator-orchestration",
+])
+def test_explicit_coordinator_model_selection(cfg, backend, model, policy):
+    resolution = adapter.resolve(
+        cfg, policy, backend=backend, env={})
+    assert resolution.resolved_model_id == model
+    assert resolution.fallback_used is False
+    assert resolution.degraded_requirements == []
+    assert resolution.model_provenance == "operator-supplied"
+
+
+def test_coordinator_variant_does_not_bind_other_roles(cfg):
+    with pytest.raises(resolver_module.ResolutionError, match="model is unbound"):
+        adapter.resolve(cfg, "research-deep", backend="openai-gpt61", env={})
+
+
 def _pin_zai_review_below_floor(cfg):
     """Force the zai review-adversarial binding below the policy's effort floor.
 

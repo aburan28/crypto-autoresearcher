@@ -16,14 +16,13 @@ import glob
 import os
 import sys
 
-import yaml
-
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "tools"))
-try:  # libyaml with the pure loader's errors; 98% of this tool was YAML parsing
-    from fast_yaml import safe_load
-except ImportError:  # a copy without its sibling module
-    safe_load = yaml.safe_load
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 INDEX = os.path.join(REPO, "knowledge", "INDEX.md")
 SKIP = {"README.md", "SEEDING.md", "INDEX.md"}
 
@@ -43,7 +42,7 @@ def collect_rows() -> list[tuple[str, ...]]:
         text = open(path, encoding="utf-8").read()
         if not text.startswith("---"):
             continue
-        fm = safe_load(text.split("---", 2)[1]) or {}
+        fm = fast_yaml.safe_load(text.split("---", 2)[1]) or {}
         rows.append(
             (
                 str(fm.get("id", "")),
