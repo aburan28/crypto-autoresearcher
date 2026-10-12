@@ -1,0 +1,201 @@
+# =============================================================================
+# TASK-20261004-5c21da -- COORDINATOR ARCHIVE CARD of review round
+# REVIEW-SEMBIN-20261004-a47503. TWO sequential snapshot acts under one card:
+#   ACT A (before any reviewer runs): the FREEZE. Commits DEC-20261004-a47503, the
+#         two reviewer cards, this card, the review plan, the goal checkpoint shard
+#         and receipt A. Owns the records.
+#   ACT B (after both reviewers return): the REPORTS. Commits exactly the two
+#         reviewer directories and receipt B, and runs the independence check. Owns
+#         the reports (the reviewer cards' archived_by).
+# RUNS ALONE, EACH ACT SEPARATELY. WRITTEN, NOT DISPATCHED.
+#
+# WHY ONE CARD FOR TWO ACTS (PD-1 of DEC-20261004-a47503). Only one spare task id was
+# minted for this round. The cards of the two reviewers must name an archival task
+# before they are dispatched (AGENTS.md standing precondition 1), and the freeze must
+# itself be owned. Every artifact is therefore assigned to exactly one archival task
+# (this one), each act is its own isolated commit with its own receipt file, and
+# neither act touches the other's paths. If a separate id for act B is preferred, it
+# must be minted and the two reviewer cards regenerated BEFORE act A commits; after that
+# no card may be edited.
+# =============================================================================
+handoff:
+  id: TASK-20261004-5c21da
+  from: coordinator
+  to: coordinator
+  kind: review_round_freeze_and_report_snapshot_archive
+  goal_id: GOAL-SEMBIN-5078bc
+  batch_id: BATCH-9d649f
+  question_id: RQ-SEMBIN-fa2e3f
+  experiment_id: EXP-SEMBIN-7e1371
+  hypothesis_id: H-SEMBIN-2d7708
+  recorded_at: '2026-10-04'
+  recorded_under: DEC-20261004-a47503
+
+  objective: >-
+    ACT A. After TASK-20261004-208b23's receipt verifies, commit exactly the declared act-A paths in one isolated
+    snapshot commit, so that the frozen review plan, its decision and both reviewer cards exist as fixed, pushed bytes
+    BEFORE either reviewer is dispatched; verify the receipt; push; refresh the PR. ACT B. After both reviewer tasks
+    return terminal receipts, commit exactly their two report directories in one isolated snapshot commit BEFORE the
+    Coordinator composes the round; run the independence check and record its output. Interpret nothing in either act. No
+    evidence record and no status is written by this card.
+  uncertainty_reduced: >-
+    Whether the plan, the prior and the cards were fixed before any reviewer ran (act A), and whether the Coordinator and
+    every later reader see the same fixed bytes of the reports (act B). No scientific uncertainty is reduced.
+
+  inputs:
+    - ledger/decisions/DEC-20261004-a47503.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml
+    - ledger/handoffs/TASK-20261004-7d2fb6.yaml
+    - ledger/handoffs/TASK-20261004-095926.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-208b23/snapshot-receipt.yaml
+    - tools/check_review_independence.py
+
+  acts:
+    ACT-A:
+      name: FREEZE (snapshot, before dispatch)
+      commit_paths:
+        - ledger/decisions/DEC-20261004-a47503.yaml
+        - ledger/handoffs/TASK-20261004-7d2fb6.yaml
+        - ledger/handoffs/TASK-20261004-095926.yaml
+        - ledger/handoffs/TASK-20261004-5c21da.yaml
+        - coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml
+        - ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261004-a47503.yaml
+        - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/snapshot-receipt.yaml
+      receipt: coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/snapshot-receipt.yaml
+      record_ids: [DEC-20261004-a47503, TASK-20261004-7d2fb6, TASK-20261004-095926, TASK-20261004-5c21da]
+      precondition: TASK-20261004-208b23 receipt exists, is committed, verifies by path_sha256 and is pushed.
+      constraints:
+        - >-
+          RUNS ALONE. Stage only the declared commit paths. Never git add -A. Do not stage anything under either run
+          directory or under either reviewer's reviews directory.
+        - >-
+          SYNC. git fetch origin; merge origin/main into claude/ecdlp-index-calculus-grobner-xwr62t (merge, never rebase).
+          Record the base commit checked and the merge outcome. A conflict inside any ledger record or run file STOPS the act and is
+          resolved only by a new superseding record.
+        - >-
+          ORDER. Do not start until TASK-20261004-208b23's receipt verifies (its commit reachable from HEAD with the expected parent;
+          path_sha256 of the declared files verifies; its checks passed or stopped). Record that check.
+        - >-
+          IDENTIFIERS. For DEC-20261004-a47503, TASK-20261004-7d2fb6, TASK-20261004-095926 and TASK-20261004-5c21da run
+          python3 tools/allocate_id.py --check <ID> and git grep -l <token> HEAD on the merged tree. Expected hits are only the files this act commits, the
+          sibling reviewer cards (which cite each other), the plan file and, for a47503, the plan id REVIEW-SEMBIN-20261004-a47503 (shares the token by design). Any other
+          hit stops the act and returns the id to the Coordinator. Nothing is renamed here. A substring of a hash is not a collision.
+        - >-
+          PLAN INTEGRITY, MECHANICAL. python3 tools/validate_ledger.py before and after staging: zero NEW errors naming a staged path. Both reviewer cards carry
+          review_plan as a path, so the validator loads the plan file for each; every requirement of check_review_plan must hold. Also run
+          the plan's own consistency check through the tool's library function, because the command line exits 2 with "no review_attestation blocks found" when no report exists:
+          python3 -c "import sys; sys.path.insert(0, 'tools'); import check_review_independence as c; p = c._plan_of(c._load('coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml')); print('\n'.join(c.check(p, [])))"
+          and record its output. Before any report exists it MUST consist ONLY of lines of the form "joint '<full joint text, W1 to W10>' is assigned to TASK-20261004-..., which filed no
+          review_attestation" (ten joints, three assigned to TASK-20261004-095926 and seven to TASK-20261004-7d2fb6) and one line "blind_rederivation is assigned to TASK-20261004-095926, which
+          filed no review_attestation". Any other line (an unowned joint, a missing
+          attack_plan, an empty proves_too_much, an empty blind_from, an empty prior, a duplicate owner) means the plan is defective: STOP and return to the Coordinator.
+        - >-
+          BYTE-FIXITY OF THE BLIND INPUTS. For each of the twelve .ms files named in the plan's blind_rederivation.parameters, compute sha256 of the working-tree
+          file and compare it with the path_sha256 recorded for the same path in coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-342564/snapshot-receipt.yaml.
+          Record the twelve pairs. A mismatch stops the act.
+        - >-
+          LANES AND CLAIMS. Run python3 tools/goal_lanes.py lanes GOAL-SEMBIN-5078bc and record the listing. The two reviewer tasks are not in any dispatch queue, so
+          tools/goal_lanes.py claim (which requires a queue and a queued task) cannot be used for them: record "claim not possible: task not in any dispatch queue" and the reason,
+          as TASK-20261004-342564 did, and do not edit the queue. goal max_concurrent is 2.
+        - >-
+          OUTCOME HYGIENE. The commit message and the PR text name the IDs and say "review plan freeze and reviewer cards, no reviewer has run". They state no measured
+          value and no verdict label of either run and do not restate the plan's prior.
+        - No edit to any existing file. Never select Bedrock.
+      completion_gate:
+        - commit reachable from HEAD with the expected parent
+        - the commit changes exactly the seven act-A commit paths and nothing under either run directory or either reviews directory
+        - every path_sha256 verifies against the tree
+        - identifier checks pass, or the act stopped and reported
+        - validate_ledger.py shows zero new errors naming a staged path, and the independence-tool pre-run output contains only the expected lines
+        - the twelve blind-input hash pairs are recorded and equal
+        - commit message names TASK-20261004-5c21da, DEC-20261004-a47503, TASK-20261004-7d2fb6 and TASK-20261004-095926 and claims nothing beyond "review plan freeze and reviewer cards"
+        - branch pushed and PR refreshed naming the records
+    ACT-B:
+      name: REPORTS (snapshot, after both reviewers return, before composing)
+      commit_paths:
+        - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6/
+        - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/
+        - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/reports-snapshot-receipt.yaml
+      receipt: coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/reports-snapshot-receipt.yaml
+      record_ids: [TASK-20261004-5c21da]
+      precondition: >-
+        TASK-20261004-7d2fb6 and TASK-20261004-095926 have both returned terminal receipts and their declared directories exist and are non-empty. A missing report returns to its
+        reviewer with concrete defects; it is not archived partially and not filled in by the Coordinator.
+      constraints:
+        - >-
+          RUNS ALONE. Stage only the declared commit paths. Reports are archived EXACTLY as written, with every script and output file in the reviewers' directories. A file a
+          report lists that is absent is reported, not recreated. If the blind lane ran in a sandbox, its out/ directory is copied into the write_scope unchanged BEFORE this act, and the
+          copy's per-file sha256 values are recorded.
+        - >-
+          SYNC. Merge origin/main first (merge, never rebase); record the base commit and merge outcome.
+        - >-
+          INDEPENDENCE CHECK. Run python3 tools/check_review_independence.py --plan coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml
+          --reports coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6 coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926 and record its full output
+          in the receipt. A failure is reported to the Coordinator, not fixed by editing a report, and does not stop the commit (the reports are archived as written either way; the failure
+          is a finding about the round).
+        - >-
+          HASH CHECK. For each reviewer, compare the sha256 values the report lists for its other files with the tree; record every mismatch. Record sha256 of every staged file.
+        - >-
+          NO COMPOSITION. No evidence record, no decision and no status. The Coordinator composes after this receipt verifies.
+        - >-
+          OUTCOME HYGIENE. The commit message and PR text name the IDs and say "review reports snapshot, uncomposed". They state no joint verdict and no value of the quantity.
+        - No edit to any existing file. Never select Bedrock.
+      completion_gate:
+        - commit reachable from HEAD with the expected parent
+        - the commit changes exactly the declared paths
+        - every path_sha256 verifies against the tree
+        - the check_review_independence.py output is recorded in the receipt
+        - commit message names TASK-20261004-5c21da, TASK-20261004-7d2fb6 and TASK-20261004-095926 and claims nothing about any verdict
+        - branch pushed and PR refreshed
+
+  artifact_paths:
+    - ledger/decisions/DEC-20261004-a47503.yaml
+    - ledger/handoffs/TASK-20261004-7d2fb6.yaml
+    - ledger/handoffs/TASK-20261004-095926.yaml
+    - ledger/handoffs/TASK-20261004-5c21da.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml
+    - ledger/goals/GOAL-SEMBIN-5078bc/checkpoints/BATCH-9d649f-DEC-20261004-a47503.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/snapshot-receipt.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-7d2fb6/
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261004-095926/
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/reports-snapshot-receipt.yaml
+  artifact_paths_note: >-
+    The first seven paths are act A's commit paths, the last three are act B's. The two reviews directories do not exist until the reviewers have run; they are declared now because
+    archived_by on each reviewer card is bound here before dispatch.
+  write_scope:
+    - coordination/goals/GOAL-SEMBIN-5078bc/archives/TASK-20261004-5c21da/**
+  archived_by: TASK-20261004-5c21da
+
+  dispatch_sequence_for_the_session: >-
+    1. Verify TASK-20261004-208b23's receipt. 2. Act A (this card). 3. Build the blind sandbox (TASK-20261004-095926 DP-5). 4. Launch the two reviewer sessions as fresh independent
+    sessions (prompt = the card path; the red team's prompt adds only "read only the paths in may_read"), no more than two reviewer tasks at once. 5. On each return, record its
+    terminal state (a claim release is not possible, see act A LANES AND CLAIMS). 6. Copy the blind lane's out/ into its write_scope, record hashes. 7. Act B (this card). 8. The Coordinator
+    composes: a decision and an evidence record only if the round supports one, under its own archive card to be minted then.
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 2700
+    memory_gb: 2
+    maximum_runs: 0
+  budget_note: Advisory machine protection for each act. Zero scientific runs. An expiry checkpoints the act and is never evidence.
+
+  dispatch_preconditions:
+    - >-
+      ACT A: DEC-20261004-a47503, both reviewer cards, this card, the plan file and the shard exist in the working tree and are non-empty; archived_by is bound (it is this card);
+      TASK-20261004-208b23's receipt verifies; the lane listing has been read.
+    - >-
+      ACT B: both reviewers have returned terminal receipts; act A's receipt verifies; no other archival commit is in flight on this branch.
+
+  review_plan: null
+  review_plan_note: This card opens no review round. The round's plan is coordination/goals/GOAL-SEMBIN-5078bc/review-plans/REVIEW-SEMBIN-20261004-a47503.yaml, carried by the two reviewer cards.
+  return_format: >-
+    For each act: commit sha, receipt path, base commit and merge outcome, the identifier-check table, the validator outcome, the independence-tool output, the blind-input hash pairs
+    (act A), the lanes listing, and the PR number.
+  state: written_not_dispatched
+  blocked_on: [TASK-20261004-208b23]
+  created_at: '2026-10-04'
