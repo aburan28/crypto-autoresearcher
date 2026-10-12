@@ -16,6 +16,12 @@ import subprocess
 import sys
 
 import yaml
+
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 import validate_ledger as ledger
 
 QUEUE_SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
@@ -94,7 +100,7 @@ def canonical_queue(queue: Path, root: Path) -> Path:
                        "source_queue_commit": source_commit, "source_queue_sha256": digest,
                        "sole_runnable_route": expected}.items():
         require(amendment.get(key) == value, f"canonical routing amendment mismatch: {key}")
-    decision = yaml.safe_load(inside(root, f"ledger/decisions/{decision_id}.yaml").read_text())
+    decision = fast_yaml.safe_load(inside(root, f"ledger/decisions/{decision_id}.yaml").read_text())
     require(isinstance(decision, dict), "routing decision must be an object")
     body = decision.get("coordinator_decision", {})
     require(isinstance(body, dict) and body.get("id") == decision_id

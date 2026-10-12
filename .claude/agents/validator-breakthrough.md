@@ -1,12 +1,11 @@
 ---
 name: validator-breakthrough
 description: >-
-  Validator at the breakthrough tier for the ECDLP autoresearch program. Use
-  ONLY for the unrecoverable decision class routed to `review-breakthrough`: a
+  Validator, breakthrough tier. ONLY the `review-breakthrough` class: a
   claimed break or speedup on a real curve, a proposed goal closure, or a
-  result contradicting prior independently validated evidence. Ordinary
-  claim-changing validation goes to `validator`. Never changes research status
-  or raw artifacts.
+  result contradicting independently validated evidence. Ordinary
+  claim-changing validation goes to `validator`. Never changes research
+  status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: claude-fable-5-1
 # Pinned, not inherited: roles.yaml runtime_model_pins -> validator-breakthrough

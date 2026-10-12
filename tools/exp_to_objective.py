@@ -62,6 +62,11 @@ from typing import Any
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = Path(__file__).resolve().parents[1]
 
 NETWORK = "cairn"
@@ -103,7 +108,7 @@ def load_spec(repo: Path, exp_id: str) -> tuple[Path, dict[str, Any]]:
     path = repo / "experiments" / exp_id / "specification.yaml"
     if not path.is_file():
         raise BridgeError(f"{exp_id}: no specification at {path.relative_to(repo)}")
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(doc, dict) or not isinstance(doc.get("experiment"), dict):
         raise BridgeError(f"{path.relative_to(repo)}: expected a top-level `experiment:` mapping")
     spec = doc["experiment"]
@@ -118,7 +123,7 @@ def load_manifest(repo: Path, exp_id: str, run_id: str) -> tuple[Path, dict[str,
     path = repo / "experiments" / exp_id / "runs" / run_id / "manifest.yaml"
     if not path.is_file():
         raise BridgeError(f"{run_id}: no manifest at {path.relative_to(repo)}")
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(doc, dict) or not isinstance(doc.get("run"), dict):
         raise BridgeError(f"{path.relative_to(repo)}: expected a top-level `run:` mapping")
     run = doc["run"]
@@ -149,7 +154,7 @@ def approval(repo: Path, exp_id: str, spec: dict[str, Any],
         path = repo / "ledger" / "decisions" / f"{dec_id}.yaml"
         if not path.is_file():
             raise BridgeError(f"{exp_id}: decision {dec_id} is missing")
-        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
         block = doc.get("coordinator_decision") if isinstance(doc, dict) else None
         if not isinstance(block, dict) or block.get("id") != dec_id:
             raise BridgeError(f"{dec_id}: malformed Coordinator decision")
