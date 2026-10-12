@@ -4,6 +4,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  merge_group:
+  workflow_dispatch:
+  schedule:
+    # Full software/corpus compatibility sweep, off the PR merge path.
+    - cron: "41 4 * * 1"
 
 permissions:
   contents: read
@@ -20,7 +25,7 @@ permissions:
 # main-health sweeps it hourly regardless.
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
 
 defaults:
   run:
@@ -43,7 +48,67 @@ env:
     !/research/cold_*/
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      base: ${{ steps.scope.outputs.base }}
+      ledger: ${{ steps.scope.outputs.ledger }}
+      static: ${{ steps.scope.outputs.static }}
+      tests: ${{ steps.scope.outputs.tests }}
+      runtime: ${{ steps.scope.outputs.runtime }}
+      full_checkout: ${{ steps.scope.outputs.full_checkout }}
+      knowledge_index: ${{ steps.scope.outputs.knowledge_index }}
+      source_index: ${{ steps.scope.outputs.source_index }}
+      frontier: ${{ steps.scope.outputs.frontier }}
+      autolab: ${{ steps.scope.outputs.autolab }}
+    steps:
+      - name: Require a complete CI scope decision
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_LEDGER" = true ] || exit 1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: .github/scripts
+      - name: Verify CI scope controls
+        run: python3 -m unittest discover -s .github/scripts -p test_ci_scope.py -v
+      - id: scope
+        run: python3 .github/scripts/ci_scope.py
+
+  # Always run the inexpensive PR integrity gate, including documentation-only
+  # PRs. Sparse is safe only for paths explicitly classified as documentation;
+  # archive, record, code and unknown paths receive the full checkout.
+  merge-hygiene:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DIFF_BASE: ${{ needs.changes.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: ${{ needs.changes.outputs.full_checkout != 'true' && env.SPARSE_RULES || '' }}
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python3 -m pip install 'PyYAML>=6.0'
+      - name: Conflict markers, parseability and identifier collisions
+        run: |
+          if [ -n "$DIFF_BASE" ]; then
+            python3 tools/check_merge_hygiene.py --base "$DIFF_BASE"
+          else
+            python3 tools/check_merge_hygiene.py --absolute
+          fi
+
   runtime-regressions:
+    needs: changes
+    if: ${{ !cancelled() }}
+    env:
+      SCOPE_RESULT: ${{ needs.changes.result }}
+      RUN_RUNTIME: ${{ needs.changes.outputs.runtime }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -51,12 +116,21 @@ jobs:
       matrix:
         python: ["3.11", "3.13"]
     steps:
+      - name: Require a complete CI scope decision
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_RUNTIME" = true ] || [ "$RUN_RUNTIME" = false ] || exit 1
+      - name: Software checks excluded by scope
+        if: env.RUN_RUNTIME == 'false'
+        run: echo "No software inputs changed; this matrix check completed without checkout or installation."
       # These tests read no run archive (traced 2026-10-10).
       - uses: actions/checkout@v4
+        if: env.RUN_RUNTIME == 'true'
         with:
           sparse-checkout: ${{ env.SPARSE_RULES }}
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
+        if: env.RUN_RUNTIME == 'true'
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -64,12 +138,16 @@ jobs:
             pyproject.toml
             requirements-agent.txt
       - name: Install offline-test dependencies
+        if: env.RUN_RUNTIME == 'true'
         run: python -m pip install -e ".[dev,agent]"
       - name: Require runtime dependencies rather than silently skipping tests
+        if: env.RUN_RUNTIME == 'true'
         run: python -c "import langgraph, langchain_core, langgraph.checkpoint.sqlite"
       - name: Lay sparse-checkout tripwires
+        if: env.RUN_RUNTIME == 'true'
         run: python3 tools/ci_sparse_guard.py tripwires
       - name: Runtime and CI-gate regression controls (no inference calls)
+        if: env.RUN_RUNTIME == 'true'
         env:
           SPARSE: "1"
         run: |
@@ -82,10 +160,10 @@ jobs:
             tests/test_agent_progress.py tests/test_ci_ledger_gate.py \
             --junitxml=runtime-regressions.xml
       - name: Fail on reads of off-disk paths
-        if: always()
+        if: always() && env.RUN_RUNTIME == 'true'
         run: python3 tools/ci_sparse_guard.py report "$RUNNER_TEMP/sparse-guard.log"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && env.RUN_RUNTIME == 'true'
         with:
           name: runtime-regressions-python-${{ matrix.python }}
           path: runtime-regressions.xml
@@ -96,14 +174,26 @@ jobs:
   # whole pytest suite (19 min) after ~2 min of static checks. It is now four
   # parallel parts -- ledger, static checks, and the suite in four balanced
   # shards (tools/ci_test_shard.py) -- and a final job that keeps the
-  # `ledger-and-harness` check name and passes only when every part passed.
-  # Each part checks out and installs exactly as the old job did.
+  # `ledger-and-harness` check name and passes only when every applicable part passed.
+  # Documentation-only changes keep merge hygiene; corpus-only changes keep
+  # the corpus validators. Code, tests, dependencies, instructions, workflows
+  # and unknown paths run the entire suite. A weekly/manual run is absolute.
+  # Each component installs the dependencies its checker needs.
+
   ledger:
+    needs: changes
+    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      SCOPE_RESULT: ${{ needs.changes.result }}
+      RUN_LEDGER: ${{ needs.changes.outputs.ledger }}
+      BASE_SHA: ${{ needs.changes.outputs.base }}
     steps:
+      - name: Require a complete CI scope decision
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_LEDGER" = true ] || exit 1
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0        # full history: the base worktree and the immutability diff
@@ -117,31 +207,13 @@ jobs:
             requirements-agent.txt
 
       - name: Install dependencies
-        run: pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
+        run: python3 -m pip install 'PyYAML>=6.0'
 
       # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
       # it they stay correct but fall back to the pure parser, ~10x slower.
       - name: Check PyYAML has libyaml
         run: |
           python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
-
-      # github.event.pull_request.base.sha is frozen when the PR is opened and
-      # is not refreshed by later pushes, while actions/checkout gives a PR job
-      # the merge of the CURRENT base tip and the PR head. Diffing that frozen
-      # base against the merge commit counts everything the base branch changed
-      # since the PR opened as this PR's change, so a branch that touches no
-      # queue and no record fails on other lanes' breakage. The hygiene and
-      # knowledge-index steps already use the live base; this resolves the
-      # same thing for the steps that diff against a SHA: the merge commit's
-      # first parent, which is exactly the tip this PR merges into.
-      - name: Resolve the PR's effective base
-        if: github.event_name == 'pull_request'
-        run: |
-          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
-            echo "PR_BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
-          else
-            echo "PR_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
-          fi
 
       # Head and base validate concurrently: each is one single-threaded
       # process, and the gate compares their logs. GIT_LFS_SKIP_SMUDGE keeps
@@ -152,10 +224,10 @@ jobs:
         env:
           GIT_LFS_SKIP_SMUDGE: "1"
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event_name }}" = pull_request ] || [ "${{ github.event_name }}" = merge_group ]; then
             BASE_WORKTREE="$RUNNER_TEMP/validate-base-ledger"
             trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
-            git worktree add --detach "$BASE_WORKTREE" "${PR_BASE_SHA:-$BASE_SHA}"
+            git worktree add --detach "$BASE_WORKTREE" "$BASE_SHA"
             LOG_DIR="$RUNNER_TEMP/harness-ci"
             mkdir -p "$LOG_DIR"
             # set +e: the runner's bash -e reaches into subshells, and a failing
@@ -169,7 +241,7 @@ jobs:
             HEAD_STATUS=$(cat "$LOG_DIR/head.status")
             BASE_STATUS=$(cat "$LOG_DIR/base.status")
             printf 'head=%s\nbase=%s\nbase_sha=%s\n' \
-              "$HEAD_STATUS" "$BASE_STATUS" "${PR_BASE_SHA:-$BASE_SHA}" > "$LOG_DIR/ledger-status.txt"
+              "$HEAD_STATUS" "$BASE_STATUS" "$BASE_SHA" > "$LOG_DIR/ledger-status.txt"
             python3 tools/ci_ledger_gate.py \
               --head-log "$LOG_DIR/ledger-head.log" --head-status "$HEAD_STATUS" \
               --base-log "$LOG_DIR/ledger-base.log" --base-status "$BASE_STATUS"
@@ -178,7 +250,12 @@ jobs:
           fi
 
       - name: Check run-record immutability
-        run: python3 tools/check_run_immutability.py
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            python3 tools/check_run_immutability.py "$BASE_SHA" HEAD
+          else
+            python3 tools/check_run_immutability.py
+          fi
 
       - name: Preserve failure diagnostics
         if: always()
@@ -189,11 +266,19 @@ jobs:
           if-no-files-found: ignore
 
   static-checks:
+    needs: changes
+    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      SCOPE_RESULT: ${{ needs.changes.result }}
+      RUN_STATIC: ${{ needs.changes.outputs.static }}
+      BASE_SHA: ${{ needs.changes.outputs.base }}
     steps:
+      - name: Require a complete CI scope decision
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_STATIC" = true ] || exit 1
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -207,11 +292,12 @@ jobs:
             requirements-agent.txt
 
       - name: Install dependencies
-        run: pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
+        run: pip install -e .
 
       # Installed separately so the step above proves the core toolchain still
       # works without the agent runtime's dependency tree.
       - name: Install api_direct runtime dependencies
+        if: needs.changes.outputs.tests == 'true'
         run: pip install -r requirements-agent.txt
 
       # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
@@ -221,6 +307,7 @@ jobs:
           python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
 
       - name: Check the local entry point is usable
+        if: needs.changes.outputs.tests == 'true'
         run: python3 -m orchestration doctor || true
 
       # Generated artifacts are not committed (see .gitignore). Building them
@@ -232,25 +319,17 @@ jobs:
       # and "fails on base too" counted as a pass, and it cost 2m18s and a
       # 9 GB worktree on every PR.
       - name: Build generated artifacts
+        if: needs.changes.outputs.knowledge_index == 'true'
         run: python3 tools/build_knowledge_index.py
-
-      - name: Resolve the PR's effective base
-        if: github.event_name == 'pull_request'
-        run: |
-          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
-            echo "PR_BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
-          else
-            echo "PR_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
-          fi
 
       # Check what this PR adds/changes, including non-batch proposal queues.
       # The historical all-queue census remains in main-health; repeating that
       # warning-only sweep on every PR costs time without gating regressions.
       - name: Validate changed queue routes and render canonical queues
-        if: github.event_name == 'pull_request'
+        if: needs.changes.outputs.base != ''
         run: |
           mkdir -p "$RUNNER_TEMP/harness-ci/queues"
-          git diff --name-only --diff-filter=ACMR -z "${PR_BASE_SHA:-$BASE_SHA}" HEAD -- \
+          git diff --name-only --diff-filter=ACMR -z "$BASE_SHA" HEAD -- \
             'coordination/**/dispatch_queue.json' 'coordination/dispatch_queue.json' |
           while IFS= read -r -d '' q; do
             d=$(mktemp -d "$RUNNER_TEMP/harness-ci/queues/queue.XXXXXX")
@@ -260,27 +339,12 @@ jobs:
               || { cat "$d/render.log" >&2; exit 1; }
           done
 
-      # Absolute, not diffed against the base: conflict markers and unparseable
-      # records. The ledger part's gate compares error sets, and a record that
-      # does not parse cannot be schema-checked -- so corrupting one REMOVES
-      # errors and reads as an improvement there. Nine files reached main
-      # holding literal conflict markers through exactly that gap. It used to
-      # run first in a serial job; ledger-and-harness now requires both parts.
-      # PR: scoped to the files the branch touches. main: absolute. See the
-      # scope comment in tools/check_merge_hygiene.py.
-      - name: Merge hygiene — conflict markers, parseability, id collisions
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python3 tools/check_merge_hygiene.py --base "origin/${{ github.base_ref }}"
-          else
-            python3 tools/check_merge_hygiene.py --absolute
-          fi
-
       # Absolute, not diffed: these packages assert an artifact list, an
       # artifact count and a sha256 per file, and the check recomputes all
       # three from the files each package actually ships. It needs no Autolab
       # checkout, so it means the same thing here as on the porting machine.
       - name: Check ported Autolab packages match their archived artifacts
+        if: needs.changes.outputs.autolab == 'true'
         run: python3 tools/port_autolab_experiments.py --verify
 
       # Absolute, not diffed against base: this index is green as of the commit
@@ -288,21 +352,26 @@ jobs:
       # It also recomputes the sha256 of every vendored source artifact, which
       # makes a stale-output failure and a corrupted-source failure the same red.
       - name: Check source index is current and vendored source hashes match
+        if: needs.changes.outputs.source_index == 'true'
         run: python3 tools/build_source_index.py --check
 
       # The known-results map is what ideation reads before generating (see
       # knowledge/frontiers/ecdlp/README.md). Rows are write-once YAML; this
       # checks schema, ids and that every cited source resolves to a corpus entry.
       - name: Check ECDLP known-results map
+        if: needs.changes.outputs.frontier == 'true'
         run: python3 tools/build_frontier_map.py --check
 
       - name: Validate inference configuration (offline)
+        if: needs.changes.outputs.tests == 'true'
         run: python3 -m orchestration.adapter doctor
 
       - name: Enforce no-Bedrock inference cost policy
+        if: needs.changes.outputs.tests == 'true'
         run: python3 tools/check_inference_cost_policy.py
 
       - name: Check runtime role bindings have not drifted
+        if: needs.changes.outputs.tests == 'true'
         run: |
           python3 tools/generate_runtime_agents.py --check
           python3 tools/check_runtime_bindings.py
@@ -312,17 +381,22 @@ jobs:
       # reason are in the tool. Move narrative to docs/, never raise the budget
       # to fit. tools/test_instruction_uniqueness.py fails on a restated rule.
       - name: Check instruction word budgets
+        if: needs.changes.outputs.tests == 'true'
         run: python3 tools/check_instruction_budget.py
 
       # Offline: fixtures build and every task's policy resolves. Running the
       # suites costs tokens, so CI checks they are well-formed, not that they pass.
       - name: Validate evaluation suites
+        if: needs.changes.outputs.tests == 'true'
         run: |
           for suite in evals/suites/*.yaml; do
             python3 -m orchestration.eval validate --suite "$suite"
           done
 
+      # Corpus-only changes render only changed queues above. Full software
+      # and weekly/manual checks still exercise the live queue absolutely.
       - name: Validate live research dispatch queue
+        if: needs.changes.outputs.tests == 'true'
         run: |
           python3 tools/research_dispatch.py coordination/dispatch_queue.json \
             --output /tmp/current_dispatch.json \
@@ -332,6 +406,7 @@ jobs:
       # and tools/, so the portable plugin package owns an explicit contract
       # check rather than relying on incidental test discovery.
       - name: Check portable plugin bundle
+        if: needs.changes.outputs.tests == 'true'
         run: python3 -m unittest discover -s plugins/crypto-autoresearcher-harness/tests -v
 
       - name: Preserve failure diagnostics
@@ -346,23 +421,37 @@ jobs:
   # the checkout exactly as the serial job did before pytest (dependencies and
   # generated artifacts), and the shards' union is every collected file.
   harness-tests:
+    needs: changes
+    if: always()
     name: harness-tests (${{ matrix.shard }}/4)
+    env:
+      SCOPE_RESULT: ${{ needs.changes.result }}
+      RUN_TESTS: ${{ needs.changes.outputs.tests }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     steps:
+      - name: Require a complete CI scope decision
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_TESTS" = true ] || [ "$RUN_TESTS" = false ] || exit 1
+      - name: Software checks excluded by scope
+        if: env.RUN_TESTS == 'false'
+        run: echo "No software inputs changed; this matrix check completed without checkout or installation."
       # Shard 1 runs .github/test-full-checkout.txt, the files that read run
       # archives, on a full checkout; the other shards are sparse and blobless.
       - uses: actions/checkout@v4
+        if: env.RUN_TESTS == 'true'
         with:
           fetch-depth: 0
           sparse-checkout: ${{ matrix.shard != 1 && env.SPARSE_RULES || '' }}
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
+        if: env.RUN_TESTS == 'true'
         with:
           python-version: "3.11"
           cache: pip
@@ -375,6 +464,7 @@ jobs:
       # CERTBIN engines. The runner has a C compiler, so the native kernels
       # are built and tested too.
       - name: Install dependencies
+        if: env.RUN_TESTS == 'true'
         run: |
           pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
           pip install -r requirements-agent.txt
@@ -382,21 +472,27 @@ jobs:
       # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
       # it they stay correct but fall back to the pure parser, ~10x slower.
       - name: Check PyYAML has libyaml
+        if: env.RUN_TESTS == 'true'
         run: |
           python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
 
       - name: Build generated artifacts
+        if: env.RUN_TESTS == 'true'
         run: python3 tools/build_knowledge_index.py
 
       - name: Lay sparse-checkout tripwires
-        if: matrix.shard != 1
+        if: env.RUN_TESTS == 'true' && matrix.shard != 1
         run: python3 tools/ci_sparse_guard.py tripwires
 
       - name: Run harness tests (shard ${{ matrix.shard }} of 4)
+        if: env.RUN_TESTS == 'true'
         env:
           SPARSE: ${{ matrix.shard != 1 && '1' || '' }}
         run: |
-          mapfile -t files < <(python3 tools/ci_test_shard.py --of 4 --shard ${{ matrix.shard }})
+          # Process substitution hides detector failures from bash -e. Materialize
+          # the plan first so collection/detector errors fail the job.
+          python3 tools/ci_test_shard.py --of 4 --shard ${{ matrix.shard }} > "$RUNNER_TEMP/test-files.txt"
+          mapfile -t files < "$RUNNER_TEMP/test-files.txt"
           [ "${#files[@]}" -gt 0 ] || { echo "empty shard" >&2; exit 1; }
           echo "${#files[@]} test files in this shard"
           if [ -n "$SPARSE" ]; then
@@ -407,11 +503,11 @@ jobs:
           python3 -m pytest -q --junitxml=harness-tests-${{ matrix.shard }}.xml "${files[@]}"
 
       - name: Fail on reads of off-disk paths
-        if: always() && matrix.shard != 1
+        if: always() && env.RUN_TESTS == 'true' && matrix.shard != 1
         run: python3 tools/ci_sparse_guard.py report "$RUNNER_TEMP/sparse-guard.log"
 
       - name: Preserve test results
-        if: always()
+        if: always() && env.RUN_TESTS == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: harness-tests-${{ matrix.shard }}
@@ -420,14 +516,41 @@ jobs:
 
   # Keeps the check name branch protection and auto-merge already know.
   ledger-and-harness:
-    needs: [ledger, static-checks, harness-tests]
+    needs: [changes, merge-hygiene, ledger, static-checks, harness-tests, runtime-regressions]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      SCOPE_RESULT: ${{ needs.changes.result }}
+      HYGIENE_RESULT: ${{ needs.merge-hygiene.result }}
+      LEDGER_REQUIRED: ${{ needs.changes.outputs.ledger }}
+      LEDGER_RESULT: ${{ needs.ledger.result }}
+      STATIC_REQUIRED: ${{ needs.changes.outputs.static }}
+      STATIC_RESULT: ${{ needs.static-checks.result }}
+      TESTS_REQUIRED: ${{ needs.changes.outputs.tests }}
+      TESTS_RESULT: ${{ needs.harness-tests.result }}
+      RUNTIME_REQUIRED: ${{ needs.changes.outputs.runtime }}
+      RUNTIME_RESULT: ${{ needs.runtime-regressions.result }}
     steps:
-      - name: Require every part to pass
+      - name: Require every applicable part to pass
         run: |
-          echo "ledger=${{ needs.ledger.result }} static-checks=${{ needs.static-checks.result }} harness-tests=${{ needs.harness-tests.result }}"
-          [ "${{ needs.ledger.result }}" = success ] \
-            && [ "${{ needs.static-checks.result }}" = success ] \
-            && [ "${{ needs.harness-tests.result }}" = success ]
+          [ "$SCOPE_RESULT" = success ] && [ "$HYGIENE_RESULT" = success ] || exit 1
+          for part in LEDGER STATIC TESTS RUNTIME; do
+            required_var="${part}_REQUIRED"
+            result_var="${part}_RESULT"
+            required="${!required_var}"
+            result="${!result_var}"
+            echo "$part required=$required result=$result"
+            if [ "$required" = true ]; then
+              [ "$result" = success ] || exit 1
+            elif [ "$required" = false ]; then
+              if [ "$part" = TESTS ] || [ "$part" = RUNTIME ]; then
+                [ "$result" = success ] || exit 1
+              else
+                [ "$result" = skipped ] || exit 1
+              fi
+            else
+              echo "Missing scope result for $part" >&2
+              exit 1
+            fi
+          done

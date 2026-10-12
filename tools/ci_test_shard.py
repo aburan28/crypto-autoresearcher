@@ -6,8 +6,8 @@ files. Run serially it took 19 minutes, two thirds of the job's 33. Files are
 packed longest-first onto the least-loaded shard (LPT) using the measured
 seconds in `.github/test-durations.json`; a file with no measurement counts as
 the median. Every collected file lands in exactly one shard, so the shards'
-union is the whole suite, and a file that fails to collect still lands in one
-(and fails there, as it would serially).
+union is the whole suite. Collection errors fail planning immediately, so an
+incomplete collection can never become a green partial test run.
 
 Shard 1 is the one shard with a full checkout; the others check out the
 `harness` sparse profile. The files in `.github/test-full-checkout.txt` read
@@ -46,6 +46,9 @@ def collected_files(repo: Path = REPO) -> list[str]:
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"],
         cwd=repo, capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        raise SystemExit(f"ci_test_shard: pytest collection failed ({proc.returncode}):\n"
+                         f"{proc.stdout}{proc.stderr}")
     files: set[str] = set()
     for line in proc.stdout.splitlines():
         if "::" in line:
