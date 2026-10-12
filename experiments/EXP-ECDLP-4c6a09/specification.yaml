@@ -1,0 +1,193 @@
+# =============================================================================
+# EXP-ECDLP-4c6a09 -- H-ECDLP-4da36f (SNFS-G3): Solinas number fields. Rank
+# gain, new-point heights and covering exponent of E over K_f = Q[t]/(f) for
+# the four NIST low-weight shapes at toy k, against random low-weight g of
+# the same degree and weight, with a regression of gamma on root discriminant.
+# status review_required: IMPLEMENTED (coverage and height arms), not run.
+# implementation/ is a Rust crate (binary g3) on the nfield library of
+# EXP-ECDLP-84af7b (path dependency), with the optional libpari FFI for the
+# nfdisc cross-check. 2-descent over K_f is not available in the container (PARI 2.15
+# ellrank is over Q only), so the rank arm is skipped and reported as
+# skipped. CORRECTION at design time: the P-384 shape is t^12 - t^4 - t^3 +
+# t - 1, not t^12 - t^4 + t^3 + t - 1 as first filed (CTRL-SHAPE caught it);
+# the merged proposal IDEA-20261009-b6d31b is superseded by IDEA-20261010-478721
+# and CORR-20261010-218281 records the defect.
+# Smoke-tested; no run record, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-4c6a09
+  hypothesis_id: H-ECDLP-4da36f
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261010-478721
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Solinas number fields: rank gain, minimal new-point height and covering
+    exponent of E over K_f = Q[t]/(f) for the NIST shapes t^3 - t - 1,
+    t^7 - t^3 + 1, t^8 - t^7 + t^6 + t^3 - 1, t^12 - t^4 - t^3 + t - 1 at toy
+    primes f(2^k), against random monic g with coefficients in {-1, 0, 1} of
+    the same degree and weight, with a regression of gamma on root discriminant
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Decide whether the small root discriminant of a Solinas field reaches
+    E(K_f) as rank, small heights or residue coverage, relative to random
+    low-weight fields of the same degree and weight. H-ECDLP-4da36f predicts
+    no difference and no correlation with the root discriminant.
+  inputs:
+    primes: >-
+      For each NIST shape f and each k in 4..12 with f(2^k) prime and
+      f(2^k) >= 2^12, the toy prime p = f(2^k), at most 3 per shape (P-192:
+      k in {6, 7, 12}; P-224: k = 8; P-256: k = 4; P-384: k = 6); each shape
+      at its deployed k must evaluate to the public NIST prime (CTRL-SHAPE).
+      For each degree deg f, 20 seeded random monic g with coefficients in
+      {-1, 0, 1}, constant term +-1, weight equal to f's, irreducible, and
+      g(2^k) prime for some k in the same range (the smallest such k is used;
+      control primes).
+    fields: "K_f = Q[t]/(f) with the degree-one prime P_1 = (t - 2^k, p); polynomial root discriminant |disc(f)|^(1/deg f) recorded per field, and the field discriminant by PARI/GP nfdisc when gp is present (CTRL-DISC)"
+    curves: "5 seeded random curves y^2 = x^3 + Ax + B with A, B in [-20, 20], nonsingular, good reduction at p, seeded per (shape, k); the same curves on the Solinas and random-g arms at the same (shape, k)"
+    coverage_arm: >-
+      Enumerate x = a(t)/e with a in Z[t] of degree < deg f on the power
+      basis, coefficient vectors in sup-norm shells X = 0, 1, 2, ... and
+      denominators e <= 4, sieved by quadratic-residue tests at every root of
+      f modulo 8 auxiliary primes above 10^6 at which f has a root (degree-one
+      primes; completely split primes do not exist in practice for these
+      non-Galois fields of degree >= 7), then an exact square root in K_f
+      (factor f modulo a lift prime, Tonelli-Shanks in each finite-field
+      factor, CRT over sign patterns, ring Hensel lift, rational
+      reconstruction, exact verification); work ladder W in {300, 1000, 3000, 10000, 30000,
+      100000} candidates tried, each rung a snapshot of one deterministic
+      enumeration (a shell that fits in twice the remaining budget is
+      exhausted in seeded random order, a larger one is sampled uniformly
+      without replacement); reduce at P_1 by t -> 2^k mod p; distinct
+      residues D(W); gamma = slope of log D against log W over the last three
+      rungs with D > 0 (the EXP-ECDLP-3e8403 quantity, on a work ladder).
+    rank_and_height_arm: >-
+      No 2-descent over K_f is available (PARI/GP ellrank is over Q only):
+      the rank arm is skipped and reported as skipped in every cell. The
+      number of K_f-points found that are not in E(Q) and are proven
+      non-torsion by reduction (order not dividing T = gcd of #E(F_q) over 6
+      split primes) and the smallest naive height of such a point divided by
+      log p are reported as bounds, on both arms by the same code.
+    regression: "gamma against log root discriminant across all fields, with a 99 % bootstrap interval on the slope"
+  controls:
+    - "CTRL-RANDOM-G: random g of the same degree and weight, same curves, same ladder, same code."
+    - "CTRL-SHAPE: each NIST shape evaluated at its deployed k equals the public NIST prime; the run aborts otherwise."
+    - "CTRL-D1: K = Q (d = 1) cells run with the same code at each shape's first prime as an instrument baseline, reported beside EXP-ECDLP-3e8403's Q-lift gamma (that contract's box ladder is not reproduced numerically; the enumeration here is by work W on sup-norm shells)."
+    - "CTRL-TDC: one f = t^d - c cell (the EXP-ECDLP-3e8403 form, smallest c in {3, 5, 7, 11, 13} with a toy prime) per degree is included and reported beside that contract's gamma for the same reason."
+    - "CTRL-DISC: polynomial discriminants computed exactly; PARI nfdisc recorded when gp is present; a field whose root discriminant is far from its shape's is reported, never dropped."
+    - "CTRL-IRRED: every defining polynomial is irreducible over Q (distinct-degree factorisation at many primes plus a rational-root check); a reducible g is replaced by the next seeded g."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "f shape: four NIST shapes | random g (20 per degree) | t^d - c | Q"
+    - "k in 4..12 (toy primes), at most 3 per shape"
+    - "W on the work ladder; curve 1..5"
+  metrics:
+    primary:
+      - covering_exponent_gamma_solinas_minus_random_g_per_degree
+      - new_nontorsion_points_solinas_minus_random_g_per_degree
+      - min_new_point_naive_height_over_log_p_per_arm
+      - regression_slope_gamma_vs_log_root_discriminant_with_interval
+    secondary:
+      - root_discriminant_per_field
+      - d1_and_tdc_reproduction_checks
+      - enumeration_work_per_rung
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: gamma, new non-torsion point count, height and the regression slope
+    formula: >-
+      |gamma_f - gamma_g| <= 0.2 at every degree (means over curves, primes
+      and seeds); new non-torsion point counts and height ratios within
+      sampling error of the random-g arm; the 99 % bootstrap interval of the
+      regression slope contains 0; the rank arm is reported as skipped.
+    source: >-
+      HEUR-001 of H-ECDLP-4da36f (Lang-type heights, KN-TECH-060, KN-LIT-021;
+      HEUR-003 of H-ECDLP-bd1572 for f = t^d - c).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy primes f(2^k) at k <= 12; small k compresses the discriminant
+      contrast, which the regression across all fields is designed to
+      measure rather than assume away. Nothing is extrapolated and no
+      deployed curve is lifted.
+    correspondence: null
+  tail_checks:
+    - Report the field with the largest gamma and the field with the smallest root discriminant, with their curves.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 80
+    maximum_memory_gb: 4
+    maximum_runs: 12
+  stopping_rules:
+    - Stop a (f, k) cell when the ladder is exhausted or 14400 s elapse; record what completed, never as evidence.
+    - The rank arm is skipped, and reported as skipped, where no descent tool is available; the coverage arm still runs.
+  invalidation_rules:
+    - A CTRL-SHAPE failure aborts the run before any cell (instrument).
+    - A CTRL-REPLAY failure (seeded replay not byte-identical) invalidates the run (instrument).
+    - A field whose defining polynomial is reducible is invalid (not a field) and is replaced by the next seeded g (CTRL-IRRED).
+  success_criterion: >-
+    Every degree has |gamma_f - gamma_g| <= 0.2, new non-torsion point
+    counts and heights match the random-g arm within sampling error, the
+    regression slope's 99 % interval contains 0, and CTRL-SHAPE, CTRL-IRRED
+    and CTRL-REPLAY pass: the Solinas form reaches nothing in E(K_f) beyond
+    degree and discriminant size (rank itself untested, the arm is skipped).
+  falsification_criterion: >-
+    A NIST shape with gamma_f - gamma_g > 0.2 at every one of its toy primes
+    and across >= 3 seeds, or a significant negative regression slope (99 %
+    interval excluding 0), with CTRL-SHAPE and CTRL-IRRED passing (HEUR-001
+    of H-ECDLP-4da36f fails: the alive condition of SNFS-G3). With no
+    descent, a rank-arm statement cannot be falsified or supported here.
+  decision_impact:
+    on_positive: >-
+      The Coordinator records that low-weight f adds nothing to the lift
+      obstruction beyond degree and discriminant size, closes SNFS-G3 and
+      SNFS-F1's generalization question in the toy scope, and cites the
+      table in the special-prime battery synthesis.
+    on_negative: >-
+      An independent re-implementation of the coverage arm is dispatched
+      before interpretation; on reproduction the root-discriminant
+      correlation becomes a new RQ with the regression as its first exhibit.
+  required_artifacts:
+    - experiments/EXP-ECDLP-4c6a09/specification.yaml
+    - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml
+    - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.lock
+    - experiments/EXP-ECDLP-4c6a09/implementation/src/main.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/ (shared library crate, see EXP-ECDLP-84af7b)
+    - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      cargo run --release --features pari --manifest-path
+      experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml --bin g3 --
+      --kmin 4 --kmax 12 --min-bits 12 --max-primes-per-shape 3 --random-g 20
+      --curves 5 --ladder 300 1000 3000 10000 30000 100000 --seeds 1 2 3
+      --aux-primes 8 --out experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>
+    build_requirements: >-
+      Rust 1.97 and crates.io (same crates as EXP-ECDLP-84af7b); the `pari`
+      feature needs libpari-dev, libgmp-dev and a C compiler; without it the
+      binary builds and runs and the nfdisc cross-check is recorded as absent.
+    runnable_state_at_design: >-
+      RUNNABLE for the coverage and height arms; the rank arm is skipped and
+      reported as skipped. implementation/src/main.rs (binary g3) on the
+      nfield Rust library of EXP-ECDLP-84af7b (Q[t]/(f) arithmetic on exact
+      rationals, exact discriminant, roots and factorisation mod q,
+      irreducibility, exact square root, sieved sup-norm-shell point search
+      with checkpoints, torsion bound by reduction at degree-one primes;
+      residues at the 72-bit P-384 toy prime through big-integer embeddings;
+      optional libpari nfdisc over FFI). libpari 2.15.4 is linked in the
+      design container through the `pari` feature and used only for
+      CTRL-DISC; the run proceeds without it. Smoke test: --shapes P-192
+      P-384 --max-primes-per-shape 1 --random-g 2 --curves 2 --ladder 300
+      1000 3000 10000 --seeds 1 gave 18 cells in 2.5 s with CTRL-SHAPE
+      passing and a byte-identical replay (CTRL-REPLAY). A full-ladder cell
+      takes well under a second up to degree 12, so the default command
+      (about 1500 cells) is estimated at 10 to 20 minutes on one core; shells grow
+      like (2X+1)^d, so at d >= 8 the ladder covers only the first one or two
+      shells, which the shells_completed field records per rung.
+  assigned_to: executor
