@@ -433,22 +433,15 @@ python3 tools/ecc_priority.py --budget-violations   # instruction 1's check
 
 ### Approval is bounded by execution
 
-Additive amendment, 2026-10-07, from `docs/track-record-review-20261006.md`
-(P0.1, P0.2, P0.4) and the operator-level request in `DEC-20261005-138b51`
-F-1. It bounds the reading of instruction 3; it rewrites no record and
-relaxes no rule above.
+The 2026-10-07 approval capacity amendment is superseded by the user's
+2026-10-11 direction to remove administrative caps. Approved-unrun counts
+remain portfolio metrics and prioritization inputs. They do not block the
+design or approval of a ranked, complete protocol. Historical decisions and
+receipts that cited the former cap remain unchanged.
 
-"Designed, not shelved" means an open ECC idea is **designed when it can be
-approved**, and approval has two conditions the ledger checks:
+"Designed, not shelved" means an open ECC idea is ranked and designed when
+its protocol can be completed. Approval requires:
 
-- **Capacity.** A goal (or, for a contract without one, its area) holds at
-  most `APPROVAL_CAPACITY_CAP` (`tools/portfolio_kpis.py`, three) approved
-  contracts that have never run. A `DEC-*` approving a contract over that
-  cap is refused by `tools/validate_ledger.py` for decisions minted on or
-  after the amendment date, unless the same decision retires one of them
-  (`supersedes_experiments` / `withdraws_experiments`). The review counted
-  1,137 approved contracts that had never run; approving a 1,138th reduces no
-  uncertainty, it only costs the tokens that wrote it.
 - **Runnable.** A contract is approved only when `python3
   tools/newest_experiments.py --experiment <EXP-ID>` reports
   `execution_state: ready`: a committed launcher or trial plan exists.
@@ -456,16 +449,9 @@ approved**, and approval has two conditions the ledger checks:
   already is. A contract that cannot be made runnable in the designing
   session stays `review_required` with the reason recorded.
 
-An idea that cannot be approved under those conditions **stays `proposed`
-with the reason recorded**: the designing session's receipt
-(`tools/session_receipt.py --outcome refused_capacity`, naming the idea and
-the goal whose capacity or launcher is missing) and, where a goal exists,
-its `next_action`. The proposal record itself is not edited. That is not
-shelving: the idea is still ranked work, it is still visible to
-`tools/ecc_priority.py --open-ideas`, and it is designed in the session that
-has the headroom or the launcher. Designing it earlier manufactures a
-hypothesis and a contract the harness cannot act on, which is the make-work
-instruction 1 forbids under another name.
+If a complete contract cannot yet be made runnable, it stays `review_required`
+and the missing launcher is recorded in the goal's `next_action`. Prioritize
+ready scientific runs when they are ranked ahead of more design work.
 
 Unchanged: ECC priority still orders the queue; unlimited budgets still
 remove the batch ceiling and not the duty to rank; designing is still not

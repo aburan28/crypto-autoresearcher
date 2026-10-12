@@ -6,8 +6,7 @@ track-record review (docs/track-record-review-20261006.md) found nobody was
 asking at wake: how many approved contracts have never run, per goal; what
 fraction of specified work ever produced evidence; which dispatched handoffs
 never came back. `tools/ledger_summary.py` prints these for /research-status
-and `tools/validate_ledger.py` reads `approved_unrun` for the approval
-capacity gate (P0.1), so both see one definition of "unrun".
+and the backlog remains visible without limiting approvals.
 
 Definitions, stated once:
 
@@ -44,12 +43,6 @@ except ImportError:  # pragma: no cover
     from yaml import SafeLoader as Loader  # type: ignore[assignment]
 
 REPO = Path(__file__).resolve().parents[1]
-
-# A goal may hold this many approved contracts with no run before another
-# approval is refused (docs/track-record-review-20261006.md, P0.1). Three is
-# enough for one lane to have a next contract queued while one runs and one is
-# under review; the measured backlog that motivated the cap was 1,469.
-APPROVAL_CAPACITY_CAP = 3
 
 # Open handoffs older than this are reported as aged (P3.17). Two weeks is
 # longer than any dispatched task budget in the ledger.
@@ -194,8 +187,6 @@ def funnel(root: Path = REPO, rows: list[dict[str, Any]] | None = None) -> dict[
         "experiments_with_runs": with_runs,
         "approved": approved,
         "approved_unrun": unrun_total,
-        "approved_unrun_goals_over_cap": sorted(
-            g for g, ids in backlog.items() if len(ids) > APPROVAL_CAPACITY_CAP),
         "run_manifests_by_status": dict(runs.most_common()),
         "evidence": evidence,
         "conversion": {
@@ -204,7 +195,6 @@ def funnel(root: Path = REPO, rows: list[dict[str, Any]] | None = None) -> dict[
             "approved_to_run": ratio(approved - unrun_total, approved),
             "experiment_to_evidence": ratio(evidence, len(rows)),
         },
-        "capacity_cap": APPROVAL_CAPACITY_CAP,
     }
 
 
@@ -233,9 +223,7 @@ def render(report: dict[str, Any], *, backlog_rows: int = 10) -> str:
                  f"H→EXP {pct(c['hypothesis_to_experiment'])}, "
                  f"approved→run {pct(c['approved_to_run'])}, "
                  f"EXP→evidence {pct(c['experiment_to_evidence'])}")
-    lines.append(f"approved without a run: {f['approved_unrun']} of {f['approved']} "
-                 f"(cap {f['capacity_cap']} per goal; "
-                 f"{len(f['approved_unrun_goals_over_cap'])} goal(s) over cap)")
+    lines.append(f"approved without a run: {f['approved_unrun']} of {f['approved']}")
     statuses = list(f["run_manifests_by_status"].items())
     runs = ", ".join(f"{k}:{v}" for k, v in statuses[:6]) or "—"
     if len(statuses) > 6:
@@ -264,22 +252,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--backlog", action="store_true",
                         help="print the full per-goal approved-unrun table")
-    parser.add_argument("--capacity", metavar="GOAL_OR_AREA",
-                        help="approval headroom for one goal key (GOAL-... or "
-                             "area:AREA); exit 1 when the goal is at the cap")
+    parser.add_argument("--goal-backlog", "--capacity", dest="goal_backlog",
+                        metavar="GOAL_OR_AREA",
+                        help="show approved-unrun backlog for one goal key; "
+                             "--capacity is a non-blocking legacy alias")
     args = parser.parse_args(argv)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import sparse_checkout
     if sparse_checkout.refuse_if_sparse("portfolio_kpis", args.repo_root):
         return 2
-    if args.capacity:
-        unrun = approved_unrun(args.repo_root).get(args.capacity, [])
-        headroom = max(0, APPROVAL_CAPACITY_CAP - len(unrun))
-        print(f"{args.capacity}\tapproved_unrun={len(unrun)}\t"
-              f"cap={APPROVAL_CAPACITY_CAP}\theadroom={headroom}")
+    if args.goal_backlog:
+        unrun = approved_unrun(args.repo_root).get(args.goal_backlog, [])
+        print(f"{args.goal_backlog}\tapproved_unrun={len(unrun)}\tcap=none")
         for eid in unrun:
             print(f"  {eid}")
-        return 0 if headroom else 1
+        return 0
     report = build(args.repo_root)
     if args.json:
         print(json.dumps(report, indent=2, default=str))
