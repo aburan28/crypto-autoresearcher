@@ -5,6 +5,46 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
+## Name the obstruction
+
+When substantial research, cryptanalysis, or audit work cannot meet a proof,
+implementation, experiment, or validation requirement, **name the specific
+problem**. Before repeating the same blocked approach or handing it off, create
+or update `problems/<descriptive-slug>.md` using
+[the problem template](problems/TEMPLATE.md), add it to
+[the problem index](problems/README.md), and link it from the affected work.
+
+- State exactly what is blocked, under which parameters and assumptions, and
+  why that gap prevents the requested conclusion. Track major or recurring
+  blockers, not every routine TODO.
+- Separate observed evidence, suspected explanations, missing implementations,
+  access/tool or assistance limits, resource limits, and proved mathematical
+  obstructions. Cite artifacts or proofs with their exact scope; mark unknowns
+  explicitly. A timeout or bounded failed search does not prove impossibility;
+  failure to find an attack does not establish security.
+- Say **what would unblock it**: the missing lemma, construction, verified map,
+  measurement, implementation, access, or resource, with checkable acceptance
+  criteria. Explain what satisfying those criteria would establish and what
+  would remain unresolved. "More research" is not an exit condition.
+- Give the next discriminating experiment or proof obligation, its controls
+  and execution limits where relevant, and how each possible outcome changes
+  the next action. Apply the existing experiment and budget rules.
+- Reuse an existing problem record for the same obstruction, including a
+  cross-repository link when appropriate. Update its evidence, next action,
+  and index row in the PR that changes the situation; preserve frozen evidence.
+  Resolve it only with linked evidence meeting its exit criteria. If another
+  record replaces it, mark it superseded and link the successor.
+
+Recording a problem keeps the original requirement visible; recording it alone
+does not resolve that requirement. It
+does not authorize abandoning requested work, weakening its acceptance criteria,
+or promoting a claim. Completing the template or merging its PR does not solve
+the underlying problem.
+
+In this repository, link problem records to existing goal impediments and
+inventor-protocol obstruction records. Problem status is not a goal or
+hypothesis status; scientific transitions retain their existing authority.
+
 ## Budgets: progress first
 
 Research cost estimates are advisory, may be null, and never need repeated user
@@ -282,27 +322,20 @@ infer it from an id prefix.
 
 ### Approval is bounded by execution
 
-Additive amendment, 2026-10-07 (`docs/track-record-review-20261006.md` P0.1,
-P0.2, P0.4; operator request `DEC-20261005-138b51` F-1). ECC rule 3 applies
-**once an idea can be approved**, and approval needs both:
+The approved-unrun capacity cap from 2026-10-07 is removed by user direction
+(2026-10-11). `tools/portfolio_kpis.py` reports the backlog for prioritization;
+neither its count nor `--capacity` blocks design or approval. An open ECC idea
+is ranked and designed when its protocol can be completed. Approval requires:
 
-- **Capacity.** A goal (else its area) holds at most `APPROVAL_CAPACITY_CAP`
-  (three, `tools/portfolio_kpis.py`) approved contracts that never ran.
-  `validate_ledger.py` refuses a `DEC-*` minted on or after 2026-10-07 that
-  approves past the cap unless it retires one (`supersedes_experiments` /
-  `withdraws_experiments`).
 - **Runnable.** Approve only when `python3 tools/newest_experiments.py
   --experiment <EXP-ID>` reports `execution_state: ready`. Implementation is
   the design lane's; a contract not runnable in its designing session stays
   `review_required` with the reason recorded.
 
-An unapprovable idea stays `proposed` and unedited, the reason in the session
-receipt (`tools/session_receipt.py --outcome refused_capacity`) and the goal's
-`next_action`. That is not shelving: it remains ranked work
-(`--open-ideas`) for a session with headroom or the launcher, since designing
-it earlier makes records the harness cannot act on. Unchanged: ECC rules 2 and 3
-hold, and an approved, unrun contract is neither evidence nor a failure of its
-hypothesis.
+If a complete contract cannot yet be made runnable, keep it `review_required`
+and record the missing launcher in the goal's `next_action`. An approved, unrun
+contract is neither evidence nor a failure of its hypothesis. Rank runnable
+work ahead of drafting more contracts when it offers a justified next run.
 
 ## Research direction
 
