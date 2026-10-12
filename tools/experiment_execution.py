@@ -11,6 +11,7 @@ import argparse
 from collections import Counter
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
 import hashlib
 import json
 import math
@@ -321,7 +322,7 @@ def authorize(root: Path, path: Path, plan: dict[str, Any], owner: str, epoch: i
             relative = (directory / name).relative_to(root).as_posix()
             if relative not in paths:
                 raise ExecutionError(f"handoff archive coverage missing: {relative}")
-        # This is a per-process address-space ceiling, not an aggregate cgroup limit.
+        # The trial guard is RLIMIT_AS on Linux or sampled group RSS on macOS.
         if budget.get("memory_gb") is not None and trial["memory_mb"] > float(budget["memory_gb"]) * 1024:
             raise ExecutionError("trial memory exceeds handoff protection")
     return {"owner": owner, "epoch": epoch, "expires_at": expires.isoformat(),
@@ -365,19 +366,92 @@ def task_lock(root: Path, task_id: str):
 
 def terminate_group(process: subprocess.Popen) -> None:
     # Kill the group even if the leader exited; detached descendants are forbidden.
+    if (sys.platform == "darwin" and process.poll() is not None
+            and _darwin_group_member_count(process.pid) == 0):
+        process.wait()
+        return
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError as error:
+        # Darwin can report EPERM while a just-exited leader is being reaped.
+        # Only ignore it when the group has actually disappeared; a live group
+        # we cannot kill remains an infrastructure error.
+        if sys.platform != "darwin":
+            raise error
+        try:
+            process.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            raise error
+        if _darwin_group_member_count(process.pid) != 0:
+            raise error
     process.wait()
+
+
+@lru_cache(maxsize=1)
+def _darwin_proc_api() -> tuple[Any, Any]:
+    """Read process-group members and resident sizes through macOS libproc."""
+    import ctypes
+    lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+    group = lib.proc_listpgrppids
+    group.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.c_int)
+    group.restype = ctypes.c_int
+    info = lib.proc_pidinfo
+    info.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                     ctypes.c_void_p, ctypes.c_int)
+    info.restype = ctypes.c_int
+    return group, info
+
+
+def _darwin_group_member_count(pgid: int) -> int:
+    import ctypes
+    group, _ = _darwin_proc_api()
+    pids = ctypes.create_string_buffer(4096 * ctypes.sizeof(ctypes.c_int))
+    count = group(pgid, pids, len(pids))
+    if count < 0 or count >= 4096:
+        raise ExecutionError(f"cannot enumerate process group {pgid}")
+    return count
+
+
+def darwin_group_rss_bytes(pgid: int) -> int:
+    """Sum resident bytes across a launched group; fail if it cannot be read."""
+    import ctypes
+    import struct
+    group, info = _darwin_proc_api()
+    # proc_listpgrppids returns a PID count, unlike proc_listpids (bytes).
+    pids = ctypes.create_string_buffer(4096 * ctypes.sizeof(ctypes.c_int))
+    count = group(pgid, pids, len(pids))
+    if count <= 0 or count >= 4096:
+        raise ExecutionError(f"cannot enumerate process group {pgid} for memory guard")
+    total = 0
+    measured = 0
+    for (pid,) in struct.iter_unpack("i", pids.raw[:count * ctypes.sizeof(ctypes.c_int)]):
+        task = ctypes.create_string_buffer(96)  # proc_taskinfo, first two uint64s
+        if info(pid, 4, 0, task, len(task)) < 16:  # PROC_PIDTASKINFO
+            remaining = ctypes.create_string_buffer(len(pids))
+            current_count = group(pgid, remaining, len(remaining))
+            if 0 <= current_count < 4096 and pid not in (
+                member[0] for member in struct.iter_unpack(
+                    "i", remaining.raw[:current_count * ctypes.sizeof(ctypes.c_int)])):
+                continue  # exited between enumeration and measurement
+            raise ExecutionError(f"cannot read resident memory for process {pid}")
+        total += struct.unpack_from("Q", task.raw, 8)[0]
+        measured += 1
+    if not measured:
+        raise ExecutionError(f"cannot read resident memory for process group {pgid}")
+    return total
 
 
 def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial: dict[str, Any],
                 authority: dict[str, Any], lock_fd: int) -> tuple[str, int | None]:
     import resource
+    ceiling = int(trial["memory_mb"] * 1024 * 1024)
     def limits() -> None:
-        ceiling = int(trial["memory_mb"] * 1024 * 1024)
         resource.setrlimit(resource.RLIMIT_AS, (ceiling, ceiling))
+    # macOS rejects RLIMIT_AS with EINVAL even for an ordinary finite limit.
+    # Monitor the new process group instead, retaining a bounded memory guard.
+    darwin = sys.platform == "darwin"
     started = time.monotonic()
     expiry = datetime.fromisoformat(authority["expires_at"])
     watchdog = trial.get("watchdog_seconds")
@@ -385,9 +459,32 @@ def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial
     with (directory / f"{prefix}stdout.log").open("xb") as stdout, (directory / f"{prefix}stderr.log").open("xb") as stderr:
         try:
             process = subprocess.Popen(argv, cwd=root, stdin=subprocess.DEVNULL, stdout=stdout,
-                                       stderr=stderr, start_new_session=True, preexec_fn=limits,
+                                       stderr=stderr, start_new_session=True,
+                                       preexec_fn=None if darwin else limits,
                                        pass_fds=(lock_fd,))
             while process.poll() is None:
+                if darwin:
+                    try:
+                        rss = darwin_group_rss_bytes(process.pid)
+                    except ExecutionError as error:
+                        # libproc can momentarily lose a newly exec'ing or
+                        # just-exiting PID. Retry only this short transition;
+                        # persistent monitor loss remains fail-closed.
+                        for _ in range(3):
+                            if process.poll() is not None:
+                                return "exited", process.returncode
+                            time.sleep(0.01)
+                            try:
+                                rss = darwin_group_rss_bytes(process.pid)
+                                break
+                            except ExecutionError:
+                                pass
+                        else:
+                            if process.poll() is not None:
+                                return "exited", process.returncode
+                            raise error
+                    if rss > ceiling:
+                        return "memory_limit_exceeded", None
                 if datetime.now(timezone.utc) >= expiry:
                     return "claim_expired", None
                 if watchdog is not None and time.monotonic() - started >= watchdog:
