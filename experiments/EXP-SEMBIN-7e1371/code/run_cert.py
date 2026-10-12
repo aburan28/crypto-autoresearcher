@@ -238,7 +238,8 @@ def measure(system, iid, out_dir, args, logf):
             t0 = time.time()
             cc = closure_cert.closure_certificate(N, eqs, D, args.closure_mem_cap, s_known=s_known,
                                                   standard_cap=args.standard_cap)
-            cc["solutions_source"] = cc.get("solutions_source") or s_source
+            if s_known is not None and s_source:
+                cc["solutions_source"] = s_source
             cc["deficiency_vs_columns"] = (cc["ncols"] - cc["rank"]) if cc.get("rank") is not None else None
             per_D.append(cc)
             log(logf, f"{iid} closure D={D}: {cc.get('status')} verdict={cc.get('verdict')} "

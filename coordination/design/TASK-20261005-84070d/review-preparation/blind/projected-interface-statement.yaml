@@ -1,0 +1,139 @@
+blind_statement:
+  id: BLIND-CSTAR-PROJECTION-REDUCTION-20261005
+  goal_id: GOAL-SSI-2fa82a
+  task_id: TASK-20261005-873293
+  role: validator
+  purpose: >-
+    Re-derive projection/correctness/message-separation conditions and
+    reduction direction without reading any producer, source, review plan, or
+    Red-Team material. This statement defines abstract quantities and
+    known-false controls; it contains no producer candidate or expected verdict.
+  read_boundary:
+    permitted:
+      - coordination/design/TASK-20261005-84070d/review-preparation/handoffs/TASK-20261005-873293.yaml
+      - coordination/design/TASK-20261005-84070d/review-preparation/blind/projected-interface-statement.yaml
+    forbidden: >-
+      Every other scientific repository path, including producer artifacts,
+      snapshot receipts, review plan, source notes, prior packets/reviews,
+      Red-Team card/reports, composition artifacts, and messages carrying
+      scientific content.
+  abstract_interface:
+    domains:
+      PP: public setup parameters
+      SK: recipient secret keys
+      PK: recipient public keys
+      M: messages with at least two distinct admitted elements
+      R: encryption randomness
+      CFull: a hypothetical full encryption representation
+      CProj: transmitted projected ciphertexts
+      Aux: declared validation and decoding auxiliary inputs
+      Failure: distinguished bottom value
+    algorithms:
+      Setup: '1^lambda -> PP or bottom'
+      KeyGen: 'PP;rho -> (pk,sk) or bottom'
+      FullEnc: '(PP,pk,m;r) -> c_full in CFull or bottom'
+      Pi: '(PP,pk,c_full) -> ct in CProj or bottom; publicly computable'
+      Encrypt: 'Pi(PP,pk,FullEnc(PP,pk,m;r))'
+      Validate: '(PP,pk,ct,Aux_public) -> accepted ct or bottom'
+      SecretLift: '(PP,sk,ct,Aux_declared) -> z or bottom'
+      Decode: '(PP,sk,ct,z,Aux_declared) -> m_hat in M or bottom'
+    entire_recipient_view: >-
+      Z_sk(m,r) is the complete typed tuple actually consumed by Decode after
+      Validate and SecretLift, including ct, z, and every public or secret
+      auxiliary value. No existential witness or undeclared branch is included.
+  J1_projection_correctness_quantity:
+    desired_statement: >-
+      For every accepted setup, every key pair in KeyGen's support, every
+      admitted m in M and r in R for which Encrypt is defined, Validate accepts
+      the honest ct, SecretLift is defined, and Decode outputs exactly m. Any
+      randomized or partial step declares its success event and failure
+      probability before the quantifiers.
+    separation_necessity: >-
+      If Z_sk(m,r)=Z_sk(m_prime,r_prime), then m=m_prime. Distinct randomness
+      for the same message may collide; distinct messages may not share the
+      entire recipient decoder input. Uniqueness or existence of a Hom map,
+      path, ideal, kernel, witness, or branch is insufficient unless a typed
+      total arrow maps it to the actual message.
+    public_sender_necessity: >-
+      Setup, KeyGen's public-key derivation, Pi, and Encrypt must be executable
+      without sk, retained setup trapdoor, secret path/tau, connecting ideal,
+      hidden orientation, or named oracle. Any such dependency is an added
+      secret and must be separated from an EndRing-only claim.
+    recipient_only_necessity: >-
+      If public data admit an algorithm producing the same Z or the same m with
+      comparable declared complexity, correctness may still hold but a
+      recipient-only inversion advantage has not been established.
+    controls:
+      - id: C1_constant_projection
+        object: 'Pi_const(c_full)=c0 for every c_full and at least two messages'
+        expected_refusal: MESSAGE_SEPARATION_FAILS
+        reason: >-
+          If all other decoder inputs are message-independent, two distinct
+          messages have the same entire recipient view. Disclosure of End(E)
+          cannot make a single-valued decoder return both.
+      - id: C2_full_public_inverse
+        object: >-
+          Pi_identity retains c_full, and a public polynomial algorithm
+          PublicInverse(PP,pk,ct) returns the same message as Decode.
+        expected_refusal: RECIPIENT_ONLY_ADVANTAGE_NOT_ESTABLISHED
+        reason: Correctness can hold, but the recipient has no exclusive inversion capability.
+      - id: C3_unique_object_without_message_arrow
+        object: >-
+          A unique Hom/kernel/path object exists for ct, but no typed total
+          message decoder or separation condition is supplied.
+        expected_refusal: UNIQUE_OBJECT_IS_NOT_ACTUAL_MESSAGE_RECOVERY
+  J2_reduction_direction_quantity:
+    games:
+      PKEBreak: >-
+        The declared semantic-security or indistinguishability game with
+        adversary A, advantage Adv_break(A), exact public inputs, and any random
+        oracle or setup assumptions explicitly named.
+      EndRingSolve: >-
+        The exact EndRing variant and distribution with solver S and success
+        probability Succ_ER(S), including all auxiliary level/setup data.
+    direction_A_solver_to_break:
+      form: 'Given S_EndRing, compute sk or decrypt challenge ciphertexts.'
+      implication: >-
+        This shows only that an EndRing solver can break the PKE, or that
+        breaking is no harder than EndRing under the stated interface. It does
+        not show that breaking the PKE yields EndRing and does not establish
+        semantic security from assumed EndRing hardness.
+      expected_inequality_shape: >-
+        Cost(Break) <= Cost(EndRing)+overhead, or Succ_break(B^S) related to
+        Succ_ER(S). This is an attack/upper-bound direction.
+    direction_B_break_to_solver:
+      form: >-
+        Construct S_EndRing^A that uses any PKE adversary A as an oracle and
+        solves the exact EndRing instance distribution.
+      implication: >-
+        Only this direction, with correct simulation, advantage loss,
+        auxiliary-data accounting, and no circular setup, can base the PKE
+        game's hardness on EndRing. If it instead solves an intermediate
+        problem, that assumption and the unresolved EndRing bridge remain
+        explicit.
+      expected_inequality_shape: >-
+        Succ_ER(S^A) >= f(Adv_break(A),lambda) with non-negligible f and
+        polynomial overhead, or the logically equivalent contrapositive bound.
+    controls:
+      - id: C4_endring_derived_elgamal
+        construction: >-
+          Let EncodeRing(sk_ER) deterministically hash or encode an EndRing
+          description to scalar x. Publish X=[x]G and use otherwise standard EC
+          ElGamal: Encrypt(pk,m;r)=([r]G, m+[r]X), Decode subtracts [x]([r]G).
+        known_boundary: >-
+          This is standard ElGamal syntax with a deterministically derived
+          scalar secret. EndRing may generate x, but an EndRing solver-to-x or
+          solver-to-decrypt algorithm is not an adversary-to-EndRing reduction;
+          the wrapper is not thereby a novel EndRing-security construction.
+        expected_refusal: DERIVED_SECRET_WRAPPER_IS_NOT_ENDRING_REDUCTION
+      - id: C5_named_intermediate_oracle
+        object: >-
+          A proof replaces SecretLift with OracleLift or assumes a connecting
+          ideal/orientation without reducing it from the declared EndRing game.
+        expected_refusal: INTERMEDIATE_ASSUMPTION_MUST_BE_NAMED_AND_SEPARATED
+  required_output:
+    J1: worked derivation plus holds, breaks, or inconclusive verdict on the abstract conditions only
+    J2: worked arrow/advantage audit plus holds, breaks, or inconclusive verdict on the abstract conditions only
+    controls: each expected refusal with observed reasoning and next obligation
+    prohibited: producer-specific, source, novelty, whole-claim, security, or impossibility verdict
+

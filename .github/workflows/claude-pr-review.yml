@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   review:
+    timeout-minutes: 15
     # Draft PRs are reviewed once they are marked ready. `@claude review` still
     # forces a review on a draft on demand.
     if: github.event.pull_request.draft == false
@@ -34,7 +35,10 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
+      # Only a configured review needs the repository: without the key this job
+      # just reports the omission, and a full-history checkout cost ~90 s.
       - uses: actions/checkout@v6
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
         with:
           fetch-depth: 0 # full history so "did this record already exist?" resolves
 
@@ -68,8 +72,11 @@ jobs:
 
             You have read-only access and no research authority. Do not edit a
             file, push a commit, approve the PR, or request changes.
+          # Pinned to Sonnet. Without --model, Claude Code would pick up
+          # .claude/settings.json, which sets claude-opus-5-5 for interactive
+          # research sessions, and review every PR on Opus. Override with the
+          # CLAUDE_REVIEW_MODEL repository variable.
           claude_args: |
+            --model ${{ vars.CLAUDE_REVIEW_MODEL || 'claude-sonnet-5-5' }}
             --max-turns 40
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Read,Grep,Glob"
-          # Add `--model <id>` above to pin the reviewer to a fixed model
-          # instead of tracking the action's default.

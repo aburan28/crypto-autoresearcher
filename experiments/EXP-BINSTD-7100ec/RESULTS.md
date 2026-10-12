@@ -5,7 +5,7 @@
 - Hypothesis: `H-BINSTD-72f0cc`
 - Approved by: `DEC-20261002-e4e699`
 - Stage: 0 (grep + arithmetic)
-- Recorded at: 2026-10-03T01:54:11Z
+- Recorded at: 2026-10-04T02:47:20Z
 
 ## Scope
 
@@ -14,8 +14,8 @@ No security verdict. No Magma/Sage/AUXIN/Bedrock.
 
 ## C1
 
-- Candidates scanned into census: 2936
-- Counterexamples: 94
+- Candidates scanned into census: 3178
+- Counterexamples: 99
 
 ## C2
 
