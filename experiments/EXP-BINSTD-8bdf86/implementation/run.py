@@ -5,12 +5,15 @@ Stdlib-only. Self-contained GF(2^n) arithmetic. No Magma/Sage/AUXIN/Bedrock.
 
 Stage 0: freeze band 1.25, seeds, ℓ panel, τ-closure definition, solver pin,
          target count, preregistered predictions.
-Stage 1: n=17. Default frozen panel ℓ∈{3,4} (v1). Amendment
-         AMD-EXP-BINSTD-8bdf86-20261003-ell89 re-targets ℓ∈{8,9} into
-         additive stage0-ell89/ / stage1-ell89/ paths (no overwrite of v1).
-         Certify φ-invariant dims; per ℓ structural emptiness or yield.
+Stage 1: n=17, ℓ∈{3,4}. First certify which φ-invariant dimensions exist
+         (normal-basis circulant / divisors of x^n-1 over F_2). For each ℓ:
+           - if ℓ is not an admissible φ-invariant dimension → cell label
+             E-NO-TAU-CLOSED-AT-ELL (structural; band N/A);
+           - else run exhaustive m=3 FB-sum yield comparison on matched
+             τ-closed vs open V and score the ≥1.25 band.
 
-Authorized stages: 0, 1 only. Stage 2 NOT authorized under this card.
+Authorized stages: 0, 1 only (DEC-20261003-555f72). Stage 2 (n=23,31 +
+Boolean null) is NOT authorized under this card.
 """
 from __future__ import annotations
 
@@ -46,10 +49,6 @@ SEED = 0x202610010FCBE2
 BAND = 1.25
 N_STAGE1 = 17
 ELLS = [3, 4]
-ELLS_ELL89 = [8, 9]
-ARTIFACT_TAG_ELL89 = "ell89"
-AMENDMENT_ELL89 = "AMD-EXP-BINSTD-8bdf86-20261003-ell89"
-APPROVED_BY_ELL89 = "DEC-20261003-8b3da8"
 TARGET_COUNT = 40
 OUTCOMES = (
     "E-TAU-RICHER",
@@ -302,125 +301,7 @@ def admissible_phi_invariant_dims(n: int) -> Dict[str, Any]:
     }
 
 
-def _poly_mul(a: int, b: int) -> int:
-    r = 0
-    while b:
-        if b & 1:
-            r ^= a
-        a <<= 1
-        b >>= 1
-    return r
-
-
-def _frobenius_cols(F) -> List[int]:
-    return [F.sqr(1 << j) for j in range(F.n)]
-
-
-def _apply_lin(cols: Sequence[int], v: int) -> int:
-    r = 0
-    j = 0
-    while v:
-        if v & 1:
-            r ^= cols[j]
-        v >>= 1
-        j += 1
-    return r
-
-
-def _apply_poly_phi(cols: Sequence[int], poly: int, v: int) -> int:
-    d = poly_degree(poly)
-    r = 0
-    for i in range(d, -1, -1):
-        r = _apply_lin(cols, r)
-        if (poly >> i) & 1:
-            r ^= v
-    return r
-
-
-def _nullspace(images: Sequence[int]) -> List[int]:
-    n = len(images)
-    A = [0] * n
-    for j in range(n):
-        col = images[j]
-        for i in range(n):
-            if (col >> i) & 1:
-                A[i] ^= 1 << j
-    rank = 0
-    pivots = [-1] * n
-    row_pivot_col: Dict[int, int] = {}
-    for col in range(n):
-        pivot = None
-        for r in range(rank, n):
-            if (A[r] >> col) & 1:
-                pivot = r
-                break
-        if pivot is None:
-            continue
-        A[rank], A[pivot] = A[pivot], A[rank]
-        for r in range(n):
-            if r != rank and (A[r] >> col) & 1:
-                A[r] ^= A[rank]
-        pivots[col] = rank
-        row_pivot_col[rank] = col
-        rank += 1
-    free = [c for c in range(n) if pivots[c] < 0]
-    basis: List[int] = []
-    for fcol in free:
-        vec = 1 << fcol
-        for r in range(rank):
-            pc = row_pivot_col[r]
-            if (A[r] >> fcol) & 1:
-                vec ^= 1 << pc
-        basis.append(vec)
-    return basis
-
-
-def ker_p_phi(F, poly: int) -> List[int]:
-    cols = _frobenius_cols(F)
-    images = [_apply_poly_phi(cols, poly, 1 << j) for j in range(F.n)]
-    return _nullspace(images)
-
-
-def build_tau_closed_from_factors(F, ell: int) -> Optional[List[int]]:
-    """Construct a φ-invariant F_2-subspace of dim ell via ker(p(φ)) summands.
-
-    Primary components of F_{2^n} as an F_2[φ]-module are ker(p_i(φ)) for
-    irreducible factors p_i of x^n-1; dim = deg(p_i). Selecting a subset of
-    factors whose degrees sum to ell yields an admissible τ-closed V.
-    """
-    factors = factor_x_n_minus_1(F.n)
-    degs = [f["degree"] for f in factors]
-    # subset of factor indices with degree sum == ell
-    n_f = len(factors)
-    chosen: Optional[List[int]] = None
-    for mask in range(1, 1 << n_f):
-        s = sum(degs[i] for i in range(n_f) if mask & (1 << i))
-        if s == ell:
-            chosen = [i for i in range(n_f) if mask & (1 << i)]
-            break
-    if chosen is None:
-        return None
-    gens: List[int] = []
-    for i in chosen:
-        gens.extend(ker_p_phi(F, factors[i]["poly"]))
-    # Reduce to a basis of exact dim ell
-    basis: List[int] = []
-    for g in gens:
-        if g == 0:
-            continue
-        if span_dim(basis + [g], F.n) > span_dim(basis, F.n):
-            basis.append(g)
-        if span_dim(basis, F.n) == ell:
-            break
-    if span_dim(basis, F.n) != ell or not is_tau_closed(F, basis):
-        return None
-    return basis
-
-
 def build_tau_closed_gens(F, rng, ell: int, max_tries: int = 400) -> Optional[List[int]]:
-    structured = build_tau_closed_from_factors(F, ell)
-    if structured is not None:
-        return structured
     for _ in range(max_tries):
         seed_ell = max(1, min(ell, 2))
         seed = random_subspace_gens(rng, F.n, seed_ell)
@@ -460,16 +341,15 @@ def factor_base_points(curve: Curve, gens: List[int]) -> List[Tuple[int, int]]:
 
 
 def m3_decomposes(curve: Curve, fb: Sequence[Tuple[int, int]], R: Tuple[int, int]) -> bool:
-    """Exhaustive m=3 FB-sum: equivalent O(|FB|^2) membership form of the pin."""
-    fb_set = set(fb)
-    for i, Pi in enumerate(fb):
-        for Pj in fb:
-            s2 = curve.add(Pi, Pj)
+    m = len(fb)
+    for i in range(m):
+        for j in range(m):
+            s2 = curve.add(fb[i], fb[j])
             if s2 is None:
                 continue
-            need = curve.add(R, curve.neg(s2))
-            if need in fb_set:
-                return True
+            for k in range(m):
+                if curve.add(s2, fb[k]) == R:
+                    return True
     return False
 
 
@@ -587,26 +467,14 @@ def decide_outcome(cells: List[Dict[str, Any]]) -> str:
     return "E-TAU-NOT-RICHER"
 
 
-def stage0_dir_for(tag: str) -> Path:
-    return EXP_ROOT / ("stage0" if not tag else f"stage0-{tag}")
-
-
-def stage1_dir_for(tag: str) -> Path:
-    return EXP_ROOT / ("stage1" if not tag else f"stage1-{tag}")
-
-
-def results_path_for(tag: str) -> Path:
-    return EXP_ROOT / ("RESULTS.md" if not tag else f"RESULTS-{tag}.md")
-
-
-def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[str, Any]:
-    stage0_dir = stage0_dir_for(artifact_tag)
+def stage0(run_dir: Path) -> Dict[str, Any]:
+    stage0_dir = EXP_ROOT / "stage0"
     freeze = {
         "experiment_id": EXPERIMENT_ID,
         "hypothesis_id": HYPOTHESIS_ID,
         "seed": SEED,
         "band": BAND,
-        "ells": list(ells),
+        "ells": ELLS,
         "n_stage1": N_STAGE1,
         "target_count": TARGET_COUNT,
         "solver_pin": SOLVER_PIN,
@@ -630,24 +498,13 @@ def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[s
             "If ell is not an admissible φ-invariant dimension at n, the cell "
             "is E-NO-TAU-CLOSED-AT-ELL and the ≥1.25 band does not apply."
         ),
-        "artifact_tag": artifact_tag or None,
-        "amendment_id": AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else None,
-        "approved_by_panel": (
-            APPROVED_BY_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else APPROVED_BY
-        ),
-        "prior_panel_immutable": (
-            "stage0/freeze.json ells [3,4] and RUN-BINSTD-ebac66 / "
-            "RUN-BINSTD-5cb940 remain immutable under DEC-20261003-2425f3"
-            if artifact_tag == ARTIFACT_TAG_ELL89
-            else None
-        ),
     }
     predictions = {
         "heuristic": "HEUR-BINSTD-0fcbe2-H1",
         "success_rate_ratio_tau_over_open_min": BAND,
         "target_count_min": TARGET_COUNT,
         "both_arms_nonzero_required_for_ratio": True,
-        "cells": [{"n": N_STAGE1, "ell": ell} for ell in ells],
+        "cells": [{"n": N_STAGE1, "ell": ell} for ell in ELLS],
         "structural_precondition": "ell in admissible_phi_invariant_dims(n)",
         "frozen_before_stage1": True,
         "note": "Do not edit after any Stage-1 outcome.",
@@ -697,8 +554,8 @@ def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[s
     return result
 
 
-def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: str = "") -> Dict[str, Any]:
-    stage0_dir = stage0_dir_for(artifact_tag)
+def stage1(run_dir: Path) -> Dict[str, Any]:
+    stage0_dir = EXP_ROOT / "stage0"
     required = [
         stage0_dir / "freeze.json",
         stage0_dir / "preregistered-predictions.json",
@@ -730,12 +587,9 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         )
         return result
 
-    freeze_obj = json.loads((stage0_dir / "freeze.json").read_text(encoding="utf-8"))
-    panel = list(ells) if ells is not None else list(freeze_obj.get("ells") or ELLS)
-
     try:
         adm = admissible_phi_invariant_dims(N_STAGE1)
-        cells = [measure_cell(N_STAGE1, ell, SEED, adm["admissible_dimensions"]) for ell in panel]
+        cells = [measure_cell(N_STAGE1, ell, SEED, adm["admissible_dimensions"]) for ell in ELLS]
     except Exception as exc:
         result = {
             "experiment_id": EXPERIMENT_ID,
@@ -763,7 +617,7 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         return result
 
     outcome = decide_outcome(cells)
-    stage1_dir = stage1_dir_for(artifact_tag)
+    stage1_dir = EXP_ROOT / "stage1"
     matrix = {
         "experiment_id": EXPERIMENT_ID,
         "admissible_phi_dims": adm,
@@ -771,25 +625,15 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         "outcome": outcome,
         "band": BAND,
         "solver_pin": SOLVER_PIN,
-        "ells": panel,
-        "artifact_tag": artifact_tag or None,
-        "amendment_id": AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else None,
         "note": "Toy / structural meter only; no break / exponent / n>=131 transfer.",
     }
     h_matrix = write_json(stage1_dir / "yield-matrix.json", matrix)
     h_adm = write_json(stage1_dir / "admissible-phi-dims.json", adm)
 
-    approved_panel = (
-        APPROVED_BY_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else APPROVED_BY
-    )
     results_md = (
-        f"# RESULTS — {EXPERIMENT_ID}"
-        + (f" ({artifact_tag})" if artifact_tag else "")
-        + "\n\n"
+        f"# RESULTS — {EXPERIMENT_ID}\n\n"
         f"- hypothesis: {HYPOTHESIS_ID}\n"
-        f"- approved_by: {approved_panel}\n"
-        f"- amendment: {AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else 'none'}\n"
-        f"- ells: {panel}\n"
+        f"- approved_by: {APPROVED_BY}\n"
         f"- outcome: **{outcome}**\n"
         f"- band: {BAND}\n"
         f"- admissible φ-dims at n={N_STAGE1}: {adm['admissible_dimensions']}\n"
@@ -810,7 +654,7 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         "- Stage 2 (n∈{23,31} + Boolean null) not authorized under this card.\n"
         "- Amazon Bedrock NOT SELECTED.\n"
     )
-    write_text(results_path_for(artifact_tag), results_md)
+    write_text(EXP_ROOT / "RESULTS.md", results_md)
 
     status = "completed_valid" if outcome != "O-IMPEDIMENT" else "failed_infrastructure"
     result = {
@@ -861,33 +705,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--stage", type=int, required=True, choices=[0, 1])
     p.add_argument("--trial-plan", type=str, default="")
     p.add_argument("--run-dir", type=str, required=True)
-    p.add_argument(
-        "--ells",
-        type=str,
-        default="",
-        help="Comma-separated ell panel, e.g. 8,9 for AMD ell89. Empty = freeze/default.",
-    )
-    p.add_argument(
-        "--artifact-tag",
-        type=str,
-        default="",
-        help="Additive artifact directory tag (ell89). Empty = v1 stage0/stage1 paths.",
-    )
     args = p.parse_args(argv)
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
-    tag = args.artifact_tag.strip()
-    ells: Optional[List[int]]
-    if args.ells.strip():
-        ells = [int(x) for x in args.ells.split(",") if x.strip() != ""]
-    elif tag == ARTIFACT_TAG_ELL89:
-        ells = list(ELLS_ELL89)
-    else:
-        ells = list(ELLS)
     if args.stage == 0:
-        stage0(run_dir, ells=ells, artifact_tag=tag)
+        stage0(run_dir)
     else:
-        stage1(run_dir, ells=ells, artifact_tag=tag)
+        stage1(run_dir)
     return 0
 
 

@@ -57,18 +57,32 @@ class Repo:
                 "objective": "Recover k on planted instances; " * 3,
                 "claim_tier": "toy",
                 "status": "approved",
+                "approved_by": "coordinator",
+                "approval_decision": "DEC-20260901-aaaaaa",
+                "execution_authorized_decision": "DEC-20260901-aaaaaa",
+                "frozen": True,
                 "frozen_at": "2026-09-01T12:00:00+00:00",
                 "budget": {"wall_clock_seconds_per_run": 120},
+            }
+        }))
+        write(self.root / "ledger/decisions/DEC-20260901-aaaaaa.yaml", yaml.safe_dump({
+            "coordinator_decision": {
+                "id": "DEC-20260901-aaaaaa", "decided_by": "coordinator",
+                "decision": "approve", "target_ids": ["EXP-ECDLP-aaaaaa"],
+                "official_transitions": {"execution_authorized_stages": [0]},
             }
         }))
         write(self.root / "experiments/EXP-ECDLP-aaaaaa/runs/RUN-ECDLP-aaaaaa-1/manifest.yaml", yaml.safe_dump({
             "run": {
                 "id": "RUN-ECDLP-aaaaaa-1",
                 "experiment_id": "EXP-ECDLP-aaaaaa",
+                "stage": 0,
+                "status": "completed_valid",
                 "code": {"commit": "0" * 40, "dirty": False,
                          "command": "python3 -m driver.recover RUN-ECDLP-aaaaaa-1 --seed 7"},
                 "timing": {"started_at": "2026-09-02T10:00:00Z"},
                 "result": {
+                    "valid": True,
                     "certificate": {"kind": "discrete_log", "verified": True},
                     "metrics": {"instances_solved": 20, "all_controls_pass": True,
                                 "wall_seconds": 3.5, "mean_steps": 1234.5, "label": "x"},
@@ -104,6 +118,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(provenance["kind"], "certificate")
         self.assertEqual(provenance["certificate_kind"], "discrete_log")
         self.assertEqual(provenance["run"]["commit"], "0" * 40)
+        self.assertEqual(provenance["approval"]["experiment"]["id"], "DEC-20260901-aaaaaa")
         self.assertEqual(e2o.check(objective, self.repo.root), [])
 
     def test_a_bare_approval_date_becomes_a_date_time_cairn_accepts(self) -> None:
@@ -176,6 +191,28 @@ class RenderTests(unittest.TestCase):
     def test_a_missing_experiment_is_a_refusal_not_a_traceback(self) -> None:
         with self.assertRaises(e2o.BridgeError):
             e2o.render(self.repo.root, "EXP-ECDLP-nope00", None, None, 0, None, None)
+        with self.assertRaisesRegex(e2o.BridgeError, "malformed experiment id"):
+            e2o.load_spec(self.repo.root, "../ledger")
+
+    def test_publication_refuses_missing_or_mismatched_coordinator_decision(self) -> None:
+        spec_path = self.repo.root / "experiments/EXP-ECDLP-aaaaaa/specification.yaml"
+        doc = yaml.safe_load(spec_path.read_text())
+        doc["experiment"]["frozen"] = False
+        spec_path.write_text(yaml.safe_dump(doc))
+        with self.assertRaisesRegex(e2o.BridgeError, "approved, frozen"):
+            e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", None, None, 0, None, None)
+        doc["experiment"]["frozen"] = True
+        spec_path.write_text(yaml.safe_dump(doc))
+        decision_path = self.repo.root / "ledger/decisions/DEC-20260901-aaaaaa.yaml"
+        decision = yaml.safe_load(decision_path.read_text())
+        decision["coordinator_decision"]["target_ids"] = ["EXP-OTHER"]
+        decision_path.write_text(yaml.safe_dump(decision))
+        with self.assertRaisesRegex(e2o.BridgeError, "does not approve"):
+            e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", None, None, 0, None, None)
+        demo, provenance = e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1",
+                                      "certificate", 0, None, None, isolated_demo=True)
+        self.assertEqual(demo["verifier"]["kind"], "certificate")
+        self.assertEqual(provenance["approval"], {"isolated_demo": True})
 
 
 class ArtifactAndRecordTests(unittest.TestCase):

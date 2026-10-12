@@ -62,6 +62,26 @@ or a regional deployment). Nothing else.
 one key. Pick by what is calling: `zai-anthropic` to point an Anthropic-protocol
 CLI at GLM, `zai` for everything else.
 
+For both Coordinator policies, explicit backend selections pin the
+requested model without changing the role contract:
+
+| `--backend` / `AUTORESEARCH_BACKEND` | Coordinator model |
+|---|---|
+| `anthropic` | Claude Opus 5.5 (existing default) |
+| `anthropic-fable` | Claude Fable 5.1 |
+| `anthropic-mythos` | Claude Mythos 5 |
+| `zai-glm53` | GLM-5.3 |
+| `fireworks` | Fireworks GLM-5p3 (existing binding) |
+| `openai-gpt6` | GPT-6 Sol |
+| `openai-gpt61` | GPT-6.1 Sol |
+
+For example, `python3 -m orchestration.adapter resolve --role coordinator
+--backend openai-gpt61` prints the exact model selection. These aliases use
+their provider's existing endpoint and credential. Other policies are explicitly
+unbound on the new aliases, and the aliases are outside the automatic fallback
+order. Probe the selected backend with `doctor --backend <name> --probe` before
+relying on its availability; a configured binding alone does not verify access.
+
 **Protocol compatibility is not model access.** Fireworks speaks both wire
 formats but serves *open-weight* models — GLM, Kimi, DeepSeek, Qwen, Llama.
 `fireworks-anthropic` lets an Anthropic-protocol CLI talk to those models; it
@@ -131,10 +151,11 @@ binding declares one of two reasoning modes. `anthropic_adaptive` (the Claude
 5 bindings) sends `thinking: {type: adaptive}` plus the effort as a named
 `output_config.effort`; those models reject `budget_tokens` and `temperature`
 outright, and thinking cannot be disabled on them, so the `low` tier is low
-effort rather than no thinking. `anthropic_thinking` (the Haiku 4.5 binding)
-maps effort to an explicit `budget_tokens` (`budget_by_effort`), where `low`
-maps to `0`, which disables extended thinking and lets `temperature: 0.0`
-through. On the OpenAI protocol the effort maps to `reasoning_effort`.
+effort rather than no thinking. Every live `anthropic` binding is now a
+Claude 5 model (Opus 5.5, Sonnet 5.5, Haiku 5.5) and uses this mode.
+`anthropic_thinking` remains for pre-Claude-5 models: it maps effort to an
+explicit `budget_tokens` (`budget_by_effort`), where `low` maps to `0`, which
+disables extended thinking and lets `temperature: 0.0` through. On the OpenAI protocol the effort maps to `reasoning_effort`.
 
 ### Per subagent, where the runtime can express it
 

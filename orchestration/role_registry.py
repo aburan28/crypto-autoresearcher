@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
+from orchestration import fast_yaml
 
 REPO = Path(__file__).resolve().parents[1]
 ROLES_PATH = REPO / "orchestration" / "roles.yaml"
@@ -21,12 +21,12 @@ POLICIES_PATH = REPO / "orchestration" / "model-policies.yaml"
 
 def load_roles(path: Path = ROLES_PATH) -> dict[str, Any]:
     with Path(path).open(encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+        return fast_yaml.safe_load(handle)
 
 
 def load_policies(path: Path = POLICIES_PATH) -> dict[str, Any]:
     with Path(path).open(encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+        return fast_yaml.safe_load(handle)
 
 
 def role_spec(roles_doc: dict[str, Any], role: str) -> dict[str, Any]:
@@ -208,7 +208,7 @@ def parse_frontmatter(path: Path) -> dict[str, Any]:
     if not text.startswith("---"):
         raise ValueError(f"{path} has no YAML frontmatter")
     _, frontmatter, _ = text.split("---", 2)
-    return yaml.safe_load(frontmatter) or {}
+    return fast_yaml.safe_load(frontmatter) or {}
 
 
 # --------------------------------------------------------------------------
@@ -265,6 +265,15 @@ def _read_opencode_binding(path: Path) -> tuple[Any, set[str]]:
     # only for a hand-edited one, where silence must not read as a denial.
     granted = {key for key in _OPENCODE_TOOL_KEYS
                if permission.get(key, "allow") != "deny"}
+    if permission.get("cairn_*") != "deny":
+        raise ValueError(f"{path}: cairn_* must be denied before per-role grants")
+    for key, decision in permission.items():
+        if not key.startswith("cairn_") or key == "cairn_*":
+            continue
+        if "*" in key or "?" in key:
+            raise ValueError(f"{path}: Cairn permissions must name exact tools: {key}")
+        if decision == "allow":
+            granted.add(key)
     # The agent name is the filename; OpenCode frontmatter has no name field.
     return Path(path).stem, granted
 
@@ -391,7 +400,7 @@ def check(roles_doc: dict[str, Any],
     problems: list[str] = []
     bindings_doc: dict[str, Any] | None = None
     if policies_doc is not None and roles_doc.get("runtime_model_pins"):
-        bindings_doc = yaml.safe_load(BINDINGS_PATH.read_text(encoding="utf-8"))
+        bindings_doc = fast_yaml.safe_load(BINDINGS_PATH.read_text(encoding="utf-8"))
     for role, spec in roles_doc["roles"].items():
         contract = REPO / spec["contract"]
         if not contract.exists():
