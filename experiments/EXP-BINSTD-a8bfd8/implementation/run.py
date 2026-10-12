@@ -30,7 +30,7 @@ from typing import Any
 EXPERIMENT_ID = "EXP-BINSTD-a8bfd8"
 HYPOTHESIS_ID = "H-BINSTD-85e778"
 APPROVED_BY = "DEC-20261002-b1f692"
-TASK_ID = "TASK-20261003-17c958"
+TASK_ID = "TASK-20261003-a5391d"
 EXP_ROOT = Path(__file__).resolve().parents[1]
 FIELD_DEGREES = (7, 11, 15)
 L_LEVELS = (6, 7, 8)
@@ -1183,7 +1183,7 @@ def _write_results(outcome: str, result: dict[str, Any]) -> None:
         f"# RESULTS — {EXPERIMENT_ID} ({plan_label})\n\n"
         f"- Hypothesis: `{HYPOTHESIS_ID}`\n"
         f"- Approved by: `{APPROVED_BY}`\n"
-        f"- Expand decision: `DEC-20261003-021bb4`\n"
+        f"- Expand decision: `DEC-20261003-d323c0`\n"
         f"- Executor task: `{TASK_ID}`\n"
         f"- Outcome (exactly one): **{outcome}**\n"
         f"- Stage: {stage}\n"

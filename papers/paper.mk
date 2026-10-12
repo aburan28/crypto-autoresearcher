@@ -1,0 +1,74 @@
+# Shared build rules for every paper under papers/.  A paper's Makefile sets
+#   TEX      := main.tex            (the root document)
+#   SECTIONS := sec-a.tex sec-b.tex (files \input by the root; may be empty)
+#   BIB      := refs.bib            (bibliography; leave empty when there is none)
+# and then `include ../paper.mk`.
+#
+# Targets:
+#   make             — build the PDF (pdflatex, bibtex when BIB is set, two more passes)
+#   make check       — fail on unresolved references or citations and on overfull boxes
+#   make arxiv       — arxiv-submission.tar.gz (sources only; arXiv compiles server-side)
+#   make eprint      — eprint-submission.zip (PDF plus sources)
+#   make deanonymize — restore the author block from an untracked AUTHORS file
+#   make clean       — remove build artefacts (keeps the committed PDF)
+
+PDF      := $(TEX:.tex=.pdf)
+STEM     := $(TEX:.tex=)
+LOG      := $(STEM).log
+AUX      := $(STEM).aux $(STEM).log $(STEM).out $(STEM).toc $(STEM).bbl $(STEM).blg \
+            $(STEM).lof $(STEM).lot $(STEM).fls $(STEM).fdb_latexmk $(STEM).synctex.gz
+ARXIV_TARBALL := arxiv-submission.tar.gz
+EPRINT_ZIP    := eprint-submission.zip
+EXTRA    := abstract.txt README.md Makefile
+
+.PHONY: all clean arxiv eprint deanonymize check
+
+all: $(PDF)
+
+$(PDF): $(TEX) $(SECTIONS) $(BIB)
+	pdflatex -interaction=nonstopmode $(TEX) || true
+	$(if $(BIB),bibtex $(STEM),@true)
+	pdflatex -interaction=nonstopmode $(TEX) || true
+	pdflatex -interaction=nonstopmode $(TEX)
+
+clean:
+	rm -f $(AUX)
+	rm -f $(ARXIV_TARBALL) $(EPRINT_ZIP)
+	rm -rf submission-staging/
+
+arxiv: $(TEX) $(SECTIONS) $(BIB)
+	mkdir -p submission-staging/arxiv
+	cp $(TEX) $(SECTIONS) $(BIB) $(EXTRA) ../paper.mk submission-staging/arxiv/
+	cd submission-staging/arxiv && tar czf ../../$(ARXIV_TARBALL) *
+	rm -rf submission-staging/arxiv
+	@echo "arXiv submission bundle ready: $(ARXIV_TARBALL)"
+
+eprint: $(PDF)
+	mkdir -p submission-staging/eprint
+	cp $(PDF) $(TEX) $(SECTIONS) $(BIB) $(EXTRA) ../paper.mk submission-staging/eprint/
+	cd submission-staging/eprint && zip -q ../../$(EPRINT_ZIP) *
+	rm -rf submission-staging/eprint
+	@echo "IACR ePrint submission bundle ready: $(EPRINT_ZIP)"
+
+deanonymize: $(TEX)
+	@if [ ! -f AUTHORS ]; then \
+	  echo "ERROR: AUTHORS file missing; copy ../AUTHORS.example to AUTHORS and edit it"; exit 1; fi
+	@cp $(TEX) $(TEX).anon-backup
+	@python3 -c 'import re; \
+tex = open("$(TEX)").read(); \
+authors = open("AUTHORS").read().strip(); \
+tex = re.sub(r"\\author\{Anonymous\}\s*\\date\{[^}]*\}", authors + "\n", tex, count=1); \
+open("$(TEX)", "w").write(tex); \
+print("De-anonymized $(TEX); backup saved as $(TEX).anon-backup")'
+
+check: $(PDF)
+	@echo "Checking $(PDF)..."
+	@if grep -q 'LaTeX Warning: There were undefined references' $(LOG); then \
+	  echo "FAIL: unresolved references"; grep 'LaTeX Warning: Reference' $(LOG) || true; exit 1; \
+	else echo "All references resolved."; fi
+	@if grep -qE '(LaTeX|Package natbib) Warning: There were undefined citations' $(LOG); then \
+	  echo "FAIL: unresolved citations"; exit 1; fi
+	@if grep -q '^!' $(LOG); then echo "FAIL: LaTeX errors"; grep -A3 '^!' $(LOG) | head -20; exit 1; fi
+	@if grep -E 'Overfull \\hbox' $(LOG); then echo "FAIL: overfull boxes"; exit 1; \
+	else echo "No overfull boxes."; fi
+	@echo "Page count:"; pdfinfo $(PDF) | grep -i pages; ls -lh $(PDF)

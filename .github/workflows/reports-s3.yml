@@ -1,0 +1,120 @@
+name: reports-s3
+
+# Copy the reports the research-visuals skill asks for (run reports, review
+# or result reports, search-round PDFs) to
+#   s3://<bucket>/reports/<repository>/<path in the repository>
+# once they are on main, plus a write-once manifest per push at
+#   s3://<bucket>/reports/<repository>/_manifests/<commit>.json
+# Sessions never upload; this job does, on the merge.  docs/reports-s3.md
+# says how to configure it:
+#   vars.REPORTS_S3_BUCKET    bucket (default crypto-autoresearcher)
+#   vars.REPORTS_AWS_REGION   region (default us-west-2)
+#   vars.REPORTS_S3_ROLE_ARN  an IAM role this repository's OIDC token may
+#                             assume (used first), else
+#   secrets.AWS_ACCESS_KEY_ID and secrets.AWS_SECRET_ACCESS_KEY
+# With neither it uploads nothing and says so in a notice: a missing
+# configuration never turns main red.  Credentials that cannot write the
+# prefix fail the job, because that is a misconfiguration worth seeing.
+# A manual run (workflow_dispatch) uploads every report on main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'experiments/*/reports/**'
+      - 'research/**/*.pdf'
+      - 'docs/reports/**'
+      - '.github/workflows/reports-s3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: reports-s3
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BUCKET: ${{ vars.REPORTS_S3_BUCKET || 'crypto-autoresearcher' }}
+      AWS_REGION: ${{ vars.REPORTS_AWS_REGION || 'us-west-2' }}
+      ROLE_ARN: ${{ vars.REPORTS_S3_ROLE_ARN }}
+      KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      PREFIX: reports/${{ github.event.repository.name }}
+    steps:
+      - name: Which credentials
+        id: creds
+        run: |
+          if [ -n "$ROLE_ARN" ]; then mode=role
+          elif [ -n "$KEY_ID" ]; then mode=keys
+          else
+            mode=none
+            echo "::notice::No S3 credentials (vars.REPORTS_S3_ROLE_ARN or secrets.AWS_ACCESS_KEY_ID): no report was uploaded. See docs/reports-s3.md."
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "credentials: $mode" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v4
+        if: steps.creds.outputs.mode != 'none'
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /experiments/*/reports/
+            /research/**/*.pdf
+            /docs/reports/
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'role'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'keys'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload this push's reports
+        if: steps.creds.outputs.mode != 'none'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          specs=(':(glob)experiments/*/reports/**' ':(glob)research/**/*.pdf' ':(glob)docs/reports/**')
+          # A push lists what it added or changed; a manual run, a new branch
+          # or an unreachable "before" commit lists every report on main.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "${BEFORE:-}" ] \
+             && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            git diff -z --name-only --diff-filter=AMR "$BEFORE" "$GITHUB_SHA" -- "${specs[@]}" > files.z
+          else
+            git ls-files -z -- "${specs[@]}" > files.z
+          fi
+          : > manifest.jsonl
+          echo "### Reports uploaded to s3://$BUCKET/$PREFIX/" >> "$GITHUB_STEP_SUMMARY"
+          while IFS= read -r -d '' f; do
+            [ -f "$f" ] || continue
+            uri="s3://$BUCKET/$PREFIX/$f"
+            aws s3 cp --only-show-errors "$f" "$uri"
+            jq -cn --arg path "$f" --arg s3_uri "$uri" \
+              --arg sha256 "$(sha256sum "$f" | cut -d' ' -f1)" \
+              --argjson bytes "$(stat -c %s "$f")" \
+              '{path: $path, s3_uri: $s3_uri, sha256: $sha256, bytes: $bytes}' >> manifest.jsonl
+            echo "- \`$f\`" >> "$GITHUB_STEP_SUMMARY"
+          done < files.z
+          n=$(wc -l < manifest.jsonl)
+          if [ "$n" -gt 0 ]; then
+            jq -s --arg repository "$GITHUB_REPOSITORY" --arg commit "$GITHUB_SHA" \
+              --arg workflow_run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              '{repository: $repository, commit: $commit, workflow_run: $workflow_run, files: .}' \
+              manifest.jsonl > manifest.json
+            aws s3 cp --only-show-errors manifest.json "s3://$BUCKET/$PREFIX/_manifests/$GITHUB_SHA.json"
+          fi
+          echo "$n report file(s) uploaded to s3://$BUCKET/$PREFIX/" | tee -a "$GITHUB_STEP_SUMMARY"
