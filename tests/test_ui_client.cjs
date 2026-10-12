@@ -5,7 +5,7 @@ const path = require('node:path');
 const { JSDOM } = require('../ui/node_modules/jsdom');
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'ui/static/app.js'), 'utf8')
-  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes, progressPanel, viewCompare, comparisonReasons, viewExperiments, benchmarkPanel};');
+  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes, progressPanel, viewCompare, comparisonReasons, viewExperiments, benchmarkPanel, viewCurves, viewProvenance, provenanceTimeline, benchmarkComparisonReasons};');
 const raw = '---\nid: KN-FIND-test\n---\n# Finding\n<script>alert(1)</script>\n';
 const detail = {
   summary: { id: 'KN-FIND-test', kind: 'KN', area: 'FIND', title: 'A scoped finding', path: 'knowledge/findings/KN-FIND-test.md' },
@@ -14,7 +14,7 @@ const detail = {
   verified: true, links: { in: [], out: [] }, source_url: 'sources/KN-FIND-test.json',
 };
 const settle = () => new Promise(resolve => setImmediate(resolve));
-function setup(sourceFailure = false) {
+function setup(sourceFailure = false, record = detail) {
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'ui/static/index.html'), 'utf8'), {
     url: 'https://example.test/crypto-autoresearcher/#/record/KN-FIND-test', runScripts: 'outside-only',
   });
@@ -25,7 +25,7 @@ function setup(sourceFailure = false) {
   dom.window.fetch = async url => {
     calls.push(url);
     if (url.includes('/sources/') && fail) { fail = false; return {ok: false, status: 503}; }
-    return {ok: true, json: async () => url.includes('/sources/') ? {raw, path: detail.summary.path} : structuredClone(detail)};
+    return {ok: true, json: async () => url.includes('/sources/') ? {raw, path: record.summary.path} : structuredClone(record)};
   };
   dom.window.eval(app);
   dom.window.ui.state.meta = {mode: 'static', commit: 'abc123', repo_url: 'https://github.com/example/research', built_at: '2026-09-07T00:00:00+00:00'};
@@ -40,6 +40,31 @@ test('entry is complete without downloading source; outline and proof basis are 
   assert.match(dom.window.document.querySelector('.proof-basis').textContent, /not a machine-verified proof/);
   assert.equal(calls.length, 1);
   assert.match(calls[0], /\/crypto-autoresearcher\/data\/records\//);
+  assert.equal(dom.window.document.querySelector('.record-corrections'), null);
+  dom.window.close();
+});
+
+test('corrections precede the original title and safely expose full scope without extra requests', async () => {
+  const record = structuredClone(detail);
+  record.corrections = [{
+    id: 'CORR-20260930-257d1a', date: '2026-09-30',
+    summary: 'Scope corrected: no demonstrated algorithmic speedup.',
+    corrected_value: 'The idealized orbit model is below rho. <script>alert(1)</script>',
+    reason: 'The original numerical result contradicted its interpretation.',
+  }];
+  const {dom, calls} = setup(false, record);
+  await dom.window.ui.viewRecord(record.summary.id);
+  const doc = dom.window.document;
+  const banner = doc.querySelector('.record-corrections');
+  const title = doc.querySelector('.record-title');
+  assert.match(banner.textContent, /Scope corrected: no demonstrated algorithmic speedup/);
+  assert.ok(banner.compareDocumentPosition(title) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.equal(banner.querySelector('a').getAttribute('href'), '#/record/CORR-20260930-257d1a');
+  assert.match(banner.querySelector('details').textContent, /The idealized orbit model is below rho/);
+  assert.equal(banner.querySelector('script'), null);
+  assert.equal(title.textContent, record.summary.title);
+  assert.match(doc.querySelector('.md').textContent, /No general result/);
+  assert.equal(calls.length, 1);
   dom.window.close();
 });
 
@@ -262,6 +287,63 @@ test('benchmark archive renders pinned IDs safely and filters without network', 
   select.value = Object.keys(data.identities)[0];
   select.dispatchEvent(new dom.window.Event('change'));
   assert.equal(panel.querySelectorAll('article').length, 9);
-  assert.match(panel.querySelector('a').href, /blob\/[a-f0-9]{40}\//);
+  assert.match(panel.querySelector('a[target="_blank"]').href, /blob\/[a-f0-9]{40}\//);
+  dom.window.close();
+});
+
+
+test('curve catalog compares sourced traits, filters safely and deep links', async () => {
+  const {dom} = setup();
+  const capsules = ['binary13', 'binary19'].map(name=>JSON.parse(fs.readFileSync(path.join(root,`ui/curves/${name}.json`),'utf8')));
+  const curves = capsules.map(c=>({...c,curve_id:c.curve.curve_id,sources:[{...c.source,url:`https://github.com/${c.source.repository}/blob/${c.source.commit}/${c.source.path}`}],
+    traits:{trace:{label:'Trace',value:c.curve.trace,source:{...c.source,url:`https://github.com/${c.source.repository}/blob/${c.source.commit}/${c.source.path}`}},j:{label:'j',value:null}}}));
+  dom.window.fetch=async()=>({ok:true,json:async()=>({curves,errors:[],coverage:'Selected source records'})});
+  dom.window.ui.state.ready=true;
+  await dom.window.ui.viewCurves(new dom.window.URLSearchParams({a:curves[0].curve_uid,b:curves[1].curve_uid}));
+  const doc=dom.window.document;
+  assert.equal(doc.querySelectorAll('article').length,2);
+  assert.match(doc.querySelector('.comparison-table').textContent,/181.*797/);
+  assert.match(doc.querySelector('.comparison-table').textContent,/Unknown/);
+  assert.match(dom.window.location.hash,/a=urn/);
+  const input=doc.querySelector('[aria-label="Search curves"]');input.value='<script>';input.dispatchEvent(new dom.window.Event('input'));
+  assert.equal(doc.querySelectorAll('article').length,0);
+  assert.equal(doc.querySelector('.comparison-table script'),null);
+  dom.window.close();
+});
+
+test('benchmark packages block incompatible workloads, unknown accounting and failed runs', () => {
+  const {dom}=setup();
+  const base={id:'a',adapter:'benchmark-snapshot/1',curve_uid:'curve',workload_sha256:'w',target_count:1,
+    timing_boundary:'online',operation_unit:'ns',scope:'toy',calibration_id:'c',resource_envelope_id:'e',
+    complete:true,verification:'recorded_verified',environment:null,excluded_costs:null,metrics:{total_wall_seconds:0}};
+  let reasons=dom.window.ui.comparisonReasons(base,{...base,id:'b'});
+  assert.match(reasons.join(' '),/descriptive comparison only/);
+  assert.doesNotMatch(reasons.join(' '),/wall time is missing/);
+  reasons=dom.window.ui.comparisonReasons(base,{...base,id:'b',workload_sha256:'other',timing_boundary:'other',complete:false});
+  assert.match(reasons.join(' '),/workloads.*timing boundaries.*incomplete/);
+  dom.window.close();
+});
+
+test('provenance gaps and source declarations remain visible and filterable', async () => {
+  const {dom}=setup();dom.window.ui.state.ready=true;
+  const rows=[{id:'EXP-UI-001',title:'<script>bad()</script>',declared_status:'completed',archive_state:'unknown',gaps:['no_linked_evidence'],
+    events:[{id:'RUN-UI-001',kind:'RUN',status:'completed',date:null,basis:'run manifest declaration',path:'experiments/x/manifest.yaml',via:['EXP-UI-001']}]}];
+  dom.window.fetch=async()=>({ok:true,json:async()=>({experiments:rows,coverage:'Citation is not endorsement.'})});
+  await dom.window.ui.viewProvenance(new dom.window.URLSearchParams({experiment:'EXP-UI-001'}));
+  const doc=dom.window.document;
+  assert.match(doc.querySelector('main').textContent,/Date unknown/);
+  assert.match(doc.querySelector('main').textContent,/no archive receipt inferred/);
+  assert.equal(doc.querySelector('main script'),null);
+  const select=doc.querySelector('[aria-label="Filter record gaps"]');select.value='missing_contract';select.dispatchEvent(new dom.window.Event('change'));
+  assert.match(doc.querySelector('main').textContent,/0 matching experiments/);
+  dom.window.close();
+});
+
+test('unregistered curve does not silently display other benchmark rows', () => {
+  const {dom}=setup();
+  const data=JSON.parse(fs.readFileSync(path.join(root,'ui/benchmarks/cryptanalysis-primary.json'),'utf8'));
+  const panel=dom.window.ui.benchmarkPanel(data,'urn:other');
+  assert.equal(panel.querySelectorAll('article').length,0);
+  assert.match(panel.textContent,/0 recorded runs/);
   dom.window.close();
 });

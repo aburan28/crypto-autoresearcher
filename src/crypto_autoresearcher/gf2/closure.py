@@ -18,6 +18,7 @@ Conventions (EXP-CERTBIN-4e92d7 spec object.macaulay_M_D):
 from __future__ import annotations
 
 import signal
+from functools import lru_cache
 from itertools import combinations
 
 import numpy as np
@@ -353,3 +354,14 @@ def cert_to_json(cert):
         out.append([[i for i in range(64) if (mu >> i) & 1], k])
     out.sort(key=lambda x: (x[0], x[1]))
     return out
+
+
+@lru_cache(maxsize=64)
+def cached_closure(nv: int, D: int, neq: int) -> Closure:
+    """Reuse monomial/column tables across repeated (nv, D, neq) queries.
+
+    Closure construction allocates O(2^nv) and O(nv * C) tables; CERTBIN-style
+    sweeps hit the same shapes many times. The returned object is shared — do
+    not mutate its tables.
+    """
+    return Closure(nv, D, neq)

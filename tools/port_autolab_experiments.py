@@ -49,6 +49,11 @@ from pathlib import Path
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = Path(__file__).resolve().parents[1]
 AUTOLAB_COMMIT = "dca04ac33e9ffcfc51edb3ae7e7bd558b1962d95"
 PORT_DATE = "2026-07-31"
@@ -1088,7 +1093,7 @@ def package_discrepancies(exp_dir: Path) -> list[str]:
             problems.append(f"implementation.md omits archived `{unlisted}`")
 
     for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
-        run = (yaml.safe_load(manifest.read_text()) or {}).get("run", {})
+        run = (fast_yaml.safe_load(manifest.read_text()) or {}).get("run", {})
         metrics = run.get("result", {}).get("metrics", {})
         for key, want in archive_metrics(truth).items():
             got = metrics.get(key)
@@ -1159,7 +1164,7 @@ def _rewrite_finding(path: Path, old: str, new: str) -> bool:
     """Replace a finding inside a YAML scalar without reflowing the document."""
     if not path.exists():
         return False
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     body = next(iter(doc.values()))
     changed = False
     for key in ("statement", "objective"):
@@ -1178,7 +1183,7 @@ def reconcile_findings(exp_dir: Path) -> str | None:
     spec_path = exp_dir / "specification.yaml"
     if not spec_path.exists():
         return None
-    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
+    spec = fast_yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
     objective = spec.get("objective") or ""
     marker = "Source finding: "
     if marker not in objective:
@@ -1230,7 +1235,7 @@ def reconcile_package(exp_dir: Path) -> bool:
             changed = True
 
     for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
-        doc = yaml.safe_load(manifest.read_text())
+        doc = fast_yaml.safe_load(manifest.read_text())
         recorded = doc["run"]["result"]["metrics"]
         for key, want in metrics.items():
             if key in recorded and recorded[key] != want:
@@ -1253,7 +1258,7 @@ def describe_package(exp_dir: Path) -> dict | None:
     spec_path = exp_dir / "specification.yaml"
     if not spec_path.exists():
         return None
-    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
+    spec = fast_yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
     inputs = spec.get("inputs") or {}
     objective = spec.get("objective") or ""
     finding = (objective.split("Source finding: ", 1)[1].strip()
@@ -1261,7 +1266,7 @@ def describe_package(exp_dir: Path) -> dict | None:
     runs = sorted(d.name for d in (exp_dir / "runs").glob("*") if d.is_dir())
     topic = ""
     for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
-        run = (yaml.safe_load(manifest.read_text()) or {}).get("run", {})
+        run = (fast_yaml.safe_load(manifest.read_text()) or {}).get("run", {})
         topic = (run.get("inputs", {}).get("parameters", {}) or {}).get("topic", "")
         break
     return {
@@ -1290,7 +1295,7 @@ def reconcile_inventory() -> bool:
     doc_path = REPO / "docs" / f"autolab-port-inventory-{PORT_DATE.replace('-', '')}.md"
     before = (manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else "",
               doc_path.read_text(encoding="utf-8") if doc_path.exists() else "")
-    existing = yaml.safe_load(before[0]) if before[0] else {}
+    existing = fast_yaml.safe_load(before[0]) if before[0] else {}
     write_inventory(ports, existing.get("deferred") or deferred_inventory(),
                     target_commit=existing.get("target_commit_at_port"),
                     target_repo=existing.get("target_repo"))
@@ -1309,7 +1314,7 @@ def load_verify_baseline() -> dict:
     """Load exact legacy discrepancies without weakening new mismatch checks."""
     if not VERIFY_BASELINE.exists():
         return {}
-    document = yaml.safe_load(VERIFY_BASELINE.read_text(encoding="utf-8")) or {}
+    document = fast_yaml.safe_load(VERIFY_BASELINE.read_text(encoding="utf-8")) or {}
     if document.get("schema") != "autolab-port-verify-baseline-v1":
         raise ValueError(f"{VERIFY_BASELINE} has an unknown schema")
     return document
@@ -1677,7 +1682,7 @@ def verify(fix: bool = False) -> int:
                     print(f"  - {problem}")
     manifest_path = REPO / "inputs" / f"autolab_port_manifest_{PORT_DATE.replace('-', '')}.yaml"
     if manifest_path.exists():
-        recorded = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        recorded = fast_yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
         rows = {r.get("experiment_id"): r for r in recorded.get("ported") or []}
         truth = {r["experiment_id"]: r for r in
                  (describe_package(d) for d in dirs) if r}
@@ -1685,7 +1690,7 @@ def verify(fix: bool = False) -> int:
         # machine resolves, so the check means the same thing in CI as it does
         # on the porting machine.
         declared = {
-            (yaml.safe_load(d.joinpath("specification.yaml").read_text())
+            (fast_yaml.safe_load(d.joinpath("specification.yaml").read_text())
              ["experiment"].get("inputs") or {}).get("source_repo")
             for d in dirs if d.joinpath("specification.yaml").exists()
         }

@@ -25,7 +25,7 @@ from typing import Any
 from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
                     ResearchIndex, _neg_date, _epoch)
 from .scan import RECORD_ID_RE, STRUCTURED, id_kind
-from . import progress, comparisons
+from . import progress, comparisons, curves, provenance
 
 # `data/index.json` rows are positional, not objects. At 14.6k records the
 # repeated key names cost more than the values do: as objects the file is
@@ -254,6 +254,7 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
         "recent_work": recent_work(index),
         "current_work": current_work(index),
         "integrity_totals": integrity_totals(index),
+        "follow_up": {k: v for k, v in provenance.payload(index).items() if k != "experiments"},
     }
 
 
@@ -650,6 +651,37 @@ def findings_payload(index: ResearchIndex) -> dict[str, Any]:
     }
 
 
+def record_corrections(index: ResearchIndex, record_id: str) -> list[dict[str, Any]]:
+    """Directly targeted corrections, never mere mentions or inferred overrides.
+
+    The link graph supplies candidates; only an exact YAML parse of record_id
+    or also_affects establishes applicability. Keep all corrections visible:
+    chronology alone does not adjudicate which claims supersede which others.
+    """
+    corrections = []
+    for candidate in index.backlinks.get(record_id, ()):
+        record = index.records.get(candidate)
+        if record is None or record.kind != "CORR":
+            continue
+        parsed, error = index.full_record(candidate)
+        if error or not isinstance(parsed, dict):
+            continue
+        correction = parsed.get("correction")
+        if not isinstance(correction, dict):
+            continue
+        affected = correction.get("also_affects")
+        affected = affected if isinstance(affected, list) else []
+        if correction.get("record_id") != record_id and record_id not in affected:
+            continue
+        item = {"id": candidate, "date": record.date, "path": record.path}
+        for field in ("summary", "field", "corrected_value", "reason"):
+            value = correction.get(field)
+            if isinstance(value, str):
+                item[field] = value
+        corrections.append(item)
+    return sorted(corrections, key=lambda item: (_neg_date(item["date"]), item["id"]))
+
+
 def record_payload(index: ResearchIndex, record_id: str,
                    include_raw: bool = True) -> dict[str, Any] | None:
     record = index.records.get(record_id)
@@ -674,6 +706,7 @@ def record_payload(index: ResearchIndex, record_id: str,
         "verified": error is None and parsed is not None,
         "parse_error": error,
         "body": jsonable(body),
+        "corrections": record_corrections(index, record_id),
         "links": {
             "out": sorted(r for r in record.refs if r in index.records),
             "in": sorted(index.backlinks.get(record_id, ())),
@@ -742,3 +775,12 @@ def progress_payload(index: ResearchIndex, snapshot=None) -> dict[str, Any]:
 def comparisons_payload(index: ResearchIndex) -> dict[str, Any]:
     from . import benchmarks
     return {**comparisons.payload(index.repo), "benchmarks": benchmarks.payload(index.repo)}
+
+
+
+def curves_payload(index):
+    return curves.payload(index.repo)
+
+
+def provenance_payload(index):
+    return provenance.payload(index)

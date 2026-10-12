@@ -1,0 +1,418 @@
+# =============================================================================
+# TASK-20261008-9456e8 -- CONTINUATION EXECUTOR task for EXP-PFDR-0b3699
+# (Part A; H-PFDR-2765d2) under protocol version 2 (specification v1 +
+# AMD-20261008-9c080d).
+# It starts from the state archived by TASK-20261008-5ea531 (RA-01 to RA-03
+# terminal; scripts and design.json pinned). It re-verifies that state, then
+# runs RA-04 (table census and checks), RA-05 (blinded calibration) and
+# RA-06 (unmask) with the PINNED scripts, unchanged. Approved by
+# DEC-20261008-ef482f. Modelled on TASK-20261002-8a6b8a, with constraints at
+# least as strict.
+# NOT DISPATCHABLE until the TASK-20261008-6f12b8 ledger receipt verifies
+# with check (j) of DEC-20261008-ef482f recording no MISS.
+# =============================================================================
+handoff:
+  id: TASK-20261008-9456e8
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check, then supplied to this Coordinator. The Coordinator has
+    no shell and minted no identifier.
+  created_at: '2026-10-08'
+  created_by: coordinator
+  from: coordinator
+  to: executor
+  status: written_not_dispatched
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  experiment_id: EXP-PFDR-0b3699
+  hypothesis_id: H-PFDR-2765d2
+  question_id: RQ-PFDR-ae2fba
+  predecessor_task: TASK-20261002-8a6b8a (returned stopped after RA-03, before RA-04, on DEF-1; package archived by TASK-20261008-5ea531 at commit 051be4c86)
+  approval_decisions: [DEC-20261002-e7f8c9, DEC-20261008-8cb005, DEC-20261008-ef482f]
+  protocol: >-
+    experiments/EXP-PFDR-0b3699/specification.yaml (v1, FROZEN, including
+    approval_rulings AR-1 to AR-7) plus
+    experiments/EXP-PFDR-0b3699/amendments/AMD-20261008-9c080d.yaml (v2).
+    The amendment governs exactly where it names a field.
+  title: Re-verify the archived EXP-PFDR-0b3699 state, then run RA-04, RA-05 and RA-06 with the pinned scripts unchanged
+  objective: >-
+    Complete the EXP-PFDR-0b3699 run set from RA-04 on, exactly as protocol
+    version 2 states:
+    - re-verify the archived state before any write;
+    - RA-04: the table census over design.json's 102 jobs, the merge, and
+      the checks (G4, G4-R, G-CURVE, G-REL, G7-OFFSET, PC-R-iii);
+    - RA-05: blinded calibration, with calibration.json pinned;
+    - RA-06: unmask with the pinned sha256.
+    Observations only; no interpretation beyond the outcome table.
+  uncertainty_reduced: >-
+    Whether the small_x TT4 relation-level excess seen in EXP-PFDR-011cd0
+    recurs on fresh 30- and 32-bit prime-order curves under the
+    pre-registered single test (EXP-PFDR-0b3699 objective). The task produces
+    the run package; it decides nothing.
+  inputs:
+    - ledger/handoffs/TASK-20261008-9456e8.yaml (this card; it governs)
+    - experiments/EXP-PFDR-0b3699/specification.yaml (FROZEN; read in full)
+    - experiments/EXP-PFDR-0b3699/amendments/AMD-20261008-9c080d.yaml (read in full)
+    - ledger/handoffs/TASK-20261002-8a6b8a.yaml (predecessor card; its constraints are restated below and this card governs where they differ)
+    - "ledger/decisions/DEC-20261008-ef482f.yaml: the fields id, decision, decision_label, target_ids, official_transitions and operative_ruling_text ONLY"
+    - "ledger/decisions/DEC-20261002-e7f8c9.yaml: the fields id, decision, decision_label, target_ids, approval, transcription and official_transitions ONLY"
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml (archived; read in full; append-only per AMD A-6)
+    - "experiments/EXP-PFDR-0b3699/execution-report.yaml: the sections stop_point, remaining_work, finalize_commands and machine_protection ONLY"
+    - "the pinned scripts experiments/EXP-PFDR-0b3699/{run_jobs.py, design_a.py, analyze_a.py, reproduce_check.py} (read-only; invoked by path) and fixtures/fixture_exercise.py (hashed only; never invoked)"
+    - "experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-{tests,repro,p0-design}/ (archived; read-only; the pinned scripts read design.json, junit.xml, g-repro-report.json and p0x-a-report.json by path; you may read manifests for layout)"
+    - "coordination/design/TASK-20260928-102217/archives/TASK-20261008-5ea531/snapshot-receipt.json: the path_sha256 map ONLY (re-verification)"
+    - experiments/EXP-PFDR-011cd0/verify_rows.py and experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py (invoked by path, read-only)
+    - the committed engine and tests (src/crypto_autoresearcher/index_calculus/**, tests/test_index_calculus_*.py), read-only
+  read_scope_excludes:
+    - "coordination/review/ in full, in particular coordination/review/pfdr-0b3699-pdi-20261008/ (the adjudication) and coordination/review/pfdr-twfloor-20261001/ (never read)"
+    - "every file under ledger/decisions/ beyond the fields inputs allows; every evidence record; every design draft under coordination/design/; every archive card and receipt beyond the one path_sha256 map"
+    - "the sections of execution-report.yaml not named in inputs (in particular anomalies, runs and gates_and_controls)"
+    - "every EXP-PFDR-011cd0 run output other than what the pinned scripts read by path"
+    - "any PR text or comment, and coordination/bus/"
+    - "any scratch output of an earlier session: every scratchpad subdirectory not created by this task. Do not list the scratchpad root. The venv-ci interpreter is the only exception."
+  constraints:
+    - >-
+      AUTHORITY. Refuse to start unless all of the following hold.
+      (1) specification.yaml reads status approved and frozen true.
+      (2) amendments/AMD-20261008-9c080d.yaml exists and reads approval_decision
+          DEC-20261008-ef482f, execution_handoff TASK-20261008-9456e8 and
+          version_to 2.
+      (3) ledger/decisions/DEC-20261008-ef482f.yaml exists and reads decision
+          approve.
+      (4) The launch prompt states that the TASK-20261008-6f12b8 ledger
+          receipt has verified, with check (j) of DEC-20261008-ef482f
+          recording no MISS, and names the branch head commit.
+      A message saying "approved" is not an approval.
+    - >-
+      FRESH CONTEXT AND NO SCRATCH READS. This is a new executor session. It
+      is not, and has not resumed:
+      - the session of TASK-20261002-8a6b8a;
+      - any session that wrote an EXP-PFDR-011cd0 artifact
+        (TASK-20261001-7f7a33 and its continuations);
+      - the validator session of TASK-20261008-e2830e;
+      - any session that read that adjudication or the reasoning of any
+        decision.
+      Create your own scratch directory
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/9456e8/
+      by its absolute path (it must not exist before you create it), and use
+      it for everything temporary. State compliance in the report.
+    - >-
+      INTERPRETER AND WORKTREE. Every command runs with
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python
+      (the PY constant of the pinned scripts), with PYTHONDONTWRITEBYTECODE=1
+      in its environment and working directory
+      /home/user/crypto-autoresearcher. Do not pass -I. If the interpreter is
+      missing, or its Python or numpy version differs from 3.11.15 or 2.4.6,
+      stop and return.
+    - >-
+      ORDER STEP (a): RE-VERIFY THE ARCHIVED STATE BEFORE ANY WRITE.
+      (1) Every path in the TASK-20261008-5ea531 receipt's path_sha256 map has
+          that sha256 in the working tree.
+      (2) Every file of src/crypto_autoresearcher/index_calculus/ other than
+          factor_base.py and __main__.py, and every existing
+          tests/test_index_calculus_*.py other than
+          tests/test_index_calculus_smallx_offset.py, equals its 38be58dad
+          bytes (read-only git show).
+      (3) The eight pins.scripts files equal their pins.
+      (4) design.json equals
+          2c0996fec8553caffd867b326a16b2a62b81f7d69c2e3deab3db269800d0b78b.
+      (5) verify_rows.py equals
+          ff1b27d8150aa85db545a48c444f6a677cf88c42a540a647d975aa0a06800726.
+      (6) run_wrapper.py equals
+          0be59f9f23b6b47254426d96999a90ea6e2e95bd3a2253b894f482106671920a.
+      (7) experiments/EXP-PFDR-0b3699/runs/ holds exactly
+          RUN-PFDR-0b3699-tests, -repro and -p0-design.
+      (8) execution-report-9456e8.yaml does not exist, and
+          implementation-notes.yaml has no continuation_9456e8 key.
+      Any mismatch: stop and return before writing anything.
+      Otherwise, create the scratch directory. Append
+      implementation_notes.continuation_9456e8 to implementation-notes.yaml,
+      with the authority check and the re-verification table, under the AMD
+      A-6 append rule. Then create execution-report-9456e8.yaml.
+    - >-
+      APPEND RULE (AMD A-6). implementation-notes.yaml is append-only. The
+      ONLY permitted change is appending to the single new top-level section
+      implementation_notes.continuation_9456e8, at two-space indentation.
+      After every append:
+      - git show 051be4c86:experiments/EXP-PFDR-0b3699/implementation-notes.yaml
+        must be an exact byte prefix of the file;
+      - the file must parse with yaml.safe_load;
+      - continuation_9456e8 must occur exactly once as a key.
+      Check this after every append and record each check. If an append
+      fails these checks, do not repair it by editing: stop and return. No
+      other existing file is ever written.
+    - >-
+      ORDER, EXACTLY (stopping_rules [0]; AR-2; the archived
+      implementation-notes.yaml writer_subcommands table names the writer and
+      subcommand of every file). Every run_jobs.py and analyze_a.py
+      invocation goes through run_jobs.py as that table states. Every path
+      argument is a full repository-relative path. Derive each command line
+      from the pinned scripts' own argparse interfaces (--help) and the
+      writer table; never guess.
+      RA-04, into experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table/:
+      - run_jobs.py census-jobs --run-id RUN-PFDR-0b3699-table --kind table
+        --design experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-p0-design/design.json
+        --design-sha256
+        2c0996fec8553caffd867b326a16b2a62b81f7d69c2e3deab3db269800d0b78b
+        (102 jobs, each under run_wrapper.py);
+      - then the merge step;
+      - then the analyze_a.py checks step (G4, G4-R via verify_rows.py with
+        --out /dev/stdout parsed in memory, G-CURVE, G-REL, G7-OFFSET,
+        PC-R-iii);
+      - then run_jobs.py finalize of the run root.
+      RA-05, into runs/RUN-PFDR-0b3699-calibrate/:
+      - analyze_a.py calibrate (null arms only; arm-read-log.json);
+      - finalize;
+      - then append
+        implementation_notes.continuation_9456e8.pins_calibration_json (path,
+        sha256, pinned_at) BEFORE RA-06 starts.
+      RA-06, into runs/RUN-PFDR-0b3699-analysis/:
+      - analyze_a.py unmask --calibration-sha256 <the pinned value>, with the
+        RA-01 junit and the gate reports the writer table names;
+      - finalize.
+      If a pinned script cannot express a step as written, or refuses, stop
+      that step and return (NO JUDGMENT ON SCOPE).
+    - >-
+      BLINDING BEFORE RA-06 (stopping_rules [5], I-A7, AR-1). No script and
+      no action of yours reads, prints, summarises or copies a relation
+      count, row count, total, kappa or z of small_x, small_x_offset,
+      subgroup, planted_sub or planted_target before RA-06. In particular:
+      - never open, cat, head or grep an RA-04 job's stdout.log, rows file,
+        harvest-rows file or staircase file yourself; only the scripts parse
+        them, and only as AR-1 (2) and AR-2 allow;
+      - RA-05 filters by arm name before parsing any count and writes
+        arm-read-log.json;
+      - the RA-04 checks emit per-instance PASS/FAIL and mismatch keys only.
+      A breach is an I-A7 invalidation: record it, finalize the run invalid,
+      and return.
+    - >-
+      STOPS. Stop and return, after finalizing the location concerned, when:
+      - a gate or control of the specification fires as an invalidation
+        (gate_rule);
+      - a certificate or row-verification failure occurs (that run is
+        invalid; rows so far retained);
+      - a checkpoint fires (TW-DISK, a file above 95 MB, the task watchdog;
+        checkpoint with a remaining-work list);
+      - a pinned script refuses or cannot express a step;
+      - a tool verdict disagrees with the frozen gate text;
+      - any case the contract does not classify;
+      - the AMD A-6 append check fails.
+      A per-instance, per-job or address-space stop is failed_infrastructure
+      for that instance or job, and is not a stop of the task (stopping_rules
+      [4]).
+    - >-
+      GATES AND CERTIFICATES, UNRELAXED. Every gate runs as written. A gate
+      failure is an implementation finding, never evidence about the
+      hypothesis. Every manifest's certificate block is kind none, with
+      instances_claimed 0 and instances_verified 0.
+    - >-
+      MANIFESTS AS THE PINNED LAUNCHER WRITES THEM (AMD A-4, A-5). Manifests
+      are written only by the pinned run_jobs.py finalize. They will:
+      - carry run.task_id TASK-20261002-8a6b8a, the v1 protocol block
+        (handoff TASK-20261002-8a6b8a, output_archive TASK-20261002-33afa9,
+        amendments []) and the launcher's INFERENCE block;
+      - lack run.code.command (DEF-1).
+      Do NOT work around either: no edit, no extra manifest, no wrapper
+      script. In execution-report-9456e8.yaml, record per run:
+      - the executing task TASK-20261008-9456e8;
+      - protocol version 2 (AMD-20261008-9c080d);
+      - output archive TASK-20261008-398fce;
+      - the inference facts of this session: requested policy
+        executor-implementation, backend, resolved model identifier or the
+        provenance of its absence, model_verified, fallback_used; never a
+        Bedrock provider.
+    - >-
+      PROVENANCE (AMD A-9). In execution-report-9456e8.yaml, record the
+      verbatim argv as executed, with UTC start and end times, of EVERY
+      run_jobs.py and analyze_a.py invocation, finalize included.
+    - >-
+      MACHINE PROTECTION (binding; time is advisory). Host: 4 cores, about
+      15 GB memory.
+      - At most 4 job processes at once; nothing else runs during RA-04.
+      - Every job and analysis process runs under run_wrapper.py (RLIMIT_AS
+        3.5e9).
+      - No job starts while MemAvailable < 4 GB or free disk < 2.5 GB.
+      - Watchdogs: 1800 s per instance, 21600 s per job, 86400 s per
+        attempt, and the task watchdog below.
+      - If experiments/EXP-PFDR-0b3699/ exceeds 1.0 GB, checkpoint and
+        return (TW-DISK).
+      - Every JSONL is gzip -n compressed and then hashed.
+      - No single file exceeds 95 MB.
+      Timeouts, memory stops, disk checkpoints and crashes are
+      failed_infrastructure or checkpoints, never a mathematical result. Do
+      not raise a cap, a watchdog or the worker count, and do not bypass
+      run_wrapper.py.
+    - >-
+      OUTPUT PATHS. Write only under write_scope:
+      - runs/RUN-PFDR-0b3699-table/, -calibrate/ and -analysis/ (new);
+      - experiments/EXP-PFDR-0b3699/execution-report-9456e8.yaml (new);
+      - the append to implementation-notes.yaml (AMD A-6 only);
+      - your scratch directory.
+      Never modify, rename, recompress or delete any existing file. That
+      includes:
+      - specification.yaml and amendments/;
+      - every file archived by TASK-20261008-5ea531 (the A-6 append
+        excepted);
+      - every pinned script, the engine, the tests and fixtures/;
+      - every EXP-PFDR-011cd0 or EXP-PFDR-1b78f7 path;
+      - any ledger record or coordination/ path.
+      No __pycache__ or .pyc file is an artifact. If one appears, report it;
+      do not delete it.
+    - "RA-07 IS NOT AUTHORISED (AMD A-10). runs/RUN-PFDR-0b3699-repro-attribution/ is never created."
+    - "NO COMMITS. Do not commit, push, stage, rebase or merge. The Coordinator archives by exact path in TASK-20261008-398fce."
+    - >-
+      NO JUDGMENT ON SCOPE. Change no threshold, seed, curve range, arm,
+      convention, flag, rule, control parameter or definition. If the
+      contract is ambiguous or unimplementable at some point, implement
+      nothing around it. Stop that step, record the ambiguity with options in
+      execution-report-9456e8.yaml, and return. Do NOT record a reading of
+      your own and proceed (DEC-20261008-ef482f PF-1).
+    - >-
+      NO INTERPRETATION. Report outcome ids as RA-06 computes them. Do not
+      describe any result as a lever, a closure, support or refutation.
+      Report TW-ALIVE as fired, nothing more. Compute no floor ratio and run
+      no harvest-on mode (TW-FLOOR-INDEPENDENCE).
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock (AGENTS.md rule 16).
+  deliverables:
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table/, -calibrate/ and -analysis/ (those reached), each with all required artifacts
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml with the appended implementation_notes.continuation_9456e8 section (authority check; re-verification table; every append check; pins_calibration_json)
+    - >-
+      experiments/EXP-PFDR-0b3699/execution-report-9456e8.yaml. It records:
+      - the re-verification result;
+      - runs and attempts with statuses and completeness;
+      - every gate and control result with its report path;
+      - the outcome id;
+      - failed_infrastructure instances, CC-6 exclusions and height-screen
+        exclusions;
+      - unexpected observations;
+      - per run, the executing task, protocol version, output archive and
+        inference facts;
+      - the verbatim argv list (A-9);
+      - TW-DISK state and any __pycache__ found;
+      - the no-scratch-read and read-scope statement;
+      - artifact paths and which conditional paths exist;
+      - the stop point reached, as one of the TASK-20261008-398fce check (d)
+        branches;
+      - the validate_ledger output for new paths.
+      No interpretation beyond the outcome table.
+  artifact_paths:
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml (appended per AMD A-6)
+    - experiments/EXP-PFDR-0b3699/execution-report-9456e8.yaml
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-calibrate/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-analysis/
+  write_scope:
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-calibrate/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-analysis/
+    - experiments/EXP-PFDR-0b3699/execution-report-9456e8.yaml
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml (append of implementation_notes.continuation_9456e8 only, AMD A-6)
+  write_scope_note: >-
+    Plus the task's own scratch directory
+    /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/9456e8/,
+    outside the repository and never archived. No src/ or tests/ path is
+    writable: the DEC-20261002-c3f49b NA-5 lift ended with
+    TASK-20261002-8a6b8a.
+  archived_by: TASK-20261008-398fce
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    fresh_session_required: true
+    model_identifier_rule: >-
+      Record the resolved model identifier in execution-report-9456e8.yaml,
+      or record it as null with provenance "withheld by the session's
+      artifact policy; not probe-verified", with model_verified false.
+      Bedrock is never selected.
+  budget:
+    wall_clock_seconds: 259200
+    wall_clock_note: >-
+      Task-level watchdog (machine protection, 72 h). Expiry checkpoints the
+      task with every completed attempt retained and a remaining-work list.
+      It exhausts nothing and is never a result. Advisory compute: about
+      7262 modelled CPU-seconds for RA-04 (design.json expected_cpu), plus
+      the RA-05 and RA-06 simulations; about 1 to 3 hours wall on 4
+      processes.
+    memory_gb: 14
+    maximum_runs: 3
+    maximum_runs_note: RA-04, RA-05 and RA-06. Attempts belong to their run id. RA-07 is not authorised.
+    per_attempt_watchdog_seconds: 86400
+    per_job_watchdog_seconds: 21600
+    per_instance_watchdog_seconds: 1800
+    maximum_concurrent_processes: 4
+    per_process_address_space_bytes: 3500000000
+    disk_floor_gb: 2.5
+    package_guard_gb: 1.0
+    total_cpu_hours_advisory: 6
+  completion_gate:
+    - order step (a) passed and is tabled in implementation_notes.continuation_9456e8, or the task stopped and returned naming the failing check
+    - every append kept the archived bytes as an exact prefix, the file parses, and continuation_9456e8 occurs once; no other existing file changed
+    - every run reached carries its required artifacts and a checksums.sha256 covering every file beneath it; every data file was written by its AR-2 writer; every certificate block is kind none, 0 and 0
+    - pins.design_json (archived) precedes the earliest RA-04 started_at; pins_calibration_json precedes RA-06's started_at; RA-06 ran with that sha256; RA-05's arm-read-log shows no structured or planted arm parsed; the RA-05 and RA-06 view-maps agree (AR-2 (4))
+    - row-verify.json and checks-report.json carry no row count, relation count, total, kappa or z; merge-report.json carries no structured-inclusive total (AR-1 (3)); no RA-04 job stdout was echoed or read beyond the AR-1 (2) keys
+    - "tools/validate_ledger.py (run read-only before returning) reports no error naming a new path OTHER THAN lines of exactly the form '<run root>/manifest.yaml: run.code.command missing (not reproducible)' for the run roots experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table, -calibrate and -analysis that exist (DEF-1, AMD A-4); every such line is listed"
+    - no file outside write_scope changed; no file exceeds 95 MB; every command ran with PYTHONDONTWRITEBYTECODE=1; the package size is reported
+    - execution-report-9456e8.yaml lists everything its deliverable names, including the A-9 argv list and the stop point
+  return_format: >-
+    A short report:
+    - the re-verification result;
+    - the append checks;
+    - runs and attempts with statuses and completeness;
+    - every gate and control result with its report path;
+    - the outcome id;
+    - failed instances, CC-6 and height-screen exclusions;
+    - unexpected observations;
+    - the package size;
+    - every deviation or ambiguity;
+    - the stop point reached (a TASK-20261008-398fce check (d) branch);
+    - the exact artifact paths for TASK-20261008-398fce to stage.
+  review_required: true
+  review_required_note: >-
+    A claim-relevant producer. Its dependent validator and red-team tasks are
+    minted after TASK-20261008-398fce verifies, under a review_plan written
+    first (DEC-20261008-ef482f NA-6). No output of this task is read as
+    evidence before they report.
+  review_plan: null
+  review_plan_note: No review round opens here.
+  dispatch_preconditions:
+    - >-
+      LEDGER ARCHIVE VERIFIED. The TASK-20261008-6f12b8 receipt has verified
+      with tools/research_dispatch.py and records check (j) of
+      DEC-20261008-ef482f with no MISS. The branch is pushed, so
+      DEC-20261008-ef482f, AMD-20261008-9c080d, this card,
+      TASK-20261008-398fce and TASK-20261008-6f12b8 are committed.
+    - archived_by is bound (TASK-20261008-398fce); satisfied as written.
+    - >-
+      CLAIMED BEFORE LAUNCH. goal_id is null. Claim the task with a
+      tools/agent_bus.py claim message addressed to coordinator, and release
+      it with its outcome on return.
+    - >-
+      STATE ON THE MERGED TREE. Merge origin/main into the working branch
+      (merge, never rebase) immediately before launch. Then:
+      - the TASK-20261008-5ea531 receipt still verifies;
+      - every path it binds has its path_sha256;
+      - experiments/EXP-PFDR-0b3699/runs/ holds exactly the three archived
+        run directories;
+      - execution-report-9456e8.yaml is absent.
+      Otherwise a Coordinator decision comes first.
+    - >-
+      NO COMPETING WRITER. No other open task, lane claim, bus-announced work
+      or unmerged branch holds write scope over experiments/EXP-PFDR-0b3699/**,
+      src/crypto_autoresearcher/index_calculus/** or
+      tests/test_index_calculus_*.py. Check open PRs and the coordinator
+      inbox.
+    - >-
+      RESOURCES. No other solver, review computation or archive is running on
+      the host. At least 14 GB of memory and at least 4 GB of free disk are
+      available. The interpreter exists, with Python 3.11.15 and numpy 2.4.6.
+    - >-
+      A FRESH executor subagent context, per the FRESH CONTEXT constraint.
+      The launch prompt is EXACTLY the text of DEC-20261008-ef482f
+      launch_prompt_9456e8 with its four placeholders filled from mechanical
+      facts, and nothing else. It carries no result, no summary of any
+      report, adjudication or decision reasoning, and no earlier session's
+      conversation.
+  runs_launched: 0

@@ -90,6 +90,21 @@ def _is_experiment_correction(path: Path, repo_root: Path) -> bool:
     )
 
 
+def _is_experiment_supersession(path: Path, repo_root: Path, run_id: str) -> bool:
+    """True for experiments/<EXP>/supersessions/<run_id>/manifest_v2.yaml under repo_root."""
+    try:
+        parts = path.resolve().relative_to(repo_root).parts
+    except ValueError:
+        return False
+    return (
+        len(parts) == 5
+        and parts[0] == "experiments"
+        and parts[2] == "supersessions"
+        and parts[3] == run_id
+        and parts[4] == "manifest_v2.yaml"
+    )
+
+
 class SupersessionFixture(unittest.TestCase):
     """A temporary run directory with a defective manifest beside a repair."""
 
@@ -184,6 +199,60 @@ class PendingRawResultTests(SupersessionFixture):
         for expected in ("missing required field 'environment'",
                          "missing required field 'timing'", "run.code.commit missing"):
             self.assertTrue(any(expected in e for e in errors), errors)
+
+
+class UnwrittenRawResultTests(SupersessionFixture):
+    """A failed_infrastructure envelope may name an unwritten raw result.
+
+    The absence is the observation. Creating the file would fabricate a
+    count the receipt says was never produced. The waiver is the sentence
+    plus a null outcome and a none certificate; a bare status does not
+    qualify, and neither does any other terminal status.
+    """
+
+    NOTE = "run.py did not write raw-result.json; claim_expired is not a label."
+
+    def unwritten_errors(self, status="failed_infrastructure", note=None,
+                         outcome=None, raw_result=None, kind="none"):
+        (self.run_dir / "raw-result.json").unlink(missing_ok=True)
+        result = {
+            "certificate": {"kind": kind},
+            "outcome": outcome,
+            "raw_result": raw_result,
+            "outcome_note": self.NOTE if note is None else note,
+        }
+        path = self.write_manifest(
+            "manifest.yaml", manifest_body(status=status, result=result))
+        ctx = vl.Ctx(set())
+        vl.check_run(str(path), ctx, {})
+        return ctx.errors
+
+    def test_named_absence_needs_no_fabricated_raw_result(self):
+        self.assertEqual(self.unwritten_errors(), [])
+
+    def test_bare_failed_infrastructure_still_owes_the_file(self):
+        errors = self.unwritten_errors(note="stopped; no scientific label")
+        self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                            for e in errors))
+
+    def test_a_present_outcome_or_claim_still_owes_the_file(self):
+        for kwargs in (
+            {"outcome": "O-E1"},
+            {"raw_result": "stage1/panels.json"},
+            {"kind": "discrete_log"},
+            {"kind": None},
+        ):
+            with self.subTest(**kwargs):
+                errors = self.unwritten_errors(**kwargs)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_other_statuses_cannot_use_the_sentence(self):
+        for status in ("completed", "failed", "cancelled", "running"):
+            with self.subTest(status=status):
+                errors = self.unwritten_errors(status=status)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
 
 
 class DuplicateProcessIdentityTests(SupersessionFixture):
@@ -916,6 +985,27 @@ class CommittedRegistryTests(unittest.TestCase):
                 self.assertEqual(sha256_of(registry_original),
                                  entry["superseded_sha256"],
                                  str(registry_original))
+                continue
+            # Fifth vocabulary: experiment-level supersessions/<RUN-ID>/manifest_v2.yaml
+            # (DEC-20261009-ff58fe PROC-DEF1; DEC-20261009-629a6d). The record sits
+            # outside the run root and binds the original from its own side.
+            if _is_experiment_supersession(current, repo_root, entry["run_id"]):
+                doc = yaml.safe_load(current.read_text(encoding="utf-8"))
+                self.assertEqual(current.relative_to(repo_root).parts[1],
+                                 registry_original.relative_to(repo_root).parts[1],
+                                 str(current))
+                self.assertEqual(doc["run"].get("id"), entry["run_id"], str(current))
+                self.assertEqual(sha256_of(current),
+                                 entry["superseding_sha256"], str(current))
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"],
+                                 str(registry_original))
+                declared = doc.get("supersession") or {}
+                self.assertEqual(
+                    (repo_root / declared.get("supersedes_path", "")).resolve(),
+                    registry_original, str(current))
+                self.assertEqual(declared.get("supersedes_sha256"),
+                                 entry["superseded_sha256"], str(current))
                 continue
             self.assertEqual(current.parent, run_dir, str(current))
             if entry["run_id"] in PROSE_SUPERSESSION_SHA256:

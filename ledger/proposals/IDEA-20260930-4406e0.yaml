@@ -1,0 +1,341 @@
+idea:
+  id: IDEA-20260930-4406e0
+  question_id: RQ-KIC-7502b9
+  added: '2026-09-30'
+  status: proposed
+  approved_by: null
+  title: Split the SAT-versus-exact-MITM gap into group operations and solver overhead
+  class: control
+  claim: On one frozen explicit base of the n=7 Koblitz subgroup and one frozen explicit base of the n=11
+    Koblitz subgroup, the fraction of CryptoMiniSat's charged operations that are not group-law field
+    operations and not base-membership tests is at least 0.5 of that solver's charged operations, while
+    the exact meet-in-the-middle enumerator performs at most 1.1 times as many group-law field operations
+    as the solver's group-law field operations, and both return the same verified triples. Representation
+    class R1 (selector bits of an explicit point index). The attack stage is the accounting of relation-decomposition
+    cost, not a faster solver. No exponent moves. If that overhead fraction is below 0.5 at n=7 while
+    the verified sets match, the gap is extra search and the overhead explanation is false. This is not
+    a claim that SAT is faster than F4 or faster than meet-in-the-middle.
+  mechanism: 'OBJECT FRAME. Representation: R1, the selector-bit encoding of an index into an explicit
+    list B. The bits are a coordinate representation of a label, not a new point. Operation set Sigma:
+    unit propagation on the original XOR rows of a Boolean circuit for the binary field addition, together
+    with a counter that increments when that circuit evaluates a field multiplication. Sigma does not
+    contain translation by arbitrary subgroup elements. Decoding a selector to a point and adding points
+    is allowed only as the replay check, which is outside Sigma. Trichotomy: coordinate-dependent. Reason:
+    the overhead fraction is a function of the encoding and of the solver''s learned-clause machinery.
+    Two searches can realise the same group element and the same verified triple with different conflict
+    counts. The fraction is not a function of the discrete logarithm.
+
+
+    LOSSY-PROJECTION TEST, against Sigma. The tracked object is the pair (addition-operation count, membership-test
+    count) of a finished search, plus the mask of selector bits forced by unit propagation on the original
+    rows. Discarded: the learned-clause database and the restart schedule. The discard is Sigma-compatible
+    because unit propagation on the original XOR rows does not read learned clauses; the mask''s one-step
+    update under Sigma is determined by the original rows and the current mask. The projection is lossy
+    because two CDCL states can share a mask and an addition count while differing in learned clauses.
+    If, on the n=7 exhaustive cell, the conflict count is a function of the addition count alone (one
+    conflict total per addition total), then L=0 for that projection of solver state and the overhead
+    is not a separate object. That outcome is reported and it falsifies the claim that overhead is an
+    independent component.
+
+
+    TWO EXPLANATIONS OF THE CHARGED-COST GAP. Let G_sat be the number of field multiplications executed
+    inside the solver''s addition circuit, G_mitm the same count for exact meet-in-the-middle on the same
+    B and the same targets, and C_sat the solver''s charged operations in a pre-registered unit (conflicts
+    plus decisions plus clause inspections, added to G_sat with weight 1 per inspection as declared below).
+    Overhead fraction f = (C_sat - G_sat) / C_sat. Explanation O: f >= 0.5 and G_sat <= 1.1 * G_mitm.
+    The searches do about the same group-law work, and at least half of the solver''s charged operations
+    are not that work. Explanation S: f < 0.5. Most of the solver''s charged operations are group-law
+    or membership work, so the gap versus meet-in-the-middle, if G_sat is much larger than G_mitm, is
+    extra search. The decidable negative for explanation O is f < 0.5 at n=7 with matching verified triples.
+    A mismatch of verified triples decides neither explanation; the run is invalid.
+
+
+    The circuit is a Boolean circuit of the field addition of three decoded points, compared with the
+    target. It is not a summation polynomial and not a Weil-descent Macaulay matrix. Meet-in-the-middle
+    is the exact pair table on the same decoded points. F2 supplies the three-point predicate. Added:
+    the split of the charged unit into group-law operations and everything else, with the cyclic and random-XOR
+    controls.
+
+
+    What was avoided. Not ''SAT is faster than F4'' (KR-IC-5765d2). Not the wall-time horse-race of H-KIC-77b47b
+    (affine one-hot versus explicit one-hot). Not H-KIC-9416d9''s prediction that affine flats lower cold
+    SAT time. Not a first-fall degree. Not a speedup claim of any kind. Wall time is recorded and is not
+    the decision metric.
+
+
+    OPEN NUMBER. L = log2 of the mean number of distinct conflict-counts observed among runs that share
+    the same addition-count, on the n=7 target list. b = the mean number of decision branches recorded
+    per forced mask, on identity (the curve circuit), on random-label (the same number of XOR rows replaced
+    by random XOR rows of equal width), and on relabelled Z/rZ (selectors indexing a cyclic group of order
+    r, addition circuit replaced by integer addition modulo r). Canonicalisation is not the priced number;
+    L and b are.'
+  novelty_status: unverified
+  citations:
+  - ref: KR-IC-5765d2
+    provenance: internal
+    claim: SAT and XOR reasoning solve binary PDP instances faster than Magma F4 by up to 300x on that
+      step, without changing the exponent versus rho. The row also forecloses SAT-for-PDP as novelty.
+      Read this session. This idea does not compare SAT to F4.
+    verified_by: idea-generator
+  - ref: KR-IC-e847d1
+    provenance: internal
+    claim: Crossbred is Macaulay plus enumeration. Read this session. This control builds neither.
+    verified_by: idea-generator
+  - ref: KR-IC-1fcdbc
+    provenance: internal
+    claim: Characteristic-2 summation algorithms stay far slower than rho in the published experiments
+      named there. Read this session. This control does not contradict that and does not re-test it.
+    verified_by: idea-generator
+  - ref: H-KIC-9416d9
+    provenance: internal
+    claim: 'n=7 parameters a=1, modulus x^7+x+1, #E=142, r=71, and a proposed SAT cost hypothesis about
+      affine flats. Read this session. Parameters reused; the flat hypothesis is not.'
+    verified_by: idea-generator
+  - ref: H-KIC-77b47b
+    provenance: internal
+    claim: A proposed 20 percent wall-time comparison of two SAT encodings of the same points. Read this
+      session. This idea splits operation classes instead of racing wall time.
+    verified_by: idea-generator
+  - ref: IDEA-20260802-002
+    provenance: internal
+    claim: L and b meter. Read this session.
+    verified_by: idea-generator
+  - ref: CryptoMiniSat conflict and decision counters
+    provenance: recalled
+    claim: The solver can report conflicts, decisions, and propagations. No manual was opened this session.
+      The test must read the counters from the binary it runs and define the charged unit before the first
+      target. If the binary does not expose a counter, that counter is omitted and the omission is reported
+      rather than invented.
+    verified_by: null
+  assumptions:
+  - B is an explicit list of m=8 subgroup points at n=7 and m=12 at n=11, lexicographic, frozen before
+    any solver run. It is inside the scoped-out enumerated class. No new factor base is proposed.
+  - 'The charged unit is fixed before the first target: one field multiplication inside the circuit counts
+    1, one membership test counts 1, one solver conflict counts 1, one solver decision counts 1, one clause
+    inspection counted by the solver counts 1. Wall-clock seconds are recorded and are not in the unit.'
+  - A capped run is UNKNOWN, not UNSAT, and is excluded from f. n=7 is run without a cap. n=11 has a pre-registered
+    conflict cap; capped targets are reported separately.
+  - Every model the solver marks satisfying is decoded and checked by an independent group-law implementation.
+    A model that fails the check is an error, not a relation.
+  - Random XOR rows are a control, not a decomposition method. They are not expected to find curve relations.
+  proof_search_map:
+    bottleneck: Identifying which part of the solver's charged operations is group-law work. No step is
+      removed. The uncertainty is the composition of the gap.
+    baseline_embedding:
+      parameter_slice: n=7, r=71, m=8, every subgroup element as a public target, exact meet-in-the-middle
+        and the Boolean addition circuit on the same B.
+      reproduction_check: Meet-in-the-middle verified triples equal an independent triple loop over B^3
+        at n=7. The solver's satisfying models, decoded, equal that set on every target the solver finishes
+        uncapped.
+    observation_collision:
+      observable: The pair (G, conflict count) per target.
+      distinct_preimage_search: Two targets, or two encodings, with the same G and different conflict
+        counts. That collision is the evidence that overhead is not determined by group-law work. Absence
+        of any such pair on the n=7 list means L=0 and explanation O is not supported by a lossy solver-state
+        projection.
+    constructive_transforms:
+    - transform: observable_fiber
+      proposed_object: The set of solver trails with a fixed addition-operation count.
+      predicted_gain: If conflict counts vary inside one fiber, overhead is not a rekeying of G. If they
+        do not, the overhead explanation loses the lossy-projection test.
+    - transform: specialization_pack
+      proposed_object: The same counters on the curve circuit, the random-XOR circuit, and the Z/rZ circuit.
+      predicted_gain: Separates solver overhead that appears for any XOR system of that size from overhead
+        that appears only for the curve circuit.
+    quantifier_order: 'For all frozen (n, m, B, charged-unit definition, solver binary, seed) and for
+      every target in the n=7 subgroup: compute f and the operation counts. The charged unit is not edited
+      after seeing f. Exists is only the two procedures.'
+    method_ceiling:
+      strongest_certifiable_claim: At n=7, either f >= 0.5 with G_sat within a factor 1.1 of G_mitm and
+        matching triples, or f < 0.5, or the run is invalid. No statement about F4, no statement about
+        n=131, no speedup.
+      nearby_object_control: The random-XOR system with the same number of rows and the same selector
+        width, and the Z/rZ addition circuit. If f is the same on random XOR as on the curve, the fraction
+        is a property of the solver on that shape and not of the curve law. That is still explanation
+        O, and the write-up must say so. If the random-XOR system reports relations that pass the curve
+        replay, the decoder is wrong and the run is invalid.
+    proof_obligations:
+    - claim: n=7 meet-in-the-middle triples match the triple loop.
+      responsibility: baseline
+    - claim: Satisfying models replay to curve relations, or the model is rejected.
+      responsibility: correctness
+    - claim: f uses only the pre-registered unit.
+      responsibility: runtime
+    - claim: Capped n=11 targets are excluded from f.
+      responsibility: scope
+    not_applicable_reason: Empirical control. method_ceiling is the decision between explanation O and
+      explanation S. The other blocks are the checks that keep that decision from being a wall-time race.
+      No theorem is claimed.
+  predictions:
+  - metric: solver_overhead_fraction_f
+    direction: higher
+    minimum_effect: 0.5
+  - metric: G_sat_over_G_mitm
+    direction: lower
+    minimum_effect: ratio at most 1.1; a measured ratio above 1.1 falsifies the same-work half of the
+      claim
+  - metric: symmetric_difference_of_verified_triple_sets
+    direction: lower
+    minimum_effect: 0
+  minimal_test:
+    design: Implement exact meet-in-the-middle and a Boolean circuit of three-point addition for the frozen
+      B. At n=7 run every subgroup target with no conflict cap, one solver seed. At n=11 run 32 frozen
+      targets with a pre-registered conflict cap; capped targets are UNKNOWN. Log field multiplications
+      inside the circuit, membership tests, and the solver's conflict, decision, and inspection counters.
+      Compute f only on uncapped targets whose models replay. Run the random-XOR control and the Z/rZ
+      circuit on the same selector width at n=7 only, 16 targets. Do not compare to F4. Do not tune the
+      encoding on the confirmation targets; the circuit is written before the first solve.
+    controls:
+    - 'Identity: curve circuit versus meet-in-the-middle versus an independent B^3 loop at n=7.'
+    - 'Random-label: random XOR rows, equal count and width. Replay against the curve must fail.'
+    - 'Relabelled Z/rZ: integer addition modulo r on the same selectors, its own meet-in-the-middle, its
+      own f.'
+    - 'Encoding-stability control: a second solver seed at n=7. If f crosses 0.5 between seeds, the decision
+      is seed-dependent and is reported as unresolved rather than as explanation O.'
+    - 'Cap control: n=11 capped targets listed and excluded.'
+    required_metrics:
+    - G_sat, G_mitm, membership tests, conflicts, decisions, clause inspections, per target
+    - f on the uncapped matching targets, mean and minimum
+    - verified triple-set digests
+    - L of conflict-count given addition-count
+    - b as mean decisions per forced mask, three controls
+    - wall time recorded and unused in f
+    - count of capped and of false models
+  falsification_conditions:
+  - At n=7, on the uncapped targets, the mean of f is strictly below 0.5 and the verified triple sets
+    of the solver and of meet-in-the-middle match. Explanation O is false. This is the decidable negative.
+  - At n=7, G_sat > 1.1 * G_mitm while f >= 0.5. The 'same group-law work' half of explanation O is false
+    even if overhead is large. The claim as a whole fails.
+  - The verified sets differ on any uncapped target. Neither explanation is decided.
+  - The second seed moves the mean of f across 0.5. The result is unresolved, not a confirmation.
+  - The random-XOR control produces a model that passes curve replay. The instrument is invalid.
+  confounders:
+  - A charged unit that weights inspections at 0 makes f small by definition. The weights are frozen at
+    1 and written before the run.
+  - Meet-in-the-middle that does not charge failed pair trials under-counts G_mitm. Every pair trial is
+    charged, including pairs whose third point misses B.
+  - Solver preprocessing that simplifies the circuit before search can move work out of the counters.
+    Preprocessing inspections are included in the inspection counter if the solver reports them; if it
+    does not, preprocessing is named as uncounted and f is marked incomplete.
+  - n=11 caps can drop the hard targets and bias f. Capped targets stay out of the mean, and the capped
+    count is a required metric.
+  interpretation_limits:
+  - No speedup is claimed. A large f does not say the solver is slow in wall time and does not say meet-in-the-middle
+    is the better ECDLP algorithm, though rho still dominates both on the exponent.
+  - KR-IC-5765d2 already records that SAT can beat F4 by a constant on a PDP step. This control does not
+    revisit that comparison.
+  - The explicit base is scoped out as a factor-base proposal. The control stops at the accounting split.
+  - Explanation O at n=7 does not transfer to a Weil-descent summation system at n=131. Those systems
+    are a different circuit.
+  heuristic_assumptions:
+  - id: H1
+    statement: 'No distributional law is assumed for conflict counts. The decision threshold f >= 0.5
+      is a pre-registered cut in a finite population (every n=7 subgroup target), not an estimate of an
+      asymptotic density. Separately, and only for the random-XOR control: a system of random XOR rows
+      with the same dimensions is assumed not to encode the curve relation. That is a statement about
+      the control generator, checked by replay, not a heuristic about ECDLP.'
+    rigorous_support: 'There is no classical theorem being imitated for solver conflicts. The occupancy
+      and Dickman laws do not apply to CDCL conflict counts, and none is invoked. The rigorous fact used
+      is finite and exact: on the n=7 cell the mean of f is a mean over a fully enumerated target list,
+      so there is no sampling variance from target selection. Seed variance remains and is the second-seed
+      control.'
+    validation_plan: 'Sample: every subgroup target at n=7, m=8, one primary seed and one confirmation
+      seed; 32 pre-registered targets at n=11, m=12. Comparison distribution: none for f; the null objects
+      are the random-XOR system and the Z/rZ circuit, compared by their own f, not by a named probability
+      law. Tail check: the minimum of f over n=7 targets, not only the mean. A minimum below 0.5 with
+      a mean above 0.5 is reported as a split population and does not confirm explanation O. Tested parameters:
+      n=7, r=71, m=8; n=11, r computed in-test, m=12, 32 targets. Transfer assumptions: none to other
+      solvers, none to F4, none to n>11, none to a different circuit. If the solver binary lacks a counter,
+      that counter is omitted and H1''s charged unit is recomputed from the remaining declared counters;
+      inventing the missing counter is forbidden.'
+  target_complexity:
+    time_exponent: Unchanged at 1/2 versus Pollard rho. The control does not propose an algorithm whose
+      exponent could differ.
+    memory_exponent: Unchanged. Meet-in-the-middle stores Theta(m^2) pair records. The solver's clause
+      database is a measured peak RSS and is not an asymptotic memory exponent. Distinguished-point rho
+      remains smaller in memory than either table at cryptographic r, and this control does not change
+      that.
+    best_known: Pollard rho, time exponent 1/2, binary-curve S about 1.25 as named in the task brief,
+      not re-derived here. The stage baseline is exact meet-in-the-middle on the same explicit B.
+    hidden_overhead: The point of the control is to stop overhead from hiding. Any solver counter the
+      binary does not expose is named as uncounted. No o(1) term is used to absorb it.
+    tradeoff_note: Not a time-memory tradeoff and not a parallel speedup. One solver seed is serial. A
+      second seed is a stability control.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  dominated_by: Pollard rho on the ECDLP axes (time exponent 1/2, distinguished-point memory). As a stage
+    accounting, the control claims no improvement over exact meet-in-the-middle. KR-IC-5765d2 dominates
+    any claim that would present a SAT-versus-F4 constant as new; this record does not make that claim.
+    The 24 KR-IC rows at the named commit were checked.
+  sota_delta: 'Time exponent versus rho: 1/2 versus 1/2, delta 0. Memory exponent versus distinguished-point
+    rho: delta 0, no new memory algorithm. The predicted overhead fraction is at least 0.5 of the solver''s
+    charged operations, which is not a reduction in ECDLP cost.'
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    frontier_map_commit: 3bc2cd74f42074d37ed7c4e47da76ad28bdb63a2
+    rows_checked:
+    - KR-IC-ae532f
+    - KR-IC-e2d81b
+    - KR-IC-081a58
+    - KR-IC-0d2021
+    - KR-IC-46d822
+    - KR-IC-49c882
+    - KR-IC-64659b
+    - KR-IC-a4dd54
+    - KR-IC-fbdb61
+    - KR-IC-5765d2
+    - KR-IC-5a43e5
+    - KR-IC-5ea2f8
+    - KR-IC-73db3f
+    - KR-IC-8b9daa
+    - KR-IC-955fd6
+    - KR-IC-b0fcda
+    - KR-IC-e847d1
+    - KR-IC-f3da82
+    - KR-IC-f5c584
+    - KR-IC-1fcdbc
+    - KR-IC-5931ee
+    - KR-IC-cd159a
+    - KR-IC-889857
+    - KR-IC-9e610d
+    - KR-RHO-13bf67
+    nearest:
+    - ref: KR-RHO-13bf67
+      provenance: retrieved
+      relation: adjacent
+      delta: The control splits SAT overhead from group-law counts and does not claim a cost below
+        the generic-group bound. Rho at exponent 1/2 remains the ceiling. The row, read from
+        knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml, states that a generic algorithm needs
+        Omega(sqrt(p)) group operations.
+    - ref: KR-IC-5765d2
+      provenance: internal
+      relation: adjacent
+      delta: That row records SAT/XOR beating Magma F4 by up to 300x on the PDP step without moving the
+        exponent, and it forecloses SAT-versus-F4 constants as novelty. This control compares SAT operation
+        classes to exact meet-in-the-middle and claims no speedup.
+    - ref: KR-IC-1fcdbc
+      provenance: internal
+      relation: adjacent
+      delta: Published characteristic-2 summation experiments stay far slower than rho. This control does
+        not re-litigate that comparison and does not use a summation polynomial.
+    - ref: KR-IC-e847d1
+      provenance: internal
+      relation: orthogonal
+      delta: No Macaulay matrix and no crossbred split. The Boolean object is a circuit of the group law.
+    - ref: KR-IC-889857
+      provenance: internal
+      relation: orthogonal
+      delta: No first-fall degree and no subexponential claim.
+    searched:
+      corpus_grep:
+      - H-KIC-77b47b wall time
+      - H-KIC-9416d9 affine SAT
+      - KR-IC-5765d2 SAT versus F4
+      - overhead fraction, meet-in-the-middle
+      web: []
+      blocked:
+      - no external paper was opened in this session
+      note: Nearest KR-IC row files were read under knowledge/frontiers/ecdlp/index-calculus/. The KR-IC rows in rows_checked are the index-calculus map pasted in the task at the named commit.
+        KR-RHO-13bf67 was added after the frontier-map match and was read from knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml.
