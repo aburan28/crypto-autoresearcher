@@ -29,6 +29,15 @@ The project separates research into primary roles with separate authority:
 - scope conclusions to the tested curves, parameters, solver, and compute budget;
 - support iterative autonomous research without letting agents silently redefine success.
 
+## Research problems
+
+Track major research and audit blockers in [`problems/`](problems/README.md):
+name the obstruction, cite what is known, state what would unblock it, and
+record the next discriminating experiment or proof obligation. These records
+link to existing goal impediments and decisions; they do not change goal or
+hypothesis status. Follow the [agent rule](AGENTS.md#name-the-obstruction) and
+[problem template](problems/TEMPLATE.md).
+
 ## Research direction
 
 What counts as a target result is defined in

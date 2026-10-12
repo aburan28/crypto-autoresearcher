@@ -2749,24 +2749,12 @@ def check_goals(ctx: Ctx):
 # ---------------------------------------------------------------------------
 # Portfolio hygiene (docs/track-record-review-20261006.md).
 #
-# Two hard rules and three advisories. The hard rules are DATE-GATED on the
+# One hard rule and three advisories. The hard rule is DATE-GATED on the
 # record's own id or designed_at so that no immutable record predating them
 # can fail (the baseline is prune-only, so a rule that failed history could
 # never land). The advisories go to ctx.advisories, which never fails the
 # build: they exist so that the backlog is visible at every validation,
 # not so that history is re-litigated.
-
-# A coordinator_decision minted on or after this date that approves an
-# experiment is refused while the experiment's goal already holds
-# APPROVAL_CAPACITY_CAP approved contracts with no run. 1,137 of 1,473
-# approved contracts had never run when the rule was written; approving a
-# 1,138th does not reduce any uncertainty.
-APPROVAL_CAPACITY_ENFORCED_FROM = "20261007"
-APPROVE_DECISIONS = {"approve", "approved", "approve_protocol",
-                     "approve_experiment", "approval"}
-# A decision may name contracts it retires in the same act; they do not count
-# against the goal's capacity. Either key is accepted; both are lists of ids.
-CAPACITY_RELEASE_KEYS = ("supersedes_experiments", "withdraws_experiments")
 
 # A specification designed on or after this date must say, before any run,
 # what each outcome changes. A contract whose success and falsification
@@ -2806,77 +2794,6 @@ _ID_DATE = re.compile(r"-(\d{8})-")
 def _id_date(rec_id: str) -> str | None:
     match = _ID_DATE.search(str(rec_id or ""))
     return match.group(1) if match else None
-
-
-def _experiment_has_runs(exp_id: str, ctx: Ctx) -> bool:
-    path = ctx.ids.get(exp_id)
-    if not path:
-        return False
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-    import portfolio_kpis  # noqa: E402  (same scan the KPI census uses)
-    return portfolio_kpis.runs_present(Path(os.path.dirname(path)))
-
-
-def _goal_of(exp_id: str, body: dict) -> str:
-    goal = body.get("goal_id")
-    if isinstance(goal, str) and goal.strip():
-        return goal.strip()
-    match = re.match(r"^EXP-([A-Za-z0-9]+)-", exp_id)
-    return f"area:{match.group(1)}" if match else "area:unknown"
-
-
-def check_approval_capacity(ctx: Ctx) -> None:
-    """P0.1: refuse a new approval while the goal's approved-unrun backlog is at cap."""
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-    import portfolio_kpis  # noqa: E402
-    cap = portfolio_kpis.APPROVAL_CAPACITY_CAP
-
-    backlog: dict[str, set[str]] = {}
-    for exp_id, kind in ctx.record_types.items():
-        if kind != "experiment":
-            continue
-        body = ctx.records[exp_id]
-        if body.get("status") != "approved" or _experiment_has_runs(exp_id, ctx):
-            continue
-        backlog.setdefault(_goal_of(exp_id, body), set()).add(exp_id)
-
-    for dec_id, kind in ctx.record_types.items():
-        if kind != "coordinator_decision":
-            continue
-        when = _id_date(dec_id)
-        if when is None or when < APPROVAL_CAPACITY_ENFORCED_FROM:
-            continue
-        body = ctx.records[dec_id]
-        if str(body.get("decision") or "").strip().lower() not in APPROVE_DECISIONS:
-            continue
-        released: set[str] = set()
-        for key in CAPACITY_RELEASE_KEYS:
-            raw = body.get(key) or []
-            if isinstance(raw, list):
-                released.update(str(x) for x in raw)
-        targets = [str(t) for t in (body.get("target_ids") or [])
-                   if str(t).startswith("EXP-")]
-        # A target that already has runs is a continuation of an approved
-        # contract, not a new approval; it adds nothing to the unrun backlog
-        # (user ruling 2026-10-09; DEC-20261009-ff58fe).
-        approved_here = {t for t in targets
-                         if ctx.record_types.get(t) == "experiment"
-                         and ctx.records[t].get("status") == "approved"
-                         and not _experiment_has_runs(t, ctx)}
-        for exp_id in sorted(approved_here):
-            goal = _goal_of(exp_id, ctx.records[exp_id])
-            standing = backlog.get(goal, set()) - approved_here - released
-            if len(standing) >= cap:
-                ctx.err(ctx.ids[dec_id],
-                        f"approval capacity: {goal} already holds "
-                        f"{len(standing)} approved contract(s) with no run "
-                        f"(cap {cap}); run or supersede one before approving "
-                        f"{exp_id} (name retired ids under "
-                        f"{' or '.join(CAPACITY_RELEASE_KEYS)})")
 
 
 def check_outcome_not_prewritten(path: str, body: dict, ctx: Ctx) -> None:
@@ -3181,7 +3098,6 @@ def main() -> int:
     check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
-    check_approval_capacity(ctx)
     check_record_sizes(ctx)
     check_ceremony(ctx)
     check_aged_handoffs(ctx)

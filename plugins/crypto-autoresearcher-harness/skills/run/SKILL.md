@@ -24,13 +24,17 @@ python3 tools/newest_experiments.py --limit 3 --json
 
 Use `--experiment <ID>` or `--goal <ID>` for named scope. The list is
 decision-aware and readiness-first: committed `DEC-*` holds are already applied,
-and within each priority group `ready` rows (a committed launcher or trial plan)
+and within each priority group `ready` rows (a committed launcher or trial plan
+with a valid dispatch queue entry)
 sort above `needs_implementation_or_plan`, so the top rows are the ones that can
-start now. Each row carries `off_main_runs`: branches not yet on `main` that
+proceed to dispatcher admission and claim. Each row carries `off_main_runs`: branches not yet on `main` that
 already hold run records for that experiment. A non-empty value means someone
 executed it elsewhere; name it in the report and do not run the same trials
 again. The `needs_implementation_or_plan` label is a preparation hint: look for
 the existing documented launcher before declaring that experiment unavailable.
+`needs_dispatch_queue` means a trial plan exists but its queue is a placeholder
+or does not list its executor task; report that coordination impediment and
+continue with `ready` rows.
 Do not invent a new experiment, recover private keys, or turn this skill into an
 autonomous attack workflow; mathematical experiments use public synthetic inputs.
 

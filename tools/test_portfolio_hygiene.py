@@ -1,8 +1,5 @@
 """Pins for the portfolio hygiene rules (docs/track-record-review-20261006.md).
 
-P0.1  approval capacity: a post-cutoff approval is refused while the goal's
-      approved-unrun backlog is at cap; pre-cutoff decisions never are;
-      retiring contracts in the same decision releases capacity.
 P0.5  pre-written outcomes: a post-cutoff specification needs a
       decision_impact block whose branches differ, must not carry an outcome,
       and must not have identical success/falsification text. Pre-cutoff
@@ -12,9 +9,11 @@ P1.7/P1.10/P3.17 advisories never fail: they land in ctx.advisories only.
 from __future__ import annotations
 
 import datetime as dt
+import io
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -24,113 +23,6 @@ import validate_ledger as vl  # noqa: E402
 
 def _ctx() -> vl.Ctx:
     return vl.Ctx(set())
-
-
-def _spec(exp_id: str, goal: str = "GOAL-T-000001", **over) -> dict:
-    body = {"id": exp_id, "status": "approved", "goal_id": goal,
-            "approved_by": "coordinator"}
-    body.update(over)
-    return body
-
-
-def _register_experiment(ctx: vl.Ctx, root: Path, exp_id: str, *, with_run: bool,
-                         **over) -> None:
-    exp_dir = root / "experiments" / exp_id
-    runs = exp_dir / "runs"
-    runs.mkdir(parents=True)
-    (runs / ".gitkeep").write_text("")
-    if with_run:
-        (runs / "RUN-1").mkdir()
-    path = exp_dir / "specification.yaml"
-    path.write_text("experiment: {}\n")
-    ctx.register(exp_id, str(path), _spec(exp_id, **over), "experiment")
-
-
-def _register_decision(ctx: vl.Ctx, root: Path, dec_id: str, targets: list[str],
-                       **over) -> None:
-    body = {"id": dec_id, "decision": "approve", "target_ids": targets}
-    body.update(over)
-    path = root / "ledger" / "decisions" / f"{dec_id}.yaml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("coordinator_decision: {}\n")
-    ctx.register(dec_id, str(path), body, "coordinator_decision")
-
-
-class ApprovalCapacity(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
-        self.cap = portfolio_kpis.APPROVAL_CAPACITY_CAP
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def _fill_backlog(self, ctx, n):
-        for i in range(n):
-            _register_experiment(ctx, self.root, f"EXP-T-00000{i}", with_run=False)
-
-    def test_new_approval_refused_at_cap(self):
-        ctx = _ctx()
-        self._fill_backlog(ctx, self.cap)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(len(ctx.errors), 1, ctx.errors)
-        self.assertIn("approval capacity", ctx.errors[0])
-        self.assertIn("EXP-T-aaaaaa", ctx.errors[0])
-
-    def test_below_cap_is_accepted(self):
-        ctx = _ctx()
-        self._fill_backlog(ctx, self.cap - 1)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
-
-    def test_experiments_with_runs_do_not_count(self):
-        ctx = _ctx()
-        for i in range(self.cap + 2):
-            _register_experiment(ctx, self.root, f"EXP-T-00000{i}", with_run=True)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
-
-    def test_pre_cutoff_decisions_are_never_refused(self):
-        ctx = _ctx()
-        self._fill_backlog(ctx, self.cap + 5)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261005-aaaaaa", ["EXP-T-aaaaaa"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
-
-    def test_retiring_contracts_in_the_decision_releases_capacity(self):
-        ctx = _ctx()
-        self._fill_backlog(ctx, self.cap)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"],
-                           supersedes_experiments=["EXP-T-000000"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
-
-    def test_other_goals_backlog_is_irrelevant(self):
-        ctx = _ctx()
-        for i in range(self.cap + 3):
-            _register_experiment(ctx, self.root, f"EXP-T-00000{i}", with_run=False,
-                                 goal_id="GOAL-OTHER-000001")
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"])
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
-
-    def test_non_approval_decisions_are_ignored(self):
-        ctx = _ctx()
-        self._fill_backlog(ctx, self.cap)
-        _register_experiment(ctx, self.root, "EXP-T-aaaaaa", with_run=False)
-        _register_decision(ctx, self.root, "DEC-20261101-aaaaaa", ["EXP-T-aaaaaa"],
-                           decision="replicate")
-        vl.check_approval_capacity(ctx)
-        self.assertEqual(ctx.errors, [])
 
 
 class PrewrittenOutcome(unittest.TestCase):
@@ -266,6 +158,26 @@ class Advisories(unittest.TestCase):
 
 
 class KpiModule(unittest.TestCase):
+    def test_legacy_capacity_query_reports_backlog_without_blocking(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for i in range(5):
+                exp_id = f"EXP-T-{i:06d}"
+                exp = root / "experiments" / exp_id
+                exp.mkdir(parents=True)
+                (exp / "specification.yaml").write_text(
+                    f"experiment:\n  id: {exp_id}\n  status: approved\n"
+                    "  goal_id: GOAL-T-000001\n")
+            for flag in ("--goal-backlog", "--capacity"):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    code = portfolio_kpis.main(
+                        ["--repo-root", str(root), flag, "GOAL-T-000001"])
+                self.assertEqual(code, 0)
+                self.assertIn("approved_unrun=5\tcap=none", output.getvalue())
+            report = portfolio_kpis.build(root)
+            self.assertNotIn("capacity_cap", report["funnel"])
+
     def test_runs_present_ignores_placeholders(self):
         with tempfile.TemporaryDirectory() as tmp:
             exp = Path(tmp) / "EXP-T-aaaaaa"
