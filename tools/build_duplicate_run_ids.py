@@ -41,6 +41,10 @@ import os
 import sys
 
 import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,7 +69,7 @@ def collisions() -> dict:
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
         try:
-            body = (yaml.safe_load(open(path, encoding="utf-8")) or {}).get("run")
+            body = (fast_yaml.safe_load(open(path, encoding="utf-8")) or {}).get("run")
         except yaml.YAMLError:
             continue                      # unparseable manifests are their own error
         if not isinstance(body, dict):
@@ -81,7 +85,7 @@ def collisions() -> dict:
             continue
         entries, tiers = [], set()
         for rel in sorted(paths):
-            body = (yaml.safe_load(open(os.path.join(REPO, rel),
+            body = (fast_yaml.safe_load(open(os.path.join(REPO, rel),
                                         encoding="utf-8")) or {}).get("run") or {}
             params = (body.get("inputs") or {}).get("parameters") or {}
             tier = _tier(params)
@@ -142,7 +146,7 @@ def main() -> int:
         print(f"FAIL: {os.path.relpath(MAP_PATH, REPO)} is missing",
               file=sys.stderr)
         return 1
-    frozen = yaml.safe_load(open(MAP_PATH, encoding="utf-8")) or {}
+    frozen = fast_yaml.safe_load(open(MAP_PATH, encoding="utf-8")) or {}
     frozen_ids = set(frozen.get("records") or {})
     current_ids = set(current["records"])
     added = sorted(current_ids - frozen_ids)

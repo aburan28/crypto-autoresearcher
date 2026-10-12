@@ -1,0 +1,187 @@
+idea:
+  id: IDEA-20261005-bd02d9
+  question_id: RQ-NTRU-9015ee
+  added: '2026-10-05'
+  status: proposed
+  approved_by: null
+  title: Dense-sublattice transition only above the ternary NTRU fatigue curve
+  class: control
+  claim: >-
+    For ternary NTRU at n=64 in Z[x]/(x^64+1), lattice dimension 128, the
+    dense-sublattice transition is present at q=1024 and absent at q=32, where
+    the reported fatigue value is q ~ 0.004*n^2.484 (about 123 at n=64, so the
+    ratios are about 8.3 and about 0.26). The same transition is absent on a
+    cyclotomic ideal lattice of dimension 128 and on a rank-2 module lattice of
+    dimension 128 that is not NTRU-shaped, including when that module lattice
+    uses q=1024. Below the fatigue point the transition is absent. This record
+    does not move the fatigue exponent, does not claim Ring-LWE is broken, and
+    does not claim a bit-security improvement.
+  mechanism: >-
+    The tracked object is the dense sublattice of an NTRU lattice, seen as the
+    Z-shape in the reduction profile or as secret-key information at a block
+    size below the LWE-style estimate. KN-TECH-045 reports that object for
+    ternary NTRU once q crosses 0.004*n^2.484. The projection is lossy: it
+    keeps the unusually dense secret span and discards the rest of the lattice,
+    and it propagates under reduction only when that span is present. A
+    cyclotomic ideal's class group and log-unit lattice do not plant this
+    span. A coefficient isometry of an ML-KEM-shaped module lattice does not
+    plant it. Crossing the fatigue ratio is the switch; ring class-group
+    structure and coefficient isometries are not.
+  novelty_status: unverified
+  citations:
+    - ref: KN-TECH-045
+      provenance: internal
+      claim: >-
+        Fatigue point for ternary NTRU at q ~ 0.004*n^2.484; above it, BKZ
+        finds secret-key information at substantially lower block size than the
+        LWE-style estimate. Constant 0.004 and exponent 2.484 were not
+        re-derived. Read from knowledge/techniques/KN-TECH-045.md.
+      verified_by: knowledge/techniques/KN-TECH-045.md
+    - ref: RQ-NTRU-9015ee
+      provenance: internal
+      claim: >-
+        The question asks where the dense-sublattice transition sits at toy
+        dimension and requires a planted-null lattice of the same dimension
+        and determinant. Read from ledger/questions/RQ-NTRU-9015ee.yaml.
+      verified_by: ledger/questions/RQ-NTRU-9015ee.yaml
+  assumptions:
+    - Ternary secrets, the distribution the reported constant is stated for. Other secret laws are out of scope.
+    - >-
+      The harness computes r = q/(0.004*n^2.484) and keeps the cell only if
+      q=32 has r<1 and q=1024 has r>1 at n=64. Hand arithmetic (curve ≈ 123,
+      r ≈ 0.26 and r ≈ 8.3) is a label, not an input.
+    - >-
+      "ML-KEM-shaped" here means module rank k=2 over Z[x]/(x^64+1), centered
+      binomial or uniform ternary secrets, no NTRU trapdoor. It is not a FIPS
+      203 parameter set.
+  predictions:
+    - metric: dense_sublattice_detected
+      direction: different
+      minimum_effect: >-
+        Detected in the single cell ternary NTRU, n=64, q=1024 (r>1), and not
+        detected at q=32 (r<1), not on the degree-128 cyclotomic ideal of
+        dimension 128, and not on the k=2 module lattice of dimension 128 at
+        q=1024.
+  minimal_test:
+    design: >-
+      Sweep BKZ profiles at n=64, dimension 128. Cell N+: ternary NTRU,
+      Z[x]/(x^64+1), q=1024. Cell N-: the same NTRU lattice at q=32. Cell I:
+      cyclotomic ideal lattice in Z[x]/(x^128+1), dimension 128, no NTRU
+      public key. Cell M: module lattice k=2, ring Z[x]/(x^64+1), dimension
+      128, q=1024, secrets ternary or centered binomial, public matrix not of
+      the form h = g*f^{-1}. Detect the transition by the Z-shape of the
+      profile, and record the block size at which a short vector tied to the
+      secret appears, against the LWE-style block-size estimate at the same
+      dimension and determinant.
+    controls:
+      - Ternary NTRU below the reported fatigue curve (q=32).
+      - Cyclotomic ideal lattice, same dimension, not NTRU-shaped.
+      - Module lattice, same dimension and a large modulus, not NTRU-shaped.
+      - Random q-ary lattice of dimension 128 and the same determinant as N+, with no planted dense sublattice.
+    required_metrics:
+      - dense_sublattice_detected in {0,1} per cell
+      - fatigue ratio r = q/(0.004*64^2.484) on N+ and N-
+      - observed block size and the LWE-style block-size estimate on each cell
+      - whether any log-unit certificate appeared (must stay 0; if it is 1, the cell is the other line)
+  falsification_conditions:
+    - >-
+      The transition is detected on the ideal cell or on the module cell. It
+      is then not specific to overstretched NTRU.
+    - >-
+      The transition is detected at q=32 on ternary NTRU, with the harness
+      confirming r<1. The reported curve does not separate this toy point, or
+      the detector fires without the dense sublattice.
+    - >-
+      The transition is absent at q=1024 on ternary NTRU, with the harness
+      confirming r>1, while the detector does fire on a lattice with a planted
+      dense sublattice of the same dimension. This design does not see the
+      published transition.
+    - >-
+      The ideal cell produces a log-unit certificate and no Z-shape, and that
+      pattern is scored as fatigue. That observation belongs to the
+      class-group line.
+  confounders:
+    - >-
+      KN-TECH-045 states that non-ternary secrets shift the fatigue point and
+      that this corpus does not record by how much. A non-ternary cell is not
+      a falsifier of the ternary statement.
+    - Small n makes a convenient q overstretched. The ratio check is the guard.
+    - Unequal determinant across cells mimics a shorter vector. The random q-ary control matches dimension and determinant.
+    - Solver failure, timeout, or memory exhaustion is an infrastructure outcome, not absence of a sublattice.
+  interpretation_limits:
+    - Toy n=64 only. No statement about sntrup761, NTRU-HPS, or any deployed parameter set.
+    - Being below the fatigue point is not a security argument.
+    - Does not claim Ring-LWE is broken and does not claim a bit-security improvement.
+    - >-
+      RQ-NTRU-9015ee withholds recorded measurements until the fatigue-point
+      reference and the submission specifications are filed as KN-LIT entries.
+      This record is the control statement, not that measurement.
+    - >-
+      A log-unit certificate at approximation factor exp(O~(sqrt(n))) is the
+      class-group line. A 2–15 bit gap that vanishes when coefficient
+      isometries are removed is the isometry line.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For ternary NTRU, the dense-sublattice transition sits at
+        q ~ 0.004 * n^2.484. Above that curve, reduction sees the sublattice
+        at lower block size than the LWE-style estimate. Below it, the
+        transition is absent. The exponent 2.484 and the constant 0.004 are
+        reported, not re-derived.
+      rigorous_support: >-
+        KN-TECH-045 reports the concrete curve and the asymptotic
+        q = n^(2.484+o(1)) from the KN-LIT-114 abstract, and reports the
+        earlier Kirchner-Fouque upper bound n^(2.783+o(1)) at second hand.
+        Neither number was reproduced in this session.
+      validation_plan: >-
+        Toy measurement at n=64, ring Z[x]/(x^64+1), ternary secrets, q=32
+        and q=1024, lattice dimension 128. The harness evaluates
+        r = q/(0.004*n^2.484) and requires r(q=32)<1 and r(q=1024)>1 before
+        comparing detection bits. Negative cells: degree-128 cyclotomic ideal,
+        and k=2 module lattice at q=1024, both dimension 128. No new fit of
+        the exponent is claimed from one n.
+  target_complexity:
+    time_exponent: >-
+      The BKZ block size at the reported ternary-NTRU fatigue point
+      q ~ 0.004 * n^2.484. This proposal measures whether the transition sits
+      on that curve and does not reduce the block size.
+    memory_exponent: >-
+      Memory of BKZ or sieving at that same fatigue-point block size. This
+      proposal does not move it.
+    best_known: >-
+      Dense-sublattice transition for ternary NTRU at q ~ 0.004 * n^2.484
+      (KN-TECH-045).
+    hidden_overhead: >-
+      The o(1) in q = n^(2.484+o(1)) and the concrete constant 0.004 are
+      reported, not re-derived. No tighter overhead is claimed.
+    tradeoff_note: >-
+      No time-memory tradeoff is proposed. The discriminator is the sign of
+      the fatigue ratio on NTRU-shaped instances only.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP frontier row. The line was read from
+      knowledge/techniques/KN-TECH-045.md.
+    nearest:
+      - ref: KN-TECH-045
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          Quantitative separator is the reported fatigue law
+          q ~ 0.004 * n^2.484 (exponent 2.484, constant 0.004). At n=64 the
+          curve is about 123; the control cells are q=32 (ratio about 0.26)
+          and q=1024 (ratio about 8.3). This record checks where the
+          transition appears. It does not change the exponent.
+  dominated_by: >-
+    Baseline named: the reported ternary-NTRU fatigue-point block size, the
+    block size at which BKZ sees the dense sublattice once q crosses
+    0.004 * n^2.484 (KN-TECH-045), not beaten. n/a (no attack result claimed)
+  sota_delta: >-
+    Not an attack claim. Numeric separator: the fatigue ratio
+    r = q / (0.004 * n^2.484). At n=64 the reported curve is about 123; test
+    cells are q=32 (r about 0.26, below) and q=1024 (r about 8.3, above). The
+    proposal does not move the exponent 2.484.

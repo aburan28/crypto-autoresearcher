@@ -21,6 +21,8 @@ from typing import Any
 
 import yaml
 
+from orchestration import fast_yaml
+
 
 class ProjectionError(ValueError):
     """Raised when a read-only legacy projection cannot be built safely."""
@@ -96,7 +98,7 @@ class MaterializedGoal:
 
 def _read_yaml(path: Path) -> dict[str, Any]:
     try:
-        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        document = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise ProjectionError(f"cannot read {path}: {exc}") from exc
     if not isinstance(document, dict):
