@@ -40,6 +40,11 @@ from typing import Any
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = Path(__file__).resolve().parents[1]
 RECEIPTS_DIR = Path("coordination") / "sessions" / "receipts"
 SCHEMA = "crypto.autoresearch.session_receipt.v1"
@@ -161,7 +166,7 @@ def load_all(repo_root: Path) -> list[dict[str, Any]]:
     rows = []
     for path in sorted(root.rglob("SR-*.yaml")):
         try:
-            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+            doc = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
         except yaml.YAMLError:
             continue
         if isinstance(doc, dict) and doc.get("schema") == SCHEMA:

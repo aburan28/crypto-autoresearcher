@@ -243,6 +243,31 @@ def test_resolves_to_a_concrete_model_on_the_default_backend(cfg):
     assert resolution.reasoning_effort == "high"
 
 
+@pytest.mark.parametrize("backend,model", [
+    ("anthropic", "claude-opus-5-5"),
+    ("anthropic-fable", "claude-fable-5-1"),
+    ("anthropic-mythos", "claude-mythos-5"),
+    ("zai-glm53", "glm-5.3"),
+    ("openai-gpt6", "gpt-6-sol"),
+    ("openai-gpt61", "gpt-6.1-sol"),
+])
+@pytest.mark.parametrize("policy", [
+    "coordinator-orchestration-code", "coordinator-orchestration",
+])
+def test_explicit_coordinator_model_selection(cfg, backend, model, policy):
+    resolution = adapter.resolve(
+        cfg, policy, backend=backend, env={})
+    assert resolution.resolved_model_id == model
+    assert resolution.fallback_used is False
+    assert resolution.degraded_requirements == []
+    assert resolution.model_provenance == "operator-supplied"
+
+
+def test_coordinator_variant_does_not_bind_other_roles(cfg):
+    with pytest.raises(resolver_module.ResolutionError, match="model is unbound"):
+        adapter.resolve(cfg, "research-deep", backend="openai-gpt61", env={})
+
+
 def _pin_zai_review_below_floor(cfg):
     """Force the zai review-adversarial binding below the policy's effort floor.
 
@@ -388,11 +413,11 @@ def test_anthropic_request_shape(cfg):
 
 
 def test_every_claude_5_binding_is_adaptive_and_sends_no_budget(cfg):
-    """A `budget_tokens` on Opus 5 / Sonnet 5 is rejected by the API."""
+    """A `budget_tokens` on any Claude 5 model is rejected by the API."""
     checked = 0
     for policy_id, binding in cfg.binding_table["anthropic"].items():
         model = binding.get("model") or ""
-        if not (model.startswith("claude-opus-5") or model.startswith("claude-sonnet-5")):
+        if not model.startswith(("claude-opus-5", "claude-sonnet-5", "claude-haiku-5")):
             continue
         mode = (binding.get("request") or {}).get("reasoning", {}).get("mode")
         assert mode == "anthropic_adaptive", f"{policy_id} on {model} uses {mode!r}"
@@ -714,12 +739,25 @@ def test_calibration_reaches_the_anthropic_wire(cfg):
 
 
 def test_thinking_off_lets_temperature_through(cfg):
-    """Extended thinking pins temperature; the mechanical tier wants it at 0."""
-    resolution = adapter.resolve(cfg, "executor-mechanical", backend="anthropic",
-                                 env={})
-    _, _, body = adapter.build_request(
-        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
-        env={"ANTHROPIC_API_KEY": "k"})
+    """Extended thinking pins temperature; a pre-Claude-5 model at budget 0 may
+    take temperature 0. No live anthropic binding uses this mode since the
+    mechanical tier moved to Haiku 5.5, so the wire path is exercised on a
+    temporary binding rather than left untested."""
+    original = cfg.binding_table["anthropic"]["executor-mechanical"]
+    legacy = deepcopy(original)
+    legacy["model"] = "claude-haiku-4-5-20251001"
+    legacy["request"] = {"max_tokens": 16000, "temperature": 0.0,
+                         "reasoning": {"mode": "anthropic_thinking",
+                                       "budget_by_effort": {"none": 0, "low": 0, "medium": 4000}}}
+    cfg.binding_table["anthropic"]["executor-mechanical"] = legacy
+    try:
+        resolution = adapter.resolve(cfg, "executor-mechanical", backend="anthropic",
+                                     env={})
+        _, _, body = adapter.build_request(
+            cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+            env={"ANTHROPIC_API_KEY": "k"})
+    finally:
+        cfg.binding_table["anthropic"]["executor-mechanical"] = original
     assert "thinking" not in body
     assert body["temperature"] == 0.0
 
