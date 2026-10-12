@@ -1,0 +1,1 @@
+Exploratory tooling checks preceded the frozen follow-up. initial-ranks used the automatic Sha uplift; do not use its cubic result as a certificate. cubic-rank-refinement disabled the general-case uplift and found enough cosets for exact rank 3 at LIMTRIV=4. The final campaign source disables both uplift branches and logs each class/unit certificate.

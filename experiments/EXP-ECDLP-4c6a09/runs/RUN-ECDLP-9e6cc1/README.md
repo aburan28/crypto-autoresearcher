@@ -1,0 +1,23 @@
+# RUN-ECDLP-9e6cc1 — seeded random cubic fields
+
+Additive public synthetic measurements for EXP-ECDLP-4c6a09, requested by the user on 2026-10-11 UTC. The frozen plan selects 24 distinct random cubic number fields from three seeded polynomial draws; no rank/root/coverage outcome influences acceptance. Original fields, rejected draws and pairwise isomorphism check logs are retained. No previous result or hypothesis/frontier status was changed.
+
+Principal results are `benchmark-attempt-02/raw-result.json`: 104 eligible field/model/prime cases, 40 absent degree-one reductions, 1,075 correct recoveries across 1,664 repeated target attempts. Six groups and 96 unique synthetic targets are copied byte-for-byte from RUN-ECDLP-6d910b. The earlier all-unavailable `benchmark-attempt-01` followed an implementation failure and is not the scientific result. Rank records contain 28 exact results, 11 intervals and 9 watchdog stops. Points from unresolved rank attempts are not claimed complete; rational fallback is labeled.
+
+`point-preparation-attempt-02` checks seeds over K and compares all exact-K grid reductions entry-for-entry with cached F_p generation. `additional-generic-controls` computes only the six sizes missing from the inherited generic size grid 9,81,729,6561,ceil(sqrt(ell)). Censored controls are retained. The best control is selected among declared full-recovery controls; its table size may exceed an algebraic table. Equal-entry comparisons are also reported. Table sizes and actual stored points accompany work counts.
+
+Executed commands, in order (all with Python 3.12.14, PARI/GP 2.17.2):
+
+1. `source/prepare_random.py` froze the plan and candidate draws.
+2. `source/random_campaign.py` successfully drew/checked fields, then failed parsing PARI's trailing column-vector tilde. Its source, GP output and driver traceback are retained.
+3. `source/random_campaign_attempt02.py` reused that exact sampler output and ran 48 certified-data descents (two concurrent GP processes, each a 120-second process watchdog).
+4. `source/add_generic_controls.py` completed missing generic table sizes under its premeasurement addendum.
+5. `source/prepare_random_tables.py` failed because its GP execution command was on the function-definition line. All exports were rejected for missing terminal markers; the intermediate benchmark recorded unavailable computations. No output was accepted as a measurement.
+6. `source/prepare_random_tables_attempt02.py` corrected that script boundary and exported all 48 checked sets; exact grids use only B=4, three repetitions, two GP workers and a 180-second watchdog.
+7. `source/benchmark_random_fields_attempt02.py` measured the 104 eligible cases with the unchanged inherited public solver `shared_relations.solve_batch` and instrumentation. The solver receives no synthetic target truth; held truth checks its returned answers.
+
+Each script derives its output root from its own location except the frozen bootstrap, whose paths are explicit. Never rerun into these immutable directories. Replay GP `input.gp` scripts with `/workspace/solinas-runtime/pari/usr/bin/gp -q -f -s 128M` and `LD_LIBRARY_PATH=/workspace/solinas-runtime/pari/usr/lib/x86_64-linux-gnu`, writing output elsewhere, or copy the source and inputs to a fresh run directory and use fresh stage names. Replaying the corrected campaign also requires the retained completed sampler logs, which it deliberately reuses. No private keys or deployed target inputs occur.
+
+Primary counts include cofactor projection, cached finite-field table building and shared target queries. GP exact-K arithmetic, previous descent cost, finite-field witness checks, timing repetitions and synthetic truth checks are separately retained and excluded from those primitive counts. Exact/sign point duplicates are removed before a deterministic four-point cap; finite-field dependencies are measured, not assumed absent. Only G,-G,O seed labels are recognized directly. Global relation rank includes equations about seed logs as well as target logs, so target recovery rate is reported too.
+
+All stdout/stderr, commands, watchdogs, source hashes and failed attempts remain in this run. `historical-inputs-check-after.json` verifies the pinned old inputs and reports were unchanged. `integrity-check.json` pins this run's files. GPL-2 source and provenance are included. Results are observations, without independent scientific review, asymptotic claims or sealed frontier-bound promotion. GitHub publication remains unavailable under the preceding unchanged authentication failure; records are committed locally and supplied in a ZIP.

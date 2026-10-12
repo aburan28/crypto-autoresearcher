@@ -1,0 +1,1 @@
+Exploratory higher-degree smoke skipped bnf certification to isolate its cost. Its CERT_OK labels are inherited debug labels and are NOT certificates; no result from this exploratory smoke is used in the rank report. Final campaign uses UNCERT_BNF markers for unverified class/unit data.
