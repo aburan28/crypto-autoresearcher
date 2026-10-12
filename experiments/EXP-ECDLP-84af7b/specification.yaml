@@ -1,0 +1,247 @@
+# =============================================================================
+# EXP-ECDLP-84af7b -- H-ECDLP-2f1033 (SNFS-G1): cyclotomic lift with complete
+# splitting. Relation yield ratio R(H) and covering exponent gamma of E over
+# subfields K of Q(zeta_c) in which the Mersenne prime p = 2^c - 1 splits
+# completely, against random completely split fields of the same degree.
+# status review_required: IMPLEMENTED, not run. implementation/ is a Rust
+# crate (binary g1 on the nfield library: number-field arithmetic in
+# Q[t]/(g), Gaussian-period polynomials, exact discriminant,
+# complete-splitting check, exact square roots, sup-norm-shell point search,
+# residues at the primes above p, torsion bound, trace relation) with an
+# optional FFI binding to libpari (feature `pari`) for the ellrank-over-Q and
+# nfdisc cross-checks. 2-descent over K is not available anywhere in the
+# container (PARI 2.15 ellrank is over Q only), so the rank arm reports proven
+# non-torsion new points, not rank. Smoke-tested; no run record, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-84af7b
+  hypothesis_id: H-ECDLP-2f1033
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-57140c
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Cyclotomic lift with complete splitting: trace-relation yield ratio R(H),
+    covering exponent gamma and rank gain of rank-0 curves E/Q over subfields
+    K of Q(zeta_c) of degree d <= 12 in which p = 2^c - 1 splits completely,
+    for c in {13, 17, 19, 31}, against random completely split fields of the
+    same degree and the Q(c^{1/d}) ladder of EXP-ECDLP-3e8403
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Measure whether the Galois multiplier of a completely split cyclotomic
+    lift (one K-point gives d residues in E(F_p) and one free trace relation)
+    changes the two quantities a lift-based index calculus needs, relations
+    per residue and residues per unit of enumeration work, relative to a
+    random completely split field of the same degree. H-ECDLP-2f1033
+    predicts R(H) < 1 everywhere and gamma at the random-field value.
+  inputs:
+    primes: "p = 2^c - 1 for c in {13, 17, 19, 31} (8191, 131071, 524287, 2147483647)"
+    fields: >-
+      cyclotomic arm: every subfield K of Q(zeta_c) of degree d | c - 1 with
+      d <= 12 (c = 13: d in {2, 3, 4, 6, 12}; c = 17: {2, 4, 8}; c = 19: {2,
+      3, 6, 9}; c = 31: {2, 3, 5, 6, 10}), given by their defining polynomials
+      (Gaussian periods, computed from the periods' exact symmetric
+      functions); complete splitting of p verified by the defining polynomial
+      having d distinct roots mod p (CTRL-SPLIT). Control arms: (a) abelian
+      controls, the cyclic degree-d subfields of Q(zeta_m) for the three
+      smallest primes m = 1 mod d, m != c, in which p splits completely
+      (p a d-th power residue mod m): the same Galois structure and field
+      type, a different conductor, and p's splitting accidental rather than
+      forced by 2^c = 1 mod p; (b) random controls, two random number fields
+      per (p, d) in which p splits completely, each the candidate among
+      seeded monic polynomials with coefficients in [-3, 3] (first 40
+      irreducible, completely split candidates) whose polynomial root
+      discriminant is closest to the cyclotomic subfield's, the cyclotomic
+      polynomial itself excluded; at d >= 6 the random search usually finds
+      nothing (a random polynomial splits completely at p with probability
+      about 1/d!) and the cell is then recorded as invalid with the reason,
+      so the abelian controls carry the comparison there. Field
+      discriminants: exact m^(d-1) for the cyclic arms (conductor-
+      discriminant formula), PARI nfdisc when gp is present, the polynomial
+      discriminant as an upper bound otherwise, with the source recorded
+      (CTRL-DISC).
+    curves: >-
+      7 rank-0 curves E/Q with good reduction at every p above: y^2 = x^3 - x
+      (32a2), x^3 - 4x, x^3 - 9x (2 and 3 are not congruent), x^3 + 1
+      (36a1), x^3 - 1, Cremona 11a1 and 14a1 (conductors <= 288). Rank 0 is
+      re-verified by PARI/GP ellrank over Q when gp is on PATH (CTRL-RANK0);
+      a curve whose rank bound is not 0 is excluded with the record. Curves
+      with a1 or a3 nonzero are searched on the b-model y^2 = x^3 + (b2/4)
+      x^2 + (b4/2) x + b6/4 so torsion stays at small x; E(Q) finite so
+      Tr(P) is torsion.
+    point_search: >-
+      Enumerate x = a(t)/e with a in Z[t] of degree < d on the power basis of
+      Q[t]/(g), coefficient vectors in sup-norm shells X = 0, 1, 2, ... and
+      denominators e <= 4, sieved by quadratic-residue tests of x^3 + a2 x^2
+      + a4 x + a6 at every root of g modulo 8 auxiliary primes above 10^6 at
+      which g has a root (completely split primes for these Galois fields),
+      then an exact square root in K: factor g modulo a lift prime q, take
+      square roots in the finite fields F_q[t]/(h_j) by Tonelli-Shanks (a
+      non-residue proves a non-square), combine by CRT over all sign
+      patterns, Hensel-lift y and (2y)^-1 in (Z/q^k)[t]/(g) with k doubling,
+      rationally reconstruct and verify y^2 = a exactly. Work ladder W in {300,
+      1000, 3000, 10000, 30000, 100000} candidates tried; each rung is a
+      snapshot of one deterministic enumeration (a shell that fits in twice
+      the remaining budget is exhausted in seeded random order, a larger one
+      is sampled uniformly without replacement). No 2-descent over K.
+    residues_and_relations: >-
+      For each K-point P and each prime P_i | p: r_i(P) = P mod P_i via the
+      embedding O_K -> F_p at P_i; verify sum_i r_i(P) = Tr(P) mod p by exact
+      arithmetic in E(F_p) with T the torsion bound (gcd of #E(F_q) over 6
+      split primes q): [T] sum_i r_i(P) = O (CTRL-TRACE). Distinct residues
+      D(W); relations N(W) = number of K-points found that are not in E(Q)
+      and are proven non-torsion (some reduction has order not dividing T);
+      R(W) = N(W)/D(W); gamma = slope of log D against log W over the last
+      three rungs with D > 0; residue coincidences r_i(P) = r_j(P) counted
+      separately.
+    rank_arm: "no 2-descent over K in the container (PARI/GP ellrank is over Q only): the number of proven non-torsion new K-points is reported per arm; it bounds the rank gain below only if the points are independent, which is not certified; the random-field arm gets the same count by the same code"
+  controls:
+    - "CTRL-SPLIT: p splits completely in K (g has d distinct roots mod p); a cell failing this is invalid, not evidence."
+    - "CTRL-TRACE: every trace relation [T] sum_i r_i(P) = O is verified in E(F_p) exactly; a failure invalidates the cell."
+    - "CTRL-RANK0: each E/Q has rank 0 by PARI/GP ellrank over Q when gp is present; a curve failing it is excluded with the record."
+    - "CTRL-ABELIAN: three cyclic degree-d fields of prime conductor m != c in which p splits completely, same curves, same ladder, same code."
+    - "CTRL-RANDOM-FIELD: two random completely split fields per (p, d) where the seeded search finds them, same curves, same ladder, same code; a (p, d) with none is recorded as such."
+    - "CTRL-DISC: field discriminant m^(d-1) by the conductor-discriminant formula on the cyclic arms, checked against PARI nfdisc when gp is present (recorded as agreeing or not); polynomial discriminant always recorded."
+    - "CTRL-D1: the d = 1 cell (K = Q) runs with the same code as an instrument baseline and is reported beside EXP-ECDLP-3e8403's Q-lift gamma (that contract's box ladder is not reproduced numerically; the enumeration here is by work W on sup-norm shells)."
+    - "CTRL-COINCIDENCE: residue coincidences r_i(P) = r_j(P) and residues shared between distinct K-points are counted and reported separately."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "c in {13, 17, 19, 31}"
+    - "field arm: cyclotomic subfield (conductor c) | abelian control (conductor m != c) | random completely split field"
+    - "degree d (as listed) and W on the work ladder"
+    - "curve 1..7"
+  metrics:
+    primary:
+      - relation_yield_ratio_R_X_per_cell_and_its_maximum
+      - covering_exponent_gamma_cyclotomic_minus_abelian_control_per_degree
+      - covering_exponent_gamma_cyclotomic_minus_random_field_per_degree
+      - new_nontorsion_points_cyclotomic_minus_control_per_degree_and_arm
+    secondary:
+      - residue_coincidence_counts
+      - complete_splitting_verified_cells
+      - smallest_nontorsion_height_over_log_p
+      - enumeration_work_per_rung
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: R(W), gamma and the new non-torsion point count on the cyclotomic arm relative to the control arms
+    formula: >-
+      max_W R(W) < 1 on every cyclotomic cell with R non-increasing over the
+      last three rungs; |gamma_cyc - gamma_ctrl| <= 0.2 at every d against
+      the abelian controls and, where they exist, the random controls (means
+      over curves and seeds); new non-torsion point counts within sampling
+      error of each control arm; zero CTRL-TRACE failures.
+    source: >-
+      HEUR-001 of H-ECDLP-2f1033 (canonical height; KN-LIT-6935a1 face F4b;
+      KN-LIT-021); the trace relation is an identity.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Four toy Mersenne primes and conductors <= 200; the quantities are
+      ratios and exponents whose scale dependence is itself the measurement
+      (across c). Nothing is extrapolated.
+    correspondence: null
+  tail_checks:
+    - Report the cell with the largest R(W) and the cell with the largest gamma excess, with their fields and curves.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 60
+    maximum_memory_gb: 4
+    maximum_runs: 12
+  stopping_rules:
+    - Stop a (p, d) cell when the ladder is exhausted or 14400 s elapse; record what completed, never as evidence.
+    - Extend the ladder beyond W = 100000 only by amendment.
+  invalidation_rules:
+    - A CTRL-SPLIT or CTRL-TRACE failure invalidates the cell.
+    - A curve found to have positive rank over Q invalidates its cells (the trace relation is then not free).
+    - A CTRL-REPLAY failure (seeded replay not byte-identical) invalidates the run (instrument).
+  success_criterion: >-
+    Every cyclotomic cell has max_W R(W) < 1 with R non-increasing over the
+    last three rungs, every degree has |gamma_cyc - gamma_ctrl| <= 0.2 against
+    the abelian controls (and the random controls where found), new
+    non-torsion point counts match the control arms within sampling error, and
+    all controls pass: the Galois multiplier changes neither relations per
+    residue nor the covering exponent.
+  falsification_criterion: >-
+    A cyclotomic cell with R(W) >= 1 while its abelian and random controls
+    stay below 1, reproduced at a second prime, or a degree with gamma_cyc -
+    gamma_ctrl > 0.2 against the abelian controls across >= 3 primes, with CTRL-SPLIT and CTRL-TRACE
+    passing (HEUR-001 of H-ECDLP-2f1033 fails: the alive condition of
+    SNFS-G1).
+  decision_impact:
+    on_positive: >-
+      The Coordinator records that complete splitting and the trace relation
+      add nothing to the lift obstruction in the tested scope, cites the
+      table beside EXP-ECDLP-3e8403 in the special-prime battery synthesis,
+      and does not open a cyclotomic-lift lane.
+    on_negative: >-
+      An independent re-implementation (different field arithmetic) is
+      dispatched before any interpretation; on reproduction a new RQ on the
+      mechanism is opened under review-breakthrough routing, because a yield
+      ratio >= 1 contradicts the height obstruction as understood.
+  required_artifacts:
+    - experiments/EXP-ECDLP-84af7b/specification.yaml
+    - experiments/EXP-ECDLP-84af7b/implementation/Cargo.toml
+    - experiments/EXP-ECDLP-84af7b/implementation/Cargo.lock
+    - experiments/EXP-ECDLP-84af7b/implementation/src/main.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/Cargo.toml
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/build.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/lib.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/field.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/ecnf.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/modpoly.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/rng.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/src/gp.rs
+    - experiments/EXP-ECDLP-84af7b/implementation/nfield/csrc/pari_shim.c
+    - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      cargo run --release --features pari --manifest-path
+      experiments/EXP-ECDLP-84af7b/implementation/Cargo.toml --bin g1 -- --c 13
+      17 19 31 --dmax 12 --ladder 300 1000 3000 10000 30000 100000 --curves 7
+      --abelian-controls 3 --random-fields 2 --seeds 1 2 3 --aux-primes 8 --out
+      experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>
+    build_requirements: >-
+      Rust 1.97 (cargo, crates.io for num-bigint 0.4, num-rational 0.4,
+      num-integer 0.1, num-traits 0.2, serde_json 1, sha2 0.10, cc 1); the
+      `pari` feature additionally needs libpari-dev and libgmp-dev (apt) and a
+      C compiler for nfield/csrc/pari_shim.c. Without the feature the same
+      binary builds and runs; CTRL-RANK0 and the nfdisc cross-check are then
+      recorded as absent.
+    runnable_state_at_design: >-
+      RUNNABLE. implementation/ is a Rust workspace: the nfield library
+      (field.rs: Q[t]/(g) arithmetic on exact rationals, Gaussian-period
+      polynomials of Q(zeta_m), Sylvester-resultant discriminant, roots and
+      complete-splitting test, embeddings, degree-one and lift primes, exact
+      square root by finite-field Tonelli-Shanks, CRT, ring Hensel lifting
+      and rational reconstruction, seeded random completely split fields;
+      modpoly.rs: polynomials over Z/q with distinct-degree and
+      Cantor-Zassenhaus equal-degree factorisation; ecnf.rs: curves over K
+      with an a2 term, finite-field arithmetic, exact and BSGS point counts,
+      sieved sup-norm-shell point search with checkpoints, torsion bound,
+      residues, trace relation; rng.rs: seeded xoshiro256** so replays are
+      byte-identical across machines; gp.rs + csrc/pari_shim.c: optional FFI
+      to libpari for ellrank over Q and nfdisc) and the g1 binary
+      (src/main.rs). Exact arithmetic through num-bigint / num-rational.
+      libpari 2.15.4 is linked in the design container through the `pari`
+      feature and used only for CTRL-RANK0 and CTRL-DISC; the run proceeds
+      without it. 2-descent over K is not available (ellrank is over Q
+      only). Smoke test: --c 13 --dmax 4 --ladder 300 1000 3000 10000
+      --curves 7 --abelian-controls 2 --random-fields 1 --seeds 1 gave 91
+      cells in 11 s, no CTRL-TRACE failure, CTRL-DISC agreeing with libpari on
+      every cyclic field, non-torsion K-points found on all three arms, and a
+      byte-identical replay (CTRL-REPLAY); the deterministic cells reproduce
+      the earlier Python prototype's counts exactly. A full-ladder cell takes
+      0.1 to 1.2 s up to degree 12 (11 cells in 4.4 s), so the default
+      command (about 2600 cells) is estimated at 15 to 30 minutes on one
+      core; shells grow like (2X+1)^d, so at d >= 8 the ladder covers only
+      the first one or two shells, which the shells_completed field records
+      per rung.
+  assigned_to: executor

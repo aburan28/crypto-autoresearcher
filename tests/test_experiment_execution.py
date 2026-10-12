@@ -292,20 +292,67 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaises(execution.ExecutionError):
             execution.load_plan(self.root, self.path)
 
-    def test_address_space_limit_request_is_unchanged(self):
+    def test_platform_memory_guard_selection(self):
         import resource
         self.directory().mkdir(parents=True)
         process = Mock(pid=123456, returncode=0)
         process.poll.return_value = 0
         def spawn(*args, **kwargs):
-            kwargs["preexec_fn"]()
+            if sys.platform == "darwin":
+                self.assertIsNone(kwargs["preexec_fn"])
+            else:
+                kwargs["preexec_fn"]()
             self.assertTrue(kwargs["start_new_session"])
             self.assertEqual(kwargs["pass_fds"], (0,))
             return process
         with patch.object(resource, "setrlimit") as limit, patch.object(execution.subprocess, "Popen", side_effect=spawn), patch.object(execution, "terminate_group") as terminate:
             self.assertEqual(execution.run_process(["fixture"], self.root, self.directory(), "", self.trial(1), {"expires_at": self.expires}, 0), ("exited", 0))
-            limit.assert_called_once_with(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+            if sys.platform == "darwin":
+                limit.assert_not_called()
+            else:
+                limit.assert_called_once_with(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
             terminate.assert_called_once_with(process)
+
+    @unittest.skipUnless(sys.platform == "darwin", "Darwin libproc guard")
+    def test_darwin_memory_guard_allows_small_child_and_stops_over_limit(self):
+        self.directory().mkdir(parents=True)
+        authority = {"expires_at": self.expires}
+        argv = [sys.executable, "-c", "import time; time.sleep(1)"]
+        with open(os.devnull) as lock:
+            self.assertEqual(execution.run_process(
+                argv, self.root, self.directory(), "small.",
+                {"memory_mb": 256, "watchdog_seconds": 5}, authority,
+                lock.fileno()), ("exited", 0))
+            self.assertEqual(execution.run_process(
+                argv, self.root, self.directory(), "limited.",
+                {"memory_mb": 1, "watchdog_seconds": 5}, authority,
+                lock.fileno()), ("memory_limit_exceeded", None))
+
+    @unittest.skipUnless(sys.platform == "darwin", "Darwin libproc guard")
+    def test_darwin_memory_monitor_retries_race_but_fails_closed(self):
+        self.directory().mkdir(parents=True)
+        authority = {"expires_at": self.expires}
+        argv = [sys.executable, "-c", "import time; time.sleep(0.5)"]
+        calls = 0
+        def transient(_pgid):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise execution.ExecutionError("transient libproc result")
+            return 0
+        trial = {"memory_mb": 256, "watchdog_seconds": 5}
+        with open(os.devnull) as lock:
+            with patch.object(execution, "darwin_group_rss_bytes", side_effect=transient):
+                self.assertEqual(execution.run_process(
+                    argv, self.root, self.directory(), "transient.", trial,
+                    authority, lock.fileno()), ("exited", 0))
+            self.assertGreater(calls, 1)
+            with patch.object(execution, "darwin_group_rss_bytes",
+                              side_effect=execution.ExecutionError("monitor unavailable")):
+                with self.assertRaisesRegex(execution.ExecutionError, "monitor unavailable"):
+                    execution.run_process(
+                        argv, self.root, self.directory(), "unavailable.", trial,
+                        authority, lock.fileno())
 
     def test_watchdog_preserves_failure_not_scientific_conclusion(self):
         self.plan["trials"] = [self.trial(1, "sleep")]
