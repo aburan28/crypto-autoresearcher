@@ -1,0 +1,70 @@
+protocol_amendment:
+  experiment_id: EXP-SCURVE-647ade
+  version_from: 2
+  version_to: 3
+  approved_at: '2026-10-06'
+  reason: >-
+    The historical producer and the first independent validator did not share
+    one frozen canonical-set digest recipe. The producer committed to each
+    member with BLAKE3 and combined the leaves by XOR plus four wrapping sums,
+    while the validator attempted a different SHA-256 aggregate. Equal
+    forward/reverse producer diagnostics therefore did not provide the intended
+    cross-implementation digest check. Version 3 adds an authoritative,
+    byte-exact SHA-256 root that both implementations can replay.
+  changes:
+    - >-
+      Encode each canonical exponent vector in generator-coordinate order
+      [5,11,31,13,23,37,43,73,89,101,103,107,113] as exactly 26 bytes:
+      concatenate its thirteen signed i16 exponents, each in two's-complement
+      little-endian form. No length, separator, JSON, or text framing is part
+      of a member.
+    - >-
+      Sort all distinct 26-byte members by unsigned-byte lexicographic order.
+      The authoritative canonical-set stream is their raw concatenation. It
+      must contain exactly 4,974,348 members (129,333,048 bytes), including the
+      all-zero member once. Every decoded member must satisfy
+      product ell^|e_ell| <= 2^48, nonnegative ramified exponents, and the
+      existing global-conjugation rule: the first nonzero split exponent is
+      positive, or all split exponents are zero.
+    - >-
+      Define domain as the 30 bytes
+      ASCII("p192-cm-canonical-set-root/v1") || 0x00. Define the authoritative
+      root as SHA256(domain || u64LE(member_count) || authoritative_stream),
+      rendered as 64 lowercase hexadecimal characters. The count prefix is
+      exactly eight bytes and no other framing is present.
+    - >-
+      Forward- and reverse-coordinate traversals must independently materialize
+      and sort their member streams. Each stream must pass the independent
+      tools/p192_cm_sorted_root.py verifier, and the two authoritative roots
+      must be identical. A root mismatch, duplicate, ordering violation,
+      malformed member, count mismatch, or semantic membership failure makes
+      the run invalid before relation interpretation.
+    - >-
+      Preserve the historical BLAKE3 leaf/XOR/wrapping-sum value under the
+      explicit field legacy_canonical_set_digest as a non-authoritative
+      diagnostic. Its frozen value is
+      xor=fa31a647dec55822513049a87cdb4174231c9da27174ffb826fd250e8ca4573e;sum=8eedade908d10e620136a0e5547b1331766409131afa4c7bf3fcab2439451806.
+      Do not rename it as a SHA-256 root and do not use it to satisfy the new
+      authoritative-root gate.
+    - >-
+      Producer-Rust obligation: replace no historical artifact. Prospectively,
+      extend EnumerationStats with canonical_set_root_sha256 and
+      legacy_canonical_set_digest; rename the old canonical_set_digest output
+      into the legacy field; serialize each accepted [i16;13] by iterating
+      exponent.to_le_bytes(); sort Vec<[u8;26]> with the ordinary byte-array
+      Ord implementation; reject adjacent duplicates; hash the exact domain,
+      (members.len() as u64).to_le_bytes(), and each sorted member with SHA-256.
+      Add unit tests for the frozen domain bytes, signed encoding, unsigned-byte
+      ordering, duplicate rejection, traversal-order invariance, and a
+      hard-coded small-set root. Keep the BLAKE3 SetDigest implementation only
+      for the legacy diagnostic.
+  affected_runs: []
+  confirmatory_status: prospective_only
+  approved_by: coordinator
+  interpretation: >-
+    Version 3 applies only to a fresh successor run admitted after this
+    amendment, verifier, producer implementation, and tests are committed and
+    pushed. RUN-SCURVE-81c5e4 and its immutable artifacts remain version 2;
+    this amendment neither repairs nor reinterprets that historical run. No
+    authoritative full-set root is preregistered here because no version-3
+    scientific execution has occurred.

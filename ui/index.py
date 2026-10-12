@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
+from orchestration import fast_yaml
 
 from . import gitdates, scan
 from .scan import RECORD_ID_RE, STRUCTURED, RawRecord, id_area, id_kind
@@ -309,7 +309,7 @@ def split_front_matter(text: str) -> tuple[dict | None, str, str | None]:
         return None, text, "no front matter"
     body = text[m.end():]
     try:
-        front = yaml.safe_load(m.group(1))
+        front = fast_yaml.safe_load(m.group(1))
     except Exception as exc:                          # noqa: BLE001 - reported, not raised
         return None, body, f"{type(exc).__name__}: {str(exc).splitlines()[0][:160]}"
     if not isinstance(front, dict):
@@ -649,7 +649,7 @@ class ResearchIndex:
         for path, sharded in self._goal_paths():
             goal_id = path.parent.name if sharded else path.stem
             try:
-                doc = yaml.safe_load(path.read_text(encoding="utf-8", errors="replace"))
+                doc = fast_yaml.safe_load(path.read_text(encoding="utf-8", errors="replace"))
                 body = (doc or {}).get("research_goal", doc) if isinstance(doc, dict) else {}
                 if not isinstance(body, dict):
                     body = {}
@@ -720,7 +720,7 @@ class ResearchIndex:
         if sharded:
             for shard in sorted((path.parent / "checkpoints").glob("*.yaml")):
                 try:
-                    doc = yaml.safe_load(shard.read_text(encoding="utf-8", errors="replace")) or {}
+                    doc = fast_yaml.safe_load(shard.read_text(encoding="utf-8", errors="replace")) or {}
                 except Exception:                     # noqa: BLE001
                     out.append({"batch_id": shard.stem, "error": "unparseable"})
                     continue
@@ -798,7 +798,8 @@ class ResearchIndex:
         different fact and is labelled as one -- `committed`, never
         `started`. A run with neither reports neither.
         """
-        facts: dict[str, Any] = {"id": run_dir.name, "status": "no-manifest"}
+        facts: dict[str, Any] = {"id": run_dir.name, "status": "no-manifest",
+                                 "path": run_dir.relative_to(self.repo).as_posix(), "manifest_path": None}
         fields: dict[str, str] = {}
         for name in MANIFEST_NAMES:
             manifest = run_dir / name
@@ -809,6 +810,7 @@ class ResearchIndex:
                     manifest.read_text(encoding="utf-8", errors="replace"))
             except OSError:
                 return facts | {"status": "unreadable"}
+            facts["manifest_path"] = manifest.relative_to(self.repo).as_posix()
             facts["status"] = fields.get("status", "") or "unstated"
             break
 
@@ -1048,7 +1050,7 @@ class ResearchIndex:
         found: list[dict[str, str]] = []
         for path in sorted((self.repo / "ledger").rglob("*.yaml")):
             try:
-                yaml.safe_load(path.read_text(encoding="utf-8", errors="replace"))
+                fast_yaml.safe_load(path.read_text(encoding="utf-8", errors="replace"))
             except Exception as exc:                  # noqa: BLE001
                 found.append({
                     "path": str(path.relative_to(self.repo)),
@@ -1073,7 +1075,7 @@ class ResearchIndex:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
             if path.suffix == ".yaml":
-                parsed = (yaml.safe_load(text), None)
+                parsed = (fast_yaml.safe_load(text), None)
             elif path.suffix == ".md":
                 # A knowledge entry's exact form is its front matter plus its
                 # body. The body is the content -- an entry page without it
@@ -1277,3 +1279,4 @@ def _rank(record: Record, needle: bytes) -> int:
     if needle in record.title.lower().encode("utf-8", "replace"):
         return 1
     return 2
+
