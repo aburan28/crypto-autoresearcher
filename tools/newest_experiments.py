@@ -14,7 +14,7 @@ run prints one stderr count line naming each honouring decision, and
 stdout after the rows otherwise). --json stdout keeps its row shape.
 
 Ordering is ECC first, then READINESS first (`ready` before
-`needs_implementation_or_plan`), then newest. The earlier newest-first order
+`needs_dispatch_queue` and `needs_implementation_or_plan`), then newest. The earlier newest-first order
 put 82 unimplemented contracts ahead of the 2 that could run, so every /run
 wake read the queue and stopped (docs/track-record-review-20261006.md, P0.3).
 Each row also carries `off_main_runs`: remote branches holding unmerged
@@ -45,7 +45,8 @@ except ImportError:  # imported as tools.<name>, the repository root importable
     from orchestration import fast_yaml
 import ecc_priority  # noqa: E402
 import sparse_checkout  # noqa: E402
-from experiment_execution import coverage  # noqa: E402
+from experiment_execution import coverage, safe_path, sha256  # noqa: E402
+from research_dispatch import validate_queue  # noqa: E402
 
 _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
 
@@ -61,6 +62,50 @@ def _load(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _dispatch_queue_ready(repo: Path, plan: Path) -> tuple[bool, str, str | None]:
+    """Return the exact plan named by a valid executor handoff."""
+    try:
+        plan_data = json.loads(plan.read_text(encoding="utf-8"))
+        queue_name = plan_data["queue"]
+        task_id = plan_data["task_id"]
+        experiment_id = plan_data["experiment_id"]
+        approved_by = plan_data["approved_by"]
+        queue_path = repo / queue_name
+        queue = json.loads(queue_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        return False, f"dispatch queue is absent or unreadable: {error}", None
+    tasks = queue.get("tasks") if isinstance(queue, dict) else None
+    if (not isinstance(queue, dict)
+            or queue.get("schema") != "crypto.autoresearch.dispatch_queue.v1"
+            or not isinstance(tasks, list)):
+        return False, f"{queue_name}: no valid dispatch queue entry for {task_id}", None
+    task = next((item for item in tasks
+                 if isinstance(item, dict) and item.get("id") == task_id), None)
+    if task is None:
+        return False, f"{queue_name}: no valid dispatch queue entry for {task_id}", None
+    try:
+        validate_queue(queue)
+    except ValueError as error:
+        return False, f"{queue_name}: dispatcher rejects queue: {error}", None
+    execution_binding = (task.get("handoff") or {}).get("execution") if isinstance(
+        task.get("handoff"), dict) else None
+    if not isinstance(execution_binding, dict):
+        return False, f"{queue_name}: {task_id} has no execution plan binding", None
+    bound_name = execution_binding.get("trial_plan")
+    try:
+        bound_path = safe_path(repo, bound_name)
+        digest = sha256(bound_path)
+    except (OSError, ValueError, TypeError) as error:
+        return False, f"{queue_name}: bound trial plan is unavailable: {error}", None
+    required = {"mode": "experiments", "kind": "run",
+                "experiment_id": experiment_id,
+                "trial_plan": bound_name, "trial_plan_sha256": digest,
+                "approved_by": approved_by}
+    if execution_binding != required or digest != sha256(plan):
+        return False, f"{queue_name}: handoff does not bind the frozen plan and approval", None
+    return True, "", bound_name
+
+
 def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
     plan = exp_dir / "trial-plan.json"
     # A sparse checkout leaves tracked files off disk; they still exist.
@@ -71,11 +116,18 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
     if plan.exists() or plan.is_symlink():
         try:
             report = coverage(repo, plan)
+            plan_name = str(plan.relative_to(repo))
             if report.get("not_materialized") and not report["measurement_complete"]:
-                return {**materialize, "trial_plan": str(plan.relative_to(repo)), "coverage": report}
+                return {**materialize, "trial_plan": plan_name, "coverage": report}
+            if report["planned"] and not report["measurement_complete"]:
+                queue_ready, reason, bound_name = _dispatch_queue_ready(repo, plan)
+                if not queue_ready:
+                    return {"execution_state": "needs_dispatch_queue", "reason": reason,
+                            "trial_plan": plan_name, "coverage": report}
+                plan_name = bound_name
             state = ("measurement_complete" if report["measurement_complete"] else
                      "ready" if report["planned"] else "needs_reconciliation")
-            return {"execution_state": state, "trial_plan": str(plan.relative_to(repo)),
+            return {"execution_state": state, "trial_plan": plan_name,
                     "coverage": report}
         except (OSError, ValueError, TypeError) as error:
             return {"execution_state": "needs_plan_repair", "reason": str(error)}
@@ -95,10 +147,12 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
             "reason": "no trial plan; arrange scoped implementation/contract preparation before execution"}
 
 
-_READINESS_RANK = {"ready": 0, "needs_materialization": 1, "needs_implementation_or_plan": 2,
-                   "needs_reconciliation": 3, "needs_plan_repair": 4}
+_READINESS_RANK = {"ready": 0, "needs_materialization": 1, "needs_dispatch_queue": 2,
+                   "needs_implementation_or_plan": 3, "needs_reconciliation": 4,
+                   "needs_plan_repair": 5}
 # needs_materialization occurs only in a sparse checkout: one command from runnable.
-_SELECTABLE = ("ready", "needs_materialization", "needs_implementation_or_plan")
+_SELECTABLE = ("ready", "needs_materialization", "needs_dispatch_queue",
+               "needs_implementation_or_plan")
 
 
 def off_main_runs(repo: Path = REPO, *, base: str = "origin/main") -> dict[str, list[str]]:
@@ -288,9 +342,12 @@ def main(argv: list[str] | None = None) -> int:
                   f"\t{row['execution_state']}\t{row['specification']}{flight}")
     ready = sum(1 for r in rows if r["execution_state"] == "ready")
     sparse = sum(1 for r in rows if r["execution_state"] == "needs_materialization")
+    queues = sum(1 for r in rows if r["execution_state"] == "needs_dispatch_queue")
     print(f"newest_experiments: {len(rows)} selectable row(s): {ready} ready, "
           + (f"{sparse} need materialization (sparse checkout), " if sparse else "")
-          + f"{len(rows) - ready - sparse} need implementation/plan; ready rows sort first",
+          + (f"{queues} need a dispatch queue, " if queues else "")
+          + f"{len(rows) - ready - sparse - queues} need implementation/plan; "
+            "ready rows sort first",
           file=sys.stderr)
     for hold in report.get("explicit") or []:
         print(f"newest_experiments: {hold['id']} is withheld from dispatch by "
