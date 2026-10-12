@@ -200,16 +200,16 @@ def contains_one(equations: list, degree: int) -> bool:
     queue: list = []
 
     def add_masks(masks: set) -> None:
-        truncated = {mask for mask in masks if popcount(mask) <= degree}
-        if not truncated:
+        # W_D admits only polynomials that lie entirely inside the degree cap.
+        if not masks or max(popcount(mask) for mask in masks) > degree:
             return
         row = 0
-        for mask in truncated:
+        for mask in masks:
             row |= 1 << index[mask]
         if in_span(row, pivots, allowed):
             return
         insert_row(pivots, row, allowed)
-        queue.append(truncated)
+        queue.append(masks)
 
     for equation in equations:
         add_masks(set(equation))
