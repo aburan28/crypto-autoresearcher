@@ -309,6 +309,7 @@ def run_prime(p, arm, curves, draws, seed, r, precision_check):
         crow = {"a": a, "b": b, "order": n, "l": l, "P": P, "rules": {}}
         for rule in RULES:
             deltas, skipped, prec_mismatch = [], 0, 0
+            draw_log = []  # (k, delta) per draw, in draw order, for independent replay
             drng = random.Random(f"EXP-ECDLP-15534c:{seed}:{arm}:{p}:{a}:{b}:{rule}")
             for i in range(draws):
                 k = drng.randrange(1, l)
@@ -316,15 +317,18 @@ def run_prime(p, arm, curves, draws, seed, r, precision_check):
                 res = defect(rule, P, Q, k, l, a, b, p, r, drng)
                 if res["delta"] is None:
                     skipped += 1
+                    draw_log.append([k, None])
                     continue
                 deltas.append(res["delta"])
+                draw_log.append([k, res["delta"]])
                 if precision_check and i % 10 == 0:
                     res8 = defect(rule, P, Q, k, l, a, b, p, r + 2,
                                   random.Random(f"prec:{seed}:{i}"))
                     if rule != "L3_random_hensel" and res8["delta"] != res["delta"]:
                         prec_mismatch += 1
             crow["rules"][rule] = {"uniformity": uniformity(deltas, p), "higher_valuation_skipped": skipped,
-                                   "precision_mismatch": prec_mismatch}
+                                   "precision_mismatch": prec_mismatch, "draws": draw_log,
+                                   "precision": r}
         out["curves"].append(crow)
         print(f"{arm} p={p} curve a={a} b={b} l={l} done", file=sys.stderr, flush=True)
     return out
