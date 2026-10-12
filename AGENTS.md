@@ -322,27 +322,20 @@ infer it from an id prefix.
 
 ### Approval is bounded by execution
 
-Additive amendment, 2026-10-07 (`docs/track-record-review-20261006.md` P0.1,
-P0.2, P0.4; operator request `DEC-20261005-138b51` F-1). ECC rule 3 applies
-**once an idea can be approved**, and approval needs both:
+The approved-unrun capacity cap from 2026-10-07 is removed by user direction
+(2026-10-11). `tools/portfolio_kpis.py` reports the backlog for prioritization;
+neither its count nor `--capacity` blocks design or approval. An open ECC idea
+is ranked and designed when its protocol can be completed. Approval requires:
 
-- **Capacity.** A goal (else its area) holds at most `APPROVAL_CAPACITY_CAP`
-  (three, `tools/portfolio_kpis.py`) approved contracts that never ran.
-  `validate_ledger.py` refuses a `DEC-*` minted on or after 2026-10-07 that
-  approves past the cap unless it retires one (`supersedes_experiments` /
-  `withdraws_experiments`).
 - **Runnable.** Approve only when `python3 tools/newest_experiments.py
   --experiment <EXP-ID>` reports `execution_state: ready`. Implementation is
   the design lane's; a contract not runnable in its designing session stays
   `review_required` with the reason recorded.
 
-An unapprovable idea stays `proposed` and unedited, the reason in the session
-receipt (`tools/session_receipt.py --outcome refused_capacity`) and the goal's
-`next_action`. That is not shelving: it remains ranked work
-(`--open-ideas`) for a session with headroom or the launcher, since designing
-it earlier makes records the harness cannot act on. Unchanged: ECC rules 2 and 3
-hold, and an approved, unrun contract is neither evidence nor a failure of its
-hypothesis.
+If a complete contract cannot yet be made runnable, keep it `review_required`
+and record the missing launcher in the goal's `next_action`. An approved, unrun
+contract is neither evidence nor a failure of its hypothesis. Rank runnable
+work ahead of drafting more contracts when it offers a justified next run.
 
 ## Research direction
 
