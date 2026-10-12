@@ -127,20 +127,84 @@ def ppowmod(base: list, exp: int, modulus: list) -> list:
     return result
 
 
+def nullspace(matrix: list) -> list:
+    size = len(matrix)
+    reduced = [row[:] for row in matrix]
+    pivot_row = [-1] * size
+    row = 0
+    for col in range(size):
+        pivot = None
+        for index in range(row, size):
+            if reduced[index][col] % P != 0:
+                pivot = index
+                break
+        if pivot is None:
+            continue
+        reduced[row], reduced[pivot] = reduced[pivot], reduced[row]
+        inverse = pow(reduced[row][col], P - 2, P)
+        reduced[row] = [(value * inverse) % P for value in reduced[row]]
+        for index in range(size):
+            if index == row or reduced[index][col] % P == 0:
+                continue
+            factor = reduced[index][col]
+            reduced[index] = [
+                (reduced[index][col_index] - factor * reduced[row][col_index]) % P for col_index in range(size)
+            ]
+        pivot_row[col] = row
+        row += 1
+    basis = []
+    for col in range(size):
+        if pivot_row[col] != -1:
+            continue
+        vector = [0] * size
+        vector[col] = 1
+        for pivot_col, source in enumerate(pivot_row):
+            if source != -1:
+                vector[pivot_col] = (-reduced[source][col]) % P
+        basis.append(vector)
+    return basis
+
+
 def equal_degree(poly: list, degree: int) -> list:
+    # Berlekamp. Powers of x leave products of equal-degree irreducibles unsplit.
     poly = monic(poly)
     if deg(poly) == degree:
         return [poly]
     if deg(poly) < degree or deg(poly) % degree != 0:
         return [poly]
-    order = pow(P, degree)
-    for shift in range(1, deg(poly) + 2):
-        trial = [0] * shift + [1]
-        image = psub(ppowmod(trial, (order - 1) // 2, poly), [1])
-        splitter = pgcd(image, poly)
-        if 0 < deg(splitter) < deg(poly):
-            return equal_degree(splitter, degree) + equal_degree(pdiv(poly, splitter), degree)
-    return [poly]
+    size = deg(poly)
+    matrix = [[0] * size for _ in range(size)]
+    for column in range(size):
+        powered = ppowmod([0, 1], column * P, poly)
+        for row, coeff in enumerate(powered):
+            matrix[row][column] = coeff % P
+        matrix[column][column] = (matrix[column][column] - 1) % P
+    factors = [poly]
+    for vector in nullspace(matrix):
+        separator = trim(vector[:])
+        if deg(separator) <= 0:
+            continue
+        refined = []
+        for factor in factors:
+            if deg(factor) <= degree:
+                refined.append(factor)
+                continue
+            residual = factor
+            for scalar in range(P):
+                if deg(residual) <= degree:
+                    break
+                piece = pgcd(psub(pmod(separator, residual), [scalar]), residual)
+                if deg(piece) == deg(residual):
+                    break
+                if deg(piece) > 0:
+                    refined.append(monic(piece))
+                    residual = monic(pdiv(residual, piece))
+            if deg(residual) > 0:
+                refined.append(monic(residual))
+        factors = refined
+        if all(deg(factor) == degree for factor in factors):
+            break
+    return factors
 
 
 def irreducible_factors(poly: list) -> list:
