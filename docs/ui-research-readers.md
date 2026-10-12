@@ -137,3 +137,13 @@ checkout and runs in the existing Pages CI job.
 - Base inspected: `0e8e8c5eb00ad8d32aedf5be43cf87e569b3e4f8` on `origin/main`;
   no UI overlap was present when preparing the PR. Full corpus/build validation
   remains the Pages CI job's responsibility.
+
+
+
+## October 5 follow-up
+
+The existing nine-row primary benchmark archive is now registered through the
+`benchmark-snapshot/1` adapter in `ui/receipts.json`. This supplies real selectable
+comparison receipts without fabricating a Groebner package. Curve metadata and
+bounded record trails are documented in `docs/ui-curve-provenance-delivery.md`.
+Operational Pages telemetry remains a separate unresolved delivery step.
