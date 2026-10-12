@@ -38,6 +38,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 RECORD_PATTERNS = {
@@ -79,7 +84,7 @@ def goal_at(ref: str, goal_id: str) -> dict | None:
                               capture_output=True, text=True)
         if blob.returncode == 0:
             try:
-                doc = yaml.safe_load(blob.stdout)
+                doc = fast_yaml.safe_load(blob.stdout)
             except yaml.YAMLError:
                 return None
             if isinstance(doc, dict) and isinstance(doc.get("research_goal"), dict):

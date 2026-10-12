@@ -2,10 +2,7 @@
 
 Hypothesis: `H-BINSTD-85e778` · Experiment: `EXP-BINSTD-a8bfd8` ·
 Approval: `DEC-20261002-b1f692` · Producer: `TASK-20261003-a5391d` ·
-Snapshot: `TASK-20261003-437edd` · Package tip: `460add6f89` ·
-Review plan: `REVIEW-BINSTD-a8bfd8-20261003-d393` ·
-Re-admit note: supersedes-lost-completion (prior PR #1622
-`EV-BINSTD-a894c0` / `DEC-20261003-d323c0` never on main)
+Snapshot: `TASK-20261003-437edd` · Review plan: `REVIEW-BINSTD-a8bfd8-20261003`
 
 ## Observation
 
@@ -24,11 +21,10 @@ Re-admit note: supersedes-lost-completion (prior PR #1622
   - m=15: 299/176 ≈ 1.699; `a_holds=true`
   - `claim_A_ok=true`. Mean per-output XOR length also larger for
     pentanomial at each m.
-- Stage 1 support census: 9 comparisons enumerated; 2 skipped
-  (`m=7,l∈{7,8}` because `l≥m`); **7** non-skipped cells all have
+- Stage 1 support census: 7 comparisons enumerated; 2 skipped
+  (`m=7,l∈{7,8}` because `l≥m`); 5 non-skipped cells all have
   `claim_B_support_holds` and `claim_B_xor_holds` with support ratios
-  pent/tri in ≈1.13–1.43. `claim_B_ok=true`. Producer
-  `n_comparisons=7` matches the non-skipped count.
+  pent/tri in ≈1.13–1.43. `claim_B_ok=true`. `n_comparisons=7`.
 - Pre-registered E1 c-band `[0.9,1.0]` and N_leaf band `[0.95,1.05]`
   frozen in Stage 0; **not measured** (Stages 2–3 absent from
   trial-plan-v1).
@@ -38,8 +34,6 @@ Re-admit note: supersedes-lost-completion (prior PR #1622
 - Blind re-derivation (plan): m=7 ratio 67/40 = 1.675 matches
   `raw-result.json` `cells_summary` and census — PASS.
 - Run count: 2 ≤ `maximum_runs=8`.
-- `claims.break=false`, `exponent_move=false`, `attack=false` on both
-  runs.
 
 ## Comparison
 
@@ -52,9 +46,6 @@ Re-admit note: supersedes-lost-completion (prior PR #1622
   WDSat/ANF E1-vs-E2 (Stage 3) have **no observations** in this package.
 - Proves-too-much control: no security-difference or exponent claim
   appears in RESULTS.md or run manifests.
-- Versus lost #1622 packet: same run IDs and tip lineage re-admitted;
-  this analysis corrects the non-skipped Stage-1 cell count to 7
-  (prior draft said 5). Scientific direction unchanged.
 
 ## Inference
 
@@ -67,9 +58,7 @@ authorization `DEC-20261002-b1f692` / design card
 `TASK-20261002-c39f37`. Do **not** support full `H-BINSTD-85e778`
 (E1/E2, 9d12bd N_leaf, 99294c invariance untested). Do **not**
 `reject_scoped`. No break / exponent / attack. Knowledge promotion not
-warranted at this strength and partial scope. New evidence/decision
-IDs (`EV-BINSTD-71eabe` / `DEC-20261003-021bb4`) supersede the lost
-#1622 records for official ledger state.
+warranted at this strength and partial scope.
 
 ## Limitation
 
@@ -84,5 +73,3 @@ IDs (`EV-BINSTD-71eabe` / `DEC-20261003-021bb4`) supersede the lost
 - Manifests were schema-completed additively (`manifest_v2`); originals
   remain flat (immutable).
 - No Magma/Sage/AUXIN/Bedrock path used or required for Stages 0–1.
-- Prior #1622 EV/DEC never merged; cite only the new IDs on main-bound
-  archives.
