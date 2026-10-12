@@ -38,6 +38,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GOALS = os.path.join(REPO, "ledger", "goals")
 SAFE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -82,7 +87,7 @@ def main() -> int:
         return 2
 
     with open(flat, encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh)
+        doc = fast_yaml.safe_load(fh)
     goal = (doc or {}).get("research_goal")
     if not isinstance(goal, dict):
         print(f"{flat}: missing top-level 'research_goal'", file=sys.stderr)

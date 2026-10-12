@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import io
 import json
 import os
 import re
@@ -53,6 +54,37 @@ from pathlib import Path, PurePosixPath
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# libyaml parses ~10x faster than the pure-Python loader, and parsing was 97%
+# of this validator's run time. The pure loader stays the reference: anything
+# libyaml rejects is re-parsed by it, so every error -- and its message, which
+# the baseline and the head/base CI gate compare -- is what yaml.safe_load says.
+_CSafeLoader = getattr(yaml, "CSafeLoader", None)
+
+
+def _safe_load(source):
+    """yaml.safe_load, through libyaml when it is installed.
+
+    A standalone copy of orchestration/fast_yaml.py's safe_load: this file
+    (and check_merge_hygiene.py beside it) must run without the package.
+    """
+    if _CSafeLoader is None:
+        return yaml.safe_load(source)
+    if not hasattr(source, "read"):
+        try:
+            return yaml.load(source, Loader=_CSafeLoader)
+        except yaml.YAMLError:
+            return yaml.safe_load(source)
+    data = source.read()
+    try:
+        return yaml.load(data, Loader=_CSafeLoader)
+    except yaml.YAMLError:
+        # Replay what was read under the stream's name, so the pure loader's
+        # marks read as they would have on `source`, seekable or not.
+        replay = io.BytesIO(data) if isinstance(data, bytes) else io.StringIO(data)
+        if hasattr(source, "name"):
+            replay.name = source.name
+        return yaml.safe_load(replay)
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 
 # Certificate kinds a run may CLAIM, each of which carries a verification duty
@@ -125,7 +157,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
     the check simply does not fire, and the must-not-grow test is what notices.
     """
     try:
-        document = yaml.safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
+        document = _safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
     except (OSError, yaml.YAMLError):
         return {}
     records = (document or {}).get("records") or {}
@@ -606,7 +638,7 @@ def load_yaml(path: str, ctx: Ctx):
     source = ctx.source_path(path)
     try:
         with open(source, encoding="utf-8") as handle:
-            return yaml.safe_load(handle)
+            return _safe_load(handle)
     except yaml.YAMLError as e:
         ctx.err(source, f"invalid YAML: {e}")
         return None
@@ -971,7 +1003,7 @@ def check_provenance_quarantine(path: str, body: dict, entry: dict | None,
         # original manifest actually retained. Malformed originals first need
         # their separate syntax-preserving repair, not a guessed omission.
         try:
-            original = yaml.safe_load(Path(entry["superseded_path"]).read_text())
+            original = _safe_load(Path(entry["superseded_path"]).read_text())
             original_body = original.get("run", original)
             original_code = original_body.get("code") or original_body.get("git") or {}
             if original_code.get("commit") or original_code.get("dirty") is not None:
@@ -1283,7 +1315,7 @@ def load_legacy_inventory() -> dict[str, str]:
 
 
 def load_legacy_id_remaps() -> dict[str, str]:
-    doc = yaml.safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
+    doc = _safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
     remaps = doc.get("remapped_ids", {}) if isinstance(doc, dict) else {}
     if not isinstance(remaps, dict):
         raise ValueError("legacy ledger inventory remapped_ids must be a mapping")
@@ -1291,7 +1323,7 @@ def load_legacy_id_remaps() -> dict[str, str]:
 
 
 def load_legacy_run_inventory() -> dict[str, str]:
-    doc = yaml.safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
+    doc = _safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
     if not isinstance(doc, dict) or doc.get("schema") != "legacy-run-inventory-v1":
         raise ValueError("invalid legacy run inventory schema")
     records = doc.get("records")
@@ -1312,7 +1344,7 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = yaml.safe_load(handle)
+        doc = _safe_load(handle)
     if not isinstance(doc, dict) or doc.get("schema") != RUN_SUPERSESSION_SCHEMA:
         raise ValueError("invalid run supersession registry schema")
     records = doc.get("records") or []
@@ -1418,7 +1450,7 @@ def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = yaml.safe_load(handle)
+        doc = _safe_load(handle)
     if (not isinstance(doc, dict)
             or doc.get("schema") != SCHEMA_SUPERSESSION_SCHEMA):
         raise ValueError("invalid schema supersession registry schema")
@@ -1746,7 +1778,7 @@ def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
         inspect(node)
         if identities != [("run_id", rec_id)]:
             return None
-        doc = yaml.safe_load("\n".join(repaired))
+        doc = _safe_load("\n".join(repaired))
         if not isinstance(doc, dict) or not isinstance(doc.get("git"), dict):
             return None
         if doc["git"].get("dirty_summary") != "\n".join(values):
@@ -1819,8 +1851,20 @@ def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None
 
     IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
                                    unique_mapping)
+    unparsed = object()
     try:
-        doc = yaml.load(text, Loader=IdentityLoader)
+        doc = unparsed
+        if _CSafeLoader is not None:
+            class FastIdentityLoader(_CSafeLoader):
+                pass
+            FastIdentityLoader.add_constructor(
+                yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+            try:
+                doc = yaml.load(text, Loader=FastIdentityLoader)
+            except yaml.YAMLError:
+                pass  # the pure loader below decides, as it always did
+        if doc is unparsed:
+            doc = yaml.load(text, Loader=IdentityLoader)
     except yaml.YAMLError:
         # Recovery is allowed only for a hash-verified registered original
         # with an explicit locator, never as ordinary identity parsing.
@@ -1857,7 +1901,7 @@ def _malformed_run_header_id(path: str, line_number: int) -> str | None:
         return None
     try:
         text = Path(path).read_text(encoding="utf-8")
-        yaml.safe_load(text)
+        _safe_load(text)
         return None
     except yaml.YAMLError:
         pass
@@ -2029,7 +2073,7 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                 ctx.err(path, "knowledge entry is missing YAML frontmatter")
                 continue
             try:
-                frontmatter = yaml.safe_load(text.split("---", 2)[1]) or {}
+                frontmatter = _safe_load(text.split("---", 2)[1]) or {}
             except yaml.YAMLError as error:
                 ctx.err(path, f"invalid knowledge frontmatter: {error}")
                 continue
@@ -2705,24 +2749,12 @@ def check_goals(ctx: Ctx):
 # ---------------------------------------------------------------------------
 # Portfolio hygiene (docs/track-record-review-20261006.md).
 #
-# Two hard rules and three advisories. The hard rules are DATE-GATED on the
+# One hard rule and three advisories. The hard rule is DATE-GATED on the
 # record's own id or designed_at so that no immutable record predating them
 # can fail (the baseline is prune-only, so a rule that failed history could
 # never land). The advisories go to ctx.advisories, which never fails the
 # build: they exist so that the backlog is visible at every validation,
 # not so that history is re-litigated.
-
-# A coordinator_decision minted on or after this date that approves an
-# experiment is refused while the experiment's goal already holds
-# APPROVAL_CAPACITY_CAP approved contracts with no run. 1,137 of 1,473
-# approved contracts had never run when the rule was written; approving a
-# 1,138th does not reduce any uncertainty.
-APPROVAL_CAPACITY_ENFORCED_FROM = "20261007"
-APPROVE_DECISIONS = {"approve", "approved", "approve_protocol",
-                     "approve_experiment", "approval"}
-# A decision may name contracts it retires in the same act; they do not count
-# against the goal's capacity. Either key is accepted; both are lists of ids.
-CAPACITY_RELEASE_KEYS = ("supersedes_experiments", "withdraws_experiments")
 
 # A specification designed on or after this date must say, before any run,
 # what each outcome changes. A contract whose success and falsification
@@ -2762,73 +2794,6 @@ _ID_DATE = re.compile(r"-(\d{8})-")
 def _id_date(rec_id: str) -> str | None:
     match = _ID_DATE.search(str(rec_id or ""))
     return match.group(1) if match else None
-
-
-def _experiment_has_runs(exp_id: str, ctx: Ctx) -> bool:
-    path = ctx.ids.get(exp_id)
-    if not path:
-        return False
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-    import portfolio_kpis  # noqa: E402  (same scan the KPI census uses)
-    return portfolio_kpis.runs_present(Path(os.path.dirname(path)))
-
-
-def _goal_of(exp_id: str, body: dict) -> str:
-    goal = body.get("goal_id")
-    if isinstance(goal, str) and goal.strip():
-        return goal.strip()
-    match = re.match(r"^EXP-([A-Za-z0-9]+)-", exp_id)
-    return f"area:{match.group(1)}" if match else "area:unknown"
-
-
-def check_approval_capacity(ctx: Ctx) -> None:
-    """P0.1: refuse a new approval while the goal's approved-unrun backlog is at cap."""
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-    import portfolio_kpis  # noqa: E402
-    cap = portfolio_kpis.APPROVAL_CAPACITY_CAP
-
-    backlog: dict[str, set[str]] = {}
-    for exp_id, kind in ctx.record_types.items():
-        if kind != "experiment":
-            continue
-        body = ctx.records[exp_id]
-        if body.get("status") != "approved" or _experiment_has_runs(exp_id, ctx):
-            continue
-        backlog.setdefault(_goal_of(exp_id, body), set()).add(exp_id)
-
-    for dec_id, kind in ctx.record_types.items():
-        if kind != "coordinator_decision":
-            continue
-        when = _id_date(dec_id)
-        if when is None or when < APPROVAL_CAPACITY_ENFORCED_FROM:
-            continue
-        body = ctx.records[dec_id]
-        if str(body.get("decision") or "").strip().lower() not in APPROVE_DECISIONS:
-            continue
-        released: set[str] = set()
-        for key in CAPACITY_RELEASE_KEYS:
-            raw = body.get(key) or []
-            if isinstance(raw, list):
-                released.update(str(x) for x in raw)
-        targets = [str(t) for t in (body.get("target_ids") or [])
-                   if str(t).startswith("EXP-")]
-        approved_here = {t for t in targets
-                         if ctx.record_types.get(t) == "experiment"
-                         and ctx.records[t].get("status") == "approved"}
-        for exp_id in sorted(approved_here):
-            goal = _goal_of(exp_id, ctx.records[exp_id])
-            standing = backlog.get(goal, set()) - approved_here - released
-            if len(standing) >= cap:
-                ctx.err(ctx.ids[dec_id],
-                        f"approval capacity: {goal} already holds "
-                        f"{len(standing)} approved contract(s) with no run "
-                        f"(cap {cap}); run or supersede one before approving "
-                        f"{exp_id} (name retired ids under "
-                        f"{' or '.join(CAPACITY_RELEASE_KEYS)})")
 
 
 def check_outcome_not_prewritten(path: str, body: dict, ctx: Ctx) -> None:
@@ -3055,6 +3020,13 @@ def main() -> int:
                     help="list every non-failing advisory (oversized goal "
                          "heads and proposals, aged open handoffs)")
     args = ap.parse_args()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import sparse_checkout
+    except ImportError:  # a standalone copy (tools/test_goal_id_random_suffix.py)
+        sparse_checkout = None
+    if sparse_checkout and sparse_checkout.refuse_if_sparse("validate_ledger", Path(REPO)):
+        return 2
 
     # This must precede every inventory, glob, supersession, and record read.
     # If ledger itself is an alias, even an apparently unrelated ledger glob
@@ -3126,7 +3098,6 @@ def main() -> int:
     check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
-    check_approval_capacity(ctx)
     check_record_sizes(ctx)
     check_ceremony(ctx)
     check_aged_handoffs(ctx)

@@ -29,6 +29,15 @@ The project separates research into primary roles with separate authority:
 - scope conclusions to the tested curves, parameters, solver, and compute budget;
 - support iterative autonomous research without letting agents silently redefine success.
 
+## Research problems
+
+Track major research and audit blockers in [`problems/`](problems/README.md):
+name the obstruction, cite what is known, state what would unblock it, and
+record the next discriminating experiment or proof obligation. These records
+link to existing goal impediments and decisions; they do not change goal or
+hypothesis status. Follow the [agent rule](AGENTS.md#name-the-obstruction) and
+[problem template](problems/TEMPLATE.md).
+
 ## Research direction
 
 What counts as a target result is defined in
@@ -226,6 +235,15 @@ For explicitly requested experiment preparation and scientific review:
 6. Record the Coordinator decision that follows from the evidence.
 
 ## Host plugins
+
+Use [Skills and tool routing](docs/skill-routing.md) to choose the workflow for
+curve records, endomorphisms, transfers, relation/solver diagnostics, benchmarks,
+GPU engineering, infrastructure, schemes, proofs, UI work and PR delivery.
+`$route` locates the right skill; `make skills` lists the catalog and
+`make check-skills` checks its discovery surfaces and tool references. Canonical
+skills under `.claude/skills/` have matching `.agents/skills/` adapters.
+Explicit scientific execution still goes directly to `$run`, without a catalog
+or subject-assessment preflight.
 
 The repository ships a thin, portable
 [`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)

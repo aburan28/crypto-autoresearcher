@@ -1,0 +1,191 @@
+experiment:
+  id: EXP-ICPERF-104054
+  hypothesis_id: H-ICPERF-cf04e0
+  goal_id: GOAL-ICPERF-e6b6a4
+  question_id: RQ-ICPERF-94c86e
+  batch_id: BATCH-e261c2
+  version: 1
+  title: D6 wall-channel and watchdog acceptance at exact post-D6 Runner bytes
+  status: review_required
+  approved_by: null
+  designed_at: '2026-10-11'
+  designed_by_decision: DEC-20261011-10f209
+  frozen: true
+  objective: >-
+    Accept or reject amendment D6 for short-child wall measurement by testing
+    its exact Runner bytes against an independent monotonic clock, preserving
+    the C-SATREG solver outcomes and both C-WATCHDOG-NULL outcomes. The
+    Executor records observations only; a later independent review and
+    Coordinator decision determine acceptance.
+  source_binding:
+    post_d6_path: experiments/EXP-ICPERF-e21835/code/bench.py
+    post_d6_sha256: 2eee015387b61ae67db89331dcf97218f16dae1c2dcd754eacb241dd723e83b5
+    post_d6_commit: e1728d8a8
+    post_d6_commit_note: >-
+      Commit named by CORR-20260916-d51133; the implementation task must
+      independently resolve and hash the complete commit object before
+      writing a trial plan. A mismatch is a source-binding stop.
+    accepted_pre_d6_sha256: d835b1ead969989d58857bfd46d107f2bd42ec2faa8be80fa3bd203e9016cc05
+    accepted_pre_d6_receipt: experiments/EXP-ICPERF-e21835/code/CODE_SHA256.json
+    accepted_pre_d6_run: experiments/EXP-ICPERF-e21835/runs/RUN-ICPERF-a4a24b/
+    predecessor: experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/
+    correction_records:
+      - ledger/corrections/CORR-20260916-d51133.yaml
+      - ledger/corrections/CORR-20260916-33068f.yaml
+    governing_decision: ledger/decisions/DEC-20260915-927eaa.yaml
+  approval_preconditions:
+    - >-
+      Implementation and an independent checker exist under this experiment's
+      implementation/ directory, are hash-bound, and a trial-plan.json lists
+      all frozen trials, commands, check commands, artifacts, and run IDs.
+    - >-
+      The exact post-D6 commit object and accepted pre-D6 bytes are independently
+      resolved and checked against the two hashes above. The accepted run is
+      never relabeled as a D6 run.
+    - >-
+      The Coordinator verifies approval capacity, a committed and pushed
+      snapshot, a disjoint GOAL-ICPERF lane claim, and execution_state ready
+      from tools/newest_experiments.py --experiment EXP-ICPERF-104054 --json.
+    - >-
+      The review plan is frozen before any reviewer runs, and the Linux host
+      has enough memory headroom to attempt the full 8 GiB watchdog control.
+  inputs:
+    - experiments/EXP-ICPERF-e21835/code/bench.py
+    - experiments/EXP-ICPERF-e21835/code/CODE_SHA256.json
+    - experiments/EXP-ICPERF-e21835/runs/RUN-ICPERF-a4a24b/results_engine.jsonl
+    - experiments/EXP-ICPERF-e21835/specification.yaml
+    - inputs/TRIMOSKA-ECICB-2024/upstream/benchmarks/Xn15l5-1-S.anf
+    - inputs/TRIMOSKA-ECICB-2024/upstream/benchmarks/Xn15l5-11-U.anf
+  implementation_contract:
+    runner: experiments/EXP-ICPERF-104054/implementation/accept_d6.py
+    independent_checker: experiments/EXP-ICPERF-104054/implementation/check.py
+    constraints:
+      - Import the frozen post-D6 Runner only after its sha256 check passes.
+      - Use one child at a time; preserve argv, stdout, stderr and per-invocation raw timing.
+      - Do not edit the e21835 or 66fd51 experiment trees or their run packages.
+      - Do not substitute a different timer, poll interval, memory limit, or WDSat build without an additive amendment.
+      - Run only on Linux with /proc and a quiet host; record OS, kernel, Python, CPU and load.
+  test_plan:
+    short_children:
+      durations_seconds: [0.05, 0.10]
+      repetitions_per_duration: 5
+      order: alternating_duration_by_repetition
+      child_receipt: Child monotonic start, stop and intended sleep duration in stdout.
+      independent_timer: >-
+        Checker reads raw enclosing monotonic timestamps recorded outside
+        Runner.run; it does not import the producer's summary or wall formula.
+      per_child_timeout_seconds: 10
+      admission: >-
+        A repetition with host load average above 1 or a child self-duration
+        above 0.15 seconds is retained but marked noisy and is not used for
+        the pass/fail threshold. At least five valid repetitions per duration
+        are required; no post-hoc replacement seeds or durations.
+      pass: >-
+        Every valid D6 repetition has wall_s below 0.20 seconds and within
+        0.05 seconds of the independent enclosing duration. The accepted
+        pre-D6 loop must show at least one valid repetition at or above 0.20
+        seconds, or the known-false control is non-discriminating.
+    sat_regression:
+      engine: WDSat default, rebuilt from frozen source with recorded constants and binary hash
+      rows:
+        - instance: n15l5-1-S
+          expected_status: SAT
+          expected_conflicts: 26
+        - instance: n15l5-11-U
+          expected_status: UNSAT
+          expected_conflicts: 31257
+      pass: Both status and conflict count match exactly; new wall_s is reported beside archived wall_s.
+    watchdog_nulls:
+      rss_limit_gib: 8
+      rss_poll_interval_seconds: 0.25
+      resident_growth: >-
+        Child touches 12 GiB resident in increments; watchdog must kill its
+        process group with rss_limit_breached true. Record observed peak and
+        an independent VmHWM or equivalent receipt.
+      address_reservation: >-
+        Child reserves at least 64 GiB virtual address space with less than
+        512 MiB resident; it must exit zero with rss_limit_breached false.
+      admission: >-
+        Record MemAvailable and swap before launch. If machine headroom cannot
+        admit the full 8 GiB control safely, retain the admission failure and
+        mark this criterion NOT_EVALUABLE; D6 cannot be accepted from a scaled
+        substitute alone.
+  controls:
+    - Old accepted Runner bytes as the known-false timing object.
+    - Independent monotonic timing of the same child processes.
+    - Exact C-SATREG deterministic status and conflict counts on both frozen instances.
+    - Both resident and virtual-address watchdog null objects at the declared limit.
+    - Source-hash guard before the first trial and no-write checks on both predecessor trees.
+  metrics:
+    primary:
+      - wall_s and independent enclosing monotonic duration per short child
+      - absolute wall difference and count of readings at or above 0.20 seconds
+      - WDSat status and conflict count on each C-SATREG row
+      - rss_limit_breached, return code, and observed peak RSS for each null
+    secondary:
+      - accepted-vs-D6 WDSat wall_s table with CPU seconds alongside
+      - load average, memory headroom, poll count and process-group RSS trace
+      - source, binary and input hashes; dependency versions
+  budget:
+    maximum_runs: 1
+    maximum_workers: 1
+    maximum_memory_gb: 10
+    total_wall_clock_seconds: 1200
+    per_short_child_timeout_seconds: 10
+    per_wdsat_timeout_seconds: 600
+    note: >-
+      The time estimate is advisory; per-child timeouts and the memory guard
+      are machine-protection limits. No fixed campaign budget is imposed.
+  stopping_rules:
+    - Stop before launch on source hash mismatch, Linux /proc absence, or changed frozen inputs.
+    - Stop the short-child panel on a checker-detected timer integrity failure; preserve partial receipts.
+    - After a timed-out or killed child, preserve its logs and continue only with independent controls whose safety is unaffected.
+    - Stop the resident-growth arm before allocation when recorded host headroom is inadequate; mark it NOT_EVALUABLE.
+    - Stop all work at the total watchdog, retaining raw partial artifacts and unevaluated criteria.
+  validity_rules:
+    - An accepted old-code run is a control, not a D6 measurement.
+    - Missing independent timestamps, code hashes, stdout or stderr invalidate the timing panel.
+    - A WDSat conflict or status mismatch is an instrument regression, not ECDLP evidence.
+    - A memory admission stop or timeout is censored infrastructure evidence only.
+    - A timing claim from a noisy or fewer-than-five-valid-repetitions panel is unevaluable.
+  decision_impact:
+    on_positive: >-
+      After independent review, the Coordinator may accept D6 for the tested
+      wall and watchdog scope and may discharge AP-6 of EXP-ICPERF-13f001 by
+      citation. Other AP-* gates remain.
+    on_negative: >-
+      Keep D6 unaccepted; preserve the exact failing child or control record
+      and commission a versioned repair if warranted.
+    on_inconclusive: Keep D6 unaccepted and name the missing control or host gate.
+  success_criterion: >-
+    At least five valid D6 short-child repetitions at each frozen duration
+    satisfy both timing thresholds, the accepted old-code control visibly
+    fails the sub-poll threshold, both WDSat rows retain their exact status
+    and conflict count, both full watchdog nulls pass, and the independent
+    checker confirms every value from raw receipts. A later independent
+    review and Coordinator decision are still required for acceptance.
+  falsification_criterion: >-
+    A completed, admitted D6 repetition violates the short-child timing
+    thresholds, or a completed C-SATREG row changes status/conflicts, or a
+    fully admitted watchdog null has the reversed outcome. Missing memory
+    headroom, timer integrity, source binding or valid repetitions makes the
+    corresponding criterion unevaluable, not a negative mathematical result.
+  required_artifacts:
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/command.txt
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/environment.json
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/short_child.jsonl
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/sat_regression.jsonl
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/watchdog_controls.jsonl
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/independent_check.json
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/logs/
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/report.md
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/diagram.svg
+    - experiments/EXP-ICPERF-104054/runs/<RUN-ID>/report.pdf
+  interpretation_limits:
+    - Acceptance is local to the exact D6 bytes, Linux host and tested process types.
+    - The small SAT rows do not establish comparative solver performance at scale.
+    - No claim about the mathematical hypothesis, rho crossover, or a deployed curve follows.
