@@ -7,13 +7,9 @@ explain the gap and what would let the work move past it.
 
 ## Index
 
-No problem records have been added yet; remove this sentence when adding the
-first record. This is a new tracking directory, not
-an assertion that the repository has no unresolved blockers. Add a row when
-creating a record; keep resolved and superseded records in the index.
-
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [EigenX/CEST EndRing reduction is not established](eigenx-cest-endring-reduction-not-established.md) | investigating | An EndRing-based confidentiality theorem or completion claim for EigenX/CEST-PKE | A reviewed, correctly directed reduction on the exact real-key distribution, including any adaptive OneEnd bridge, or a replacement construction whose six scheme obligations are discharged |
 
 ## Add or update a problem
 
