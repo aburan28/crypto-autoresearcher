@@ -2,8 +2,8 @@
 
 - **Status:** `investigating`
 - **Kind:** proof gap and construction gap
-- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-12e6aa decision](../ledger/decisions/DEC-20261009-e8b142.yaml), [BATCH-44a1ce composition](../coordination/design/TASK-20261013-ba3742/composition/TASK-20261013-a6dbb9/final-composition.yaml), [report](../research/ssi-endring-pke/2026-10-13-eigenx-adaptive-oneend-bridge/report.md), [evidence](../ledger/evidence/EV-SSI-c9bfe1.yaml), and [closing decision](../ledger/decisions/DEC-20261013-122bb5.yaml)
-- **Next action owner:** future Coordinator for `ENDRING-MATERIALLY-DISTINCT-RECIPIENT-MECHANISM`; no automatic launch
+- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-44a1ce decision](../ledger/decisions/DEC-20261013-122bb5.yaml), [BATCH-be2a37 composition](../coordination/design/TASK-20261013-0348f3/composition/TASK-20261013-a7be35/final-composition.yaml), [EigenX-v2 report](../research/ssi-endring-pke/2026-10-13-eigenx-v2-prescribed-path/report.md), [closing evidence](../ledger/evidence/EV-SSI-279763.yaml), and [closing decision](../ledger/decisions/DEC-20261013-9c2f80.yaml)
+- **Next action owner:** future Coordinator only after a new explicit Coordinator decision and user-authorized scope; no automatic successor
 - **Last updated:** 2026-10-13
 
 ## Problem
@@ -36,6 +36,21 @@ The bounded adaptive-coverage and EigenX audit has now completed. Independent ow
 
 The problem remains `investigating`; none of its exit criteria is met. The reviewed result blocks describing EigenX as a complete or secure EndRing PKE, but it is neither an EndRing hardness result nor a universal obstruction to EndRing-based encryption.
 
+## BATCH-be2a37 reviewed update
+
+The one-candidate EigenX-v2 prescribed-path/torsion round has completed. The valid independent vector is `J1=breaks`, `J2=breaks`, `J3=breaks`, `J4=breaks`, and `J5=breaks`; the postcomposition documentation joint `J6` passed without requesting corrections. The independence checker passed on the five valid scientific reports.
+
+- **J5 procedure:** Attempt 1, owned by `eigenx-v2-j5`, was abandoned before artifact creation after a filename-format scan mechanically touched current J1/J3 filenames and violated strict mutual blindness. Attempt 2, owned by `reviewer-eigenx-j5-clean`, independently produced the only valid J5 report and was accepted by the checker.
+- **Finite-action factorization:** For the exact prescribed-degree M=1 endpoint-plus-full-N-torsion interface, accepted mathematical decapsulation factors through `q_N=(d,e,theta(P_N),theta(Q_N))` and the independent rejection seed `z`. The complete saturated evaluable rank-four `End(E)` witness is not necessary for the declared recipient operation. This does not prove that `q_N` cannot be lifted to a complete ring; it refutes only the claimed necessity of the full witness for this interface.
+- **Reduction direction:** The packet supplies no exact real-key challenge embedding, no decapsulation-oracle simulation without the withheld ring witness, and no extractor from attacker behavior to a complete efficiently evaluable rank-four basis. One recovered prescribed path also does not instantiate the arbitrary-input OneEnd/Isogeny oracle required by the cited completion theorems. O5 is therefore contradicted for this tested reduction, not universally.
+- **Syntax, correctness, view, and cost:** The HHK outer theorem remains conditional because `TrapCurveGen_ER`, `SelectTrap`, canonical endpoint/point transport, validation, total `Dec0`, the actual correctness bound, the real adversarial distribution, and total operation/bit/memory/retry costs are unavailable. Accepted-key/per-path algebra is not an O3 discharge.
+- **Source overlap:** The valid J5 review finds that Seta already supplies the endpoint-plus-full-torsion M=1 algebraic core and finite-action recovery. The added outer shell and unused complete-ring witness do not establish a materially different EndRing mechanism. The source metadata for Page--Wesolowski, Eaton--Jao--Komlo--Mokrani, Jana--Dutta, and Moriya--Stopar was corrected; the LIT-SiGamal and UPKE25 full-text retrieval limits remain explicit.
+- **Six obligations:** O1, O2, O3, and O6 remain open. O4 and O5 are contradicted for the exact frozen interface. The reviewed-discharge count is zero, so the candidate is a scoped obstruction and is not admitted as an EndRing PKE/KEM.
+- **Authenticated CEST boundary:** Authenticated CEST remains only a separate conditional accepted-key, single-user, classical-ROM `CEST-XFER-COMP`/`EvalLine_(P,A)` control with canonical parsing and public recognition. It is not EigenX-v2, is not EndRing-bound, and receives no construction, active-security, or deployment label.
+- **Run boundary:** Zero scientific, implementation, formalizer, experiment, benchmark, and parameter-selection runs occurred. No measured result or parameter claim exists.
+
+The problem remains `investigating`, and every exit criterion remains unmet. The exact EigenX-v2 interface is closed as a scoped obstruction; broader EndRing-PKE existence remains open.
+
 ## What would unblock it
 
 Provide one of the following, then pass independent review:
@@ -56,7 +71,7 @@ The first two conditions are alternatives only if the direct reduction avoids th
 
 A planned step is not a completed experiment. Apply the existing execution, review, budget, and archival rules before acting on it.
 
-## Next discriminating step
+## Prior discriminating step completed by BATCH-be2a37
 
 - **Action or proof obligation:** `ENDRING-MATERIALLY-DISTINCT-RECIPIENT-MECHANISM` -- rerank and bound one materially different recipient mechanism whose exact public transcript has ring-identifying behavior beyond `EvalLine_(P,A)`.
 - **Acceptance criteria:** Give executable honest algorithms and the exact real-key law; prove actual-message correctness; simulate the complete declared adversarial view from the exact EndRing challenge; extract a complete efficiently evaluable rank-four `End(E)` basis with quantified success loss, runtime, memory, and representation cost; then pass independent O1--O6 review.
@@ -65,7 +80,14 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 - **Outcome routing:** A fully reviewed survivor may advance only to a separately authorized design/validation batch. A typed failure updates this problem at its exact scope. An unresolved definition, construction, simulator, extractor, or cost obligation remains inconclusive.
 - **Recheck trigger:** A new reviewed mechanism satisfying those criteria, a new direct CEST-to-EndRing reduction on the exact real-key distribution, or a replacement construction that no longer factors through `EvalLine_(P,A)`.
 
+## Next action and stop boundary
+
+- **Action:** Close `BATCH-be2a37` after its terminal ledger archive.
+- **Stop condition:** Do not rank, open, implement, run, or promote another EigenX/EndRing successor unless a new explicit Coordinator decision and user-authorized scope names it.
+- **Recheck trigger:** Such a new explicit decision and scope, or new externally supplied evidence that directly meets one of the existing exit criteria. Mere completion of this problem record, the batch archive, or the conditional authenticated-CEST control does not clear the obstruction.
+
 ## Resolution and history
 
 - **2026-10-13:** Created from the CEST/EigenX O5 gap and the reviewed `BATCH-12e6aa` adaptive-coverage gap. `BATCH-44a1ce` is the bounded next investigation. Unresolved. Creating or merging this record does not establish a construction, security theorem, or impossibility result.
 - **2026-10-13:** `BATCH-44a1ce` completed with no surviving bridge, O3 as the sole reviewed discharge, O1/O2/O4/O5/O6 open, a scoped I3 break, and an exact frozen-syntax IND-CCA2 break. J6 passed after `TASK-20261013-1c2b7a` and `TASK-20261013-b61e2d` corrected the PDF arrows/links and link-count metadata. The problem remains investigating, its exit criteria remain unmet, and the only recorded continuation is `ENDRING-MATERIALLY-DISTINCT-RECIPIENT-MECHANISM` with no automatic launch.
+- **2026-10-13:** `BATCH-be2a37` completed the one authorized materially different prescribed-path/torsion candidate. J1--J5 all break; O1/O2/O3/O6 remain open; O4/O5 are contradicted only for the exact interface; no obligation has a reviewed discharge. J5 attempt 1 was abandoned without an artifact and clean attempt 2 owns the source-overlap verdict and metadata corrections. J6 passed the report set. The problem remains investigating with unmet exit criteria, and the batch closes without an automatic successor.
