@@ -15,3 +15,15 @@ run. It is append-only within this exploratory round.
    the use of `ecbench`'s phase counters.
 4. The frozen run below had not started when this protocol and spec were
    committed.
+5. The first frozen-run launch attempt used `/usr/bin/time`; that executable
+   was absent, so the shell returned 127 before `ecbench` started and before
+   an output session directory was created.
+6. The unchanged frozen spec then ran with the shell's `time` keyword.
+   Session `ECBS1h5a5461ff22d7` completed all 10,752 planned executions in
+   8m12.471s wall time. Its status counts are 10,752 `verified` and zero in
+   every other outcome category. The raw-record SHA-256 sealed by the session
+   is `d82f6319a75e16d0185323b69e2e4b0760f2753510ec45f026b7004148a49a3c`.
+7. A full deterministic replay audit then reproduced all 10,752 executions
+   with zero problems in 8m6.856s wall time. The preserved audit receipt has
+   SHA-256
+   `74bfadbd5c6d3e0da09fc826dc5323365db5361577008d5ea5a31a7747b71cb7`.
