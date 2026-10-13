@@ -603,6 +603,28 @@ transported action with the simpler control that maps the DLP once to the
 Koblitz representative, solves there with native Frobenius, recovers the
 same discrete-log scalar, and verifies it on the endpoint.
 
+Koblitz calibration ladders separate collision-walk operations from fixed
+target setup, walk starts, recovery, and verification; pair identical targets
+and seeds across arms. Report `m`, `log2(r)`, and cofactor together because
+degree alone is not the experimental scale. Keep negation-to-signed-`tau`
+bits distinct from plain-to-signed-`tau` bits. Counts with differently omitted
+canonicalisation costs do not yield a one-sided cost-ratio bound, and local
+trail-cap restarts are retained diagnostics rather than failed overall solves.
+
+Treat the completed 160,000-solve `m=37,41` [volcano-level
+replication](research/isogeny_volcano_level_replication_20261013/README.md)
+and its [archive](research/isogeny_volcano_level_replication_20261013/ARCHIVE.md)
+as bounded proxy evidence. All six lower-level/crater negation-only pointwise
+and simultaneous 95% bit intervals include zero. The three `m=37`
+simultaneous 90% ratio intervals fit the frozen `[0.97,1.03]` equivalence
+margin; the three wider `m=41` intervals do not, so global six-contrast
+equivalence is false. No tested large-prime edge or interaction resolves from
+zero. The crater negation-versus-native-`tau` total-operation gaps are 2.487
+bits at `m=37` and 2.685 bits at `m=41`. These operation-count observations
+establish no conductor-only weakness, executable transfer, or NIST-scale
+claim; explicit maps, subgroup preservation, recovery, and complete pricing
+remain separate obligations.
+
 Transfers require explicit maps, subgroup preservation, and complete costs;
 advice supports only its holder. Singular/invalid formula-compatible companions
 establish only **implementation-weak**; confirmation-only oracles need explicit
