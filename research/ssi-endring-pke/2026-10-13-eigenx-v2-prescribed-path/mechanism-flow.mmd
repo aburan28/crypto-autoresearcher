@@ -1,0 +1,88 @@
+%%{init: {"theme":"base","flowchart":{"curve":"basis","htmlLabels":true,"nodeSpacing":34,"rankSpacing":42},"themeVariables":{"fontFamily":"Arial, sans-serif","fontSize":"15px","lineColor":"#334155","primaryTextColor":"#0f172a"}}}%%
+flowchart TB
+  classDef proposed fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,stroke-width:2px
+  classDef quotient fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-width:3px
+  classDef break fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d,stroke-width:3px
+  classDef gap fill:#fff7ed,stroke:#c2410c,color:#7c2d12,stroke-width:2px,stroke-dasharray:6 4
+  classDef conditional fill:#dcfce7,stroke:#15803d,color:#14532d,stroke-width:2px
+  classDef neutral fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.5px
+  classDef verdict fill:#f1f5f9,stroke:#334155,color:#0f172a,stroke-width:2px
+
+  subgraph CAND["Rejected candidate · EigenX-v2-Path-FO-KEM"]
+    direction TB
+    X["Uniform canonical path x in X_D"]:::proposed
+    BIND["Public binding c0<br/>endpoint E_x + phi_x(P_N), phi_x(Q_N)"]:::proposed
+    W["Advertised secret W<br/>complete saturated evaluable rank-4 End(E) basis"]:::proposed
+    Q["Decisive quotient q_N<br/>(d,e,theta(P_N),theta(Q_N))"]:::quotient
+    Z["Independent rejection seed z"]:::neutral
+    DEC["Accepted Decaps_Q(pk,q_N,z,c)<br/>same output as Decaps(pk,W,z,c)"]:::quotient
+    OBS["O4 CONTRADICTED<br/>W is not necessary for this recipient operation"]:::break
+
+    X -->|"PathEval"| BIND
+    W -->|"Compress_N"| Q
+    Q -->|"Seta M=1 recovery"| DEC
+    BIND --> DEC
+    Z --> DEC
+    DEC --> OBS
+    W -. "unused remainder erased" .-> OBS
+  end
+
+  subgraph RED["Required security direction · attacker to complete EndRing"]
+    direction TB
+    ER["Bare complete-EndRing challenge curve E<br/>no W, path, orientation, or hidden advice"]:::neutral
+    G0["FAILED: exact real-key embedding<br/>TrapCurveGen_ER law unavailable"]:::gap
+    ADV["Successful complete-view IND-CCA2 attacker"]:::proposed
+    G1["FAILED: Decaps simulation and extraction<br/>without W; output is only a bit/path"]:::gap
+    ONE["Required arbitrary-input<br/>Isogeny / adaptive bounded-OneEnd oracle"]:::proposed
+    G2["FAILED: one path is not that oracle<br/>dual(phi) o phi = [deg(phi)] is scalar"]:::gap
+    RING["Target: saturated evaluable<br/>rank-4 basis of End(E)"]:::neutral
+    O5["O5 CONTRADICTED<br/>no correctly directed reduction in the packet"]:::break
+
+    ER --> G0
+    G0 -. "cannot instantiate exact view" .-> ADV
+    ADV --> G1
+    G1 -. "cannot compile" .-> ONE
+    ONE --> G2
+    G2 -. "reconstruction premise missing" .-> RING
+    G0 --> O5
+    G1 --> O5
+    G2 --> O5
+    ATTACK["Reverse route only<br/>complete EndRing solver → derive q_N/path → break KEM<br/>attack upper bound, not a security reduction"]:::break
+    ATTACK -. "wrong direction" .-> ER
+  end
+
+  OBS ~~~ ATTACK
+
+  subgraph CTRL["Separate control · CTRL-CEST-AUTH-XFER"]
+    direction TB
+    CK["Accepted legacy CEST key<br/>P,A of prime order q"]:::conditional
+    RT["r → R=[r]P, T=[r]A"]:::conditional
+    REC["Public two-pairing recognition<br/>recognizes supplied T; does not compute T"]:::conditional
+    XFER["Conditional classical-ROM KEM<br/>under CEST-XFER-COMP"]:::conditional
+    DEM["Optional one-time IND-CCA DEM<br/>conditionally closes old raw-XOR bit-flip"]:::conditional
+    NOTER["NOT EigenX-v2 · NOT EndRing-bound<br/>factors through EvalLine_(P,A)"]:::neutral
+
+    CK --> RT --> REC --> XFER --> DEM
+    XFER --> NOTER
+  end
+
+  O5 ~~~ CK
+
+  subgraph REVIEW["Independent composition"]
+    direction LR
+    J1["J1 breaks"]:::verdict
+    J2["J2 breaks"]:::verdict
+    J3["J3 breaks"]:::verdict
+    J4["J4 breaks"]:::verdict
+    J5["J5 breaks"]:::verdict
+  end
+
+  NOTER ~~~ J1
+
+  OUT["SCOPED OBSTRUCTION<br/>O1 open · O2 open · O3 open<br/>O4 contradicted · O5 contradicted · O6 open<br/>0 reviewed discharges · construction gate fails"]:::break
+  J1 --> OUT
+  J2 --> OUT
+  J3 --> OUT
+  J4 --> OUT
+  J5 --> OUT
+  NOTER -. "does not repair candidate or supply EndRing extractor" .-> OUT
