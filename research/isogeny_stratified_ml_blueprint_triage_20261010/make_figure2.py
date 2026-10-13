@@ -41,7 +41,10 @@ ax, ay, aw, ah = 70, 50, 380, 220
 panel(ax, ay, aw, ah, "A. n = 16, f = 3*31: per-prime strata, m = 2", "ratio to the (0,1)-stratum mean; bars +/- 1 SD over curves; 165 curves x 4 subspaces")
 g = [(s, v["yield_F2"]["mean"], v["yield_F2"]["sd"], v["yield_F2"]["n"]) for s, v in S["per_stratum"].items()]
 ref = next(m for s, m, _, n in g if "('3', 0), ('31', 1)" in s)
-dots(ax, ay, aw, ah, g, "yield", lambda nm, n: f"{nm.replace(chr(39),'').replace('3, ','v3=').replace('31, ','v31=')} n={n}"[:40], "yield / |F|^2", ref=ref)
+def short(nm):
+    import ast
+    d = dict(ast.literal_eval(nm)); return f"v3={d['3']} v31={d['31']}"
+dots(ax, ay, aw, ah, g, "yield", lambda nm, n: f"{short(nm)} n={n}", "yield / |F|^2", ref=ref)
 t = S["tests"]["yield_F2"]; text(ax, ay + ah + 32, f"between-stratum permutation p = {t['p_perm']:.2f} (yield), {S['tests']['red']['p_perm']:.2f} (reductions/call)", 10, fill="#444")
 
 # B
@@ -64,7 +67,7 @@ else:
     panel(cx0, cy, cw, ch, "C. n = 16, m = 3 panel", "pending"); text(cx0 + 20, cy + 100, "no cells yet", 12)
 
 # D
-dx, dy, dw, dh = 70, 380, 1280, 400
+dx, dy, dw, dh = 70, 380, 1280, 330
 panel(dx, dy, dw, dh, "D. Transport cost vs rho across the Koblitz ladder (log2 F_q multiplications, cost model in transport_cost_table.py)",
       "bars: transport (kernel route construction + two evaluations); red marks: rho on a floor curve (negation only); blue marks: rho on the crater (signed Frobenius); grey: kernel field degree too large to construct")
 rows = []
@@ -87,9 +90,9 @@ for i, (lab, tr, rf, rc, feas) in enumerate(rows):
     if rf is not None:
         P.append(f'<line x1="{x}" y1="{YD(rf):.1f}" x2="{x+slot-8:.1f}" y2="{YD(rf):.1f}" stroke="#c0392b" stroke-width="3"/>')
         P.append(f'<line x1="{x}" y1="{YD(rc):.1f}" x2="{x+slot-8:.1f}" y2="{YD(rc):.1f}" stroke="#2980b9" stroke-width="3"/>')
-    text(x + (slot - 8) / 2, dy + dh + 12, lab, 7.5, anchor="middle")
-text(dx, H - 40, "Reading: wherever the descending isogeny is constructible, transport costs far less than rho on either curve, so a floor-curve method must beat the crater's rho to matter (H3); where the kernel field is huge (grey / dashed), neither direction is reachable and the levels are not known to be DLP-equivalent (JMV's open case).", 10, fill="#444")
-text(dx, H - 24, "research/isogeny_stratified_ml_blueprint_triage_20261010 -- figure 2; toy scale; no ECDLP claim.", 10, fill="#666")
+    text(x + (slot - 8) / 2 + 3, dy + dh + 6, lab.replace("K_0 ", "").replace("ordinary random-b n=51 (binary_level_yield)", "ord n=51"), 8, anchor="end", rot=True)
+text(dx, H - 18, "Reading: wherever the descending isogeny is constructible, transport costs far less than rho on either curve, so a floor-curve method must beat the crater's rho to matter (H3); where the kernel field is huge (grey / dashed), neither direction is reachable and the levels are not known to be DLP-equivalent (JMV's open case).", 10, fill="#444")
+text(dx, H - 4, "research/isogeny_stratified_ml_blueprint_triage_20261010 -- figure 2; toy scale; no ECDLP claim.", 10, fill="#666")
 P.append("</svg>")
 os.makedirs(os.path.join(here, "figures"), exist_ok=True)
 open(os.path.join(here, "figures", "comprehensive_pass.svg"), "w").write("\n".join(P)); print("wrote figures/comprehensive_pass.svg")
