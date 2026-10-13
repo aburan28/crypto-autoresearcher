@@ -2,8 +2,9 @@
 
 - **Status:** `investigating`
 - **Kind:** proof gap and construction gap
-- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-44a1ce decision](../ledger/decisions/DEC-20261013-122bb5.yaml), [BATCH-be2a37 composition](../coordination/design/TASK-20261013-0348f3/composition/TASK-20261013-a7be35/final-composition.yaml), [EigenX-v2 report](../research/ssi-endring-pke/2026-10-13-eigenx-v2-prescribed-path/report.md), [closing evidence](../ledger/evidence/EV-SSI-279763.yaml), and [closing decision](../ledger/decisions/DEC-20261013-9c2f80.yaml)
-- **Next action owner:** future Coordinator only after a new explicit Coordinator decision and user-authorized scope; no automatic successor
+- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-44a1ce decision](../ledger/decisions/DEC-20261013-122bb5.yaml), [BATCH-be2a37 composition](../coordination/design/TASK-20261013-0348f3/composition/TASK-20261013-a7be35/final-composition.yaml), [EigenX-v2 report](../research/ssi-endring-pke/2026-10-13-eigenx-v2-prescribed-path/report.md), [BATCH-be2a37 evidence](../ledger/evidence/EV-SSI-279763.yaml), [BATCH-be2a37 decision](../ledger/decisions/DEC-20261013-9c2f80.yaml), [BATCH-d92210 opening](../coordination/design/TASK-20261013-09fc6d/opening.yaml), [BATCH-d92210 evidence](../ledger/evidence/EV-SSI-4b4733.yaml), and [BATCH-d92210 decision](../ledger/decisions/DEC-20261013-3d790f.yaml)
+- **Current bounded owner:** none; BATCH-d92210 closed under DEC-20261013-3d790f (zero survivors; documentation incomplete).
+- **Successor boundary:** no automatic successor; any new work requires a new explicit Coordinator decision and user-authorized scope.
 - **Last updated:** 2026-10-13
 
 ## Problem
@@ -82,11 +83,14 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 
 ## Next action and stop boundary
 
-- **Action:** Close `BATCH-be2a37` after its terminal ledger archive.
-- **Stop condition:** Do not rank, open, implement, run, or promote another EigenX/EndRing successor unless a new explicit Coordinator decision and user-authorized scope names it.
+- **Action:** Await a new explicit Coordinator decision and user-authorized scope. `BATCH-d92210` is already archived.
+- **Stop condition:** Do not rank, open, implement, run, or promote another EigenX/EndRing successor unless that new decision and scope names it.
 - **Recheck trigger:** Such a new explicit decision and scope, or new externally supplied evidence that directly meets one of the existing exit criteria. Mere completion of this problem record, the batch archive, or the conditional authenticated-CEST control does not clear the obstruction.
 
 ## Resolution and history
+
+- **2026-10-13 renewed objective:** [DEC-20261013-aa3a85](../ledger/decisions/DEC-20261013-aa3a85.yaml) opens [BATCH-d92210](../coordination/design/TASK-20261013-09fc6d/opening.yaml), at most two materially distinct recipient search lenses beyond `EvalLine_(P,A)`: ring-constrained ideal/Hom recovery and ring-identifying noncommuting/module transcripts. Neither is a supplied construction. Exact KeyGen/Enc/Dec, O1–O6, complete challenge simulation and attacker-to-complete-evaluable-ring extraction (or a separately named intermediate assumption), actual-message correctness and total costs are required. Novelty, QPT/QROM security and NIST category-5 concrete evidence are separate unmet obligations. Missing primary/KB access leaves source and novelty claims open. The [frozen review plan](../coordination/design/TASK-20261013-09fc6d/review-preparation/review-plan.yaml) precedes reviewers; zero implementation, scientific, formalization, benchmark or parameter-selection runs. Existing exit criteria remain unmet; the goal stays active.
+- **2026-10-13 BATCH-d92210 close:** [DEC-20261013-3d790f](../ledger/decisions/DEC-20261013-3d790f.yaml) / [EV-SSI-4b4733](../ledger/evidence/EV-SSI-4b4733.yaml) archive zero survivors. LABELLED-NORM-HOM-LIFT remains a construction gap (O1–O6 open). Simultaneous full-module conjugation is rejected in its exact submitted syntax (public intertwiner recovery; O4 contradicted). Documentation gate INCOMPLETE; independence checker failed and was preserved. No automatic successor; exit criteria remain unmet.
 
 - **2026-10-13:** Created from the CEST/EigenX O5 gap and the reviewed `BATCH-12e6aa` adaptive-coverage gap. `BATCH-44a1ce` is the bounded next investigation. Unresolved. Creating or merging this record does not establish a construction, security theorem, or impossibility result.
 - **2026-10-13:** `BATCH-44a1ce` completed with no surviving bridge, O3 as the sole reviewed discharge, O1/O2/O4/O5/O6 open, a scoped I3 break, and an exact frozen-syntax IND-CCA2 break. J6 passed after `TASK-20261013-1c2b7a` and `TASK-20261013-b61e2d` corrected the PDF arrows/links and link-count metadata. The problem remains investigating, its exit criteria remain unmet, and the only recorded continuation is `ENDRING-MATERIALLY-DISTINCT-RECIPIENT-MECHANISM` with no automatic launch.

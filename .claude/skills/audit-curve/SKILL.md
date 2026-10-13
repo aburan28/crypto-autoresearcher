@@ -196,6 +196,19 @@ this is `sqrt(m)` (`0.5 log2(m)` bits) beyond the same curve's negation-only
 rho, and `sqrt(2m)` only beyond unquotiented rho. Treat this as a structural
 model until the complete walk cost is measured.
 
+For an empirical Koblitz calibration, pair arms on the identical curve,
+prime-subgroup generator, planted target, and algorithm seed. Make collision
+walk work the primary model-facing counter; report target-dependent setup,
+walk starts, cycle handling, collision recovery, and verification separately.
+Always publish `log2(r)` and the cofactor beside `m`: field degree is not a
+sample-size or security-size surrogate, and small prime subgroups can show
+large finite-state effects even when `m` is larger. Distinguish the incremental
+signed-`tau` saving beyond negation from the extra half-bit obtained only when
+the baseline is unquotiented rho. A ratio of counts that omit different
+canonicalisation work is not a lower or upper bound on the fully priced cost
+ratio. Retain local trail-cap restarts as cycle diagnostics; only an exhausted,
+timed-out, or non-verified overall solve invalidates that paired observation.
+
 Use the source's signed-`tau` arm as the incumbent in a vertical-isogeny
 comparison. A negation-only endpoint must have fully charged transition cost
 below `1/sqrt(m)` of the source signed-`tau` cost merely to offset the lost
@@ -306,6 +319,40 @@ Correct degree bias and autocorrelation with a justified mixing or
 finite-population argument; an effective sample size is a diagnostic, not a
 mixing proof. Confirm adaptive discoveries on fresh samples and account for
 multiple testing.
+
+For randomized contrasts intended to isolate conductor or volcano-level
+association, use one common native action in every level-effect arm. Before
+observing outcomes, freeze the endpoint-selection rule, estimand, counter and
+calibration rule, cluster unit, multiplicity family, stopping rule, and a
+disjoint A/A or negative-control release gate. State whether the estimand is
+only the finite selected set or a modeled population of representatives.
+Conjugate models and multiple children of one parent are not independent
+clusters merely because they have distinct equations. Common random numbers
+can reduce variance, but they do not make differently calibrated estimators
+exactly paired; use the covariance and cluster structure that the actual
+estimator induces. In a separate attack-ledger lane, benchmark each level's
+best certified usable native action. Do not promote a common-action level
+contrast into a weak-representative or security conclusion that ignores a
+level-specific GLV, GLS, Frobenius, or other usable action.
+
+For a 2-by-2 conductor lattice, report the two conditional edges for each
+factor, any half-coded main associations, the interaction `I`, and the
+ordinary difference-in-differences `2I` without conflating them. None is a
+causal conductor effect unless the sampling and intervention design identify
+that effect. Keep fixed-selected-set descriptions separate from modeled-
+population intervals and from any end-to-end attack measurement.
+
+A failed or non-estimable preregistered A/A or negative-control gate makes
+only its dependent empirical lane `INDETERMINATE`. Preserve the run, raw
+records, failures, and descriptive summaries, but withhold nonzero, null,
+equivalence, practical-significance, conductor-effect, and weakness labels.
+Distinguish a detected control bias from insufficient precision: crossing a
+gate boundary does not by itself identify which occurred. Independently
+certified attacks remain separately assessable. Do not widen the margin,
+backfill endpoints, conditionally extend the sample, or rerun until the gate
+passes after seeing outcomes. A newly frozen independent replication may
+release only its own inference; it cannot retroactively validate the failed
+run.
 
 For i.i.d. Bernoulli samples from one fixed law and a predeclared fixed
 weakness predicate, report a predeclared exact binomial interval. In that
