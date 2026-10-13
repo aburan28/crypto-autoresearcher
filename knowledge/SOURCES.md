@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 8 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8100 |
-| — with a resolvable external identifier | 2486 |
+| Literature entries (`KN-LIT-*`) | 8102 |
+| — with a resolvable external identifier | 2488 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 181, eprint 835, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 182, eprint 835, url 128. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7527, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 3, `partial` 5, `read` 7527, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -243,7 +243,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2486 of 8100 `KN-LIT-*` entries carry an
+2488 of 8102 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2549,6 +2549,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-967 | Derived Zeta Functions for Curves over Finite Fields | 2022 | `arxiv:2203.11488` | read |
 | KN-LIT-968 | DYNAMICS ON P1 : PREPERIODIC POINTS AND PAIRWISE STABILITY | 2022 | `arxiv:2212.13215` | read |
 | KN-LIT-969 | Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM? | 2022 | `eprint:2022/270` | read |
+| KN-LIT-96f1bb | Isogeny volcanoes and the SEA algorithm | 2002 | `doi:10.1007/3-540-45455-1_23` | metadata |
 | KN-LIT-970 | Efficient Proofs of Knowledge for Threshold Relations | 2022 | `eprint:2022/746` | read |
 | KN-LIT-970963 | Dimension Reduction for SVP in HAWK: A Trace-Zero Approach | 2026 | `eprint:2026/1560` | read |
 | KN-LIT-971 | ELLIPTIC ANALOGUE OF IRREGULAR PRIME NUMBERS FOR THE pn -DIVISION FIELDS OF THE CURVES y 2 = x3 − (s4 + t2 )x | 2022 | `arxiv:2205.08946` | read |
@@ -2597,6 +2598,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-a36af1 | DKEX (Ding Key Exchange)（NGCC 公钥第一轮候选 · 密钥交换 4） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4b3d8 | RCKangaroo (SOTA/SOTA+ kangaroo with symmetry) and Kang-1/Kang-2 method write-ups | 2024 | `url:github.com/retiredc/rckangaroo` | web |
+| KN-LIT-a4c123 | Endomorphism rings of elliptic curves over finite fields | 1996 | `url:www.i2m.univ-amu.fr/perso/david.kohel/pub/thesis.pdf` | metadata |
 | KN-LIT-a4d70e | The syzygy distinguisher | 2025 | `eprint:2024/1193` | web |
 | KN-LIT-a58ca4 | How to lose some weight - a practical template syndrome decoding attack | 2025 | `eprint:2024/621` | web |
 | KN-LIT-a5c59c | Elliptic and Hyperelliptic Curves: A Practical Security Analysis | 2014 | `eprint:2013/644` | read |
