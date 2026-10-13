@@ -1,18 +1,21 @@
-# m=51 deep volcano levels are not constructed
+# m=51 deep volcano sampling and maps remain open
 
 - **Status:** `open`
-- **Kind:** implementation gap and proof gap
+- **Kind:** admitted-sampling, implementation, and proof gap
 - **Affected work:** the unmeasured `f_E=120,871` and
   `f_E=271*120,871` levels in the [m=51 volcano study](../research/isogeny_volcano_m51_rho_20261013/README.md), its [frozen protocol](../research/isogeny_volcano_m51_rho_20261013/PROTOCOL.md), and any complete-level or vertical-transfer comparison for that isogeny class
-- **Next action owner:** unassigned executor after a construction protocol is frozen
+- **Next action owner:** unassigned executor after the indexed-scan protocol is frozen
 - **Last updated:** 2026-10-13
 
 ## Problem
 
-We cannot yet measure the two deeper levels of the ordinary `m=51` binary
-isogeny class because no durable curve model with independently certified
-endomorphism conductor `f_E=120,871` or `f_E=271*120,871` has been produced,
-and no explicit adjacent map/dual certificate reaches either level.
+An unpredeclared feasibility pilot has now found one bottom/parent pair in the
+two deeper levels of the ordinary `m=51` binary isogeny class. That removes the
+earlier endpoint-existence bottleneck for this one observed pair, but it does
+not admit the pair as a statistical sample: the search, selection rule, and
+stopping boundary were not frozen before the pair was observed. No frozen
+level-wide sampling frame has been executed, and no explicit adjacent
+map/dual certificate reaches either level.
 
 The fixed class is over
 `F=GF(2)[z]/(z^51+z^6+z^3+z+1)` with trace `t=-38,684,515`, ambient order
@@ -24,10 +27,11 @@ f_pi = 32,756,041 = 271*120,871.
 ```
 
 The accepted experiment constructed and measured only `f_E=1` and
-`f_E=271`. A same-action comparison at every conductor level requires valid,
-precommitted models for `f_E=120,871` and `f_E=f_pi`; a vertical-transfer
-comparison additionally requires executable maps, duals, subgroup
-preservation, recovery, and complete cost accounting.
+`f_E=271`. A same-action comparison at every conductor level still requires
+valid models for `f_E=120,871` and `f_E=f_pi` selected by a frozen rule before
+rho outcomes are observed. A vertical-transfer comparison additionally
+requires executable maps, duals, subgroup preservation, recovery, and
+complete cost accounting.
 
 ## Evidence and uncertainty
 
@@ -46,21 +50,37 @@ preservation, recovery, and complete cost accounting.
   structural values `h(-7*120871^2)=120870` and a kernel-field degree of
   `60,435` for the degree-120871 direction. These are planning facts, not a
   completed endpoint construction, map, or measured resource failure.
+- **Observed feasibility pilot, not an admitted sample:** an old adapted
+  point-count sieve scanned 10,000,000 sequential candidates in 38 seconds on one
+  core and returned `b=675235026289400` in the fixed `a2=0` model family. A
+  fresh PARI check gave the exact class order `N`; its Frobenius orbit is
+  disjoint from the previously measured `f_E=271` orbit; and fresh PARI
+  `[2,2,2]` witnesses at `271^2` prove that this candidate is on the bottom
+  `f_E=271*120,871` level. Its unique 271-ascent parent is
+  `b=7746411922983`, `a2=0`; that parent has Frobenius-orbit size 51 and exact
+  order `N`. These observations establish construction feasibility for one
+  pair. Because the pilot was not predeclared, its bottom orbit, its observed
+  parent orbit, and every other bottom child resolving to that parent are
+  excluded from the next statistical sample and support no rho comparison.
 - **Derived or proved:** the arithmetic assessment in
   [`TRACE_ZERO_LANE.md`](../research/isogeny_volcano_m51_rho_20261013/TRACE_ZERO_LANE.md)
   derives that `tau^17` belongs to the orders of conductor 1 and 271 but not
   to the orders of conductor 120,871 or `271*120,871`. Thus negation is the
   currently specified native action common to all four levels. This does not
   predict a conductor-only collision-work effect.
-- **Suspected explanation:** the high-degree class-polynomial and kernel
-  constructions may be the practical bottleneck. No preserved attempt
-  establishes which stage, algorithm, memory requirement, or runtime is
-  limiting, so the cause remains unknown.
-- **Missing capability:** two exact endpoint models and endomorphism-ring
-  certificates; a fixed Frobenius-orbit sampling frame for any level-wide
+- **Updated implementation evidence:** the pilot shows that a direct indexed
+  sieve plus fresh conductor checks can find at least one deeper-level pair
+  cheaply enough to justify a frozen scan. It does not measure the full
+  population, certify a sampling estimand, or show that the same throughput
+  persists over the next range. The degree-120,870 CM inventory remains an
+  independent census route rather than the fastest currently evidenced route
+  to a precommitted endpoint sample.
+- **Missing capability:** a frozen, replayable multi-orbit sample for both
+  deeper levels; a fixed Frobenius-orbit sampling frame for level-wide
   inference; and serialized or deterministically reconstructible adjacent
   maps and duals with point evaluation, exceptional-input handling, subgroup
-  checks, recovery, and measured costs.
+  checks, recovery, and measured costs. The pilot's unique ascent relation is
+  not an explicit point-evaluable map or dual.
 - **What this evidence does not establish:** it does not show that either
   deeper level is empty, unreachable, infeasible to construct, weak, or as
   hard as the measured levels. It does not establish a conductor effect or
@@ -69,14 +89,17 @@ preservation, recovery, and complete cost accounting.
 
 ## What would unblock it
 
-- [ ] Produce a durable model `E_120871/F` with `#E_120871(F)=N` and an
-  independently checked certificate that
-  `End(E_120871) = Z + 120871 O_K`, plus a durable model `E_bottom/F` with
-  the same order and
-  `End(E_bottom) = Z + (271*120871) O_K`. Record complete curve identities,
-  field encodings, construction inputs, commands, software versions, hashes,
-  and failures. Class-polynomial membership and matching point count alone
-  do not replace the exact endomorphism-ring certificates.
+- [ ] Preserve and independently replay the pilot pair, including the exact
+  field encoding, both curve identities, order checks, bottom-conductor
+  `[2,2,2]` witnesses at `271^2`, unique-ascent classification, commands,
+  software versions, hashes, and failures. The observed pair is feasibility
+  evidence only and remains excluded from the admitted sample.
+- [ ] Execute a precommitted indexed scan over `[0, 3,600,000,000)` and select
+  the first 32 distinct bottom/parent Frobenius-orbit pairs under the frozen
+  encounter-order and deduplication rules. Require exact order `N` and fresh
+  conductor certificates for both members of every selected pair; exclude
+  the pilot parent orbit and its complete 272-child bottom fiber before
+  selection.
 - [ ] Before a level-wide statistical claim, define the finite population of
   Frobenius orbits at each new level or freeze a deterministic orbit-sampling
   rule and its estimand. Select models before any rho outcome is observed;
@@ -108,40 +131,55 @@ predeclared and met end-to-end advantage criterion.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** replay the exact `cm51_120871.gp`
-  construction from revision
-  `f0bdf9f739462766a9060532c59f9bfed69d00b1` in a pinned PARI/GP
-  environment and retain every intermediate needed to validate its intended
-  120,870-entry `floor51_120871_cm.txt`. If the inventory validates, choose
-  the least integer-encoded valid model under a frozen tie rule, certify its
-  exact endomorphism ring, then construct and persist one degree-271
-  descending map/dual to a bottom model. Do not choose an endpoint from rho
-  outcomes.
+- **Action or proof obligation:** freeze and run a deterministic indexed sieve
+  over `[0, 3,600,000,000)`, selecting the first 32 distinct certified
+  bottom/unique-ascent-parent Frobenius-orbit pairs under an encounter-order
+  tie rule. Exclude the complete parent orbit represented by
+  `b=7746411922983` and all 272 bottom-child orbits that ascend to it because
+  the pilot exposed that fiber before freeze; this includes the observed
+  bottom orbit containing `b=675235026289400`. Do not choose or reject
+  endpoints from rho outcomes. This
+  supersedes CM-first construction as the fastest currently evidenced next
+  endpoint-sampling step.
 - **Inputs and controls:** use the fixed field polynomial, `N`, `r`, and
-  conductor factorization above. Pass the known crater `b=1` and
-  `m51-floor-o01` through the same point-count and conductor classifier as
-  positive identity controls, and require the classifier to reject their
-  deliberately wrong deeper-level labels. Verify a candidate and its
-  Frobenius conjugates without treating them as independent curves.
-- **Execution limits and stop condition:** run one deterministic construction
-  pass under recorded host safety limits; no scientific timeout or smaller
-  substitute is predeclared. The pass ends only with a sealed, fully checked
-  intended inventory or a preserved process termination/failure at a named
-  stage. Stop all map and performance inference on the first field, order,
-  conductor, map, dual, subgroup, or recovery failure. A safety watchdog or
-  resource exhaustion is infrastructure/resource evidence, not a
-  mathematical result.
-- **Outcomes and next actions:** a certified `f_E=120,871` model admits the
-  same-negation endpoint arm even if map construction remains open. A
-  certified degree-271 child adds the bottom arm. Passing maps and duals admit
-  a separately frozen transfer-cost experiment. A completed inventory with
-  no valid exact-conductor model refutes that implementation's construction
-  output and triggers an independent conductor audit; it does not prove the
-  level absent. A process or resource failure identifies the stage to replace
-  or checkpoint and leaves both levels unmeasured.
-- **Recheck trigger:** a committed, independently replayed deeper-level model
-  inventory or a committed explicit map/dual artifact for either missing
-  direction.
+  conductor factorization above. Freeze the index-to-candidate mapping,
+  encounter order, orbit canonicalization, deduplication, pilot-exclusion,
+  exact-order, and conductor-certificate rules before scanning. Pass the known
+  crater `b=1`, `m51-floor-o01`, and the excluded pilot pair through the same
+  point-count and conductor classifier as identity controls, and require the
+  classifier to reject deliberately wrong level labels. Verify every
+  candidate and its Frobenius conjugates without treating conjugates as
+  independent curves.
+- **Execution limits and stop condition:** scan the complete frozen interval
+  once under recorded host safety limits and preserve all candidates,
+  duplicates, exclusions, certifications, failures, and timing. The pass ends
+  only after index `3,599,999,999` is processed, even if 32 pairs appear
+  earlier; the selected sample is the first 32 eligible distinct-orbit pairs.
+  If fewer than 32 pairs exist in the interval, retain the complete result as
+  a bounded census and freeze a new range before extending it. An admitted or
+  unresolved field, order, conductor, subgroup, ascent, or certificate failure
+  at or before the provisional 32-pair cutoff invalidates the selected sample;
+  it is never backfilled with a later success. Failures after that cutoff stay
+  retained and reported but do not by themselves invalidate the already fixed
+  selected 32. Map, dual, transfer, and performance inference remain outside
+  this discovery study. A safety watchdog or resource exhaustion is
+  infrastructure/resource evidence, not a mathematical result.
+- **Outcomes and next actions:** 32 certified pairs admit a separately frozen
+  matched same-negation rho experiment on the sampled parent and bottom
+  orbits. Fewer than 32 pairs determine the complete count in this interval
+  but do not prove scarcity outside it. Passing explicit maps and duals admits
+  a separately frozen transfer-cost experiment; endpoint certificates alone
+  do not. A process or resource failure identifies the stage to replace or
+  checkpoint and leaves the deeper-level comparison unmeasured.
+- **Independent census lane:** replay the exact `cm51_120871.gp` construction
+  from revision `f0bdf9f739462766a9060532c59f9bfed69d00b1` in a pinned
+  PARI/GP environment and retain every intermediate needed to validate its
+  intended 120,870-entry `floor51_120871_cm.txt`. This remains valuable for a
+  complete CM census and cross-check, but it no longer blocks the faster
+  precommitted indexed sample.
+- **Recheck trigger:** a committed, independently replayed 32-pair sample (or
+  complete bounded scan with fewer hits), the completed independent CM census,
+  or a committed explicit map/dual artifact for either missing direction.
 
 A planned construction is not a completed experiment. It must use the
 repository's execution, review, visual-record, and archival rules before its
@@ -149,6 +187,7 @@ outputs support an inference.
 
 ## Resolution and history
 
-Unresolved. This record preserves the two unmeasured levels and their exact
-construction and transfer obligations; it asserts no impossibility and no
-weakness result.
+Unresolved. The unpredeclared pilot changes endpoint existence from unknown to
+demonstrated for one parent/bottom pair, while leaving admitted sampling,
+explicit maps/duals, transfer costs, and rho measurements open. It asserts no
+general conductor effect, impossibility, or weakness result.
