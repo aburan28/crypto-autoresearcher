@@ -1,0 +1,165 @@
+format: scheme-construction-contract/v1
+task_id: TASK-20261013-f8430e
+title: LABELLED-NORM-HOM-LIFT
+primitive: pke
+author: idea-generator-ideal-hom
+parent_record_ids: [TASK-20261013-09fc6d, GOAL-SSI-2fa82a, RQ-SSI-1946c9]
+artifact_revision: uncommitted_producer_packet
+security_parameter: lambda; supplied symbolic p,e,mu,Blen,T
+domains:
+  public_parameters: p>3 prime, n=ceil(log2(p)), L=2^e divides p+1, M=2^mu divides L, field Fp2, Blen and index-sampling cap T
+  public_key: canonical maximal supersingular E/Fp2 and ordered full basis P,Q of E[L]
+  secret_key: pk plus four efficiently evaluable endomorphisms forming the saturated complete End(E) lattice and ring certificate
+  message: mu-bit integer m in [0,M)
+  ciphertext: canonical 2n-bit serialization of j(E/K); two coefficients in [0,p), no aliases
+  signature: inapplicable; PKE
+  key_space: inapplicable; direct message encoding
+  encoding_and_equality: fixed-width unsigned integers; reject coefficients >=p, trailing bytes and alternate lengths; byte equality
+security_claims:
+  - name: IND-CPA
+    status: conjectured
+    adversary: QPT
+    oracle_model: standard_model
+    oracle_query_access: classical challenge interface; public computations may be implemented coherently
+    game_definition: honest conditional KeyGen; equal-length m0,m1; uniform b; c=Enc(pk,mb;r); output bprime
+    advantage_convention: abs(Pr[bprime=b]-1/2)
+    query_bounds: {public_encryptions: q_E, quantum_gates: t_A, quantum_memory: s_A, random_oracle: 0}
+    assumptions: [LABELLED-QUOTIENT-IND]
+    theorem_artifact: none
+  - name: IND-CCA2
+    status: conjectured
+    adversary: QPT
+    oracle_model: standard_model
+    oracle_query_access: classical adaptive decryption only
+    game_definition: CPA game plus Dec before and after challenge; reject exact challenge bytes only
+    advantage_convention: abs(Pr[bprime=b]-1/2)
+    oracle_access_and_challenge_exclusions: no superposition Dec; equivalent j bytes have one accepted encoding; no endpoint-class exclusion
+    assumptions: [no_active_security_assumption_or_transform_supplied]
+    theorem_artifact: none; target for audit only
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: D_cert is the finite reference law specified in public-statement.yaml; uniform certified E then uniform ordered torsion basis
+    real_key_distribution: D_cert conditional on Setup and index-sampling acceptance; no uniform-supersingular equivalence claimed
+    adversary_input_and_auxiliary_data: p,e,mu,Blen,T,E,P,Q; all repeated ciphertexts and public validation observations
+    solution_representation_and_success_predicate: four evaluable self-maps with polynomial-size descriptors, Z-independent, ring-closed, containing identity, trace-pairing discriminant p^2; evaluator validity on extension fields
+    setup_trust_and_erasure: transparent finite enumeration; key-generation witness hidden; erase table, chosen basis certificate and temporary enumeration state except sk; no public secret-correlated advice
+    secret_representation_and_conversion_costs: four bounded descriptors and integral multiplication certificate; K_cert verification/conversion cost unbounded by polynomial
+    assumptions: [hardness_of_D_cert_not_established]
+    cited_equivalences_and_hypotheses: no abstract-order, Hom, OneEnd or isogeny equivalence applied to this key law
+    evidence_artifacts: [public-statement.yaml, source-ledger.yaml]
+    remaining_gap: efficient distribution-matched sampler, nonempty supported key family, and hardness with public torsion
+    next_action: provide exact efficient sampler and representation certificates without changing D_cert silently
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - {name: Setup, inputs: symbolic parameters, outputs: parameters_or_bottom, randomness: none, validation: field and divisibility checks, failure: empty certified table returns bottom, pseudocode: public-statement.yaml}
+      - {name: KeyGen, inputs: parameters, outputs: pk_sk_or_bottom, randomness: capped unbiased index coins, validation: complete-ring certificates and primitive Weil pairing, failure: cap returns bottom, pseudocode: public-statement.yaml}
+      - {name: Enc, inputs: pk_m_r, outputs: c_or_bottom, randomness: exactly e-mu bits, validation: canonical key and message, failure: malformed input returns bottom, pseudocode: public-statement.yaml}
+      - {name: Dec_reference, inputs: sk_c, outputs: selected_residue_or_bottom, randomness: none, validation: canonical bytes, failure: empty_or_multiple_residues, pseudocode: enumerate all L labels and compare endpoints}
+      - {name: Dec_intended, inputs: sk_c, outputs: selected_residue_or_bottom, randomness: unspecified_missing_algorithm, validation: exact fiber completeness, failure: unspecified_missing_algorithm, pseudocode: requires LabelledNormHomLift; not implemented}
+    preprocessing_and_retry_costs: finite certificate enumeration K_cert; three independent index samplers capped at T, abort <=3*2^-T conditional on nonempty tables; no encryption retry
+    complexity_guarantee: finite reference only; sender e degree-two steps and O(e^2) point operations; no efficient KeyGen or intended Dec bound
+    unavailable_subroutines: [efficient_D_cert_sampler, CompleteHom_from_source_ring_only, complete_norm_L_enumeration, efficient_exact_label_fiber]
+    evidence_artifacts: [candidate.md, public-statement.yaml]
+    remaining_gap: LABELLED-NORM-HOM-LIFT supplies no algorithm for complete Hom(E,C) from End(E) alone
+    next_action: construct one exact bounded decoder with no secret target ring or connecting-path input
+  O3:
+    name: quantified_correctness
+    status: open
+    statement_and_quantifiers: for every accepted pk and every m in [0,M), Pr_r[Dec(sk,Enc(pk,m;r))=m] >=1-epsilon; epsilon unbounded
+    probability_space: exact conditional key law and uniform e-mu-bit r; KeyGen abort accounted separately
+    valid_key_and_message_scope: all accepted keys and all mu-bit messages
+    per_key_or_average_guarantee: per-key reference success exactly equals mass of singleton message-residue fibers
+    failure_probability_bound: unestablished; cross-message endpoint collisions cause failure
+    actual_message_or_key_recovery: returns m only if every endpoint-compatible label has residue m, not merely a kernel orbit
+    exceptional_inputs: [multiple_kernel_fibers, exceptional_curve_automorphisms, target_twists, empty_fiber, bad_key, malformed_bytes]
+    theorem_artifact: conditional singleton-fiber identity in candidate.md only
+    supporting_test_artifacts: []
+    remaining_gap: negligible cross-message fiber mass and intended-decoder agreement not proved
+    next_action: prove message-fiber separation or bound exact failure under actual coins
+  O4:
+    name: functionality_mechanism
+    status: open
+    public_operation: quotient E by K_(m+Mr), publish canonical j
+    private_operation: construct complete right End(E)-module Hom(E,C); constrain degree=L and kernel slope; recover residue set
+    agreement_or_functionality_lemma: exact norm-L kernel list must equal the public endpoint preimage list; singleton residue recovers m
+    extra_recipient_secrets: none allowed beyond complete End(E) basis
+    missing_lifts:
+      - name: LabelledNormHomLift
+        inputs: E,B,P,Q,L,M,c
+        outputs: complete set of residues a mod M for all endpoint-compatible K_a, with evaluable Hom and kernel certificates
+        output_representation_and_equivalence: target twists and isomorphisms must preserve geometric kernel and label; map/program equality not assumed
+        uniqueness_or_acceptance_condition: residue set singleton; arbitrary norm witness is insufficient
+        polynomial_algorithm_and_cost: not supplied
+        failure_bound: not supplied
+        recovery_of_actual_message_or_key: conditional on exact complete fiber and singleton residue
+        identical_public_data_control: enumerate all a; polynomial if L is polynomial
+    identification_and_transform: {applicability: false, inapplicable_reason: direct PKE; no identification or Fiat-Shamir}
+    evidence_artifacts: [recipient-strictness.yaml]
+    remaining_gap: recipient advantage and complete-ring necessity both unestablished
+    next_action: smaller-witness separator plus public-data comparison on identical instances
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions: []
+    intermediate_assumptions:
+      - name: LABELLED-QUOTIENT-IND
+        game: exact QPT selected-message endpoint indistinguishability game under D_cert
+        distribution: same p,e,mu,E,P,Q and ciphertext coins as public statement
+        model: QPT standard model; q_H=0
+        needed_EndRing_arrow: attacker -> complete evaluable EndRing(E), not EndRing solver -> decoder
+        status: open; not relabelled EndRing hardness
+    multiple_assumption_dependency: Hom decoding, message correctness and indistinguishability are independent obligations
+    classical_quantum_and_rewinding_scope: no proof, rewinding, programming or QROM theorem supplied; no classical proof promoted
+    evidence_artifacts: [reduction-ledger.yaml]
+    remaining_gap: full-ring extractor, efficient exact simulation, loss/abort bounds and challenge coverage missing
+    next_action: define successful attacker output type and prove same-challenge saturated-basis extraction
+  O6:
+    name: complete_adversarial_view
+    status: open
+    public_disclosures: [p, field_basis, e, mu, Blen, T, E, P, Q, Weil_pairings, all_ciphertexts, query_history, parse_rejections, decryption_errors_if_CCA]
+    allowed_oracles_and_query_history: CPA none private; CCA target classical Dec; all repeated queries retained
+    validation_rejection_and_failure_observables: finite deterministic reference parser/decoder; intended-decoder failure and timing law missing
+    malformed_inputs_and_alternate_encodings: reject out-of-range coefficients, lengths and trailing bytes; byte equality challenge exclusion
+    repeated_use_and_collision_analysis: same endpoint across different labels is analyzed as a message-fiber collision, not hidden by semantic challenge exclusion
+    side_channel_scope_and_exclusions: algebraic classical-I/O model; implementation timing, physical leakage and malicious-key setup unproved
+    public_data_and_known_false_controls: [public_enumeration, leaked_a, one_Hom_witness, scalar_only, fixed_transcript_fiber]
+    concrete_parameter_security: not established
+    asymptotic_to_concrete_limitations: no sampler cost, QPT reduction, attack resource estimates or selected parameters
+    evidence_artifacts: [public-statement.yaml, cat5-evidence-plan.yaml]
+    remaining_gap: no complete efficient implementation law or adaptive oracle simulator
+    next_action: preserve complete view while filling algorithm and extraction gaps
+assessment:
+  verdict: candidate
+  deliverable_type: named_construction_gap
+  finite_functionality_status: exact finite reference; message-fiber correctness conditional
+  efficient_functionality_status: unresolved
+  security_status: unresolved
+  named_conditions: [LABELLED-NORM-HOM-LIFT, message_fiber_separation, efficient_D_cert_sampler, full_ring_extraction]
+  open_obligations: [O1, O2, O3, O4, O5, O6]
+  independent_review_artifacts: []
+  next_action: one reviewed exact source-ring-only Hom decoder and fiber bound before any implementation request
+  official_state_transition_record: none
+citations:
+  - {source: docs/scheme-construction-contract.md, provenance: internal, verified_by: idea-generator-ideal-hom, inspected_scope: O1-O6 and games}
+  - {source: source-ledger.yaml, provenance: internal, verified_by: idea-generator-ideal-hom, inspected_scope: actual source extent; no primary construction proof}
+inference:
+  policy: research-deep
+  requested_resolved_model: anthropic:claude-sonnet-5-5
+  requested_reasoning_effort: high
+  requested_model_verified: false
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  serving_mode: native
+  fallback_allowed: true
+  fallback_used: true
+  degraded_allowed: false
+  degraded_requirements: []
+  model_verified: false
+  provenance: parent native dispatch; native authentication is not model verification
+scientific_runs: 0
+dominated_by: n/a (no result claimed)
+sota_delta: no attack/performance advantage claimed; no matched measurements
