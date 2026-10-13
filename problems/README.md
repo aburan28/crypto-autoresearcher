@@ -7,13 +7,10 @@ explain the gap and what would let the work move past it.
 
 ## Index
 
-No problem records have been added yet; remove this sentence when adding the
-first record. This is a new tracking directory, not
-an assertion that the repository has no unresolved blockers. Add a row when
-creating a record; keep resolved and superseded records in the index.
-
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Koblitz vertical isogeny maps are not persisted](koblitz-vertical-isogeny-maps-not-persisted.md) | open | K-163/K-283 endpoint rho and transported-action tests | One explicit map/dual, subgroup certificate, and matched cost measurement |
+| [P-224 degree-3 point maps are not certified](p224-degree3-point-maps-not-certified.md) | open | Complete P-224 component and subgroup-transfer tests | Explicit map/dual pairs, conductor labels, graph closure, and recovery checks |
 
 ## Add or update a problem
 

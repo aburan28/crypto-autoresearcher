@@ -252,6 +252,46 @@ it does not generally certify the representative conductor `f_E`.
 These rows are evidence pointers, not replacements for the per-audit
 certificates.
 
+### Koblitz rho incumbent and conductor-transfer crossover
+
+For a prime-order subgroup of a Koblitz curve over `F_(2^m)`, do not compare a
+conductor endpoint only with negation-only rho. First certify
+`tau(G) = [lambda]G`, `ord_r(lambda) = m`, and that the nonzero subgroup has
+free signed orbits of size `2m`. Under the random-map model,
+
+`T_neg = sqrt(pi r / 4)` and `T_signed_tau = sqrt(pi r / (4m))`.
+
+Thus the exact structural discount beyond negation is `sqrt(m)`, or
+`0.5 log2(m)` bits. The extra factor `sqrt(2)` belongs only to comparison with
+unquotiented rho. This is an expected-transition model, not measured time. A
+usable attack must also charge canonicalization or an equivariant walk,
+distinguished-point transport, collision recovery, and verification.
+
+A negation-only isogenous endpoint can beat the signed-`tau` source before
+setup only if its fully charged cost per effective transition is less than
+`1/sqrt(m)` times the source cost. If `phi:E -> E'` is a certified separable
+isogeny of degree `d` coprime to `r`, a transported subgroup action may be
+tested as
+
+`T = [d^(-1) mod r] o phi o tau o dual(phi)`.
+
+Certify `T(phi(G)) = [lambda]phi(G)` and `T^m = 1` on the target subgroup.
+When every constituent is defined, this formula is a global morphism, but only
+its restriction to the selected subgroup has been shown to be an automorphism.
+Do not identify it with the degree-preserving rational conjugate
+`phi tau phi^(-1)` or call it an ambient-curve automorphism. Charge the forward
+map, dual, inverse-degree scalar multiplication, exceptional inputs,
+coordinate/basis conversions, path discovery and construction. A conductor
+gap supplies no additional rho bits by itself.
+
+Before paying for `T` at every walk step, include the simpler transfer arm. If
+the DLP starts on `E'`, map its generator and target through the dual once,
+solve on the Koblitz representative with native `tau`, then recover and verify
+on `E'`. Conversely, a DLP already on the Koblitz source needs no endpoint
+transfer unless the endpoint has a cheaper complete attack. The per-step
+transported action is a separate diagnostic and must beat this one-time
+transfer control, not only negation-only rho.
+
 ## Do not overstate isogeny hardness equivalence
 
 Jao-Miller-Venkatesan (KN-LIT-171) gives a GRH-conditional random reduction for
