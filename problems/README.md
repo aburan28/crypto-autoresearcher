@@ -9,7 +9,7 @@ explain the gap and what would let the work move past it.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
-| [EigenX/CEST EndRing reduction is not established](eigenx-cest-endring-reduction-not-established.md) | investigating | An EndRing-based confidentiality theorem or completion claim for EigenX/CEST-PKE | A reviewed, correctly directed reduction on the exact real-key distribution, including any adaptive OneEnd bridge, or a replacement construction whose six scheme obligations are discharged |
+| [EigenX/CEST EndRing reduction is not established](eigenx-cest-endring-reduction-not-established.md) | investigating | An EndRing-based confidentiality theorem or completion claim; BATCH-d92210 archived with zero survivors (M1 gap, M2 exact-syntax break); novelty, QPT/QROM and Cat-5 obligations remain open | A reviewed, correctly directed reduction on the exact real-key distribution, including any adaptive OneEnd bridge, or a replacement construction whose six scheme obligations are discharged; quantum and concrete-category claims need separate evidence |
 | [Koblitz vertical isogeny maps are not persisted](koblitz-vertical-isogeny-maps-not-persisted.md) | open | K-163/K-283 endpoint rho and transported-action tests | One explicit map/dual, subgroup certificate, and matched cost measurement |
 | [P-224 degree-3 point maps are not certified](p224-degree3-point-maps-not-certified.md) | open | Complete P-224 component and subgroup-transfer tests | Explicit map/dual pairs, conductor labels, graph closure, and recovery checks |
 
