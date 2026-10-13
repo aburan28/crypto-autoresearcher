@@ -181,3 +181,44 @@ replacement runs. Explicit empty `--cores=` exited nonzero without creating
 its requested output. The final frozen manifest verifies in full. These remain
 harness and selftest observations only: no scientific benchmark, measured rho
 outcome, or weak-curve conclusion was produced.
+
+## 2026-10-13 — scientific attempt 1 and independent replay
+
+Attempt 1 launched from clean revision
+`929ccbcfce51d2652ecc5f647f15660a988c9aba` at
+`2026-10-13T07:49:46.351340+00:00`, using four workers pinned to CPUs 0--3
+and the new output root
+`/tmp/isogeny-volcano-m51-rho-20261013-run1`. It completed at
+`2026-10-13T07:58:34.011824+00:00`: 400/400 jobs and 25,600/25,600 planted
+solves completed in 521.079691 seconds with no failed verification, timeout,
+cancellation, or resume.
+
+The run produced 400 exact raw files, 35 selftest receipts, 25,600 normalized
+rows, and a 424-entry `MANIFEST.sha256`. The manifest file SHA-256 is
+`1318653f04d8c1a8b79d6cd646d0f1a410fe78c5e13c9db2d1700006b7a04d1d`;
+the normalized-record SHA-256 is
+`0f3099774d4530538763723a735e2244586ab40bfb8589dda9c32cc6413705f8`.
+The frozen analyzer accepted the unmodified sealed tree and emitted analysis
+SHA-256
+`9087c623b85ab0da7dc483deb7d3153eeae1ded8f87c5283b912d36c5e7feee6`.
+
+Independent replay found no integrity or numeric discrepancy. It checked the
+exact sealed tree with no symlinks or unsealed files, rebuilt all 25,600 rows
+from raw outputs, reconstructed every scalar, stream, curve/orbit assignment,
+counter identity, plan/core assignment, receipt, bootstrap endpoint, contrast,
+and distribution, and reproduced the five analysis CSV files. A clean-room
+archive extraction was byte-identical to the live tree and its relocated
+analysis reproduced every CSV byte-for-byte.
+
+The primary matched-action floor/crater contrast was `+0.005762506` bit with
+fixed-orbit 95% interval `[-0.032170483,+0.043374391]`; zero was not excluded
+and the interval lay wholly inside the frozen +/-0.10-bit equivalence band.
+The same-negation contrast was `-0.019007692` bit with secondary-family 98.75%
+interval `[-0.065652733,+0.028717680]`. All five fixed-orbit A/A gates passed.
+These observations concern the sampled m=51 models and collision-walk work
+only; they do not establish conductor causality, a transfer, end-to-end cost,
+NIST scaling, or a weak curve.
+
+The complete run archive is `run1.tar.zst`, SHA-256
+`eaad213c09f70c4c3cc330af20286328e51ab079545abaf5b80feba1b0027505`,
+size 2,581,190 bytes.

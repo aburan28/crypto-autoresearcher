@@ -1,10 +1,11 @@
 # Koblitz isogeny rho-transfer experiment
 
-Status: **protocol plus bounded proxy replication**. The source actions have a
-deterministic consistency audit of archived certificates, and a fresh
-160,000-solve proxy study measures native rho operation counts at two complete
-conductor lattices. No full-size transition benchmark or certified
-source-to-floor map has been run under this protocol.
+Status: **protocol plus bounded proxy replications**. The source actions have
+a deterministic consistency audit of archived certificates. A 160,000-solve
+study measures native rho operation counts at two complete conductor lattices,
+and a 25,600-solve `m=51` study measures a degree-271 sampled level. No
+full-size transition benchmark or certified source-to-floor map has been run
+under this protocol.
 
 ## Question and claim boundary
 
@@ -82,6 +83,36 @@ orbit-canonicalisation field work or an isogeny map. It supplies no explicit
 map or dual, subgroup-preservation proof, scalar-recovery transfer, or complete
 cold-start/amortized cost. It therefore establishes no conductor-only
 weakness, executable transfer, or scaling claim for a NIST curve.
+
+### Degree-271 `m=51` extension
+
+The accepted `m=51` [report](../../research/isogeny_volcano_m51_rho_20261013/README.md),
+[archive](../../research/isogeny_volcano_m51_rho_20261013/ARCHIVE.md), and
+[machine-readable analysis](../../research/isogeny_volcano_m51_rho_20261013/analysis.json)
+record 25,600 verified solves across the crater and all 16 sampled floor
+Frobenius orbits. The primary same-action comparison held both levels to the
+same signed `tau^17` action. Its floor/crater estimate was `+0.005762506`
+bits, with
+fixed-orbit 95% interval `[-0.032170483,+0.043374391]` and hierarchical
+orbit-resampling sensitivity `[-0.045717517,+0.059596468]`. The frozen
+`+/-0.10`-bit equivalence criterion was met, but zero was not excluded. The
+matched-negation floor/crater estimate was `-0.019007692` bits, with
+family-adjusted 98.75% interval `[-0.065652733,+0.028717680]`.
+
+All action-control estimates were compatible with their predeclared
+random-map predictions. The 16 primary orbit point estimates ranged from
+`-0.115702` to `+0.165501` bits; these are descriptive points, not
+multiplicity-adjusted per-orbit inferences. All five fixed-orbit A/A gates
+passed. The non-gating hierarchical A/A sensitivity crossed the `+/-0.15`
+margin for `floor-tau17` and marginally for `crater-tau51`, limiting any
+extrapolation to a modeled orbit superpopulation.
+
+In this exact implementation, subgroup, sampled-model, hash, and
+collision-walk accounting scope, the degree-271 prime-factor conductor level
+did not resolve a same-action effect. The `f_E=120,871` level and the
+`f_E=271*120,871` bottom remain untested. That result does not establish causal
+irrelevance of conductor, an executable transfer, scaling to NIST curves, an
+end-to-end advantage, or a weak curve.
 
 ## Required future instances
 

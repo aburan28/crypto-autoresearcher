@@ -326,6 +326,38 @@ do not price orbit-canonicalisation field operations, explicit isogeny maps,
 or end-to-end transfer. The study therefore supports no conductor-only
 weakness, executable transfer, or scaling claim for any NIST curve.
 
+#### Degree-271 `m=51` replication
+
+The accepted `m=51` [report](../../research/isogeny_volcano_m51_rho_20261013/README.md),
+[archive](../../research/isogeny_volcano_m51_rho_20261013/ARCHIVE.md), and
+[analysis](../../research/isogeny_volcano_m51_rho_20261013/analysis.json)
+record 25,600 verified solves spanning the crater and all 16 sampled
+degree-271 floor Frobenius orbits. With both levels restricted to the same
+signed `tau^17` action, the primary floor/crater estimate was `+0.005762506`
+bits:
+the fixed-orbit 95% interval was `[-0.032170483,+0.043374391]` and the
+hierarchical orbit-resampling sensitivity was
+`[-0.045717517,+0.059596468]`. Both fit the frozen `+/-0.10`-bit equivalence
+margin, while both include zero. The matched-negation floor/crater comparison
+was `-0.019007692` bits with family-adjusted 98.75% interval
+`[-0.065652733,+0.028717680]`.
+
+The action controls were compatible with their predeclared random-map
+predictions, separating the resolved quotient-action effects from the
+unresolved level/model association. The 16 primary orbit point estimates,
+descriptive rather than per-orbit inferences, ranged from `-0.115702` to
+`+0.165501` bits. All five fixed-orbit A/A gates passed. The non-gating
+hierarchical A/A sensitivity crossed the `+/-0.15` margin for `floor-tau17`
+and marginally for `crater-tau51`, so no modeled orbit-superpopulation claim
+follows.
+
+Thus the degree-271 prime-factor conductor level did not resolve an effect
+under this exact implementation, subgroup, sampled-model, hash, and
+collision-walk accounting scope. The `f_E=120,871` level and the
+`f_E=271*120,871` bottom remain untested. This is not evidence of causal
+conductor irrelevance and does not establish an executable transfer, NIST-scale
+behavior, an end-to-end advantage, or a weak curve.
+
 A negation-only isogenous endpoint can beat the signed-`tau` source before
 setup only if its fully charged cost per effective transition is less than
 `1/sqrt(m)` times the source cost. If `phi:E -> E'` is a certified separable

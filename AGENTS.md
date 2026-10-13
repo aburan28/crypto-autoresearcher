@@ -625,6 +625,28 @@ establish no conductor-only weakness, executable transfer, or NIST-scale
 claim; explicit maps, subgroup preservation, recovery, and complete pricing
 remain separate obligations.
 
+The completed `m=51` degree-271 [replication](research/isogeny_volcano_m51_rho_20261013/README.md),
+[archive](research/isogeny_volcano_m51_rho_20261013/ARCHIVE.md), and
+[machine-readable analysis](research/isogeny_volcano_m51_rho_20261013/analysis.json)
+add 25,600 verified solves across the crater and all 16 sampled floor
+Frobenius orbits. The primary matched-`tau17` floor/crater association was
+`+0.005762506` bits (fixed-orbit 95% CI
+`[-0.032170483,+0.043374391]`; hierarchical sensitivity
+`[-0.045717517,+0.059596468]`): the frozen `+/-0.10`-bit equivalence margin
+was met and zero was not excluded. The matched-negation association was
+`-0.019007692` bits (family-adjusted 98.75% CI
+`[-0.065652733,+0.028717680]`). Action-control contrasts were compatible
+with their frozen random-map predictions. The 16 primary orbit points ranged
+descriptively from `-0.115702` to `+0.165501` bits; they are not per-orbit
+inferences. All five fixed-orbit A/A gates passed, while the non-gating
+hierarchical sensitivity crossed `+/-0.15` for `floor-tau17` and marginally
+for `crater-tau51`, so it does not support an orbit-superpopulation claim.
+This degree-271 prime-factor conductor level did not resolve a same-action
+effect in this exact proxy scope. The `f_E=120,871` level and the
+`f_E=271*120,871` bottom remain untested; the result does not establish
+causal conductor irrelevance, transfer, NIST scaling, an end-to-end advantage,
+or a weak curve.
+
 Transfers require explicit maps, subgroup preservation, and complete costs;
 advice supports only its holder. Singular/invalid formula-compatible companions
 establish only **implementation-weak**; confirmation-only oracles need explicit
