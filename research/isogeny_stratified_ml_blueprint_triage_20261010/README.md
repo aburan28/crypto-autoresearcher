@@ -203,7 +203,55 @@ classes with per-prime levels and 641 walk edges) and `binary_ic_per_cell`
 (263 curves), and the fresh 21-bit prime-field hold-out (300 curves) as a final
 check.
 
-**Results.** RESULTS-ML-PENDING
+**Results.**
+
+Full tables: `ml-cryptanalysis/experiments/isogeny-stratified/report.md` (branch
+`research/isogeny-stratified-ml-20261012`, PR aburan28/ml-cryptanalysis#7).
+Out-of-fold MAE in bits, best model of ridge / gradient-boosted trees / kNN in
+each column:
+
+| dataset | target | controls only | + static (endo, volc, geom) | + setup \|F\| | + static + setup | GNN with edges / without | shuffled-static null p |
+|---|---|---|---|---|---|---|---|
+| prime_rho (1,548) | log S, automorphism rho | 0.0231 | 0.0246 | — | — | — | 1.000 |
+| prime_rho | log S, plain rho | 0.0279 | 0.0287 | — | — | — | 0.119 |
+| prime_enum_graph (1,854, 1,268 edges) | log S, automorphism rho | 0.0098 | 0.0099 | — | — | 0.0713 / 0.0555 | 1.000 |
+| prime_enum_graph | log S, plain rho | 0.0114 | 0.0115 | — | — | 0.0680 / 0.0538 | 1.000 |
+| binary_ic_per_curve (646, 641 edges) | log yield/\|F\|² | 0.0616 | 0.0647 | 0.0607 | 0.0627 | 0.1727 / 0.1017 | 0.005 (gain negative) |
+| binary_ic_per_curve | log reductions/call | 0.0370 | 0.0407 | 0.0281 | 0.0330 | 0.0623 / 0.0504 | 0.259 |
+| binary_ic_per_curve | log µs/call (valid runs) | 0.1979 | 0.2852 | 0.2120 | 0.2435 | 0.3434 / 0.3750 | 0.483 |
+| binary_ic_per_cell (2,536) | log yield/\|F\|² | 0.1272 | 0.1287 | 0.1247 | 0.1266 | 0.2308 / 0.1580 | 0.950 |
+| binary_ic_per_cell | log reductions/call | 0.0793 | 0.0846 | 0.0596 | 0.0636 | 0.0925 / 0.0812 | 1.000 |
+| binary_n51_class (114) | log \|F\| fraction | 0.0177 | 0.0178 | 0.0176 | 0.0178 | 0.0195 / 0.0210 | 0.348 |
+| binary_n51_class | log 2-sum yield | 0.0353 | 0.0356 | 0.0353 | 0.0356 | 0.0390 / 0.0416 | 0.348 |
+| ecc2k130_class (263) | IC density z (÷ ln 2) | 1.1308 | 1.1377 | — | — | — | 0.418 |
+
+Readings, each checked against the tables:
+
+- **Static features never improve on controls.** On all 12 dataset-target
+  pairs the best model given the conductor, per-prime volcano and geometry
+  blocks is worse than the best controls-only model. The binary per-curve
+  null p = 0.005 says the real static columns hurt the fit less than shuffled
+  ones; they still hurt it.
+- **The only helpful feature is a setup property**: the factor-base size |F|
+  (binary reductions per call 0.0370 → 0.0281 bits per curve), which depends on
+  how the subspace meets the curve, not on its volcano position.
+- **Graph stage.** The GNN over real isogeny edges never beats tabular trees;
+  edges help it on three of nine graph targets and hurt it on six.
+- **Transfer.** Static features degrade out-of-family prediction (prime rho,
+  leave-CM-family-out: 0.035 → 0.121 bits).
+- **Active selection** (blueprint §13 score) matches random selection at equal
+  simulated budget on every dataset (prime rho: 0.030 vs 0.029 bits).
+- **Intervals.** Raw bootstrap-ensemble 95 % intervals cover 36 to 69 %;
+  split-conformal rescaling restores 92 to 95 %.
+- **Fresh 21-bit hold-out** (300 curves, new primes): controls 0.042 bits,
+  controls + static 0.043 (ridge) and 0.059 (trees).
+- **Same-stratum negative control** (complete prime classes, 903 pairs of curves
+  in one class with identical level vectors): SD of paired cost differences
+  0.017 bits, the noise floor any level effect would have to clear.
+
+The blueprint's §12 acceptance criteria ("graph improves over tabular without
+leakage"; "active learning: more informative certified pairs per budget") are
+not met on any dataset.
 
 ### 3.5 The m = 3 level panel on the n = 16 class (new measurement, production solver)
 
