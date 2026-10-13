@@ -2,9 +2,8 @@
 
 - **Status:** `investigating`
 - **Kind:** proof gap and construction gap
-- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-44a1ce decision](../ledger/decisions/DEC-20261013-122bb5.yaml), [BATCH-be2a37 composition](../coordination/design/TASK-20261013-0348f3/composition/TASK-20261013-a7be35/final-composition.yaml), [EigenX-v2 report](../research/ssi-endring-pke/2026-10-13-eigenx-v2-prescribed-path/report.md), [BATCH-be2a37 evidence](../ledger/evidence/EV-SSI-279763.yaml), [BATCH-be2a37 decision](../ledger/decisions/DEC-20261013-9c2f80.yaml), [BATCH-d92210 opening](../coordination/design/TASK-20261013-09fc6d/opening.yaml), [BATCH-d92210 evidence](../ledger/evidence/EV-SSI-4b4733.yaml), and [BATCH-d92210 decision](../ledger/decisions/DEC-20261013-3d790f.yaml)
-- **Current bounded owner:** none; BATCH-d92210 closed under DEC-20261013-3d790f (zero survivors; documentation incomplete).
-- **Successor boundary:** no automatic successor; any new work requires a new explicit Coordinator decision and user-authorized scope.
+- **Affected work:** [GOAL-SSI-2fa82a](../ledger/goals/GOAL-SSI-2fa82a.yaml), [CEST-PKE candidate](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md), [scheme contract](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml), [proof-search map](../coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml), [BATCH-44a1ce decision](../ledger/decisions/DEC-20261013-122bb5.yaml), [BATCH-be2a37 composition](../coordination/design/TASK-20261013-0348f3/composition/TASK-20261013-a7be35/final-composition.yaml), [EigenX-v2 report](../research/ssi-endring-pke/2026-10-13-eigenx-v2-prescribed-path/report.md), [BATCH-be2a37 closing evidence](../ledger/evidence/EV-SSI-279763.yaml), [BATCH-be2a37 closing decision](../ledger/decisions/DEC-20261013-9c2f80.yaml), [BATCH-d92210 opening](../coordination/design/TASK-20261013-09fc6d/opening.yaml), [BATCH-d92210 evidence](../ledger/evidence/EV-SSI-4b4733.yaml), [BATCH-d92210 decision](../ledger/decisions/DEC-20261013-3d790f.yaml), [BATCH-5313dc composition](../coordination/design/TASK-20261013-451ecb/composition/TASK-20261013-836352/final-composition.yaml), [EigenX-v3 report](../research/ssi-endring-pke/2026-10-13-eigenx-v3-ring-witness/report.md), [BATCH-5313dc evidence](../ledger/evidence/EV-SSI-fb9df2.yaml), and [BATCH-5313dc decision](../ledger/decisions/DEC-20261013-7e4eb5.yaml)
+- **Next action owner:** future Coordinator for `NEXT-EIGENX-V3-J4-ROBUSTNESS`; automatic launch is false
 - **Last updated:** 2026-10-13
 
 ## Problem
@@ -52,15 +51,34 @@ The one-candidate EigenX-v2 prescribed-path/torsion round has completed. The val
 
 The problem remains `investigating`, and every exit criterion remains unmet. The exact EigenX-v2 interface is closed as a scoped obstruction; broader EndRing-PKE existence remains open.
 
+## BATCH-5313dc reviewed update
+
+The zero-run EigenX-v3 ring-witness round has completed. The exact independent owner vector is `J1=inconclusive`, `J2=inconclusive`, `J3=inconclusive`, `J4=breaks`, and `J5=inconclusive`; the postcomposition documentation joint `J6` passed. The frozen-plan independence checker passed for all five scientific reports.
+
+- **Six obligations:** O1, O2, O3, O4, and O6 remain open. O5 is contradicted by the exact proposed CCA oracle-simulation defect. No obligation has a reviewed discharge, so the construction gate is not met.
+- **Conditional `R_CER` boundary:** If the missing map-gate, dual, field-embedding, common-evaluation-field, conservative-degree, torsion, total-size, parser, and decoder algorithms are supplied correctly, the reviewed algebra says an accepted `R_CER` witness spans a complete evaluable saturated rank-four basis of `End(E)`. Those executable-verifier premises are incomplete, so this is a conditional witness-interface boundary rather than an established construction.
+- **Uninstantiated assumptions:** The exact `K0`/`TrapRingGen` sampler and `D_ER` law, relation-specific external-instance `EI-DXWE`, the optional stronger external-auxiliary xO route, and the adaptive-ZK plus strong-USS NIZK remain separate and uninstantiated. None follows from EndRing hardness merely by being named in the candidate.
+- **Smaller-decoder boundary:** The syntax rejects one endomorphism, a path, an abstract order, finite torsion data, a rank-one quotient, and a strict suborder as `R_CER` witnesses. It does not prove that every functionally equivalent decoder must store or use a complete ring; universal non-factorization against compressed, cached, reconstructed, or opaque smaller decoders remains open.
+- **J4 oracle-simulation mismatch:** Real decryption uses both complete witnesses and returns `bottom` when either core decryption fails, has the wrong length, or disagrees. The reduction knows only the independently sampled component witness. With only honest average core correctness, a legal true-`L_EQ` query using adversarially selected valid encryption coins can make real decryption return `bottom` while the one-witness simulator returns a message. The proposed bound includes neither a pointwise/adversarial-valid-ciphertext robustness premise nor the required `q_D`-scaled simulation-error term.
+- **Source and setup boundary:** Direct comparison found scoped material differences from the inspected Seta, FESTA, SiGamal, supersingular key-updatable PKE, and EigenX-v2 mechanisms, but the set is not exhaustive and full LIT-SiGamal algorithms, proof, and costs were not retrieved. This establishes no universal novelty result.
+- **Run boundary:** Zero scientific, implementation, formalizer, experiment, benchmark, and parameter-selection runs occurred. No measured result, concrete parameter, implementation, performance, or deployment evidence exists.
+- **Claim boundary:** The result is an `incomplete_candidate_with_scoped_CCA_transform_obstruction`. It establishes no secure, complete, IND-CCA2, EndRing-only, post-quantum, practical, deployable, or universally novel scheme, and it is not an impossibility theorem for Naor--Yung, EI-DXWE, EndRing PKE, or any repaired or different construction.
+
+The problem remains `investigating`. The J4 break is scoped and repairable in principle; the other scientific and construction gaps remain independently open even if that transform defect is repaired.
+
 ## What would unblock it
 
 Provide one of the following, then pass independent review:
+
+- [ ] Complete `NEXT-EIGENX-V3-J4-ROBUSTNESS`: freeze one bounded transform amendment that requires either perfect pointwise witness-independent DX correctness for every valid setup, accepted `R_CER` witness, message, and encryption coin string, or a formal adversarial-valid-ciphertext robustness game with its `q_D`-scaled loss; include the exact byte-level strong-USS game, total parser/CRS behavior, and a line-by-line hybrid coupling real two-component decryption to the known-one-witness simulator; then obtain a new sole-owner J4 verdict.
 
 - [ ] A polynomial-time reduction that receives an EndRing challenge sampled from the exact distribution used by EigenX KeyGen, simulates the complete declared IND game for an attacker, and outputs a valid complete evaluable `End(E)` basis with a quantified non-negligible success bound and total runtime.
 - [ ] If the reduction uses Page--Wesolowski, a public-only algorithm or compiler that answers every adaptive bounded-OneEnd query generated by the reduction, with pointwise or transcript-conditional success, polynomial representation and degree bounds, bounded abort probability over the whole transcript, and no hidden path, orientation, ideal, torsion label, tag, or complete-ring data.
 - [ ] A completed EigenX scheme contract in which O1--O6 each has an independently reviewed discharge under every named assumption and model, including complete honest algorithms, actual-message recovery, rejection behavior, the exact adversarial view, and concrete limitations.
 
 The first two conditions are alternatives only if the direct reduction avoids the adaptive OneEnd path; the six-obligation discharge remains necessary for a construction. Meeting an adaptive bridge alone would not prove confidentiality, and meeting a `CEST-XFER-KI` theorem alone would not make the assumption EndRing.
+
+The new J4 action is the sole current discriminating action. A `holds` verdict would remove only the scoped transform contradiction; it would leave J1, J2, J3, J5, `K0`, `EI-DXWE`/xO, NIZK instantiation, universal smaller-decoder necessity, costs, and the complete construction gate open. A `breaks` or `inconclusive` verdict would retain the current incomplete-candidate disposition at the exact amended scope. The older alternatives above remain historical exit criteria for the broader problem, not additional launched actions.
 
 ## Prior discriminating step completed by BATCH-44a1ce
 
@@ -81,11 +99,21 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 - **Outcome routing:** A fully reviewed survivor may advance only to a separately authorized design/validation batch. A typed failure updates this problem at its exact scope. An unresolved definition, construction, simulator, extractor, or cost obligation remains inconclusive.
 - **Recheck trigger:** A new reviewed mechanism satisfying those criteria, a new direct CEST-to-EndRing reduction on the exact real-key distribution, or a replacement construction that no longer factors through `EvalLine_(P,A)`.
 
-## Next action and stop boundary
+## Prior next action and stop boundary completed by BATCH-5313dc opening
 
 - **Action:** Await a new explicit Coordinator decision and user-authorized scope. `BATCH-d92210` is already archived.
 - **Stop condition:** Do not rank, open, implement, run, or promote another EigenX/EndRing successor unless that new decision and scope names it.
 - **Recheck trigger:** Such a new explicit decision and scope, or new externally supplied evidence that directly meets one of the existing exit criteria. Mere completion of this problem record, the batch archive, or the conditional authenticated-CEST control does not clear the obstruction.
+
+The user's explicit EigenX-v3 request and `DEC-20261013-ef0ee8` satisfied this historical stop boundary by opening only `BATCH-5313dc`. They did not clear the scientific obstruction or authorize an automatic successor.
+
+## Current next discriminating action
+
+- **Action:** `NEXT-EIGENX-V3-J4-ROBUSTNESS` -- freeze one bounded transform amendment requiring either perfect pointwise witness-independent DX correctness for every valid setup, accepted `R_CER` witness, message, and encryption coin string, or a formal adversarial-valid-ciphertext robustness game with its `q_D`-scaled loss. Include the exact byte-level strong-USS game, total parser/CRS behavior, and a line-by-line hybrid coupling real two-component decryption to the known-one-witness simulator, then obtain a new sole-owner J4 verdict.
+- **Controls:** Preserve exact challenge-byte exclusion; cover same-components/different-proof queries; make all nested parsers, CRS validation, verification, and rejection total; and compare every valid decryption-oracle response of real two-component decryption with the known-one-witness simulator across all `q_D` queries.
+- **Outcome routing:** `holds` removes only the scoped J4 contradiction and leaves every other open joint and obligation untouched. `breaks` or `inconclusive` preserves the incomplete-candidate disposition at the amendment's exact scope. No outcome automatically promotes, implements, or launches a successor.
+- **Execution limit:** One bounded zero-run amendment and one fresh sole-owner J4 review; automatic launch is false.
+- **Recheck trigger:** A frozen amendment satisfying these requirements and its independent J4 report, or new externally supplied evidence that directly meets the same robustness and simulation criteria.
 
 ## Resolution and history
 
@@ -95,3 +123,4 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 - **2026-10-13:** Created from the CEST/EigenX O5 gap and the reviewed `BATCH-12e6aa` adaptive-coverage gap. `BATCH-44a1ce` is the bounded next investigation. Unresolved. Creating or merging this record does not establish a construction, security theorem, or impossibility result.
 - **2026-10-13:** `BATCH-44a1ce` completed with no surviving bridge, O3 as the sole reviewed discharge, O1/O2/O4/O5/O6 open, a scoped I3 break, and an exact frozen-syntax IND-CCA2 break. J6 passed after `TASK-20261013-1c2b7a` and `TASK-20261013-b61e2d` corrected the PDF arrows/links and link-count metadata. The problem remains investigating, its exit criteria remain unmet, and the only recorded continuation is `ENDRING-MATERIALLY-DISTINCT-RECIPIENT-MECHANISM` with no automatic launch.
 - **2026-10-13:** `BATCH-be2a37` completed the one authorized materially different prescribed-path/torsion candidate. J1--J5 all break; O1/O2/O3/O6 remain open; O4/O5 are contradicted only for the exact interface; no obligation has a reviewed discharge. J5 attempt 1 was abandoned without an artifact and clean attempt 2 owns the source-overlap verdict and metadata corrections. J6 passed the report set. The problem remains investigating with unmet exit criteria, and the batch closes without an automatic successor.
+- **2026-10-13:** `BATCH-5313dc` completed the EigenX-v3 ring-witness candidate with J1/J2/J3/J5 inconclusive, J4 breaking the proposed CCA oracle simulation, and J6 passing the report set. O1/O2/O3/O4/O6 remain open and O5 is contradicted; `R_CER` remains conditional, `K0`/EI-DXWE/xO/NIZK remain uninstantiated, and universal smaller-decoder necessity remains open. Zero runs occurred and no secure, EndRing-only, practical, novel, or impossibility claim was established. The problem remains investigating; the sole current action is `NEXT-EIGENX-V3-J4-ROBUSTNESS` with automatic launch false.

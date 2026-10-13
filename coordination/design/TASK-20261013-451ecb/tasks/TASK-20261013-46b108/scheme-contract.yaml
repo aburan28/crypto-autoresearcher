@@ -1,0 +1,433 @@
+format: scheme-construction-contract/v1
+title: EigenX-v3-RW-NY-PKE
+primitive: pke
+parent_record_ids: [RQ-SSI-1946c9, GOAL-SSI-2fa82a, TASK-20261013-46b108]
+artifact_revision: producer-pre-review
+author: eigenx-v3-producer
+security_parameter: lambda
+research_boundary:
+  candidate_count: 1
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  parameter_selection_runs: 0
+  strongest_claim: conditional_candidate_not_endring_only_not_practical
+
+domains:
+  public_parameters: >-
+    Canonical F_(p^2), p>3, canonical curve/point/map-circuit grammar,
+    polynomial size and degree-bit bounds, fixed mu(lambda)-bit message
+    length, canonical Frame grammar, EI-DXWE and NIZK algorithm identifiers.
+  public_key: >-
+    Frame(EX3-PK,version,x_0,ep_0,x_1,ep_1,crs), where independently
+    sampled x_i are R_CER instances on D_ER, ep_i are independent EI-DXWE
+    public parameters, and crs is a real strong-USS NIZK CRS.
+  secret_key: >-
+    Frame(EX3-SK,version,pk_bytes,W_0,W_1), where
+    Verify_CER(x_i,W_i)=1. Sampler path, ideal, orientation, kernels,
+    division transcripts, setup coins, and simulation trapdoors are absent
+    and required erased.
+  message: Exactly {0,1}^mu(lambda).
+  ciphertext: >-
+    Frame(EX3-CT,version,pk_bytes,c_0,c_1,pi), with independently randomized
+    c_i=DX.Enc(ep_i,x_i,m;r_i) and pi proving same-plaintext consistency.
+  signature: null
+  key_space: null
+  encoding_and_equality: >-
+    Unique versioned, length-prefixed canonical bytes; minimal integers;
+    fixed-width reduced field coefficients; canonical curves and points; no
+    trailing bytes. Ciphertext equality and the CCA exclusion use exact bytes.
+  inapplicable_reasons:
+    signature: Primitive is PKE.
+    key_space: No KEM or DEM layer is claimed.
+
+security_claims:
+  - name: IND-CCA2
+    primitive: pke
+    status: proposed_proof
+    adversary: PPT
+    oracle_model: standard_model_CRS
+    oracle_query_access: classical
+    game_definition: >-
+      Challenger runs KeyGen, gives the exact pk bytes, answers adaptive Dec
+      queries before and after challenge, accepts two mu(lambda)-bit messages,
+      encrypts one under fresh independent component/prover coins, and rejects
+      only the exact challenge ciphertext bytes from the decryption oracle.
+      The adversary wins by guessing the uniform challenge bit.
+    advantage_convention: abs(Pr[b_prime=b]-1/2)
+    query_bounds:
+      decryption: q_D(lambda)
+      total_input_bits: polynomially_bounded_by_game_adversary
+    oracle_access_and_challenge_exclusions: >-
+      Classical adaptive Dec access; exact challenge byte string alone is
+      excluded. Same components with another proof, same curves, same
+      mathematical maps, and alternate attempted encodings are not excluded;
+      noncanonical encodings reject.
+    assumptions:
+      - ER-D_ER-hardness on the exact TrapRingGen public-instance law
+      - EI-DXWE[R_CER,D_ER] with uniform external-instance extraction and exact auxiliary distributions
+      - adaptive multi-theorem NIZK zero knowledge in the CRS model
+      - strong unbounded simulation soundness for L_EQ, including new proofs for a simulated false statement
+      - K0 efficient TrapRingGen correctness and erasure for functionality
+    theorem_artifact: candidate.md section 7
+    review_artifact: null
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: >-
+      D_ER(lambda) is the public-instance marginal of
+      (x,W)<-TrapRingGen(pp), x=(CER-v1,pp_curve,Enc(E)). KeyGen draws
+      two independent samples. K0 must instantiate this expected-PPT sampler
+      with a polynomial cap and negligible delta_K0; K0 is unresolved.
+    real_key_distribution: >-
+      Two independent D_ER instances, independent EI-DXWE setup strings and
+      one independently sampled real NIZK CRS. Security reductions externally
+      embed one exact D_ER challenge and honestly sample the other instance.
+    adversary_input_and_auxiliary_data: >-
+      Complete pp and pk bytes, both curves/instances, both EI-DXWE public
+      parameter strings, CRS, challenge ciphertext, all accepted/rejected
+      decryption outputs, and query history. The EI-DXWE assumption covers the
+      exact real-CRS and simulated-CRS hybrid auxiliary distributions.
+    solution_representation_and_success_predicate: >-
+      Output W accepted by Verify_CER for the external x. Acceptance proves
+      four typed efficiently evaluable endomorphisms generate exactly the
+      saturated maximal order End(E), with rank four and discriminant p^2.
+    setup_trust_and_erasure: >-
+      Real CRS/setup coins are sampled per public key and erased. K0 must erase
+      its path, ideal, orientation, kernel and conversion/division transcripts.
+      No NIZK simulation trapdoor or witness-correlated advice exists in real keys.
+    secret_representation_and_conversion_costs: >-
+      Each W contains four typed map circuits, multiplication constants,
+      degree/trace data and a complete small-prime torsion equality suite.
+      Generation, division, equality verification, serialization and peak
+      memory are charged but uninstantiated.
+    assumptions:
+      - name: EndRing_D_ER
+        formal_game: >-
+          Receive x sampled from D_ER without W; output W such that
+          Verify_CER(x,W)=1.
+        distribution: Exact external public-instance marginal D_ER.
+        model: classical_PPT_standard_model
+        source_artifact: candidate.md sections 2-3
+        provenance: internal
+        verified_by: producer_only
+      - name: K0_TrapRingGen
+        formal_game: >-
+          Expected-PPT sampler outputs an accepted pair on its declared law
+          within a polynomial retry cap except delta_K0, then erases all
+          non-W trapdoor state.
+        distribution: Smooth-ideal or another explicitly instantiated law matching D_ER.
+        model: honest_generation
+        source_artifact: candidate.md section 3
+        provenance: internal
+        verified_by: unresolved
+    cited_equivalences_and_hypotheses:
+      - >-
+        Page--Wesolowski 2024 Sections 2.2-2.5: End(E) is a maximal order of
+        discriminant p^2 and EndRing asks for four efficiently represented
+        basis maps; Proposition 2.3 supplies polynomial division for an
+        already represented endomorphism. It does not instantiate K0.
+    evidence_artifacts: [candidate.md, relation-and-source-boundary.yaml]
+    review_artifact: null
+    remaining_gap: >-
+      No inspected source gives the exact efficient real-law TrapRingGen and
+      end-to-end evaluable-basis certificate sampler.
+    next_action: Independent J1 and J5 review of R_CER and K0.
+
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: Setup
+        inputs: 1^lambda
+        outputs: canonical public grammar and bounds
+        randomness: none after parameter selection
+        validation: p, field, model and polynomial caps
+        failure_behavior: reject invalid parameters
+        pseudocode_artifact: candidate.md section 6
+        time: polynomial conditional on parameter generator
+        memory: polynomial conditional
+        bit_length_bounds: polynomial in lambda
+      - name: KeyGen
+        inputs: validated pp from Setup(1^lambda)
+        outputs: two-instance pk and two-complete-ring sk or failure
+        randomness: two independent K0 samples, two EI-DXWE setups, one real CRS
+        validation: Verify_CER on both witnesses
+        failure_behavior: capped failure, no partial key
+        pseudocode_artifact: candidate.md section 6
+        time: unresolved because K0 and concrete primitives are unavailable
+        memory: unresolved and includes two full evaluator certificates
+        bit_length_bounds: syntactically polynomial; concrete bounds unavailable
+      - name: Enc
+        inputs: canonical pk and mu(lambda)-bit m
+        outputs: canonical ciphertext or bottom
+        randomness: independent r_0,r_1 and NIZK prover coins
+        validation: complete pk parse and message length
+        failure_behavior: bottom and no ciphertext
+        pseudocode_artifact: candidate.md section 6
+        time: two DX.Enc plus one N.Prove and parsing
+        memory: both component/proof workspaces and serialized output
+        bit_length_bounds: polynomial under primitive syntax
+      - name: Dec
+        inputs: canonical sk and arbitrary polynomial-length bytes c
+        outputs: exact message or one bottom symbol
+        randomness: none
+        validation: sk/pk/R_CER, exact key binding, NIZK, both core decryptions and equality
+        failure_behavior: deterministic bottom for every failure
+        pseudocode_artifact: candidate.md section 6
+        time: two Verify_CER-cached-or-checked validations, N.Verify and two DX.Dec
+        memory: two ring witnesses, parser, verifier and core workspaces
+        bit_length_bounds: capped by public grammar
+    preprocessing_and_retry_costs: >-
+      Charge two complete K0 executions including failed attempts, ideal/path,
+      right-order, Divide and equality-suite work; two EI-DXWE setups; CRS;
+      serialization; validation; erasure; and peak overlap. No numerical or
+      instantiated asymptotic total is available.
+    complexity_guarantee: >-
+      Conditional polynomial time in encoded lengths if K0, EI-DXWE and NIZK
+      exist with the specified interfaces. No unconditional efficient scheme.
+    unavailable_subroutines:
+      - K0 TrapRingGen with matching real law and tail
+      - concrete EI-DXWE for R_CER and its external extractor
+      - concrete strong-USS NIZK for L_EQ and exact cost
+    evidence_artifacts: [candidate.md]
+    review_artifact: null
+    remaining_gap: Missing three concrete polynomial instantiations and total cost.
+    next_action: Independent J1, J4 and J5 review.
+
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: >-
+      For every lambda and every m in {0,1}^mu(lambda), over two independent
+      K0 runs, core setup/encryption coins, CRS and prover coins,
+      Pr[Dec(sk,Enc(pk,m))=m] is at least
+      1-2*delta_K0-2*epsilon_DX-epsilon_N.
+    probability_space: Two K0 samples; independent ep_i and core coins; real CRS and prover coins.
+    valid_key_and_message_scope: Every returned canonical key and every fixed-length message.
+    per_key_or_average_guarantee: >-
+      Per returned valid key the bound is 1-2*epsilon_DX-epsilon_N; the
+      displayed overall bound includes both KeyGen failures.
+    failure_probability_bound: 2*delta_K0 + 2*epsilon_DX + epsilon_N
+    actual_message_or_key_recovery: Returns the exact selected message bytes.
+    exceptional_inputs:
+      - capped K0 failure
+      - core encryption or decryption failure
+      - NIZK completeness failure
+      - malformed or wrong-key ciphertext deterministically returns bottom
+    theorem_artifact: candidate.md section 7
+    supporting_test_artifacts: []
+    review_artifact: null
+    remaining_gap: Primitive error bounds and K0 tail are not instantiated or reviewed.
+    next_action: J1 independently rederive the bound.
+
+  O4:
+    name: functionality_mechanism
+    status: proposed_discharge
+    public_operation: >-
+      EI-DXWE encrypts the same message independently to each public complete-
+      ring statement; NIZK proves plaintext equality without revealing it.
+    private_operation: >-
+      Verify each complete EndRing witness, decrypt each EI-DXWE component
+      with its corresponding W_i, and return only equal fixed-length messages.
+    agreement_or_message_binding_lemma: >-
+      EI-DXWE correctness gives m_i=m; NIZK completeness accepts the equality
+      proof; byte comparison returns the actual m. R_CER soundness means every
+      accepted witness spans exactly End(E_i).
+    extra_recipient_secrets:
+      - W_0 and W_1 complete evaluable EndRing certificates
+    recipient_lift:
+      applicability: true
+      inapplicable_reason: null
+      interface: CompleteRingWitnessDecrypt
+      inputs: ep_i, x_i, W_i, c_i
+      output_representation_and_equivalence: Exact mu(lambda)-bit message or bottom.
+      uniqueness_or_acceptance_condition: Verify_CER(x_i,W_i)=1 and core decryption accepts.
+      polynomial_algorithm_and_cost: Conditional on EI-DXWE and K0; concrete cost open.
+      failure_bound: epsilon_DX per component
+      recovery_of_actual_message_or_key: Exact message bytes, not an invariant.
+      identical_public_data_control: >-
+        One endomorphism, path, finite torsion image, abstract order and strict
+        suborder all fail Verify_CER on identical public x_i. A universal
+        lower bound excluding an opaque smaller decoder circuit remains open.
+    identification_and_transform:
+      applicability: true
+      inapplicable_reason: null
+      relation: >-
+        L_EQ over exact pk,c_0,c_1 bytes; witness m,r_0,r_1 recomputes both core ciphertexts.
+      completeness: epsilon_N
+      soundness_extractor_and_knowledge_error: >-
+        Strong unbounded simulation soundness, including a new proof on an
+        already simulated false challenge statement. No PoK extractor is used.
+      simulator_and_verifier_scope: Adaptive multi-theorem CRS simulator and classical PPT verifier.
+      challenge_space: Fixed-length messages and independent core randomness.
+      transcript_message_key_and_context_binding: Full canonical pk and both component bytes are in y.
+      transform_theorem_and_hypotheses: Proposed Naor--Yung hybrid in candidate.md section 7.
+    ake_identity_and_session_binding: null
+    evidence_artifacts: [candidate.md, relation-and-source-boundary.yaml]
+    review_artifact: null
+    remaining_gap: >-
+      EI-DXWE is uninstantiated and no theorem excludes all strict functional
+      decoder quotients outside the accepted witness interface.
+    next_action: J3 run identical-public-data quotient controls.
+
+  O5:
+    name: correctly_directed_security_reduction
+    status: proposed_discharge
+    reductions:
+      - claim: classical IND-CCA2 conditional theorem
+        solver_input_distribution: One external x_i sampled from exact D_ER, without its witness.
+        scheme_attacker: Any classical PPT A against the complete two-instance PKE.
+        assumption_problem_solved: EndRing_D_ER for the externally supplied x_i.
+        challenge_embedding: >-
+          Place x_i unchanged in component i; honestly sample independent
+          (x_(1-i),W_(1-i)), both ep values and real/simulated CRS as the hybrid requires.
+        real_key_distribution_argument: Independence makes the public key exact; CRS changes are charged to NIZK ZK.
+        oracle_simulation: >-
+          Verify each proof. For a true equality statement decrypt with known
+          W_(1-i). False statements reject except with sUSS advantage. Exact
+          challenge bytes alone are excluded; strong sUSS covers a new proof
+          for the simulated false challenge statement.
+        extraction: >-
+          Apply uniform Ext[D_i] to the same external x_i and exact auxiliary
+          distribution; output its accepted R_CER witness.
+        aborts: K0 capped failures, primitive correctness errors, NIZK simulation or sUSS failures.
+        advantage_loss: >-
+          Adv_CCA(A) <= L_X*(Succ_ER(B_0)+Succ_ER(B_1))+2*nu_X+
+          Adv_ZK(S_0)+Adv_ZK(S_1)+Adv_sUSS(F). The ideal canonical parser is
+          deterministic and contributes zero proof error.
+        solver_runtime: >-
+          Polynomial in A, Ext, q_D, one honest K0 sample, DXWE/NIZK setup,
+          proof verification and decryption simulation; exact polynomial open.
+        model: classical CRS standard model
+        theorem_artifact: candidate.md section 7
+        independently_reviewed_artifact: null
+    intermediate_assumptions:
+      - name: EI-DXWE_R_CER_D_ER
+        game: >-
+          Externally supply exact x and permitted aux; distinguishing core
+          encryptions implies a uniform extractor outputting W accepted for
+          that same x, with polynomial loss L_X and error nu_X.
+        reduction_to_endring: Direct by R_CER soundness, conditional on the primitive property.
+        endring_only: false
+      - name: relation_specific_external_aux_xO
+        game: >-
+          Extract a differing input for F_(x,m0),F_(x,m1) under the exact
+          external-instance auxiliary distribution.
+        reduction_to_endring: A differing input is an accepted R_CER witness.
+        endring_only: false
+        status: optional_conditional_realization_uninstantiated
+      - name: strong_USS_NIZK_L_EQ
+        game: >-
+          Adaptive multi-theorem ZK plus no fresh accepting proof for a false
+          statement after simulated proofs, including same-statement new proof.
+        reduction_to_endring: none; separate transform assumption
+        endring_only: false
+    multiple_assumption_dependency: >-
+      EndRing_D_ER AND EI-DXWE extraction AND NIZK ZK+sUSS AND K0
+      functionality. No assumption is collapsed into another.
+    classical_quantum_and_rewinding_scope: >-
+      Classical PPT only. QPT requires quantum external extraction, post-
+      quantum ZK/sUSS and a quantum-valid non-rewinding hybrid.
+    evidence_artifacts: [candidate.md, relation-and-source-boundary.yaml, proof-search-map.yaml]
+    review_artifact: null
+    remaining_gap: >-
+      EI-DXWE and NIZK are strong uninstantiated assumptions; exact hybrid loss
+      and auxiliary-distribution coverage require independent review.
+    next_action: J2 blindly rederive embedding, oracle simulation, extraction and loss; J4 audit transform.
+
+  O6:
+    name: complete_adversarial_view
+    status: open
+    public_disclosures:
+      - all canonical public parameters and algorithm identifiers
+      - both R_CER instances x_0,x_1 and curves E_0,E_1
+      - both EI-DXWE public setup strings and real CRS
+      - full pk binding, both core ciphertexts and NIZK proof
+      - all decryption outputs and query history
+    allowed_oracles_and_query_history: >-
+      Adaptive classical Dec before and after challenge, repetitions and
+      related/malformed/cross-key queries; exact challenge bytes alone excluded.
+    validation_rejection_and_failure_observables: >-
+      One deterministic bottom symbol for every parse, key-binding, R_CER,
+      NIZK, core-decryption, length or equality failure in the formal model.
+    malformed_inputs_and_alternate_encodings: >-
+      Length caps, minimal integers, canonical field/curve/point and framing;
+      reject duplicate fields, wrong versions, truncation, trailing bytes and
+      noncanonical alternatives. No equivalence-class challenge exclusion.
+    repeated_use_and_collision_analysis: >-
+      Fresh independent component/prover coins per encryption. Exact repeats
+      and randomness collisions follow the primitive distributions; no
+      multi-user or multi-challenge theorem is claimed.
+    side_channel_scope_and_exclusions: >-
+      Timing, cache, allocation, power, electromagnetic, fault, denial-of-
+      service and erasure observables are excluded and untested.
+    public_data_and_known_false_controls:
+      - ordinary false-statement WE does not hide honest true R_CER instances
+      - self-sampled XS/EWE does not embed an external EndRing challenge
+      - witness-correlated auxiliary advice makes extraction circular
+      - one endomorphism/path/torsion image/abstract order/strict suborder fails R_CER
+      - double encryption without strong binding proof does not establish CCA2
+      - EndRing solver to decryptor is a reverse attack arrow only
+    concrete_parameter_security: none
+    asymptotic_to_concrete_limitations: >-
+      No instantiated K0, DXWE, xO, NIZK, sizes, operation counts, memory,
+      retry tail, implementation or parameter estimates.
+    evidence_artifacts: [candidate.md, relation-and-source-boundary.yaml]
+    review_artifact: null
+    remaining_gap: Concrete primitive/setup encodings, side channels, multi-user and quantum views.
+    next_action: J4 and J5 audit malformed handling, setup, assumptions and total cost.
+
+assessment:
+  verdict: candidate
+  finite_functionality_status: >-
+    Defined and correct conditional on two accepted R_CER witnesses, EI-DXWE
+    correctness and NIZK completeness.
+  efficient_functionality_status: >-
+    Open because K0, EI-DXWE and suitable strong-USS NIZK have no selected
+    concrete polynomial instantiation for this relation.
+  security_status: >-
+    Proposed classical conditional IND-CCA2 reduction under EndRing_D_ER plus
+    separately named EI-DXWE and NIZK assumptions; no EndRing-only claim.
+  named_conditions:
+    - R_CER verifier and torsion equality lemma are sound and polynomial
+    - K0 exact distribution, negligible tail and erasure
+    - EI-DXWE external-instance extraction for real and simulated auxiliary distributions
+    - adaptive ZK and strong unbounded simulation soundness for L_EQ
+    - canonical grammar and exact-byte challenge exclusion
+  open_obligations: [O1, O2, O6]
+  obstruction:
+    affected_obligation: O2
+    exact_family_and_parameter_scope: >-
+      This exact R_CER/EI-DXWE/Naor--Yung candidate on D_ER.
+    counterexample_or_argument_artifact: candidate.md sections 3-4 and 9
+    what_remains_open: >-
+      A concrete efficient K0 and relation-specific EI-DXWE/NIZK realization;
+      universal EndRing-PKE existence is not obstructed.
+  independent_review_artifacts: []
+  next_action: Execute frozen independent J1-J5 review; do not implement or select parameters.
+  official_state_transition_record: null
+
+citations:
+  - source: Page and Wesolowski, EUROCRYPT 2024, DOI 10.1007/978-3-031-58751-1_14
+    section: Sections 2.2-2.5 and Proposition 2.3
+    provenance: retrieved_internal_primary_extract
+    verified_by: eigenx-v3-producer
+    inspected_scope: quaternion/order discriminants, EndRing output, efficient representations and Divide
+  - source: Bellare and Hoang, PKC 2015, DOI 10.1007/978-3-662-46447-2_14
+    section: Section 3 and XS subsection
+    provenance: retrieved
+    verified_by: eigenx-v3-producer
+    inspected_scope: WE syntax, adaptive soundness and XS game; no external-instance theorem inferred
+  - source: Garg, Gentry, Halevi and Wichs, CRYPTO 2014, DOI 10.1007/978-3-662-44371-2_29
+    section: Sections 2, 6 and 7
+    provenance: retrieved
+    verified_by: eigenx-v3-producer
+    inspected_scope: auxiliary-input EWE definition and conditional general-purpose implausibility
+  - source: Cramer, Hofheinz and Kiltz, TCC 2010, DOI 10.1007/978-3-642-11799-2_10
+    section: Introduction and Section 2
+    provenance: retrieved
+    verified_by: eigenx-v3-producer
+    inspected_scope: Naor--Yung replication/NIZK paradigm and exact CCA syntax; not a theorem for this generic instantiation
