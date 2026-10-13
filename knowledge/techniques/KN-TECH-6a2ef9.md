@@ -267,6 +267,18 @@ unquotiented rho. This is an expected-transition model, not measured time. A
 usable attack must also charge canonicalization or an equivariant walk,
 distinguished-point transport, collision recovery, and verification.
 
+Empirical calibration must expose the finite-size axis instead of using field
+degree alone. Pair identical targets and seeds, put collision-walk operations
+in the model-facing numerator, and report fixed setup, starts, cycle handling,
+recovery, verification, `log2(r)`, and cofactor separately. A local trail that
+hits its cap and restarts remains charged work inside a valid solve. When
+canonicalisations are counted but unpriced, each affected arm is incomplete
+and their ratio has no automatic lower- or upper-bound direction. Keep the
+incremental negation-to-signed-`tau` saving (`sqrt(m)`) separate from the gross
+plain-to-signed-`tau` saving (`sqrt(2m)`). The exploratory calibration in
+`research/koblitz_rho_ladder_20261013/` is an observation about these controls,
+not ledger evidence or an isogeny/weakness result.
+
 A negation-only isogenous endpoint can beat the signed-`tau` source before
 setup only if its fully charged cost per effective transition is less than
 `1/sqrt(m)` times the source cost. If `phi:E -> E'` is a certified separable

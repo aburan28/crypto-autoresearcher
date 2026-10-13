@@ -156,6 +156,17 @@ multiple endpoints or curves, resample hierarchically by endpoint/curve then
 target and apply Holm or max-T correction. Retain timeouts and use a frozen
 survival/RMST analysis for censored solves.
 
+For the narrower source-action calibration, also predeclare a model-facing
+collision-walk estimand such as
+`log2(mean(W_neg)/mean(W_tau))`, with `W` excluding fixed target setup, walk
+starts, recovery and verification. Report that beside—not instead of—the fully
+charged total. Apply a `sqrt(m)` agreement criterion only to the walk
+estimand. Publish `log2(r)` and cofactor with `m`, because toy finite-state
+effects follow subgroup scale irregularly across Koblitz degrees. A local
+trail-cap restart remains charged work; overall timeout, exhaustion, or failed
+verification triggers the declared invalidation rule. Counts that omit
+different canonicalisation work cannot support a directional cost-ratio bound.
+
 Use at least four independently generated toy sizes and 512 completed solves
 per arm/cell to validate collision behavior and recovery. At full NIST sizes,
 use at least 64 independently randomized fixed-length process blocks per arm;

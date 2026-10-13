@@ -603,6 +603,14 @@ transported action with the simpler control that maps the DLP once to the
 Koblitz representative, solves there with native Frobenius, recovers the
 same discrete-log scalar, and verifies it on the endpoint.
 
+Koblitz calibration ladders separate collision-walk operations from fixed
+target setup, walk starts, recovery, and verification; pair identical targets
+and seeds across arms. Report `m`, `log2(r)`, and cofactor together because
+degree alone is not the experimental scale. Keep negation-to-signed-`tau`
+bits distinct from plain-to-signed-`tau` bits. Counts with differently omitted
+canonicalisation costs do not yield a one-sided cost-ratio bound, and local
+trail-cap restarts are retained diagnostics rather than failed overall solves.
+
 Transfers require explicit maps, subgroup preservation, and complete costs;
 advice supports only its holder. Singular/invalid formula-compatible companions
 establish only **implementation-weak**; confirmation-only oracles need explicit
