@@ -196,6 +196,19 @@ this is `sqrt(m)` (`0.5 log2(m)` bits) beyond the same curve's negation-only
 rho, and `sqrt(2m)` only beyond unquotiented rho. Treat this as a structural
 model until the complete walk cost is measured.
 
+For an empirical Koblitz calibration, pair arms on the identical curve,
+prime-subgroup generator, planted target, and algorithm seed. Make collision
+walk work the primary model-facing counter; report target-dependent setup,
+walk starts, cycle handling, collision recovery, and verification separately.
+Always publish `log2(r)` and the cofactor beside `m`: field degree is not a
+sample-size or security-size surrogate, and small prime subgroups can show
+large finite-state effects even when `m` is larger. Distinguish the incremental
+signed-`tau` saving beyond negation from the extra half-bit obtained only when
+the baseline is unquotiented rho. A ratio of counts that omit different
+canonicalisation work is not a lower or upper bound on the fully priced cost
+ratio. Retain local trail-cap restarts as cycle diagnostics; only an exhausted,
+timed-out, or non-verified overall solve invalidates that paired observation.
+
 Use the source's signed-`tau` arm as the incumbent in a vertical-isogeny
 comparison. A negation-only endpoint must have fully charged transition cost
 below `1/sqrt(m)` of the source signed-`tau` cost merely to offset the lost

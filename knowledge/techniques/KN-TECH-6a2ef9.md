@@ -27,9 +27,11 @@ without conflating them:
    attack applies?
 
 It combines established results already recorded in the corpus with an
-evidence and sampling discipline. It reports no new curve, attack, security
-proof, experiment, or hardness lower bound. `confidence: reported` applies to
-the protocol as a synthesis; each audit must grade its own ingredients as
+evidence and sampling discipline. The protocol reports no new curve, attack,
+security proof, or hardness lower bound. Its Koblitz subsection records one
+bounded internal calibration experiment, explicitly separated from any
+weakness, transfer, or scaling claim. `confidence: reported` applies to the
+protocol as a synthesis; each audit must grade its own ingredients as
 certificate, derivation, measurement, literature report, or unresolved.
 
 ## Freeze the audit before testing
@@ -266,6 +268,63 @@ Thus the exact structural discount beyond negation is `sqrt(m)`, or
 unquotiented rho. This is an expected-transition model, not measured time. A
 usable attack must also charge canonicalization or an equivariant walk,
 distinguished-point transport, collision recovery, and verification.
+
+Empirical calibration must expose the finite-size axis instead of using field
+degree alone. Pair identical targets and seeds, put collision-walk operations
+in the model-facing numerator, and report fixed setup, starts, cycle handling,
+recovery, verification, `log2(r)`, and cofactor separately. A local trail that
+hits its cap and restarts remains charged work inside a valid solve. When
+canonicalisations are counted but unpriced, each affected arm is incomplete
+and their ratio has no automatic lower- or upper-bound direction. Keep the
+incremental negation-to-signed-`tau` saving (`sqrt(m)`) separate from the gross
+plain-to-signed-`tau` saving (`sqrt(2m)`). The exploratory calibration in
+`research/koblitz_rho_ladder_20261013/` is an observation about these controls,
+not ledger evidence or an isogeny/weakness result.
+
+#### Completed level replication: bounded proxy evidence
+
+The [2026-10-13 volcano-level
+study](../../research/isogeny_volcano_level_replication_20261013/README.md),
+its machine-readable
+[results](../../research/isogeny_volcano_level_replication_20261013/results.json),
+and the accepted-run
+[archive](../../research/isogeny_volcano_level_replication_20261013/ARCHIVE.md)
+record 160,000 verified solves: 136,000 at `m=37` and 24,000 at `m=41`.
+For equal-curve-weighted mean counted operations, the six primary
+lower-level/crater-negation contrasts were as follows. Values below are bits
+`log2(lower/crater)`; the linked JSON retains the full machine precision.
+
+| study | lower level | estimate | pointwise 95% CI | simultaneous 95% CI | simultaneous 90% ratio CI |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `m37` | `floor73` | 0.002917 | [-0.020485, 0.026585] | [-0.027519, 0.034966] | [0.982683, 1.022510] |
+| `m37` | `floor2663` | 0.008627 | [-0.018443, 0.035801] | [-0.027028, 0.045977] | [0.983446, 1.029838] |
+| `m37` | `bottom` | -0.008978 | [-0.034473, 0.016696] | [-0.042598, 0.026042] | [0.973006, 1.015798] |
+| `m41` | `floor409` | -0.001430 | [-0.049462, 0.044956] | [-0.064901, 0.060353] | [0.959649, 1.039025] |
+| `m41` | `floor1721` | 0.016988 | [-0.030100, 0.062547] | [-0.045113, 0.078181] | [0.972599, 1.051627] |
+| `m41` | `bottom` | 0.014691 | [-0.033215, 0.062014] | [-0.048873, 0.077866] | [0.970339, 1.051116] |
+
+Every pointwise and Bonferroni simultaneous 95% interval includes zero. All
+three `m=37` simultaneous 90% ratio intervals lie within the frozen
+`[0.97,1.03]` margin. None of the wider `m=41` intervals does, so the
+predeclared global six-contrast `+/-3%` equivalence assertion is false. That
+failure is lack of precision at `m=41`, not evidence that a true ratio lies
+outside the margin.
+
+The conditional large-prime edges also include zero: factor 2,663 at `m=37`
+gave 0.008627 bits without factor 73 and -0.011895 bits with it, with
+pointwise 95% intervals `[-0.018443,0.035801]` and
+`[-0.027377,0.003650]`; their interaction was -0.020522 bits
+`[-0.052015,0.010702]`. Factor 1,721 at `m=41` gave 0.016988 bits without
+factor 409 and 0.016121 bits with it, with intervals
+`[-0.030100,0.062547]` and `[-0.022858,0.055663]`; their interaction was
+-0.000867 bits `[-0.060528,0.061079]`.
+
+At the crater, native negation required 2.487391 more counted-operation bits
+than native signed `tau` at `m=37` and 2.684706 bits at `m=41`; the
+setup-excluded sensitivities were 2.562851 and 2.686632 bits. These counters
+do not price orbit-canonicalisation field operations, explicit isogeny maps,
+or end-to-end transfer. The study therefore supports no conductor-only
+weakness, executable transfer, or scaling claim for any NIST curve.
 
 A negation-only isogenous endpoint can beat the signed-`tau` source before
 setup only if its fully charged cost per effective transition is less than
