@@ -642,10 +642,43 @@ inferences. All five fixed-orbit A/A gates passed, while the non-gating
 hierarchical sensitivity crossed `+/-0.15` for `floor-tau17` and marginally
 for `crater-tau51`, so it does not support an orbit-superpopulation claim.
 This degree-271 prime-factor conductor level did not resolve a same-action
-effect in this exact proxy scope. The `f_E=120,871` level and the
-`f_E=271*120,871` bottom remain untested; the result does not establish
-causal conductor irrelevance, transfer, NIST scaling, an end-to-end advantage,
-or a weak curve.
+effect in this exact proxy scope. Its statement that the `f_E=120,871` level
+and the `f_E=271*120,871` bottom were untested describes that earlier study,
+not the later four-level run below. The result does not establish causal
+conductor irrelevance, transfer, NIST scaling, an end-to-end advantage, or a
+weak curve.
+
+The completed `m=51` [deep endpoint scan](research/isogeny_volcano_m51_deep_scan_20261013/README.md)
+exhausted its frozen 3.6-billion-rank interval, certified 42 bottom/unique-
+ascent-parent orbit pairs, and froze the first 32 distinct eligible pairs with
+zero admitted or blocking failures. Every pair has source/bottom
+`f_E=32,756,041=271*120,871`, parent `f_E=120,871`, and a certified
+degree-271 ascending relation. These are endpoint and direction certificates:
+the artifacts deliberately contain no serialized evaluator or dual and permit
+no transfer claim.
+
+The subsequent four-level [native-rho result](research/isogeny_volcano_m51_deep_rho_20261013/RESULTS.md)
+contains 20,480 verified solves over `f_E` equal to `1`, `271`, `120,871`,
+and `32,756,041`. Scientific execution and integrity passed, but inferential
+validity failed: the predeclared all-arm A/A release gate missed its
+`+/-0.15`-bit boundary for A by `0.003036` bit and for B by `0.009038` bit.
+All dependent primary-contrast inferential and equivalence labels are
+therefore withheld. The largest pairwise point difference, `0.026350` bit
+(about 1.8% in mean walk
+operations), whole-gap `B-C=-0.000024` bit, large-factor summary
+`M120871=-0.006404` bit, and ordinary difference-in-differences
+`2I=+0.039892` bit are descriptive diagnostics only. They establish neither a
+large-prime conductor effect nor its absence, and no weak-curve, transfer,
+security-bit, or NIST-scaling claim follows.
+
+A failed or non-estimable preregistered A/A or negative-control gate makes its
+dependent empirical lane indeterminate. Preserve all records and descriptive
+summaries, but withhold nonzero, null, equivalence, practical-significance,
+conductor-effect, and weakness labels. The control failure is an instrument
+alert, not evidence for or against weakness. Do not relax the margin post hoc
+or run a conditional follow-up whose frozen prerequisite was a passing gate;
+use a newly frozen independent replication, which can release only its own
+inference.
 
 Transfers require explicit maps, subgroup preservation, and complete costs;
 advice supports only its holder. Singular/invalid formula-compatible companions

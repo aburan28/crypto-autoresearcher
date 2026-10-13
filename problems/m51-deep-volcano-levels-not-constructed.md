@@ -1,21 +1,29 @@
-# m=51 deep volcano sampling and maps remain open
+# m=51 deep volcano inference and maps remain open
 
 - **Status:** `open`
-- **Kind:** admitted-sampling, implementation, and proof gap
-- **Affected work:** the unmeasured `f_E=120,871` and
-  `f_E=271*120,871` levels in the [m=51 volcano study](../research/isogeny_volcano_m51_rho_20261013/README.md), its [frozen protocol](../research/isogeny_volcano_m51_rho_20261013/PROTOCOL.md), and any complete-level or vertical-transfer comparison for that isogeny class
-- **Next action owner:** unassigned executor after the indexed-scan protocol is frozen
+- **Kind:** control-gated inference, implementation, and proof gap
+- **Affected work:** inferential comparison of all four conductor levels in
+  the [deep rho study](../research/isogeny_volcano_m51_deep_rho_20261013/RESULTS.md)
+  and any vertical-transfer comparison for this isogeny class
+- **Next action owner:** unassigned executor for a fresh frozen replication
+  and explicit map/dual construction
 - **Last updated:** 2026-10-13
 
 ## Problem
 
-An unpredeclared feasibility pilot has now found one bottom/parent pair in the
-two deeper levels of the ordinary `m=51` binary isogeny class. That removes the
-earlier endpoint-existence bottleneck for this one observed pair, but it does
-not admit the pair as a statistical sample: the search, selection rule, and
-stopping boundary were not frozen before the pair was observed. No frozen
-level-wide sampling frame has been executed, and no explicit adjacent
-map/dual certificate reaches either level.
+Endpoint construction and a four-level execution are now complete. The frozen
+[deep scan](../research/isogeny_volcano_m51_deep_scan_20261013/README.md)
+exhausted 3.6 billion ranks, certified 42 bottom/parent orbit pairs, and fixed
+the first 32 eligible pairs with zero admitted or blocking failures. The
+separately frozen [deep rho run](../research/isogeny_volcano_m51_deep_rho_20261013/RESULTS.md)
+completed 20,480 verified solves across all four levels.
+
+The remaining empirical obstruction is inferential: the preregistered A/A
+release gate failed narrowly on arms A and B, so all dependent nonzero, null,
+equivalence, practical-significance, conductor-effect, and weakness labels are
+withheld. The remaining transfer obstruction is operational: no explicit
+point-evaluable adjacent map or dual has been serialized, and subgroup
+preservation, scalar recovery, and complete transfer pricing remain open.
 
 The fixed class is over
 `F=GF(2)[z]/(z^51+z^6+z^3+z+1)` with trace `t=-38,684,515`, ambient order
@@ -26,15 +34,30 @@ Delta_pi = -7*(271*120,871)^2,
 f_pi = 32,756,041 = 271*120,871.
 ```
 
-The accepted experiment constructed and measured only `f_E=1` and
-`f_E=271`. A same-action comparison at every conductor level still requires
-valid models for `f_E=120,871` and `f_E=f_pi` selected by a frozen rule before
-rho outcomes are observed. A vertical-transfer comparison additionally
-requires executable maps, duals, subgroup preservation, recovery, and
-complete cost accounting.
+The earlier accepted experiment constructed and measured only `f_E=1` and
+`f_E=271`; that historical scope was superseded for endpoint construction and
+descriptive measurement by the scan and run above. A fresh independent run is
+still required for admissible inference. A vertical-transfer comparison
+additionally requires executable maps, duals, subgroup preservation,
+recovery, and complete cost accounting.
 
 ## Evidence and uncertainty
 
+- **Observed, admitted endpoint sample:** the frozen
+  [deep scan](../research/isogeny_volcano_m51_deep_scan_20261013/README.md)
+  processed `[0,3,600,000,000)`, certified all 42 hits as distinct
+  bottom/unique-ascent-parent pairs, and selected the first 32 at global rank
+  `2,531,725,702`. Exact certificates identify parent `f_E=120,871`, bottom
+  `f_E=32,756,041`, and a degree-271 ascending relation. This resolves the
+  endpoint-sampling obstruction but supplies no evaluator or dual.
+- **Observed, executed but inference withheld:** the frozen
+  [four-level result](../research/isogeny_volcano_m51_deep_rho_20261013/RESULTS.md)
+  has 20,480 verified solves and valid integrity seals. Its largest pairwise
+  point difference is `0.026350` bit; `B-C=-0.000024` bit,
+  `M120871=-0.006404` bit, and `2I=+0.039892` bit. These are diagnostics only.
+  A's simultaneous 99% A/A interval missed the `-0.15` boundary by
+  `0.003036` bit and B's missed `+0.15` by `0.009038` bit, so the frozen rule
+  withholds every dependent inferential and equivalence label.
 - **Observed:** the accepted [m=51 report](../research/isogeny_volcano_m51_rho_20261013/README.md)
   records 25,600 verified solves on the crater and 16 fixed representatives
   of the 272-model `f_E=271` slice. It explicitly states that the
@@ -68,33 +91,33 @@ complete cost accounting.
   to the orders of conductor 120,871 or `271*120,871`. Thus negation is the
   currently specified native action common to all four levels. This does not
   predict a conductor-only collision-work effect.
-- **Updated implementation evidence:** the pilot shows that a direct indexed
-  sieve plus fresh conductor checks can find at least one deeper-level pair
-  cheaply enough to justify a frozen scan. It does not measure the full
-  population, certify a sampling estimand, or show that the same throughput
-  persists over the next range. The degree-120,870 CM inventory remains an
-  independent census route rather than the fastest currently evidenced route
-  to a precommitted endpoint sample.
-- **Missing capability:** a frozen, replayable multi-orbit sample for both
-  deeper levels; a fixed Frobenius-orbit sampling frame for level-wide
-  inference; and serialized or deterministically reconstructible adjacent
-  maps and duals with point evaluation, exceptional-input handling, subgroup
-  checks, recovery, and measured costs. The pilot's unique ascent relation is
-  not an explicit point-evaluable map or dual.
-- **What this evidence does not establish:** it does not show that either
-  deeper level is empty, unreachable, infeasible to construct, weak, or as
-  hard as the measured levels. It does not establish a conductor effect or
-  conductor independence. The completed `f_E=271` result cannot be
-  extrapolated across the unmeasured factor-120871 gap or to the bottom.
+- **Historical pre-freeze implementation evidence:** the pilot showed that a
+  direct indexed sieve plus fresh conductor checks could find a deeper-level
+  pair and motivated the now-completed frozen scan. It did not enter the
+  admitted sample. The degree-120,870 CM inventory remains an independent
+  census cross-check, not a prerequisite for the completed endpoint sample.
+- **Missing capability:** a fresh, replayable, outcome-independent endpoint
+  sample plus a separately frozen rho run whose preregistered control gate
+  passes; a justified population model for inference beyond the finite
+  selected set; and serialized or
+  deterministically reconstructible adjacent maps and duals with point
+  evaluation, exceptional-input handling, subgroup checks, recovery, and
+  measured costs. A certified unique-ascent relation is not an explicit
+  point-evaluable map or dual.
+- **What this evidence does not establish:** it establishes neither a
+  conductor effect nor conductor independence. The failed control gate is an
+  instrument alert, not evidence for or against weakness. The completed run
+  also does not establish an executable transfer, an end-to-end advantage,
+  NIST-scale behavior, a security-bit discount, or a weak curve.
 
 ## What would unblock it
 
-- [ ] Preserve and independently replay the pilot pair, including the exact
+- [x] Preserve and independently replay the pilot pair, including the exact
   field encoding, both curve identities, order checks, bottom-conductor
   `[2,2,2]` witnesses at `271^2`, unique-ascent classification, commands,
   software versions, hashes, and failures. The observed pair is feasibility
   evidence only and remains excluded from the admitted sample.
-- [ ] Execute a precommitted indexed scan over `[0, 3,600,000,000)` and select
+- [x] Execute a precommitted indexed scan over `[0, 3,600,000,000)` and select
   the first 32 distinct bottom/parent Frobenius-orbit pairs under the frozen
   encounter-order and deduplication rules. Require exact order `N` and fresh
   conductor certificates for both members of every selected pair; exclude
@@ -114,72 +137,75 @@ complete cost accounting.
   compositions on the codomains. On the order-`r` subgroups, verify nonzero
   images of exact order `r`, preservation of planted scalars, recovery using
   the inverse degree modulo `r`, and verification back on the source.
-- [ ] Freeze and execute a matched four-level negation-rho experiment using
-  identical planted scalars and paired random-stream namespaces, separately
-  charging construction, map-in, walk, recovery, verification, field
-  primitives, memory, failures, and cold-start versus genuinely amortized
-  work. Compare against the existing crater native-`tau` control as a
-  separate action/transfer baseline; do not mix its symmetry discount into
-  the same-action level contrast.
+- [x] Freeze and execute a matched four-level native negation-rho experiment
+  using identical planted scalars and paired random-stream namespaces, with
+  native setup and online `walk_ops` retained separately. The completed run
+  executed no isogeny transfer and priced neither transfer nor scalar-
+  recovery/verification work as an end-to-end attack.
+- [ ] After explicit maps exist, separately charge path construction, map-in,
+  destination attack, scalar recovery, verification, field primitives,
+  memory, failures, and cold-start versus genuinely amortized work. Compare
+  against the existing crater native-`tau` control as a separate
+  action/transfer baseline; do not mix its symmetry discount into the
+  same-action level contrast.
+- [ ] Freeze and execute a genuinely independent replication using a new PRP
+  endpoint domain, fresh setup/target/walk roots, fixed sample size, and the
+  same predeclared all-arm A/A release rule. Exclude all 42 parent orbits
+  found in the completed scan, their bottom-child fibers, and the earlier
+  feasibility-pilot fiber before selecting the fresh sample. Pilot-based
+  planning makes 128
+  parent clusters (81,920 solves) a provisional fixed-N target under the
+  assumptions in [the sizing note](../research/isogeny_volcano_m51_deep_rho_20261013/REPLICATION_SIZING.md).
+  Do not reuse this run's outcomes to select endpoints or repeat until the
+  gate passes.
 
-The first condition is sufficient to admit a model-level measurement on the
-two missing levels. The second is additionally required for a level-wide
-inference. The third is required for transfer or source-weakness claims. Even
-all four conditions would establish only the frozen proxy measurements and
-certified paths, not a NIST-scale result or a weak curve without a separately
-predeclared and met end-to-end advantage criterion.
+The completed conditions admit the frozen finite-selected-set descriptions,
+not their withheld inferential labels. The fresh replication is required for
+a new inferential attempt. The population condition is additionally required
+for inference beyond its selected endpoints, and the map condition is required
+for transfer or source-weakness claims. Even all conditions would establish
+only their scoped proxy measurements and certified paths, not a NIST-scale
+result or a weak curve without a separately predeclared and met end-to-end
+advantage criterion.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** freeze and run a deterministic indexed sieve
-  over `[0, 3,600,000,000)`, selecting the first 32 distinct certified
-  bottom/unique-ascent-parent Frobenius-orbit pairs under an encounter-order
-  tie rule. Exclude the complete parent orbit represented by
-  `b=7746411922983` and all 272 bottom-child orbits that ascend to it because
-  the pilot exposed that fiber before freeze; this includes the observed
-  bottom orbit containing `b=675235026289400`. Do not choose or reject
-  endpoints from rho outcomes. This
-  supersedes CM-first construction as the fastest currently evidenced next
-  endpoint-sampling step.
-- **Inputs and controls:** use the fixed field polynomial, `N`, `r`, and
-  conductor factorization above. Freeze the index-to-candidate mapping,
-  encounter order, orbit canonicalization, deduplication, pilot-exclusion,
-  exact-order, and conductor-certificate rules before scanning. Pass the known
-  crater `b=1`, `m51-floor-o01`, and the excluded pilot pair through the same
-  point-count and conductor classifier as identity controls, and require the
-  classifier to reject deliberately wrong level labels. Verify every
-  candidate and its Frobenius conjugates without treating conjugates as
-  independent curves.
-- **Execution limits and stop condition:** scan the complete frozen interval
-  once under recorded host safety limits and preserve all candidates,
-  duplicates, exclusions, certifications, failures, and timing. The pass ends
-  only after index `3,599,999,999` is processed, even if 32 pairs appear
-  earlier; the selected sample is the first 32 eligible distinct-orbit pairs.
-  If fewer than 32 pairs exist in the interval, retain the complete result as
-  a bounded census and freeze a new range before extending it. An admitted or
-  unresolved field, order, conductor, subgroup, ascent, or certificate failure
-  at or before the provisional 32-pair cutoff invalidates the selected sample;
-  it is never backfilled with a later success. Failures after that cutoff stay
-  retained and reported but do not by themselves invalidate the already fixed
-  selected 32. Map, dual, transfer, and performance inference remain outside
-  this discovery study. A safety watchdog or resource exhaustion is
-  infrastructure/resource evidence, not a mathematical result.
-- **Outcomes and next actions:** 32 certified pairs admit a separately frozen
-  matched same-negation rho experiment on the sampled parent and bottom
-  orbits. Fewer than 32 pairs determine the complete count in this interval
-  but do not prove scarcity outside it. Passing explicit maps and duals admits
-  a separately frozen transfer-cost experiment; endpoint certificates alone
-  do not. A process or resource failure identifies the stage to replace or
-  checkpoint and leaves the deeper-level comparison unmeasured.
+- **Action or proof obligation:** freeze a new endpoint scan in a disjoint PRP
+  domain and a fixed 128-cluster four-level same-negation experiment before
+  observing any new rho outcome. Treat the completed run only as a sizing
+  pilot; it can never gain labels retroactively.
+- **Inputs and controls:** retain the exact field, `N`, `r`, conductor lattice,
+  endpoint classifier, and one-child-per-parent cluster definition. Freeze
+  new endpoint-selection and exclusion rules, setup/target/walk roots, the
+  calibrated estimators, nine-contrast multiplicity family, disjoint A/A
+  samples, simultaneous 99% `+/-0.15`-bit all-arm gate, and no-backfill/no-
+  optional-stopping rule. Use one common native signed-negation action at all
+  four levels for this association lane. Exclude all 42 previously discovered
+  parent orbits and their bottom-child fibers, plus the feasibility-pilot
+  fiber. Keep each level's best certified native action as a separate attack-
+  ledger comparison.
+- **Execution limits and stop condition:** process the complete new scan range
+  even if 128 pairs appear early, then execute exactly the frozen 81,920-solve
+  design. A material certification failure at or before the selected cutoff
+  invalidates selection and is not backfilled. A failed A/A gate retains the
+  run but again withholds every dependent inferential and equivalence label;
+  it never triggers repeat-until-pass execution. If the complete frozen scan
+  range yields fewer than 128 eligible clusters, preserve it as a bounded
+  census, do not backfill or launch the 128-cluster rho design, and freeze a
+  separate extension before continuing.
+- **Outcomes and next actions:** a passing control gate releases only the new
+  run's predeclared inference. A failed or non-estimable gate leaves that lane
+  indeterminate. In parallel, a certified explicit map/dual permits a separate
+  transfer-cost study; endpoint relations alone do not.
 - **Independent census lane:** replay the exact `cm51_120871.gp` construction
   from revision `f0bdf9f739462766a9060532c59f9bfed69d00b1` in a pinned
   PARI/GP environment and retain every intermediate needed to validate its
   intended 120,870-entry `floor51_120871_cm.txt`. This remains valuable for a
-  complete CM census and cross-check, but it no longer blocks the faster
-  precommitted indexed sample.
-- **Recheck trigger:** a committed, independently replayed 32-pair sample (or
-  complete bounded scan with fewer hits), the completed independent CM census,
-  or a committed explicit map/dual artifact for either missing direction.
+  complete CM census and cross-check, but it does not block the already
+  completed indexed endpoint sample.
+- **Recheck trigger:** a committed fresh replication, the completed independent
+  CM census, or a committed explicit map/dual artifact for either missing
+  direction.
 
 A planned construction is not a completed experiment. It must use the
 repository's execution, review, visual-record, and archival rules before its
@@ -187,7 +213,9 @@ outputs support an inference.
 
 ## Resolution and history
 
-Unresolved. The unpredeclared pilot changes endpoint existence from unknown to
-demonstrated for one parent/bottom pair, while leaving admitted sampling,
-explicit maps/duals, transfer costs, and rho measurements open. It asserts no
-general conductor effect, impossibility, or weakness result.
+Unresolved. On 2026-10-13 the frozen deep scan resolved admitted endpoint
+sampling for 32 pairs and the frozen rho run completed the documented
+four-level measurement in this repository. Its A/A gate failed narrowly, so
+inferential labels remain withheld. Explicit maps/duals and transfer costs
+also remain open. The record asserts no general conductor effect, conductor
+independence, impossibility, or weakness result.

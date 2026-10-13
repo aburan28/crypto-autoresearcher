@@ -78,6 +78,19 @@ class AuditCurveSkillTests(unittest.TestCase):
             "conductor_gap_index_g_pi_E: null",
             "volcano_levels: []",
             "inseparable_endomorphisms: []",
+            "selected_set_or_modeled_population: null",
+            "endpoint_selection_rule: null",
+            "common_native_action: null",
+            "best_native_action_by_level: []",
+            "counter: null",
+            "accounting_interval: null",
+            "calibration_rule: null",
+            "cluster_unit: null",
+            "multiplicity_family: null",
+            "aa_or_negative_control_gate:",
+            "label_release_status: INDETERMINATE",
+            "labels_withheld: null",
+            "conditional_follow_up_rule: null",
         ):
             self.assertIn(section, report)
 
@@ -127,6 +140,16 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("one-time transfer control", body)
         self.assertIn("[d^(-1) mod r] o phi o tau o dual(phi)", body)
         self.assertIn("selected subgroup", body)
+        self.assertRegex(body, r"one\s+common native action")
+        self.assertIn(
+            "contrasts intended to isolate conductor or volcano-level", body
+        )
+        self.assertIn("Common random numbers", body)
+        self.assertIn("best certified usable native action", body)
+        self.assertIn("ordinary difference-in-differences `2I`", body)
+        self.assertIn("negative-control release gate", body)
+        self.assertIn("dependent empirical lane `INDETERMINATE`", body)
+        self.assertIn("cannot retroactively validate", body)
 
         for required in (
             "Delta_pi = f_pi^2 D_K",
@@ -146,6 +169,13 @@ class AuditCurveSkillTests(unittest.TestCase):
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn("formula-compatible", agents)
         self.assertIn("confirmation-only oracle", agents)
+        self.assertIn("deep endpoint scan", agents)
+        self.assertIn("A/A release gate", agents)
+        self.assertRegex(
+            agents,
+            r"All dependent primary-contrast inferential and equivalence labels",
+        )
+        self.assertIn("newly frozen independent replication", agents)
 
         knowledge = KNOWLEDGE.read_text(encoding="utf-8")
         self.assertIn("Follow the formulas beyond the named twist", knowledge)
@@ -165,6 +195,9 @@ class AuditCurveSkillTests(unittest.TestCase):
             "0.5 log2(m)",
             "one-time",
             "does not generally certify the representative conductor `f_E`",
+            "Full four-level `m=51` execution",
+            "M120871",
+            "inference withheld by A/A alert",
         ):
             self.assertIn(required, knowledge)
 

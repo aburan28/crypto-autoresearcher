@@ -353,10 +353,90 @@ follows.
 
 Thus the degree-271 prime-factor conductor level did not resolve an effect
 under this exact implementation, subgroup, sampled-model, hash, and
-collision-walk accounting scope. The `f_E=120,871` level and the
-`f_E=271*120,871` bottom remain untested. This is not evidence of causal
-conductor irrelevance and does not establish an executable transfer, NIST-scale
-behavior, an end-to-end advantage, or a weak curve.
+collision-walk accounting scope. In that study the `f_E=120,871` level and
+the `f_E=271*120,871` bottom were untested; the later execution below
+supersedes only that measurement boundary. The degree-271 result is not
+evidence of causal conductor irrelevance and does not establish an executable
+transfer, NIST-scale behavior, an end-to-end advantage, or a weak curve.
+
+#### Full four-level `m=51` execution: inference withheld by A/A alert
+
+The earlier statement that the two deep levels were untested is historical to
+the degree-271 study above. The later frozen [deep scan](../../research/isogeny_volcano_m51_deep_scan_20261013/README.md)
+processed every rank in `[0,3,600,000,000)`, found 42 candidates, certified
+all 42 as distinct bottom/unique-ascent-parent orbit pairs, and selected the
+first 32 eligible pairs at cutoff rank `2,531,725,702`. There were zero
+admitted or blocking failures. Exact certificates give parent
+`f_E=120,871`, bottom `f_E=32,756,041=271*120,871`, degree-271 ascending
+edges, orbit size 51, and common order `2,251,799,852,369,764`. The scan does
+not serialize point evaluators or duals and authorizes no transfer claim.
+
+The separately frozen [four-level run](../../research/isogeny_volcano_m51_deep_rho_20261013/RESULTS.md)
+used the same native signed-negation action at every level. Its 20,480
+verified solves and 3,556 setup units produced these finite-selected-set
+descriptions:
+
+| arm | `f_E` | calibrated mean walk operations | `log2(mean)` |
+| --- | ---: | ---: | ---: |
+| C | 1 | 122,109.877604 | 16.897820381 |
+| A | 271 | 120,967.009832 | 16.884254123 |
+| P | 120,871 | 119,899.846201 | 16.871470283 |
+| B | 32,756,041 | 122,107.843444 | 16.897796347 |
+
+Scientific execution and integrity passed, but inferential validity failed.
+The predeclared disjoint A/A gate required all four simultaneous 99% intervals
+to fit inside `[-0.15,+0.15]` bit. C and P passed; A and B failed narrowly:
+
+| arm | A/A estimate (bit) | simultaneous 99% diagnostic interval | gate |
+| --- | ---: | ---: | --- |
+| C | -0.005065 | `[-0.110306,+0.100176]` | pass |
+| A | -0.030867 | `[-0.153036,+0.091302]` | fail |
+| P | +0.018975 | `[-0.096808,+0.134758]` | pass |
+| B | +0.039732 | `[-0.079573,+0.159038]` | fail |
+
+Consequently every contrast and interval below is an unreleased diagnostic,
+not an inferential, null, or equivalence result:
+
+| contrast | estimate (bit) | operation ratio | simultaneous 95% diagnostic interval |
+| --- | ---: | ---: | ---: |
+| A-C | -0.013566 | 0.990641 | `[-0.074243,+0.047110]` |
+| P-C | -0.026350 | 0.981901 | `[-0.081553,+0.028853]` |
+| B-C | -0.000024 | 0.999983 | `[-0.051809,+0.051761]` |
+| P-A | -0.012784 | 0.991178 | `[-0.082811,+0.057244]` |
+| B-A | +0.013542 | 1.009431 | `[-0.045326,+0.072411]` |
+| B-P | +0.026326 | 1.018415 | `[-0.033923,+0.086575]` |
+| `M271` | +0.006380 | 1.004432 | `[-0.039403,+0.052163]` |
+| `M120871` | -0.006404 | 0.995571 | `[-0.047595,+0.034787]` |
+| `I` | +0.019946 | 1.013922 | `[-0.019547,+0.059439]` |
+
+The ordinary difference-in-differences is `2I=+0.039892` bit with scaled 95%
+diagnostic interval `[-0.039094,+0.118879]`. The two conditional
+factor-120871 edges point in opposite directions (`P-C=-0.026350` and
+`B-A=+0.013542` bit). The largest observed pairwise point estimate is
+`0.026350` bit, about 1.8% in mean operations. Because the release gate
+failed, this run cannot adjudicate a 3--4-bit hypothesis and supports neither
+a large-prime conductor effect nor a claim that the effect is absent.
+
+The conductor factor is not itself an input to generic rho's square-root
+group-order heuristic. Its plausible roles are indirect: it changes available
+integral endomorphisms and their evaluation cost, the vertical degree
+obligation, horizontal navigation, map construction, and the cost of reaching
+or exploiting another representative. Those mechanisms belong in explicit
+action and transfer lanes. Native same-action `walk_ops` isolate a different
+question and cannot turn the integer `120,871` into an ECDLP-bit discount.
+
+Each selected parent contributes only one selected child, the main sample has
+32 clusters, and the largest single-cluster squared influence share is 52.6%
+for `P-A`. The [provisional replication sizing](../../research/isogeny_volcano_m51_deep_rho_20261013/REPLICATION_SIZING.md)
+uses a new PRP endpoint domain and a fixed 128-parent-cluster planning target,
+corresponding to 81,920 solves and a projected worst simultaneous half-width
+near 0.035 bit under its explicitly stated constant-critical-value and
+`1/sqrt(n)` assumptions. This is a planning calculation, not a guarantee.
+That replication may release only its own result if its separately frozen A/A
+gate passes; it cannot retroactively validate this run. Explicit maps and
+duals, subgroup preservation, scalar recovery, complete transfer pricing,
+NIST-scale behavior, a security-bit discount, and a weak-curve verdict all
+remain unestablished.
 
 A negation-only isogenous endpoint can beat the signed-`tau` source before
 setup only if its fully charged cost per effective transition is less than
