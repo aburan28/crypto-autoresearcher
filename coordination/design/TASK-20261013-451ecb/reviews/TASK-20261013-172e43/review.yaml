@@ -1,0 +1,506 @@
+schema: crypto.autoresearch.eigenx_v3_j2_review.v1
+review:
+  task_id: TASK-20261013-172e43
+  batch_id: BATCH-5313dc
+  goal_id: GOAL-SSI-2fa82a
+  question_id: RQ-SSI-1946c9
+  date: '2026-10-13'
+  role: red-team
+  joint: J2 -- extractor/reduction direction and oracle simulation
+  verdict: inconclusive
+  strongest_scoped_conclusion: >-
+    A classical IND-CCA2 adversary can be turned into a uniform solver for the
+    externally supplied complete-EndRing instance only conditionally: the core
+    must provide a uniform, externally instantiated, adaptive auxiliary-input
+    EI-DXWE extractor for the exact challenge and CCA view; the NIZK must permit
+    simulated proofs while preventing or extracting every new accepting proof
+    pair, including an alternate proof for the simulated challenge statement;
+    and every accepted R_CER witness must decode soundly to four polynomial-time
+    evaluable endomorphisms whose saturated rank-four order is End(E). The
+    opening supplies these as gates, not an instantiated extractor, theorem,
+    sampler, decoder, or quantitative bound. Thus no unconditional or
+    EndRing-only attacker-to-EndRing conversion is established. Ordinary
+    self-sampled XS-WE fails before the hybrid begins because its internally
+    sampled instance cannot embed the externally supplied challenge.
+  scope:
+    owned_joint_only: true
+    scientific_runs: 0
+    implementation_runs: 0
+    experiment_runs: 0
+    peer_reports_read: 0
+    producer_artifacts_read: 0
+    claim_boundary: >-
+      This is a blind conditional reduction derivation and obstruction report,
+      not a security theorem, an impossibility result, an instantiation claim,
+      or a verdict on J1, J3, J4, J5, or the complete candidate.
+
+  typed_objects:
+    security_parameter: lambda
+    global_distribution: >-
+      G_lambda samples public global data g, including the field, a
+      supersingular curve-family description, encodings, message grammar, and
+      all size bounds. No trapdoor or endomorphism witness is present in g.
+    relation_distribution: >-
+      K_CER_lambda(g) samples (x,w), where x canonically contains the named
+      supersingular E over its declared finite field and all public R_CER
+      auxiliary data, and V_CER(g,x,w)=1. The complete-EndRing challenge is
+      sampled by g <- G_lambda; (x_star,w_star) <- K_CER_lambda(g), after which
+      w_star is erased and only (g,x_star) and explicitly declared public
+      auxiliary data are given to the solver.
+    distribution_limit: >-
+      The opening does not define G_lambda, K_CER_lambda, or the byte grammar.
+      These symbols are therefore the most exact distribution that can be
+      derived blindly. Any concrete theorem must replace them by an executable
+      sampler. In particular, the reduction requires the second component to
+      be sampleable from K_CER_lambda(g) conditional on the externally supplied
+      g, and requires x_star to have exactly the component marginal used by
+      real KeyGen. Correlation between component keys beyond g, or a setup that
+      needs w_star, is a fatal distribution mismatch unless separately reduced.
+
+    public_parameters:
+      dxwe: >-
+        pp_X <- X.Setup(1^lambda,g) must be independent of w_star. If there is
+        per-instance public setup, X.ISetup(pp_X,x) must be polynomial-time and
+        callable on x_star without a witness. Its coins and output are included
+        in the real public-key distribution and in the extractor's view.
+      nizk_real: >-
+        crs <- N.Setup(1^lambda,g,L_eq) is the real CRS. The real public key is
+        distributed with this CRS.
+      nizk_simulated: >-
+        (crs_tilde,tau_sim,tau_ext) <- N.SimSetup(1^lambda,g,L_eq). The joint
+        distribution of crs_tilde and all public setup must be
+        indistinguishable from the real CRS distribution. tau_sim and tau_ext
+        remain solver-only state and are never auxiliary input to the attacker.
+      random_oracle: >-
+        If any component is in the ROM, the complete programmed transcript and
+        programming/abort rules are part of the auxiliary-input distribution
+        and loss. The opening names no ROM instantiation, so no programming loss
+        can presently be claimed negligible.
+
+    exact_real_key_distribution_required_for_the_template: |-
+      g <- G_lambda
+      pp_X <- X.Setup(1^lambda,g)
+      (x_0,w_0) <- K_CER_lambda(g)
+      (x_1,w_1) <- K_CER_lambda(g), independently conditional on g
+      crs <- N.Setup(1^lambda,g,L_eq[pp_X,x_0,x_1])
+      pk := EncodePK(g,pp_X,x_0,x_1,crs)
+      sk := (w_0,w_1), with real Dec canonically using w_0
+      return (pk,sk)
+    key_distribution_checks:
+      - x_0 and x_1 have the exact external-challenge marginal.
+      - The two component witnesses are never placed in pk or the attacker auxiliary input.
+      - Independent conditional sampling is required; equal-looking curves or merely computationally related samplers do not give exact embedding for free.
+      - Keeping both witnesses in sk does not authorize the reduction to know the witness for the embedded component.
+      - A variant storing only w_0 is equivalent for the public game, but the reduction must still sample and retain the other component witness for oracle simulation.
+
+    relation_language_for_the_proof: |-
+      L_eq(pk) contains s=(c_0,c_1) iff there exist
+      (m,r_0,r_1) such that
+        c_0 = X.Enc(pp_X,x_0,m;r_0),
+        c_1 = X.Enc(pp_X,x_1,m;r_1), and
+        m is in the canonical message grammar.
+      The statement binds the complete canonical encodings of pp_X, x_0, x_1,
+      c_0, and c_1. No equality only up to an alternate encoding is sufficient.
+    honest_encryption: |-
+      r_0,r_1 <- independent encryption coins
+      c_0 <- X.Enc(pp_X,x_0,m;r_0)
+      c_1 <- X.Enc(pp_X,x_1,m;r_1)
+      pi <- N.Prove(crs,(c_0,c_1),(m,r_0,r_1))
+      C := EncodeCT(c_0,c_1,pi)
+    honest_decryption: |-
+      Parse C canonically; on any parse or validation failure return bottom.
+      If N.Verify(crs,(c_0,c_1),pi)=0, return bottom.
+      Return X.Dec(pp_X,x_0,w_0,c_0), with deterministic failure behavior.
+
+  required_ei_dxwe_interface:
+    syntax: |-
+      X.Setup(1^lambda,g) -> pp_X
+      X.Enc(pp_X,x,m;r) -> c
+      X.Dec(pp_X,x,w,c) -> m or bottom
+      Ext_X(1^lambda,g,pp_X,x,z,code(D),1^q) -> w or bottom
+    correctness: >-
+      For every supported (g,x,w) with V_CER(g,x,w)=1 and every admissible m,
+      X.Dec(pp_X,x,w,X.Enc(pp_X,x,m;r))=m except with the explicitly bounded
+      X correctness error.
+    external_instance_game: |-
+      The challenger receives, rather than samples, (g,x) from the exact
+      K_CER_lambda marginal. After seeing g, pp_X, x and public auxiliary input
+      z, a two-stage distinguisher D may choose equal-length m_0,m_1. A bit d is
+      chosen and c <- X.Enc(pp_X,x,m_d) is returned. D may retain state and run
+      an adaptive environment whose entire public view is represented in z and
+      whose private simulation state is generated without a witness for x. If
+      delta_D is D's output-distribution difference, the single uniform
+      algorithm Ext_X, given the code of D and black-box access prescribed by
+      the game, must output w with V_CER(g,x,w)=1 with probability s_D satisfying
+        delta_D <= L_X(lambda,q,t_D) * s_D + nu_X(lambda).
+      L_X must be polynomial and nu_X negligible for the claimed asymptotic
+      reduction. All restarts, rewinding, random-oracle programming, and advice
+      are included in q, time, and memory.
+    uniformity_requirement: >-
+      A statement of the form 'for every D there exists Ext_D' is insufficient
+      for the requested uniform complete-EndRing solver unless the map from
+      code(D) to code(Ext_D) is itself effective and uniform. An unbounded,
+      nonuniform, witness-advised, or instance-specific extractor is not this
+      interface.
+    exact_auxiliary_input_distribution: >-
+      z contains the canonical public key, simulated CRS, all public R_CER and
+      curve data, the attacker's pre-challenge state, selected messages, the
+      nonembedded component ciphertext used in the hybrid, all NIZK proofs and
+      transcripts visible to the attacker, and any ROM transcript. The other
+      component witness is not given to the attacker, but the distinguisher
+      wrapper may keep it as private simulation state sampled without w_star.
+      Static auxiliary input independent of x, or auxiliary input that omits
+      the adaptive CCA transcript, does not match the reduction.
+    output_use: >-
+      Ext_X must output a witness for the exact externally supplied x_star.
+      A witness for an independently sampled instance, a single endomorphism,
+      a quotient, an abstract order, or a transcript from which a witness might
+      be recoverable does not meet this output type.
+
+  uniform_solver_rederivation:
+    solver_input: >-
+      (1^lambda,g,x_star,a_star), where (g,x_star) has the exact marginal of one
+      real component and a_star is precisely the public auxiliary data included
+      in x or declared by the complete-EndRing problem.
+    component_choice: >-
+      Choose I uniformly in {0,1}; set x_I=x_star; sample
+      (x_{1-I},w_{1-I}) <- K_CER_lambda(g). Generate pp_X on g and x_star
+      without a witness. This yields the exact real public-key distribution
+      only under the conditional independence and setup conditions above.
+    public_key_to_adversary: >-
+      pk_tilde=(g,pp_X,x_0,x_1,crs_tilde), with crs_tilde from N.SimSetup.
+      Its computational difference from the real pk is charged to the NIZK
+      setup/simulation term; it is not silently called exact.
+    challenge_hybrids: |-
+      H_00: (c_0,c_1) encrypt (m_0,m_0), with a simulated proof.
+      H_10: (c_0,c_1) encrypt (m_1,m_0), with a simulated proof; the statement
+            can be false and the simulator must not need a witness.
+      H_11: (c_0,c_1) encrypt (m_1,m_1), with a simulated proof.
+      D_0 embeds its EI-DXWE challenge as c_0 and fixes c_1 as an encryption of
+      m_0. D_1 embeds its EI-DXWE challenge as c_1 and fixes c_0 as an
+      encryption of m_1. Thus D_0 distinguishes H_00/H_10 and D_1 distinguishes
+      H_10/H_11. The extractor is run only for D_I and the external x_star.
+    simulated_challenge_proof: >-
+      pi_star <- N.SimProve(tau_sim,(c_0,c_1)) is used in every hybrid. In H_10
+      no equality witness generally exists. The simulator must bind the same
+      canonical statement and proof bytes given to the attacker.
+
+    decryption_oracle:
+      challenge_exclusion: >-
+        Before and after challenge creation, answer every syntactically valid
+        adaptive query except that, after challenge creation, a query whose
+        complete canonical ciphertext byte string equals C_star is rejected.
+        The reduction may not exclude every ciphertext with the same
+        mathematical components or statement.
+      algorithm: |-
+        On query C:
+          1. Canonically parse C=(c_0,c_1,pi); on failure return bottom.
+          2. If post-challenge and bytes(C)=bytes(C_star), return bottom.
+          3. If N.Verify(crs_tilde,(c_0,c_1),pi)=0, return bottom.
+          4A. Known-other-key route: return
+              X.Dec(pp_X,x_{1-I},w_{1-I},c_{1-I}).
+              For a true equality statement this equals real decryption by
+              correctness. Any accepted false statement is a bad event.
+          4B. Simulation-extraction route: alternatively run
+              N.Ext(tau_ext,(c_0,c_1),pi) -> (m,r_0,r_1), verify the extracted
+              equality witness, and return m. Failure on an accepting new proof
+              pair is a bad event.
+      proof_property_needed: >-
+        Plain soundness is insufficient under a simulated CRS/proof. A
+        statement-level simulation-sound definition that exempts the simulated
+        statement is also insufficient: the standard IND-CCA2 game excludes
+        only the exact C_star, so the adversary may submit the same false
+        challenge statement with a different pi. The template therefore needs
+        one-time strong simulation soundness for new statement/proof pairs,
+        simulation extractability covering such pairs, unique/canonical proofs,
+        or a separately proved equivalent property. The opening's generic
+        phrase 'simulation-sound NIZK' does not select one.
+      malformed_and_alternate_encodings: >-
+        Parsing, validation, and equality are deterministic and canonical.
+        Alternate accepted encodings are ordinary allowed queries and must be
+        simulated; treating them as the excluded challenge changes the game.
+
+    extractor_invocation:
+      input: >-
+        Ext_X receives (1^lambda,g,pp_X,x_star,z_I,code(D_I),1^q), where z_I is
+        the exact public/adaptive view above and D_I contains A plus the complete
+        oracle wrapper. It receives neither w_star nor an EndRing oracle.
+      output: >-
+        Ext_X returns w_star_candidate or bottom. The solver verifies
+        V_CER(g,x_star,w_star_candidate)=1 before decoding it.
+      adaptive_requirement: >-
+        Because A selects m_0,m_1 after pk and pre-challenge decryption queries,
+        EI-DXWE must cover a stateful, two-stage, adaptively messaged
+        distinguisher. A one-shot extractor with fixed messages or no oracle
+        environment is not enough.
+
+  quantitative_accounting:
+    advantage_convention: >-
+      epsilon=Adv_IND-CCA2(A)=abs(Pr[b'=b]-1/2). Let p_bb be the probability
+      A outputs 1 in the endpoint encrypting (m_b,m_b); then
+      abs(p_11-p_00)=2*epsilon.
+    hybrid_inequality: >-
+      Let delta_0 and delta_1 be the EI-DXWE distinguishing gaps of D_0 and
+      D_1. Let Delta_NY include both endpoint real-to-simulated CRS/proof gaps,
+      all oracle-simulation bad-event probabilities, any setup/key statistical
+      distance, and ROM programming aborts. Then the typed hybrid gives
+        2*epsilon <= delta_0 + delta_1 + Delta_NY.
+      With exact component embedding, the key-distribution contribution is
+      zero; otherwise the actual distance must be included and can be fatal.
+    extraction_bound: >-
+      If delta_i <= L_X*s_i+nu_X for i in {0,1}, and B chooses I uniformly,
+      Succ_R_CER(B)=(s_0+s_1)/2, hence
+        epsilon <= L_X*Succ_R_CER(B) + nu_X + Delta_NY/2.
+      Equivalently,
+        Succ_R_CER(B) >= max(0,(epsilon-nu_X-Delta_NY/2)/L_X).
+      Any conversion or relation-soundness error mu_CER must then be subtracted
+      from complete-EndRing success. Trying both I values can trade at most a
+      factor two in time for avoiding a random branch; it does not erase the
+      extractor or proof losses.
+    bad_events_and_aborts:
+      - id: external_support_mismatch
+        effect: fatal unless bounded by an explicit distribution distance
+      - id: other_component_sampling_failure
+        effect: charge its real KeyGen failure probability and preserve conditioning
+      - id: simulated_setup_or_proof_failure
+        effect: charge failure and real/simulated distinguishing gaps
+      - id: accepted_false_or_unextractable_proof
+        effect: charge the strong simulation-soundness or simulation-extraction advantage over all decryption queries
+      - id: random_oracle_programming_abort
+        effect: charge it when a ROM is selected; none is presently specified
+      - id: inadmissible_adversary_messages
+        effect: the IND game aborts under its declared grammar; the reduction may not repair them silently
+      - id: dxwe_extractor_failure
+        effect: already represented by s_i, L_X, and nu_X
+      - id: invalid_extractor_output
+        effect: reject after V_CER verification and count as extraction failure
+      - id: accepted_witness_decode_failure
+        effect: charge mu_CER; without a relation-soundness theorem this is an open, not negligible, term
+      - id: exact_challenge_replay
+        effect: deterministic bottom, exactly as in the IND-CCA2 game
+    time: |-
+      Let r_X be the maximum number of D_I invocations made by Ext_X, q_D the
+      total decryption queries per invocation, and T_parse, T_NVer, T_XDec,
+      T_XEnc, T_SimProve, T_A, T_ExtOH, T_RVerify, and T_Decode denote the
+      corresponding worst-case costs. Then
+        T_B <= T_other_key + T_SimSetup + T_ExtOH
+               + r_X*(T_A + q_D*(T_parse+T_NVer+T_XDec)
+                      + 2*T_XEnc + T_SimProve)
+               + T_RVerify + T_Decode.
+      Expected-time samplers, extractors, or decoders need explicit tail and
+      retry bounds. Polynomial-time follows only if every term and r_X are
+      polynomial in lambda and the encoded input length.
+    memory: >-
+      M_B is at most M_Ext plus M_A, the other component key/witness, CRS and
+      trapdoors, one challenge, parser/verifier/decryptor workspaces, and any
+      replay transcript retained by Ext_X. A streaming oracle wrapper need not
+      retain all q_D queries, but a rewinding extractor may; that storage must
+      be included. No concrete bound is available until Ext_X and the encodings
+      are instantiated.
+
+  accepted_witness_to_complete_endring:
+    required_decoder: >-
+      Decode_CER(g,x_star,w) must be a uniform polynomial-time algorithm, not an
+      existential representation equivalence.
+    path:
+      - Parse x_star to the exact supersingular curve E and field/extension over which evaluators are represented.
+      - Parse w into four canonical evaluator programs phi_1,...,phi_4, their integral structure data, and the claimed saturation/maximality certificate.
+      - Verify each phi_i is a genuine endomorphism E -> E over the declared working field and that its evaluator runs in polynomial time on encoded points.
+      - Verify Z-linear independence, rank four, identity containment, and closure under composition, so O=sum_i Z*phi_i is an evaluable rank-four order contained in End(E).
+      - Verify the supplied local-index, discriminant, or equivalent certificate proving O is saturated/maximal in End^0(E). Since End(E) is an order containing O, a sound certificate that O is already maximal yields O=End(E).
+      - Output the four evaluators, their composition/coordinate data, and the public polynomial evaluation bound as the complete evaluable End(E) solution.
+    missing_bridge: >-
+      The opening does not define V_CER or prove that acceptance implies every
+      step above. Therefore the EI-DXWE extractor's accepted relation witness is
+      not yet a complete-EndRing solution. An abstract quaternion maximal order,
+      torsion image, path, single endomorphism, or non-saturated order cannot be
+      substituted at this final typing step.
+
+  proves_too_much_control:
+    id: PTM-J2-SELF-SAMPLED-XSWE
+    result: rejected
+    first_unsupported_step: external challenge embedding
+    derivation: >-
+      In ordinary self-sampled XS-WE, Setup/Sample internally produces
+      (x_hat,w_hat) and the extraction experiment concerns x_hat. A solver given
+      independent x_star cannot force x_hat=x_star, cannot replace x_hat by
+      x_star without leaving the primitive's experiment, and cannot convert a
+      witness for x_hat into one for x_star. Equality of marginal distributions
+      is not instance identity. Thus even perfect extraction for x_hat solves a
+      fresh self-sampled R_CER instance, not the externally supplied complete-
+      EndRing challenge. The claimed attacker-to-EndRing conclusion is rejected
+      before public-key generation, oracle simulation, or advantage accounting.
+
+  assumption_assessment:
+    classification: legitimate_separate_knowledge_assumption_but_uninstantiated_here
+    legitimate_if: >-
+      EI-DXWE is stated as the standalone core-ciphertext game above, has a
+      uniform efficient extractor, covers the exact externally supplied
+      K_CER marginal and adaptive auxiliary view, excludes witness-bearing
+      setup/advice, and exposes a falsifiable success/loss bound. Under those
+      restrictions it is a coherent knowledge/extractability assumption.
+    not_endring: >-
+      EI-DXWE is not complete-EndRing hardness. It asserts the missing direction
+      that a ciphertext distinguisher yields an R_CER witness. The security
+      theorem may use both EI-DXWE and complete-EndRing hardness, but it may not
+      rename the former as the latter or say the attacker-to-EndRing arrow is
+      based on EndRing alone.
+    circular_or_vacuous_when: >-
+      It is circular if Setup, z, Ext_X, or nonuniform advice is supplied with
+      w_star, a complete EndRing oracle, or an equivalent complete evaluator.
+      It is vacuous if its quantifiers omit the real CCA auxiliary distribution,
+      cover only self-sampled instances, allow an unbounded/nonuniform extractor,
+      or define the covered distinguisher directly as 'one that already yields
+      an EndRing witness.' Relation specificity by itself is not circular.
+    instantiation_status: >-
+      No source or opening artifact inspected here supplies a theorem matching
+      this exact R_CER external-instance, adaptive-auxiliary-input, uniform
+      extraction interface. Recent primary-source abstracts claim public-coin
+      EWE under KOALA and extractability in the classical generic-group model,
+      but the inspected material does not establish the exact EndRing sampler,
+      CCA auxiliary view, standard-model interface, or concrete uniform loss
+      needed here. The assumption is therefore uninstantiated for this scheme,
+      not proven impossible.
+    plausibility_boundary: >-
+      General auxiliary-input EWE has a conditional implausibility result; that
+      source does not prove unconditional impossibility. A narrowly specified,
+      efficiently generated, witness-free auxiliary distribution may avoid the
+      general negative scope, but doing so is a separate theorem obligation.
+
+  sources:
+    repository:
+      - path: AGENTS.md
+        inspected: complete file
+      - path: ledger/handoffs/TASK-20261013-172e43.yaml
+        inspected: complete file
+      - path: ledger/handoffs/TASK-20261013-2b203f.yaml
+        inspected: complete file for snapshot-receipt location
+      - path: ledger/decisions/DEC-20261013-ef0ee8.yaml
+        inspected: complete file for frozen paths and claim boundary
+      - path: coordination/design/TASK-20261013-451ecb/opening.yaml
+        inspected: complete file
+      - path: coordination/design/TASK-20261013-451ecb/review-preparation/review-plan.yaml
+        inspected: complete frozen plan
+      - path: coordination/design/TASK-20261013-451ecb/archives/TASK-20261013-2b203f/snapshot-receipt.json
+        inspected: complete receipt; producer paths were not opened
+      - path: docs/scheme-construction-contract.md
+        inspected: complete file
+      - path: templates/research-records.md
+        inspected: review-plan and review-attestation sections
+      - path: tools/check_review_independence.py
+        inspected: attestation/verdict compatibility only; checker was not run
+    primary:
+      - citation: >-
+          Sanjam Garg, Craig Gentry, Amit Sahai, and Brent Waters,
+          "Witness Encryption and its Applications," Cryptology ePrint
+          2013/258.
+        url: https://eprint.iacr.org/2013/258
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          Ordinary witness encryption encrypts to an instance and guarantees
+          indistinguishability when the instance is outside the language.
+      - citation: >-
+          Aidan Hair and Amit Sahai, "Witness Encryption via Prime-Order
+          Generic Groups," arXiv:2609.18275v1.
+        url: https://arxiv.org/html/2609.18275
+        provenance: retrieved
+        inspected: abstract, Sections 1, 1.1, 1.2, and Definition 2.1 on 2026-10-13
+        use: >-
+          Definition 2.1 explicitly imposes no security requirement for true
+          statements; the paper's construction is ordinary WE in the classical
+          generic-group model, not the EI-DXWE interface derived here.
+      - citation: >-
+          Sanjam Garg, Craig Gentry, Shai Halevi, and Daniel Wichs,
+          "On the Implausibility of Differing-Inputs Obfuscation and Extractable
+          Witness Encryption with Auxiliary Input," Cryptology ePrint 2013/860.
+        url: https://eprint.iacr.org/2013/860
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          The abstract states a conditional, not unconditional, impossibility
+          consequence for auxiliary-input EWE under a special-purpose
+          obfuscation assumption.
+      - citation: >-
+          Liyan Chen and Vinod Vaikuntanathan, "Public-coin Differing-input
+          Obfuscation from KOALA and iO," Cryptology ePrint 2026/2346.
+        url: https://eprint.iacr.org/2026/2346
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          The abstract claims public-coin extractable witness encryption under
+          KOALA; it does not by itself type the exact R_CER/CCA auxiliary game.
+      - citation: >-
+          "A Note on Extractable Witness Encryption in Generic Groups,"
+          Cryptology ePrint 2026/2399.
+        url: https://eprint.iacr.org/2026/2399
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          The abstract claims unconditional extractability only in the generic
+          group model, a model restriction that cannot be silently removed.
+      - citation: >-
+          Dennis Hofheinz and Tibor Jager, "Tightly Secure Signatures and
+          Public-Key Encryption," Cryptology ePrint 2012/311.
+        url: https://eprint.iacr.org/2012/311
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          The abstract records the Naor--Yung use of a simulation-sound NIZK to
+          obtain IND-CCA encryption; it does not instantiate the present
+          relation or discharge the exact alternate-proof oracle case.
+      - citation: >-
+          Aurel Page and Benjamin Wesolowski, "The supersingular Endomorphism
+          Ring and One Endomorphism problems are equivalent," Cryptology ePrint
+          2023/1399.
+        url: https://eprint.iacr.org/2023/1399
+        provenance: retrieved
+        inspected: landing-page abstract on 2026-10-13
+        use: >-
+          The abstract identifies EndRing as computing all endomorphisms and
+          states a PPT equivalence with OneEnd; it does not define the R_CER
+          complete evaluable certificate needed by this reduction.
+    source_limit: >-
+      Abstract-only sources support only the statements attributed to their
+      abstracts. They do not discharge an exact theorem, definition, setup, or
+      loss not visible in the inspected scope.
+
+  open_obligations:
+    - Replace G_lambda and K_CER_lambda by executable real-key and external-challenge samplers and prove exact component embedding.
+    - Give the uniform EI-DXWE game and extractor for the exact adaptive auxiliary view, with polynomial L_X, negligible nu_X, and explicit runtime/memory.
+    - Select and prove the exact strong simulation-soundness or simulation-extraction property needed for same-statement alternate proofs.
+    - Type every malformed query and canonical byte-equality rule and bound all oracle-simulation bad events across q_D queries.
+    - Prove that every accepted R_CER witness decodes uniformly to a complete evaluable saturated rank-four basis of End(E).
+    - Instantiate or explicitly assume every ROM/setup transition and place its loss in Delta_NY.
+  exit_criterion: >-
+    J2 can become holds only after a reviewed artifact supplies all six open
+    obligations and proves the displayed advantage, time, memory, and decoding
+    bounds for the exact real distribution. A counterexample showing that no
+    permitted EI-DXWE/NIZK interface can handle the exact view would instead
+    justify breaks. The present opening establishes neither outcome.
+
+review_attestation:
+  task_id: TASK-20261013-172e43
+  joints_owned:
+    - J2 -- extractor/reduction direction and oracle simulation
+  sources_read:
+    - AGENTS.md
+    - ledger/handoffs/TASK-20261013-172e43.yaml
+    - ledger/handoffs/TASK-20261013-2b203f.yaml
+    - ledger/decisions/DEC-20261013-ef0ee8.yaml
+    - coordination/design/TASK-20261013-451ecb/opening.yaml
+    - coordination/design/TASK-20261013-451ecb/review-preparation/review-plan.yaml
+    - coordination/design/TASK-20261013-451ecb/archives/TASK-20261013-2b203f/snapshot-receipt.json
+    - docs/scheme-construction-contract.md
+    - templates/research-records.md
+    - tools/check_review_independence.py
+    - https://eprint.iacr.org/2013/258
+    - https://arxiv.org/html/2609.18275
+    - https://eprint.iacr.org/2013/860
+    - https://eprint.iacr.org/2026/2346
+    - https://eprint.iacr.org/2026/2399
+    - https://eprint.iacr.org/2012/311
+    - https://eprint.iacr.org/2023/1399
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict: inconclusive
