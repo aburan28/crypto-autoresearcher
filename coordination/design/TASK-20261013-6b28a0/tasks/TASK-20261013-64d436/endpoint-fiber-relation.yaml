@@ -1,0 +1,185 @@
+schema: crypto.autoresearch.endpoint_fiber_relation.v1
+id: CEFC-POT-REL
+candidate: CEFC-PKE
+task_id: TASK-20261013-64d436
+goal_id: GOAL-SSI-2fa82a
+batch_id: BATCH-3e1bfd
+status: conditional_relation_uninstantiated
+scientific_runs: 0
+
+parameters:
+  security_parameter: lambda
+  base_field: "F_(p(lambda)^2); p is not selected"
+  curve_domain: "V_lambda, canonically encoded supersingular curves satisfying an uninstantiated acceptance predicate"
+  edge_domain: >-
+    Canonically encoded normalized separable isogenies e:U->V accepted by a
+    public polynomial-time predicate; degrees and normalization are unselected.
+  walk_length: "L(lambda), unselected"
+  label_group: "A_lambda, an efficiently represented additive group with a canonical kappa(lambda)-bit encoding"
+  message_bound: "mu(lambda), unselected polynomial"
+
+typed_interfaces:
+  TrapCurveGen_ER:
+    input: "1^lambda and public parameters pp"
+    output: "(E,W_E) or fail"
+    required_law: >-
+      E has the exact declared EndRing-challenge public marginal; W_E is a
+      complete efficiently evaluable rank-four Z-basis of End(E).
+    efficiency: required_PPT_or_expected_PPT_with_tail
+    supplied: false
+  WalkSample:
+    input: "(pp,E;rho)"
+    output: "an admissible length-L walk w from E, or fail"
+    required_law: "An exact distribution over canonical nonbacktracking walks, including retries and failure."
+    efficiency: required_PPT_or_expected_PPT_with_tail
+    supplied: abstract_public_sampler_only
+  Endpoint:
+    input: "(pp,E,w)"
+    output: "canonical endpoint C"
+    required_law: "C is the terminal curve obtained by evaluating every edge of w."
+    efficiency: polynomial_conditional_on_edge_evaluation
+    supplied: typed_definition
+  EdgeLabel:
+    input: "(pp,e:U->V)"
+    output: "delta(e) in A_lambda"
+    required_law: "Public deterministic canonical output, compatible with edge parsing and reversal."
+    efficiency: required_PPT
+    supplied: false
+  WalkInvariant:
+    input: "(pp,w=(e_1,...,e_L))"
+    output: "I_E(w)=sum_i delta(e_i) in A_lambda"
+    required_law: exact_group_sum
+    efficiency: "O(L) label evaluations and group additions, conditional on EdgeLabel"
+    supplied: typed_definition
+  RingPotential:
+    input: "(pp,E,W_E,C)"
+    output: "x in A_lambda or fail"
+    required_law: "For every honest w in Fib_E(C), x=I_E(w)."
+    efficiency: required_PPT_or_expected_PPT_with_tail
+    supplied: false
+  CompleteEvalBasis:
+    input: "(pp,E,W_E)"
+    output: "accept or reject"
+    required_law: >-
+      Accept only an evaluable saturated rank-four Z-basis spanning End(E),
+      with checked multiplication/norm data and representation conversions.
+    efficiency: required_PPT
+    supplied: false
+
+maps_and_fibers:
+  walk_domain: "W_L(E)=support(WalkSample(pp,E)) after canonical acceptance"
+  endpoint_map: "F_E:W_L(E)->V_lambda, F_E(w)=Endpoint(pp,E,w)"
+  fiber: "Fib_E(C)={w in W_L(E):F_E(w)=C}"
+  invariant: "I_E(w)=sum_{e in w} EdgeLabel(pp,e)"
+  exact_equivalence: "w0 ~_E w1 iff F_E(w0)=F_E(w1)"
+  desired_factorization: "There exists g_E on image(F_E) with I_E=g_E o F_E."
+
+fiber_property:
+  quantified_statement: >-
+    For all lambda, accepted pp, accepted keys E, endpoints C, and
+    w0,w1 in W_L(E), if F_E(w0)=F_E(w1)=C then I_E(w0)=I_E(w1).
+  equivalent_zero_circulation_statement: >-
+    Every closed concatenation w0 followed by reverse(w1), whenever admitted
+    by the declared closure domain, has total label zero.
+  status: open
+  collision_failure_event: "F_E(w0)=F_E(w1) and I_E(w0)!=I_E(w1)"
+  collision_consequence: "Honest decapsulation cannot be well-defined from endpoint C alone."
+  allowed_relaxation: >-
+    A statistical relaxation must state the joint real sampling law and bound
+    Pr[collision_failure_event]; no relaxation is supplied here.
+
+correctness_relation:
+  relation: >-
+    R_CEFC(pp,E,W_E,w,C,x)=1 iff CompleteEvalBasis(pp,E,W_E)=1,
+    w is accepted, C=F_E(w), x=I_E(w), and
+    RingPotential(pp,E,W_E,C)=x.
+  honest_statement: >-
+    For every accepted key and allowed message, Enc followed by Dec returns the
+    actual message except on key-generation, walk-sampling, parsing, or
+    RingPotential failure.
+  failure_bound: "epsilon_key + epsilon_walk + epsilon_parse + epsilon_potential; all terms open"
+  status: proposed_conditional_only
+
+intermediate_game:
+  name: CEFC-POT-PR
+  model_target: QPT_with_classical_curve_data_and_declared_QROM_interfaces
+  experiment:
+    - "(pp,E,W_E) <- TrapCurveGen_ER(1^lambda); W_E is withheld"
+    - "w <- WalkSample(pp,E); C <- F_E(w); x0 <- I_E(w)"
+    - "x1 <- uniform(A_lambda); b <- uniform({0,1})"
+    - "give (pp,enc(E),enc(C),enc(x_b)) and declared auxiliary data to adversary A"
+    - "A outputs b' and wins iff b'=b"
+  advantage: "abs(Pr[b'=b]-1/2)"
+  exact_distribution_requirement: >-
+    The key and endpoint marginals must be byte-for-byte the real scheme law;
+    no chosen endpoint, hidden path advice, or statistically substituted key
+    distribution is silently permitted.
+  auxiliary_view:
+    - public parameters and canonical parsers
+    - public key E and endpoint C
+    - validation and failure laws
+    - any public torsion, orientations, bases, tags, hints, or preprocessing
+    - repeated and multi-user data if the claim covers them
+  status: newly_named_intermediate_assumption_unproved
+  reduction_to_complete_EndRing: open
+  warning: "This game is not EndRing and cannot be relabeled as EndRing hardness."
+
+complete_EndRing_target:
+  input_distribution: "E from the exact public marginal of TrapCurveGen_ER"
+  output: >-
+    Four evaluable endomorphisms forming a saturated Z-basis of End(E), with
+    multiplication/norm representation and a verifier-accepted completeness
+    certificate.
+  success_predicate: CompleteEvalBasis
+  attacker_to_target_extractor: absent
+
+full_ring_necessity_controls:
+  - id: public_endpoint
+    attempt: "Compute g_E(C) directly from enc(C), for example as an endpoint hash."
+    effect_if_successful: O4_complete_ring_necessity_fails
+  - id: exact_path
+    attempt: "Use or recover the sender path and hash its encoding."
+    effect_if_successful: >-
+      Either fiber correctness fails on collisions or path recovery, not a
+      complete ring, is the operative assumption.
+  - id: EvalLine
+    attempt: "Evaluate one endomorphism on the reachable ciphertext line."
+    effect_if_successful: O4_factors_through_smaller_witness
+  - id: finite_action
+    attempt: "Use a finite torsion-action table or module quotient."
+    effect_if_successful: O4_factors_through_smaller_witness
+  - id: cached
+    attempt: "Store a polynomial endpoint/preimage/potential table or amortized cache."
+    effect_if_successful: "Charge the advice; a polynomial equivalent decoder defeats full-ring necessity."
+  - id: compressed
+    attempt: "Replace W_E by a compressed path, ideal, orientation, potential seed, or evaluator."
+    effect_if_successful: "The compressed object's actual relation is the secret assumption."
+  - id: opaque_decoder
+    attempt: "Provide only black-box access to RingPotential."
+    effect_if_successful: "Black-box endpoint decoding is sufficient for the scheme; complete-ring extraction remains unproved."
+  - id: public_conjugation
+    attempt: "Encode the potential through publicly conjugated matrices."
+    effect_if_successful: "Solve public intertwiner equations and reject the recovered-secret syntax."
+
+earliest_obstruction:
+  kind: construction_gap
+  exact_statement: >-
+    No concrete EdgeLabel is supplied that is simultaneously public,
+    nontrivial, canonically encoded, and zero-circulation on every admissible
+    endpoint fiber, and no polynomial RingPotential using a complete EndRing
+    witness is supplied for the same endpoint distribution.
+  affected_obligations: [O1, O2, O4]
+  unblocking_certificate: >-
+    A concrete label/evaluator pair, exact sampler and encodings, a proof of the
+    quantified fiber statement, a polynomial runtime/failure analysis, and
+    explicit failure of all smaller-witness controls.
+  what_remains_open: "All other endpoint-fiber relations and all other EndRing PKE constructions."
+  universal_impossibility_claimed: false
+
+inference:
+  requested_policy: research-deep
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  fallback_used: false
+  model_verified: false
+
