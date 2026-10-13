@@ -123,6 +123,10 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("inherit a square-root DLP cost automatically", body)
         self.assertIn("t_m = t t_(m-1) - q t_(m-2)", body)
         self.assertIn("Frob_q^m", body)
+        self.assertIn("sqrt(m)", body)
+        self.assertIn("one-time transfer control", body)
+        self.assertIn("[d^(-1) mod r] o phi o tau o dual(phi)", body)
+        self.assertIn("selected subgroup", body)
 
         for required in (
             "Delta_pi = f_pi^2 D_K",
@@ -155,8 +159,11 @@ class AuditCurveSkillTests(unittest.TestCase):
         for required in (
             "Conductor and volcano accounting",
             "Current NIST-family evidence boundary",
+            "Koblitz rho incumbent and conductor-transfer crossover",
             "P-224",
             "B-571",
+            "0.5 log2(m)",
+            "one-time",
             "does not generally certify the representative conductor `f_E`",
         ):
             self.assertIn(required, knowledge)

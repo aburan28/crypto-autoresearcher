@@ -27,6 +27,7 @@ this guide, catalog checks and subject assessment are never launch preflights.
 
 | Subject | Profile | Representative implementation paths | Concrete output |
 | --- | --- | --- | --- |
+| Named-curve, twist and isogenous-representative weakness audits | `audit-curve` | `tools/koblitz_rho_audit.py`, exact curve and transfer certificates | Scoped verdict, attack-cost ledger and unresolved obligations |
 | Curve IDs, fields, traits, catalogs | `curve` | `tools/curve_identity.py`, `ui/curves.py` | Exact IDs, pins, sourced traits and unknowns |
 | CM, conductors, GLV/GLS, Frobenius | `endo` | `harness/endosweep/`, `tools/isogeny_class_screen.py` | Map/lattice/cost evidence separated |
 | Covers, lifts, descents, correspondences | `transfer` | Existing assessment template; explorer in pending PR #1909 | Typed maps, subgroup certificates and open obligations |
@@ -50,6 +51,7 @@ results” uses `review-evidence` with `solver` context.
 
 | User wording | Primary | Supporting profile |
 | --- | --- | --- |
+| “Rigorously test whether this named curve or an isogenous representative is weak” | `audit-curve` | `transfer` for any supplied map or path |
 | “Run EXP-… on its existing inputs” | `run` | Load only that launcher's relevant subject sources |
 | “Design a paired genus-two transfer test” | `design-experiment` | `transfer` |
 | “Check whether these GLV timings are fair” | `bench` | `endo` |
@@ -88,11 +90,13 @@ The source inventory is pinned to main commit
 from PR #1908 reused in this change. On that main snapshot Claude exposed 12
 skills and `.agents/skills/` exposed only three. This change adds 12 short subject
 and maintenance skills and adapters for nine previously unexposed lifecycle skills.
-Including transfer, both surfaces expose 25 canonical names.
+Including transfer and the existing `audit-curve` workflow, both surfaces expose
+26 canonical names.
 
-`docs/skill-tool-inventory.json` records 381 selected source paths (including the
-pending explorer reference and this catalog utility): tool and module entrypoints, libraries, native
-kernel sources, shell scripts and formal sources. 92 entries have source-read
+`docs/skill-tool-inventory.json` records 382 selected source paths (including the
+pending explorer reference, this catalog utility, and the Koblitz audit tool):
+tool and module entrypoints, libraries, native kernel sources, shell scripts and
+formal sources. 93 entries have source-read
 inspection; the remainder have path-inventory inspection. Six installed console
 entrypoint declarations are recorded separately. These are declarations and
 tracked sources, not proof that a binary is installed or runnable here.
@@ -123,7 +127,7 @@ pointed at a nonexistent local `references/` directory, and design-experiment's
 blanket rejection of null fields contradicted advisory/unlimited budget policy.
 The fixes preserve the existing scientific-contract completeness requirement.
 
-Validation: all 25 canonical skills pass skill-creator structural checks, and
+Validation: all 26 canonical skills pass skill-creator structural checks, and
 the focused routing suite passes. A fresh read-only forward-test correctly routed
 eight recurring requests while reporting missing artifacts in the partial audit
 checkout. It also identified the RunPod wrapper's lack of a named-job status

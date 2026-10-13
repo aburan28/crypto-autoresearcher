@@ -594,7 +594,14 @@ For ordinary curves record
 `ell!=char(F_q)` edges from certified endpoint conductors:
 `horizontal|ascending|descending|unresolved`. Koblitz
 `tau`/characteristic-power Frobenius are inseparable. Conductors are leads,
-not ECDLP-bit discounts.
+not ECDLP-bit discounts. On a Koblitz subgroup, compare an isogenous endpoint
+with the source's usable signed-Frobenius rho baseline, not a negation-only
+baseline: an exact action of order `m` saves `sqrt(m)` expected transitions
+over negation-only rho in the random-map model. Charge orbit handling before
+calling that structural discount a measured advantage. Compare any per-step
+transported action with the simpler control that maps the DLP once to the
+Koblitz representative, solves there with native Frobenius, recovers the
+same discrete-log scalar, and verifies it on the endpoint.
 
 Transfers require explicit maps, subgroup preservation, and complete costs;
 advice supports only its holder. Singular/invalid formula-compatible companions
