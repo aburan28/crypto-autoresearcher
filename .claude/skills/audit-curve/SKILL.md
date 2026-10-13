@@ -188,6 +188,34 @@ Koblitz `tau` has degree two and is inseparable; record its explicit map,
 order relation, subgroup eigenvalue, action order, and evaluation cost, but
 do not label it a horizontal degree-two volcano edge.
 
+For a Koblitz prime-order subgroup, certify `tau(G) = [lambda]G`,
+`lambda^2 - mu lambda + 2 = 0 (mod r)`, and the exact order of `lambda`.
+When it is `m`, the signed action has `2m` elements and the random-map model
+predicts `sqrt(pi r/(4m))` transitions. State the comparison explicitly:
+this is `sqrt(m)` (`0.5 log2(m)` bits) beyond the same curve's negation-only
+rho, and `sqrt(2m)` only beyond unquotiented rho. Treat this as a structural
+model until the complete walk cost is measured.
+
+Use the source's signed-`tau` arm as the incumbent in a vertical-isogeny
+comparison. A negation-only endpoint must have fully charged transition cost
+below `1/sqrt(m)` of the source signed-`tau` cost merely to offset the lost
+orbit quotient, before setup and transfer. If a degree-`d` map `phi` with
+`gcd(d,r)=1` is explicit, also test the transported subgroup action
+`[d^(-1) mod r] o phi o tau o dual(phi)`. Verify its action and order on the
+target subgroup and charge both maps, the scalar multiplication,
+canonicalization, exceptional inputs, and conversions. Do not call it a
+degree-preserving conjugate or an ambient-curve automorphism: when its
+constituent maps are defined it is a global morphism, while the certified
+automorphism claim concerns only the selected subgroup.
+
+Always include a one-time transfer control before a per-step transported
+action. For an ECDLP supplied on the endpoint, map the generator and target
+through the dual once, solve on the Koblitz representative with native `tau`,
+and recover and verify on the endpoint. A transported action paid inside every
+walk step must beat that complete path as well as negation-only rho. A DLP
+already supplied on the Koblitz source stays there unless an endpoint has a
+separately demonstrated cheaper complete attack.
+
 ## 3. Verify every claimed isogeny transfer
 
 For each path from source `E` to candidate `E'`, retain the ordered endpoint
