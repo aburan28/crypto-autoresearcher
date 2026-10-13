@@ -37,7 +37,9 @@ blueprint's own controls.** Specifically:
 - binary Koblitz class n = 16 (the only in-repo class with two floor levels),
   per-prime strata (v₃, v₃₁), m = 2: null (§3.1);
 - the same class at **m = 3 with the production S₄ Gröbner solver**, where the
-  decomposition step is non-trivial (600 to 700 reductions per call): see §3.5;
+  decomposition step is non-trivial (400 to 800 reductions per call): floor
+  strata indistinguishable (p ≥ 0.30 on every metric); the Koblitz crater is
+  the cheapest curve, never a descendant (§3.5);
 - a **new general binary ordinary class at n = 51** (the blueprint's missing
   size), 114 vertices on three levels of a 7-volcano: null, and the
   subgroup-exact relation yield is identically zero because the cofactor is
@@ -264,7 +266,36 @@ curves. One call costs about 430 s and 600 to 950 reductions, so this is the
 arity at which the Gröbner step is no longer trivial (at m = 2 it is 2 to 3
 reductions).
 
-**Results** (`m3_panel_analysis.py`, `m3_panel_results.md`): RESULTS-M3-PENDING
+**Results** (`m3_panel_analysis.py`, `m3_panel_results.md`): All 13 planned cells completed; every transported logarithm was
+BSGS-checked; no probe exhausted its node budget.
+
+| stratum (v₃, v₃₁) | curves | reductions/call mean ± SD | infeasible branches/call | relations / probes (95 % Poisson) | log µs/call | \|F\| |
+|---|---|---|---|---|---|---|
+| (0, 0) crater | 1 | 416.5 | 180.2 | 4/6 = 0.667 [0.18, 1.71] | 18.57 | 32 |
+| (0, 1) | 4 | 690.0 ± 162.7 | 299.3 | 7/24 = 0.292 [0.12, 0.60] | 19.27 | 32 |
+| (1, 0) | 4 | 782.3 ± 243.7 | 354.9 | 8/24 = 0.333 [0.14, 0.66] | 19.56 | 30 |
+| (1, 1) | 4 | 689.0 ± 152.4 | 306.3 | 8/24 = 0.333 [0.14, 0.66] | 19.58 | 30 |
+
+Between the three floor strata, permutation p (20,000 draws, labels permuted
+across curves): reductions per call 0.73, infeasible branches 0.70, relation
+rate 1.00, time per call 0.30. **Pre-registered expectations (1) and (2) hold:
+no stratum effect on any algebraic metric, and the relation rate does not
+depend on the stratum.** Expectation (3) holds as well: the crater is not
+slower than any floor stratum. It is faster: z = −1.70 on reductions per call,
+−1.56 on infeasible branches, −2.91 on time per call and +1.92 on relations per
+probe against the pooled 12 floor curves.
+
+That crater result is one curve with six probes, under a monomial subspace,
+with timing as a secondary metric, so it is an observation, not a finding. Its
+direction is the one the class structure predicts: the Koblitz crater has
+b ∈ F₂ and the τ symmetry, and it is the easiest curve of its class by every
+known measure (`crypto/docs/ic/RESEARCH_ISOGENY_CONDUCTOR_GAP_20261007.md`
+§1 item 4). No descendant is easier than the crater, and the descendants'
+level vectors make no measurable difference to the S₄ solve. Confirming the
+crater gap would need random subspaces and more probes on the crater (at
+≈ 400 s per call, about 4 core-hours per 36 probes); it cannot change the
+conclusion, because any advantage on the crater is already the class's
+reference point.
 
 ### 3.6 Transport pricing across the ladder (H3, protocol I-2)
 
@@ -295,6 +326,8 @@ is nothing to attack directly either.
 `figures/level_stratified_null.svg` (v1: depth vs yield, prime-field gain vs
 null), `figures/comprehensive_pass.svg` (v2: per-prime strata, n = 51 levels,
 the m = 3 panel, transport vs rho across the ladder), `README.pdf`.
+
+![Figure 2: per-prime strata at n = 16, the n = 51 levels, the m = 3 panel, transport cost vs rho across the ladder](figures/comprehensive_pass.svg)
 
 ## 4. What remains open after this pass
 

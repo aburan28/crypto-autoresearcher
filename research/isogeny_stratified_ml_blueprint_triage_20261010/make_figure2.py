@@ -27,7 +27,9 @@ def dots(x, y, w, h, groups, key, label_fmt, ylab, ref=None):
     vals = [(nm, m / base, (sd or 0) / base, n) for nm, m, sd, n in groups]
     lo = min(v - s for _, v, s, _ in vals + [("", 1, 0.05, 1)]) - 0.02; hi = max(v + s for _, v, s, _ in vals + [("", 1, 0.05, 1)]) + 0.02
     def Y(v): return y + h - (v - lo) / (hi - lo) * h
-    for tv in (0.9, 0.95, 1.0, 1.05, 1.1):
+    span = hi - lo; step = 0.05 if span < 0.4 else (0.1 if span < 1.0 else 0.25)
+    ticks = [round(k * step, 2) for k in range(int(lo / step) + 1, int(hi / step) + 1)]
+    for tv in ticks:
         if lo < tv < hi:
             P.append(f'<line x1="{x}" y1="{Y(tv):.1f}" x2="{x+w}" y2="{Y(tv):.1f}" stroke="{"#333" if tv == 1 else "#ddd"}" stroke-dasharray="{"" if tv == 1 else "3,3"}"/>'); text(x - 6, Y(tv) + 4, f"{tv:.2f}", anchor="end")
     text(x - 42, y + h / 2, ylab, 10, anchor="middle", rot=True)
