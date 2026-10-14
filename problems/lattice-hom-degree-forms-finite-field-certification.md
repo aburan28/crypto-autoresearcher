@@ -1,7 +1,7 @@
 # Hom degree forms and conductor-product identifiability pilot: finite-field realization and independent certification remain open
 
 - **Status:** `open`
-- **Kind:** proof/interface gap; unavailable independent research review
+- **Kind:** proof/interface gap; independent mathematical review pending
 - **Affected work:** RQ-ENDO-73c60f, H-ENDO-d492e4, EXP-ENDO-371597, TASK-20261012-88b2b8; additive relation to GOAL-ENDO-001 where appropriate, with no change to its head
 - **Next action owner:** Coordinator prepares explicit successor; independent Reviewer TASK-20261012-4a1d16
 - **Last updated:** 2026-10-14
@@ -14,8 +14,9 @@ The scope is Infers planted algebraic order conductors only under certified comp
 
 ## Evidence and uncertainty
 
-- **Observed:** Input intake is published at a49c65b1ffc04b192b1bf92e386baf4d9e4cc523; this Coordinator inspected intake, contracts, admission tools and draft source where available. No admitted scientific trial or independent review was performed by this Coordinator. Source/checker/protocol hashes will be recorded only after implementations finish.
-- **Derived or proved:** No new universal result is certified here. The hypothesis is an exact bounded supplied-algebra prediction pending admitted observation and independent derivation.
+- **Historical intake observation:** Input intake is published at a49c65b1ffc04b192b1bf92e386baf4d9e4cc523; this Coordinator inspected intake, contracts, admission tools and draft source where available. No admitted scientific trial or independent review was performed by this Coordinator.
+- **Observed (post-run, 2026-10-14):** Executor trial [RUN-ENDO-859fbd](../experiments/EXP-ENDO-371597/runs/RUN-ENDO-859fbd/execution-receipt.json) completed through the existing supervisor with status `output_validated`, process/check return codes zero, one requested and one completed trial, and no failed or timed-out trials. Recorded deterministic fixture counters: `{"all_exact_checks_passed": true, "form_cases": 5760, "pair_cases": 1152, "triangle_cases": 220}`. Exact source/spec/plan bindings and all eleven required run archive paths passed actual Git verification; see the [custody proof](../research/lattice_endomorphism_20261012/hom-degree-forms/run-snapshot-git-verification.json). The [observation report](../experiments/EXP-ENDO-371597/reports/run-20261014T1516Z/report.md), [inspected PDF](../experiments/EXP-ENDO-371597/reports/run-20261014T1516Z/report.pdf), and [timing/environment appendix](../experiments/EXP-ENDO-371597/reports/run-20261014T1516Z/execution-details.md) are published. The replay checker is implementation integrity only; independent mathematical review is pending.
+- **Derived or proved:** No new universal result is certified here. The hypothesis is an exact bounded supplied-algebra prediction with admitted deterministic observations now recorded; independent derivation remains pending.
 - **Suspected explanation:** Missing interfaces are research obligations, not suspected mathematical impossibility.
 - **Missing capability:** Explicit finite-field maps preserving the declared working field/subgroup, certified ambient order and complete faithful torsion module action; actual independent review receipt meeting review-adversarial policy.
 - **What this evidence does not establish:** Security, ECDLP recovery, performance advantage, new mathematics, unknown actual order identification, or failure of a requested direction.
@@ -30,12 +31,14 @@ The first condition is sufficient only for independent validation of the tested 
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Admit the frozen exact pilot through the existing run supervisor after contract snapshot verification, then blind independent rederivation; select the finite-field successor above.
+- **Action or proof obligation:** The frozen exact pilot and its archive are complete. Perform blind independent rederivation under the queued Reviewer task, then design the certified finite-field successor above.
 - **Inputs and controls:** Exact frozen specification, supplied ambient basis and all adverse incomplete/nonprimitive/collinear/nonclosed controls; source-side module test uses all basis vectors, not one point.
 - **Execution limits and stop condition:** One deterministic seed1729 fixture schedule; memory1GB, one worker; no campaign spending ceiling. Scientific execution belongs to Executor. No automatic extension after anomalies.
 - **Outcomes and next actions:** Agreement plus independent review permits a scoped algebra statement and successor design; a valid counterexample revises the exact prediction only in tested scope; implementation defect invalidates a run; missing review/map leaves conclusion open and schedules its checkable remedy.
-- **Recheck trigger:** Bound driver/tests available; canonical snapshot verified; genuine independent session reports; explicit certified finite-field map constructed.
+- **Recheck trigger:** Genuine independent session reports; a verified source defect or adverse counterexample; explicit certified finite-field maps constructed. The initial code, trial and archive gates are complete.
 
 ## Resolution and history
 
 2026-10-14: additive pilot protocol and lifecycle prepared. No scientific promotion or closure. Unresolved.
+
+2026-10-14 (post-run): One frozen synthetic supplied-lattice pilot completed and was archived in PR #2160. This updates the execution timeline only. Independent review, actual-curve realization and all listed transfer/cost obligations remain open; no scientific status or canonical ECDLP graph changes.
