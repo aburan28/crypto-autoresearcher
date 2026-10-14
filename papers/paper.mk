@@ -50,6 +50,7 @@ clean:
 	rm -rf submission-staging/
 
 arxiv: $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
+	rm -rf submission-staging/arxiv submission-staging/arxiv.tar $(ARXIV_TARBALL)
 	mkdir -p submission-staging/arxiv
 	$(call copy_tree,$(SOURCES) $(EXTRA),submission-staging/arxiv)
 	cp ../paper.mk submission-staging/arxiv/
@@ -58,6 +59,7 @@ arxiv: $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
 	@echo "arXiv submission bundle ready: $(ARXIV_TARBALL)"
 
 eprint: $(PDF)
+	rm -rf submission-staging/eprint submission-staging/eprint.tar $(EPRINT_ZIP)
 	mkdir -p submission-staging/eprint
 	$(call copy_tree,$(PDF) $(SOURCES) $(EXTRA),submission-staging/eprint)
 	cp ../paper.mk submission-staging/eprint/
