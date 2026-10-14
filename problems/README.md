@@ -68,3 +68,5 @@ existing fields and authority. Problem status does not change a goal's status,
 approve an experiment, retire a direction, or promote a claim. An impeded goal
 remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
+
+| [lattice-quaternion-volume-finite-field-certification](lattice-quaternion-volume-finite-field-certification.md) | open | EXP-SSI-39bae9 | finite-field maps and independent certification absent |
