@@ -19,7 +19,8 @@ Conventions shared by every paper here and by the sibling repositories
   what it says, what it does not say, how to build, reproduction pointers, the
   checklist owed before submission), an `abstract.txt` and the built PDF;
 - the build is `paper.mk` in this directory: a paper's `Makefile` sets `TEX`,
-  `SECTIONS` and `BIB` and includes it (`make`, `make check`, `make arxiv`,
+  `SECTIONS`, `BIB` and, for figures or other files the build reads, `ASSETS`,
+  and includes it (`make`, `make check`, `make arxiv`,
   `make eprint`, `make deanonymize`, `make clean`);
 - every number cites a committed artefact in this repository or a sibling
   (`crypto:`, `cryptanalysis:` or `crypto-autoresearcher:` prefix); a stage

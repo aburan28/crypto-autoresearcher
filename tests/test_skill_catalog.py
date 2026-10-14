@@ -34,6 +34,7 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual(result["supporting_profiles"], ["solver"])
 
     def test_topic_only_actions_use_profiles(self):
+        self.assertEqual(catalog_tool.route(self.catalog, "inspect", "audit")["primary_skill"], "audit-curve")
         self.assertEqual(catalog_tool.route(self.catalog, "inspect", "endo")["primary_skill"], "endo")
         self.assertEqual(catalog_tool.route(self.catalog, "implement", "gpu")["primary_skill"], "gpu")
         self.assertEqual(catalog_tool.route(self.catalog, "maintain", "ui")["primary_skill"], "ui")

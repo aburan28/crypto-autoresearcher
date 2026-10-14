@@ -1,0 +1,143 @@
+schema: crypto.autoresearch.reduction_ledger.v1
+task_id: TASK-20261013-f8430e
+mechanism: LABELLED-NORM-HOM-LIFT
+author: idea-generator-ideal-hom
+claim: no confidentiality-under-EndRing theorem supplied
+advertised_target: complete efficiently evaluable EndRing on the same honest challenge
+assumptions:
+  - id: LABELLED-QUOTIENT-IND
+    type: separately_named_intermediate_indistinguishability_game
+    status: open
+    instance_distribution: exact prospective D_cert key law in public-statement.yaml; accepted keys only
+    input: p,e,mu,Blen,T,E,P,Q; adversary selects m0,m1
+    challenge: uniform b and uniform r in [0,L/M); c=j(E/K_(mb+Mr))
+    output: bit bprime
+    advantage: abs(Pr[bprime=b]-1/2)
+    adversary: QPT; time t_A, quantum memory s_A, public operation budget q_E
+    private_oracles: none in base game
+    random_oracle: absent; q_H=0
+    EndRing_equivalence: not_established
+  - id: LABELLED-QUOTIENT-PREIMAGE
+    type: distinct_search_relation_not_implied_by_the_IND_game
+    status: open
+    input: same honest pk and endpoint c with sender label a=m+Mr
+    output: label a_hat in [0,L) satisfying j(E/K_a_hat)=c
+    success_predicate: endpoint preimage only; does not require same m or a complete fiber
+    caveat: finding one preimage is weaker than actual-message recovery when different residues collide
+typed_arrows:
+  - id: R1-CHALLENGE-EMBED
+    domain: bare E sampled from the marginal D_cert EndRing challenge
+    codomain: exact real pk=(E,P,Q) and classical IND challenge
+    direction: EndRing_challenge_to_scheme_view
+    proposed_method: >-
+      Sample P,Q publicly from the exact conditional torsion-basis law, obtain
+      adversarial messages, sample b,r, and run public quotient encryption.
+      No B, ideal, orientation, connecting map or target ring is provided.
+    status: open
+    covered_piece: challenge encryption uses public data only
+    missing_piece: efficient exact torsion sampler and its conditional law, finite certificate key-distribution implementation and full cost proof
+    aborts: Setup empty-table abort and capped index-sampling abort must match real law; no secret-dependent acceptance
+  - id: R2-IND-TO-PREIMAGE
+    domain: successful LABELLED-QUOTIENT-IND attacker
+    codomain: valid endpoint-compatible label or Hom map
+    direction: attacker_to_intermediate_search_solver
+    status: open
+    reason: an output bit may distinguish only message partitions; no query-extraction, rewinding or other search theorem is supplied
+    loss: unestablished
+  - id: R3-PREIMAGE-TO-RING
+    domain: endpoint-compatible label, one kernel, one Hom map, or complete residue decoder
+    codomain: complete saturated rank-four evaluable End(E) basis
+    direction: intermediate_solver_to_EndRing_solver
+    status: open
+    reason: these outputs are smaller witnesses; no saturation, independence or evaluable-basis reconstruction supplied
+    acceptance: same-challenge ring output verified for evaluator type, rank, multiplication closure, identity and discriminant p^2
+    loss: unestablished
+  - id: R4-RING-TO-DEC
+    domain: complete evaluable End(E) solver output
+    codomain: intended recipient decoder
+    direction: reverse_attack_route_not_security_reduction
+    status: open
+    reason: even this route needs the missing source-ring-only Hom lift and fiber correctness; supplying it would still not discharge R2 or R3
+  - id: R5-HOM-TO-LABEL
+    domain: evaluable degree-L phi with kernel K_a
+    codomain: a mod M
+    direction: supplied_smaller_witness_to_one_label
+    status: proposed_discharge
+    derivation: phi(P)+[a]phi(Q)=0; phi(Q) has order L; smooth digit recovery identifies a
+    limit: one supplied label may not be actual selected m when the endpoint fiber has different residues; no complete ring extracted
+    review: none
+complete_view:
+  public_parameters: [p, Fp2_basis, e, mu, Blen, T, encoding_version]
+  key_data: [E_coefficients, P_coordinates, Q_coordinates, pairings_computable_from_points]
+  auxiliary_data_not_present: [orientation, ideal, retained_path, target_ring, secret_action_matrix, secret_kernel_label]
+  transcript: adversarial messages, every challenge and independently generated ciphertext, repeated encryption calls, public validity checks and aborts
+  CPA_oracles: no private oracle; public Enc is available to the adversary
+  CCA_target_oracles: classical adaptive Dec with exact challenge-byte exclusion, deterministic reference errors; intended Dec law absent
+  parsing: fixed-width Fp2 j coefficients; out-of-range, wrong-length and trailing-byte inputs reject; one canonical encoding per j
+  equality: exact accepted ciphertext bytes only; no exclusion of different encodings by semantic endpoint classes
+  leakage_boundary: classical-I/O algebraic model; implementation timing, physical leakage and malicious setup not proven
+simulation_obligations:
+  - public torsion sampling on bare E with exact law and polynomial costs
+  - match every accepted-key conditional distribution and all abort probabilities
+  - no hidden retained basis or connecting map in oracle replies
+  - adaptive CCA replies require actual Dec without unknown B; currently missing
+  - repeated or malformed input rejection must match real parsing and complete-fiber decoding
+quantum_analysis:
+  base_model: QPT standard-model IND-CPA with classical message/challenge interface
+  QROM: no oracle is used; q_H=0; this is not a positive QROM security theorem
+  public_superposition: any coherent public circuit includes its validation and arithmetic workspace; no private superposition oracle assumed
+  CCA_queries: classical only; superposition decryption requires a separately defined game
+  quantum_rewinding: no method or theorem supplied
+  oracle_programming: none; no classical-ROM proof exists to promote
+  theorem_status: open
+required_correct_direction_bound:
+  form: Adv_IND(A) <= L_red(lambda,q_E)*Succ_EndRing(Bsolver) + delta(lambda,q_E)
+  solver_input: bare D_cert challenge E and public independent coins
+  solver_output: four complete polynomial-size evaluators for the same E, with rank/saturation/representation verification
+  time: t_A plus polynomial simulation, extraction, conversion, verification and output costs required
+  memory: s_A plus polynomial transcript/workspace/output memory required
+  success: abort and challenge-coverage factors must be included explicitly
+  L_red: not_established
+  delta: not_established
+  polynomial_overhead: not_established
+  caveat: displaying this desired inequality is not a proved inequality
+cost_accounting:
+  setup: K_cert finite enumeration, point-count and ring-certificate verification; no polynomial bound
+  keygen: sampling indices, torsion basis, secret descriptors, verification and erasure; no measured costs
+  sender: e degree-two quotient steps, scalar-label arithmetic, O(e^2) point operations, field and parser costs
+  recipient: CompleteHom, norm-L candidate enumeration, twist/model conversions, point evaluation, smooth label recovery, full-fiber verification and output
+  extraction: attacker execution, repeated interactions if any, conversion, rank-four independence, saturation certificate and evaluator serialization
+  public_reference: L sender evaluations; streaming or stored table costs must be declared separately
+  failed_attempts: all sampler rejections, decoder search failures, aborts and discarded norm candidates count
+  bit_memory: includes basis descriptors, Hom lattice coefficients, map programs, field workspace, quantum workspace and transcript
+  output_length: ciphertext 2n bits; pk coefficient/point representation O(n); sk four descriptors and certificate; ring output polynomial bound required
+  preprocessing_targets: one target; no unsupported division by a multi-target count
+  cold_total: setup plus keygen plus every online and verification cost
+  amortized_total: only reusable verified setup divided by an explicitly justified number of same-parameter targets; none claimed here
+controls:
+  - {id: reverse_arrow, failure_location: R4 is an attack route; it cannot replace R2 and R3}
+  - {id: leaked_label, failure_location: exact simulator must not give a=m+Mr as public advice}
+  - {id: one_Hom_map, failure_location: R3 requires rank four and saturation; one map does not meet it}
+  - {id: public_small_L, failure_location: public exhaustive decoding defeats claimed ring-only recipient advantage}
+  - {id: public_endpoint_hash, failure_location: a publicly computed endpoint function cannot identify a confidential shared value}
+  - {id: CEST_line_evaluator, failure_location: evaluator behavior alone is not a complete-ring extractor}
+  - {id: unauthenticated_CEST_mask, failure_location: predecessor exact CCA2 break is scoped to its mask syntax; no active theorem inherited here}
+outcome:
+  correctly_directed_EndRing_reduction: not_established
+  confidentiality: not_established
+  quantum_security: not_established
+  named_intermediate_assumption: LABELLED-QUOTIENT-IND
+  earliest_construction_gap: LABELLED-NORM-HOM-LIFT and exact message-fiber recovery
+  next_obligation: exact efficient decoder first; then same-challenge attacker-to-complete-ring theorem with explicit loss and costs
+scientific_runs: 0
+inference:
+  requested_policy: research-deep
+  requested_resolved_model: anthropic:claude-sonnet-5-5
+  requested_reasoning_effort: high
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  serving_mode: native
+  fallback_used: true
+  model_verified: false
+dominated_by: n/a (no result claimed)
+sota_delta: no attack/performance advantage claimed; missing-arrow accounting only

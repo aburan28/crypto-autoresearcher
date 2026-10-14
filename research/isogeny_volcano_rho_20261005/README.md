@@ -159,6 +159,7 @@ is negation-only rho, at the same per-step cost.
 | `rho.c` | solver (`run` / `bench` modes) |
 | `search.c` | class-membership sieve |
 | `floor73.gp`, `classify.gp`, `classify_all.gp`, `walk11.gp` | PARI/GP: 73-isogenies, level test, 11-cycle check |
+| `map73_dual_control.gp`, `.out`, `.sha256` | fail-closed degree-73 forward/dual positive control with 1,024 composition and recovery targets |
 | `traits.py`, `smooth_endos.py` | endomorphism-ring traits, smooth-endomorphism search |
 | `run_rho.py`, `run_amend.sh`, `analyze_volcano.py`, `analyze_amend.py`, `plot_volcano.py` | execution and analysis |
 | `sample.csv`, `curve_traits.csv`, `classified.out`, `floor73.out`, `cyc_*.out` | curves, classifications, traits |

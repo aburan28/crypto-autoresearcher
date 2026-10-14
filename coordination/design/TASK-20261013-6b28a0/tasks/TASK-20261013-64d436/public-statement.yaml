@@ -1,0 +1,161 @@
+schema: crypto.autoresearch.public_scheme_statement.v1
+candidate: CEFC-PKE
+expansion: Conservative_Endpoint_Fiber_Cocycle_Public_Key_Encryption
+task_id: TASK-20261013-64d436
+goal_id: GOAL-SSI-2fa82a
+batch_id: BATCH-3e1bfd
+status: conditional_candidate_with_exact_construction_and_reduction_gaps
+claim_boundary: >-
+  This statement defines a single conditional PKE interface for blind
+  rederivation. It does not assert existence, security, novelty, quantum
+  security, complete-EndRing dependence, or NIST Category-5 parameters.
+
+public_parameters:
+  - "Security parameter lambda and unselected prime p(lambda)."
+  - "Canonical supersingular-curve and normalized separable-isogeny edge encodings."
+  - "A public length-L nonbacktracking WalkSample algorithm."
+  - "A canonically encoded additive group A_lambda of kappa(lambda) bits."
+  - "A public polynomial-time EdgeLabel(pp,e) in A_lambda."
+  - "A domain-separated extendable H_pad, quantum accessible in the QROM claim target."
+
+key_material:
+  public_key: "enc(E), a canonical accepted supersingular curve encoding"
+  secret_key: >-
+    (enc(E),W_E), where W_E is a complete efficiently evaluable saturated
+    rank-four Z-basis of End(E), including multiplication/norm data and
+    representation conversions.
+  key_generation: >-
+    TrapCurveGen_ER(pp) must output (E,W_E) under the exact real EndRing
+    challenge marginal. This algorithm and its distribution are not supplied.
+
+relation:
+  walk: "w=(e_1,...,e_L) <- WalkSample(pp,E)"
+  endpoint: "F_E(w)=terminal curve C"
+  sender_value: "I_E(w)=sum_i EdgeLabel(pp,e_i) in A_lambda"
+  endpoint_fiber: "Fib_E(C)={w in support(WalkSample(E)):F_E(w)=C}"
+  required_invariance: >-
+    For all accepted E,C and all w0,w1 in Fib_E(C), I_E(w0)=I_E(w1).
+  recipient_interface: >-
+    RingPotential(pp,E,W_E,C) must return the common I_E(w) in polynomial time
+    with a quantified failure bound, without receiving the sender walk.
+  instantiation_status: >-
+    No concrete nontrivial EdgeLabel and no polynomial RingPotential are
+    supplied. The relation is typed but uninstantiated.
+
+algorithms:
+  Setup: >-
+    Generate and validate pp. Parameter generation, bounds, and retry law are open.
+  KeyGen: >-
+    Run TrapCurveGen_ER(pp); require CompleteEvalBasis(pp,E,W_E)=1; output
+    pk=enc(E), sk=(enc(E),W_E). Both generator and verifier are missing.
+  Enc: >-
+    On canonical pk and allowed m, sample w, set C=F_E(w), x=I_E(w),
+    pad=H_pad("CEFC-PKE-pad"||pp||enc(E)||enc(C)||enc(x)||len(m)), and output
+    (enc(C),m XOR pad[1..len(m)]). Return fail on public parsing/sampling failure.
+  Dec: >-
+    Recover E from sk, canonically parse and validate C; compute
+    x=RingPotential(pp,E,W_E,C);
+    return bottom on failure; otherwise derive the identically domain-separated
+    pad and XOR it with v.
+  equality_and_rejection: >-
+    Ciphertext equality is byte equality after canonical parse. Alternate
+    encodings are rejected. All invalid inputs return one externally specified
+    bottom behavior; constant-time behavior is not established.
+
+correctness:
+  conditional_theorem: >-
+    For every accepted key, allowed message, and honest sampled walk, if the
+    fiber property holds and RingPotential returns its declared value, Dec of
+    Enc returns the actual selected message.
+  failure_bound: "epsilon_key+epsilon_walk+epsilon_parse+epsilon_potential; every term is open"
+  status: proposed_conditional_not_reviewed
+
+security_games:
+  IND_CPA:
+    target_model: QPT_QROM
+    experiment: >-
+      Give pk to A; obtain equal-length m0,m1; choose uniform b; give
+      c*=Enc(pk,m_b); allow only declared quantum H_pad queries; A outputs b'.
+    advantage: "abs(Pr[b'=b]-1/2)"
+    claimed: false
+    candidate_intermediate_assumption: >-
+      CEFC-POT-PR: on the exact real-key/honest-endpoint law, distinguish
+      I_E(w) from a uniform A_lambda value given pp,E,C and all public auxiliary data.
+    missing:
+      - exact key and endpoint sampler
+      - proof from IND-CPA attacker to CEFC-POT-PR adversary in the QROM
+      - reduction from CEFC-POT-PR attacker to complete EndRing
+      - explicit loss, runtime, memory, collision, abort, and failure bounds
+  IND_CCA2:
+    target_model: classical_ROM_is_already_enough_for_attack
+    claimed: false
+    scoped_attack: >-
+      Given challenge (C,v), query the byte-distinct ciphertext
+      (C,v XOR Delta) for nonzero Delta. Accepted decryption returns
+      m_b XOR Delta, revealing m_b with one query. The raw syntax is malleable.
+
+required_EndRing_reduction:
+  solver_input: "E sampled from the exact public marginal used by KeyGen"
+  use: "A successful QPT IND-CPA attacker on the complete declared view"
+  solver_output: >-
+    A complete evaluable saturated rank-four basis of End(E), not one path,
+    potential value, evaluator, torsion action, ideal, cache, or opaque decoder.
+  direction: "attacker -> complete EndRing"
+  status: absent
+  reverse_direction_warning: >-
+    Complete EndRing -> RingPotential -> decrypt is functionality/an attack route,
+    not evidence for the required security implication.
+
+complete_view:
+  public:
+    - pp, enc(E), enc(C), payload v, and message length
+    - parsers, validation rules, failure behavior, and H_pad interface
+    - every torsion basis, orientation, hint, tag, cache, or preprocessing item if later added
+  queries:
+    - quantum H_pad queries in the proposed IND-CPA/QROM model
+    - no decryption oracle for IND-CPA
+    - post-challenge decryption queries for the scoped IND-CCA2 attack
+  open_cases:
+    - malformed and endpoint-equivalent ciphertexts
+    - repeated endpoints, potential collisions, and pad reuse
+    - multi-user, multi-target, and auxiliary-input security
+    - validation timing, retries, and other observables
+
+controls:
+  - "Public endpoint hash: fiber-invariant but no secret asymmetry."
+  - "Exact path hash: sender-computable but collision/path-inversion correctness is open."
+  - "EvalLine/one evaluator: smaller witness than a complete ring."
+  - "Finite torsion action: smaller witness than a complete ring."
+  - "Cached endpoint/preimage table: charge advice and preprocessing."
+  - "Compressed or opaque decoder: treat the decoder itself as the operative secret."
+  - "Public simultaneous conjugation: test linear intertwiner recovery."
+  - "Raw related-ciphertext bit flip: refutes IND-CCA2 for this exact syntax."
+
+obligation_vector:
+  O1: open
+  O2: open
+  O3: proposed_discharge
+  O4: open
+  O5: open
+  O6: open
+separate_evidence_gates:
+  novelty: not_established
+  QPT_QROM_security: not_established
+  complete_EndRing_basis_reduction: not_established
+  NIST_Category_5: not_established
+  complete_PKE_construction: not_established
+
+earliest_obstruction: >-
+  No concrete public, nontrivial, canonically encoded EdgeLabel is shown to
+  have zero circulation on every admitted endpoint fiber, and no polynomial
+  complete-ring RingPotential is supplied on the same distribution. Even if
+  these were provided, the attacker-to-complete-EndRing arrow remains missing.
+scope_of_obstruction: "CEFC-PKE as specified here; no universal impossibility claim."
+
+inference:
+  requested_policy: research-deep
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  fallback_used: false
+  model_verified: false
+

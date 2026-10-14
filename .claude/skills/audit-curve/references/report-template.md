@@ -65,6 +65,15 @@ instrument_controls:
     status: NOT_RUN
     evidence: []
 
+execution_harness:
+  canonical_launcher: null
+  direct_body_execution_refused: null
+  unexpected_exception_exits_nonzero: null
+  missing_completion_sentinel_exits_nonzero: null
+  randomized_search_caps: []
+  source_and_receipt_digests: []
+  software_version: null
+
 class_invariants:
   q: null
   t: null
@@ -88,6 +97,7 @@ representative_structure:
   endomorphism_order_basis_or_certificate: null
   endomorphism_order_status: INDETERMINATE
   volcano_levels: []
+  direct_kernel_field_certificates: []
   inseparable_endomorphisms: []
   explicit_endomorphism_actions: []
 
@@ -124,6 +134,8 @@ statistics:
   purpose: null
   population: null
   sampling_distribution: null
+  selected_set_or_modeled_population: null
+  endpoint_selection_rule: null
   unique_samples: null
   determinate_samples: null
   indeterminate_samples: null
@@ -131,6 +143,28 @@ statistics:
   weak_hits: null
   false_negative_assessment: null
   dependence_or_mixing: null
+  common_native_action: null
+  best_native_action_by_level: []
+  estimand: null
+  estimator: null
+  counter: null
+  accounting_interval: null
+  calibration_rule: null
+  cluster_unit: null
+  common_random_numbers: null
+  exact_pairing_justified: null
+  multiplicity_family: null
+  aa_or_negative_control_gate:
+    sample_disjoint_from_primary: null
+    statistic: null
+    margin: null
+    confidence_level: null
+    multiplicity_rule: null
+    pass_rule: null
+    observed_status: NOT_RUN
+  label_release_status: INDETERMINATE
+  labels_withheld: null
+  conditional_follow_up_rule: null
   interval_method: null
   confidence_level: null
   prevalence_interval: null
