@@ -2,9 +2,9 @@
 
 - **Status:** `open`
 - **Kind:** implementation gap and proof gap
-- **Affected work:** [Koblitz isogeny rho-transfer protocol](../docs/experiments/koblitz-isogeny-rho-transfer.md), K-163 conductor-45641 endpoints, and K-283 conductor-1697 endpoints
+- **Affected work:** [Koblitz isogeny rho-transfer protocol](../docs/experiments/koblitz-isogeny-rho-transfer.md), [2026-10-14 conductor-gap panel](../research/conductor_gap_panel_20261014/REPORT.md), K-163 conductor-45641 endpoints, and K-283 conductor-1697 endpoints
 - **Next action owner:** unassigned executor after an experiment contract admits the map-construction work
-- **Last updated:** 2026-10-13
+- **Last updated:** 2026-10-14
 
 ## Problem
 
@@ -31,6 +31,13 @@ from supplied private advice and charges discovery accordingly.
   [`README`](../research/ecc2k130_conductor_isogenies_20261007/k283/README.md)
   explicitly states that its conductor-1697 census constructs neither the
   degree-1697 map nor its dual or subgroup certificate.
+- **Observed implementation progress:**
+  [`MAP163_45641_PROTOCOL.md`](../research/ecc2k130_conductor_isogenies_20261007/analogues/MAP163_45641_PROTOCOL.md)
+  now freezes a deterministic K-163 forward-map gate and its producer.  A
+  bounded compatibility diagnostic reaches the expensive `ffembed` stage
+  after fixing the driver's prior silent included-file exit.  The bounded run
+  did not finish, emitted no map artifact, and says nothing about the dual or
+  full transfer cost.
 - **Derived or proved:** the archived source signed-Frobenius certificates for
   all five NIST K curves pass the Stage-0 consistency audit. That audit trusts
   their point-check booleans and does not emit a primality certificate. For
@@ -72,9 +79,11 @@ required before any performance or weakness inference.
 
 - **Action or proof obligation:** first persist and certify the smaller
   degree-73 map/dual on the existing `m=37` proxy edge, and compare one-time
-  endpoint-to-crater transfer with the transported action. Then modify the
-  K-163 conductor-45641 construction to retain one kernel/map witness and a
-  dual and replay it on planted subgroup points before optimizing it.
+  endpoint-to-crater transfer with the transported action. Then execute the
+  frozen K-163 conductor-45641 forward-map producer under an admitted run,
+  add a dual, and replay both on planted subgroup points before optimizing
+  them.  Separately, execute K-283's endpoint census before admitting it as a
+  map-construction target; a census result alone does not satisfy this gate.
 - **Inputs and controls:** the existing `m=37` crater/73-floor pair, standard
   sect163k1 identity, the first frozen conductor-45641 endpoint, exhaustive
   toy point-map checks, wrong-kernel and wrong-normalization mutations,
