@@ -34,7 +34,7 @@ aggregate retention before starting the scientific streams.
   S3 identity that can upload and confirm SHA256/length in `crypto-autoresearcher`.
 - [x] Alternatively, selection of the declared bounded aggregate mode,
   accepting that individual measured bit strings will not all be stored.
-- [ ] Source/input freeze and successful engineering checks before launch.
+- [x] Source/input freeze and successful engineering checks before launch.
 
 Satisfying these permits the exact fixed campaign to begin; it establishes no
 scientific outcome and does not eliminate later storage/compute interruptions.
@@ -66,3 +66,15 @@ announced aggregate fallback if full storage remained unavailable. The exact
 compact data for later arbitrary ML searches remain unavailable; aggregate
 mode does not resolve that retention requirement. Source freeze/push and actual
 runner admission are the next actions; no scientific execution is claimed here.
+
+2026-10-14 launch: source/input freeze was committed and pushed as
+`068797c4d5d59c9e73531f751e820c9250fe7c9a` before sampling. The runner
+admitted aggregate storage and three workers. The first immutable publication
+snapshot records16 completed chunks,150,994,944 observations,0 failures, and
+an equal number of native finite/on-curve checks. See the
+[launch snapshot](../tasks/solinas_250b/publication/launch-20261014/progress-at-snapshot.json)
+and [launch/runtime metadata](../tasks/solinas_250b/publication/launch-20261014/launch.json).
+The count-based campaign is running and resumable; full compact data for later
+arbitrary ML remain unavailable. This resolves the execution-destination
+dependency for aggregate mode, not the full-retention requirement. No official
+research status or mathematical claim is changed.
