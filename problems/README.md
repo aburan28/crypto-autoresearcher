@@ -17,6 +17,7 @@ Keep resolved and superseded records in the index.
 | [Koblitz vertical isogeny maps are not persisted](koblitz-vertical-isogeny-maps-not-persisted.md) | open | K-163/K-283 endpoint rho and transported-action tests | Finish an admitted K-163 or K-283 forward-map gate, then certify its dual, subgroup recovery, and matched full cost |
 | [m=51 deep volcano inference and maps remain open](m51-deep-volcano-levels-not-constructed.md) | open | Release of four-level inference and vertical-transfer tests across the factor-120871 gap | A fresh frozen replication whose control gate passes; explicit adjacent map/dual certificates for transfer claims |
 | [P-224 degree-3 point maps are not certified](p224-degree3-point-maps-not-certified.md) | open | Complete P-224 component and subgroup-transfer tests | Explicit map/dual pairs, conductor labels, graph closure, and recovery checks |
+| [Hom degree forms finite-field certification](lattice-hom-degree-forms-finite-field-certification.md) | open | EXP-ENDO-371597 finite-field lift and independent certification | Certified maps from ordinary finite-field Hom bases; independent review receipt |
 
 ## Add or update a problem
 
