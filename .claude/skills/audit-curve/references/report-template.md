@@ -65,6 +65,15 @@ instrument_controls:
     status: NOT_RUN
     evidence: []
 
+execution_harness:
+  canonical_launcher: null
+  direct_body_execution_refused: null
+  unexpected_exception_exits_nonzero: null
+  missing_completion_sentinel_exits_nonzero: null
+  randomized_search_caps: []
+  source_and_receipt_digests: []
+  software_version: null
+
 class_invariants:
   q: null
   t: null
@@ -88,6 +97,7 @@ representative_structure:
   endomorphism_order_basis_or_certificate: null
   endomorphism_order_status: INDETERMINATE
   volcano_levels: []
+  direct_kernel_field_certificates: []
   inseparable_endomorphisms: []
   explicit_endomorphism_actions: []
 

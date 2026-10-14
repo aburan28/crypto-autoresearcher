@@ -622,6 +622,19 @@ bits distinct from plain-to-signed-`tau` bits. Counts with differently omitted
 canonicalisation costs do not yield a one-sided cost-ratio bound, and local
 trail-cap restarts are retained diagnostics rather than failed overall solves.
 
+The verified 2026-10-14 [conductor-gap
+panel](research/conductor_gap_panel_20261014/REPORT.md) retains 43 prime
+directions, 102 order levels, and 131 conditional placements.  Its `m*k`
+direct-torsion field values are ambient upper bounds unless an explicit
+absolute-Frobenius orbit certificate says otherwise.  K-163/45,641 and
+K-283/1,697 have exact abstract-representative x-orbit degrees 3,260 and
+239,984; the retained K-163 relative-tower witness additionally certifies the
+concrete degree-3,260 kernel line and reaches an endpoint, but stops before a
+map.  A same-degree K-163 horizontal endomorphism control passes both
+compositions on 1,024 targets and demonstrates that degree alone is not
+evaluation cost.  None of these artifacts supplies a complete NIST vertical
+map/dual transfer, charged attack, or weak-curve result.
+
 Treat the completed 160,000-solve `m=37,41` [volcano-level
 replication](research/isogeny_volcano_level_replication_20261013/README.md)
 and its [archive](research/isogeny_volcano_level_replication_20261013/ARCHIVE.md)

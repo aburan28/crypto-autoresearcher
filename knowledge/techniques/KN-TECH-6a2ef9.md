@@ -254,6 +254,35 @@ it does not generally certify the representative conductor `f_E`.
 These rows are evidence pointers, not replacements for the per-audit
 certificates.
 
+The verified 2026-10-14
+[`conductor-gap panel`](../../research/conductor_gap_panel_20261014/REPORT.md)
+expands this boundary to 43 prime directions across 20 trace/isogeny classes,
+102 exact order levels, and 131 conditional adjacent-level placements.  Those
+placements are repeated algebraic contexts, not independent hardness samples.
+For the direct torsion-point construction route, `m*k` is a certified ambient
+absolute x-field upper bound on all 43 rows.  It is not automatically a
+minimal degree, runtime, or hardness measure.  Absolute-Frobenius matrix
+certificates prove exact abstract-representative x-orbit degrees only for
+K-163/45,641 (`3,260`) and K-283/1,697 (`239,984`) in the current panel.
+
+K-163 now also has a retained concrete relative-tower witness whose absolute
+x-orbit closes at 3,260 and fails the maximal-subfield exponents 1,630, 652,
+and 20.  Since the kernel order 45,641 is prime, the same degree holds for the
+x-coordinates of all nonidentity multiples on that sampled kernel line.  The
+bounded replay enumerates
+22,820 half-kernel abscissae and reaches a certified descending endpoint, but
+stops before the kernel polynomial and point map.  Separately,
+`alpha=51-160*tau` and `alpha_bar=-109+160*tau` give a same-curve horizontal
+degree-45,641 control with `alpha_bar*alpha=[45641]`; both compositions pass
+on 1,024 targets.  This cheap representation of a high-degree endomorphism is
+a counterexample to treating geometric degree alone as evaluation cost.  It
+is not a conductor transfer or an ECDLP weakness.
+
+No NIST row currently combines a completed vertical map and algebraic dual,
+subgroup transport and recovery, destination attack, and fully charged paired
+cost.  The panel therefore supports structural and construction-preflight
+claims only; it supports no NIST weak-curve verdict.
+
 ### Koblitz rho incumbent and conductor-transfer crossover
 
 For a prime-order subgroup of a Koblitz curve over `F_(2^m)`, do not compare a

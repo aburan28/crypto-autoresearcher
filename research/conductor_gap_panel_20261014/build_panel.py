@@ -20,7 +20,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-SCHEMA = "crypto.conductor-gap-panel/v1"
+SCHEMA = "crypto.conductor-gap-panel/v2"
 
 
 def xy_power(m: int, mu: int) -> tuple[int, int]:
@@ -60,6 +60,187 @@ def product(values: list[int] | tuple[int, ...]) -> int:
     for value in values:
         answer *= value
     return answer
+
+
+def distinct_prime_factors(value: int) -> list[int]:
+    """Return the distinct prime divisors needed for exact-order witnesses."""
+    factors: list[int] = []
+    divisor = 2
+    while divisor * divisor <= value:
+        if value % divisor == 0:
+            factors.append(divisor)
+            while value % divisor == 0:
+                value //= divisor
+        divisor += 1 if divisor == 2 else 2
+    if value > 1:
+        factors.append(value)
+    return factors
+
+
+def matrix_multiply_mod(
+    left: list[list[int]], right: list[list[int]], modulus: int
+) -> list[list[int]]:
+    return [
+        [
+            sum(left[i][k] * right[k][j] for k in range(2)) % modulus
+            for j in range(2)
+        ]
+        for i in range(2)
+    ]
+
+
+def matrix_power_mod(
+    matrix: list[list[int]], exponent: int, modulus: int
+) -> list[list[int]]:
+    answer = [[1, 0], [0, 1]]
+    base = [[entry % modulus for entry in row] for row in matrix]
+    while exponent:
+        if exponent & 1:
+            answer = matrix_multiply_mod(answer, base, modulus)
+        base = matrix_multiply_mod(base, base, modulus)
+        exponent >>= 1
+    return answer
+
+
+def matrix_vector_mod(
+    matrix: list[list[int]], vector: list[int], modulus: int
+) -> list[int]:
+    return [
+        sum(matrix[i][j] * vector[j] for j in range(2)) % modulus
+        for i in range(2)
+    ]
+
+
+EXACT_WORKING_FIELD_KEYS = {
+    ("nist-k163", 45641),
+    ("nist-k283", 1697),
+}
+CONCRETE_KERNEL_X_ORBIT_KEYS = {
+    ("nist-k163", 45641),
+}
+
+
+def build_working_field_certificate(
+    class_id: str,
+    ell: int,
+    m: int,
+    mu: int,
+    scalar: int,
+    relative_x_degree: int,
+) -> dict[str, Any] | None:
+    """Build the two explicitly admitted absolute-Frobenius orbit proofs.
+
+    Generic ``m*k`` values remain ambient x-coordinate upper bounds.
+    These two rows additionally certify the exact order of absolute Frobenius
+    on one non-horizontal ell-torsion vector modulo sign.
+    """
+    if (class_id, ell) not in EXACT_WORKING_FIELD_KEYS:
+        return None
+    vector = [1, 0]
+    matrix = [[0, -2], [1, mu]]
+    absolute_degree = m * relative_x_degree
+    if math.gcd(m, relative_x_degree) != 1:
+        raise ValueError(f"non-coprime certificate degrees for {class_id}/{ell}")
+    q_frobenius_matrix = matrix_power_mod(matrix, m, ell)
+    if q_frobenius_matrix != [[scalar, 0], [0, scalar]]:
+        raise ValueError(f"non-scalar q-Frobenius certificate for {class_id}/{ell}")
+    line_return_image = matrix_vector_mod(q_frobenius_matrix, vector, ell)
+    if line_return_image != [scalar, 0]:
+        raise ValueError(f"bad line-return certificate for {class_id}/{ell}")
+    line_exclusions = []
+    for prime in distinct_prime_factors(m):
+        exponent = m // prime
+        image = matrix_vector_mod(matrix_power_mod(matrix, exponent, ell), vector, ell)
+        if (image[0] * vector[1] - image[1] * vector[0]) % ell == 0:
+            raise ValueError(f"nonminimal line orbit for {class_id}/{ell}")
+        line_exclusions.append({
+            "prime_divisor": str(prime),
+            "exponent": str(exponent),
+            "image": [str(value) for value in image],
+        })
+    full_matrix = matrix_power_mod(matrix, absolute_degree, ell)
+    if full_matrix == [[1, 0], [0, 1]]:
+        closure_sign = 1
+    elif full_matrix == [[ell - 1, 0], [0, ell - 1]]:
+        closure_sign = -1
+    else:
+        raise ValueError(f"bad absolute x-orbit closure for {class_id}/{ell}")
+    full_image = matrix_vector_mod(full_matrix, vector, ell)
+    exclusions = []
+    for prime in distinct_prime_factors(absolute_degree):
+        exponent = absolute_degree // prime
+        image = matrix_vector_mod(matrix_power_mod(matrix, exponent, ell), vector, ell)
+        if image in ([1, 0], [ell - 1, 0]):
+            raise ValueError(f"nonminimal absolute x orbit for {class_id}/{ell}")
+        exclusions.append({
+            "prime_divisor": str(prime),
+            "exponent": str(exponent),
+            "image": [str(value) for value in image],
+        })
+    concrete_point_binding: dict[str, Any]
+    if (class_id, ell) in CONCRETE_KERNEL_X_ORBIT_KEYS:
+        concrete_point_binding = {
+            "status": "certified_concrete_kernel_x_witness",
+            "evidence_kind": "observed_fail_closed_probe",
+            "evidence_path": (
+                "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+                "probe163_45641_relative_tower.out"
+            ),
+            "retained_input_replay_path": (
+                "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+                "verify163_45641_relative_witness.out"
+            ),
+            "arithmetic_independence": "not_independent_same_x_only_ladder_family",
+            "probe_schema": "k163-degree45641-relative-tower-probe-v2",
+            "absolute_x_orbit_degree": str(absolute_degree),
+            "closure_status": "pass",
+            "proper_divisor_exclusion_degrees": ["1630", "652", "20"],
+            "all_nonzero_kernel_multiples_status": "derived",
+            "descending_classification_basis": "derived_tau_eigenline_exclusion",
+            "prime_line_scope_status": "derived",
+            "scope": (
+                "concrete x-coordinate witness in the retained relative tower; "
+                "not a full point coordinate pair, kernel polynomial, or point map"
+            ),
+        }
+    else:
+        concrete_point_binding = {"status": "not_certified"}
+    return {
+        "certificate_kind": "derived_cm_line_orbit",
+        "basis": ["1", "tau"],
+        "vector_convention": "column [a,b] represents a+b*tau",
+        "tau_relation": "tau^2-mu*tau+2=0",
+        "mu": str(mu),
+        "absolute_frobenius_matrix_mod_ell": [
+            [str(entry % ell) for entry in row] for row in matrix
+        ],
+        "representative_vector": ["1", "0"],
+        "representative_line_status": "non_horizontal",
+        "line_orbit_degree": str(m),
+        "line_factor_exclusion_images": line_exclusions,
+        "q_frobenius_matrix_mod_ell": [
+            [str(value) for value in row] for row in q_frobenius_matrix
+        ],
+        "line_return_image": [str(value) for value in line_return_image],
+        "q_relative_x_orbit_degree": str(relative_x_degree),
+        "line_and_relative_degrees_coprime": True,
+        "absolute_x_orbit_degree": str(absolute_degree),
+        "absolute_x_orbit_closure_sign": closure_sign,
+        "absolute_x_orbit_matrix_mod_ell": [
+            [str(value) for value in row] for row in full_matrix
+        ],
+        "exact_full_point_orbit_degree": (
+            str(absolute_degree) if closure_sign == 1 else str(2 * absolute_degree)
+        ),
+        "full_orbit_image": [str(value) for value in full_image],
+        "factor_exclusion_images": exclusions,
+        "concrete_point_binding": concrete_point_binding,
+        "scope": (
+            "exact minimal absolute-Frobenius x-orbit degree for the stated "
+            "abstract non-horizontal torsion vector; not explicit point coordinates, "
+            "a concrete field representation, a map, or a construction-cost measurement"
+        ),
+    }
 
 
 def rankdata(values: list[float]) -> list[float]:
@@ -179,7 +360,10 @@ ENDPOINT_STATUS: dict[tuple[str, int], str] = {
     ("koblitz-m107-a1", 3209): "complete_floor_census_cm_route",
     ("koblitz-m109-a1", 3271): "six_kernel_endpoint_samples",
     ("ecc2k-130", 263): "complete_floor_census_explicit_kernel_endpoints",
-    ("nist-k163", 45641): "six_kernel_endpoint_samples_map_not_retained",
+    ("nist-k163", 45641): (
+        "six_historical_plus_two_fresh_preflight_endpoint_samples_"
+        "map_not_retained"
+    ),
     ("nist-k163", 82153): "six_kernel_endpoint_samples_map_not_retained",
     ("nist-k283", 1697): "census_implementation_only_not_executed",
 }
@@ -203,7 +387,9 @@ LEVEL_STATUS: dict[tuple[str, int], str] = {
     ("koblitz-m107-a1", 3209): "complete_census_cm_route",
     ("koblitz-m109-a1", 3271): "six_endpoint_orbit_samples",
     ("ecc2k-130", 263): "complete_census",
-    ("nist-k163", 45641): "six_endpoint_orbit_samples",
+    ("nist-k163", 45641): (
+        "six_historical_plus_two_fresh_preflight_endpoint_orbit_samples"
+    ),
     ("nist-k163", 82153): "six_endpoint_orbit_samples",
     ("nist-k163", 45641 * 82153): "six_endpoint_orbit_samples",
 }
@@ -221,7 +407,9 @@ MATCHED_ADJACENCIES: dict[tuple[str, int, int], str] = {
     ),
     ("koblitz-m109-a1", 1, 3271): "six_kernel_endpoint_samples",
     ("ecc2k-130", 1, 263): "all_262_descending_kernel_endpoints",
-    ("nist-k163", 1, 45641): "six_kernel_endpoint_samples",
+    ("nist-k163", 1, 45641): (
+        "six_historical_plus_two_fresh_preflight_kernel_endpoint_samples"
+    ),
     ("nist-k163", 1, 82153): "six_kernel_endpoint_samples",
     ("nist-k163", 45641, 82153): "six_kernel_endpoint_samples",
 }
@@ -241,8 +429,27 @@ def source_refs(*record_groups: Any) -> list[dict[str, str]]:
         "research/conductor_gap_panel_20261014/build_panel.py",
         "research/ecc2k130_conductor_isogenies_20261007/EXTENSIONS.md",
         "research/ecc2k130_conductor_isogenies_20261007/analogues/MAP163_45641_PROTOCOL.md",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/check_char2_velu_function_identity_small.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/check_char2_velu_function_identity_small.out",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/control163_45641_horizontal_endomorphism.gp",
         "research/ecc2k130_conductor_isogenies_20261007/analogues/kernel163_45641_map.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/kernel163_45641_map_relative.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/probe163_45641_seed.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/probe163_45641_seed_bounded.inc.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/probe163_45641_seed.out",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/probe163_45641_relative_tower.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/rerun_provenance.json",
         "research/ecc2k130_conductor_isogenies_20261007/analogues/run163_45641_map.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run163_45641_map_relative.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run_check_char2_velu_function_identity_small.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run_control163_45641_horizontal_endomorphism.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run_probe163_45641_relative_tower.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run_probe163_45641_seed.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/run_verify163_45641_seed_endpoint.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/verify163_45641_seed_endpoint.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/verify163_45641_seed_endpoint.out",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/verify163_45641_relative_witness.gp",
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/verify163_45641_relative_witness.out",
         "research/ecc2k130_conductor_isogenies_20261007/k283/README.md",
         "research/ecc2k130_conductor_isogenies_20261007/second_level/down163b.out",
         "research/ecc2k130_conductor_isogenies_20261007/second_level/down163c.out",
@@ -256,6 +463,8 @@ def source_refs(*record_groups: Any) -> list[dict[str, str]]:
         "research/isogeny_volcano_m51_deep_scan_20261013/results/selection.json",
         "research/isogeny_volcano_m51_deep_scan_20261013/results/session.json",
         "research/isogeny_volcano_m51_deep_rho_20261013/analysis.json",
+        "research/isogeny_volcano_rho_20261005/map73_dual_control.gp",
+        "research/isogeny_volcano_rho_20261005/map73_dual_control.out",
         "docs/reports/koblitz-rho-transfer-20261013/audit.json",
         "problems/koblitz-vertical-isogeny-maps-not-persisted.md",
         "problems/p224-degree3-point-maps-not-certified.md",
@@ -343,6 +552,23 @@ def build_classes_and_gaps() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
             scalar_order = k if ck == 1 else 2 * k
             kernel_degree = (ell - 1) // 2
             packed_bytes = (m * (kernel_degree + 1) + 7) // 8
+            ambient_degree = m * k
+            frobenius_matrix = [[0, -2], [1, mu]]
+            q_frobenius_matrix = matrix_power_mod(frobenius_matrix, m, ell)
+            if q_frobenius_matrix != [[c, 0], [0, c]]:
+                raise ValueError(f"q-Frobenius is not scalar for {spec['id']}/{ell}")
+            ambient_closure_matrix = matrix_power_mod(
+                frobenius_matrix, ambient_degree, ell
+            )
+            if ambient_closure_matrix not in (
+                [[1, 0], [0, 1]], [[ell - 1, 0], [0, ell - 1]]
+            ):
+                raise ValueError(
+                    f"ambient absolute x-degree does not close for {spec['id']}/{ell}"
+                )
+            working_field_certificate = build_working_field_certificate(
+                spec["id"], ell, m, mu, c, k
+            )
             gaps.append({
                 "schema": SCHEMA,
                 "gap_id": f"{spec['id']}-ell-{ell}",
@@ -360,7 +586,26 @@ def build_classes_and_gaps() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
                 "q_frobenius_scalar_mod_ell": str(c),
                 "scalar_order_mod_ell": str(scalar_order),
                 "relative_kernel_x_field_degree": str(k),
-                "absolute_kernel_x_field_degree": str(m * k),
+                "ambient_absolute_x_degree_upper_bound": str(ambient_degree),
+                "exact_abstract_cm_representative_x_orbit_degree": (
+                    str(ambient_degree)
+                    if working_field_certificate is not None else None
+                ),
+                "concrete_kernel_x_orbit_degree": (
+                    str(ambient_degree)
+                    if (spec["id"], ell) in CONCRETE_KERNEL_X_ORBIT_KEYS else None
+                ),
+                "concrete_kernel_x_orbit_status": (
+                    "certified_retained_relative_tower_witness"
+                    if (spec["id"], ell) in CONCRETE_KERNEL_X_ORBIT_KEYS
+                    else "not_certified"
+                ),
+                "working_field_status": (
+                    "exact_abstract_cm_representative_x_orbit"
+                    if working_field_certificate is not None
+                    else "certified_ambient_upper_bound_only"
+                ),
+                "working_field_certificate": working_field_certificate,
                 "kernel_support": "source_curve" if ck == 1 else "quadratic_twist",
                 "kernel_polynomial_degree": str(kernel_degree),
                 "dense_packed_kernel_bytes": str(packed_bytes),
@@ -588,9 +833,11 @@ def build_construction_measurements() -> list[dict[str, Any]]:
         seconds: list[float],
         evidence_path: str,
         note: str = "",
+        scope: str = "endpoint_or_census_construction_not_point_map",
+        extra: dict[str, Any] | None = None,
     ) -> None:
         for index, value in enumerate(seconds, 1):
-            rows.append({
+            row = {
                 "schema": SCHEMA,
                 "measurement_id": f"{measurement_id}-{index}",
                 "class_id": class_id,
@@ -602,10 +849,13 @@ def build_construction_measurements() -> list[dict[str, Any]]:
                 "sample_index": index,
                 "sample_count": len(seconds),
                 "evidence_kind": "observed",
-                "scope": "endpoint_or_census_construction_not_point_map",
+                "scope": scope,
                 "note": note,
                 "evidence_path": evidence_path,
-            })
+            }
+            if extra is not None:
+                row.update(extra)
+            rows.append(row)
 
     add_series("m41-409", "koblitz-m41-a0", 409, 1, 409, "kernel_endpoint", [223],
                "research/isogeny_volcano_rho_m41_20261006/v409.out")
@@ -647,6 +897,112 @@ def build_construction_measurements() -> list[dict[str, Any]]:
                "six distinct endpoint orbits; one 930-second deterministic rerun plus five "
                "independently seeded starts; inner isogeny timers exclude each separately "
                "logged 29-second embedding")
+    add_series(
+        "k163-45641-relative-probe", "nist-k163", 45641, 1, 45641,
+        "relative_tower_pre_map_probe", [56.65],
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "probe163_45641_relative_tower.out",
+        "cold bounded probe; concrete exact absolute x-orbit certificate, "
+        "exact-order descending witness, all 22,820 half-kernel x-values, "
+        "and endpoint certificate; the 62 ms absolute-orbit timer is nested "
+        "inside the 4,628 ms witness timer and must not be added to it; "
+        "deliberately stopped before kernel polynomial and point map",
+        "bounded_pre_map_probe_not_kernel_polynomial_or_point_map",
+        {
+            "max_rss_kib": 23724,
+            "exit_status": 0,
+            "certificate_status": (
+                "concrete_exact_x_orbit_descending_witness_and_half_kernel_pass"
+            ),
+            "work_units": {"half_kernel_x_values": 22820, "inversion_batches": 90},
+            "phase_elapsed_ms": {
+                "field_setup": 17,
+                "witness_including_absolute_orbit_and_classification": 4628,
+                "absolute_orbit_nested": 62,
+                "endpoint_and_half_kernel": 51995,
+            },
+            "phase_accounting": "absolute_orbit_nested_is_included_in_witness_timer",
+            "absolute_x_orbit_certificate": {
+                "degree": 3260,
+                "closure": "pass",
+                "excluded_degrees": [1630, 652, 20],
+                "all_nonzero_kernel_multiples": "derived",
+            },
+            "stop_boundary": "before_kernel_polynomial_and_point_map",
+        },
+    )
+    add_series(
+        "k163-45641-horizontal-control", "nist-k163", 45641, 1, 1,
+        "same_degree_horizontal_endomorphism_control", [6.86],
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "control163_45641_horizontal_endomorphism.out",
+        "alpha=51-160*tau; 1,024 targets; both degree-45,641 composition "
+        "identities pass; horizontal same-curve endomorphism, not a conductor transfer",
+        "horizontal_endomorphism_control_not_conductor_transfer",
+        {
+            "max_rss_kib": 16140,
+            "exit_status": 0,
+            "certificate_status": "both_compositions_1024_targets_pass",
+            "work_units": {"composition_targets": 1024},
+            "phase_elapsed_ms": {"composition_checks": 6845},
+            "stop_boundary": "same_degree_horizontal_control_not_conductor_transfer",
+        },
+    )
+    add_series(
+        "k163-45641-seed-preflight", "nist-k163", 45641, 1, 45641,
+        "absolute_field_endpoint_preflight", [56.09],
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "probe163_45641_seed.out",
+        "cold deterministic endpoint preflight; one fresh endpoint orbit "
+        "distinct from the six historical samples; stops before a kernel "
+        "polynomial or point map",
+        "bounded_seed_preflight_endpoint_only_not_point_map",
+        {
+            "max_rss_kib": 45832,
+            "exit_status": 0,
+            "certificate_status": "fresh_endpoint_preflight_pass",
+            "work_units": {"endpoint_orbits": 1},
+            "stop_boundary": "before_kernel_polynomial_and_point_map",
+        },
+    )
+    add_series(
+        "k163-45641-endpoint-validator", "nist-k163", 45641, 1, 45641,
+        "endpoint_floor_certificate", [90.66],
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "verify163_45641_seed_endpoint.out",
+        "cold certificate replay for the fresh preflight endpoint; source and "
+        "target orders, wrong-twist control, degree-11 cycle, and ring-class "
+        "invariants pass; this does not construct or evaluate a point map",
+        "endpoint_certificate_not_point_map_or_transfer",
+        {
+            "max_rss_kib": 33368,
+            "exit_status": 0,
+            "certificate_status": "endpoint_floor_certificate_pass",
+            "work_units": {"endpoint_certificates": 1},
+            "stop_boundary": "endpoint_certificate_not_point_map_or_transfer",
+        },
+    )
+    add_series(
+        "m37-73-map-dual-control", "koblitz-m37-a0", 73, 1, 73,
+        "forward_map_dual_positive_control", [26.39],
+        "research/isogeny_volcano_rho_20261005/map73_dual_control.out",
+        "cold degree-73 positive control; explicit forward map and algebraic "
+        "dual, both compositions, 1,024 inverse-degree recoveries, and planted "
+        "recovery pass; this is not a NIST transfer measurement",
+        "small_map_dual_and_recovery_positive_control_not_nist_transfer",
+        {
+            "max_rss_kib": 39708,
+            "exit_status": 0,
+            "certificate_status": "map_dual_compositions_and_recovery_pass",
+            "work_units": {"targets": 1024, "planted_recoveries": 1},
+            "phase_elapsed_ms": {
+                "forward_construction": 530,
+                "dual_construction": 24604,
+                "target_checks": 556,
+            },
+            "stop_boundary": "small_degree_positive_control_not_nist_transfer",
+        },
+    )
     add_series("m51-deep-scan", "koblitz-m51-a0", 271, 271 * 120871, 120871,
                "bounded_endpoint_discovery_scan", [5280.943404762998],
                "research/isogeny_volcano_m51_deep_scan_20261013/README.md",
@@ -684,11 +1040,22 @@ def plot_gaps(gaps: list[dict[str, Any]]) -> None:
             rows = [row for row in gaps if row["split_type"] == split]
             ax.scatter(
                 [row["gap_log2"] for row in rows],
-                [math.log2(int(row["absolute_kernel_x_field_degree"])) for row in rows],
+                [math.log2(int(row["ambient_absolute_x_degree_upper_bound"])) for row in rows],
                 s=[48 if row["family"] == "nist-k" else 28 for row in rows],
                 c=colors[split], alpha=0.78, edgecolors="white", linewidths=0.45,
                 label=f"{split} ({len(rows)})",
             )
+        exact_rows = [
+            row for row in gaps
+            if row["working_field_status"]
+            == "exact_abstract_cm_representative_x_orbit"
+        ]
+        ax.scatter(
+            [row["gap_log2"] for row in exact_rows],
+            [math.log2(int(row["ambient_absolute_x_degree_upper_bound"])) for row in exact_rows],
+            s=120, facecolors="none", edgecolors="#111111", linewidths=1.2,
+            marker="*", label="exact x-orbit (1 concrete, 1 abstract)",
+        )
     by_id = {(row["class_id"], int(row["edge_degree"])): row for row in gaps}
     labels = [
         ("ecc2k-130", 263, "ECC2K-130 / 263", (7, -13)),
@@ -704,7 +1071,7 @@ def plot_gaps(gaps: list[dict[str, Any]]) -> None:
         row = by_id[(class_id, ell)]
         ax.annotate(
             label,
-            (row["gap_log2"], math.log2(int(row["absolute_kernel_x_field_degree"]))),
+            (row["gap_log2"], math.log2(int(row["ambient_absolute_x_degree_upper_bound"]))),
             xytext=offset, textcoords="offset points", fontsize=7.2,
         )
     axes[0].set_xlim(0, 66)
@@ -714,14 +1081,14 @@ def plot_gaps(gaps: list[dict[str, Any]]) -> None:
     for ax in axes:
         ax.set_xlabel("log2 prime gap degree [bits]")
         ax.grid(alpha=0.2)
-    axes[0].set_ylabel("log2 absolute kernel x-field degree m*k [bits]")
+    axes[0].set_ylabel("log2 derived ambient degree m*k [bits]")
     axes[1].legend(frameon=False, loc="upper left", fontsize=8)
     axes[1].text(
         0.995, 0.012,
-        "43 rows; 20 class labels / 17 geometries",
+        "43 rows: 2 exact minima / 41 ambient upper bounds",
         ha="right", va="bottom", transform=ax.transAxes, fontsize=7.5, color="#555555",
     )
-    fig.suptitle("Conductor degree correlates with, but does not determine, kernel-field burden", fontsize=14)
+    fig.suptitle("Conductor degree versus derived kernel-field ambient burden", fontsize=14)
     fig.tight_layout()
     metadata = {"Date": "2026-10-14"}
     svg_path = HERE / "gap-landscape.svg"
@@ -741,7 +1108,7 @@ def main() -> None:
     construction = build_construction_measurements()
     p224 = build_p224_candidate()
     xs = [row["gap_log2"] for row in gaps]
-    ys = [math.log2(int(row["absolute_kernel_x_field_degree"])) for row in gaps]
+    ys = [math.log2(int(row["ambient_absolute_x_degree_upper_bound"])) for row in gaps]
     summary = {
         "schema": SCHEMA,
         "generated_date": "2026-10-14",
@@ -758,16 +1125,37 @@ def main() -> None:
         "exact_conductor_levels": len(levels),
         "conditional_adjacent_level_rows": len(adjacencies),
         "nist_k_prime_direction_rows": sum(row["family"] == "nist-k" for row in gaps),
+        "exact_absolute_x_orbit_rows": sum(
+            row["working_field_status"]
+            == "exact_abstract_cm_representative_x_orbit"
+            for row in gaps
+        ),
+        "concrete_kernel_x_orbit_rows": sum(
+            row["concrete_kernel_x_orbit_status"]
+            == "certified_retained_relative_tower_witness"
+            for row in gaps
+        ),
+        "ambient_upper_bound_working_field_rows": sum(
+            row["working_field_status"]
+            == "certified_ambient_upper_bound_only"
+            for row in gaps
+        ),
         "p224_potential_direction_rows": 1,
         "exact_zero_vertical_gap_controls": sum(row["control_type"] == "exact_zero_vertical_gap" for row in controls),
         "unresolved_controls": sum(row["control_type"] == "unresolved" for row in controls),
         "fully_charged_transfer_rows": 0,
         "weakness_eligible_rows": 0,
+        "admitted_ecdlp_comparison_rows": 9,
+        "withheld_ecdlp_comparison_rows": 4,
         "descriptive_association": {
-            "metric": "Spearman(log2 ell, log2 absolute kernel x-field degree)",
+            "metric": "Spearman(log2 ell, log2 derived m*k ambient degree)",
             "rho": pearson(rankdata(xs), rankdata(ys)),
             "n_rows": len(gaps),
-            "inference": "none; rows cluster within 20 trace/isogeny classes and 17 twist-deduplicated geometry families",
+            "inference": (
+                "none; 41 of 43 m*k values are ambient upper bounds, and rows "
+                "cluster within 20 trace/isogeny classes and 17 twist-deduplicated "
+                "geometry families"
+            ),
         },
     }
     payload = {
@@ -778,6 +1166,25 @@ def main() -> None:
             "level_row": "one divisor f_E of squarefree f_pi",
             "adjacency_row": "one conditional f_E -> ell*f_E lattice placement",
             "kernel_x_degree": "least k with q-Frobenius scalar c satisfying c^k=+/-1 mod ell",
+            "ambient_absolute_x_degree_upper_bound": (
+                "m*k; a certified ambient upper bound for every ell-torsion "
+                "x-coordinate, not a map-construction cost"
+            ),
+            "exact_abstract_cm_representative_x_orbit_degree": (
+                "exact minimal absolute-Frobenius x-orbit degree for the "
+                "certificate's abstract non-horizontal torsion vector; null "
+                "without that certificate"
+            ),
+            "concrete_kernel_x_orbit_degree": (
+                "exact minimal absolute-Frobenius x-orbit degree bound to a "
+                "retained concrete kernel x-coordinate witness; null without "
+                "that observed fail-closed certificate"
+            ),
+            "working_field_certificate": (
+                "exact absolute-Frobenius order modulo sign on a stated "
+                "non-horizontal ell-torsion vector; proves an x-orbit degree, "
+                "not an explicit point, map, or runtime"
+            ),
             "dense_packed_kernel_bytes": "ceil(((ell-1)/2+1)*m/8); payload proxy, not measured serialization",
             "measured_effect_sign": "log2(child mean / parent mean); positive means more child work",
         },

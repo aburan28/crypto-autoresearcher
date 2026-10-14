@@ -130,6 +130,18 @@ low-embedding-degree, and twist-factor findings. Preserve expected and actual
 outputs. A failed or skipped material control makes dependent checks
 `INDETERMINATE`.
 
+Make the canonical launcher fail closed independently of the arithmetic
+assertions.  It must catch unexpected interpreter/runtime exceptions, reject
+direct execution of an unguarded implementation body, require a completion sentinel
+written only after the final certificate gate, and return nonzero if
+the sentinel is absent.  Bound every randomized or enumerative search and
+record its cap, tries, timeout, and memory envelope.  Before retaining a
+positive receipt, inject an unexpected exception and an early-return/missing-
+sentinel control; both must exit nonzero without a success marker.  Pin the
+launcher, implementation, included dependencies, raw receipt, and software
+version by digest.  A clean transcript from a fail-open launcher is historical
+evidence only, not a fail-closed replay.
+
 For already-certified prime-field ordinary inputs,
 `tools/isogeny_class_screen.py` may provide an advisory secondary structural
 screen. It does not validate the primality of `p` or a custom total order `N`;
@@ -187,6 +199,17 @@ Characteristic-power Frobenius requires a separate record. In particular,
 Koblitz `tau` has degree two and is inseparable; record its explicit map,
 order relation, subgroup eigenvalue, action order, and evaluation cost, but
 do not label it a horizontal degree-two volcano edge.
+
+For a direct `ell`-torsion construction over `F_(q^k)`, distinguish three
+quantities: the relative q-Frobenius x-orbit `k`, the ambient absolute field
+degree `m*k` when `q=p^m`, and the exact minimal absolute x-orbit of the
+specific kernel line.  The first two do not prove the third.  To claim an
+exact degree `n`, retain closure under `Frob_p^n` and inequality under
+`Frob_p^(n/s)` for every distinct prime `s | n`, together with irreducible
+field moduli, element encoding, and a concrete witness binding.  State whether
+the certificate covers one point, every nonzero multiple on a prime-order
+line, or only an abstract CM-module representative.  None of these degrees is
+a construction runtime or an ECDLP-bit estimate.
 
 For a Koblitz prime-order subgroup, certify `tau(G) = [lambda]G`,
 `lambda^2 - mu lambda + 2 = 0 (mod r)`, and the exact order of `lambda`.
