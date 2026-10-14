@@ -1,0 +1,20 @@
+#set page(paper: "a4", margin: 18mm)
+#set text(size: 10pt)
+#set par(justify: false)
+= Quaternion Volume: deterministic pilot observations
+== Observation-only status
+#text("This report records execution outputs; it makes no support, weakening, priority or scientific-status decision. Independent mathematical review remains separate. All instances are supplied synthetic lattices.")
+
+== Trial and provenance
+#text("Experiment EXP-SSI-39bae9; hypothesis H-SSI-174d36; run RUN-SSI-5a435c. Code commit fa51ba977d0b57d45e0c65439ca9c67e1924e555. Seed 1729. Exact command: [\"python3\", \"tools/quaternion_order_volume.py\", \"--seed\", \"1729\", \"--output-dir\", \"/workspace/lattice-quaternion/experiments/EXP-SSI-39bae9/runs/RUN-SSI-5a435c\"]. One trial requested; completion/failure and resource observations are preserved in execution-receipt.json. The driver records full-tree dirtiness as unknown when not supplied; every source byte is admitted against its committed hash.")
+
+== Recorded outputs
+#text("Exact fixture counters (integer counts, not independent statistical samples): {\"all_exact_checks_passed\": true, \"candidate_elements\": 81, \"index_histogram\": {\"1\": 2016, \"12\": 72, \"15\": 144, \"19\": 72, \"2\": 360, \"20\": 144, \"3\": 1152, \"4\": 360, \"5\": 720, \"7\": 144, \"8\": 72, \"9\": 360, \"rank_deficient\": 945}, \"lattice_controls\": 7, \"ordered_pair_cases\": 6561}. Supervisor receipt: {\"artifact_sha256\": {\"check.stderr.log\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"check.stdout.log\": \"af8e9a371091dd2327af3784f48f79d137de7e7e00403d323475183ee8867f36\", \"command.txt\": \"2be31d1fd9c7bcc1b6673f7210653e9037364dff7cc83fcdc0950de2d68cc872\", \"environment.json\": \"4a904119e58348e412fae8b2d72dac0c06c943084a1d6c3e0fee6b13907438dd\", \"launch.json\": \"a4f8e996c6fd5d0056fafadaa0d8da9230c2174387120ba65ebcbd959b9ad643\", \"manifest.yaml\": \"f4b2b6fc15bd7b1e643c9dda489802f5f64c01e4313e043284fe5ff129e5aa40\", \"raw-result.json\": \"6ea07eb0c27181e2f7652ee8d90bb1621219caceacf1828d1e8a0c2f1297015f\", \"stderr.log\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"stdout.log\": \"2446de836ce4a897fa690c0007545d670adbfca15b0a4f4ea980549e21d91007\"}, \"authority\": {\"commit\": \"fa51ba977d0b57d45e0c65439ca9c67e1924e555\", \"dispatch_plan_sha256\": \"41390b103bece15c82b48b65ad0ff381190d0099485906cff8739572ae398b2b\", \"epoch\": 1, \"expires_at\": \"2026-10-14T16:13:17+00:00\", \"owner\": \"lattice-executor-20261014\"}, \"check_returncode\": 0, \"detail\": null, \"finished_at\": \"2026-10-14T15:16:46.691305+00:00\", \"plan_sha256\": \"b6065d3e3104e4973b6e3b0bc67b9012032b7dcd2243f7a82b9427fbcb436a22\", \"published\": false, \"returncode\": 0, \"run_id\": \"RUN-SSI-5a435c\", \"schema\": \"crypto.autoresearch.trial_receipt.v1\", \"scientific_conclusion\": null, \"started_at\": \"2026-10-14T15:16:41.866215+00:00\", \"status\": \"output_validated\", \"trial_id\": \"exact-pilot-seed1729\"}")
+
+== Control scope and graph
+#text("Four retained lattice controls. Equal additive index does not certify multiplicative closure. All plotted values come directly from raw-result.json; no new sampling is performed. Uncertainty bars are inapplicable to these deterministic exact values. Plot source and extracted data are retained.")
+
+== Limitations and missing data
+#text("One supplied maximal quaternion order at p=2, not arbitrary supersingular curve maps. A small Gram determinant measures additive index, not multiplicative closure or subgroup action. Noncommuting generators can still give the proper Lipschitz suborder. Enumeration and scoring exclude isogeny discovery/evaluation and establish no performance advantage. Characteristic-prime division and finite-field realization remain separate unimplemented obligations. The integrity checker replays the implementation; it is not independent research review. No ECDLP canonical graph or frontier was changed.")
+
+#figure(image("observations.svg", width: 100%), caption: "Four retained lattice controls. Equal additive index does not certify multiplicative closure. Run RUN-SSI-5a435c.")
