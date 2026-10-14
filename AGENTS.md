@@ -527,7 +527,8 @@ and `aburan28/ml-cryptanalysis`:
 - `papers/README.md` is the index: one row per paper (directory, title,
   status). Add a row when adding a paper; never add a paper outside `papers/`.
 - `papers/paper.mk` is the shared build. A paper's `Makefile` sets `TEX`,
-  `SECTIONS` and `BIB` and includes it; the targets are `make`, `make check`,
+  `SECTIONS`, `BIB` and, for figures or other files the build reads,
+  `ASSETS`, and includes it; the targets are `make`, `make check`,
   `make arxiv`, `make eprint`, `make deanonymize` and `make clean`.
 - `papers/.gitignore` ignores LaTeX auxiliaries and submission bundles. The
   built PDF is committed next to its sources and rebuilt whenever a cited
