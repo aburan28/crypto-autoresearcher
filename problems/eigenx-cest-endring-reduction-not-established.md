@@ -130,13 +130,22 @@ The user's explicit EigenX-v3 request and `DEC-20261013-ef0ee8` satisfied this h
 - **Execution limit:** One bounded zero-run amendment and one fresh sole-owner J4 review; automatic launch is false.
 - **Recheck trigger:** A frozen amendment satisfying these requirements and its independent J4 report, or new externally supplied evidence that directly meets the same robustness and simulation criteria.
 
-## Current next discriminating action
+## Preserved endpoint-fiber next discriminating action
 
 - **Action:** `ENDRING-ENDPOINT-FIBER-INSTANTIATION` -- after a fresh Coordinator ranking and explicit successor opening, freeze one construction packet with an exact real key/walk law and a concrete nontrivial public zero-circulation `EdgeLabel`/complete-EndRing `RingPotential` pair.
 - **Controls:** Require executable KeyGen/Encrypt/Decrypt traces, a proved endpoint-fiber theorem, a public-coboundary control, a smaller-witness control, and removal of the raw XOR malleability before any confidentiality theorem is reviewed.
 - **Outcome routing:** A complete typed instantiation advances only to independent O1--O6, reduction, novelty, QPT/QROM, and concrete-parameter review. A collision, public factorization, smaller-decoder factorization, or missing evaluator becomes a scoped obstruction. Inconclusive construction work remains inconclusive.
 - **Execution limit:** One newly authorized bounded construction packet; automatic launch, implementation, experiments, parameter selection, and security promotion are false.
 - **Recheck trigger:** A concrete label/evaluator pair on an exact real law, or new externally supplied evidence directly meeting the same endpoint-fiber obligations.
+
+## Current explicitly authorized J4 action opened on 2026-10-14
+
+Post-opening reconciliation observed `origin/main` commit `6a29dea58a2b8a6e318405cdedee7d76fe65c556`: the concurrently opened endpoint-fiber lane `BATCH-0cfd90` / `DEC-20261014-733f72` is independently active on `goal/endring-pke-endpoint-fiber-instantiation`. It excludes R_CER/DXWE/xO/Naor-Yung, while the J4 lane excludes endpoint-fiber construction; all cross-queue task write scopes have zero overlaps. Both lanes and the existing endpoint producer claim are preserved. The J4 cursor follows the later decision timestamp, is not a lock, and supersedes neither lane. Future goal/problem/checkpoint merges preserve both per-lane facts and next actions additively under isolated Coordinator archive gates; no verdict fusion or other-lane record rewrite is authorized.
+
+- **Action:** [DEC-20261014-f6b6c7](../ledger/decisions/DEC-20261014-f6b6c7.yaml) opens the separately user-authorized preserved `NEXT-EIGENX-V3-J4-ROBUSTNESS` route as `BATCH-1f1d28`. [Requirements](../coordination/design/TASK-20261014-3978e9/requirements.md) bind one producer amendment, snapshot, one fresh sole-owner J4 review, composition, report/visuals, documentation fidelity and ledger archive. The later `BATCH-3e1bfd` head is preserved additively; its endpoint-fiber verdicts and continuation are neither fused nor superseded.
+- **Branch and controls:** Producer chooses exactly one branch, preferably a formal adversarial-valid-ciphertext robustness game with independently derived query losses. Pointwise correctness requires actual universal accepted-witness/all-coins justification. Exact byte strong-USS, total parser/CRS/Verify/Dec, every-query hybrid coupling, exact complete challenge-byte exclusion, same-components/different-proof, bad-coin countermodel, quantifiers, assumption accounting and proof-search/Lean decision are mandatory.
+- **Outcome scope:** J4 `holds` can remove only the scoped transform contradiction under the exact reviewed assumptions. It cannot promote the candidate, globally discharge O5, or alter J1/J2/J3/J5, K0, EI-DXWE/xO, R_CER verification/necessity, NIZK instantiation, setup, cost, novelty, PQ, Category-5 or deployability. `breaks`/`inconclusive` retains the incomplete candidate and named gaps. This opening resolves no exit criterion.
+- **Execution and recheck:** Zero scientific, implementation, formalizer, benchmark and parameter-selection runs. At opening freeze zero tasks/runs; committed, pushed, ready-PR authority publication and a task claim precede work. Recheck after the frozen amendment and verified producer snapshot, then the sole J4 report; no automatic successor.
 
 ## Resolution and history
 

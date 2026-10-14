@@ -2,11 +2,15 @@
 #   TEX      := main.tex            (the root document)
 #   SECTIONS := sec-a.tex sec-b.tex (files \input by the root; may be empty)
 #   BIB      := refs.bib            (bibliography; leave empty when there is none)
+#   ASSETS   := figures/a.pdf       (optional: figures, generated tables, .cls/.sty
+#                                    and anything else the build reads; paths may
+#                                    be in subdirectories and keep them in bundles)
 # and then `include ../paper.mk`.
 #
 # Targets:
 #   make             — build the PDF (pdflatex, bibtex when BIB is set, two more passes)
-#   make check       — fail on unresolved references or citations and on overfull boxes
+#   make check       — rebuild from scratch, then fail on LaTeX errors, unresolved
+#                      references or citations, and overfull boxes
 #   make arxiv       — arxiv-submission.tar.gz (sources only; arXiv compiles server-side)
 #   make eprint      — eprint-submission.zip (PDF plus sources)
 #   make deanonymize — restore the author block from an untracked AUTHORS file
@@ -19,13 +23,22 @@ AUX      := $(STEM).aux $(STEM).log $(STEM).out $(STEM).toc $(STEM).bbl $(STEM).
             $(STEM).lof $(STEM).lot $(STEM).fls $(STEM).fdb_latexmk $(STEM).synctex.gz
 ARXIV_TARBALL := arxiv-submission.tar.gz
 EPRINT_ZIP    := eprint-submission.zip
-EXTRA    := abstract.txt README.md Makefile
+EXTRA    ?= abstract.txt README.md Makefile
+ASSETS   ?=
+
+# Copy the given files into a staging directory, keeping their relative
+# paths, so \input{sections/a.tex} and figures/a.pdf still resolve there.
+# Goes through a temporary archive rather than a pipe: /bin/sh reports only
+# a pipeline's last status, so a missing source would otherwise ship an
+# incomplete bundle without failing the target.
+copy_tree = tar cf $(2).tar $(1) && tar xf $(2).tar -C $(2) && rm -f $(2).tar
+SOURCES  = $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
 
 .PHONY: all clean arxiv eprint deanonymize check
 
 all: $(PDF)
 
-$(PDF): $(TEX) $(SECTIONS) $(BIB)
+$(PDF): $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
 	pdflatex -interaction=nonstopmode $(TEX) || true
 	$(if $(BIB),bibtex $(STEM),@true)
 	pdflatex -interaction=nonstopmode $(TEX) || true
@@ -36,17 +49,23 @@ clean:
 	rm -f $(ARXIV_TARBALL) $(EPRINT_ZIP)
 	rm -rf submission-staging/
 
-arxiv: $(TEX) $(SECTIONS) $(BIB)
+arxiv: $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
+	rm -rf submission-staging/arxiv
+	rm -f submission-staging/arxiv.tar $(ARXIV_TARBALL)
 	mkdir -p submission-staging/arxiv
-	cp $(TEX) $(SECTIONS) $(BIB) $(EXTRA) ../paper.mk submission-staging/arxiv/
+	$(call copy_tree,$(SOURCES) $(EXTRA),submission-staging/arxiv)
+	cp ../paper.mk submission-staging/arxiv/
 	cd submission-staging/arxiv && tar czf ../../$(ARXIV_TARBALL) *
 	rm -rf submission-staging/arxiv
 	@echo "arXiv submission bundle ready: $(ARXIV_TARBALL)"
 
 eprint: $(PDF)
+	rm -rf submission-staging/eprint
+	rm -f submission-staging/eprint.tar $(EPRINT_ZIP)
 	mkdir -p submission-staging/eprint
-	cp $(PDF) $(TEX) $(SECTIONS) $(BIB) $(EXTRA) ../paper.mk submission-staging/eprint/
-	cd submission-staging/eprint && zip -q ../../$(EPRINT_ZIP) *
+	$(call copy_tree,$(PDF) $(SOURCES) $(EXTRA),submission-staging/eprint)
+	cp ../paper.mk submission-staging/eprint/
+	cd submission-staging/eprint && zip -qr ../../$(EPRINT_ZIP) *
 	rm -rf submission-staging/eprint
 	@echo "IACR ePrint submission bundle ready: $(EPRINT_ZIP)"
 
@@ -61,14 +80,19 @@ tex = re.sub(r"\\author\{Anonymous\}\s*\\date\{[^}]*\}", authors + "\n", tex, co
 open("$(TEX)", "w").write(tex); \
 print("De-anonymized $(TEX); backup saved as $(TEX).anon-backup")'
 
-check: $(PDF)
+# A committed PDF can look up to date on a fresh checkout while its log is
+# absent (logs are ignored), so check always rebuilds and refuses to judge a
+# missing log.
+check:
+	$(MAKE) --no-print-directory --always-make $(PDF)
 	@echo "Checking $(PDF)..."
+	@if [ ! -s $(LOG) ]; then echo "FAIL: no LaTeX log $(LOG); the build did not run"; exit 1; fi
+	@if grep -q '^!' $(LOG); then echo "FAIL: LaTeX errors"; grep -A3 '^!' $(LOG) | head -20; exit 1; fi
 	@if grep -q 'LaTeX Warning: There were undefined references' $(LOG); then \
 	  echo "FAIL: unresolved references"; grep 'LaTeX Warning: Reference' $(LOG) || true; exit 1; \
 	else echo "All references resolved."; fi
 	@if grep -qE '(LaTeX|Package natbib) Warning: There were undefined citations' $(LOG); then \
 	  echo "FAIL: unresolved citations"; exit 1; fi
-	@if grep -q '^!' $(LOG); then echo "FAIL: LaTeX errors"; grep -A3 '^!' $(LOG) | head -20; exit 1; fi
-	@if grep -E 'Overfull \\hbox' $(LOG); then echo "FAIL: overfull boxes"; exit 1; \
+	@if grep -E 'Overfull \\[hv]box' $(LOG); then echo "FAIL: overfull boxes"; exit 1; \
 	else echo "No overfull boxes."; fi
 	@echo "Page count:"; pdfinfo $(PDF) | grep -i pages; ls -lh $(PDF)
