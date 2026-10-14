@@ -11,10 +11,14 @@ extension degree m; Koblitz form y² + xy = x³ + a x² + 1; near-prime order
 ## How cheap a conductor isogeny is (derived)
 
 For each prime ℓ′ | f_π = [O_K : Z[π]], Frobenius acts on E[ℓ′] as an integer
-c. The kernel x-coordinates of the ℓ′-isogenies live in F_2^(m·k), where k is
-the least integer with c^k = ±1. They lie on E if c^k = 1 and on its quadratic
-twist if c^k = −1. So k is the cost driver: arithmetic happens in an
-(m·k)-bit field.
+c. The direct torsion-point route can be carried out in F_2^(m·k), where k is
+the least integer with c^k = ±1. The selected points lie on E if c^k = 1 and
+on its quadratic twist if c^k = −1. Thus m·k is an ambient construction-field
+upper bound, not automatically the minimal absolute x-coordinate degree and
+not a runtime or hardness metric.  An absolute-Frobenius line-orbit
+certificate is needed for minimality; the K-163/45,641 and K-283/1,697 rows
+now have abstract CM-representative certificates in
+[`../../conductor_gap_panel_20261014/REPORT.md`](../../conductor_gap_panel_20261014/REPORT.md).
 
 ECC2K-130's 263 is the extreme case, k = 1 (c = −1): no extension field at
 all.
@@ -31,7 +35,7 @@ all.
 | **m = 109, a = 1, cofactor 2** | **3271 (k = 5, F_2^545)**; 699600307831 | **computed** |
 | m = 113, a = 1, cofactor 2 | 77031318395801969 (F_2^4.4e18) | no |
 | **m = 131, a = 0, cofactor 4 (ECC2K-130)** | **263 (k = 1, F_2^131)**; 146505763881528721 | computed (main study) |
-| **m = 163, a = 1, cofactor 2 (NIST K-163)** | **45641 (k = 20, F_2^3260)**, **82153 (k = 63, F_2^10269)**; 8610311; 56498081 | **both computed** |
+| **m = 163, a = 1, cofactor 2 (NIST K-163)** | **45641 (k = 20, F_2^3260)**, **82153 (k = 63, F_2^10269)**; 8610311; 56498081 | **endpoints computed; maps not retained** |
 
 *Derived.* (Kronecker symbols, k values and class numbers are in `survey.out`
 and `details.out`.)
@@ -87,10 +91,35 @@ conductor 45641·82153 ≈ 3.7·10⁹, with the same k = 63. That step needs the
 floor curve's b′ embedded in the big field, which the b = 1 shortcut used
 here avoids. *Proposed, not run here;* run on 2026-10-08, see [`../EXTENSIONS.md`](../EXTENSIONS.md) §3.
 
+## Degree-45,641 map follow-through (2026-10-14)
+
+The original deterministic forward-map producer rejected any endpoint outside
+six historical samples.  That gate was invalid: the 45,640 descending lines
+form 280 absolute-Frobenius orbits, so six samples are not an allow-list.  The
+producer now classifies the sampled line against the two horizontal
+`tau`-eigenlines and retains historical membership only as metadata.  A fresh
+seed replay and a separate point-count/degree-11-cycle certificate both
+pass for the newly reached floor endpoint.
+
+A bounded relative-tower probe avoids `ffembed`, constructs one exact-order
+descending witness, certifies exact absolute x-degree 3,260 for its entire
+prime-order kernel line, enumerates all 22,820 half-kernel abscissae, and
+reaches a second certified endpoint.  It stops before the degree-22,820
+kernel polynomial and map.  The corresponding full relative-tower producer
+is an unexecuted implementation pending an admitted experiment contract.  A
+same-degree horizontal control, `alpha=51-160*tau`, verifies
+`alpha_bar*alpha=[45641]` on 1,024 targets in 6.86 seconds; that contrast
+shows that geometric degree alone does not price a conductor transfer.  See
+[`MAP163_45641_PROTOCOL.md`](MAP163_45641_PROTOCOL.md) for artifacts and the
+remaining dual/composition gate.
+
 ## Scope
 
-These are structural isogeny computations; no rho was run on these curves.
-The ECDLP consequence follows the main study: every curve below the crater
-has no Frobenius endomorphism, and by the m = 37 and m = 41 measurements, rho
-there runs with negation only, needing about √m times more steps.
-*Extrapolated.*
+These are structural isogeny computations; no rho was run on these named
+curves.  A lower conductor level does not contain the cheap absolute
+Frobenius `tau`, but that fact alone neither excludes every useful action nor
+establishes a transfer advantage.  The roughly `sqrt(m)` signed-Frobenius
+discount is a source-side random-map model calibrated on smaller proxies, not
+a measured NIST endpoint effect.  No weak-curve conclusion follows without an
+explicit map and dual, subgroup recovery, a destination attack, and complete
+paired cost accounting.

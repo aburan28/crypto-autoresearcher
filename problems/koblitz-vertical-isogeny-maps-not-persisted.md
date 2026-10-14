@@ -33,11 +33,34 @@ from supplied private advice and charges discovery accordingly.
   degree-1697 map nor its dual or subgroup certificate.
 - **Observed implementation progress:**
   [`MAP163_45641_PROTOCOL.md`](../research/ecc2k130_conductor_isogenies_20261007/analogues/MAP163_45641_PROTOCOL.md)
-  now freezes a deterministic K-163 forward-map gate and its producer.  A
-  bounded compatibility diagnostic reaches the expensive `ffembed` stage
-  after fixing the driver's prior silent included-file exit.  The bounded run
-  did not finish, emitted no map artifact, and says nothing about the dual or
-  full transfer cost.
+  freezes a deterministic K-163 forward-map gate and its producer.  A fresh
+  seed preflight reaches endpoint orbit minimum
+  `24362196697750487851526857852297647817644684697`, outside the six sampled
+  historical orbits.  This exposed an invalid allow-list gate: the six are
+  samples from 280 descending absolute-Frobenius orbits, not an exhaustive
+  set.  The repaired producer instead tests the sampled line against both
+  absolute-`tau` eigenlines and fails if it is horizontal.  The fresh endpoint
+  independently passes the exact point-count/twist check and the archived
+  degree-11 cycle predicate (`1` at the crater, `9128` at the endpoint).
+  A second bounded relative-tower probe removes `ffembed`, constructs an
+  exact-order witness, proves exact absolute x-degree 3,260 for its kernel
+  line, enumerates all 22,820 half-kernel abscissae, and certifies a different
+  descending endpoint before stopping at the kernel-polynomial boundary.
+  Neither probe emitted a map artifact or measured a transfer.
+- **Passing small-degree control:** the new local
+  [`map73_dual_control.gp`](../research/isogeny_volcano_rho_20261005/map73_dual_control.gp)
+  deterministically constructs a degree-73 forward map and algebraic dual on
+  the `m=37` proxy.  Its retained receipt checks both compositions and
+  inverse-degree recovery for 1,024 distinct frozen prime-subgroup targets,
+  plus a separate planted target.  Earlier signed-map and cross-basis bridge
+  evidence is retained in `aburan28/crypto` commits
+  [`03ac279b2`](https://github.com/aburan28/crypto/commit/03ac279b2e0945ab8b42561df50db5b4d8475cd6)
+  and
+  [`2ada30059`](https://github.com/aburan28/crypto/commit/2ada300594e486850842d2fa54bcc57f72cd58f1).
+  Those earlier artifacts use root finding for the reverse path and do not
+  themselves provide an algebraic dual.  The new local control closes this
+  proxy prerequisite; it does not certify the missing degree-45,641 map or
+  dual.
 - **Derived or proved:** the archived source signed-Frobenius certificates for
   all five NIST K curves pass the Stage-0 consistency audit. That audit trusts
   their point-check booleans and does not emit a primality certificate. For
@@ -61,6 +84,8 @@ from supplied private advice and charges discovery accordingly.
 
 ## What would unblock it
 
+- [ ] Admit the K-163/K-283 construction work with a frozen experiment
+  contract and canonical launcher; the current selector has no runnable row.
 - [ ] Persist or deterministically rebuild one K-163 degree-45641 or K-283
   degree-1697 `phi` and its dual, including complete endpoint identities,
   kernel representation, normalization, field of definition, exceptional
@@ -72,20 +97,22 @@ from supplied private advice and charges discovery accordingly.
 - [ ] Measure construction and evaluation under the matched five-arm protocol
   with all representation conversions and failures retained.
 
-The first two conditions make a transfer experiment valid. The third is still
-required before any performance or weakness inference.
+The first three conditions are prerequisites for a valid transfer experiment.
+The fourth is additionally required before any performance or weakness
+inference.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** first persist and certify the smaller
-  degree-73 map/dual on the existing `m=37` proxy edge, and compare one-time
-  endpoint-to-crater transfer with the transported action. Then execute the
-  frozen K-163 conductor-45641 forward-map producer under an admitted run,
-  add a dual, and replay both on planted subgroup points before optimizing
-  them.  Separately, execute K-283's endpoint census before admitting it as a
+- **Action or proof obligation:** with the degree-73 map/dual prerequisite now
+  passing, admit and execute the relative-tower K-163 conductor-45,641
+  forward-map producer under a frozen contract.  Then construct its algebraic
+  dual and replay both compositions and recovery on planted subgroup points
+  before optimizing or comparing one-time versus transported actions.
+  Separately, execute K-283's endpoint census before admitting it as a
   map-construction target; a census result alone does not satisfy this gate.
 - **Inputs and controls:** the existing `m=37` crater/73-floor pair, standard
-  sect163k1 identity, the first frozen conductor-45641 endpoint, exhaustive
+  sect163k1 identity, the frozen relative-tower endpoint with orbit minimum
+  `664574991296028830578085892445595444511031875`, exhaustive
   toy point-map checks, wrong-kernel and wrong-normalization mutations,
   identity path, one-time transfer, and the source signed-Frobenius incumbent.
 - **Execution limits and stop condition:** first produce one exact replayable

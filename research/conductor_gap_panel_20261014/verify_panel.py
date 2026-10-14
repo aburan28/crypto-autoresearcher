@@ -25,8 +25,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 PANEL_PATH = HERE / "panel.json"
 RECEIPT_PATH = HERE / "verification.json"
-PANEL_SCHEMA = "crypto.conductor-gap-panel/v1"
-RECEIPT_SCHEMA = "crypto.conductor-gap-panel-verification/v1"
+PANEL_SCHEMA = "crypto.conductor-gap-panel/v2"
+RECEIPT_SCHEMA = "crypto.conductor-gap-panel-verification/v2"
 
 
 class VerificationError(RuntimeError):
@@ -62,6 +62,67 @@ def product(values: list[int]) -> int:
     for value in values:
         answer *= value
     return answer
+
+
+def distinct_prime_factors(value: int) -> list[int]:
+    factors: list[int] = []
+    divisor = 2
+    while divisor * divisor <= value:
+        if value % divisor == 0:
+            factors.append(divisor)
+            while value % divisor == 0:
+                value //= divisor
+        divisor += 1 if divisor == 2 else 2
+    if value > 1:
+        factors.append(value)
+    return factors
+
+
+def matrix_multiply_mod(
+    left: list[list[int]], right: list[list[int]], modulus: int
+) -> list[list[int]]:
+    return [
+        [
+            sum(left[i][k] * right[k][j] for k in range(2)) % modulus
+            for j in range(2)
+        ]
+        for i in range(2)
+    ]
+
+
+def matrix_power_mod(
+    matrix: list[list[int]], exponent: int, modulus: int
+) -> list[list[int]]:
+    answer = [[1, 0], [0, 1]]
+    base = [[entry % modulus for entry in row] for row in matrix]
+    while exponent:
+        if exponent & 1:
+            answer = matrix_multiply_mod(answer, base, modulus)
+        base = matrix_multiply_mod(base, base, modulus)
+        exponent >>= 1
+    return answer
+
+
+def matrix_vector_mod(
+    matrix: list[list[int]], vector: list[int], modulus: int
+) -> list[int]:
+    return [
+        sum(matrix[i][j] * vector[j] for j in range(2)) % modulus
+        for i in range(2)
+    ]
+
+
+def projectively_equal(left: list[int], right: list[int], modulus: int) -> bool:
+    return (left[0] * right[1] - left[1] * right[0]) % modulus == 0
+
+
+EXACT_WORKING_FIELD_KEYS = {
+    ("nist-k163", 45641),
+    ("nist-k283", 1697),
+}
+CONCRETE_KERNEL_X_ORBIT_KEYS = {
+    ("nist-k163", 45641),
+}
 
 
 def factor_pairs(value: int) -> list[tuple[int, int]]:
@@ -176,6 +237,293 @@ def exact_multiplicative_order(value: int, prime: int) -> int:
     return order
 
 
+def verify_working_field_certificate(
+    row: dict[str, Any],
+    ell: int,
+    m: int,
+    mu: int,
+    scalar: int,
+    relative_x_degree: int,
+) -> dict[str, Any]:
+    """Verify the evidence status independently of the panel builder.
+
+    For the two admitted rows, the companion matrix of absolute Frobenius is
+    checked on an abstract non-horizontal torsion vector.  Exact order modulo
+    sign proves that representative's minimal absolute x-coordinate orbit
+    degree.  Every row also proves ``m*k`` as an ambient upper bound for all
+    ell-torsion x-coordinates; neither statement constructs a point or map.
+    """
+    key = (row["class_id"], ell)
+    absolute_degree = m * relative_x_degree
+    matrix = [[0, -2], [1, mu]]
+    normalized_matrix = [[entry % ell for entry in line] for line in matrix]
+    determinant = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) % ell
+    require_equal(determinant, 2 % ell,
+                  f"absolute Frobenius determinant for {row['gap_id']}")
+    require(determinant != 0, f"singular Frobenius matrix for {row['gap_id']}")
+    q_frobenius_matrix = matrix_power_mod(matrix, m, ell)
+    require_equal(q_frobenius_matrix, [[scalar, 0], [0, scalar]],
+                  f"scalar q-Frobenius matrix for {row['gap_id']}")
+    ambient_closure_matrix = matrix_power_mod(matrix, absolute_degree, ell)
+    identity = [[1, 0], [0, 1]]
+    negative_identity = [[ell - 1, 0], [0, ell - 1]]
+    require(ambient_closure_matrix in (identity, negative_identity),
+            f"ambient absolute x-degree does not close for {row['gap_id']}")
+    require_equal(int(row["ambient_absolute_x_degree_upper_bound"]), absolute_degree,
+                  f"ambient absolute x-degree bound for {row['gap_id']}")
+    if key not in EXACT_WORKING_FIELD_KEYS:
+        require_equal(
+            row["working_field_status"],
+            "certified_ambient_upper_bound_only",
+            f"ambient working-field status for {row['gap_id']}",
+        )
+        require(row["working_field_certificate"] is None,
+                f"unsupported exact working-field certificate for {row['gap_id']}")
+        require(row["exact_abstract_cm_representative_x_orbit_degree"] is None,
+                f"unsupported exact abstract x-orbit for {row['gap_id']}")
+        require(row["concrete_kernel_x_orbit_degree"] is None,
+                f"unsupported concrete kernel x-orbit for {row['gap_id']}")
+        require_equal(row["concrete_kernel_x_orbit_status"], "not_certified",
+                      f"concrete kernel x-orbit status for {row['gap_id']}")
+        return {
+            "status": row["working_field_status"],
+            "absolute_degree_interpretation": "ambient_upper_bound",
+            "ambient_absolute_x_degree_upper_bound": str(absolute_degree),
+            "concrete_kernel_x_orbit_status": "not_certified",
+            "q_frobenius_matrix_mod_ell": [
+                [str(value) for value in line] for line in q_frobenius_matrix
+            ],
+            "ambient_closure_matrix_mod_ell": [
+                [str(value) for value in line] for line in ambient_closure_matrix
+            ],
+        }
+
+    require_equal(
+        row["working_field_status"],
+        "exact_abstract_cm_representative_x_orbit",
+        f"exact working-field status for {row['gap_id']}",
+    )
+    certificate = row["working_field_certificate"]
+    require(isinstance(certificate, dict),
+            f"missing working-field certificate for {row['gap_id']}")
+    require_equal(
+        int(row["exact_abstract_cm_representative_x_orbit_degree"]),
+        absolute_degree,
+        f"exact abstract x-orbit degree for {row['gap_id']}",
+    )
+    require_equal(certificate["certificate_kind"], "derived_cm_line_orbit",
+                  f"certificate kind for {row['gap_id']}")
+    require_equal(certificate["basis"], ["1", "tau"],
+                  f"certificate basis for {row['gap_id']}")
+    require_equal(certificate["vector_convention"],
+                  "column [a,b] represents a+b*tau",
+                  f"certificate vector convention for {row['gap_id']}")
+    require_equal(certificate["tau_relation"], "tau^2-mu*tau+2=0",
+                  f"certificate tau relation for {row['gap_id']}")
+    require_equal(int(certificate["mu"]), mu,
+                  f"certificate mu for {row['gap_id']}")
+    concrete_binding = certificate["concrete_point_binding"]
+    require(isinstance(concrete_binding, dict),
+            f"concrete binding record for {row['gap_id']}")
+    if key in CONCRETE_KERNEL_X_ORBIT_KEYS:
+        require_equal(
+            row["concrete_kernel_x_orbit_status"],
+            "certified_retained_relative_tower_witness",
+            f"concrete kernel x-orbit status for {row['gap_id']}",
+        )
+        require_equal(int(row["concrete_kernel_x_orbit_degree"]), absolute_degree,
+                      f"concrete kernel x-orbit degree for {row['gap_id']}")
+        require_equal(concrete_binding["status"],
+                      "certified_concrete_kernel_x_witness",
+                      f"concrete binding status for {row['gap_id']}")
+        require_equal(concrete_binding["evidence_kind"],
+                      "observed_fail_closed_probe",
+                      f"concrete binding evidence kind for {row['gap_id']}")
+        require_equal(
+            concrete_binding["evidence_path"],
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "probe163_45641_relative_tower.out",
+            f"concrete binding evidence path for {row['gap_id']}",
+        )
+        require_equal(
+            concrete_binding["retained_input_replay_path"],
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "verify163_45641_relative_witness.out",
+            f"concrete binding retained-input replay path for {row['gap_id']}",
+        )
+        require_equal(
+            concrete_binding["arithmetic_independence"],
+            "not_independent_same_x_only_ladder_family",
+            f"concrete binding arithmetic independence for {row['gap_id']}",
+        )
+        require_equal(concrete_binding["probe_schema"],
+                      "k163-degree45641-relative-tower-probe-v2",
+                      f"concrete binding schema for {row['gap_id']}")
+        require_equal(int(concrete_binding["absolute_x_orbit_degree"]),
+                      absolute_degree,
+                      f"concrete binding degree for {row['gap_id']}")
+        require_equal(concrete_binding["closure_status"], "pass",
+                      f"concrete binding closure for {row['gap_id']}")
+        require_equal(
+            [int(value) for value in
+             concrete_binding["proper_divisor_exclusion_degrees"]],
+            [absolute_degree // prime
+             for prime in distinct_prime_factors(absolute_degree)],
+            f"concrete binding exclusions for {row['gap_id']}",
+        )
+        require_equal(concrete_binding["all_nonzero_kernel_multiples_status"],
+                      "derived", f"concrete binding scope for {row['gap_id']}")
+        require_equal(concrete_binding["descending_classification_basis"],
+                      "derived_tau_eigenline_exclusion",
+                      f"concrete binding classification basis for {row['gap_id']}")
+        require_equal(concrete_binding["prime_line_scope_status"], "derived",
+                      f"concrete binding line-scope status for {row['gap_id']}")
+    else:
+        require_equal(row["concrete_kernel_x_orbit_status"], "not_certified",
+                      f"concrete kernel x-orbit status for {row['gap_id']}")
+        require(row["concrete_kernel_x_orbit_degree"] is None,
+                f"unsupported concrete kernel x-orbit for {row['gap_id']}")
+        require_equal(concrete_binding, {"status": "not_certified"},
+                      f"concrete binding for {row['gap_id']}")
+    require("abstract non-horizontal torsion vector" in certificate["scope"],
+            f"abstract-vector scope missing for {row['gap_id']}")
+    require("not explicit point coordinates" in certificate["scope"],
+            f"concrete-point limitation missing for {row['gap_id']}")
+    recorded_matrix = [
+        [int(entry) for entry in line]
+        for line in certificate["absolute_frobenius_matrix_mod_ell"]
+    ]
+    require_equal(recorded_matrix, normalized_matrix,
+                  f"absolute Frobenius matrix for {row['gap_id']}")
+    vector = [int(value) for value in certificate["representative_vector"]]
+    require_equal(vector, [1, 0], f"representative vector for {row['gap_id']}")
+    require(any(value % ell for value in vector),
+            f"zero representative vector for {row['gap_id']}")
+    first_image = matrix_vector_mod(matrix, vector, ell)
+    require(not projectively_equal(first_image, vector, ell),
+            f"representative line is horizontal for {row['gap_id']}")
+    require_equal(certificate["representative_line_status"], "non_horizontal",
+                  f"representative line status for {row['gap_id']}")
+    require_equal(
+        [[int(value) for value in line] for line in
+         certificate["q_frobenius_matrix_mod_ell"]],
+        q_frobenius_matrix,
+        f"recorded q-Frobenius matrix for {row['gap_id']}",
+    )
+    line_return = matrix_vector_mod(q_frobenius_matrix, vector, ell)
+    require_equal(line_return, [scalar, 0],
+                  f"q-Frobenius line return for {row['gap_id']}")
+    require(projectively_equal(line_return, vector, ell),
+            f"line does not return after m for {row['gap_id']}")
+    line_prime_divisors = distinct_prime_factors(m)
+    line_items = certificate["line_factor_exclusion_images"]
+    require_equal(len(line_items), len(line_prime_divisors),
+                  f"line exclusion count for {row['gap_id']}")
+    line_exclusions = {int(item["prime_divisor"]): item for item in line_items}
+    require_equal(len(line_exclusions), len(line_items),
+                  f"duplicate line exclusion for {row['gap_id']}")
+    require_equal(set(line_exclusions), set(line_prime_divisors),
+                  f"line exclusion primes for {row['gap_id']}")
+    line_exclusion_receipts = []
+    for prime in line_prime_divisors:
+        earlier = matrix_vector_mod(
+            matrix_power_mod(matrix, m // prime, ell), vector, ell
+        )
+        require(not projectively_equal(earlier, vector, ell),
+                f"line orbit is not minimal for {row['gap_id']}, p={prime}")
+        item = line_exclusions[prime]
+        require_equal(int(item["exponent"]), m // prime,
+                      f"line exclusion exponent for {row['gap_id']}, p={prime}")
+        require_equal([int(value) for value in item["image"]], earlier,
+                      f"line exclusion image for {row['gap_id']}, p={prime}")
+        line_exclusion_receipts.append({
+            "prime_divisor": str(prime),
+            "exponent": str(m // prime),
+            "image": [str(value) for value in earlier],
+        })
+    require_equal(int(certificate["line_orbit_degree"]), m,
+                  f"line orbit degree for {row['gap_id']}")
+    require_equal(
+        [int(value) for value in certificate["line_return_image"]], line_return,
+        f"line return witness for {row['gap_id']}",
+    )
+    require_equal(int(certificate["q_relative_x_orbit_degree"]), relative_x_degree,
+                  f"relative x orbit degree for {row['gap_id']}")
+    require_equal(math.gcd(m, relative_x_degree), 1,
+                  f"line/relative degree gcd for {row['gap_id']}")
+    require_equal(certificate["line_and_relative_degrees_coprime"], True,
+                  f"coprime marker for {row['gap_id']}")
+    require_equal(int(certificate["absolute_x_orbit_degree"]), absolute_degree,
+                  f"absolute x orbit degree for {row['gap_id']}")
+
+    full_image = matrix_vector_mod(ambient_closure_matrix, vector, ell)
+    require(full_image in ([1, 0], [ell - 1, 0]),
+            f"absolute orbit does not close modulo sign for {row['gap_id']}")
+    require_equal(
+        [int(value) for value in certificate["full_orbit_image"]], full_image,
+        f"full absolute-orbit witness for {row['gap_id']}",
+    )
+    require_equal(
+        [[int(value) for value in line] for line in
+         certificate["absolute_x_orbit_matrix_mod_ell"]],
+        ambient_closure_matrix,
+        f"absolute x-orbit closure matrix for {row['gap_id']}",
+    )
+    closure_sign = 1 if ambient_closure_matrix == identity else -1
+    require_equal(certificate["absolute_x_orbit_closure_sign"], closure_sign,
+                  f"absolute x-orbit closure sign for {row['gap_id']}")
+    require_equal(
+        int(certificate["exact_full_point_orbit_degree"]),
+        absolute_degree if closure_sign == 1 else 2 * absolute_degree,
+        f"full point orbit degree for {row['gap_id']}",
+    )
+    exclusion_items = certificate["factor_exclusion_images"]
+    exclusions = {int(item["prime_divisor"]): item for item in exclusion_items}
+    prime_divisors = distinct_prime_factors(absolute_degree)
+    require_equal(len(exclusion_items), len(prime_divisors),
+                  f"absolute orbit exclusion count for {row['gap_id']}")
+    require_equal(len(exclusions), len(exclusion_items),
+                  f"duplicate absolute orbit exclusion for {row['gap_id']}")
+    require_equal(set(exclusions), set(prime_divisors),
+                  f"absolute orbit exclusion primes for {row['gap_id']}")
+    exclusion_receipts = []
+    for prime in prime_divisors:
+        exponent = absolute_degree // prime
+        image = matrix_vector_mod(matrix_power_mod(matrix, exponent, ell), vector, ell)
+        require(image not in ([1, 0], [ell - 1, 0]),
+                f"absolute orbit is not minimal for {row['gap_id']}, p={prime}")
+        item = exclusions[prime]
+        require_equal(int(item["exponent"]), exponent,
+                      f"factor exclusion exponent for {row['gap_id']}, p={prime}")
+        require_equal([int(value) for value in item["image"]], image,
+                      f"factor exclusion image for {row['gap_id']}, p={prime}")
+        exclusion_receipts.append({
+            "prime_divisor": str(prime),
+            "exponent": str(exponent),
+            "image": [str(value) for value in image],
+        })
+    return {
+        "status": row["working_field_status"],
+        "certificate_kind": "derived_cm_line_orbit",
+        "line_orbit_degree": str(m),
+        "line_factor_exclusion_images": line_exclusion_receipts,
+        "q_frobenius_matrix_mod_ell": [
+            [str(value) for value in line] for line in q_frobenius_matrix
+        ],
+        "relative_x_orbit_degree": str(relative_x_degree),
+        "absolute_x_orbit_degree": str(absolute_degree),
+        "absolute_x_orbit_closure_sign": closure_sign,
+        "exact_full_point_orbit_degree": (
+            str(absolute_degree) if closure_sign == 1 else str(2 * absolute_degree)
+        ),
+        "line_return_image": [str(value) for value in line_return],
+        "full_orbit_image": [str(value) for value in full_image],
+        "factor_exclusion_images": exclusion_receipts,
+        "concrete_kernel_x_orbit_status": row["concrete_kernel_x_orbit_status"],
+        "concrete_kernel_x_orbit_degree": row["concrete_kernel_x_orbit_degree"],
+    }
+
+
 def rankdata(values: list[float]) -> list[float]:
     ordered = sorted(enumerate(values), key=lambda pair: pair[1])
     ranks = [0.0] * len(values)
@@ -249,6 +597,233 @@ def verify_source_hashes(panel: dict[str, Any]) -> int:
     require(cited <= set(source_paths),
             f"unhashed cited evidence paths: {sorted(cited - set(source_paths))}")
     return len(source_rows)
+
+
+def verify_rerun_provenance() -> dict[str, int]:
+    relative_path = (
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "rerun_provenance.json"
+    )
+    provenance_path = ROOT / relative_path
+    provenance = json.loads(provenance_path.read_text())
+    require_equal(provenance["schema"],
+                  "k163-conductor-gap-rerun-provenance-v1",
+                  "K-163 rerun provenance schema")
+    require_equal(
+        provenance["repository_state"]["base_commit"],
+        "7d793ffbdf0e63790c3bf7bd20900d5a965ef962",
+        "K-163 rerun provenance base commit",
+    )
+    require_equal(provenance["repository_state"]["dirty"], True,
+                  "K-163 rerun provenance dirty-tree disclosure")
+    require_equal(provenance["environment"]["image"], "codex-pari-gp:2.15.2",
+                  "K-163 rerun provenance container image")
+    require_equal(
+        provenance["environment"]["image_id"],
+        "sha256:ebfb26b44c70c9fba2093729fadc4ff03c2532433d006b7c1ebb729c713cd650",
+        "K-163 rerun provenance container image id",
+    )
+    require_equal(provenance["environment"]["pari_gp"], "2.15.2",
+                  "K-163 rerun provenance PARI/GP version")
+    require_equal(
+        provenance["environment"]["pari_build"],
+        "amd64 linux x86-64, GMP-6.2.1, gcc 12.2.0, pthread",
+        "K-163 rerun provenance PARI/GP build",
+    )
+
+    timestamp_pattern = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+    def verify_execution_metadata(row: dict[str, Any], label: str) -> None:
+        require(isinstance(row.get("command"), str) and bool(row["command"].strip()),
+                f"missing exact command for {label}")
+        started = row.get("started_at_utc")
+        ended = row.get("ended_at_utc")
+        require(isinstance(started, str) and
+                timestamp_pattern.fullmatch(started) is not None,
+                f"invalid UTC start timestamp for {label}")
+        require(isinstance(ended, str) and
+                timestamp_pattern.fullmatch(ended) is not None,
+                f"invalid UTC end timestamp for {label}")
+        require(started <= ended, f"end timestamp precedes start for {label}")
+
+    expected_source_files = {
+        "check_char2_velu_function_identity_small.gp",
+        "run_check_char2_velu_function_identity_small.gp",
+        "control163_45641_horizontal_endomorphism.gp",
+        "run_control163_45641_horizontal_endomorphism.gp",
+        "probe163_45641_relative_tower.gp",
+        "run_probe163_45641_relative_tower.gp",
+        "probe163_45641_seed.gp",
+        "probe163_45641_seed_bounded.inc.gp",
+        "run_probe163_45641_seed.gp",
+        "verify163_45641_seed_endpoint.gp",
+        "run_verify163_45641_seed_endpoint.gp",
+        "verify163_45641_relative_witness.gp",
+        "kernel163_45641_map_relative.gp",
+        "run163_45641_map_relative.gp",
+        "../../isogeny_volcano_rho_20261005/map73_dual_control.gp",
+    }
+    source_files = provenance["source_files"]
+    require_equal(set(source_files), expected_source_files,
+                  "K-163 rerun provenance source-file set")
+    for relative_source, expected_hash in source_files.items():
+        source_path = (provenance_path.parent / relative_source).resolve()
+        require(source_path.is_file(),
+                f"missing rerun provenance source {relative_source}")
+        require(re.fullmatch(r"[0-9a-f]{64}", expected_hash) is not None,
+                f"invalid rerun provenance hash for {relative_source}")
+        require_equal(sha256(source_path), expected_hash,
+                      f"rerun provenance source hash {relative_source}")
+
+    expected_runs = {
+        "char2_velu_identity_fixture": ("admitted_control", "RESULT=PASS"),
+        "k163_degree45641_horizontal_control": (
+            "admitted_control", "RESULT=PASS"
+        ),
+        "k163_degree45641_relative_tower_probe": (
+            "admitted_pre_map_probe", "STOP=before_kernel_polynomial_and_point_map"
+        ),
+        "k163_degree45641_absolute_seed_preflight": (
+            "admitted_preflight",
+            "SEED_PREFLIGHT expected=PASS historical_allow_list_match=0",
+        ),
+        "k163_degree45641_seed_endpoint_validator": (
+            "admitted_endpoint_certificate", "ENDPOINT_FLOOR_CERTIFICATE PASS"
+        ),
+        "k163_degree45641_relative_witness_replay": (
+            "admitted_retained_input_replay", "RESULT=PASS"
+        ),
+        "m37_degree73_map_dual_control": (
+            "admitted_positive_control", "MAP73_DUAL_CONTROL PASS"
+        ),
+    }
+    runs = {row["id"]: row for row in provenance["runs"]}
+    require_equal(len(runs), len(provenance["runs"]),
+                  "K-163 rerun provenance run-id uniqueness")
+    require_equal(set(runs), set(expected_runs),
+                  "K-163 rerun provenance retained-run set")
+    output_hashes_checked = 0
+    receipt_hashes_checked = 0
+    for run_id, (expected_status, success_marker) in expected_runs.items():
+        row = runs[run_id]
+        verify_execution_metadata(row, f"retained run {run_id}")
+        require_equal(row["validity"]["status"], expected_status,
+                      f"rerun provenance validity status {run_id}")
+        require_equal(row["resources"]["exit_status"], 0,
+                      f"rerun provenance exit status {run_id}")
+        require(row["source_set"], f"empty rerun provenance source set {run_id}")
+        require(set(row["source_set"]) <= set(source_files),
+                f"unhashed source in rerun provenance run {run_id}")
+        stdout_stderr = row["stdout_stderr"]
+        if "path" in stdout_stderr:
+            output_path = (provenance_path.parent / stdout_stderr["path"]).resolve()
+            require(output_path.is_file(),
+                    f"missing rerun provenance output {stdout_stderr['path']}")
+            require_equal(sha256(output_path), stdout_stderr["sha256"],
+                          f"rerun provenance output hash {run_id}")
+            output_text = output_path.read_text()
+        else:
+            output_text = stdout_stderr["combined_output"]
+            embedded_hash = hashlib.sha256(output_text.encode()).hexdigest()
+            require_equal(embedded_hash, stdout_stderr["sha256"],
+                          f"rerun provenance embedded-output hash {run_id}")
+        output_hashes_checked += 1
+        require(success_marker in output_text,
+                f"rerun provenance success marker missing for {run_id}")
+        require("exit_status=0" in output_text,
+                f"rerun provenance output exit marker missing for {run_id}")
+        if "receipt" in row:
+            receipt_path = (provenance_path.parent / row["receipt"]["path"]).resolve()
+            require(receipt_path.is_file(),
+                    f"missing rerun provenance receipt {row['receipt']['path']}")
+            require_equal(sha256(receipt_path), row["receipt"]["sha256"],
+                          f"rerun provenance receipt hash {run_id}")
+            receipt_hashes_checked += 1
+
+    expected_direct_markers = {
+        "direct_small": "reason=use_run_check_char2_velu_function_identity_small_driver",
+        "direct_horizontal": "reason=use_run_control163_45641_horizontal_endomorphism_driver",
+        "direct_relative": "reason=use_run_probe163_45641_relative_tower_driver",
+        "direct_seed": "reason=use_run_probe163_45641_seed_driver",
+        "direct_endpoint": "reason=use_run_verify163_45641_seed_endpoint_driver",
+    }
+    expected_fault_ids = {f"fault_{suffix}" for suffix in (
+        "small", "horizontal", "relative", "seed", "endpoint"
+    )}
+    expected_missing_ids = {f"missing_sentinel_{suffix}" for suffix in (
+        "small", "horizontal", "relative", "seed", "endpoint"
+    )}
+    expected_check_ids = (
+        set(expected_direct_markers) | expected_fault_ids |
+        expected_missing_ids | {"shared_process_reset"}
+    )
+    checks = {row["id"]: row for row in provenance["fail_closed_checks"]}
+    require_equal(len(checks), len(provenance["fail_closed_checks"]),
+                  "K-163 rerun provenance fail-closed id uniqueness")
+    require_equal(set(checks), expected_check_ids,
+                  "K-163 rerun provenance fail-closed check set")
+    for check_id, row in checks.items():
+        verify_execution_metadata(row, f"fail-closed check {check_id}")
+        output_text = row["combined_output"]
+        require_equal(hashlib.sha256(output_text.encode()).hexdigest(),
+                      row["output_sha256"],
+                      f"rerun provenance fail-closed output hash {check_id}")
+        output_hashes_checked += 1
+        if check_id == "shared_process_reset":
+            require_equal(row["exit_status"], 0,
+                          "shared-process reset exit status")
+            require_equal(row["validity"], "pass_driver_state_reset",
+                          "shared-process reset validity")
+            require("SHARED_PROCESS_RESET=PASS" in output_text,
+                    "shared-process reset marker missing")
+            require("exit_status=0" in output_text,
+                    "shared-process reset output exit marker missing")
+            continue
+        require_equal(row["exit_status"], 1,
+                      f"fail-closed exit status {check_id}")
+        require_equal(row["validity"], "pass_expected_rejection",
+                      f"fail-closed validity {check_id}")
+        require("exit_status=1" in output_text,
+                f"fail-closed output exit marker missing for {check_id}")
+        if check_id in expected_direct_markers:
+            require(expected_direct_markers[check_id] in output_text,
+                    f"direct-execution rejection marker missing for {check_id}")
+        elif check_id in expected_fault_ids:
+            require("reason=uncaught_gp_exception" in output_text and
+                    "injected fail-closed fault" in output_text,
+                    f"injected-fault rejection marker missing for {check_id}")
+        else:
+            require("EARLY_RETURN_CONTROL=BODY_RETURNED_WITHOUT_SENTINEL" in
+                    output_text and
+                    "reason=implementation_returned_without_completion_sentinel" in
+                    output_text,
+                    f"missing-sentinel rejection marker missing for {check_id}")
+        suffix = check_id.removeprefix("missing_sentinel_")
+        suffix = suffix.removeprefix("direct_").removeprefix("fault_")
+        forbidden_success_marker = {
+            "small": "RESULT=PASS",
+            "horizontal": "RESULT=PASS",
+            "relative": "RESULT=PASS",
+            "seed": "SEED_PREFLIGHT expected=PASS",
+            "endpoint": "ENDPOINT_FLOOR_CERTIFICATE PASS",
+        }[suffix]
+        require(forbidden_success_marker not in output_text,
+                f"success sentinel leaked into rejected check {check_id}")
+
+    require_equal(
+        provenance["claim_boundary"],
+        "These receipts establish controls, endpoint and kernel-line preflight "
+        "evidence. They do not establish a complete K-163 or K-283 vertical "
+        "map-plus-dual transfer, a cheaper ECDLP, or a weak standardized curve.",
+        "K-163 rerun provenance claim boundary",
+    )
+    return {
+        "retained_runs": len(runs),
+        "fail_closed_checks": len(checks),
+        "source_hashes": len(source_files),
+        "output_hashes": output_hashes_checked,
+        "receipt_hashes": receipt_hashes_checked,
+    }
 
 
 def verify_measured_effects(panel: dict[str, Any]) -> dict[str, int]:
@@ -335,6 +910,11 @@ def extract_seconds(path: str, pattern: str) -> list[int]:
     return [int(value) for value in re.findall(pattern, text, flags=re.MULTILINE)]
 
 
+def extract_decimal_seconds(path: str, pattern: str) -> list[float]:
+    text = (ROOT / path).read_text()
+    return [float(value) for value in re.findall(pattern, text, flags=re.MULTILINE)]
+
+
 def verify_construction_measurements(panel: dict[str, Any]) -> dict[str, int]:
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in panel["construction_measurements"]:
@@ -351,6 +931,19 @@ def verify_construction_measurements(panel: dict[str, Any]) -> dict[str, int]:
         )
         require(all(row["sample_count"] == len(rows) for row in rows),
                 f"sample-count mismatch for {rows[0]['measurement_id']}")
+
+    rerun_provenance = read_json(
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "rerun_provenance.json"
+    )
+    require_equal(
+        rerun_provenance["schema"],
+        "k163-conductor-gap-rerun-provenance-v1",
+        "K-163 rerun provenance schema",
+    )
+    provenance_runs = {row["id"]: row for row in rerun_provenance["runs"]}
+    require_equal(len(provenance_runs), len(rerun_provenance["runs"]),
+                  "K-163 rerun provenance id uniqueness")
 
     expected: dict[str, list[float]] = {
         "m41-409": extract_seconds(
@@ -397,6 +990,30 @@ def verify_construction_measurements(panel: dict[str, Any]) -> dict[str, int]:
             "research/ecc2k130_conductor_isogenies_20261007/analogues/run163_82153.out",
             r"isogeny \d+:.*\((\d+) s\)",
         ),
+        "k163-45641-relative-probe": extract_decimal_seconds(
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "probe163_45641_relative_tower.out",
+            r"^TIME .*wall_seconds=([0-9]+(?:\.[0-9]+)?) ",
+        ),
+        "k163-45641-horizontal-control": extract_decimal_seconds(
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "control163_45641_horizontal_endomorphism.out",
+            r"^TIME .*wall_seconds=([0-9]+(?:\.[0-9]+)?) ",
+        ),
+        "k163-45641-seed-preflight": extract_decimal_seconds(
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "probe163_45641_seed.out",
+            r"^TIME .*wall_seconds=([0-9]+(?:\.[0-9]+)?) ",
+        ),
+        "k163-45641-endpoint-validator": extract_decimal_seconds(
+            "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+            "verify163_45641_seed_endpoint.out",
+            r"^TIME .*wall_seconds=([0-9]+(?:\.[0-9]+)?) ",
+        ),
+        "m37-73-map-dual-control": [
+            float(provenance_runs["m37_degree73_map_dual_control"]
+                  ["resources"]["wall_seconds"])
+        ],
     }
     level2_paths = [
         "down163b.out", "down163c.out", "down163_s1.out",
@@ -437,13 +1054,340 @@ def verify_construction_measurements(panel: dict[str, Any]) -> dict[str, int]:
                   "m51 scan observed target conductor")
     require("ascending bottom-to-parent" in scan["note"],
             "m51 scan direction not disclosed")
-    return {"series": len(groups), "rows": len(panel["construction_measurements"])}
+
+    relative_path = (
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "probe163_45641_relative_tower.out"
+    )
+    relative_text = (ROOT / relative_path).read_text()
+    for marker in (
+        "SCHEMA=k163-degree45641-relative-tower-probe-v2",
+        "setup_ms=17",
+        "exact_order=45641 relative_x_degree=20",
+        "witness_ms=4628",
+        "ABSOLUTE_X_ORBIT degree=3260 closure=PASS "
+        "excluded_degrees=[1630, 652, 20] exclusions=[1, 1, 1] "
+        "all_nonzero_kernel_multiples=DERIVED orbit_ms=62",
+        "classification=descending classification_basis=DERIVED "
+        "target_conductor=45641",
+        "point_count=PASS half_kernel_count=22820 inversion_batches=90 "
+        "endpoint_ms=51995",
+        "STOP=before_kernel_polynomial_and_point_map",
+        "RESULT=PASS",
+        "wall_seconds=56.65 max_rss_kib=23724 exit_status=0",
+    ):
+        require(marker in relative_text,
+                f"K-163 relative-tower evidence missing {marker!r}")
+
+    historical_text = (
+        ROOT / "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "run163_45641.out"
+    ).read_text()
+    seed_text = (
+        ROOT / "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "probe163_45641_seed.out"
+    ).read_text()
+    seed_endpoint_verifier_text = (
+        ROOT / "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "verify163_45641_seed_endpoint.out"
+    ).read_text()
+    historical_minima = [
+        int(value)
+        for value in re.findall(r"Galois-orbit min\) = (\d+)", historical_text)
+    ]
+    require_equal(len(historical_minima), 6,
+                  "K-163 historical degree-45,641 endpoint count")
+    seed_match = re.search(r"Galois-orbit min\) = (\d+)", seed_text)
+    relative_match = re.search(r"ENDPOINT .* orbit_min=(\d+)", relative_text)
+    require(seed_match is not None, "K-163 seed endpoint minimum missing")
+    require(relative_match is not None,
+            "K-163 relative endpoint minimum missing")
+    endpoint_minima = historical_minima + [
+        int(seed_match.group(1)), int(relative_match.group(1))
+    ]
+    require_equal(len(set(endpoint_minima)), 8,
+                  "K-163 distinct degree-45,641 endpoint minima")
+    require("ENDPOINT_FLOOR_CERTIFICATE PASS" in seed_endpoint_verifier_text,
+            "K-163 fresh seed endpoint certificate missing")
+    endpoint_binding = re.search(r"^ENDPOINT_B (\d+)$",
+                                 seed_endpoint_verifier_text, re.MULTILINE)
+    require(endpoint_binding is not None,
+            "K-163 seed endpoint verifier binding missing")
+    require_equal(int(endpoint_binding.group(1)), int(seed_match.group(1)),
+                  "K-163 seed endpoint verifier identity")
+    require("SEED_PREFLIGHT expected=PASS historical_allow_list_match=0" in seed_text,
+            "K-163 seed preflight status missing")
+    require("wall_seconds=56.09 max_rss_kib=45832 exit_status=0" in seed_text,
+            "K-163 seed preflight resource receipt missing")
+    require("wall_seconds=90.66 max_rss_kib=33368 exit_status=0" in
+            seed_endpoint_verifier_text,
+            "K-163 seed endpoint verifier resource receipt missing")
+    k163_gap = next(
+        row for row in panel["gaps"]
+        if row["class_id"] == "nist-k163" and int(row["edge_degree"]) == 45641
+    )
+    require_equal(
+        k163_gap["endpoint_status"],
+        "six_historical_plus_two_fresh_preflight_endpoint_samples_"
+        "map_not_retained",
+        "K-163 degree-45,641 endpoint status",
+    )
+    relative = groups["k163-45641-relative-probe"][0]
+    require_equal(relative["class_id"], "nist-k163",
+                  "K-163 relative probe class")
+    require_equal(relative["edge_degree"], "45641",
+                  "K-163 relative probe degree")
+    require_equal((relative["source_f_E"], relative["target_f_E"]),
+                  ("1", "45641"), "K-163 relative probe direction")
+    require_equal(relative["route"], "relative_tower_pre_map_probe",
+                  "K-163 relative probe route")
+    require_equal(
+        relative["scope"],
+        "bounded_pre_map_probe_not_kernel_polynomial_or_point_map",
+        "K-163 relative probe scope",
+    )
+    require_equal(relative["max_rss_kib"], 23724,
+                  "K-163 relative probe peak RSS")
+    require_equal(relative["exit_status"], 0,
+                  "K-163 relative probe exit status")
+    require_equal(
+        relative["certificate_status"],
+        "concrete_exact_x_orbit_descending_witness_and_half_kernel_pass",
+        "K-163 relative probe certificate status",
+    )
+    require_equal(
+        relative["work_units"],
+        {"half_kernel_x_values": 22820, "inversion_batches": 90},
+        "K-163 relative probe work units",
+    )
+    require_equal(
+        relative["phase_elapsed_ms"],
+        {
+            "field_setup": 17,
+            "witness_including_absolute_orbit_and_classification": 4628,
+            "absolute_orbit_nested": 62,
+            "endpoint_and_half_kernel": 51995,
+        },
+        "K-163 relative probe phase timings",
+    )
+    require_equal(
+        relative["phase_accounting"],
+        "absolute_orbit_nested_is_included_in_witness_timer",
+        "K-163 relative probe nested phase accounting",
+    )
+    require_equal(
+        relative["absolute_x_orbit_certificate"],
+        {
+            "degree": 3260,
+            "closure": "pass",
+            "excluded_degrees": [1630, 652, 20],
+            "all_nonzero_kernel_multiples": "derived",
+        },
+        "K-163 concrete absolute x-orbit certificate",
+    )
+    require_equal(relative["stop_boundary"],
+                  "before_kernel_polynomial_and_point_map",
+                  "K-163 relative probe stop boundary")
+
+    witness_verifier_path = (
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "verify163_45641_relative_witness.out"
+    )
+    witness_verifier_text = (ROOT / witness_verifier_path).read_text()
+    for marker in (
+        "SCHEMA=k163-degree45641-relative-witness-verifier-v1",
+        "base_irreducible=PASS base_closure=PASS",
+        "relative_irreducible_over_f2=PASS "
+        "relative_irreducible_over_base=PASS relative_generator_degree=20",
+        "coefficient_count=20 base_encoding=low_to_high_bits round_trip=PASS",
+        "exact_x_order=45641 relative_x_degree=20 q_scalar=7196 "
+        "q_scalar_action=PASS",
+        "classification=descending classification_basis=DERIVED",
+        "ABSOLUTE_X_DEGREE degree=3260 closure=PASS "
+        "excluded_degrees=[1630, 652, 20] exclusions=[1, 1, 1]",
+        "quantified_nonzero_multipliers=45640 inherited_absolute_x_degree=3260 "
+        "status=DERIVED",
+        "NEGATIVE_CONTROL kind=drop_u19_coefficient exact_order_gate=REJECT",
+        "CLAIM_BOUNDARY=verifies_retained_kernel_line_not_isogeny_map_or_ecdlp_advantage",
+        "setup_ms=29",
+        "VERIFY_MS=321",
+        "RESULT=PASS",
+        "wall_seconds=0.36 max_rss_kib=21248 exit_status=0",
+    ):
+        require(marker in witness_verifier_text,
+                f"K-163 retained-input witness replay missing {marker!r}")
+
+    horizontal_path = (
+        "research/ecc2k130_conductor_isogenies_20261007/analogues/"
+        "control163_45641_horizontal_endomorphism.out"
+    )
+    horizontal_text = (ROOT / horizontal_path).read_text()
+    for marker in (
+        "SCHEMA=k163-degree45641-horizontal-control-v1",
+        "alpha=[51,-160] dual=[-109,160] product=[45641, 0] degree=45641 "
+        "direction=horizontal",
+        "COMPOSITIONS samples=1024 left=PASS right=PASS elapsed_ms=6845",
+        "CLAIM_BOUNDARY=same_degree_horizontal_control_not_conductor_transfer",
+        "RESULT=PASS",
+        "wall_seconds=6.86 max_rss_kib=16140 exit_status=0",
+    ):
+        require(marker in horizontal_text,
+                f"K-163 horizontal-control evidence missing {marker!r}")
+    horizontal = groups["k163-45641-horizontal-control"][0]
+    require_equal(horizontal["class_id"], "nist-k163",
+                  "K-163 horizontal control class")
+    require_equal(horizontal["edge_degree"], "45641",
+                  "K-163 horizontal control degree")
+    require_equal((horizontal["source_f_E"], horizontal["target_f_E"]),
+                  ("1", "1"), "K-163 horizontal control placement")
+    require_equal(
+        horizontal["route"], "same_degree_horizontal_endomorphism_control",
+        "K-163 horizontal control route",
+    )
+    require_equal(
+        horizontal["scope"],
+        "horizontal_endomorphism_control_not_conductor_transfer",
+        "K-163 horizontal control scope",
+    )
+    require_equal(horizontal["max_rss_kib"], 16140,
+                  "K-163 horizontal control peak RSS")
+    require_equal(horizontal["exit_status"], 0,
+                  "K-163 horizontal control exit status")
+    require_equal(horizontal["certificate_status"],
+                  "both_compositions_1024_targets_pass",
+                  "K-163 horizontal control certificate status")
+    require_equal(horizontal["work_units"], {"composition_targets": 1024},
+                  "K-163 horizontal control work units")
+    require_equal(horizontal["phase_elapsed_ms"], {"composition_checks": 6845},
+                  "K-163 horizontal control phase timing")
+    require_equal(
+        horizontal["stop_boundary"],
+        "same_degree_horizontal_control_not_conductor_transfer",
+        "K-163 horizontal control claim boundary",
+    )
+
+    seed_preflight = groups["k163-45641-seed-preflight"][0]
+    require_equal(
+        (seed_preflight["class_id"], seed_preflight["edge_degree"],
+         seed_preflight["source_f_E"], seed_preflight["target_f_E"]),
+        ("nist-k163", "45641", "1", "45641"),
+        "K-163 seed preflight identity and direction",
+    )
+    require_equal(seed_preflight["route"], "absolute_field_endpoint_preflight",
+                  "K-163 seed preflight route")
+    require_equal(seed_preflight["scope"],
+                  "bounded_seed_preflight_endpoint_only_not_point_map",
+                  "K-163 seed preflight scope")
+    require_equal(seed_preflight["max_rss_kib"], 45832,
+                  "K-163 seed preflight peak RSS")
+    require_equal(seed_preflight["certificate_status"],
+                  "fresh_endpoint_preflight_pass",
+                  "K-163 seed preflight certificate status")
+    require_equal(seed_preflight["exit_status"], 0,
+                  "K-163 seed preflight exit status")
+    require_equal(seed_preflight["work_units"], {"endpoint_orbits": 1},
+                  "K-163 seed preflight work units")
+    require_equal(seed_preflight["stop_boundary"],
+                  "before_kernel_polynomial_and_point_map",
+                  "K-163 seed preflight stop boundary")
+
+    endpoint_validator = groups["k163-45641-endpoint-validator"][0]
+    require_equal(
+        (endpoint_validator["class_id"], endpoint_validator["edge_degree"],
+         endpoint_validator["source_f_E"], endpoint_validator["target_f_E"]),
+        ("nist-k163", "45641", "1", "45641"),
+        "K-163 endpoint-validator identity and direction",
+    )
+    require_equal(endpoint_validator["route"], "endpoint_floor_certificate",
+                  "K-163 endpoint-validator route")
+    require_equal(endpoint_validator["scope"],
+                  "endpoint_certificate_not_point_map_or_transfer",
+                  "K-163 endpoint-validator scope")
+    require_equal(endpoint_validator["max_rss_kib"], 33368,
+                  "K-163 endpoint-validator peak RSS")
+    require_equal(endpoint_validator["certificate_status"],
+                  "endpoint_floor_certificate_pass",
+                  "K-163 endpoint-validator certificate status")
+    require_equal(endpoint_validator["exit_status"], 0,
+                  "K-163 endpoint-validator exit status")
+    require_equal(endpoint_validator["work_units"], {"endpoint_certificates": 1},
+                  "K-163 endpoint-validator work units")
+    require_equal(endpoint_validator["stop_boundary"],
+                  "endpoint_certificate_not_point_map_or_transfer",
+                  "K-163 endpoint-validator stop boundary")
+
+    map73_text = (
+        ROOT / "research/isogeny_volcano_rho_20261005/map73_dual_control.out"
+    ).read_text()
+    for marker in (
+        '\"m37-degree73-dual-control-v1\"',
+        '[\"status\", \"PASS\"]',
+        '[\"forward_kernel_degree\", 36]',
+        '[\"dual_kernel_degree\", 36]',
+        '[\"target_count\", 1024]',
+        '[\"dual_o_forward_passes\", 1024]',
+        '[\"forward_o_dual_passes\", 1024]',
+        '[\"inverse_degree_recovery_passes\", 1024]',
+        '[\"planted_recovery\", \"PASS\"]',
+        '[\"forward_construction_ms\", 530]',
+        '[\"dual_construction_ms\", 24604]',
+        '[\"target_checks_ms\", 556]',
+    ):
+        require(marker in map73_text,
+                f"degree-73 forward/dual control missing {marker!r}")
+    map73 = groups["m37-73-map-dual-control"][0]
+    require_equal((map73["class_id"], map73["edge_degree"]),
+                  ("koblitz-m37-a0", "73"),
+                  "degree-73 map/dual control identity")
+    require_equal((map73["source_f_E"], map73["target_f_E"]), ("1", "73"),
+                  "degree-73 map/dual control direction")
+    require_equal(map73["route"], "forward_map_dual_positive_control",
+                  "degree-73 map/dual control route")
+    require_equal(
+        map73["scope"],
+        "small_map_dual_and_recovery_positive_control_not_nist_transfer",
+        "degree-73 map/dual control scope",
+    )
+    require_equal(map73["max_rss_kib"], 39708,
+                  "degree-73 map/dual control peak RSS")
+    require_equal(map73["exit_status"], 0,
+                  "degree-73 map/dual control exit status")
+    require_equal(map73["certificate_status"],
+                  "map_dual_compositions_and_recovery_pass",
+                  "degree-73 map/dual control certificate status")
+    require_equal(map73["work_units"], {"targets": 1024, "planted_recoveries": 1},
+                  "degree-73 map/dual control work units")
+    require_equal(map73["phase_elapsed_ms"], {
+        "forward_construction": 530,
+        "dual_construction": 24604,
+        "target_checks": 556,
+    }, "degree-73 map/dual control phase timings")
+    require_equal(map73["stop_boundary"],
+                  "small_degree_positive_control_not_nist_transfer",
+                  "degree-73 map/dual control claim boundary")
+    map73_provenance = provenance_runs["m37_degree73_map_dual_control"]
+    require_equal(map73_provenance["resources"], {
+        "user_seconds": 25.7,
+        "system_seconds": 0.69,
+        "wall_seconds": 26.39,
+        "max_rss_kib": 39708,
+        "exit_status": 0,
+    }, "degree-73 map/dual provenance resources")
+    require_equal(map73_provenance["validity"]["status"],
+                  "admitted_positive_control",
+                  "degree-73 map/dual provenance status")
+    return {
+        "series": len(groups),
+        "rows": len(panel["construction_measurements"]),
+        "proxy_map_dual_controls": 1,
+    }
 
 
 def verify_panel() -> dict[str, Any]:
     panel = json.loads(PANEL_PATH.read_text())
     require_equal(panel["schema"], PANEL_SCHEMA, "panel schema")
     source_count = verify_source_hashes(panel)
+    provenance_receipt = verify_rerun_provenance()
 
     classes = panel["classes"]
     gaps = panel["gaps"]
@@ -515,6 +1459,7 @@ def verify_panel() -> dict[str, Any]:
 
     gap_by_key: dict[tuple[str, int], dict[str, Any]] = {}
     gap_receipts: list[dict[str, Any]] = []
+    working_field_receipts: list[dict[str, Any]] = []
     for row in gaps:
         key = (row["class_id"], int(row["edge_degree"]))
         require(key not in gap_by_key, f"duplicate gap row {key}")
@@ -541,8 +1486,15 @@ def verify_panel() -> dict[str, Any]:
                       f"scalar order for {row['gap_id']}")
         require_equal(int(row["relative_kernel_x_field_degree"]), k,
                       f"minimal kernel x-field degree for {row['gap_id']}")
-        require_equal(int(row["absolute_kernel_x_field_degree"]), m * k,
-                      f"absolute kernel field for {row['gap_id']}")
+        require_equal(int(row["ambient_absolute_x_degree_upper_bound"]), m * k,
+                      f"ambient absolute x-degree bound for {row['gap_id']}")
+        working_field_receipt = verify_working_field_certificate(
+            row, ell, m, 1 if a else -1, scalar, k
+        )
+        working_field_receipts.append({
+            "gap_id": row["gap_id"],
+            **working_field_receipt,
+        })
         require_equal(row["kernel_support"],
                       "source_curve" if sign == 1 else "quadratic_twist",
                       f"kernel support for {row['gap_id']}")
@@ -562,6 +1514,7 @@ def verify_panel() -> dict[str, Any]:
         gap_receipts.append({
             "gap_id": row["gap_id"], "ell": str(ell), "split_type": split,
             "scalar_order": str(scalar_order), "minimal_k": str(k),
+            "working_field_status": row["working_field_status"],
         })
 
     expected_gaps = {
@@ -569,6 +1522,8 @@ def verify_panel() -> dict[str, Any]:
         for row in classes for prime in row["f_pi_factorization"]
     }
     require_equal(set(gap_by_key), expected_gaps, "complete class-prime gap set")
+    require(EXACT_WORKING_FIELD_KEYS <= set(gap_by_key),
+            "exact working-field certificate key absent from gap panel")
 
     level_by_key: dict[tuple[str, int], dict[str, Any]] = {}
     expected_level_keys: set[tuple[str, int]] = set()
@@ -745,6 +1700,11 @@ def verify_panel() -> dict[str, Any]:
         "exact_conductor_levels": len(levels),
         "conditional_adjacent_level_rows": len(adjacencies),
         "nist_k_prime_direction_rows": sum(row["family"] == "nist-k" for row in gaps),
+        "exact_absolute_x_orbit_rows": len(EXACT_WORKING_FIELD_KEYS),
+        "concrete_kernel_x_orbit_rows": len(CONCRETE_KERNEL_X_ORBIT_KEYS),
+        "ambient_upper_bound_working_field_rows": (
+            len(gaps) - len(EXACT_WORKING_FIELD_KEYS)
+        ),
         "p224_potential_direction_rows": 1,
         "exact_zero_vertical_gap_controls": sum(
             row["control_type"] == "exact_zero_vertical_gap" for row in controls
@@ -752,17 +1712,27 @@ def verify_panel() -> dict[str, Any]:
         "unresolved_controls": sum(row["control_type"] == "unresolved" for row in controls),
         "fully_charged_transfer_rows": 0,
         "weakness_eligible_rows": 0,
+        "admitted_ecdlp_comparison_rows": 9,
+        "withheld_ecdlp_comparison_rows": 4,
     }
     for key, expected in expected_summary.items():
         require_equal(summary[key], expected, f"summary {key}")
     xs = [float(row["gap_log2"]) for row in gaps]
-    ys = [math.log2(int(row["absolute_kernel_x_field_degree"])) for row in gaps]
+    ys = [math.log2(int(row["ambient_absolute_x_degree_upper_bound"])) for row in gaps]
     rho = pearson(rankdata(xs), rankdata(ys))
     require(math.isclose(summary["descriptive_association"]["rho"], rho,
                          rel_tol=0.0, abs_tol=1e-15),
             "descriptive Spearman association")
     require_equal(summary["descriptive_association"]["n_rows"], len(gaps),
                   "descriptive association row count")
+    require_equal(
+        summary["descriptive_association"]["metric"],
+        "Spearman(log2 ell, log2 derived m*k ambient degree)",
+        "descriptive association metric label",
+    )
+    require("41 of 43 m*k values are ambient upper bounds" in
+            summary["descriptive_association"]["inference"],
+            "descriptive association working-field limitation")
 
     require(all(row["point_map_status"] == "not_certified" for row in gaps),
             "a gap row unexpectedly claims a certified point map")
@@ -792,6 +1762,7 @@ def verify_panel() -> dict[str, Any]:
         "status": "pass",
         "checks": [
             {"id": "source_hashes", "status": "pass", "rows": source_count},
+            {"id": "rerun_provenance", "status": "pass", **provenance_receipt},
             {"id": "recursive_lucas_primality", "status": "pass",
              "top_level_primes": len(top_level_primes),
              "certificate_nodes": len(certificate_nodes),
@@ -799,6 +1770,10 @@ def verify_panel() -> dict[str, Any]:
              "certificate_graph_sha256": certificate_digest},
             {"id": "class_cm_arithmetic", "status": "pass", "rows": len(classes)},
             {"id": "minimal_kernel_field_orders", "status": "pass", "rows": len(gaps)},
+            {"id": "working_field_evidence", "status": "pass",
+             "exact_abstract_cm_representative_x_orbit_rows": len(EXACT_WORKING_FIELD_KEYS),
+             "concrete_kernel_x_orbit_rows": len(CONCRETE_KERNEL_X_ORBIT_KEYS),
+             "ambient_upper_bound_rows": len(gaps) - len(EXACT_WORKING_FIELD_KEYS)},
             {"id": "conductor_levels", "status": "pass", "rows": len(levels)},
             {"id": "conditional_adjacencies", "status": "pass",
              "rows": len(adjacencies)},
@@ -814,10 +1789,12 @@ def verify_panel() -> dict[str, Any]:
         ],
         "class_receipts": class_receipts,
         "gap_receipts": gap_receipts,
+        "working_field_receipts": working_field_receipts,
         "primality_certificate_nodes": certificate_nodes,
         "limitations": [
             "This receipt verifies exact arithmetic, source transcription, and status gates; it does not construct or evaluate an isogeny.",
             "No row has a certified point map, dual, subgroup-preservation certificate, or fully charged transfer cost.",
+            "K-163/45641 has both a derived CM certificate and a retained concrete-kernel x-coordinate orbit certificate; K-283/1697 has the derived abstract CM certificate only; every other m*k value is an ambient upper bound.",
             "The Spearman coefficient is descriptive only because rows are clustered within trace/isogeny classes and twist-paired geometry families.",
         ],
     }

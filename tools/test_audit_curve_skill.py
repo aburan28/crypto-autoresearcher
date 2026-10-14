@@ -77,6 +77,10 @@ class AuditCurveSkillTests(unittest.TestCase):
             "endomorphism_order_conductor_f_E: null",
             "conductor_gap_index_g_pi_E: null",
             "volcano_levels: []",
+            "direct_kernel_field_certificates: []",
+            "execution_harness:",
+            "unexpected_exception_exits_nonzero: null",
+            "missing_completion_sentinel_exits_nonzero: null",
             "inseparable_endomorphisms: []",
             "selected_set_or_modeled_population: null",
             "endpoint_selection_rule: null",
@@ -163,6 +167,14 @@ class AuditCurveSkillTests(unittest.TestCase):
             "inseparable",
             "N_vertical",
             "Do not convert `f_pi`",
+            "ambient absolute field",
+            "Frob_p^(n/s)",
+            "abstract CM-module representative",
+            "None of these degrees",
+            "canonical launcher fail closed",
+            "completion sentinel",
+            "inject an unexpected exception",
+            "A clean transcript from a fail-open launcher",
         ):
             self.assertIn(required, body)
 
