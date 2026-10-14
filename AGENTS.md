@@ -517,6 +517,19 @@ and solution certificates: `docs/claims-and-verification.md`. Session receipts
 (`tools/session_receipt.py`, `docs/session-receipts.md`) record what a session
 cost; they are never evidence.
 
+Every benchmark, profiler session, and evaluation an agent runs also produces a
+durable insight report, including regressions, failed attempts, and censored
+runs. The report states the question, exact workload and controls, baseline and
+candidate revisions, hardware and tool versions, commands, raw measurements,
+correctness checks, costs, uncertainty, interpretation, and limits; it links to
+the underlying artifacts. Retain native profiler captures (for example Nsight
+Compute `.ncu-rep` files) and source or instruction-level exports when produced.
+If capture fails, retain its logs and state which artifact is absent. Keep the
+report and raw artifacts in a durable evidence path, or commit a manifest with
+digests and stable artifact locations. Never replace a raw capture with a
+summary, overwrite a prior attempt, or discard an unfavorable result; each
+rerun gets a distinct record.
+
 ## Papers
 
 Manuscripts generated from this repository's results live under `papers/`,
