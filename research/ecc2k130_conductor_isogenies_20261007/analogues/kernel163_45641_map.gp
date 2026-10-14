@@ -4,13 +4,14 @@
 \\
 \\ This is the forward-map gate only.  It does not construct the algebraic
 \\ dual; see MAP163_45641_PROTOCOL.md.  Run from this directory with OUT set
-\\ by run163_45641_map.gp.
-
-default(parisize, "4G");
-default(parisizemax, "14G");
+\\ by run163_45641_map.gp.  The driver must resize the PARI stack before
+\\ read() enters this file: resizing it here makes GP abandon the rest of
+\\ this included file and return success without constructing an artifact.
 
 if(type(OUT) != "t_STR", error("OUT must be set by the driver"));
-if(fileexists(OUT), error(Str("refusing to append to existing ", OUT)));
+out_exists = 1;
+iferr(readstr(OUT), E, out_exists = 0);
+if(out_exists, error(Str("refusing to append to existing ", OUT)));
 
 SCHEMA = "k163-degree45641-forward-map-v1";
 MOD = x^163 + x^7 + x^6 + x^3 + 1;
@@ -24,14 +25,7 @@ planted = 0x123456789abcdef0123456789abcdef;
 r = 0x4000000000000000000020108A2E0CC0D99F8A5EF;
 gx_int = 0x02fe13c0537bbc11acaa07d793de4e6d5e5c94eee8;
 gy_int = 0x0289070fb05d38ff58321f2e800536d538ccdaa3d9;
-archived_orbit_minima = Set([
-  20183018253319052689704116247546275258431720285,
-  1699056145793825809974781818934579013935268431,
-  71177121262957429327531167482112665894165601519,
-  86418753047285346854356540661746105839786105877,
-  41105051057298702718687969060611106606052833369,
-  9458681452661928675008670406069307198816595651
-]);
+archived_orbit_minima = Set([20183018253319052689704116247546275258431720285, 1699056145793825809974781818934579013935268431, 71177121262957429327531167482112665894165601519, 86418753047285346854356540661746105839786105877, 41105051057298702718687969060611106606052833369, 9458681452661928675008670406069307198816595651]);
 
 g = ffgen(Mod(1, 2) * MOD, 'g);
 q = 2^m;
@@ -43,7 +37,7 @@ if(!polisirreducible(Mod(1, 2) * MOD), error("NIST field modulus is reducible"))
 if(!isprime(lp) || gcd(lp, r) != 1, error("bad isogeny degree"));
 
 toint(z) = subst(lift(z.pol), variable(z.pol), 2);
-fromint(n) = my(s = 0*g, j = 0); while(n, if(n % 2, s += g^j); n \\= 2; j++); s;
+fromint(n) = my(s = 0*g, j = 0); while(n, if(n % 2, s += g^j); n \= 2; j++); s;
 orbmin(z) = my(c = z^2, mn = toint(z)); while(c != z, mn = min(mn, toint(c)); c = c^2); mn;
 canon_index(j) = my(u = j % lp); if(u < 0, u += lp); min(u, lp-u);
 
@@ -94,6 +88,7 @@ cofactor = ext_order / lp^v_lp;
 setrand(seed);
 xq = 0;
 tries = 0;
+{
 while(!xq,
   tries++;
   x0 = random(K);
@@ -106,8 +101,9 @@ while(!xq,
     xr = T0[1]/T0[2]
   )
 );
+}
 if(ladder(xq, lp)[2] != 0, error("kernel witness does not have order lp"));
-print("KERNEL_WITNESS tries=", tries, " field_seconds=", (getabstime()-t0)\\1000);
+print("KERNEL_WITNESS tries=", tries, " field_seconds=", (getabstime()-t0)\1000);
 
 \\ Enumerate each x([i]Q), 1 <= i <= (lp-1)/2, once.
 t1 = getabstime();
@@ -117,14 +113,16 @@ xs[1] = xq;
 Rm = [xq, xq^0];
 R1 = xdbl(Rm);
 xs[2] = R1[1]/R1[2];
+{
 for(i = 3, half,
   S0 = xadd(R1, [xq, xq^0], Rm[1]/Rm[2]);
   Rm = R1;
   R1 = S0;
   xs[i] = R1[1]/R1[2]
 );
+}
 if(#Set(xs) != half, error("half-kernel abscissae are not distinct"));
-print("KERNEL_XS count=", half, " seconds=", (getabstime()-t1)\\1000);
+print("KERNEL_XS count=", half, " seconds=", (getabstime()-t1)\1000);
 
 \\ Split the half-kernel into q-Frobenius orbits of length k.  Descend each
 \\ degree-k orbit polynomial separately, then multiply in the 163-bit base
@@ -134,7 +132,7 @@ print("KERNEL_XS count=", half, " seconds=", (getabstime()-t1)\\1000);
   my(L = V, n);
   if(#L == 0, return(1));
   while(#L > 1,
-    n = (#L + 1) \\ 2;
+    n = (#L + 1) \ 2;
     L = vector(n, j, if(2*j <= #L, L[2*j-1] * L[2*j], L[2*j-1]))
   );
   L[1]
@@ -143,6 +141,7 @@ print("KERNEL_XS count=", half, " seconds=", (getabstime()-t1)\\1000);
 t2 = getabstime();
 seen = vector(half);
 orbit_factors = List();
+{
 for(i = 1, half,
   if(seen[i], next);
   inds = vector(k);
@@ -164,12 +163,15 @@ for(i = 1, half,
   );
   listput(orbit_factors, Polrev(coeffs, 'X))
 );
+}
 if(vecsum(seen) != half, error("incomplete half-kernel coverage"));
 if(#orbit_factors != half/k, error("wrong number of Frobenius factors"));
 h = product_tree(Vec(orbit_factors));
 if(poldegree(h) != half || pollead(h) != 1, error("bad kernel polynomial"));
+{
 print("KERNEL_POLY degree=", poldegree(h), " orbit_factors=", #orbit_factors,
-      " seconds=", (getabstime()-t2)\\1000);
+      " seconds=", (getabstime()-t2)\1000);
+}
 
 \\ Normalized characteristic-2 Velu map.  h^{[j]} denotes the j-th Hasse
 \\ derivative.  The formulas are independently exercised by the native Rust
@@ -205,8 +207,10 @@ hp = deriv(h);
 tcoef = polcoeff(h, half-1);
 b_endpoint = 1 + tcoef + tcoef^2;
 endpoint_orbit_min = orbmin(b_endpoint);
+{
 if(!setsearch(archived_orbit_minima, endpoint_orbit_min),
   error("endpoint does not match an archived conductor-45641 orbit"));
+}
 E1 = ellinit([1, a2, 0, 0, b_endpoint], g);
 if(ellcard(E1) != N, error("endpoint point count mismatch"));
 
@@ -218,6 +222,7 @@ Q0 = ellmul(E, G0, planted);
 phiQ = velu_point(Q0);
 if(phiQ != ellmul(E1, phiG, planted), error("planted logarithm was not preserved"));
 setrand(seed + 1);
+{
 for(i = 1, hom_samples,
   u = random(r-1) + 1;
   v = random(r-1) + 1;
@@ -226,11 +231,15 @@ for(i = 1, hom_samples,
   if(velu_point(elladd(E, P0, Q1)) != elladd(E1, velu_point(P0), velu_point(Q1)),
     error(Str("homomorphism sample failed: ", i)))
 );
+}
+{
 print("FORWARD_MAP endpoint_orbit_min=", endpoint_orbit_min,
       " subgroup=PASS planted=PASS hom_samples=", hom_samples,
-      " map_seconds=", (getabstime()-t3)\\1000);
+      " map_seconds=", (getabstime()-t3)\1000);
+}
 
 kernel_coefficients = vector(half+1, i, toint(polcoeff(h, i-1)));
+{
 receipt = [
   SCHEMA,
   ["m", m],
@@ -250,6 +259,6 @@ receipt = [
   ["homomorphism_samples", hom_samples],
   ["kernel_coefficients_low_to_high", kernel_coefficients]
 ];
+}
 write(OUT, receipt);
 print("ARTIFACT ", OUT, " coefficients=", #kernel_coefficients);
-

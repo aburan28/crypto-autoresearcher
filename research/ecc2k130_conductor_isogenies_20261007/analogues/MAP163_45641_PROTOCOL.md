@@ -12,9 +12,12 @@ for, not a substitute for, the complete five-arm transfer experiment in
 
 ## Frozen implementation
 
-Run `run163_45641_map.gp` from this directory in PARI/GP 2.15.5.  The driver
-calls `kernel163_45641_map.gp` with deterministic seed 45,641 and refuses to
-append to an existing artifact.
+Run `run163_45641_map.gp` as GP's direct input from this directory in
+PARI/GP 2.15.2 (for example, `gp -q -f run163_45641_map.gp`).  Do not load
+the driver with `read()`: GP abandons the remainder of an included file when
+that file grows the PARI stack.  The driver allocates a 4 GB initial stack
+with a 14 GB maximum before it calls `kernel163_45641_map.gp`, uses
+deterministic seed 45,641, and refuses to append to an existing artifact.
 
 The producer:
 
