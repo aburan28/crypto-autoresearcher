@@ -56,7 +56,7 @@ eprint: $(PDF)
 	mkdir -p submission-staging/eprint
 	cp $(PDF) $(TEX) $(SECTIONS) $(BIB) $(EXTRA) ../paper.mk submission-staging/eprint/
 	$(call copy_assets,submission-staging/eprint)
-	cd submission-staging/eprint && zip -q ../../$(EPRINT_ZIP) *
+	cd submission-staging/eprint && zip -qr ../../$(EPRINT_ZIP) *
 	rm -rf submission-staging/eprint
 	@echo "IACR ePrint submission bundle ready: $(EPRINT_ZIP)"
 
