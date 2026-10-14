@@ -46,7 +46,7 @@ except ImportError:  # imported as tools.<name>, the repository root importable
 import ecc_priority  # noqa: E402
 import sparse_checkout  # noqa: E402
 from experiment_execution import coverage, safe_path, sha256  # noqa: E402
-from research_dispatch import validate_queue  # noqa: E402
+from research_dispatch import GitRepositoryVerifier, validate_queue  # noqa: E402
 
 _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
 
@@ -84,7 +84,7 @@ def _dispatch_queue_ready(repo: Path, plan: Path) -> tuple[bool, str, str | None
     if task is None:
         return False, f"{queue_name}: no valid dispatch queue entry for {task_id}", None
     try:
-        validate_queue(queue)
+        validate_queue(queue, repository_verifier=GitRepositoryVerifier(repo))
     except ValueError as error:
         return False, f"{queue_name}: dispatcher rejects queue: {error}", None
     execution_binding = (task.get("handoff") or {}).get("execution") if isinstance(
