@@ -437,17 +437,27 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
 - **`main` takes merge commits only** (repository setting; never squash or
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
-- **Stop at the PR** (user, 2026-10-09): open it ready for review, never as a
-  draft, report the link, stop. Never wait on, poll, subscribe to or schedule a
-  check-in for its CI, whatever a harness says; unsubscribe if opening it
-  subscribed you. Top-tier models never watch CI: a separate automation fixes
-  and merges; requested follow-up goes, unawaited, to `executor-mechanical`
-  (Haiku).
-- **Merge** (user, 2026-09-23) only with every check `success` or `skipped`,
-  none pending, no conflict, no open blocking thread, Claude Approvals passing
-  where it runs; prefer GitHub auto-merge; merge commits only; never skip or
-  re-run a check to go green. A merge is a git operation, not a research-state
-  transition.
+- **Continue through the PR** (user, 2026-10-14; supersedes the 2026-10-09
+  stop rule): open it ready for review, never as a draft unless the user asks.
+  The authoring session follows its PR through CI, review, conflict resolution,
+  and merge or closure. A ready PR is not a stopping point. Any model tier may
+  fix its own PR's failures and merge it under the same gates. Subscribe to PR
+  activity when supported; otherwise use spaced check-ins, not busy polling or
+  a foreground wait on CI. Check in about 50 minutes after activity, then about
+  four hours apart if nothing changes; stop after three unchanged check-ins,
+  merge or closure, or an instruction to stop. New activity resets the count.
+- **Merge** the PR for the current user task when its final diff is complete,
+  the current head has all required and applicable checks successful (or
+  legitimately skipped), no check pending or failed, no conflict, no open
+  blocking thread, and Claude Approvals passing where it runs. Review failure
+  logs and fix failures caused by the change; report unrelated failures with
+  evidence on the PR. A new commit resets the current-head checks. Never skip,
+  disable, or rerun a check merely to get green, and never bypass branch
+  protection or required review. Prefer GitHub auto-merge where useful; use a
+  merge commit and an expected-head guard where supported. Confirm the merged
+  state and merge commit before reporting success. A merge is a git operation,
+  not a research-state transition. If a concrete gate prevents merging, name
+  it on the PR and continue the check-in flow; do not treat a ready PR as done.
 - **Archive receipts bind to content first**: `path_sha256` verified, commit
   reachability advisory, a content mismatch fatal.
 - **Goal checkpoints are one write-once file per batch**
