@@ -18,6 +18,7 @@ Keep resolved and superseded records in the index.
 | [m=51 deep volcano inference and maps remain open](m51-deep-volcano-levels-not-constructed.md) | open | Release of four-level inference and vertical-transfer tests across the factor-120871 gap | A fresh frozen replication whose control gate passes; explicit adjacent map/dual certificates for transfer claims |
 | [P-224 degree-3 point maps are not certified](p224-degree3-point-maps-not-certified.md) | open | Complete P-224 component and subgroup-transfer tests | Explicit map/dual pairs, conductor labels, graph closure, and recovery checks |
 | [Hom degree forms finite-field certification](lattice-hom-degree-forms-finite-field-certification.md) | open | EXP-ENDO-371597 finite-field lift and independent certification | Certified maps from ordinary finite-field Hom bases; independent review receipt |
+| [lattice-order-saturation-finite-field-certification](lattice-order-saturation-finite-field-certification.md) | open | EXP-ENDO-854769 | finite-field maps and independent certification absent |
 
 ## Add or update a problem
 
@@ -73,5 +74,3 @@ existing fields and authority. Problem status does not change a goal's status,
 approve an experiment, retire a direction, or promote a claim. An impeded goal
 remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
-
-| [lattice-order-saturation-finite-field-certification](lattice-order-saturation-finite-field-certification.md) | open | EXP-ENDO-854769 | finite-field maps and independent certification absent |
