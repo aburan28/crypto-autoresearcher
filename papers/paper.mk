@@ -28,7 +28,10 @@ ASSETS   ?=
 
 # Copy the given files into a staging directory, keeping their relative
 # paths, so \input{sections/a.tex} and figures/a.pdf still resolve there.
-copy_tree = tar cf - $(1) | (cd $(2) && tar xf -)
+# Goes through a temporary archive rather than a pipe: /bin/sh reports only
+# a pipeline's last status, so a missing source would otherwise ship an
+# incomplete bundle without failing the target.
+copy_tree = tar cf $(2).tar $(1) && tar xf $(2).tar -C $(2) && rm -f $(2).tar
 SOURCES  = $(TEX) $(SECTIONS) $(BIB) $(ASSETS)
 
 .PHONY: all clean arxiv eprint deanonymize check
