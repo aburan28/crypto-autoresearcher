@@ -7,8 +7,12 @@ explain the gap and what would let the work move past it.
 
 ## Index
 
+This index does not assert that all repository obstructions are recorded.
+Keep resolved and superseded records in the index.
+
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [250-billion point-data storage](solinas-250b-storage-unavailable.md) | investigating | Full compact retention for later arbitrary ML; aggregate campaign selected October14 | Larger writable storage or configured S3 upload/checksum identity; aggregate mode preserves the fixed count-based inference |
 | [EigenX/CEST EndRing reduction is not established](eigenx-cest-endring-reduction-not-established.md) | investigating | An EndRing-based confidentiality theorem or completion claim; BATCH-5313dc and BATCH-3e1bfd both archived with zero survivors, and the endpoint-fiber raw XOR syntax has an exact CCA break; novelty, QPT/QROM and Cat-5 obligations remain open | A concrete endpoint-fiber law and nontrivial label/evaluator pair, or a reviewed correctly directed reduction on the exact real-key distribution; every replacement still needs six-obligation, quantum, and concrete-category evidence |
 | [Koblitz vertical isogeny maps are not persisted](koblitz-vertical-isogeny-maps-not-persisted.md) | open | K-163/K-283 endpoint rho and transported-action tests | Finish an admitted K-163 or K-283 forward-map gate, then certify its dual, subgroup recovery, and matched full cost |
 | [m=51 deep volcano inference and maps remain open](m51-deep-volcano-levels-not-constructed.md) | open | Release of four-level inference and vertical-transfer tests across the factor-120871 gap | A fresh frozen replication whose control gate passes; explicit adjacent map/dual certificates for transfer claims |
