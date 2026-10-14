@@ -7,13 +7,12 @@ explain the gap and what would let the work move past it.
 
 ## Index
 
-No problem records have been added yet; remove this sentence when adding the
-first record. This is a new tracking directory, not
-an assertion that the repository has no unresolved blockers. Add a row when
-creating a record; keep resolved and superseded records in the index.
+This index does not assert that all repository obstructions are recorded.
+Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [250-billion point-data storage](solinas-250b-storage-unavailable.md) | investigating | Full compact retention for later arbitrary ML; aggregate campaign selected October14 | Larger writable storage or configured S3 upload/checksum identity; aggregate mode preserves the fixed count-based inference |
 
 ## Add or update a problem
 
