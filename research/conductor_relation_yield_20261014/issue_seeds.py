@@ -21,6 +21,7 @@ SOURCE_NAMES = (
     "plan.json", "collector.rs", "count_verify.cpp", "verify_collector.py",
     "prepare_input.py", "exact_interval.py", "execute_prepared.py", "certify_panel.py",
     "issue_seeds.py", "reveal_seeds.py",
+    "trial_driver.py", "trial_check.py",
 )
 
 
