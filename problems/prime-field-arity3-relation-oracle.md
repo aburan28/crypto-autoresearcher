@@ -21,6 +21,19 @@ The previous `crypto` ecbench pair sessions implement an arity-2 MITM IC pipelin
 - **Missing capability:** Formal approved `EXP-*` admission and dispatch binding for the [bounded execution component](../research/conductor_relation_yield_20261014/controls/EXECUTION_WRAPPER_20261015.md); execution of the independent full-size no-hit completeness oracle; a serialized degree-ell point map for any future same-point transport arm; actual post-freeze seed issue, public commitment and post-seal reveal; full-size resource receipts. The separate [ordered-count oracle](../research/conductor_relation_yield_20261014/controls/independent_count_20261015/insight.md) passes the small exhaustive control, but has not checked the frozen panel. The fixed-panel [source and conductor certificate](../research/conductor_relation_yield_20261014/controls/panel_certificate_20261015/insight.md) verifies the selected model identities and conductors; it does not provide the map.
 - **What this evidence does not establish:** No direction or magnitude of native yield difference, no conductor-causal effect, no transported same-point comparison, and no ECDLP cost advantage.
 
+## Current coordination impediment
+
+The component and control commits are local on
+`codex/conductor-relation-yield-20261014`. A read-only merge-tree preview
+against `origin/main` produced a tree without conflicts, but the required
+pre-design merge has not been applied: Conductor's `dir:.` conflict check
+reported active claims across files that current main would update. The
+earlier push of this branch was rejected by automatic approval review because
+the external Git remote was not established as trusted. Neither condition is
+a mathematical result. Formal ledger design, approval, seed issuance and
+collection wait for a conflict-free coordination window and explicit approval
+for remote publication, followed by the normal admitted dispatcher checks.
+
 ## What would unblock it
 
 - [ ] Bind the committed preparer, collector, independent count oracle, verifier, interval inverter and bounded wrapper to a formal approved specification and dispatcher. Commit and publish all 20 prepared inputs before collection; the collector must receive no seed file or planted log.
