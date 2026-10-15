@@ -31,8 +31,11 @@ The blueprint's four hypotheses were already tested in these repositories
 (section 1), and every lead it leaves open has now been worked as far as this
 container allows (section 3). The outcome is uniform: **no conductor,
 volcano-level or isogeny-graph feature carries information about ECDLP attack
-cost beyond matched controls, in any family, at any arity, under any of the
-blueprint's own controls.** Specifically:
+cost beyond matched controls that a predictor can use, in any family, at any
+arity, under any of the blueprint's own controls.** With about 45 times more
+prime-field data the static block becomes detectable on prime-field rho, at 0.0003 bits or
+less (§3.8); it never makes a better model by a margin within two orders of
+magnitude of the curve-to-curve noise. Specifically:
 
 - binary Koblitz class n = 16 (the only in-repo class with two floor levels),
   per-prime strata (v₃, v₃₁), m = 2: null (§3.1);
@@ -54,7 +57,14 @@ blueprint's own controls.** Specifically:
   the new n = 51 class: wherever a descending isogeny is constructible its cost
   is 2⁵ to 2⁵⁰ below the floor curve's rho, so a floor-curve method must beat
   the crater's rho to matter; where the kernel field degree exceeds 10⁴ the
-  level is unreachable in either direction (§3.6).
+  level is unreachable in either direction (§3.6);
+- the **same ladder on about 45 times more data** (69,894 prime-field rho
+  curves over 1,109 fields; 83,120 curves of 43 complete classes with 65,278
+  isogeny edges; 139,357 rows of 230 binary classes, n = 20 to 62; the complete
+  n = 19 Koblitz class): the static block loses to controls on 18 of 20
+  dataset-target pairs and wins the other two by 0.0001 and 0.000002 bits; the
+  network over isogeny edges is worse than without edges on all six expanded
+  targets (§3.8).
 
 The blueprint's own stop rule (§19, "No verified relation advantage: publish
 null result and stop expensive scaling") is therefore triggered on the
@@ -329,6 +339,74 @@ the m = 3 panel, transport vs rho across the ladder), `README.pdf`.
 
 ![Figure 2: per-prime strata at n = 16, the n = 51 levels, the m = 3 panel, transport cost vs rho across the ladder](figures/comprehensive_pass.svg)
 
+### 3.8 The ladder on expanded data (`ml-cryptanalysis` PR #17)
+
+**Data.** A restart-safe shard factory (`ml-cryptanalysis/scripts/data_factory.py`)
+extended three of the datasets, and the n = 19 Koblitz class was swept in full
+(`crypto/experiments/koblitz_presentation_ext/pres_19_1_l9.jsonl`, 457 members
+× 4 random subspaces). The retrain used a pinned snapshot of 492 shards
+(`shards_retrain1.txt`): `prime_rho_expanded` (69,894 curves, 14 to 21 bits,
+1,109 fields), `prime_enum_graph_expanded` (83,120 curves of 43 complete
+classes, 65,278 edges), `binary_classes` (139,357 rows of 230 classes,
+n = 20 to 62 and 51, 139,127 edges) and `binary_ic_per_curve_expanded`
+(975 curves). Generation continues.
+
+**Protocol changes above 15,000 rows**, stated because they change what the
+numbers mean: gradient-boosted trees and kNN train on at most 15,000 rows per
+fit (whole groups, fixed seed; every row is still predicted and scored),
+the bootstrap ensemble has 4 members, the shuffled-static null has 50 draws
+(smallest attainable p = 1/51 = 0.020), and leave-family/field-out uses at
+most 10 whole-key folds. Smaller datasets are unchanged, so their rows below
+reproduce §3.4.
+
+**Results** (`expanded_retrain_table.py` → `expanded_retrain_table.{json,md}`;
+out-of-fold MAE in bits, best of ridge / trees / kNN; same-stratum SD = SD of
+the cost difference between two curves in the same class and level stratum):
+
+| dataset (rows) | target | controls | + static | static − controls | + setup \|F\| | GNN edges / no edges | null gain (p, draws) | same-stratum SD |
+|---|---|---|---|---|---|---|---|---|
+| prime_rho (1,548) | `log_aut_S_total` | 0.0231 | 0.0246 | +0.00141 | — | — | -0.00126 (1.000, 200) | 0.0292 |
+| prime_rho (1,548) | `log_plain_S_total` | 0.0279 | 0.0287 | +0.00079 | — | — | -0.00045 (0.119, 200) | 0.0459 |
+| prime_rho_expanded (69,894) | `log_aut_S_total` | 0.0197 | 0.0199 | +0.00013 | — | — | -0.00006 (1.000, 50) | 0.0319 |
+| prime_rho_expanded (69,894) | `log_plain_S_total` | 0.0244 | 0.0243 | -0.00011 | — | — | +0.00002 (0.020, 50) | 0.0444 |
+| prime_enum_graph (1,854) | `log_aut_S_total` | 0.0098 | 0.0099 | +0.00011 | — | 0.0713 / 0.0555 | -0.00069 (1.000, 200) | 0.0174 |
+| prime_enum_graph (1,854) | `log_plain_S_total` | 0.0114 | 0.0115 | +0.00006 | — | 0.0680 / 0.0538 | -0.00081 (1.000, 200) | 0.0195 |
+| prime_enum_graph_expanded (83,120) | `log_aut_S_total` | 0.0107 | 0.0110 | +0.00030 | — | 0.0259 / 0.0197 | +0.00030 (0.020, 50) | 0.0177 |
+| prime_enum_graph_expanded (83,120) | `log_plain_S_total` | 0.0119 | 0.0121 | +0.00025 | — | 0.0263 / 0.0201 | +0.00022 (0.020, 50) | 0.0199 |
+| binary_ic_per_curve (646) | `log_red` | 0.0370 | 0.0407 | +0.00367 | 0.0281 | 0.0623 / 0.0504 | +0.01525 (0.259, 200) | — |
+| binary_ic_per_curve (646) | `log_us` | 0.1979 | 0.2852 | +0.08732 | 0.2120 | 0.3434 / 0.3750 | -0.05574 (0.483, 200) | — |
+| binary_ic_per_curve (646) | `log_yield_F2` | 0.0616 | 0.0647 | +0.00305 | 0.0607 | 0.1727 / 0.1017 | -0.00192 (0.005, 200) | — |
+| binary_ic_per_curve_expanded (975) | `log_red` | 0.0283 | 0.0308 | +0.00250 | 0.0220 | 0.0509 / 0.0357 | +0.01440 (0.891, 200) | — |
+| binary_ic_per_curve_expanded (975) | `log_yield_F2` | 0.0596 | 0.0626 | +0.00294 | 0.0587 | 0.1523 / 0.0949 | -0.00223 (0.129, 200) | — |
+| binary_n51_class (114) | `log_F_fraction` | 0.0177 | 0.0178 | +0.00013 | 0.0176 | 0.0195 / 0.0210 | -0.00038 (0.348, 200) | — |
+| binary_n51_class (114) | `log_yield2_exact` | 0.0353 | 0.0356 | +0.00026 | 0.0353 | 0.0390 / 0.0416 | -0.00076 (0.348, 200) | — |
+| binary_classes (139,357) | `log_F_fraction` | 0.0492 | 0.0492 | -0.00000 | — | 0.0497 / 0.0494 | -0.00000 (0.314, 50) | 0.0889 |
+| binary_classes (139,357) | `log_yield2_exact` | 0.1109 | 0.1109 | +0.00005 | — | 0.8662 / 0.6413 | -0.00005 (1.000, 50) | 0.1776 |
+
+**Reading.**
+
+- *Best model versus best model*: the static block loses on 18 of the 20
+  dataset-target pairs of the full report (the 17 rows above plus ECC2K-130 and
+  the two per-cell binary targets of §3.4). The two wins (expanded rho, plain arm, 0.0001 bits; binary classes,
+  factor-base fraction, 0.000002 bits) are 400 and 55,000 times smaller than
+  the same-stratum SD.
+- *Null*: on three of the four expanded prime-field targets the static block
+  beats every one of the 50 shuffled draws (p = 0.020, the floor). The
+  conductor and level features therefore carry real information about
+  prime-field rho cost that the controls do not. It is worth 0.00002 to
+  0.0003 bits, at most 0.02 % of the cost, and only a linear model registers
+  it. On the binary data the null shows nothing (p = 0.13 to 1.0).
+- *Setup beats structure, again*: with the complete n = 19 class the
+  factor-base size |F| lowers reductions-per-call error from 0.028 to 0.022
+  bits, while the static block raises it to 0.031.
+- *Graph*: on all six expanded targets the message-passing network is worse
+  with the real isogeny edges than without them (binary 2-sum yield 0.87
+  against 0.64 bits), and both are worse than tabular trees.
+
+This sharpens the verdict rather than changing it: the information H1 asks
+about exists on prime-field rho, and it is two to four orders of magnitude
+below the curve-to-curve noise, too small to rank curves or to motivate a curve-specific attack.
+
 ## 4. What remains open after this pass
 
 | lead | status after v2 | what would move it |
@@ -389,4 +467,5 @@ KR-IC-791cb7, KR-IC-5ea2f8, KR-IC-f5c584. Session receipt SR-20261010-22ebc7.
 | `n51_level_yield_analysis.py`, `n51_level_yield_results.json` | §3.2 |
 | `PROTOCOL-m3-level-panel.md`, `m3_panel_analysis.py`, `m3_panel_results.{json,md}` | §3.5 |
 | `transport_cost_table.py`, `transport_cost_table.{json,md}` | §3.6 |
+| `expanded_retrain_table.py`, `expanded_retrain_table.{json,md}` | §3.8 |
 | `make_figure.py`, `make_figure2.py`, `figures/*.svg` | the graphs (editable source is the script) |
