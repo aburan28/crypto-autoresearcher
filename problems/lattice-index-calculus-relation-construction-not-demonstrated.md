@@ -3,7 +3,7 @@
 - **Status:** open
 - **Kind:** proof gap, implementation/evidence gap; source/access scope limits separated below
 - **Affected work:** RQ-IC-a39c7e; TASK-20261015-c848bd; IDEA-20261015-3afbc7, IDEA-20261015-1e8145, IDEA-20261015-9defe9; [report](../research/lattice_index_calculus_20261015/report.md)
-- **Next action owner:** Coordinator for a separate executable design; Executor only after ordinary admission
+- **Next action owner:** Executor for the already-admitted polynomial successor; Coordinator for the subsequent independent four-track review
 - **Last updated:**2026-10-15
 
 ## Problem
@@ -88,3 +88,58 @@ does not authorize silently closing or promoting another.
 2026-10-15: opened as an exploratory named construction/evidence gap for the three
 requested routes. Unresolved. No hypothesis/goal status is changed; root owns the
 problem-index entry and publication.
+
+
+### 2026-10-15: executable follow-on observations, review still pending
+
+The original text above records the no-trial exploratory task. Subsequent
+prospectively approved work now supplies three completed observation sets; the
+polynomial successor is still running. These additions do not retroactively
+change the exploratory report or resolve this construction problem.
+
+- Pairing EXP-IC-de9929 / RUN-IC-a784bc: actual order-11 pairing, element
+  identities, relative-log system and descent outputs are retained in
+  [the inspected report](../experiments/EXP-IC-de9929/reports/run-20261015T0733Z/report.md).
+  No NFS complexity or secure-curve speedup is established.
+- Factor-base EXP-IC-18a59e / RUN-IC-ffda66: recorded exact list/map/chain
+  equality for146 finite fibers, including124 empty and22 nonempty fibers,
+  with subgroup/action/rank certificates. See
+  [the inspected report](../experiments/EXP-IC-18a59e/reports/run-20261015T0711Z/report.md).
+  Fresh remote raw-payload custody is distinct from independent mathematics.
+- Combined EXP-IC-ab2c47 / RUN-IC-c497d3: all prescribed coordinate bounds
+  through32 empty the filtered bases in this exact catalog; whole-field97
+  retains22 nonempty fibers. Among576 finite-target arm cells,432 have a
+  strict certificate and60 have zero-dimensional ideals, but none yields a
+  verified subgroup root or new normalized rank. See
+  [the inspected report](../experiments/EXP-IC-ab2c47/reports/run-20261015T0849Z/report.md).
+  This is a bounded representation/extraction observation, not a universal
+  obstruction. With zero new rank, cost per useful independent relation is
+  undefined. Canonical11 checkpoint6d12f47affc7a2b74ee03aa31b2d17a2a9bf8e4c
+  has actual native Git verification and separate downloaded-payload custody.
+- Original polynomial EXP-IC-74cbb1 / RUN-IC-0dacba remains a retained
+  implementation MemoryError without raw/manifest. The
+  [HNF implementation obstruction](lattice-ic-integer-hnf-memory-growth.md)
+  remains investigating. A two-way integer-lattice repair passed41 scoped
+  software tests, then received a separate same-grid successor approval
+  EXP-IC-66c447 / RUN-IC-0d0c36. It has not yet produced a terminal result.
+
+The next checkable gate is the successor's actual terminal archive, followed by
+all five prospective independent review joints. Blind group predictions were
+archived before producer comparison; no full-joint comparison or whole-round
+review pass is inferred. Original certification issues2152–2155 remain pending.
+All scientific status and quantitative performance gates remain unchanged.
+
+One follow-up representation question is localized by the combined encoding:
+its finite-chain system includes known terminal equations x_d=B_x. Substitution
+can remove those variables while preserving the finite affine modular solutions
+under projection. Removing a bound on that known constant changes the current
+bounded search region; it is not a reinterpretation of the frozen run. Any
+follow-up must prospectively certify projected list/map/chain equality, restore
+all rational lifts and pole handling, measure actual remaining unknown-coordinate
+heights/density, and pay for every choice of translation or representation.
+Whether that helps a lattice solver is untested; novelty and an advantage are
+not established. No new trial or parameter expansion is authorized by this note.
+
+Unresolved. Completing toy implementations and retaining bounded zero yield do
+not establish the requested density, usable independent relations and complete
+cost advantage simultaneously.
