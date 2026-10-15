@@ -344,7 +344,7 @@ the m = 3 panel, transport vs rho across the ladder), `README.pdf`.
 four disjoint seed and prime tiers so far) extended three of the datasets, and
 the n = 19 Koblitz class was swept in full
 (`crypto/experiments/koblitz_presentation_ext/pres_19_1_l9.jsonl`, 457 members
-× 4 random subspaces). The full generated data no longer fits this pipeline in
+× 8 random subspaces). The full generated data no longer fits this pipeline in
 the container (1.7 million complete-class rows, a million binary rows), so
 retrain 2 used a bounded, reproducible snapshot pinned by
 `ml-cryptanalysis/scripts/pin_shards.py` (`shards_retrain2.txt`): all rho shards
@@ -388,8 +388,8 @@ the cost difference between two curves in the same class and level stratum):
 | binary_ic_per_curve (646) | `log_red` | 0.0370 | 0.0407 | +0.00367 | 0.0281 | 0.0623 / 0.0504 | +0.01525 (0.259, 200) | — |
 | binary_ic_per_curve (646) | `log_us` | 0.1979 | 0.2852 | +0.08732 | 0.2120 | 0.3434 / 0.3750 | -0.05574 (0.483, 200) | — |
 | binary_ic_per_curve (646) | `log_yield_F2` | 0.0616 | 0.0647 | +0.00305 | 0.0607 | 0.1727 / 0.1017 | -0.00192 (0.005, 200) | — |
-| binary_ic_per_curve_expanded (975) | `log_red` | 0.0283 | 0.0308 | +0.00250 | 0.0220 | 0.0509 / 0.0357 | +0.01440 (0.891, 200) | — |
-| binary_ic_per_curve_expanded (975) | `log_yield_F2` | 0.0596 | 0.0626 | +0.00294 | 0.0587 | 0.1523 / 0.0949 | -0.00223 (0.129, 200) | — |
+| binary_ic_per_curve_expanded (975) | `log_red` | 0.0271 | 0.0301 | +0.00301 | 0.0211 | 0.0506 / 0.0422 | +0.01550 (0.891, 200) | — |
+| binary_ic_per_curve_expanded (975) | `log_yield_F2` | 0.0523 | 0.0553 | +0.00293 | 0.0515 | 0.1434 / 0.0836 | -0.00218 (0.144, 200) | — |
 | binary_n51_class (114) | `log_F_fraction` | 0.0177 | 0.0178 | +0.00013 | 0.0176 | 0.0195 / 0.0210 | -0.00038 (0.348, 200) | — |
 | binary_n51_class (114) | `log_yield2_exact` | 0.0353 | 0.0356 | +0.00026 | 0.0353 | 0.0390 / 0.0416 | -0.00076 (0.348, 200) | — |
 | binary_classes (249,998) | `log_F_fraction` | 0.0504 | 0.0504 | -0.00000 | — | 0.0521 / 0.0509 | +0.00000 (0.059, 50) | 0.0902 |
@@ -411,8 +411,8 @@ the cost difference between two curves in the same class and level stratum):
   model registers it. On the binary data the null shows nothing (p = 0.059 to
   1.0).
 - *Setup beats structure, again*: with the complete n = 19 class the
-  factor-base size |F| lowers reductions-per-call error from 0.028 to 0.022
-  bits, while the static block raises it to 0.031.
+  factor-base size |F| lowers reductions-per-call error from 0.027 to 0.021
+  bits (8 subspaces per curve), while the static block raises it to 0.030.
 - *Graph*: on all six expanded targets the message-passing network is worse
   with the real isogeny edges than without them (complete classes 0.060
   against 0.038 bits; binary 2-sum yield 1.55 against 0.70), and both are
