@@ -24,7 +24,9 @@ Keep resolved and superseded records in the index.
 | [Lattice index-calculus relation construction](lattice-index-calculus-relation-construction-not-demonstrated.md) | open | RQ-IC-a39c7e: usable relation density, independent rank and complete cost; pairing/factor-base/combined observations are unreviewed; polynomial successor running | Complete the polynomial successor and independent mathematical/cost review; no generic speedup established |
 | [Polynomial integer-HNF transformation memory growth](lattice-ic-integer-hnf-memory-growth.md) | investigating | EXP-IC-74cbb1 failed before serialized results; polynomial and dependent combined execution | Bounded exact HNF with two-way Z-membership, unchanged criteria/caps/resources, and a fresh native-admitted successor run |
 
-| [Lattice IC blind Reviewer session continuity](lattice-ic-blind-review-session-continuity.md) | investigating | Same-Reviewer later full comparison after lost runtime access; native replacement composition missing | Tested explicit additive phase replacement, new independent blind7 and verified archive8 before gated comparison |
+| [Lattice IC blind Reviewer session continuity](lattice-ic-blind-review-session-continuity.md) | investigating | Same-Reviewer later comparison after lost runtime access; source support verified, original history contaminated | Fourth successful archive, refreshed scoped history check on clean isolated tree, new independent blind7 and verified archive8 before same-session gated comparison |
+
+| [Polynomial claim authority and durable progress](lattice-ic-polynomial-lease-progress-observability.md) | investigating | EXP-IC-66c447 expired before serialized results; scientific stage unknown | Actual failure9 custody, narrowly tested durable stderr events, fresh identical-grid/2GiB admission with longer upfront normal authority, then actual outcome |
 
 ## Add or update a problem
 

@@ -40,3 +40,6 @@ These are exit conditions for this implementation obstruction. They would not es
 ## Resolution and history
 
 2026-10-15: opened after the first polynomial attempt failed during HNF transformation construction. Original eight files and the missing two outputs remain unchanged. Investigation continues; no research status changes.
+
+
+2026-10-15 later operational outcome: repaired successor EXP-IC-66c447/RUN-IC-0d0c36 ended with actual `claim_expired`, null driver/checker returncodes, empty stderr and absent raw/manifest. This does not identify HNF as the active stage or establish a new HNF defect. Source software repair acceptance remains recorded; full-grid completion is still unestablished. The distinct [claim-authority/progress-observability problem](lattice-ic-polynomial-lease-progress-observability.md) owns prospective telemetry and longer normal-lease remedy after exact failed custody. The original MemoryError evidence and this record's full-grid/independent-review exit conditions remain unchanged.
