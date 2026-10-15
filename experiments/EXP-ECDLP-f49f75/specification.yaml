@@ -1,0 +1,95 @@
+experiment:
+  id: EXP-ECDLP-f49f75
+  hypothesis_id: H-ECDLP-60de36
+  question_id: RQ-ECDLP-001
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  status: approved
+  claim_tier: toy
+  retrospective: false
+  retrospective_note: >-
+    PRE-REGISTRATION. Frozen before the first full run (smoke runs on a separate
+    seed, used only to debug the launcher, are not data). Thresholds change only
+    by a versioned amendment filed before the affected data is generated.
+  title: >-
+    PKM 2-isogeny-chain factor base (the user's P-256 route) versus dense
+    encoding of the same set, a random set, and enumeration: Semaev m = 2, 3
+    decomposition cost under one Groebner instrument at toy scale
+  objective: >-
+    Decide whether the short isogeny-chain description of the factor base
+    provides ANY solver advantage for the decomposition step, the step the
+    proposal identifies as the missing trapdoor. If the chain encoding is not
+    faster than a structureless control at toy scale, the route needs a new
+    idea, not a bigger machine.
+  inputs:
+    primes: smallest prime p > 2^(m*L) with p = 3 mod 4 and 2^L | p+1 (mirrors 2^96 | p+1 for P-256)
+    auxiliary_curve: E0 y^2 = x^3 + x; R with full 2-part and 2R not in <K>; K = [(p+1)/2^L]R
+    chain: L Velu 2-isogenies with kernel <K>; V = x(R + <K>), |V| = 2^L, verified by assertion
+    target_curve: y^2 = x^3 - 3x + b, b seeded per instance (P-256 shape a = -3)
+    factor_base: points of the target curve with x in V (about 2^(L-1))
+    targets: 4 planted (T = sum of m seeded factor-base points with random signs) + 2 random points per cell
+  arms:
+    A_chain: V by L quadratic chain equations per point; m*L variables
+    B_dense_same_set: same V by its degree-2^L minimal polynomial; m variables
+    C_dense_random_set: uniformly random set of size 2^L, dense encoding; own planted targets
+    E_enumeration: meet-in-the-middle over +-FB; counted group operations and wall time
+  controls:
+    - negative/null control: arm C (no structure, same size, same encoding as B)
+    - encoding control: arm B (same set as A; isolates the encoding)
+    - generic baseline: arm E (cost ~2|FB| for m = 2, ~2|FB|^2 for m = 3)
+    - correctness/positive control: every planted decomposition must lie in the computed Groebner variety (subst of planted point into the reduced basis gives zero); every enumeration hit is re-summed on the curve
+    - dynamic range: the instrument must resolve the known cost growth with L and the m = 2 -> m = 3 jump in arms B and C
+    - instrument control: two Groebner algorithms (std, slimgb), both followed by std and fglm to lex
+  independent_variables: [m, L, arm, solver]
+  metrics:
+    primary:
+      - total Groebner time per instance = std_ms + fglm_ms (Singular rtimer, ms), median per cell
+      - largest L completed within 600 s per (arm, m)
+    secondary:
+      - vdim, basis size, max basis degree, Singular memory(2)
+      - enumeration group operations and wall time
+      - planted_in_variety rate (must be 100%)
+  preregistered_prediction:
+    quantity: arm A vs arm B median total time
+    formula: >-
+      Coordinator prediction (not the hypothesis): arm A is SLOWER than B in
+      every jointly completed cell and is retired at a smaller L at m = 3;
+      every Groebner arm is slower than enumeration at every cell.
+    source: >-
+      PKM 2016 reported (recalled) no observed advantage for these systems;
+      smoke runs on seed "smoke" (not data) showed the same direction.
+  scale_relevance:
+    tier: toy
+    justification: p up to ~24 bits, m <= 3. P-256 needs m = 6, L = 44, p = 256 bits; no extrapolation is claimed.
+    correspondence: null
+  replication:
+    seeds: ["EXP-ECDLP-f49f75/v1 (sha256 per m|L|instance)"]
+    independent_instances: 6 per (m, L) cell
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: null
+    maximum_memory_gb: 12
+    maximum_runs: 1
+    maximum_workers: 4
+  stopping_rules:
+    - an arm whose every solver times out (600 s) on every instance of a cell is not run at larger L for that m
+  invalidation_rules:
+    - any planted decomposition missing from its Groebner variety invalidates that arm's cell
+    - any launcher assertion failure (curve equation, chain(V) != c, |V| != 2^L) invalidates the run
+  success_criterion: >-
+    Hypothesis supported if arm A median total time is below arm B in >= 80% of
+    jointly completed cells under both solvers AND at m = 3 arm A completes a
+    larger L than arms B and C.
+  falsification_criterion: >-
+    Hypothesis falsified if arm A median is at or above arm B in >= 80% of
+    jointly completed cells (both solvers) OR at m = 3 arm A is retired at an L
+    no larger than B and C. Anything else is inconclusive.
+  required_artifacts:
+    - runs/RUN-ECDLP-f49f75-01/{raw-result.jsonl,command.txt,environment.json,manifest.json,stdout.log,stderr.log}
+    - reports/report.md, reports/cost-vs-L.svg/.png, reports/report.pdf
+  launcher: experiments/EXP-ECDLP-f49f75/pkm_isogeny_fb.py
+  trial_plan: experiments/EXP-ECDLP-f49f75/trial-plan.json
+  assigned_to: executor
+  approved_by: coordinator
+  approval_basis: AGENTS.md standing user authorization (2026-09-06); user request "Yes do the experiment" (2026-10-15)
