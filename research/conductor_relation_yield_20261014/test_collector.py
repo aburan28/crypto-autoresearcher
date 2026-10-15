@@ -87,7 +87,7 @@ def exhaustive(base, target):
     return found, ordered, useful
 
 
-def main(binary):
+def main(binary, count_binary=None):
     assert mul(R, G) is None
     base = first_signed_base(3)
     q = mul(7, G)
@@ -123,6 +123,16 @@ def main(binary):
         assert outside_receipt["status"] == "valid"
         assert outside_receipt["unknown_columns"] == 3  # Q has its own column.
         assert outside_receipt["rank_prefix"][18] <= outside_receipt["unknown_columns"]
+        count_lines = None
+        if count_binary is not None:
+            count_text = subprocess.run(
+                [count_binary, str(path)], capture_output=True, text=True, check=True
+            ).stdout
+            count_lines = count_text.splitlines()
+            count_path = Path(directory) / "count_output.txt"
+            count_path.write_text(count_text, encoding="utf-8")
+            complete_receipt = verify(path, output_path, G, q, {1, 2, 18}, count_path)
+            assert complete_receipt["independent_ordered_count_match"] is True
     lines = process.stdout.splitlines()
     assert lines[0] == f"collector-v1\t{P}\t{R}\t{len(base)}\t{len(targets)}"
     observed = {}
@@ -139,14 +149,22 @@ def main(binary):
         else:
             raise AssertionError(fields)
     assert len(observed) == R - 1
+    if count_lines is not None:
+        assert count_lines[0] == f"count-v1\t{P}\t{R}\t{len(base)}\t{len(targets)}"
+        assert len(count_lines) == R
+        for index, line in enumerate(count_lines[1:]):
+            assert line == f"target\t{index}\t{observed[index]['counts'][1]}"
     for index, (_, _, point) in enumerate(targets):
         triples, ordered, useful = exhaustive(base, point)
         assert observed[index]["triples"] == triples, index
         assert observed[index]["counts"] == (len(triples), ordered, useful), index
     all_targets = [None] + [mul(scalar, G) for scalar in range(1, R)]
     assert sum(exhaustive(base, point)[1] for point in all_targets) == len(base) ** 3
-    print("small-group exhaustive control: 18 targets, all triple sets/counts, both Q-column cases, |F|^3 identity PASS")
+    print("small-group exhaustive control: 18 targets, all triple sets/counts, both Q-column cases, independent ordered counts, |F|^3 identity PASS")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "/private/tmp/conductor_arity3_collector")
+    main(
+        sys.argv[1] if len(sys.argv) > 1 else "/private/tmp/conductor_arity3_collector",
+        sys.argv[2] if len(sys.argv) > 2 else None,
+    )

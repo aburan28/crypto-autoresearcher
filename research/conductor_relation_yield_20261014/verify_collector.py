@@ -181,7 +181,7 @@ def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def verify(input_path, output_path, generator, q, prefixes):
+def verify(input_path, output_path, generator, q, prefixes, count_output_path=None):
     curve, base, targets = parse_input(input_path)
     certify_group(curve, generator)
     assert q is not None and on_curve(q, curve)
@@ -210,6 +210,14 @@ def verify(input_path, output_path, generator, q, prefixes):
             assert index == current and 0 <= i <= j <= k < len(base)
             triples[index].append((i, j, k))
     assert len(summaries) == len(targets)
+    if count_output_path is not None:
+        count_lines = Path(count_output_path).read_text(encoding="utf-8").splitlines()
+        assert count_lines[0].split("\t") == [
+            "count-v1", str(curve.p), str(curve.r), str(len(base)), str(len(targets))
+        ]
+        assert len(count_lines) == len(targets) + 1
+        for index, line in enumerate(count_lines[1:]):
+            assert line.split("\t") == ["target", str(index), str(summaries[index][1])]
     basis = {}
     rank_prefix = {}
     useful_targets = 0
@@ -244,7 +252,13 @@ def verify(input_path, output_path, generator, q, prefixes):
         "raw_unordered_triples": total_triples,
         "unknown_columns": len(layout[4]) + (layout[5] is not None),
         "rank_prefix": rank_prefix,
-        "limits": "all reported triples and target equations replayed; full-size no-hit completeness is not independently established",
+        "count_output_sha256": sha256(count_output_path) if count_output_path is not None else None,
+        "independent_ordered_count_match": count_output_path is not None,
+        "limits": (
+            "independent ordered count matches every target; reported triples are unique and group-law valid"
+            if count_output_path is not None else
+            "all reported triples and target equations replayed; full-size no-hit completeness is not independently established"
+        ),
     }
 
 
@@ -257,10 +271,11 @@ def main():
     parser.add_argument("--qx", type=int, required=True)
     parser.add_argument("--qy", type=int, required=True)
     parser.add_argument("--prefixes", default="512,2048,8192,32768")
+    parser.add_argument("--count-output", type=Path)
     args = parser.parse_args()
     receipt = verify(
         args.input, args.output, (args.gx, args.gy), (args.qx, args.qy),
-        {int(value) for value in args.prefixes.split(",") if value},
+        {int(value) for value in args.prefixes.split(",") if value}, args.count_output,
     )
     print(json.dumps(receipt, sort_keys=True))
 

@@ -9,6 +9,13 @@ enforce the endpoint watchdog, issue a scientific run receipt, or establish
 full-size no-hit completeness. The formal experiment remains `review_required`
 until those components and an admitted launcher are complete.
 
+`count_verify.cpp` is the separate ordered-count oracle. It uses Euclidean
+inversion and a pair-sum histogram, and emits `count-v1` per-target ordered
+counts. `verify_collector.py --count-output` requires exact targetwise equality
+with the collector's ordered counts after replaying every reported triple.
+That is the full-size no-hit completeness check once both programs actually
+run on the frozen prepared input.
+
 Compile with TMPDIR=/private/tmp and rustc --edition=2021 -O collector.rs.
 The earlier build with the host's default TMPDIR failed with
 No space left on device under /Volumes/SSD990/llm/tmp. This is a compiler
@@ -78,3 +85,5 @@ the conductor and isogeny provenance still require the archived source specs.
 `test_exact_interval.py` compares integer tail decisions with direct sums
 on small populations. `exact_interval.py` uses threshold 1/800 for each
 tail and prints display fractions only after computing integer endpoints.
+
+`count_verify.cpp` has its own [small-group control](controls/independent_count_20261015/insight.md).
