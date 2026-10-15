@@ -1,0 +1,1165 @@
+# EXP-CMFB-cea1d2
+# Family-level coverage and scan-efficiency test for p = 5t^2 + 19t + 19
+# (D = -19, crater-type members) against a D = -19 random-conductor null
+# (N-A) and a random-curve null (N-B), with an exact yield identity as the
+# instrument check, a qr_window positive control, and a planted-relation
+# sensitivity control. Toy sizes 2^14 < p <= 2^25 only.
+#
+# APPROVED and FROZEN under DEC-20261015-a8509d (AGENTS.md standing user
+# authorization). Any later change is a versioned protocol_amendment under
+# amendments/. NOTHING IN THIS CONTRACT IS EVIDENCE ABOUT THE 53-BIT PAIR
+# (p = 5947698030651343).
+experiment:
+  id: EXP-CMFB-cea1d2
+  hypothesis_id: H-CMFB-9b2eed
+  source_idea: IDEA-20261015-cba035
+  question_id: RQ-CMFB-33610e
+  version: 1
+  title: >-
+    Family-level coverage and qr_window scan efficiency of the small-x base for
+    p = 5t^2+19t+19 against D=-19 and random-curve nulls at toy sizes
+  status: approved
+  frozen: true
+  designed_at: '2026-10-15'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261015-a8509d
+  execution_authorized: true
+  planned_records:
+    executor_task: TASK-20261015-1c0251
+    approval_decision: DEC-20261015-a8509d
+    run_ids: [RUN-CMFB-2373be, RUN-CMFB-5905c0, RUN-CMFB-66b0fe, RUN-CMFB-3dc120, RUN-CMFB-42a578, RUN-CMFB-e13f0e, RUN-CMFB-c71d35, RUN-CMFB-2010d3]
+    goal_note: >-
+      goal_id is omitted on purpose. Factor-base questions are not tracked in
+      GOAL-ECDLP-001 (RQ-FBG-001 was run under GOAL-ICLIFT-001) and
+      RQ-CMFB-33610e carries no goal.
+  objective: >-
+    Measure, for three arms of prime-order curves over F_p (FAM family
+    members, N-A other D=-19 crater-type curves, N-B random curves), the
+    exact m = 3 coverage of the small-x factor base against 200 matched random
+    bases per member, the exact yield identity (M0), and the qr_window scan
+    efficiency (M2), in cells of bit size near 16, 20 and 24, behind an
+    instrument gate (exact yield identity, brute-force counter check, curve and
+    twist validity, labelling check, qr_window positive control with a
+    Legendre(x) negative control) and a sensitivity gate (planted-relation
+    base of known effect). Report one of VOID, NULL_AT_RESOLUTION,
+    INCONCLUSIVE, E1_LEAD, E2_LEAD, E3_LEAD or DEFICIT_RECORDED by the
+    mechanical rule in decision_rule. No pair-46-scale claim.
+
+  # ---------------------------------------------------------------------------
+  # INPUTS: arms, cells, sampling. Every number here is frozen.
+  # ---------------------------------------------------------------------------
+  inputs:
+    curve_model: >-
+      Short Weierstrass y^2 = x^3 + A x + B over F_p, p an odd prime, group
+      order N prime (so E(F_p) is cyclic of order N and has no point of
+      order 2: f(x) = x^3 + A x + B has no root in F_p). A and B are integers
+      (the integral chart below), f(x) = x^3 + A x + B.
+    arms:
+      FAM:
+        meaning: >-
+          Crater-type family members only. For odd t >= 3 put v = t + 2,
+          p = 5t^2 + 19t + 19 = 5v^2 - v + 1, N = 5t^2 + 18t + 20 =
+          5v^2 - 2v + 4. A member is admitted iff p and N are both prime
+          (checked by deterministic Miller-Rabin) and p lies in the cell
+          band. Then 4p = t^2 + 19 v^2, trace t = v - 2, Frobenius
+          pi = v w - 1 with w^2 - w + 5 = 0, Frobenius conductor v in
+          O_K = Z[(1+sqrt(-19))/2], twist order p + 1 + t = 5 v^2.
+        curve: >-
+          E_0: y^2 = x^3 - 152 x + 722 (j = -96^3 = -884736, checked by hand:
+          4A^3 = -14047232, 27B^2 = 14074668, sum 27436,
+          j = 1728 * (-14047232) / 27436 = -884736), reduced mod p. Every
+          curve with this j over F_p is E_0 or its quadratic twist, so
+          End = O_K for every FAM and N-A curve (class number 1); this is the
+          crater-type curve. The floor curve (End = Z[pi], conductor v) is NOT
+          constructed in this contract: it needs the Hilbert class polynomial
+          of discriminant -19 v^2. FAM = crater-type members only.
+        chart_and_twist_selection: >-
+          Let d be 1 or a small integer from the ordered list
+          L = [1, -1, 2, -2, 3, -3, 5, -5, 6, -6, 7, -7, 10, -10, 11, -11,
+          13, -13, 14, -14, 15, -15, 17, -17, 19, -19, ...] (all non-squares
+          in absolute value ascending, both signs). The chart is
+          y^2 = x^3 + A x + B with A = -152 d^2 and B = 722 d^3. Choose d as
+          follows. Pick the smallest x0 >= 0 with f_1(x0) a nonzero square
+          mod p for the chart d = 1, take a point P0 = (x0, y0) there, and
+          test [N] P0 = O. If yes, d = 1 (E_0 itself has order N). If no, d
+          is the first element of L with Legendre symbol (d/p) = -1; the
+          twist by d has order N. Verify on a fresh point P1 of the chosen
+          chart that [N] P1 = O and P1 != O. This selects the right twist
+          because the two candidate orders are N = p+1-t and p+1+t = 5 v^2,
+          N is prime and N > 5 v^2 / 2, so N does not divide 5 v^2 and a
+          nonzero point of the wrong twist is never killed by N. The flag
+          twisted = (d != 1) and the value d are recorded.
+      N-A:
+        meaning: >-
+          Crater-type curves over other primes p' with 4 p' = a^2 + 19 b^2,
+          a and b odd positive-b integers (a any sign), N' = p' + 1 - a
+          prime, b != a + 2 (the family relation is excluded; also p' is not
+          a family prime), p' in the cell band, p' not repeated within an
+          arm and cell. Same curve E_0, same chart rule, same twist selection
+          as FAM, with the target order N' in place of N and the test
+          [N'] P0 = O; the wrong twist has order N' + 2a and
+          N' does not divide 2a because 0 < 2|a| < N' for p' > 2^14. Parity:
+          a odd makes N' odd; a and b odd makes (a^2 + 19 b^2)/4 an odd
+          integer.
+        draw: >-
+          For each draw: log2 P_t uniform on the cell band, an angle phi
+          uniform on (0, pi), a0 = 2 sqrt(P_t) cos(phi), b0 =
+          2 sqrt(P_t / 19) sin(phi); a = nearest odd integer to a0, b =
+          nearest odd positive integer to b0; p' = (a^2 + 19 b^2)/4; accept
+          iff all conditions above hold. Half of the quota (stratum N-A-u)
+          uses phi uniform; the other half (stratum N-A-theta) restricts to
+          a > 0 with a / (2 sqrt(p')) in [0.20, 0.25], which brackets the
+          family value 1/(2 sqrt 5) = 0.2236, so that FAM against N-A-theta
+          isolates the exact relation b = a + 2 from the size of the Frobenius
+          angle and conductor. N-A pools both strata.
+      N-B:
+        meaning: >-
+          Random prime-order curves y^2 = x^3 + A x + B with integer A, B
+          uniform in [-1000, 1000], over a prime p drawn log-uniform in the
+          cell band. The same integral small-coefficient chart style as
+          FAM and N-A (the charts of twisted FAM and N-A members have larger
+          coefficients, up to about 10^6; recorded through the twisted flag,
+          not corrected).
+        draw: >-
+          Draw p; draw (A, B); reject if 4A^3+27B^2 = 0 mod p, if j is
+          -96^3 mod p, or if the group order is not prime or equals p.
+          Group order by Shanks-Mestre style baby-step giant-step over the
+          Hasse interval [p+1-2 sqrt(p), p+1+2 sqrt(p)] from a random point
+          P: the unique multiple M of ord(P) in the interval; if
+          ord(P) <= 4 sqrt(p) or two multiples remain, pick another point.
+          Accept iff M is prime (deterministic Miller-Rabin) and M != p. The
+          result M is then the order; it is verified by [M] P = O for three
+          independent points.
+      N-B-ctrl:
+        meaning: >-
+          Dedicated N-B-type curves for the planted-relation sensitivity
+          control only (8 per cell, disjoint from N-B by seed), with p
+          log-uniform in the LOWEST bit of the cell band, (lo, lo + 1] in
+          log2 p, because the planted effect is hardest to resolve at small N
+          (standard deviations shrink as 1/sqrt(N) faster than the planted
+          effect shrinks as 1/B): testing at the bottom of the band is the
+          conservative case.
+    cells:
+      edges: >-
+        Cells are half-open bands of p: C16 = (2^14, 2^18] = (16384, 262144],
+        C20 = (2^18, 2^22] = (262144, 4194304], C24 = (2^22, 2^25] =
+        (4194304, 33554432]. A fourth cell C28 = (2^25, 2^28] is NOT run
+        (cost model: one member at N = 2^28 costs about 2170 core-seconds
+        with numpy, so 24 members cost about 14.5 core-hours). The edges are
+        centred on bit sizes 16, 20 and 24 up to the cost cap at 2^25.
+      family_t_ranges: >-
+        Odd t with p in the band: C16 t in [57, 227] (86 candidates), C20
+        t in [229, 913] (343), C24 t in [915, 2587] (837). The sieve is
+        exact and decides membership; these ranges are checks.
+      bateman_horn_estimate: >-
+        Expected members per cell with the local factors computed by hand for
+        q <= 43 (about C_odd = 4.4 per odd t divided by ln p ln N): C16 about
+        3, C20 about 8, C24 about 14. UNVERIFIED hand estimate, +-40 percent.
+        Reading: C16 is expected to be UNDERPOWERED, C20 is borderline, C24
+        is expected to be powered. The exact sieve (trial t1) replaces the
+        estimate and is compared with a Bateman-Horn value computed over all
+        primes q < 10^5 (secondary, heuristic H3).
+      member_counts: >-
+        M_c = exact number of FAM members in cell c (sieve). Definition of
+        POWERED, in two steps. Pre-measurement (fixes the quotas): a cell is
+        powered iff M_c >= 8. In analysis: a cell is powered only if n >= 8
+        in EVERY arm AND the minimum detectable effect computed from the
+        MEASURED null standard deviations, MDE = 3.61 * rms_j sd_j /
+        sqrt(n), is <= 0.25 percent (delta / 2) for EVERY arm (see
+        resolution_delta). Otherwise the cell is UNDERPOWERED: measured and
+        reported descriptively, excluded from the Holm family, from every
+        NULL or LEAD reading and from slopes, and never read as matching the
+        null. Inventory dry run (t1, real instance list): M_16 = 4, M_20 =
+        10, M_24 = 13; C16 is UNDERPOWERED and P1 does not apply.
+      pooling_rule_P1: >-
+        Deterministic function of the sieve inventory only (not of any
+        measured outcome): if M_16 < 8 and M_20 < 8 and M_16 + M_20 >= 8,
+        then C16 and C20 are replaced by one pooled cell C18 = (2^14, 2^22]
+        in every downstream step (null arms drawn log-uniform over the pooled
+        band, one cell in the Holm family). If any other combination
+        occurs, cells stay as defined. The sieve trial t1 records which
+        branch applies and the downstream trials read it.
+    sampling_quotas:
+      FAM: >-
+        n_FAM,c = M_c if M_c <= 16, otherwise a uniform random subset of 16
+        members (numpy Generator, seed family_subset), listed in increasing t.
+      N_A: "16 per powered or pooled cell (8 N-A-u + 8 N-A-theta); 8 (4 + 4) per UNDERPOWERED cell"
+      N_B: "16 per powered or pooled cell; 8 per UNDERPOWERED cell"
+      N_B_ctrl: "8 per cell (a pooled cell counts as one cell)"
+      minimum_n: >-
+        n >= 8 per arm per cell is the contract minimum (moving-block
+        bootstrap with block length 3 needs at least 6 blocks). The null
+        arms are sized to the family arm: the family arm is the scarce
+        resource and cannot be enlarged.
+      size_matching: >-
+        N-A, N-B and N-B-ctrl are matched to FAM by bit-size CELL only
+        (p log-uniform in the band), never by individual N or p. The mean log2 p
+        of each arm in each cell is reported; no reweighting is done.
+    base_definitions:
+      small_x_base: >-
+        D(E, B): scan x = 0, 1, 2, ... ascending; x is liftable iff f(x) is
+        a nonzero square mod p (Euler criterion; f(x) = 0 cannot happen
+        because N is odd). Take the first B liftable abscissae; for each
+        take the point (x, y) with y the smaller of the two square roots
+        (y <= (p-1)/2). The window width W is the last scanned x plus 1.
+      size_B: >-
+        B = ceil((6N)^(1/3)) computed exactly: the smallest integer with
+        B^3 >= 6N. T = binomial(B+2,3) multisets of size 3, mu = T/N. This is
+        the size convention of EV-FBG-001 (B = 117 at N near 2^18).
+      matched_random_base: >-
+        200 per member. B distinct classes {+-l} drawn uniformly without
+        replacement from the (N-1)/2 classes of nonzero elements of Z_N,
+        each with an independent uniform sign. This is the exact random
+        model for a base of B distinct abscissae with independent canonical
+        signs. It differs from EV-FBG-001 (draw range [1, N), repeats of +-l
+        possible in about 0.6 percent of bases); the effect on the null mean
+        is negligible and the null standard deviation is measured here.
+      planted_relation_base: >-
+        D(E, B+1): the same window with one more liftable abscissa. It adds
+        binomial(B+2,2) decompositions (mean yield ratio
+        binomial(B+3,3)/binomial(B+2,3) exactly, a planted relation excess)
+        and has a known coverage excess over size-B random bases of
+        (1-exp(-mu'))/(1-exp(-mu)) with mu' = mu (B+3)/B.
+    rng_streams: >-
+      Every random object uses numpy.random.Generator(PCG64(SeedSequence([
+      seed, cell_code, arm_code, member_index, stream_index]))) with
+      cell_code in {16, 18, 20, 24}, arm_code FAM = 1, N-A = 2, N-B = 3,
+      N-B-ctrl = 4, member_index the position in the frozen member list,
+      stream_index 0 = instance draw, 1 = twist and test points,
+      2..201 = random base k = 1..200, 202 = tie-breaking. Results therefore
+      do not depend on process scheduling or worker count.
+
+  # ---------------------------------------------------------------------------
+  # DEFINITIONS AND EXACT ALGORITHM (the cost model below is for this algorithm)
+  # ---------------------------------------------------------------------------
+  definitions:
+    group_and_labelling: >-
+      G = E(F_p) is cyclic of prime order N. Fix the generator g = the first
+      point of the base. The label of a point Q is l(Q) = log_g(Q) in
+      Z_N (so l(g) = 1). For a base D with labels l_1..l_B, a multiset
+      {i <= j <= k} decomposes target r in Z_N iff l_i + l_j + l_k = r mod N.
+      Targets are all N elements of Z_N including r = 0 (EV-FBG-001
+      convention: unsigned multisets, targets uniform over the whole group).
+    coverage: >-
+      cov(D) = #{r in Z_N : c_D(r) > 0} / N. Mean yield is
+      sum_r c_D(r) / N = T / N.
+    M0: >-
+      Exact yield identity: sum_r c_D(r) = binomial(B+2,3) as an integer
+      equality, checked on every counted base (loop counter) and, from a
+      full histogram, on three designated bases per member (the member base,
+      random base k = 1 and random base k = 2). The reported M0 ratio is the
+      exact rational sum_r c_D(r) / binomial(B+2,3) and must equal 1. Number
+      of bases checked and number failing (must be 0) are reported per arm.
+    qr_window_residuosity: >-
+      THE POSITIVE CONTROL IS COMPUTED FROM THE RESIDUOSITY OF
+      f(x) = x^3 + A x + B, NOT FROM THE LEGENDRE SYMBOL OF x. A scanned
+      abscissa x is the abscissa of a point of E(F_p) iff f(x) is a nonzero
+      square mod p; nonsquares give points of the twist. research/
+      factor_base_lab.md defines FB-QR-WINDOW as V = {x < B : Legendre(x) in
+      {0,1}}; this contract does NOT use that definition. It selects x by a
+      property of the integer x alone: density 1/2, but given Legendre(x) = 1
+      the event that f(x) is a square still has probability 1/2 for a
+      generic curve, so the x-filtered stream lifts at rate 1/2 and the scan
+      efficiency gain is 1.0, not 2.0; it would pass a naive density check
+      for the wrong reason and can never be a positive control for the
+      scan efficiency of points on E. The recorded control is therefore: for
+      a scan x = 0..S-1, L(S) = #{x < S : f(x) nonzero square}; the
+      residuosity-filtered stream yields exactly 1 point per scanned
+      candidate and the unfiltered stream yields L(S)/S, so
+      R = S / L(S) = 2 / (1 + (1/S) sum_{x<S} chi(f(x))). Predicted 2.0
+      (up to the bounded character sum). Every kept x gets an explicit y
+      with y^2 = f(x) mod p verified.
+    qr_window_negative_control: >-
+      R_wrong = (fraction of x < S with Legendre(x) in {0,1} for which f(x)
+      is a nonzero square) / (L(S)/S): the efficiency the lab-note definition
+      would deliver. Predicted 1.0. The instrument must show R in 2.0 +- 0.02
+      and R_wrong in 1.0 +- 0.04 on the same scan, which proves it
+      distinguishes the two definitions.
+    scan_window_S: >-
+      Control scans use S_M2 = min(131072, floor(p/2)) candidates per curve,
+      pooled over curves per arm and cell: S_total = sum of S over the pool,
+      L_total = sum of L, R_pool = S_total / L_total, standard error
+      approximately 2 / sqrt(S_total). With 16 generic curves per cell
+      S_total >= 1.3 * 10^5, standard error <= 0.0055 (the 0.02 band is at
+      least 3.6 standard errors); typically 0.0014 at C20 and C24.
+    member_scan_ratio: >-
+      R_j = W_j / B_j on each member's own base window (secondary, noisy:
+      standard deviation sqrt(2/B_j)); the control and arm-level M2 values use
+      the longer S_M2 scan.
+  algorithm:
+    counting_exact_m3: >-
+      Input: labels l_1..l_B in Z_N (N prime, N <= 2^25). (1) Form all pair
+      sums P = l_b + l_c mod N for b <= c, ordered by b then c, as int32
+      (B(B+1)/2 values, 1.7 * 10^5 at B = 587). (2) For a = 0..B-1 the
+      triples with b >= a are the contiguous tail of P starting at the offset
+      of b = a, so s = l_a + P[off_a:], s -= N where s >= N, and set
+      seen[s] = 1 in a uint8 array of N bytes. Every multiset a <= b <= c is
+      enumerated exactly once; the total number of enumerated sums is
+      checked equal to binomial(B+2,3) (M0 loop counter). (3) cov =
+      count_nonzero(seen) / N. (4) For the three designated bases the same
+      sums are concatenated (int32) and np.bincount(sums, minlength=N) gives
+      the full histogram c(r): sum c = T exactly, count_nonzero(c) equals the
+      seen[] count exactly (two counters must agree as integers), plus the
+      collision statistic sum_r c(r)(c(r)-1)/2 and max c. A C kernel is
+      allowed only if it reproduces these integers bit for bit on the
+      brute-force cases and on 3 members per cell.
+    discrete_log_labelling: >-
+      Baby-step giant-step on the curve itself, folded by sign. With m =
+      ceil(sqrt(B * N / 2)) store x(j g) -> (j, y) for j = 1..m (affine
+      coordinates, Python integers, dict). For each base point Q: for i = 0,
+      1, ... compute R_i = Q - i (2m+1) g, look up x(R_i) (or R_i = O for
+      j = 0), resolve the sign by y, and set l(Q) = i (2m+1) + (j or -j)
+      mod N.
+      At most N / (2m+1) giant steps per point; about m + B N / (2m+1) =
+      sqrt(2 B N) elliptic-curve operations in all (2 * 10^5 at N = 2^25,
+      B = 587; 3 to 5 microseconds each in CPython, 1 to 2 seconds per curve).
+      The matched random bases need no curve points: they are generated
+      directly as labels. Every label is verified: [l(Q)] g == Q by
+      double-and-add for all B (or B+1) points, and 64 random triples per
+      checked curve are verified by adding the three points on the curve and
+      comparing with [l_i + l_j + l_k mod N] g. No full enumeration of the
+      group is performed (that would cost N curve additions, about 170
+      seconds per curve at 2^25 in CPython).
+    random_base_generation: >-
+      For k = 1..200 draw B distinct class representatives c in
+      [1, (N-1)/2] (duplicates rejected and redrawn) and signs s in {+1, -1};
+      label = c if s = +1 else N - c.
+    order_and_twist_verification: >-
+      For every curve: p and N prime (Miller-Rabin, deterministic bases);
+      |N - (p+1)| <= 2 sqrt(p); [N] P = O for 3 independent points P != O
+      (so the order is N by primality); f has no root in F_p; for FAM and N-A
+      the trace identity 4p = a^2 + 19 b^2 with N = p + 1 - a and the j-value
+      -96^3 mod p; for N-B j != -96^3 mod p; for FAM p = 5t^2 + 19t + 19 and
+      N = 5t^2 + 18t + 20 exactly.
+  controls:
+    - >-
+      M0 integer yield identity on every counted base in every arm, with a
+      full-histogram recount on three designated bases per member.
+    - >-
+      Brute-force counter check (instrument): N in {211, 307, 401, 503,
+      1009}, B in {5, 8, 13, 20}, three base kinds per case (random distinct
+      classes, the arithmetic progression {1..B}, and a random coset
+      a * {1..B}): 60 cases, full per-target count vector against literal
+      itertools.combinations_with_replacement enumeration, exact equality of
+      c(r) for all r, of coverage and of the seen[] count.
+    - >-
+      Curve and twist validity (prime order, Hasse, [N]P = O on 3 points, j,
+      trace identity, family formulas) for every instance of every trial.
+    - >-
+      Labelling check: all B logs verified as [l]g = Q; 64 random triples
+      per checked curve; 4 members per arm per cell are checked in the
+      control trial, and every measured member passes the per-point check
+      inside its own trial.
+    - >-
+      qr_window positive control: R_pool in [1.98, 2.02] on every N-B pool
+      (all cells); FAM and N-A pools reported with standard errors; exact
+      point-count identity sum_{x<p} chi(f(x)) = -(trace) and
+      #{x : f(x) nonzero square} = (N-1)/2 checked by a full-period scan on
+      2 curves per arm per cell where p <= 2^20, and on 1 curve per arm for
+      p in (2^20, 2^25] using a vectorised Euler-criterion scan of the full
+      period (about 3.4 * 10^7 evaluations at the top, a few seconds).
+    - >-
+      Legendre(x) negative control: R_wrong in [0.96, 1.04] on every N-B pool,
+      i.e. the lab-note definition does not give a scan gain.
+    - >-
+      Sensitivity control: planted-relation base D(E, B+1) against 200
+      random bases of size B on 8 N-B-ctrl curves per cell. Planted effect
+      (known coverage excess from the Poisson law, computed exactly by the
+      script from B and N for each curve; approximately 1.7 / B, hand
+      computed) is about +3.3 percent on the C16 control curves (p near
+      2^14.5, B = 52), +1.3 percent on the C20 control curves (p near 2^18.5,
+      B = 131) and +0.5 percent on the C24 control curves (p near 2^22.5,
+      B = 329); at the measured sizes it falls to +0.3 percent at 2^25
+      (B = 587). Required detection: at least 7 of 8 curves per cell have
+      one-sided rank p = (1 + k) / 201 <= 0.01, where k is the number of the
+      200 random-base coverages that are greater than or equal to the planted
+      base coverage (ties counted against the planted base), i.e. k <= 1.
+      With the null standard deviation 1.4 / sqrt(N) the per-curve effect is
+      only about 4.4, 6.5 and 9 null standard deviations on the C16, C20 and
+      C24 control curves, so 8 of 8 is not guaranteed: at C16 the
+      probability of at least 7 of 8 detections is about 97 percent, and a
+      3 percent chance of a false VOID at C16 is accepted. The cell also
+      needs the pooled planted ratio within max(0.10 percent, 3 standard
+      errors) of the known value, AND the pooled TWO-SIDED randomization test
+      rejecting at p <= 0.001. The planted-ratio tolerance is unchanged by
+      anything seen in the pre-freeze smoke test, and is known to be
+      marginal at C20 on the real seeds (see pre_freeze_disclosure).
+      Failure of any cell is INSTRUMENT_VOID.
+    - >-
+      Random-base null check: measured standard deviation of the 200 random
+      coverages per member, relative to the mean, against 1.4 / sqrt(N)
+      (accepted band 0.75x to 1.33x of the formula; outside is a flag for
+      review, item I10, not a void).
+  independent_variables:
+    - "arm in {FAM, N-A (strata N-A-u, N-A-theta), N-B}"
+    - "cell in {C16, C20, C24} (or pooled C18 under rule P1)"
+    - "base kind in {member small-x base (size B), matched random (size B, 200 draws), planted (size B+1, control curves only)}"
+  metrics:
+    primary:
+      - "m3_coverage_ratio per member: coverage of the member base divided by the mean coverage of its 200 matched random bases"
+      - "T(arm, cell): mean over members of (ratio - 1), with 95 percent moving-block-bootstrap interval and Holm-adjusted randomization p-value"
+      - "M0: exact integer yield identity, bases checked and failures per arm"
+      - "R_pool (qr_window ratio) and R_wrong per arm and cell, planted detection count and pooled planted ratio per cell"
+    secondary:
+      - "slope of (ratio - 1) on log2 p across powered cells (arm level, block-bootstrap interval), assessable only with at least 3 powered cells"
+      - "contrasts T(FAM) - T(N-A), T(FAM) - T(N-A-theta), T(N-A) - T(N-B) with 99 percent bootstrap intervals (gatekeeping, not in the Holm family)"
+      - "scan-efficiency anomalies for FAM and N-A pools"
+      - "tail diagnostics: Sidak-adjusted smallest member rank p and Kolmogorov-Smirnov p of member rank p-values against uniform, per arm and cell"
+      - "measured null standard deviation against 1.4 / sqrt(N)"
+      - "exact FAM member counts per cell and per octave of t, v-prime sub-count, Bateman-Horn comparison"
+      - "twisted flag and d for FAM and N-A; p mod 120 for every instance"
+      - "mean log2 p per arm per cell; seconds per triple (measured tau) and peak_rss_bytes per trial"
+  heuristic_under_test: H1 (and H2, H3 as checks); see ledger/hypotheses/H-CMFB-9b2eed.yaml
+
+  # ---------------------------------------------------------------------------
+  # PREREGISTERED PREDICTION, SCALE, RESOLUTION, SAMPLE SIZE
+  # ---------------------------------------------------------------------------
+  preregistered_prediction:
+    quantity: >-
+      T(arm, cell) = 0 for arms FAM, N-A, N-B in every powered cell; M0 = 1
+      exactly; R_pool = 2.0 on generic curves; planted ratio equals the
+      Poisson-law value.
+    formula: >-
+      Coverage of a random base: 1 - exp(-mu), mu = binomial(B+2,3)/N, per-draw
+      relative standard deviation sigma_rel(N) = 1.4 / sqrt(N). The
+      independent-balls occupancy value sqrt(e^{-mu} (1 - (1+mu) e^{-mu})) /
+      ((1 - e^{-mu}) sqrt(N)) underestimates the real spread by a factor 2.4
+      to 2.75 (measured on shifted-seed smoke data), because pair-sum
+      collisions correlate the triples that share a pair; the constant 1.4
+      replaces the earlier draft constant. Scan ratio
+      R = 2 / (1 + chi-sum / S).
+    source: >-
+      KN-FIND-007 (conservation identity and coverage <= min(1, mean)),
+      EV-FBG-001 (Poisson agreement of exact coverage with 1 - exp(-mu) to
+      0.2 / 0.08 / 0.03 percent at 2^14 / 2^16 / 2^18 and a per-cell null
+      resolution near +-0.5 percent), IDEA-20261015-cba035 (M0, M1, M2).
+      Written before any run and never adjusted.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      2^14 < p <= 2^25, i.e. log2 p between 14 and 25 against 52.4 for the
+      53-bit pair p = 5947698030651343 (t = 34489701, v = 34489703): at least
+      27 bits smaller. No transfer is claimed. The sizes are the largest the
+      cost model supports on a 4-core container in about 2 hours with
+      K = 200 random bases per member.
+    correspondence: null
+  resolution_delta:
+    delta: 0.005
+    derivation: >-
+      EV-FBG-001 reports a per-cell (single member) null resolution of about
+      +-0.5 percent at the upper end of N between 2^14 and 2^18 (largest
+      excess seen +0.30 percent). With sigma_rel = 1.4 / sqrt(N) the 95
+      percent single-member half-width is 1.96 * 1.4 / sqrt(N) = 2.1 / 1.07 /
+      0.54 percent at N = 2^14 / 2^16 / 2^18, so +-0.5 percent is the
+      single-member resolution at N near 2^18 and above (the C20 and C24
+      bands). With K = 200 random bases per member the null mean carries
+      relative error sigma_rel / sqrt(200), which inflates the member ratio
+      standard deviation by sqrt(1 + 1/200) = 1.0025 only. An arm-cell mean
+      over n >= 8 independent members has standard deviation 1.0025 * rms_j
+      sigma_rel(N_j) / sqrt(n), and the 80 percent power minimum detectable
+      effect at the Holm level alpha / 9 = 0.0056 (z = 2.77 + 0.84 = 3.61) is
+      MDE = 3.61 * rms_j sigma_rel(N_j) / sqrt(n). Worst case, C20 lower edge
+      (N = 2^18, sigma_rel = 0.27 percent, n = 8): MDE 0.35 percent, which is
+      NOT below delta / 2. Typical case for log-uniform N in C20 (rms
+      sigma_rel about 0.16 percent) with n = 10 to 16: MDE 0.14 to 0.18
+      percent; in C24 (rms sigma_rel about 0.044 percent, n about 13): MDE
+      about 0.04 percent. So delta = 0.5 percent is 2.8 or more times the
+      typical minimum detectable effect, and a result "consistent with the
+      null at resolution delta" is attainable in C20 and C24 when the
+      realized sizes are typical. Definition of POWERED: before measurement a
+      cell is powered if its exact FAM member count satisfies M_c >= 8 (this
+      fixes the quotas). In the analysis a cell is powered only if n >= 8 in
+      EVERY arm AND the minimum detectable effect computed from the MEASURED
+      per-member null standard deviations, MDE = 3.61 * rms_j sd_j / sqrt(n)
+      with no inflation factor, is <= 0.25 percent (delta / 2) for EVERY arm.
+      A cell that is pre-measurement powered but fails this analysis test is
+      reported as UNDERPOWERED in analysis and enters no conclusion.
+    reporting_phrase: >-
+      NULL outcomes are reported as "consistent with the null at resolution
+      delta = 0.5 percent for arms ..., cells ..., chart, base definition and
+      counting convention stated", never as "no effect". Effects below 0.5
+      percent (for example the planted +0.3 to +0.4 percent at 2^24 to 2^25)
+      are resolved by the sensitivity control but are not part of the
+      declared null.
+  sample_size_justification: >-
+    Smallest effect the arms must resolve: a coverage excess of delta = 0.5
+    percent (and the planted +0.3 percent at the top cell for the control).
+    Power: with sigma_rel = 1.4 / sqrt(N) the typical arm-cell standard
+    deviation is about 0.04 percent (C20, n = 10 to 16) and 0.012 percent
+    (C24), the worst case 0.097 percent (C20 lower edge, n = 8; see
+    resolution_delta), so n = 4 would already give a 0.5 percent minimum
+    detectable effect at 80 percent power in typical cells; the minimum
+    n >= 8 is set by the moving-block bootstrap (blocks of 3 need at least
+    6 overlapping blocks), the tail diagnostics and the delta / 2 analysis
+    rule, not by power alone. n = 16 per arm per cell
+    (the cap) is chosen so that the block bootstrap has at least 14 blocks
+    and the expected maximum of 16 standard normal member scores (about
+    1.77) is checkable. K = 200 random bases is mandated; it fixes the
+    rank-test floor at 1/201 per member, handled by 20000 randomization
+    draws per test. Planted control: 8 curves per cell, with a per-curve
+    effect of about 4.4 (C16), 6.5 (C20) and 9 (C24) null standard deviations
+    (control curves sit at the bottom bit of each band); the probability of
+    at least 7 of 8 detections is about 97 percent at C16 and higher at C20
+    and C24, so a chance failure of the gate at C16 (about 3 percent) is
+    accepted as a cost of the instrument check, not claimed away.
+  tail_checks:
+    - >-
+      Largest single-member excess: per arm and cell, the member with the
+      smallest one-sided rank p; Sidak-adjusted p = 1 - (1 - p_min)^n; flagged
+      if below 0.01. Reported, not decision-bearing; a flag with a positive
+      T is noted for the Coordinator.
+    - >-
+      Kolmogorov-Smirnov comparison of the n member rank statistics (ties
+      broken uniformly at random with the seeded stream) against the uniform
+      distribution; flagged if p < 0.01.
+    - >-
+      Heavy-tail check on the null itself: the 200 random coverages per
+      member must have a measured standard deviation inside 0.75x to 1.33x of
+      1.4 / sqrt(N); their pooled standardized values are compared with a
+      standard normal by KS (flag only).
+    - >-
+      Exact FAM member count per cell against the Bateman-Horn estimate
+      (heuristic H3), reported before any outcome.
+
+  # ---------------------------------------------------------------------------
+  # STATISTICS AND DECISION RULE (executed by the analysis script)
+  # ---------------------------------------------------------------------------
+  statistics:
+    member_ratio: >-
+      ratio_j = cov(D_j) / mean_{k=1..200} cov(R_jk). T(arm, cell) = (1/n)
+      sum_j (ratio_j - 1).
+    randomization_test: >-
+      Per arm and powered cell, 20000 randomization draws (seed
+      permutation). In each draw, for every member j independently, pick one
+      of its 201 coverages (the member's and the 200 random ones) uniformly
+      as the pseudo-observed value, take the other 200 as the null pool,
+      form ratio*_j, and T* = mean_j (ratio*_j - 1). Two-sided p =
+      (1 + #{draws with |T*| >= |T_obs|}) / 20001. Exact under the null that
+      each member base is exchangeable with its own random bases (H1);
+      members are independent units, so pseudo-replication across t does not
+      enter the test; it enters the interval below.
+    pseudo_replication_and_intervals: >-
+      FAM members in a cell are ordered by t. The interval for T uses a
+      moving-block bootstrap with block length L = 3 (n - 2 overlapping
+      blocks, ceil(n/3) blocks drawn with replacement, truncated to n), 5000
+      resamples (seed bootstrap), percentile 95 percent interval. This
+      respects smooth dependence on t inside a cell. N-A and N-B members are
+      independent draws and use L = 1. Slopes and contrasts use the same
+      resampling, resampling blocks within cell and arm. Diagnostic: lag-1
+      autocorrelation of (ratio_j - 1) in t order for FAM.
+    multiple_comparison_family: >-
+      ONE Holm-Bonferroni family: the two-sided randomization tests for
+      {FAM, N-A, N-B} x {powered cells}, alpha = 0.05 (at most 9 tests,
+      typically 3 to 6). UNDERPOWERED cells are not in the family (not given
+      a Holm slot, since they are excluded from every conclusion). Contrasts,
+      slopes, M2 anomalies and tail diagnostics are gatekept descriptive
+      statistics: a contrast can only confirm or withhold the attribution of
+      an already Holm-rejected arm test, so it cannot create a claim and
+      adds no multiplicity.
+    detected_effect: >-
+      DETECTED_EXCESS(arm, cell) iff Holm-adjusted p <= 0.05 and T > +delta
+      (+0.5 percent). DETECTED_DEFICIT(arm, cell) iff Holm-adjusted p <= 0.05
+      and T < -delta.
+    material_lead_threshold: >-
+      A lead is MATERIAL iff the family-arm excess is at least +2.0 percent in
+      some powered cell AND the size slope has a bootstrap interval above 0
+      over at least 3 powered cells. Otherwise a lead is SUB-THRESHOLD
+      (level only, growth not assessable or not shown). The rule is applied
+      literally to every lead tier (E1, E2 and E3); no tier gets a separate
+      rule. With the realized FAM counts 4 / 10 / 13 only two cells can be
+      powered, so no lead of this run can be MATERIAL.
+    analysis_script: >-
+      experiments/EXP-CMFB-cea1d2/implementation/analyze.py, run as trial t8
+      with the exact command in the trial plan; all constants (delta =
+      0.005, alpha = 0.05, 20000 randomization draws, 5000 bootstrap
+      resamples, L = 3, 2 percent, 99 percent contrast level, seeds) are
+      literals in the script and its sha256 is bound in the trial plan.
+      check.py recomputes every table from the raw per-member coverages
+      without importing the driver or analysis code.
+  decision_rule:
+    order_of_evaluation: >-
+      Rules are applied in order; the first that matches fixes the outcome.
+    rules:
+      - >-
+        R0 INCOMPLETE: fewer than 8 trials with valid manifests, a checker
+        failure, a missing artifact, or an infrastructure failure. Not a
+        scientific outcome; back to the Executor with the defect list.
+      - >-
+        R1 INSTRUMENT_VOID: any invalidation rule I1..I9 fires on a complete
+        set, or any gate in controls fails.
+      - >-
+        R2 INCONCLUSIVE_UNDERPOWERED: no powered cell.
+      - >-
+        R3 NULL_AT_RESOLUTION (the negative outcome): no DETECTED_EXCESS and
+        no DETECTED_DEFICIT in any (arm, powered cell), and the 95 percent
+        interval of T lies inside [-0.5 percent, +0.5 percent] for every
+        (arm, powered cell). Applied literally. Reported as "consistent with
+        the null at resolution delta = 0.5 percent" for the stated arms and
+        cells. A Holm rejection with |T| <= delta (a statistically detected
+        effect smaller than delta) does not by itself block R3 when every
+        interval is inside +-delta; it is recorded in the result as
+        holm_rejection_below_delta (arm, cell, T, adjusted p) and reported
+        beside the outcome.
+      - >-
+        R4 INCONCLUSIVE_UNRESOLVED: no detected effect (no DETECTED_EXCESS
+        and no DETECTED_DEFICIT) and some interval is not inside +-delta.
+        This includes the case of a Holm rejection with |T| <= delta whose
+        interval is not inside +-delta.
+      - >-
+        R5 attribution when a DETECTED_EXCESS exists, evaluated in this
+        order: (a) E1_LEAD if N-B has a DETECTED_EXCESS in any powered cell;
+        (b) else E2_LEAD if N-A has a DETECTED_EXCESS in some cell and the
+        contrast T(N-A) - T(N-B) in that cell has a 99 percent interval
+        excluding 0 and exceeding +0.5 percent; (c) else E3_LEAD if only FAM
+        has a DETECTED_EXCESS in some cell and the contrast T(FAM) - T(N-A)
+        in that cell has a 99 percent interval excluding 0 and exceeding
+        +0.5 percent; (d) otherwise INCONCLUSIVE_UNATTRIBUTED. Each lead is
+        labelled MATERIAL or SUB-THRESHOLD. The secondary contrast against
+        N-A-theta is reported with every E3 lead and withholds nothing.
+      - >-
+        R6 DEFICIT_RECORDED: a DETECTED_DEFICIT and no DETECTED_EXCESS.
+        Reported; not a lead.
+    scan_efficiency_branch: >-
+      Independent of R3 to R6 and reported beside it: a pooled FAM or N-A
+      ratio R_pool outside 2.0 +- max(0.02, 3 standard errors) while all N-B
+      pools are inside [1.98, 2.02] is a scan-efficiency lead (E3 if only FAM,
+      E2 if N-A also); if any N-B pool is outside the band the run is
+      INSTRUMENT_VOID (R1). Secondary, outside the Holm family.
+    growth_clause: >-
+      No slope claim of any kind is made with fewer than 3 powered cells.
+      With 1 or 2 powered cells the experiment reports "growth not
+      assessable" and no lead can be MATERIAL. The t1 inventory dry run
+      gives FAM members C16 = 4, C20 = 10, C24 = 13, so C16 is UNDERPOWERED
+      and at most C20 and C24 are powered: NO slope claim and NO MATERIAL
+      lead is possible in this experiment (see pre_freeze_disclosure).
+    official_transition: >-
+      The analysis script computes the mechanical classification; it is an
+      Executor observation. Any hypothesis status change or decision is the
+      Coordinator's, after snapshot archive and independent review.
+  success_criterion: >-
+    The run set is complete and valid (R0 and R1 do not fire), at least one
+    powered cell exists, and the outcome of decision_rule is one of
+    NULL_AT_RESOLUTION, E1_LEAD, E2_LEAD, E3_LEAD or DEFICIT_RECORDED. The
+    positive reading of the hypothesis (H1) is outcome NULL_AT_RESOLUTION.
+    A lead is the reading that the family is distinguishable, in the stated
+    direction, from its matched nulls (excess at least +0.5 percent after
+    Holm; material at +2.0 percent with a positive slope over at least 3
+    powered cells).
+  falsification_criterion: >-
+    On a complete valid set with every gate passed, any DETECTED_EXCESS
+    falsifies the scoped prediction of no coverage effect for the attributed
+    arm and cell and is reported as a lead needing independent replication.
+    A DETECTED_DEFICIT is recorded as a deficit. The prediction survives only
+    as NULL_AT_RESOLUTION at delta = 0.5 percent.
+  decision_impact:
+    # Schema keys required by tools/validate_ledger.py (on_positive/on_negative).
+    # For this null-prediction contract, on_positive is the null reading
+    # (NULL_AT_RESOLUTION) and on_negative is a detected excess/deficit lead.
+    on_positive: >-
+      Record: consistent with the null at resolution 0.5 percent for the
+      tested arms and powered cells; the coverage and scan-efficiency
+      channels of the small-x base for crater-type D=-19 members of this
+      family are constant-only (no effect) at toy size. No exponent, solver
+      or pair-46 statement. Candidate for scoped retirement of this channel
+      for RQ-CMFB-33610e after independent review.
+    on_negative: >-
+      Record the lead (E1, E2 or E3) or deficit, its tier, and its attributed
+      arm and cell; require an independent replication with fresh seeds and a
+      growth arm of at least 3 powered cells before any wider statement. Never
+      link to the 53-bit pair on the basis of this run.
+    on_null: >-
+      Same as on_positive: consistent with the null at resolution 0.5 percent
+      for the tested arms and powered cells; no exponent, solver or pair-46
+      statement. Candidate for scoped retirement of this channel for
+      RQ-CMFB-33610e after independent review.
+    on_lead: >-
+      Same as on_negative for DETECTED_EXCESS: record the lead (E1, E2 or E3),
+      its tier, and its attributed arm and cell; require independent
+      replication before any wider statement. Never link to the 53-bit pair.
+    on_void: >-
+      The instrument cannot see structure or the run set is defective; no
+      reading. Fix and rerun under a new contract version via amendment.
+    on_inconclusive: >-
+      No reading. A successor design may widen the cell bands, pool cells, or
+      use a compiled counting kernel for larger N.
+  replication:
+    seeds:
+      - 7001
+      - 7002
+      - 7003
+      - 7004
+      - 7005
+      - 7006
+      - 7007
+      - 7008
+      - 7009
+      - 7010
+    seed_roles:
+      7001: "N-A instance draws"
+      7002: "N-B instance draws"
+      7003: "N-B-ctrl (planted control) instance draws"
+      7004: "FAM random subset when M_c > 16"
+      7005: "matched random bases (200 per member, 200 per planted curve)"
+      7006: "moving-block bootstrap"
+      7007: "randomization test and tie-breaking"
+      7008: "labelling check triples and extra point choices (twist test, order test)"
+      7009: "brute-force counter cases"
+      7010: "random point choices in the Shanks-Mestre order search for N-B"
+    independent_instances: 168
+    instance_count_note: >-
+      Upper bound: (16 FAM + 16 N-A + 16 N-B) x 3 cells + 8 N-B-ctrl x 3
+      cells. Smaller when a cell has fewer members or is UNDERPOWERED or
+      pooled.
+    named_future_run_slots: >-
+      RUN-CMFB-2373be, RUN-CMFB-5905c0, RUN-CMFB-66b0fe, RUN-CMFB-3dc120,
+      RUN-CMFB-42a578, RUN-CMFB-e13f0e, RUN-CMFB-c71d35, RUN-CMFB-2010d3
+    replication_note: >-
+      One confirmatory pass with fixed seeds. There is no second replicate
+      inside this contract; a lead is replicated by a new contract with new
+      seeds and new instances. Retries after infrastructure failure use new
+      run ids and the same seeds and parameters, and are labelled retries.
+
+  # ---------------------------------------------------------------------------
+  # BUDGET AND ANALYTIC COST MODEL (no shell was available; nothing was timed)
+  # ---------------------------------------------------------------------------
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 8
+    maximum_workers: 4
+  cost_model:
+    status: >-
+      ANALYTIC AND UNMEASURED. Every number below is derived on paper; the
+      constant tau (seconds per enumerated triple) is a conservative guess.
+      The implementer measures tau on a C20 pilot before the contract is
+      frozen (see unverified_items).
+    quantities: >-
+      B(N) = smallest integer with B^3 >= 6N; T(N) = binomial(B+2,3);
+      per base tau * T; per member (K + 1) bases = 201 * tau * T plus the
+      three histogram recounts (about 1 to 3 percent) plus the BSGS labelling
+      sqrt(2 B N) curve operations (1 to 2 seconds at 2^25); tau_np = 40
+      nanoseconds per triple budgeted (add, conditional subtract, scatter
+      into a uint8 array of N bytes; 15 to 25 ns expected); a compiled
+      kernel would divide this by 4 to 8.
+    table_per_N:
+      - {N: "2^16", B: 74, T: 70300, per_base_s: 0.0028, per_member_s: 0.57, seen_array_MB: 0.07}
+      - {N: "2^18", B: 117, T: 273819, per_base_s: 0.011, per_member_s: 2.2, seen_array_MB: 0.26}
+      - {N: "2^20", B: 185, T: 1072445, per_base_s: 0.043, per_member_s: 8.6, seen_array_MB: 1.0}
+      - {N: "2^22", B: 294, T: 4278680, per_base_s: 0.17, per_member_s: 34, seen_array_MB: 4.2}
+      - {N: "2^24", B: 466, T: 16974516, per_base_s: 0.68, per_member_s: 136, seen_array_MB: 16.8}
+      - {N: "2^25", B: 587, T: 33882814, per_base_s: 1.36, per_member_s: 272, seen_array_MB: 33.6}
+      - {N: "2^26 (not run)", B: 739, T: 67537210, per_base_s: 2.7, per_member_s: 543, seen_array_MB: 67.1}
+      - {N: "2^28 (dropped)", B: 1173, T: 269682475, per_base_s: 10.8, per_member_s: 2170, seen_array_MB: 268.4}
+    why_C28_dropped: >-
+      A C28 cell needs at least 8 FAM members plus 8 per null arm, i.e. 24
+      members at about 2170 core-seconds, 14.5 core-hours, 3.6 hours on 4
+      workers at perfect scaling, over the 2-hour envelope before the
+      controls; and an even larger cell does not fit. 2^26 as the top edge of
+      C24 would roughly double the C24 cost (about 13000 core-seconds in
+      total) and raise the histogram recount memory to about 0.85 GB per
+      worker; it is left out so that the plan survives a tau three times
+      worse than budgeted.
+    memory_model: >-
+      Per worker at N = 2^25: seen[] 34 MB, pair sums 0.7 MB, concatenated
+      sums for the three histogram bases 135 MB (int32) and np.bincount
+      output 270 MB (int64): peak about 0.45 GB; BSGS dict about 20 MB.
+      Four workers: about 1.8 GB plus parent. Declared maximum 8 GB.
+    totals_at_tau_40ns: >-
+      Core-seconds: C24 null arms 2 x 16 x 119 = 3800 (log-uniform p, mean N
+      1.4 * 10^7), C24 family 16 x 140 = 2240 (family density favours the
+      upper end of the band), C24 planted control 8 x 51 = 410, C20 about
+      600, C16 about 25, labelling and generation about 250, histogram
+      recounts and checks about 5 percent: about 8000 core-seconds, 2.2
+      core-hours. On 4 workers at 85 percent efficiency: about 2350
+      seconds of counting plus about 700 seconds of fixed work in t1, t2 and
+      t8, i.e. about 3100 seconds, 52 minutes. The envelope of 2 hours
+      (7200 seconds) holds for tau up to about 105 ns per triple.
+    pre_freeze_requirement: >-
+      Measure tau (and the BSGS seconds per curve) on a C20 pilot using the
+      committed counting module, then check the inequality 700 + 2350 *
+      tau / 40e-9 <= 7200 seconds. If it fails, lower the top edge of C24
+      to 2^24 (editing this draft before freeze; not an amendment).
+    pre_freeze_pilot_result: >-
+      The inequality PASSES. Measured by the implementer: tau = 13.0 to 14.0
+      ns per triple (14 ns used), BSGS 0.035 to 0.26 s per curve, peak RSS
+      130 to 784 MB per process, four concurrent processes at 95 percent
+      parallel efficiency. With tau = 14 ns the left-hand side is about 1,523
+      s against 7,200 s (break-even 110.6 ns per triple); projected total
+      about 17 minutes. The C24 top edge stays 2^25. These are measured
+      pilot figures; the 40 ns figures above are the budgeted conservative
+      model and are kept as written.
+  trial_plan:
+    description: >-
+      Eight trials, one run id each, executed serially by
+      tools/experiment_execution.py in this order; each trial parallelises
+      its members over 4 worker processes with the rng_streams scheme (so
+      parallel.verify_determinism must pass: results are independent of
+      worker count). The sieve/instance generation of t1 is a pure function
+      of (cell, arm, seed); every later trial recomputes it from the seeds
+      and its checker requires the sha256 of the instance list to equal the
+      one recorded by t1. All trials use the single entrypoint
+      python3 experiments/EXP-CMFB-cea1d2/implementation/driver.py --trial
+      <trial id> --run-dir {run_dir}; the independent check is
+      python3 experiments/EXP-CMFB-cea1d2/implementation/check.py {run_dir}.
+    bound_sources: >-
+      The frozen trial plan binds by sha256 (all under their repository
+      paths) experiments/EXP-CMFB-cea1d2/implementation/driver.py,
+      count.py, curves.py, analyze.py, check.py,
+      src/crypto_autoresearcher/__init__.py and
+      src/crypto_autoresearcher/parallel.py.
+    trials:
+      - id: t1-inventory
+        run_id: RUN-CMFB-2373be
+        role: inventory_and_instances
+        parameters: >-
+          Exact sieve of FAM members for odd t from 3 to 2600 and per-cell
+          counts M_c, pooling rule P1, v-prime count, Bateman-Horn comparison;
+          draw and verify all instances (FAM subsets, N-A with strata, N-B,
+          N-B-ctrl) with seeds 7001, 7002, 7003, 7004, 7008, 7010; write the
+          instance list with sha256 and the branch of P1.
+        depends_on: []
+        workers: 1
+        expected_wall_seconds: 180
+        expected_peak_memory_mb: 600
+        memory_mb: 2048
+      - id: t2-gate-instrument
+        run_id: RUN-CMFB-5905c0
+        role: control_gate_instrument
+        parameters: >-
+          Brute-force counter check (60 cases, seed 7009); curve, twist,
+          trace and formula validity for every instance; labelling check on 4
+          members per arm per cell (64 random triples each); M0 histogram
+          recount on 2 members per arm per cell; qr_window positive control
+          R_pool and Legendre(x) negative control R_wrong per arm and cell
+          (S_M2 = min(131072, floor(p/2))); full-period point-count identity
+          scans (2 curves per arm per cell for p <= 2^20, 1 curve per arm for
+          larger p). Gate: any failure blocks t3 to t8.
+        depends_on: [t1-inventory]
+        workers: 4
+        expected_wall_seconds: 300
+        expected_peak_memory_mb: 1500
+        memory_mb: 4096
+      - id: t3-gate-sensitivity
+        run_id: RUN-CMFB-66b0fe
+        role: control_gate_sensitivity
+        parameters: >-
+          Planted-relation base B+1 against 200 random bases of size B on 8
+          N-B-ctrl curves per cell (seed 7005 and 7003 instances); known
+          Poisson-law ratio computed per curve; required detection at least 7
+          of 8 per cell with rank p = (1 + k) / 201 <= 0.01 (k = number of
+          random bases with coverage >= planted, ties against the planted
+          base), pooled ratio within max(0.10 percent, 3 standard errors) of
+          the known value, pooled two-sided randomization p <= 0.001.
+        depends_on: [t2-gate-instrument]
+        workers: 4
+        expected_wall_seconds: 240
+        expected_peak_memory_mb: 1200
+        memory_mb: 4096
+      - id: t4-measure-c16-c20
+        run_id: RUN-CMFB-3dc120
+        role: measure_small_cells
+        parameters: >-
+          All arms (FAM, N-A, N-B) for C16 and C20, or the pooled C18 under
+          rule P1; per member: small-x base, labelling, 200 matched random
+          bases, M0 loop counter and 3 histogram recounts, window scan ratio,
+          S_M2 scan; seeds 7005.
+        depends_on: [t2-gate-instrument, t3-gate-sensitivity]
+        workers: 4
+        expected_wall_seconds: 300
+        expected_peak_memory_mb: 800
+        memory_mb: 4096
+      - id: t5-measure-c24-fam
+        run_id: RUN-CMFB-42a578
+        role: measure_c24_fam
+        parameters: >-
+          FAM members of C24 (all if M_24 <= 16, else the seeded subset of
+          16), same per-member protocol as t4.
+        depends_on: [t2-gate-instrument, t3-gate-sensitivity]
+        workers: 4
+        expected_wall_seconds: 700
+        expected_peak_memory_mb: 2000
+        memory_mb: 8192
+      - id: t6-measure-c24-na
+        run_id: RUN-CMFB-e13f0e
+        role: measure_c24_na
+        parameters: >-
+          N-A members of C24 (16: 8 N-A-u, 8 N-A-theta), same protocol.
+        depends_on: [t2-gate-instrument, t3-gate-sensitivity]
+        workers: 4
+        expected_wall_seconds: 600
+        expected_peak_memory_mb: 2000
+        memory_mb: 8192
+      - id: t7-measure-c24-nb
+        run_id: RUN-CMFB-c71d35
+        role: measure_c24_nb
+        parameters: >-
+          N-B members of C24 (16), same protocol.
+        depends_on: [t2-gate-instrument, t3-gate-sensitivity]
+        workers: 4
+        expected_wall_seconds: 600
+        expected_peak_memory_mb: 2000
+        memory_mb: 8192
+      - id: t8-analysis
+        run_id: RUN-CMFB-2010d3
+        role: analysis_and_decision
+        parameters: >-
+          python3 experiments/EXP-CMFB-cea1d2/implementation/driver.py
+          --trial t8-analysis --run-dir {run_dir} (the analyze.py command
+          line interface is standalone-equivalent); reads
+          raw-result.json of t1 to t7, re-evaluates all gates, computes
+          T, intervals, randomization p-values, the Holm family, contrasts,
+          slopes, M2 branch, tail diagnostics and the mechanical
+          classification of decision_rule (seeds 7006, 7007).
+        depends_on: [t4-measure-c16-c20, t5-measure-c24-fam, t6-measure-c24-na, t7-measure-c24-nb]
+        workers: 1
+        expected_wall_seconds: 120
+        expected_peak_memory_mb: 800
+        memory_mb: 2048
+    totals: >-
+      Budgeted wall-clock about 3100 seconds (52 minutes) at tau = 40 ns;
+      about 1700 seconds at 20 ns; the 7200-second envelope breaks near 105
+      ns (110.6 ns with the pilot figures). Measured pilot projection at tau
+      = 14 ns: about 17 minutes. Budgeted total CPU about 8000 core-seconds.
+      Peak memory about 2 GB in the heavy trials (declared per-process
+      address-space guards memory_mb 2048 / 4096 / 4096 / 4096 / 8192 / 8192
+      / 8192 / 2048 for t1 to t8); peak_rss_bytes in a manifest is the
+      per-process maximum, not summed over workers.
+    dependency_semantics: >-
+      A failed or unresolved t2 or t3 prevents t4 to t7 (and t8). A failed
+      t4 to t7 prevents t8. No trial is rerun until its result looks
+      favourable; a retry needs a new immutable run id and additive
+      authorization.
+  required_artifacts:
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-2373be/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-2373be/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-5905c0/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-5905c0/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-66b0fe/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-66b0fe/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-3dc120/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-3dc120/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-42a578/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-42a578/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-e13f0e/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-e13f0e/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-c71d35/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-c71d35/raw-result.json
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-2010d3/manifest.yaml
+    - experiments/EXP-CMFB-cea1d2/runs/RUN-CMFB-2010d3/raw-result.json
+  manifest_fields: >-
+    Each manifest.yaml records the exact command, git commit, environment
+    (python, numpy, sympy or gmpy2 versions, cpu count, memory), seeds used,
+    per-stage timings (including measured seconds per triple), and
+    peak_rss_bytes. Each raw-result.json holds the per-member records (arm,
+    cell, member index, p, A, B, N, a, b, t, d, twisted, p mod 120, B_size,
+    T, coverage counts of the member base and of all 200 random bases, M0
+    loop counters, histogram recount integers, window width, scan ratios,
+    label checks), the control results, and the instance-list sha256. The
+    post-run report, graph and PDF required by the research-visuals skill
+    are produced after t8 by the run skill from these records; they are not
+    trial artifacts.
+  stopping_rules:
+    - >-
+      Stop after exactly one valid manifest and raw-result.json for each of the
+      eight run ids. No ninth run, no extra cell, no extra members, no extra
+      random bases and no larger N is added after any observation.
+    - >-
+      A failed gate (t2 or t3) stops the plan: dependent trials are not
+      launched, and the recorded fact is "instrument failed", not a negative
+      mathematical result.
+    - >-
+      If the sieve gives M_c < 8 the cell is UNDERPOWERED; the cell is never
+      enlarged, merged (except by the pre-registered rule P1), or
+      resampled to reach 8.
+    - >-
+      A timeout, crash or implementation failure is infrastructure signal;
+      it is not a result, it is not retried silently, and a retry uses a new
+      run id with the same seeds and parameters.
+    - >-
+      The planned 2-hour wall clock is advisory: exceeding it does not stop a
+      running trial, it is reported. Exceeding 2 hours at the pre-freeze
+      check (see cost_model) lowers the C24 top edge before freeze.
+  invalidation_rules:
+    - "I1 Run count is not 8, a manifest is missing a required field (command, git commit, environment, seeds, timings, peak_rss_bytes), or an artifact is absent or empty."
+    - "I2 M0 fails anywhere: a loop counter differing from binomial(B+2,3), a histogram total differing from it, or the histogram nonzero count differing from the seen[] count (integer equality, no tolerance)."
+    - "I3 The brute-force counter check shows any difference in any c(r) (60 cases)."
+    - "I4 Curve validity: p or N composite, Hasse violated, [N]P != O, a root of f in F_p, wrong twist, FAM formulas p = 5t^2+19t+19 or N = 5t^2+18t+20 violated, j != -96^3 for FAM or N-A, j = -96^3 for N-B, 4p != a^2+19b^2 or b = a+2 for N-A, an N-A or N-B prime outside the cell band or repeated."
+    - "I5 Labelling: any [l(Q)]g != Q, or any sampled triple whose point sum differs from [l_i+l_j+l_k]g."
+    - "I6 qr_window control: any N-B pool with R_pool outside [1.98, 2.02] or R_wrong outside [0.96, 1.04], the full-period point-count identity failing on any scanned curve, or any lifted y with y^2 != f(x)."
+    - "I7 Sensitivity control: fewer than 7 of 8 planted curves detected (rank p = (1+k)/201 <= 0.01, ties against the planted base) in any cell, pooled planted ratio off the known value by more than max(0.10 percent, 3 standard errors), or pooled two-sided planted randomization p > 0.001."
+    - "I8 Seed integrity: a duplicated or missing rng stream, a random base with repeated classes, duplicated instances, seeds in a manifest differing from the frozen list, instance-list sha256 differing between trials, or member counts differing from the sieve/quotas."
+    - "I9 Raw and summary disagree: the independent recomputation in check.py (coverage of 3 members per arm and cell by a second code path: pure-Python set at C16 and C20, sort-based unique at C24) differs from the recorded coverage, or any table in t8 differs from its recomputation from the raw per-member records."
+    - "I10 (flag, reviewer decides, not an automatic void) measured null standard deviation outside 0.75x to 1.33x of 1.4/sqrt(N) in any cell; F_p windows requiring a scan beyond p in the base definition."
+    - "I11 Any change to the frozen code, constants or seeds after approval without a protocol_amendment."
+  pre_freeze_disclosure:
+    purpose: >-
+      Plain facts about what was seen before this contract is frozen, so that
+      a reviewer can judge what is pre-registered and what is not.
+    facts:
+      - >-
+        The implementer ran trials t2 and t3 end to end on the real frozen
+        seeds as a smoke test, in scratch space only. experiments/
+        EXP-CMFB-cea1d2/runs/ is empty.
+      - >-
+        Instrument-gate numbers seen: planted-base detection at C16 was
+        exactly 7 of 8 (one curve at rank p 3.5 percent); the C20 pooled
+        planted ratio was 1.01091 against the known 1.01247, i.e. 0.156
+        percent against a tolerance of 0.173 percent; the measured null
+        standard deviation was 2.5 to 3.0 times the draft formula.
+      - >-
+        Trials t4 to t7 (the measurement trials) were NOT run on the real
+        seeds. They were smoke-tested only on shifted seeds (offset 1000,
+        K = 20) and on a mini-study at bands 2^14 to 2^18.
+      - >-
+        The t1 inventory dry run on the real instance list gave FAM members
+        C16 = 4, C20 = 10, C24 = 13 (deterministic; instance-list sha256
+        38cf55093614d8f8761e392d75e17ae5f0266e50b69b7abd58d6f01c3b2fa314).
+        Predicted 3 / 8 / 14; Bateman-Horn with q < 10^5 gives 3.11 / 8.01 /
+        14.42. Rule P1 is not applied; C16 is UNDERPOWERED; C20 and C24 are
+        powered by member count.
+      - >-
+        The gate thresholds were NOT changed in response to the seen t3
+        numbers. The only quantitative revision after the smoke test is the
+        null standard deviation constant, from the draft occupancy value to
+        1.4 / sqrt(N), justified by the independent shifted-seed data
+        (measured over formula ratio 2.4 to 2.75).
+      - >-
+        The gate numbers above are therefore known before the official run,
+        and the official t3 is deterministic (same seeds, same code): it will
+        reproduce them. The planted-ratio tolerance is marginal at C20 on
+        these seeds (0.156 percent against 0.173 percent) and the C16
+        detection count is exactly at the minimum of 7 of 8; a gate failure
+        on rerun is not a surprise and a pass is not independent evidence of
+        sensitivity beyond what was already seen.
+  implementation_conventions:
+    note: >-
+      Conventions fixed by the implementation and recorded here so that the
+      frozen contract and the code agree. They add no degree of freedom.
+    rng:
+      label_check_triples: "stream index 203 (labelling check triples)"
+      order_test_points: "seed 7008, stream 1 (twist and order test points)"
+      shanks_mestre: "seed 7010, stream 0 (N-B order search)"
+      n_a_member_indexing: "N-A members are indexed u = 0..h-1 for the uniform stratum and theta = h..2h-1 for the theta stratum, where h is half of the stratum quota"
+      bootstrap_and_randomization: >-
+        numpy Generator from rng(seed 7006 for bootstrap, 7007 for
+        randomization, cell, arm, stream, 0) with stream ids: CI 0, fam_na 1,
+        fam_natheta 2, na_nb 3, slope 4
+      tie_break: "stream 202 with the member id j"
+      brute_force: "SeedSequence([7009, N, B, kind, 0])"
+      random_base_recipe: "exactly as in the docstring of count.random_labels"
+    instances:
+      n_a_theta_stratum: "phi uniform on [acos 0.25, acos 0.20]"
+      not_a_family_prime: "p' is not in {5t^2 + 19t + 19 : t odd}"
+      pooled_c18_control_band: "(2^14, 2^15]"
+      control_curve_disjointness: "N-B-ctrl curves are disjoint from the N-B curves of the same cell"
+      twist_list: "squarefree n only, in the same order, with the same first d such that (d/p) = -1"
+      instance_draw_cap: "at most 2,000,000 attempts per instance draw loop"
+    analysis:
+      equal_size_ties: "ties in rank statistics between equal-size items are broken uniformly in member rank p"
+      block_length: "the moving-block bootstrap block length is reduced to n when n < 3"
+    manifest:
+      dirty: "the git dirty flag is computed as in harness/runner.py"
+      peak_rss_bytes: "per-process maximum over the trial, not summed over workers"
+  claim_ceiling:
+    growth_and_power_up_front: >-
+      With the realized FAM member counts 4 / 10 / 13 only C20 and C24 can be
+      powered (C16 is UNDERPOWERED), and a slope needs at least 3 powered
+      cells. So NO slope claim and NO MATERIAL lead is possible in this
+      experiment. The most it can deliver is a null at resolution 0.5 percent
+      or a sub-threshold level lead in at most two cells.
+    ceiling: >-
+      Coverage and qr_window scan efficiency of the small-x base for
+      crater-type D=-19 curves (family and non-family) and random curves, at
+      toy sizes 2^14 < p <= 2^25, m = 3, unsigned multisets, targets uniform
+      over Z_N, in the integral charts stated.
+    what_follows:
+      - >-
+        If NULL_AT_RESOLUTION: the exact coverage ratio of the small-x base is
+        within +-0.5 percent of a matched random base in the tested arms and
+        powered cells, the yield identity holds exactly, and the qr_window
+        scan efficiency is 2.0 +- 0.02 on generic curves; the coverage and
+        scan-efficiency channels carry no effect above 0.5 percent at those
+        sizes for this base and this chart.
+      - >-
+        If a lead: a distinguishable coverage or scan-efficiency effect of the
+        stated size and arm pattern at the stated cells, requiring
+        replication; nothing about growth unless 3 powered cells exist.
+    what_does_not_follow:
+      - "Nothing about the 53-bit pair p = 5947698030651343 (log2 p = 52.4), its crater, its floor, or any prime near that size: the largest cell is 27 bits smaller and there is no growth arm of 3 powered sizes."
+      - "Nothing about solver cost, relation rank, linear algebra, descent, or any end-to-end attack cost (the yield is conserved; coverage headroom is bounded by min(1, mean) and the cost gain by 1.582)."
+      - "Nothing about other bases (Sidon-type bases reach +10.7 percent in EV-FBG-001), other charts (random isomorphic charts, other models), other m, signed conventions, restricted targets, or the floor curve (End = Z[pi])."
+      - "A null is a statement at resolution 0.5 percent, not at zero; the planted control resolves +0.3 to +3.3 percent, not smaller effects."
+  unverified_items:
+    - >-
+      tau (seconds per enumerated triple) with numpy: 40 ns is budgeted; the
+      implementer's C20 pilot measured 13.0 to 14.0 ns and the pre-freeze
+      inequality passes (see cost_model.pre_freeze_pilot_result); the
+      break-even for 2 hours is about 105 to 110 ns.
+    - >-
+      FAM member counts per cell are a hand Bateman-Horn estimate (local
+      factors only for q <= 43); the exact sieve decides. Expected: C16
+      about 3 (UNDERPOWERED), C20 about 8 (borderline), C24 about 14. The t1
+      dry run gave 4 / 10 / 13 (see pre_freeze_disclosure). Consequence: at
+      most 2 powered cells, so no slope claim.
+    - >-
+      Planted-effect sizes (+3.3, +1.3, +0.5 percent on the control curves,
+      +0.3 percent at 2^25) and B, T values in the cost table were computed by hand from the
+      Poisson law and exact integer cube roots and must be recomputed by the
+      script; B and T were hand-checked at N = 2^18 against EV-FBG-001
+      (B = 117, mu = 1.0445 against recorded 1.0436).
+    - >-
+      The Shanks-Mestre style order search for N-B must be implemented with a
+      uniqueness check; the acceptance rate (prime orders about 10 percent)
+      and its running time are unmeasured.
+    - >-
+      Python 3.8+ pow(x, -1, p), numpy int64 products below 2^50 (p <= 2^25),
+      availability of a prime-testing helper (sympy or own Miller-Rabin),
+      and availability of a C compiler (optional) are assumed, not checked.
+    - >-
+      The 4-worker multiprocessing determinism (results independent of
+      worker count) is by construction of the rng streams but must pass
+      parallel.verify_determinism before approval; RLIMIT_AS guards of 4096
+      to 8192 MB per process with numpy and 4 workers are unverified; the
+      container is assumed to have at least 8 GB RAM and 4 cores.
+    - >-
+      The path convention by which a later trial reads artifacts of an
+      earlier trial (experiments/EXP-CMFB-cea1d2/runs/<RUN-ID>/) versus the
+      {run_dir} template of the supervisor: the plan above has later trials
+      recompute instances from seeds and only compare sha256; t8 reads the
+      earlier run directories by their fixed paths. Verify against
+      tools/experiment_execution.py.
+    - >-
+      The statement that every curve with j = -96^3 over F_p has End = O_K,
+      and that E_0 reduces to a curve whose order is N or 5 v^2, is standard
+      CM theory (class number one) recalled, not re-derived; the run checks
+      the order, trace identity and j per curve.
+    - >-
+      Whether the integral point (7, 1) of E_0 (f(7) = 1) and any other
+      small-x point with f(x) a perfect square create additive relations in
+      the base: expected negligible (at most a handful of points among B);
+      not measured.
+  confounders:
+    - "too few FAM members per cell (UNDERPOWERED rule); the family arm cannot be enlarged"
+    - "base-size rounding (B is an integer; mu = T/N between 1.00 and 1.07, exact per curve)"
+    - "pseudo-replication across t (moving-block bootstrap; randomization test uses independent members)"
+    - "p mod small primes and reciprocity of f(x) at small x in the small-integer chart (p mod 120 recorded; exploratory only)"
+    - "chart type: twisted FAM and N-A charts have larger integral coefficients than N-B (twisted flag recorded)"
+    - "within-cell size mismatch between the family density (upper end) and the log-uniform null arms (mean log2 p reported per arm and cell)"
+    - "angle of the Frobenius: FAM sits at a/(2 sqrt p) = 0.2236; controlled by the N-A-theta stratum"
+  out_of_scope:
+    - "p above 2^25, the cell C28, and any claim about the 53-bit pair, its floor, or the lift to Q."
+    - "The floor curve (End = Z[pi]) and any curve of conductor above 1 in the endomorphism-ring sense; N-C other class-number-one discriminants."
+    - "Any base other than the small-x liftable window; random isomorphic charts; Montgomery, Edwards and Hessian models; m other than 3."
+    - "Solver cost, summation polynomials, relation rank, linear algebra, descent."
+    - "Any model call, any network access, and any edit of an existing record."
+  assigned_to: executor
+  launcher:
+    trial_plan: experiments/EXP-CMFB-cea1d2/trial-plan.json
+    driver: experiments/EXP-CMFB-cea1d2/implementation/driver.py
+    counting_module: experiments/EXP-CMFB-cea1d2/implementation/count.py
+    curve_module: experiments/EXP-CMFB-cea1d2/implementation/curves.py
+    analysis: experiments/EXP-CMFB-cea1d2/implementation/analyze.py
+    checker: experiments/EXP-CMFB-cea1d2/implementation/check.py
+    status: not_yet_written
