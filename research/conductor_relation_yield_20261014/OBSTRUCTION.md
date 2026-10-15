@@ -1,4 +1,6 @@
-# Prime-field arity-3 useful-relation enumerator and verifier
+# Historical draft: prime-field arity-3 useful-relation enumerator and verifier
+
+The canonical live record is now [prime-field-arity3-relation-oracle.md](../../problems/prime-field-arity3-relation-oracle.md). This draft preserves the initial access-limited state and is not the current problem index entry.
 
 - **Status:** `open`
 - **Kind:** implementation gap; current Conductor authentication is a separate access/tool limit for filing the canonical `problems/` record.
