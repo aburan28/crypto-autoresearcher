@@ -15,12 +15,27 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def normalized_collector(path: Path) -> list[str]:
+    """Keep target indices, multiplicities and triples; omit model coordinates."""
+    normalized = []
+    for line in path.read_text().splitlines():
+        fields = line.split("\t")
+        if fields[0] == "target":
+            if len(fields) != 7:
+                raise ValueError("malformed target record")
+            normalized.append("\t".join(fields[:2] + fields[4:]))
+        else:
+            normalized.append(line)
+    return normalized
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--prepared-manifest", type=Path, required=True)
     parser.add_argument("--admission", type=Path, required=True)
+    parser.add_argument("--reference-run-dir", type=Path)
     parser.add_argument("--control", action="store_true")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
@@ -54,6 +69,18 @@ def main() -> int:
     independent = json.loads(replay.stdout)
     if independent != result["verified"] or independent.get("status") != "valid":
         raise ValueError("independent point/row replay disagrees")
+    if args.reference_run_dir is not None:
+        reference = args.reference_run_dir.resolve()
+        ref_result = json.loads((reference / "raw-result.json").read_text())
+        if ref_result.get("status") != expected:
+            raise ValueError("transport reference is incomplete")
+        if normalized_collector(reference / "attempt" / "collector.stdout") != normalized_collector(run_dir / "attempt" / "collector.stdout"):
+            raise ValueError("transported-base targetwise triples or multiplicities disagree")
+        stable_metrics = ("targets", "useful_targets", "useful_triples", "raw_unordered_triples",
+                          "rank_increments", "rank_increment_targets", "rank_prefix",
+                          "unique_canonical_augmented_rows", "unique_canonical_coefficient_rows")
+        if any(ref_result["verified"].get(key) != independent.get(key) for key in stable_metrics):
+            raise ValueError("transported-base verified row/rank metrics disagree")
     if not args.control:
         interval = subprocess.run([sys.executable, str(HERE / "exact_interval.py"),
                                    "--population", str(prepared["r"] - 1),
