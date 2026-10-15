@@ -1,0 +1,88 @@
+experiment:
+  id: EXP-ECDLP-502ae2
+  hypothesis_id: H-ECDLP-60de36
+  question_id: RQ-ECDLP-001
+  goal_id: GOAL-ECDLP-001
+  predecessor: EXP-ECDLP-f49f75
+  version: 1
+  status: approved
+  claim_tier: toy
+  retrospective: false
+  retrospective_note: >-
+    PRE-REGISTRATION, frozen before the first data run. Smoke runs on seed
+    "smoke-ms" debugged the launcher and are not data.
+  title: >-
+    Instrument replication of EXP-ECDLP-f49f75 at m = 3 under msolve (F4 +
+    FGLM): is the chain-encoding slowdown an artefact of Singular std/slimgb?
+  objective: >-
+    EXP-ECDLP-f49f75 rejected H-ECDLP-60de36 with scope "Singular only";
+    problems/pkm-isogeny-chain-factor-base-no-fast-decomposition.md names the
+    m = 3 grid under an F4 solver as the next discriminating step. This
+    experiment re-runs exactly those instances with msolve.
+  inputs:
+    instances: >-
+      Identical to EXP-ECDLP-f49f75 m = 3 (construction code imported from its
+      launcher, seed string EXP-ECDLP-f49f75/v1); L = 3..7 (L = 6, 7 were never
+      run under Singular).
+    summation_polynomial: S_4 expanded once per instance by Singular (untimed preprocessing; same input for arms A and B)
+  arms:
+    A_chain: chain encoding, 1 + 3(L-1) ... 3L variables
+    B_dense_same_set: same V, degree-2^L minimal polynomial
+    C_dense_random_set: random 2^L-set, dense
+    E_enumeration: unchanged meet-in-the-middle
+  instrument:
+    software: msolve 0.6.5 (Ubuntu package 0.6.5-1build2), 1 thread per process
+    gb: msolve -g 2 -v 2 (reduced DRL basis; wall time; max F4 degree from the verbose log)
+    solve: msolve -P 1 (full solve, F4 + FGLM parametrization; wall time); run only if gb completed
+    known_limits: >-
+      msolve 0.6.5 segfaults on the dense m = 2, L = 8 system (degree-256
+      univariates; likely an exponent-width limit), so m = 2 is out of scope;
+      the m = 3 grid has univariate degree <= 128. Its parser keeps only the
+      last of several constant terms, so the launcher always merges constants.
+  controls:
+    - "positive control - every planted decomposition must satisfy every element of msolve's reduced basis (checker validated on a known root and two non-roots)"
+    - "encoding control - arm B (same set as A); null control - arm C"
+    - "instrument pairing - same instances as EXP-ECDLP-f49f75 RUN-02 (Singular)"
+  independent_variables: [L, arm]
+  metrics:
+    primary:
+      - median full-solve wall time (msolve -P 1) per (arm, L)
+      - largest L completed within 600 s per arm (completed = gb and solve both finished)
+    secondary:
+      - median gb wall time; max F4 degree; quotient dimension; enumeration group ops
+      - per-instance msolve/Singular time ratio for L = 3..5 (paired)
+  preregistered_prediction:
+    formula: >-
+      Coordinator prediction: arm A remains slower than B in every jointly
+      completed cell and is retired at a smaller L than B and C.
+    source: EXP-ECDLP-f49f75 results under Singular
+  replication:
+    seeds: ["EXP-ECDLP-f49f75/v1"]
+    independent_instances: 6 per L (4 planted + 2 random)
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    maximum_memory_gb: 12
+    maximum_runs: 1
+    maximum_workers: 4
+  stopping_rules:
+    - an arm whose every instance timed out (gb or solve) in a cell is not run at larger L
+  invalidation_rules:
+    - any planted decomposition not satisfying msolve's reduced basis invalidates that arm's cell
+    - any msolve crash (nonzero exit other than timeout) in a cell is recorded and that arm's cell is excluded
+  success_criterion: >-
+    H-ECDLP-60de36 regains support under this instrument if arm A's median
+    full-solve time is below arm B's in >= 80% of jointly completed cells AND
+    arm A completes a larger L than arms B and C.
+  falsification_criterion: >-
+    The Singular-scoped rejection extends to msolve if arm A's median is at or
+    above arm B's in >= 80% of jointly completed cells OR arm A is retired at
+    an L no larger than B and C. Anything else is inconclusive.
+  required_artifacts:
+    - runs/RUN-ECDLP-502ae2-01/{raw-result.jsonl,command.txt,environment.json,manifest.json,stdout.log,stderr.log}
+    - reports/ run report and review report with graph and PDF
+  launcher: experiments/EXP-ECDLP-502ae2/msolve_grid.py
+  trial_plan: experiments/EXP-ECDLP-502ae2/trial-plan.json
+  assigned_to: executor
+  approved_by: coordinator
+  approval_basis: AGENTS.md standing user authorization; user request "install msolve and rerun the m=3 grid" (2026-10-15)
