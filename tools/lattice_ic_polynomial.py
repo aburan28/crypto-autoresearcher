@@ -18,16 +18,34 @@ that gate before parsing integer JSON. Modules and allocator remain shared.
 
 The frozen study is called only by run_experiment/main. Software development
 uses p5/p7/p11 and invented polynomials, never the study fixtures.
+
+Programmatic calls are quiet unless passed telemetry=callable or a Telemetry
+session; reduction_cell also accepts cell_id for the frozen run-case identity.
+The execution CLI emits durable JSONL to its captured stderr, with no separate
+telemetry artifact. polynomial_scientific_body finish marks only that function
+returning; polynomial_cli finish follows write_artifacts. The writer's existing
+whole-run clock includes prior logging but excludes terminal writer/run events
+after writing. CLI event spans include prior instrumentation; event timestamps
+precede their own persistence, which enclosing clocks pay. The final event's
+own persistence has no later enclosing measurement. Cell inclusive_cost and
+component/phase clocks include their logging; do not add child clocks.
+Logging/serialization and integer bit complexity have no primitive-cost price.
+No event releases partial scientific results or attests supervisor validation.
 """
 from __future__ import annotations
 
 import argparse
 from collections import Counter as Bag
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from fractions import Fraction
+from functools import wraps
+import inspect
 from itertools import combinations, product
 import json
 import math
+import os
 from pathlib import Path
 import random
 import resource
@@ -53,6 +71,166 @@ CONTROL_NAMES = ("dense_same_cap", "same_box_oracle", "random_base", "permuted_c
 
 class InstrumentStop(RuntimeError):
     pass
+
+
+class TelemetryIOError(OSError):
+    """A telemetry sink failed; execution must stop rather than lose custody."""
+
+
+class DurableJSONL:
+    """Append events to the supplied stream, flushing and fsyncing its real fd.
+
+    No seek, truncate, alternate artifact, or pipe-fsync fallback is permitted.
+    The CLI supplies the supervisor-captured stderr stream.
+    """
+    def __init__(self, stream):
+        self.stream = stream
+
+    def __call__(self, event):
+        try:
+            line = json.dumps(event, sort_keys=True)+"\n"
+            if self.stream.write(line) != len(line):
+                raise OSError("short telemetry write")
+            self.stream.flush()
+            os.fsync(self.stream.fileno())
+        except Exception as error:
+            raise TelemetryIOError("durable telemetry write/flush/fsync failed: "+str(error)) from error
+
+
+class Telemetry:
+    """Optional callable sink, with one monotonic sequence per invocation context.
+
+    Events are operational custody, never partial scientific results. Event
+    clocks are sampled before the event's own sink call. Start persistence and
+    nested logging are included in elapsed spans; terminal persistence is paid
+    by enclosing spans and the cell's inclusive_cost, not its own event clock.
+    Primitive counters do not count logging or price integer bit complexity.
+    """
+    def __init__(self, sink, seed=None):
+        self.sink, self.seed, self.sequence = sink, seed, 0
+
+    def emit(self, kind, key, event, wall, cpu, error=None, status=None):
+        self.sequence += 1
+        now, process = time.monotonic(), time.process_time()
+        cell = _telemetry_cell.get()
+        path = list(_telemetry_stages.get())
+        record = {"schema": "lattice-ic.polynomial-telemetry.v1", "sequence": self.sequence,
+                  "pid": os.getpid(), "seed": self.seed, "kind": kind,
+                  "cell_id": cell, "stage": key if kind == "stage" else None,
+                  "key": "/".join(([cell] if cell else [])+path) if kind == "stage" else key,
+                  "stage_path": path,
+                  "event": event, "monotonic_seconds": now, "process_cpu_seconds": process,
+                  "elapsed_wall_seconds": now-wall, "elapsed_cpu_seconds": process-cpu,
+                  "timing_scope": "clocks sampled before own sink; elapsed includes start and nested logging; enclosing spans pay terminal logging; no additive child totals",
+                  "unpriced_work": "telemetry has no primitive/bit-cost count; event progress is not scientific yield"}
+        if error is not None:
+            record["exception"] = {"type": type(error).__name__, "message": str(error)}
+        if status is not None:
+            record["status"] = status
+        try:
+            self.sink(record)
+        except TelemetryIOError:
+            raise
+        except Exception as error:
+            raise TelemetryIOError("telemetry sink failed: "+str(error)) from error
+
+
+_telemetry = ContextVar("polynomial_telemetry", default=None)
+_telemetry_cell = ContextVar("polynomial_telemetry_cell", default=None)
+_telemetry_stages = ContextVar("polynomial_telemetry_stages", default=())
+
+
+@contextmanager
+def _boundary(kind, key):
+    telemetry = _telemetry.get()
+    if telemetry is None:
+        yield
+        return
+    cell_token = _telemetry_cell.set(key) if kind == "cell" else None
+    stage_token = _telemetry_stages.set(_telemetry_stages.get()+(key,)) if kind == "stage" else None
+    wall, cpu = time.monotonic(), time.process_time()
+    outcome = {}
+    try:
+        telemetry.emit(kind, key, "start", wall, cpu)
+        try:
+            yield outcome
+        except BaseException as error:
+            if not isinstance(error, TelemetryIOError):
+                telemetry.emit(kind, key, "exception", wall, cpu, error=error)
+            raise
+        else:
+            telemetry.emit(kind, key, "finish", wall, cpu, status=outcome.get("status"))
+    finally:
+        if stage_token is not None:
+            _telemetry_stages.reset(stage_token)
+        if cell_token is not None:
+            _telemetry_cell.reset(cell_token)
+
+
+@contextmanager
+def _phase(counter, name):
+    # Counter phase time includes both durable boundaries; primitive counts
+    # retain their old meaning. The aggregate component timer encloses this.
+    with counter.phase(name):
+        with _boundary("stage", name):
+            yield
+
+
+def _cell_call(identifier, function, *args, **kwargs):
+    token = _telemetry_cell.set(identifier)
+    try:
+        wall, cpu = time.monotonic(), time.process_time()
+        with _boundary("cell", identifier):
+            result = function(*args, **kwargs)
+        if _telemetry.get() is not None:
+            _finish_component_cost(result, wall, cpu)
+        return result
+    finally:
+        _telemetry_cell.reset(token)
+
+
+def _finish_component_cost(result, wall, cpu):
+    cost = (result.get("cost") if isinstance(result, dict) else
+            result[-1] if isinstance(result, tuple) and isinstance(result[-1], dict) else None)
+    if cost is not None and "wall_seconds" in cost and "cpu_seconds" in cost:
+        cost["wall_seconds"], cost["cpu_seconds"] = time.monotonic()-wall, time.process_time()-cpu
+        cost["scope"] += "; telemetry boundary persistence included; outer time, do not add phase/child times"
+
+
+def _instrument(kind, key):
+    """Add optional telemetry/cell_id keywords without changing scientific args."""
+    def decorate(function):
+        signature = inspect.signature(function)
+        @wraps(function)
+        def instrumented(*args, telemetry=None, cell_id=None, **kwargs):
+            if telemetry is None and _telemetry.get() is None:
+                return function(*args, **kwargs)
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()
+            session = telemetry if isinstance(telemetry, Telemetry) else (
+                Telemetry(telemetry, bound.arguments.get("seed")) if telemetry is not None else _telemetry.get())
+            token = _telemetry.set(session)
+            identifier = cell_id or (bound.arguments.get("identifier") or key+"/"+json.dumps(bound.arguments, sort_keys=True) if kind == "cell" else key)
+            cell_token = _telemetry_cell.set(identifier) if kind == "cell" else None
+            wall, cpu = time.monotonic(), time.process_time()
+            try:
+                with _boundary(kind, identifier) as outcome:
+                    result = function(*args, **kwargs)
+                    if isinstance(result, dict):
+                        outcome["status"] = result.get("status")
+                if kind == "cell" and "inclusive_cost" in result:
+                    # Include result assembly and successful terminal fsync.
+                    result["inclusive_cost"]["wall_seconds"] = time.monotonic()-wall
+                    result["inclusive_cost"]["cpu_seconds"] = time.process_time()-cpu
+                elif kind == "stage":
+                    _finish_component_cost(result, wall, cpu)
+                return result
+            finally:
+                if cell_token is not None:
+                    _telemetry_cell.reset(cell_token)
+                _telemetry.reset(token)
+        return instrumented
+    return decorate
 
 
 def require(condition, message):
@@ -122,6 +300,7 @@ def s3(x1, x2, x3, A, B):
             +(x1*x2-A)**2-4*B*(x1+x2))
 
 
+@_instrument("stage", "summation_polynomial")
 def summation_polynomial(m, variables, target_x, A, B, p):
     sp, _ = dependencies()
     require(m in (2, 3) and len(variables) == m, "only expanded m2/m3 instrumented")
@@ -168,6 +347,7 @@ def _matmul(A, B):
     return [[sum(a*b for a, b in zip(row, column)) for column in zip(*B)] for row in A]
 
 
+@_instrument("stage", "exact_integer_row_hnf")
 def _integer_row_hnf(rows, counter):
     """Canonical row HNF with bounded tracking and exact two-way witnesses.
 
@@ -280,6 +460,7 @@ def _integer_row_hnf(rows, counter):
     return H, coefficients, coordinates
 
 
+@_instrument("stage", "gram_determinant")
 def _gram_determinant(basis):
     sp, _ = dependencies()
     if len(basis) == len(basis[0]):
@@ -290,11 +471,12 @@ def _gram_determinant(basis):
     return int((B*B.T).det(method="domain-ge"))
 
 
+@_instrument("stage", "build_shift_lattice")
 def build_shift_lattice(polynomials, variables, p, weight_bounds, t, L, arm):
     """Build the exact prescribed dense or finite-union sparse weighted Z-lattice."""
     sp, _ = dependencies()
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
-    with counter.phase("symbolic_setup"):
+    with _phase(counter, "symbolic_setup"):
         _reset_symbolic_cache(counter)
     variables, weight_bounds = tuple(variables), tuple(weight_bounds)
     require(variables and all(isinstance(x, sp.Symbol) for x in variables) and len({str(x) for x in variables}) == len(variables)
@@ -305,7 +487,7 @@ def build_shift_lattice(polynomials, variables, p, weight_bounds, t, L, arm):
     require(arm != "sparse" or len(polynomials) == 1, "finite-union sparse arm is single-polynomial only")
     polynomials = [sp.Poly(f.as_expr() if isinstance(f, sp.Poly) else f, *variables, domain=sp.ZZ) for f in polynomials]
     family, target_support = [], set()
-    with counter.phase("shift_construction"):
+    with _phase(counter, "shift_construction"):
         A_L = _powers(len(variables), L)
         if arm == "sparse":
             powers = [polynomials[0]**b for b in range(t+1)]
@@ -335,7 +517,7 @@ def build_shift_lattice(polynomials, variables, p, weight_bounds, t, L, arm):
             values = {tuple(e): c for e, c in row["polynomial"]}
             rows.append([values.get(e, 0)*weight for e, weight in zip(support, weights)])
             counter.inc("shifts.weighted_entry", len(support))
-    with counter.phase("integer_row_lattice"):
+    with _phase(counter, "integer_row_lattice"):
         H, h_from_rows, rows_from_h = _integer_row_hnf(rows, counter)
         counter.inc("lattice.gram_determinant")
         determinant = _gram_determinant(H)
@@ -381,6 +563,7 @@ def _lll_conditions(basis):
         norms[i] >= (Fraction(99, 100)-mus[i][i-1]**2)*norms[i-1] for i in range(1, len(basis)))
 
 
+@_instrument("stage", "reduce_and_certify")
 def reduce_and_certify(lattice):
     """Actual fpylll LLL and exact transform/norm/unweight certificates."""
     sp, fpylll = dependencies()
@@ -389,7 +572,7 @@ def reduce_and_certify(lattice):
         return {"status": "bounded_instrument_stop", "reason": "derived caps: "+",".join(lattice["cap_exceeded"]),
                 "reduced_basis": [], "vectors": [], "certified_equations": [],
                 "cost": _cost(counter, wall, cpu, "cap refusal; no LLL attempted")}
-    with counter.phase("reducer_setup"):
+    with _phase(counter, "reducer_setup"):
         _reset_symbolic_cache(counter)
     variables = _symbols(lattice["variables"])
     n, D = lattice["dimensions"]["n"], lattice["dimensions"]["D"]
@@ -400,8 +583,11 @@ def reduce_and_certify(lattice):
         U = fpylll.IntegerMatrix.identity(n)
         counter.inc("lll.fpylll_call")
         try:
-            fpylll.LLL.reduction(B, U=U, delta=0.99, eta=0.51,
-                                method="proved", float_type="mpfr", precision=precision)
+            with _boundary("stage", "lll_call"):
+                fpylll.LLL.reduction(B, U=U, delta=0.99, eta=0.51,
+                                    method="proved", float_type="mpfr", precision=precision)
+        except TelemetryIOError:
+            raise
         except Exception as error:
             failure = repr(error)
         if failure is None:
@@ -411,7 +597,7 @@ def reduce_and_certify(lattice):
         return {"status": "bounded_instrument_stop", "reason": "actual fpylll failure: "+failure,
                 "reduced_basis": [], "vectors": [], "certified_equations": [],
                 "cost": _cost(counter, wall, cpu, "actual LLL failed; no alternate reducer")}
-    with counter.phase("exact_reduction_certificates"):
+    with _phase(counter, "exact_reduction_certificates"):
         require(_matmul(transform, lattice["weighted_basis"]) == reduced, "LLL row transform failed")
         determinant = int(sp.Matrix(transform).det())
         require(abs(determinant) == 1 and _lll_conditions(reduced), "LLL exact unimodularity/conditions failed")
@@ -439,6 +625,7 @@ def reduce_and_certify(lattice):
             "cost": _cost(counter, wall, cpu, "actual LLL plus exact transform/GS/norm/unweight checking")}
 
 
+@_instrument("stage", "ideal_certificate")
 def ideal_certificate(equations, variables, counter=None):
     """Exact QQ Groebner basis and Krull dimension from its leading ideal."""
     sp, _ = dependencies()
@@ -616,6 +803,7 @@ def _context_certificate(context, variables):
             "auxiliary_chains": context.get("auxiliary_chains", [])}
 
 
+@_instrument("stage", "extract_and_verify")
 def extract_and_verify(equations, variables, root_boxes, verification_context):
     """Zero-dimensional exact integer extraction; original point checks are mandatory.
 
@@ -627,16 +815,16 @@ def extract_and_verify(equations, variables, root_boxes, verification_context):
     variables, boxes = tuple(variables), [list(box) for box in root_boxes]
     require(len(variables) == len(boxes) and all(len(box) == len(set(box)) and all(type(x) is int for x in box) for box in boxes), "explicit duplicate-free integer root boxes required")
     equations = [sp.expand(expr.as_expr() if isinstance(expr, sp.Poly) else expr) for expr in equations]
-    with counter.phase("verification_setup"):
+    with _phase(counter, "verification_setup"):
         _reset_symbolic_cache(counter)
         verification_context = _clone_context(verification_context, counter)
-    with counter.phase("dimension"):
+    with _phase(counter, "dimension"):
         ideal = ideal_certificate(equations, variables, counter)
     roots, trace, records = [], [], []
     if ideal["zero_dimensional"]:
-        with counter.phase("triangular_extraction"):
+        with _phase(counter, "triangular_extraction"):
             roots, trace = _triangular_integer_roots(equations, variables, boxes, counter)
-        with counter.phase("original_verification"):
+        with _phase(counter, "original_verification"):
             for root in roots:
                 require(all(sp.expand(f).subs(dict(zip(variables, root))) == 0 for f in equations), "extracted integer equation residual")
                 records.append(verify_root(root, variables, boxes, verification_context, counter))
@@ -650,15 +838,16 @@ def extract_and_verify(equations, variables, root_boxes, verification_context):
             "cost": _cost(counter, wall, cpu, "exact dimension/triangular extraction and original modular/lift/sign/subgroup verification; no exhaustive box fallback")}
 
 
+@_instrument("stage", "exhaustive_box_oracle")
 def exhaustive_box_oracle(polynomials, variables, root_boxes, context):
     """Separately charged original modular-root oracle, never candidate extraction."""
     sp, _ = dependencies()
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
     boxes, records, tested = [list(box) for box in root_boxes], [], 0
-    with counter.phase("oracle_setup"):
+    with _phase(counter, "oracle_setup"):
         _reset_symbolic_cache(counter)
         context = _clone_context(context, counter)
-    with counter.phase("exhaustive_box_oracle"):
+    with _phase(counter, "exhaustive_box_oracle"):
         for root in product(*boxes):
             tested += 1
             counter.inc("oracle.box_candidate")
@@ -669,6 +858,7 @@ def exhaustive_box_oracle(polynomials, variables, root_boxes, context):
             "cost": _cost(counter, wall, cpu, "independent exhaustive original box oracle; excluded from candidate yield")}
 
 
+@_instrument("stage", "relation_rank")
 def relation_rank(curve, base, target, decompositions, P, r):
     """Per-fixed-target marginal rank modulo public ±P only, never verifier logs."""
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
@@ -682,7 +872,7 @@ def relation_rank(curve, base, target, decompositions, P, r):
         counter.inc("rank.call")
         counter.inc("rank.input_entry", sum(len(row) for row in rows))
         return rank_mod(rows, r)
-    with counter.phase("fixed_target_rank"):
+    with _phase(counter, "fixed_target_rank"):
         curve = Curve(Field(source_curve.field.p, source_curve.field.quadratic, counter=counter), source_curve.A, source_curve.B)
         f = curve.field
         raw_variables = list(base)
@@ -738,13 +928,14 @@ def relation_rank(curve, base, target, decompositions, P, r):
             "cost": _cost(counter, wall, cpu, "fixed-target exact rank and public-known normalization")}
 
 
+@_instrument("stage", "group_density")
 def group_density(curve, group, base, m):
     """Complete group-sum DP with one reconstructible witness per target."""
     source_curve = curve
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
-    with counter.phase("density_setup"):
+    with _phase(counter, "density_setup"):
         curve = Curve(Field(source_curve.field.p, source_curve.field.quadratic, counter=counter), source_curve.A, source_curve.B)
-    with counter.phase("density_dp_oracle"):
+    with _phase(counter, "density_dp_oracle"):
         counts, witnesses = {None: 1}, {None: ()}
         layers = []
         for level in range(m):
@@ -798,9 +989,10 @@ def _case(identifier, panel, inputs, observables, certificates, work, status="me
             "observables": observables, "certificates": certificates, "work": work, "limits": limits or []}
 
 
+@_instrument("stage", "admit")
 def _admit(p, A, B):
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
-    with counter.phase("curve_and_subgroup_admission"):
+    with _phase(counter, "curve_and_subgroup_admission"):
         curve = Curve(Field(p, counter=counter), A, B)
         admitted = select_prime_subgroup(curve)  # frozen shared min_prime=5, valuation-one
         certificate = {k: v for k, v in admitted.items() if k not in ("P", "G")}
@@ -814,9 +1006,10 @@ def _window(admitted, W):
     return sorted(point for point in admitted["G"] if point is not None and 0 <= point[0][0] < W)
 
 
+@_instrument("stage", "target_schedule")
 def _target_schedule(curve, admitted, base, m):
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
-    with counter.phase("target_schedule"):
+    with _phase(counter, "target_schedule"):
         fresh = Curve(Field(curve.field.p, counter=counter), curve.A, curve.B)
         planted = None
         for points in product(base, repeat=m):
@@ -843,11 +1036,12 @@ def _target_schedule(curve, admitted, base, m):
             "cost": _cost(counter, wall, cpu, "public P/2P plus deterministic first nonzero lex tuple; planting is separate from uniform law")}
 
 
+@_instrument("cell", "reduction")
 def reduction_cell(p, A, B, W, m, target_encoded, t, L, arm, slice_value=None):
     """Fresh cold cell; candidate and oracle components have independent counters."""
     sp, _ = dependencies()
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
-    with counter.phase("cold_input_setup"):
+    with _phase(counter, "cold_input_setup"):
         _reset_symbolic_cache(counter)
         curve = Curve(Field(p, counter=counter), A, B)
         admitted = select_prime_subgroup(curve)
@@ -875,12 +1069,14 @@ def reduction_cell(p, A, B, W, m, target_encoded, t, L, arm, slice_value=None):
     oracle = exhaustive_box_oracle([equation], variables, boxes, context)
     decompositions = sorted(set(tuple(_decode_point(curve, point) for point in witness["points"])
                                for record in extraction["verification"] for witness in record["witnesses"]))
-    candidate_rank = relation_rank(curve, base, target, decompositions, admitted["P"], admitted["r"])
-    homogeneous_rank = relation_rank(curve, base, None, [], admitted["P"], admitted["r"])
+    with _boundary("stage", "candidate_relation_rank"):
+        candidate_rank = relation_rank(curve, base, target, decompositions, admitted["P"], admitted["r"])
+    with _boundary("stage", "homogeneous_relation_rank"):
+        homogeneous_rank = relation_rank(curve, base, None, [], admitted["P"], admitted["r"])
     univariate = None
     if slice_value is not None:
         direct_counter, direct_wall, direct_cpu = Counter(), time.monotonic(), time.process_time()
-        with direct_counter.phase("finite_field_factorization"):
+        with _phase(direct_counter, "finite_field_factorization"):
             _reset_symbolic_cache(direct_counter)
             finite = sp.Poly(equation, *variables, modulus=p)
             factors = sp.factor_list(finite)
@@ -905,13 +1101,14 @@ def reduction_cell(p, A, B, W, m, target_encoded, t, L, arm, slice_value=None):
             "scope": "candidate rank uses extracted/certified equations only; O has no polynomial coordinate interface and homogeneous candidate rows are explicitly empty; oracle witnesses/log labels never enter candidate constraints"}
 
 
+@_instrument("stage", "generic_density")
 def _generic_density(curve, group, base, m, seed):
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
     r, permutation = len(group), list(range(len(group)))
     random.Random(seed).shuffle(permutation)
     inverse = {label: i for i, label in enumerate(permutation)}
     base_labels = [permutation[group.index(point)] for point in base]
-    with counter.phase("relabeled_generic_dp"):
+    with _phase(counter, "relabeled_generic_dp"):
         counts = {permutation[0]: 1}
         for _ in range(m):
             updated = Bag()
@@ -926,10 +1123,11 @@ def _generic_density(curve, group, base, m, seed):
             "cost": _cost(counter, wall, cpu, "separate generic relabeled cyclic DP oracle; never candidate field arithmetic")}
 
 
+@_instrument("stage", "coordinate_compatibility")
 def _coordinate_compatibility(p, A, B, base_encoded, permutation):
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
     tested, failures, identity = 0, [], 0
-    with counter.phase("coordinate_label_control"):
+    with _phase(counter, "coordinate_label_control"):
         curve = Curve(Field(p, counter=counter), A, B)
         base = [_decode_point(curve, point) for point in base_encoded]
         for left, right in product(base, repeat=2):
@@ -948,6 +1146,7 @@ def _coordinate_compatibility(p, A, B, base_encoded, permutation):
             "cost": _cost(counter, wall, cpu, "actual S3/group compatibility under permuted coordinate labels")}
 
 
+@_instrument("stage", "positive_dimension_control")
 def _positive_dimension_control(p):
     sp, _ = dependencies()
     x, y = sp.symbols("x y")
@@ -970,11 +1169,12 @@ def _positive_dimension_control(p):
             "scope": "constructed lattice members, independently short/coefficient-independent but positive dimensional; not promoted to extracted equations"}
 
 
+@_instrument("stage", "adverse_lifts")
 def _adverse_lifts(p, A, B, P_encoded, G_encoded):
     sp, _ = dependencies()
     counter, wall, cpu = Counter(), time.monotonic(), time.process_time()
     repeated, outside = [], []
-    with counter.phase("adverse_modular_lift_oracle"):
+    with _phase(counter, "adverse_modular_lift_oracle"):
         _reset_symbolic_cache(counter)
         curve = Curve(Field(p, counter=counter), A, B)
         group = [_decode_point(curve, point) for point in G_encoded]
@@ -1046,6 +1246,7 @@ def _control_references(cases):
     return refs
 
 
+@_instrument("cell", "inadmissible")
 def _inadmissible(identifier, panel, inputs, reason):
     return _case(identifier, panel, inputs, {"admitted": False, "reason": reason},
                  {"unexecuted_dependency": "admission/p"+str(inputs["p"])},
@@ -1053,17 +1254,19 @@ def _inadmissible(identifier, panel, inputs, reason):
                  status="inadmissible", limits=["Dependent cell unavailable under frozen min_prime=5/valuation-one rule; no substitute subgroup."])
 
 
+@_instrument("run", "polynomial_scientific_body")
 def run_experiment(seed=1729):
     """All frozen panels; this function is never invoked by software tests."""
     dep_wall, dep_cpu = time.monotonic(), time.process_time()
-    sp, fpylll = dependencies()
+    with _boundary("stage", "dependency_setup"):
+        sp, fpylll = dependencies()
     dependency_cost = {"wall_seconds": time.monotonic()-dep_wall, "cpu_seconds": time.process_time()-dep_cpu,
                        "versions": {"sympy": sp.__version__, "fpylll": fpylll.__version__, "python": sys.version},
                        "integer_serialization": "full precision; Python decimal digit guard disabled for exact cap/Gram certificates; arithmetic instrument caps unchanged",
                        "scope": "shared actual dependency import/version gate; charge once per cold run, never a fallback"}
     cases = []
     for p, A, B in FIXTURE["curves"]:
-        curve, admitted, admission, work = _admit(p, A, B)
+        curve, admitted, admission, work = _cell_call(f"admission/p{p}", _admit, p, A, B)
         cases.append(_case(f"admission/p{p}", "admission", {"p": p, "A": A, "B": B},
                            {"admitted": admitted["admitted"], "r": admitted["r"], "order": admitted["order"]},
                            admission, work, status="measured" if admitted["admitted"] else "inadmissible",
@@ -1084,7 +1287,7 @@ def run_experiment(seed=1729):
                     if not admitted["admitted"]:
                         cases.append(_inadmissible(identifier, "density", inputs, admitted["reason"]))
                         continue
-                    density = group_density(curve, admitted["G"], bases[kind], m)
+                    density = _cell_call(identifier, group_density, curve, admitted["G"], bases[kind], m)
                     densities[kind, m] = density
                     cases.append(_case(identifier, "density", inputs,
                                        {"M": density["M"], "W": W, "coverage": density["coverage"], "first_moment": density["first_moment"]},
@@ -1095,7 +1298,7 @@ def run_experiment(seed=1729):
                     cases.append(_inadmissible(tree_id, "m5_tree", tree_inputs, admitted["reason"]))
                 else:
                     tree_counter, tree_wall, tree_cpu = Counter(), time.monotonic(), time.process_time()
-                    with tree_counter.phase("fixed_m5_tree"):
+                    with _boundary("cell", tree_id), _phase(tree_counter, "fixed_m5_tree"):
                         fresh = Curve(Field(p, counter=tree_counter), A, B)
                         trees = []
                         for target, points in zip(densities[kind, 5]["targets"], densities[kind, 5]["witnesses"]):
@@ -1114,7 +1317,7 @@ def run_experiment(seed=1729):
                 if not admitted["admitted"]:
                     cases.append(_inadmissible(identifier, "generic", inputs, admitted["reason"]))
                 else:
-                    generic = _generic_density(curve, admitted["G"], actual, m, f"{seed}:{p}:{W}:{m}:generic")
+                    generic = _cell_call(identifier, _generic_density, curve, admitted["G"], actual, m, f"{seed}:{p}:{W}:{m}:generic")
                     require(generic["histogram_in_point_order"] == densities["actual", m]["histogram"], "generic DP mismatch")
                     cases.append(_case(identifier, "generic", inputs, {"same_point_histogram": True}, generic,
                                        {"components": ["certificates.cost"], "dependency": f"admission/p{p}"}))
@@ -1122,7 +1325,7 @@ def run_experiment(seed=1729):
             if not admitted["admitted"]:
                 cases.append(_inadmissible(identifier, "coordinate_control", inputs, admitted["reason"]))
             else:
-                labels = _coordinate_compatibility(p, A, B, [encode_point(curve, point) for point in actual], permutation)
+                labels = _cell_call(identifier, _coordinate_compatibility, p, A, B, [encode_point(curve, point) for point in actual], permutation)
                 cases.append(_case(identifier, "coordinate_control", inputs,
                                    {"affine_trials": labels["affine_trials"], "failures": len(labels["failures"])}, labels,
                                    {"components": ["certificates.cost"]}))
@@ -1134,16 +1337,17 @@ def run_experiment(seed=1729):
                     cases.append(_inadmissible(cohort_id, "cohorts", inputs, admitted["reason"]))
                     selected = [{"point": None, "cohorts": [name]} for name in ("public_P", "public_2P", "planted_first_tuple")]
                 else:
-                    schedule = _target_schedule(curve, admitted, actual, m)
+                    schedule = _cell_call(schedule_id, _target_schedule, curve, admitted, actual, m)
                     selected = schedule["selected"]
                     cases.append(_case(schedule_id, "schedule", inputs, {"selected_targets": len(selected), "planted_available": schedule["planted_available"]},
                                        schedule, {"components": ["certificates.cost"], "dependency": f"admission/p{p}"}))
-                    density = densities["actual", m]
-                    cohort_data = [{"point": item["point"], "cohorts": item["cohorts"],
-                                    "ordered_tuple_count": density["histogram"][density["targets"].index(item["point"])]} for item in selected]
-                    cases.append(_case(cohort_id, "cohorts", inputs, {"uniform_first_moment": density["first_moment"]},
-                                       {"selected": cohort_data, "uniform_histogram": density["histogram"], "scope": "selected/planted cohort is not a uniform-target estimate"},
-                                       {"paid_dependencies": [schedule_id, f"density/p{p}/W{W}/actual/m{m}"], "local": "report assembly only"}))
+                    with _boundary("cell", cohort_id):
+                        density = densities["actual", m]
+                        cohort_data = [{"point": item["point"], "cohorts": item["cohorts"],
+                                        "ordered_tuple_count": density["histogram"][density["targets"].index(item["point"])]} for item in selected]
+                        cases.append(_case(cohort_id, "cohorts", inputs, {"uniform_first_moment": density["first_moment"]},
+                                           {"selected": cohort_data, "uniform_histogram": density["histogram"], "scope": "selected/planted cohort is not a uniform-target estimate"},
+                                           {"paid_dependencies": [schedule_id, f"density/p{p}/W{W}/actual/m{m}"], "local": "report assembly only"}))
                 for j, selected_target in enumerate(selected):
                     for t, L, arm in product(FIXTURE["t"], FIXTURE["L"], ("dense", "sparse")):
                         root_id = f"reduction/p{p}/W{W}/m{m}/R{j}/t{t}/L{L}/{arm}"
@@ -1155,7 +1359,7 @@ def run_experiment(seed=1729):
                             if not admitted["admitted"]:
                                 cases.append(_inadmissible(identifier, panel, cell_inputs, admitted["reason"]))
                                 continue
-                            cell = reduction_cell(p, A, B, W, m, selected_target["point"], t, L, arm, slice_value)
+                            cell = reduction_cell(p, A, B, W, m, selected_target["point"], t, L, arm, slice_value, cell_id=identifier)
                             observations = _cell_observables(cell)
                             if slice_value is None:
                                 truth_count = densities["actual", m]["histogram"][densities["actual", m]["targets"].index(selected_target["point"])]
@@ -1173,19 +1377,20 @@ def run_experiment(seed=1729):
                 cases.append(_inadmissible(identifier, panel, inputs, admitted["reason"]))
             elif panel == "positive_dimension":
                 control_wall, control_cpu = time.monotonic(), time.process_time()
-                control = _positive_dimension_control(p)
+                control = _cell_call(identifier, _positive_dimension_control, p)
                 cases.append(_case(identifier, panel, inputs, {"coefficient_rank": 2, "ideal_dimension": 1, "finite_system_success": False}, control,
                                    {"wall_seconds": time.monotonic()-control_wall, "cpu_seconds": time.process_time()-control_cpu,
                                     "components": ["certificates.lattice.cost", "certificates.reduction.cost"],
                                     "scope": "outer time inclusive, do not add child times; extra exact constructed-row/rank/Groebner work included"}, status="zero_yield"))
             else:
-                control = _adverse_lifts(p, A, B, admission["P"], admission["G"])
+                control = _cell_call(identifier, _adverse_lifts, p, A, B, admission["P"], admission["G"])
                 cases.append(_case(identifier, panel, inputs,
                                    {"nonrational_repeated_roots": len(control["repeated_nonrational_roots"]), "outside_G_roots": len(control["outside_G_roots"])},
                                    control, {"components": ["certificates.cost"]}))
-    references = _control_references(cases)
-    cases.append(_case("controls", "controls", {}, {"required_controls": list(CONTROL_NAMES)}, references,
-                       {"scope": "references to paid cells; no free extra scientific computation"}))
+    with _boundary("cell", "controls"):
+        references = _control_references(cases)
+        cases.append(_case("controls", "controls", {}, {"required_controls": list(CONTROL_NAMES)}, references,
+                           {"scope": "references to paid cells; no free extra scientific computation"}))
     return {"schema_version": 1, "direction": "polynomial", "seed": seed, "parameters": FIXTURE,
             "cases": cases, "checks": {"internal_assertions": "not independent review"},
             "limitations": ["Tiny bounded synthetic scope; no complexity or ECDLP speedup claim.",
@@ -1649,14 +1854,23 @@ def main(argv=None):
     if args.output_dir is None:
         parser.error("--output-dir required for execution")
     started, wall, cpu = datetime.now(timezone.utc).isoformat(), time.monotonic(), time.process_time()
-    result = run_experiment(args.seed)
-    write_artifacts(result, args.output_dir, args.seed, started, wall, cpu)
+    token = _telemetry.set(Telemetry(DurableJSONL(sys.stderr), seed=args.seed))
+    try:
+        with _boundary("run", "polynomial_cli"):
+            result = run_experiment(args.seed)
+            with _boundary("stage", "write_artifacts"):
+                write_artifacts(result, args.output_dir, args.seed, started, wall, cpu)
+    finally:
+        _telemetry.reset(token)
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
+    except TelemetryIOError as error:
+        print("infrastructure_error: "+str(error), file=sys.stderr)
+        raise SystemExit(3)
     except InstrumentStop as error:
         print("bounded_instrument_stop: "+str(error), file=sys.stderr)
         raise SystemExit(2)
