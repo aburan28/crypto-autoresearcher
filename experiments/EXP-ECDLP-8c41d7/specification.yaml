@@ -1,0 +1,91 @@
+experiment:
+  id: EXP-ECDLP-8c41d7
+  hypothesis_id: H-ECDLP-60de36
+  question_id: RQ-ECDLP-001
+  goal_id: GOAL-ECDLP-001
+  predecessors: [EXP-ECDLP-20a588, EXP-ECDLP-502ae2, EXP-ECDLP-f49f75]
+  version: 1
+  status: approved
+  claim_tier: toy
+  retrospective: false
+  retrospective_note: >-
+    PRE-REGISTRATION, frozen before the first data run. A smoke run on seed
+    "smoke-m4" (m = 4, L = 3 only) debugged the launcher and sized the grid; it
+    is not data and its numbers are not used in any criterion.
+  title: >-
+    m = 4 under the block elimination order: does the chain encoding with the
+    chain variables eliminated first beat the dense same-set encoding when the
+    decomposition has four points?
+  objective: >-
+    EXP-ECDLP-20a588 tests the block order at m = 3; the P-256 proposal needs
+    m = 6, so the m-dependence of the chain/dense gap is the quantity of
+    interest. This experiment adds m = 4 (S_5, degree 8 in each of four
+    variables) with the same arms, instruments and controls.
+  inputs:
+    instances: new (m = 4); per-instance seed sha256("EXP-ECDLP-f49f75/v1|4|L|inst"), L = 2, 3, 4
+    summation_polynomial: >-
+      S_5(x1..x4, xT) = Res_X(S_3(x1,x2,X), Res_Y(S_3(X,x3,Y), S_3(x4,xT,Y))),
+      expanded once per instance by Singular in field arithmetic (untimed
+      preprocessing, identical input for every arm). Control s5_planted: a
+      planted decomposition must vanish on it (verified before freeze on 6
+      planted and 6 perturbed points).
+    expected_scale: >-
+      the m = 4 dense system is about 10 s under msolve at L = 3, so L = 4 is
+      expected to time out for several arms; that is a finding, not a failure.
+  arms:
+    A_elim_ms: "msolve -e #w -g 2, variables (w..., x1..x4), block order DRL | DRL"
+    A_drl_ms: "msolve -g 2, variables (x1..x4, w...), DRL (EXP-ECDLP-502ae2 instrument)"
+    B_ms: "msolve -g 2, dense same set, DRL"
+    A_block_sg: "Singular std, ring (w..., x...), ordering (dp(#w),dp(4))"
+    B_sg: "Singular std, dense same set, dp"
+  controls:
+    - "positive control - planted decomposition satisfies every element of every arm's basis"
+    - "equivalence control - elim_equals_B true on every instance where both msolve bases finish"
+    - "dynamic-range control - the instrument must resolve the A_elim vs A_drl order effect (median A_drl/A_elim >= 2 at the largest L where both complete)"
+  independent_variables: [L, arm]
+  metrics:
+    primary:
+      - median basis wall time per (arm, L) (process wall time; msolve -g 2 and Singular std)
+      - largest L completed within 600 s per arm
+    secondary: [max F4 degree, basis size, A_elim/B_ms ratio per cell]
+  preregistered_prediction:
+    formula: >-
+      Coordinator prediction: A_elim_ms stays at or above B_ms (ratio > 1) in
+      every jointly completed cell, with A_drl_ms several times slower than
+      A_elim_ms; A_block_sg is at or above B_sg and is retired no later.
+    source: EXP-ECDLP-502ae2 and the first L cells of EXP-ECDLP-20a588 (m = 3)
+  replication:
+    seeds: ["EXP-ECDLP-f49f75/v1"]
+    independent_instances: 6 per L (4 planted + 2 random)
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    maximum_memory_gb: 12
+    maximum_runs: 1
+    maximum_workers: 4
+  scheduling: >-
+    run_after_20a588.sh starts only after RUN-ECDLP-20a588-01 writes
+    finished_at, so the two runs never share the 4 cores.
+  stopping_rules:
+    - an arm whose every instance timed out in a cell is not run at larger L
+  invalidation_rules:
+    - a planted decomposition missing from an arm's basis invalidates that arm's cell
+    - elim_equals_B false on any instance invalidates the msolve A_elim/B comparison for that cell
+  success_criterion: >-
+    With at most three cells, no percentage threshold: H-ECDLP-60de36 regains
+    support under the block order at m = 4 if A_elim_ms median is below B_ms
+    median in EVERY jointly completed cell AND A_elim_ms completes an L at
+    least as large as B_ms (stated separately for the Singular pair).
+  falsification_criterion: >-
+    The rejection extends to block orders at m = 4 if A_elim_ms median is at or
+    above B_ms in EVERY jointly completed cell OR A_elim_ms is retired at a
+    smaller L than B_ms (stated separately for the Singular pair). Anything
+    else is inconclusive.
+  required_artifacts:
+    - runs/RUN-ECDLP-8c41d7-01/{raw-result.jsonl,command.txt,environment.json,manifest.json,stdout.log,stderr.log}
+    - reports/ run report and review report with graph and PDF
+  launcher: experiments/EXP-ECDLP-8c41d7/block_order_m4.py
+  trial_plan: experiments/EXP-ECDLP-8c41d7/trial-plan.json
+  assigned_to: executor
+  approved_by: coordinator
+  approval_basis: AGENTS.md standing user authorization; user request "try m=4 with the block order" (2026-10-15)
