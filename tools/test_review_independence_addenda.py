@@ -24,6 +24,8 @@ from __future__ import annotations
 import sys
 import copy
 import io
+import os
+import subprocess
 import tempfile
 import textwrap
 import unittest
@@ -750,6 +752,343 @@ class DeclaredBlindPhaseComposition(unittest.TestCase):
         self.assertEqual(code, 2, output)
         self.assertIn("invalid review-plan addendum", output)
         self.assertNotIn("PASS:", output)
+
+
+class DeclaredBlindPhaseReplacement(unittest.TestCase):
+    """Lost-session maintenance using only invented declarations and temp files.
+
+    A synthetic PASS is no receipt for an actual identity, archive or science.
+    """
+    FULL = DeclaredBlindPhaseComposition.FULL
+    BLIND = DeclaredBlindPhaseComposition.BLIND
+    OTHER = DeclaredBlindPhaseComposition.OTHER
+    UNKNOWN = DeclaredBlindPhaseComposition.UNKNOWN
+    NEW = "TASK-20261015-49d9e0"
+
+    def setUp(self):
+        DeclaredBlindPhaseComposition.setUp(self)
+        self.initial, _ = cri.compose_plan(self.base, [("initial.yaml", self.addendum)])
+        self.new_allowed = [path.replace(self.BLIND, self.NEW) for path in self.allowed]
+        self.replacement = {
+            "extends": "review-plan.yaml", "written_at": "2026-10-15T01:00:00Z",
+            "blind_phase_replacement": {
+                "full_task": self.FULL, "replaces_blind_task": self.BLIND,
+                "replacement_blind_task": self.NEW, "reason": "Synthetic lost session; no continuity asserted.",
+                "retained_blind_archive": {"task": self.BLIND, "commit_sha": "a"*40,
+                                           "verification": "synthetic/archive-verification.json"},
+                "prior_artifacts_remain_required": True},
+            "joints_added": [{"joint": "JN -- Synthetic fresh blind derivation", "assigned_to": self.NEW,
+                              "attack_plan": "derive independently without the prior Reviewer outputs"}],
+            "what_changes": {"blind_from_additions": ["notes/fresh-producer.md"]},
+            "blindness_lifted_for_additions": [self.FULL],
+            "blindness_lift_rationale": "Same fresh Reviewer may read its own seven exact artifacts only after external archive gate.",
+            "lift_read_allowlist": self.new_allowed}
+        self.reports[1][1]["sources_read"] = ["tools/producer.py"]+self.new_allowed
+        self.reports.append((f"reviews/{self.NEW}/attestation.yaml", {
+            "task_id": self.NEW, "joints_owned": ["JN"], "verdict": "inconclusive",
+            "sources_read": ["statement.md", "fixtures.json"], "read_sibling_reports": False,
+            "blind_from_respected": True}))
+
+    def compose(self, addon=None, base=None):
+        return cri.compose_plan(self.initial if base is None else base,
+                                [("replacement.yaml", self.replacement if addon is None else addon)])
+
+    def test_valid_replacement_preserves_owners_history_and_original_inputs(self):
+        before = copy.deepcopy((self.base, self.initial, self.replacement))
+        plan, notes = self.compose()
+        self.assertEqual(cri.check(plan, self.reports), [])
+        self.assertEqual((self.base, self.initial, self.replacement), before)
+        for joint in self.initial["joints"]:
+            self.assertIn(joint, plan["joints"])
+        for field in ("required", "quantity", "parameters"):
+            self.assertEqual(plan["blind_rederivation"][field], self.initial["blind_rederivation"][field])
+        self.assertTrue(set(self.initial["blind_rederivation"]["blind_from"]).issubset(plan["blind_rederivation"]["blind_from"]))
+        self.assertTrue(set(self.allowed).issubset(plan["blind_rederivation"]["blind_from"]))
+        self.assertIn("notes/fresh-producer.md", plan["blind_rederivation"]["blind_from"])
+        self.assertEqual(plan["blind_rederivation"]["assigned_to"], self.NEW)
+        self.assertEqual(plan["blindness"]["scoped_lifts"][self.FULL]["read_allowlist"], self.new_allowed)
+        self.assertEqual(plan["blindness"]["lifted_for"], [self.OTHER])
+        self.assertIs(plan["blindness"]["mutual"], True)
+        self.assertEqual(plan["proves_too_much"], self.initial["proves_too_much"])
+        history = plan["_blind_phase_history"]
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["phase_assignment"], self.initial["_blind_phase_assignments"][self.FULL])
+        self.assertEqual(history[0]["scoped_lift"], self.initial["blindness"]["scoped_lifts"][self.FULL])
+        self.assertEqual(history[0]["retained_blind_archive"], self.replacement["blind_phase_replacement"]["retained_blind_archive"])
+        self.assertTrue(any("old phase and grant retained" in note for note in notes))
+
+    def test_every_old_new_and_full_attestation_remains_load_bearing(self):
+        plan, _ = self.compose()
+        for owner in (self.BLIND, self.NEW, self.FULL, self.OTHER):
+            with self.subTest(owner=owner):
+                missing = [report for report in self.reports if report[1]["task_id"] != owner]
+                problems = cri.check(plan, missing)
+                self.assertTrue(any(owner in p and "filed no review_attestation" in p for p in problems), problems)
+
+    def test_old_and_new_blind_producer_reads_are_still_detected(self):
+        plan, _ = self.compose()
+        for index in (2, 3):
+            for source in ("tools/producer.py", "observations/retained-result.json", "notes/producer-prior.md", "./"):
+                with self.subTest(index=index, source=source):
+                    reports = copy.deepcopy(self.reports)
+                    reports[index][1]["sources_read"].append(source)
+                    problems = cri.check(plan, reports)
+                    self.assertTrue(any(reports[index][1]["task_id"] in p and "blind_from path(s)" in p for p in problems), problems)
+        reports = copy.deepcopy(self.reports)
+        reports[3][1]["sources_read"].append("notes/fresh-producer.md")
+        self.assertTrue(any("blind_from path(s)" in p for p in cri.check(plan, reports)))
+
+    def test_new_blind_and_full_owner_cannot_read_the_old_reviewers_artifacts(self):
+        plan, _ = self.compose()
+        for index in (1, 3):
+            for source in (self.allowed[2], self.allowed[0], self.allowed[0].rsplit("/", 1)[0]+"/"):
+                for flag in (True, False):
+                    with self.subTest(index=index, source=source, flag=flag):
+                        reports = copy.deepcopy(self.reports)
+                        reports[index][1]["sources_read"].append(source)
+                        reports[index][1]["read_sibling_reports"] = flag
+                        self.assertTrue(cri.check(plan, reports))
+        # An immutable old attestation may honestly name its own code; the new
+        # protection against old-review reads does not rewrite that old phase.
+        reports = copy.deepcopy(self.reports)
+        reports[2][1]["sources_read"].append(self.allowed[0])
+        self.assertEqual(cri.check(plan, reports), [])
+
+    def test_stale_unknown_duplicate_replayed_or_plain_repeated_split_is_refused(self):
+        for field, task in (("full_task", self.UNKNOWN), ("replaces_blind_task", self.UNKNOWN),
+                            ("replacement_blind_task", self.BLIND), ("replacement_blind_task", self.OTHER)):
+            with self.subTest(field=field, task=task):
+                addon = copy.deepcopy(self.replacement)
+                addon["blind_phase_replacement"][field] = task
+                with self.assertRaises(ValueError):
+                    self.compose(addon)
+        plan, _ = self.compose()
+        with self.assertRaises(ValueError):
+            self.compose(base=plan)
+        with self.assertRaises(ValueError):
+            cri.compose_plan(self.initial, [("a.yaml", self.replacement), ("b.yaml", self.replacement)])
+        plain = copy.deepcopy(self.replacement)
+        del plain["blind_phase_replacement"]
+        plain["what_changes"]["blind_rederivation_assigned_to"] = self.NEW
+        with self.assertRaises(ValueError):
+            self.compose(plain)
+
+    def test_unowned_replacement_and_full_owner_or_old_joint_changes_are_refused(self):
+        addon = copy.deepcopy(self.replacement)
+        addon["joints_added"] = []
+        with self.assertRaisesRegex(ValueError, "newly explicit joint"):
+            self.compose(addon)
+        for joint in ("J2", "JB", "J1"):
+            addon = copy.deepcopy(self.replacement)
+            addon["what_changes"]["owners"] = {joint: self.NEW}
+            with self.assertRaises(ValueError):
+                self.compose(addon)
+        plan, _ = self.compose()
+        for joint in ("J2", "JB", "J1"):
+            with self.assertRaises(ValueError):
+                cri.compose_plan(plan, [("later.yaml", {"what_changes": {"owners": {joint: self.NEW}}})])
+
+    def test_directive_schema_ids_reason_and_archive_binding_are_strict(self):
+        for value in (None, [], "replacement", {}, [{"full_task": self.FULL}]):
+            addon = copy.deepcopy(self.replacement)
+            addon["blind_phase_replacement"] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.compose(addon)
+        mutations = [("reason", None), ("reason", " "), ("prior_artifacts_remain_required", False),
+                     ("prior_artifacts_remain_required", 1), ("unknown", True)]
+        mutations += [(field, value) for field in ("full_task", "replaces_blind_task", "replacement_blind_task")
+                      for value in (None, [], 5, "TASK-A", self.FULL)]
+        for field, value in mutations:
+            if field == "full_task" and value == self.FULL:
+                continue
+            addon = copy.deepcopy(self.replacement)
+            addon["blind_phase_replacement"][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                self.compose(addon)
+        for field, value in (("task", self.NEW), ("commit_sha", "a"*39), ("commit_sha", []),
+                             ("verification", "../outside.json"), ("verification", "synthetic/"),
+                             ("verification", "synthetic/*"), ("verification", None), ("extra", True)):
+            addon = copy.deepcopy(self.replacement)
+            addon["blind_phase_replacement"]["retained_blind_archive"][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                self.compose(addon)
+
+    def test_misplaced_unknown_and_conflicting_directives_fail_closed(self):
+        directive = self.replacement["blind_phase_replacement"]
+        for addon in ({"what_changes": {"blind_phase_replacement": directive}},
+                      {"procedure_deviations": [{"blind_phase_replacement": directive}]},
+                      {"blind_phase_replacements": directive}):
+            with self.subTest(addon=addon), self.assertRaises(ValueError):
+                self.compose(addon)
+        for document in ({"blind_phase_replacement": directive},
+                         {"read_plan_addendum": self.replacement},
+                         {"handoff": {"review_plan_addendum": self.replacement}}):
+            with self.subTest(document=document), self.assertRaises(ValueError):
+                cri._addendum_of(document)
+        addon = copy.deepcopy(self.replacement)
+        addon["what_changes"]["blind_rederivation_assigned_to"] = self.NEW
+        with self.assertRaises(ValueError):
+            self.compose(addon)
+
+    def test_replacement_grant_requires_exact_new_own_seven_and_rationale(self):
+        for value in (None, " "):
+            addon = copy.deepcopy(self.replacement)
+            addon["blindness_lift_rationale"] = value
+            with self.assertRaises(ValueError):
+                self.compose(addon)
+        for tasks in ([self.OTHER], [self.NEW], [self.FULL, self.OTHER], [], None):
+            addon = copy.deepcopy(self.replacement)
+            addon["blindness_lifted_for_additions"] = tasks
+            with self.subTest(tasks=tasks), self.assertRaises(ValueError):
+                self.compose(addon)
+        for paths in (self.allowed, self.allowed+self.new_allowed, self.new_allowed[:-1],
+                      self.new_allowed+[self.new_allowed[0]], [self.new_allowed[0].rsplit("/", 1)[0]+"/"],
+                      [path.replace("report.md", "*") for path in self.new_allowed],
+                      [path.replace("report.md", "unapproved.txt") for path in self.new_allowed],
+                      [self.new_allowed[0].replace(self.NEW, self.OTHER)]+self.new_allowed[1:]):
+            addon = copy.deepcopy(self.replacement)
+            addon["lift_read_allowlist"] = paths
+            with self.subTest(paths=paths), self.assertRaises(ValueError):
+                self.compose(addon)
+
+    def test_symlink_escape_and_existing_directory_in_exact_seven_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for directory_target in (False, True):
+                with self.subTest(directory_target=directory_target):
+                    target = root/self.new_allowed[2]
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if directory_target:
+                        target.mkdir()
+                    else:
+                        target.symlink_to(root/"outside.md")
+                    with patch.object(cri, "REPO", str(root)), self.assertRaises(ValueError):
+                        self.compose()
+                    target.rmdir() if directory_target else target.unlink()
+
+    def test_protection_narrowing_controls_or_broad_lifts_cannot_pass(self):
+        for field, value in (("blind_rederivation", {"blind_from": []}),
+                             ("blind_rederivation", {"required": False}),
+                             ("blind_rederivation", {"quantity": "changed"}),
+                             ("blind_rederivation", {"parameters": {}}),
+                             ("blindness", {"mutual": False}),
+                             ("blindness", {"lifted_for": [self.OTHER, self.FULL]}),
+                             ("proves_too_much", {"objects": []}), ("joints_removed", ["JB"])):
+            addon = copy.deepcopy(self.replacement)
+            addon[field] = value
+            with self.subTest(field=field, value=value):
+                plan, _ = self.compose(addon)
+                self.assertTrue(any("REFUSED" in p for p in cri.check(plan, self.reports)))
+        base = copy.deepcopy(self.initial)
+        base["blindness"]["lifted_for"].append(self.FULL)
+        with self.assertRaisesRegex(ValueError, "broad blindness lift"):
+            self.compose(base=base)
+
+    def test_later_scoped_lift_cannot_union_old_or_extra_artifacts(self):
+        plan, _ = self.compose()
+        for paths in (self.allowed, [self.new_allowed[0].replace("independent_enumerator.py", "extra.txt")]):
+            addon = {"blindness_lifted_for_additions": [self.FULL],
+                     "blindness_lift_rationale": "Attempted later extension", "lift_read_allowlist": paths}
+            with self.subTest(paths=paths), self.assertRaises(ValueError):
+                cri.compose_plan(plan, [("later.yaml", addon)])
+
+    def test_second_explicit_replacement_keeps_every_retained_blind_owner_protected(self):
+        plan, _ = self.compose()
+        next_task = "TASK-20261015-abcdef"
+        addon = copy.deepcopy(self.replacement)
+        directive = addon["blind_phase_replacement"]
+        directive["replaces_blind_task"] = self.NEW
+        directive["replacement_blind_task"] = next_task
+        directive["retained_blind_archive"]["task"] = self.NEW
+        addon["joints_added"][0]["joint"] = "JK -- Another synthetic replacement derivation"
+        addon["joints_added"][0]["assigned_to"] = next_task
+        addon["lift_read_allowlist"] = [path.replace(self.NEW, next_task) for path in self.new_allowed]
+        later, _ = self.compose(addon, plan)
+        reports = copy.deepcopy(self.reports)
+        reports[1][1]["sources_read"] = ["tools/producer.py"]+addon["lift_read_allowlist"]
+        reports.append((f"reviews/{next_task}/attestation.yaml", {
+            "task_id": next_task, "joints_owned": ["JK"], "verdict": "inconclusive",
+            "sources_read": ["statement.md"], "read_sibling_reports": False, "blind_from_respected": True}))
+        self.assertEqual(cri.check(later, reports), [])
+        self.assertEqual(len(later["_blind_phase_history"]), 2)
+        self.assertEqual(later["_blind_phase_history"][0], plan["_blind_phase_history"][0])
+        for index in (2, 3, 4):
+            bad = copy.deepcopy(reports)
+            bad[index][1]["sources_read"].append("tools/producer.py")
+            self.assertTrue(any(bad[index][1]["task_id"] in p and "blind_from path(s)" in p
+                                for p in cri.check(later, bad)))
+        for path in self.allowed+self.new_allowed:
+            bad = copy.deepcopy(reports)
+            bad[1][1]["sources_read"].append(path)
+            self.assertTrue(any("outside scoped" in p for p in cri.check(later, bad)))
+
+    def test_malformed_or_missing_prior_phase_and_scope_cannot_be_replaced(self):
+        for field, value in (("_blind_phase_assignments", []), ("_blind_phase_assignments", {}),
+                             ("blindness", None), ("blindness", "bad"),
+                             ("blindness", {"mutual": True, "scoped_lifts": []}),
+                             ("_blind_phase_history", [None])):
+            base = copy.deepcopy(self.initial)
+            base[field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                self.compose(base=base)
+        for field, value in (("quantity", " "), ("blind_from", None), ("blind_from", []),
+                             ("blind_from", [None]), ("assigned_to", self.UNKNOWN)):
+            base = copy.deepcopy(self.initial)
+            base["blind_rederivation"][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                self.compose(base=base)
+
+    def _native(self, reports=None, replacement=None, raw=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = root/"review-plan.yaml"
+            plan.write_text(yaml.safe_dump({"review_plan": self.base}), encoding="utf-8")
+            (root/"initial.yaml").write_text(yaml.safe_dump({"review_plan_addendum": self.addendum}), encoding="utf-8")
+            (root/"replacement.yaml").write_text(raw if raw is not None else yaml.safe_dump({
+                "review_plan_addendum": self.replacement if replacement is None else replacement}), encoding="utf-8")
+            paths = []
+            for index, (_, attestation) in enumerate(self.reports if reports is None else reports):
+                path = root/f"report-{index}.yaml"
+                path.write_text(yaml.safe_dump({"review_attestation": attestation}), encoding="utf-8")
+                paths.append(str(path))
+            result = subprocess.run([sys.executable, str(Path(cri.__file__)), "--plan", str(plan), "--reports", *paths],
+                                    capture_output=True, text=True,
+                                    env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+            return result.returncode, result.stdout+result.stderr
+
+    def test_actual_cli_composes_and_requires_old_new_and_all_full_attestations(self):
+        code, output = self._native()
+        self.assertEqual(code, 0, output)
+        self.assertIn("explicit blind-phase replacement", output)
+        self.assertIn("PASS: 4 report(s)", output)
+        for owner in (self.BLIND, self.NEW, self.FULL, self.OTHER):
+            with self.subTest(owner=owner):
+                code, output = self._native([report for report in self.reports if report[1]["task_id"] != owner])
+                self.assertEqual(code, 1, output)
+                self.assertNotIn("PASS:", output)
+        reports = copy.deepcopy(self.reports)
+        reports[2][1]["sources_read"].append("tools/producer.py")
+        code, output = self._native(reports)
+        self.assertEqual(code, 1, output)
+        self.assertNotIn("PASS:", output)
+
+    def test_cli_rejects_misplaced_duplicate_and_stale_replacement(self):
+        addon = copy.deepcopy(self.replacement)
+        addon["blind_phase_replacement"]["replaces_blind_task"] = self.UNKNOWN
+        code, output = self._native(replacement=addon)
+        self.assertEqual(code, 2, output)
+        self.assertNotIn("PASS:", output)
+        for raw in (yaml.safe_dump({"review_plan_addendum": {
+                "extends": "review-plan.yaml", "what_changes": {"blind_phase_replacement": {}}}}),
+                    "review_plan_addendum:\n  extends: review-plan.yaml\n  blind_phase_replacement: {}\n  blind_phase_replacement: {}\n",
+                    "review_plan_addendum:\n  extends: review-plan.yaml\n  blind_phase_replacement:\n    reason: a\n    reason: b\n",
+                    "review_plan_addendum:\n  blind_phase_replacement: {}\nreview_plan_addendum:\n  extends: review-plan.yaml\n",
+                    'review_plan_addendum:\n  extends: review-plan.yaml\n  "blind_phase_replacemen\\u0074": {}\n  "blind_phase_replacemen\\u0074": {}\n'):
+            with self.subTest(raw=raw):
+                code, output = self._native(raw=raw)
+                self.assertEqual(code, 2, output)
+                self.assertIn("invalid review-plan addendum", output)
+                self.assertNotIn("PASS:", output)
 
 
 if __name__ == "__main__":
