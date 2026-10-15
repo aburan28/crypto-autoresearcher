@@ -104,17 +104,23 @@ def native_base(curve, count):
 def random_base(curve, count, seed, panel_id, endpoint_id):
     points = []
     seen = set()
+    rejections = []
     for index in range(count):
         retry = 0
         while True:
+            start = retry
             x, retry = next_draw(seed, panel_id, endpoint_id, "random", "base-x", index, curve.p, retry)
+            rejections.extend({"draw_index": index, "retry": rejected, "reason": "modulo_rejection"}
+                              for rejected in range(start, retry))
             point = lift(x, curve)
             if x not in seen and point is not None:
                 seen.add(x)
                 points.extend((point, negative(point, curve)))
                 break
+            rejections.append({"draw_index": index, "retry": retry,
+                               "reason": "repeated_x" if x in seen else "nonliftable_or_zero_root"})
             retry += 1
-    return points
+    return points, rejections
 
 
 def transform(curve, point):
@@ -140,24 +146,32 @@ def prepare(plan, endpoint_id, arm, target_seed, k_seed, target_count):
         raise ValueError("Q is identity")
     targets = []
     seen = set()
+    target_rejections = []
     for index in range(target_count):
         retry = 0
         while True:
-            alpha, _ = next_draw(target_seed, panel_id, endpoint_id, "common", "alpha", index, curve.r, retry)
-            beta, _ = next_draw(target_seed, panel_id, endpoint_id, "common", "beta", index, curve.r - 1, retry)
+            alpha, alpha_retry = next_draw(target_seed, panel_id, endpoint_id, "common", "alpha", index, curve.r, retry)
+            beta, beta_retry = next_draw(target_seed, panel_id, endpoint_id, "common", "beta", index, curve.r - 1, retry)
+            target_rejections.extend({"draw_index": index, "retry": rejected, "kind": "alpha", "reason": "modulo_rejection"}
+                                     for rejected in range(retry, alpha_retry))
+            target_rejections.extend({"draw_index": index, "retry": rejected, "kind": "beta", "reason": "modulo_rejection"}
+                                     for rejected in range(retry, beta_retry))
             beta += 1
             point = add(multiply(alpha, generator, curve), multiply(beta, q, curve), curve)
             if point is not None and point not in seen:
                 seen.add(point)
                 targets.append((alpha, beta, point))
                 break
+            target_rejections.append({"draw_index": index, "retry": retry,
+                                      "reason": "identity" if point is None else "duplicate_target"})
             retry += 1
     count = panel["base_abscissae"]
+    base_rejections = []
     if arm == "native":
         base = native_base(curve, count)
         result_curve, result_generator, result_q = curve, generator, q
     elif arm == "random":
-        base = random_base(curve, count, target_seed, panel_id, endpoint_id)
+        base, base_rejections = random_base(curve, count, target_seed, panel_id, endpoint_id)
         result_curve, result_generator, result_q = curve, generator, q
     elif arm == "u2-transport":
         base = [transform(curve, point) for point in native_base(curve, count)]
@@ -182,8 +196,11 @@ def prepare(plan, endpoint_id, arm, target_seed, k_seed, target_count):
     metadata = {
         "schema": "arity3-prepared-input/v1", "endpoint": endpoint_id, "arm": arm,
         "panel": panel_id, "target_count": target_count, "base_abscissae": count,
+        "p": result_curve.p, "r": result_curve.r,
         "protocol_conformant_target_count": target_count == plan["target_generation"]["targets_per_endpoint"],
         "generator": result_generator, "Q": result_q,
+        "target_rejections": target_rejections,
+        "base_rejections": base_rejections,
         "target_seed_sha256": hashlib.sha256(target_seed).hexdigest(),
         "k_seed_sha256": hashlib.sha256(k_seed).hexdigest(),
         "input_sha256": hashlib.sha256(payload).hexdigest(),
@@ -207,18 +224,34 @@ def main():
     parser.add_argument("--arm", required=True, choices=ARMS)
     parser.add_argument("--target-seed-file", type=Path, required=True)
     parser.add_argument("--k-seed-file", type=Path, required=True)
+    parser.add_argument("--commitment", type=Path, required=True)
     parser.add_argument("--targets", type=int, default=32768)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     target_seed = bytes.fromhex(args.target_seed_file.read_text().strip())
     k_seed = bytes.fromhex(args.k_seed_file.read_text().strip())
     if len(target_seed) != 32 or len(k_seed) != 32 or target_seed == k_seed or args.targets < 1:
         parser.error("two distinct 256-bit seeds and a positive target count are required")
+    commitment = json.loads(args.commitment.read_text())
+    if commitment.get("schema") != "arity3-seed-commitment/v1":
+        parser.error("invalid seed commitment")
+    if commitment.get("target_seed_sha256") != hashlib.sha256(target_seed).hexdigest():
+        parser.error("target seed does not match commitment")
+    if commitment.get("k_seed_sha256") != hashlib.sha256(k_seed).hexdigest():
+        parser.error("k seed does not match commitment")
+    for name, digest in commitment["source_sha256"].items():
+        if hashlib.sha256((HERE / name).read_bytes()).hexdigest() != digest:
+            parser.error(f"frozen source digest changed: {name}")
+    if args.targets != 32768:
+        parser.error("CLI preparation requires the frozen 32,768-target schedule")
     plan = json.loads((HERE / "plan.json").read_text())
     payload, metadata = prepare(plan, args.endpoint, args.arm, target_seed, k_seed, args.targets)
-    with args.output.open("xb") as output:
+    metadata["seed_commitment_sha256"] = hashlib.sha256(args.commitment.read_bytes()).hexdigest()
+    metadata["freeze_commit"] = commitment["freeze_commit"]
+    args.output_dir.mkdir(mode=0o700, parents=False, exist_ok=False)
+    with (args.output_dir / "prepared.txt").open("xb") as output:
         output.write(payload)
-    with args.output.with_suffix(args.output.suffix + ".manifest.json").open("x") as output:
+    with (args.output_dir / "manifest.json").open("x") as output:
         json.dump(metadata, output, indent=2, sort_keys=True)
         output.write("\n")
     print(json.dumps(metadata, sort_keys=True))

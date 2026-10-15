@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from verify_collector import verify
+from verify_collector import Curve, column_layout, row_for, verify
 
 P = 17
 A = 2
@@ -62,8 +62,8 @@ def first_signed_base(count):
     raise AssertionError("insufficient base")
 
 
-def encode_input(base, targets):
-    rows = [f"curve {P} {A} {B} {R} {len(base)} {len(targets)}"]
+def encode_input(base, targets, curve=(P, A, B, R)):
+    rows = [f"curve {curve[0]} {curve[1]} {curve[2]} {curve[3]} {len(base)} {len(targets)}"]
     rows.extend(f"base {i} {x} {y}" for i, (x, y) in enumerate(base))
     rows.extend(
         f"target {i} {alpha} {beta} {point[0]} {point[1]}"
@@ -133,6 +133,24 @@ def main(binary, count_binary=None):
             count_path.write_text(count_text, encoding="utf-8")
             complete_receipt = verify(path, output_path, G, q, {1, 2, 18}, count_path)
             assert complete_receipt["independent_ordered_count_match"] is True
+        transformed_curve = (P, (16 * A) % P, (64 * B) % P, R)
+        transformed = lambda point: ((4 * point[0]) % P, (8 * point[1]) % P)
+        mapped_base = [transformed(point) for point in base]
+        mapped_targets = [
+            (index, alpha, beta, transformed(point))
+            for index, (alpha, beta, point) in enumerate(targets)
+        ]
+        mapped_path = Path(directory) / "mapped_input.txt"
+        mapped_path.write_text(encode_input(mapped_base, mapped_targets, transformed_curve))
+        mapped_output = Path(directory) / "mapped_output.txt"
+        mapped_output.write_text(
+            subprocess.run([binary, str(mapped_path)], capture_output=True, text=True, check=True).stdout
+        )
+        mapped_receipt = verify(mapped_path, mapped_output, transformed(G), transformed(q), {18})
+        assert mapped_receipt["status"] == "valid"
+        native_counts = [line.split("\t")[4:] for line in process.stdout.splitlines() if line.startswith("target\t")]
+        mapped_counts = [line.split("\t")[4:] for line in mapped_output.read_text().splitlines() if line.startswith("target\t")]
+        assert native_counts == mapped_counts
     lines = process.stdout.splitlines()
     assert lines[0] == f"collector-v1\t{P}\t{R}\t{len(base)}\t{len(targets)}"
     observed = {}
@@ -158,9 +176,26 @@ def main(binary, count_binary=None):
         triples, ordered, useful = exhaustive(base, point)
         assert observed[index]["triples"] == triples, index
         assert observed[index]["counts"] == (len(triples), ordered, useful), index
+    curve = Curve(P, A, B, R)
+    logs = {mul(scalar, G): scalar for scalar in range(1, R)}
+    for k, target_rows in ((7, targets), (2, outside_targets)):
+        q_for_layout = mul(k, G)
+        layout = column_layout(base, G, q_for_layout, curve)
+        unknown_logs = [0] * (len(layout[4]) + (layout[5] is not None))
+        for orbit, column in layout[4].items():
+            unknown_logs[column] = logs[base[2 * orbit]]
+        if layout[5] is not None:
+            unknown_logs[layout[5]] = k
+        for index, (alpha, beta, _point) in enumerate(target_rows):
+            for triple in observed[index]["triples"]:
+                i, j, h = triple
+                if i == j or j == h or len({i // 2, j // 2, h // 2}) != 3:
+                    continue
+                row, rhs = row_for(triple, alpha, beta, base, curve, layout)
+                assert sum(value * log for value, log in zip(row, unknown_logs)) % R == rhs
     all_targets = [None] + [mul(scalar, G) for scalar in range(1, R)]
     assert sum(exhaustive(base, point)[1] for point in all_targets) == len(base) ** 3
-    print("small-group exhaustive control: 18 targets, all triple sets/counts, both Q-column cases, independent ordered counts, |F|^3 identity PASS")
+    print("small-group exhaustive control: 18 targets, all triple sets/counts, both Q-column cases with scalar row replay, independent ordered counts, u2 transported equality, |F|^3 identity PASS")
 
 
 if __name__ == "__main__":

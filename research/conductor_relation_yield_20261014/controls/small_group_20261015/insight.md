@@ -9,3 +9,7 @@
 - **Interpretation:** This passes a bounded exactness control for the implemented collector and verifier. The P29/P37 target generator, full-size completeness check, resource-bounded launcher, and formal experiment admission remain open. The observed pass supplies no endpoint relation-yield measurement.
 
 An expanded control was run after the test source changed; its separate [receipt](expanded_receipt.json), [stdout](expanded.stdout), and [stderr](expanded.stderr) are retained. It explicitly exercised both rank layouts: `Q=[7]G` in the base and `Q=[2]G` outside the base. Both verifier passes succeeded. The original source hashes and output remain bound to the first attempt.
+
+A later [u=2 control receipt](u2_replay_receipt.json), [stdout](u2_replay.stdout), and [stderr](u2_replay.stderr) bind the current test source. It compares the native and transported-base unordered, ordered, and useful counts target by target for all 18 nonidentity targets, while also exercising the independent count oracle and both Q-column cases. It does not replace the required full-size equality check.
+
+The test and verifier were amended again to canonicalize nonzero rows and count distinct coefficient and augmented rows. The latest [rank replay receipt](rank_replay_receipt.json), [stdout](rank_replay.stdout), and [stderr](rank_replay.stderr) bind a known-scalar check of every useful row in both Q-column layouts. It also repeats the exhaustive and transported-base controls without replacing their earlier raw captures.

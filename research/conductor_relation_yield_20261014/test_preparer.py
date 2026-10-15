@@ -37,6 +37,9 @@ def main():
             random_curve, random_base, random_targets, random_manifest = prepared["random"]
             assert random_curve == native_curve
             assert random_targets == native_targets
+            assert random_manifest["target_rejections"] == native_manifest["target_rejections"]
+            assert random_manifest["base_rejections"]
+            assert native_manifest["base_rejections"] == []
             assert len({point[0] for point in random_base}) == len(native_base) // 2
             transport_curve, transport_base, transport_targets, transport_manifest = prepared["u2-transport"]
             rebuilt_curve, rebuilt_base, rebuilt_targets, rebuilt_manifest = prepared["u2-native"]

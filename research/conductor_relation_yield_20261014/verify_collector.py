@@ -177,6 +177,14 @@ def add_rank(row, basis, modulus):
     return True
 
 
+def canonical_row(row, rhs, modulus):
+    pivot = next((value for value in row if value), None)
+    if pivot is None:
+        raise ValueError("cannot canonicalize a zero row")
+    inverse = pow(pivot, -1, modulus)
+    return tuple((value * inverse) % modulus for value in row), (rhs * inverse) % modulus
+
+
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -221,8 +229,13 @@ def verify(input_path, output_path, generator, q, prefixes, count_output_path=No
     basis = {}
     rank_prefix = {}
     useful_targets = 0
+    useful_triples = 0
+    rank_increment_targets = 0
+    unique_coefficient_rows = set()
+    unique_augmented_rows = set()
     total_triples = 0
     for index, (alpha, beta, point) in enumerate(targets):
+        rank_before_target = len(basis)
         group = triples[index]
         assert group == sorted(set(group))
         unordered, ordered, useful = summaries[index]
@@ -233,12 +246,17 @@ def verify(input_path, output_path, generator, q, prefixes, count_output_path=No
             assert add(add(base[i], base[j], curve), base[k], curve) == point
             recomputed_ordered += 1 if i == k else 3 if i == j or j == k else 6
             if i != j and j != k and len({i // 2, j // 2, k // 2}) == 3:
-                row, _rhs = row_for((i, j, k), alpha, beta, base, curve, layout)
+                row, rhs = row_for((i, j, k), alpha, beta, base, curve, layout)
                 if any(row):
+                    row, rhs = canonical_row(row, rhs, curve.r)
                     recomputed_useful += 1
+                    unique_coefficient_rows.add(row)
+                    unique_augmented_rows.add((row, rhs))
                     add_rank(row, basis, curve.r)
         assert (ordered, useful) == (recomputed_ordered, recomputed_useful)
         useful_targets += useful > 0
+        useful_triples += useful
+        rank_increment_targets += len(basis) > rank_before_target
         total_triples += unordered
         if index + 1 in prefixes:
             rank_prefix[index + 1] = len(basis)
@@ -249,7 +267,12 @@ def verify(input_path, output_path, generator, q, prefixes, count_output_path=No
         "output_sha256": sha256(output_path),
         "targets": len(targets),
         "useful_targets": useful_targets,
+        "useful_triples": useful_triples,
         "raw_unordered_triples": total_triples,
+        "unique_canonical_coefficient_rows": len(unique_coefficient_rows),
+        "unique_canonical_augmented_rows": len(unique_augmented_rows),
+        "rank_increments": len(basis),
+        "rank_increment_targets": rank_increment_targets,
         "unknown_columns": len(layout[4]) + (layout[5] is not None),
         "rank_prefix": rank_prefix,
         "count_output_sha256": sha256(count_output_path) if count_output_path is not None else None,

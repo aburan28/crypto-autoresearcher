@@ -8,3 +8,5 @@
 - **Cost and limits:** The receipt records total elapsed time and the host's raw child RSS field; it is a control cost, not a full endpoint estimate. Conductor, source-spec, and isogeny certificates remain to be bound. No full-size completeness or launcher control has run.
 
 The preparer source and test were amended after the original receipt to add per-vector hashes and an explicit protocol target-count marker. The later version passed under its separate [receipt](amended_receipt.json), [stdout](amended.stdout), and [stderr](amended.stderr); the earlier raw capture remains unchanged.
+
+A further amendment added `p` and `r` to the prepared manifest for the execution wrapper. The same algebraic control passed under [its own receipt](launcher_binding_receipt.json), [stdout](launcher_binding.stdout), and [stderr](launcher_binding.stderr).

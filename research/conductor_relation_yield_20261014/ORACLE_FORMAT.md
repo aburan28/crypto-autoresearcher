@@ -4,10 +4,12 @@ collector.rs is an exact group-law enumerator for a **prepared** endpoint
 input. `prepare_input.py` constructs native, random, transported, and rebuilt
 bases with the prespecified target law; `verify_collector.py` independently
 checks point equations, group order and rank; `exact_interval.py` inverts
-integer hypergeometric tails. These components do not certify the conductor,
-enforce the endpoint watchdog, issue a scientific run receipt, or establish
-full-size no-hit completeness. The formal experiment remains `review_required`
-until those components and an admitted launcher are complete.
+integer hypergeometric tails. The fixed-panel conductor labels have a separate
+archived certificate. `execute_prepared.py` applies a write-once phased
+watchdog and retains raw process files. Full-size no-hit completeness and a
+formally admitted scientific run receipt do not yet exist. The formal
+experiment remains `review_required` until a complete approved contract and
+dispatch bind these components and their post-freeze inputs.
 
 `count_verify.cpp` is the separate ordered-count oracle. It uses Euclidean
 inversion and a pair-sum histogram, and emits `count-v1` per-target ordered
@@ -87,3 +89,12 @@ on small populations. `exact_interval.py` uses threshold 1/800 for each
 tail and prints display fractions only after computing integer endpoints.
 
 `count_verify.cpp` has its own [small-group control](controls/independent_count_20261015/insight.md).
+The execution wrapper retains [all seven small-group attempts](controls/EXECUTION_WRAPPER_20261015.md),
+including two infrastructure failures and the final current-source pass.
+
+The exhaustive small-group control now also checks `u=2` transported-base
+count equality [target by target](controls/small_group_20261015/insight.md).
+
+The prospective [seed-custody sequence](SEED_CUSTODY.md) requires a published
+approved source freeze, public commitments and all 20 prepared-input digests
+before collection, followed by a sealed output index before seed reveal.
