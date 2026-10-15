@@ -179,7 +179,8 @@ def build(arm, k, p, inst, seed, enc):
         assert all(e(*ustar) == 0 for e in eqs), 'witness does not satisfy direct system'
     return dict(p=int(p), a=int(a), b=int(b), c=int(c), fb_size_x=len(S), fb_points=len(fb_points),
                 T=[int(xT), int(yT)], planted_x=[int(P[0]) for P in planted] if planted else None,
-                varnames=varnames, eqs=[str(e) for e in eqs], maxdeg=max(e.degree() for e in eqs if e != 0), witness_checked=ustar is not None)
+                varnames=varnames, eqs=[str(e) for e in eqs], maxdeg=max(e.degree() for e in eqs if e != 0), witness_checked=ustar is not None,
+                ustar=[int(t) for t in ustar] if ustar is not None else None)
 
 if __name__ == '__main__':
     arm, k, p, inst, seed, enc, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], int(sys.argv[5]), sys.argv[6], sys.argv[7]

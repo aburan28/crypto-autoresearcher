@@ -2,6 +2,8 @@
 
 Date: 2026-10-15 (UTC). Study directory: `research/rr_2adic_chain_dreg_20261015/`.
 PDF: [`report.pdf`](report.pdf). Graph: [`dmax_vs_k.svg`](dmax_vs_k.svg) (PNG beside it).
+Follow-up: hybrid guessing of 1–2 unknowns, [`HYBRID_REPORT.md`](HYBRID_REPORT.md) /
+[`hybrid_report.pdf`](hybrid_report.pdf).
 
 This is a measurement log. It records what ran and what was measured. It changes
 no hypothesis status and makes no Coordinator decision. Each statement is labelled
