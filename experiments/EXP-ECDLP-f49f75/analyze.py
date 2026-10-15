@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Derive per-cell summaries and the cost-vs-L graph from RUN-ECDLP-f49f75-01.
+"""Derive per-cell summaries and the cost-vs-L graph from the EXP-ECDLP-f49f75 runs.
 
 Reads recorded values only (raw-result.jsonl); no recomputation or sampling.
-Usage: analyze.py RAW_JSONL OUT_DIR
+Usage: analyze.py OUT_DIR RUN_DIR [RUN_DIR ...]
+AMD-02: RUN-ECDLP-f49f75-01 rows for m = 2, L >= 8 are excluded (Singular int
+overflow in the summation polynomial); RUN-03 re-ran those cells.
 """
 import json, os, statistics, sys
 from collections import defaultdict
@@ -12,14 +14,24 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 
-raw, out = sys.argv[1], sys.argv[2]
+out, run_dirs = sys.argv[1], sys.argv[2:]
 os.makedirs(out, exist_ok=True)
-rows = [json.loads(l) for l in open(raw)]
+rows, excluded = [], 0
+for d in run_dirs:
+    run_id = os.path.basename(os.path.normpath(d))
+    for l in open(os.path.join(d, "raw-result.jsonl")):
+        r = json.loads(l)
+        if run_id == "RUN-ECDLP-f49f75-01" and r["m"] == 2 and r["L"] >= 8:
+            excluded += 1
+            continue
+        r["run_id"] = run_id
+        rows.append(r)
+print(f"rows used {len(rows)}, excluded under AMD-02 {excluded}", file=sys.stderr)
 
 cells = defaultdict(lambda: defaultdict(list))  # (m,L) -> key -> [records]
 meta = {}
 for r in rows:
-    meta[(r["m"], r["L"])] = dict(p=r["p"], p_bits=r["p_bits"])
+    meta[(r["m"], r["L"])] = dict(p=r["p"], p_bits=r["p_bits"], run_id=r["run_id"])
     for k, v in r["results"].items():
         cells[(r["m"], r["L"])][k].append(v)
 
@@ -30,7 +42,7 @@ summary = []
 for (m, L), arms in sorted(cells.items()):
     for k, vs in sorted(arms.items()):
         ok = [v for v in vs if v["status"] == "ok"]
-        rec = dict(m=m, L=L, p=meta[(m, L)]["p"], p_bits=meta[(m, L)]["p_bits"], arm=k,
+        rec = dict(m=m, L=L, p=meta[(m, L)]["p"], p_bits=meta[(m, L)]["p_bits"], run_id=meta[(m, L)]["run_id"], arm=k,
                    n=len(vs), n_ok=len(ok),
                    n_timeout=sum(v["status"] == "timeout" for v in vs),
                    n_degenerate=sum(v["status"] == "degenerate_target" for v in vs),
@@ -84,9 +96,31 @@ axes[0].set_ylabel("median time per decomposition (ms, log)\nGroebner = std + fg
 axes[1].text(0.02, 0.97, "x = every instance hit the 600 s timeout (dotted line)", transform=axes[1].transAxes,
              fontsize=7, va="top")
 axes[0].legend(fontsize=6.5, loc="upper left")
-fig.suptitle("EXP-ECDLP-f49f75 / RUN-ECDLP-f49f75-01: decomposition cost vs factor-base set size "
+fig.suptitle("EXP-ECDLP-f49f75 / RUN-01 (m=2, L<=7), RUN-03 (m=2, L>=8), RUN-02 (m=3): decomposition cost vs factor-base set size "
              "(n = 6 instances per cell, values floored at 0.5 ms)", fontsize=9)
 fig.tight_layout()
 for ext in ("svg", "png"):
     fig.savefig(os.path.join(out, f"cost-vs-L.{ext}"), dpi=150)
 print(json.dumps(summary[:3], indent=1))
+
+# ---- frozen decision criteria (specification.yaml), derived from the summary above
+by = {(s["m"], s["L"], s["arm"]): s for s in summary}
+crit = {"jointly_completed": {}, "retirement": {}}
+for solver, suf in (("std", ""), ("slimgb", ":slimgb")):
+    cellsAB = sorted({(m, L) for (m, L, k) in by if k == "A" + suf and "median_total_ms" in by[(m, L, k)]
+                      and "median_total_ms" in by.get((m, L, "B" + suf), {})})
+    faster = [c for c in cellsAB if by[c + ("A" + suf,)]["median_total_ms"] < by[c + ("B" + suf,)]["median_total_ms"]]
+    crit["jointly_completed"][solver] = dict(
+        cells=[list(c) for c in cellsAB], n=len(cellsAB), A_faster=len(faster),
+        ratio_A_over_B={f"m{m}L{L}": round(by[(m, L, "A" + suf)]["median_total_ms"] /
+                                           max(by[(m, L, "B" + suf)]["median_total_ms"], 1), 1) for m, L in cellsAB})
+for m in (2, 3):
+    def last_ok(arm):
+        Ls = [L for (mm, L, k), s in by.items() if mm == m and k == arm and s["n_ok"] > 0]
+        return max(Ls) if Ls else None
+    def retired(arm):
+        Ls = [L for (mm, L, k), s in by.items() if mm == m and k.split(":")[0] == arm and s["n_ok"] == 0 and s["n_timeout"]]
+        return min(Ls) if Ls else None
+    crit["retirement"][f"m{m}"] = {arm: dict(largest_L_completed=last_ok(arm), retired_at_L=retired(arm)) for arm in "ABC"}
+json.dump(crit, open(os.path.join(out, "criteria.json"), "w"), indent=1)
+print(json.dumps(crit, indent=1))

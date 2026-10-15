@@ -21,6 +21,7 @@ Keep resolved and superseded records in the index.
 | [Order saturation finite-field certification](lattice-order-saturation-finite-field-certification.md) | open | EXP-ENDO-854769 finite-field lift and independent certification; RUN-ENDO-910c24 synthetic pilot complete | Certified maps from ordinary finite-field bases; independent review receipt |
 | [Quaternion lattice volume finite-field certification](lattice-quaternion-volume-finite-field-certification.md) | open | EXP-SSI-39bae9 finite-field lift and independent certification; RUN-SSI-5a435c synthetic pilot complete | Certified supersingular maps from supplied Hurwitz orders; independent review receipt |
 | [Transport denominators finite-field certification](lattice-transport-denominators-finite-field-certification.md) | open | EXP-ENDO-aec0b2 finite-field lift and independent certification; RUN-ENDO-4d758c synthetic pilot complete | Certified maps from ordinary finite-field bases; independent review receipt |
+| [PKM isogeny-chain factor base has no fast decomposition](pkm-isogeny-chain-factor-base-no-fast-decomposition.md) | open | The proposed ~N^(1/3) P-256 route via a 2-isogeny-chain factor base (EXP-ECDLP-f49f75: chain encoding slower than dense/random controls at every toy cell) | A solver beating the dense and random controls on the frozen toy grid, or an L-independent degree-of-regularity bound |
 
 ## Add or update a problem
 
