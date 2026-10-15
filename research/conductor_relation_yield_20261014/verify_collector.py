@@ -9,7 +9,12 @@ import argparse
 import hashlib
 import json
 from dataclasses import dataclass
+from functools import lru_cache
+from math import isqrt
 from pathlib import Path
+
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions enabled")
 
 
 @dataclass(frozen=True)
@@ -18,6 +23,33 @@ class Curve:
     a: int
     b: int
     r: int
+
+
+@lru_cache(maxsize=None)
+def is_prime_exact(value):
+    if value < 2:
+        return False
+    if value in (2, 3):
+        return True
+    if value % 2 == 0 or value % 3 == 0:
+        return False
+    divisor = 5
+    while divisor * divisor <= value:
+        if value % divisor == 0 or value % (divisor + 2) == 0:
+            return False
+        divisor += 6
+    return True
+
+
+def certify_group(curve, generator):
+    assert is_prime_exact(curve.p) and is_prime_exact(curve.r)
+    assert (4 * curve.a**3 + 27 * curve.b**2) % curve.p != 0
+    hasse_radius = isqrt(4 * curve.p)
+    assert abs(curve.r - (curve.p + 1)) <= hasse_radius
+    assert 2 * curve.r > curve.p + 1 + hasse_radius
+    assert generator is not None and on_curve(generator, curve)
+    assert multiply(curve.r, generator, curve) is None
+    # The prime-order generator forces r | #E, and Hasse permits only r.
 
 
 def negative(point, curve):
@@ -75,6 +107,7 @@ def parse_input(path):
         assert on_curve(point, curve)
         base.append(point)
     assert nbase % 2 == 0
+    assert len({base[index][0] for index in range(0, nbase, 2)}) == nbase // 2
     for index in range(0, nbase, 2):
         assert base[index + 1] == negative(base[index], curve)
     targets = []
@@ -85,7 +118,7 @@ def parse_input(path):
         alpha, beta = int(alpha), int(beta)
         point = int(x), int(y)
         assert 0 <= alpha < curve.r and 1 <= beta < curve.r
-        assert point not in seen and on_curve(point, curve)
+        assert point is not None and point not in seen and on_curve(point, curve)
         seen.add(point)
         targets.append((alpha, beta, point))
     return curve, base, targets
@@ -150,8 +183,8 @@ def sha256(path):
 
 def verify(input_path, output_path, generator, q, prefixes):
     curve, base, targets = parse_input(input_path)
-    assert on_curve(generator, curve) and on_curve(q, curve)
-    assert multiply(curve.r, generator, curve) is None
+    certify_group(curve, generator)
+    assert q is not None and on_curve(q, curve)
     assert multiply(curve.r, q, curve) is None
     for alpha, beta, point in targets:
         assert point == add(multiply(alpha, generator, curve), multiply(beta, q, curve), curve)

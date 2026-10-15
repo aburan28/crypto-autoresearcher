@@ -1,10 +1,13 @@
 # Exact triple oracle: implementation interface
 
 collector.rs is an exact group-law enumerator for a **prepared** endpoint
-input. It does not generate the target stream, certify curve order or conductor,
-compute rank, enforce the watchdog, or issue a scientific run receipt. The
-formal experiment remains review_required until those components and an
-independent full-size completeness check are committed and admitted.
+input. `prepare_input.py` constructs native, random, transported, and rebuilt
+bases with the prespecified target law; `verify_collector.py` independently
+checks point equations, group order and rank; `exact_interval.py` inverts
+integer hypergeometric tails. These components do not certify the conductor,
+enforce the endpoint watchdog, issue a scientific run receipt, or establish
+full-size no-hit completeness. The formal experiment remains `review_required`
+until those components and an admitted launcher are complete.
 
 Compile with TMPDIR=/private/tmp and rustc --edition=2021 -O collector.rs.
 The earlier build with the host's default TMPDIR failed with
@@ -65,3 +68,13 @@ the separate verifier, compares
 complete triple sets and counts for all 18 nonidentity targets, and checks
 the all-target ordered conservation identity. Passing this control does not
 certify the P29/P37 run or the full admission gate.
+
+`test_preparer.py` checks all six specified endpoints and all four arm types
+with eight public fixed test targets each. Its count is explicitly marked
+outside the formal 32,768-target protocol. Exact prime-order group checks
+follow from trial-division primality of p and r, rG=O, and Hasse's bound;
+the conductor and isogeny provenance still require the archived source specs.
+
+`test_exact_interval.py` compares integer tail decisions with direct sums
+on small populations. `exact_interval.py` uses threshold 1/800 for each
+tail and prints display fractions only after computing integer endpoints.
