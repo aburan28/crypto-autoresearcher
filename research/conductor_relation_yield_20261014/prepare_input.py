@@ -233,7 +233,7 @@ def main():
     if len(target_seed) != 32 or len(k_seed) != 32 or target_seed == k_seed or args.targets < 1:
         parser.error("two distinct 256-bit seeds and a positive target count are required")
     commitment = json.loads(args.commitment.read_text())
-    if commitment.get("schema") != "arity3-seed-commitment/v1":
+    if commitment.get("schema") not in ("arity3-seed-commitment/v1", "arity3-seed-commitment/v2"):
         parser.error("invalid seed commitment")
     if commitment.get("target_seed_sha256") != hashlib.sha256(target_seed).hexdigest():
         parser.error("target seed does not match commitment")
