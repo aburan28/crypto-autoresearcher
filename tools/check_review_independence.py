@@ -48,6 +48,11 @@ authenticate the actual Reviewer identity, immutable blind snapshot, four-run
 archive gate, or deliberate-unblind timing; those remain external handoff and
 archive obligations. A preparatory blind report alone cannot satisfy the full
 round's unchanged joints or substitute for their missing attestations.
+An explicit lost-session ``blind_phase_replacement`` retains the old joint,
+attestation, phase and scoped grant as history. Only the new seven own files
+become the full owner's active grant; every retained blind owner is still
+checked against protected sources. This authenticates neither session identity,
+archive contents/timing nor scientific verdicts: all are external obligations.
 
 WHY THE HISTORY CHECK EXISTS, AND WHAT IT COSTS. `blind_from` is a list of
 FILES, and the checks above can only see declared FILE reads. On 2026-09-05 a
@@ -103,6 +108,35 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERDICTS = {"holds", "breaks", "inconclusive"}
 _TASK_ID = re.compile(r"TASK-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\Z")
 _NATIVE_TASK_ID = re.compile(r"TASK-\d{8}-(?:[0-9a-f]{6}|\d{3})\Z")
+_OWN_SEVEN = {"independent_enumerator.py", "predicted-counts.json", "report.md",
+              "diagram.svg", "report.pdf", "visual-inspection.json", "read-attestation.yaml"}
+
+
+def _replacement_locations(value, prefix=(), ancestors=frozenset()):
+    """Find explicit replacement directives, including otherwise ignored nesting."""
+    found = []
+    if id(value) in ancestors:
+        return found
+    ancestors = ancestors | {id(value)}
+    if isinstance(value, dict):
+        for key, child in value.items():
+            location = prefix+(key,)
+            if key == "blind_phase_replacement":
+                found.append(location)
+            found.extend(_replacement_locations(child, location, ancestors))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            found.extend(_replacement_locations(child, prefix+(index,), ancestors))
+    return found
+
+
+def _replacement_allowlist(raw, task):
+    paths = _allowlist_paths(raw, task)
+    if (len(paths) != 7 or {path.rsplit("/", 1)[-1] for path in paths} != _OWN_SEVEN
+            or len({path.rsplit("/", 1)[0] for path in paths}) != 1
+            or any(path.split("/")[-2] != task for path in paths)):
+        raise ValueError("blind-phase replacement requires exactly the seven own-artifact files in its new TASK directory")
+    return paths
 
 
 def _valid_task(value, *, native=False):
@@ -165,6 +199,8 @@ def _phase_problems(plan):
         return ["malformed blind-phase assignment audit"]
     blind = plan.get("blind_rederivation")
     blind = blind if isinstance(blind, dict) else {}
+    blindness = plan.get("blindness")
+    blindness = blindness if isinstance(blindness, dict) else {}
     for full_owner, phase in phases.items():
         if (not _valid_task(full_owner, native=True) or not isinstance(phase, dict)
                 or not _valid_task(phase.get("blind_task"), native=True)
@@ -180,6 +216,47 @@ def _phase_problems(plan):
                        and _joint_label(_joint_name(entry)).casefold() == _joint_label(name).casefold()]
             if len(entries) != 1 or _joint_owner(entries[0]) != full_owner:
                 problems.append(f"full joint '{_joint_label(name)}' must remain assigned to {full_owner} after blind-phase split")
+    history = plan.get("_blind_phase_history", [])
+    if not isinstance(history, list):
+        return problems+["malformed blind-phase replacement history"]
+    seen = set()
+    for record in history:
+        if (not isinstance(record, dict) or not _valid_task(record.get("full_task"), native=True)
+                or not isinstance(record.get("phase_assignment"), dict)
+                or not isinstance(record.get("scoped_lift"), dict)
+                or not isinstance(record.get("blind_rederivation"), dict)
+                or not isinstance(record.get("retained_joints"), list)):
+            problems.append("malformed retained blind-phase history")
+            continue
+        full = record["full_task"]
+        old = record["phase_assignment"].get("blind_task")
+        if not _valid_task(old, native=True) or old in seen:
+            problems.append("invalid or duplicate retained blind-phase owner")
+            continue
+        seen.add(old)
+        current_phase = phases.get(full)
+        if not isinstance(current_phase, dict) or not _named_joints(plan, old):
+            problems.append(f"retained blind owner {old} and unchanged full owner {full} must remain declared")
+        for joint in record["retained_joints"]:
+            if joint not in plan.get("joints", []):
+                problems.append(f"retained joint must remain unchanged after blind-phase replacement for {old}")
+        prior = record["blind_rederivation"]
+        prior_sources = prior.get("blind_from")
+        if (not isinstance(prior_sources, list) or not prior_sources
+                or any(not isinstance(source, str) or not source.strip() for source in prior_sources)):
+            problems.append("malformed retained blind_from protections")
+            continue
+        for field in ("required", "quantity", "parameters"):
+            if blind.get(field) != prior.get(field):
+                problems.append(f"replacement must preserve blind_rederivation.{field}")
+        if any(source not in (blind.get("blind_from") or []) for source in prior_sources):
+            problems.append("replacement must preserve every retained blind_from source")
+        if blindness.get("mutual") is not True:
+            problems.append("blind-phase replacement must preserve mutual=true")
+        # A later legacy lift must not broaden the replacement's exact grant.
+        lifted = blindness.get("lifted_for") or []
+        if any(task in lifted for task in (full, old, current_phase.get("blind_task") if isinstance(current_phase, dict) else None)):
+            problems.append("blind-phase replacement cannot use a broad blindness lift")
     return problems
 
 
@@ -200,7 +277,8 @@ def _scoped_lift(task, scope, plan):
     blindness = plan.get("blindness")
     if not isinstance(blindness, dict) or blindness.get("mutual") is not True:
         raise ValueError("scoped blindness lift must preserve mutual=true")
-    return {_read_path(path) for path in _allowlist_paths(scope.get("read_allowlist"), blind_owner)}
+    validator = _replacement_allowlist if phase.get("replacement") is True else _allowlist_paths
+    return {_read_path(path) for path in validator(scope.get("read_allowlist"), blind_owner)}
 
 
 def _joint_label(name: str) -> str:
@@ -292,7 +370,31 @@ def _verdict_for(attestation: dict, name: str) -> tuple[str | None, str | None]:
 def _load(path: str):
     try:
         with open(path, encoding="utf-8") as handle:
-            return fast_yaml.safe_load(handle)
+            content = handle.read()
+        # The normal legacy loader keeps the last duplicate YAML key.
+        # Explicit replacement authority must never silently shadow one,
+        # including a duplicate wrapper containing the directive.
+        def inspect(node, replacement=False, ancestors=frozenset()):
+            if id(node) in ancestors:
+                return False
+            ancestors = ancestors | {id(node)}
+            contains = False
+            if isinstance(node, yaml.MappingNode):
+                seen = {}
+                for key, value in node.value:
+                    name = key.value if isinstance(key, yaml.ScalarNode) else None
+                    child_contains = inspect(value, replacement or name == "blind_phase_replacement", ancestors)
+                    special = name == "blind_phase_replacement" or child_contains
+                    if name in seen and (replacement or special or seen[name]):
+                        raise ValueError(f"{path}: duplicate blind-phase replacement directive/field {name}")
+                    seen[name] = special
+                    contains |= special
+            elif isinstance(node, yaml.SequenceNode):
+                for value in node.value:
+                    contains |= inspect(value, replacement, ancestors)
+            return contains
+        inspect(yaml.compose(content, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader)))
+        return fast_yaml.safe_load(content)
     except (OSError, yaml.YAMLError) as exc:
         return {"__error__": str(exc).splitlines()[0]}
 
@@ -326,6 +428,9 @@ def _plan_of(doc) -> dict | None:
 def _addendum_of(doc) -> dict | None:
     if not isinstance(doc, dict):
         return None
+    locations = _replacement_locations(doc)
+    if locations and locations != [("review_plan_addendum", "blind_phase_replacement")]:
+        raise ValueError("blind_phase_replacement belongs only at review_plan_addendum top level")
     for key in ADDENDUM_KEYS:
         if isinstance(doc.get(key), dict):
             return doc[key]
@@ -412,6 +517,8 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
     """
     import copy
 
+    if _replacement_locations(plan):
+        raise ValueError("blind_phase_replacement belongs only at review_plan_addendum top level")
     composed = copy.deepcopy(plan)
     notes: list[str] = []
     joints = composed.get("joints")
@@ -419,10 +526,70 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
 
     for path, addendum in addenda:
         label = _rel(path)
+        if not isinstance(addendum, dict):
+            raise ValueError(f"{label}: addendum must be a mapping")
+        locations = _replacement_locations(addendum)
+        if locations and locations != [("blind_phase_replacement",)]:
+            raise ValueError(f"{label}: blind_phase_replacement belongs only at addendum top level")
+        if any(str(key).startswith("blind_phase_replac") and key != "blind_phase_replacement" for key in addendum):
+            raise ValueError(f"{label}: unknown blind-phase replacement directive")
         changes = addendum.get("what_changes")
         if changes is not None and not isinstance(changes, dict):
             raise ValueError(f"{label}: what_changes must be a mapping")
         changes = changes or {}
+        phase_replacement = addendum.get("blind_phase_replacement")
+        previous_phase = previous_scope = None
+        retained_joints = copy.deepcopy(composed["joints"])
+        if "blind_phase_replacement" in addendum:
+            required = {"full_task", "replaces_blind_task", "replacement_blind_task", "reason",
+                        "retained_blind_archive", "prior_artifacts_remain_required"}
+            if not isinstance(phase_replacement, dict) or set(phase_replacement) != required:
+                raise ValueError(f"{label}: malformed or unknown blind_phase_replacement fields")
+            full, old, new = (phase_replacement[key] for key in
+                              ("full_task", "replaces_blind_task", "replacement_blind_task"))
+            if (any(not _valid_task(task, native=True) for task in (full, old, new))
+                    or len({full, old, new}) != 3
+                    or not isinstance(phase_replacement["reason"], str) or not phase_replacement["reason"].strip()
+                    or phase_replacement["prior_artifacts_remain_required"] is not True):
+                raise ValueError(f"{label}: replacement requires distinct native TASK IDs, a reason and retained prior artifacts")
+            archive = phase_replacement["retained_blind_archive"]
+            if (not isinstance(archive, dict) or set(archive) != {"task", "commit_sha", "verification"}
+                    or archive.get("task") != old or not isinstance(archive.get("commit_sha"), str)
+                    or not re.fullmatch(r"[0-9a-f]{40}", archive["commit_sha"])):
+                raise ValueError(f"{label}: replacement requires an exact retained old blind archive binding")
+            verification = archive.get("verification")
+            if (not isinstance(verification, str) or not verification or verification != verification.strip()
+                    or os.path.isabs(verification) or any(c in verification for c in "\\*?[]:")
+                    or any(part in ("", ".", "..") for part in verification.split("/"))
+                    or not _within(_read_path(verification), os.path.realpath(REPO))
+                    or os.path.isdir(_read_path(verification))):
+                raise ValueError(f"{label}: retained archive verification must be an exact repository file path")
+            errors = _phase_problems(composed)
+            if errors:
+                raise ValueError(f"{label}: invalid prior blind-phase binding: "+"; ".join(errors))
+            phases = composed.get("_blind_phase_assignments") or {}
+            previous_phase = phases.get(full)
+            current_blind = composed.get("blind_rederivation")
+            if (not isinstance(previous_phase, dict) or previous_phase.get("blind_task") != old
+                    or not _named_joints(composed, full)
+                    or not isinstance(current_blind, dict) or current_blind.get("assigned_to") != old):
+                raise ValueError(f"{label}: stale or unknown replacement must name an existing unchanged full/blind-phase binding")
+            sources = current_blind.get("blind_from")
+            if (not isinstance(current_blind.get("quantity"), str) or not current_blind["quantity"].strip()
+                    or not isinstance(sources, list) or not sources
+                    or any(not isinstance(source, str) or not source.strip() for source in sources)):
+                raise ValueError(f"{label}: replacement requires intact quantity and blind_from declarations")
+            if _named_joints(composed, new) or any(new == record["phase_assignment"]["blind_task"]
+                                                for record in composed.get("_blind_phase_history", [])):
+                raise ValueError(f"{label}: duplicate/replayed replacement task already owns or owned a blind joint")
+            current_blindness = composed.get("blindness")
+            prior_scopes = current_blindness.get("scoped_lifts") if isinstance(current_blindness, dict) else None
+            previous_scope = prior_scopes.get(full) if isinstance(prior_scopes, dict) else None
+            _scoped_lift(full, previous_scope, composed)
+            if ("blind_rederivation_assigned_to" in changes or changes.get("owners")
+                    or addendum.get("blindness_lifted_for_additions") != [full]):
+                raise ValueError(f"{label}: replacement conflicts with split/owner changes or requires its exact named full-owner lift")
+            _replacement_allowlist(addendum.get("lift_read_allowlist"), new)
         if "blind_rederivation_assigned_to" in addendum:
             raise ValueError(f"{label}: blind_rederivation_assigned_to belongs under what_changes")
         lift_keys = {"blindness_lifted_for_additions", "blindness_lift_rationale", "lift_read_allowlist"}
@@ -544,6 +711,27 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
             if errors:
                 raise ValueError(f"{label}: "+"; ".join(errors))
             notes.append(f"{label}: blind_rederivation.assigned_to reassigned {previous_blind_owner} -> {owner}; full-joint owner unchanged")
+        if phase_replacement is not None:
+            full, old, new = (phase_replacement[key] for key in
+                              ("full_task", "replaces_blind_task", "replacement_blind_task"))
+            if not _named_joints(composed, new):
+                raise ValueError(f"{label}: replacement blind task must own a newly explicit joint")
+            composed.setdefault("_blind_phase_history", []).append({
+                "full_task": full, "phase_assignment": copy.deepcopy(previous_phase),
+                "scoped_lift": copy.deepcopy(previous_scope),
+                "retained_blind_archive": copy.deepcopy(phase_replacement["retained_blind_archive"]),
+                "reason": phase_replacement["reason"], "prior_artifacts_remain_required": True,
+                "retained_joints": retained_joints,
+                "blind_rederivation": copy.deepcopy(blind_before)})
+            composed["_blind_phase_assignments"][full] = dict(copy.deepcopy(previous_phase), blind_task=new, replacement=True)
+            composed["blind_rederivation"]["assigned_to"] = new
+            # Every old exact artifact is now forbidden to the fresh Reviewer,
+            # even where a report path contains no recognizable TASK directory.
+            protected = composed["blind_rederivation"]["blind_from"]
+            for source in previous_scope["read_allowlist"]:
+                if source not in protected:
+                    protected.append(source)
+            notes.append(f"{label}: explicit blind-phase replacement {old} -> {new} for unchanged full owner {full}; old phase and grant retained as history")
         if "blindness_lifted_for_additions" in addendum:
             tasks = addendum["blindness_lifted_for_additions"]
             rationale = addendum.get("blindness_lift_rationale")
@@ -563,11 +751,12 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
                 allowlist = _allowlist_paths(addendum.get("lift_read_allowlist"), phase["blind_task"])
                 scope = {"blind_task": phase["blind_task"], "rationale": rationale.strip(), "read_allowlist": allowlist}
                 _scoped_lift(task, scope, composed)
-                if task in scopes:
+                if task in scopes and phase_replacement is None:
                     prior = scopes[task]
                     if not isinstance(prior, dict) or prior.get("blind_task") != phase["blind_task"]:
                         raise ValueError(f"{label}: scoped lift cannot replace an unrelated prior blind-task binding")
                     scope["read_allowlist"] = list(prior["read_allowlist"])+[item for item in allowlist if item not in prior["read_allowlist"]]
+                    _scoped_lift(task, scope, composed)
                 scopes[task] = scope
                 notes.append(f"{label}: scoped blindness lift for {task}: {len(scope['read_allowlist'])} exact prior blind-artifact path(s) from {phase['blind_task']}; legacy lift entries preserved")
     errors = _phase_problems(composed)
@@ -618,6 +807,8 @@ def _rel(path: str) -> str:
 
 def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
     problems: list[str] = list(plan.get("_composition_errors") or [])
+    if _replacement_locations(plan):
+        problems.append("blind_phase_replacement belongs only at review_plan_addendum top level")
     problems.extend(_phase_problems(plan))
     rel = _rel
 
@@ -810,14 +1001,23 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
                             "assigned_to")
         elif not _valid_task(rederivation.get("assigned_to")):
             problems.append("blind_rederivation has an invalid TASK assigned_to")
-        elif owner not in by_task:
-            problems.append(f"blind_rederivation is assigned to {owner}, which "
-                            f"filed no review_attestation")
-        else:
+        owner_protections = {owner: blind_from}
+        history = plan.get("_blind_phase_history")
+        if isinstance(history, list):
+            for record in history:
+                if (isinstance(record, dict) and isinstance(record.get("phase_assignment"), dict)
+                        and _valid_task(record["phase_assignment"].get("blind_task"), native=True)
+                        and isinstance(record.get("blind_rederivation"), dict)):
+                    owner_protections[record["phase_assignment"]["blind_task"]] = record["blind_rederivation"].get("blind_from", [])
+        for owner, protected_sources in owner_protections.items():
+            if owner not in by_task:
+                problems.append(f"blind_rederivation is assigned to retained/current owner {owner}, which "
+                                f"filed no review_attestation")
+                continue
             path, attestation = by_task[owner]
             raw_read = attestation.get("sources_read") or []
             read = [value.strip() for value in raw_read if isinstance(value, str)] if isinstance(raw_read, list) else []
-            leaked = sorted({b for b in blind_from
+            leaked = sorted({b for b in protected_sources
                              for r in read if _within(_read_path(r), _read_path(b))
                              or (r.endswith(("/", "\\")) and _within(_read_path(b), _read_path(r)))})
             if leaked:
@@ -977,13 +1177,14 @@ def main() -> int:
 
     composition: list[str] = []
     if not args.no_addenda:
-        addenda = find_addenda(plan_path)
-        if addenda:
-            try:
+        try:
+            addenda = find_addenda(plan_path)
+            if addenda:
                 plan, composition = compose_plan(plan, addenda)
-            except ValueError as error:
-                print(f"FAIL: invalid review-plan addendum: {error}", file=sys.stderr)
-                return 2
+        except ValueError as error:
+            print(f"FAIL: invalid review-plan addendum: {error}", file=sys.stderr)
+            return 2
+        if addenda:
             print(f"composed {len(addenda)} addendum/addenda into "
                   f"{_rel(plan_path)}:")
             for path, _ in addenda:
