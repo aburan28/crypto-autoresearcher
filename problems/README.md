@@ -21,6 +21,7 @@ Keep resolved and superseded records in the index.
 | [Order saturation finite-field certification](lattice-order-saturation-finite-field-certification.md) | open | EXP-ENDO-854769 finite-field lift and independent certification; RUN-ENDO-910c24 synthetic pilot complete | Certified maps from ordinary finite-field bases; independent review receipt |
 | [Quaternion lattice volume finite-field certification](lattice-quaternion-volume-finite-field-certification.md) | open | EXP-SSI-39bae9 finite-field lift and independent certification; RUN-SSI-5a435c synthetic pilot complete | Certified supersingular maps from supplied Hurwitz orders; independent review receipt |
 | [Transport denominators finite-field certification](lattice-transport-denominators-finite-field-certification.md) | open | EXP-ENDO-aec0b2 finite-field lift and independent certification; RUN-ENDO-4d758c synthetic pilot complete | Certified maps from ordinary finite-field bases; independent review receipt |
+| [Lattice index-calculus relation construction](lattice-index-calculus-relation-construction-not-demonstrated.md) | open | RQ-IC-a39c7e and three unexecuted proposals: usable relation density, independent rank and complete cost | Executable pairing/map/root certificates, identical-base controls, valid subgroup relations and independent cost review |
 
 ## Add or update a problem
 
