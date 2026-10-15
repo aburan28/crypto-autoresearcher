@@ -103,13 +103,15 @@ for arm in "ABC":
                 label=f"{name[arm]} [Singular std, EXP-f49f75]")
     to = [s["L"] for s in summary if s["arm"] == arm and s["n_ok"] == 0 and s["n_timeout"]]
     if to:
-        ax.scatter(to, [6e5] * len(to), marker="x", color=col[arm], s=60, zorder=5)
+        ax.scatter(to, [6e5 * (1.25 if arm == "A" else 1)] * len(to), marker="x", color=col[arm], s=70, zorder=5, clip_on=False)
     dp = [s for s in summary if s["arm"] == arm and "max_f4_deg_gb_done" in s]
     ax2.plot([s["L"] for s in dp], [s["max_f4_deg_gb_done"] for s in dp], color=col[arm], marker="o", label=name[arm])
 ax.axhline(6e5, color="black", lw=0.6, ls=":")
+ax.annotate("L=6: only the 2 random\n(no-solution) targets finished;\nall 4 planted timed out", xy=(6, 2.2e5), xytext=(4.6, 3e3),
+            fontsize=6.5, arrowprops=dict(arrowstyle="->", lw=0.6))
 ax.set_yscale("log"); ax.set_xlabel("L  (|V| = 2^L; m = 3; p ~ 2^(3L))")
 ax.set_ylabel("median full-solve time (ms, log)\nbars = min..max, x = all timed out (600 s)")
-ax.legend(fontsize=6.3, loc="upper left"); ax.grid(alpha=.3)
+ax.legend(fontsize=6.3, loc="lower right"); ax.grid(alpha=.3)
 ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
 ax2.set_xlabel("L"); ax2.set_ylabel("max F4 degree reached (msolve -v 2)")
 ax2.set_title("solving degree proxy (instances whose basis completed)", fontsize=8)
