@@ -158,8 +158,15 @@ def dense_str(coeffs, var):
     return "+".join(f"{ci}*{var}^{i}" for i, ci in enumerate(coeffs) if ci)
 
 
+# Numeric constants are passed as number(...) so Singular evaluates them in the
+# coefficient field, never in 32-bit int arithmetic (x(T)^2 overflowed for
+# p > 46340 before AMD-02).
 S3 = ("({x1}-{x2})^2*{x3}^2-2*(({x1}+{x2})*({x1}*{x2}+({a}))+2*({b}))*{x3}"
       "+({x1}*{x2}-({a}))^2-4*({b})*({x1}+{x2})")
+
+
+def num(v):
+    return f"number({v})"
 
 
 def singular_script(arm, p, m, a, b, xT, enc, planted_pt, solver="std"):
@@ -168,10 +175,10 @@ def singular_script(arm, p, m, a, b, xT, enc, planted_pt, solver="std"):
     # summation polynomial in a small ring, imapped into the system ring
     lines.append(f"ring r0 = {p},(x(1..{m}),X),dp;")
     if m == 2:
-        lines.append("poly S = " + S3.format(x1="x(1)", x2="x(2)", x3=str(xT), a=a, b=b) + ";")
+        lines.append("poly S = " + S3.format(x1="x(1)", x2="x(2)", x3=num(xT), a=num(a), b=num(b)) + ";")
     else:
-        lines.append("poly S = resultant(" + S3.format(x1="x(1)", x2="x(2)", x3="X", a=a, b=b)
-                     + "," + S3.format(x1="x(3)", x2=str(xT), x3="X", a=a, b=b) + ",X);")
+        lines.append("poly S = resultant(" + S3.format(x1="x(1)", x2="x(2)", x3="X", a=num(a), b=num(b))
+                     + "," + S3.format(x1="x(3)", x2=num(xT), x3="X", a=num(a), b=num(b)) + ",X);")
     L = len(enc["steps"]) if arm == "A" else 0
     if arm == "A":
         ring_vars = f"x(1..{m})" + (f",w(1..{m})(1..{L-1})" if L > 1 else "")
