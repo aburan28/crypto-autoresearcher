@@ -2,9 +2,13 @@
 import copy
 import io
 import json
+import os
 import random
+import select
+import subprocess
 import sys
-from contextlib import redirect_stdout
+import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from itertools import product
 from pathlib import Path
 import unittest
@@ -369,6 +373,193 @@ class GroupAndCellSoftwareTests(unittest.TestCase):
         m.check_reduction(control["lattice"], control["reduction"])
 
 
+class DurableTelemetrySoftwareTests(unittest.TestCase):
+    """Custody tests on invented/p7 software inputs, never run_experiment."""
+
+    @staticmethod
+    def events(stream):
+        stream.flush()
+        with open(stream.name) as reader:
+            return [json.loads(line) for line in reader]
+
+    def test_actual_append_fsync_sequence_and_start_before_hnf(self):
+        x = sp.Symbol("x")
+        original = m._integer_row_hnf
+        with tempfile.NamedTemporaryFile(mode="a+") as stream:
+            stream.write('{"preexisting": true}\n')
+            stream.flush()
+            actual_fsync = os.fsync
+            descriptors = []
+
+            def fsync(fd):
+                descriptors.append(fd)
+                actual_fsync(fd)
+
+            def hnf(*args):
+                events = self.events(stream)[1:]
+                self.assertEqual(events[-1]["stage"], "integer_row_lattice")
+                self.assertEqual(events[-1]["event"], "start")
+                return original(*args)
+
+            with patch.object(m.os, "fsync", side_effect=fsync):
+                with patch.object(m, "_integer_row_hnf", side_effect=hnf):
+                    lattice = m.build_shift_lattice([x-1], (x,), 7, (2,), 1, 0, "dense",
+                                                   telemetry=m.Telemetry(m.DurableJSONL(stream), seed=19))
+            records = self.events(stream)
+            self.assertEqual(records[0], {"preexisting": True})
+            records = records[1:]
+            self.assertEqual(descriptors, [stream.fileno()]*len(records))
+            self.assertEqual([r["sequence"] for r in records], list(range(1, len(records)+1)))
+            self.assertEqual([r["monotonic_seconds"] for r in records], sorted(r["monotonic_seconds"] for r in records))
+            self.assertTrue(all(r["seed"] == 19 and r["pid"] == os.getpid() for r in records))
+            self.assertTrue(all(r["elapsed_wall_seconds"] >= 0 and r["elapsed_cpu_seconds"] >= 0 for r in records))
+            self.assertEqual(records[-1]["event"], "finish")
+            self.assertGreaterEqual(lattice["cost"]["wall_seconds"], records[-1]["elapsed_wall_seconds"])
+            m.check_lattice(lattice)
+
+    def test_exception_retains_start_and_never_finishes_failed_hnf(self):
+        x = sp.Symbol("x")
+        with tempfile.NamedTemporaryFile(mode="a+") as stream:
+            with patch.object(m, "_integer_row_hnf", side_effect=ArithmeticError("invented HNF failure")):
+                with self.assertRaisesRegex(ArithmeticError, "invented HNF failure"):
+                    m.build_shift_lattice([x-1], (x,), 7, (2,), 1, 0, "dense",
+                                          telemetry=m.DurableJSONL(stream))
+            records = self.events(stream)
+        for stage in ("integer_row_lattice", "build_shift_lattice"):
+            self.assertEqual([r["event"] for r in records if r["stage"] == stage], ["start", "exception"])
+        self.assertEqual(records[-1]["exception"]["type"], "ArithmeticError")
+        self.assertIsNone(m._telemetry.get())
+
+    def test_forced_subprocess_termination_keeps_durable_started_stage(self):
+        # The subprocess announces readiness only from inside the patched HNF
+        # call, after its enclosing real stage-start has been flushed/fsynced.
+        script = '''import sys
+from unittest.mock import patch
+from tools import lattice_ic_polynomial as m
+sp, _ = m.dependencies()
+x = sp.Symbol("x")
+def blocked(*args):
+    print("inside_hnf", flush=True)
+    sys.stdin.read()
+    raise AssertionError("termination fixture must not return")
+with open(sys.argv[1], "a") as stream:
+    with patch.object(m, "_integer_row_hnf", side_effect=blocked):
+        m.build_shift_lattice([x-1], (x,), 7, (2,), 1, 0, "dense", telemetry=m.DurableJSONL(stream))
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"stderr.jsonl"
+            process = subprocess.Popen([sys.executable, "-c", script, str(path)],
+                                       cwd=Path(m.__file__).resolve().parents[1],
+                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True)
+            try:
+                readable, _, _ = select.select([process.stdout], [], [], 15)
+                self.assertTrue(readable, "software subprocess failed to reach HNF boundary")
+                self.assertEqual(process.stdout.readline().strip(), "inside_hnf")
+                process.terminate()
+                _, errors = process.communicate(timeout=5)
+                self.assertEqual(process.returncode, -15, errors)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=5)
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+        self.assertEqual(records[-1]["stage"], "integer_row_lattice")
+        self.assertEqual(records[-1]["event"], "start")
+        self.assertFalse(any(r["stage"] in ("integer_row_lattice", "build_shift_lattice") and r["event"] == "finish" for r in records))
+
+    def test_sink_write_flush_and_fsync_failures_are_explicit_stops(self):
+        x = sp.Symbol("x")
+        for operation in ("write", "flush", "fsync"):
+            with self.subTest(operation=operation):
+                with tempfile.NamedTemporaryFile(mode="a+") as stream:
+                    owner, attribute = (m.os, "fsync") if operation == "fsync" else (stream, operation)
+                    with patch.object(owner, attribute, side_effect=OSError("invented storage failure")):
+                        with patch.object(m, "_integer_row_hnf") as hnf:
+                            with self.assertRaisesRegex(m.TelemetryIOError, "write/flush/fsync failed"):
+                                m.build_shift_lattice([x-1], (x,), 7, (2,), 1, 0, "dense",
+                                                      telemetry=m.DurableJSONL(stream))
+                            hnf.assert_not_called()
+        self.assertIsNone(m._telemetry.get())
+
+    def test_lll_failure_event_and_logging_failure_preserve_stop_semantics(self):
+        x = sp.Symbol("x")
+        lattice = m.build_shift_lattice([x-1], (x,), 7, (2,), 1, 0, "dense")
+        records = []
+        with patch.object(m.dependencies()[1].LLL, "reduction", side_effect=RuntimeError("invented reducer failure")):
+            stopped = m.reduce_and_certify(lattice, telemetry=records.append)
+        self.assertEqual(stopped["status"], "bounded_instrument_stop")
+        self.assertEqual([r["event"] for r in records if r["stage"] == "lll_call"], ["start", "exception"])
+        self.assertEqual(records[-1]["status"], "bounded_instrument_stop")
+
+        def failing_sink(record):
+            if record["stage"] == "lll_call":
+                raise OSError("invented LLL-boundary storage failure")
+
+        with patch.object(m.dependencies()[1].LLL, "reduction") as reducer:
+            with self.assertRaisesRegex(m.TelemetryIOError, "LLL-boundary storage failure"):
+                m.reduce_and_certify(lattice, telemetry=failing_sink)
+            reducer.assert_not_called()
+
+    def test_programmatic_default_quiet_and_cell_semantics_counters_unchanged(self):
+        curve = m.Curve(m.Field(7), 1, 1)
+        admitted = m.select_prime_subgroup(curve)
+        target = m.encode_point(curve, admitted["P"])
+
+        def operations(value):
+            if isinstance(value, dict):
+                return {key: (item["operations"] if key == "counter" else operations(item))
+                        for key, item in value.items() if key == "counter" or isinstance(item, (dict, list))}
+            if isinstance(value, list):
+                return [operations(item) for item in value]
+            return None
+
+        for slice_value in (None, 0):
+            with self.subTest(slice=slice_value):
+                quiet = io.StringIO()
+                with redirect_stderr(quiet):
+                    plain = m.reduction_cell(7, 1, 1, 2, 2, target, 1, 0, "dense", slice_value)
+                self.assertEqual(quiet.getvalue(), "")
+                with tempfile.NamedTemporaryFile(mode="a+") as stream:
+                    key = "software/reduction/p7/R0"+("/x2=0" if slice_value is not None else "")
+                    logged = m.reduction_cell(7, 1, 1, 2, 2, target, 1, 0, "dense", slice_value,
+                                              telemetry=m.Telemetry(m.DurableJSONL(stream), seed=29), cell_id=key)
+                    records = self.events(stream)
+                self.assertEqual(m._semantic(plain), m._semantic(logged))
+                self.assertEqual(operations(plain), operations(logged))
+                self.assertEqual([r["event"] for r in records if r["kind"] == "cell"], ["start", "finish"])
+                self.assertTrue(all(r["cell_id"] == key for r in records))
+                stages = {r["stage"] for r in records}
+                self.assertLessEqual({"cold_input_setup", "summation_polynomial", "exact_integer_row_hnf",
+                                      "lll_call", "exact_reduction_certificates", "dimension",
+                                      "exhaustive_box_oracle", "candidate_relation_rank", "homogeneous_relation_rank"}, stages)
+                self.assertGreaterEqual(logged["inclusive_cost"]["wall_seconds"], records[-1]["elapsed_wall_seconds"])
+                m.check_cell(logged, {"p": 7, "A": 1, "B": 1, "W": 2, "m": 2, "target": target,
+                                      "t": 1, "L": 0, "arm": "dense", "slice_x2": slice_value})
+
+    def test_mocked_cli_finish_follows_writer_and_writer_failure_has_no_finish(self):
+        for fail in (False, True):
+            with self.subTest(fail=fail), tempfile.NamedTemporaryFile(mode="a+") as stream:
+                def writer(*args):
+                    self.assertEqual(self.events(stream)[-1]["stage"], "write_artifacts")
+                    self.assertEqual(self.events(stream)[-1]["event"], "start")
+                    if fail:
+                        raise OSError("invented artifact storage failure")
+                with patch.object(m, "run_experiment", return_value={"software_only": True}) as experiment:
+                    with patch.object(m, "write_artifacts", side_effect=writer), redirect_stderr(stream):
+                        if fail:
+                            with self.assertRaisesRegex(OSError, "artifact storage failure"):
+                                m.main(["--output-dir", "/tmp/never-written-software-fixture"])
+                        else:
+                            self.assertEqual(m.main(["--output-dir", "/tmp/never-written-software-fixture"]), 0)
+                experiment.assert_called_once_with(1729)
+                records = self.events(stream)
+                expected = "exception" if fail else "finish"
+                self.assertEqual([r["event"] for r in records if r["kind"] == "run"], ["start", expected])
+                self.assertEqual([r["event"] for r in records if r["stage"] == "write_artifacts"], ["start", expected])
+                self.assertEqual(records[-1]["key"], "polynomial_cli")
+
+
 class EnvelopeSoftwareTests(unittest.TestCase):
     def test_shared_status_and_actual_rss(self):
         for status in m.STATUSES:
@@ -395,7 +586,8 @@ class EnvelopeSoftwareTests(unittest.TestCase):
         sentinel = {"softwarecheck_only": True}
         with patch.object(m, "run_experiment", return_value=sentinel) as experiment:
             with patch.object(m, "write_artifacts") as writer:
-                self.assertEqual(m.main(["--seed", "9", "--output-dir", "/tmp/polynomial-mocked-no-write"]), 0)
+                with tempfile.TemporaryFile(mode="w+") as stderr, redirect_stderr(stderr):
+                    self.assertEqual(m.main(["--seed", "9", "--output-dir", "/tmp/polynomial-mocked-no-write"]), 0)
         experiment.assert_called_once_with(9)
         self.assertEqual(writer.call_args.args[:3], (sentinel, Path("/tmp/polynomial-mocked-no-write"), 9))
         output = io.StringIO()
