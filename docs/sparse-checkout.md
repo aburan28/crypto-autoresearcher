@@ -6,6 +6,7 @@ archive that an execution (`run`) session never reads:
 | excluded by the `harness` profile | size | files |
 | --- | ---: | ---: |
 | `experiments/*/runs/` (except experiments with a trial plan) | 5.1 GB | 42,000 |
+| `experiments/*/implementation/runs/` (stage caches: 1.4 GB of LFS objects) | 0.1 GB | 17 |
 | `inputs/refs/` (reference bundles, incl. committed Rust build trees) | 1.1 GB | 6,100 |
 | `inputs/archive_from_autolab/`, `inputs/pqshield-signature-zoo-20260928/` | 0.3 GB | 3,900 |
 | `research/cold_*/` (IC run outputs) | 0.3 GB | 430 |
@@ -91,8 +92,8 @@ absence from the repository.**
 - `tools/validate_ledger.py`, `tools/goal_portfolio_health.py` and
   `tools/portfolio_kpis.py` sweep the whole repository and **refuse** a sparse
   checkout: off-disk run records read to them as missing (validate_ledger
-  reported 2,042 errors instead of 105) and as unrun contracts (which moves
-  approval capacity). Run them in a full checkout, or after `disable`.
+  reported 2,042 errors instead of 105) and as unrun contracts (which distorts
+  the backlog KPI). Run them in a full checkout, or after `disable`.
   `CRYPTO_AR_ALLOW_SPARSE=1` runs them over what is on disk, for diagnosis
   only.
 - CI checks out in full and is unaffected.
@@ -108,3 +109,20 @@ absence from the repository.**
 
 A session that needs an excluded path adds it (`add --path`); it does not
 conclude the path is missing. `git ls-files <path>` tells the two apart.
+
+## In CI
+
+`validate.yml` gives the jobs whose tests read no run archive the same
+exclusions, sparse and therefore blobless: `runtime-regressions` and
+`harness-tests` shards 2-4 (`SPARSE_RULES`, which
+`tests/test_ci_sparse_guard.py` keeps equal to this profile's `exclude`
+list, without its per-experiment re-includes). `ledger`, `static-checks`
+(the absolute merge-hygiene scan opens every tracked file) and
+`harness-tests` shard 1 keep full checkouts.
+
+Shard 1 runs `.github/test-full-checkout.txt`: the test files that read or
+list excluded paths, found by tracing every file the suite opens. A sparse
+job re-creates the excluded directories, empty (`tools/ci_sparse_guard.py
+tripwires`) and loads an audit hook into every Python process, so a test
+that reads or lists one fails the job by name rather than passing on less
+data. Moving that file into the list is the fix.

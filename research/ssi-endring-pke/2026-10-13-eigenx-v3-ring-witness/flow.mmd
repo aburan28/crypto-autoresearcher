@@ -1,0 +1,114 @@
+%% EigenX-v3-RW-NY-PKE: reviewed construction and obstruction map
+%% Editable source for flow.svg. No measured data are represented.
+flowchart TB
+  classDef proposed fill:#eaf3ff,stroke:#2763a5,stroke-width:2px,color:#10243e;
+  classDef assumption fill:#fff4d6,stroke:#9a6700,stroke-width:2px,color:#3a2b00;
+  classDef reviewed fill:#e9f7ee,stroke:#237a45,stroke-width:2px,color:#12351f;
+  classDef broken fill:#ffe8e6,stroke:#b42318,stroke-width:3px,color:#5b1510;
+  classDef open fill:#f3edff,stroke:#6f42c1,stroke-width:2px,color:#2d174d;
+  classDef neutral fill:#f6f8fa,stroke:#57606a,stroke-width:1.5px,color:#24292f;
+
+  subgraph REL["A. Proposed complete-ring relation R_CER"]
+    direction TB
+    X["Public instance x = canonical supersingular curve E"]:::proposed
+    W["Witness W: four typed E→E map circuits,<br/>degrees, traces, multiplication table,<br/>small-prime full-torsion equality suite"]:::proposed
+    V["Verify_CER:<br/>typed maps + dual/degree equalities + closure<br/>+ trace matrix rank 4 + |det T| = p²"]:::proposed
+    EQ["Derived equality argument:<br/>agreement on E[N], N² &gt; degree bound,<br/>forces equality of endomorphisms"]:::reviewed
+    ER["Conditional output:<br/>accepted evaluator basis spans exactly End(E)"]:::reviewed
+    W --> V
+    X --> V
+    EQ --> V
+    V --> ER
+    J1["J1: inconclusive<br/>algebra works conditionally, but exact gate/dual/<br/>field verifier and total bounds are incomplete"]:::open
+    V -. reviewed boundary .-> J1
+  end
+
+  subgraph HONEST["B. Proposed honest PKE flow (two independent components)"]
+    direction TB
+    K0["K0 TrapRingGen (OPEN)<br/>exact D_ER law + evaluable W + retry tail + erasure"]:::open
+    PAIR0["(x₀,W₀)"]:::proposed
+    PAIR1["(x₁,W₁)"]:::proposed
+    PK["pk = (x₀,ep₀,x₁,ep₁,crs)"]:::proposed
+    SK["sk = (pk,W₀,W₁)"]:::proposed
+    ENC0["c₀ = DX.Enc(ep₀,x₀,m;r₀)"]:::proposed
+    ENC1["c₁ = DX.Enc(ep₁,x₁,m;r₁)"]:::proposed
+    PROOF["π: strong-sUSS NIZK proof<br/>that c₀,c₁ encrypt the same m<br/>and binds exact pk bytes"]:::assumption
+    CT["ct = (pk bytes,c₀,c₁,π)"]:::proposed
+    DEC["Real Dec:<br/>verify π; decrypt BOTH components;<br/>reject ⊥ / wrong length / m₀≠m₁;<br/>else return exact m"]:::proposed
+    K0 --> PAIR0
+    K0 --> PAIR1
+    PAIR0 --> PK
+    PAIR1 --> PK
+    PAIR0 --> SK
+    PAIR1 --> SK
+    PK --> ENC0
+    PK --> ENC1
+    ENC0 --> PROOF
+    ENC1 --> PROOF
+    PROOF --> CT
+    CT --> DEC
+    SK --> DEC
+  end
+
+  subgraph RED["C. Required attacker-to-EndRing reduction direction"]
+    direction TB
+    CHAL["External EndRing challenge x* ← D_ER<br/>without W*"]:::neutral
+    ADV["Classical IND-CCA2 attacker A"]:::neutral
+    EMBED["Embed the exact x* as component i;<br/>honestly sample independent (x₁₋ᵢ,W₁₋ᵢ)"]:::proposed
+    HYB["Naor–Yung hybrid + adaptive decryption simulation"]:::proposed
+    DIST["EI-DXWE distinguisher Dᵢ on the SAME x*"]:::assumption
+    EXT["Uniform external-instance extractor Ext[Dᵢ]<br/>under the exact adaptive auxiliary view"]:::assumption
+    WS["W* accepted by Verify_CER(x*,W*)"]:::proposed
+    SOL["Complete evaluable End(E*) basis<br/>(EndRing solution)"]:::reviewed
+    CHAL --> EMBED
+    EMBED --> HYB
+    ADV --> HYB
+    HYB --> DIST
+    DIST --> EXT
+    EXT --> WS
+    WS --> SOL
+    NOTE["Correct direction: attacker → distinguisher → accepted W* → EndRing.<br/>EndRing hardness alone supplies none of the EI-DXWE or NIZK arrows."]:::neutral
+    NOTE -. direction note .-> EXT
+  end
+
+  subgraph BREAK["D. Independently reviewed J4 break in the proposed CCA hybrid"]
+    direction TB
+    Q["Legal true-L_EQ decryption query<br/>chosen with adversarial valid encryption coins"]:::neutral
+    REAL["Real Dec knows W₀,W₁:<br/>one component may return ⊥ or disagree<br/>⇒ real answer is ⊥"]:::broken
+    SIM["Reduction knows only W₁₋ᵢ:<br/>decrypts known component<br/>⇒ simulator may return m"]:::broken
+    MISMATCH["J4 BREAKS the proposed hybrid here:<br/>observable oracle-response mismatch<br/>not covered by honest average ε_DX<br/>and omitted from the displayed loss"]:::broken
+    REPAIR["Needed amendment:<br/>perfect pointwise witness-independent DX correctness,<br/>or adversarial-valid-ciphertext robustness with q_D-scaled loss"]:::open
+    Q --> REAL
+    Q --> SIM
+    REAL --> MISMATCH
+    SIM --> MISMATCH
+    MISMATCH --> REPAIR
+  end
+
+  subgraph ASSUMPTIONS["E. Separate assumptions and open setup obligations"]
+    direction LR
+    AER["EndRing_D_ER hardness<br/>external search assumption"]:::assumption
+    AK0["K0 sampler / exact law / erasure<br/>OPEN"]:::open
+    ADX["EI-DXWE[R_CER,D_ER]<br/>strong, new, uninstantiated"]:::assumption
+    AXO["Optional relation-specific external-aux xO<br/>stronger, uninstantiated;<br/>general auxiliary-input EWE has a conditional implausibility boundary"]:::assumption
+    AN["Adaptive ZK + strong unbounded<br/>same-false-statement sUSS NIZK<br/>uninstantiated"]:::assumption
+    AP["Canonical total parsers, CRS ceremony,<br/>toxic-waste custody, erasure and costs<br/>OPEN"]:::open
+    AER -. does not imply .- ADX
+    AXO -. optional route to .-> ADX
+  end
+
+  subgraph RESULT["F. Conjunctive independent-review result (zero runs)"]
+    direction TB
+    JV["Exact joint vector:<br/>J1 inconclusive · J2 inconclusive · J3 inconclusive<br/>J4 BREAKS · J5 inconclusive"]:::broken
+    OV["Obligations:<br/>O1 open · O2 open · O3 open · O4 open<br/>O5 CONTRADICTED · O6 open"]:::broken
+    OUT["Disposition:<br/>incomplete candidate with scoped CCA-transform obstruction<br/>NO secure / EndRing-only / IND-CCA2 / practical / novel construction established"]:::broken
+    JV --> OV --> OUT
+  end
+
+  %% Invisible ordering links keep the six independently meaningful panels
+  %% in a readable vertical sequence without adding scientific arrows.
+  ER ~~~ K0
+  DEC ~~~ CHAL
+  SOL ~~~ Q
+  REPAIR ~~~ AER
+  AP ~~~ JV

@@ -1,0 +1,703 @@
+format: scheme-construction-contract/v1
+title: "EigenX/CEST-PKE: six-obligation audit of the frozen scalar-transfer candidate"
+primitive: pke
+parent_record_ids:
+  - GOAL-SSI-2fa82a
+  - RQ-SSI-1946c9
+  - IDEA-20261007-560bcb
+  - H-SSI-fbe68d
+  - TASK-20261007-913665
+  - TASK-20261013-ca4c9a
+artifact_revision: "zero-run producer artifact; independent BATCH-44a1ce review pending"
+author: "idea-generator TASK-20261013-ca4c9a"
+security_parameter: >-
+  lambda. The prime p, odd prime q different from p, extension degree d,
+  degree bound B, and message length mu are lambda-dependent. The frozen
+  candidate requires d and B, every encoding, and every honest algorithm to
+  have polynomial bit complexity, but the setup and selector bounds are open.
+
+identity_boundary:
+  user_name: EigenX
+  canonical_candidate: CEST-PKE
+  creates_new_scheme: false
+  binding_artifact: research/ssi-endring-pke/eigenx/README.md
+
+domains:
+  public_parameters: >-
+    Canonical encodings for F_(p^2), its declared extensions, E, points,
+    integers, tuples, and infinity; the public Weil pairing e_q; bounds d and
+    B; message length mu; and domain-separated H_pad:{0,1}*->{0,1}^mu with
+    classical random-oracle access.
+  public_key: >-
+    pk_ser=Encode(version,lambda,p,d,E,q,B,P,A,H_pad_domain). P and A are
+    nonzero exact-order-q points and e_q(P,A)!=1, so they form a basis of
+    E[q]. For honest keys A=psi_E(P), where psi_E is the output of
+    CanonicalBoundedEnd(E,W,B).
+  secret_key: >-
+    (pk_ser,W), where W is intended to be a rank-four Z-basis of exactly
+    End(E), with multiplication, reduced trace and norm data and efficient
+    evaluators. Honest decryption actually factors through the much smaller
+    capability EvalLine_(P,A):[x]P |-> [x]A.
+  message: "Every m in {0,1}^mu."
+  ciphertext: >-
+    Canonical bytes for (pk_ser,R,v), where honest R=[r]P for uniform
+    r in Z_q^* and v=m XOR H_pad("CEST-PKE/v1" || pk_ser || Encode(R) ||
+    Encode([r]A)).
+  signature: "not applicable: EigenX/CEST is PKE"
+  key_space: "not applicable: the interface returns a selected plaintext, not a KEM key"
+  encoding_and_equality: >-
+    Public keys and ciphertexts use unique canonical byte encodings; alternate
+    encodings are rejected. Ciphertext equality is bytewise. The IND-CCA2
+    control therefore permits (pk_ser,R,v XOR Delta) when Delta is nonzero.
+  inapplicable_reasons:
+    signature: "No signature or authentication interface is claimed."
+    key_space: "H_pad supplies a one-time mask inside a PKE, not a KEM output."
+
+security_claims:
+  - name: IND-CPA
+    primitive: pke
+    status: proposed_proof
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: >-
+      Generate (pk,sk)<-KeyGen(1^lambda); give pk and classical H_pad access to
+      A; receive equal-length m0,m1 in {0,1}^mu; choose beta uniformly; return
+      c*=Enc(pk,m_beta); receive beta'. The advantage is
+      abs(Pr[beta'=beta]-1/2). There is no decryption oracle.
+    advantage_convention: "abs(Pr[beta'=beta]-1/2)"
+    query_bounds:
+      random_oracle_queries: "q_H(lambda), polynomial"
+      public_encryptions: "polynomially many local computations"
+      challenge_count: 1
+    oracle_access_and_challenge_exclusions: >-
+      Classical adaptive random-oracle queries before and after the challenge;
+      no Dec oracle. The only proposed theorem is conditional on the separately
+      named CEST-XFER-KI game over the exact real-key distribution.
+    assumptions:
+      - CEST-XFER-KI on the complete real EigenX/CEST public view
+      - correct and polynomial honest interfaces in O2
+    theorem_artifact: >-
+      This artifact O5 and reduction-boundary.yaml, arrow RB-03. The reduction
+      is proposed and has not received independent review.
+    review_artifact: null
+  - name: IND-CCA2
+    primitive: pke
+    status: refuted_scoped
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: >-
+      The standard bytewise-ciphertext IND-CCA2 game, with Dec available after
+      the challenge except on the exact challenge bytes.
+    advantage_convention: "abs(Pr[beta'=beta]-1/2)"
+    query_bounds:
+      decryption_queries: 1
+      challenge_count: 1
+    oracle_access_and_challenge_exclusions: >-
+      Given c*=(pk_ser,R,v), query c'=(pk_ser,R,v XOR Delta) for any fixed
+      nonzero Delta. This is not bytewise equal to c*. Dec returns
+      m_beta XOR Delta, from which m_beta is recovered.
+    assumptions: []
+    theorem_artifact: "This artifact O6; deterministic malleability derivation only."
+    review_artifact: null
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: >-
+      AuxEndRing_CEST is defined by running the intended honest KeyGen sampler,
+      releasing pk_ser and discarding W. CEST-XFER-KI additionally samples
+      r<-Z_q^*, R=[r]P and gives K_b, where
+      K_0=H_pad(pk_ser,R,[r]A), K_1 is uniform, and b is uniform. Bare EndRing
+      instead gives the sourced EndRing input curve E without the secret W or
+      the auxiliary point A=CanonicalBoundedEnd(E,W,B)(P).
+    real_key_distribution: >-
+      The intended exact output law of TrapCurveGen, CanonicalBoundedEnd, all
+      setup and point retries, the basis test e_q(P,A)!=1, and canonical
+      serialization. This law is not replaced by a uniform supersingular-curve
+      law, D_ER, or the input law of the Page--Wesolowski reconstruction.
+    adversary_input_and_auxiliary_data: >-
+      All public algorithms and bytes: version, lambda, p, d, E, q, B, P, A,
+      pairing e_q, encodings, validation outcomes, H_pad domain, pk_ser, R and
+      the challenge string where applicable.
+    solution_representation_and_success_predicate: >-
+      AuxEndRing_CEST requires four efficiently represented endomorphisms that
+      form a Z-lattice basis of exactly End(E), plus sufficient representation
+      data to validate and evaluate them, and compatibility with the public
+      key's canonical selector. One endomorphism, one torsion matrix, one
+      transfer value, or an evaluator on <P> is not a successful output.
+      CEST-XFER-KI requires distinguishing the real pad from an independent
+      uniform mu-bit string under the stated advantage convention.
+    setup_trust_and_erasure: >-
+      TrapCurveGen is structured and knows W. No transparent-setup, erasure,
+      malicious-setup, or distribution-hardening theorem is supplied.
+    secret_representation_and_conversion_costs: >-
+      The intended W carries evaluators. Costs for producing a full ring,
+      certifying equality with End(E), enumerating bounded elements,
+      normalizing rational maps, and deriving the unique selector are open.
+    assumptions:
+      - name: AuxEndRing_CEST
+        formal_game: >-
+          From an honestly generated full pk_ser, output a complete evaluable
+          rank-four basis of End(E) satisfying the compatibility predicate.
+        distribution: "exact intended EigenX/CEST key distribution, including P and A"
+        model: "classical PPT; hardness not established"
+        source_artifact: >-
+          coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+        provenance: internal
+        verified_by: "producer definitions only; independent review pending"
+      - name: CEST-XFER-KI
+        formal_game: >-
+          Distinguish H_pad(pk_ser,R,[r]A) from an independent uniform string,
+          given the exact real pk_ser and R=[r]P with classical H_pad access.
+        distribution: "exact intended key and honest challenge distributions"
+        model: "classical PPT in the ROM; hardness conjectured only"
+        source_artifact: >-
+          coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+        provenance: internal
+        verified_by: "producer definitions only; independent review pending"
+    cited_equivalences_and_hypotheses:
+      - claim: >-
+          Page--Wesolowski gives EndRing <= bounded OneEnd only with a bounded
+          OneEnd oracle on the adaptively generated internal curves; it does
+          not supply an EigenX challenge embedding or a sampler-law upgrade.
+        source: >-
+          coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml#PW24-VOR
+        provenance: internal
+        verified_by: TASK-20261009-daf6ab
+      - claim: >-
+          No equivalence between CEST-XFER-KI and EndRing is established. The
+          former admits a ROM extraction to scalar transfer, not to a ring.
+        source: reduction-boundary.yaml
+        provenance: internal
+        verified_by: "TASK-20261013-ca4c9a producer derivation; review pending"
+    evidence_artifacts:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+      - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+      - problems/eigenx-cest-endring-reduction-not-established.md
+    review_artifact: null
+    remaining_gap: >-
+      TrapCurveGen and the real-key law are not executable/proved, and no
+      distribution-matched challenge compiler connects bare EndRing input E
+      to pk_ser containing A=psi_E(P) without already knowing W or an
+      equivalent evaluator. Naming AuxEndRing_CEST does not prove its hardness.
+    next_action: >-
+      Supply an executable real-key sampler and either a bare-EndRing-to-real-pk
+      compiler with witness pullback or an independently justified auxiliary-
+      data EndRing assumption; quantify exact statistical/computational loss.
+
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: TrapCurveGen
+        inputs: "1^lambda"
+        outputs: "(E,W,q,d) satisfying every accepted-key predicate"
+        randomness: "private setup and any secret path coins"
+        validation: >-
+          W must span exactly End(E), have coherent tables and evaluators, and
+          admit a bounded canonical noncentral psi_E acting non-scalarly on E[q].
+        failure_behavior: "retry; no accepted-mass or retry-tail bound is proved"
+        pseudocode_artifact: "original candidate.md sections 2--3"
+        time: "required expected polynomial; not established"
+        memory: "required polynomial; not established"
+        bit_length_bounds: "required polynomial; not established for W and its evaluators"
+      - name: CanonicalBoundedEnd
+        inputs: "(E,W,B)"
+        outputs: "a unique normalized evaluable noncentral primitive psi_E, or fail"
+        randomness: "none"
+        validation: >-
+          Enumerate all degree-at-most-B candidates, convert to normalized maps,
+          remove semantic duplicates, and choose the first canonical encoding.
+        failure_behavior: "fail when the admissible set is empty"
+        pseudocode_artifact: "original candidate.md section 2"
+        time: "required polynomial on sampler support; not established"
+        memory: "required polynomial; not established"
+        bit_length_bounds: "required polynomial normalized-map encodings; not established"
+      - name: KeyGen
+        inputs: "1^lambda"
+        outputs: "pk=pk_ser, sk=(pk_ser,W)"
+        randomness: "TrapCurveGen coins and exact-order-q point sampling"
+        validation: >-
+          Validate E and parameters, the complete W certificate, selector
+          output, P and A exact order q, A=psi_E(P), and e_q(P,A)!=1.
+        failure_behavior: "retry setup, selector, and point failures"
+        pseudocode_artifact: "original candidate.md section 3"
+        time: "conditional expected polynomial; no overall termination bound"
+        memory: "conditional polynomial"
+        bit_length_bounds: "conditional polynomial"
+      - name: Enc
+        inputs: "canonical pk_ser and m in {0,1}^mu"
+        outputs: "canonical c=(pk_ser,R,v), or fail"
+        randomness: "uniform r in Z_q^*"
+        validation: >-
+          Parse bounded canonical parameters and verify P,A are nonzero
+          q-torsion points with e_q(P,A)!=1.
+        failure_behavior: "one public failure symbol on invalid key/message"
+        pseudocode_artifact: "original candidate.md section 3"
+        time: "polynomial on valid bounded inputs"
+        memory: "polynomial"
+        bit_length_bounds: "ciphertext length is polynomial in declared encodings and mu"
+      - name: Dec
+        inputs: "sk=(pk_ser,W) and ciphertext bytes"
+        outputs: "m in {0,1}^mu, or fail"
+        randomness: "none"
+        validation: >-
+          Canonical parsing, exact embedded-pk equality, v length, R nonzero
+          q-torsion, e_q(P,R)=1, successful selector, and psi_E(P)=A.
+        failure_behavior: >-
+          One failure symbol for parsing, wrong-key, length, infinity,
+          off-curve, wrong-order, outside-line, selector, or binding failure;
+          valid in-line ciphertexts return an unauthenticated bit string.
+        pseudocode_artifact: "original candidate.md section 3"
+        time: "conditional polynomial in selector and evaluator costs"
+        memory: "conditional polynomial"
+        bit_length_bounds: "bounded by declared parameter sizes"
+    preprocessing_and_retry_costs: >-
+      All setup, full-ring construction/certification, normalized-map work,
+      point sampling, and retries must be charged to KeyGen. No expected-time
+      or tail bound is available. Enc has no hidden trapdoor preprocessing;
+      Dec recomputes the selector from W.
+    complexity_guarantee: >-
+      Enc is specified as worst-case polynomial on a valid bounded key. KeyGen
+      and Dec are only conditionally polynomial. No implementation, finite
+      test, measurement, or parameter set exists in this task.
+    unavailable_subroutines:
+      - "TrapCurveGen with exact output law, complete-ring construction, acceptance mass, and retry tail"
+      - "polynomial CanonicalBoundedEnd with representation-independent normalization"
+      - "polynomial certificate/verifier that W is exactly End(E), not a proper suborder"
+      - "fully costed exact-order-q point sampler and parameter-generation procedure"
+    evidence_artifacts:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+    review_artifact: null
+    remaining_gap: >-
+      The setup, full-ring verification, canonical selector, accepted mass,
+      retry tail, and total cost are not supplied, so KeyGen/Dec are not
+      complete efficient algorithms.
+    next_action: >-
+      Give explicit algorithms and certificates for the four unavailable
+      interfaces, then prove total expected time, memory, output length, and
+      failure tails on the exact sampler support before implementation.
+
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: >-
+      For every lambda, every accepted key satisfying the declared predicates,
+      every m in {0,1}^mu, and every r in Z_q^*,
+      Dec(sk,Enc(pk,m;r))=m.
+    probability_space: >-
+      KeyGen coins conditioned on production of an accepted valid key and the
+      Enc coin r. H_pad is fixed within a game, and both honest algorithms use
+      exactly the same canonical query bytes.
+    valid_key_and_message_scope: >-
+      Accepted honest keys, every allowed message, and every nonzero nonce.
+      Malicious keys, invalid W, setup nontermination, and malformed
+      ciphertexts are not inside this equality.
+    per_key_or_average_guarantee: "per accepted key, message, and encryption coin"
+    failure_probability_bound: >-
+      epsilon_pke(lambda)=0 conditional on an accepted valid key and correct
+      implementations of the declared O2 interfaces. No unconditional KeyGen
+      termination or overall failure bound is established.
+    actual_message_or_key_recovery: >-
+      For R=[r]P, psi_E(R)=psi_E([r]P)=[r]psi_E(P)=[r]A. Sender and recipient
+      therefore query H_pad on identical bytes, and XOR returns the selected m.
+    exceptional_inputs:
+      - "KeyGen retries and sampler failure have no tail bound."
+      - "Nonce reuse is not a correctness failure but leaks XORs of plaintexts."
+      - "Malformed ciphertexts follow the O2/O6 rejection rules."
+      - "An invalid or incomplete W is outside the accepted-secret-key domain."
+    theorem_artifact: >-
+      Original candidate.md section 4 and this artifact; algebraic producer
+      derivation only.
+    supporting_test_artifacts: []
+    review_artifact: null
+    remaining_gap: >-
+      Independent rederivation is pending, and full-scheme correctness remains
+      conditional on the incomplete O2 setup and selector interfaces.
+    next_action: >-
+      Independently rederive the byte-identical H_pad transcript and audit all
+      exceptional cases; keep the accepted-key qualifier explicit.
+
+  O4:
+    name: functionality_mechanism
+    status: proposed_discharge
+    public_operation: >-
+      Sample r, compute R=[r]P and S_snd=[r]A, and hash the canonical
+      (pk_ser,R,S_snd) transcript.
+    private_operation: >-
+      Derive psi_E from W, verify psi_E(P)=A, compute S_rec=psi_E(R), and hash
+      the same transcript. On all reachable ciphertexts this factors through
+      EvalLine_(P,A):[x]P |-> [x]A.
+    agreement_or_message_binding_lemma: >-
+      Additivity gives psi_E([r]P)=[r]psi_E(P). Binding pk_ser and R into H_pad
+      makes the honest pad context-specific, but provides no authenticity.
+    extra_recipient_secrets:
+      - "The declared secret is W."
+      - >-
+        A single efficient evaluator for psi_E on <P>, or any efficient
+        realization of EvalLine_(P,A), reproduces every accepted decryption
+        output; a complete ring is sufficient but not shown necessary.
+    recipient_lift:
+      applicability: false
+      inapplicable_reason: >-
+        No SecretLift, Complete_2, EndpointLift, target-frame reconstruction,
+        quotient lift, or public label transport appears in the frozen scheme.
+      interface: "not applicable"
+      inputs: "not applicable"
+      output_representation_and_equivalence: "not applicable"
+      uniqueness_or_acceptance_condition: "not applicable"
+      polynomial_algorithm_and_cost: "not applicable"
+      failure_bound: "not applicable"
+      recovery_of_actual_message_or_key: "not applicable"
+      identical_public_data_control: >-
+        ScalarTransfer(pk,R) must output [r]A from R=[r]P. A polynomial public
+        algorithm eliminates recipient-only asymmetry without finding End(E).
+    identification_and_transform:
+      applicability: false
+      inapplicable_reason: "No identification protocol or Fiat--Shamir transform is used."
+      relation: "not applicable"
+      completeness: "not applicable"
+      soundness_extractor_and_knowledge_error: "not applicable"
+      simulator_and_verifier_scope: "not applicable"
+      challenge_space: "not applicable"
+      transcript_message_key_and_context_binding: "not applicable"
+      transform_theorem_and_hypotheses: "not applicable"
+    ake_identity_and_session_binding: "not applicable: the candidate is PKE, not AKE"
+    evidence_artifacts:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261013-ba3742/tasks/TASK-20261013-ca4c9a/reduction-boundary.yaml
+    review_artifact: null
+    remaining_gap: >-
+      Conditional functionality is explicit, but the current transcript does
+      not tie the computational asymmetry to possession of a complete ring.
+      No lift turns EvalLine or one transfer value into a full evaluator or W.
+    next_action: >-
+      Either prove a distribution-matched lift from the exact attacker-derived
+      capability to a complete ring, or replace the recipient mechanism with
+      one whose challenge-simulatable transcript exposes ring-identifying data.
+
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions:
+      - security_claim: "IND-CPA to CEST-XFER-KI"
+        solver_input_distribution: >-
+          Exact real pk_ser, R=[r]P, and K equal either to
+          H_pad(pk_ser,R,[r]A) or to an independent uniform mu-bit string.
+        scheme_attacker: "PPT IND-CPA attacker A with classical H_pad access"
+        assumption_problem_solved: CEST-XFER-KI
+        challenge_embedding: >-
+          Receive m0,m1 from A, choose beta uniformly, and return
+          (pk_ser,R,m_beta XOR K).
+        real_key_distribution_argument: "identity by definition of CEST-XFER-KI"
+        oracle_simulation: "forward all classical H_pad queries to the supplied oracle"
+        extraction: "output the predicate beta'=beta as the real-versus-random statistic"
+        aborts: "only inadmissible messages; zero algebraic abort for an honest challenge"
+        advantage_loss_bound: >-
+          Adv_IND-CPA(A) <= Adv_CEST-XFER-KI(D), under matching absolute-bias
+          conventions and honest canonical challenge parsing.
+        solver_runtime: "T_A plus polynomial parsing, sampling, and XOR overhead"
+        model: "classical ROM only"
+        theorem_artifact: "reduction-boundary.yaml#RB-03; proposed producer derivation"
+        independently_reviewed_artifact: null
+      - security_claim: "IND-CPA to computational scalar transfer"
+        solver_input_distribution: >-
+          Exact real pk_ser and R=[r]P. The output target is S=[r]A.
+        scheme_attacker: "PPT IND-CPA attacker A with at most q_H classical H_pad queries"
+        assumption_problem_solved: CEST-XFER-COMP
+        challenge_embedding: >-
+          Give A a challenge with an independent uniform pad, lazily simulate
+          H_pad, and inspect each query's candidate S field.
+        real_key_distribution_argument: "the pk_ser and R laws are exact; only the challenge pad is hybridized"
+        oracle_simulation: >-
+          Maintain a consistent lazy classical random-oracle table. Validate a
+          parsed candidate T by q-torsion membership plus
+          e_q(P,T)=e_q(R,A) and e_q(A,T)=1.
+        extraction: >-
+          The two pairing equations uniquely identify T=[r]A because P,A are
+          a basis. Output the first validating query. If A has IND advantage
+          epsilon, it must make the correct query with probability at least
+          epsilon in the random-pad hybrid.
+        aborts: >-
+          Abort on no validating query, malformed query encodings, or invalid
+          attacker messages. Honest-challenge parsing contributes no error.
+        advantage_loss_bound: >-
+          Succ_CEST-XFER-COMP(B) >= Adv_IND-CPA(A), modulo only explicitly
+          declared parsing failures; no q_H guessing loss is needed because
+          the transfer point is publicly and uniquely recognizable.
+        solver_runtime: >-
+          T_A plus O(q_H) point parsing, subgroup tests, and pairing checks,
+          all conditional on the declared polynomial public operations.
+        model: "classical ROM; no QROM extraction statement"
+        theorem_artifact: "reduction-boundary.yaml#RB-04; proposed producer derivation"
+        independently_reviewed_artifact: null
+      - security_claim: "IND-CPA to AuxEndRing_CEST"
+        solver_input_distribution: "exact auxiliary-data pk_ser challenge"
+        scheme_attacker: "a successful EigenX/CEST IND-CPA attacker"
+        assumption_problem_solved: AuxEndRing_CEST
+        challenge_embedding: >-
+          The exact public key can be used and Enc is public, but no attacker-
+          dependent operation is known that produces a complete ring.
+        real_key_distribution_argument: >-
+          Identity is available only for the auxiliary problem defined by the
+          incomplete honest sampler; bare EndRing input E cannot generate A.
+        oracle_simulation: >-
+          Classical H_pad is simulatable for the CEST-XFER hybrid. Simulation
+          does not create a full-ring extractor.
+        extraction: >-
+          Open. At most one transfer value, or oracle access to
+          EvalLine_(P,A), is obtained. That line action is determined by the
+          already public pair P,A and is not a rank-four basis.
+        aborts: "unquantified because the ring-extraction reduction is absent"
+        advantage_loss_bound: "none established"
+        solver_runtime: "none established"
+        model: "open for classical PPT; no QPT/QROM claim"
+        theorem_artifact: null
+        independently_reviewed_artifact: null
+      - security_claim: "bare EndRing to exact EigenX public-key embedding"
+        solver_input_distribution: "a sourced EndRing challenge curve E without W"
+        scheme_attacker: "a successful EigenX/CEST IND-CPA attacker"
+        assumption_problem_solved: EndRing
+        challenge_embedding: >-
+          Open at the first step: sampling A=CanonicalBoundedEnd(E,W,B)(P)
+          with the real conditional law requires W or an equivalent evaluator.
+        real_key_distribution_argument: "none supplied"
+        oracle_simulation: "not reached"
+        extraction: "not reached"
+        aborts: "undefined"
+        advantage_loss_bound: "none established"
+        solver_runtime: "none established"
+        model: "none established"
+        theorem_artifact: null
+        independently_reviewed_artifact: null
+    intermediate_assumptions:
+      - name: CEST-XFER-KI
+        game_and_distribution: >-
+          Exact hashed scalar-transfer real-or-random game, including
+          structured keys, P,A, public pairings, encodings, validation, and
+          classical random-oracle access.
+        relation_to_endring: >-
+          It has a proposed ROM query-extraction relation to computational
+          scalar transfer. No reduction from scalar transfer, a reachable-line
+          evaluator, or one recovered psi_E to complete EndRing is supplied.
+        status: "separate intermediate assumption; not EndRing"
+      - name: CEST-XFER-COMP
+        game_and_distribution: >-
+          Given exact real pk_ser and R=[r]P for uniform r in Z_q^*, output
+          [r]A. The answer is publicly uniquely recognizable by the two-pairing
+          predicate in reduction-boundary.yaml.
+        relation_to_endring: >-
+          A complete ring is sufficient to solve it, but source-group or
+          target-group discrete logarithm is also sufficient. No reverse lift
+          from a transfer solver to a ring is known.
+        status: "typed computational intermediate; hardness unestablished"
+    multiple_assumption_dependency: >-
+      The only proposed confidentiality theorem is: correct efficient honest
+      interfaces plus CEST-XFER-KI hardness in the classical ROM imply
+      IND-CPA. There is no theorem from bare EndRing or AuxEndRing_CEST
+      hardness to EigenX confidentiality.
+    classical_quantum_and_rewinding_scope: >-
+      Classical PPT adversaries and classical H_pad queries only. The query-
+      inspection extractor is not a QROM extractor. No QPT, QROM,
+      post-quantum, rewinding, or concrete-security statement is supplied.
+    evidence_artifacts:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml
+      - coordination/design/TASK-20261013-ba3742/tasks/TASK-20261013-ca4c9a/reduction-boundary.yaml
+      - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+    review_artifact: null
+    remaining_gap: >-
+      The correctly directed chain stops at scalar transfer / reachable-line
+      evaluation. There is no challenge-simulatable lift to a full psi_E map,
+      no public adaptive OneEnd interface on every internal query curve, and no
+      extractor of a complete evaluable rank-four End(E) basis.
+    next_action: >-
+      Independently review RB-03/RB-04, then require a typed
+      Lift_XFER_to_AdaptiveOneEnd algorithm with exact inputs, output law,
+      whole-transcript success, representation, loss, time, and memory. If it
+      uses extra secret-correlated data, it does not repair this reduction.
+
+  O6:
+    name: complete_adversarial_view
+    status: proposed_discharge
+    public_disclosures:
+      - "version, lambda, p, d, E, q, B, all generation algorithms, and all encodings"
+      - "P, A=psi_E(P), public e_q, and all public validation results"
+      - "pk_ser, every ciphertext (pk_ser,R,v), H_pad domain, and all classical oracle answers"
+      - "the structured setup description, retries observable through published output support, and repeated encryptions"
+      - "the exact bytewise parsing and failure behavior claimed by the candidate"
+    allowed_oracles_and_query_history: >-
+      IND-CPA gives classical adaptive H_pad access and public encryption by
+      local computation, but no Dec oracle. The simulator retains a consistent
+      complete query history. The CCA2 control adds Dec only to demonstrate a
+      scoped break; it is not a claimed security model.
+    validation_rejection_and_failure_observables: >-
+      Enc validation is public. Dec returns one failure symbol for malformed,
+      wrong-key, wrong-length, infinity, off-curve, wrong-order, outside-<P>,
+      selector, or binding failures. Constant-time rejection, faults, caches,
+      power, and RNG compromise are not analyzed or claimed.
+    malformed_inputs_and_alternate_encodings: >-
+      Alternate encodings are rejected; exact embedded pk bytes are required.
+      With q prime, nonzero q-torsion R and e_q(P,R)=1 place R in <P>.
+      Every valid in-line R with any mu-bit v is accepted and decrypts to an
+      unauthenticated bit string.
+    repeated_use_and_collision_analysis: >-
+      Reusing r repeats R and the pad, leaking the XOR of plaintexts. For Q
+      independent honest encryptions under one key, the elementary union bound
+      gives nonce-collision probability at most Q(Q-1)/(2(q-1)). No concrete
+      hash, encoding, multi-user, or parameter collision analysis is supplied.
+    side_channel_scope_and_exclusions: >-
+      Timing, cache, power, fault, RNG compromise, malicious setup, malicious
+      public keys, multi-user composition, QPT/QROM behavior, and concrete
+      implementation security are excluded. CCA2 is explicitly broken.
+    public_data_and_known_false_controls:
+      - name: pairing_single_equation_nonuniqueness
+        procedure: >-
+          For R=[r]P, write T=xP+yA and test only
+          e_q(P,T)=e_q(R,A).
+        expected: >-
+          The equation fixes y=r but leaves x arbitrary, so it accepts the q
+          points rA+xP and is not a unique verifier.
+      - name: pairing_unique_transfer_verifier
+        procedure: >-
+          Require T in E[q], e_q(P,T)=e_q(R,A), and e_q(A,T)=1.
+        expected: >-
+          Since e_q(P,A) has order q, the equations force y=r and x=0; the
+          unique accepted point is T=[r]A.
+      - name: target_group_discrete_log_route
+        procedure: >-
+          Set g=e_q(P,A), h=e_q(R,A)=g^r; recover r by discrete logarithm in
+          <g>, then output [r]A.
+        expected: >-
+          This is a public attack route upper bound for scalar transfer, not an
+          EndRing reduction or a measured/concrete attack cost.
+      - name: complete_witness_quotient
+        procedure: >-
+          Replace W by an evaluator for EvalLine_(P,A) on every accepted R.
+        expected: >-
+          Every decryption output is unchanged. The complete ring is therefore
+          not shown necessary for functionality.
+      - name: scalar_slice
+        procedure: >-
+          Substitute psi=[s] on the whole q-torsion group, so A=[s]P.
+        expected: >-
+          e_q(P,A)=1, so this literal slice fails the frozen accepted-key basis
+          test. As an abstract cyclic-group regression it reproduces hashed DH
+          algebra, but it is not an in-distribution EigenX key.
+      - name: cca2_bitflip
+        procedure: >-
+          From c*=(pk_ser,R,v), query Dec on
+          (pk_ser,R,v XOR Delta), Delta nonzero.
+        expected: "Dec returns m_beta XOR Delta; IND-CCA2 is broken with one query."
+      - name: wrong_key_malformed_and_alternate_encoding
+        procedure: >-
+          Exercise embedded-pk mismatch and every declared invalid point,
+          length, and encoding class.
+        expected: >-
+          One public failure symbol before plaintext output; timing uniformity
+          is not claimed or established.
+      - name: reverse_arrow
+        procedure: >-
+          Give the algorithm a complete evaluable End(E) basis W.
+        expected: >-
+          Derive psi_E and S=psi_E(R), then decrypt. This proves only
+          EndRing-solver -> scheme break and has no security-reduction value.
+    concrete_parameter_security: "none: no parameter set, bit-security estimate, or implementation exists"
+    asymptotic_to_concrete_limitations: >-
+      Even a reviewed classical-ROM CEST-XFER-KI theorem would not imply
+      EndRing dependence, CCA security, QPT/QROM security, concrete sizes,
+      side-channel resistance, novelty, practicality, or deployability.
+    evidence_artifacts:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261013-ba3742/tasks/TASK-20261013-ca4c9a/reduction-boundary.yaml
+    review_artifact: null
+    remaining_gap: >-
+      The enumerated view is a proposed classical IND-CPA boundary only.
+      Pairing-assisted transfer, multi-user/concrete behavior, quantum access,
+      implementation leakage, and all active-security repairs remain unproved.
+    next_action: >-
+      Independently exercise every control and decide only the stated
+      classical IND-CPA scope. Any active-security target needs a different,
+      authenticated construction and a new reduction.
+
+assessment:
+  verdict: candidate
+  finite_functionality_status: >-
+    Conditional algebraic functionality for accepted keys is specified; no
+    implementation or finite test was performed.
+  efficient_functionality_status: >-
+    Unresolved because setup, complete-ring verification, canonical selection,
+    retry tails, and evaluator costs remain open.
+  security_status: >-
+    A proposed classical-ROM reduction to CEST-XFER-KI and then scalar transfer
+    is typed. No correctly directed EndRing reduction exists; IND-CCA2 is
+    scoped-refuted by deterministic malleability.
+  named_conditions:
+    - "accepted valid key from the exact intended TrapCurveGen distribution"
+    - "correct complete evaluable End(E) witness and selector implementation"
+    - "classical PPT adversary with classical random-oracle access"
+    - "CEST-XFER-KI hardness on the complete public view"
+  open_obligations: [O1, O2, O3, O4, O5, O6]
+  obstruction:
+    affected_obligation: O5
+    exact_family_and_parameter_scope: >-
+      The frozen EigenX/CEST transcript with R restricted to <P> and decryption
+      factoring through EvalLine_(P,A).
+    counterexample_or_argument_artifact: >-
+      reduction-boundary.yaml: a black-box scalar-transfer oracle returns only
+      values of the public-key-determined line homomorphism; no supplied arrow
+      lifts that capability to psi_E on E, to adaptive OneEnd on internal
+      curves, or to a complete rank-four ring. The reverse W-to-decrypt route
+      is explicitly typed as an attack.
+    what_remains_open: >-
+      A non-black-box or distribution-specific extractor, a challenge compiler
+      using additional public structure, or a materially different recipient
+      mechanism could still exist. This audit proves no universal impossibility.
+  independent_review_artifacts: []
+  next_action: >-
+    Snapshot these producer artifacts and run the frozen J4/J5 independent
+    review. Advancement requires a typed, distribution-matched
+    Lift_XFER_to_AdaptiveOneEnd or a direct complete-ring extractor with
+    explicit loss and cost; otherwise retain the named problem and rerank a
+    materially different EndRing recipient mechanism.
+  official_state_transition_record: null
+
+execution_accounting:
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  benchmarks: 0
+  parameter_selection_runs: 0
+  measured_observations: []
+
+citations:
+  - source: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+    section: "sections 1--10"
+    provenance: internal
+    verified_by: TASK-20261013-ca4c9a
+    inspected_scope: "complete frozen candidate mechanism, algorithms, games, controls, and boundaries"
+  - source: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/scheme-contract.yaml
+    section: "complete artifact"
+    provenance: internal
+    verified_by: TASK-20261013-ca4c9a
+    inspected_scope: "all original O1--O6 fields and assessment"
+  - source: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/proof-search-map.yaml
+    section: "complete artifact"
+    provenance: internal
+    verified_by: TASK-20261013-ca4c9a
+    inspected_scope: "reduction direction, scalar baseline, quotient control, and method ceiling"
+  - source: coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/provenance.yaml
+    section: "complete artifact"
+    provenance: internal
+    verified_by: TASK-20261013-ca4c9a
+    inspected_scope: "original source and claim boundary"
+  - source: coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+    section: "PW24-VOR supported and unsupported statements"
+    provenance: internal
+    verified_by: TASK-20261009-daf6ab
+    inspected_scope: "frozen source-derived EndRing/OneEnd output types and adaptive-oracle boundary"

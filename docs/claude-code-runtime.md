@@ -171,13 +171,12 @@ Code specifically.
    is **never** inferred from an identifier prefix. Unlimited removes the batch
    ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
    experiment is not approving it. See AGENTS.md "ECC comes first".
-   **Approval is bounded by execution** (additive amendment, 2026-10-07): an
-   open ECC idea is designed when it can be approved, and approval needs both
-   capacity (at most three approved-unrun contracts per goal, enforced by
-   `validate_ledger.py` for new decisions) and a runnable contract
-   (`execution_state: ready`). An idea that cannot meet those stays
-   `proposed` with a recorded reason; that is not shelving. See AGENTS.md
-   "Approval is bounded by execution".
+   **Approval is bounded by execution**: the 2026-10-11 user direction removed
+   the administrative approved-unrun cap. Track that backlog as a KPI and rank
+   ready runs ahead of more design when justified. Approve a complete contract
+   once it is runnable (`execution_state: ready`); a contract awaiting its
+   launcher stays `review_required`. See AGENTS.md "Approval is bounded by
+   execution".
 
 ## Research direction
 

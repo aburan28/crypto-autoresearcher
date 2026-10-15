@@ -1,0 +1,360 @@
+schema: crypto.autoresearch.authenticated_cest_xfer_control.v1
+task_id: TASK-20261013-311565
+batch_id: BATCH-be2a37
+goal_id: GOAL-SSI-2fa82a
+control_id: CTRL-CEST-AUTH-XFER
+date: '2026-10-13'
+analysis_class: separate_non_endring_classical_rom_control
+
+execution:
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  benchmark_runs: 0
+  source_and_symbolic_analysis_only: true
+
+claim_boundary: >-
+  This control replaces the old raw XOR payload by a canonical CEST transfer
+  KEM and, optionally, a one-time IND-CCA DEM/AE composition. It closes the
+  exact syntactic one-query bit-flip only under the separately named
+  CEST-XFER-COMP and DEM assumptions in the classical ROM. It is not
+  EigenX-v2, is not EndRing-bound, does not establish the old incomplete
+  KeyGen, and cannot discharge O5 or the batch's material-difference gate.
+
+source_provenance:
+  prior_cest:
+    paths:
+      - coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-913665/candidate.md
+      - coordination/design/TASK-20261013-ba3742/tasks/TASK-20261013-ca4c9a/eigenx-scheme-contract.yaml
+      - coordination/design/TASK-20261013-ba3742/tasks/TASK-20261013-ca4c9a/reduction-boundary.yaml
+      - ledger/evidence/EV-SSI-c9bfe1.yaml
+    provenance: internal
+    supported_scope: >-
+      Exact accepted-key transfer algebra, the CEST-XFER-COMP game, the
+      two-pairing unique-transfer predicate, accepted-key correctness and the
+      exact frozen-syntax one-query IND-CCA2 break.
+  kiltz_2007:
+    citation: >-
+      Eike Kiltz, Chosen-Ciphertext Secure Key-Encapsulation Based on Gap
+      Hashed Diffie-Hellman, PKC 2007, LNCS 4450, pp. 282--297,
+      DOI 10.1007/978-3-540-71677-8_19.
+    version: Springer version of record, 2007
+    url: https://link.springer.com/content/pdf/10.1007/978-3-540-71677-8_19.pdf
+    retrieved_at_utc: '2026-10-13'
+    byte_length: 614465
+    sha256: 9f4388df3d4b9a08aeb9bd96f336f3f9f8c31a53e405c8d1678f059a7f3f3b42
+    pdf_pages: 16
+    provenance: retrieved
+    inspected_scope:
+      - Section 2 KEM syntax and IND-CCA experiment
+      - Sections 3.1--3.2 GDH/GHDH games
+      - Sections 4.1--4.2 construction, correctness, public verification and Theorem 1
+      - Section 4.3 KEM/DEM composition statement
+      - Appendix A challenge embedding and decapsulation simulation
+    supported_statements:
+      - >-
+        A KEM IND-CCA game gives a real-or-random challenge key and a
+        decapsulation oracle excluding the exact challenge ciphertext.
+      - >-
+        The paper's own two-element consistency-tag KEM is IND-CCA under its
+        GHDH assumption with the stated tight reduction and O(q) group-operation overhead.
+      - >-
+        Section 4.3 states that a CCA-secure KEM combined with an appropriately
+        CCA-secure DEM gives CCA-secure hybrid encryption, and calls the
+        composition reduction tight.
+    not_transferred:
+      - >-
+        Kiltz's theorem is for a different cyclic-group KEM with public key
+        (u,v), ciphertext (c,pi), an injective tag and secret exponents (x,y).
+        It does not prove the CEST construction below.
+      - >-
+        GHDH is not relabeled as EndRing, and the paper supplies no theorem
+        about supersingular endomorphism witnesses or CEST transfer.
+      - >-
+        This packet's ROM recognition-table proof is a producer derivation,
+        not an invocation of Kiltz Theorem 1.
+
+accepted_legacy_context:
+  public_key: >-
+    The exact canonical accepted CEST pk_ser containing E,q,P,A, public Weil
+    pairing e_q, encodings and validation algorithms, with P and A of exact
+    prime order q and e_q(P,A)!=1.
+  secret_key: >-
+    (pk_ser,W), where the incomplete legacy setup intends W to derive and
+    evaluate psi_E with psi_E(P)=A. This control assumes an accepted key and
+    does not repair TrapCurveGen or CanonicalBoundedEnd.
+  valid_ciphertext_line: >-
+    Canonical nonzero R in E[q] satisfying e_q(P,R)=1, hence R is in <P>.
+  sender_transfer: "for r in Z_q^*, R=[r]P and T=[r]A"
+  recipient_transfer: "T=psi_E(R)"
+  unique_transfer_recognizer:
+    algorithm: >-
+      On canonical (pk_ser,R,T), require R and T in E[q], R nonzero and in
+      <P>, then accept iff e_q(P,T)=e_q(R,A) and e_q(A,T)=1.
+    proof: >-
+      Write R=[r]P and T=[x]P+[y]A. With g=e_q(P,A) of order q, the first
+      equality gives y=r mod q and the second gives x=0 mod q. Thus the unique
+      accepted T is [r]A.
+    provenance: >-
+      Internal derivation independently reviewed at the exact q-torsion scope
+      in EV-SSI-c9bfe1; it recognizes a supplied T and does not compute T.
+
+hard_problem:
+  name: CEST-XFER-COMP
+  characterization: gap_or_co_CDH_like_search_assumption
+  sampler: >-
+    Run the exact accepted legacy CEST KeyGen distribution, sample
+    r uniformly from Z_q^*, set R*=[r]P, and give (pk_ser,R*) to B.
+  adversary_input_and_auxiliary_data: >-
+    The complete real public key, public validation and pairing algorithms,
+    canonical encodings and the honest R*. No W, r, T*, path, orientation,
+    ideal or hidden setup state is supplied.
+  required_output: "the canonical point T*=[r]A"
+  success_predicate: unique_transfer_recognizer accepts (pk_ser,R*,T*)
+  success_probability: "Succ_XFER(B)=Pr[B(pk_ser,R*) outputs the unique accepted T*]"
+  model: classical PPT; the reduction below simulates a classical random oracle
+  hardness_status: separately_assumed_not_established
+  relation_to_endring: >-
+    A complete evaluable End(E) witness is sufficient to compute T*, but no
+    reduction from a transfer solver to a full ring exists. Discrete logarithm
+    in <P> is another sufficient attack route. This is a strict non-EndRing
+    intermediate assumption.
+
+construction:
+  name: CEST-XFER-KEM-v1
+  primitive: kem
+  random_oracle: >-
+    H_K("CEST-XFER-KEM/v1" || pk_ser || Encode(R) || Encode(T)) -> {0,1}^kappa
+    with classical queries only.
+  ciphertext_encoding: >-
+    Canonical tuple (version, Hash(pk_ser), Encode(R)). Field and point bytes
+    must be canonical; the context digest is exact; trailing bytes are
+    forbidden. Ciphertext equality and challenge exclusion are bytewise.
+  algorithms:
+    KeyGen:
+      input: 1^lambda
+      algorithm: >-
+        Run the legacy CEST KeyGen and return its canonical pk_ser and
+        sk=(pk_ser,W). This control adds no new setup algorithm.
+      failure: exactly the legacy KeyGen failure and retry law, which remain open
+    Encaps:
+      input: canonical accepted pk_ser
+      randomness: "uniform r in Z_q^*"
+      algorithm: >-
+        Validate pk_ser; compute R=[r]P and T=[r]A; set
+        K=H_K("CEST-XFER-KEM/v1"||pk_ser||Encode(R)||Encode(T)); return the
+        canonical ct_K=(version,Hash(pk_ser),Encode(R)) and K.
+      failure: reject an invalid public key before sampling; no failure on an accepted key
+    Decaps:
+      input: "sk=(pk_ser,W) and arbitrary bounded ciphertext bytes"
+      algorithm: >-
+        Parse canonically; require the exact context digest; require R nonzero,
+        in E[q], and in <P>. Return the single explicit failure symbol on any
+        failed check. Derive/evaluate psi_E, require psi_E(P)=A, set
+        T=psi_E(R), and return H_K on the same domain-separated tuple.
+      failure: >-
+        Explicit rejection is used so the reduction does not claim an
+        unsupported implicit-rejection theorem. Timing and side-channel
+        uniformity are outside this symbolic control.
+  correctness:
+    statement: >-
+      For every accepted legacy key and every r in Z_q^*,
+      Decaps(sk,ct_K)=K for (ct_K,K)<-Encaps(pk;r).
+    derivation: "psi_E([r]P)=[r]psi_E(P)=[r]A"
+    failure_probability: zero conditional on accepted keys and correct legacy interfaces
+    setup_boundary: >-
+      The legacy key-generation acceptance probability, termination and
+      polynomial costs remain open and are not repaired by this KEM.
+
+ind_cca2_game:
+  model: classical random-oracle model
+  adversary: classical PPT A with at most q_H H_K queries and q_D Decaps queries
+  experiment: >-
+    Generate (pk,sk); compute (ct*,K_real)<-Encaps(pk); sample K_rand uniformly
+    from {0,1}^kappa and b uniformly; give (pk,ct*,K_b) to A. Answer classical
+    H_K queries and Decaps(sk,ct) for every byte string ct not bytewise equal to
+    ct*. A outputs b'.
+  advantage: "Adv_KEM(A)=abs(Pr[b'=b]-1/2)"
+  challenge_exclusion: >-
+    Only exact canonical ct* bytes are forbidden. Alternate encodings are
+    invalid and explicitly reject; no mathematical-endpoint equivalence class
+    is silently excluded.
+
+classical_rom_reduction:
+  solver: B using A to solve CEST-XFER-COMP
+  input: "exact (pk_ser,R*) from the CEST-XFER-COMP sampler"
+  challenge_embedding: >-
+    Form the canonical ct* from R*, sample K* uniformly, and give
+    (pk_ser,ct*,K*) to A. This is the random-key KEM world. B never receives W
+    or T*.
+  state:
+    - a standard lazy table for all ordinary H_K input byte strings
+    - >-
+      a map ValidKey[R] holding one independent uniform kappa-bit value for
+      each canonical valid R in <P> that appears in a decapsulation or a
+      recognized valid-transfer hash query
+  hash_simulation: >-
+    Parse a query as the exact KEM domain, pk_ser, R and candidate T when
+    possible. If R is a canonical valid line point and the public
+    unique-transfer recognizer accepts T, return/create ValidKey[R]. For every
+    other byte string, return/create an independent ordinary lazy-oracle value.
+    If R=R* and T is recognized, output T as the CEST-XFER-COMP solution while
+    still returning the consistent table value.
+  decapsulation_simulation: >-
+    Reject exactly the malformed/noncanonical/wrong-context/off-curve/
+    wrong-order/outside-line cases. The exact challenge bytes are forbidden.
+    For every other canonical valid R, return/create ValidKey[R]. A later
+    recognized H_K query for the unique transfer point receives the same value.
+  exactness_argument: >-
+    For each valid R there is exactly one recognized T=psi_E(R). In the real
+    ROM, H_K(pk,R,T) is an independent uniform value until first queried. Lazy
+    creation by either Decaps or H_K therefore has the identical joint
+    distribution. Invalid inputs reject before any secret operation. Canonical
+    encoding makes every mathematical R have one accepted ciphertext byte string.
+  extraction_event: >-
+    Ask* occurs when A queries H_K on the unique recognized tuple containing
+    R*. B succeeds exactly on Ask* and has no q_H guessing loss because it
+    tests every classical query with the public recognizer.
+  game_hop: >-
+    Couple the real-key and random-key KEM games with the simulation above.
+    Their views are identical until Ask*. Therefore
+    |Pr[A outputs 1 in real]-Pr[A outputs 1 in random]| <= Pr[Ask*].
+  exact_bound: >-
+    With the half-bias convention Adv_KEM=|Pr[b'=b]-1/2|,
+    2*Adv_KEM(A) <= Succ_CEST-XFER-COMP(B), hence
+    Adv_KEM(A) <= Succ_CEST-XFER-COMP(B)/2.
+  aborts:
+    - "B fails only if Ask* does not occur or A violates its declared input bounds."
+    - "Honest challenge parsing, validation and recognition have zero modeled error."
+    - "No path, rewinding, oracle programming at an already-defined point, or query-index guess is used."
+  runtime: >-
+    T_B <= T_A + O(q_H*(C_parse+C_subgroup+2*C_pair)+
+    q_D*(C_parse+C_subgroup)+C_table), conditional on polynomial public
+    parsing, subgroup and pairing operations.
+  memory: >-
+    M_B <= M_A + O((q_H+q_D)*(one canonical point + kappa bits + table overhead)).
+  scope_limitations:
+    - classical ROM only; no QROM or QPT extraction theorem
+    - exact accepted legacy key distribution only
+    - single-user, single-challenge game only
+    - no concrete-security or side-channel statement
+    - no legacy setup or polynomial-cost proof
+  proof_status: producer_derivation_pending_independent_review
+
+optional_kem_dem_pke:
+  status: conditional_control_not_required_for_the_kem_theorem
+  required_dem: >-
+    A one-time IND-CCA DEM or AE scheme with a uniform kappa-bit key, canonical
+    nonce/ciphertext encoding, associated-data binding, explicit failure, and
+    half-bias advantage Adv_DEM.
+  encryption: >-
+    Run CEST-XFER-KEM-v1. Use the returned K as the DEM key; encrypt m with
+    associated data (version,pk_ser,ct_K,algorithm identifiers), and return
+    the canonical pair (ct_K,ct_DEM).
+  decryption: >-
+    Decaps ct_K; on failure return fail. Otherwise DEM-decrypt ct_DEM under K
+    with the identical associated data and return its plaintext or fail.
+  composition_derivation: >-
+    First replace the real KEM challenge key by uniform, reducing the success-
+    probability gap to a KEM real-or-random adversary. For queries with a
+    different ct_K, that adversary uses its Decaps oracle; for the same ct_K
+    and changed DEM bytes it knows the supplied challenge key and runs DEM.Dec.
+    In the uniform-key hybrid, reduce the remaining message advantage to the
+    one-time IND-CCA DEM: generate the KEM key pair and a fresh ct_K, discard
+    its key, use the DEM challenger's hidden uniform key for the challenge,
+    answer different-ct_K queries with the KEM secret key, and forward
+    same-ct_K/different-DEM queries to the DEM decryption oracle.
+  exact_bound: >-
+    Under the half-bias conventions in this artifact,
+    Adv_IND-CCA2_PKE(A) <= 2*Adv_IND-CCA2_KEM(B_K) + Adv_otIND-CCA_DEM(B_D)
+    <= Succ_CEST-XFER-COMP(B_X) + Adv_otIND-CCA_DEM(B_D).
+    The factor 2 in the first hop converts a KEM real-or-random half-bias into
+    the absolute difference between the two PKE hybrid success probabilities.
+  runtime_and_queries: >-
+    B_K and B_D each run A once. B_K makes at most q_D KEM decapsulation
+    queries and local DEM operations; B_D makes at most q_D DEM-decryption
+    queries for the challenge ct_K and local KEM decapsulation for other
+    ct_K values. Parsing, KDF and associated-data costs are additive.
+  source_support: >-
+    Kiltz 2007 Section 4.3 states the generic CCA KEM/CCA DEM composition and
+    tightness. The explicit half-bias bookkeeping and query split above are a
+    producer derivation for this exact syntax, pending independent review.
+  source_hypothesis_warning: >-
+    This packet does not substitute an IND-CPA-only DEM, unauthenticated XOR,
+    or authentication-only primitive for the stated one-time IND-CCA DEM.
+
+exact_bit_flip_control:
+  old_attack: >-
+    On the frozen unauthenticated ciphertext (R*,v*), query
+    (R*,v* XOR Delta) for nonzero Delta and recover m_b XOR Delta.
+  new_kem_result: >-
+    CEST-XFER-KEM-v1 has no XOR-masked plaintext component v. Its challenge is
+    one canonical R ciphertext and exact R* is excluded; alternate encodings reject.
+  new_pke_result: >-
+    In the optional KEM-DEM syntax, changing only ct_DEM while retaining ct_K*
+    becomes a same-key nonchallenge DEM decryption query covered by the
+    one-time IND-CCA DEM game. It returns plaintext only by breaking that DEM
+    assumption; ordinary AE authentication returns fail rather than m_b XOR Delta.
+  conclusion: >-
+    The exact one-query algebraic bit-flip no longer applies. This is a
+    conditional active-security control, not unconditional security and not
+    evidence for EndRing binding.
+
+controls:
+  one_pairing_only:
+    mutation: "recognize T using only e_q(P,T)=e_q(R,A)"
+    result: reject
+    reason: "it accepts the affine line T=[r]A+[x]P and invalidates exact simulation/extraction"
+  public_pairing_recognition:
+    mutation: "give the simulator both public pairing equations"
+    result: accepted_at_exact_q_torsion_scope
+    boundary: "recognition is not computation and does not make CEST-XFER-COMP easy"
+  alternate_encoding:
+    mutation: "resubmit R* with byte-distinct noncanonical field/point bytes"
+    result: explicit_rejection_before_secret_use
+  same_endpoint_changed_context:
+    mutation: "change version, public-key digest or algorithm identifiers"
+    result: explicit_rejection_or_distinct_domain; exact parser rule required
+  repeated_decapsulation:
+    mutation: "repeat one valid nonchallenge R"
+    result: identical ValidKey[R] in the proof and identical real Decaps output
+  authentication_only:
+    mutation: "remove CEST-XFER-COMP confidentiality and retain only an AE tag"
+    result: reject
+    reason: "authentication does not hide a public session key"
+  eval_line_quotient:
+    mutation: "replace W by EvalLine_(P,A) on valid R"
+    result: KEM and PKE behavior unchanged
+    implication: "the control remains a strict transfer/evaluator quotient, not complete EndRing"
+  reverse_arrow:
+    mutation: "use a complete EndRing solver to compute psi_E(R)"
+    result: attack_route_only_not_security_reduction
+  endring_relabel:
+    mutation: "rename CEST-XFER-COMP as EndRing"
+    result: reject_known_false_conclusion
+
+obligation_effect:
+  old_frozen_CEST_O3: preserved_conditionally_for_accepted_keys
+  old_frozen_CEST_active_syntax: replaced_by_a_KEM_and_optional_authenticated_hybrid
+  EndRing_O1: open
+  EndRing_O2: open
+  EndRing_O4: open_because_functionality_factors_through_transfer
+  EndRing_O5: open_no_attacker_to_complete_ring_extractor
+  EndRing_O6: not_discharged_beyond_the_exact_classical_control_view
+  material_difference_gate: not_satisfied
+
+final_verdict:
+  control_result: >-
+    A canonical classical-ROM CEST transfer KEM has a direct IND-CCA2
+    reduction to the separately named CEST-XFER-COMP search assumption using
+    public unique-transfer recognition. With a one-time IND-CCA DEM/AE, the
+    raw XOR bit-flip is conditionally closed under the displayed bound.
+  security_label: conditional_control_only_pending_independent_review
+  forbidden_inference: >-
+    Neither the KEM theorem nor its optional KEM-DEM composition implies
+    EndRing hardness, complete-ring necessity, EigenX-v2 security, QROM
+    security, concrete security, or deployability.
+  next_obligation: >-
+    Independently verify the ROM table simulation, half-bias factors, DEM
+    query split and source scope; separately solve the unchanged legacy setup
+    and EndRing-reduction gaps before any scheme-level advancement.

@@ -1,0 +1,343 @@
+schema: crypto.autoresearch.blind_joint_review.v1
+review:
+  task_id: TASK-20261013-794750
+  batch_id: BATCH-44a1ce
+  goal_id: GOAL-SSI-2fa82a
+  question_id: RQ-SSI-1946c9
+  claim_owner: eigenx-j1-validator
+  role: validator_blind_rederivation
+  joint:
+    id: J1
+    title: exact adaptive OneEnd transcript and quantifiers
+  verdict: holds
+  verdict_scope: >-
+    The Page--Wesolowski source supports the reachable-query, bounded-OneEnd
+    oracle target, and the exact two-phase adaptive transcript can be derived
+    without producer material. This is only a verdict on J1: it establishes the
+    oracle contract that a bridge would have to emulate. It does not establish
+    that any bridge, sampler, EndRing solver outside that black-box premise,
+    PKE construction, security claim, or universal impossibility exists.
+  scientific_runs: 0
+  implementation_runs: 0
+  experiment_runs: 0
+
+  requested_scope_and_execution:
+    requested:
+      - Re-derive the exact Page--Wesolowski adaptive bounded-OneEnd query transcript.
+      - State quantifier order, conditional success, total cost, and stopping semantics.
+      - Exercise PTM-J1-SINGLE-LAW and the initial-curve-only negative control.
+      - Preserve blindness from both producer tasks, sibling reviews, and composition.
+    executed:
+      - Primary-source inspection and symbolic derivation only.
+      - No scientific trial, implementation, benchmark, parameter selection, or formalizer run.
+
+  custody:
+    page_wesolowski_vor:
+      path: /tmp/page-wesolowski-springer.pdf
+      bytes: 524996
+      observed_sha256: 55c054a8b4e75041fc2aef62438ac1bd5071f34fec7dea298bafecd6a62280ff
+      ledger_sha256: 55c054a8b4e75041fc2aef62438ac1bd5071f34fec7dea298bafecd6a62280ff
+      hash_matches: true
+      inspected_extent: >-
+        Version-of-record printed pages 388--395 and 400--410, including
+        Definition 2.1, Problems 2.4--2.5, Algorithm 1, Theorem 4.2,
+        Proposition 5.11, Algorithms 2--3, Lemma 7.1, and Theorem 7.2.
+    frozen_2026_transcript:
+      path: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+      bytes: 40890
+      observed_sha256: ca34a0f784351992df72458b2410ed92a137a1811d5401a24810121116c7a9cf
+      ledger_sha256: ca34a0f784351992df72458b2410ed92a137a1811d5401a24810121116c7a9cf
+      hash_matches: true
+      inspected_extent: >-
+        Sections 1.4 and 2.1--2.3 and the proof/Algorithm 3 at transcript
+        lines 193--220, solely for representation, typing, and problem-name
+        cross-checks; no 2026 heuristic or cost claim is used for J1.
+    producer_snapshot_receipt:
+      path: coordination/design/TASK-20261013-ba3742/archives/TASK-20261013-83d718/snapshot-receipt.json
+      inspected_extent: complete receipt
+      effect_on_review: >-
+        The receipt reports zero runs and content-first hashes for six producer
+        artifacts. Those artifact paths were not opened. The receipt does not
+        supply or alter the source-level J1 derivation.
+
+  source_rederivation:
+    problem_statement:
+      challenge: >-
+        A prime p greater than 3 and an arbitrary supersingular elliptic curve
+        E over F_(p^2), the EndRing instance.
+      bounded_oracle: >-
+        O is an oracle solving OneEnd_lambda. On every supersingular curve C
+        over F_(p^2), each invocation returns an efficiently represented
+        beta in End(C) minus Z with log_2(deg(beta)) at most lambda(log_2 p).
+      source_success_semantics: >-
+        The source gives O no FAIL outcome and no bad-instance set: Algorithm 1
+        requires a non-scalar answer and Theorem 7.2 assumes an oracle that
+        solves the problem. Thus the black-box answer-success probability is
+        1 on every query. Randomness only selects the oracle's valid output law
+        and the reduction's walks; it is not permission for an unanswered query.
+      representation: >-
+        Definition 2.1 requires descriptor length polynomial in log(deg(beta))
+        and log(p), and evaluation over extension degree k in time polynomial
+        in log(deg(beta)), log(p), and k. Campaign validity, canonical bytes,
+        and public non-scalarity checks are strengthenings, not PW24 claims.
+      oracle_law_and_freshness: >-
+        The output distribution may be arbitrary and curve-dependent. Theorem
+        4.2 defines it pointwise as Pr[O(C) mod N = b]. The rank arguments use
+        fresh independent calls; in particular the three calls in each
+        second-loop iteration are independent samples from the same O_N law.
+
+    rich_oracle:
+      input: [base curve C, positive walk length k, oracle O_star]
+      steps:
+        - >-
+          Sample a length-k simple 2-isogeny random walk phi:C -> C_prime.
+          The proof averages with (A_2/3)^k. The source does not exclude the
+          immediate dual edge, so this is not the campaign's non-backtracking
+          D_ER walk law.
+        - Query O_star(C_prime) once and receive beta.
+        - Return alpha = dual(phi) composed with beta composed with phi in End(C).
+      degree_accounting: >-
+        deg(phi)=2^k, hence deg(alpha)=2^(2k)*deg(beta) and
+        log_2(deg(alpha)) <= 2k+lambda(log_2 p).
+      query_count: exactly one underlying O_star query per Rich call
+
+    adaptive_transcript:
+      phase_1_full_rank:
+        initial_state: R = Z
+        walk_length: >-
+          k1 = ceil(log(12*9*(1+sqrt(3))*sqrt(p+13)) /
+          log(3/(2*sqrt(2)))).
+        repeated_query: >-
+          While rank_Z(R) is not 4, independently sample a length-k1
+          2-isogeny walk phi_j:E -> C_j; query O(C_j) for beta_j; set
+          alpha_j=dual(phi_j) o beta_j o phi_j; and replace R by the ring
+          generated by R and alpha_j.
+        answer_dependency: >-
+          The next endpoint uses fresh walk coins from the fixed challenge E.
+          The loop's continuation or stop depends on all earlier returned
+          alpha_j through rank_Z(R).
+        progress_probability: >-
+          Any three consecutive independently generated elements give a
+          full-rank lattice with probability at least 1/16. The source derives
+          an expected O(1) number of loop iterations, not a fixed maximum.
+        oracle_queries_per_iteration: 1
+
+      deterministic_middle:
+        steps:
+          - Apply Saturate_2 to R.
+          - Apply SaturateRam to remove the ramified-prime obstruction.
+          - Compute I = [End(E):R] from the discriminant.
+          - >-
+            Maintain I as a product of powers N_i^e_i with no N_i a cube;
+            complete prime factorization is not required.
+        oracle_queries: 0
+
+      phase_2_saturation_and_factor_refinement:
+        loop_guard: I = [End(E):R] is not 1
+        state_dependent_choice: >-
+          Choose a current factor N=N_t. Both N and every later stopping
+          decision depend on all prior valid oracle answers through R, lattice
+          indices, and factorization refinements.
+        walk_length: >-
+          k2(N) = ceil(12*log(4100000*(log N)^12*N^2*sqrt(p+13))).
+        reduced_oracle: >-
+          O_N(C) makes one call beta <- O(C), then returns Reduce_N(beta).
+          Reduce_N is defined for odd N, returns an N-reduced non-scalar
+          endomorphism, and makes no further OneEnd query.
+        query_triple: >-
+          Independently for i=1,2,3, sample a length-k2(N) 2-isogeny walk
+          phi_i:E -> C_i, query O(C_i) once inside O_N, reduce at N on C_i,
+          and pull back with dual(phi_i) o Reduce_N(beta_i) o phi_i.
+        post_query_update: >-
+          Form Lambda=<1,alpha_1,alpha_2,alpha_3>. If it has rank 4, use
+          [End(E):Lambda] to either split N or enlarge R; after enlargement,
+          recompute I and its factorization. If neither update occurs, the
+          same state is retried with a fresh independent triple.
+        progress_probability: >-
+          Conditional on any reached state with R not equal to End(E) and on
+          valid total-oracle behavior, an iteration makes a factorization or
+          order-enlargement progress step with probability Omega((log N)^-12).
+        oracle_queries_per_iteration: 3
+        stop: >-
+          Stop only when the recomputed index I equals 1, then return R.
+          The number of iterations has unbounded support; the guarantee is
+          expected polynomial time, not a deterministic query cap.
+
+    exact_adaptiveness:
+      - >-
+        The query curve C_j is sampled only after the current phase state and
+        walk length have been fixed. Phase-1 stopping depends on earlier
+        answers; phase-2 N, k2(N), repetition, factor splits, order updates,
+        and final stopping all depend on earlier answers.
+      - >-
+        Within one phase-2 triple, the three endpoints can be sampled before
+        seeing the triple's answers, but later triples are transcript-adaptive.
+        A sequential transcript may linearize the triple only if the three
+        answer samples retain independence and the same conditional O_N law.
+      - >-
+        All Rich calls start from the original challenge E. The exact support
+        is therefore the collection of length-k1 and state-selected
+        length-k2(N) simple-walk endpoints from E, not an independently sampled
+        campaign endpoint and not merely the initial curve.
+
+    conditional_success_for_a_partial_bridge:
+      source_vs_extension: >-
+        PW24 itself assumes total answers. The following is the necessary
+        accounting to replace that oracle by a fallible public sampler; it is
+        a derived emulation condition, not a probability theorem quoted from
+        PW24.
+      prefix_quantifier: >-
+        For every valid challenge E, every query number j, and every reachable
+        transcript prefix h before query j (including reduction coins, prior
+        valid answers, R, factorization, N, and stopping state), the bridge must
+        answer the selected curve C_j with a valid bounded-OneEnd descriptor
+        under a declared conditional law. A marginal over E, D_ER, independent
+        endpoints, or (E,rho) does not meet this quantifier.
+      formula: >-
+        If V_j is validity and delta_j(h)=Pr[not V_j | H_(j-1)=h,
+        query j is reached, all earlier answers valid], then for a fixed m the
+        no-abort probability is the chain-rule product of the corresponding
+        conditional success probabilities. For the random query count Q,
+        Pr[any answer aborts] is at most E[sum_(j=1)^Q delta_j(H_(j-1))].
+        In particular a uniform delta gives at most delta*E[Q]; no independence
+        assumption converts marginal success into this bound.
+      retry_semantics: >-
+        If each fresh same-curve attempt has conditional success at least
+        1/q_s on every reachable query curve, N_retry=ceil(q_s*kappa*ln(2))
+        attempts fail that query with probability at most 2^-kappa. Retries
+        must use the same C_j, preserve the declared successful-output law,
+        and charge all failed attempts. Unlimited retry gives an almost-sure
+        answer with expected at most q_s attempts only under that pointwise
+        conditional premise; it supplies no guarantee on an uncovered curve.
+
+    total_cost:
+      source_bound: >-
+        Theorem 7.2 states expected time polynomial in log(p) and
+        lambda(log p). It does not state a concrete polynomial, a deterministic
+        worst-case query cap, or an explicit memory theorem.
+      first_phase_index_bound: >-
+        For the first full-rank order R1, the proof gives
+        [End(E):R1] <= 2^(3*k1*lambda(log p)+2)/p
+        = 2^O(log(p)*lambda(log p)).
+      oracle_query_accounting: >-
+        Let Q1 be phase-1 iterations and Q2 phase-2 iterations. Exactly
+        Q=Q1+3*Q2 underlying OneEnd calls occur. E[Q1]=O(1). Each phase-2
+        progress event has expected O((log N)^12) iterations, and the number
+        of factor splits/order enlargements is polynomial in log([End(E):R1]);
+        hence E[Q] is polynomial in log(p) and lambda(log p). A coarse derived
+        bound is O((log([End(E):R1]))^13), with source constants and lower-order
+        work suppressed; PW24 claims only polynomiality.
+      bridge_cost_accounting: >-
+        For a fallible bridge, total time is the reduction overhead plus the
+        sum of every sampler attempt, validation, reduction, walk, composition,
+        serialization, and failed attempt over all reached queries. Peak memory
+        includes reduction state, the largest live descriptor/walk, verifier
+        state, and bridge memory. Sequential execution of each triple avoids
+        tripling peak oracle memory, provided independence is preserved.
+      memory_boundary: >-
+        Polynomial-time source routines and polynomial-size representations
+        imply polynomial reduction workspace in the standard model, but PW24
+        does not publish an explicit total-memory formula. Any candidate's
+        concrete M(lambda), output storage, retry storage, and parallelism are
+        therefore separate campaign obligations, not source-verified values.
+
+  controls:
+    - id: PTM-J1-SINGLE-LAW
+      object: single D_ER endpoint sampler substituted for an every-query oracle
+      expected_result: reject the known-false conclusion
+      observed_result: rejected_by_derivation
+      reason: >-
+        D_ER is one fixed non-backtracking law from (E0,ell,L), with only a
+        high-mass good-set guarantee. PW24 uses simple length-k 2-isogeny walks
+        from the arbitrary challenge E; k is k1 or the transcript-dependent
+        k2(N). No law identity, every-prefix coverage, or bad-prefix bound is
+        supplied. Even equality to one marginal endpoint law would not cover
+        the adaptive family of conditional query laws.
+    - id: J1-INITIAL-CURVE-ONLY
+      object: oracle that succeeds only on the initial curve
+      expected_result: reject as insufficient
+      observed_result: rejected_by_derivation
+      reason: >-
+        The underlying O calls are made on random-walk endpoints C_j, not on E
+        except on accidental returns. The first unsupported endpoint makes the
+        source algorithm undefined; success on E cannot be amplified into
+        coverage of the remaining endpoints.
+
+  deviations: []
+  limitations:
+    - >-
+      This review does not compare the derivation with either producer packet;
+      that comparison belongs to composition after the blind round.
+    - >-
+      The arXiv alternate copy /tmp/page-wesolowski-2309.10432.pdf and the De
+      Feo copy /tmp/defeo-1711.04062.pdf named as temporary local copies in the
+      source ledger were absent in this workspace and were not read. No J1
+      conclusion relies on either: the exact reduction was checked in the
+      hash-matching Springer version of record.
+    - >-
+      The frozen 2026 transcript's source record certifies external fidelity
+      only for ten unrelated Section 4.1 cost values. J1 uses that transcript
+      only for non-load-bearing representation/typing cross-checks.
+    - >-
+      Algorithm 3's Require line mentions an unused parameter k>0. The actual
+      transcript uses the internally computed k1 and state-dependent k2; this
+      apparent editorial residue does not supply an additional query parameter.
+    - >-
+      No concrete oracle cost, memory, family sampler, distribution bridge,
+      security reduction, or scheme claim is established here.
+
+  artifact_paths:
+    - coordination/design/TASK-20261013-ba3742/reviews/TASK-20261013-794750/review.yaml
+
+inspection_record:
+  exact_paths_read:
+    - AGENTS.md
+    - agents/validator.md
+    - templates/research-records.md
+    - ledger/handoffs/TASK-20261013-794750.yaml
+    - coordination/goals/GOAL-SSI-2fa82a/batches/BATCH-44a1ce/dispatch_queue.json
+    - coordination/design/TASK-20261013-ba3742/opening.yaml
+    - coordination/design/TASK-20261013-ba3742/review-preparation/review-plan.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/distribution-contract.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-report.md
+    - coordination/design/TASK-20261013-ba3742/archives/TASK-20261013-83d718/snapshot-receipt.json
+    - inputs/P13-WESOLOWSKI-2026/source_record.yaml
+    - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+    - /tmp/page-wesolowski-springer.pdf
+    - /tmp/pw-alg3.png
+    - /tmp/pw-thm72.png
+    - /tmp/pw-cost.png
+  non_filesystem_instruction_read:
+    - report-evidence skill package c6/6ac50d83f64c8191b052e52c11310b8d/report-evidence
+  note: >-
+    The non-filesystem package label above records the report-evidence workflow
+    instruction used for evidence boundaries; it was not a scientific source.
+  sibling_reports_read: false
+  producer_artifacts_read: false
+  composition_read: false
+
+review_attestation:
+  task_id: TASK-20261013-794750
+  joints_owned: [J1]
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - templates/research-records.md
+    - ledger/handoffs/TASK-20261013-794750.yaml
+    - coordination/goals/GOAL-SSI-2fa82a/batches/BATCH-44a1ce/dispatch_queue.json
+    - coordination/design/TASK-20261013-ba3742/opening.yaml
+    - coordination/design/TASK-20261013-ba3742/review-preparation/review-plan.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/distribution-contract.yaml
+    - coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-report.md
+    - coordination/design/TASK-20261013-ba3742/archives/TASK-20261013-83d718/snapshot-receipt.json
+    - inputs/P13-WESOLOWSKI-2026/source_record.yaml
+    - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+    - /tmp/page-wesolowski-springer.pdf
+    - /tmp/pw-alg3.png
+    - /tmp/pw-thm72.png
+    - /tmp/pw-cost.png
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict: holds

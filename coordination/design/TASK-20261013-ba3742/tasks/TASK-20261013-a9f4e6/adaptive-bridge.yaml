@@ -1,0 +1,392 @@
+schema: crypto.autoresearch.eigenx_adaptive_oneend_bridge.v1
+task_id: TASK-20261013-a9f4e6
+batch_id: BATCH-44a1ce
+goal_id: GOAL-SSI-2fa82a
+question_id: RQ-SSI-1946c9
+date: '2026-10-13'
+role: idea-generator
+scope: bounded_zero_run_bridge_search
+
+execution:
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  experiment_runs: 0
+  benchmark_runs: 0
+  parameter_selection_runs: 0
+  source_and_symbolic_analysis_only: true
+
+frozen_inputs:
+  opening: coordination/design/TASK-20261013-ba3742/opening.yaml
+  review_plan: coordination/design/TASK-20261013-ba3742/review-preparation/review-plan.yaml
+  methodology: research/ssi-endring-pke/2026-10-13-eigenx-adaptive-oneend-bridge/methodology.md
+  source_packet:
+    - path: coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-ledger.yaml
+      sha256: d7a7e0063115037ac77302a8e748d899fea6e6ec0732660efeddfc56f6336fa9
+    - path: coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/distribution-contract.yaml
+      sha256: 6d9150a59d55738df2901ca45589462ad8ab69bbf5701f404b15520641676cfe
+    - path: coordination/design/TASK-20261009-1c8974/tasks/TASK-20261009-daf6ab/source-report.md
+      sha256: e28b68afb88aeb0d1ba7fef9a49c6eca1c1f0066e289b00c067081a870b19f88
+  primary_source:
+    id: PW24-VOR
+    version: Springer version of record, 2024
+    sha256: 55c054a8b4e75041fc2aef62438ac1bd5071f34fec7dea298bafecd6a62280ff
+    inspected_extent: complete 30-page article, with Algorithm 1 and Algorithm 3 through Theorem 7.2 used below
+    provenance: retrieved
+  prior_batch_evidence: ledger/evidence/EV-SSI-65dc17.yaml
+  source_boundary: >-
+    Statements attributed to Page--Wesolowski are limited to the frozen
+    source ledger and the matched version-of-record bytes. The D_ER law,
+    DER-ENDO-v1 grammar, public verification, and failure encoding are campaign
+    additions, not claims from the article.
+
+source_derived_adaptive_transcript:
+  input:
+    p: prime greater than 3
+    E: supersingular elliptic curve over F_(p^2)
+    lambda_PW: >-
+      Function bounding every oracle answer by
+      log2(deg(beta)) <= lambda_PW(log2(p)).
+    oracle: >-
+      O(C) returns a non-scalar beta in End(C) in efficient representation.
+      PW24-VOR gives no FAIL byte, retry rule, or partial-domain semantics for
+      O; Algorithm 3 treats each call as a valid OneEnd answer.
+  mutable_state:
+    - phase in {rank_building, saturation, index_reduction, done}
+    - R, initially Z and thereafter a subring of End(E)
+    - a partial factorization of the current index [End(E):R]
+    - in index_reduction, the selected odd non-cube factor N
+  query_record:
+    fields:
+      - transcript prefix tau_(j-1)
+      - phase and current ring/factorization state
+      - walk length k_j
+      - fresh length-k_j 2-isogeny walk phi_j:E->C_j
+      - query curve C_j, the endpoint of phi_j
+      - oracle answer beta_j in End(C_j) minus Z
+      - optional gamma_j=Reduce_(N_j)(beta_j)
+      - transported alpha_j=dual(phi_j) o gamma_j o phi_j in End(E)
+      - state update and stopping test
+  phase_1:
+    walk_length: >-
+      k_1=ceil(log(12*9*(1+sqrt(3))*sqrt(p+13)) /
+      log(3/(2*sqrt(2)))), exactly as Step 1 of PW24-VOR Algorithm 3.
+    loop: >-
+      While rank_Z(R) is not four, draw a fresh length-k_1 2-isogeny walk
+      phi_j:E->C_j; query beta_j<-O(C_j); set
+      alpha_j=dual(phi_j) o beta_j o phi_j; and replace R by the ring generated
+      by R and alpha_j.
+    stopping: random; PW24-VOR proves an expected O(1) number of iterations
+    query_dependence: >-
+      The start E and length k_1 are fixed, but termination depends on all
+      earlier answers through R. Fresh walk and oracle coins are used per call.
+  saturation:
+    oracle_calls: 0
+    operations:
+      - R <- Saturate_2(R)
+      - R <- SaturateRam(R)
+      - compute [End(E):R] from disc(R)/p and initialize a partial factorization
+  phase_2:
+    loop: >-
+      While [End(E):R] is not one, select the current odd non-cube factor N,
+      compute k_2(p,N), define O_N(C)=Reduce_N(O(C)), and make exactly three
+      independent Rich_(k_2)^(O_N)(E) calls. Their outputs generate a lattice
+      Lambda; its rank, index, gcd information, and containment in R determine
+      the next factorization and ring state.
+    one_query: >-
+      Conditional on a reachable prefix tau,
+      k_j=k_2(p,N(tau))=ceil(12*log(4100000*(log N(tau))^12*
+      N(tau)^2*sqrt(p+13))). Draw a fresh
+      length-k_j 2-isogeny walk phi_j:E->C_j; query beta_j<-O(C_j); compute
+      gamma_j=Reduce_(N(tau))(beta_j); return
+      alpha_j=dual(phi_j) o gamma_j o phi_j.
+    stopping: >-
+      Random. PW24-VOR proves expected polynomial time using an
+      Omega((log N)^(-12)) success probability per second-loop iteration and
+      a polynomial bound on the number of successful index/factor updates. The
+      frozen source does not instantiate a deterministic total-query bound or
+      a complete explicit tail polynomial.
+  exact_quantifier_order: >-
+    For every valid p and initial E, for every prefix tau reachable under all
+    earlier fresh walk coins and valid oracle answers, Algorithm 3 selects the
+    next length k(tau), samples the next query curve C from the conditional
+    endpoint law mu_tau, and requires O(C) to return a valid bounded OneEnd
+    answer. A replacement with abort must bound its conditional abort
+    probability for every such tau and compose that bound over the random
+    stopping time. A marginal average over independent D_ER samples is not the
+    same statement.
+  query_law: >-
+    Conditional on tau, mu_tau is the endpoint law of a fresh uniform
+    length-k(tau) 2-isogeny walk starting at the original E. The length is k_1
+    in phase 1 and k_2(p,N(tau)) in phase 2. The query start does not move to
+    the preceding query endpoint, but phase, length, and termination are
+    adaptive through prior answers.
+  output_and_degree:
+    source_answer: log2(deg(beta_j)) <= lambda_PW(log2(p))
+    reduced_answer: >-
+      Reduce_N returns an efficiently represented N-reduced endomorphism;
+      its source and target remain C_j. Its exact degree is answer-dependent.
+    transported_answer: >-
+      For gamma_j in End(C_j), alpha_j=dual(phi_j) o gamma_j o phi_j has
+      degree 2^(2*k_j)*deg(gamma_j). Therefore
+      log2(deg(alpha_j))=2*k_j+log2(deg(gamma_j)).
+    representation: >-
+      The walk, its dual, the oracle descriptor, and ordered compositions must
+      remain efficiently evaluable. PW24-VOR's theorem establishes polynomial
+      expected time; the campaign DER-ENDO-v1 serialization and verification
+      costs must be charged separately by any compiler using them.
+  source_cost_ceiling:
+    time: expected polynomial in log(p) and lambda_PW(log(p))
+    memory: not explicitly quantified in the frozen theorem
+    support: >-
+      Page--Wesolowski allows even a deterministic OneEnd oracle; its outer
+      random walks, not an assumed high-entropy oracle output, provide the
+      conjugation randomization used in the proof.
+
+common_compiler_notation:
+  base_sampler: >-
+    S(Pi,C;rho) returns FAIL or a publicly verified DER-ENDO-v1 bounded
+    non-scalar endomorphism descriptor on C.
+  per_curve_success: s(C)=Pr_rho[S(Pi,C;rho) is valid]
+  base_attempt_cost:
+    time: T_S(n)+T_verify(n)
+    peak_memory: M_S(n)+M_verify(n)+descriptor_storage
+    coin_bits: R_S(n)
+  first_success_law: >-
+    For m independent attempts on fixed C, accepted bytes d have probability
+    P_C(d)*(1-(1-s(C))^m)/s(C) when s(C)>0, semantic probabilities sum over
+    all accepted bytes denoting the same map, and FAIL has probability
+    (1-s(C))^m. No semantic uniqueness is assumed.
+  retry_cap: >-
+    If s(C)>=1/q(n), m(n,kappa)=ceil(q(n)*kappa*ln(2)) gives conditional
+    failure at most 2^(-kappa). Time is m*(T_S+T_verify); peak memory is the
+    one-attempt peak plus retained output. Unbounded repeat-until-success is
+    Las Vegas with expected at most q attempts only on curves satisfying the
+    lower bound.
+
+interfaces:
+  - id: I1-pointwise-total-direct
+    lens: pointwise-total public sampler on every valid adaptive query curve
+    class: algorithm_interface
+    algorithm: >-
+      On input public (Pi,C), independently run and verify S(Pi,C;rho) until
+      first success, or use the declared m(n,kappa) cap and return bridge-ABORT.
+      Return only the accepted descriptor; use no query-specific advice.
+    required_assumption: >-
+      There are explicit polynomials q,R_S,T_S,M_S,Lambda such that for every
+      supersingular C over F_(p^2), s(C)>=1/q(n), every non-FAIL output is a
+      valid non-scalar C->C descriptor with log2 degree at most Lambda(n), and
+      every call halts within the declared resources.
+    probability:
+      per_query_abort_capped: at most 2^(-kappa)
+      capped_transcript_abort: >-
+        For a deterministic Q_max oracle-call cap, at most
+        Q_max*2^(-kappa)+Pr[Q>Q_max], without an independence assumption.
+      las_vegas: >-
+        Zero sampler abort and expected at most q attempts per oracle query;
+        the Page--Wesolowski outer expected stopping time remains to be
+        multiplied by that cost.
+    degree: log2(deg(beta))<=Lambda(n); outer transport adds 2*k_j
+    representation: DER-ENDO-v1 bytes verified on C and then composed with the outer walk
+    support: >-
+      Exactly the first-success byte law above. Singleton support is declared
+      rather than hidden and is not itself a defect for PW24, which permits a
+      deterministic oracle.
+    total_cost: >-
+      For Q calls, capped time is Q*m*(T_S+T_verify) plus the complete
+      PW24 walk, Reduce_N, composition, saturation, factor, verification, and
+      serialization costs; peak memory is the maximum concurrent algorithm
+      workspace because the source algorithm is sequential. Q is a random
+      stopping time unless an explicit Q_max truncation is added.
+    dependencies:
+      - a uniform public construction of S on every supersingular C
+      - explicit q, degree, representation, time, memory, and byte-law bounds
+    comparison_to_BATCH_12e6aa: >-
+      F1--F4 supplied no such all-curve constructor. Substituting any one of
+      their restricted/high-mass cores is a renaming, not an instantiation.
+    disposition: inconclusive_not_admitted
+    earliest_open_arrow: P3-public-construction
+    reason: >-
+      The interface is sufficient if instantiated, but neither the frozen
+      packet nor BATCH-12e6aa supplies the required all-curve public S. This is
+      a missing construction, not a proof that none exists.
+
+  - id: I2-transcript-conditional-law-compiler
+    lens: transcript-conditional compiler from a declared sampler law
+    class: reduction_interface
+    algorithm: >-
+      On the actual query curve C_j, run the D_ER sampler S directly with the
+      fixed same-curve retry cap. No curve is resampled and no path or advice
+      is exposed. The compiler's additional object is a proof certificate for
+      every conditional query law, not a change to S.
+    required_certificate:
+      bad_set: B={C:s(C)<1/q(n)}
+      base_statement: Pr_(C<-D_ER)[C in B]<=nu(n)
+      transcript_statement: >-
+        For every reachable prefix tau, mu_tau(B)<=epsilon_tau. A sufficient
+        certificate is TV(mu_tau,D_ER)<=delta_tau, which yields
+        epsilon_tau<=nu+delta_tau.
+      distinctions_to_prove:
+        - original start E versus the fixed D_ER start E0
+        - ordinary Page--Wesolowski 2-walk versus the frozen nonbacktracking ell-walk
+        - adaptive k_2(p,N(tau)) versus fixed L_lambda
+        - canonical endpoint multiplicities and exceptional automorphism weights
+    probability:
+      conditional_per_query_abort: at most epsilon_tau+2^(-kappa_tau)
+      transcript_bound: >-
+        For a Q_max cap, Pr[any compiler abort] is at most Pr[Q>Q_max] plus
+        the sum over j<=Q_max of the supremum, over reachable prefixes of
+        length j-1, of epsilon_tau+2^(-kappa_tau). This is a tower/union bound
+        and assumes no independence between adaptive queries.
+    degree: same base degree as S; outer transport adds 2*k_j
+    representation: same first-success DER-ENDO-v1 law as I1 on the actual C_j
+    total_cost: >-
+      The I1 capped per-query cost multiplied by Q_max, plus proof-checking and
+      Page--Wesolowski costs; also charge Pr[Q>Q_max]. Without Q_max, expected
+      cost requires a summable conditional bad-mass bound over the random Q.
+    support: >-
+      The exact conditional output law is the first-success law on each C_j;
+      averaging it over D_ER is insufficient because C_j is drawn from mu_tau.
+    source_check: >-
+      PW24-VOR gives mixing for its own walk settings, but the frozen packet
+      contains no theorem identifying or uniformly dominating every mu_tau by
+      the campaign's fixed nonbacktracking D_ER law. The required conditional
+      certificate is therefore absent.
+    comparison_to_BATCH_12e6aa: >-
+      This is a law compiler around a declared sampler, not a fifth sampler
+      family. It does not repair F1--F4's own construction, mass, or cost gaps.
+    disposition: inconclusive_not_admitted
+    earliest_open_arrow: P2-transcript-law
+    reason: >-
+      No source-backed delta_tau or direct epsilon_tau bound is present, and
+      the source does not give the full Q tail needed for a concrete capped
+      loss. Marginal D_ER success cannot be upgraded silently.
+
+  - id: I3-reduction-local-path-pushforward
+    lens: reduction-local query answering using the outer public walk
+    class: composition_control
+    algorithm: >-
+      On the initial challenge E, obtain a valid alpha in End(E) from the D_ER
+      sampler. When the reduction has just generated its fresh outer walk
+      phi:E->C of degree d=2^k, answer the internal query with
+      beta_C=phi o alpha o dual(phi) in End(C). The path is freshly generated
+      by the reduction; the erased path that generated E is never used.
+    typing:
+      beta_C_source_target: C -> C
+      degree: deg(beta_C)=d^2*deg(alpha)
+      log_degree: 2*k+log2(deg(alpha))
+      non_scalarity: >-
+        If beta_C were scalar, conjugating back and using the dual identities
+        would make a nonzero integer multiple of alpha scalar, contradicting
+        alpha not in Z. Thus a valid supplied alpha gives a non-scalar beta_C.
+    exact_round_trip: >-
+      The outer Rich step returns
+      dual(phi) o beta_C o phi
+      = dual(phi) o phi o alpha o dual(phi) o phi
+      = [d] o alpha o [d] = [d^2] o alpha.
+    observable_fiber_control: >-
+      For a deterministic or singleton-support base sampler, every returned
+      outer answer lies in Z*alpha, so the ring generated with Z has rank at
+      most two and Algorithm 3's phase-1 rank-four loop cannot terminate.
+      With fresh alpha samples, the frozen D_ER contract still gives no
+      ring-generation support theorem; requiring such a theorem would add a
+      stronger premise than OneEnd and remove the reason for PW24's outer
+      conjugation randomization.
+    oracle_interface_failure: >-
+      The answer depends on the particular outer path phi, not only on the
+      oracle input curve C and fresh oracle coins. This path correlation is
+      outside the O(C) distribution used in Theorem 4.2 and exactly cancels
+      the conjugation the theorem relies on.
+    abort_and_retry: >-
+      Base-sampler failure remains the D_ER failure on initial E. Reusing or
+      retrying the same alpha does not repair the rank collapse. Resampling
+      alpha adds only its declared support law and has no frozen spanning
+      guarantee.
+    representation: >-
+      A typed outer path, alpha descriptor, dual path, and ordered composition
+      are explicit and polynomial-size when k and alpha are bounded.
+    time_and_memory: >-
+      Per answer, charge base sampling if not cached, forward/dual path
+      composition and verification, descriptor size O(path bytes+alpha bytes),
+      and cached-alpha storage. These polynomial local costs do not repair the
+      exact algebraic cancellation.
+    support: >-
+      Conditional on phi, the byte law is the deterministic pushforward of
+      the base alpha law; semantic collisions are summed. For singleton alpha
+      support, the pulled-back support is the singleton {[d^2]alpha}.
+    disposition: scoped_obstruction
+    earliest_failed_arrow: P2-observable-fiber
+    reason: >-
+      This declared reduction-local compiler is correctly typed but does not
+      instantiate the source oracle law and can make rank generation fail
+      exactly. The result applies only to this path-correlated pushforward
+      family; it is not a universal impossibility theorem.
+
+controls:
+  single_D_ER_sampler_as_every_query_oracle:
+    outcome: fails_without_I2_certificate
+    detail: D_ER bad-mass says nothing pointwise about each mu_tau query.
+  oracle_succeeds_only_on_initial_curve:
+    outcome: fails
+    detail: >-
+      Algorithm 3 queries walk endpoints C_j. Path-aware transport is I3 and
+      triggers the exact round-trip cancellation.
+  non_uniform_per_curve_advice:
+    outcome: rejected
+    detail: It is not one public algorithm and violates I1 and I2 inputs.
+  scalar_only_slice:
+    outcome: rejected
+    detail: A scalar is not a OneEnd answer and fails the public non-scalarity relation.
+  full_EndRing_solver:
+    outcome: circular_reverse_route
+    detail: >-
+      It can manufacture OneEnd answers but already solves the desired output;
+      it is not a bridge from the declared weaker sampler.
+  evaluator_only_secret:
+    outcome: no_bridge
+    detail: >-
+      Evaluation of one fixed endomorphism supplies neither a public all-curve
+      constructor nor a complete-ring output. It is outside this public-only
+      oracle contract.
+  pairing_visible_tuple_and_alternate_shared_points:
+    outcome: not_applicable_to_this_bridge_packet
+    detail: No PKE transcript is constructed here; these remain J5 controls and provide no OneEnd coverage.
+  leaked_path_orientation_ideal_torsion_tag_or_basis:
+    outcome: rejected
+    detail: >-
+      The erased challenge path and all listed advice are forbidden. I3 uses
+      only the fresh outer walk generated inside Algorithm 3 and labels that
+      dependency explicitly.
+  malformed_wrong_key_repeated_or_alternate_ciphertexts:
+    outcome: not_applicable_to_this_bridge_packet
+    detail: No ciphertext or key parser is defined or modified in this task.
+  exceptional_automorphism_positive_typing:
+    outcome: passes_only_as_restricted_control
+    detail: >-
+      It demonstrates valid non-scalar syntax on the exceptional locus but no
+      every-query or transcript-law coverage.
+  scalar_and_immediate_dual_backtrack:
+    outcome: rejected
+    detail: dual(phi) o phi=[deg(phi)] is scalar and cannot answer OneEnd.
+  per_query_success_on_independent_D_ER_samples:
+    outcome: insufficient
+    detail: I2 requires conditional mu_tau bounds under adaptive prefixes.
+  deterministic_success_on_one_easy_curve:
+    outcome: insufficient
+    detail: It neither covers query endpoints nor survives as a generic I3 compiler.
+
+portfolio_disposition:
+  admitted_survivors: []
+  conditional_sufficient_interfaces: [I1-pointwise-total-direct]
+  open_conditional_interfaces: [I2-transcript-conditional-law-compiler]
+  scoped_broken_interfaces: [I3-reduction-local-path-pushforward]
+  automatic_EndRing_solver: false
+  PKE_or_security_claim: false
+  universal_impossibility_claim: false
+  exact_next_obligation: >-
+    Supply and independently review either a concrete I1 all-curve public
+    sampler, or an I2 certificate bounding every conditional mu_tau bad mass
+    together with a full stopping-tail/cost bound. A successor must not reuse
+    the I3 outer path in a way correlated with its answer unless it proves a
+    replacement for Page--Wesolowski's conjugation-invariance and rank-growth
+    argument.

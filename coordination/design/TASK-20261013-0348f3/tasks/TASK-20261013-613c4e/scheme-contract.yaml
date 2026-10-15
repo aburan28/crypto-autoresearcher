@@ -1,0 +1,465 @@
+format: scheme-construction-contract/v1
+title: "EigenX-v2-Path-FO-KEM conditional candidate and prescribed-path quotient obstruction"
+primitive: kem
+parent_record_ids:
+  - GOAL-SSI-2fa82a
+  - RQ-SSI-1946c9
+  - BATCH-be2a37
+  - TASK-20261013-613c4e
+  - IDEA-20261007-560bcb
+  - H-SSI-fbe68d
+artifact_revision: "producer artifact; independent review pending"
+author: "idea-generator TASK-20261013-613c4e"
+security_parameter: >-
+  lambda. The uninstantiated parameters include p, smooth coprime D and N,
+  public factorizations, |X_D|, and kappa(lambda), with N>D^2 and therefore
+  N^2>4D. No concrete parameter set is selected.
+
+domains:
+  public_parameters: >-
+    A canonical F_(p^2) representation and curve model, p,D,N and their
+    factorizations, canonical nonbacktracking path ordering, the finite path
+    code set X_D, a kappa-bit classical random oracle H_K, validation
+    algorithms, version strings and domain separators.
+  public_key: >-
+    Canonical Encode(pp,E,P_N,Q_N), where E/F_(p^2) is supersingular and
+    (P_N,Q_N) is a validated full E[N] basis. The exact real distribution must
+    be the output of TrapCurveGen_ER.
+  secret_key: >-
+    (pk,W,z), where W is a saturated rank-four complete evaluable basis of
+    End(E) with ring tables, and z is an independent uniform element of X_D
+    used only for HHK implicit rejection. The candidate requires a semantic
+    SelectTrap(E,W,D,N) interface returning (theta,d,e).
+  message: >-
+    Inapplicable to the KEM. The internal deterministic PathPKE message space
+    is X_D, the canonical set of degree-D nonbacktracking path codes.
+  ciphertext: >-
+    Canonical c0=Encode(version,Hash(pk),CanCurve(E_x),phi_x(P_N),phi_x(Q_N)).
+    Raw malformed bytes are still accepted as Decaps input and are hashed in
+    the implicit-rejection branch.
+  signature: "not applicable: the primitive is a KEM"
+  key_space: "{0,1}^kappa(lambda)"
+  encoding_and_equality: >-
+    Fixed-width reduced field coefficients, one canonical curve model per
+    accepted j-invariant, unique point encodings with root/sign bit, unique
+    infinity bytes and length-prefixed tuples. Public keys, KEM ciphertexts,
+    re-encryption results and the IND-CCA challenge exclusion use exact byte
+    equality. Equality of endpoints alone is never used for challenge
+    exclusion.
+  inapplicable_reasons:
+    message: "A KEM encapsulates a uniform key; X_D is only the internal one-way message space."
+    signature: "No signing or authentication interface is claimed."
+
+security_claims:
+  - name: IND-CCA2
+    primitive: kem
+    status: conjectured
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: >-
+      Generate (pk,sk), compute (c_star,K0)<-Encaps(pk), sample uniform
+      K1 from {0,1}^kappa and b from {0,1}, and give (pk,c_star,K_b) to the
+      adversary. It receives adaptive classical H_K access and Decaps(sk,.)
+      before and after the challenge except on the exact byte string c_star.
+      It wins when b_prime=b.
+    advantage_convention: "abs(Pr[b_prime=b]-1/2)"
+    query_bounds:
+      random_oracle_queries: q_H
+      decapsulation_queries: q_D
+      challenge_count: 1
+    oracle_access_and_challenge_exclusions: >-
+      Exact challenge bytes alone are excluded. A different encoding is
+      rejected as noncanonical, while any byte-different related ciphertext is
+      a permitted query and receives a kappa-bit implicit-rejection result.
+    assumptions:
+      - "PathPKE is delta_1-correct on the exact TrapCurveGen_ER law."
+      - "PathPKE is OW-PCA secure for a uniform x in X_D and the complete public auxiliary view."
+      - "H_K is a classical random oracle and z is uniform and secret."
+      - "All honest and validation algorithms run in expected polynomial time with stated tails."
+    theorem_artifact: >-
+      candidate.md Sections 2.4--2.6 instantiates Hofheinz--Hovelmanns--Kiltz
+      TCC 2017 Theorem 4 (U implicit rejection):
+      Adv_IND-CCA(B) <= q_H/|X_D| + Adv_OW-PCA(A), with KEM correctness
+      delta_1 and approximately equal adversary runtime.
+    review_artifact: "none; independent review is queued"
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: >-
+      Run the exact unconstructed TrapCurveGen_ER key law, sample uniform
+      x<-X_D, and output (pk,c0=PathEval(pk,x)). The OW-PCA adversary receives
+      the complete public view and a plaintext-checking oracle for all allowed
+      queries in the HHK game; success means outputting x.
+    real_key_distribution: >-
+      Exactly TrapCurveGen_ER, including every rejection condition, curve/ring
+      generation choice, P_N,Q_N selection and canonicalization. It is neither
+      bare EndRing nor silently replaced by uniform supersingular curves.
+    adversary_input_and_auxiliary_data: >-
+      p,D,N and factorizations; E,P_N,Q_N; path ordering and validation; the
+      endpoint and both N-torsion images in c0; all canonical encodings; H_K;
+      and plaintext-check access. Pairings or other public algorithms supplied
+      by parameters are included.
+    solution_representation_and_success_predicate: >-
+      A canonical x in X_D such that PathEval(pk,x) is byte-equal to c0.
+      A different path to the same endpoint is not success unless all binding
+      bytes agree and canonical re-evaluation accepts it.
+    setup_trust_and_erasure: >-
+      TrapCurveGen_ER is trapdoored. Any construction path, ideal,
+      orientation, noncanonical ring basis metadata and generator coins must be
+      erased unless explicitly included in W. No erasure theorem is supplied.
+    secret_representation_and_conversion_costs: >-
+      W must be a saturated evaluable rank-four basis. Conversion to
+      (theta,d,e) and then theta(P_N),theta(Q_N) is required to be polynomial;
+      no algorithm or cost bound is established. The strict quotient
+      Compress_N(W) reproduces decryption.
+    assumptions:
+      - OW-PCA_PathPKE
+      - TCSSI-like exact-path inversion hardness
+    cited_equivalences_and_hypotheses:
+      - >-
+        Seta Lemma 3.3 relates its trapdoor function one-wayness to TCSSI on
+        its own exact auxiliary-data law; it does not reduce that law to EndRing.
+      - >-
+        Page--Wesolowski Proposition 8.4 gives Isogeny_lambda <= EndRing under
+        GRH for some O(log p) output bound, not prescribed-degree exact-path
+        recovery. Theorem 8.5 gives EndRing <= Isogeny in the other direction.
+    evidence_artifacts:
+      - candidate.md
+      - source-overlap.yaml
+    review_artifact: "none"
+    remaining_gap: >-
+      The exact key sampler is unavailable and no correctly directed relation
+      from OW-PCA_PathPKE or IND-CCA advantage to complete EndRing is known.
+    next_action: >-
+      Supply TrapCurveGen_ER and a distribution-matched path-to-complete-ring
+      reduction, or retain the scoped obstruction.
+
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: TrapCurveGen_ER
+        inputs: "1^lambda"
+        outputs: "(pp,E,W,P_N,Q_N) with a complete evaluator W"
+        randomness: "curve/order generation and rejection coins"
+        validation: "saturation, exact End(E), evaluator correctness, supersingularity and full N-torsion basis"
+        failure_behavior: "retry, with an as-yet-unbounded tail"
+        pseudocode_artifact: "candidate.md Section 2.2 gives only the required interface"
+        time: "required expected polynomial; unproved"
+        memory: "required polynomial; unproved"
+        bit_length_bounds: "required polynomial in lambda; unproved"
+      - name: KeyGen
+        inputs: "1^lambda"
+        outputs: "pk and sk=(pk,W,z)"
+        randomness: "TrapCurveGen_ER coins and uniform z<-X_D"
+        validation: "all pp/key/ring/torsion/selector predicates"
+        failure_behavior: "retry only through the sampler; no tail bound"
+        pseudocode_artifact: "candidate.md Sections 2.2 and 2.5"
+        time: "open because sampler and selector are open"
+        memory: "open because full evaluator representation is open"
+        bit_length_bounds: "open for W; public values are polynomial-sized by requirement"
+      - name: Encaps
+        inputs: "canonical pk"
+        outputs: "(c0,K)"
+        randomness: "exact uniform x<-X_D via rejection sampling"
+        validation: "canonical pk and path domain"
+        failure_behavior: "public-key validation failure; no ciphertext failure"
+        pseudocode_artifact: "candidate.md Section 2.5"
+        time: "path evaluation plus two torsion transports, canonicalization and one hash"
+        memory: "one path state, two transported points and output"
+        bit_length_bounds: "one endpoint, two point encodings and fixed context"
+      - name: Decaps
+        inputs: "sk and arbitrary ciphertext bytes"
+        outputs: "exactly kappa bits"
+        randomness: "none after KeyGen; uses stored z and random oracle"
+        validation: "canonical parse, curve/point/order/basis checks, exact recovery and byte re-encryption"
+        failure_behavior: "uniform implicit rejection H_K(context,c,z); never bottom"
+        pseudocode_artifact: "candidate.md Section 2.5"
+        time: "open: SelectTrap plus Seta recovery plus full re-encryption"
+        memory: "open; includes smooth-torsion recovery state"
+        bit_length_bounds: "polynomial required; not instantiated"
+    preprocessing_and_retry_costs: >-
+      Cold start charges parameter/order/curve generation, complete-ring
+      evaluator construction, saturation, selector search, every rejected key
+      and validation. No per-key work is amortized without a workload count.
+    complexity_guarantee: >-
+      Encaps is symbolically polynomial for smooth D,N. KeyGen and Decaps are
+      not established expected-polynomial algorithms for the required complete
+      witness law.
+    unavailable_subroutines:
+      - "TrapCurveGen_ER with exact output distribution and retry tail"
+      - "polynomial saturated full-ring transport and evaluator conversion"
+      - "semantic-witness-independent SelectTrap"
+      - "fixed polynomial supersingularity/canonical-model validation grammar"
+      - "exact bit-operation and memory bounds for recovery"
+    evidence_artifacts:
+      - candidate.md
+      - source-overlap.yaml
+    review_artifact: "none"
+    remaining_gap: "The algorithm list is typed but three load-bearing private subroutines are unavailable."
+    next_action: "Do not implement parameters; first resolve or accept the O4 quotient obstruction."
+
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: >-
+      For every accepted valid key, every x in X_D and the K returned by
+      Encaps using x, Decaps(sk,PathEval(pk,x))=K, conditional on correct
+      TrapCurveGen_ER, SelectTrap, Seta recovery and canonical encodings.
+    probability_space: >-
+      Key-generation coins, exact uniform x, stored uniform rejection seed z,
+      and the classical random oracle. The honest path never uses z.
+    valid_key_and_message_scope: "Every accepted key and every canonical x in X_D."
+    per_key_or_average_guarantee: "per accepted valid key and per x, conditional perfect correctness"
+    failure_probability_bound: >-
+      Zero conditional error. Unconditionally at most epsilon_KG +
+      epsilon_Select + epsilon_Recovery + epsilon_Encoding, whose individual
+      real-law bounds are not supplied.
+    actual_message_or_key_recovery: >-
+      Seta injectivity and inversion recover the exact x, byte re-encryption
+      accepts, and both parties query H_K on identical (pk,c0,x), recovering
+      the actual encapsulated K.
+    exceptional_inputs:
+      - "Key-generation retries and selector failure lack a tail bound."
+      - "Endpoint-only ciphertexts are outside this theorem."
+      - "Malformed or wrong-key ciphertexts take implicit rejection."
+      - "Exceptional canonical curve models require a fixed grammar."
+    theorem_artifact: "candidate.md Section 3; producer derivation using Seta Lemma 3.1 and Algorithm 1"
+    supporting_test_artifacts: []
+    review_artifact: "none"
+    remaining_gap: "O2 interfaces and unconditional failure bounds are open."
+    next_action: "Independent review must rederive the exact accepted-key statement and its conditions."
+
+  O4:
+    name: functionality_mechanism
+    status: contradicted
+    public_operation: >-
+      The sender evaluates a canonically encoded degree-D nonbacktracking path
+      x, publishing its endpoint and the images of a full public N-torsion
+      basis, then hashes (pk,c0,x).
+    private_operation: >-
+      The recipient obtains theta(P_N),theta(Q_N) from W and uses the Seta
+      kernel-recovery algorithm to recover x, then re-encrypts and hashes.
+    agreement_or_message_binding_lemma: >-
+      N^2>4D makes endpoint plus full N-torsion action injective for the
+      degree-D isogeny family; exact recovery therefore gives equal hash input.
+    extra_recipient_secrets:
+      - "z, the standard uniform HHK implicit-rejection seed"
+      - "(d,e,theta(P_N),theta(Q_N)), whether stored or recomputed from W"
+    recipient_lift:
+      applicability: true
+      inapplicable_reason: "not applicable"
+      interface: "PathRecover_N"
+      inputs: "pk, c0 and Compress_N(W)=(d,e,theta(P_N),theta(Q_N))"
+      output_representation_and_equivalence: "the exact canonical path code x in X_D"
+      uniqueness_or_acceptance_condition: "N^2>4D plus exact byte re-encryption"
+      polynomial_algorithm_and_cost: >-
+        Seta Algorithm 1 is claimed polynomial under smoothness,
+        representability and discriminant conditions; exact candidate-law
+        costs are not supplied.
+      failure_bound: "conditional zero on valid keys; real-law setup/recovery failure unbounded"
+      recovery_of_actual_message_or_key: "Recovered x yields the exact KEM hash input and actual K."
+      identical_public_data_control: >-
+        Replacing W by Compress_N(W) leaves all accepted results unchanged;
+        making that quotient public gives the public the recipient operation.
+    identification_and_transform:
+      applicability: true
+      inapplicable_reason: "not applicable"
+      relation: "R_path(pk,x,c0) iff PathEval(pk,x) is byte-equal to c0"
+      completeness: "conditional on Seta recovery and canonical encodings"
+      soundness_extractor_and_knowledge_error: "not a proof of knowledge; inapplicable"
+      simulator_and_verifier_scope: "HHK classical-ROM plaintext-check simulation only"
+      challenge_space: "uniform X_D"
+      transcript_message_key_and_context_binding: "H_K(version,Hash(pk),c0,x)"
+      transform_theorem_and_hypotheses: "HHK TCC 2017 Theorem 4, delta_1 correctness and OW-PCA"
+    ake_identity_and_session_binding: "not applicable: this is a KEM, not AKE"
+    evidence_artifacts:
+      - candidate.md
+      - source-overlap.yaml
+    review_artifact: "none"
+    remaining_gap: >-
+      The mechanism is not complete-ring necessary. It factors through one
+      endomorphism's finite N-torsion action, a strict witness quotient.
+    next_action: >-
+      Require endpoint-only exact recovery with a full-ring necessity theorem,
+      or a quotient-to-complete-EndRing reduction on the exact law.
+
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions:
+      - security_claim: "classical-ROM IND-CCA2 KEM to OW-PCA_PathPKE"
+        solver_input_distribution: "exact PathPKE key and a uniform path ciphertext"
+        scheme_attacker: "PPT classical-ROM IND-CCA2 adversary B"
+        assumption_problem_solved: OW-PCA_PathPKE
+        challenge_embedding: "HHK U implicit-rejection encapsulates the OW-PCA challenge plaintext/ciphertext"
+        real_key_distribution_argument: "identity only if unavailable TrapCurveGen_ER is the shared sampler"
+        oracle_simulation: >-
+          Lazy-sample H_K; answer decapsulation with a random per-ciphertext key
+          and patch upon a matching confirmed plaintext-check query.
+        extraction: "output x when B queries H_K on the challenge pair (c_star,x)"
+        aborts: "challenge-pair guessing and the finite-space term q_H/|X_D|"
+        advantage_loss_bound: "Adv_IND-CCA(B) <= q_H/|X_D| + Adv_OW-PCA(A)"
+        solver_runtime: "approximately time(B), plus polynomial list and plaintext-check overhead"
+        model: "PPT, classical ROM, one challenge"
+        theorem_artifact: "HHK TCC 2017 Theorem 4; candidate.md Section 2.6"
+        independently_reviewed_artifact: "none"
+      - security_claim: "classical-ROM IND-CCA2 KEM to complete EndRing"
+        solver_input_distribution: "exact complete-EndRing challenge on the real KeyGen curve law"
+        scheme_attacker: "successful complete-view KEM attacker"
+        assumption_problem_solved: "complete saturated evaluable End(E) basis"
+        challenge_embedding: "absent"
+        real_key_distribution_argument: "absent because TrapCurveGen_ER itself is unconstructed"
+        oracle_simulation: "absent"
+        extraction: "absent; a recovered path or Compress_N action is not a complete ring"
+        aborts: "unquantified"
+        advantage_loss_bound: "none"
+        solver_runtime: "none"
+        model: "no classical or quantum theorem"
+        theorem_artifact: "none"
+        independently_reviewed_artifact: "none"
+    intermediate_assumptions:
+      - name: OW-PCA_PathPKE
+        game_and_distribution: >-
+          Recover uniform x from endpoint plus both torsion images under the
+          exact real key law, with the HHK plaintext-checking interface.
+        relation_to_endring: >-
+          A full ring may supply an attack route by deriving a trap action, but
+          no reverse extraction to a full ring is established. This assumption
+          is TCSSI/path typed and is not relabeled EndRing.
+        status: "named but unproved"
+    multiple_assumption_dependency: >-
+      The conditional active-security theorem needs OW-PCA_PathPKE, correct
+      polynomial interfaces and the classical ROM. No implication from bare
+      EndRing hardness is available.
+    classical_quantum_and_rewinding_scope: >-
+      Classical PPT and classical random-oracle queries only. There is no
+      rewinding and no QPT/QROM or post-quantum theorem in this candidate.
+    evidence_artifacts:
+      - candidate.md
+      - source-overlap.yaml
+    review_artifact: "none"
+    remaining_gap: "Every EndRing challenge-embedding, simulation and complete-ring extraction step is absent."
+    next_action: "Do not infer EndRing security from the HHK-to-path theorem or the reverse attack route."
+
+  O6:
+    name: complete_adversarial_view
+    status: open
+    public_disclosures:
+      - "p, F_(p^2) and curve/model encodings"
+      - "D,N, their factorizations and every canonical path-order rule"
+      - "E,P_N,Q_N and all validation algorithms"
+      - "each ciphertext endpoint and both images of the full N-torsion basis"
+      - "H_K domains, exact public-key/ciphertext bytes and repeated encapsulations"
+      - "all public pairings or auxiliary algorithms included by parameters"
+    allowed_oracles_and_query_history: >-
+      Adaptive classical H_K and decapsulation before and after challenge;
+      only the exact challenge ciphertext bytes are excluded. Query histories
+      may contain repeated, related, wrong-key and malformed values.
+    validation_rejection_and_failure_observables: >-
+      The mathematical interface always returns kappa bits. Invalid parse,
+      validation, recovery or byte re-encryption selects H_K(context,c,z).
+      Timing, memory access, fault and power observables are excluded and untested.
+    malformed_inputs_and_alternate_encodings: >-
+      Noncanonical fields, curves, points, infinity, wrong-order torsion,
+      dependent bases, wrong key hashes, truncation and trailing bytes all take
+      implicit rejection. Alternate encodings are never identified after parsing.
+    repeated_use_and_collision_analysis: >-
+      Fresh x is sampled exactly uniformly. Repeated x repeats c0 and K for a
+      fixed random oracle. Endpoint collisions alone are insufficient for
+      equality; a full binding collision contradicts Seta injectivity under
+      its conditions. Multi-user collision bounds are not analyzed.
+    side_channel_scope_and_exclusions: >-
+      No constant-time, fault-resistance, cache, power, electromagnetic,
+      allocator, parser-denial-of-service or erasure claim.
+    public_data_and_known_false_controls:
+      - "endpoint-only ciphertext: uniqueness/recovery unavailable"
+      - "Compress_N(W) quotient: identical accepted decapsulation"
+      - "public Compress_N(W): public path recovery"
+      - "different full-ring bases with the same torsion action: indistinguishable behavior"
+      - "immediate dual/backtrack: scalar negative control"
+      - "EndRing-solver-to-decryptor: reverse-arrow control"
+      - "finite lookup table implementing the quotient: proves-too-much control"
+    concrete_parameter_security: "none; no parameters, estimates, implementation or measurements"
+    asymptotic_to_concrete_limitations: >-
+      Smoothness, torsion field degree, order-to-curve translation, full-ring
+      evaluator sizes, recovery memory, rejection timing and HHK finite-space
+      loss are not instantiated.
+    evidence_artifacts:
+      - candidate.md
+      - source-overlap.yaml
+    review_artifact: "none"
+    remaining_gap: "Concrete grammar, implementation observables, multi-user and quantum views remain unanalyzed."
+    next_action: "Independent J1/J3/J4/J5 review under the frozen review plan."
+
+assessment:
+  verdict: scoped_obstruction
+  finite_functionality_status: >-
+    conditionally defined and already represented by the Seta finite-torsion
+    trapdoor family; endpoint-only functionality is unresolved
+  efficient_functionality_status: >-
+    open for the required complete-ring sampler/selector; polynomial for the
+    smaller Seta quotient under its stated conditions
+  security_status: >-
+    conditional HHK theorem to OW-PCA_PathPKE only; no EndRing security claim
+  named_conditions:
+    - "smooth coprime D,N and efficiently representable torsion"
+    - "N>D^2 and N^2>4D"
+    - "Seta discriminant nonresidue and recovery conditions"
+    - "exact TrapCurveGen_ER distribution and complete evaluator representation"
+    - "classical ROM and uniform X_D"
+  open_obligations: [O1, O2, O5, O6]
+  obstruction:
+    affected_obligation: O4
+    exact_family_and_parameter_scope: >-
+      Prescribed-degree nonbacktracking supersingular path KEMs whose binding
+      and inversion are instantiated by endpoint plus two full N-torsion
+      images and the Seta M=1 recovery mechanism.
+    counterexample_or_argument_artifact: >-
+      candidate.md Section 4 and Seta Section 2.4: the finite quotient
+      (d,e,theta(P_N),theta(Q_N)) reproduces all accepted decapsulation.
+    what_remains_open: >-
+      Endpoint-only or other prescribed-path mechanisms with a proved
+      complete-ring-necessary recovery interface, and every differently typed
+      EndRing PKE construction.
+  independent_review_artifacts: []
+  next_action: >-
+    Freeze this packet and independently review the quotient argument,
+    conditional HHK syntax, source boundaries and O1--O6 statuses. Do not
+    implement or label secure.
+  official_state_transition_record: "none; Coordinator authority only"
+
+citations:
+  - source: "Seta, ASIACRYPT 2021 / HAL hal-03471926v1"
+    section: "Sections 2.4, 3.1--3.5, 4.2 and Appendix B"
+    provenance: retrieved
+    verified_by: "idea-generator TASK-20261013-613c4e"
+    inspected_scope: "trapdoor quotient, path map, injectivity, inversion, PKE and OAEP claim"
+  - source: "Hofheinz--Hovelmanns--Kiltz, TCC 2017"
+    section: "Sections 2.2 and 3.1--3.3, especially Theorem 4"
+    provenance: retrieved
+    verified_by: "idea-generator TASK-20261013-613c4e"
+    inspected_scope: "classical-ROM implicit rejection syntax, game, hypotheses and bound"
+  - source: "Page--Wesolowski, EUROCRYPT 2024 version of record"
+    section: "Section 8.3, Proposition 8.4 and Theorem 8.5"
+    provenance: internal
+    verified_by: "idea-generator TASK-20261013-613c4e from the repository primary-text extract"
+    inspected_scope: "Isogeny/EndRing directions, GRH scope and non-prescribed output"
+  - source: "Moriya--Onuki--Takagi, SiGamal, ASIACRYPT 2020"
+    section: "Sections 3.2--3.3 and 4.1--4.2"
+    provenance: retrieved
+    verified_by: "idea-generator TASK-20261013-613c4e"
+    inspected_scope: "public action, P-CSSDDH scope and explicit CCA malleability"
+  - source: "Eaton--Jao--Komlo--Mokrani, SAC 2021"
+    section: "Sections 2.1, 4--6"
+    provenance: retrieved
+    verified_by: "idea-generator TASK-20261013-613c4e"
+    inspected_scope: "supersingular UPKE public/update operations and auxiliary torsion"
+  - source: "LIT-SiGamal, ePrint 2024/521"
+    section: "landing-page abstract only; full text retrieval impeded"
+    provenance: retrieved
+    verified_by: "idea-generator TASK-20261013-613c4e"
+    inspected_scope: "abstract-level commutative LIT-diagram comparison only"

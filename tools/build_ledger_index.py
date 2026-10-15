@@ -33,6 +33,11 @@ from typing import Any, Iterable
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 REPO = Path(__file__).resolve().parents[1]
@@ -140,7 +145,7 @@ def iter_records(repo_root: Path, kind: str) -> Iterable[tuple[Path, dict[str, A
     for path in sorted(repo_root.glob(pattern)):
         raw = path.read_bytes()
         try:
-            doc = yaml.safe_load(raw)
+            doc = fast_yaml.safe_load(raw)
         except yaml.YAMLError as error:
             yield path, None, len(raw), f"unparseable: {str(error).splitlines()[0]}"
             continue
