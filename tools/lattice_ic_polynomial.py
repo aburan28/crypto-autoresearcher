@@ -169,48 +169,115 @@ def _matmul(A, B):
 
 
 def _integer_row_hnf(rows, counter):
-    """Unimodular Euclidean elimination, canonical HNF, two-way Z-membership.
+    """Canonical row HNF with bounded tracking and exact two-way witnesses.
 
-    Rational row independence is never used to discard an integral generator.
+    Positive column contents are removed before arithmetic and restored at the
+    end; diagonal column scaling preserves the canonical rightmost-pivot HNF.
+    ALL generators are expressed in that basis. An independent subset of these
+    coordinates is used only as an auxiliary finite-index sublattice T, never
+    as a replacement for the original lattice. If d=abs(det(T)), d*Z^rank is
+    contained in T. Cohen's right-to-left HNF operations can therefore track
+    coefficients modulo d, then correct their residual using d*T^-1. Tracker
+    entries stay in [0,d), instead of growing with successive Euclidean steps.
+    This is an exact certificate construction, with no new arithmetic cap.
     """
     sp, _ = dependencies()
     from sympy.matrices.normalforms import hermite_normal_form
-    original, M = [list(row) for row in rows], [list(row) for row in rows]
-    count, D = len(M), len(M[0])
-    U = [[int(i == j) for j in range(count)] for i in range(count)]
-    rank = 0
-    for column in range(D):
-        pivot = next((i for i in range(rank, count) if M[i][column]), None)
-        if pivot is None:
-            continue
-        M[rank], M[pivot], U[rank], U[pivot] = M[pivot], M[rank], U[pivot], U[rank]
-        for i in range(rank+1, count):
-            if not M[i][column]:
-                continue
-            counter.inc("hnf.unimodular_euclid_step")
-            a, b = M[rank][column], M[i][column]
-            g, s, t = _egcd(a, b)
-            R, S, u, v = M[rank], M[i], U[rank], U[i]
-            M[rank] = [s*x+t*y for x, y in zip(R, S)]
-            M[i] = [(-b//g)*x+(a//g)*y for x, y in zip(R, S)]
-            U[rank] = [s*x+t*y for x, y in zip(u, v)]
-            U[i] = [(-b//g)*x+(a//g)*y for x, y in zip(u, v)]
-        if M[rank][column] < 0:
-            M[rank], U[rank] = [-x for x in M[rank]], [-x for x in U[rank]]
-        rank += 1
-        if rank == count:
-            break
-    forward, forward_U = M[:rank], U[:rank]
-    require(all(not any(row) for row in M[rank:]), "incomplete exact elimination")
+    from sympy.polys.matrices import DomainMatrix
+    original = [list(row) for row in rows]
+    require(original and original[0] and all(len(row) == len(original[0]) for row in original),
+            "nonempty rectangular integer generators required")
+    require(all(type(x) is int for row in original for x in row), "noninteger generator")
+    count, width = len(original), len(original[0])
+    contents = [math.gcd(*(row[j] for row in original)) or 1 for j in range(width)]
+    normalized = [[x//g for x, g in zip(row, contents)] for row in original]
+    counter.inc("hnf.column_content", count*width)
     counter.inc("hnf.sympy_call")
-    H = [[int(x) for x in row] for row in hermite_normal_form(sp.Matrix(original).T).T.tolist()]
-    require(len(H) == rank, "HNF rank discrepancy")
-    H_from_forward = [_coordinates(row, forward) for row in H]
-    H_from_original = _matmul(H_from_forward, forward_U)
-    original_from_H = [_coordinates(row, H, rightmost=True) for row in original]
-    require(_matmul(H_from_original, original) == H and _matmul(original_from_H, H) == original,
-             "two-way HNF membership failed")
-    return H, H_from_original, original_from_H
+    H0 = [[int(x) for x in row] for row in hermite_normal_form(sp.Matrix(normalized).T).T.tolist()]
+    rank = len(H0)
+    if not rank:
+        require(not any(x for row in original for x in row), "zero HNF mismatch")
+        return [], [], [[] for row in original]
+    coordinates = [_coordinates(row, H0, rightmost=True) for row in normalized]
+    # Fraction-free rank selection is auxiliary ONLY: the subsequent transform
+    # still includes every row in coordinates, including dependent generators.
+    counter.inc("hnf.auxiliary_fraction_free_selection")
+    _, _, selected = DomainMatrix.from_Matrix(sp.Matrix(coordinates).T).rref_den(method="FF")
+    require(len(selected) == rank, "auxiliary full-rank sublattice missing")
+    T = sp.Matrix([coordinates[i] for i in selected])
+    counter.inc("hnf.auxiliary_inverse")
+    numerator, denominator = DomainMatrix.from_Matrix(T).inv_den(method="rref")
+    denominator = int(denominator)
+    d = abs(int(T.det(method="domain-ge")))
+    require(d and denominator and d % denominator == 0, "nonintegral auxiliary adjugate")
+    correction_basis = [[int(x)*(d//denominator) for x in row] for row in numerator.to_Matrix().tolist()]
+    require(_matmul(correction_basis, T.tolist()) == [[d*int(i == j) for j in range(rank)] for i in range(rank)],
+            "auxiliary inverse certificate failed")
+
+    coefficients = [[0]*count for _ in range(rank)]
+    if d != 1:
+        M = [row[:] for row in coordinates]
+        tracking = [{i: 1} for i in range(count)]
+
+        def combine(a, u, b, v):
+            # Sparse support avoids allocating a dense count-by-count identity.
+            result = {}
+            for key in u.keys() | v.keys():
+                value = (a*u.get(key, 0)+b*v.get(key, 0)) % d
+                if value:
+                    result[key] = value
+            counter.inc("hnf.modular_coefficient", len(u.keys() | v.keys()))
+            return result
+
+        k = count
+        for column in range(rank-1, -1, -1):
+            k -= 1
+            for j in range(k-1, -1, -1):
+                if not M[j][column]:
+                    continue
+                a, b = M[k][column], M[j][column]
+                g, u, v = _egcd(a, b)
+                # The small Bezout choice is essential when a divides b.
+                if a and b % a == 0:
+                    g, u, v = abs(a), (1 if a > 0 else -1), 0
+                R, S, U, V = M[k], M[j], tracking[k], tracking[j]
+                M[k] = [u*x+v*y for x, y in zip(R, S)]
+                M[j] = [(-b//g)*x+(a//g)*y for x, y in zip(R, S)]
+                tracking[k] = combine(u, U, v, V)
+                tracking[j] = combine(-b//g, U, a//g, V) if any(M[j]) else {}
+                counter.inc("hnf.unimodular_euclid_step")
+            pivot = M[k][column]
+            if pivot < 0:
+                M[k] = [-x for x in M[k]]
+                tracking[k] = combine(-1, tracking[k], 0, {})
+                pivot = -pivot
+            require(pivot, "coordinate lattice lost rank")
+            for j in range(k+1, count):
+                quotient = M[j][column]//pivot
+                if quotient:
+                    M[j] = [x-quotient*y for x, y in zip(M[j], M[k])]
+                    tracking[j] = combine(1, tracking[j], -quotient, tracking[k])
+                    counter.inc("hnf.remainder_row_step")
+        identity = [[int(i == j) for j in range(rank)] for i in range(rank)]
+        require(M[k:] == identity and all(not any(row) for row in M[:k]),
+                "all-generator coordinate lattice is not primitive")
+        for i, row in enumerate(tracking[k:]):
+            for j, value in row.items():
+                coefficients[i][j] = value
+
+    image = _matmul(coefficients, coordinates)
+    residual = [[int(i == j)-image[i][j] for j in range(rank)] for i in range(rank)]
+    require(all(x % d == 0 for row in residual for x in row), "modular transform residual")
+    correction = _matmul([[x//d for x in row] for row in residual], correction_basis)
+    for i, row in enumerate(correction):
+        for j, value in zip(selected, row):
+            coefficients[i][j] += value
+    require(_matmul(coefficients, coordinates) == [[int(i == j) for j in range(rank)] for i in range(rank)],
+            "exact coordinate retraction failed")
+    H = [[x*g for x, g in zip(row, contents)] for row in H0]
+    require(_matmul(coefficients, original) == H and _matmul(coordinates, H) == original,
+            "two-way HNF membership failed")
+    return H, coefficients, coordinates
 
 
 def _gram_determinant(basis):
