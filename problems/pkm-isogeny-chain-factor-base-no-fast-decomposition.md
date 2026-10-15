@@ -23,16 +23,16 @@ no F_p-isogeny carries E0's group structure to P-256's addition law.
 
 ## Evidence and uncertainty
 
-- **Observed:** EXP-ECDLP-f49f75 (RUN-ECDLP-f49f75-01/-02; RUN-03 pending, Singular 4.3.2
+- **Observed:** EXP-ECDLP-f49f75 (RUN-ECDLP-f49f75-01/-02/-03, validated by VAL-20261015-1c3bff, Singular 4.3.2
   std/slimgb + fglm, 600 s timeout, 6 instances per cell). At every jointly
-  completed cell (m = 2, L = 3..7; m = 3, L = 3, 4; m = 2, L = 8..11 re-running as RUN-03 under AMD-02) the chain encoding is
+  completed cell (m = 2, L = 3..8; m = 3, L = 3, 4) the chain encoding is
   slower than the dense encoding of the same x-set, and the gap grows with L
-  (std: 2x at m = 2, L = 3 to 287x at L = 7; 35x at m = 3, L = 4). The chain arm
+  (std: 2x at m = 2, L = 3 to 654x at L = 8; 35x at m = 3, L = 4). The chain arm
   times out on every instance at m = 3, L = 5 while the dense same-set and
   random-set arms complete. Dense same-set and random-set costs are
   indistinguishable: the set's isogeny origin is invisible to the solver.
   Meet-in-the-middle enumeration is orders of magnitude cheaper than every
-  Groebner arm at every cell. See the review report under
+  Groebner arm at every cell. See the review report (DEC-20261015-a08389, EV-ECDLP-6bdff6) under
   `experiments/EXP-ECDLP-f49f75/reports/`.
 - **Derived or proved:** the fibre equals x(R + <K>), |fibre| = 2^L
   (verified by assertion in the launcher at every instance). Generic-group
@@ -79,3 +79,4 @@ linear algebra and S_7 construction remain).
 ## Resolution and history
 
 - 2026-10-15: opened from EXP-ECDLP-f49f75. Unresolved.
+- 2026-10-15: DEC-20261015-a08389 rejects H-ECDLP-60de36 (scoped: toy, m <= 3, Singular). Problem stays open. Unresolved.
