@@ -2,6 +2,7 @@
 import copy
 import io
 import json
+import random
 import sys
 from contextlib import redirect_stdout
 from itertools import product
@@ -118,6 +119,83 @@ class IntegerLatticeSoftwareTests(unittest.TestCase):
         self.assertEqual(large_gram["gram_determinant"], 25*(1 << 20000))
         self.assertGreater(len(str(large_gram["gram_determinant"])), 4300)
         m.check_lattice(json.loads(json.dumps(large_gram)))
+
+
+class HNFRepairSoftwareTests(unittest.TestCase):
+    """Invented integer inputs only; these are not frozen study matrices."""
+
+    def assertExactHNF(self, rows):
+        from sympy.matrices.normalforms import hermite_normal_form
+        counter = m.Counter()
+        H, C, D = m._integer_row_hnf(rows, counter)
+        expected = hermite_normal_form(sp.Matrix(rows).T).T
+        self.assertEqual(H, expected.tolist())
+        self.assertEqual(sp.Matrix(len(H), len(rows), lambda i, j: C[i][j])*sp.Matrix(rows), expected)
+        self.assertEqual(sp.Matrix(len(rows), len(H), lambda i, j: D[i][j])*expected, sp.Matrix(rows))
+        self.assertTrue(all(type(x) is int for matrix in (H, C, D) for row in matrix for x in row))
+        self.assertEqual(counter.snapshot()["operations"]["hnf.sympy_call"], 1)
+        return H, C, D, counter
+
+    def test_finite_index_requires_dependent_generators_and_exact_correction(self):
+        rows = [[10, 0], [0, 10], [15, 0], [0, 15], [0, 0], [-20, -30]]
+        H, C, D, counter = self.assertExactHNF(rows)
+        self.assertEqual(H, [[5, 0], [0, 5]])
+        self.assertGreater(counter.snapshot()["operations"]["hnf.modular_coefficient"], 0)
+        self.assertTrue(any(x < 0 for row in C for x in row))
+        # Keeping only the first independent rows would give 10*Z^2.
+        self.assertNotEqual(H, rows[:2])
+        bad_C, bad_D = copy.deepcopy(C), copy.deepcopy(D)
+        bad_C[0][0] += 1
+        bad_D[0][0] += 1
+        self.assertNotEqual(m._matmul(bad_C, rows), H)
+        self.assertNotEqual(m._matmul(bad_D, H), rows)
+
+    def test_row_permutations_redundancy_and_negative_zero_rows(self):
+        rows = [[0, 0, 0, 0], [-10, 0, -15, 0], [0, 14, 0, 21],
+                [15, 0, 20, 0], [0, -21, 0, -28], [5, 14, 5, 21]]
+        H, _, _, _ = self.assertExactHNF(rows)
+        augmented = rows+[[sum(row[j] for row in rows) for j in range(4)], rows[1][:]]
+        rng = random.Random(1729)
+        for _ in range(6):
+            rng.shuffle(augmented)
+            self.assertEqual(self.assertExactHNF(augmented)[0], H)
+        self.assertExactHNF([[0]*4 for _ in range(7)])
+
+    def test_seeded_rectangular_rank_deficient_integer_matrices(self):
+        rng = random.Random(2718)
+        for width in range(1, 6):
+            for count in range(1, 9):
+                rows = [[rng.randrange(-11, 12) for _ in range(width)] for _ in range(count)]
+                if width > 2:
+                    for row in rows:
+                        row[-1] = 5*row[0]-7*row[1]
+                with self.subTest(width=width, count=count):
+                    self.assertExactHNF(rows)
+
+    def test_structured_weighted_coefficient_growth_regression(self):
+        # 160 generators in dimension 40, with up to 313-bit column weights and a
+        # large auxiliary finite index. All rows remain in the certificate.
+        # This stresses tracking, not a scientific polynomial/curve fixture.
+        n, prime_power = 40, 5**4
+        rows = [[prime_power*int(i == j) for j in range(n)] for i in range(n)]
+        rows += [[7*int(i == j)+11*int(j == (i+1) % n) for j in range(n)] for i in range(n)]
+        rows += [[7*int(i == j) for j in range(n)] for i in range(n)]
+        rows += [[5*rows[i][j]-11*rows[n+i][j]+7*rows[2*n+i][j] for j in range(n)] for i in range(n)]
+        weights = [2**(8*j)*3**(j % 3) for j in range(n)]
+        weighted = [[x*w for x, w in zip(row, weights)] for row in rows]
+        H, C, D, counter = self.assertExactHNF(weighted)
+        self.assertEqual(H, [[weights[j]*int(i == j) for j in range(n)] for i in range(n)])
+        self.assertEqual((len(C), len(C[0]), len(D), len(D[0])), (n, 4*n, 4*n, n))
+        self.assertGreater(counter.snapshot()["operations"]["hnf.modular_coefficient"], n*n)
+
+    def test_two_way_checker_rejects_reverse_witness_mutation(self):
+        x, y = sp.symbols("x y")
+        lattice = m.build_shift_lattice([5*x+7*y+11], (x, y), 7, (2, 3), 2, 1, "dense")
+        m.check_lattice(lattice)
+        bad = copy.deepcopy(lattice)
+        bad["membership"]["rows_from_basis"][0][0] += 1
+        with self.assertRaisesRegex(ValueError, "both directions"):
+            m.check_lattice(bad)
 
 
 class ExtractionSoftwareTests(unittest.TestCase):
