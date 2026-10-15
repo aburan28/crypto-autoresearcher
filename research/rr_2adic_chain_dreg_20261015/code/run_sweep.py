@@ -1,6 +1,7 @@
 """Sweep k for the six-point Riemann-Roch / 2-adic-chain system and record F4 degrees.
 
-Usage: python3 run_sweep.py OUTDIR SAGE_PYTHON MSOLVE TIMEOUT_S JOBS
+Usage: python3 run_sweep.py OUTDIR SAGE_PYTHON MSOLVE TIMEOUT_S JOBS [GRID_JSON]
+GRID_JSON (optional) overrides the grid: {"ks": {"circuit": [4, 5]}, "arms": [...], "insts": [...], "seeds": [...]}
 Appends one JSON line per (arm, k, encoding, instance, seed) to OUTDIR/results.jsonl
 and keeps every msolve input and log under OUTDIR/runs/.
 """
@@ -67,6 +68,9 @@ def one(args):
     rec['status'] = status
     rec['f4_degrees'] = [s[0] for s in steps]
     rec['dmax'] = max(rec['f4_degrees']) if steps else None
+    # a step whose pairs were selected but whose matrix never finished (killed or timed out)
+    pend = [int(m.group(1)) for m in re.finditer(r'^\s*(\d+)\s+(\d+)\s+(\d+)\s*$', log, re.M)]
+    rec['deg_entered_at_stop'] = pend[-1] if (pend and status != 'ok') else None
     rec['max_matrix'] = max(((s[3], s[4]) for s in steps), key=lambda t: t[0] * t[1]) if steps else None
     rec['outcome'], rec['n_solutions'] = outcome(base + '.out') if status == 'ok' else (None, None)
     return rec
@@ -74,14 +78,20 @@ def one(args):
 def main():
     outdir, sage_py, msolve, timeout, jobs = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
     os.makedirs(os.path.join(outdir, 'runs'), exist_ok=True)
+    global KS, SEEDS, INSTS
+    arms = list(PRIMES)
+    if len(sys.argv) > 6:
+        g = json.loads(sys.argv[6])
+        KS = {e: list(v) for e, v in g.get('ks', KS).items()}
+        arms = g.get('arms', arms); INSTS = g.get('insts', INSTS); SEEDS = g.get('seeds', SEEDS)
     dead = set()  # (arm, enc) whose every run at the previous k timed out
     with open(os.path.join(outdir, 'results.jsonl'), 'a') as fh, ThreadPoolExecutor(jobs) as ex:
-        for k in range(3, 11):
+        for k in sorted({k for v in KS.values() for k in v}):
             tasks, skipped = [], []
             for enc in ['circuit', 'direct']:
-                if k not in KS[enc]:
+                if k not in KS.get(enc, ()):
                     continue
-                for arm in PRIMES:
+                for arm in arms:
                     for inst in INSTS:
                         for seed in SEEDS:
                             t = (outdir, sage_py, msolve, timeout, arm, enc, k, inst, seed)
