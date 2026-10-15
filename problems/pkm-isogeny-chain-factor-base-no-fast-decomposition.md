@@ -4,7 +4,7 @@
 - **Kind:** empirical bottleneck; missing algorithm (no known solver exploits the chain); proof gap (no degree-of-regularity bound)
 - **Affected work:** [EXP-ECDLP-f49f75](../experiments/EXP-ECDLP-f49f75/specification.yaml), [H-ECDLP-60de36](../ledger/hypotheses/H-ECDLP-60de36.yaml), GOAL-ECDLP-001, RQ-ECDLP-001
 - **Next action owner:** unassigned (Coordinator to rank against GOAL-ECDLP-001 work)
-- **Last updated:** 2026-10-15
+- **Last updated:** 2026-10-15 (EXP-ECDLP-502ae2, msolve)
 
 ## Problem
 
@@ -41,8 +41,10 @@ no F_p-isogeny carries E0's group structure to P-256's addition law.
   raise the number of variables from m to m*L without lowering the
   degree of regularity, so Buchberger/F4-type solving pays for the extra
   variables; nothing in the chain interacts with Semaev's S_{m+1}.
-- **Missing capability:** an F4/F5 solver (msolve, Magma) was not available in
-  the container; only Singular std/slimgb were run. m >= 4 and the P-256
+- **Missing capability:** msolve 0.6.5 (F4) is now tested (EXP-ECDLP-502ae2,
+  EV-ECDLP-7e970a): same direction, chain slower (basis step 8x to >79x at
+  m = 3, L = 3..5) despite a lower maximum F4 degree. Magma and other F4/F5
+  implementations, and block/elimination orders, remain untested. m >= 4 and the P-256
   parameters (m = 6, L = 44) are far beyond any arm here.
 - **What this evidence does not establish:** that no solver or no different
   modelling of the chain (e.g. Weil-descent-style, SAT, or a hybrid) can
@@ -64,19 +66,21 @@ linear algebra and S_7 construction remain).
 
 ## Next discriminating step
 
-- **Action or proof obligation:** repeat the m = 3 grid with an F4 solver
-  (msolve) and record first-fall / regularity degrees, to rule out
-  instrument dependence.
+- **Action or proof obligation:** (done 2026-10-15: F4/msolve grid, negative.)
+  Next: solve the chain arm with a block order that eliminates the chain
+  variables first (msolve -e, or Singular block orders), exploiting the
+  triangular shape; or prove an L-independent degree-of-regularity bound.
 - **Inputs and controls:** amendments/trial-plan-run02.json seeds; arms A, B, C,
   E; planted control.
 - **Execution limits and stop condition:** same 600 s timeout and stopping rule.
 - **Outcomes and next actions:** chain still slower -> close this route for
   GOAL-ECDLP-001; chain faster -> scale to m = 4 with a medium-tier protocol;
   instrument failure -> record, not evidence.
-- **Recheck trigger:** msolve or Magma becomes available in the environment, or
-  a new modelling of the chain constraints is proposed.
+- **Recheck trigger:** a block-order or other modelling of the chain
+  constraints is proposed, or Magma becomes available.
 
 ## Resolution and history
 
 - 2026-10-15: opened from EXP-ECDLP-f49f75. Unresolved.
 - 2026-10-15: DEC-20261015-a08389 rejects H-ECDLP-60de36 (scoped: toy, m <= 3, Singular). Problem stays open. Unresolved.
+- 2026-10-15: EXP-ECDLP-502ae2 (msolve F4, m = 3) replicates the negative result; DEC-20261015-ab6f23 widens the scoped rejection. Unresolved.
