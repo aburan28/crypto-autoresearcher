@@ -1,0 +1,220 @@
+validation_report:
+  id: VAL-20261015-1c3bff
+  task_id: null  # task card carried no TASK id; caller-dispatched validation of EXP-ECDLP-f49f75
+  experiment_id: EXP-ECDLP-f49f75
+  hypothesis_id: H-ECDLP-60de36
+  run_ids: [RUN-ECDLP-f49f75-01, RUN-ECDLP-f49f75-02, RUN-ECDLP-f49f75-03]
+  snapshot:
+    branch: claude/p256-ecdlp-factor-base-wq59m1
+    validated_commit: d72af7cae29189e5a8066017145d4f52e8e0210f
+    head_at_report_time: 21178ea64c6d252ece6b780ef6773539fae5b515
+    note: >-
+      6b084f349b and 21178ea64c (report-only) landed during validation; git diff d72af7c..21178ea over
+      runs/, specification.yaml, amendments/, trial-plan.json, pkm_isogeny_fb.py, analyze.py and the
+      hypothesis is empty. Tracked files clean vs HEAD.
+  artifact_checks:
+    - check: run directories present and committed
+      result: pass
+      evidence: >-
+        RUN-01 (54 rows, 9 cells m=2 L=3..11), RUN-02 (18 rows, m=3 L=3..5), RUN-03 (24 rows, m=2 L=8..11);
+        each has command.txt, environment.json, started_at, finished_at, raw-result.jsonl, stdout.log, stderr.log (empty);
+        RUN-01/02 have termination.txt (host 7200 s kill); RUN-03 exited 0.
+    - check: manifest.json per run (specification.yaml required_artifacts)
+      result: fail
+      evidence: absent in all three runs; no execution-receipt.json; no recorded hashes anywhere
+    - check: dirty-tree state recorded
+      result: fail
+      evidence: >-
+        environment.json records git_head only. Reconstructed: RUN-01 launcher=HEAD 378abed; RUN-02 launcher=b9ddeef
+        (blob identical to 378abed), working-tree launcher modified 07:00:50 after start (fork start method keeps
+        loaded code); RUN-03 launcher=41a38de=HEAD (sha256 df4dc941...).
+    - check: command and revision consistency
+      result: pass
+      evidence: >-
+        command.txt equals the plan's command for each run; git_head 378abed / b9ddeef / 41a38de precede each
+        started_at (04:59:12 / 06:59:54 / 09:00:25); spec and trial-plan.json unchanged since 378abed.
+    - check: environment
+      result: pass_with_gap
+      evidence: Python 3.13.16, Singular 4.3.2 (4330, 64 bit) identical in all runs; sympy version, CPU model, RAM not recorded
+    - check: seeds and primes
+      result: pass
+      evidence: 96/96 rows recompute seed=sha256('EXP-ECDLP-f49f75/v1|m|L|inst')[:12] and p (independent trial division); 0 mismatches
+    - check: coverage vs frozen trial plan
+      result: concern
+      evidence: m=2 L=12 deferred by AMD-01; m=3 L=6 killed by host limit with no amendment (immaterial to both criteria)
+    - check: required reports
+      result: concern
+      evidence: >-
+        reports/run-20261015T0459Z/{report.typ,report.pdf,cost-vs-L.svg,cost-vs-L.png} committed in 6b084f3 after
+        validation began; spec names reports/report.md. Not opened by the Validator.
+    - check: amendment discipline (commit order)
+      result: pass
+      evidence: >-
+        AMD-01 commit 06:59:44 < RUN-02 start 06:59:54; AMD-02 commit 07:01:14 < RUN-03 start 09:00:25;
+        analyze.py exclusion commit 09:01:34 precedes any RUN-03 row (first cell ~6.5 min).
+    - check: amendment record accuracy
+      result: concern
+      evidence: >-
+        AMD-01 filed '07:05Z' and AMD-02 filed '07:20Z' are later than the commits containing them (06:59:44, 07:01:14);
+        RUN-02 termination.txt places 4 fix-verification solves at 07:15-07:20Z overlapping m=3 L=3, but L=3 ended
+        ~06:59:58-07:00:00 and the fixed launcher was first compiled 07:00:50 (pyc header: source mtime 07:00:50, size 14871).
+        Fix verification left no artifact. Amendments carry no approved_by.
+    - check: AMD-02 exclusion vs analyze.py
+      result: pass_with_note
+      evidence: >-
+        Groebner exclusion exact (120 results: L8 36, L9 36, L10 24, L11 24; L>=8 == L=8..11 as RUN-01 has no L=12 rows).
+        analyze.py additionally drops 24 RUN-01 arm-E results that AMD-02 calls unaffected; immaterial because RUN-03 E
+        reproduces them on all deterministic fields (24/24).
+  metric_recomputations:
+    - name: criterion 1, A vs B median (std_ms+fglm_ms), jointly completed cells
+      script: experiments/EXP-ECDLP-f49f75/reports/validation-20261015/scripts/recompute.py (written before reading analyze.py)
+      std: {jointly_completed_cells: 8, A_below_B: 0, A_at_or_above_B_fraction: 1.0, strictly_above: 8}
+      slimgb: {jointly_completed_cells: 8, A_below_B: 0, A_at_or_above_B_fraction: 1.0, strictly_above: 7, tie_at_1ms: m2L3}
+      cells: [m2L3, m2L4, m2L5, m2L6, m2L7, m2L8, m3L3, m3L4]
+      A_over_B_std: {m2L4: 9.5, m2L5: 34.25, m2L6: 103.2, m2L7: 287.0, m2L8: 654.3, m3L3: 5.57, m3L4: 34.9, m2L3: "2 ms vs 0 ms"}
+      A_over_B_slimgb: {m2L3: 1.0, m2L4: 5.5, m2L5: 6.6, m2L6: 13.1, m2L7: 32.9, m2L8: 146.1, m3L3: 17.9, m3L4: 33.9}
+      robustness: cells with B median >= 10 ms give std 4/4, slimgb 5/5 A>B; planted-only std 7/7, slimgb 8/8; re-run 16/16 A>=B
+    - name: criterion 2, m=3 retirement
+      A: {completed_L: [3, 4], retired_at_L: 5, timeouts: 12/12, timeout_wall_s: [600.07, 600.12]}
+      B: {completed_L: [3, 4, 5], retired_at_L: null, note: L=6 killed by host limit, no rows}
+      C: {completed_L: [3, 4, 5], retired_at_L: null, note: L=6 killed by host limit, no rows}
+    - name: frozen criteria outcome (observation, not a status decision)
+      success_criterion_met: false
+      falsification_criterion_met: true
+      falsification_disjuncts: {A_at_or_above_B_ge_80pct_both_solvers: true, m3_A_retired_no_later_than_B_and_C: true}
+    - name: independent re-execution (HEAD launcher, idle host, same seeds)
+      cells: [m2L3, m2L4, m2L5, m2L6, m2L7, m2L8, m3L3, m3L4]
+      deterministic_fields_compared: 2656
+      mismatches: 0
+      timing_ratio_rerun_over_recorded: >-
+        m3L3 0.95-1.15; m3L4 0.89-0.99; m2L8 (RUN-03) 0.95-1.15; RUN-01 cells >=30 ms 0.94-1.10 except m2L7 B std 0.73
+        and A slimgb 0.81
+  control_checks:
+    - name: positive control (planted decomposition in Groebner variety)
+      result: pass
+      evidence: 248/248 non-excluded planted ok Groebner results true (A 31+31, B 47+47, C 46+46); 0 random-target rows carry the flag
+      note: 3 degenerate planted targets (m2L3 inst1 A/B/E, m2L3 inst2 C, m2L4 inst0 C) not resampled
+    - name: positive control fired on the defect
+      result: pass
+      evidence: RUN-01 m=2 L=8..11 planted true fell to A 2/4, B 2/4, C 3/4 (L8); B 1/4, C 0/4 (L9); 0/4 (L10, L11)
+    - name: negative/null control (arm C) and encoding control (arm B)
+      result: pass
+      evidence: B/C median ratio 0.93-1.27 across all timed cells and both solvers
+    - name: dynamic range
+      result: pass
+      evidence: B std m=2 L=6..11 7.5 -> 107962 ms; m=2 -> m=3 jump at L=4 1 -> 5049 ms; cells m=2 L<=5 at 1 ms resolution
+    - name: instrument control (std and slimgb)
+      result: pass
+      evidence: both solvers give the same direction in every joint cell
+    - name: launcher encodes the fibre x(R+<K>)
+      result: pass
+      evidence: >-
+        launcher asserts present; independent Velu/EC recomputation for 18 instances matches steps, c, V; brute-force
+        F_p fibre == V; eliminating w's from arm A's chain ideal gives arm B's degree-2^L polynomial (m2L5, m2L7, m3L4);
+        vdim(A)==vdim(B) on 94/94 pairs
+    - name: overflow mechanism and m=3 invariance (AMD-02)
+      result: pass
+      evidence: >-
+        Singular-evaluated S differs pre-fix vs fixed at m=2 L=8 inst1, L=9, L=11; identical at m=2 L=7, L=8 inst0 and
+        m=3 L=3,4,5 (5 instances); Singular emits no overflow warning
+    - name: instrument symmetry (second std pass, untimed overhead)
+      result: pass
+      evidence: extra G=std(G) costs 0-1 ms for A and B, both solvers; wall - rtimer overhead <= 0.11 s; fglm 0-1 ms
+  heuristic_validation_checks:
+    - name: pre-registered prediction
+      result: pass
+      evidence: frozen at 378abed 04:59:06, 6 s before RUN-01; informed by disclosed smoke runs (seed 'smoke'), no records
+    - name: sample integrity
+      result: pass
+      evidence: 6 instances per cell (4 planted, 2 random), seeds recomputed 96/96, sampling procedure in launcher
+    - name: correspondence validity
+      result: not_applicable
+    - name: scale binding
+      result: pass
+      evidence: toy tier, p 7-23 bits, m<=3, no extrapolation claimed; P-256 needs m=6, L=44 (hypothesis interpretation_limits)
+  cost_model_checks:
+    - name: cost-unit honesty
+      result: pass_with_concern
+      evidence: Singular rtimer ms (real time, 4 workers on 4 vCPU) and E group ops + Python wall s; memory(2) per solve; E vs Groebner wall is cross-implementation
+    - name: cost bookkeeping (per-attempt x inverse success probability)
+      result: not_applicable
+  proof_architecture_checks: []
+  protocol_ladder_check:
+    result: not_applicable
+    reason: no speedup or improvement claimed; observed direction is negative
+  verdict: incomplete
+  verdict_rationale: >-
+    Data, metric recomputation, positive and negative controls, launcher spot-checks and a from-scratch re-execution
+    (2656/2656 deterministic fields) all hold, and the frozen falsification condition is met under independent
+    recomputation. The verdict is incomplete because frozen-required records are missing: no per-run manifest.json,
+    no recorded hashes, no dirty-tree record. The AMD-02 fix verification is unrecorded, hand-typed timestamps
+    contradict the system clock, and the unexecuted m=3 L=6 cell has no amendment. These are recordkeeping gaps
+    curable by new Coordinator records; none changes a recomputed number.
+  to_reach_passed:
+    - Coordinator-committed per-run manifest (command, git_head, dirty state or 'unrecorded', environment, sha256 below)
+    - coverage note or amendment for m=3 L=6
+    - correction record for AMD-01/AMD-02 filed times and RUN-02 termination overlap statement
+    - note that the AMD-02 fix verification is unrecorded and superseded by RUN-03 planted checks and this re-run
+  limitations:
+    - not a blind re-derivation; launcher read for check 4; analyze.py opened only after recompute.py was written
+    - re-run covered 8 of 12 executed cells (not m=2 L=9..11 or m=3 L=5)
+    - no review_plan on the task card; no joints assigned
+    - timeouts are a frozen instrument censoring at 600 s wall; timed-out solves record no partial std time
+    - whether Singular children outlived the host kills is unrecorded; re-run bounds its effect on RUN-02 L=3/4 and RUN-03 L=8 at <= ~15%
+    - validation id freedom not checked repo-wide (rg timed out); suffix is random
+  artifact_hashes_observed:  # sha256 at d72af7c (identical at 21178ea)
+    specification.yaml: 6ac1d0caccaca76284be15af26ea7f5e79d5203510ba78f104c14edd5709ee7a
+    trial-plan.json: 7f054009e0e189243c8e55373f7acc90e0d57ab21a38b5cc1c06844e04ecb1b7
+    amendments/AMD-01.yaml: 6fcca9593314676ffed6f66c2c46cebedc8f50e6002dfb7f23f8f89f588e9e62
+    amendments/AMD-02.yaml: 06894fa78dded6382d7c50c53a72dc64981defc2cbcf590a135c46bd0a1642cf
+    amendments/trial-plan-run02.json: 246e81db905750f2772030e2c3339b8ea53bcae38fa1fb33051c170aad1e609d
+    amendments/trial-plan-run03.json: 172d63ade8b2ba7e11468f8c479a2d250726a3576b75a2d15c18e00295169c90
+    pkm_isogeny_fb.py@HEAD: df4dc941da17c19a4012c2f47429b19ff63bd6286853c47728924b0b6d3976ed
+    pkm_isogeny_fb.py@378abed=b9ddeef: b66c09c6359e6c6893188fc6f74901b31de362cc8370b43abbb6fe39b4fca2bb
+    analyze.py: a9d5bbb577518e38920df089570021c548c7cf11c443bc2022ad994e1fc4b41c
+    runs/RUN-ECDLP-f49f75-01/raw-result.jsonl: f7cf8b1bc05b563098daf305e03f5d067ed61abc8e67c97cde8f11cbaa3bd45d
+    runs/RUN-ECDLP-f49f75-01/stdout.log: 154efe1881ecff1307eaf31d12bdeccb9cc9f6e1723f62c07f477e9675aa5dd9
+    runs/RUN-ECDLP-f49f75-01/command.txt: d01272690a438c58a9835e891040943c1b527bfc1d6ebb7f196be0ee752a5d62
+    runs/RUN-ECDLP-f49f75-01/environment.json: 9226b74c5c7c25b7fb74bcb8f467d190f797a040fb7e357c65ff89dc2c646817
+    runs/RUN-ECDLP-f49f75-01/termination.txt: 3fc03eccbe3a30f93e30768a2da033d78985655a5eafcf7c3dbb79966484d114
+    runs/RUN-ECDLP-f49f75-02/raw-result.jsonl: e9fefbe9e451fc91e5475a8e1d6841745d3b9c2f86741a54cea5a1c1e017d841
+    runs/RUN-ECDLP-f49f75-02/stdout.log: 5400ade5e2d7728b27f16fe84f94fac98b3fece71f025bc4ecca8a17a08b9e0d
+    runs/RUN-ECDLP-f49f75-02/command.txt: 998c9d1a4eee105a1ef80d94040a55b603ae908943e63cd2f4c305e3d5bb03b7
+    runs/RUN-ECDLP-f49f75-02/environment.json: 1f75bd714789e5097cd06c18b38e2a01d945100c42ab2e7b473eadfd3f666350
+    runs/RUN-ECDLP-f49f75-02/termination.txt: 6cc47e5689fb6974ceb3bd9ab595e417632419718b0d7ecdd1be890c73551940
+    runs/RUN-ECDLP-f49f75-03/raw-result.jsonl: cd77bec1d194567d8a294bfc88a410719a407d2d20967085c543cc57e34523c9
+    runs/RUN-ECDLP-f49f75-03/stdout.log: 96976e2b3a2e478fe2c436aaf72c99f215cd9925ff8e61ba943a18369425ab2c
+    runs/RUN-ECDLP-f49f75-03/command.txt: f39d4b9fb9705b7bafafca866b046668856ebda27e3ac48d25157980cfb40037
+    runs/RUN-ECDLP-f49f75-03/environment.json: e1f4cd4a275cd4a06b71171724d2c01f6e423ba01c8e769fb3944bf3c9de4490
+    runs/*/stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  # empty
+  artifact_paths:
+    - experiments/EXP-ECDLP-f49f75/reports/validation-20261015/validation.md
+    - experiments/EXP-ECDLP-f49f75/reports/validation-20261015/validation_report.yaml
+    - experiments/EXP-ECDLP-f49f75/reports/validation-20261015/scripts/
+    - experiments/EXP-ECDLP-f49f75/reports/validation-20261015/rerun/
+    - experiments/EXP-ECDLP-f49f75/reports/validation-20261015/SHA256SUMS
+  review_attestation:
+    joints_owned: []  # no review_plan on the task card; checks 1-5 as named by the caller
+    sources_read:
+      - docs/agent-runtime-core.md
+      - agents/validator.md
+      - AGENTS.md (sections "Review architecture", "Artifact policy")
+      - experiments/EXP-ECDLP-f49f75/specification.yaml
+      - experiments/EXP-ECDLP-f49f75/amendments/AMD-01.yaml
+      - experiments/EXP-ECDLP-f49f75/amendments/AMD-02.yaml
+      - experiments/EXP-ECDLP-f49f75/trial-plan.json
+      - experiments/EXP-ECDLP-f49f75/amendments/trial-plan-run02.json
+      - experiments/EXP-ECDLP-f49f75/amendments/trial-plan-run03.json
+      - experiments/EXP-ECDLP-f49f75/pkm_isogeny_fb.py (HEAD; diff vs b9ddeef)
+      - experiments/EXP-ECDLP-f49f75/analyze.py (after recompute.py was written; diff 08eeffa..eb150cc)
+      - experiments/EXP-ECDLP-f49f75/runs/RUN-ECDLP-f49f75-0{1,2,3}/{command.txt,environment.json,started_at,finished_at,termination.txt,stdout.log,raw-result.jsonl}
+      - experiments/EXP-ECDLP-f49f75/__pycache__/pkm_isogeny_fb.cpython-313.pyc (16-byte header only)
+      - ledger/hypotheses/H-ECDLP-60de36.yaml
+      - problems/pkm-isogeny-chain-factor-base-no-fast-decomposition.md (rg hits on two lines only, to date the record)
+      - git log / git show --stat for commits 378abed..21178ea
+    paths_hashed_not_opened:
+      - experiments/EXP-ECDLP-f49f75/reports/review-DEC-20261015-a08389/*
+      - experiments/EXP-ECDLP-f49f75/reports/run-20261015T0459Z/* (plot_source_analyze.py compared to analyze.py with cmp)
+    read_sibling_reports: false
+    blind_from_respected: not_applicable
+    verdict: incomplete
