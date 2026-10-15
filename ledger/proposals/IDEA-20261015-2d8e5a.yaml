@@ -1,0 +1,230 @@
+# IDEA RECORD -- IDEA-20261015-2d8e5a  (idea-synthesist session, 2026-10-15)
+# Proposal only: changes no status, assigns no work, asserts no evidence. WRITE-ONCE.
+# Id minted as a random 6-hex token WITHOUT tools/allocate_id.py (no Bash in this
+# role); the Coordinator confirms with `allocate_id.py --check` before archiving.
+idea:
+  id: IDEA-20261015-2d8e5a
+  added: '2026-10-15'
+  recorded_at: '2026-10-15'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-synthesist (Claude Code, research-synthesis policy)
+  question_id: RQ-FROB-7d8dd4
+  question_ids: [RQ-FROB-7d8dd4, RQ-ICPERF-94c86e, RQ-CERTBIN-836ce2]
+  goal_id: GOAL-FROB-6333a9
+  lanes: [frob, icperf, certbin, qsp]
+  title: >-
+    A rotation-invariant polynomial key K(x) = (sum_i x_i w^i)^n mod p, w of
+    order n in F_p, replaces exact necklace canonicalization wherever only a
+    class INVARIANT is needed: the root-index probe key, the reference walk's
+    step selector and its distinguished-point predicate. Exact canonicalization
+    is paid only on a hit
+  class: representation
+  bridges:
+    - >-
+      cryptanalysis canon-n131-loop-20261014 (binary-lifting canonicalizer
+      lift_scan wins by 1.8-3.8x inside the n=131 decomposition loop at ~68
+      ns/key, as stated in the task) and papers/frobenius-orbits
+      sec-canonicalization (variant B 4.78 rotations/word at n=83; the
+      branch-free form costs 2.4x the exhaustive scan at n=131) <-> KN-LIT-661e97
+      (Bailey et al.: the ECC2K-130 walk P <- P + sigma^{j(P)}(P) with j from
+      the normal-basis Hamming weight is well defined on classes and
+      normalizes ONLY at distinguished points). Transfer: Bailey's selector is a
+      6-bit class invariant computed by two popcounts; what the program's
+      canonicalizers compute every step is a class REPRESENTATIVE, which the
+      step and the DP predicate never needed. A 61-bit invariant costs a few
+      table loads and ~9 modular multiplications, is branch-free by
+      construction, and gives an r-adding-width selector without the restricted
+      8-branch walk.
+    - >-
+      papers/frobenius-orbits sec-benchmarks (R0: canonicalization 50.82% of
+      retired instructions; R3: the least-rotation scan still 51.5% of the
+      final rung; "a comparison of an orbit-folded index calculus against a rho
+      that canonicalizes differently is a comparison of two canonicalizations")
+      <-> IDEA-20260807-15b468 (the DP predicate is not invariant under
+      canonicalisation and nobody has charged it) and IDEA-20260826-506ba2
+      (the sqrt(|Aut|) ceiling is a ceiling on sqrt(m)/kappa). Transfer: kappa
+      is the price of a representative; the walk only needs an invariant, whose
+      price is a different, smaller number.
+    - >-
+      KN-OPEN-095df5 / KN-FIND-47da4e (at n=131 the factor base must be a union
+      of Frobenius orbits; the (representative, shift) encoding is cost-neutral
+      in SAT) <-> the n=83 zero-gap stage gain of 1.086x (task). Transfer: for
+      an orbit-union base the membership test is a key lookup; the key removes
+      the representative computation from the probe path, which is the only
+      place the orbit saving is realised as time at m=2.
+  claim: >-
+    With p a 61-bit prime, p = 1 (mod n), w of order n in F_p^*, and K(x) =
+    (sum_{i<n} x_i w^i)^n mod p for x in normal-basis coordinates: (1) K is
+    invariant under all 2n signed-Frobenius actions (rotation multiplies the
+    inner sum by w^k; the n-th power kills it; negation leaves x fixed), and two
+    distinct classes collide with probability ~ n/p ~ 2^-55; (2) in the n=83
+    index's canonicalization stage, keying the packed root table by K and
+    canonicalizing only on a key hit cuts the stage's canonicalization time by
+    >= 2x against variant B (predicted key cost 40-60 ns/word against 195
+    ns/word unisolated), bounded by the stage share (1.42x canonicalizer gain
+    gave 1.086x on the stage, so the share is ~0.27 and the stage gain is
+    <= 1.37x); (3) at n=131, K costs <= 0.8x lift_scan per key in instructions
+    on the cachegrind harness and <= 0.5x in the loop (branch-free, independent
+    keys overlap); (4) a strong-rho rung R4 at n=53 that selects its
+    Frobenius-adding step P <- P + sigma^{j}(P), j = 3 + (K(x) mod 32), and
+    its DP predicate from K, with NO per-step canonicalization, retires
+    >= 1.4x fewer instructions per step than R3 while its steps-to-collision
+    stay <= 1.1x R3's; net >= 1.25x fewer total Ir to a verified logarithm.
+  mechanism: >-
+    f(x) = sum x_i w^i is linear in the 0/1 vector x; f(rot_k x) = w^k f(x), so
+    f^n is a rotation invariant and the signed class is the rotation class of
+    x. Collisions f(x)^n = f(y)^n mean f(x) = w^k f(y) for some k: the wanted
+    case plus ~n spurious solutions per value, hence ~n/p false matches per
+    pair; with 2^28 table states and p ~ 2^61 the expected false hits per probe
+    are 2^28 * 83 / 2^61 ~ 2^-26.6, and every hit is verified by exact
+    canonicalization anyway. Cost: ceil(n/8) byte-table loads (tables T_t[b] =
+    sum of w^{8t+i} over the bits of b, 11 x 256 x 8 B = 22 KB at n=83, L1
+    resident) with lazy 128-bit accumulation, then x^n by 6-7 squarings and
+    2-3 multiplications mod p (~9 mulmod64). No data-dependent branch, so
+    consecutive independent keys overlap in the out-of-order core, which is
+    exactly what the paper found variant A's two loop exits prevent (variant C
+    beat A inside the loop, 39-41 vs 61 ns/summand, for that reason). For the
+    walk: P + sigma^j(P) is a class function of the class of P whenever j is
+    (KN-LIT-661e97), so no representative is needed per step; K supplies j
+    with 61 bits of entropy instead of Bailey's ~6, so the walk can use 32 or
+    more multipliers (1 + s^j) and the DP predicate K mod 2^d = 0 is free.
+    A 32-bit modulus is NOT enough for the n=83 table (2^28 * 83 / 2^32 ~ 5
+    false hits per probe); 61 bits are needed, which is why the cost estimate
+    uses 64-bit modular multiplication.
+  novelty_status: unverified
+  citations:
+    - ref: KN-LIT-661e97
+      provenance: kb
+      claim: iteration P <- sigma^j(P) + P with j from HW(x), DP = HW(x) <= 34, normalization only at DPs
+      verified_by: idea-synthesist-20261015 opened the entry (full_text_read by its author)
+    - ref: cryptanalysis:papers/frobenius-orbits/sec-canonicalization.tex and sec-benchmarks.tex
+      provenance: internal
+      claim: variant A/B/C costs; R0-R3 canonicalization shares; branch-free arm costs more at n=131
+      verified_by: idea-synthesist-20261015 read both sections
+    - ref: KR-RHO-482ed3
+      provenance: internal
+      claim: orbit canonicalization, DPs, collision recovery remain charged in the sqrt(m) count
+      verified_by: idea-synthesist-20261015 opened the row
+    - ref: rotation-invariant polynomial hashing (necklace hash via n-th power of a cyclic polynomial value)
+      provenance: recalled
+      claim: standard trick for rotation-equivalence testing of cyclic words; exact source not opened
+      verified_by: null
+  assumptions:
+    - normal-basis coordinates are available at the probe and at the walk step (the n=83 index and the R2+ rungs already use them; the basis change is a ~1 ns GFNI kernel per R06-key-gfni)
+    - the Frobenius-adding walk's multiplier set {1 + s^j} has no short multiplicative relations mod r at the measured n (checked by the steps/floor control)
+  proof_search_map:
+    not_applicable_reason: an implementation-level representation with an algebraic invariance argument that is two lines; no theorem is claimed beyond it
+    bottleneck: not_applicable
+    baseline_embedding: {parameter_slice: not_applicable, reproduction_check: not_applicable}
+    observation_collision: {observable: not_applicable, distinct_preimage_search: not_applicable}
+    constructive_transforms: []
+    quantifier_order: not_applicable
+    method_ceiling: {strongest_certifiable_claim: not_applicable, nearby_object_control: not_applicable}
+    proof_obligations: []
+  predictions:
+    - metric: key_ns_per_word / variantB_ns_per_word at n=83, same host, same 8e6 words
+      direction: lower
+      minimum_effect: <= 0.5; falsified above 0.8
+    - metric: key_instructions_per_word / lift_scan_instructions_per_word at n=131 (cachegrind)
+      direction: lower
+      minimum_effect: <= 0.8 standalone and <= 0.5 inside the decomposition loop
+    - metric: Ir_per_step R4 / R3 at n=53
+      direction: lower
+      minimum_effect: <= 0.71
+    - metric: steps_to_collision R4 / R3 at n=53 (1024 targets)
+      direction: different
+      minimum_effect: in [0.95, 1.10]; falsified above 1.30
+    - metric: false_key_hits_per_probe at n=83
+      direction: lower
+      minimum_effect: < 1e-6
+  minimal_test:
+    design: >-
+      Stage 0 (zero compute): the invariance and collision argument written
+      out; a 10^5-word exact check that K(x) = K(rot_k x) for all k and that
+      distinct necklaces of length 11, 13, 17 (exhaustive) never collide. Stage
+      1: the key as a sixth canonicalizer in the canon-n131 harness
+      (instructions per word, uniform and structured families) and as a key
+      arm in the n=83 packed_index canonicalization stage (ns per word, hit
+      counts, exact canonicalization on hits, identical (hat w, k) on every
+      hit). Stage 2: rung R4 in the strong-rho ladder at n=53, 1024 targets,
+      Callgrind Ir and verified logarithms, paired with R3 on the same targets.
+    controls:
+      - identical outputs: every key hit's canonical form equals the exhaustive scan's
+      - R3 unchanged as the paired arm; A/A of R3
+      - Bailey's HW selector with 8 branches as a second R4 variant (the recalled restricted-walk penalty is measured, not assumed)
+      - a random 61-bit key (non-invariant) as a negative control: the walk must break (not class-well-defined) and the index must miss orbit hits
+    required_metrics:
+      - ns and instructions per key at n=83 and n=131; false hits per probe
+      - stage time with and without the key at n=83
+      - Ir/step, steps/floor, total Ir, verified count for R3, R4(K), R4(HW)
+    stopping_rule: one pass per stage; no re-selection of p, w or the multiplier set after seeing a timing
+    replication: {seed_policy: the paper's 8e6-word and 1024-target fixtures reused, seeds: []}
+  falsification_conditions:
+    - the key costs >= 0.8x variant B at n=83 or >= lift_scan at n=131: no gain, and the probe-path use is dead
+    - R4 steps-to-collision > 1.3x R3: the Frobenius-adding walk's randomness penalty exceeds the canonicalization saving at this n; only the probe-path use survives
+    - any key hit whose exact canonical form differs from the exhaustive scan's: implementation defect, stop
+    - false hits per probe > 1e-4 at p ~ 2^61: the collision argument is wrong
+  confounders:
+    - the mulmod chain is latency-bound per key; throughput only appears when keys are independent, so the loop measurement is the one that counts (the paper's variant A/C lesson)
+    - the n=83 zero-gap stage share (~0.27) bounds the whole-stage gain to <= 1.37x regardless of key speed; report the stage and the key separately
+    - a Frobenius-adding walk cannot use precomputed r-adding multiples; its step is one point addition plus a rotation, cheaper than r-adding, which flatters R4 for a reason unrelated to the key; the HW-selector control isolates the key's share
+  interpretation_limits:
+    - constants only; no exponent; the quotient size and the sqrt(2n) are unchanged (KR-RHO-482ed3)
+    - at n=131 the key's benefit relative to a point operation is unknown because no 131-bit step exists in the code base (IDEA-20261015-c6f017 prices it)
+    - the SAT/Groebner decomposition stage is untouched (KN-FIND-47da4e stands)
+  heuristic_assumptions:
+    - id: H1
+      statement: for uniform x, f(x) is uniform enough on F_p that false key matches behave like 1/p per pair (times n for the power)
+      rigorous_support: f is a nonzero linear form on F_2^n viewed in F_p; exact collision count is a {-1,0,1}-combination equation, ~3^n/p solutions
+      validation_plan: exhaustive necklace collision count at n = 11, 13, 17 for three primes; 10^7 random pairs at n = 83, 131; compare to n/p
+    - id: H2
+      statement: a Frobenius-adding walk with 32 multipliers (1 + s^j) behaves as a random map on classes to within 10% in steps-to-collision
+      rigorous_support: KN-LIT-661e97's design (8 multipliers) ran at the expected 2^60.9 scale; no rigorous bound (recalled)
+      validation_plan: steps/floor at n = 41, 53, 61 over 1024 targets for 8, 16, 32 multipliers vs the r-adding canonicalizing walk
+  target_complexity:
+    time_exponent: unchanged, sqrt(pi r / (4n)) steps; the record moves the per-step and per-probe constant
+    memory_exponent: unchanged; 22 KB of key tables
+    best_known: KR-RHO-482ed3; KR-RHO-18cc42 (Bailey's walk at 530 cycles/iteration in 2009)
+    hidden_overhead: the exact canonicalization on hits (rare) and the basis change per step (already paid)
+    tradeoff_note: none
+  estimated_cost:
+    implementation: medium
+    compute: low
+    note: stage 0-1 are hours on the existing harnesses; stage 2 is one more ladder rung
+  recommended_priority: high
+  dominated_by: >-
+    For the selector alone, Bailey's two-popcount Hamming weight (KN-LIT-661e97)
+    is cheaper; the record's delta there is selector width (61 bits vs ~6) and
+    the DP predicate. For the probe path no frontier row prices a class key;
+    n/a as an attack.
+  sota_delta: >-
+    No attack. Predicted: >= 2x on the canonicalization term of the n=83 index
+    stage (stage <= 1.37x), >= 1.25x fewer instructions for the strong rho
+    reference at n=53 if the walk penalty stays under 1.1x, which would lower
+    every "IC online speedup" in the ledger by the same factor.
+  must_not_repeat:
+    - the branch-free laned canonicalizer at n=131 (2.4x the exhaustive scan): the key is not a canonicalizer and must not be benchmarked as one on the structured near-periodic family where variant B also loses
+    - IDEA-20260807-15b468: the DP predicate here is invariant by construction and is charged (it is the key)
+    - KN-FIND-47da4e: do not re-measure the SAT shift encoding; this record touches the m=2 probe path and the walk only
+    - do not compare R4 against R0/R1 (mixed baselines, rederivation review rows 30-33); R3 is the paired arm
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-482ed3, KR-RHO-037e22, KR-RHO-38be82, KR-RHO-cd86f5, KR-RHO-fb88e6, KR-RHO-6239aa, KR-RHO-18cc42, KR-IC-b0fcda, KR-IC-5765d2]
+    nearest:
+      - ref: KN-LIT-661e97
+        provenance: kb
+        relation: generalizes
+        delta: Bailey's HW(x) selector and DP predicate are the 6-bit case of a class invariant; this record supplies a 61-bit one usable as a table key, which HW(x) cannot be
+      - ref: KR-RHO-38be82
+        provenance: internal
+        relation: adjacent
+        delta: tag tracing decides steps from partial information in finite-field DLP; here the partial information is a class invariant of an automorphism quotient, not a cheaper multiplication
+      - ref: KR-RHO-482ed3
+        provenance: internal
+        relation: adjacent
+        delta: that row charges canonicalization per step; this record removes it from the step and the predicate
+    searched:
+      corpus_grep: [ledger/.index/proposals.jsonl titles for canonical|zero-gap|lift|Hamming (IDEA-20260807-15b468, IDEA-20260826-506ba2 read by excerpt), knowledge/frontiers rows above]
+      web: []
+      blocked: [no web search; the necklace-hash trick is recalled, hence unverified]
