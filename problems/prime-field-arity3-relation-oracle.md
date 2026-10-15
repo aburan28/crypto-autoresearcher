@@ -2,13 +2,13 @@
 
 - **Status:** `open`
 - **Kind:** implementation gap; intermittent Conductor authentication and database lock timeouts were a separate access/tool limit.
-- **Affected work:** [study report](../research/conductor_relation_yield_20261014/README.md), [prospective plan](../research/conductor_relation_yield_20261014/plan.json), prospective `H-ECTD-e88346` / `EXP-ECTD-0cf008` (IDs allocated and checked, formal records not written).
+- **Affected work:** [study report](../research/conductor_relation_yield_20261014/README.md), [prospective plan](../research/conductor_relation_yield_20261014/plan.json), draft [H-ECTD-e88346](../ledger/hypotheses/H-ECTD-e88346.yaml) and [EXP-ECTD-0cf008](../experiments/EXP-ECTD-0cf008/specification.yaml).
 - **Next action owner:** Coordinator for contract admission; Executor for implementation after a valid handoff.
 - **Last updated:** 2026-10-15.
 
 ## Problem
 
-The fixed 29-bit and 37-bit prime-field conductor pairs cannot yet yield the requested arity-3 native useful-relation comparison. The local component implementations pass bounded controls, but there is no published approved contract, post-freeze seed commitment, admitted 20-arm collection, or full-size completeness and resource receipt for the 32,768-target schedule.
+The fixed 29-bit and 37-bit prime-field conductor pairs cannot yet yield the requested arity-3 native useful-relation comparison. The local component implementations pass bounded controls, but there is no published approved contract, post-freeze seed commitment, admitted 20-arm collection, or full-size completeness and resource receipt for the 32,768-target schedule. The Coordinator draft is `review_required`; the readiness selector requires an already approved, frozen specification and committed dispatcher binding, so readiness cannot be checked before approval under the current tool ordering.
 
 The previous `crypto` ecbench pair sessions implement an arity-2 MITM IC pipeline with 256 and 2,048 abscissae, respectively. They do not enumerate all three-point representations of the selected target stream or implement the exact distinct-row/rank definition in this plan. Reusing their hit rates would answer a different question. The `GF(2^51)` selected degree-271 edges also lack a general serialized point evaluator and dual, so a same-point transported-base arm is separate future work.
 
@@ -29,10 +29,12 @@ against `origin/main` produced a tree without conflicts, but the required
 pre-design merge has not been applied: Conductor's `dir:.` conflict check
 reported active claims across files that current main would update. The
 earlier push of this branch was rejected by automatic approval review because
-the external Git remote was not established as trusted. Neither condition is
-a mathematical result. Formal ledger design, approval, seed issuance and
-collection wait for a conflict-free coordination window and explicit approval
-for remote publication, followed by the normal admitted dispatcher checks.
+the external Git remote was not established as trusted. The user subsequently
+fully approved publication, and the source branch was pushed. Its integration
+branch is based on fetched `origin/main` in an isolated sparse worktree, where
+the merge completed without conflicts. These coordination events are not
+mathematical results. Formal approval, seed issuance and collection still wait
+for a frozen executable plan and admitted dispatcher checks.
 
 ## What would unblock it
 
