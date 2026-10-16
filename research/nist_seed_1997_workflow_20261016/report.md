@@ -36,6 +36,8 @@ Anthropic identified a **different, FreeLIP generator** for the six May 1997 bas
 
 The chart is right-censored: each stream ends at its last published block. Its published/skipped ratio is not an estimate of all historical generator attempts. Seven omitted blocks occur in the two ANSI example streams; four precede P-256 or P-224. P-384 and P-521 are the first qualifying blocks in their recovered streams. [Summary][summary] (`internal`).
 
+Two actual software choices help explain why the raw stream contains more mathematically interesting curves than the final 21. The recorded census finds **17 prime-order candidates whose order has more bits than the field prime**, all excluded by the extra bit-length rule. In the four fields with `p ≡ 3 (mod 4)`, the published coefficients follow the simple exponentiation square-root convention; **31 other blocks have prime-order groups only on the opposite coefficient sign**. These are distinct from the eleven still unexplained omissions. P-224 has `p ≡ 1 (mod 4)`, so its square-root computation takes a different code path; its two coefficient signs define isomorphic curves and cannot explain the three P-224 omissions. This is a specific reason to investigate a later P-224 implementation branch, not evidence that one existed. [Census][census]; [sign audit][process] (`internal`).
+
 ## Candidate explanations that remain
 
 | Possible 1997 process | Evidence for or against | Decisive next check |
