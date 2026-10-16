@@ -198,7 +198,7 @@ def main(argv=None) -> int:
         "ratio_A2_over_A0": {"median": r2[0], "ci95": [r2[1], r2[2]]},
         "ratio_A3_over_A0_AA": {"median": r3[0], "ci95": [r3[1], r3[2]]},
         "derived_saving": {"persistent": 1 - r1[0], "oneshot": 1 - r2[0]},
-        "provenance": {"command": " ".join(sys.argv), "cc": " ".join(cc[:-4] + cc[-1:]), "cc_version": cc_version,
+        "provenance": {"command": " ".join(sys.argv), "cc": " ".join(cc[:-3] + cc[-1:]), "cc_version": cc_version,
                        "host": platform.platform(), "machine": platform.machine(), "processor": platform.processor(),
                        "cpu_count": os.cpu_count(), "python": sys.version,
                        "commit": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip(),
