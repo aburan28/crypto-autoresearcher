@@ -87,7 +87,7 @@ for si, (strat, col) in enumerate(zip(strategies, colors)):
         x = r['k'] + (si - 4) * 0.075
         filled = not r['lower_bound']
         kw = dict(c=col) if filled else dict(facecolors='none', edgecolors=col)
-        mk = markers.get(r['branch'].replace('/none', ''), 'o') if filled else '^'
+        mk = (markers['random'] if r['branch'].startswith('random') else markers.get(r['branch'], 'o')) if filled else '^'
         if r['f4_max_degree'] is not None:
             axes[0].scatter(x, r['f4_max_degree'], marker=mk, s=30, **kw)
         if r['wall_s'] not in ('', None):
