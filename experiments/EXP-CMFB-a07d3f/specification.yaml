@@ -1,0 +1,492 @@
+# EXP-CMFB-a07d3f
+# Box-count dispersion of E(F_p) points in axis-parallel boxes below the
+# Bombieri-Weil scale (joint x-y windows, IDEA-20261015-5888a7), for
+# crater-type family members (FAM) and random prime-order curves (N-B),
+# against a synthetic uniform point set (SYN) and a planted clustered set
+# (PLT), at toy sizes 2^18 < p <= 2^25.
+#
+# STATUS: review_required. The scientific protocol below is complete, but no
+# launcher, trial plan or dispatch queue exists and this designing session had
+# no shell to implement or pilot one (AGENTS.md "Approval is bounded by
+# execution"). approved_by is null and execution_authorized is false. The
+# pre-registered prediction, gates and decision rule are fixed as written at
+# designed_at; a change before approval is a new draft version listed in
+# draft_changelog, and after approval only a protocol_amendment under
+# amendments/.
+#
+# Id note: tools/allocate_id.py could not be executed (no shell). The token was
+# drawn by the designer and checked free by path component, as `--check` does.
+# The archive task must run `python3 tools/allocate_id.py --check
+# EXP-CMFB-a07d3f` before committing.
+experiment:
+  id: EXP-CMFB-a07d3f
+  hypothesis_id: H-CMFB-c5e29b
+  source_idea: IDEA-20261015-5888a7
+  question_id: RQ-CMFB-33610e
+  version: 1
+  title: >-
+    Dispersion of E(F_p) point counts in translated axis-parallel boxes
+    (joint x-y windows) for p = 5t^2+19t+19 members and random curves against
+    a synthetic uniform null, toy sizes 2^18 < p <= 2^25
+  status: review_required
+  frozen: false
+  designed_at: '2026-10-16'
+  approved_by: null
+  execution_authorized: false
+  experiment_class: heuristic_validation
+  goal_note: >-
+    goal_id omitted: RQ-CMFB-33610e carries no goal (same as the sibling
+    contract EXP-CMFB-cea1d2).
+  review_required_reason:
+    missing: >-
+      (1) Launcher: experiments/EXP-CMFB-a07d3f/implementation/ (driver.py,
+      boxcount.py, curves.py, analyze.py, check.py, test_boxcount.py) does not
+      exist. (2) trial-plan.json and queue.json do not exist, so
+      tools/newest_experiments.py reports needs_implementation_or_plan, not
+      ready. (3) The per-row cost tau_row (seconds per y0 row at p = 2^24) is
+      unmeasured; the pre-freeze pilot below must be run.
+    clears_when: >-
+      A scoped implementation task commits the implementation directory, the
+      brute-force and planted tests pass, the pilot inequality in cost_model
+      passes, trial-plan.json binds the sources by sha256, and
+      `python3 tools/newest_experiments.py --experiment EXP-CMFB-a07d3f
+      --json` reports execution_state: ready. Then a Coordinator decision
+      approves under the standing authorization.
+    reuse_hint: >-
+      Curve construction, twist selection and the m = 3 counting kernel may
+      be copied from experiments/EXP-CMFB-cea1d2/implementation/ (curves.py,
+      count.py); copies are bound by their own sha256 in this experiment's
+      trial plan. The sibling's frozen files are never edited.
+  objective: >-
+    Measure, for every box shape (area exponent alpha in {1, 4/3, 3/2},
+    aspect ratio r in {1/16, 1/4, 1, 4, 16}) and three size cells, the
+    variance-to-mean ratio (dispersion index) of the number of points of
+    E(F_p) in uniformly translated axis-parallel boxes, for crater-type family
+    members and random prime-order curves, normalized by the random-model
+    prediction and by a synthetic uniform point set measured with the same
+    instrument; behind an instrument gate (exact point counts, brute-force box
+    counts, synthetic agreement with the pre-registered formula, qr_window
+    scan ratio) and a sensitivity gate (planted clustered set). Secondary:
+    anchored lifts per kept element against p / B2, and m = 3 coverage of an
+    anchored joint base against matched random bases at the smallest cell.
+    Report one outcome of decision_rule mechanically.
+
+  inputs:
+    curve_model: >-
+      Short Weierstrass y^2 = f(x) = x^3 + A x + B over F_p, p an odd prime,
+      N = #E(F_p) prime (so no 2-torsion and f has no root in F_p: y = 0
+      never occurs). Points are read as integer pairs (x, y) in [0, p)^2 in
+      the stated chart. N is computed exactly by full enumeration:
+      N = 1 + 2 #{x in F_p : f(x) a nonzero square}.
+    cells: >-
+      K20 = (2^18, 2^21], K22 = (2^21, 2^23], K24 = (2^23, 2^25] (half-open
+      bands of p). No larger cell: the dense per-x tables cost about 1.5 GB
+      per worker at 2^25 and 12 GB at 2^28.
+    arms:
+      FAM: >-
+        Crater-type members of the family: odd t >= 3, v = t + 2,
+        p = 5t^2 + 19t + 19, N = 5t^2 + 18t + 20, both prime (deterministic
+        Miller-Rabin), p in the cell. Chart: A = -152 d^2, B = 722 d^3
+        (j = -96^3) with d = 1 if the enumerated order of the d = 1 chart is
+        N, else d = the first element of the list L of EXP-CMFB-cea1d2
+        (1, -1, 2, -2, 3, -3, 5, -5, ...) with Legendre (d/p) = -1, and the
+        enumerated order of that chart must equal N. Quota: 5 per cell drawn
+        uniformly without replacement (seed 8102) from the exact sieve list;
+        all members if fewer than 5.
+      N-B: >-
+        Random prime-order curves: p log-uniform in the cell band (next prime
+        at or above the draw), integers A, B uniform in [-1000, 1000];
+        reject if 4A^3 + 27B^2 = 0 mod p, if j = -96^3 mod p, or if the
+        enumerated order N is not prime or N = p. 5 per cell (seed 8101).
+      SYN: >-
+        Synthetic uniform point sets, one per N-B curve, at that curve's p:
+        for each x in F_p independently, with probability 1/2 x is liftable,
+        and then y uniform on [1, p - 1] and the points (x, y), (x, p - y).
+        5 per cell (seed 8103). This is the random model of H1 realized.
+      PLT: >-
+        Planted clustered sets: 3 per cell, each a fresh SYN set at the p of
+        N-B curves 1..3 of the cell, in which every point (x, y) is marked
+        independently with probability 1/2 and each marked point receives a
+        companion point (x + 1 mod p, y + 1 mod p) (seed 8104).
+    shapes: >-
+      For each instance with prime p and each (alpha, r):
+      B1 = round(sqrt(p^alpha * r)), B2 = round(sqrt(p^alpha / r)), both
+      clamped to [1, p - 1]. 15 shapes. alpha = 4/3 is the factor-base
+      operating point (B1 B2 = p * B with B ~ p^{1/3}); alpha = 3/2 is the
+      Weil threshold up to log factors; alpha = 1 gives mean count about 1.
+    translates: >-
+      Per (instance, shape): 100 rows y0 drawn uniformly from [0, p - B2),
+      and for each row 1000 corners x0 drawn uniformly from [0, p - B1)
+      (seed 8105): 10^5 translates, no wrapping. Rows are the bootstrap
+      clusters.
+    x_only_reference: >-
+      Per real curve, B2 = p (y unrestricted) and B1 in {round(p^{1/2}),
+      round(p^{2/3}), round(p^{3/4})}, the same 100 x 1000 translate scheme
+      (rows are dummy draws so the scheme is identical): aliasing reference
+      for aspect ratios, reported, not a gate.
+    anchored_scan: >-
+      Per real curve: scan x = 0 .. S - 1 with S = min(2^17, floor(p/2)),
+      count liftable x (L) and kept x with |y_canon| < B2 where y_canon is
+      the representative of {y, p - y} in [1, (p-1)/2], for
+      B2_op = round(sqrt(p * B)), B = smallest integer with B^3 >= 6N, and
+      for B2 = (p - 1)/2 (every lift kept).
+    m3_coverage_arm: >-
+      Cell K20 only, the 5 FAM and 5 N-B curves: anchored joint base J =
+      first B abscissae x = 0, 1, ... with a lift and |y_canon| < B2_op, one
+      point (x, y_canon) each; matched small-x base S = first B liftable
+      abscissae (the B2 = (p-1)/2 slice, as in EXP-CMFB-cea1d2); 200 matched
+      random bases of B distinct classes with random signs (seed 8108);
+      labels by baby-step giant-step on the curve, every label verified
+      [l]g = Q and 64 random triples per curve checked (seed 8109). Exact
+      m = 3 coverage by the counting kernel of EXP-CMFB-cea1d2 (copied and
+      re-bound).
+  rng_streams: >-
+    numpy.random.Generator(PCG64(SeedSequence([seed, cell_code, arm_code,
+    instance_index, shape_index, stream_index]))) with cell_code in
+    {20, 22, 24}, arm_code FAM = 1, N-B = 2, SYN = 3, PLT = 4, shape_index
+    0..14 (alpha-major, r ascending), 15..17 for x_only B1 values, 99 for
+    instance-level draws. Results do not depend on worker count.
+
+  definitions:
+    box_count: >-
+      C(x0, y0) = #{(x, y) in P : x0 <= x < x0 + B1, y0 <= y < y0 + B2}
+      for the instance's affine point multiset P (PLT includes companions).
+    instrument: >-
+      Per curve, tables over all x in F_p: ys[x] = smaller square root of
+      f(x) in [1, (p-1)/2] or -1 if f(x) is a non-residue, built from the
+      scatter table sq[y^2 mod p] = y for y in [1, (p-1)/2] with all modular
+      products reduced so that intermediates stay below 2^62. For one row
+      (y0, B2): h[x] = [ys[x] in Y] + [p - ys[x] in Y] for liftable x (plus
+      companion indicators for PLT), H = cumulative sum with H[0] = 0; then
+      C(x0, y0) = H[x0 + B1] - H[x0] for all 1000 corners of the row.
+    dispersion_index: >-
+      D_hat_i(s) = sample variance (ddof = 1) / sample mean of the 10^5
+      counts of instance i at shape s. A shape with sample mean below 0.2 is
+      not evaluated (cannot occur for the listed shapes; recorded if it does).
+    preregistered_random_model: >-
+      Per x, E c_x = q = B2/(p-1) for Y not containing 0, and P(c_x = 2) =
+      (1/2) * avg_overlap / (p - 1) with avg_overlap = B2^2 / (2 (p - B2))
+      the mean length of Y intersect (p - Y) over uniform y0. Hence
+      D_pred(p, B2) = 1 - B2/(p - 1) + B2 / (2 (p - B2)), which is
+      1 - q/2 + O(q^2). Smallest value over the design: alpha = 3/2,
+      r = 1/16, p just above 2^18, q about 0.18, D_pred about 0.91.
+    normalized_dispersion: >-
+      delta_i(s) = D_hat_i(s) / D_pred(p_i, B2_i(s)).
+    rho: >-
+      rho(a, c, s) = mean_{i in arm a, cell c} delta_i(s) / mean_{i in SYN,
+      cell c} delta_i(s), for a in {FAM, N-B}; rho_PLT(c, s) likewise with
+      the PLT instances in the numerator.
+    planted_prediction: >-
+      With base count C of dispersion D0 and mean mu, each counted point
+      gains its companion inside the box with probability 1/2 (edge losses
+      at most 1/B1 + 1/B2, below 1 percent for every shape at p > 2^18
+      except alpha = 1, r = 1/16 where B1 is about 128 to 1448), so
+      C' = C + Bin(C, 1/2): mean 1.5 mu, variance 2.25 D0 mu + 0.25 mu,
+      D_planted = 1.5 D0 + 1/6 and rho_PLT = 1.5 + 1/(6 D0), between 1.66
+      and 1.69 for D0 in [0.9, 1.0] before edge losses.
+    lifts_per_kept: >-
+      R_op = S / K_op and R_half = S / L per curve, pooled per arm and cell
+      as sum S / sum K. Predicted p / B2_op (pooled with p-weights as
+      sum_i S_i / sum_i (S_i B2_i / p_i)) and 2.0 respectively; standard
+      error of R_half about 2 / sqrt(sum S).
+    m3_coverage_ratio: >-
+      cov(base) / mean over 200 matched random bases of cov, for J and for
+      S, per curve; cov(D) = #{r in Z_N : some multiset of size 3 from D sums
+      to r} / N.
+
+  controls:
+    - >-
+      G1 point-count identity: for every real curve, 1 + 2 #{liftable x} = N
+      (enumerated), N prime, |N - p - 1| <= 2 sqrt(p); FAM also
+      N = 5t^2 + 18t + 20 exactly and j = -96^3 mod p; every ys[x] squared
+      equals f(x) mod p (checked for all x).
+    - >-
+      G2 brute-force box counts: per instance 200 boxes (random shape among
+      those with B1 <= 2^16, random translate; seed 8107) recounted by
+      direct enumeration of the point list sorted by x; exact integer
+      equality with the prefix-sum count is required for all.
+    - >-
+      G3 synthetic agreement: for every cell and shape, the SYN mean of
+      D_hat lies within 0.05 of the mean D_pred over the SYN instances.
+    - >-
+      G4 sensitivity: rho_PLT(c, s) >= 1.3 for every cell and every shape,
+      and within 0.15 of the planted_prediction for every shape except
+      alpha = 1, r = 1/16 (edge-loss shape, reported only).
+    - >-
+      G5 qr_window positive control: pooled R_half over N-B curves in
+      [1.98, 2.02] in every cell (standard error about 0.0025 with
+      5 x 2^17 scanned candidates).
+    - >-
+      Reported checks (flags, not gates): x-only reference delta within
+      [0.9, 1.1]; pooled R_op within max(5 percent, 3 standard errors) of
+      the prediction; between-instance spread of delta within an arm against
+      the SYN spread (ratio of standard deviations, flagged outside
+      [0.5, 2]).
+  independent_variables:
+    - "arm in {FAM, N-B, SYN, PLT}"
+    - "cell in {K20, K22, K24}"
+    - "shape (alpha, r) with alpha in {1, 4/3, 3/2}, r in {1/16, 1/4, 1, 4, 16}"
+    - "base kind for the m = 3 arm: anchored joint base J, small-x base S, 200 matched random bases"
+  metrics:
+    primary:
+      - "rho(a, c, s) for a in {FAM, N-B}, every cell and shape, with simultaneous interval"
+      - "gate values G1..G5 (pass/fail with the measured numbers)"
+    secondary:
+      - "delta_i(s) per instance; SYN mean D_hat against D_pred per cell and shape"
+      - "rho_PLT(c, s) against planted_prediction"
+      - "x-only reference delta per curve and B1"
+      - "pooled R_op and R_half per arm and cell, with standard errors"
+      - "m = 3 coverage ratios of J and S per curve at K20, arm means with 95 percent intervals"
+      - "tail checks (below); exact FAM sieve counts per cell; twist flag d per FAM member"
+      - "seconds per y0 row and peak_rss_bytes per trial"
+  heuristic_under_test: H1 (ledger/hypotheses/H-CMFB-c5e29b.yaml)
+
+  preregistered_prediction:
+    quantity: >-
+      rho(a, c, s) = 1 for a in {FAM, N-B} at every cell and shape; SYN
+      D_hat = D_pred; rho_PLT = 1.5 + 1/(6 D0); R_half = 2.0; R_op = p/B2_op;
+      m = 3 coverage ratios of J and S = 1.00.
+    formula: >-
+      D_pred(p, B2) = 1 - B2/(p-1) + B2/(2(p - B2)) (random model of H1,
+      derived in definitions.preregistered_random_model); coverage of a
+      random base 1 - exp(-mu), mu = binomial(B+2, 3)/N (KN-FIND-007,
+      EV-FBG-001).
+    source: >-
+      Random model of IDEA-20261015-5888a7 (heuristic H1 there, stated as
+      Poisson; refined here to the exact two-sign binomial form before any
+      run); KN-FIND-007 for the conservation identity. The Bombieri-Weil box
+      estimate (recalled, unread) only places the scale p^{3/2} above which
+      the count is forced. Written before any run and never adjusted.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      2^18 < p <= 2^25 (18 to 25 bits) against 52.4 bits for the pair-46
+      prime. No transfer is claimed: the random model is tested where it is
+      unforced (box area p^1 to p^{3/2}), at three sizes so the comparison
+      is not scale-specific.
+    correspondence: null
+  sample_size_justification: >-
+    Smallest effect to resolve: |rho - 1| = 0.1. For a Poisson-like count
+    with mean lambda >= 1, the relative standard error of a variance-to-mean
+    ratio from n = 10^5 draws is about sqrt((2 + 1/lambda)/n) <= 0.0055;
+    with 100 row clusters and 5 instances per arm the arm-mean delta has a
+    standard error expected near 0.003 to 0.01, and the ratio to SYN about
+    0.01 to 0.015. The simultaneous half-width 3.48 SE is then 0.035 to
+    0.05, so [0.9, 1.1] is reachable and a lead at 1.3 is far outside the
+    null (at least 20 standard errors). The planted effect (about +0.67)
+    is at least 40 standard errors. Five instances per arm per cell follow
+    the idea's validation plan; three PLT instances per cell suffice for
+    an effect of that size. m = 3 arm: per-draw coverage standard deviation
+    1.4/sqrt(N), about 0.1 to 0.14 percent at K20, far below the 1 percent
+    resolution.
+  tail_checks:
+    - >-
+      Largest and smallest count per (instance, shape): exact tail
+      probability under Poisson(mean) for the maximum and under the SYN
+      empirical distribution of the same cell and shape; flag if
+      n * P(X >= max) < 0.01 or n * P(X <= min) < 0.01 with n = 10^5.
+    - >-
+      Two-sample Kolmogorov-Smirnov distance between each real instance's
+      count distribution and the pooled SYN distribution at the same cell
+      and shape, Bonferroni over the 90 x 5 comparisons; flag at adjusted
+      p < 0.01. Reported, not decision-bearing.
+    - >-
+      Standardized counts z = (C - mean) / sqrt(D_pred * mean): histogram per
+      arm and shape, overlaid on SYN; maximum |z| per arm and cell reported.
+
+  statistics:
+    interval_method: >-
+      Two-level bootstrap, 2000 resamples (seed 8106): resample instances
+      within each arm and cell with replacement, then within each instance
+      resample its 100 rows with replacement and recompute D_hat from the
+      resampled counts; rho is recomputed from the resampled arm and SYN
+      means. Simultaneous interval over the 90 (arm, cell, shape) values:
+      rho +- 3.48 * bootstrap standard error (Bonferroni 0.05/90, normal).
+    powered: >-
+      An (arm, cell) is powered iff it has at least 3 instances (only FAM
+      can fall short). Unpowered cells are reported descriptively and enter
+      no reading.
+  decision_rule:
+    order_of_evaluation: first matching rule fixes the outcome
+    rules:
+      - >-
+        R0 INCOMPLETE: a trial without a valid manifest, a checker failure, a
+        missing artifact or an infrastructure failure. Not a scientific
+        outcome; back to the Executor with the defect list.
+      - >-
+        R1 INSTRUMENT_VOID: any gate G1..G5 fails, or an invalidation rule
+        fires.
+      - >-
+        R2 GENERIC_OVERDISPERSION: for some shape s, N-B has rho >= 1.3 with
+        simultaneous interval above 1.1 in at least 2 powered cells.
+      - >-
+        R3 FAMILY_OVERDISPERSION: R2 does not hold and for some shape s, FAM
+        has rho >= 1.3 with simultaneous interval above 1.1 in at least 2
+        powered cells, while N-B at that shape and those cells has rho below
+        1.15. Attributed to the D = -19 crater class and the family relation
+        jointly (not separable here).
+      - >-
+        R4 UNDERDISPERSION_RECORDED: no over-dispersion lead and, for some
+        arm and shape, rho <= 0.7 with interval below 0.9 in at least 2
+        powered cells.
+      - >-
+        R5 NULL_AT_RESOLUTION (the predicted outcome): both arms have at
+        least 2 powered cells and every powered (arm, cell, shape)
+        simultaneous interval lies inside [0.9, 1.1]. Reported as consistent
+        with the random model at resolution 0.1 for the stated shapes,
+        charts, cells and arms, never as "no structure".
+      - >-
+        R6 INCONCLUSIVE: anything else (for example an interval leaving
+        [0.9, 1.1] without a lead on two cells, or fewer than 2 powered FAM
+        cells, in which case N-B alone may still be read as R5-consistent
+        and is reported as such).
+    m3_reading: >-
+      Independent of R2..R6: a J or S arm mean coverage ratio whose 95
+      percent interval excludes [0.99, 1.01] is recorded as a coverage lead
+      for that base kind and arm at K20, needing replication; otherwise the
+      m = 3 reading is consistent with 1.00 at resolution 0.01.
+    official_transition: >-
+      The analysis script computes the classification as an Executor
+      observation. Hypothesis status and decisions are the Coordinator's,
+      after snapshot archive and independent review.
+  invalidation_rules:
+    - "I1: any G1 or G2 integer check fails (instrument wrong)."
+    - "I2: G3 fails in any cell and shape (sampler or metric wrong)."
+    - "I3: G4 fails (instrument blind; no null may be read)."
+    - "I4: G5 fails on any N-B pool (lift test wrong)."
+    - "I5: a trial's recorded instance list hash differs from the inventory trial's hash."
+    - "I6: any seed, cell band, shape list, translate count or threshold differs from this contract."
+  stopping_rules:
+    - "Gate trial failure stops all measurement trials (no partial reading)."
+    - "A worker exceeding its memory limit or a crash is infrastructure signal; retry with a new run id, same seeds, labelled retry."
+    - "No early stopping on observed rho; every planned translate is counted."
+  success_criterion: >-
+    The run set is complete and valid (R0 and R1 do not fire), both arms
+    have at least one powered cell, and decision_rule yields one of
+    NULL_AT_RESOLUTION, GENERIC_OVERDISPERSION, FAMILY_OVERDISPERSION or
+    UNDERDISPERSION_RECORDED. The reading that supports H1 is
+    NULL_AT_RESOLUTION.
+  falsification_criterion: >-
+    On a complete valid set with every gate passed, GENERIC_OVERDISPERSION,
+    FAMILY_OVERDISPERSION or UNDERDISPERSION_RECORDED falsifies H1 for the
+    attributed arm, shape and cells (scoped), as a lead needing independent
+    replication with fresh seeds and instances. H1 survives only as
+    NULL_AT_RESOLUTION at resolution 0.1.
+  decision_impact:
+    on_positive: >-
+      NULL_AT_RESOLUTION: the box-count law of the tested charts is
+      random-model at resolution 0.1 from area p to p^{3/2}; a joint x-y
+      window then has no structure a box enumerator could exploit at these
+      sizes, c_box is bounded below only by output size and the joint-window
+      channel of RQ-CMFB-33610e becomes a candidate for scoped retirement as
+      constant-only (thinning priced at p/(2 B2) on the x-scan) after
+      independent review.
+    on_negative: >-
+      An over-dispersion lead (generic or family) opens a successor: a c_box
+      enumerator study at the over-dispersed shape, with an N-A arm
+      (other D = -19 curves) to separate the CM class from the family
+      relation, fresh seeds and a fourth size cell; no factor-base,
+      yield or solver claim follows from the lead itself.
+    on_void: >-
+      Instrument cannot see structure or is wrong; fix and rerun under a new
+      version via amendment. No reading.
+    on_inconclusive: >-
+      No reading; a successor may add instances per arm or narrow the shape
+      set to the unresolved shapes.
+  replication:
+    seeds: [8101, 8102, 8103, 8104, 8105, 8106, 8107, 8108, 8109]
+    seed_roles:
+      8101: "N-B instance draws (p, A, B)"
+      8102: "FAM subset when a cell has more than 5 members"
+      8103: "SYN point sets"
+      8104: "PLT point sets and marks"
+      8105: "translates (y0 rows, x0 corners)"
+      8106: "two-level bootstrap"
+      8107: "brute-force check boxes"
+      8108: "matched random bases (m = 3 arm)"
+      8109: "BSGS label check triples and test points (m = 3 arm)"
+    independent_instances: 54
+    instance_count_note: >-
+      Upper bound per cell: 5 FAM + 5 N-B + 5 SYN + 3 PLT = 18; 3 cells.
+      Fewer if a cell has fewer than 5 FAM members.
+    replication_note: >-
+      One confirmatory pass with fixed seeds; a lead is replicated by a new
+      contract with new seeds and instances. Retries after infrastructure
+      failure reuse seeds and parameters under new run ids, labelled retries.
+
+  budget:
+    enforcement: advisory
+    total_cpu_hours: 6
+    maximum_memory_gb: 8
+    maximum_workers: 4
+  cost_model:
+    status: >-
+      ANALYTIC AND UNMEASURED (no shell in the designing session). The pilot
+      below must be run by the implementation task before approval.
+    quantities: >-
+      Per real curve: enumeration and tables, about 8 passes over arrays of
+      length p (sq scatter, f(x), ys lookup): under 1 second at p = 2^25 with
+      numpy, assumed. Per (instance, shape): 100 rows, each about 6 passes
+      over length-p arrays (two compares, add, cumsum, gather of 2000
+      values): tau_row assumed 0.25 s at p = 2^25, scaling linearly in p.
+      15 shapes + 3 x-only = 18 shape evaluations per real curve, 15 per
+      SYN or PLT instance.
+    totals: >-
+      K24 (mean p about 2^24): 18 instances x about 16 shape evaluations x
+      100 rows x 0.125 s = 3600 core-seconds; K22 about 1/4 and K20 about
+      1/16 of that: about 4900 core-seconds of counting plus N-B order
+      searches (about 17 enumerations per accepted curve, under 30 core-
+      seconds per curve at the top), the brute-force checks and the m = 3 arm
+      (10 curves x 202 bases x about 0.015 s plus BSGS, about 60 s): about
+      1.6 core-hours, 30 minutes on 4 workers. The 6 core-hour advisory
+      budget leaves a factor 3.7 for a slower tau_row.
+    memory_model: >-
+      Per worker at p = 2^25: sq table int32 134 MB, ys int32 134 MB, f(x)
+      int64 268 MB transient, h int8 34 MB, H int32 134 MB, boolean
+      temporaries 2 x 34 MB; peak about 0.8 GB, PLT about 1.0 GB. Four
+      workers about 4 GB plus parent; declared maximum 8 GB.
+    pre_freeze_pilot: >-
+      Measure tau_row at one N-B curve with p near 2^24 and peak RSS per
+      worker; require 1.6 * (tau_row(2^25-scaled) / 0.25 s) core-hours
+      <= 6 and peak RSS <= 1.8 GB per worker. If it fails, lower the top of
+      K24 to 2^24 as a draft edit before freeze (not an amendment).
+  trial_plan_outline:
+    note: >-
+      Run ids are minted at approval with tools/allocate_id.py --next run
+      --area CMFB and written into trial-plan.json; none exist yet.
+    trials:
+      - "t1-inventory: exact FAM sieve for p <= 2^25, FAM subsets, N-B draws with enumerated orders, SYN and PLT parameters; instance list with sha256 (workers 1)."
+      - "t2-gates: G1 for every real curve, G2 for every instance, G3 and G4 on SYN and PLT for every cell and shape, G5 anchored scans; gate failure stops t3..t6 (workers 4)."
+      - "t3-K20, t4-K22, t5-K24: counts for FAM, N-B (15 shapes + x-only) per cell, with per-instance count summaries and row-level moments written raw (workers 4)."
+      - "t6-m3-K20: anchored joint base J, small-x base S and 200 matched random bases per FAM and N-B curve at K20, exact m = 3 coverage, label checks (workers 4)."
+      - "t7-analysis: delta, rho, bootstrap, decision_rule, tail checks, m3_reading; check.py recomputes every table from raw row moments without importing driver or analysis code (workers 1)."
+  required_artifacts:
+    - experiments/EXP-CMFB-a07d3f/implementation/driver.py
+    - experiments/EXP-CMFB-a07d3f/implementation/boxcount.py
+    - experiments/EXP-CMFB-a07d3f/implementation/curves.py
+    - experiments/EXP-CMFB-a07d3f/implementation/analyze.py
+    - experiments/EXP-CMFB-a07d3f/implementation/check.py
+    - experiments/EXP-CMFB-a07d3f/implementation/test_boxcount.py
+    - experiments/EXP-CMFB-a07d3f/trial-plan.json
+    - experiments/EXP-CMFB-a07d3f/queue.json
+    - "experiments/EXP-CMFB-a07d3f/runs/<RUN-ID>/ manifest, raw row moments (per instance, shape, row: n, sum, sum of squares, min, max), gate report, checker output"
+    - "experiments/EXP-CMFB-a07d3f/runs/<analysis RUN-ID>/result.json with the decision_rule outcome"
+    - "report, graph and PDF per the research-visuals skill (rho heatmap by shape and cell per arm, planted vs null, z histograms)"
+  interpretation_limits:
+    - "Counting only; no solver, relation or cost claim; yield conserved (KN-FIND-007)."
+    - "Toy sizes 2^18 < p <= 2^25; no transfer to 2^28, to the 53-bit pair, or to cryptographic sizes."
+    - "Chart-specific, axis-parallel boxes, translates without wrapping; the floor curve and N-A curves are not tested."
+    - "A null is a statement at resolution 0.1 on rho for 15 shapes; it is not a proof that no box enumerator beats the x-scan."
+  draft_changelog:
+    - >-
+      v1 (2026-10-16): designed from IDEA-20261015-5888a7. Departures from
+      the idea, fixed before any run: (a) the idea's Poisson prediction
+      (dispersion 1.0) is replaced by the exact two-sign random-model value
+      1 - q/2 + O(q^2), with the synthetic set as the matched null; (b) the
+      planted dense sub-box is replaced by a planted clustered set whose
+      effect on dispersion is known at every translate (+0.67); (c) sizes
+      2^18..2^25 instead of 2^20..2^28 because the dense per-x tables do not
+      fit 2^28 on the declared memory; (d) the idea's aspect ratios
+      {1/16..16} and sides p^{1/3}..p^{3/4} are realized as 5 ratios x 3
+      area exponents.
+  assigned_to: executor
