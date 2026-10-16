@@ -6,7 +6,8 @@ For each k (ascending), one job at a time:
   two-level  planted: true composition, a rearrangement of it (wrong), a composition of another shape (wrong);
              random T: the planted true composition and (1, 1, 1, 3)
 The true m / composition is read from a probe build of the planted instance. A role that times out or is
-killed at some k is skipped at larger k. Appends one JSON line per job to OUTDIR/results.jsonl.
+killed at some k is skipped at larger k. Appends one JSON line per job to OUTDIR/results.jsonl; a rerun with
+the same OUTDIR resumes after the last recorded job (the container may restart mid-sweep).
 """
 import json, os, subprocess, sys
 from run_sweep import PRIMES, HERE, run_msolve
@@ -43,7 +44,12 @@ def main():
     outdir, sage_py, msolve, timeout, ks = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), json.loads(sys.argv[5])
     os.makedirs(os.path.join(outdir, 'runs'), exist_ok=True)
     dead = set()
-    with open(os.path.join(outdir, 'results.jsonl'), 'a') as fh:
+    done = {}  # resume: jobs already recorded in results.jsonl are not rerun
+    rp = os.path.join(outdir, 'results.jsonl')
+    if os.path.exists(rp):
+        for line in open(rp):
+            r = json.loads(line); done[r['tag']] = r
+    with open(rp, 'a') as fh:
         for k in ks:
             probe, err = build(sage_py, 'split2', k, 'planted', [1, 1, 1, 3], os.path.join(outdir, 'runs', f'probe_k{k}'))
             comp = probe['true_comp']
@@ -60,6 +66,11 @@ def main():
                 label = guess if isinstance(guess, int) else ''.join(map(str, guess))
                 tag = f'mult_{builder}_k{k}_{role}_{label}_{inst}_s1'
                 rec = dict(arm='mult', enc=builder, k=k, inst=inst, role=role, guess=guess, p=P, tag=tag)
+                if tag in done:
+                    rec = done[tag]
+                    if rec.get('status') == 'timeout' or str(rec.get('status')).startswith('exit_'):
+                        dead.add((builder, role))
+                    continue
                 if (builder, role) in dead:
                     rec['status'] = 'skipped_smaller_k_incomplete'
                 else:
