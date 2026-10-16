@@ -1,0 +1,131 @@
+# H-ENDO-c9f324
+# Timed isogenous-model scalar multiplication for IDEA-20261016-15a6fc: is the
+# modelled model-change gain of other/BADA55-VPR-224 visible in wall-clock?
+# Measured known-scalar k*P only, on one shared cloud host; no ECDLP claim.
+hypothesis:
+  id: H-ENDO-c9f324
+  question_id: RQ-ENDO-476761
+  goal_id: GOAL-ENDO-001
+  source_idea: IDEA-20261016-15a6fc
+  added: '2026-10-16'
+  status: supported
+  status_history:
+    - {status: specified, at: '2026-10-16', by: coordinator}
+    - {status: approved, at: '2026-10-16', by: coordinator, decision: DEC-20261016-cc8e56}
+    - {status: analyzed, at: '2026-10-16', by: coordinator, decision: DEC-20261016-f379af, evidence: EV-ENDO-118b3a}
+    - {status: supported, at: '2026-10-16', by: coordinator, decision: DEC-20261016-f379af, evidence: EV-ENDO-118b3a}
+  status_note: >-
+    Supported at the measured single-host tier only: other/BADA55-VPR-224,
+    one shared KVM host, bench.c, cc 13.3.0 -O2 -march=native. Target A2/A0
+    0.9693 [0.9647, 0.9767]; all gates pass. Strength preliminary and
+    unreplicated; the ecbench independent-runner replication is the named
+    next step. Not official until the ledger commit of TASK-20261016-5c0f78
+    is verified.
+  approved_by: coordinator
+  approval_decision_id: DEC-20261016-cc8e56
+  statement: >-
+    On other/BADA55-VPR-224 (|D_K| > 2e6, so there is no GLV competitor),
+    one-shot variable-base k*P routed through the 5*5-isogenous neighbour of
+    RUN-ENDO-d7cb69 and its a = -3 model is faster in measured wall-clock
+    time than k*P on E with E's own generic-a arithmetic. The route is the
+    forward 5*5 route, k' = k c mod n, k' P' with a = -3 doubling, and the
+    dual route back. Both arms use the same implementation
+    (harness/endosweep/isobench/bench.c) on the same host. Concretely, the
+    median paired ratio A2/A0 over 41 repetitions has a 95 % percentile-
+    bootstrap interval that lies entirely below 1. The persistent arm A1
+    (k' P' on the neighbour, no route) is expected to be faster still.
+  arms:
+    A0_E: >-
+      k P on E. Jacobian dbl-2007-bl with one multiplication by a,
+      add-2007-bl, signed width-5 NAF with an 8-entry table, affine output by
+      one Fermat inversion. This is the reference arm.
+    A1_persistent: >-
+      k' P' on the a = -3 model of the neighbour, with P' already mapped.
+      Same arithmetic except dbl-2001-b (3M + 5S).
+    A2_oneshot: >-
+      The forward route (two homogenised 5-isogeny steps and an isomorphism
+      as Z-scaling), k' = k c mod n in Montgomery form, k' P' as in A1, then
+      the dual route back to E.
+    A3_AA: >-
+      A0 timed again as a separate arm. This is the instrument-noise
+      control.
+  mechanism: >-
+    The identity is k P = phi_hat(k' phi(P)) with k' = k c mod n,
+    c = sign * deg^-1 mod n, as in IDEA-20261016-15a6fc. On the a = -3 model
+    each doubling costs 3M + 5S instead of 1M + 8S + 1M. With S = M in
+    bench.c that is 8 M instead of 10 M on each of about 224 doublings. The
+    additions, the table, the final inversion and the field additions and
+    subtractions are unchanged, and the route adds two 5-isogeny
+    evaluations each way.
+  test_boundary:
+    instances:
+      - other/BADA55-VPR-224 (target; best route path [5, 5], degree 25, in RUN-ENDO-d7cb69)
+      - "control+: 3-isogenous neighbour of NIST P-256 (positive control; route back to P-256's a = -3 model)"
+    parameters:
+      source_rows: experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+      source_rows_sha256: 0576225d496168485a8c30d5d460edab1ab969e7cd3a4d7850e43406a65282da
+      points: 64
+      repetitions: 41
+      bootstrap_resamples: 4000
+      seed: 20261016
+      compiler: cc -O2 -march=native
+      route_search: ells 2,3,5,7,11,13, depth 2, 64 nodes (isobench defaults, node chosen by the j of the source row's best route)
+      arithmetic: 4-limb Montgomery CIOS, S = M
+    implementation: harness/endosweep/isobench/ via experiments/EXP-ENDO-33a1ee/implementation/run.py
+    budget:
+      wall_clock_seconds: 3600
+      memory_gb: 1
+      maximum_runs: 1
+  distinguishable_outcomes:
+    - >-
+      All gates pass (correctness on both curves, A/A on both curves, the
+      positive control). On the target the A2/A0 95 % CI lies entirely below
+      1. The one-shot model change is measured faster on this curve, this
+      host and this implementation. The measured saving is reported against
+      the modelled 11.44 %.
+    - >-
+      All gates pass. The target A2/A0 CI contains 1. The one-shot saving is
+      not resolved at this tier, and the result is inconclusive. The A1/A0
+      row is reported separately.
+    - >-
+      All gates pass. The target A2/A0 CI lies entirely at or above 1. The
+      one-shot route is not faster on this host and implementation. This is
+      a single unreplicated empirical-only run, so it can weaken the
+      measured-tier claim but cannot reject it in scope.
+    - >-
+      The A/A gate fails on a curve. Every timing inference that depends on
+      that curve is withheld, and the run reports descriptive summaries
+      only. A failed control-curve gate also withholds the target inference.
+      This is an instrument alert, not evidence.
+    - >-
+      The positive control fails (control A1/A0 upper CI bound >= 1). The
+      instrument cannot show a known a = -3 saving, so the target inference
+      is withheld. This is an instrument alert, not evidence.
+    - >-
+      Any arm disagrees with the Python reference on any point. The run is
+      invalid. That is an implementation defect, not a result.
+  falsification: >-
+    With the run valid and every gate passing, the target A2/A0 95 % CI lies
+    entirely at or above 1. That falsifies the measured one-shot claim on
+    this host and implementation only, and supports weaken plus an
+    independent-runner replication, never reject_scoped.
+  proof_search_map:
+    not_applicable_reason: >-
+      Not proof-oriented. This is a wall-clock measurement of a route whose
+      correctness is checked on points against a Python reference.
+  interpretation_limits:
+    - >-
+      The tier is measured wall-clock on one shared cloud host, with no core
+      pinning, frequency control or isolation. It does not transfer to other
+      hosts, compilers or flags.
+    - >-
+      Both arms run in one generic CIOS implementation with S = M. Nothing
+      transfers to an optimised library, to a tuned A0 or to dedicated
+      squaring.
+    - Known-scalar cost is not ECDLP cost. No rho, ECDLP or exponent figure moves, and wall time is never a measured bound (AGENTS.md).
+    - The modelled figures come from RUN-ENDO-d7cb69, which has had no evidence review yet. A defect found there propagates to the curve selection.
+    - The idea's heuristics H1-H3 are not validated by this contract. The route cost of H3 is embedded in A2 but is not isolated.
+  not_claimed: >-
+    No exponent, no ECDLP or rho cost, no cost-functional claim about the
+    isogeny class, no constant-time or fixed-base claim, and no statement
+    about other curves, hosts, compilers or implementations.
