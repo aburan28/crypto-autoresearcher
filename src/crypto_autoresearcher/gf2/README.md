@@ -331,6 +331,21 @@ What was evaluated and not built:
     22% and 5.2 s; lex 18% and 3.8 s; colex with variables relabeled 16% and
     2.8 s; dense-last 36% and 9.6 s; reversed 39% and 9.1 s; random 50% and
     12.5 s.
+  - **Block Wiedemann.** Only its Krylov phase was built and timed: native
+    CSR and CSC products with 64-bit block vectors, one 64 x 64 sequence term
+    per step, on the unreduced matrix (5.54M nonzeros). Each iteration is a
+    product with A^T, a product with A and one block dot: 6.4 ms with 4
+    threads, 10.7 ms with one. The sequence needs about 2R/64 = 1455
+    iterations, so this phase alone takes at least 9.4 s (4 threads) and
+    15.6 s (1 thread), against 1.3 s and 3.4 s for the whole column pass.
+    That bound leaves out the matrix Berlekamp–Massey step and the
+    preconditioning that rank over GF(2) needs. It also counts one rank only:
+    the record needs a rank per degree prefix, and Block Wiedemann gives
+    them only probabilistically. The gathers run at about 1.7G/s, close to
+    memory latency, so even a 2x faster product would stay 3 to 4x behind.
+    Both costs grow roughly with the number of rows times the nonzeros at
+    these shapes (M_5 nv=26: about 18 s estimated against 2.8 s), so the
+    gap does not close at nearby sizes.
 
 ## Not covered yet
 
