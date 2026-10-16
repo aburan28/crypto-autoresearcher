@@ -91,3 +91,16 @@ parameter set, which secret could have been retained by its generator. The
 **idea generator** uses the "public invariant" column to reject, before
 compute, any proposal that hides a class invariant behind an isogeny
 (the deprioritized list of GOAL-ECTD-001).
+
+## Addendum (2026-10-16): the "seed preimage" row for the NIST curves, a disclosure and not a retraction
+
+Added by the Coordinator under DEC-20261016-fb3a6f. The taxonomy above is
+unchanged, and the "seed preimage" row still states the general mechanism.
+For the historical X9.62 / FIPS 186-2 prime curves, the seed preimage is no
+longer secret: KN-LIT-d2f917 records each seed as `drand48` output after
+`srand48(t)` for a 1997-98 timestamp. What a generator could still have
+retained is narrower: the choice of timestamp and of which accepted candidate
+to publish (about 30 bits per curve, Valsorda), and the unexplained base
+points of P-224/P-256/P-384/P-521. A red-team review of those curves should
+use this narrower residue, as described in KN-TECH-031027's 2026-10-16
+addendum. Nothing here changes any ECDLP cost.

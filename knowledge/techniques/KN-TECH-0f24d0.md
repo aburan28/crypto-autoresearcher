@@ -118,3 +118,16 @@ verification. Existing KB entries retain their own limitations.
 
 For prime-field unknowns and explicit evidence gates, see
 [KN-OPEN-ed922d](../open-problems/KN-OPEN-ed922d.md).
+
+## Addendum (2026-10-16): row 3 and the NIST P-curves, a disclosure and not a retraction
+
+Added by the Coordinator under DEC-20261016-fb3a6f. Row 3 is unchanged and
+still correct: seed manipulation establishes no secret weak class and is no
+proof of a NIST P-curve backdoor. Since 2026-10-16 the NIST seeds themselves
+have an explanation. KN-LIT-d2f917 records each X9.62 / FIPS 186-2 prime-curve
+seed as `drand48` output after `srand48(t)` for a 1997-98 timestamp, with
+about 30 bits of generator freedom per curve (Valsorda). For those curves,
+the "selection effort" that row 3 says can be hidden is bounded by that
+freedom. The selection rule among accepted candidates and four base points
+remain unexplained (problems/nist-seed-selection-rule-unexplained.md).
+Nothing here changes any ECDLP cost.
