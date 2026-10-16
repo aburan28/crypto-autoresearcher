@@ -15,6 +15,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -55,17 +56,14 @@ def main() -> int:
     ap.add_argument("--run-dir", required=True)
     args = ap.parse_args()
     run_dir = Path(args.run_dir)
-    out = run_dir / "isomodel"
+    out = Path(tempfile.mkdtemp(prefix="isomodel-"))      # working copies stay outside the run directory
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     root = std_curves()
     cmd = [sys.executable, "-m", "harness.endosweep.isomodel", "--std-curves", str(root),
            "--out-dir", str(out), *FROZEN]
     t0 = time.time()
-    proc = subprocess.run(cmd, cwd=REPO, text=True, capture_output=True)
-    (run_dir / "isomodel-stdout.log").write_text(proc.stdout)
-    (run_dir / "isomodel-stderr.log").write_text(proc.stderr)
+    proc = subprocess.run(cmd, cwd=REPO)                   # child output goes to the runner's stdout/stderr logs
     if proc.returncode != 0:
-        print(proc.stderr[-4000:], file=sys.stderr)
         return proc.returncode
     shutil.copyfile(out / "isomodel.json", run_dir / "raw-result.json")
     shutil.copyfile(out / "rows.jsonl", run_dir / "rows.jsonl")
