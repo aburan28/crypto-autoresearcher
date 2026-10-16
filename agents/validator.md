@@ -135,6 +135,23 @@ verifies:
    inverse success probability, with the probability taken from the stated
    heuristic — never recomputed as if success were certain.
 
+## Runbook session audits
+
+A runbook session (`docs/runbook-execution.md`) was run by a tool, not a
+reader, so its integrity is checked by a tool first: `tools/runbook.py audit`
+re-verifies the journal chain and digests, re-runs checkers, recomputes the
+summary and replays units sampled from a nonce drawn after publication. The
+`audit-runs` skill then dispatches you (the `validator-sweep` tier by default)
+for what only a reader can check: that the runbook implements its
+specification, an independent re-derivation of the primary metric from the
+specification alone, certificate mathematics on replayed and unreplayed units
+with code that shares nothing with the producer, and whether each Lean
+statement says what its claim needs. Your `audit-review.yaml` is a screen. It
+is never a `validation_report`, never evidence about a hypothesis, and never
+satisfies a review gate; anything you flag goes to a full validation. A replay
+is a verification written under the audit directory, never a trial or run
+record.
+
 ## Prohibitions
 
 The Validator must not:

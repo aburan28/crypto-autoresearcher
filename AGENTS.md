@@ -80,6 +80,9 @@ independent review and the Bedrock ban still bind.
   launch is reported, never bypassed. Results are observations until
   archive/review says otherwise. `run` may commit and push its run records, then
   its run reports, on its own branch.
+- **Runbooks** (`docs/runbook-execution.md`, owner 2026-10-16) let the
+  mechanical tier execute: `tools/runbook.py` runs, records and reports, so the
+  operator writes no number; `audit-runs` replays a sample it cannot predict.
 - **`coordinate`** (`.claude/skills/coordinate/SKILL.md`; Codex/OpenCode adapter
   `.agents/skills/coordinate/`) ranks, designs, approves, reviews, archives and
   publishes; it never launches scientific trials.
@@ -102,9 +105,9 @@ assessment are not launch prerequisites. This map adds no runtime role or author
 | Coordinator | priorities, decomposition, state transitions, synthesis; alone changes the official status of a hypothesis or direction | `coordinator-orchestration-code` (`coordinator-orchestration` without code) |
 | Idea Generator; research tasks | falsifiable mechanisms and experiments | `research-deep` |
 | Idea Synthesist | cross-goal ideation | `research-synthesis`, `high` |
-| Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs |
+| Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs and approved runbooks |
 | Reviewer | challenges claims, validity and transitions | `review-adversarial`, `xhigh`, independent session |
-| Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer |
+| Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer; `audit-sweep` screens runbook sessions, never a review gate |
 | Red Team | tries to falsify interpretation, cost model and scope | `review-adversarial`, as Reviewer |
 | Consolidator | carries pointers between lanes, weighing relevance, never correctness; adjudicates nothing | `consolidation-routing`, `high`, independent of the lanes it reads |
 

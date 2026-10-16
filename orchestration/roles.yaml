@@ -153,7 +153,8 @@ runtime_model_pins:
     field: model
     backend: anthropic
     roles: [executor, executor-mechanical, idea-generator, consolidator,
-            idea-synthesist, validator-breakthrough, red-team-breakthrough]
+            idea-synthesist, validator-breakthrough, red-team-breakthrough,
+            validator-sweep]
 
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
@@ -329,6 +330,25 @@ roles:
     optional_capabilities: [send_messages, network_read]
     runtime_bindings:
       claude_code: .claude/agents/validator-breakthrough.md
+
+  # The periodic audit of runbook sessions (`audit-runs`). Same Validator,
+  # same authority, a policy that runs on every mechanical-tier session and so
+  # is pinned to a cheaper model than the claim-changing review. Pinned like
+  # the breakthrough tiers, for the opposite reason: a sweep must not silently
+  # bill at whatever tier the session was launched on.
+  validator-sweep:
+    variant_of: validator
+    contract: agents/validator.md
+    default_policy: audit-sweep
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages, network_read]
+    runtime_bindings:
+      claude_code: .claude/agents/validator-sweep.md
 
   red-team-breakthrough:
     variant_of: red-team
