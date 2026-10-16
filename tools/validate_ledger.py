@@ -596,6 +596,7 @@ class Ctx:
         self.legacy_paths = legacy_paths
         self.legacy_id_remaps = legacy_id_remaps or {}
         self.legacy_aliases: set[str] = set()
+        self.amendment_ids: set[str] = set()   # AMD-* ids, indexed not checked
         self.schema_supersessions = schema_supersessions or {}
 
     def source_path(self, path: str) -> str:
@@ -936,6 +937,12 @@ def check_experiment(path: str, ctx: Ctx):
         return
     if not isinstance(doc, dict) or "experiment" not in doc:
         ctx.err(path, "expected top-level key 'experiment'")
+        # The specification exists; only its shape is wrong, and that was
+        # just reported once. Index the directory id so decisions citing the
+        # experiment are not re-reported as citing an unknown one.
+        stem = os.path.basename(os.path.dirname(path))
+        if ID_PATTERNS["experiment"].match(stem):
+            ctx.legacy_aliases.add(stem)
         return
     body = doc["experiment"]
     rec_id = body.get("id")
@@ -1095,6 +1102,14 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
             legacy_id = doc.get("run_id") or doc.get("id")
             if isinstance(legacy_id, str) and RUN_ID.match(legacy_id):
                 ctx.legacy_aliases.add(legacy_id)
+        else:
+            # A non-legacy flat manifest is a schema defect and was just
+            # reported as one, once, against the manifest. It is not evidence
+            # that the run is absent: without registering it, every evidence
+            # record, decision and finding citing the run is ALSO reported, as
+            # citing an "unknown run" -- a second, false diagnosis of the same
+            # defect, attributed to records that are correct.
+            register_flat_run_alias(path, doc, ctx)
         return
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
@@ -1987,6 +2002,101 @@ def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
             )
 
 
+def flat_run_id(path: str, doc) -> str | None:
+    """The run id a flat (non-`run:`) manifest belongs to, or None.
+
+    The run directory name is the run id by layout
+    (`experiments/<EXP>/runs/<RUN>/`, docs/evidence-and-reproducibility.md).
+    It is accepted only when nothing in the manifest contradicts it: a
+    recorded `run_id`/`id` must equal it, and a recorded `experiment_id` must
+    equal the enclosing experiment directory. A manifest that disagrees with
+    its own location is not indexed -- which run it describes is ambiguous.
+    """
+    if not isinstance(doc, dict):
+        return None
+    run_dir = os.path.dirname(os.path.abspath(path))
+    run_id = os.path.basename(run_dir)
+    runs_dir = os.path.dirname(run_dir)
+    if os.path.basename(runs_dir) != "runs" or not RUN_ID.match(run_id):
+        return None
+    exp_dir = os.path.basename(os.path.dirname(runs_dir))
+    recorded = doc.get("run_id") or doc.get("id")
+    if recorded not in (None, "") and str(recorded) != run_id:
+        return None
+    recorded_exp = doc.get("experiment_id")
+    if recorded_exp not in (None, "") and str(recorded_exp) != exp_dir:
+        return None
+    return run_id
+
+
+def register_flat_run_alias(path: str, doc, ctx: Ctx) -> None:
+    """Index a run whose manifest exists but is not schema-checkable."""
+    run_id = flat_run_id(path, doc)
+    if run_id:
+        ctx.legacy_aliases.add(run_id)
+
+
+def check_json_only_runs(ctx: Ctx) -> None:
+    """Index non-legacy runs whose only manifest is `manifest.json`.
+
+    The scan in main() visits `manifest.yaml` and `manifest_v2.yaml` only;
+    legacy JSON manifests are registered from the run inventory by
+    register_legacy_json_runs(). A run committed after the inventory froze,
+    with a JSON manifest, was therefore never seen: its own defect (no
+    canonical `manifest.yaml`) went unreported, and every record citing it was
+    reported instead as citing an unknown run. Index the run so citations
+    resolve, and surface the missing canonical manifest as an advisory: these
+    runs were never schema-checked before either, and the prune-only baseline
+    cannot absorb the ~80 that become visible, so failing them here would turn
+    an indexing fix into a red build. Promoting the advisory to an error is a
+    separate change, once their schema supersessions land.
+    """
+    pattern = os.path.join(REPO, "experiments", "*", "runs", "*", "manifest.json")
+    for path in sorted(glob.glob(pattern)):
+        run_dir = os.path.dirname(path)
+        if (os.path.abspath(path) in ctx.legacy_paths
+                or os.path.isfile(os.path.join(run_dir, "manifest.yaml"))
+                or os.path.isfile(os.path.join(run_dir, "manifest_v2.yaml"))):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError) as error:
+            ctx.advise(path, f"json-only run: invalid JSON manifest: {error}")
+            continue
+        ctx.advise(path, "json-only run: the canonical nested manifest.yaml "
+                         "is missing (indexed, not schema-checked)")
+        register_flat_run_alias(path, doc, ctx)
+
+
+def check_amendments(ctx: Ctx) -> None:
+    """Index protocol amendments (`experiments/<EXP>/amendments/AMD-*.yaml`).
+
+    Amendments are part of the documented experiment package
+    (docs/evidence-and-reproducibility.md) and are cited by id from knowledge
+    findings, but were never indexed, so every such citation was reported as
+    an unknown record. Only the id is indexed, and only when the record's
+    `amendment.id` equals its filename stem and its `experiment_id` (if
+    recorded) equals the enclosing experiment directory.
+    """
+    pattern = os.path.join(REPO, "experiments", "*", "amendments", "AMD-*.yaml")
+    for path in sorted(glob.glob(pattern)):
+        try:
+            doc = _safe_load(open(path, encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            continue              # not this check's defect to report
+        body = doc.get("amendment") if isinstance(doc, dict) else None
+        if not isinstance(body, dict):
+            continue
+        stem = os.path.splitext(os.path.basename(path))[0]
+        exp_dir = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        if str(body.get("id") or "") != stem:
+            continue
+        if body.get("experiment_id") not in (None, "", exp_dir):
+            continue
+        ctx.amendment_ids.add(stem)
+
+
 def register_legacy_json_runs(ctx: Ctx, inventory: dict[str, str]) -> None:
     """Register run ids of frozen legacy manifests serialized as JSON.
 
@@ -2104,8 +2214,14 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                 if not isinstance(refs, list) or not refs:
                     ctx.err(path, "internal finding requires internal_refs")
                 else:
+                    # legacy_aliases: the same "exists, not schema-checkable"
+                    # registry check_cross_refs consults for evidence run_ids;
+                    # without it a finding citing such a run failed where an
+                    # evidence record citing the same run passed.
                     for ref in refs:
-                        if ref not in ctx.ids and ref not in ctx.knowledge:
+                        if (ref not in ctx.ids and ref not in ctx.knowledge
+                                and ref not in ctx.legacy_aliases
+                                and ref not in ctx.amendment_ids):
                             ctx.err(path, f"internal finding references unknown "
                                           f"record '{ref}'")
                 if frontmatter.get("proof_status") not in PROOF_STATUSES:
@@ -3089,6 +3205,8 @@ def main() -> int:
         if os.path.isfile(os.path.join(os.path.dirname(path), "manifest.yaml")):
             continue
         check_run(path, ctx, run_supersessions)
+    check_json_only_runs(ctx)
+    check_amendments(ctx)
     check_legacy_id_remaps(ctx)
     # Knowledge must be indexed before goal closure quorum checks so that
     # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
@@ -3139,7 +3257,8 @@ def main() -> int:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
     if ctx.advisories:
-        kinds = {"goal head": 0, "next_action": 0, "proposal": 0, "handoff": 0}
+        kinds = {"goal head": 0, "next_action": 0, "proposal": 0, "handoff": 0,
+                 "json-only run": 0}
         for line in ctx.advisories:
             for key in kinds:
                 if f": {key}" in line:
