@@ -224,6 +224,41 @@ policies:
     # a review of it.
     degradable: false
 
+  audit-sweep:
+    aliases: []
+    summary: >-
+      Periodic, independent screening of mechanical-tier runbook sessions:
+      chain and digest integrity, nonce-sampled replay, metric and certificate
+      recomputation, and statement fidelity of Lean obligations. Screening
+      only; never a claim-changing validation.
+    purpose:
+      - runbook_audit
+      - integrity_screening
+      - metric_recomputation
+    requires:
+      # Same relaxed floor as review-adversarial: any backend that can reason
+      # may serve it, at its ceiling, recorded on every receipt.
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    # The deterministic half of the audit is `tools/runbook.py audit`, which
+    # needs no model at all. What is left for a model is reading: whether the
+    # runbook implements the specification it binds, whether a Lean statement
+    # says what the claim says, and an independent re-derivation of one
+    # load-bearing metric. That is careful work but not adversarial review of
+    # a claim, and it runs on every session, so it sits at `high` -- the
+    # producer ceiling, never below it (no review tier may think less than the
+    # work it reviews). Anything it flags goes to `review-adversarial`, and a
+    # sweep report never stands in for one: a routing rule that requires
+    # review-adversarial or review-breakthrough is not satisfied by this policy.
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: true
+    # Falling back means a stronger review, never a weaker one.
+    fallback_policy: review-adversarial
+
   consolidation-routing:
     aliases: []
     summary: >-
@@ -294,11 +329,13 @@ policies:
     aliases: []
     summary: >-
       Deterministic, fully specified work: re-run a frozen command, collect
-      artifacts, reformat a record, regenerate an index.
+      artifacts, reformat a record, regenerate an index, or execute an
+      experiment from a linted, approved runbook (docs/runbook-execution.md).
     purpose:
       - artifact_collection
       - reproduction_runs
       - record_formatting
+      - runbook_execution
     requires:
       reasoning_effort: low
       tool_use: true
@@ -370,6 +407,17 @@ routing_rules:
         - task_type: experiment_design
     require:
       policy: research-deep
+
+  # A runbook removes every choice from execution, so the mechanical tier may
+  # run it. A runbook task is also experiment execution; where both rules
+  # match, this one applies, because it is the more specific. A runbook that
+  # does not lint clean is not a runbook task, and goes to executor-runtime.
+  - id: runbook-execution
+    when:
+      any:
+        - task_type: runbook_execution
+    require:
+      policy: executor-mechanical
 
   - id: executor-runtime
     when:

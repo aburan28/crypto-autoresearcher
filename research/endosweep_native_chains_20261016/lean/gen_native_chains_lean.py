@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Generate formal/CryptoResearch/Endosweep/NativeChains.lean from the frozen chain sets.
+
+Reads (repository-relative, from REPO, default ".")
+  research/endosweep_native_chains_20261016/{bandersnatch,tom384,cp6_782}.chains.constants.json
+Writes
+  formal/CryptoResearch/Endosweep/NativeChains.lean
+
+Every number is re-checked in Python first (the same propositions the Lean
+file states), so a stale or inconsistent input fails here rather than in Lean.
+The definitions and the proof (`decide`) are fixed text in this script; only
+the data blocks are generated.  Core Lean only (no imports).
+
+    python3 research/endosweep_native_chains_20261016/lean/gen_native_chains_lean.py .
+"""
+import json
+import sys
+from pathlib import Path
+
+REPO = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+DIR = REPO / "research/endosweep_native_chains_20261016"
+OUT = REPO / "formal/CryptoResearch/Endosweep/NativeChains.lean"
+
+CURVES = [
+    # (file prefix, Lean namespace, theorem name, human name)
+    ("bandersnatch", "Bandersnatch", "bandersnatch_native_chain_certificate",
+     "Bandersnatch (short Weierstrass model)"),
+    ("tom384", "Tom384", "tom384_native_chain_certificate", "Tom-384"),
+    ("cp6_782", "CP6", "cp6_782_native_chain_certificate", "CP6-782 G1"),
+]
+
+
+def omega_tn(D):
+    tau = D % 2
+    return tau, (tau * tau - D) // 4
+
+
+def on_curve(p, a, b, P):
+    x, y = P
+    return x < p and y < p and (y * y - x * x * x - a * x - b) % p == 0
+
+
+def pt(P):
+    return f"({P[0]}, {P[1]})"
+
+
+def check_and_emit(prefix, ns):
+    d = json.loads((DIR / f"{prefix}.chains.constants.json").read_text())
+    p, a, b, n = (int(d[k], 16) for k in ("p", "a", "b", "n"))
+    h, D = d["cofactor"], d["D_K"]
+    tau, m = omega_tn(D)
+    cur = d["curve"]
+    t, f = int(cur["trace"]), int(cur["conductor"])
+    lam = int(d["omega_root"], 16)
+    G = tuple(int(c, 16) for c in cur["G"])
+    assert (cur["omega_trace"], cur["omega_norm"]) == (tau, m)
+    assert p + 1 - t == h * n
+    assert t * t - 4 * p == D * f * f
+    assert (lam * lam - tau * lam + m) % n == 0
+    assert on_curve(p, a, b, G)
+    rows = []
+    for ch in d["chains"]:
+        ea, eb = ch["element"]
+        ma, mb = ch["matched_element"]
+        e = int(ch["eigenvalue"], 16)
+        norm = ch["norm"]
+        (u1, v1), (u2, v2) = [[int(x) for x in r] for r in ch["glv_basis"]]
+        assert ea * ea + ea * eb * tau + eb * eb * m == norm
+        prod = 1
+        for ell in ch["order"]:
+            prod *= ell
+        assert prod == norm
+        assert (ma, mb) in ((ea, eb), (-ea, -eb))
+        assert 0 <= e < n and (e - (ma + mb * lam)) % n == 0
+        assert (e * e - (2 * ma + mb * tau) * e + norm) % n == 0
+        assert (u1 + v1 * e) % n == 0 and (u2 + v2 * e) % n == 0
+        assert u1 * v2 - v1 * u2 in (n, -n)
+        tests = []
+        for tv in ch["test_vectors"]:
+            P, phiP, kP = (tuple(int(c, 16) for c in tv[k]) for k in ("P", "phiP", "kP"))
+            k, k1, k2 = int(tv["k"], 16), int(tv["k1"]), int(tv["k2"])
+            assert (k - k1 - k2 * e) % n == 0
+            for Q in (P, phiP, kP):
+                assert on_curve(p, a, b, Q)
+            tests.append(f"{{ P := {pt(P)}, phiP := {pt(phiP)}, kP := {pt(kP)}, k := {k}, k1 := {k1}, k2 := {k2} }}")
+        rows.append(
+            f"  {{ id := \"{ch['id']}\", a := {ea}, b := {eb}, ma := {ma}, mb := {mb}, norm := {norm}, "
+            f"order := [{', '.join(map(str, ch['order']))}], e := {e},\n"
+            f"    b1 := ({u1}, {v1}), b2 := ({u2}, {v2}),\n"
+            f"    tests := [\n      " + ",\n      ".join(tests) + "] }")
+    best = min(d["chains"], key=lambda c: (c["model_ops"]["optimised"]["M_eq"], c["id"]))
+    block = f"""namespace {ns}
+
+/-- `{prefix}.chains.constants.json`: `{d['target']}`, D_K = {D} (`ω² = {tau}·ω − {m}`). -/
+def curve : CurveData :=
+  {{ p := {p}, a := {a}, b := {b},
+    n := {n}, h := {h},
+    t := {t}, f := {f},
+    D := {D}, τ := {tau}, m := {m},
+    lam := {lam},
+    G := {pt(G)} }}
+
+/-- The {len(rows)} exported orderings. -/
+def chains : List Chain := [
+{(','+chr(10)).join(rows)}]
+
+end {ns}
+"""
+    facts = dict(n_chains=len(rows), best_id=best["id"], best_a=best["element"][0], best_b=best["element"][1],
+                 best_norm=best["norm"], best_order=best["order"], tau=tau, m=m, D=D, h=h)
+    return block, facts
+
+
+HEADER = """/-
+Native chain sets for Bandersnatch, Tom-384 and CP6-782 G1: the exact integer
+facts of the frozen constants.
+
+Source:  research/endosweep_native_chains_20261016/README.md ("Lean
+         verification"); data in bandersnatch.chains.constants.json,
+         tom384.chains.constants.json and cp6_782.chains.constants.json there.
+Targets: formal/targets/endosweep-native-chains-bandersnatch.yaml
+         formal/targets/endosweep-native-chains-tom384.yaml
+         formal/targets/endosweep-native-chains-cp6-782.yaml
+
+GENERATED by research/endosweep_native_chains_20261016/lean/gen_native_chains_lean.py
+from those three files (the script re-checks every proposition in Python and
+refuses to write on any mismatch).  Do not edit by hand.
+
+WHAT IS CERTIFIED (by kernel arithmetic, `decide`), per curve:
+  * `p + 1 − t = h·n` and `t² − 4p = D_K·f²` for the recorded trace `t` and
+    conductor `f` (the CM certificate's integer identity);
+  * the recorded `omega_root` `λ` satisfies `λ² − τλ + m ≡ 0 (mod n)`, where
+    `ω² = τω − m` (`τ = 0, m = 2` for `D = −8`; `τ = 1` otherwise);
+  * the generator `G` satisfies the curve equation mod `p`;
+  * for every exported ordering: `N(a + bω)` is the recorded norm and the
+    product of the recorded step degrees; the matched element is `±(a + bω)`;
+    `0 ≤ e < n` and `e ≡ a′ + b′λ (mod n)` for the matched element `(a′, b′)`;
+    `e² − (2a′ + b′τ)e + N ≡ 0 (mod n)` (the eigenvalue is a root of the
+    endomorphism's characteristic polynomial); both reduced GLV basis vectors
+    `(u, v)` satisfy `u + v·e ≡ 0 (mod n)` and their determinant is `±n`
+    (so, by `ChainEigen.glv_basis_spans_relation_lattice`, they are a basis of
+    the relation lattice); for every test vector `k ≡ k₁ + k₂·e (mod n)`, and
+    `P`, `φ(P)` and `k·P` satisfy the curve equation mod `p`.
+
+NOT CERTIFIED (explicit hypotheses or harness checks): primality of `p` and
+`n` (HYPOTHESIS: both are prime; the harness checks them with sympy `isprime`,
+a probabilistic test, and Lean does not prove it); that `t` is the trace of
+Frobenius of the curve (the group order `h·n`); that `G`, `P` have order `n`;
+that the isogeny walk exists, is an endomorphism, and acts as `e` on points
+(`φ(P) = e·P`, `k·P = k₁·P + k₂·φ(P)`: checked on points by the harness and the
+tests, not here); the completeness of the catalogue; every operation count and
+timing.
+-/
+namespace CryptoResearch.Endosweep.NativeChains
+
+/-- `N(a + bω) = a² + abτ + b²m` for `ω² = τω − m`. -/
+def qnorm (τ m a b : Int) : Int := a * a + a * b * τ + b * b * m
+
+/-- `(x, y)` is an affine point of `y² = x³ + ax + b` over `𝔽_p` (reduced coordinates). -/
+def onCurve (p a b : Nat) (P : Nat × Nat) : Bool :=
+  P.1 < p && P.2 < p && (P.2 * P.2) % p == (P.1 * P.1 * P.1 + a * P.1 + b) % p
+
+structure TestVec where
+  P : Nat × Nat
+  phiP : Nat × Nat
+  kP : Nat × Nat
+  k : Int
+  k1 : Int
+  k2 : Int
+
+structure Chain where
+  id : String
+  a : Int
+  b : Int
+  ma : Int
+  mb : Int
+  norm : Int
+  order : List Int
+  e : Int
+  b1 : Int × Int
+  b2 : Int × Int
+  tests : List TestVec
+
+structure CurveData where
+  p : Nat
+  a : Nat
+  b : Nat
+  n : Int
+  h : Int
+  t : Int
+  f : Int
+  D : Int
+  τ : Int
+  m : Int
+  lam : Int
+  G : Nat × Nat
+
+/-- The curve-level facts. -/
+def CurveData.Valid (C : CurveData) : Prop :=
+  (C.p : Int) + 1 - C.t = C.h * C.n ∧ C.t * C.t - 4 * (C.p : Int) = C.D * C.f * C.f ∧
+  (C.lam * C.lam - C.τ * C.lam + C.m) % C.n = 0 ∧ onCurve C.p C.a C.b C.G = true
+
+instance (C : CurveData) : Decidable C.Valid := by
+  unfold CurveData.Valid; infer_instance
+
+/-- What is checked for one exported ordering. -/
+def Chain.Valid (C : CurveData) (c : Chain) : Prop :=
+  qnorm C.τ C.m c.a c.b = c.norm ∧ c.order.foldr (· * ·) 1 = c.norm ∧
+  ((c.ma = c.a ∧ c.mb = c.b) ∨ (c.ma = -c.a ∧ c.mb = -c.b)) ∧
+  0 ≤ c.e ∧ c.e < C.n ∧ (c.e - (c.ma + c.mb * C.lam)) % C.n = 0 ∧
+  (c.e * c.e - (2 * c.ma + c.mb * C.τ) * c.e + c.norm) % C.n = 0 ∧
+  (c.b1.1 + c.b1.2 * c.e) % C.n = 0 ∧ (c.b2.1 + c.b2.2 * c.e) % C.n = 0 ∧
+  (c.b1.1 * c.b2.2 - c.b1.2 * c.b2.1 = C.n ∨ c.b1.1 * c.b2.2 - c.b1.2 * c.b2.1 = -C.n) ∧
+  c.tests ≠ [] ∧
+  ∀ t ∈ c.tests, (t.k - t.k1 - t.k2 * c.e) % C.n = 0 ∧
+    onCurve C.p C.a C.b t.P = true ∧ onCurve C.p C.a C.b t.phiP = true ∧
+    onCurve C.p C.a C.b t.kP = true
+
+instance (C : CurveData) (c : Chain) : Decidable (c.Valid C) := by
+  unfold Chain.Valid; infer_instance
+
+"""
+
+
+def theorem(ns, thm, human, fx):
+    order = " * ".join(map(str, fx["best_order"]))
+    return f"""/-- **{human} native chain certificate** ({fx['n_chains']} exported orderings; see the
+module docstring for the list of checks).  The cheapest ordering is `{fx['best_id']}`:
+`N({fx['best_a']} + {fx['best_b']}ω) = {fx['best_norm']} = {order}`.  Primality of `p` and `n` is NOT
+proved (hypothesis, see the module docstring). -/
+theorem {thm} :
+    {ns}.curve.Valid ∧ {ns}.curve.D = {fx['D']} ∧ {ns}.curve.h = {fx['h']} ∧
+    {ns}.chains.length = {fx['n_chains']} ∧
+    (∀ c ∈ {ns}.chains, c.Valid {ns}.curve) ∧
+    qnorm {fx['tau']} {fx['m']} {fx['best_a']} {fx['best_b']} = {fx['best_norm']} ∧ ({fx['best_norm']} : Int) = {order} := by
+  decide
+
+"""
+
+
+def main():
+    blocks, thms = [], []
+    for prefix, ns, thm, human in CURVES:
+        block, fx = check_and_emit(prefix, ns)
+        blocks.append(block)
+        thms.append(theorem(ns, thm, human, fx))
+    text = HEADER + "\n".join(blocks) + "\n" + "".join(thms) + "end CryptoResearch.Endosweep.NativeChains\n"
+    OUT.write_text(text)
+    print(f"wrote {OUT} ({len(text)} bytes)")
+
+
+if __name__ == "__main__":
+    main()
