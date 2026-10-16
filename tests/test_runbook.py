@@ -110,14 +110,19 @@ def test_the_committed_reference_session_verifies_with_checkers_rerun() -> None:
         assert rb.verify(REPO, session, rerun_checks=True) == []
 
 
-def test_the_committed_reference_session_has_a_clean_audit() -> None:
-    audits = sorted((REPO / EXAMPLE / "audits").glob("AUD-*/audit.json"))
-    assert audits
-    for path in audits:
-        audit = json.loads(path.read_text())
-        assert audit["verdict"] == "clean" and audit["findings"] == []
-        tip = entries(REPO / audit["session_dir"])[-1]["hash"]
-        assert audit["journal_tip"] == tip, "the audit is of a different journal than the one committed"
+def test_the_committed_reference_session_replays_in_full(tmp_path) -> None:
+    """The committed bytes, re-audited with every unit replayed.
+
+    No audit is committed beside the reference session: it would be the
+    producing session auditing itself, which audit-runs forbids. CI re-audits
+    the committed bytes on every run instead."""
+    root = copy_example(tmp_path)
+    for session in (REPO / EXAMPLE / "runbook-sessions").glob("RBS-*"):
+        shutil.copytree(session, root / EXAMPLE / "runbook-sessions" / session.name)
+        report, _ = rb.audit(root, root / EXAMPLE / "runbook-sessions" / session.name,
+                             samples=99, nonce="c1", auditor="ci")
+        assert report["verdict"] == "clean", report["findings"]
+        assert len(report["replays"]) == 14 and all(r["matched"] for r in report["replays"])
 
 
 # ---------------------------------------------------------------------------
