@@ -1,5 +1,5 @@
-#set page(paper: "us-letter", margin: (x: 0.55in, y: 0.5in))
-#set text(font: "Helvetica Neue", size: 9pt)
+#set page(paper: "us-letter", margin: (x: 0.5in, y: 0.45in))
+#set text(font: "Helvetica Neue", size: 8.7pt)
 #set par(justify: true)
 #set heading(numbering: none)
 
@@ -8,7 +8,7 @@ _Historical analysis · 16 October 2026 · selection rule unresolved_
 
 The curve family's shape is explained by the documented standards goals: several security levels, fast prime-field reduction, $a = -3$ for efficient arithmetic, a SHA-1-derived coefficient, and a large prime-order group. The exact reason eleven other qualifying seed blocks were passed over remains unknown. The six-stream recorded census has *21,753* 20-byte blocks, *11,042* point-count rows, and *21* curves passing known prime-order, order-size, and MOV screens: *ten published, eleven passed over*. This classification has been independently replayed given the stored point counts, not by replaying the unavailable 1997 generator.
 
-#figure(image("workflow.svg", width: 76%), caption: [The documented design choices and the missing historical keep/skip decision.])
+#figure(image("workflow.svg", width: 72%), caption: [The documented design choices and the missing historical keep/skip decision.])
 
 == What was being optimized
 
@@ -20,7 +20,11 @@ The curve family's shape is explained by the documented standards goals: several
 
 The reconstructed clock seeds date the 239-bit run to 15 May 1997, the 192-bit run to 18 May, P-521 to 8 August, P-256 to 16 August, P-384 to 30 August, and P-224 to 3 April 1998. The smaller P-224 came last, consistent with a later project pass but not proof of one. These are reconstructed PRNG inputs, not independently witnessed wall-clock records. Anthropic recovered a *different FreeLIP generator* for six May base points. Their small integer seeds are 20000, 20420, 20507, 20509, 20512, and 20517 in an order different from both curve-stream dates and standard listing. This is consistent with a separate base-point or standards-assembly pass. The four later prime base points remain unexplained. #link("https://www.anthropic.com/research/ecdsa-curve-origins")[Anthropic] (retrieved).
 
-#figure(image("stream_counts.svg", width: 78%), caption: [Qualifying blocks through each stream's last published block. Every row is right-censored; these counts do not estimate all generator attempts. Source: internal census/summary.json.])
+On *13 May 1997*, NIST publicly invited comments on a federal public-key agreement standard that explicitly included elliptic-curve techniques. A later Federal Register notice says NIST also solicited comments that day on adding elliptic curves to its digital-signature standard. The recovered May 15 and May 18 inputs are two and five days later. This shows active standardization, not that either notice caused a run or that the reconstructed clock values were witnessed run times. #link("https://csrc.nist.gov/News/1997/Plans-to-Develop-FIPS-for-Public-Key-Based-Crypto")[NIST notice] and #link("https://csrc.nist.rip/encryption/dss/fr981215.htm")[Federal Register retrospective] (retrieved).
+
+#figure(image("stream_counts.svg", width: 72%), caption: [Qualifying blocks through each stream's last published block. Every row is right-censored; these counts do not estimate all generator attempts. Source: internal census/summary.json.])
+
+Two actual software choices account for other exclusions. The census records *17* prime-order candidates whose orders are longer in bits than their field primes, rejected by an extra bit-length rule. In the four fields with $p equiv 3 mod 4$, the selected coefficient uses the simple exponentiation square-root convention; *31* other blocks have prime-order groups only on the opposite sign. These are separate from the eleven unresolved omissions. P-224 has $p equiv 1 mod 4$ and needs a different square-root path; its two coefficient signs are isomorphic, so sign choice does not explain its three omissions. A later P-224 software branch is a testable hypothesis, not an observed fact. Sources: internal census and sign audit.
 
 == What might explain the passed-over curves?
 
