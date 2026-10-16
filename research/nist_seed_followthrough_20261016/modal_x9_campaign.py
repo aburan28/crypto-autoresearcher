@@ -14,22 +14,26 @@ import modal
 
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[1]
 REMOTE = Path("/opt/nist-seed/repo")
 REMOTE_HERE = REMOTE / "research/nist_seed_followthrough_20261016"
+SOURCE_TREE = (HERE / "count_x9.py").is_file()
+REPO = HERE.parents[1] if SOURCE_TREE else REMOTE
 INPUTS = [
     "research/nist_seed_followthrough_20261016/count_x9.py",
     "research/nist_seed_selection_20261016/targets.json",
     "research/nist_seed_selection_20261016/raw/candidates.jsonl",
 ]
-INPUTS += [str(path.relative_to(REPO)) for path in sorted(
-    (REPO / "research/nist_seed_provenance_20261016/census").glob("orders_*.txt"))]
-EXPECTED = {rel: hashlib.sha256((REPO / rel).read_bytes()).hexdigest() for rel in INPUTS}
-TARGETS = {row["name"]: row for row in json.loads((REPO / INPUTS[1]).read_text())}
+INPUTS += [f"research/nist_seed_provenance_20261016/census/orders_{number}.txt"
+           for number in (863711343, 863966734, 871002724, 871696354, 872952608, 891607927)]
+EXPECTED = ({rel: hashlib.sha256((REPO / rel).read_bytes()).hexdigest()
+             for rel in INPUTS} if SOURCE_TREE else {})
+TARGETS = ({row["name"]: row for row in json.loads((REPO / INPUTS[1]).read_text())}
+           if SOURCE_TREE else {})
 ENDPOINTS = ("P-521", "P-384", "P-224", "P-256", "prime239v3", "prime192v2")
 IMAGE = modal.Image.debian_slim(python_version="3.12").apt_install("pari-gp", "pari-seadata")
-for rel in INPUTS:
-    IMAGE = IMAGE.add_local_file(REPO / rel, str(REMOTE / rel), copy=True)
+if SOURCE_TREE:
+    for rel in INPUTS:
+        IMAGE = IMAGE.add_local_file(REPO / rel, str(REMOTE / rel), copy=True)
 APP = modal.App("nist-seed-x9-exact-count")
 
 
