@@ -3,8 +3,8 @@
 - **Status:** investigating
 - **Kind:** implementation bottleneck and resource limit; no mathematical obstruction established
 - **Affected work:** EXP-IC-74cbb1, H-IC-4fb1db, RQ-IC-a39c7e, TASK-20261015-2454ff; [failed run](../experiments/EXP-IC-74cbb1/runs/RUN-IC-0dacba/execution-receipt.json), [inspected failure report](../experiments/EXP-IC-74cbb1/reports/run-20261015T0754Z/report.pdf)
-- **Next action owner:** Executor TASK-20261015-59d003 for the exact-HNF repair; Coordinator for source custody and prospective successor admission
-- **Last updated:** 2026-10-15
+- **Next action owner:** Coordinator/root for new serialization-failure custody TASK-20261016-a59f61/TASK-20261016-f4a410; prospective Executor TASK-20261016-282fd3 after native failure9; see [distinct serialization record](lattice-ic-artifact-serialization-memory.md)
+- **Last updated:** 2026-10-16
 
 ## Problem
 
@@ -46,3 +46,6 @@ These are exit conditions for this implementation obstruction. They would not es
 
 
 2026-10-15 fresh attempt: accepted durable-telemetry source and exact same-grid approval now run as EXP-IC-9f9a4b/RUN-IC-fe080b under unchanged2GiB, normal upfront1440minute authority. A recorded active exact_integer_row_hnf start boundary identifies only a new attempt's current operational boundary; it is not a timeout, certificate failure, HNF repair refutation or diagnosis of the previous expiry. Full-grid completion and independent lattice/cost review remain unestablished; [continuation](../research/lattice_ic_experiments_20261015/coordinator/polynomial-telemetry-successor/continuation-20261015-active.json) retains the scoped evidence.
+
+
+2026-10-16 actual terminal update: EXP-IC-9f9a4b/RUN-IC-fe080b ended with infrastructure_error/driver1/checker null. Durable scientific-body return was followed by write_artifacts MemoryError in shared core recursive serialization. No raw/manifest or separately checked observation exists; this is neither a new HNF defect nor a mathematical negative. The distinct [serialization-memory obstruction](lattice-ic-artifact-serialization-memory.md) owns prospective exact core/test-only repair after separate actual8+ownreceipt9 custody. Original scientific archive TASK-20261015-3047d1/local TASK-20261015-9403cb and all dependent independent reviews stay uncompleted. All three retained failures must accompany eventual four-success review inputs; prior source and runtime evidence remain unchanged.
