@@ -180,6 +180,24 @@ def variant_roots(row, source, mapping, p, check):
     return records
 
 
+def crosscheck_prior_prime_roots(eligible):
+    path = PREVIOUS / "raw/full_prime_order_certificates.jsonl"
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    header, footer = records[0], records[-1]
+    prior = {(row["target"], row["index"], int(row["b"], 16), int(row["n"]))
+             for row in records[1:-1] if row["record"] == "certificate" and row["order_certified"]}
+    if (header["expected_branches"] != 82 or footer["certified_branches"] != 82 or
+            footer["record"] != "completed" or footer["status"] != "validated" or
+            len(prior) != 82):
+        raise AssertionError("prior prime-root certificates are incomplete")
+    current = {(rep, row["index"], int(row["b"], 16), int(row["order"]))
+               for rep, mappings in eligible.items()
+               for row in mappings["unmasked"]}
+    if not prior <= current:
+        raise AssertionError(f"prior certified prime roots missing from X9 set: {sorted(prior - current)[:3]}")
+    return digest(path), len(prior)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--attempt", default="modalfull1")
@@ -216,6 +234,7 @@ def main():
                                                        "order": root["order"],
                                                        "smooth_cofactor": root["criteria"][255]["smooth_cofactor"],
                                                        "prime_subgroup": root["criteria"][255]["prime_subgroup"]})
+    prior_cert_sha, prior_root_count = crosscheck_prior_prime_roots(eligible)
     named = {}
     for rep, names in REPRESENTATIVE.items():
         for name in names:
@@ -266,11 +285,14 @@ def main():
         "scope": "complete exact near-prime X9 public-reference count for six distinct prime streams",
         "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "command": sys.argv, "python": platform.python_version(),
+        "script_sha256": digest(Path(__file__)),
         "pari_version": str(pari("version()")),
         "plan_sha256": digest(plan_path), "events_sha256": digest(events_path),
         "shard_sha256": hashes, "candidate_positions": sum(map(len, rows.values())),
         "primality_inputs_checked": len(primality),
         "field_prime_pari": field_prime,
+        "prior_certificates_sha256": prior_cert_sha,
+        "prior_cofactor_one_roots_crosschecked": prior_root_count,
         "criteria": {"lmax": list(LMAX), "r_bits": list(RBITS), "mov_degree_max": 20,
                      "hasse_factor": 4, "exclude_anomalous": True},
         "mapping_states": {rep: dict(counter) for rep, counter in states.items()},
