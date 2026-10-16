@@ -1,0 +1,130 @@
+# H-ENDO-f58749
+# Combined-route screen for IDEA-20261016-15a6fc: does a model change compose
+# with the chain 2-GLV? Modelled operation counts for a known-scalar k*P only;
+# no timing and no ECDLP claim.
+hypothesis:
+  id: H-ENDO-f58749
+  question_id: RQ-ENDO-476761
+  goal_id: GOAL-ENDO-001
+  source_idea: IDEA-20261016-15a6fc
+  added: '2026-10-16'
+  status: approved
+  status_history:
+    - {status: specified, at: '2026-10-16', by: coordinator}
+    - {status: approved, at: '2026-10-16', by: coordinator, decision: DEC-20261016-00e9cd}
+  approved_by: coordinator
+  approval_decision_id: DEC-20261016-00e9cd
+  statement: >-
+    Arm G. On at least one of the RUN-ENDO-d7cb69 population curves that have
+    a positive model-change gain and |D_K| <= 2e6, a rational ell-isogenous
+    neighbour E' with a cheaper short-Weierstrass class (an a = -3 model)
+    still carries the cheapest chain element of E. On E' that element builds
+    and passes curvesweep's GLV-2 point check. The 2-GLV on E', with the
+    forward chain, the dual chain and the scalar adjustment charged, then has
+    a lower modelled one-shot k*P cost than the 2-GLV on E. Costs are in
+    curvesweep's M_eq = M + S model, and the route E -> E' -> E must pass
+    point verification.
+    Corollary. A model change alone does not beat the 2-GLV on E on these
+    curves (model_change_vs_glv_on_E <= 0).
+  arms:
+    glv_on_E: >-
+      curvesweep.sweep_curve on E with D = D_K, re-run by
+      harness/endosweep/isoglv.py. This is the reference arm.
+    model_change: >-
+      The best neighbour model without GLV. It is copied from the
+      RUN-ENDO-d7cb69 row and is not recomputed.
+    combined: >-
+      curvesweep.sweep_curve on the cheapest-conversion cheaper-class
+      neighbour on which the cheapest chain element builds and verifies.
+      Conversion is charged in the one-shot column, and the route is verified
+      on 8 scalars.
+  mechanism: >-
+    The identity is k P = phi_hat(k' phi(P)) with k' = k d^-1 mod n. A
+    horizontal ell-edge preserves End, so the chain element that gives E its
+    2-GLV also exists on E'. A vertical edge changes the conductor and need
+    not preserve it. If E' has an a = -3 model, each of the roughly log2(n)/2
+    GLV doublings costs 3M + 5S instead of the general-a 1M + 8S + 1M. The
+    additions and the chain evaluation are unchanged.
+  test_boundary:
+    instances:
+      - >-
+        The seven RUN-ENDO-d7cb69 population curves with persistent_gain > 0:
+        other/Tom-384, mnt/mnt5/2, mnt/mnt5/3, other/BADA55-VPR-224,
+        mnt/mnt3/1, mnt/mnt3/3 and GOST 2001 test curve
+      - "control+ascent: 11-descendant of a j = 0 curve (256-bit)"
+      - mnt/mnt5/1
+    parameters:
+      source_rows: experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+      source_rows_sha256: 0576225d496168485a8c30d5d460edab1ab969e7cd3a4d7850e43406a65282da
+      ells: [2, 3, 5, 7, 11, 13]
+      depth: 2
+      max_nodes_per_curve: 64
+      disc_bound: 2000000
+      build_limit: 3
+      build_seconds: 900
+      max_candidates: 12
+      verify_scalars: 8
+      seed: 20261016
+      cost_model: curvesweep M_eq = M + S (S = 1 M)
+    implementation: harness/endosweep/isoglv.py via experiments/EXP-ENDO-7494e7/implementation/run.py
+    budget:
+      wall_clock_seconds: 10800
+      memory_gb: 2
+      maximum_runs: 1
+  distinguishable_outcomes:
+    - >-
+      Both controls pass. Some population curve has a verified combined route
+      with combined_vs_glv_on_E oneshot_gain > 0. The model change and the
+      GLV compose at the modelled tier, and that curve becomes a candidate
+      for a timed comparison.
+    - >-
+      Both controls pass. A combined route exists on some curve with
+      combined_vs_glv_on_E persistent_gain > 0, but every one-shot gain is
+      <= 0. The two compose for persistent use only, and arm G is rejected
+      for one-shot k*P in this scope.
+    - >-
+      Both controls pass, and on every population curve with a GLV arm every
+      attempt resolves without a combined route. No candidate builds and
+      verifies the chain element, or there are no cheaper-class candidates.
+      In this case a model change and the GLV do not compose within the
+      bound, and the GLV on E stays the best known decomposition. The build
+      failures are recorded as observations of the edge type, not as
+      statements about End.
+    - >-
+      A curve whose attempts end in a build-time limit or an error, with no
+      success, is unresolved. That is an infrastructure outcome for the
+      curve, not a non-composition.
+    - >-
+      model_change_vs_glv_on_E > 0 on a curve that has a GLV arm. This
+      contradicts the corollary and the committed endosweep ratios, and it is
+      reported as an instrument alert for that row.
+    - >-
+      A control fails. The combined arm is indeterminate. This is an
+      instrument alert, not evidence.
+  falsification: >-
+    With the run valid and both controls passing, every resolved population
+    curve with a GLV arm has either no combined route or combined_vs_glv_on_E
+    oneshot_gain <= 0. For the corollary, any verified
+    model_change_vs_glv_on_E oneshot_gain > 0 on such a curve falsifies it.
+  proof_search_map:
+    not_applicable_reason: >-
+      Not proof-oriented. This is a modelled cost measurement with chain
+      elements checked on points and routes verified on points.
+  interpretation_limits:
+    - These are modelled counts, not timings. A gain makes the route a candidate for a timed comparison (bench skill) only.
+    - Known-scalar cost is not ECDLP cost, and no rho or ECDLP figure moves.
+    - >-
+      Results are scoped to the nine listed curves, ell <= 13, depth 2, 64
+      nodes, the first 12 cheaper-class candidates by conversion cost,
+      build_limit 3, build_seconds 900 and the curvesweep cost model. There
+      is no transfer to other curves, models, degrees or depths.
+    - >-
+      A chain element that fails to build on a neighbour is an observation
+      about that edge. It says nothing about End(E') unless a conductor
+      certificate is archived.
+    - The model_change arm is copied from RUN-ENDO-d7cb69, which has had no evidence review yet. A defect found there propagates to this arm and to the curve selection.
+    - The idea's heuristics H1-H3 are not validated by this contract.
+  not_claimed: >-
+    No exponent, no ECDLP or rho cost, no wall-clock speedup, no statement
+    about the endomorphism ring of any neighbour, and no claim about curves,
+    models or bounds outside the boundary.
