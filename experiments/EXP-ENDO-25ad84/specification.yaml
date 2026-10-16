@@ -1,0 +1,201 @@
+# EXP-ENDO-25ad84
+# Isogenous-model scalar-multiplication screen for H-ENDO-5a33ae.
+# Frozen before the official run. Modelled counts only.
+experiment:
+  id: EXP-ENDO-25ad84
+  hypothesis_id: H-ENDO-5a33ae
+  source_idea: IDEA-20261016-15a6fc
+  question_id: RQ-ENDO-476761
+  goal_id: GOAL-ENDO-001
+  version: 1
+  title: >-
+    Is k*P cheaper on a small-degree isogenous neighbour? A modelled screen
+    over deployed prime-field curves
+  status: approved
+  frozen: true
+  designed_at: '2026-10-16'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261016-5cd7e2
+  approval_basis: >-
+    The standing user authorization in AGENTS.md (2026-09-06, "all is
+    approved. ideas/experiments should be always approved").
+  execution_authorized: true
+  claim_tier: modelled
+  objective: >-
+    Run harness/endosweep/isomodel.py once, with the frozen arguments, over the
+    population and the controls. Record for each curve the best
+    isogenous-neighbour model, its persistent and one-shot modelled gain
+    against the best model on E, the verification of every positive-gain
+    route, and the ascent quantities.
+  inputs:
+    population: >-
+      Verified prime-field curves from harness/endosweep/targets.py
+      deployed_targets(), then std-curves, de-duplicated by (p, j, n).
+      max_bits 521.
+    std_curves:
+      url: https://github.com/J08nY/std-curves.git
+      commit: 77fe6e3585ca2c2225b59d7df24b7c775437276f
+    instrument: harness/endosweep/isomodel.py
+    unit_tests: tests/test_isomodel.py
+    frozen_arguments: >-
+      --ells 2,3,5,7,11,13 --depth 2 --max-nodes 64 --disc-bound 1048576
+      --samples 200 --verify-scalars 8 --max-bits 521 --seed 20261016
+    named_future_run_slot: RUN-ENDO-d7cb69
+  controls:
+    - id: control+model
+      rule: >-
+        The first a = -3 population curve, in population order, that has a
+        rational ell-neighbour which is not a = -3-equivalent. That neighbour
+        is screened and the a = -3 curve is its source.
+      required: >-
+        The screen routes back with persistent gain > 0 (S = 1 M), and the
+        route passes point verification on 8 of 8 scalars.
+    - id: control+ascent
+      rule: >-
+        A 256-bit curve one descending ell-step below a j = 0 crater
+        (D_K = -3, f = ell), built by ascent_control(256) with seed 1.
+      required: >-
+        D_K = -3 is reported, and the 2-GLV on the reached crater
+        (ascent.glv_on_reached_crater) is non-null, that is, priced.
+    - id: control-/P-256
+      rule: NIST P-256, which already has a = -3.
+      required: best is null or best.persistent_gain <= 0.
+    - id: control-/Curve25519
+      rule: Curve25519, which is already twisted Edwards a = -1.
+      required: >-
+        The baseline model is twisted Edwards a = -1, and best is null or
+        best.persistent_gain <= 0.
+    - id: instrument_check
+      rule: >-
+        On every row with odd #E, no Edwards or Montgomery model is reported
+        on any node.
+      required: instrument_check.pass is true on every screened row.
+    - id: dominated_control/cycle-GLV
+      rule: >-
+        Arm C, isogeny-cycle GLV, is already priced by endosweep
+        (harness/endosweep/README.md, "isogeny-cycle pump"). It is restated
+        here as dominated and is not run.
+  independent_variables:
+    - curve (population and constructed controls)
+    - isogeny path (ell in {2,3,5,7,11,13}, depth <= 2, <= 64 nodes per curve)
+    - curve model on each node
+  metrics:
+    primary:
+      - per curve, persistent_gain and oneshot_gain of the best route against
+        the best model on E (E's unit GLV included); S = 1 M column
+      - per curve, persistent_gain_s08, the S = 0.8 M sensitivity column as the
+        instrument emits it
+      - count of population curves with persistent gain > 0 and with one-shot
+        gain > 0, broken down by family and by cofactor
+      - verification pass or fail, on 8 random scalars, of every route with
+        positive persistent gain
+    secondary:
+      - "ascent: D_K, f_pi, and f_E where certified; glv_on_reached_crater"
+      - depth-1 a = -3 neighbour fraction among population curves with a not in {-3, 0} (descriptive)
+      - rows_with_error, by name
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      The modelled one-shot gain at 256 bits, and the number of ascent hits
+      with |D_K| <= 20.
+    formula: >-
+      The gain g = 1 - C_route/C_direct is predicted in (0, 15%] at S = 1 M
+      wherever an a = -3 neighbour exists at ell <= 7. The gain is predicted
+      <= 0 on a = -3 and on a = 0 curves. Ascent hits on non-crater
+      population curves are predicted to be 0.
+    source: >-
+      IDEA-20261016-15a6fc predictions and notes. They were fixed before
+      this contract was frozen.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      The curves are deployed curves up to 521 bits. The results are modelled
+      counts in curvesweep's wNAF model. Nothing transfers to wall-clock time
+      or to other formula families.
+    correspondence: null
+  tail_checks:
+    - Every positive-gain route is checked by k*P computed both ways. One mismatch voids that route.
+    - The control rows must recompute identically (check.py).
+  replication:
+    seeds: [20261016]
+    samples_per_cost: 200
+    independent_instances: 1
+    named_future_run_slot: RUN-ENDO-d7cb69
+    replication_note: >-
+      This is one deterministic pass. Variation of the seed or the sample
+      size is not part of this contract.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 10800
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after one manifest for RUN-ENDO-d7cb69.
+    - Do not change an argument, a seed, a curve set or a cost column, and do not run a second pass.
+    - Do not drop a row. A per-curve exception stays recorded as an error row.
+  invalidation_rules:
+    - >-
+      A failed control or a failed instrument check makes the dependent arm
+      indeterminate: control+model or the instrument check for arm M, and
+      control+ascent for arm A. This is an instrument alert, not evidence.
+      No post-hoc relaxation of a control is allowed.
+    - >-
+      A population route that fails verification is void and is not counted
+      as a gain. It is reported as an instrument alert.
+    - >-
+      If check.py fails (a missing artifact, a digest mismatch, a changed
+      frozen argument, an absent control role, or a control that does not
+      recompute), the run is invalid.
+    - >-
+      A timeout, a crash or a memory abort is failed_infrastructure. It is
+      never a negative result.
+    - An error row for a population curve means that curve is unscreened. It is not a zero gain.
+  success_criterion: >-
+    The run is valid, all controls and the instrument check pass, and at
+    least one population curve has a verified best route with
+    oneshot_gain > 0 at S = 1 M.
+  falsification_criterion: >-
+    The run is valid and all controls and the instrument check pass, but
+    every screened population curve has best null or oneshot_gain <= 0 at
+    S = 1 M. Arm M is then rejected for one-shot k*P in this scope. For arm A,
+    with control+ascent passing, any non-crater population curve with
+    |D_K| <= 20 falsifies the zero-hit prediction.
+  decision_impact:
+    on_positive: >-
+      Record each positive curve as a candidate for a timed comparison against
+      tuned direct k*P (bench skill). Make no speed claim and no ECDLP claim
+      until a measurement exists.
+    on_negative: >-
+      Record the obstruction for each curve (prime order fixes the cofactor,
+      a = -3 or GLV is already present, or there is no rational small-degree
+      neighbour). Close arm M for one-shot k*P in this scope. Report the
+      persistent-only rows separately.
+  development_disclosure: >-
+    Development smoke runs touched NIST P-256, brainpoolP256r1, Curve25519,
+    secp256k1 and the two constructed controls before this contract was
+    frozen. They ran at reduced sample counts. None of them is
+    RUN-ENDO-d7cb69, and no criterion was set from them.
+  instrument_limits:
+    - Verification uses affine kernel-polynomial Velu.
+    - Conversion is charged with chainsweep's optimised step counts, not with the idea's H3 constant.
+    - Edwards operation counts are recalled from the EFD.
+    - The Doche-Icart-Kohel model is not priced.
+    - The S = 0.8 M column is persistent only. No one-shot S = 0.8 M figure is part of this contract.
+  required_artifacts:
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/manifest.yaml
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/rows.jsonl
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/table.md
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/stdout.log
+    - experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/stderr.log
+  assigned_to: executor
+  launcher:
+    trial_plan: experiments/EXP-ENDO-25ad84/trial-plan.json
+    driver: experiments/EXP-ENDO-25ad84/implementation/run.py
+    checker: experiments/EXP-ENDO-25ad84/implementation/check.py
+  out_of_scope:
+    - Timings, fixed-base k*P, precomputed windows, constant-time complete formulas, and binary or extension fields.
+    - Any ECDLP, rho or exponent statement.
+    - Validation of the idea's heuristics H1-H3.
