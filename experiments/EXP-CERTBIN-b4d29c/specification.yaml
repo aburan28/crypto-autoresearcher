@@ -1,0 +1,385 @@
+# EXPERIMENT CONTRACT -- EXP-CERTBIN-b4d29c (coordinator, design-experiment, 2026-10-16).
+# Frozen at review_required. Id minted as a random 6-hex token WITHOUT
+# tools/allocate_id.py (no Bash in this session); the driving session confirms
+# with `python3 tools/allocate_id.py --check EXP-CERTBIN-b4d29c` before archive.
+# Any change after the design archive is a versioned protocol_amendment under
+# experiments/EXP-CERTBIN-b4d29c/amendments/, never an edit of this file.
+experiment:
+  id: EXP-CERTBIN-b4d29c
+  hypothesis_id: H-CERTBIN-7e3a51
+  goal_id: GOAL-ECDLP2M-001
+  question_id: RQ-CERTBIN-836ce2
+  derived_from_idea: IDEA-20261015-c6f017
+  batch_id: null
+  version: 1
+  title: >-
+    n=131 matched rho step price: three-limb canonicalize-every-step walk vs
+    Bailey canonicalize-at-DP walk, with the n=83 (and n=41/53/61)
+    steps-to-collision penalty and the KR-RHO-18cc42 cycle conversion
+  status: review_required
+  approved_by: null
+  designed_at: '2026-10-16'
+  designed_by_decision: DEC-20261016-e8c05f
+  frozen: true
+  class: cost-model measurement + heuristic validation (design-experiment SKILL patterns)
+  objective: >-
+    Supply the missing n=131 matched-rho denominator in the program's own
+    unit, and decide between two reference-walk designs. Stage 0 builds and
+    accepts the three-limb arithmetic. Stage 1 prices one step of each design
+    at n=131 (no solve). Stage 2 measures the selector penalty where both
+    walks complete. Stage 3 converts the step price against KR-RHO-18cc42.
+    The Executor records observations only. An independent review and a
+    Coordinator decision interpret them.
+
+  readiness:
+    execution_state_at_design: needs_implementation_or_plan
+    missing_for_ready:
+      - >-
+        M1. Three-limb GF(2^131) field type and curve layer. The idea records
+        a code guard MAX_N = 127 in crypto:docs/ic/BOUNDARY_TARGETS.md. The
+        local /home/user/crypto checkout read at design time shows
+        `MAX_N = 63` and has no research/n83_evaluation_20261012/, no WideGf2
+        and no StrongRhoG, so it is behind the state the idea cites. The
+        implementer must fetch aburan28/crypto origin/main and verify these
+        anchors before building on them.
+      - M2. Port or binding of the lift_scan canonicalizer (cryptanalysis canon-n131-loop-20261014), pinned by commit and sha256. No cryptanalysis checkout exists in this environment.
+      - M3. Design B (Bailey) walk, the 8-branch canonicalizing control, and the B-poly known-false control.
+      - M4. The launcher experiments/EXP-CERTBIN-b4d29c/implementation/launch.py and the independent checker experiments/EXP-CERTBIN-b4d29c/implementation/check.py.
+      - M5. experiments/EXP-CERTBIN-b4d29c/trial-plan.json listing every frozen trial, its command, seeds, artifacts and run id.
+      - M6. A dispatch queue binding the trial plan and approval (tools/newest_experiments.py _dispatch_queue_ready), written only at approval.
+    owner_of_missing: TASK-20261016-a1f7d3 (executor-implementation); approval re-check by the Coordinator.
+
+  source_binding:
+    walk_base:
+      repository: aburan28/crypto
+      anchors_to_verify:
+        - research/n83_evaluation_20261012/README.md (StrongRhoG<WideGf2,u64> on KoblitzCurve::new(1,83); tuned Fold/64/DP6)
+        - docs/ic/BOUNDARY_TARGETS.md Regime B code guard MAX_N = 127
+      commit: null
+      commit_note: >-
+        The implementation task resolves and records the full commit sha of
+        the base, and later of the reviewed PR carrying M1-M3, and pins both
+        in trial-plan.json. An unresolvable anchor is a source-binding defect
+        and is reported, not patched around.
+    canonicalizer:
+      repository: aburan28/cryptanalysis
+      anchor: canon-n131-loop-20261014 (lift_scan)
+      commit: null
+    reference_values:
+      kr_rho_18cc42: {iterations_log2: 60.9, cycles_per_iteration_per_core: 530, platform: Core 2 quad, year: 2009, path: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-18cc42.yaml}
+
+  approval_preconditions:
+    - Stage-0 implementation, independent checker and trial-plan.json exist, are hash-bound and are committed and pushed under a verified archive (TASK-20261016-d06b48).
+    - tools/newest_experiments.py --experiment EXP-CERTBIN-b4d29c --json reports execution_state ready.
+    - The host has PCLMULQDQ (recorded from /proc/cpuinfo), valgrind with cachegrind, a usable core cycle counter, and the ability to pin a core and fix or record its frequency.
+    - A GOAL-ECDLP2M-001 lane is claimed within max_concurrent 3 before dispatch.
+    - The review_plan for the post-run claim-changing review is frozen before any reviewer runs.
+
+  environment:
+    os: Linux x86-64 with /proc
+    cpu_features_required: [pclmulqdq]
+    cpu_features_recorded: [gfni, avx2, avx512f, vpclmulqdq, bmi2]
+    toolchain: rustc/cargo version recorded; build with `cargo build --release --locked` at the pinned commit; binary sha256 recorded
+    python: /usr/local/bin/python3 (CPython 3.12.x) for launcher and checker
+    profiler: valgrind --tool=cachegrind; cg_annotate (versions recorded)
+    isolation: >-
+      Pin with taskset to one core. Record the governor, the turbo state and
+      the frequency (performance governor where permitted). Load average must
+      be below 1.0 at launch of each timing repetition. A repetition that
+      fails admission is retained and marked noisy.
+    inference_policy: none (deterministic program; no model inference in trials)
+
+  parameters:
+    ecc2k_130:
+      n: 131
+      field_polynomial: z^131 + z^13 + z^2 + z + 1
+      field_polynomial_provenance: >-
+        recalled through IDEA-20261015-c6f017 (ECC2K-130 challenge field).
+        Stage 0 T0.2 verifies irreducibility independently. A different
+        polynomial fixed by the Certicom challenge document, if one is
+        archived before Stage 0, takes precedence and is recorded. No
+        post-Stage-0 change is allowed.
+      curve: y^2 + xy = x^3 + 1 (Koblitz, a=0, b=1)
+      order_check: '#E = 2^n + 1 - V_n (Lucas, mu = -1), recomputed independently; #E = 4 r with r prime required'
+      class_size_A: 262
+      solve: false
+    n83:
+      curve: Koblitz a=1 over F_{2^83} (KoblitzCurve::new(1,83))
+      subgroup: >-
+        The largest prime factor r of #E(F_{2^83}), recomputed independently.
+        The idea states about 2^52.9 (not used as a value). The exact r and
+        its primality test are recorded before Stage 2.
+      class_size_A: 166
+      floor: sqrt(pi r / (4 n))
+    stage2b_degrees:
+      candidates: [41, 53, 61]
+      admission_rule: >-
+        For each n, take a in {0,1} maximizing the largest prime factor r of
+        #E(F_{2^n}). Admit n if 2^24 <= r <= 2^56 and lambda != 1 mod r (exact
+        Frobenius order n on the subgroup). A non-admitted degree is reported,
+        not replaced. HEUR-1 is evaluable only if at least two of the three are
+        admitted (three degrees including n=83).
+    a_equals_2n_assertion: >-
+      For every subgroup used, assert lambda^n = 1 mod r, lambda != 1 and
+      lambda^2 - mu*lambda + 2 = 0 mod r, before using A = 2n in any floor
+      (KR-RHO-482ed3; EV-ICPERF-390707 correction).
+    lanes: 64
+    distinguished_point_predicate:
+      form: HW_nb(x) <= c_n (class-invariant; identical for designs B and C; applied to x of the current representative)
+      thresholds: >-
+        c_n is the largest c with P[Binomial(n,1/2) <= c] <= 2^-6, fixed in
+        trial-plan.json from the exact binomial tail before any Stage-2 run
+        and applied to n in {41, 53, 61, 83}. At n=131 (Stage 1, no
+        collision), c_131 is the same rule at 2^-6; Bailey's historical
+        HW <= 34 is also recorded as a DP-rate diagnostic only.
+      departure_from_idea: >-
+        The idea's confounder note asks for a DP-bit predicate on both arms. A
+        DP-bit predicate on raw x is not class-invariant, so two design-B
+        walks that met in one class would reach their distinguished points at
+        different steps. A class-invariant predicate is required, and the HW
+        threshold is Bailey's own. The measured DP rate per design is
+        recorded and must agree across designs within a factor 1.25
+        (validity rule V6).
+    fruitless_cycle_handling: >-
+      Design C keeps the base walk's cycle handling, recorded in
+      trial-plan.json. Designs B and B-poly use a trail cap of 20 * 2^6 steps
+      without a DP, after which the lane restarts from a fresh derived start.
+      All restart steps are charged to steps-to-collision, and restarts are
+      retained diagnostics (AGENTS.md Koblitz calibration rule).
+
+  arms:
+    - {id: C131, n: 131, design: C canonicalize-every-step r-adding walk (base-walk selector width), stage: 1}
+    - {id: B131, n: 131, design: B Bailey P + sigma^j(P), j = 3 + ((HW_nb(x)/2) mod 8), normalize at DP, stage: 1}
+    - {id: U83, n: 83, design: tuned reference walk at the pinned base commit, unchanged bytes (the unit), stage: 1}
+    - {id: C83, n: 83, design: C at n=83, stage: [1, 2]}
+    - {id: B83, n: 83, design: B at n=83, stage: [1, 2]}
+    - {id: K83, n: 83, design: 8-branch random r-adding walk WITH canonicalization (separates selector width from canonicalization), stage: 2}
+    - {id: Cn, n: [41, 53, 61], design: C, stage: 2b}
+    - {id: Bn, n: [41, 53, 61], design: B, stage: 2b}
+    - {id: BP41, n: 41, design: B-poly known-false control (HW in polynomial basis; not a class function), stage: 2b}
+
+  test_plan:
+    stage0_acceptance:
+      gate: Every T0 test passes before any Stage-1 timing. One failure stops the run; no later stage executes.
+      tests:
+        - id: T0.1
+          what: three-limb GF(2^131) multiply, square, inverse, sigma^j and normal-basis conversion
+          reference: >-
+            check.py, an independent pure-Python carry-less big-int
+            implementation that does not import the Rust code or its outputs
+          cases: 10,000 random pairs from seed "EXP-CERTBIN-b4d29c/T0.1", plus 0, 1, z^130, all-ones, and the reduction-boundary elements z^131 mod f and z^261 mod f
+          pass: bit-exact agreement on every case; a * a^-1 = 1 for every nonzero a; batched inversion equals per-element inversion on 1,000 batches of 64
+        - id: T0.2
+          what: field polynomial irreducible (Ben-Or or Rabin test in check.py), and normal-basis generator verified (rotation equals squaring on 1,000 elements)
+          pass: both hold
+        - id: T0.3
+          what: ECC2K-130 group law and order
+          pass: >-
+            add and double agree with check.py on 1,000 point pairs; #E from
+            the Lucas recurrence equals 4 r with r passing BPSW; [r]P = O for
+            1,000 subgroup points; the same checks hold at n=83 (a=1) and at
+            each admitted Stage-2b degree
+        - id: T0.4
+          what: Frobenius eigenvalue and class size
+          pass: sigma(P) = [lambda]P on 1,000 subgroup points; lambda^n = 1, lambda != 1 mod r; class size 2n asserted
+        - id: T0.5
+          what: canonicalizer correctness
+          pass: lift_scan output equals check.py's brute-force minimum over all 2n class members (frozen total order) on 10,000 points at n=131 and at n=83
+        - id: T0.6
+          what: Bailey class-invariance and the known-false signature
+          pass: >-
+            For 1,000 points P and all 2n members Q of P's class, f_B(Q) lies
+            in f_B(P)'s class and HW_nb(x(Q)) = HW_nb(x(P)). The same test FAILS
+            on B-poly for at least one point; if it passes on B-poly, the test
+            is non-discriminating and the run stops.
+        - id: T0.7
+          what: regression of the existing n=83 tuned walk
+          pass: >-
+            U83 produces bit-identical step sequences to the pinned base
+            commit's binary on 64 lanes x 10^5 steps from frozen starts. Lifting
+            the code guard must not change the existing path.
+        - id: T0.8
+          what: source and input hash binding
+          pass: every source, binary and input sha256 matches trial-plan.json
+    stage1_step_price:
+      arms: [C131, B131, U83, C83, B83]
+      workload: 64 lanes x 10^7 steps per repetition from public starts (hash-to-curve, seed "EXP-CERTBIN-b4d29c/S1/<arm>/start"); no collision search
+      repetitions: 5 per arm, arms interleaved in a frozen Latin order listed in trial-plan.json
+      measurements:
+        - isolated ns/step (median and min-max across repetitions); cycles/step from the core cycle counter
+        - cachegrind Ir/step on 64 lanes x 10^6 steps (one repetition per arm)
+        - canonicalization share for C131 and C83 from cg_annotate inclusive Ir of the canonicalize function / total Ir
+        - basis-change, sigma^j and HW_nb Ir shares for B131 and B83
+        - measured DP rate over the workload and the DP table bytes per DP
+    stage2_collision_n83:
+      arms: [C83, B83, K83]
+      targets: >-
+        256 public targets Q_i = [h]H("EXP-CERTBIN-b4d29c/T83/i=<i>"), i = 0..255,
+        where H is SHA-256 try-and-increment hash-to-curve and h the
+        cofactor, with base point G = [h]H("EXP-CERTBIN-b4d29c/G83"). The same
+        target set is used by all arms (paired). The logarithms are unknown
+        in advance and are verified by [k]G = Q_i in check.py.
+      walk_seeds: '"EXP-CERTBIN-b4d29c/W/<arm>/n=83/i=<i>"; listed explicitly in trial-plan.json'
+      accounting: >-
+        steps_to_collision = total steps over all 64 lanes until a useful
+        distinguished-point collision is detected, including restarts, trail
+        caps and DP latency. Degenerate collisions (b = b' mod r) are counted,
+        retained and do not end the solve.
+      per_solve_cap: >-
+        15 * floor total steps (10x the floor times a walk-factor allowance of
+        1.5). Reaching the cap censors the solve: an instrument alert under
+        validity rule V4. Under the random-map model, P[steps > 10 * mean]
+        is about exp(-25 pi) and is negligible.
+      aa_split: Each arm's 256 solves split by target parity into halves A (even i) and B (odd i) for the A/A gate
+    stage2b_heuristic_validation:
+      arms: [Cn, Bn, BP41]
+      degrees: admitted subset of [41, 53, 61] (parameters.stage2b_degrees)
+      targets: >-
+        256 per admitted degree for Cn and Bn, and the first 64 of the n=41
+        set for BP41; same construction with n in the seed string
+      per_solve_cap: >-
+        Cn and Bn use the Stage-2 cap (15 * floor). BP41 uses 100 * floor,
+        because its random-model penalty is about sqrt(2n) = 9 and a 15x cap
+        would censor it by design.
+      known_false_signature: BP41 steps/floor >= 3 x Bn steps/floor at n=41; otherwise HEUR-1 and P4 are unevaluable
+    stage3_conversion:
+      measured: cycles_per_step(C131), cycles_per_step(B131) per core from Stage 1
+      modeled: >-
+        Total-cost rows = sqrt(pi r_130 / (4 * 131)) * (measured n=83 walk
+        factor of the design) * cycles_per_step. This row is labeled modeled
+        and is conditional on HEUR-1. It is reported beside Bailey's 2^60.9 *
+        530 and never in the same column as measured values.
+      p5_ratio: cycles_per_step(C131) / 530 (measured / literature; unit conversion only)
+
+  controls:
+    - U83 the tuned n=83 walk at unchanged pinned bytes (the unit; also T0.7 regression).
+    - K83 8-branch canonicalizing r-adding walk (separates selector width from canonicalization).
+    - A/A halves for each Stage-2 and Stage-2b arm.
+    - B-poly known-false class-walk control (T0.6 and BP41).
+    - check.py independent reference arithmetic and logarithm verification (no shared code with the walk).
+    - Per-curve A = 2n assertion before any floor normalization.
+    - Matched DP predicate and lane count across designs; measured DP-rate agreement (V6).
+
+  metrics:
+    primary:
+      - ns/step and cycles/step per arm, isolated (Stage 1)
+      - Ir/step per arm and canonicalization share for C131 (Stage 1)
+      - P1 ratio ns(C131)/ns(U83); P3 ratio ns(B131)/ns(C131)
+      - R83 = mean(steps/floor | B83) / mean(steps/floor | C83) with a 95% percentile-bootstrap interval (10,000 resamples, seed "EXP-CERTBIN-b4d29c/boot")
+      - P5 ratio cycles(C131)/530
+    secondary:
+      - steps/floor per arm per degree with intervals; K83 vs C83 ratio
+      - HEUR-1 slope of log(R_n) on n with a 95% interval; per-degree R_n intervals
+      - DP rate and table bytes per design; restarts, trail caps, degenerate collisions
+      - verified logarithm count per arm; censored solve count
+      - B131 Ir shares (sigma^j, basis change, HW_nb); B-poly penalty factor
+      - host, CPU flags, frequency, governor, load, compiler and binary hashes
+  statistics:
+    a_a_gate: >-
+      For each Stage-2/2b arm, the 99% percentile-bootstrap interval of
+      mean(steps/floor | half A) / mean(steps/floor | half B) must contain
+      1.0. A failed or non-estimable A/A gate makes every inference that
+      depends on that arm indeterminate. Records and descriptive summaries
+      are kept, and no label is assigned (AGENTS.md A/A rule). Margins are
+      never relaxed after the fact.
+    sample_size_justification: >-
+      Rho steps-to-collision has CV about sqrt(4/pi - 1) = 0.52 under the
+      random-map model. With 256 independent solves per arm, a ratio of two
+      arm means has relative SE about 0.52 * sqrt(2/256) = 0.046, giving a
+      95% interval of about +/-0.09. That separates the predicted band
+      [1.00, 1.25] from the 1.40 falsification line. The idea's 64 targets
+      would give about +/-0.18, which cannot.
+  budget:
+    maximum_runs: 1
+    maximum_workers: 8
+    maximum_memory_gb: 8
+    total_wall_clock_seconds: 21600
+    per_solve_cap: stated in test_plan.stage2_collision_n83.per_solve_cap (step count, not wall time)
+    note: >-
+      The wall estimate is advisory (docs/research-budget-policy.md).
+      Stage 2 is about 3 arms x 256 solves x 2^23 expected steps at n=83, if
+      r is near the idea's 2^52.9; Stage 2b is far smaller. The memory guard
+      and the per-solve step cap protect the machine and the instrument.
+      Neither is a campaign budget.
+  stopping_rules:
+    - Stop before Stage 1 on any T0 failure, source or input hash mismatch, missing PCLMULQDQ, or missing cachegrind. Preserve the T0 logs.
+    - Stop all stages on any logarithm that fails [k]G = Q verification. Preserve the failing solve's full trail. This is an instrument defect.
+    - Stop an arm on its first censored solve. Preserve the other arms and mark the arm's dependent inferences unevaluable.
+    - Stop at the total wall watchdog. Retain all raw partial artifacts, and mark unevaluated criteria NOT_EVALUATED.
+    - One pass only. No added degrees, targets, seeds or repetitions after any Stage-2 result is seen.
+  validity_rules:
+    - V1. A run without every T0 pass is not evidence for any prediction.
+    - V2. Missing raw per-repetition timings, cachegrind outputs, per-solve trails, seeds, stdout/stderr or hashes invalidate the dependent metric.
+    - V3. Stage-1 timing repetitions failing host admission are retained as noisy and excluded from P1, P3 and P5. Fewer than 3 admitted repetitions per arm make those predictions unevaluable.
+    - V4. Any censored or unverified solve invalidates its arm's steps/floor inference.
+    - V5. A failed A/A gate or a failed known-false signature makes its dependent predictions indeterminate (see statistics.a_a_gate).
+    - V6. Designs whose measured DP rates differ by more than a factor of 1.25 at the same n are not comparable for P4 or HEUR-1.
+    - V7. Floor normalization without the recorded per-curve A = 2n assertion is invalid.
+    - V8. A timeout, crash or build failure is infrastructure signal, never a negative result about either walk.
+  decision_impact:
+    on_positive: >-
+      All admitted predictions hold and the validity rules pass. After
+      independent review, the Coordinator may record the n=131 step price and
+      the Bailey-vs-canonicalizing ratio as the matched-rho denominator for
+      the n=131 rows of the QSP, CERTBIN and FROB lanes. If P3 and P4 hold,
+      design B becomes the candidate reference walk, conditional on HEUR-1.
+      Every such row reports its gap to KR-RHO-18cc42 as distance remaining.
+      This is not an improvement claim.
+    on_negative: >-
+      A valid prediction is falsified. Apply the hypothesis decision_impact
+      branch: P1 > 5 means no wide-path reference; P2 < 0.10 deprioritizes the
+      canonicalization lane; P4 falsified high keeps design C as reference
+      and routes to IDEA-20261015-2d8e5a; HEUR-1 falsified withdraws the
+      modeled total-cost row. The falsifying raw records are preserved.
+    on_inconclusive: >-
+      Intervals straddle the frozen lines, or an A/A or known-false gate
+      fails. No label is assigned. Name the failing gate, and consider only a
+      newly frozen independent replication.
+  success_criterion: >-
+    Every T0 test passes. At least 3 admitted Stage-1 repetitions per arm
+    exist, and every Stage-2 logarithm is verified. All A/A and known-false
+    gates pass. The independent checker reproduces every reported ratio and
+    interval from raw records. P1-P5 are then each scored against their
+    frozen statements in H-CERTBIN-7e3a51. A later independent review and a
+    Coordinator decision are still required.
+  falsification_criterion: >-
+    Under all validity rules, any of: ns(C131)/ns(U83) > 2.5;
+    canonicalization share outside [0.20, 0.50]; ns(B131)/ns(C131) > 0.85;
+    the R83 95% interval entirely above 1.25 or entirely below 1.00; or
+    cycles(C131)/530 outside [1.0, 4.0]. A Stage-0 failure, censoring,
+    unverified logarithm or gate failure makes the dependent criterion
+    unevaluable, not falsified.
+  required_artifacts:
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/command.txt
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/environment.json
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stage0_acceptance.jsonl
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stage1_timing.jsonl
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/cachegrind/
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stage2_solves.jsonl
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stage2b_solves.jsonl
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stage3_conversion.json
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/independent_check.json
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/report.md
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/diagram.svg
+    - experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/report.pdf
+  launcher:
+    status: not_yet_implemented
+    intended_command: >-
+      /usr/local/bin/python3 experiments/EXP-CERTBIN-b4d29c/implementation/launch.py
+      --plan experiments/EXP-CERTBIN-b4d29c/trial-plan.json --stage all
+      --run-id <RUN-ID from trial-plan.json>
+    intended_check: >-
+      /usr/local/bin/python3 experiments/EXP-CERTBIN-b4d29c/implementation/check.py
+      --run experiments/EXP-CERTBIN-b4d29c/runs/<RUN-ID>/
+    note: These paths and flags are frozen targets for TASK-20261016-a1f7d3. They are not existing programs, and nothing may be launched until execution_state is ready and approval is committed.
+  interpretation_limits:
+    - A reference price, not an attack. Nothing about solving ECC2K-130; no walk completes at r ~ 2^129.
+    - One host class. Cycles and Ir are the portable figures, and ns are host-local.
+    - The n=83 penalty transfers to n=131 only under HEUR-1, which is validated only over the admitted degrees.
+    - A per-step price is a primitive-level measurement. Any quantitative per-step speedup statement needs a claims/*.json record passing tools.progress_fidelity and never stands for an end-to-end gain. A ledger cost claim requires a sealed measured bound (AGENTS.md "Curve identity and measured bounds").
+    - The P5 conversion compares a polynomial-basis 64-lane walk against a 2009 bitsliced implementation; it is a unit conversion, not an engineering verdict on either.
+    - No statement about NIST curves, K-163/K-283, or prime fields.
