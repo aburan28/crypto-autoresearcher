@@ -77,7 +77,7 @@ found 1,995 unused proposals and could not say how many sessions wrote them.
 Every public skill: `run`, `coordinate`, `design-experiment`,
 `propose-ideas`, `review-evidence`, `research-status` (yes, even read-only —
 a status wake that reads 40 files is a cost), `deep-research`,
-`curate-knowledge`, `consolidate-lanes`, `tune-skill`. A skill that stops at
+`curate-knowledge`, `consolidate-lanes`, `tune-skill`, `sheriff`. A skill that stops at
 an impediment writes `--outcome impeded`; a `run` that found nothing to
 execute writes `nothing_executable`, which is the number P0.3 of the review
 wants driven to zero.
