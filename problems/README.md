@@ -31,7 +31,7 @@ Keep resolved and superseded records in the index.
 | [PKM isogeny-chain factor base has no fast decomposition](pkm-isogeny-chain-factor-base-no-fast-decomposition.md) | open | The proposed ~N^(1/3) P-256 route via a 2-isogeny-chain factor base (EXP-ECDLP-f49f75 Singular + EXP-ECDLP-502ae2 msolve F4: chain slower than dense/random at every toy cell) | A solver beating the dense and random controls on the frozen toy grid (e.g. block/elimination order), or an L-independent degree-of-regularity bound |
 | [Exact artifact serialization memory](lattice-ic-artifact-serialization-memory.md) | investigating | Historical artifact MemoryError under2GiB; bounded software controls/report8/source3 verified, fresh currentclosure5 native proof awaiting publication; full-grid/checker memory unknown | Publish currentclosure5 proof, then fresh full-science-equal native admission/full-grid/checker and independent review |
 
-| [Lattice IC runbook sparse output admission](lattice-ic-runbook-sparse-output-admission.md) | investigating | Native prelaunch refusal for EXP-IC-b75e3a despite READY/LINT; no RUN/scientific process | Retain stopped book report/session6, then fresh same-science admission with native selected-experiment materialization before launch |
+| [Lattice IC runbook sparse output admission](lattice-ic-runbook-sparse-output-admission.md) | investigating | Native prelaunch refusal despite READY/LINT; stopped book session6/report5 retained/native verified, no RUN/scientific process | Publish report5 proof, then fresh same-science admission with native selected-experiment materialization before launch |
 
 ## Add or update a problem
 
