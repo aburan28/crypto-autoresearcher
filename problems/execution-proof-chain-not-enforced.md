@@ -7,7 +7,7 @@
   [fabricated-measurement threat](../docs/subversion-resistance-20261010.md)
 - **Next action owner:** Coordinator for the implementation handoff; Executor
   for the scoped backend/bridge work; independent Validator/Reviewer for release
-- **Last updated:** 2026-10-16
+- **Last updated:** 2026-10-16 (runbook seam added; still open)
 
 ## Problem
 
@@ -42,6 +42,21 @@ execution proof to be an integral link, with no silent downgrade.
   coverage checks, result binding and all downstream enforcement.
 - **Limits:** proving economics on the actual arithmetic workloads are not
   measured. This gap says nothing about ECDLP hardness or any hypothesis.
+- **Added 2026-10-16, runbook seam (`docs/runbook-execution.md`):**
+  `tools/runbook.py` now binds the statement components a guest journal must
+  commit to (runbook, plan and source digests, the frozen argv with its seeds,
+  and a per-unit statement), and an `execution_proof` step verifies each unit's
+  receipt with a verifier pinned by digest. It requires `dev_mode: false`, the
+  pinned image id, the receipt digest, and a journal committing to the unit's
+  raw-result bytes. It refuses `RISC0_DEV_MODE`, unpinned verifiers, a wrong
+  image and a wrong result (`tests/test_runbook.py`, against a fake verifier).
+  Nonce-sampled replay audits now bound fabrication at a stated miss
+  probability. None of this is an execution proof, and no item below is
+  checked by it: there is still no guest and no real verifier. In the Claude
+  Code cloud container the RISC Zero toolchain could not be installed (GitHub
+  release downloads refused by the network proxy; a guest build exceeds the
+  session disk allowance). That is an access limit of that environment, not
+  of the design.
 
 ## What would unblock it
 

@@ -643,7 +643,9 @@ handoff:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | research-synthesis | executor-implementation |
             executor-mechanical | review-adversarial | review-breakthrough |
-            consolidation-routing
+            consolidation-routing | audit-sweep
+            # audit-sweep only for the periodic audit of runbook sessions
+            # (audit-runs); it screens and never satisfies a review gate.
             # review-breakthrough only for a claimed break, a closure result,
             # or a contradiction between validated evidence records. It cannot
             # be degraded and refuses a backend that cannot reach `max`.

@@ -178,6 +178,25 @@ Use the existing Executor/Validator/Reviewer/Coordinator contracts for the
 handoff, archive and independent review. Passing cryptographic verification
 does not remove any scientific responsibility or authorize a state transition.
 
+## Runbook seam (2026-10-16)
+
+`docs/runbook-execution.md` adds the research-side statement and verifier
+seam this contract asks for, without satisfying any milestone.
+
+- **Statement components.** A runbook binds, by digest, the approved
+  protocol, the frozen trial plan, every source and input, and each trial's
+  argv with its prescribed seed. It also computes a per-unit statement over
+  the plan digest, trial and argv.
+- **The `execution_proof` step.** It accepts a receipt only when the verifier
+  is the binary pinned by digest, and the verifier reports `verified`, not
+  `dev_mode`, the pinned image id, the receipt's own digest, and a public
+  journal committing to the unit's raw-result bytes and prescribed parameters.
+  Anything less is `unavailable` or a failure, never verified.
+- **Replay audits.** Nonce-sampled replays bound fabrication in the meantime.
+  They are labelled as replays, never as execution proofs.
+
+Milestones 1-6 above remain open.
+
 ## Related contracts and open work
 
 - [Cairn integration plan](cairn-integration-plan.md) includes this as a required

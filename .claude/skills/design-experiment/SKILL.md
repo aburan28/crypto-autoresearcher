@@ -54,6 +54,19 @@ specification, experiment design, approval, and handoff.
    leave the contract `review_required`, record the exact missing piece in
    the report, and stop here: an approved contract nobody can run is the
    backlog this program is paying for (`docs/track-record-review-20261006.md`).
+5a. **Runbook, so the mechanical tier can run it.** Write
+   `experiments/<EXP-ID>/runbook.yaml` from `templates/runbook.yaml`
+   (`docs/runbook-execution.md`): bind every file by sha256 (specification,
+   trial plan, sources, Lean target and theorem); one `trials` step,
+   `engine: supervisor`, over the committed plan; `by_trial` assertions tying
+   each output to its prescribed parameters; validity checks only, never a
+   predicted outcome; the fields a replay must reproduce, or `exempt` with the
+   reason; every retryable failure in `on_failure`; metrics with units and
+   labels. `python3 tools/runbook.py lint` must print `LINT OK`. The approval
+   decision carries `runbook_sha256`, the executor task's `write_scope`
+   includes `experiments/<EXP-ID>/runbook-sessions/` and `reports/`, and the
+   handoff names `inference.policy: executor-mechanical`. If it cannot lint
+   clean this turn, write no runbook: the task stays `executor-implementation`.
 6. Under the standing user authorization in `AGENTS.md`, the Coordinator
    records approval of the complete, runnable, frozen contract with
    `approved_by: coordinator` and a committed approval decision. Do not ask
