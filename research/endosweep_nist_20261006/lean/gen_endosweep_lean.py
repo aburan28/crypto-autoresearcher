@@ -25,13 +25,10 @@ nist = json.load(open(REPO / "research/endosweep_nist_20261006/nist.json"))
 assert nist["std_curves_commit"] == "77fe6e3585ca2c2225b59d7df24b7c775437276f"
 curves = nist["curves"]
 facs = {}
-partial = None
 for line in open(REPO / "research/endosweep_nist_20261006/factorizations.jsonl"):
     r = json.loads(line)
-    if "factors" in r:
-        facs[int(r["N"])] = [(int(p), e) for p, e in r["factors"]]
-    else:
-        partial = r
+    assert "factors" in r, "every certificate is complete (B-571's since 2026-10-16)"
+    facs[int(r["N"])] = [(int(p), e) for p, e in r["factors"]]
 std = {c["name"]: c for c in json.load(open(STD / "nist/curves.json"))["curves"]}
 
 TRIAL = 10 ** 8   # odd-exponent primes below this are proved prime in Lean by trial division
@@ -42,7 +39,9 @@ def min_deg(D):
 
 
 def lean_name(key):
-    return key.split("/")[1].replace("-", "").replace("Ed448Goldilocks", "Ed448Goldilocks")
+    name = key.split("/")[1].replace("-", "")
+    # `B571` is the namespace of the (superseded) bound theorem; the exact certificate is `B571Exact`.
+    return "B571Exact" if name == "B571" else name
 
 
 def zt(x):
@@ -84,13 +83,20 @@ for key, v in curves.items():
         assert DK == -7 and e["how"].startswith("the scan")
         scanned.append(dict(key=key, name=lean_name(key), q=q, t=t, DK=DK, f=f, deg=deg))
 
-# ---------------------------------------------------------------- B-571
+# ---------------------------------------------------------------- B-571 (the superseded bound)
+# The partial certificate of 2026-10-06..16 (four proven primes and a 130-digit composite cofactor C)
+# is no longer in factorizations.jsonl: the complete certificate replaced it.  The bound theorem is kept,
+# so its data are re-derived here from the complete certificate: the four primes found by trial division
+# and ECM, and C = the product of the two primes CADO-NFS found.
 b = curves["nist/B-571"]
 N571 = 4 * b["q"] - b["t"] ** 2
-assert int(partial["N"]) == N571 and partial["curve"] == "B-571"
-os571 = [int(p) for p, x in partial["partial_factors"]]
-assert all(x == 1 for _, x in partial["partial_factors"])
-C571 = int(partial["cofactor"])
+assert b["exact"] and "factorization" in b["exact"] and not b.get("bound")
+fac571 = facs[N571]
+os571 = [137, 1502689, 5608493523058319, 3563521804312876303]   # the partial certificate's primes
+assert all(x == 1 for _, x in fac571) and [p for p, _ in fac571[:4]] == os571
+split571 = [p for p, _ in fac571[4:]]                              # p38, p93 (CADO-NFS)
+assert [len(str(p)) for p in split571] == [38, 93]
+C571 = prod(split571)
 P571 = prod(os571)
 assert P571 * C571 == N571
 from math import gcd
@@ -99,9 +105,11 @@ r571 = isqrt(C571)
 assert r571 * r571 < C571 < (r571 + 1) ** 2
 assert 10 ** 129 <= C571 < 10 ** 130
 B = 10 ** 7
-lo = b["bound"]["abs_D_K_at_least"]
-assert lo == P571 * B and b["bound"]["min_nonscalar_degree_at_least"] == lo // 4 and lo % 4 == 0
-assert 2 ** 164 < lo and 2 ** 162 < lo // 4
+assert all(p > B for p in split571)                                 # so C has no divisor in (1, 10^7)
+lo = P571 * B
+assert lo == 41144834294568711165300914428595243383362010000000     # the bound the old nist.json recorded
+assert lo % 4 == 0 and 2 ** 164 < lo and 2 ** 162 < lo // 4
+assert lo <= abs(b["exact"]["D_K"]) and lo // 4 <= b["exact"]["min_nonscalar_degree"]
 small571 = [(p, isqrt(p) + 1) for p in os571 if p < TRIAL]
 large571 = [p for p in os571 if p >= TRIAL]
 
@@ -199,19 +207,21 @@ DATA_B571 = f"""/-- B-571: `q = 2^571`. -/
 def q : Int := {b['q']}
 /-- B-571: the trace of Frobenius. -/
 def t : Int := {b['t']}
-/-- The four primes the partial certificate proves (PARI `isprime`), each to exponent 1. -/
+/-- The four primes the partial certificate proved (PARI `isprime`), each to exponent 1. -/
 def knownPrimes : List Nat := {nl(os571)}
 /-- Their product. -/
 def P : Nat := {P571}
-/-- The 130-digit composite cofactor. -/
+/-- The 130-digit composite cofactor they left. -/
 def C : Nat := {C571}
+/-- The two primes CADO-NFS split `C` into (PARI `isprime` and ECPP; not proved in Lean). -/
+def splitPrimes : List Nat := {nl(split571)}
 /-- `⌊√C⌋`. -/
 def rootC : Nat := {r571}
 /-- The trial-division bound. -/
 def B : Nat := {B}
-/-- nist.json `bound.abs_D_K_at_least` (`= P·B`). -/
+/-- The bound the partial certificate gave (`= P·B`; nist.json `bound.abs_D_K_at_least` before 2026-10-16). -/
 def absDKAtLeast : Nat := {lo}
-/-- nist.json `bound.min_nonscalar_degree_at_least` (`= absDKAtLeast / 4`). -/
+/-- Its quarter (nist.json `bound.min_nonscalar_degree_at_least` before 2026-10-16). -/
 def degAtLeast : Nat := {lo // 4}"""
 
 DATA_B571_SMALL = pr_lean(small571)
