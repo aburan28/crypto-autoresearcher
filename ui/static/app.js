@@ -1101,10 +1101,17 @@ function pinnedSource(source, label = source.path) {
     title: `${source.path} · SHA-256: ${source.sha256}`}, label);
 }
 function traitValue(trait) {
-  if (!trait || trait.value == null) return h('span', {class:'faint'}, 'Unknown');
+  // evidence_status is the source's own status (e.g. crypto curve_traits proved/bounded/not_evaluated).
+  const status = trait?.evidence_status ? ` · status: ${trait.evidence_status}` : (trait?.note ? ' · status not recorded' : '');
+  if (!trait || trait.value == null) return h('span', {class:'faint'}, `Unknown${status}`);
   const value = typeof trait.value === 'object' ? JSON.stringify(trait.value) : String(trait.value);
   return h('div', {class:'stack trait-value'}, h('span', {class:'mono receipt-hash'}, value),
-    h('small', {class:'faint'}, 'Source reported · ', pinnedSource(trait.source, 'source ↗')));
+    h('small', {class:'faint'}, `Source reported${status} · `, pinnedSource(trait.source, 'source ↗')),
+    trait.mapping ? h('small', {class:'faint'}, `Same quantity as ${trait.mapping}`) : null,
+    trait.note ? h('small', {class:'faint'}, trait.note) : null);
+}
+function traitSection(key, trait) {
+  return trait.section || (key.startsWith('dissect.') ? 'DiSSECT traits' : 'Capsule metadata');
 }
 async function viewCurves(params = new URLSearchParams()) {
   setCrumb('Curve catalog');
@@ -1134,6 +1141,9 @@ async function viewCurves(params = new URLSearchParams()) {
         el.querySelector('select').value=r.curve_uid; draw();
       }}, i ? 'Compare as second' : 'Inspect as first'))),
       h('a', {href:`#/compare?curve=${encodeURIComponent(r.curve_uid)}`}, 'View archived benchmarks →'),
+      r.crypto_traits ? h('p', {class:'faint'}, 'crypto curve_traits (exact curve_uid join): ',
+        pinnedSource(r.crypto_traits.source, r.crypto_traits.slug))
+        : h('p', {class:'faint'}, 'No crypto curve_traits record for this exact curve_uid.'),
       h('details', {}, h('summary', {}, 'Exact identity and provenance'),
         h('pre', {class:'raw'}, JSON.stringify({field:r.field,curve:r.curve}, null, 2)),
         ...r.sources.map(s => h('p', {}, pinnedSource(s), h('span', {class:'mono receipt-hash'}, ` SHA-256 ${s.sha256}`))))))
@@ -1146,13 +1156,16 @@ async function viewCurves(params = new URLSearchParams()) {
       available.length ? h('div', {class:'scroll-x', tabindex:'0', role:'region', 'aria-label':'Curve trait comparison'},
         h('table', {class:'comparison-table'}, thead(['Trait', ...available.map(r=>r.curve_id)]),
           h('tbody', {}, Object.entries(available[0].traits).filter(([key, trait]) =>
-            JSON.stringify([key, trait.label, trait.description, trait.parameters]).toLowerCase().includes(traitQuery.value.trim().toLowerCase())).map(([key, trait]) => h('tr', {},
+            JSON.stringify([key, trait.label, trait.description, trait.parameters]).toLowerCase().includes(traitQuery.value.trim().toLowerCase())).flatMap(([key, trait], i, list) => [
+            i && traitSection(list[i-1][0], list[i-1][1]) === traitSection(key, trait) ? null
+              : h('tr', {class:'trait-section'}, h('th', {scope:'colgroup', colspan:String(available.length + 1)}, traitSection(key, trait))),
+            h('tr', {},
             h('th', {scope:'row'}, trait.label, trait.definition ? h('details', {},
-              h('summary', {}, 'Definition and parameters'),
+              h('summary', {}, trait.output_type ? 'Definition and parameters' : 'Definition and statuses'),
               h('p', {}, trait.description),
-              h('p', {class:'mono receipt-hash'}, `Output type: ${trait.output_type}`),
-              h('p', {class:'mono receipt-hash'}, `Default parameters: ${JSON.stringify(trait.parameters)}`),
-              pinnedSource(trait.definition, 'DiSSECT definition ↗')) : null), ...available.map(r => h('td', {}, traitValue(r.traits[key]))))))))
+              trait.output_type ? h('p', {class:'mono receipt-hash'}, `Output type: ${trait.output_type}`) : null,
+              trait.parameters ? h('p', {class:'mono receipt-hash'}, `Default parameters: ${JSON.stringify(trait.parameters)}`) : null,
+              pinnedSource(trait.definition, trait.definition_label || 'DiSSECT definition ↗')) : null), ...available.map(r => h('td', {}, traitValue(r.traits[key]))))]).filter(Boolean))))
         : h('p', {class:'empty'}, 'Choose a curve to inspect its traits, or two to compare.'));
   };
   traitQuery.addEventListener('input', draw);
@@ -1162,7 +1175,7 @@ async function viewCurves(params = new URLSearchParams()) {
     h('label', {}, 'Search ', query), cards, h('h2', {}, 'Compare curve traits'),
     h('div', {class:'comparison-choices'}, selected),
     h('label', {}, 'Filter traits ', traitQuery),
-    h('p', {class:'muted'}, 'DiSSECT fields show Unknown until sourced results are available. Definitions and default parameters describe tests; they do not establish applicability or prove that a test ran. Parameter-dependent results must be compared with matching parameters.'),
+    h('p', {class:'muted'}, 'DiSSECT fields show Unknown unless a pinned source reports exactly the same quantity. The crypto curve_traits section shows computed traits joined on exact curve_uid, each with its own status. Definitions and default parameters describe tests; they do not establish applicability or prove that a test ran. Parameter-dependent results must be compared with matching parameters.'),
     h('p', {class:'faint'}, 'On narrow screens, scroll the trait table horizontally to see both curves.'), comparison));
   draw();
 }
