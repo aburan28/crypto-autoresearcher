@@ -1,5 +1,5 @@
 /-
-Exact CM discriminants of the NIST / SP 800-186 curves, and B-571's bound.
+Exact CM discriminants of the NIST / SP 800-186 curves, and B-571's earlier bound.
 
 Source:  research/endosweep_nist_20261006/README.md ("What is checked on every
          curve" item 2, the Results table, findings 3 and 4, and the "Lean
@@ -24,9 +24,12 @@ WHAT IS CERTIFIED (unconditionally, by kernel arithmetic):
 CONDITIONAL on the primality of the odd-exponent factors above 10^8 (listed
 per curve in `largePrimes`; proven by PARI `isprime`, NOT by Lean): D_K is a
 fundamental discriminant.
-B-571: CONDITIONAL on the primality of its two large known factors and on the
-harness's trial division of the cofactor C below 10^7 (both explicit
-hypotheses): |D_K| ≥ 4.11·10^49 and every non-scalar norm ≥ that / 4.
+B-571 has been completely factored since 2026-10-16 and is one of the exact
+certificates (`B571Exact`).  Its earlier bound (namespace `B571`) is kept: it
+is still true, CONDITIONAL on the primality of its two large known factors and
+on the trial division of the cofactor C below 10^7 (both explicit
+hypotheses): |D_K| ≥ 4.11·10^49 and every non-scalar norm ≥ that / 4.  The
+exact certificate supersedes it.
 
 NOT CERTIFIED: primality of any factor above 10^8; that C has no factor below
 10^7; any elliptic-curve fact (that t is the trace of the curve, that End(E)
@@ -203,6 +206,17 @@ def B409 : FactoredCert where
   smallPrimes := []
   largePrimes := [274463242236170470633, 19134548288527020978282691313128589290087578301686289306255632930154349088913119355866632515473568430479]
 
+/-- nist/B-571: `D_K = −core`, `f = 1`. -/
+def B571Exact : FactoredCert where
+  q := 7729075046034516689390703781863974688597854659412869997314470502903038284579120849072387533163845155924927232063004354354730157322085975311485817346934161497393961629646848
+  t := 99534385013609758659469819150465382236412396452349171016760770327496674607579419075443
+  DK := -21009206384100563841040083846281296456225312413552306095533376733063849879180105615665973423751846865969279867338399391178057790576859207002963481895511008772786625592941143
+  f := 1
+  deg := 5252301596025140960260020961570324114056328103388076523883344183265962469795026403916493355937961716492319966834599847794514447644214801750740870473877752193196656398235286
+  factors := [(137, 1), (1502689, 1), (5608493523058319, 1), (3563521804312876303, 1), (46393104672338327566438581332776443577, 1), (110062885101747737373848971769992595641139506008946715206760528637300688225399301632484625559, 1)]
+  smallPrimes := [(137, 12), (1502689, 1226)]
+  largePrimes := [5608493523058319, 3563521804312876303, 46393104672338327566438581332776443577, 110062885101747737373848971769992595641139506008946715206760528637300688225399301632484625559]
+
 /-- other/Curve25519: `D_K = −4·core`, `f = 2`. -/
 def Curve25519 : FactoredCert where
   q := 57896044618658097711785492504343953926634992332820282019728792003956564819949
@@ -261,7 +275,7 @@ def Ed448Goldilocks : FactoredCert where
 /-- Every curve whose `4q − t²` is completely factored (nist.json `exact.how`
 = "complete factorisation of 4q - t^2 into primes"). -/
 def factoredCerts : List FactoredCert :=
-  [P192, P224, P256, P384, P521, B163, B233, B283, B409, Curve25519, Ed25519, Curve448, Ed448, Ed448Goldilocks]
+  [P192, P224, P256, P384, P521, B163, B233, B283, B409, B571Exact, Curve25519, Ed25519, Curve448, Ed448, Ed448Goldilocks]
 
 /-- nist/K-163: found by the scan, `t² − 4q = −7·f²`. -/
 def K163 : ScanCert where
@@ -314,8 +328,9 @@ theorem factored_holds : ∀ c ∈ factoredCerts, c.Holds := by decide +kernel
 theorem scan_holds : ∀ c ∈ scanCerts, c.Holds := by decide +kernel
 
 /-- **Exact discriminants of the NIST curves** (README "What is checked" item 2
-and finding 3).  For P-192, P-224, P-256, P-384, P-521, B-163, B-233, B-283,
-B-409, Curve25519 = Ed25519 and Curve448 = Ed448 = Ed448-Goldilocks:
+and findings 3 and 4).  For P-192, P-224, P-256, P-384, P-521, B-163, B-233,
+B-283, B-409, B-571, Curve25519 = Ed25519 and Curve448 = Ed448 =
+Ed448-Goldilocks:
 `t² − 4q = D_K·f²`; `4q − t²` is the product of the certificate's prime
 powers; the odd-exponent primes of the certificate are `oddPrimes`, and
 `D_K = −core` (when `−core ≡ 1 mod 4`) or `D_K = −4·core` (when
@@ -363,23 +378,30 @@ theorem koblitz_discriminants :
       exact isPrimeNat_of_noDivBelow (r := 3) (by decide) (by decide) (by decide))
     (-7) (.inl ⟨by decide, by decide⟩)
 
-/-- **The sizes in finding 3.**  On P-192 … P-521, B-163 … B-409, Curve25519
-(= Ed25519) and Curve448 (= Ed448, Ed448-Goldilocks): `2^162 ≤ |D_K| < 2^523`;
+/-- **The sizes in finding 3.**  On P-192 … P-521, B-163 … B-571, Curve25519
+(= Ed25519) and Curve448 (= Ed448, Ed448-Goldilocks): `2^162 ≤ |D_K| < 2^573`;
 `min_nonscalar_degree(D_K) ≥ 2^160`, and `≥ 2^220` whenever `q ≥ 2^223` (a
 field of 224 bits or more); the conductor is 1 on P-192, P-256, P-384, P-521
-and B-163 … B-409, 3 on P-224 and 2 on Curve25519 and Curve448.  With
+and B-163 … B-571, 3 on P-224 and 2 on Curve25519 and Curve448.  With
 `exact_discriminants` (`deg = min_nonscalar_degree(D_K)`) and
 `Discriminant.minNonscalarDegree_isLeast`, every element of the order of
 discriminant `D_K` outside `Z` has norm at least these bounds. -/
 theorem finding3_bounds :
     (∀ c ∈ factoredCerts,
-      2 ^ 162 ≤ c.DK.natAbs ∧ c.DK.natAbs < 2 ^ 523 ∧ 2 ^ 160 ≤ c.deg ∧
+      2 ^ 162 ≤ c.DK.natAbs ∧ c.DK.natAbs < 2 ^ 573 ∧ 2 ^ 160 ≤ c.deg ∧
         (2 ^ 223 ≤ c.q → 2 ^ 220 ≤ c.deg)) ∧
-    [P192.f, P256.f, P384.f, P521.f, B163.f, B233.f, B283.f, B409.f] = [1, 1, 1, 1, 1, 1, 1, 1] ∧
+    [P192.f, P256.f, P384.f, P521.f, B163.f, B233.f, B283.f, B409.f, B571Exact.f] =
+      [1, 1, 1, 1, 1, 1, 1, 1, 1] ∧
     P224.f = 3 ∧ Curve25519.f = 2 ∧ Curve448.f = 2 := by
   decide +kernel
 
-/-! ## B-571: bounded, not settled (README finding 4) -/
+/-! ## B-571's earlier bound (README finding 4), superseded by `B571Exact`
+
+Before the 130-digit cofactor `C` was split (CADO-NFS, 2026-10-16), B-571 had
+only this bound.  It is kept because it is still true and every assumption is
+explicit.  `B571Exact` in `factoredCerts` now gives the exact `D_K = −(4q − t²)`,
+`f = 1` and `min_nonscalar_degree(D_K)` through `exact_discriminants`, and
+`C_split` records that `C` is the product of the two primes CADO-NFS found. -/
 
 namespace B571
 
@@ -387,19 +409,21 @@ namespace B571
 def q : Int := 7729075046034516689390703781863974688597854659412869997314470502903038284579120849072387533163845155924927232063004354354730157322085975311485817346934161497393961629646848
 /-- B-571: the trace of Frobenius. -/
 def t : Int := 99534385013609758659469819150465382236412396452349171016760770327496674607579419075443
-/-- The four primes the partial certificate proves (PARI `isprime`), each to exponent 1. -/
+/-- The four primes the partial certificate proved (PARI `isprime`), each to exponent 1. -/
 def knownPrimes : List Nat := [137, 1502689, 5608493523058319, 3563521804312876303]
 /-- Their product. -/
 def P : Nat := 4114483429456871116530091442859524338336201
-/-- The 130-digit composite cofactor. -/
+/-- The 130-digit composite cofactor they left. -/
 def C : Nat := 5106158949064929458195825244013686251303650244512648497717558074254289649451324237901292834252800885477933556954015766654535584543
+/-- The two primes CADO-NFS split `C` into (PARI `isprime` and ECPP; not proved in Lean). -/
+def splitPrimes : List Nat := [46393104672338327566438581332776443577, 110062885101747737373848971769992595641139506008946715206760528637300688225399301632484625559]
 /-- `⌊√C⌋`. -/
 def rootC : Nat := 71457392543143704175424859184703064995806755028152289742573776115
 /-- The trial-division bound. -/
 def B : Nat := 10000000
-/-- nist.json `bound.abs_D_K_at_least` (`= P·B`). -/
+/-- The bound the partial certificate gave (`= P·B`; nist.json `bound.abs_D_K_at_least` before 2026-10-16). -/
 def absDKAtLeast : Nat := 41144834294568711165300914428595243383362010000000
-/-- nist.json `bound.min_nonscalar_degree_at_least` (`= absDKAtLeast / 4`). -/
+/-- Its quarter (nist.json `bound.min_nonscalar_degree_at_least` before 2026-10-16). -/
 def degAtLeast : Nat := 10286208573642177791325228607148810845840502500000
 
 /-- The partial certificate multiplies back: `4q − t² = P·C`, `P = ∏ knownPrimes`. -/
@@ -408,6 +432,10 @@ theorem product : 4 * q - t ^ 2 = ((P * C : Nat) : Int) ∧ knownPrimes.prod = P
 
 /-- `gcd(P, C) = 1`: the known primes were divided out completely. -/
 theorem coprime : Nat.Coprime P C := by decide +kernel
+
+/-- `C = p38 · p93`, the two primes of the complete certificate `B571Exact`
+(prime by PARI `isprime` and ECPP; not proved in Lean). -/
+theorem C_split : splitPrimes.prod = C := by decide +kernel
 
 /-- `C` has 130 digits. -/
 theorem C_digits : 10 ^ 129 ≤ C ∧ C < 10 ^ 130 := by decide +kernel

@@ -12,3 +12,10 @@ python3 research/endosweep_nist_20261006/lean/gen_endosweep_lean.py . /path/to/s
 The generator recomputes every number and refuses to write if anything
 disagrees, so a stale input fails here rather than in Lean. The proofs in the
 templates (`*.lean.in`) are hand-written; only the data is generated.
+
+B-571 has a complete certificate since 2026-10-16 and is generated as
+`B571Exact` among the exact certificates. The data of its earlier, superseded
+bound (namespace `B571`) are now derived from that complete certificate: the
+four primes the partial certificate had, and `C` as the product of the two
+primes CADO-NFS found. The generator checks the bound against the value the
+old `nist.json` recorded.

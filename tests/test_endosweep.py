@@ -621,7 +621,7 @@ def test_min_nonscalar_degree_closed_form_matches_brute_force():
 def test_nist_results_rest_on_checked_certificates():
     base = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_nist_20261006")
     certs = NI.load_factorizations(_os.path.join(base, "factorizations.jsonl"))     # re-multiplied, primes re-tested
-    assert len(certs) == 11
+    assert len(certs) == 12                                                          # B-571 complete since 2026-10-16
     doc = _json.load(open(_os.path.join(base, "nist.json")))
     assert len(doc["curves"]) == 20 and all(r["verified"] for r in doc["curves"].values())
     for name, r in doc["curves"].items():
@@ -639,21 +639,55 @@ def test_nist_results_rest_on_checked_certificates():
             else:
                 assert QO.is_fundamental(DK), name
         else:
-            assert name == "nist/B-571" and r["bound"]["abs_D_K_at_least"] > 10 ** 15
+            raise AssertionError(f"{name} has no exact D_K")
         if name.startswith("nist/K-"):
             assert r["exact"]["D_K"] == -7 and r["tau"]["all_checks_pass"]
             assert r["summary"]["S_free"]["ratio"] > 2 and r["summary"]["S_equals_M"]["ratio"] > 1.5
 
 
-def test_partial_certificate_raises_the_b571_bound(tmp_path):
-    base = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_nist_20261006")
-    partials = NI.load_partial_certificates(_os.path.join(base, "factorizations.jsonl"))
-    assert len(partials) == 1
-    (N, known), = partials.items()
-    part = NI.partial_factorization(N, bound=10 ** 4, known=known)
+B571_KNOWN = [137, 1502689, 5608493523058319, 3563521804312876303]       # trial division, then GMP-ECM
+B571_P38 = 46393104672338327566438581332776443577                         # CADO-NFS split the C130
+B571_P93 = 110062885101747737373848971769992595641139506008946715206760528637300688225399301632484625559
+
+
+def test_partial_certificate_raises_the_bound(tmp_path):
+    """The partial-certificate mechanism, on B-571's former partial certificate (rebuilt from its parts)."""
+    C = B571_P38 * B571_P93
+    N = C
+    for p in B571_KNOWN:
+        N *= p
+    path = tmp_path / "partial.jsonl"
+    path.write_text(_json.dumps({"curve": "B-571", "N": str(N), "partial_factors": [[str(p), 1] for p in B571_KNOWN],
+                                 "cofactor": str(C)}) + "\n")
+    partials = NI.load_partial_certificates(str(path))
+    assert NI.load_factorizations(str(path)) == {}                  # a partial record is not a complete certificate
+    assert list(partials) == [N] and partials[N] == [(p, 1) for p in B571_KNOWN]
+    part = NI.partial_factorization(N, bound=10 ** 4, known=partials[N])
     assert not part["complete"] and part["cofactor_digits"] == 130 and not part["cofactor_square"]
     assert part["abs_D_K_at_least"] == 137 * 1502689 * 5608493523058319 * 3563521804312876303 * 10 ** 4
     bad = tmp_path / "bad.jsonl"
     bad.write_text(_json.dumps({"N": str(N), "partial_factors": [["137", 1]], "cofactor": str(N // 137 - 1)}) + "\n")
     with pytest.raises(ValueError):
         NI.load_partial_certificates(str(bad))
+    prime_cofactor = tmp_path / "prime_cofactor.jsonl"                 # a prime cofactor is a complete factorisation
+    prime_cofactor.write_text(_json.dumps({"N": str(137 * B571_P38), "partial_factors": [["137", 1]],
+                                           "cofactor": str(B571_P38)}) + "\n")
+    with pytest.raises(ValueError):
+        NI.load_partial_certificates(str(prime_cofactor))
+
+
+def test_b571_is_now_complete_and_exact():
+    base = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_nist_20261006")
+    path = _os.path.join(base, "factorizations.jsonl")
+    assert NI.load_partial_certificates(path) == {}                  # the partial certificate was replaced
+    r = _json.load(open(_os.path.join(base, "nist.json")))["curves"]["nist/B-571"]
+    q, t = int(r["q"]), int(r["t"])
+    N = 4 * q - t * t
+    assert NI.load_factorizations(path)[N] == sorted([(p, 1) for p in B571_KNOWN + [B571_P38, B571_P93]])
+    assert "bound" not in r and r["exact"]["how"] == "complete factorisation of 4q - t^2 into primes"
+    DK, f = int(r["exact"]["D_K"]), int(r["exact"]["f"])
+    assert (DK, f) == NI.exact_discriminant(-N, NI.check_factorization(N, r["exact"]["factorization"]))
+    # fundamental: -N = 1 mod 4 and N is a product of distinct proven primes (QO.is_fundamental would factor N)
+    assert DK == -N and f == 1 and len(str(N)) == 173 and DK % 4 == 1 and len(set(B571_KNOWN + [B571_P38, B571_P93])) == 6
+    assert r["exact"]["min_nonscalar_degree"] == QO.min_nonscalar_degree(DK) == (N + 1) // 4 > 2 ** 570
+    assert r["exact"]["log2_abs_D_K"] == 572.44
