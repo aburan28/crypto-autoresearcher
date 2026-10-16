@@ -1,0 +1,9 @@
+# Terminal postrun metadata correction
+
+Commit9c4289bf06 exposed duplicate mutable artifact ownership during dispatch validation. Its later shell steps continued because the publication shell lacked set-e, creating original epoch1claim0c1fd466b1 despite the queue validation error. This is a metadata publication mistake; all original commits/claims remain. The shell publication path now stops on validation failure.
+
+The original runtime queue is restored byte-for-byte from3330b2b62d. The derived postrun-dispatch_queue.json shares the original claims directory and preserves all terminal native/review/report identities and22-path snapshot bindings. It omits three completed intake cards and removes only the already-completed producer intake dependency from this terminal view; source/input bindings and original executed card remain explicit in historical_intake_binding. It owns the later mutable ledger records exclusively. Nothing can rerun a released completed task; no new scientific task/argv/budget is introduced. No forwarding claim is made: the new queue is explicitly a terminal ledger view, not a replacement runtime execution plan.
+
+The final ledger card contracts its write scope to exclude problems/README.md, held by a different task. That index remains untouched; the authoritative candidate-selection problem file is updated within the existing reservation. The original claim is not rewritten and the unexercised broader path is not used.
+
+The next source-only queue retains ledger kind after the unchanged dispatcher required a decision-owning gate for each independent review. It prospectively owns DEC-20261016-5cf723 and DEC-20261016-7a0aed, with exact decision artifacts and record IDs. These later decisions concern source admission only; they do not authorize scientific target measurements. A trial conversion to snapshot was rejected before publication and retained in this correction account. Both queues now pass the unchanged dispatcher.
