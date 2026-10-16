@@ -350,3 +350,59 @@ in `gls.md`.
 Code: `harness/endosweep/lambdacoord.py` (λ-coordinates, NIST driver),
 `harness/endosweep/gls.py` (F_q², AGM, GLS, 2-GLV), tests in
 `tests/test_endosweep_lambda.py`.
+
+## Lean verification
+
+Added 2026-10-16. The λ-coordinate formulas and the GLS map `ψ` are
+machine-checked as field identities. The files are
+[`formal/CryptoResearch/Endosweep/LambdaCoordinates.lean`](../../formal/CryptoResearch/Endosweep/LambdaCoordinates.lean)
+and [`formal/CryptoResearch/Endosweep/BinaryGLS.lean`](../../formal/CryptoResearch/Endosweep/BinaryGLS.lean).
+Both use core Lean only (`Lean.Grind.Field` with `Lean.Grind.IsCharP K 2`).
+The setting is any field `K` of characteristic 2. Every formula is
+transcribed operation by operation from `lambdacoord.py` and `gls.py`. The
+reference is `binary.py`'s affine `add`/`dbl` in their generic branches.
+`to_affine (X, L, Z) = (X/Z, (X/Z)(L/Z + X/Z))`.
+
+* `curve_equation_iff`: let `X, Z ≠ 0`. Then
+  `(L² + LZ + aZ²)X² = X⁴ + bZ⁴` iff `to_affine (X, L, Z)` lies on
+  `y² + xy = x³ + ax² + b`.
+* `dbl_main_correct` (Theorem 1): let `X, Z ≠ 0` and `T = L² + LZ + aZ² ≠ 0`.
+  Then `to_affine (dbl P) = affine_dbl (to_affine P)`, and the output has
+  `Z ≠ 0`. No curve equation is needed.
+* `alt_T_eq`: `L(L + Z) + aZ² = L² + LZ + aZ²`.
+  `dbl_alt_eq_dbl_main`: on the curve, the alternative doubling returns
+  exactly Theorem 1's triple. So it is correct (`dbl_alt_correct`), and the
+  3M + 4S form differs from Theorem 1 only in how `T` is computed.
+* `add_correct` (Theorem 2): take `P, Q` on the curve with `X, Z ≠ 0`,
+  `X_P Z_Q + X_Q Z_P ≠ 0` and `X₃ ≠ 0`. Then
+  `to_affine (add P Q) = affine_add (to_affine P) (to_affine Q)`.
+  `madd_correct` is the same statement for the mixed addition with `P`
+  λ-affine.
+* `dbl_add_correct` (Theorem 3): take `Q` and `P` on the curve, with the
+  code's nonzero conditions `T, B, A ≠ 0`. Then
+  `to_affine (dbl_add Q P) = affine_add (affine_dbl (to_affine Q)) P`.
+* `neg_correct`: `(X, L + Z, Z)` is `−P`.
+  `frobenius_correct`: `(X², L², Z²)` is `(x², y²)`.
+* GLS (`BinaryGLS.lean`): let `σ` be an additive, multiplicative, unital
+  involution of `K`, and suppose `u² + u + 1 = 0`, `σu = u + 1` and `σb = b`.
+  Let `ψ(x, y) = (σx, σy + u·σx)`.
+  * `psi_psi`: `ψ(ψ(P)) = −P` for every affine `P`.
+  * `psi_onCurve`: `ψ` maps `y² + xy = x³ + ux² + b` to itself.
+  * `psi_add` and `psi_dbl`: `ψ` commutes with the generic affine addition and
+    doubling.
+  * `psi_lambda_affine` and `psi_lambda_proj`: the λ-forms `(σx, σλ + u)` and
+    `(σX, σL + uσZ, σZ)` represent `ψ`.
+  * `psi_eq_conj_by_twist`: for any ring endomorphism `τ` and any `s` with
+    `s + τs = u`, `φ_s ∘ τ ∘ φ_s⁻¹ = ψ`, where `φ_s(x, y) = (x, y + sx)`.
+    `twist_iso_onCurve`: `φ_s` maps `a` to `a + s² + s`.
+
+Not Lean claims:
+* Every operation count (Table 3, the scalar-multiplication tables).
+* The ratios and the refuted hypothesis.
+* The AGM trace, `r` prime and the group order of the GLS curve.
+* The eigenvalue `δ`.
+* That gls.py's tower is a field with these properties.
+
+Those are measured or checked by the harness. The degenerate branches
+(`P = ±Q`, `O`, `x = 0`) are not formalised. Target specs:
+`formal/targets/endosweep-lambda-*.yaml` and `endosweep-gls-*.yaml`.

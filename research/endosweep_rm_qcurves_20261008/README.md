@@ -409,3 +409,18 @@ The curve constants are in `qcurves.json`.
 
 Code: `harness/endosweep/rmkummer.py` and `harness/endosweep/qcurves.py`.
 Tests: `tests/test_endosweep_rm_qcurves.py`.
+
+## Lean verification
+
+The algebraic step behind item 7's hit rate is machine-checked in Lean 4
+(core Lean only, no Mathlib; axioms `propext`, `Classical.choice`,
+`Quot.sound`):
+
+| claim | theorem | target |
+|:--|:--|:--|
+| 2 is inert in `Z[φ]`: for `(a, b) ≠ (0, 0)`, `a² + ab − b² = 4^k·m` with `m` odd, so every nonzero norm has even 2-adic valuation (and the same for `a² − ab − b²`) | `CryptoResearch.Endosweep.RMGoldenNorm.norm_eq_four_pow_mul_odd` (and `…_odd'`) in `formal/CryptoResearch/Endosweep/RMGoldenNorm.lean` | `formal/targets/endosweep-rm-golden-norm-2adic.yaml` |
+
+Not machine-checked: that `#J(F_p)` is a norm from `Z[φ]` (the Frobenius
+polynomial's factorisation over `Q(√5)`, measured for every member), the hit
+rates, the RM map on points, and everything in item 8, whose results are
+modelled operation counts and point checks rather than theorems.

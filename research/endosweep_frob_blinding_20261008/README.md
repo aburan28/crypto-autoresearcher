@@ -403,3 +403,54 @@ uniforms, so its top bits are not uniform.
 
 Code: `harness/endosweep/frobenius.py`, `harness/endosweep/blinding.py`.
 Tests: `tests/test_endosweep_frob_blinding.py`.
+
+## Lean verification
+
+Added 2026-10-16. Finding 4 of item 9 and the algebraic facts of item 10 are
+machine-checked. Both files use core Lean only.
+
+**Item 9:**
+[`formal/CryptoResearch/Endosweep/FrobeniusSplit.lean`](../../formal/CryptoResearch/Endosweep/FrobeniusSplit.lean).
+The sequence is `frobenius.py`'s `V_0 = 2`, `V_1 = t`,
+`V_j = tV_{j−1} − qV_{j−2}`, with `#E(F_{q^m}) := q^m + 1 − V_m`. Proved for
+every `m`:
+
+* `order_double`: `#E(F_{q^{2m}}) = #E(F_{q^m})·(q^m + 1 + V_m)`. This
+  follows from `V_double`: `V_{2m} = V_m² − 2q^m`.
+* `order_F4_eq` and `F4_trace_eq_neg_three_iff`: over F_2 with trace `t₂`,
+  the F_4 trace is `t₂² − 4`, and `#E(F_{4^m}) = #E(F_{2^{2m}})`. Also
+  `t₂² − 4 = −3` iff `t₂ = ±1`.
+* `V_neg_odd`: for odd `m`, `V_m(−t) = −V_m(t)`.
+* `order_dvd`: `#E(F_q) ∣ #E(F_{q^k})`.
+* `hasse`: if `t² < 4q`, then `V_k² ≤ 4q^k`.
+* `q4_split`: for **every odd `m ≥ 5`**, all three of `q4_koblitz_split`'s
+  floor divisions are exact, and `n4 = n_a · n_b` with `n_a > 1` and
+  `n_b > 1`. Hence `n4` is not prime (`q4_not_prime`).
+* `q4_small_m`: the bound is needed. `m = 3` gives `n4 = 7` with `n_b = 1`,
+  and `m = 2` gives `n4 = 2`, so both are prime. "Never" therefore holds for
+  every odd `m ≥ 5`, which includes every `m` this study considers (primes
+  67–201). It fails at `m ∈ {2, 3}`.
+
+Taken as given, and not proved here:
+* that `q^m + 1 − V_m` is the group order (the Frobenius characteristic
+  polynomial);
+* the identification of the `t = −3` class with the F_2-Koblitz curves.
+
+**Item 10:**
+[`formal/CryptoResearch/Endosweep/Blinding.lean`](../../formal/CryptoResearch/Endosweep/Blinding.lean).
+
+* `decompose_mod_erases`: a decomposition that is a function of `k mod n`
+  gives the same result for `k` and `k + r·n`.
+* `babai_unreduced_erases`: this is `blinding.py`'s `decompose_unreduced`,
+  with `c_i(K) = ⌊(2K·num_i + den_i)/(2den_i)⌋` and
+  `v(K) = (K, 0, …, 0) − Σ c_i(K)·b_i`. Suppose `(n, 0, …, 0) = Σ z_i b_i`
+  with integer `z_i = n·num_i/den_i`. Then `v(K + r·n) = v(K)` for all
+  integers `K` and `r`.
+* `blind_reconstructs`: suppose `Σ v_i λ_i ≡ k (mod n)` and every `b_j`
+  satisfies `Σ_i b_{j,i} λ_i ≡ 0`. Then `x = v + Σ_j r_j b_j` reconstructs
+  `k` mod `n` for all integers `r_j`.
+
+Not Lean claims: the `e/d` extra bits, the doubling ratios, every min-entropy
+figure and the MSB statistics, which are measured. Item 9's costs, digit
+statistics and BPSW probable primes are also not Lean claims. Target specs:
+`formal/targets/endosweep-frob-*.yaml` and `endosweep-blinding-*.yaml`.
