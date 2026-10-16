@@ -400,7 +400,10 @@ are machine-checked in
   * GLV wins iff `C_α < (b/(2c))·(2^c R + cD + C)/N`;
   * this break-even exceeds the aggregation-only saving by exactly
     `((b/2)·D + (b/(2c))·C)/N`. That is the halved window-combination work of
-    Finding 1.
+    Finding 1. The excess is `≥ 0`, and strictly positive when `D` or `C` is,
+    for positive `b, c, N`. "Aggregation-only saving" here is the model's
+    `(b/(2c))·2^c·R/N`, not the hypothesis's `b·A/(c(c+1))` (clarified
+    2026-10-16 after the Lean review).
 
 Not Lean claims:
 * every tabulated `C*`, gain and window;
