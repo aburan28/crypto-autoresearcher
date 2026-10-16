@@ -4,7 +4,7 @@
 - **Kind:** empirical bottleneck; missing algorithm (no known solver exploits the chain); proof gap (no degree-of-regularity bound)
 - **Affected work:** [EXP-ECDLP-f49f75](../experiments/EXP-ECDLP-f49f75/specification.yaml), [H-ECDLP-60de36](../ledger/hypotheses/H-ECDLP-60de36.yaml), GOAL-ECDLP-001, RQ-ECDLP-001
 - **Next action owner:** unassigned (Coordinator to rank against GOAL-ECDLP-001 work)
-- **Last updated:** 2026-10-15 (EXP-ECDLP-502ae2, msolve)
+- **Last updated:** 2026-10-16 (reframed question; P-256 group-order check)
 
 ## Problem
 
@@ -49,6 +49,43 @@ no F_p-isogeny carries E0's group structure to P-256's addition law.
 - **What this evidence does not establish:** that no solver or no different
   modelling of the chain (e.g. Weil-descent-style, SAT, or a hybrid) can
   exploit it; anything about m = 6; anything about P-256 security.
+
+## Reframed question (2026-10-16)
+
+Two solvers (Singular, msolve F4) and two orders (plain DRL, chain-first block
+order) now fail to close the gap, so the working question changes from "does the
+chain help?" to **why is the chain slower than the dense encoding of the same
+set, and is any of that loss fixable or is it intrinsic?**
+
+- **Observed** (recorded values; EXP-ECDLP-502ae2 and EXP-ECDLP-20a588 run
+  records; the m = 3 block-order cells L = 3..6 are complete): under plain DRL
+  the chain/dense basis-time ratio grows (8x, 30x, >79x at L = 3, 4, 5); under
+  the block order it stays near 2x (1.3, 1.9, 2.3, 2.0 at L = 3..6) - a constant
+  factor, not a growing one - and the eliminated chain basis equals the dense
+  basis on every instance.
+- **Observed, exploratory** (not preregistered; msolve max F4 degree, 4 planted
+  instances per L): dense 2^L + 8 on every instance (16, 24, 40, 72); chain
+  with block order on instances that have a solution 14, 32, 65, 133, i.e.
+  about 2^(L+1) for L >= 4; on no-solution instances close to the dense value.
+  Chain under plain DRL keeps a low degree (12, 13) but pays in cost.
+- **Derived:** with |V|^m ~ p the system has only O(2^m) rational solutions, so
+  the task is to find roughly one grid point of V^m on the hypersurface S, not
+  to enumerate a large solution set; and V itself is enumerable in 2^L time, so
+  a short description of V is not what limits decomposition. The coset lemma
+  (docs/reports/pkm-p256-structure-check/) shows P-256 offers no kernel-coset
+  structure to couple to.
+- **Conjecture (unproved):** the chain trades degree for variables - m*L
+  variables with low degree (DRL) or L-fold lifted equations with degree
+  about 2^(L+1) (block order) - and the cost of F4 follows matrix size
+  (monomials of degree <= D in the variables), which does not drop.
+- **Discriminating experiments (none run):** (1) log and compare F4 matrix
+  dimensions (msolve -v 2) between chain and dense per L, to test the
+  matrix-size account; (2) other chain/x orders (interleaved, weighted);
+  (3) the m = 4 grid (EXP-ECDLP-8c41d7) for the m-dependence of the constant.
+- **Outcomes:** matrix size explains the loss and no order beats dense -> the
+  Groebner route for this encoding is intrinsically no better than dense;
+  record it and stop spending on it. Some order beats dense on the frozen
+  grid -> expand to m = 4 and larger L.
 
 ## What would unblock it
 
