@@ -443,6 +443,28 @@ def darwin_group_rss_bytes(pgid: int) -> int:
     return total
 
 
+def read_darwin_rss_during_transition(process: subprocess.Popen[Any],
+                                      grace_seconds: float = 1.0) -> int | None:
+    """Retry a short libproc exit/exec race, but fail on persistent monitor loss.
+
+    A group member may still be listed after its task info becomes unreadable.
+    ``None`` means the supervised leader exited during this transition.
+    """
+    deadline = time.monotonic() + grace_seconds
+    first_error = None
+    while True:
+        try:
+            return darwin_group_rss_bytes(process.pid)
+        except ExecutionError as error:
+            if first_error is None:
+                first_error = error
+            if process.poll() is not None:
+                return None
+            if time.monotonic() >= deadline:
+                raise first_error
+            time.sleep(0.02)
+
+
 def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial: dict[str, Any],
                 authority: dict[str, Any], lock_fd: int) -> tuple[str, int | None]:
     import resource
@@ -464,25 +486,9 @@ def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial
                                        pass_fds=(lock_fd,))
             while process.poll() is None:
                 if darwin:
-                    try:
-                        rss = darwin_group_rss_bytes(process.pid)
-                    except ExecutionError as error:
-                        # libproc can momentarily lose a newly exec'ing or
-                        # just-exiting PID. Retry only this short transition;
-                        # persistent monitor loss remains fail-closed.
-                        for _ in range(3):
-                            if process.poll() is not None:
-                                return "exited", process.returncode
-                            time.sleep(0.01)
-                            try:
-                                rss = darwin_group_rss_bytes(process.pid)
-                                break
-                            except ExecutionError:
-                                pass
-                        else:
-                            if process.poll() is not None:
-                                return "exited", process.returncode
-                            raise error
+                    rss = read_darwin_rss_during_transition(process)
+                    if rss is None:
+                        return "exited", process.returncode
                     if rss > ceiling:
                         return "memory_limit_exceeded", None
                 if datetime.now(timezone.utc) >= expiry:
