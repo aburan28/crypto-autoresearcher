@@ -57,6 +57,15 @@ if mkdir -p .git/hooks 2>/dev/null; then
         && chmod +x .git/hooks/pre-commit
 fi
 
+# A cairn node joined to the published seed nodes, kept up for the session
+# (scripts/cairn-node.sh, shared with crypto, cryptanalysis and
+# ml-cryptanalysis). Its own ports (9100/9180) and data directory, so the
+# per-session `cairn run` that tools/cairn_mcp.sh starts on 9000/8080 is
+# unaffected; that one also gets the `ui`-feature binary it needs from here.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+    scripts/cairn-node.sh ensure || true
+fi
+
 # SageMath 10.9, pinned to match the version driver.py/checker.py hard-assert
 # (dependencies.json's "sage": "10.9" across frozen experiments, e.g.
 # EXP-FROB-d8aa37). Workspace tooling only: this does NOT satisfy a frozen
