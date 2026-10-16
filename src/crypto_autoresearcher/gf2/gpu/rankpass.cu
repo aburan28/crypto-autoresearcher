@@ -22,7 +22,11 @@
  * whose bits are set in s; that is what the CPU Gray-code tables hold, so the
  * update is the same function of (coef, Bs) and gives the same bits.
  */
-#include <stdint.h>
+/* NVRTC ships no libc headers (no <stdint.h>): fixed-width types by hand */
+typedef unsigned long long uint64_t;
+typedef long long int64_t;
+typedef int int32_t;
+typedef unsigned char uint8_t;
 
 #define WPB 4   /* tail words per update block: 4 * 8 * 256 * 8 B = 64 KiB of tables */
 
