@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summaries, frozen criteria and graph for EXP-ECDLP-20a588 (recorded values only).
 
-Usage: analyze.py OUT_DIR RUN_DIR
+Usage: analyze.py OUT_DIR RUN_DIR [RUN_DIR ...]   (runs cover disjoint cells; see the amendments)
 """
 import json, os, statistics, sys
 from collections import defaultdict
@@ -11,9 +11,22 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 
-out, run_dir = sys.argv[1:3]
+out, run_dirs = sys.argv[1], sys.argv[2:]
 os.makedirs(out, exist_ok=True)
-rows = [json.loads(l) for l in open(os.path.join(run_dir, "raw-result.jsonl"))]
+rows = []
+for d in run_dirs:
+    for l in open(os.path.join(d, "raw-result.jsonl")):
+        r = json.loads(l)
+        r["run_id"] = os.path.basename(os.path.normpath(d))
+        rows.append(r)
+M = rows[0]["m"]
+EXP = os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(run_dirs[0]))))
+RUNS = ", ".join(sorted({r["run_id"] for r in rows}))
+seen = set()
+for r in rows:  # cells must be disjoint across runs (amendments resume unexecuted cells only)
+    key = (r["L"], r["inst"])
+    assert key not in seen, f"cell {key} appears in two runs"
+    seen.add(key)
 ARMS = ["A_elim_ms", "A_drl_ms", "B_ms", "A_block_sg", "B_sg"]
 
 cells = defaultdict(list)
@@ -79,11 +92,11 @@ for arm in ARMS:
     if to:
         ax.scatter(to, [6e5] * len(to), marker="x", color=c, s=60, zorder=5, clip_on=False)
 ax.axhline(6e5, color="black", lw=0.6, ls=":")
-ax.set_yscale("log"); ax.set_xlabel("L  (|V| = 2^L; m = 3; p ~ 2^(3L))")
+ax.set_yscale("log"); ax.set_xlabel(f"L  (|V| = 2^L; m = {M}; p ~ 2^({M}L))")
 ax.set_ylabel("median basis wall time (ms, log)\nbars = min..max; x = all timed out (600 s)")
 ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
 ax.legend(fontsize=7, loc="upper left"); ax.grid(alpha=.3)
-ax.set_title("EXP-ECDLP-20a588 / RUN-ECDLP-20a588-01: chain arm under a block elimination order (n = 6 per cell)", fontsize=8.5)
+ax.set_title(f"{EXP} / {RUNS}: chain arm under a block elimination order, m = {M} (n = 6 per cell)", fontsize=8)
 fig.tight_layout()
 for ext in ("svg", "png"):
     fig.savefig(os.path.join(out, f"block-order-vs-L.{ext}"), dpi=150)
