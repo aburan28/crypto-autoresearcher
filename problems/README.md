@@ -12,6 +12,8 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Prescribed execution is not enforced through the proof chain](execution-proof-chain-not-enforced.md) | open | Cryptographic execution integrity from frozen protocol through raw results, evidence and Cairn settlement/audit | Real proofs for the walk/count pilots, independent audits in both Cairn implementations, all promotion bindings, adversarial controls and a scoped cost report |
+| [Prime-field arity-3 relation-yield panel](prime-field-arity3-relation-oracle.md) | investigating | EXP-ECTD-0cf008: 3 validated arms, 13 infrastructure failures, 4 unlaunched transport arms; 17-arm recovery draft and runtime lock published but unapproved | Restore verified Coordinator backend, approve exact handoff, then complete independent replay, report, and review |
 | [250-billion point-data storage](solinas-250b-storage-unavailable.md) | investigating | Full compact retention for later arbitrary ML; aggregate campaign selected October14 | Larger writable storage or configured S3 upload/checksum identity; aggregate mode preserves the fixed count-based inference |
 | [EigenX/CEST EndRing reduction is not established](eigenx-cest-endring-reduction-not-established.md) | investigating | An EndRing-based confidentiality theorem or completion claim; BATCH-5313dc and BATCH-3e1bfd both archived with zero survivors, and the endpoint-fiber raw XOR syntax has an exact CCA break; novelty, QPT/QROM and Cat-5 obligations remain open | A concrete endpoint-fiber law and nontrivial label/evaluator pair, or a reviewed correctly directed reduction on the exact real-key distribution; every replacement still needs six-obligation, quantum, and concrete-category evidence |
 | [Koblitz vertical isogeny maps are not persisted](koblitz-vertical-isogeny-maps-not-persisted.md) | open | K-163/K-283 endpoint rho and transported-action tests | Finish an admitted K-163 or K-283 forward-map gate, then certify its dual, subgroup recovery, and matched full cost |
@@ -25,7 +27,7 @@ Keep resolved and superseded records in the index.
 | [Polynomial integer-HNF transformation memory growth](lattice-ic-integer-hnf-memory-growth.md) | investigating | EXP-IC-74cbb1 failed before serialized results; polynomial and dependent combined execution | Bounded exact HNF with two-way Z-membership, unchanged criteria/caps/resources, and a fresh native-admitted successor run |
 | [Lattice IC blind Reviewer session continuity](lattice-ic-blind-review-session-continuity.md) | investigating | Same-Reviewer later comparison after lost runtime access; source support verified, original history contaminated | Fourth successful archive, refreshed scoped history check on clean isolated tree, new independent blind7 and verified archive8 before same-session gated comparison |
 | [Polynomial claim authority and durable progress](lattice-ic-polynomial-lease-progress-observability.md) | investigating | Prior EXP-IC-66c447 expired; new EXP-IC-9f9a4b running with durable boundaries, no complete output yet | Retain unchanged native attempt through actual terminal outcome and custody; full-grid/checker and independent review remain pending |
-| [PKM isogeny-chain factor base has no fast decomposition](pkm-isogeny-chain-factor-base-no-fast-decomposition.md) | open | The proposed ~N^(1/3) P-256 route via a 2-isogeny-chain factor base (EXP-ECDLP-f49f75: chain encoding slower than dense/random controls at every toy cell) | A solver beating the dense and random controls on the frozen toy grid, or an L-independent degree-of-regularity bound |
+| [PKM isogeny-chain factor base has no fast decomposition](pkm-isogeny-chain-factor-base-no-fast-decomposition.md) | open | The proposed ~N^(1/3) P-256 route via a 2-isogeny-chain factor base (EXP-ECDLP-f49f75 Singular + EXP-ECDLP-502ae2 msolve F4: chain slower than dense/random at every toy cell) | A solver beating the dense and random controls on the frozen toy grid (e.g. block/elimination order), or an L-independent degree-of-regularity bound |
 
 ## Add or update a problem
 
@@ -81,3 +83,5 @@ existing fields and authority. Problem status does not change a goal's status,
 approve an experiment, retire a direction, or promote a claim. An impeded goal
 remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
+
+- [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.

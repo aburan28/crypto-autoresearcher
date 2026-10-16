@@ -1,0 +1,7 @@
+# Coordinator addendum after independent review
+
+TASK-20261016-36fb10; source9a2e133099. The independent report above remains unchanged. Its normal-public-path resource verdict was based on static source tracing; parent subsequently found supervisor.rs261–263 accepts Some(0) after acknowledgement because resources_released is true, clearing the unavailable timer. This is a resource admission gap; no false mathematical acceptance is demonstrated. The required negative monitor controls were already missing at the reviewed source. The resource joint therefore requires repair and an independent retake before scientific approval.
+
+The parent may repair zero-RSS filtering throughout supervised arithmetic and add deterministic persistent-None, persistent-zero, loss-after-ack and eventual-positive controls under the existing implementation authorization. Preserve all old source/hash/control receipts. Changed source requires new clean-build bindings and an independent resource-joint review; no M8191 execution is approved here. The pending external-transfer decision and remote custody gate remain unchanged.
+
+Conductor T3212 first lease expired after same-checkout wrapper adoption; reaped ready epoch2/attempt1 at08:04:25Z. Normal reclaim at08:06:59Z yielded epoch3/attempt2. No task reset, replacement claim or old scientific task retry occurred. This archive contains public-source review metadata only.

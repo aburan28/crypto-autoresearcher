@@ -5,6 +5,20 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
+## Every improvement is a success
+
+Owner's rule, 2026-10-15. The success criterion is a verified, measured
+improvement over the current index-calculus baseline: the best verified
+pipeline for that curve and size, frozen with its protocol and end-to-end
+`S`. Beating Pollard rho is the long-term goal, reached by accumulating
+such improvements, not by one breakthrough. Advance and engineering
+results are successes. Relabelling, accounting and null results are
+recorded but are not improvements. Each landed improvement becomes the new
+baseline, recorded with its delta. Every row reports its gap to the
+matched rho (and to Bernstein–Lange when setup is excluded) as the
+distance remaining, never as a pass/fail gate. A claim to beat rho still
+needs the full reference rules.
+
 ## Name the obstruction
 
 When substantial research, cryptanalysis, or audit work cannot meet a proof,
@@ -507,6 +521,17 @@ references. A specification states, before any run, what each outcome changes
 (`check_outcome_not_prewritten`).
 
 ## Artifact policy
+
+**Execution-proof integration is integral to the proof chain** (owner,
+2026-10-16). Work implementing it follows
+[docs/execution-proof-chain.md](docs/execution-proof-chain.md): bind the approved
+protocol, executable, inputs, complete workload and raw output through metric
+checks, evidence, independent review and Cairn settlement/audit. No covered
+claim may be called execution verified merely because its receipt was hashed,
+its witness checks, or its schema passes. This is a required integration and
+release contract, not a claim that today's runners enforce it. Missing proof
+support stays explicit; scientific authority and historical records retain
+their existing rules.
 
 Each run retains: exact command; commit and dirty-tree state; environment and
 dependency versions; parameters and seeds; requested policy, backend and

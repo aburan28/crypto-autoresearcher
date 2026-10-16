@@ -83,6 +83,7 @@ def build(arm, k, p, inst, seed, enc):
     # Unknowns u = (a1, a2, a3, c0, c1); a0 fixed by f(-T) = 0.
     names = ['u%d' % i for i in range(5)]
     sn = ['s%d' % i for i in range(6)]
+    witness = None  # full circuit assignment of a planted instance
     if enc == 'circuit':
         nsteps = k
         rn, qn = [], []
@@ -175,11 +176,13 @@ def build(arm, k, p, inst, seed, enc):
             assert cur == c, 'planted chain does not end at c'
             pt = [w[n] for n in varnames]
             assert all(e(*pt) == 0 for e in eqs), 'witness does not satisfy circuit system'
+            witness = {n: int(w[n]) for n in varnames}
     if enc == 'direct' and ustar is not None:
         assert all(e(*ustar) == 0 for e in eqs), 'witness does not satisfy direct system'
     return dict(p=int(p), a=int(a), b=int(b), c=int(c), fb_size_x=len(S), fb_points=len(fb_points),
                 T=[int(xT), int(yT)], planted_x=[int(P[0]) for P in planted] if planted else None,
-                varnames=varnames, eqs=[str(e) for e in eqs], maxdeg=max(e.degree() for e in eqs if e != 0), witness_checked=ustar is not None)
+                varnames=varnames, eqs=[str(e) for e in eqs], maxdeg=max(e.degree() for e in eqs if e != 0), witness_checked=ustar is not None,
+                ustar=[int(t) for t in ustar] if ustar is not None else None, witness=witness)
 
 if __name__ == '__main__':
     arm, k, p, inst, seed, enc, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], int(sys.argv[5]), sys.argv[6], sys.argv[7]

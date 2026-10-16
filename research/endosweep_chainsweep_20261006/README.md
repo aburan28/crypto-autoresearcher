@@ -158,3 +158,39 @@ time.
 Scope: one curve (CryptoPro-B), one field implementation's formulas, rank-2
 GLV.  Nothing here is a security claim; it computes `k·P` faster on the same
 curve.
+
+## Lean verification
+
+Added 2026-10-16. Lean checks the arithmetic of the recorded eigenvalues,
+not the isogeny computation. The checks are in
+[`formal/CryptoResearch/Endosweep/ChainEigen.lean`](../../formal/CryptoResearch/Endosweep/ChainEigen.lean)
+(namespace `CryptoResearch.Endosweep.ChainEigen`; core Lean plus
+`Mathlib.Tactic.Ring`):
+
+* `cryptopro_b_chain_certificate` (checked by `decide`) covers all 22
+  orderings in `chains.constants.json`:
+  * `ω`'s recorded root `λ` satisfies `λ² − λ + 155 ≡ 0 (mod n)`;
+  * `N(a + bω)` is the recorded norm and the product of the step degrees, for
+    example `N(4 + ω) = 175 = 7·5·5`;
+  * the matched element is `±(a + bω)`;
+  * the recorded eigenvalue is `a′ + b′λ mod n` for the matched element, and
+    a root of its characteristic polynomial;
+  * both vectors of the recorded GLV basis lie in the relation lattice, with
+    determinant `±n`;
+  * both test vectors satisfy `k ≡ k₁ + k₂·e (mod n)`.
+* `glv_basis_spans_relation_lattice` is a general lemma. Two vectors of the
+  relation lattice whose determinant is `±n` form a basis of it. So each
+  recorded basis is a basis of the GLV lattice.
+* `eigenvalue_root_charpoly` is also general. If `e ≡ a + bλ` and `λ` is a
+  root of `ω`'s minimal polynomial, then `e` is a root of the element's
+  characteristic polynomial modulo `n`.
+
+Not Lean claims:
+* that a closed walk exists, is an endomorphism and acts on points as the
+  recorded scalar (the harness checks that on points);
+* primality of `n`;
+* the completeness bound;
+* every operation count and timing.
+
+Target specs: `formal/targets/endosweep-chain-glv-basis.yaml` and
+`endosweep-chain-cryptopro-b-certificate.yaml`.

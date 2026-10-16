@@ -1,0 +1,270 @@
+/-
+Exact CM discriminants of the NIST / SP 800-186 curves, and B-571's earlier bound.
+
+Source:  research/endosweep_nist_20261006/README.md ("What is checked on every
+         curve" item 2, the Results table, findings 3 and 4, and the "Lean
+         verification" section); harness/endosweep/nist.py.
+Targets: formal/targets/endosweep-nist-exact-discriminants.yaml
+         formal/targets/endosweep-nist-finding3-bounds.yaml
+         formal/targets/endosweep-nist-koblitz-discriminants.yaml
+         formal/targets/endosweep-nist-b571-bound.yaml
+
+GENERATED: the data blocks were written by a script from
+research/endosweep_nist_20261006/nist.json and factorizations.jsonl (the
+script re-derives every number and refuses to write on any mismatch).  The
+definitions and proofs around them are hand-written.
+
+WHAT IS CERTIFIED (unconditionally, by kernel arithmetic):
+  * t² − 4q = D_K·f² for every curve with an exact D_K;
+  * 4q − t² = ∏ pᵢ^eᵢ, the factorisation certificate, multiplied back;
+  * D_K = −core or −4·core with core = ∏ of the odd-exponent pᵢ, and the
+    congruence that makes it a discriminant (exactly `nist.exact_discriminant`);
+  * min_nonscalar_degree(D_K) equals the value nist.json reports;
+  * every odd-exponent factor below 10^8 is prime (trial division in Lean).
+CONDITIONAL on the primality of the odd-exponent factors above 10^8 (listed
+per curve in `largePrimes`; proven by PARI `isprime`, NOT by Lean): D_K is a
+fundamental discriminant.
+B-571 has been completely factored since 2026-10-16 and is one of the exact
+certificates (`B571Exact`).  Its earlier bound (namespace `B571`) is kept: it
+is still true, CONDITIONAL on the primality of its two large known factors and
+on the trial division of the cofactor C below 10^7 (both explicit
+hypotheses): |D_K| ≥ 4.11·10^49 and every non-scalar norm ≥ that / 4.  The
+exact certificate supersedes it.
+
+NOT CERTIFIED: primality of any factor above 10^8; that C has no factor below
+10^7; any elliptic-curve fact (that t is the trace of the curve, that End(E)
+sits in the order of discriminant D_K, deg = norm); uniqueness of the
+fundamental discriminant in a square class.
+-/
+import CryptoResearch.Endosweep.Discriminant
+
+namespace CryptoResearch.Endosweep.NistCertificates
+
+open CryptoResearch.Endosweep.Discriminant
+
+/-- `noDivBelow p r` is true when no `d` with `2 ≤ d < r` divides `p`. -/
+def noDivBelow (p : Nat) : Nat → Bool
+  | 0 => true
+  | d + 1 => (d < 2 || p % d != 0) && noDivBelow p d
+
+theorem noDivBelow_spec {p : Nat} : ∀ r, noDivBelow p r = true → ∀ d, d < r → 2 ≤ d → p % d ≠ 0
+  | 0, _, d, hd, _ => absurd hd (Nat.not_lt_zero d)
+  | r + 1, h, d, hd, h2 => by
+    simp only [noDivBelow, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
+      bne_iff_ne, ne_eq] at h
+    by_cases hdr : d = r
+    · subst hdr
+      rcases h.1 with h1 | h1
+      · omega
+      · exact h1
+    · exact noDivBelow_spec r h.2 d (by omega) h2
+
+/-- A prime proved by trial division: `p < r²` and no `d ∈ [2, r)` divides `p`. -/
+theorem isPrimeNat_of_noDivBelow {p r : Nat} (h2 : 2 ≤ p) (hr : p < r * r)
+    (h : noDivBelow p r = true) : IsPrimeNat p :=
+  isPrimeNat_of_trial r h2 hr (noDivBelow_spec r h)
+
+/-- One curve whose `4q − t²` is completely factored. -/
+structure FactoredCert where
+  q : Int
+  t : Int
+  DK : Int
+  f : Int
+  /-- nist.json `exact.min_nonscalar_degree` -/
+  deg : Int
+  /-- the factorisation certificate `[(p, e)]` of `4q − t²` -/
+  factors : List (Nat × Nat)
+  /-- the odd-exponent primes below 10^8, each with a trial-division bound `r`, `p < r²` -/
+  smallPrimes : List (Nat × Nat)
+  /-- the odd-exponent primes above 10^8 (primality from PARI, a hypothesis here) -/
+  largePrimes : List Nat
+
+/-- The odd-exponent primes, small then large (ascending, as in the certificate). -/
+def FactoredCert.oddPrimes (c : FactoredCert) : List Nat :=
+  c.smallPrimes.map (·.1) ++ c.largePrimes
+
+/-- The closed arithmetic checked for one factored curve. -/
+abbrev FactoredCert.Holds (c : FactoredCert) : Prop :=
+  c.t ^ 2 - 4 * c.q = c.DK * c.f ^ 2 ∧
+  4 * c.q - c.t ^ 2 = ((c.factors.map (fun pe => pe.1 ^ pe.2)).prod : Nat) ∧
+  (c.factors.filter (fun pe => pe.2 % 2 == 1)).map (·.1) = c.oddPrimes ∧
+  c.oddPrimes.Nodup ∧
+  ((c.DK = -(c.oddPrimes.prod : Int) ∧ c.DK % 4 = 1) ∨
+    (c.DK = -4 * (c.oddPrimes.prod : Int) ∧
+      ((-(c.oddPrimes.prod : Int)) % 4 = 2 ∨ (-(c.oddPrimes.prod : Int)) % 4 = 3))) ∧
+  IsDisc c.DK ∧
+  minNonscalarDegree c.DK = c.deg ∧
+  (∀ pr ∈ c.smallPrimes, 2 ≤ pr.1 ∧ pr.1 < pr.2 * pr.2 ∧ noDivBelow pr.1 pr.2 = true)
+
+/-- One Koblitz curve, whose `D_K` the scan found without factoring. -/
+structure ScanCert where
+  q : Int
+  t : Int
+  DK : Int
+  f : Int
+  deg : Int
+
+abbrev ScanCert.Holds (c : ScanCert) : Prop :=
+  c.t ^ 2 - 4 * c.q = c.DK * c.f ^ 2 ∧ c.DK = -7 ∧ minNonscalarDegree c.DK = c.deg
+
+@@DATA@@
+
+/-- The closed arithmetic of every factored curve, checked by the kernel. -/
+theorem factored_holds : ∀ c ∈ factoredCerts, c.Holds := by decide +kernel
+
+/-- The closed arithmetic of every Koblitz curve, checked by the kernel. -/
+theorem scan_holds : ∀ c ∈ scanCerts, c.Holds := by decide +kernel
+
+/-- **Exact discriminants of the NIST curves** (README "What is checked" item 2
+and findings 3 and 4).  For P-192, P-224, P-256, P-384, P-521, B-163, B-233,
+B-283, B-409, B-571, Curve25519 = Ed25519 and Curve448 = Ed448 =
+Ed448-Goldilocks:
+`t² − 4q = D_K·f²`; `4q − t²` is the product of the certificate's prime
+powers; the odd-exponent primes of the certificate are `oddPrimes`, and
+`D_K = −core` (when `−core ≡ 1 mod 4`) or `D_K = −4·core` (when
+`−core ≡ 2, 3 mod 4`) with `core = oddPrimes.prod`, exactly as
+`nist.exact_discriminant` builds it; `D_K` is a discriminant; `min_nonscalar_degree(D_K)` is the value
+nist.json reports; and, IF the listed factors above 10^8 are prime (PARI
+`isprime`; not proved here), `D_K` is a fundamental discriminant. -/
+theorem exact_discriminants :
+    ∀ c ∈ factoredCerts,
+      c.t ^ 2 - 4 * c.q = c.DK * c.f ^ 2 ∧
+      4 * c.q - c.t ^ 2 = ((c.factors.map (fun pe => pe.1 ^ pe.2)).prod : Nat) ∧
+      (c.factors.filter (fun pe => pe.2 % 2 == 1)).map (·.1) = c.oddPrimes ∧
+      ((c.DK = -(c.oddPrimes.prod : Int) ∧ c.DK % 4 = 1) ∨
+        (c.DK = -4 * (c.oddPrimes.prod : Int) ∧
+          ((-(c.oddPrimes.prod : Int)) % 4 = 2 ∨ (-(c.oddPrimes.prod : Int)) % 4 = 3))) ∧
+      IsDisc c.DK ∧
+      minNonscalarDegree c.DK = c.deg ∧
+      ((∀ p ∈ c.largePrimes, IsPrimeNat p) → IsFundamental c.DK) := by
+  intro c hc
+  obtain ⟨h1, h2, hodd, hnd, hD, hdisc, hdeg, hsmall⟩ := factored_holds c hc
+  refine ⟨h1, h2, hodd, hD, hdisc, hdeg,
+    fun hlarge => isFundamental_of_primes c.oddPrimes hnd ?_ c.DK hD⟩
+  intro p hp
+  simp only [FactoredCert.oddPrimes, List.mem_append, List.mem_map] at hp
+  rcases hp with ⟨pr, hpr, rfl⟩ | hp
+  · obtain ⟨a, b, c'⟩ := hsmall pr hpr
+    exact isPrimeNat_of_noDivBelow a b c'
+  · exact hlarge p hp
+
+/-- **The Koblitz curves' exact discriminant** (Results table, finding 1).  For
+K-163 … K-571: `t² − 4q = −7·f²` with the nist.json `t` and `f`, `−7` is a
+fundamental discriminant (unconditionally: 7 is prime), and
+`min_nonscalar_degree(−7) = 2`. -/
+theorem koblitz_discriminants :
+    ∀ c ∈ scanCerts,
+      c.t ^ 2 - 4 * c.q = c.DK * c.f ^ 2 ∧ IsFundamental c.DK ∧ minNonscalarDegree c.DK = 2 := by
+  intro c hc
+  obtain ⟨h1, h2, h3⟩ := scan_holds c hc
+  refine ⟨h1, ?_, by rw [h2]; decide⟩
+  rw [h2]
+  exact isFundamental_of_primes [7] (by decide)
+    (fun p hp => by
+      simp only [List.mem_singleton] at hp
+      subst hp
+      exact isPrimeNat_of_noDivBelow (r := 3) (by decide) (by decide) (by decide))
+    (-7) (.inl ⟨by decide, by decide⟩)
+
+/-- **The sizes in finding 3.**  On P-192 … P-521, B-163 … B-571, Curve25519
+(= Ed25519) and Curve448 (= Ed448, Ed448-Goldilocks): `2^162 ≤ |D_K| < 2^573`;
+`min_nonscalar_degree(D_K) ≥ 2^160`, and `≥ 2^220` whenever `q ≥ 2^223` (a
+field of 224 bits or more); the conductor is 1 on P-192, P-256, P-384, P-521
+and B-163 … B-571, 3 on P-224 and 2 on Curve25519 and Curve448.  With
+`exact_discriminants` (`deg = min_nonscalar_degree(D_K)`) and
+`Discriminant.minNonscalarDegree_isLeast`, every element of the order of
+discriminant `D_K` outside `Z` has norm at least these bounds. -/
+theorem finding3_bounds :
+    (∀ c ∈ factoredCerts,
+      2 ^ 162 ≤ c.DK.natAbs ∧ c.DK.natAbs < 2 ^ 573 ∧ 2 ^ 160 ≤ c.deg ∧
+        (2 ^ 223 ≤ c.q → 2 ^ 220 ≤ c.deg)) ∧
+    [P192.f, P256.f, P384.f, P521.f, B163.f, B233.f, B283.f, B409.f, B571Exact.f] =
+      [1, 1, 1, 1, 1, 1, 1, 1, 1] ∧
+    P224.f = 3 ∧ Curve25519.f = 2 ∧ Curve448.f = 2 := by
+  decide +kernel
+
+/-! ## B-571's earlier bound (README finding 4), superseded by `B571Exact`
+
+Before the 130-digit cofactor `C` was split (CADO-NFS, 2026-10-16), B-571 had
+only this bound.  It is kept because it is still true and every assumption is
+explicit.  `B571Exact` in `factoredCerts` now gives the exact `D_K = −(4q − t²)`,
+`f = 1` and `min_nonscalar_degree(D_K)` through `exact_discriminants`, and
+`C_split` records that `C` is the product of the two primes CADO-NFS found. -/
+
+namespace B571
+
+@@B571@@
+
+/-- The partial certificate multiplies back: `4q − t² = P·C`, `P = ∏ knownPrimes`. -/
+theorem product : 4 * q - t ^ 2 = ((P * C : Nat) : Int) ∧ knownPrimes.prod = P := by
+  decide +kernel
+
+/-- `gcd(P, C) = 1`: the known primes were divided out completely. -/
+theorem coprime : Nat.Coprime P C := by decide +kernel
+
+/-- `C = p38 · p93`, the two primes of the complete certificate `B571Exact`
+(prime by PARI `isprime` and ECPP; not proved in Lean). -/
+theorem C_split : splitPrimes.prod = C := by decide +kernel
+
+/-- `C` has 130 digits. -/
+theorem C_digits : 10 ^ 129 ≤ C ∧ C < 10 ^ 130 := by decide +kernel
+
+/-- `C` is not a perfect square: `⌊√C⌋² < C < (⌊√C⌋ + 1)²`. -/
+theorem C_not_square : ∀ r, r * r ≠ C :=
+  not_square_of_between (r := rootC) (by decide +kernel) (by decide +kernel)
+
+/-- 137 and 1 502 689 are prime (trial division in Lean). -/
+theorem small_known_primes : ∀ pr ∈ @@B571SMALL@@, IsPrimeNat pr.1 := by
+  intro pr hpr
+  have h : 2 ≤ pr.1 ∧ pr.1 < pr.2 * pr.2 ∧ noDivBelow pr.1 pr.2 = true := by
+    revert pr; decide +kernel
+  exact isPrimeNat_of_noDivBelow h.1 h.2.1 h.2.2
+
+/-- The arithmetic facts behind the bound: `P·B` is nist.json's
+`abs_D_K_at_least`, its quarter is `min_nonscalar_degree_at_least`, and they
+exceed `2^164` and `2^162`. -/
+theorem bound_values :
+    knownPrimes.prod * B = absDKAtLeast ∧ absDKAtLeast = 4 * degAtLeast ∧
+    2 ^ 164 < absDKAtLeast ∧ 2 ^ 162 < degAtLeast := by decide +kernel
+
+/-- **B-571's discriminant bound.**  Assume (i) the two large known factors
+`@@B571LARGE@@` are prime (PARI `isprime`), and (ii) the cofactor `C` has no
+divisor `d` with `1 < d < 10^7` (the harness's trial division).  Then for
+EVERY factorisation `t² − 4q = D·f²` over the integers, `|D| ≥ P·10^7 =
+41144834294568711165300914428595243383362010000000 > 2^164`, and if `D` is a
+discriminant every non-scalar element of its order has norm at least
+`10286208573642177791325228607148810845840502500000 > 2^162`.  This holds for
+`D = D_K` and for the discriminant of every order containing `Z[π]`. -/
+theorem abs_DK_lower_bound
+    (hlarge : ∀ p ∈ @@B571LARGE@@, IsPrimeNat p)
+    (htrial : ∀ d, 1 < d → d < B → ¬ d ∣ C)
+    (D f : Int) (hDf : t ^ 2 - 4 * q = D * f ^ 2) :
+    absDKAtLeast ≤ D.natAbs ∧ (IsDisc D → (degAtLeast : Int) ≤ minNonscalarDegree D) := by
+  have hprime : ∀ p ∈ knownPrimes, IsPrimeNat p := by
+    intro p hp
+    have hs := small_known_primes
+    have hsplit : p ∈ (@@B571SMALL@@ : List (Nat × Nat)).map (·.1) ∨ p ∈ @@B571LARGE@@ := by
+      revert p; decide +kernel
+    rcases hsplit with h | h
+    · simp only [List.mem_map] at h
+      obtain ⟨pr, hpr, rfl⟩ := h
+      exact hs pr hpr
+    · exact hlarge p h
+  have hodd : ∀ p ∈ knownPrimes, ∃ e M, P = p ^ e * M ∧ ¬ p ∣ M ∧ e % 2 = 1 := by
+    intro p hp
+    have h : P = p ^ 1 * (P / p) ∧ ¬ p ∣ P / p := by revert p; decide +kernel
+    exact ⟨1, P / p, h.1, h.2, rfl⟩
+  have hnd : knownPrimes.Nodup := by decide +kernel
+  obtain ⟨hb1, hb2⟩ := disc_bound_of_partial_factorisation q t D f P C B knownPrimes
+    coprime (by decide +kernel) C_not_square htrial hnd hprime hodd product.1 hDf
+  obtain ⟨hv1, hv2, _, _⟩ := bound_values
+  refine ⟨hv1 ▸ hb1, fun hD => ?_⟩
+  have := hb2 hD
+  rw [hv1, hv2] at this
+  have h4 : ((4 * degAtLeast : Nat) : Int) = 4 * (degAtLeast : Int) := by
+    rw [Int.natCast_mul]; rfl
+  omega
+
+end B571
+
+end CryptoResearch.Endosweep.NistCertificates

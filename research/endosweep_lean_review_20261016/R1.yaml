@@ -1,0 +1,403 @@
+# Semantic-fidelity review, reviewer R1 (independent; did not write these proofs).
+# Checkout: /home/user/wt/lean (worktree HEAD ac80edefad). Date 2026-10-16.
+# Scratch evidence (all under /tmp/claude-0/-home-user/6ef12e21-c055-593f-aa44-2a41ea293670/scratchpad/review/R1/):
+#   R1_checks.lean / R1_checks.out  -- #check of every statement, #print axioms, #eval spot checks
+#                                      of the definitions, satisfiability `example`s (exit 0, no errors)
+#   check_data.py / check_data.out  -- every Lean constant vs nist.json + factorizations.jsonl +
+#                                      FIPS 186-4 Koblitz orders, primality by PARI isprime,
+#                                      B-571 trial division below 10^7 (FAILURES: 0)
+#   neg_nist.lean, neg_kob.lean     -- negative controls (one digit changed): decide rejects both
+#   large_prime_try.lean            -- IsPrimeNat 11549194661 (a "large" P-224 factor) proved in Lean
+#   rm_copy.lean                    -- RMGoldenNorm compiled standalone, axioms printed
+# Axioms (all 13 theorems): propext, Classical.choice, Quot.sound only (finding3_bounds: none).
+# SHA256SUMS of nist.json and factorizations.jsonl verified.
+
+reviewer: R1
+reviews:
+
+  - target: endosweep-disc-fundamental-from-primes.yaml
+    task_id: TASK-20261016-59751e
+    theorem: CryptoResearch.Endosweep.Discriminant.isFundamental_of_primes
+    verdict: PASS
+    checks:
+      statement: >-
+        Discriminant.lean:206-210: for os Nodup with every element IsPrimeNat, and D = -prod(os) with
+        D % 4 = 1, or D = -4*prod(os) with -prod(os) % 4 in {2,3}, conclude IsFundamental D. That is
+        the claim: same objects, same two branches, universal over os and D, no extra hypothesis.
+      hypotheses: >-
+        Nodup + IsPrimeNat for each element is "core is a product of distinct primes", as the claim
+        says. Primality is a hypothesis, and the spec notes say so. All three branches are
+        instantiated in R1_checks.lean:62 (D=-15, core 3*5), :72 (D=-20, -core = 3 mod 4) and
+        :81 (D=-8, -core = 2 mod 4). The repo's isFundamental_neg_seven (Koblitz.lean:116) is a
+        fourth instance.
+      definitions: >-
+        IsPrimeNat (Discriminant.lean:128) is the textbook definition: 2 <= p and every divisor is
+        1 or p. SqFree (:131) is "only m=1 has m*m | n", so SqFree 0 is false. IsFundamental
+        (:136-138) is D<0 and either (D%4=1 and |D| squarefree) or (D%4=0, (D/4)%4 in {2,3}, |D/4|
+        squarefree). That equals quadorder.is_fundamental (quadorder.py:125-142), since
+        (-m4)%4 = (D/4)%4 under Int.emod. The construction matches nist.exact_discriminant
+        (nist.py:186-206). Python's else-branch also admits -core = 0 mod 4, but that cannot
+        happen for a product of distinct primes.
+      data: n/a
+      scope: >-
+        The notes and the README Lean section (README.md:201-204, 255-256) state that uniqueness
+        of the fundamental discriminant in a square class is not proved. Nothing is overclaimed.
+    satisfiability_witness: R1_checks.lean:62, :72, :81 (all compile)
+    notes: Faithful. No issues.
+
+  - target: endosweep-disc-min-nonscalar-degree.yaml
+    task_id: TASK-20261016-0739ad
+    theorem: CryptoResearch.Endosweep.Discriminant.minNonscalarDegree_isLeast
+    verdict: PASS
+    checks:
+      statement: >-
+        Discriminant.lean:101-103: for IsDisc D, every a, b with b != 0 has
+        minNonscalarDegree D <= norm D a b, and norm D 0 1 = minNonscalarDegree D. This is the
+        claim's "at least, and omega attains it", for every negative discriminant.
+      hypotheses: >-
+        The only hypothesis is IsDisc D, which is the claim's "D<0, D = 0 or 1 mod 4". Satisfiable:
+        R1_checks.lean:90.
+      definitions: >-
+        Each definition transcribes the Python. omegaTrace = D % 2 (:33) is Python D % 2. omegaNorm
+        = (tau^2-D)/4 (:36) has a non-negative numerator, so Lean ediv equals Python //. norm (:39)
+        is identical to quadorder.norm (quadorder.py:52-55). minNonscalarDegree =
+        (natAbs D + D%2)/4 (:42) is quadorder.min_nonscalar_degree's (abs(D) + D % 2) // 4
+        (quadorder.py:238). IsDisc (:45) is is_discriminant (:40-41). Numerically, R1_checks.out
+        gives the same (Tr w, N w, min degree) tuples as the Python on 22 discriminants from -3 to
+        -163. Both the Lean #eval and the Python agree with a brute-force minimum (|a|<=40,
+        |b|<=3) for every discriminant down to -2000.
+      data: n/a
+      scope: >-
+        The notes and the docstring (:99-100) state that degree = norm is not formalised. The
+        theorem is about the norm form, and omega's multiplication is not modelled here. The claim
+        is also phrased in terms of the norm form. Not overclaimed.
+    satisfiability_witness: R1_checks.lean:90 (IsDisc -7, -8, -20)
+    notes: Faithful. The Lean definition is literally quadorder.py's.
+
+  - target: endosweep-disc-squarefree-part-bound.yaml
+    task_id: TASK-20261016-577a36
+    theorem: CryptoResearch.Endosweep.Discriminant.prod_mul_bound_le_of_eq_mul_sq
+    verdict: PASS
+    checks:
+      statement: >-
+        Discriminant.lean:397-402. Hypotheses: Coprime P C; 1 < C; for all r, r*r != C; no d with
+        1<d<B divides C; os Nodup and all IsPrimeNat; every p in os has P = p^e*M with p not
+        dividing M and e odd. Then for all s, k with P*C = s*(k*k), prod(os)*B <= s. This matches
+        the claim clause for clause, and the conclusion is universal over s and k.
+      hypotheses: >-
+        The hypotheses are exactly the claim's. Instance R1_checks.lean:94: P=18=2*3^2, os=[2],
+        C=35, B=5, N=630=70*3^2 gives 10 <= 70. It also exercises an even-exponent prime of P
+        that is not in os. The real B-571 data satisfies every hypothesis (see the b571 entry).
+        The proof covers k=0 (impossible here because P != 0).
+      definitions: >-
+        "Odd exact power" is encoded as an existential with not-p-divides-M, which is correct.
+        The non-square hypothesis is on Nat. The "no divisor in (1,B)" form is equivalent to
+        "no prime factor < B", which is what nist.partial_factorization (nist.py:139-183) checks.
+      data: n/a
+      scope: >-
+        The notes say the squarefree part is not defined, so the bound is stated over every
+        factorisation. That is correct and is in fact stronger. The transport to D and
+        min_nonscalar_degree is disc_bound_of_partial_factorisation (:474), as the notes say.
+    satisfiability_witness: R1_checks.lean:94 (compiles); real-data instance verified for B-571
+    notes: Faithful.
+
+  - target: endosweep-nist-b571-bound.yaml
+    task_id: TASK-20261016-393b34
+    theorem: CryptoResearch.Endosweep.NistCertificates.B571.abs_DK_lower_bound
+    verdict: PASS
+    checks:
+      statement: >-
+        NistCertificates.lean:434-438 states: (i) IsPrimeNat for both 5608493523058319 and
+        3563521804312876303, given as a literal list; (ii) no d with 1 < d < B=10^7 divides C.
+        Under these, for all D, f with t^2-4q = D*f^2: absDKAtLeast <= |D|, and IsDisc D implies
+        degAtLeast <= minNonscalarDegree D. The comparisons 2^164 < absDKAtLeast and
+        2^162 < degAtLeast are in the companion bound_values (:422-424). The spec notes list them
+        among the kernel-checked facts, so this is disclosed.
+      hypotheses: >-
+        Both hypotheses are explicit in the statement, the spec notes and README.md:229-231.
+        Both are TRUE, so the premises are not vacuous. PARI isprime proves both primes
+        (check_data.out). Trial division of C by all 664,579 primes below 10^7 finds no divisor,
+        which is equivalent to (ii). R1_checks.lean:122 also proves noDivBelow C 2000 in the
+        kernel. The D,f premise is satisfied by D = t^2-4q, f = 1 (R1_checks.lean:114). 137 and
+        1502689 are proved prime in Lean (:413).
+      definitions: >-
+        The constants match the committed data. q = 2^571 and t equal nist.json. knownPrimes and
+        C equal factorizations.jsonl partial_factors/cofactor. P*C = 4q - t^2 and gcd(P,C) = 1.
+        C has 130 digits, and isqrt(C) = rootC with rootC^2 != C. absDKAtLeast = P*10^7 =
+        nist.json bound.abs_D_K_at_least. degAtLeast = absDKAtLeast/4 =
+        min_nonscalar_degree_at_least. log2 is 164.8.
+      data: >-
+        Every B-571 constant was recomputed independently in check_data.py (FAILURES: 0). The
+        cofactor C was cross-checked against the jsonl and q against 2^571.
+      scope: >-
+        The claim calls C a "130-digit composite". Lean does not certify compositeness, and the
+        bound does not need it. PARI isprime(C) = false. README.md:138-145 says "all four proven
+        prime", but its Lean section (:229-231) correctly says two are PARI-only hypotheses.
+        "Bounded, not settled" is respected.
+    satisfiability_witness: >-
+      R1_checks.lean:114 (D,f premise); hypotheses (i), (ii) verified true numerically
+      (check_data.out); R1_checks.lean:122 (initial segment of (ii) in kernel)
+    notes: >-
+      Faithful. Informational: "composite" in the claim is uncertified and irrelevant to the
+      bound. The 2^164 and 2^162 comparisons live in bound_values, not in the named theorem.
+
+  - target: endosweep-nist-exact-discriminants.yaml
+    task_id: TASK-20261016-8a5149
+    theorem: CryptoResearch.Endosweep.NistCertificates.exact_discriminants
+    verdict: PASS_WITH_NOTES
+    checks:
+      statement: >-
+        NistCertificates.lean:324-330 states, for each c in factoredCerts (the 14 records: P-192
+        to P-521, B-163 to B-409, Curve25519/Ed25519, Curve448/Ed448/Ed448-Goldilocks): the
+        identity t^2-4q = DK*f^2; 4q-t^2 = prod p^e; IsDisc DK; minNonscalarDegree DK = deg; and
+        (all largePrimes IsPrimeNat) implies IsFundamental DK. The claim's third bullet, "D_K =
+        -core or -4*core with core the product of the odd-exponent p_i, as
+        nist.exact_discriminant computes it", is NOT in this theorem's statement. It is proved
+        in factored_holds (:311, via FactoredCert.Holds :87-91) and only destructured inside the
+        proof (:332).
+      hypotheses: >-
+        The single hypothesis is all largePrimes IsPrimeNat. It is explicit and disclosed (spec
+        notes, README.md:211-214), and it is satisfiable. PARI isprime proves all 27 distinct
+        large primes, and every factor in every certificate (check_data.out). Lean itself proves
+        IsPrimeNat 11549194661 (P-224's smallest large prime) in 11 s by the repo's trial-division
+        route (large_prime_try.lean). The small odd-exponent primes (< 10^8) are proved in Lean
+        (:337-338). The statement does not depend on the 10^8 split being correct, but the data
+        respects it: all smallPrimes < 10^8, all largePrimes > 10^8, r^2 > p.
+      definitions: >-
+        FactoredCert.Holds (:84-94) mirrors nist.exact_discriminant. The odd-exponent filter must
+        equal small ++ large, and the -core/-4core branch condition is equivalent to Python's
+        (-core)%4 == 1 test for squarefree core. IsDisc and minNonscalarDegree are as above.
+      data: >-
+        check_data.py checked all 14 records against nist.json and factorizations.jsonl:
+        q, t, D_K, f, deg = min_nonscalar_degree, and the factor lists. It recomputed the
+        product, the odd split, exact_discriminant's (D_K, f), and deg's closed form. All match.
+        Negative control: one digit of P-224 deg changed makes factored_holds fail with "decide
+        proved the proposition is false" (neg_nist.lean:311).
+      scope: >-
+        README.md:209-211 lists "D_K is built from the odd-exponent primes as
+        nist.exact_discriminant builds it" among the unconditional facts of
+        NistCertificates.exact_discriminants, and the spec claim lists it too. The named theorem
+        does not state it. The fact is machine-checked in factored_holds, so this is an
+        attribution and wording gap, not a missing proof. The README's "4q - t^2 equals the
+        certificate's prime powers" is stated as a product only. The primality of the
+        even-exponent factor 2 is trivial and not needed.
+    satisfiability_witness: >-
+      Hypothesis true for every record (PARI isprime, check_data.out); one large prime proved in
+      Lean (large_prime_try.lean); no record has all large primes small enough to discharge
+      fully in core Lean.
+    notes: >-
+      Fix: either add the conjunct `(c.DK = -oddPrimes.prod ∧ DK%4=1) ∨ (DK = -4*oddPrimes.prod
+      ∧ ...)` to exact_discriminants (it is already in scope at :332), or cite
+      NistCertificates.factored_holds in the spec and README item 3 for the D_K construction.
+      Otherwise faithful. All data matches the committed JSON.
+
+  - target: endosweep-nist-finding3-bounds.yaml
+    task_id: TASK-20261016-5e587d
+    theorem: CryptoResearch.Endosweep.NistCertificates.finding3_bounds
+    verdict: PASS
+    checks:
+      statement: >-
+        NistCertificates.lean:367-372: for every factored record, 2^162 <= |DK| < 2^523,
+        2^160 <= deg, and 2^223 <= q implies 2^220 <= deg. Also f = 1 for P-192/256/384/521 and
+        B-163 to B-409, P224.f = 3, Curve25519.f = 2 and Curve448.f = 2. These are the claim's
+        numbers. The degree bounds are on the data field c.deg; the link deg =
+        minNonscalarDegree DK is exact_discriminants. The spec notes disclose this composition
+        explicitly.
+      hypotheses: >-
+        None. The implication 2^223 <= q is how the claim's "224-bit field" is encoded. It is
+        satisfied by P-224 to P-521, B-233 to B-409, Curve25519 and Curve448, and not by P-192
+        and B-163 (check_data.out). So it is neither vacuous nor overreaching.
+      definitions: "\"Field of 224 bits or more\" maps to q >= 2^223, which is correct. f is the cofactor with t^2-4q = D_K f^2."
+      data: >-
+        Recomputed the bounds on every record: min log2|D_K| is 162.46 (B-163) and max is 522.98
+        (P-521). deg >= 2^220 holds wherever q >= 2^223 (P-224 is about 2^220.5). Conductors
+        match nist.json.
+      scope: >-
+        End(E) = Z[pi] when f=1, and degree = norm, are disclosed as not formalised. "Conductor"
+        means index in O_K only given fundamentality, which is conditional on the PARI primes
+        through exact_discriminants. The Ed25519/Ed448/Ed448-Goldilocks f are not restated, but
+        the records are identical.
+    satisfiability_witness: n/a (closed decide statement; implication premise true for 9 curve groups)
+    notes: >-
+      Faithful as disclosed. Optional improvement: state 2^160 <= minNonscalarDegree c.DK
+      directly, so the theorem stands alone.
+
+  - target: endosweep-nist-koblitz-discriminants.yaml
+    task_id: TASK-20261016-13f8d3
+    theorem: CryptoResearch.Endosweep.NistCertificates.koblitz_discriminants
+    verdict: PASS
+    checks:
+      statement: >-
+        NistCertificates.lean:345-347 states, for K-163 to K-571: t^2-4q = DK*f^2,
+        IsFundamental DK and minNonscalarDegree DK = 2, with DK = -7 from scan_holds. This
+        matches the claim. Unconditional.
+      hypotheses: None (7 proved prime by trial division, :356).
+      definitions: As above (IsFundamental, minNonscalarDegree).
+      data: >-
+        q equals 2^163, 2^233, 2^283, 2^409 and 2^571 exactly (check_data.out; R1_checks.lean:130).
+        t and f equal nist.json for all five. t^2 - 4q = -7 f^2 recomputed in Python.
+      scope: >-
+        End(E) = Z[tau] and maximality are disclosed as out of scope. f = |B| is cross-referenced
+        to koblitz_certificates, which proves it.
+    satisfiability_witness: n/a (no hypotheses)
+    notes: Faithful.
+
+  - target: endosweep-koblitz-curve-certificates.yaml
+    task_id: TASK-20261016-a5d0f3
+    theorem: CryptoResearch.Endosweep.Koblitz.koblitz_certificates
+    verdict: PASS
+    checks:
+      statement: >-
+        Koblitz.lean:316-319 gives KCert.Holds (:237-246) plus N(1-tau^m) = h*n and
+        N(delta)*N(tau-1) = h*n. Holds includes: mu = +-1; h = 3-mu; h*n = 2^m+1-V_m; t = V_m;
+        delta*(tau-1) = tau^m-1; N(delta) = n; f = |B| for tau^m = A+B tau;
+        t^2-4*2^m = -7f^2; (lam^2-mu*lam+2) % n = 0. Every clause of the claim is present.
+      hypotheses: None.
+      definitions: >-
+        Zt.mul/conj/norm (:55-62) are literally binary.Ztau.mul/conj/norm (binary.py:386-395).
+        lucasV (:81-86) matches binary.lucas_trace (binary.py:368-373); the #eval for m = 0..12
+        and mu = +-1 is identical to the Python. "#E(F_2)" for h = 3 - mu is interpretation, and
+        the spec says so.
+      data: >-
+        Published constants: n for all five curves equals FIPS 186-4's base-point orders,
+        checked against the grouped hex form (check_data.py PUB_N). K-163 also matches
+        tests/test_endosweep.py:530. h = 2 for K-163 (a=1, mu=1) and 4 for the others (a=0,
+        mu=-1), which matches nist.json "a" and tau.mu. n is also forced: the kernel-checked
+        h*n = 2^m+1-V_m determines it uniquely from (m, mu, h). t, f, delta and lam (hex
+        eigenvalue) equal nist.json. Every identity was recomputed in Python and n is
+        PARI-prime. Negative control: one digit of K-283's n changed makes koblitz_holds fail in
+        the kernel (neg_kob.lean:307). (R1's first, memorised contiguous hex for K-283 and K-409
+        had a transcription slip; the FIPS grouped form matches exactly.)
+      scope: >-
+        The spec, README.md:250-256 and the file header (:32-37) state that the point checks,
+        primality of n, tau(G) = [lam]G and #E = N(1-pi) are not certified. Not overclaimed.
+    satisfiability_witness: n/a (closed decide statement)
+    notes: Faithful; uses the published n, h.
+
+  - target: endosweep-koblitz-delta-norm.yaml
+    task_id: TASK-20261016-e95dae
+    theorem: CryptoResearch.Endosweep.Koblitz.norm_delta
+    verdict: PASS
+    checks:
+      statement: >-
+        Koblitz.lean:211-213: for every mu, m and delta with delta*(tau-1) = tau^m-1,
+        N(delta)*(3-mu) = 2^m+1-V_m. The claim's first clause, N(tau-1) = 3-mu, is the companion
+        norm_tau_sub_one (:206), not part of this statement.
+      hypotheses: >-
+        The divisibility hypothesis is satisfiable: delta = 1 at m = 1 for every mu
+        (R1_checks.lean:125), and all five KCert deltas satisfy it (koblitz_holds).
+      definitions: >-
+        sub tau one = <-1, 1> = tau - 1, and sub (pow tau m) one = tau^m - 1. This is the
+        construction binary.koblitz uses (binary.py:474-478, via conj; equivalent).
+      data: n/a
+      scope: Notes explain the link to h*n via koblitz_certificates; not overclaimed.
+    satisfiability_witness: R1_checks.lean:125 (m=1, delta=1); every KCert instance
+    notes: >-
+      Faithful. Informational: the spec claim's "N(tau - 1) = 3 - mu" is proved by
+      norm_tau_sub_one, which the spec could cite.
+
+  - target: endosweep-koblitz-lucas-norm.yaml
+    task_id: TASK-20261016-520523
+    theorem: CryptoResearch.Endosweep.Koblitz.norm_one_sub_tau_pow
+    verdict: PASS
+    checks:
+      statement: >-
+        Koblitz.lean:201-202: for every integer mu and every m, N(1 - tau^m) = 2^m+1-V_m. The
+        claim's Tr(tau^m) = V_m and N(tau^m) = 2^m are trace_pow_tau (:180) and norm_pow_tau
+        (:188), and the spec notes name them. The claim leaves mu unrestricted; Lean proves it
+        for all mu.
+      hypotheses: None.
+      definitions: >-
+        lucasV matches binary.lucas_trace (numeric check, R1_checks.out). norm = x * conj x is
+        mul_conj (:96). The identity conj(tau^m) = conj(tau)^m in the claim's
+        "(1-tau^m)(1-conj(tau)^m)" is not separately stated, but the norm form is the standard
+        one.
+      data: n/a
+      scope: "The notes say #E = N(1-pi) (Hasse-Weil) is not formalised. Not overclaimed."
+    satisfiability_witness: n/a (no hypotheses)
+    notes: Faithful.
+
+  - target: endosweep-koblitz-min-norm.yaml
+    task_id: TASK-20261016-25149b
+    theorem: CryptoResearch.Endosweep.Koblitz.min_norm_nonscalar
+    verdict: PASS
+    checks:
+      statement: >-
+        Koblitz.lean:160-161: for mu = +-1, every x with x.b != 0 has 2 <= norm mu x,
+        norm mu tau = 2 and minNonscalarDegree(-7) = 2. Exactly the claim.
+      hypotheses: mu = 1 or mu = -1 (trivially satisfiable; it is the claim's hypothesis).
+      definitions: norm = a^2 + mu*a*b + 2b^2, which is correct for tau^2 = mu*tau - 2 and matches binary.Ztau.norm.
+      data: n/a
+      scope: >-
+        "Cheapest" by cost, and norm = degree, are disclosed as outside the statement.
+    satisfiability_witness: mu = 1 (or -1)
+    notes: Faithful.
+
+  - target: endosweep-koblitz-ztau-order.yaml
+    task_id: TASK-20261016-4923a3
+    theorem: CryptoResearch.Endosweep.Koblitz.ztau_iso_order_neg_seven
+    verdict: PASS
+    checks:
+      statement: >-
+        Koblitz.lean:137-141: for mu = +-1, toOmega (a + (mu-1)/2*b, b) is multiplicative from
+        Zt.mul mu to mulOmega7, surjective, injective, and carries norm mu to
+        Discriminant.norm (-7). The claim asks for "a bijection carrying the multiplication and
+        norm", which is exactly this. "Discriminant mu^2-8 = -7, fundamental" is in the
+        companions disc_tau (:111) and isFundamental_neg_seven (:116), which the spec notes cite.
+      hypotheses: mu = 1 or mu = -1 (the claim's).
+      definitions: >-
+        mulOmega7 (:125-126) equals quadorder.multiply at D = -7 (tau = 1, N(omega) = 2;
+        quadorder.py:68-75). omega^2 = omega - 2 is correct for omega = (1+sqrt(-7))/2. For
+        mu = -1, (mu-1)/2 = -1 under Lean ediv (exact), and tau = omega - 1 gives
+        tau^2 = -tau - 2, which is correct.
+      data: n/a
+      scope: >-
+        The notes and README.md:236-239 say "ring isomorphism"/"isomorphic as a ring". Additivity
+        and 1 -> 1 are not stated, because Zt has no Add. They are immediate from toOmega's
+        Z-linear definition, so this is not a substantive gap. Maximality of the order of a
+        fundamental discriminant, and End(E) = Z[tau], are disclosed as not formalised.
+    satisfiability_witness: mu = 1 (or -1)
+    notes: >-
+      Faithful to the spec claim. Informational: "ring isomorphism" wording rests on toOmega
+      being visibly Z-linear rather than on a stated lemma.
+
+  - target: endosweep-rm-golden-norm-2adic.yaml
+    task_id: TASK-20261016-b5bdee
+    theorem: CryptoResearch.Endosweep.RMGoldenNorm.norm_eq_four_pow_mul_odd
+    verdict: PASS
+    checks:
+      statement: >-
+        RMGoldenNorm.lean:41-43 states: for all n, a, b with |a|+|b| <= n and (a,b) != (0,0),
+        there are k and m with a^2+ab-b^2 = 4^k*m and m % 2 = 1. The auxiliary n is a
+        well-founded-induction bound. It is universally quantified and instantiable as
+        n := |a|+|b|, so the statement equals "for all (a,b) != 0", as the primed version's proof
+        (:66) shows. norm_eq_four_pow_mul_odd' (:63-64) states a^2-ab-b^2 directly.
+      hypotheses: (a,b) != (0,0) is the claim's; the n bound is trivially satisfiable.
+      definitions: >-
+        For phi^2+phi-1 = 0: phi + phi' = -1 and phi*phi' = -1, so
+        N(a+b*phi) = a^2 - ab - b^2. Under phi -> -phi' = 1+phi this becomes a^2 + ab - b^2.
+        Both are covered. m % 2 = 1 under Int.emod means m odd, including negative m.
+      data: n/a
+      scope: >-
+        The spec and README.md:413-426 state that #J being a norm from Z[phi], the 15.3% rate and
+        the 1.33x ceiling are not Lean claims. R1 compiled the file standalone (rm_copy.lean):
+        axioms propext, Classical.choice and Quot.sound, matching the spec.
+    satisfiability_witness: n := |a|+|b| for any (a,b) != 0 (e.g. a=1, b=0)
+    notes: >-
+      Faithful. Cosmetic: the extra induction bound n in the headline statement could be hidden
+      behind a clean wrapper, as the primed theorem already does. RMGoldenNorm.olean is absent
+      from this worktree's formal/.lake/build, so R1 compiled it directly instead.
+
+summary:
+  PASS: 12
+  PASS_WITH_NOTES: 1   # endosweep-nist-exact-discriminants
+  FAIL: 0
+  not_checked:
+    - Primality of the 27 large NIST factors and B-571's two large primes is not machine-proved
+      in Lean. R1 confirmed them with PARI isprime only, plus one (11549194661) in Lean.
+    - The std-curves checkout at 77fe6e35 is not available locally. Published Koblitz n/h were
+      compared with FIPS 186-4 values and tests/test_endosweep.py, and n is forced by the
+      kernel-checked order identity.
+    - >-
+      Elliptic-curve facts (t is the trace, End(E), degree = norm, #E = N(1-pi)) are out of scope
+      by design.

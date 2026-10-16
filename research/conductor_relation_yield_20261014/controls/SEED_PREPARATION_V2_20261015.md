@@ -1,0 +1,7 @@
+# Preparation-only seed custody control, 2026-10-15
+
+Question: can a later approval metadata edit retain the exact scientific contract binding, while a changed metric or input fails the binding? This is a deterministic implementation control and issued no seed.
+
+Command from the integrated worktree: `python3 research/conductor_relation_yield_20261014/test_scientific_contract.py`. Exact stdout: `scientific-contract digest control: lifecycle stable, metric/input drift rejected PASS`. Exit status 0. A second command, `python3 research/conductor_relation_yield_20261014/test_seed_custody.py`, returned `seed custody static control: 20 prespecified arms, frozen-source list, no seed draw PASS` with exit status 0. Both used the host default Python 3; no full endpoint trial or timing comparison was made.
+
+The v2 custody path now requires a committed Coordinator preparation-only decision and byte equality with a prior source/spec commit before drawing OS seeds. The public commitment binds the old specification hash and a lifecycle-independent scientific digest. The reveal path checks that historical spec plus the live approved spec against the same digest. These code-path controls do not exercise a real Coordinator decision, an OS seed draw, 20 input preparations or final reveal. A positive preparation-authority test and independent code review remain required before issuing scientific seeds.
