@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 from pathlib import Path
@@ -96,14 +97,14 @@ def prepare(out: Path, protocol: dict, traits: dict) -> dict:
 
 def count(out: Path, protocol: dict, manifest: dict) -> None:
     gp_source = ROOT / protocol["point_counter"]
-    for row in manifest["streams"]:
+    def one(row: dict) -> dict:
         t = row["timestamp"]
         p = int(row["p"], 16)
         source = out / f"candidates_{t}.txt"
         assert digest(source) == row["candidate_sha256"]
         if row["point_count_candidates"] == 0:
             (out / f"orders_{t}.txt").write_text("")
-            continue
+            return {"timestamp": t, "output_rows": 0, "valid_output_count": True}
         driver = out / f"driver_{t}.gp"
         driver.write_text(f'P={p}; CAND="{source}";\n' + gp_source.read_text())
         start = time.monotonic()
@@ -113,9 +114,14 @@ def count(out: Path, protocol: dict, manifest: dict) -> None:
         receipt["output_rows"] = len((out / f"orders_{t}.txt").read_text().splitlines())
         receipt["valid_output_count"] = receipt["output_rows"] == row["point_count_candidates"]
         (out / f"count_receipt_{t}.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        return receipt
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        receipts = list(pool.map(one, manifest["streams"]))
+    for receipt in receipts:
         print(json.dumps(receipt), flush=True)
-        if proc.returncode != 0 or not receipt["valid_output_count"]:
-            raise RuntimeError(f"GP failed or returned incomplete output for {t}; retained stderr and partial output")
+    failures = [r["timestamp"] for r in receipts if r.get("exit_code", 0) != 0 or not r["valid_output_count"]]
+    if failures:
+        raise RuntimeError(f"GP failed or returned incomplete output for {failures}; retained stderr and partial output")
 
 
 def summarize(out: Path, protocol: dict, manifest: dict) -> dict:
