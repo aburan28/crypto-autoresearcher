@@ -209,7 +209,9 @@ nonzero digit consumes log₂T + c_q bits, with:
      3.
    * Results: 1.98 against 1.73 M/bit (linear free) and 9.19 against 7.85
      (all M), at about 324–330 bits.
-4. **q = 4 with t = −3 can never have prime n.**
+4. **q = 4 with t = −3 can never have prime n.** Correction (2026-10-16, Lean
+   review): false for m = 2, 3 (q4_small_m); holds for every odd m ≥ 5
+   (q4_split), which covers every m in this study (primes 67–199).
    * Those curves are the F_2-Koblitz curves, with φ₄ = τ².
    * So n = [#E(F_{2^m})/#E(F_2)]·[#E'(F_{2^m})/#E'(F_2)], where E' is the
      quadratic twist over F_{2^m}.

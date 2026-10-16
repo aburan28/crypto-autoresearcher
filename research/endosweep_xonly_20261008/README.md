@@ -328,6 +328,13 @@ The exact statements:
    trace is even and no element has `β + β̄ = ±1`
    (`QuadOrder.no_trace_pm_one_of_D_even`). `β − β̄ = 1` has no solution for
    any `D` (`QuadOrder.sub_conj_ne_one`).
+   Lean proves only this order-theoretic part. The step before it, that
+   `x((β − 1)P) = x(β̄P)` on generic `P` *requires* `β + β̄ = 1`, uses curve
+   facts that are not formalised: `x(P′) = x(P″)` forces `P′ = ±P″`, and an
+   identity of endomorphisms on points lifts to the ring identity
+   `β − 1 = ±β̄` in `End(E)` (`End(E)` acts faithfully). The necessity is
+   therefore an informal argument whose algebraic consequence is checked
+   (clarified 2026-10-16 after the Lean review, R2).
 4. **The quoted norms** (`QuadOrder.omega_norms`, by `decide`). `ω = (1 + √D)/2`
    has trace 1 and norm 155, 85 and 1039 for `D = −619, −339, −4155`. On
    Tom-256, `−5 + 11ω` has trace 1 and norm 125 689.

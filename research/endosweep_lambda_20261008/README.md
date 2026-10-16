@@ -395,6 +395,17 @@ reference is `binary.py`'s affine `add`/`dbl` in their generic branches.
   * `psi_eq_conj_by_twist`: for any ring endomorphism `τ` and any `s` with
     `s + τs = u`, `φ_s ∘ τ ∘ φ_s⁻¹ = ψ`, where `φ_s(x, y) = (x, y + sx)`.
     `twist_iso_onCurve`: `φ_s` maps `a` to `a + s² + s`.
+    The hypothesis `s + τs = u` depends on the base curve. Correction
+    (2026-10-16, Lean review, R2): an `s ∈ F_{q⁴}` with `s² + s = a + u`
+    always exists, but for `a ∈ F₂` and odd `m` it gives
+    `s + s^q = Σ_{i<m} (a + u)^{2^i} = a + u + (m − 1)/2 (mod 2)`.
+    The reviewer's `twist_check.py` confirms this numerically for
+    `m = 1, 3, 5` and `a = 0, 1`. For `m = 127` (`m ≡ 3 mod 4`) the formula
+    gives `s + s^q = u` only for `a = 1` (gls.py's `Eq1`), so
+    `ψ = φ ∘ π ∘ φ⁻¹` holds for the base curve with `a = 1`. For gls.py's
+    `Eq` with `a = 0`, the conjugate is `−ψ`. Both are endomorphisms of `Ẽ`
+    that square to `−1`, so no result in this README changes. `m = 127`
+    itself was not run in `twist_check.py`; it follows from the formula.
 
 Not Lean claims:
 * Every operation count (Table 3, the scalar-multiplication tables).

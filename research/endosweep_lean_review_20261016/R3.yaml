@@ -1,0 +1,470 @@
+# Semantic-fidelity review, reviewer R3 (independent; did not write these proofs)
+# Date: 2026-10-16. Checkout: /home/user/wt/lean (read-only).
+# Scratch evidence: /tmp/claude-0/-home-user/6ef12e21-c055-593f-aa44-2a41ea293670/scratchpad/review/R3/
+#   sub_check.py          - every SubgroupIndex constant vs subgroup.json + arkworks/curves.json, recomputed with subgroup.py
+#   chain_check.py        - all 22 CryptoPro-B rows (id, a, b, ma, mb, norm, order, e, b1, b2, both test vectors) vs chains.constants.json
+#   cp6chain_check.py     - all 18 CP6 rows vs curves.json; e9, e4, signs independently re-derived
+#   aa_eval.lean / aa_py.py - Lean digit1/step1/digitInt/stepInt vs alphaadic.py int_rule digit + exact_div (3 rules x 50 inputs)
+#   r3_A..r3_D.lean (+ .out) - satisfiability witnesses and Lean-vs-Python #eval cross-checks (all exit 0, all `true`)
+#   r3_E.lean (+ .out)    - #print axioms for all 19 theorems: only propext / Classical.choice / Quot.sound or none; no sorryAx, no ofReduceBool
+# Global: every certificate is `decide` (kernel), not native_decide (r3_E.out).
+
+- target: endosweep-subgroup-index-gcd-minors.yaml
+  task_id: TASK-20261016-2a8e2c
+  theorem: CryptoResearch.Endosweep.SubgroupIndex.index_eq_minorGcd
+  verdict: PASS
+  checks:
+    statement: >-
+      SubgroupIndex.lean:512-516 quantifies over ANY `gs : List V` with the only hypothesis
+      `minorGcd gs ≠ 0`, and gives rep : V → Nat with values < d, onto [0,d), and
+      rep v = rep w ↔ InSpan gs (v - w). That is exactly |Z^2/L| = d (a bijection Z^2/L → {0..d-1}).
+      No hidden restriction (no bound on list length, no primitivity, no sign normalisation); the d = 0
+      case is excluded exactly as the claim says.
+    hypotheses: >-
+      Single hypothesis d ≠ 0, stated in the claim. Satisfiable: r3_A.lean:14-16 (gs = [(2,0),(0,3)], d = 6).
+    definitions: >-
+      InSpan (SubgroupIndex.lean:70-74) is the inductive Z-span (zero, generators, +, Int scalar), i.e. the
+      true Z-module generated. minorGcd/rowGcd (77-85) is gcd over all pairs i<j of |det[g_i g_j]|, the same
+      double loop as subgroup.py:81-95 (`gcd(det, ...)` starting from 0). r3_A.lean:18 sanity: [(4,0),(0,6),(2,3)]
+      gives 12 (correct index; no single minor of a "basis" pair needed).
+    data: n/a (general theorem)
+    scope: >-
+      README "Lean verification" (subgroup README:270-273) says exactly this. Spec notes accurate (STATED,
+      constructive proof via triangular reduction).
+  satisfiability_witness: r3_A.lean:14-16
+  notes: Faithful general statement of the harness's index-equals-minor-gcd fact.
+
+- target: endosweep-subgroup-ideal-index.yaml
+  task_id: TASK-20261016-bc8726
+  theorem: CryptoResearch.Endosweep.SubgroupIndex.ideal_index_eq_elementIndex
+  verdict: PASS
+  checks:
+    statement: >-
+      SubgroupIndex.lean:591-595: for β, γ ∈ Z[ω] (ω² = τω − n), if elementIndex τ n [β,γ] ≠ 0 there is a
+      complete residue system of size elementIndex for v ~ w ⟺ v − w = βx + γy (x, y ∈ O), i.e.
+      [O : βO + γO] = minor gcd of {β, βω, γ, γω}. Matches the claim; it is stated for arbitrary Int τ, n
+      (slightly more general than τ = D mod 2, n = (τ² − D)/4), which is harmless.
+    hypotheses: >-
+      Nonzero gcd, as in the claim. Satisfiable with the real CP6 data: r3_A.lean:21
+      (elementIndex 1 85 [βmem, π−1] ≠ 0 by decide).
+    definitions: >-
+      omul (539-540) = quadorder.multiply (quadorder.py:68-75) term for term; idealVecs (550-552) lists
+      g, g·ω in the same order as element_index (subgroup.py:87-89); elementIndex = minorGcd of that list.
+      Numerical check: Lean elementIndex == Python element_index on 36 random (β, γ) over
+      D ∈ {−3, −4, −339, −619, −23, −8} (r3_A.lean:61, output `true`, 36 cases).
+    data: n/a
+    scope: >-
+      Spec and README (subgroup README:274-276, 292-296) correctly exclude Lenstra's theorem and the
+      finite-module step |ker β on O/I| = [O : βO + I]; nothing about points is claimed.
+  satisfiability_witness: r3_A.lean:21
+  notes: Faithful. The step from this index to |ker β| on E(F_p) is correctly left as an unverified input.
+
+- target: endosweep-subgroup-cp6-782-certificate.yaml
+  task_id: TASK-20261016-d2f410
+  theorem: CryptoResearch.Endosweep.SubgroupIndex.cp6_782_certificate
+  verdict: PASS
+  checks:
+    statement: >-
+      SubgroupIndex.lean:637-653 conjuncts map one-to-one to the claim: τ = 1, n = 85; N(π) = p, Tr π = t,
+      N(π−1) = h·r; λ_ω = eα − 4 is a root of x² − x + 85 mod r (so 𝔯 = ker(O → Z/r, ω ↦ λ_ω) is the prime
+      of norm r); N(βmem) = r; βmem ↦ 0 mod r (βmem ∈ 𝔯); index(βmem, π−1) = r; index = h for the chosen
+      and shortest clearing elements; h = 6e and index(e, π−1) = h; [O : ℓO + I] = 4, 9, 7, 29 for
+      ℓ = 2, 3, 7, 29.
+    hypotheses: none (closed decidable proposition).
+    definitions: >-
+      βmem/βclr/βclrShort are converted from α-coordinates (c0 + c1·α, α = 4 + ω) to ω-coordinates as
+      (c0 + 4c1, c1), which is subgroup.py Alpha.to_omega with s = 4, b = 1 (subgroup.py:136-137).
+      "β ∈ 𝔯" is encoded as β.1 + β.2·λ_ω ≡ 0 (mod r), correct given the proved root condition.
+    data: >-
+      Full comparison (sub_check.py): p == arkworks curves.json cp6_782 field.p; r, h == subgroup.json and
+      curves.json; t == subgroup.json trace; π == frobenius_in_O; eα == alpha.eigenvalue_on_G;
+      e == effective_cofactor; βmem == membership.chosen (== shortest_valid); βclr == clearing.chosen;
+      βclrShort == clearing.shortest_valid. All True. Recomputed with subgroup.py element_index: indices
+      r, h, h, h and module predictions [4, 9, 7, 29] == torsion_checks.predicted; also t = p + 1 − h·r.
+      Bit sizes in the claim (187, 204, 203) == height_bits in subgroup.json.
+    scope: >-
+      Notes and README (277-282, 292-299) exclude: π being the curve's Frobenius, End(E) = O_K, Lenstra,
+      torsion counts (only predictions), primality, costs. Accurate.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: All 17 conjuncts checked against the committed JSON; faithful.
+
+- target: endosweep-subgroup-bls12-381-control.yaml
+  task_id: TASK-20261016-11d796
+  theorem: CryptoResearch.Endosweep.SubgroupIndex.bls12_381_control
+  verdict: PASS
+  checks:
+    statement: >-
+      SubgroupIndex.lean:684-701: r = u⁴ − u² + 1; 3h = (u−1)²; N(u² + φ) = r with u² + φ = (u²−1) + ω;
+      N(−(u²+φ)) = r; N(π) = p, Tr π = t, N(π−1) = h·r; eφ ≡ −u² and eφ² + eφ + 1 ≡ 0 (mod r);
+      u² + eφ ≡ 0 (u² + φ ∈ 𝔯); index r for −(u²+φ) and for −1 + (u²−1)φ; index(1 − u, π−1) = h;
+      r ∤ (1 − u); module predictions 3 ↦ 3, 11 ↦ 121. Every clause of the claim is present.
+    hypotheses: none.
+    definitions: >-
+      φ = −1 + ω (Alpha s = −1, b = 1; subgroup.py:501-505). βmem = (−(u²−1), −1) is to_omega(−u², −1)
+      = −(u² + φ); βmemShort = (−1 − (u²−1), u²−1) is to_omega(−1, u²−1). "1 − u ∉ 𝔯" as r ∤ (1 − u) is
+      correct since 𝔯 ∩ Z = rZ.
+    data: >-
+      sub_check.py: u == subgroup.py BLS12_381_U; p, r, h == arkworks curves.json bls12_381; t, π, eφ ==
+      subgroup.json; βmem == membership.chosen; βmemShort == membership.shortest_valid; clearing.chosen
+      c0 == 1 − u. All True.
+    scope: >-
+      Notes correctly limit "φ acts on G as −u²" to the recorded eigenvalue (the on-point fact is the
+      harness's j0_unit check). Two conjuncts (692 and 694) express the same congruence; harmless.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful; the redundant conjunct at SubgroupIndex.lean:694 could be dropped but changes nothing.
+
+- target: endosweep-chain-cp6-782-certificate.yaml
+  task_id: TASK-20261016-847709
+  theorem: CryptoResearch.Endosweep.ChainEigen.cp6_782_chain_certificate
+  verdict: PASS
+  checks:
+    statement: >-
+      ChainEigen.lean:307-316: λ = e4 − 4 satisfies λ² − λ + 85 ≡ 0 (mod r); 18 rows; each row Valid
+      (263-267: N(a+bω) = norm = product of steps, sign ∈ {±1}, 0 ≤ e < r, e ≡ sign·(a + bλ), e root of the
+      charpoly); N(4+ω) = 105 = 3·5·7, N(9+ω) = 175 = 5·5·7; e4 ≡ 5 − λ', e9 ≡ λ' − 10 for λ' = 1 − λ;
+      and the (9+ω, e9) row is in the list. Matches the claim, including "derived λ".
+    hypotheses: none.
+    definitions: >-
+      qnorm (63) = QO.norm with τ = 1, m = 85. The `sign` field is not in curves.json; it is existentially
+      fixed per row and I re-derived it independently (cp6chain_check.py): exactly one of ±1 works for each
+      row and it matches the Lean list.
+    data: >-
+      cp6chain_check.py: r == arkworks order; all 18 rows (element, norm, steps, eigenvalue) == curves.json
+      results[arkworks/cp6_782].rows in order; e9 (hex) == the [9,1] row; e4 == row 0 ==
+      subgroup.json alpha.eigenvalue_on_G; curves.json eigenvalues_consistent = true. The README forms
+      `5 − λ_ω`, `λ_ω − 10` appear verbatim in research/endosweep_20261005/cp6_782/README.md:11-12.
+    scope: >-
+      README (endosweep_20261005/README.md:276-303) and notes exclude walks, action on points, primality.
+      Accurate.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful; full data match.
+
+- target: endosweep-chain-cryptopro-b-certificate.yaml
+  task_id: TASK-20261016-51ee6d
+  theorem: CryptoResearch.Endosweep.ChainEigen.cryptopro_b_chain_certificate
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      ChainEigen.lean:238-247 + ChainRow.Valid (143-150): λ_ω root of x² − x + 155 mod n; 22 rows; per
+      row N(a+bω) = norm = product of the step order, matched = ±(a + bω), 0 ≤ e < n, e ≡ ma + mb·λ,
+      e root of the matched element's charpoly, both GLV basis vectors in the relation lattice, det = ±n,
+      both test vectors k ≡ k1 + k2·e; plus the two exported 20261005 chains vs λ' = 1 − λ_ω. Matches the
+      arithmetic content of the claim.
+    hypotheses: none.
+    definitions: qnorm with τ = 1, m = 155 (D = −619) is correct; `% n = 0` is equivalent to `n ∣`.
+    data: >-
+      chain_check.py: n and omega_root == chains.constants.json; all 22 rows match in order on every field
+      (id, element, matched_element, norm, order, eigenvalue, glv_basis[0..1], both test vectors'
+      k/k1/k2). e557 / e531 == eigenvalue of cryptopro_b_chain_5_5_7 / 5_31.constants.json, matched
+      [−5, 1] / [0, −1], same n.
+    scope: >-
+      The spec claim ends with the quotation ("381 of 381 verified ... action as the predicted scalar on a
+      point of prime order, and an end-to-end GLV-2 reconstruction"). That sentence describes the
+      harness's on-point verification of all 381 orderings. The theorem certifies only the arithmetic of
+      the 22 frozen orderings and nothing on points. The spec notes and README (chainsweep README:162-196)
+      do say this correctly, but the quotation in the claim suggests more than is proved.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: >-
+    Wording fix: drop the "381 of 381 verified ..." quotation from the spec claim, or label it as context
+    that is not certified. Suggested: "certifies the recorded arithmetic of the 22 frozen orderings of
+    chains.constants.json". The theorem and data are fully faithful.
+
+- target: endosweep-chain-glv-basis.yaml
+  task_id: TASK-20261016-3f929f
+  theorem: CryptoResearch.Endosweep.ChainEigen.glv_basis_spans_relation_lattice
+  verdict: PASS
+  checks:
+    statement: >-
+      ChainEigen.lean:83-86 is the claim verbatim: n ≠ 0, n ∣ b_i.1 + b_i.2·e, det = ±n ⟹ ∀ x y,
+      n ∣ x + y·e ↔ ∃ p q, (x, y) = p·b1 + q·b2. Both directions are proved, so the span equals the lattice.
+      Linear independence follows from det ≠ 0.
+    hypotheses: >-
+      All in the claim. Satisfiable: r3_B.lean:14 (n = 7, e = 3, b1 = (7,0), b2 = (−3,1)). The
+      cryptopro_b certificate discharges the same hypotheses for all 22 recorded bases.
+    definitions: standard; no self-defined notion beyond Int divisibility.
+    data: n/a
+    scope: Notes correctly exclude reducedness and the Babai bound.
+  satisfiability_witness: r3_B.lean:14
+  notes: Faithful.
+
+- target: endosweep-alphaadic-int-rule-1plus4w-cycle.yaml
+  task_id: TASK-20261016-aac18c
+  theorem: CryptoResearch.Endosweep.AlphaAdic.cp6_782_int_rule_1plus4w_cycle
+  verdict: PASS
+  checks:
+    statement: >-
+      AlphaAdic.lean:379-384: N(1+4ω) = 1365 on τ = 1, m = 85; 1 + 4·341 ≡ 0; the digit of −2 + 2ω is 680;
+      α·T(z) = z − 680 (exact quotient); T(z) = z; T^[k] z = z ≠ 0 for every k. This is "never terminates".
+    hypotheses: none.
+    definitions: >-
+      digitInt/stepInt (367-372) are not proved equal to alphaadic.py. The conclusion does not depend on
+      that, though. The exactness conjunct gives 680 ≡ z (mod α), and |680| ≤ 682 = 1365 // 2. So 680 is
+      the unique balanced-integer representative, which is the int rule's digit (alphaadic.py:261-271),
+      and the exact quotient is unique. μ = 341 is also a root of x² − x + 85 mod 1365. Numerical check:
+      Lean digitInt/stepInt == Python int_rule(−339,(1,4)).digit + exact_div on 50 inputs
+      (aa_eval.lean vs aa_py.py, the outputs are identical). Python expand(−2+2ω) raises "did not terminate".
+    data: alphaadic.json curves[2] (arkworks/cp6_782) termination 1+4w/int has cycle_example [−2, 2], terminates false.
+    scope: Spec and README (msm README:441-451) restrict the claim to this one cycle; the other 9 are harness results.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful.
+
+- target: endosweep-alphaadic-int-rule-4plusw-cp6.yaml
+  task_id: TASK-20261016-8d4d97
+  theorem: CryptoResearch.Endosweep.AlphaAdic.cp6_782_int_rule_terminates
+  verdict: PASS
+  checks:
+    statement: >-
+      AlphaAdic.lean:327-329: ∀ z ∈ Z[ω] (τ = 1, m = 85), ∃ k, T^[k] z = 0 ∧ z = Σ d_i α^i (Horner over the
+      orbit's digits), α = 4 + ω. This is "terminates for every z ∈ O_K and reconstructs z".
+      D = −339 is fundamental, so Z[ω] = O_K.
+    hypotheses: none (all of terminates_of_disk's hypotheses are discharged internally, 331-358).
+    definitions: >-
+      bal (202) = int_rule's `d = r if r <= N // 2 else r - N`; digit1 (209) = balanced integer ≡ x − 4y
+      (mod 105), correct since ω ≡ −4 (mod α) and α is primitive; step1 (212-215) is the exact quotient
+      (step1_spec 217-237 proves α·step1 z = z − digit1 z). I evaluated both functions against
+      alphaadic.py on 50 inputs (including large and negative ones). Digits and quotients are identical
+      (aa_lean_lines.out == aa_py.out), and orbit lengths match Python expand for the first 12.
+      R = 52² = 2704 matches max_digit_abs 52.
+    data: >-
+      alphaadic.json curves[2] 4+1w/int has disk_radius 5.6235 (r² = 31.6, so N ≤ 31), elements_checked 11
+      (|x| ≤ 5), max_digit_abs 52.0, terminates true. These match cp6_inside (319-323) and the
+      exhaustion (348-358).
+    scope: Accurate. "Stays in the disk" and the other rules are excluded.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: >-
+    Faithful. The README lists "that the Lean digit and quotient are alphaadic.py's functions" as not a
+    Lean claim. My numerical agreement on 150 (rule, z) pairs supports the identification.
+
+- target: endosweep-alphaadic-int-rule-4plusw.yaml
+  task_id: TASK-20261016-2d85bf
+  theorem: CryptoResearch.Endosweep.AlphaAdic.cryptoProB_int_rule_terminates
+  verdict: PASS
+  checks:
+    statement: >-
+      AlphaAdic.lean:280-282: for every z ∈ Z[ω] (τ = 1, m = 155, D = −619), the int-rule orbit for
+      α = 4 + ω reaches 0 and the digits reconstruct z. This matches the claim.
+    hypotheses: none (discharged internally, 283-311).
+    definitions: >-
+      Same digit1/step1 as above with N = 175 and |d| ≤ 87 (R = 7569). These are identical to
+      alphaadic.py int_rule(−619,(4,1)) on the 50 test inputs (aa_eval.lean). Outside 175 7569 A fails
+      iff A ≤ 50, which is √A(√175 − 1) ≤ 87, i.e. A ≤ 50.6 (cpb_inside 272-276).
+    data: >-
+      alphaadic.json gost/CryptoPro-B (curves[3]) and Tom-384 (curves[0], same D) 4+1w/int: disk_radius
+      7.1144, elements_checked 15, max_digit_abs 87.0, terminates true. This matches N ≤ 50 and |x| ≤ 7.
+    scope: >-
+      The claim quotes "84 of the 94 rules terminate" as context only. The notes state that this theorem
+      covers one rule and that the other 82 plus voronoi are harness results. Accurate.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful.
+
+- target: endosweep-alphaadic-norm-decrease.yaml
+  task_id: TASK-20261016-cde02b
+  theorem: CryptoResearch.Endosweep.AlphaAdic.norm_decrease
+  verdict: PASS
+  checks:
+    statement: >-
+      AlphaAdic.lean:119-121: τ² < 4m, α·q = z − d, N(d) ≤ R, Outside(N(α), R, N(z)) ⟹ N(q) < N(z). This
+      matches the claim. Outside (114-115) is A + R < NαA ∧ 4AR < (NαA − A − R)². With s = √A, ρ = √R,
+      n = √Nα this is NαA − A − R > 2sρ ≥ 0, i.e. s·n > s + ρ, i.e. |z| > √R/(|α| − 1). That is the
+      README's disk boundary with R = max digit norm.
+    hypotheses: >-
+      τ² < 4m is the imaginary-quadratic setting (4m − τ² = −D). The others are the step relation and
+      the digit bound. Satisfiable: r3_B.lean:17-19 (D = −619, α = 4 + ω, z = 175, d = 0, q = 5 − ω,
+      R = 7569).
+    definitions: nrm (67) = QO.norm; mul (70-71) = QO.multiply; triangle_sq is the squared triangle inequality.
+    data: n/a
+    scope: Accurate; the square-root-free restatement is explained in the notes and in msm README:425-429.
+  satisfiability_witness: r3_B.lean:17-19
+  notes: Faithful.
+
+- target: endosweep-alphaadic-termination-from-disk.yaml
+  task_id: TASK-20261016-38c38b
+  theorem: CryptoResearch.Endosweep.AlphaAdic.terminates_of_disk
+  verdict: PASS
+  checks:
+    statement: >-
+      AlphaAdic.lean:147-151: for any T, dig with α·T z = z − dig z and N(dig z) ≤ R: if every z with
+      ¬Outside reaches 0, then every z reaches 0. This is the claim, universally quantified over the
+      digit rule.
+    hypotheses: >-
+      hstep, hdig and hdisk are exactly the claim's premises. They are non-vacuous: both 4 + ω int-rule
+      theorems instantiate them with real rules and discharge them (313, 360).
+    definitions: >-
+      The disk is the exact complement of Outside. The harness's float disk (alphaadic.py:303-325,
+      rad = R/(|α| − 1) with a +1e-9 tolerance) is not what is formalised, and the README says so.
+    data: n/a
+    scope: >-
+      The notes exclude "stays in the disk", and the README sentence includes it. The theorem does not
+      need it. Accurate.
+  satisfiability_witness: AlphaAdic.lean:313 and :360 (hypotheses discharged for the two 4+ω int rules)
+  notes: Faithful soundness statement for the harness's disk certificate.
+
+- target: endosweep-frob-f4-trace.yaml
+  task_id: TASK-20261016-6e6354
+  theorem: CryptoResearch.Endosweep.FrobeniusSplit.order_F4_eq
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      The claim has three parts: (i) the F_4 trace is t2² − 4; (ii) this equals −3 iff t2 = ±1;
+      (iii) #E(F_{4^m}) = #E(F_{2^{2m}}). The named theorem (FrobeniusSplit.lean:136) proves only (iii):
+      order 4 (t2² − 4) m = order 2 t2 (2m) for all t2, m. (i) is F4_trace (124:
+      V t2 2 2 = t2² − 4) and (ii) is F4_trace_eq_neg_three_iff (126-133), both in the same file. All three
+      are correct and fully general.
+    hypotheses: none.
+    definitions: >-
+      V (52-55) == frobenius.py lucas_V (183-190), checked by #eval on 30 (q, t, m) triples
+      (r3_C.lean:7, `true`). order q t m := q^m + 1 − V_m is the stated definitional input.
+    data: n/a
+    scope: The notes correctly say that identifying the F_4 class with t = −3 as the F_2-Koblitz curves is not formalised.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: >-
+    The spec names one theorem, but the claim is proved only by three theorems together. Either list
+    F4_trace and F4_trace_eq_neg_three_iff in the spec (theorem_name or notes), or restrict the claim to
+    (iii). The content is correct.
+
+- target: endosweep-frob-lucas-double.yaml
+  task_id: TASK-20261016-8b4e3f
+  theorem: CryptoResearch.Endosweep.FrobeniusSplit.order_double
+  verdict: PASS
+  checks:
+    statement: >-
+      FrobeniusSplit.lean:91-92: ∀ q t : Int, m : Nat, order q t (2m) = order q t m · (q^m + 1 + V_m).
+      This is the claim with no extra hypotheses. The equivalent V_{2m} = V_m² − 2q^m is V_double (74-76).
+    hypotheses: none.
+    definitions: V == lucas_V (r3_C.lean:7); order is the claim's definition.
+    data: n/a
+    scope: Accurate. That q^m + 1 − V_m is the group order is the stated input.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful.
+
+- target: endosweep-frob-q4-small-m.yaml
+  task_id: TASK-20261016-7b200e
+  theorem: CryptoResearch.Endosweep.FrobeniusSplit.q4_small_m
+  verdict: PASS
+  checks:
+    statement: >-
+      FrobeniusSplit.lean:303-304: n4 3 = 7, na 3 = 7, nb 3 = 1, n4 2 = 2, IsPrime 7, IsPrime 2. This is
+      exactly the claim.
+    hypotheses: none.
+    definitions: >-
+      IsPrime (288) is the correct elementary definition: n > 1 and every positive divisor is 1 or n.
+      n4/na/nb (202-204) use Lean Int `/`, which is floor division for positive divisors and so equals
+      Python's //. The values agree with frobenius.py for m = 2, 3, 5, 7, 11, 13, 17, 19 (r3_C.lean:9-10,
+      e.g. m = 3 gives (7, 7, 1) and m = 2 gives n4 = 2).
+    data: n/a
+    scope: >-
+      Small wording point. m = 2 is even, so it lies outside q4_split's "odd" hypothesis anyway. It shows
+      that "never" fails for prime m, not that the bound m ≥ 5 is needed. The m = 3 case alone shows the
+      bound is needed (n_b = 1).
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful. Optional rewording to separate the two roles of m = 2 and m = 3.
+
+- target: endosweep-frob-q4-split.yaml
+  task_id: TASK-20261016-5b8be6
+  theorem: CryptoResearch.Endosweep.FrobeniusSplit.q4_split
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      FrobeniusSplit.lean:248-250: ∀ m with m odd and 5 ≤ m: 8·n4 = order 4 (−3) m, 2·na = order 2 1 m,
+      4·nb = order 2 (−1) m (the three // are exact), n4 = na·nb, na > 1, nb > 1. This matches the claim's
+      "Precisely ..." sentence exactly. q4_not_prime (291) gives ¬IsPrime(n4 m).
+    hypotheses: >-
+      "Odd m ≥ 5" is satisfiable (r3_C.lean:4, m = 5; r3_C.lean:5, m = 7). It covers every m the study
+      considers: RANGES[4] = (67, 201) (frobenius.py:1101), the primes 67-199, 28 of them, as recorded in
+      frobenius.json q4_t-3_composite. The trace setup matches q4_koblitz_split (frobenius.py:1349-1353):
+      #E(F_4) = 8 for t = −3, #E(F_2) = 2 for t2 = 1, and #E'(F_2) = 4 for the twist t = −1. The twist
+      over F_{2^m} for odd m uses V_neg_odd. Hasse is derived (hasse with 1 < 8), not assumed.
+    definitions: >-
+      n4/na/nb are the Python expressions. Lean and Python agree for m in {5, 7, 11, 13, 17, 19}
+      (r3_C.lean:9). For large m the #eval is exponential because V uses naive double recursion, so
+      m = 67+ was not evaluated in Lean. The theorem is universal anyway.
+    data: n/a
+    scope: >-
+      The README Lean section (frob README:430-437) states the corrected scope correctly ("for every odd
+      m ≥ 5 ... fails at m ∈ {2, 3}"). Two places still state the unqualified claim. (1) The spec claim's
+      first sentence: "q = 4 with t = -3 can never have prime n". (2) The README's Finding 4 headline
+      (frob README:212, "can never have prime n"), which the Lean section corrects only by addendum.
+      Both are literally false at m = 2, 3, per q4_small_m.
+  satisfiability_witness: r3_C.lean:4-5
+  notes: >-
+    The theorem is faithful to the precise claim and to its corrected scope. Wording fix: qualify the
+    first sentence of the spec claim, ideally also README:212, as "for every odd m ≥ 5 (in particular
+    every prime m in the study's range 67-199)".
+
+- target: endosweep-blinding-classical-erased.yaml
+  task_id: TASK-20261016-200d86
+  theorem: CryptoResearch.Endosweep.Blinding.babai_unreduced_erases
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      Blinding.lean:125-130: for any dimension d+1, any basis b, any num_i and den_i with den_i > 0,
+      n·num_i = den_i·z_i, and Σ z_i b_i = (n, 0, …, 0), decomposeUnreduced(K + r·n) = decomposeUnreduced(K)
+      for all integers K and r and every coordinate j. This matches "the Babai decomposition of k + rn
+      equals that of k for every integer r" when Babai means decompose_unreduced.
+    hypotheses: >-
+      hz and hlat encode "(n, 0, …, 0) has integer coordinates z in the basis". The claim and
+      blinding.py:9-11 give this as the reason, so it is assumed rather than derived from
+      "(n, 0, …) ∈ L and B is a basis". It is satisfiable and holds on the real data. In Lean:
+      r3_D.lean:22-25 discharges all three hypotheses by decide on blinding.py's secp256k1 reduced
+      basis and B⁻¹ row. In Python: they hold on all four harness lattices (CryptoPro-B, secp256k1,
+      Tom-521, FourQ d = 4); every den_i is odd, z_i is an integer, and Σ z_i b_i = (n, 0, …).
+    definitions: >-
+      roundCoeff (105) = blinding.py:161 `(2*K*num + den) // (2*den)`: Lean Int `/` is floor division
+      for a positive divisor, the same as Python's //. decomposeUnreduced (109-111) = blinding.py:155-163.
+      Numerical check: Lean decomposeUnreduced == Python decompose_unreduced on 8 values of K,
+      including |K| ~ 10^80, K = 0 and K = n − 1 (r3_D.lean:28, `true`).
+    data: n/a
+    scope: >-
+      The 40 000 measured checks compare decompose_unreduced(k + rn) with lattice.py's decompose(k)
+      (blinding.py:346, 351), not with decompose_unreduced(k). lattice.py:117-129 rounds with Python
+      round() (half-to-even) on k % n. The Lean theorem does not connect the two routines. They agree
+      for 0 < k < n except at exact half-integer ties. No tie can occur here, because each den_i divides
+      det B = ±n, and n is odd for all four lattices. I found 0 mismatches in 8 000 sampled k.
+  satisfiability_witness: r3_D.lean:22-25
+  notes: >-
+    The theorem is faithful for decompose_unreduced. Wording fix: the spec note "formalises
+    decompose_unreduced, which the 40 000 erasure checks run" should add that those checks compare
+    against lattice.py's v(k), and that unreduced = reduced rounding for 0 < k < n (no ties, since den_i | n
+    with n odd). This is not formalised.
+
+- target: endosweep-blinding-mod-n.yaml
+  task_id: TASK-20261016-0d79b3
+  theorem: CryptoResearch.Endosweep.Blinding.decompose_mod_erases
+  verdict: PASS
+  checks:
+    statement: >-
+      Blinding.lean:96-97: for any function dec, dec((k + r·n) % n) = dec(k % n). This is the claim's
+      "so k and k + rn decompose identically", given the premise "Babai depends only on k mod n". The
+      premise is modelled by the shape dec ∘ (· % n).
+    hypotheses: none.
+    definitions: >-
+      The modelling premise holds for lattice.py's ReducedLattice.decompose (117-129). It reads k only
+      as `k % self.n` (target and v); the remaining use of k is in the assert. Lean `%` on Int is emod,
+      which is nonnegative for n > 0, the same as Python's %.
+    data: n/a
+    scope: >-
+      The spec notes call this "the weak form" and point to the stronger theorem, which is accurate. The
+      theorem is a one-line tautology (Int.add_mul_emod_self_right). Its content is the modelling step,
+      verified here by reading the code.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful, but near-trivial. All the substance is in the code-shape premise, which I confirmed at lattice.py:117-129.
+
+- target: endosweep-blinding-reconstruction.yaml
+  task_id: TASK-20261016-dcce8a
+  theorem: CryptoResearch.Endosweep.Blinding.blind_reconstructs
+  verdict: PASS
+  checks:
+    statement: >-
+      Blinding.lean:164-166: for any d, e, any r : Fin e → Int and basis b, if n ∣ Σ v_i λ_i − k and every
+      b_j satisfies n ∣ Σ b_{j,i} λ_i, then n ∣ Σ (v + Σ_j r_j b_j)_i λ_i − k. This is the claim, for all
+      r_j, so it covers both C5 and naive blinding.
+    hypotheses: >-
+      Both hypotheses are in the claim. Satisfiable: r3_D.lean:32-34 (n = 7, λ = (1, 3), v = (1, 0),
+      k = 1, b = {(7, 0), (−3, 1)}, r = 5).
+    definitions: >-
+      blind (146-148) = blinding.py blind (171-178), x = v + Σ r_i b_i; Python samples the r_i and Lean
+      quantifies over all of them. dot = Σ x_i λ_i as in reconstructs (181-182).
+    data: blinding.json records reconstructs_k_mod_n true for c5, naive and unblinded on all 4 cases (consistent).
+    scope: Accurate. Costs, entropy and MSB statistics are excluded.
+  satisfiability_witness: r3_D.lean:32-34
+  notes: Faithful.
