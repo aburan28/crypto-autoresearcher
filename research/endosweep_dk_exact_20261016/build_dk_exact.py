@@ -9,6 +9,10 @@ Reads
 Writes
   dk_exact.json, dk_exact.md (next to this script)
 
+Options (defaults reproduce this directory): --dir D reads D/factorizations.jsonl and writes D/dk_exact.json
+and D/dk_exact.md; --exclude-certified F (repeatable) names a factorizations.jsonl whose curves an earlier
+batch already certified: none of them may reappear, and they are listed as excluded.
+
 Everything is recomputed from the curve constants: each curve is reloaded with
 corpus.load_std_curves and re-verified with targets.verify (n prime, h*n in the Hasse
 interval, a point killed by h*n), t = q + 1 - h*n, N = 4q - t^2.  The certificate's
@@ -52,6 +56,8 @@ SOURCES = {
     "bls": "BLS12 pairing-friendly family (RELIC; ePrint 2012/232)",
     "bn": "BN pairing-friendly family",
     "arkworks": "arkworks / ZEXE pairing-friendly curves",
+    "oscaa": "OSCCA SM2, GM/T 0003-2012",
+    "brainpool": "Brainpool curves, RFC 5639 (2010)",
 }
 
 
@@ -96,6 +102,17 @@ def load_curves(std: str, ark: str):
     return out
 
 
+def certified_curves(paths) -> dict[str, str]:
+    """{curve: repository path} for every curve certified in the given factorizations.jsonl files."""
+    out = {}
+    for path in paths:
+        path = Path(path).resolve()
+        for line in path.read_text().splitlines():
+            if line.strip():
+                out[json.loads(line)["curve"]] = str(path.relative_to(REPO))
+    return out
+
+
 def squarefree_ok(fac) -> bool:
     return all(x == 1 for _, x in fac)
 
@@ -116,16 +133,17 @@ def source(name: str) -> str:
     return SOURCES.get(name) or SOURCES[name.split("/")[0]]
 
 
-def build(std: str, ark: str) -> dict:
+def build(std: str, ark: str, out_dir: Path = HERE, earlier: dict[str, str] | None = None) -> dict:
     from harness.endosweep import quadorder as QO
     from harness.endosweep.nist import exact_discriminant
+    earlier = earlier or {}
     curves = load_curves(std, ark)
     by_name = {T.name: T for T in curves if not T.duplicate}
-    recs = [json.loads(l) for l in open(HERE / "factorizations.jsonl") if l.strip()]
+    recs = [json.loads(l) for l in open(out_dir / "factorizations.jsonl") if l.strip()]
     rows = []
     for r in recs:
         T = by_name[r["curve"]]
-        assert r["curve"] not in EXCLUDED_NIST
+        assert r["curve"] not in EXCLUDED_NIST and r["curve"] not in earlier
         p, n, h = T.q, T.n, T.h
         t = p + 1 - h * n
         assert t == T.trace and abs(t) <= 2 * math.isqrt(p) + 2
@@ -169,13 +187,15 @@ def build(std: str, ark: str) -> dict:
             "literature": "not checked against literature",
         })
     rows.sort(key=lambda x: (x["p_bits"], x["curve"]))
+    excluded = {k: "research/endosweep_nist_20261006/factorizations.jsonl (" + v + ")"
+                for k, v in EXCLUDED_NIST.items()}
+    excluded.update(earlier)
     return {
         "question": "exact D_K, conductor and least non-scalar endomorphism degree for every curve whose "
                     "4q - t^2 the factoring driver completed",
         "std_curves_commit": STD_CURVES_COMMIT,
         "std_curves_checkout_head": _git_head(std),
-        "excluded_already_certified": {k: "research/endosweep_nist_20261006/factorizations.jsonl (" + v + ")"
-                                       for k, v in EXCLUDED_NIST.items()},
+        "excluded_already_certified": excluded,
         "primality": "PARI isprime on every factor (proof)",
         "curves": rows,
     }
@@ -198,8 +218,8 @@ def _fac_str(fac) -> str:
     return " · ".join(parts)
 
 
-def markdown(doc: dict) -> str:
-    L = ["# Exact CM discriminants (endosweep_dk_exact_20261016)", "",
+def markdown(doc: dict, dirname: str = HERE.name) -> str:
+    L = [f"# Exact CM discriminants ({dirname})", "",
          f"std-curves commit `{doc['std_curves_commit']}`.  Every factor is proved prime by PARI `isprime`; "
          "`pN` is an N-digit prime written out in `dk_exact.json`.  No D_K here was checked against the "
          "literature (see the `std-curves` column for the one comparison made).", "",
@@ -223,14 +243,26 @@ def markdown(doc: dict) -> str:
         L.append(f"* **{r['curve']}**: " + "; ".join(f"{a if len(a) <= 12 else 'p' + str(len(a))} — {b}"
                                                    for a, b in big))
     L += ["", "Excluded (already certified in research/endosweep_nist_20261006/factorizations.jsonl): "
-          + ", ".join(sorted(doc["excluded_already_certified"])) + ".", ""]
+          + ", ".join(sorted(k for k in doc["excluded_already_certified"] if k in EXCLUDED_NIST)) + "."]
+    for path in sorted({v for k, v in doc["excluded_already_certified"].items() if k not in EXCLUDED_NIST}):
+        L += ["", f"Excluded (already certified in {path}): " + ", ".join(
+            sorted(k for k, v in doc["excluded_already_certified"].items() if v == path)) + "."]
+    L += [""]
     return "\n".join(L)
 
 
 def main(argv):
-    doc = build(argv[1], argv[2])
-    (HERE / "dk_exact.json").write_text(json.dumps(doc, indent=1) + "\n")
-    (HERE / "dk_exact.md").write_text(markdown(doc))
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("std")
+    ap.add_argument("ark")
+    ap.add_argument("--dir", type=Path, default=HERE)
+    ap.add_argument("--exclude-certified", type=Path, action="append", default=[])
+    a = ap.parse_args(argv[1:])
+    out_dir = a.dir.resolve()
+    doc = build(a.std, a.ark, out_dir, certified_curves(a.exclude_certified))
+    (out_dir / "dk_exact.json").write_text(json.dumps(doc, indent=1) + "\n")
+    (out_dir / "dk_exact.md").write_text(markdown(doc, out_dir.name))
     print(f"{len(doc['curves'])} curves")
 
 

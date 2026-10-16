@@ -10,6 +10,7 @@ Reads
 Writes
   factorizations.jsonl                 one record per curve whose snapshot entry has open == [],
                                        except the four already certified in research/endosweep_nist_20261006
+                                       and those certified in any --exclude-certified file
 
 Every record is checked before it is written: the factors multiply back to 4q - t^2 exactly and every factor
 is proved prime by PARI isprime (a proof, not a pseudoprime test).  Which method found each factor is
@@ -17,7 +18,12 @@ reconstructed by replaying the snapshot's split log; a split the replay cannot p
 
     python3 research/endosweep_dk_exact_20261016/make_factorizations.py STD_CURVES_CHECKOUT \
         research/endosweep_curves_20261006
+
+Options (defaults reproduce this directory): --dir D reads D/provenance/survey_selected.jsonl and
+D/<--snapshot> and writes D/factorizations.jsonl; --exclude-certified F (repeatable) also skips every
+curve that the factorizations.jsonl F already certifies (a later batch excludes the earlier ones).
 """
+import argparse
 import json
 import re
 import sys
@@ -26,7 +32,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from build_dk_exact import EXCLUDED_NIST, load_curves, pari_isprime  # noqa: E402
+from build_dk_exact import EXCLUDED_NIST, certified_curves, load_curves, pari_isprime  # noqa: E402
 
 ECM = "GMP-ECM 7.0.5"
 CADO = "CADO-NFS 3.0.0 (git 692ecb7e62f0f3bdab88ee44cc60b8ded0ea1a1b)"
@@ -102,16 +108,24 @@ def replay(C: int, primes: list[int], log: list[str]) -> dict[int, str]:
 
 
 def main(argv):
-    std, ark = argv[1], argv[2]
+    ap = argparse.ArgumentParser()
+    ap.add_argument("std")
+    ap.add_argument("ark")
+    ap.add_argument("--dir", type=Path, default=HERE)
+    ap.add_argument("--snapshot", default="provenance/driver_state.snapshot.json")
+    ap.add_argument("--exclude-certified", type=Path, action="append", default=[])
+    a = ap.parse_args(argv[1:])
+    std, ark, out_dir = a.std, a.ark, a.dir
+    skip = set(EXCLUDED_NIST) | set(certified_curves(a.exclude_certified))
     curves = {T.name: T for T in load_curves(std, ark)}
     survey = {}
-    for line in open(HERE / "provenance/survey_selected.jsonl"):
+    for line in open(out_dir / "provenance/survey_selected.jsonl"):
         r = json.loads(line)
         survey[r["name"]] = r
-    snap = json.load(open(HERE / "provenance/driver_state.snapshot.json"))
+    snap = json.load(open(out_dir / a.snapshot))
     out = []
     for C, e in snap.items():
-        if e["open"] or e["curve"] in EXCLUDED_NIST:
+        if e["open"] or e["curve"] in skip:
             continue
         T = curves[e["curve"]]
         q, t = T.q, T.trace
@@ -148,7 +162,7 @@ def main(argv):
                     "found_by": [how[p] for p, _ in factors], "seconds": None,
                     "primes_proven_by": "PARI isprime"})
     out.sort(key=lambda r: (int(r["N"]).bit_length(), r["curve"]))
-    with open(HERE / "factorizations.jsonl", "w") as f:
+    with open(out_dir / "factorizations.jsonl", "w") as f:
         for r in out:
             f.write(json.dumps(r) + "\n")
     print(f"wrote {len(out)} certificates")
