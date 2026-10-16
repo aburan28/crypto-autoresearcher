@@ -116,20 +116,27 @@ theorem scan_holds : ∀ c ∈ scanCerts, c.Holds := by decide +kernel
 and finding 3).  For P-192, P-224, P-256, P-384, P-521, B-163, B-233, B-283,
 B-409, Curve25519 = Ed25519 and Curve448 = Ed448 = Ed448-Goldilocks:
 `t² − 4q = D_K·f²`; `4q − t²` is the product of the certificate's prime
-powers; `D_K` is a discriminant built from the odd-exponent primes exactly as
-`nist.exact_discriminant` builds it; `min_nonscalar_degree(D_K)` is the value
+powers; the odd-exponent primes of the certificate are `oddPrimes`, and
+`D_K = −core` (when `−core ≡ 1 mod 4`) or `D_K = −4·core` (when
+`−core ≡ 2, 3 mod 4`) with `core = oddPrimes.prod`, exactly as
+`nist.exact_discriminant` builds it; `D_K` is a discriminant; `min_nonscalar_degree(D_K)` is the value
 nist.json reports; and, IF the listed factors above 10^8 are prime (PARI
 `isprime`; not proved here), `D_K` is a fundamental discriminant. -/
 theorem exact_discriminants :
     ∀ c ∈ factoredCerts,
       c.t ^ 2 - 4 * c.q = c.DK * c.f ^ 2 ∧
       4 * c.q - c.t ^ 2 = ((c.factors.map (fun pe => pe.1 ^ pe.2)).prod : Nat) ∧
+      (c.factors.filter (fun pe => pe.2 % 2 == 1)).map (·.1) = c.oddPrimes ∧
+      ((c.DK = -(c.oddPrimes.prod : Int) ∧ c.DK % 4 = 1) ∨
+        (c.DK = -4 * (c.oddPrimes.prod : Int) ∧
+          ((-(c.oddPrimes.prod : Int)) % 4 = 2 ∨ (-(c.oddPrimes.prod : Int)) % 4 = 3))) ∧
       IsDisc c.DK ∧
       minNonscalarDegree c.DK = c.deg ∧
       ((∀ p ∈ c.largePrimes, IsPrimeNat p) → IsFundamental c.DK) := by
   intro c hc
-  obtain ⟨h1, h2, _, hnd, hD, hdisc, hdeg, hsmall⟩ := factored_holds c hc
-  refine ⟨h1, h2, hdisc, hdeg, fun hlarge => isFundamental_of_primes c.oddPrimes hnd ?_ c.DK hD⟩
+  obtain ⟨h1, h2, hodd, hnd, hD, hdisc, hdeg, hsmall⟩ := factored_holds c hc
+  refine ⟨h1, h2, hodd, hD, hdisc, hdeg,
+    fun hlarge => isFundamental_of_primes c.oddPrimes hnd ?_ c.DK hD⟩
   intro p hp
   simp only [FactoredCert.oddPrimes, List.mem_append, List.mem_map] at hp
   rcases hp with ⟨pr, hpr, rfl⟩ | hp
