@@ -310,6 +310,27 @@ What was evaluated and not built:
   prefetching rows in the serial load and lead-scan loops. Keeping the op log
   costs about 15% here (51M X entries, 205 MB); callers that need no
   certificate already pass `want_cert=False`.
+- **Other elimination algorithms** (same matrix). All of these give the same
+  record, and none is faster:
+  - **Faugère–Lachartre split.** Fixed sparse pivot rows, one per distinct
+    initial lead, with the other rows reduced bit-sliced, 64 at a time. Only
+    8686 of the 46575 rows have distinct leads, which would leave a
+    37889 x 46769 remainder, so it was not built.
+  - **Echelonizing the equations first.** The row space is unchanged and the
+    leads become more distinct, but the solve takes the same time (about 1.3
+    to 1.4 s both ways).
+  - **Degree split.** Handling the top-degree block first and the low words
+    later would remove about 30% of the update work (that much lands on the
+    deg <= 4 words). It is not exact here: the 46552 top rows exceed the
+    42504 degree-5 columns, so 6624 rows fall in degree, and their low parts
+    depend on every pivot's low part.
+  - **Column order inside a degree block.** The record only needs
+    degree-prefix ranks, so this order is free for `macaulay_profile` (not for
+    `w_profile`, which reads the M_{D-1} pivot columns). Colex is by far the
+    best order tried: fill 10.1%, 1.3 s. The others were sparse-columns-last
+    22% and 5.2 s; lex 18% and 3.8 s; colex with variables relabeled 16% and
+    2.8 s; dense-last 36% and 9.6 s; reversed 39% and 9.1 s; random 50% and
+    12.5 s.
 
 ## Not covered yet
 
