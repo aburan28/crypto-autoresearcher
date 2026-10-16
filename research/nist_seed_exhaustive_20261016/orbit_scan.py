@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import platform
 import sys
+import time
 
 import scan
 
@@ -33,6 +35,8 @@ def state_from_timestamp(timestamp: int, ordinal: int) -> int:
 
 
 def run(out: Path) -> dict:
+    started_at = datetime.now(timezone.utc).isoformat()
+    wall_start = time.monotonic()
     protocol_path = HERE / "orbit_protocol.json"
     protocol = json.loads(protocol_path.read_text())
     first, count = protocol["first_state_index"], protocol["state_count"]
@@ -66,7 +70,7 @@ def run(out: Path) -> dict:
             stream.write(json.dumps({"state_index": i, "first_state": hex(x), "seed": seed.hex(), "c": hex(c), "b": hex(b)}) + "\n")
             counters["root_exists"] += 1
     assert sum(counters.values()) == count
-    manifest = {"protocol_sha256": scan.digest(protocol_path), "scanner_sha256": scan.digest(Path(__file__)), "traits_sha256": scan.digest(traits_path), "first_state_index": first, "state_count": count, "fraction_of_strict_orbit": "1/1073741824", "field": protocol["field_control"], "p": hex(p), "counters": counters, "candidate_file_sha256": scan.digest(path), "published_controls": controls, "python": sys.version, "platform": platform.platform()}
+    manifest = {"protocol_sha256": scan.digest(protocol_path), "scanner_sha256": scan.digest(Path(__file__)), "traits_sha256": scan.digest(traits_path), "first_state_index": first, "state_count": count, "fraction_of_strict_orbit": "1/1073741824", "field": protocol["field_control"], "p": hex(p), "counters": counters, "candidate_file_sha256": scan.digest(path), "published_controls": controls, "python": sys.version, "platform": platform.platform(), "started_at_utc": started_at, "finished_at_utc": datetime.now(timezone.utc).isoformat(), "wall_seconds": time.monotonic() - wall_start}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
