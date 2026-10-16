@@ -1,6 +1,10 @@
 # THM_QUOTIENT_DESCENT1 — Only 2-torsion translations descend through a degree-2 quotient of E
 
-- **Status:** PROVED (elementary); not yet formalized. Companion to `IDEA-20260920-0490f5`.
+- **Status:** PROVED (elementary). The Lemma's group-law identity is formalized as
+  `CryptoResearch.Quotient.translation_descends_iff_two_torsion`
+  (`formal/CryptoResearch/Quotient/TranslationDescent.lean`, target
+  `formal/targets/quotient-translation-descent.yaml`); see "Formal target" below.
+  Companion to `IDEA-20260920-0490f5`.
 - **Closes:** the "Larger group actions?" question on Galbraith's ECC 2015 slides, for every
   x-type coordinate.
 - **Reads:** none required; the proof uses only the group law. Kohel (INDOCRYPT 2012) and
@@ -9,11 +13,21 @@
 
 ## Setting
 
-Let E be an elliptic curve over a field k, char k ≠ 2. For S ∈ E[2](k) let
+Let E be an elliptic curve over a field k, char k ≠ 2. For S ∈ E(k) let
 ι_S = [−1] ∘ τ_S, i.e. ι_S(P) = −P − S = −(P + S). Every ι_S is an involution of E
-(as a curve, not as a group), and every degree-2 map φ: E → P^1 defined over k is the
-quotient by some involution of this form up to an automorphism of P^1 (the x-coordinate is
-the case S = O; the "x-coordinate on the translate" is the general case).
+(as a curve, not as a group), whatever the order of S, and every degree-2 map φ: E → P^1
+defined over k is the quotient by some involution of this form up to an automorphism of
+P^1 (the x-coordinate is the case S = O; the x-coordinate on a translate, P ↦ x(P + R),
+is the quotient by ι_{2R}).
+
+*Correction (2026-10-16, sheriff case SHF-20261016-3caa6f, finding L2).* This paragraph
+first read "For S ∈ E[2](k)", restricting the degree-2 quotients to those by ι_S with S
+2-torsion. That is wrong: S may be any point of E(k). The case reader's counterexample is
+φ = x(P + R) on a curve over F_1009 with R of order 3, whose involution is P ↦ −P − 2R
+with 2R not 2-torsion
+(`research/sheriff/SHF-20261016-3caa6f/scripts/readers/lean/descent_check.out`). The
+Lemma below is unaffected: its proof never uses the order of S, and it holds for every
+S ∈ E(k), as the formal statement now says.
 
 Write τ_T for translation by T ∈ E(k̄).
 
@@ -60,9 +74,23 @@ summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
     # pick T of order 3 (if present) and check the x-coordinates differ
     T3 = [Q for Q in E.torsion_subgroup() if Q.order() == 3]  # may be empty for this curve
 
-## Formal target (for the Coordinator to mint)
+## Formal target
 
     theorem_name: CryptoResearch.Quotient.translation_descends_iff_two_torsion
-    statement: ∀ (S T : E), 2•S = 0 → ((∀ P, -(P+S)+T = -(P+T+S)) ↔ 2•T = 0)
+    statement: ∀ (S T : E), (∀ P, -(P+S)+T = -(P+T+S)) ↔ (2:ℕ)•T = 0
+    file:      formal/CryptoResearch/Quotient/TranslationDescent.lean
+    target:    formal/targets/quotient-translation-descent.yaml
 
-The statement needs only the abelian-group structure of E(k̄); no scheme theory.
+The statement needs only the abelian-group structure of E(k̄); no scheme theory. It is
+proved for any additive commutative group and is built and axiom-audited by the
+`formal-workspace` job of `.github/workflows/lean-verification.yml`. It formalizes the
+Lemma's computation only: that degree-2 maps are quotients by some ι_S, and that
+"descends" means "commutes with ι_S", remain the prose argument above.
+
+*History.* The target was first written as a hypothesis `2•S = 0` plus this statement,
+and committed as an unchecked statement stub, `research/THM_QUOTIENT_DESCENT1.lean`, that
+declared it as a Lean axiom. Sheriff finding L1 (SHF-20261016-3caa6f) flagged the stub;
+it was removed on 2026-10-16 when the theorem was proved. The hypothesis on S was unused
+and is dropped, so the proved statement is stronger. Records that cite the stub (for
+example `ledger/handoffs/TASK-20260923-aa277e.yaml` and the EXP-GFPN-05ff43 v1→v2
+amendment) describe it, correctly, as an unchecked stub; the file is in git history.
