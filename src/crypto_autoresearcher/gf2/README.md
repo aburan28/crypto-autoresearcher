@@ -298,6 +298,18 @@ What was evaluated and not built:
   annihilator with 49 syndrome words (0.83 s at nv = 22) is bounded by
   random reads of K rows; nibble tables would halve the reads but move them
   to a 56 MB table, so it was left as is.
+- **After the segment skip** (2026-10-16, M_5 nv=24 captured matrix, 4
+  threads): the pass is 93% of a warm solve (1.33 of 1.43 s), spread evenly
+  over the degree-5 columns. Updated rows absorb on average 28.6 of a
+  block's ~60 pivots and use 7.2 of its 8 table groups, and a single group's
+  tails cover 18% of the tail words against 24% for the union. So per-row or
+  per-group word skipping has little left to remove; the update is real
+  arithmetic. Two more variants left the pivot columns unchanged and moved
+  time only within noise: choosing as pivot the candidate row with the
+  fewest earlier tail updates (fill went from 10.1% to 10.4% of words), and
+  prefetching rows in the serial load and lead-scan loops. Keeping the op log
+  costs about 15% here (51M X entries, 205 MB); callers that need no
+  certificate already pass `want_cert=False`.
 
 ## Not covered yet
 
