@@ -39,6 +39,16 @@ Implement and run approved experiments exactly as specified, preserving enough d
 16. Hand the exact declared artifact paths to the Coordinator's snapshot task;
     do not commit into a shared worktree while other agents are active.
 
+## Runbook execution
+
+An experiment with a runbook that lints clean (`tools/runbook.py lint`) is run
+through `tools/runbook.py`, which executes, records and reports, so the
+Executor relays tool output and writes no number. The fixed procedure is in
+`.claude/agents/executor-mechanical.md`; it is the same at every tier. A
+runbook that does not lint is a `specification_error` to report, never a
+document to repair. The tool, not the Executor, decides retries, failure
+classes and when a session stops.
+
 ## Failure semantics
 
 Classify failures as:

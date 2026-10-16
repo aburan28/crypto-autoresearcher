@@ -71,6 +71,21 @@ python3 tools/experiment_execution.py run --plan <existing-plan-path> \
   --owner <claim-owner> --epoch <claim-epoch>
 ```
 
+### Runbook experiments
+
+When `experiments/<EXP-ID>/runbook.yaml` exists, execute it through
+`tools/runbook.py`, not by calling the supervisor directly: the runbook wraps
+the supervisor, claim and release, and adds per-output validity checks, a
+hash-chained journal, tool-computed metrics and a generated report
+(`docs/runbook-execution.md`). The procedure is fixed and identical for every
+model: `lint`, `run --as <address>` (rerun the same command to resume),
+`verify`, `report` (`render` when no Typst was installed), `publish-paths` and
+the git commands it prints, then `status --brief` as the result. The exact
+commands are in `.claude/agents/executor-mechanical.md`, "Runbook execution:
+the procedure"; under Claude Code, dispatch that subagent (Haiku) with the
+runbook path. A runbook that does not lint is an impediment to report, never
+something to repair here, and `tools/runbook.py report` writes the run report.
+
 Keep the runner's built-in admission, resource, and output-correctness checks.
 Do not duplicate them in an agent-led validation phase or disable them to force
 a launch. Routine trials are processes; they do not need a new agent per seed.
@@ -105,8 +120,9 @@ blocker; do not skip the report.
 
 Run records left only in a working tree are not evidence and are invisible to
 the next session, which then runs the same trials again. When trials finish,
-commit the run directories this session wrote (`experiments/<EXP-ID>/runs/...`
-and nothing else) on the session's own branch and push it, so the selector's
+commit the run directories this session wrote (`experiments/<EXP-ID>/runs/...`,
+plus `experiments/<EXP-ID>/runbook-sessions/<id>/` for a runbook, and nothing
+else) on the session's own branch and push it, so the selector's
 `off_main_runs` column shows them to every later `run` session. Commit and push
 each experiment's report directory (`experiments/<EXP-ID>/reports/run-*/`)
 next, on the same branch. Open or refresh
