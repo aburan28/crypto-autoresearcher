@@ -1,0 +1,426 @@
+# SHERIFF reader report: joint B5 (interpretation, cost model, cheapest falsification)
+# Audit record only. Changes no research state. Read-only on all three trees.
+joint: "B5 interpretation and cost model (with the B9 proves-too-much control and blind re-derivation for this joint)"
+reader:
+  role: red-team
+  model: claude-opus-5-5
+target:
+  claim: "n83 stacked producer: end-to-end cold 3.2391 [2.9809, 3.5240], improvement; n=83 baseline row"
+  repo: cryptanalysis
+  commit: 77b5c02b96f014d587e9435558b8da2e0f14fde8   # origin/main, PR #938 (squash merge, one parent c9b34b85)
+  worktree: cryptanalysis:.
+  study: experiments/koblitz-n83-stacked-20261016/
+  run: GitHub Actions 38862448935 (run_github_38862448935/)
+  arm_orientation_note: >
+    The task card calls kS/cS the baseline and kP/cP the candidate. The frozen protocol has it the other way
+    round: cP/kP is the baseline pP and cS/kS is the candidate stack (protocol.json:3-16, 61-80; README.md:113-117).
+    R = E2E(kP,cP)/E2E(kS,cS) > 1 means the candidate is cheaper. This report uses the protocol's orientation.
+sources_read:
+  - /home/user/crypto-autoresearcher/docs/agent-runtime-core.md (whole)
+  - /home/user/crypto-autoresearcher/agents/red-team.md (whole)
+  - /home/user/crypto-autoresearcher/docs/sheriff.md:1-55 (Verdicts), 269-314 (B5), 427-451 (B9)
+  - /home/user/crypto-autoresearcher/AGENTS.md:8-19 ("Every improvement is a success")
+  - /home/user/crypto/AGENTS.md:31-67 (success criterion), 531-695 (sections 1-6 and 5a)
+  - cryptanalysis AGENTS.md:1-39 (success criterion), 235-260, 435-540 (measurement rows), 541-660 (hardware, isolation, GPU, CPU tiers)
+  - cryptanalysis docs/ic/BASELINES.md (whole, 222 lines)
+  - cryptanalysis docs/ic/baselines.json:1-30, 165-205 (n=83 row), 375-425 (B row and n=83 other records), 427-470 (ratchet_history)
+  - experiments/koblitz-n83-stacked-20261016/README.md (whole), protocol.json (whole), verify_receipt.py:1-48, 109-262, 314-347, arm.py:1-40, 123-180
+  - run_github_38862448935/panel/result.json (whole), runs.jsonl (by key), allocation.json, panel/runner_start.json, panel/runner_end.json, verify-stdout.json, log-table-check.json, restore.json, schedule-exit.txt
+  - decoded raw producer records: panel/runs/00004 (cS C1 s000), 00010 (rT s000), 00011 (cP C1 s000), 00039-00043 (K1 rank arms), 00116-00120 (K2 rank arms)
+  - experiments/koblitz-n83-bl-arm-20261014/README.md:520-545 (B's limits)
+  - experiments/koblitz-n83-state-fold-20261015/README.md:114, 129, 207-211
+  - experiments/n83-compact-orbit-size-sweep-20261012/README.md:40-70 and candidate_K600.json (factor_base recipe)
+  - experiments/koblitz-single-target-n83-tier1-20261014/README.md:21
+blind_from:
+  - "every other reader file in this case (none existed under readers/ when this reader started; none was opened)"
+  - "the sheriff session's case notes and any validator report on PR #938"
+  - "the PR #938 description and review thread (not opened)"
+scratch:
+  scripts: research/sheriff/SHF-20261016-3caa6f/scripts/readers/costmodel/scripts/ (decode.py, records.py, phases.py, diffrec.py, rank.py, rederive.py)
+  rederive_output: research/sheriff/SHF-20261016-3caa6f/scripts/readers/costmodel/rederive.out
+conduct_note: >
+  No file in /home/user/crypto-autoresearcher, /home/user/crypto or the worktree was written. Every Python read
+  in the worktree ran with -I -B, and the scripts live in the scratch directory. One `git status --short` ran early
+  in the worktree. It can refresh git's stat cache in the gitdir /home/user/cryptanalysis/.git/worktrees/cryptanalysis,
+  which is outside the three protected trees, and it changes no worktree file. Every later git call was a read-only
+  plumbing call made with --no-optional-locks.
+
+checks:
+  - id: C01-class-phase-diff
+    beat: B5.1
+    command_or_reading: "python3 -B scripts/diffrec.py 43 42 (kP vs kS, K1) and 11 4 (cP vs cS, C1 s000); cold_phase_ms of each decoded record"
+    result: pass
+    note: >
+      Both arms have the same phase set and the same producer clocks. The savings sit in two phases only:
+      precompute_index (46,878 -> 23,032 ms) and rank_pdp (883,745 -> 255,719 ms). Every other phase is equal
+      within noise: base load, normal basis, rank query, relation check, matrix build, LA 90.6 vs 90.7 ms, and the
+      self-test 2,158 vs 2,205 ms. Online target_pdp rises (+16 ms). No work moves out of a timed interval. The
+      index digest and process launch sit outside the interval on both arms (arm.py:16-17; record field
+      index_digest.accounting). The rank stage runs with no cached table: KIC_LOG_TABLE_IN is set only for ic_cold
+      (arm.py:135-139). Every rank process's logs equal B's archived table (logs_equal_archived true in all 10).
+      Class: engineering. Not relabelling, because the total fell. Not accounting, because the algorithm changed.
+  - id: C02-primary-rederived
+    beat: B5.1/B9
+    command_or_reading: "python3 -B scripts/rederive.py (reads raw base64 records; does not import verify_receipt.py)"
+    result: pass
+    note: >
+      E2E(kP,cP) = 869,796.3 + 49,372.8 = 919,169.1 ms. E2E(kS,cS) = 257,814.3 + 25,960.4 = 283,774.6 ms.
+      R = 3.2391, which matches result.json primary_e2e_cP_over_cS. The in-process single-process E2E (setup + rank
+      + LA + one target in one process) gives 3.2397. Over all 4 single-process pairings R ranges from 3.168 to
+      3.311, so process-level variance (not resampled by the bootstrap, verify_receipt.py:206-223) cannot bring R
+      near 1.
+  - id: C03-linear-algebra
+    beat: B5.4
+    command_or_reading: "protocol.json:254 (rank_interval) vs :308 (end_to_end_cold); record timing_ms.linear_algebra and factor_log_table.relation_la_or_load_and_verify_ms"
+    result: pass
+    note: >
+      rank_stage_ms excludes LA (protocol.json:254). The cold arms skip LA and charge the load and verification of the
+      cached table instead: 89.6 ms in cP/cS, against a measured LA of 90.5-90.7 ms in every rank process. So LA is
+      represented by substitution, and the ~1 ms difference is under 0.001% of E2E. protocol.json:308 says the E2E
+      "includes linear algebra". That holds only through this substitution (finding F09).
+  - id: C04-factor-base-construction
+    beat: B5.4
+    command_or_reading: "record cold_phase_ms.factor_base / timing_ms.base_load (~311 ms, base_source retained_header); bl-arm README.md:532; size-sweep README.md:48-50, candidate_K600.json factor_base.recipe"
+    result: fail
+    note: >
+      The K600 base (99,600 points) is loaded from base_n83_K600.jsonl. Its construction is charged to neither arm.
+      AGENTS.md:494 puts T_factor_base inside T_cold, and AGENTS.md:507 says a missing phase makes the total unknown,
+      not zero. B's own README flags the same exclusion ("The IC budget leaves out base construction. That favours
+      the IC", bl-arm README.md:532). The stacked README and the new baseline row do not. The omission is common to
+      both arms, so it cannot flip R. R > 1 holds for any common cost X ≥ 0, and R falls with X: 3.231 at X = 1 s,
+      3.163 at 10 s, 2.848 at 60 s. The recipe (scan x from 1, lift, cofactor projection, keep the first 600
+      signed-Frobenius orbits) suggests well under a few seconds. That is a reader estimate, not a measurement.
+  - id: C05-amortization
+    beat: B5.4
+    command_or_reading: "protocol.json:308-310; README.md:139-148"
+    result: pass
+    note: "One target (k = 1). The whole rank stage and the setup are charged to that target. Cold E2E, cold without rank, setup and online are reported separately (README.md:223-231). No amortization is used."
+  - id: C06-comparator-is-current-baseline
+    beat: B5.2
+    command_or_reading: "protocol.json:122 (current_baseline), :61-69 (kP); BASELINES.md:111, 117-119; state-fold README.md:207-211; scripts/rank.py"
+    result: pass
+    note: >
+      The comparator is pP's setup and online plus B's rank stage. That is the only n=83 pipeline whose E2E could be
+      put together from promoted parts, and it is stronger than the previous baseline row (B). kP does B's exact
+      rank-stage work. Its mean attempt probes (2,480,244.6) equal those of state-fold's kB (2,480,245;
+      state-fold README.md:207-208). Its rank stage in this run's rT770 steps (2.747e9) is within 5% of B's
+      (520,825 ms / 180.82 ns = 2.880e9), so the baseline was not weakened. pT (two-level table) and the fold were
+      promoted on other parents. Building the comparator from the best already-promoted cold-without-rank would
+      lower R to at least 3.157, a ceiling of 2.6% inflation. The rank-stage port to lift + Feistel was first
+      measured as a secondary in #933 (S 13.906). It was never promoted, so B's rank stage is the right frozen rank
+      stage.
+  - id: C07-same-points-host-unit
+    beat: B5.2
+    command_or_reading: "runs.jsonl commands; runner_start.json (execution_cpu 0, host runnervm8k3b6); allocation.json; rT record worker_count"
+    result: pass
+    note: >
+      All arms ran in one runner and one allocation (AMD EPYC 9V74, 4 vCPU, Azure VM), pinned to CPU 0. They used
+      one producer binary (sha 79c7bcd1...) with env flags and the same producer clock. They ran on the same 20
+      points, shuffled within each C segment. IC is single-threaded (KIC_RANK_THREADS=1, KIC_TARGET_THREADS=1;
+      arm.py:129). rT770 runs worker_count 1 with 64 lanes on the same points. Every scalar was replayed as
+      [d]G = Q (verify_receipt.py:125-126).
+  - id: C08-rank-block-position-and-drift
+    beat: B5.2/B6-adjacent
+    command_or_reading: "python3 -B scripts/rank.py (ns/probe per process, first vs second half; serial order within K blocks)"
+    result: pass
+    note: >
+      The seeded shuffle put kP last in both rank blocks (serials 43 and 120), so the 91%-of-cost component is not
+      alternated. The data show no position or drift effect. kP ns/probe is 587.2 / 584.9 (K1 halves) and
+      582.6 / 583.0 (K2 halves). kS is 255.7 at block position 4 and 255.9 at position 1. kSaa is 256.0 and 255.7.
+  - id: C09-op-count-decomposition
+    beat: B5.3/B5.5
+    command_or_reading: "scripts/rederive.py: rank_probes_total, rank_root_calls_total, rank_stage time per arm"
+    result: pass
+    note: >
+      Rank-stage probes and root calls are both 1.4773x fewer for kS. Both are deterministic given the rank seed,
+      and the per-attempt means match #933's run exactly. Time per probe is 2.2837x lower (584.5 vs 255.9 ns). So
+      about 1.48x of the rank-stage 3.37x is host-independent work (Feistel order) and about 2.28x is per-operation
+      speed: the lift_scan canonicalizer, the prefetch pipeline and the table layout. That part is measured only in
+      wall time on this host. Index build: stored states 29.88M -> 14.94M (2.0x) against 2.02x in time. Online
+      probes cP/cS = 1.000133. On every emitted counter the candidate is ≤ the baseline.
+  - id: C10-section-5a-band
+    beat: B5.3
+    command_or_reading: "inventory of emitted counters in the decoded records (IC: probes, root_calls, rank_attempts, rank_probes_total, stored_states, relation_checks; rT: group_additions, canonicalizations, partition_hashes, table_inserts, table_queries, scalar_multiplications, walk_steps)"
+    result: not_covered
+    note: >
+      The study, README and baseline row report no 0 / 0.1 / 1 GAE band. In the declared unit (wall ms on one host,
+      converted to rT770 steps) every native operation is priced at its measured cost, so the band collapses to that
+      point. In operation units it cannot be computed from the artifacts: the IC arms emit no group_additions,
+      scalar_multiplications, canonicalizations (full vs lift), fold mate-rebuild rotations or index-build inserts.
+      rT emits a full inventory. IC vs IC: the candidate is lower on every emitted counter (C09), so on those
+      counters the order holds at every weight. The fold's unemitted rotations are bounded by wall time to about 6%
+      of the kS rank stage (kSmF vs kS ns/probe 241.1 vs 255.8). IC vs rho: almost all of the IC's work is native
+      operations (about 2e9 probes and 1e9 root calls per rank stage). At w = 0 the IC is nearly free; at w = 1 it is
+      about 300x rho's roughly 9.5M group additions. The order flips inside the band, so in operation units it is
+      "unresolved" under section 5a. The 94.4 gap holds only as a wall-time, single-host figure (finding F06).
+  - id: C11-matched-rho-gap
+    beat: B5.2
+    command_or_reading: "result.json e2e_cold_gap_cS_over_rT, online_gap_cS_over_rT, S_rho_*; baselines.json:185-198; BASELINES.md:55; README.md:256-273, 296-298"
+    result: pass
+    note: >
+      The same 20 points and the same runner were used, and rho cold = rho setup + online (verify_receipt.py:99). The
+      gaps are 94.4168 [73.5188, 125.2922] E2E cold and 0.1391 [0.0773, 0.2368] online. They match between
+      result.json, baselines.json:185-198 and BASELINES.md:55. Each is labelled as distance remaining, not a gate
+      (README.md:269-270). No prose claims or implies beating rho: "The gap to the tuned rho is still about 94x"
+      (README.md:298).
+  - id: C12-BL-where-setup-excluded
+    beat: B5.2
+    command_or_reading: "success criterion (crypto AGENTS.md:56-60; cryptanalysis AGENTS.md:33-38); README.md:269-273; baselines.json:198"
+    result: fail
+    note: >
+      The online gap leaves setup out, so the rule requires a gap to precomputation rho (Bernstein–Lange). None was
+      measured on the stack. baselines.json:198 and BASELINES.md:55 say so. The README never mentions BL. It
+      reports "tuned rho / cS 7.1879", meaning the IC is 7x faster online than non-precomputation rho, with no note
+      that B's measured BL online gap was 235 [61, 645] the other way (baselines.json B row) (finding F07).
+  - id: C13-wall-time-vs-operations-scope
+    beat: B5.5
+    command_or_reading: "README.md:8-19, 206-219; crypto AGENTS.md:560-594, 683-695; cryptanalysis AGENTS.md:512-515, 644-660"
+    result: fail
+    note: >
+      The headline 3.2391 is a wall-time ratio from one run on one Azure-hosted EPYC 9V74. cryptanalysis's Tier 1
+      rules allow that as an instance-scoped measurement. crypto §2/§6 make operation counts the metric and wall time
+      a practicality note. The README headline says neither "wall time" nor "one host". It does not give the
+      host-independent operation ratio (rank stage 1.477x), though per-attempt probes appear in the secondaries
+      table at README.md:231. The improvement itself survives in operations. The magnitude does not transfer
+      without the measured per-operation speed (finding F04).
+  - id: C14-cpu-only-label
+    beat: B5.7
+    command_or_reading: "grep for gpu/CPU-only in README.md, allocation.json, runner_start.json; cryptanalysis AGENTS.md:626-629"
+    result: fail
+    note: "The receipts hold no gpu block, and neither the README nor the baseline row says CPU-only. The isolation and resource envelope match on both arms (one pinned CPU, single-threaded, no memory events), so that part passes."
+  - id: C15-tier1-rule
+    beat: B5.5
+    command_or_reading: "cryptanalysis AGENTS.md:644-660; result.json primary ci95; schedule order"
+    result: pass
+    note: >
+      The 95% CI lower bound is 2.98 > 1. The provider, instance, tier, ratio, interval and limits are named in
+      README.md:8-19, 282-298. Cold arms alternate within segments, but rank arms ran in only two blocks with kP
+      last both times (C08 found no effect). The bootstrap resamples points (paired) and attempts within each
+      process (unpaired). It does not resample processes. The pairing range of 3.168-3.311 makes that immaterial.
+  - id: C16-independent-replay
+    beat: B5.5/B5.6
+    command_or_reading: "README.md:197-198 (verify_receipt re-run byte-identical); cryptanalysis AGENTS.md:658-660"
+    result: not_covered
+    note: >
+      The receipt was re-analysed, not replayed. No second run or second host class exists. The README never says
+      "speedup" or "beats", and the success criterion does not require a replay for an "improvement". So the
+      wording stays inside its tier, but the claim is single-run and single-host.
+  - id: C17-baseline-row-S
+    beat: B5.2/B5.6
+    command_or_reading: "recompute S from result.json means: s_ic_cold, setup-only S, precompute S; compare semantics with the B row (baselines.json:399)"
+    result: fail
+    note: >
+      s_ic_cold 9.6805 and s_ic_online 0.013137 recompute exactly. s_ic_setup is 0.8856, but that is S of cold
+      without the rank stage (setup + online). Setup alone is 0.8725. In B's row (baselines.json:399) s_ic_setup is
+      32.848, which is P_IC: rank stage plus setup. The same field therefore changes meaning between consecutive
+      ratchet rows, and read row to row it shows a spurious 37x "setup" drop. The B-consistent value for the stack
+      would be 9.667 (finding F02).
+  - id: C18-ratchet-delta
+    beat: B5.2
+    command_or_reading: "BASELINES.md:134; baselines.json:437; result.json e2e_cold_gap_cP_over_rT, online_gap_cP_over_rT"
+    result: fail
+    note: >
+      The history records "360 -> 94.4" (cold) and "1.01 -> 0.139" (online), taken from different runs and hosts:
+      the rT step was 180.8 vs 316.66 ns, rho cold S 0.0914 vs 0.1025, and B's gap used the median rho setup. The
+      paired within-run delta in this run is 305.8 [237.5, 403.8] -> 94.4 (3.24x, not 3.82x) cold, and
+      0.133 -> 0.139 online. This step made online slower. The JSON entry discloses the cross-run mixing, and
+      BASELINES.md:134 does so only for the cold column (finding F08).
+  - id: C19-machinery
+    beat: B5.6
+    command_or_reading: "search crypto and cryptanalysis for a claims/*.json or ecbench record citing run 38862448935"
+    result: not_covered
+    note: "No claims/*.json, ecbench bound/frontier/claim record or progress_fidelity record cites this run. ecbench claim check would fail closed for lack of an independent receipt from a different host class."
+  - id: C20-proves-too-much
+    beat: B9
+    command_or_reading: "apply the same composite E2E accounting to pairs where the conclusion is known false (A/A kSaa+cSaa vs kS+cS; stack minus slots); apply operation-unit pricing at w=0 to IC vs rho"
+    result: pass
+    note: >
+      The composite rank + cold accounting creates no gain where none exists: the A/A gives 0.9996 and stack minus
+      slots gives 1.023, not separated. It matches the true single-process E2E (3.2397 vs 3.2391). The
+      operation-unit w = 0 pricing does prove too much: it would make the IC beat rho, which is false in wall time.
+      That confirms the section 5a band cannot rank IC against rho here (C10).
+  - id: C21-blind-plausibility
+    beat: B9
+    command_or_reading: "compose parent promoted factors (lift 1.515, Feistel probe 1.477, prefetch 1.400, compact 1.058, fold rank overhead ~1/1.06; setup 1.9) onto kP's measured phases"
+    result: pass
+    note: >
+      This is a plausibility check only. Local factors never multiply into a claim. Composing the parent factors
+      predicts rank stage 3.1x and R ≈ 3.0. The frozen power prior predicted 3.20 (protocol.json:269). The measured
+      3.24 lies within about 7%. The per-probe 2.28x is about 8% above the composed 2.12x.
+  - id: C22-attribution
+    beat: B5.1
+    command_or_reading: "scripts/rederive.py counterfactuals: only-rank-changed vs only-cold-without-rank-changed"
+    result: pass
+    note: >
+      Holding cold at cP and changing only the rank stage gives R = 2.992. Changing only cold-without-rank gives
+      1.026. On a log scale about 93% of the gain comes from porting lift_scan, Feistel and the prefetch/compact loop
+      into the rank stage. About 2% comes from the fold and slots, which are not separated end to end
+      (README.md:241-246). README.md:291-295 says the gain is combined. The title and row name credit the stack
+      (finding F11).
+
+findings:
+  - id: F01
+    beat: B5.4
+    severity: minor
+    what: >
+      Factor-base construction is charged to neither arm: the K600 base is loaded from file, and base_load of about
+      311 ms is parsing only. The README and the new baseline row call the result end-to-end and every-phase without
+      saying so. B's own README disclosed it. The omission is common to both arms, so R > 1 cannot change. R and the
+      cold S are, strictly, an upper bound and a lower bound on the every-phase figures. The recipe suggests the
+      unmeasured cost is small.
+    evidence:
+      - "experiments/koblitz-n83-stacked-20261016/run_github_38862448935/panel/runs/00011.stdout.txt (cold_phase_ms.factor_base 309.5; base_source retained_header)"
+      - "cryptanalysis AGENTS.md:494, 507"
+      - "experiments/koblitz-n83-bl-arm-20261014/README.md:532"
+      - "experiments/n83-compact-orbit-size-sweep-20261012/README.md:48-50; candidate_K600.json factor_base.recipe"
+      - "experiments/koblitz-n83-stacked-20261016/README.md:15-16; docs/ic/BASELINES.md:55; docs/ic/baselines.json:9 (conventions.cold lists 'factor base')"
+    fix: "Time the K600 base construction once, cold, on the same runner class (a few seconds), and add it to both arms. Or label E2E and S as 'excluding factor-base construction (common to both arms)' in the README, the row and the conventions."
+  - id: F02
+    beat: B5.2
+    severity: major
+    what: >
+      In the replaced n=83 baseline row, s_ic_setup = 0.8856 is actually S of cold without the rank stage (setup +
+      online). Setup alone is 0.8725. In B's superseded row the same field held 32.848, which was rank stage plus
+      setup. Read row to row, the ratchet's machine-readable field shows a 37x "setup" drop caused purely by the
+      relabelling of what the field counts.
+    evidence:
+      - "docs/ic/baselines.json:187 (stack s_ic_setup 0.8856) vs :399 (B s_ic_setup 32.848 with P_IC = rank 520,825 + setup 29,022 ms)"
+      - "run_github_38862448935/panel/result.json S_cold_without_rank.cS = 0.88559; mean_setup_ms.cS = 25,575.2 (setup S = 0.87245)"
+    fix: "Use one definition across rows. Either set s_ic_setup for the stack to 9.667 (rank stage + setup, as for B), or rename it s_ic_cold_without_rank (0.8856) and add s_ic_precompute to both rows. Re-render Figure 1 if it reads the field."
+  - id: F03
+    beat: B5.2
+    severity: minor
+    what: "The n=83 'Notes on the rows' still describe B's superseded row: 180.8 ns step, P_IC 520,825 + 29,022 ms, BL matched by construction, 'If PR #918 changes, this row changes with it'. The row they annotate is now the stack, with a 316.66 ns step and no BL."
+    evidence: ["docs/ic/BASELINES.md:86-93", "docs/ic/BASELINES.md:55"]
+    fix: "Rewrite the n=83 note for the stack: S unit 316.66 ns rT770 step on runnervm8k3b6, composite E2E definition, LA by load and verify, base construction excluded, BL not measured. Move B's note to Other verified records."
+  - id: F04
+    beat: B5.5
+    severity: minor
+    what: >
+      The headline is a single-host wall-time ratio, and the README does not label it so in the status line. About
+      2.28x of the 3.37x rank-stage gain is per-operation speed (canonicalizer, prefetch, table layout). That part is
+      host-specific and memory-system-specific. The host-independent operation ratio is 1.477x (probes and root
+      calls). It is deterministic and replicates exactly against #933's run.
+    evidence:
+      - "README.md:8-19, 212"
+      - "scripts/rederive.py output (rederive.out): probes 1.4773, ns/probe 584.5 vs 255.9"
+      - "crypto AGENTS.md:560-594 (S = total operations / sqrt(n)), 693-695 (wall clock is not the headline)"
+      - "cryptanalysis AGENTS.md:512-515"
+    fix: "Label 3.2391 as 'Tier 1 wall time, one GitHub runner (EPYC 9V74), CPU-only'. Co-report the rank-stage operation ratio (1.477x probes and root calls) and the index stored-state ratio (2.0x) next to it."
+  - id: F05
+    beat: B5.7
+    severity: minor
+    what: "The receipts have no gpu block, and nothing is labelled CPU-only."
+    evidence: ["cryptanalysis AGENTS.md:626-629", "run_github_38862448935/allocation.json", "run_github_38862448935/panel/runner_start.json"]
+    fix: "Add 'CPU-only (no GPU device)' to the README status, the row's evidence_tier, and a gpu block with empty devices to the receipt template."
+  - id: F06
+    beat: B5.3
+    severity: minor
+    what: >
+      The section 5a band is not reported for the cross-method IC-vs-rho gap, and it cannot be computed from the
+      artifacts. The IC arms emit probes and root calls but no group additions, scalar multiplications,
+      canonicalizations, fold rotations or index inserts. rT emits a full inventory. In operation units the IC-vs-rho
+      order flips inside the band, so it is unresolved. The 94.4 holds only as a wall-time calibration point on this
+      host.
+    evidence: ["crypto AGENTS.md:649-681", "panel/runs/00010.stdout.txt (rT charges_setup_and_solve)", "panel/runs/00043.stdout.txt (IC summary counters)"]
+    fix: "State in the row that the gap is wall time on one host and that the section 5a band is unresolved in operation units. Add group_additions, scalar_multiplications, canonicalizations and fold rotation counters to the IC producer's summary."
+  - id: F07
+    beat: B5.2
+    severity: minor
+    what: "The online gap, which leaves setup out, is given only against non-precomputation rho (IC 7.19x faster). The README never mentions BL. B's measured BL online gap was 235 [61, 645] in the IC-slower direction."
+    evidence: ["README.md:269-273", "docs/ic/baselines.json:198 and B row gap_bernstein_lange", "crypto AGENTS.md:56-60"]
+    fix: "Add a BL caveat to the README secondaries: BL not re-measured on the stack, B's measured value cited. Re-run the BL arm on the stack, as the row's next_improvement already says."
+  - id: F08
+    beat: B5.2
+    severity: minor
+    what: "The ratchet history records cross-run deltas (cold 360 -> 94.4; online 1.01 -> 0.139). The paired within-run delta is cold 305.8 -> 94.4 (3.24x) and online 0.133 -> 0.139, so this step made online 4.6% slower. The online column carries no cross-run caveat in BASELINES.md."
+    evidence: ["docs/ic/BASELINES.md:134", "docs/ic/baselines.json:437", "result.json e2e_cold_gap_cP_over_rT 305.82 [237.50, 403.78]; online_gap_cP_over_rT 0.1330"]
+    fix: "Record the paired delta as the step's delta, and keep B's cross-run figures as context only."
+  - id: F09
+    beat: B5.4
+    severity: minor
+    what: "protocol.json:308 says E2E includes linear algebra. rank_stage_ms excludes LA (protocol.json:254), and the cold arms charge the load and verification of the cached table (89.6 ms) instead. The figures are equal within about 1 ms, so the impact is negligible, but the wording is a substitution."
+    evidence: ["protocol.json:254, 308", "panel/runs/00043.stdout.txt timing_ms.linear_algebra 90.59", "panel/runs/00004.stdout.txt factor_log_table.relation_la_or_load_and_verify_ms 89.69"]
+    fix: "Say 'LA represented by cached-table load and verification (89.6 ms; measured LA 90.6 ms)'. The frozen protocol is not rewritten. A README note is enough."
+  - id: F10
+    beat: B5.2
+    severity: minor
+    what: "README.md:35-37 says none of the prior steps measured an end-to-end cold S. #933 did, as a secondary: kB+cB 30.855, kN+cF 13.906 with the lift + Feistel rank stage. 'First measured end-to-end cold S after B' is true only of baseline rows."
+    evidence: ["README.md:35-37, 43-44, 296-297", "experiments/koblitz-n83-state-fold-20261015/README.md:209-211", "docs/ic/baselines.json:425 (S_cold_with_rank)"]
+    fix: "Say 'first promoted (primary) n=83 end-to-end cold S after B; #933 measured one as a secondary'."
+  - id: F11
+    beat: B5.1
+    severity: minor
+    what: "Attribution. About 93% (log scale) of R comes from porting the already-promoted online changes into the rank stage: R = 2.99 if only the rank stage changes, 1.026 if only cold-without-rank changes. The fold and slots are not separated end to end. The title and row name lead with the stack components."
+    evidence: ["README.md:2, 241-246, 291-295", "scripts/rederive.py counterfactuals"]
+    fix: "Headline the rank-stage port (lift_scan + Feistel + prefetch/compact loop on the rank stage), and present fold and slots as contributing to setup and RSS, not separated end to end."
+  - id: F12
+    beat: B5.2
+    severity: minor
+    what: "The A/A row reads 'pass (inside [0.97, 1.03])' next to an E2E interval of [0.934, 1.070]. The frozen rule is on the point estimate (protocol.json:118), so the pass is correct. The interval shows the E2E design resolves about ±7%. The planted control covers only the fold's setup work, about 2% of the gain. No positive control covers the rank stage, which is 91% of the cost."
+    evidence: ["README.md:213-215", "protocol.json:117-120", "result.json aa_e2e_cS_over_cSaa"]
+    fix: "Write 'point estimate inside [0.97, 1.03]'. A future protocol should add a rank-stage planted control, for example a known extra probe count per attempt, discarded."
+  - id: F13
+    beat: B5.2
+    severity: minor
+    what: "The comparator is pP + B's rank stage rather than the best already-promoted cold-without-rank (fold, pT). This inflates R by at most 2.6% (R ≥ 3.157). The rank arm kP ran last in both rank blocks. No drift or position effect was found (C08). The cited protocol commit 24abca74 (baselines.json:179) is a branch commit that is not reachable from main's squash merge in this shallow clone. Provenance belongs to B7."
+    evidence: ["protocol.json:122", "scripts/rank.py output", "docs/ic/baselines.json:179", "git cat-file -t 24abca74 -> not a valid object"]
+    fix: "No change to the verdict. Note the bound in the README. Have B7 confirm that 24abca74 exists on the remote branch and predates 06:40:47Z."
+
+suggested_verdicts:
+  - claim: "End-to-end cold R = E2E(kP,cP)/E2E(kS,cS) = 3.2391 [2.9809, 3.5240]; frozen decision 'improvement' of the stack over pP"
+    verdict: upheld_scoped
+    scoped_to: >
+      Tier 1, one run, one GitHub runner (AMD EPYC 9V74, one pinned CPU, CPU-only), wall time. E2E as frozen: rank
+      stage + setup + cached-table load and verification standing in for LA + one-target online. Factor-base
+      construction is excluded from both arms, so 3.24 is an upper bound on the every-phase ratio, while R > 1 holds
+      for any common omitted cost. Comparator: pP with B's rank stage. About 93% of the log gain is the rank-stage
+      port. The host-independent part is 1.48x fewer rank-stage probes and root calls. Not independently replayed.
+    reason: >
+      Re-derived from the raw records (3.2391; single-process 3.2397; pairing range 3.17-3.31). No phase moved, the
+      comparator was not weakened, and the controls and gates pass. The one failed beat touching this claim (C04,
+      factor-base construction) is common-mode and is written into scoped_to. If the session applies "nothing
+      failed" mechanically, use overclaimed with the same scoped_to.
+  - claim: "Class of the change: engineering improvement (not relabelling or accounting)"
+    verdict: upheld
+    reason: "The phase-by-phase diff (C01) shows the total fell, nothing moved out of a timed interval, the algorithm changed (rank-stage canonicalizer, scan order, probe loop, folded index), and every relation, scalar and factor log is verified identical or equal to B's."
+  - claim: "Comparator pP (with B's rank stage) is the current n=83 baseline pipeline, on the same points, host and unit"
+    verdict: upheld_scoped
+    scoped_to: "A faithful reproduction of B's rank-stage work (identical per-attempt probes to #933's kB; within 5% of B's rank stage in rT770 steps), at most 2.6% weaker than a comparator built from the best already-promoted parts."
+    reason: "C06, C07 and C08 pass. The small comparator-choice inflation is bounded and disclosed here."
+  - claim: "Replaced n=83 baseline row (BASELINES.md:55; baselines.json:170-205): end-to-end cold S 9.68 (rT770 steps, 316.66 ns), first measured end-to-end cold S after B"
+    verdict: overclaimed
+    scoped_to: >
+      s_ic_cold 9.6805 and s_ic_online 0.013137 are correct as wall-time S in this run's rT770 steps on one host,
+      with factor-base construction excluded (a lower bound). s_ic_setup must be 0.8725 (setup) or be renamed (it is
+      cold without rank, 0.8856). Under B's definition the stack's value is 9.667. It is the first baseline row,
+      not the first measurement, of an n=83 E2E cold S after B, since #933 measured 13.906 as a secondary. The
+      online S is not the best verified online producer, because this step made online 4.6% slower than pP.
+    reason: "C17 fails: s_ic_setup changes semantics between consecutive ratchet rows (major F02). C04, F03 (stale n=83 notes) and F10 also apply."
+  - claim: "Ratchet history delta B -> stack: cold gap 360 -> 94.4, online gap 1.01 -> 0.139"
+    verdict: overclaimed
+    scoped_to: "Paired within-run delta: cold gap 305.8 [237.5, 403.8] -> 94.4 [73.5, 125.3] (3.24x); online gap 0.133 -> 0.139 (online regression in this step). 360 and 1.01 come from B's run on another host and step time."
+    reason: "C18. The cross-run cold figure overstates the step's closure (3.82x vs 3.24x), and the online column credits this step with earlier steps' gains while it made online slower."
+  - claim: "Gap to tuned rho rT770: end-to-end cold 94.4 [73.5, 125.3], online 0.139 [0.077, 0.237], reported as distance remaining"
+    verdict: upheld_scoped
+    scoped_to: "Wall-time gap on one host, same 20 points, single-threaded rT770 vs single-threaded IC. In operation units the section 5a band is not computable and would be unresolved. The online figure leaves setup out, so precomputation rho (BL) is the applicable comparator, and BL was not measured on the stack."
+    reason: "C11 passes, with numbers consistent across result.json, baselines.json and BASELINES.md and no beat-rho wording. C10 is not_covered and C12 fails, both written into scoped_to."
+
+cheapest_falsification:
+  control: >
+    Do a truncated cross-host replay of rank block K1. On a different host class (an Intel GitHub runner or a
+    Runpod CPU pod), run the frozen binary for kP and kS in the order kS, kP, kP, kS, with rank seed 101 and the
+    protocol's KIC_RANK_* flags, stopping after the first 100 attempts. Run in the same job one timed cold
+    construction of the K600 base.
+  what_it_tests: >
+    (a) Work identity. Every per-attempt probe count must equal the archived rank_attempt_probes for K1 exactly,
+    since they are deterministic in the seed. (b) Host transfer of the per-probe ratio q. Here q = 2.28. The rank
+    ratio is about 1.477·q and R ≈ (rank_kP + cold_cP)/(rank_kP/(1.477·q) + cold_cS). (c) The missing
+    base-construction phase X.
+  break_condition: "Magnitude breaks if q falls well below 2.28 on the second host. R < 2 needs q ≲ 1.3. The improvement itself breaks only if q < 0.68 or the probe counts differ from the archive. A large X shrinks R toward 1 but cannot flip it."
+  approximate_cost: "4 processes x (setup 25-50 s + 100 attempts x 0.43-1.45 s) + base construction ≈ 8-10 minutes of one CPU"
+
+next_concrete_action: >
+  Ask the Coordinator to dispatch the truncated cross-host K1 replay plus the base-construction timing described in
+  cheapest_falsification. Separately, file a ledger correction for baselines.json s_ic_setup (F02) and the n=83
+  notes (F03). No frozen record is to be rewritten; the corrections are new text in the ledger files.

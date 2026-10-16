@@ -530,17 +530,22 @@ def scan_language(name: str, repo: Path, scope: list[str]) -> tuple[list[dict], 
 TEX_DROP = re.compile(r"\\(?:cite\w*|ref|eqref|cref|Cref|label|url|href|includegraphics|input|include|"
                       r"usepackage|documentclass|bibliography\w*|setlength|vspace|hspace|resizebox)"
                       r"(?:\[[^\]]*\])?\{[^}]*\}")
-TEX_NUMBER = re.compile(r"(?<![\w.\\])(\d{1,3}(?:(?:\{,\}|\\,|,)\d{3})+(?:\.\d+)?|\d+\.\d+|\d{4,})"
+# A comma joins thousands groups only when the run does not continue a list:
+# `{19,37,79,109}` is four numbers, not 79109; plain numbers may follow a comma.
+TEX_NUMBER = re.compile(r"(?:(?<![\w.,\\])(\d{1,3}(?:(?:\{,\}|\\,|,)\d{3})+(?![\d,])(?:\.\d+)?)"
+                        r"|(?<![\w.\\])(\d+\.\d+|\d{3,}))"
                         r"(?!\s*(?:pt|cm|mm|em|ex|in|bp)\b|\s*\\(?:textwidth|linewidth|columnwidth))")
 
 
 def tex_numbers(src: str) -> list[tuple[str, int]]:
     out = []
     for k, line in enumerate(src.splitlines(), 1):
+        if re.search(r"\\begin\{thebibliography\}|\\bibliography\{|\\printbibliography", line):
+            break  # volumes, pages and years of references are not results
         line = re.sub(r"(?<!\\)%.*$", "", line)
         line = TEX_DROP.sub(" ", line)
         for m in TEX_NUMBER.finditer(line):
-            raw = m.group(1)
+            raw = m.group(1) or m.group(2)
             plain = re.sub(r"\{,\}|\\,|,", "", raw)
             if re.fullmatch(r"(19|20)\d\d", plain):
                 continue
@@ -555,9 +560,11 @@ PATH_REF = re.compile(r"(?:(?P<repo>crypto-autoresearcher|cryptanalysis|crypto):
                       r"(?P<path>(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]*)")
 
 
-def cited_paths(text: str, home: str, repos: dict[str, Path]) -> set[tuple[str, str]]:
-    """(repo, path) pairs a paper names that exist on disk. Bare top-level
-    directories are dropped: citing `research/` is not citing an artifact."""
+def cited_paths(text: str, home: str, repos: dict[str, Path], base: str = "") -> set[tuple[str, str]]:
+    """(repo, path) pairs a paper names that exist on disk, read as
+    repository-relative or relative to the paper directory `base`. Bare
+    top-level directories are dropped: citing `research/` is not citing an
+    artifact."""
     text = re.sub(r"\\(?:allowbreak|slash|-)|\{\}", "", text.replace("\\_", "_"))
     out = set()
     for m in PATH_REF.finditer(text):
@@ -566,10 +573,18 @@ def cited_paths(text: str, home: str, repos: dict[str, Path]) -> set[tuple[str, 
         if path.count("/") < 1 and "." not in path.rsplit("/", 1)[-1]:
             continue
         names = [m.group("repo")] if m.group("repo") else [home, *[n for n in repos if n != home]]
-        for n in names:
-            if n in repos and path and (repos[n] / path).exists():
-                out.add((n, path))
-                break
+        forms = [path]
+        if base and not m.group("repo"):
+            local = os.path.normpath(os.path.join(base, path))
+            if not local.startswith(".."):
+                forms.insert(0, local)
+        stripped = re.sub(r"^(?:\.\./)+", "", path)
+        if stripped != path:
+            forms.append(stripped)
+        hit = next(((n, f) for f in forms for n in names
+                    if n in repos and f and f != "." and (repos[n] / f).exists()), None)
+        if hit:
+            out.add(hit)
     return out
 
 
@@ -651,7 +666,7 @@ def trace_numbers(name: str, repo: Path, repos: dict[str, Path], scope: list[str
         cited: set[tuple[str, str]] = set()
         for rel in tracked(repo, [f"{paper}/*.tex", f"{paper}/*.md", f"{paper}/*.bib"]):
             src = read_text(repo / rel) or ""
-            cited |= cited_paths(src, name, repos)
+            cited |= cited_paths(src, name, repos, base=str(Path(rel).parent))
             if rel.endswith(".tex"):
                 for value, ln in tex_numbers(src):
                     numbers.setdefault(value, []).append((rel, ln))
@@ -724,11 +739,17 @@ CHECKERS: list[dict[str, Any]] = [
     {"id": "ecbench-challenges", "repo": "crypto", "beat": "B5", "tier": "deep", "needs": [ECBENCH],
      "argv": ["bash", "-c", f"for f in docs/bounds/challenges/*.json; do {ECBENCH} challenge check --file \"$f\" "
               "|| exit 1; done"], "enable": "cargo build --release --bin ecbench"},
+    # Every committed ecbench session, not only the globs crypto's CI audits:
+    # integrity checks apply to interrupted sessions too (--allow-interrupted,
+    # as CI does); sessions outside CI's globs are listed so the gap is seen.
     {"id": "ecbench-sessions-integrity", "repo": "crypto", "beat": "B7", "tier": "deep", "timeout": 3600,
      "needs": [ECBENCH], "enable": "cargo build --release --bin ecbench",
-     "argv": ["bash", "-c", "rc=0; for d in $(git ls-files '*/session.json' | xargs -r -n1 dirname); do "
-              f"{ECBENCH} verify --dir \"$d\" --replay 0 --exit-code --out {{scratch}}/v.json >/dev/null 2>&1 "
-              "|| { echo \"FAIL $d\"; rc=1; }; done; exit $rc"]},
+     "argv": ["bash", "-c", "rc=0; n=0; for f in $(git grep -l -E '\"schema\": ?\"ecbench.session/v1\"' -- "
+              "'*/session.json'); do d=$(dirname \"$f\"); n=$((n+1)); "
+              "case \"$d/\" in research/ecbench_*/sessions/*/|research/ghs_curve_comparison_20261009/sessions/*/|"
+              "research/notes/ecc2k130/*_compact_orbit_ic_20261003/sessions/*/) ;; *) echo \"OUTSIDE-CI-GLOBS $d\";; esac; "
+              f"{ECBENCH} verify --dir \"$d\" --replay 0 --allow-interrupted --exit-code --out {{scratch}}/v.json "
+              ">/dev/null 2>&1 || { echo \"FAIL $d\"; rc=1; }; done; echo \"$n sessions\"; exit $rc"]},
     {"id": "zk-stark-tests", "repo": "crypto", "beat": "B2", "tier": "deep", "timeout": 3600,
      "needs_bin": ["cargo"], "argv": ["cargo", "test", "--release", "--lib", "zk::stark"]},
     {"id": "fb-archive", "repo": "cryptanalysis", "beat": "B7", "tier": "quick",
@@ -764,6 +785,8 @@ def run_checker(spec: dict[str, Any], repo: Path | None, deep: bool, scratch: Pa
                 "seconds": round(time.monotonic() - start, 1)}
     tail = (proc.stdout + ("\n" + proc.stderr if proc.stderr.strip() else "")).strip()[-4000:]
     status, note = ("pass" if proc.returncode == 0 else "fail"), ""
+    if status == "fail" and git(repo, "config", "--bool", "core.sparseCheckout").stdout.strip() == "true":
+        note = "sparse checkout: a missing file can fail this checker; confirm on a full checkout"
     if "parse" in spec and proc.returncode == 0:
         status, note = spec["parse"](proc)
     if status == "fail" and spec.get("advisory"):
@@ -889,6 +912,9 @@ def sweep(args: argparse.Namespace) -> int:
     kept, dropped = cap(rows)
     record = {
         "schema": SCHEMA, "case": out.name, "target": args.target, "scopes": scopes,
+        "instrument": {"path": "tools/sheriff.py",
+                       "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                       "repo_head": before[HOME]["head"] if HOME in before else None},
         "started_at": started.isoformat(), "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "deep": args.deep, "repos": before, "canary": canary_result, "checks": checks,
         "summary": summaries, "counts": tally(rows), "findings": kept, "leads_dropped_over_cap": dropped,
@@ -1038,9 +1064,11 @@ CANARY_FILES = {
                           "on a \\includegraphics[width=0.75\\textwidth]{fig1.pdf} figure.\n"
                           "Data: \\texttt{artifact/results\\_all.json}.\n"),
     "papers/q/main.tex": "A ratio of 4.567, with no data cited.\n",
+    "papers/r/main.tex": ("Primes $\\{19,37,79,109\\}$ and a ratio of 3.217 from \\texttt{../../elsewhere/other.json}.\n"
+                          "\\begin{thebibliography}{9}\\bibitem{x} J. Doe, vol. 4321, 2001.\\end{thebibliography}\n"),
     "papers/p/fig.txt": "",
     "artifact/results_all.json": '{"targets": 12345}\n',
-    "elsewhere/other.json": '{"ratio": 3.217}\n',
+    "elsewhere/other.json": '{"ratio": 3.217, "primes": [19, 37, 79, 109]}\n',
     ".github/workflows/lean.yml": "jobs: {build: {steps: [{run: cd lean/Clean && lake build}]}}\n",
 }
 CANARY_EXPECT = {
@@ -1061,7 +1089,8 @@ CANARY_FORBID = {
     ("lean.no_axiom_audit", "lean/Clean", None), ("lean.no_ci", "lean/Clean", None),
     ("zk.discarded_value", "src/zk/good.rs", None), ("zk.no_negative_test", "src/zk/good.rs", None),
     ("zk.dev_mode_receipt", "runs/r2/receipt.json", None), ("zk.proof_language", "README.md", 2),
-    ("paper.no_cited_artifacts", "papers/p", None),
+    ("paper.no_cited_artifacts", "papers/p", None), ("paper.no_cited_artifacts", "papers/r", None),
+    ("paper.untraced_number", "papers/r/main.tex", None),
 }
 CANARY_UNTRACED = {"3.217"}
 CANARY_TRACED = {"12345"}
@@ -1092,7 +1121,8 @@ def canary() -> dict[str, Any]:
     for value in CANARY_TRACED & untraced:
         fps.append(("paper.untraced_number", value, None))
     numbers = {v for v, _ in tex_numbers(CANARY_FILES["papers/p/main.tex"])}
-    for bogus in ("2024", "9.876", "0.75"):
+    numbers |= {v for v, _ in tex_numbers(CANARY_FILES["papers/r/main.tex"])}
+    for bogus in ("2024", "9.876", "0.75", "79109", "4321"):
         if bogus in numbers:
             fps.append(("paper.number_extracted", bogus, None))
     return {"passed": not missed and not fps, "caught": [list(x) for x in caught],

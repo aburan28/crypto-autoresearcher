@@ -509,6 +509,9 @@ The sweep is a lead generator and a floor, not the audit. Its known limits:
   quoting a paper's claim is not making it.
 - **Checkers:** each inherits its own limits. For example `validate_ledger` is
   relative to a baseline of legacy errors.
+- **Sparse checkouts:** a checker that reads a file left out of a sparse
+  checkout fails for that reason alone, so the sweep annotates such a failure.
+  Confirm it on a full checkout before reporting it.
 
 The canary (`tools/sheriff.py canary`) is the sweep's positive control. It
 plants each defect class above in a scratch repository, with look-alikes that

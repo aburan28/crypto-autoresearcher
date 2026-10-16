@@ -43,7 +43,7 @@ def test_canary_fails_when_comments_are_not_stripped(monkeypatch):
 
 
 def test_canary_fails_when_tracing_counts_uncited_files(monkeypatch):
-    monkeypatch.setattr(sh, "cited_paths", lambda text, home, repos: {(home, ".")})
+    monkeypatch.setattr(sh, "cited_paths", lambda text, home, repos, base="": {(home, ".")})
     result = sh.canary()
     assert not result["passed"]
 
@@ -85,6 +85,22 @@ def test_tex_numbers_skip_years_comments_and_dimensions():
            "\\includegraphics[width=0.75\\textwidth]{f.pdf} \\cite{ref1234} 0.5 12.5pt 0.0058\n")
     values = [v for v, _ in sh.tex_numbers(src)]
     assert values == ["3.217", "12345", "1234567", "0.0058"]
+
+
+def test_tex_numbers_split_lists_and_stop_at_the_bibliography():
+    src = ("primes $\\{19,37,79,109\\}$, 621 primes, 1{,}234 and 5,678 rows\n"
+           "\\begin{thebibliography}{9}\n\\bibitem{a} vol. 4321\n")
+    values = [v for v, _ in sh.tex_numbers(src)]
+    assert values == ["109", "621", "1234", "5678"]
+
+
+def test_cited_paths_resolve_relative_to_the_paper(tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data/x.json").write_text("{}")
+    (tmp_path / "papers/p").mkdir(parents=True)
+    got = sh.cited_paths("see ../../data/x.json and data/x.json and research/", "r", {"r": tmp_path},
+                         base="papers/p")
+    assert got == {("r", "data/x.json")}
 
 
 def test_tracing_accepts_rounding_and_truncation_only():
