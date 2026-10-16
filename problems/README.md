@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Historical selection rule for skipped NIST prime-field seeds](nist-seed-selection-rule-unexplained.md) | open | Explaining why eleven qualifying candidates in recovered timestamp streams were omitted | Provenanced original code/logs and exact replay, or a predeclared predictive reconstruction with independent historical validation |
 | [Prescribed execution is not enforced through the proof chain](execution-proof-chain-not-enforced.md) | open | Cryptographic execution integrity from frozen protocol through raw results, evidence and Cairn settlement/audit | Real proofs for the walk/count pilots, independent audits in both Cairn implementations, all promotion bindings, adversarial controls and a scoped cost report |
 | [Experiments reported ready are refused by the supervisor's archive-coverage check](ready-plans-lack-supervisor-archive-coverage.md) | open | 17 of 18 `ready` experiments; the run selector's ranking | Selector applies `authorize()`'s coverage rule; Coordinator supersedes the 17 queues |
 | [Prime-field arity-3 relation-yield panel](prime-field-arity3-relation-oracle.md) | investigating | EXP-ECTD-0cf008: 3 validated arms, 13 infrastructure failures, 4 unlaunched transport arms; 17-arm recovery draft and runtime lock published but unapproved | Restore verified Coordinator backend, approve exact handoff, then complete independent replay, report, and review |
