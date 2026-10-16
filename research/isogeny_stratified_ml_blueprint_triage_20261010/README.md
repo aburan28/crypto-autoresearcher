@@ -424,7 +424,9 @@ the cost difference between two curves in the same class and level stratum):
   real isogeny edges than without them (complete classes 0.076 against 0.043
   bits; retrain-2 binary 2-sum yield 1.55 against 0.70), and both are worse
   than tabular trees. On the retrain-3 binary subsample it diverged (MAE 191
-  and 58 bits on 2-sum yield), an optimisation failure, not a measurement.
+  and 58 bits on 2-sum yield): its predictions on held-out classes ran far
+  outside the target range, so these are not measurements; the network now
+  clips standardised inputs and predictions (from retrain 4 on).
 
 This sharpens the verdict rather than changing it: the information H1 asks
 about exists on prime-field rho, and it is two to four orders of magnitude
