@@ -1,0 +1,99 @@
+# =============================================================================
+# TASK-20261016-38eb4c -- GPU end-to-end timing of the GF(2) rank-profile
+# solver (Macaulay / W_D), CPU path vs GPU column pass, on one rented GPU.
+# WRITTEN, NOT DISPATCHED. Blocked on GPU access: a session with
+# RUNPOD_API_KEY set as an environment secret (never pasted into chat).
+#
+# Engineering benchmark, not a scientific trial: it times an existing solver
+# path and checks records are identical. It tests no hypothesis and changes
+# no research status. Filed at the user's request (2026-10-16) so the
+# measurement is run once GPUs are available.
+# =============================================================================
+handoff:
+  id: TASK-20261016-38eb4c
+  from: coordinator
+  to: executor
+  kind: engineering_benchmark
+  objective: >-
+    Run the frozen GPU benchmark for the GF(2) rank-profile solver once and
+    collect its outputs: python3 tools/gf2_runpod.py run --ref main --reps 3.
+    The driver starts one RunPod pod (default NVIDIA GeForce RTX 4090, SECURE
+    cloud, >= 8 vCPU), which sparse-clones the ref, installs numpy, cupy-cuda12x
+    and pytest, runs the GPU tests (pytest -k "gpu or cupy") and
+    tools/gf2_bench_gpu.py, and serves log.txt, pytest.txt and result.json; the
+    driver polls, prints them and terminates the pod in a finally block. Save
+    the three files and the driver's stdout under the artifact path. Report
+    the measured times and speedups as observations; interpret nothing.
+  uncertainty_reduced: >-
+    Whether the GPU column pass (src/crypto_autoresearcher/gf2/gpu/rankpass.py,
+    merged in PR #1981) reaches a 2x end-to-end speedup over the CPU path on
+    the declared workloads, and whether its records equal the CPU records on a
+    real device. It has been verified only on the CPU through numpy; it has
+    never been timed on a GPU.
+  inputs:
+    - tools/gf2_runpod.py
+    - tools/gf2_pod_bench.sh
+    - tools/gf2_bench_gpu.py
+    - src/crypto_autoresearcher/gf2/gpu/rankpass.py
+    - src/crypto_autoresearcher/gf2/rankprofile.py
+    - tests/test_gf2_rankprofile.py
+  workloads:
+    note: >-
+      Fixed by tools/gf2_bench_gpu.py WORKLOADS: random quadratic systems,
+      neq = nv - 1, seed 0; each run end to end with gpu=False and gpu=True,
+      alternating, reps times; the tool stops if a record differs.
+    cells: [M_5 nv=24, M_6 nv=20, M_5 nv=26, W_5 nv=20, W_5 nv=22]
+  baseline_context: >-
+    CPU-only state at filing: batch runs 1.42x (RC-1 replay, 26.2 s to about
+    18.5 s, process pool, PR #1981); large single solves about 1.0x. These are
+    context for the reader, not a target this task asserts.
+  constraints:
+    - RUNPOD_API_KEY must come from the session environment (an environment secret). Never paste, echo, log or commit it; a key seen in chat is revoked, not used.
+    - One driver invocation; --reps 3. Do not change workloads, tolerances or code to make the numbers look better.
+    - The pod must be terminated. If the driver exits abnormally, confirm with gf2_runpod.py status --pod-id <id> --terminate.
+    - A pod that never starts, a timeout or a CUDA/CuPy install failure is failed_infrastructure, not a negative result.
+    - If pytest reports a GPU test failure or the tool reports a record mismatch, stop and report it; do not time further.
+    - Amazon Bedrock is prohibited.
+    - Do not change H/EXP/IDEA/goal status fields; observations only.
+  deliverables:
+    - coordination/tasks/TASK-20261016-38eb4c/result.json
+    - coordination/tasks/TASK-20261016-38eb4c/pytest.txt
+    - coordination/tasks/TASK-20261016-38eb4c/log.txt
+    - coordination/tasks/TASK-20261016-38eb4c/driver-stdout.txt
+    - coordination/tasks/TASK-20261016-38eb4c/summary.yaml (commit sha run, gpu name, pod id, per-workload best CPU s, best GPU s, speedup_best, records_equal, pod terminated true/false, termination_reason)
+  artifact_paths:
+    - coordination/tasks/TASK-20261016-38eb4c/
+  write_scope:
+    - coordination/tasks/TASK-20261016-38eb4c/
+  inference:
+    policy: executor-mechanical
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 5400
+    memory_gb: 2
+    maximum_runs: 1
+  dispatch_preconditions:
+    - RUNPOD_API_KEY is present in the session environment (test with [ -n "$RUNPOD_API_KEY" ], never print it).
+    - api.runpod.io, the pod proxy (*.proxy.runpod.net) and raw.githubusercontent.com are reachable from the session.
+    - The ref passed to --ref contains the three tools and src/crypto_autoresearcher/gf2/gpu/rankpass.py.
+  completion_gate:
+    - result.json present with one row per declared workload, or a recorded infrastructure stop
+    - pytest.txt present and the GPU tests passed (none skipped for lack of a device)
+    - records_equal true for every timed workload
+    - summary.yaml records pod terminated true
+    - no credential in any committed file
+  return_format: >-
+    summary.yaml under the write scope; the commit sha of the run records; the
+    per-workload speedup table as reported by the tool. No ledger status edits.
+  review_plan: null
+  review_plan_note: >-
+    An engineering timing opens no review round. If the result is later used
+    to support a claim, that claim goes through review-evidence.
+  state: written_not_dispatched
+  blocked_on: GPU access (a session with RUNPOD_API_KEY as an environment secret)
+  created_at: '2026-10-16'
+  recorded_under: null
+  recorded_under_note: Filed at the user's direct request in this session; no Coordinator decision record.
