@@ -27,3 +27,9 @@ def test_ascent_control_prices_glv_on_the_crater():
 def test_a_minus_3_curve_has_no_cheaper_neighbour():
     r = IG.screen(_row("mnt/mnt5/1"), **KW)
     assert r["glv_on_E"]["ok"] and r["candidates_cheaper_class"] == 0 and r["combined"] is None
+
+
+@pytest.mark.parametrize("order,expected", [((7, 5), 29), ((7, 5, 5), 29), ((11, 5), 32), ((11, 3, 7), 32), ((), 0)])
+def test_input_format_cost_matches_validator_derivation(order, expected):
+    # TASK-20261016-35d324, joint A4: +29 for [7,5] and [7,5,5], +47 vs +32 (cheaper) for [11,5] and [11,3,7]
+    assert IG.input_format_cost(order, [5])["M_eq"] == expected

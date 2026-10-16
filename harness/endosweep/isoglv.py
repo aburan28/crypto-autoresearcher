@@ -12,7 +12,16 @@ Per curve, three arms in one cost model (curvesweep's, M_eq = M + S):
 * ``glv_on_E``      -- ``curvesweep.sweep_curve`` on E, re-run here;
 * ``model_change``  -- the best neighbour model, no GLV (``isomodel``);
 * ``combined``      -- ``sweep_curve`` on the neighbour, plus the conversion
-  (forward chain, dual chain, scalar adjustment) for the one-shot column.
+  (forward chain, dual chain, scalar adjustment) and the input-format term
+  for the one-shot column.
+
+The input-format term (CORR-20261016-ac9fc8): ``sweep_curve`` prices the
+chain's first step with an affine input, but in the route the GLV receives
+the forward map's Jacobian image.  The cheaper of two evaluations is charged:
+(a) the chain on the Jacobian input (its first step at the Jacobian rate), or
+(b) the chain on E's affine P, then one more forward pass on that Jacobian
+image -- valid because the edge is horizontal (the chain builds on both ends),
+so the isogeny commutes with the CM action.
 
 Candidates for ``combined`` are the neighbours within ``--ells``/``--depth``
 whose short-Weierstrass class is cheaper than E's, tried in order of increasing
@@ -66,6 +75,19 @@ def _glv(T: Target, D: int, build_limit: int, build_seconds: float) -> dict:
     return out
 
 
+def input_format_cost(order, path) -> dict:
+    """M_eq the GLV's chain endomorphism costs beyond its affine-input price when its input is Jacobian."""
+    order, path = list(order or []), list(path or [])
+    if not order:                                        # a unit endomorphism: no first-step shortcut
+        return {"M_eq": 0, "route": "unit"}
+    first = order[0]
+    jac = sum(CW.step_ops(first, IM.VARIANT, False)) - sum(CW.step_ops(first, IM.VARIANT, True))
+    via_e = sum(sum(CW.step_ops(ell, IM.VARIANT, False)) for ell in path) + sum(IM.CS.tail_ops(IM.VARIANT))
+    if jac <= via_e:
+        return {"M_eq": jac, "route": "chain on the Jacobian input", "alternative_M_eq": via_e}
+    return {"M_eq": via_e, "route": "chain on E's affine P, then one more forward pass", "alternative_M_eq": jac}
+
+
 def screen(row: dict, *, ells: list[int], depth: int, max_nodes: int, disc_bound: int,
            build_limit: int, build_seconds: float, max_candidates: int, verify_scalars: int, seed: int) -> dict:
     t0 = time.time()
@@ -101,6 +123,7 @@ def screen(row: dict, *, ells: list[int], depth: int, max_nodes: int, disc_bound
                "arithmetic": note, "conversion_M_eq": round(conv, 1), "glv": g}
         attempts.append(att)
         if g.get("ok"):
+            att["input_format"] = input_format_cost(g.get("best_order"), att["path"])
             model = IM.Model("weierstrass", CW.arithmetic(p, nd.a), note)
             att["route_verification"] = IM.verify_route(E, trace, n, h, nd, model, verify_scalars, seed)
             combined = att
@@ -112,13 +135,15 @@ def screen(row: dict, *, ells: list[int], depth: int, max_nodes: int, disc_bound
         gn = combined["glv"]["glv_M_eq"]
         out["combined_vs_glv_on_E"] = {
             "persistent_gain": round(1 - gn / ge["glv_M_eq"], 5),
-            "oneshot_gain": round(1 - (gn + combined["conversion_M_eq"]) / ge["glv_M_eq"], 5)}
+            "oneshot_gain": round(1 - (gn + combined["conversion_M_eq"] + combined["input_format"]["M_eq"])
+                                  / ge["glv_M_eq"], 5)}
     if combined:
         gn = combined["glv"]["glv_M_eq"]
         base = row["baseline"]["M_eq"]
         out["combined_vs_E_model_baseline"] = {
             "persistent_gain": round(1 - gn / base, 5),
-            "oneshot_gain": round(1 - (gn + combined["conversion_M_eq"]) / base, 5)}
+            "oneshot_gain": round(1 - (gn + combined["conversion_M_eq"] + combined["input_format"]["M_eq"])
+                                  / base, 5)}
     if ge.get("ok") and row.get("best"):
         mc = row["best"]
         out["model_change_vs_glv_on_E"] = {
