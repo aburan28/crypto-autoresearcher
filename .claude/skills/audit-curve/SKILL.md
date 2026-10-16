@@ -11,6 +11,11 @@ change research state, or replace the public `run` entry point. If the audit
 requires launching an existing scientific experiment, route that launch
 through `/run` and consume its archived result separately.
 
+For a supplied isogeny, closed path, or representation-changing map, also
+follow `.claude/skills/transfer/SKILL.md`. Use
+`docs/endomorphism-rules.md` for the additional closed-loop and GLV
+certificate; neither document changes this skill's verdict vocabulary.
+
 The default threat model is classical ECDLP on an explicitly identified
 elliptic-curve subgroup. Do not reuse that conclusion for an isogeny-based
 protocol such as CSIDH or SQIsign; state and audit that protocol's security
@@ -61,17 +66,42 @@ point count is `INDETERMINATE`, never a passing check.
 4. Compute `t = q + 1 - N`, the Frobenius polynomial
    `X^2 - tX + q`, `Delta_pi = t^2 - 4q`, ordinary or supersingular status,
    and the rational group invariant factors.
+
+For an ordinary curve, factor
+`Delta_pi = f_pi^2 D_K` with `D_K` fundamental and retain the
+factorization, primality, and fundamental-discriminant certificates. Record
+
+`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`,
+
+so `f_E | f_pi`, the representative order has discriminant
+`D_E = f_E^2 D_K`, and
+`g_(pi,E) = [End(E):Z[pi]] = f_pi/f_E`. Determine `f_E` from an
+endomorphism-ring basis or an independently checkable equivalent certificate;
+never copy `f_pi` into `f_E`. If that certificate is absent, report `f_E`,
+`D_E`, and `g_(pi,E)` as `INDETERMINATE`. Retain the complete known
+factorizations and every local valuation of `f_pi` and `f_E`.
+
 5. For odd `q`, compute the quadratic-twist order `q + 1 + t`, its known
    factorization, subgroup sizes, and invariant factors. Treat other twists
    separately at exceptional `j`-invariants.
-6. After splitting composite `r` for Pohlig--Hellman, compute
+6. For any claimed extension-torsion signal, compute `t_0 = 2`, `t_1 = t`,
+   and `t_m = t t_(m-1) - q t_(m-2)`, hence
+   `N_m = #E(F_(q^m)) = q^m + 1 - t_m`, through a stated bounded `m`.
+   A prime `ell | N_m` certifies a point of order `ell`; it does not prove
+   that all of `E[ell]` is rational. For `ell != char(F_q)`, full rational
+   `ell`-torsion requires `Frob_q^m` to act as the identity on `E[ell]`;
+   a repeated characteristic-polynomial root modulo `ell` is insufficient.
+   Treat characteristic-`ell` torsion separately and identify the original
+   order-`r` subgroup under the field embedding instead of replacing it with
+   newly visible torsion.
+7. After splitting composite `r` for Pohlig--Hellman, compute
    `k_ell = ord_ell(q)` for every attack-relevant prime factor `ell | r` with
    `gcd(q, ell) = 1`, using an exact minimality certificate. Reporting only
    that `ell | q^k - 1` proves an upper bound, not the embedding degree. If
    `ell | q`, mark pairing transfer `NOT_APPLICABLE` for that factor and test
    the characteristic-specific attacks separately; never write `ord_r(q)`
    blindly for a composite subgroup.
-7. When adversarial inputs, post-validation faults, or a raw scalar-
+8. When adversarial inputs, post-validation faults, or a raw scalar-
    multiplication API are in scope, audit the formulas actually reached.
    Record which curve coefficients the decoder, addition, doubling, ladder,
    and output path consume. Enumerate the **formula-compatible companion
@@ -100,6 +130,18 @@ low-embedding-degree, and twist-factor findings. Preserve expected and actual
 outputs. A failed or skipped material control makes dependent checks
 `INDETERMINATE`.
 
+Make the canonical launcher fail closed independently of the arithmetic
+assertions.  It must catch unexpected interpreter/runtime exceptions, reject
+direct execution of an unguarded implementation body, require a completion sentinel
+written only after the final certificate gate, and return nonzero if
+the sentinel is absent.  Bound every randomized or enumerative search and
+record its cap, tries, timeout, and memory envelope.  Before retaining a
+positive receipt, inject an unexpected exception and an early-return/missing-
+sentinel control; both must exit nonzero without a success marker.  Pin the
+launcher, implementation, included dependencies, raw receipt, and software
+version by digest.  A clean transcript from a fail-open launcher is historical
+evidence only, not a fail-closed replay.
+
 For already-certified prime-field ordinary inputs,
 `tools/isogeny_class_screen.py` may provide an advisory secondary structural
 screen. It does not validate the primality of `p` or a custom total order `N`;
@@ -122,6 +164,8 @@ are equal. Consequently these checks are class-wide for a fixed `r`:
 - quadratic-twist order in odd characteristic;
 - the rational endomorphism algebra, though not necessarily the integral
   endomorphism ring.
+- the CM field, fundamental discriminant `D_K`, and Frobenius-order
+  conductor `f_pi`;
 
 For composite `r`, the divisibility `r | N` and numerical cofactor `N/r` are
 invariant, but existence of a cyclic point of exact order `r` can vary with
@@ -137,6 +181,77 @@ and formula behavior, descent-friendly representation, and explicit path
 cost. A small coefficient, special model, short isogeny, small discriminant,
 or unusual `j`-invariant is only a lead until tied to an attack.
 
+The conductor `f_E` of the actual endomorphism ring is
+representative-dependent. For a separable `ell`-isogeny with
+`ell != char(F_q)`, classify the edge from certified endpoint valuations:
+
+- horizontal: `v_ell(f_E') = v_ell(f_E)`;
+- ascending: `v_ell(f_E') = v_ell(f_E) - 1`;
+- descending: `v_ell(f_E') = v_ell(f_E) + 1`.
+
+The total `ell`-volcano depth is `v_ell(f_pi)`, while the source level is
+`v_ell(f_E)`. A modular-polynomial root count, graph distance, or square
+factor of `Delta_pi` is diagnostic evidence, not an endpoint
+endomorphism-ring certificate. If `f_pi = 1`, then `f_E = 1` throughout the
+class and no separable conductor-changing edge exists.
+
+Characteristic-power Frobenius requires a separate record. In particular,
+Koblitz `tau` has degree two and is inseparable; record its explicit map,
+order relation, subgroup eigenvalue, action order, and evaluation cost, but
+do not label it a horizontal degree-two volcano edge.
+
+For a direct `ell`-torsion construction over `F_(q^k)`, distinguish three
+quantities: the relative q-Frobenius x-orbit `k`, the ambient absolute field
+degree `m*k` when `q=p^m`, and the exact minimal absolute x-orbit of the
+specific kernel line.  The first two do not prove the third.  To claim an
+exact degree `n`, retain closure under `Frob_p^n` and inequality under
+`Frob_p^(n/s)` for every distinct prime `s | n`, together with irreducible
+field moduli, element encoding, and a concrete witness binding.  State whether
+the certificate covers one point, every nonzero multiple on a prime-order
+line, or only an abstract CM-module representative.  None of these degrees is
+a construction runtime or an ECDLP-bit estimate.
+
+For a Koblitz prime-order subgroup, certify `tau(G) = [lambda]G`,
+`lambda^2 - mu lambda + 2 = 0 (mod r)`, and the exact order of `lambda`.
+When it is `m`, the signed action has `2m` elements and the random-map model
+predicts `sqrt(pi r/(4m))` transitions. State the comparison explicitly:
+this is `sqrt(m)` (`0.5 log2(m)` bits) beyond the same curve's negation-only
+rho, and `sqrt(2m)` only beyond unquotiented rho. Treat this as a structural
+model until the complete walk cost is measured.
+
+For an empirical Koblitz calibration, pair arms on the identical curve,
+prime-subgroup generator, planted target, and algorithm seed. Make collision
+walk work the primary model-facing counter; report target-dependent setup,
+walk starts, cycle handling, collision recovery, and verification separately.
+Always publish `log2(r)` and the cofactor beside `m`: field degree is not a
+sample-size or security-size surrogate, and small prime subgroups can show
+large finite-state effects even when `m` is larger. Distinguish the incremental
+signed-`tau` saving beyond negation from the extra half-bit obtained only when
+the baseline is unquotiented rho. A ratio of counts that omit different
+canonicalisation work is not a lower or upper bound on the fully priced cost
+ratio. Retain local trail-cap restarts as cycle diagnostics; only an exhausted,
+timed-out, or non-verified overall solve invalidates that paired observation.
+
+Use the source's signed-`tau` arm as the incumbent in a vertical-isogeny
+comparison. A negation-only endpoint must have fully charged transition cost
+below `1/sqrt(m)` of the source signed-`tau` cost merely to offset the lost
+orbit quotient, before setup and transfer. If a degree-`d` map `phi` with
+`gcd(d,r)=1` is explicit, also test the transported subgroup action
+`[d^(-1) mod r] o phi o tau o dual(phi)`. Verify its action and order on the
+target subgroup and charge both maps, the scalar multiplication,
+canonicalization, exceptional inputs, and conversions. Do not call it a
+degree-preserving conjugate or an ambient-curve automorphism: when its
+constituent maps are defined it is a global morphism, while the certified
+automorphism claim concerns only the selected subgroup.
+
+Always include a one-time transfer control before a per-step transported
+action. For an ECDLP supplied on the endpoint, map the generator and target
+through the dual once, solve on the Koblitz representative with native `tau`,
+and recover and verify on the endpoint. A transported action paid inside every
+walk step must beat that complete path as well as negation-only rho. A DLP
+already supplied on the Koblitz source stays there unless an endpoint has a
+separately demonstrated cheaper complete attack.
+
 ## 3. Verify every claimed isogeny transfer
 
 For each path from source `E` to candidate `E'`, retain the ordered endpoint
@@ -148,6 +263,11 @@ and independent checks such as the dual composition. Measure separately:
 - mapping the input points;
 - destination attack work;
 - reusable offline work versus per-instance online work.
+- the certified `f_E` and order discriminant at every endpoint;
+- each edge's separability and horizontal, ascending, descending, or
+  unresolved direction;
+- the conductor-changing degree obligation independently of horizontal
+  navigation.
 
 For a target subgroup of order `r`, `gcd(deg(phi), r) = 1` is a sufficient
 condition that `phi` is injective on the subgroup. Otherwise compute the
@@ -155,6 +275,15 @@ order of `phi(P)` explicitly. An abstract existence theorem or matching point
 count is not an operational transfer attack. If the path is supplied as
 private advice, `SOURCE_TRANSFER_WEAK` applies only to the advice holder; do
 not assign zero discovery cost to a public attacker.
+
+For endpoints with certified conductors `f_1` and `f_2`, record
+
+`N_vertical = lcm(f_1, f_2) / gcd(f_1, f_2)
+            = product_ell ell^abs(v_ell(f_1)-v_ell(f_2))`
+
+as the necessary conductor-changing degree factor. It is not the total path
+degree, a construction algorithm, or a runtime estimate; horizontal
+navigation and map construction remain separately charged.
 
 ## 4. Build one attack ledger
 
@@ -188,6 +317,16 @@ Report `log2(C*)` only after the sum is formed. Include memory, data, success
 probability, timeouts, preprocessing amortization, and uncertainty. A curve is
 weak only relative to the frozen threshold and threat model.
 
+Do not convert `f_pi`, `f_E`, `g_(pi,E)`, their largest prime factors, or a
+volcano depth directly into ECDLP bits. A conductor-related advantage enters
+the ledger only through either:
+
+- an explicit endomorphism with certified degree, formula, subgroup
+  eigenvalue, usable action order and orbit structure, evaluation and
+  canonicalization cost; or
+- an explicit transfer path whose discovery, construction, evaluation,
+  destination attack, recovery, and verification costs are all charged.
+
 ## 5. Treat statistics as coverage evidence
 
 A single verified representative, usable path, and below-threshold attack
@@ -203,6 +342,40 @@ Correct degree bias and autocorrelation with a justified mixing or
 finite-population argument; an effective sample size is a diagnostic, not a
 mixing proof. Confirm adaptive discoveries on fresh samples and account for
 multiple testing.
+
+For randomized contrasts intended to isolate conductor or volcano-level
+association, use one common native action in every level-effect arm. Before
+observing outcomes, freeze the endpoint-selection rule, estimand, counter and
+calibration rule, cluster unit, multiplicity family, stopping rule, and a
+disjoint A/A or negative-control release gate. State whether the estimand is
+only the finite selected set or a modeled population of representatives.
+Conjugate models and multiple children of one parent are not independent
+clusters merely because they have distinct equations. Common random numbers
+can reduce variance, but they do not make differently calibrated estimators
+exactly paired; use the covariance and cluster structure that the actual
+estimator induces. In a separate attack-ledger lane, benchmark each level's
+best certified usable native action. Do not promote a common-action level
+contrast into a weak-representative or security conclusion that ignores a
+level-specific GLV, GLS, Frobenius, or other usable action.
+
+For a 2-by-2 conductor lattice, report the two conditional edges for each
+factor, any half-coded main associations, the interaction `I`, and the
+ordinary difference-in-differences `2I` without conflating them. None is a
+causal conductor effect unless the sampling and intervention design identify
+that effect. Keep fixed-selected-set descriptions separate from modeled-
+population intervals and from any end-to-end attack measurement.
+
+A failed or non-estimable preregistered A/A or negative-control gate makes
+only its dependent empirical lane `INDETERMINATE`. Preserve the run, raw
+records, failures, and descriptive summaries, but withhold nonzero, null,
+equivalence, practical-significance, conductor-effect, and weakness labels.
+Distinguish a detected control bias from insufficient precision: crossing a
+gate boundary does not by itself identify which occurred. Independently
+certified attacks remain separately assessable. Do not widen the margin,
+backfill endpoints, conditionally extend the sample, or rerun until the gate
+passes after seeing outcomes. A newly frozen independent replication may
+release only its own inference; it cannot retroactively validate the failed
+run.
 
 For i.i.d. Bernoulli samples from one fixed law and a predeclared fixed
 weakness predicate, report a predeclared exact binomial interval. In that

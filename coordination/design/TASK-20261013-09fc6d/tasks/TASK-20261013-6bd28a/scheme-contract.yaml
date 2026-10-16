@@ -1,0 +1,181 @@
+format: scheme-construction-contract/v1
+task_id: TASK-20261013-6bd28a
+title: Simultaneous full-module conjugation
+primitive: pke
+author: idea-generator-module
+parent_record_ids: [TASK-20261013-6bd28a, GOAL-SSI-2fa82a, RQ-SSI-1946c9]
+security_parameter: lambda; proposed parameter family only; no concrete values selected
+inference:
+  policy: research-deep
+  requested_resolved_model: anthropic:claude-sonnet-5-5
+  requested_reasoning_effort: high
+  requested_model_verified: false
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  serving_backend: native
+  fallback_used: true
+  model_verified: false
+  degraded_requirements: []
+  provenance: Parent native dispatch; serving capacities not probed
+domains:
+  public_parameters: p>3 prime; odd prime ell!=p with ell|(p+1); mu>=1; cap K>=1; field F_(p^2) in fixed polynomial basis; H:{0,1}*->{0,1}^mu
+  public_key: (pp,E,P,Q,U,V); E/F_(p^2) supersingular with #E(F_(p^2))=(p+1)^2; ordered ell-torsion basis P,Q; U,V in M2(F_ell); rank(I,U,V,UV)=4
+  secret_key: (pk,W); W four evaluable endomorphism descriptors forming a saturated Z-basis of geometric End(E)
+  message: '{0,1}^mu'
+  ciphertext: (X,Y,v); X,Y in M2(F_ell); v in {0,1}^mu
+  signature: inapplicable; PKE
+  key_space: inapplicable; no KEM key output
+  encoding_and_equality: Canonical fixed-width residues, row-major matrices, full affine points with infinity tag; fixed version tags; length-prefixed pp; unused message padding bits zero; no alternate encodings; byte equality
+security_claims:
+  - name: IND-CPA
+    status: refuted_scoped
+    adversary: QPT includes classical polynomial computation
+    oracle_model: QROM
+    oracle_query_access: Classical KeyGen/challenge; H unitary quantum queries allowed; no decryption oracle
+    game_definition: Condition on accepted KeyGen; A selects distinct equal-length m0,m1; b uniform; c=Enc(pk,m_b); A outputs b-prime
+    advantage_convention: abs(Pr[b-prime=b]-1/2)
+    query_bounds: {q_H: at least one classical H query suffices for scoped derivation, q_D: 0}
+    result: Public Gaussian elimination recovers N(S); selected-message recovery is exact; advantage 1/2 conditional on accepted honest keys
+    theorem_artifact: candidate.md
+    review_artifact: none
+  - name: IND-CCA2
+    status: refuted_scoped
+    adversary: QPT
+    oracle_model: QROM
+    game_definition: Same challenge; classical Dec queries before/after; exact challenge bytes alone excluded
+    oracle_access_and_challenge_exclusions: No superposition Dec interface; exact byte exclusion; all other well-formed queries permitted
+    result: Passive public recovery already suffices; no active-security claim
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: ERGen_D is a named missing implementation. Mathematical law D selects E uniformly among nonsingular short-Weierstrass models over F_(p^2) with #E=(p+1)^2; W(E) is the shortest then lexicographically first valid complete evaluable basis under a fixed prefix-free descriptor language. This defines a law, not an efficient sampler or a standard average-case hardness assertion.
+    real_key_distribution: ERGen_D, then exact uniform ordered ell-torsion basis, then independent uniform coefficient vectors u,v in F_ell^4, accepted on rank(I,U,V,UV)=4 within K attempts
+    adversary_input_and_auxiliary_data: Bare EndRing challenge (p,E); public pp and independently sampled torsion basis are permitted auxiliary data only if publicly samplable; no W, path, ideal, orientation or hidden label supplied
+    solution_representation_and_success_predicate: Four polynomial-size descriptors evaluating actual End(E) maps on extension-field points; Z-rank four; product closure; integral saturation/maximality and equality to End(E); degree, source, target and extension-evaluation costs certified
+    setup_trust_and_erasure: No trusted third party specified; recipient generates W. Any setup trapdoor or connecting path must be declared and its residual role audited; none assumed available
+    secret_representation_and_conversion_costs: Abstract quaternion order, OneEnd, connecting isogeny, Hom module and finite matrices are not complete evaluable W; conversions remain open and charged
+    assumptions: [GAP-MOD-ERGEN, GAP-MOD-INTEGRAL-SEPARATOR]
+    remaining_gap: Exact efficient ERGen_D with polynomial descriptor bounds, accepted-key mass and tails; no source equivalence transferred to this law
+    next_action: Supply sampler and independent complete-basis certificate matching D and auxiliary data
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: Setup
+        inputs: 1^lambda and proposed pp family
+        outputs: pp or bottom
+        randomness: none
+        validation: p and ell primes; p>3; ell odd; ell|(p+1); mu,K positive; fixed field and encoding
+        failure_behavior: Any failure returns bottom; no parameter search performed
+      - name: KeyGen
+        inputs: pp; rho=(rho_ER,rho_B,rho_1,...,rho_K)
+        outputs: (pk,sk) or bottom
+        pseudocode: Call missing ERGen_D for (E,W). Obtain uniform ordered basis P,Q of E[ell]. Evaluate each W_i at P,Q and enumerate ell^2 linear combinations per image to find its matrix M_i. For j=1..K sample u,v uniformly in F_ell^4; U=sum u_i M_i,V=sum v_i M_i. Accept first rank(I,U,V,UV)=4 and return pk with sk=(pk,W); else bottom.
+        validation: ERGen complete-basis validity is a missing certificate; verify field, curve, order/independence and rank predicates; do not treat W declaration as certification
+        failure_behavior: ERGen failure, invalid W or basis returns bottom; no unbounded retry; K failed pairs return bottom
+        time: T_ER+T_basis+8 evaluations+at most 8 ell^2 point combinations+K constant-size matrix rank computations; sampler/certification times unknown
+        memory: M_ER+B_W+point-evaluation workspace+O(log p+log ell); streaming enumeration permitted
+      - name: Enc
+        inputs: valid pk; m in {0,1}^mu; random r
+        outputs: c or bottom
+        randomness: S uniform GL2(F_ell), obtained by uniform matrices rejected on determinant zero; r is the resulting exact finite matrix coin
+        pseudocode: X=S U S^-1; Y=S V S^-1; v=m XOR H(EncodeContext(pk,X,Y,N(S))); output canonical (X,Y,v)
+        validation: Canonical pk; curve/basis scope; rank(I,U,V,UV)=4; exact message length
+        failure_behavior: Invalid input bottom; matrix sampling is expected terminating with explicit tail below
+        time: Public-key validation+constant matrix arithmetic+one H call+serialization; no hidden action evaluation
+        memory: O(log p+log ell+mu)
+      - name: Dec
+        inputs: sk=(pk,W); c
+        outputs: m or bottom
+        randomness: none
+        pseudocode: Parse c; solve eight homogeneous equations X T=T U,Y T=T V in four variables. Reject unless kernel dimension one with invertible nonzero generator T. Normalize N(T) by its first nonzero row-major entry; return v XOR H(EncodeContext(pk,X,Y,N(T))).
+        validation: Canonical bytes and exact lengths; matrix residues in range; invertibility and kernel dimension; invalid inputs bottom
+        failure_behavior: Deterministic rejection; W is unused by this finite decoder
+        time: Constant-size Gaussian elimination+one H call+O(ciphertext length) parsing
+        memory: O(log ell+mu+pk length)
+    preprocessing_and_retry_costs: GL2 acceptance g=(1-1/ell)(1-1/ell^2); expected draws 1/g; tail after t draws (1-g)^t. Key pair success theta_E is unknown; conditional failure (1-theta_E)^K if independent draws. Keygen failure cannot be called negligible without a bound.
+    complexity_guarantee: Finite decoder and sender matrix work polynomial in log ell and mu; ERGen and torsion sampler/certification remain unknown. ell^2 enumeration not polynomial in log ell if ell grows exponentially.
+    unavailable_subroutines: [ERGen_D, efficient complete-basis certification, exact public torsion-basis sampler with cost/tail certificate, secret integral ModuleLift]
+    remaining_gap: First unavailable operation ERGen_D; intended integral recovery interface also absent
+    next_action: Resolve missing exact sampler before implementation; public-inversion defect requires a changed relation, separately authorized
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: For every accepted valid key, every m in {0,1}^mu and every S in GL2(F_ell), Dec(sk,Enc(pk,m;S))=m
+    probability_space: Conditional accepted keys under stated law; exact uniform GL2 coins; same fixed H in both algorithms
+    valid_key_and_message_scope: Rank(I,U,V,UV)=4; full canonical parsing; all selected mu-bit messages
+    per_key_or_average_guarantee: Per accepted key; no unconditional KeyGen termination/success guarantee
+    failure_probability_bound: Conditional zero; unconditional key failure unknown
+    actual_message_or_key_recovery: X T=T U,Y T=T V has solution space F_ell*S; N(T)=N(S); XOR recovers selected m, not an orbit
+    exceptional_inputs: [invalid curve/basis, invalid rank, noncanonical ciphertext, kernel dimension other than one, singular generator]
+    theorem_artifact: candidate.md
+    review_artifact: none
+    remaining_gap: Independent review; no claim that intended integral ModuleLift exists
+    next_action: Review algebra and parser against exact conditional statement
+  O4:
+    name: functionality_mechanism
+    status: contradicted
+    public_operation: Simultaneous conjugation of generating full-module pair
+    private_operation: Intended ModuleLift(W,U,V,X,Y) would return canonical projective conjugator and an integral lift; not supplied
+    agreement_or_message_binding_lemma: Finite normalized conjugator is unique, but publicly recoverable
+    extra_recipient_secrets: None specified beyond W; unpublished lift advice forbidden
+    recipient_lift:
+      applicability: proposed but unavailable
+      interface: ModuleLift(W,P,Q,U,V,X,Y)
+      inputs: Complete evaluable W and full public transcript
+      output_representation_and_equivalence: N(S), optionally polynomial-size evaluable gamma with action projectively S
+      uniqueness_or_acceptance_condition: All accepted outputs must yield same actual-message pad; integral lifts are nonunique without a selector
+      polynomial_algorithm_and_cost: None supplied
+      failure_bound: Unknown
+      recovery_of_actual_message_or_key: Finite output suffices for current pad; integral output adds no confidentiality
+      identical_public_data_control: Gaussian elimination returns exactly the finite output used by Dec
+    remaining_gap: GAP-MOD-PUBLIC-INTERTWINER; no recipient-only advantage for this syntax
+    next_action: Stop this attempt; any new relation needs a separately scoped construction task
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions: []
+    intermediate_assumptions:
+      - name: MOD-CONJ-REC
+        game: Sample accepted U,V and S uniform GL2; give U,V,X=SUS^-1,Y=SVS^-1; output N(S)
+        distribution: Exact finite accepted-key action law
+        model: QPT; standard finite search game; no oracle needed
+        status: Public deterministic polynomial solver derived; cannot be used as a hardness assumption
+        needed_EndRing_arrow: Solver for MOD-CONJ-REC -> complete evaluable End(E); absent
+    multiple_assumption_dependency: No security theorem or valid hardness implication asserted
+    classical_quantum_and_rewinding_scope: Attack is classical and works within QPT/QROM; no rewinding, programming or quantum extraction used; classical query logging would not justify QROM extraction
+    remaining_gap: Attacker-to-complete-evaluable-EndRing extractor, saturation, representation and success/loss bound absent
+    next_action: Reject any reverse EndRing-solver-to-decryption arrow as security evidence
+  O6:
+    name: complete_adversarial_view
+    status: proposed_discharge
+    public_disclosures: [pp, p, ell, mu, K, field polynomial, E, P, Q, U, V, all ciphertext X/Y/v, H interface, pairing-visible torsion data, validation results, query history]
+    allowed_oracles_and_query_history: QPT H queries bounded q_H; public Enc executable; IND-CPA no Dec; IND-CCA2 at most q_D classical Dec calls, exact challenge bytes excluded; repeated keys/ciphertexts allowed
+    validation_rejection_and_failure_observables: KeyGen failure recorded; malformed inputs uniformly bottom; timing/physical leakage not established; all algebraic parsing/acceptance outputs included
+    malformed_inputs_and_alternate_encodings: Reject noncanonical residues, point tags, unused padding bits, lengths, singular generators and extra trailing bytes; no mathematical-equivalence challenge exclusion
+    repeated_use_and_collision_analysis: S and aS have identical X,Y and identical pad; pad reused on repeated projective S; projective-class collision probability 1/(ell*(ell^2-1)) for independent uniform GL2 coins; public decoder defeats confidentiality regardless
+    side_channel_scope_and_exclusions: Formal interface only; no implementation, timing, cache, fault or physical security claim; malicious pk rejected by declared validation
+    public_data_and_known_false_controls: [public Gaussian solver, W deletion, arbitrary ring secret replacement, scalar pair rank failure, proper suborder with same finite action, endpoint-hash public pad, EvalLine-only predecessor]
+    concrete_parameter_security: Not established; finite syntax has exact passive recovery
+    asymptotic_to_concrete_limitations: No p-bit-size rule yields Cat5; no implementation or parameter selected
+    remaining_gap: Independent review and implementation channels; bare challenge simulation requires exact sampler and rank law hypotheses
+    next_action: Review complete finite view and preserve scoped passive break
+assessment:
+  verdict: candidate
+  typed_result: named_construction_gap_with_symbolic_scoped_public_inverse
+  finite_functionality_status: Conditional actual-message correctness derived
+  efficient_functionality_status: Sender/finite decoder typed; key generation unavailable
+  security_status: Finite mask syntax publicly invertible; no EndRing or quantum security established
+  named_conditions: [accepted valid keys, generating U/V, same canonical context and H]
+  open_obligations: [O1, O2, O5]
+  obstruction:
+    affected_obligation: O4
+    exact_family_and_parameter_scope: Prime-field 2x2 full generating-pair simultaneous conjugation with normalized-conjugator hash pad
+    counterexample_or_argument_artifact: candidate.md
+    what_remains_open: Other module relations; complete-ring separators; new sender/recipient agreement mechanisms
+  independent_review_artifacts: []
+  next_action: Independent owned-joint review; stop before implementation
+dominated_by: n/a (no result claimed)
+sota_delta: No attack/performance advantage claimed without matched separately verified evidence
+run_accounting: {scientific: 0, implementation: 0, formalizer: 0, benchmark: 0, parameter_selection: 0}

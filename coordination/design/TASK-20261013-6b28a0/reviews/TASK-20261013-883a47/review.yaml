@@ -1,0 +1,388 @@
+schema: crypto.autoresearch.independent_red_team_review.v1
+review:
+  task_id: TASK-20261013-883a47
+  batch_id: BATCH-3e1bfd
+  goal_id: GOAL-SSI-2fa82a
+  question_id: RQ-SSI-1946c9
+  candidate: CEFC-PKE
+  joint_id: J3
+  role: independent_red_team
+  recorded_at: "2026-10-13T17:57:30Z"
+  scientific_runs: 0
+  implementation_runs: 0
+  formalizer_runs: 0
+  benchmark_runs: 0
+  parameter_runs: 0
+
+owned_joint:
+  claim: >-
+    O5/O6, novelty, QPT/QROM treatment, and Category-5 evidence obligations
+    are correctly stated and discharged or left explicitly open.
+  verdict: holds
+  verdict_scope: >-
+    The packet correctly leaves O5 and O6 open, labels novelty, QPT/QROM,
+    complete-EndRing reduction, and Category 5 as not established, and states
+    the exact raw-syntax IND-CCA2 break. This verdict validates those narrow
+    dispositions only. It does not discharge a security gate, validate a
+    complete PKE, or vote on the candidate as a whole.
+
+blind_rederivation:
+  blind_from:
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/reduction-ledger.yaml
+  derivation_sources:
+    - coordination/design/TASK-20261013-6b28a0/opening.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/public-statement.yaml
+  attacker_advantage:
+    notation: >-
+      Let epsilon_A = abs(Pr[b'=b]-1/2) in the declared classical-ciphertext,
+      QPT-adversary, QROM IND-CPA game.
+    real_game: >-
+      The challenge uses a real joint sample (pp,E,w,C,x), where
+      C=F_E(w), x=I_E(w), and v=m_b XOR H_pad(ctx(pp,E,C,x,len(m_b))).
+    potential_hybrid: >-
+      Replace x by U sampled uniformly and independently from A_lambda while
+      retaining the same (pp,E,C) marginal. A distinguisher for this change
+      can sample b, use the supplied x value to form v, and output whether A
+      guessed b. This only gives a conditional PKE-to-CEFC-POT-PR hybrid; the
+      CEFC-POT-PR advantage convention and exact game are not present in the
+      allowed public statement.
+    qrom_hybrid: >-
+      In the uniform-potential hybrid, hiding b requires a quantum
+      random-oracle search/one-way-to-hiding bound for the unknown x. The
+      bound must depend on q_H and the conditional domain size or min-entropy
+      of x, and must include collisions and algorithm failures. No theorem,
+      constant, q_H choice, entropy bound, or additive error is supplied.
+    strongest_rederived_inequality: >-
+      Subject to an exact joint-distribution match and a fixed advantage
+      convention, the available syntax suggests only
+      epsilon_A <= Adv_CEFC-POT-PR(B_pot) + delta_QROM(q_H,A_lambda)
+      + delta_distribution + delta_fail. Every term on the right is
+      unquantified, and this inequality is not an EndRing reduction.
+  same_distribution_simulation:
+    status: not_established
+    finding: >-
+      A complete-EndRing solver could use E as pk and run the public sender
+      operation without W_E in the CPA game, so lack of a decryption oracle is
+      not itself the obstacle. However, Setup and TrapCurveGen_ER are absent,
+      and the challenge is described only as E from the public marginal rather
+      than an exact jointly distributed (pp,E) instance. No argument matches
+      the simulator's public parameters, endpoint law, auxiliary data,
+      failure events, or QROM interface to the real game.
+  extractor_output_relation:
+    required_output: >-
+      W_E consisting of four evaluable endomorphisms that form a saturated
+      rank-four Z-basis of End(E), together with multiplication/norm data,
+      representation conversions, and an accepted completeness certificate.
+    success_event: >-
+      CompleteEvalBasis(pp,E,W_E)=1 for an E drawn from the exact real public
+      key marginal. The public statement names this predicate but supplies no
+      verifier or representation-conversion algorithm.
+    rederived_extractor: absent
+    success_and_loss: >-
+      No algorithm maps A's distinguishing behavior to W_E, no success
+      probability f(epsilon_A,q_H,lambda) is given, and no runtime, memory,
+      abort, or quantum-access loss is supplied. Therefore no nonzero extractor
+      success bound can be derived from the permitted artifacts.
+  complete_EndRing_relation:
+    required_direction: >-
+      Input an exact-distribution complete-EndRing challenge; use a successful
+      attacker on the complete CEFC-PKE game; output a verifier-accepted W_E.
+    available_direction: >-
+      W_E -> RingPotential -> decryption is recipient functionality and an
+      attack route for a party already holding the ring.
+    verdict: reverse_arrow_only
+    consequence: >-
+      The available direction supplies no implication from an IND-CPA attacker
+      or a CEFC-POT-PR distinguisher to complete EndRing recovery.
+
+obligation_assessment:
+  O5:
+    producer_status: open
+    reviewer_status: open
+    joint_result: correctly_left_open
+    decisive_gap: >-
+      The same-distribution attacker-to-complete-evaluable-EndRing extractor
+      is absent. Even granting a distribution-matched CPA simulation and the
+      conditional potential hybrid, an attacker's output bit is not converted
+      to any endomorphism, let alone a saturated evaluable ring basis.
+    quantitative_gap: >-
+      There is no exact reduction theorem, loss, abort probability, QROM term,
+      runtime, memory, or output-verification probability.
+  O6:
+    producer_status: open
+    reviewer_status: open
+    joint_result: correctly_left_open
+    decisive_gap: >-
+      The packet lists the public view and unresolved cases but does not close
+      malformed, repeated-endpoint, adaptive, auxiliary-input, multi-user,
+      timing, collision, or pad-reuse behavior.
+
+raw_security_notion_audit:
+  IND_CPA:
+    verdict: not_established
+    reason: >-
+      CEFC-POT-PR is a newly named intermediate assumption with no formal
+      advantage convention in the public statement, no reduction to complete
+      EndRing, and no quantified QROM pad theorem. Targeting QPT/QROM does not
+      prove security in that model.
+  IND_CCA2:
+    verdict: breaks
+    attack: >-
+      Choose distinct equal-length nonempty messages. On challenge
+      c*=(enc(C),v), choose nonzero Delta of the payload length and submit the
+      byte-distinct query c'=(enc(C),v XOR Delta). The declared parser accepts
+      the same canonical endpoint and payload length. Dec uses the same x and
+      pad, so it returns m_b XOR Delta; XOR Delta recovers m_b and hence b.
+    resources: >-
+      One post-challenge decryption query and no random-oracle query are
+      needed; under abs(Pr[b'=b]-1/2), the advantage is 1/2.
+    scope: >-
+      This refutes IND-CCA2 only for the declared unauthenticated XOR syntax.
+      It does not refute every transform or every EndRing-based PKE.
+
+complete_view_findings:
+  malformed_and_rejection:
+    status: open
+    detail: >-
+      Canonical alternate encodings are rejected, but RingPotential is not
+      defined as a total algorithm on accepted curves outside the honest
+      endpoint image. Failure timing, retry behavior, and a constant observable
+      bottom path are not established.
+  endpoint_equivalent_queries:
+    status: contradicted_for_raw_CCA2
+    detail: >-
+      Excluding only the byte-equal challenge leaves the same endpoint with a
+      modified payload available, enabling the one-query attack above.
+  repeated_endpoints_and_pad_reuse:
+    status: open
+    detail: >-
+      Fiber invariance makes x, and hence the pad for a fixed length, repeat
+      when an endpoint repeats. Known-plaintext encryptions at the same
+      endpoint recover that pad, while two unknown payloads reveal their XOR.
+      No endpoint-collision or adversarial resampling bound is supplied.
+  adaptive_public_encryption:
+    status: open
+    detail: >-
+      Because Enc is public, an adversary can resample walks after seeing the
+      challenge and search for its endpoint. The real-law probability and
+      total classical or quantum work for that event are not bounded.
+  auxiliary_and_multi_user:
+    status: open
+    detail: >-
+      Torsion data, orientations, hints, caches, related public keys,
+      preprocessing, cross-user endpoint collisions, and multi-target losses
+      are promised as future disclosures but have no games or bounds.
+  quantum_interfaces:
+    status: open
+    detail: >-
+      Only H_pad is currently declared quantum accessible. Any later
+      hash-defined sampler or label must be added to the quantum interface and
+      to the simulator; this has not been analyzed.
+  implementation_observables:
+    status: excluded_not_established
+    detail: >-
+      The packet makes no implementation-security claim, and supplies no
+      constant-time, fault, memory-access, or retry-leakage evidence.
+
+proves_too_much_controls:
+  - object: public_endpoint_hash
+    result: catches_reverse_arrow
+    analysis: >-
+      Taking x=g(pp,E,C) is fiber-invariant and makes decryption public. An
+      attacker then succeeds without producing information from which a
+      saturated End(E) basis follows. Any generic inference from successful
+      decryption to complete EndRing recovery would therefore prove too much;
+      it fails exactly at the missing extractor.
+  - object: exact_path_encoding
+    result: catches_missing_agreement
+    analysis: >-
+      A sender can hash its exact walk, but an endpoint-only recipient has not
+      been given that walk. Distinct paths to one endpoint need not yield the
+      same value, so the construction fails correctness before any EndRing
+      security inference can be made.
+  - object: CEST_one_evaluator_and_finite_torsion_action
+    result: catches_full_ring_necessity_failure
+    analysis: >-
+      If either smaller object evaluates the pad input, recovery of that object
+      breaks privacy without yielding a complete ring basis. A proof that uses
+      only decryption capability cannot distinguish the smaller witness from
+      W_E and therefore cannot establish complete-EndRing extraction.
+  - object: simultaneous_public_conjugation
+    result: catches_public_recovery
+    analysis: >-
+      Public linear/intertwiner recovery can expose the operative secret while
+      supplying no conversion to a saturated evaluable End(E) basis. This
+      again breaks the reverse implication at the output relation.
+
+separate_gate_assessments:
+  complete_EndRing_basis_reduction:
+    verdict: not_established
+    evidence_status: no_extractor_or_loss
+  novelty:
+    verdict: not_established
+    evidence_status: >-
+      The source ledger reports no external primary sources and no knowledge-
+      base search. Internal nonduplication comparisons distinguish labels, but
+      neither establish absence of prior art nor compare a concrete
+      instantiation, because EdgeLabel and RingPotential remain uninstantiated.
+  QPT_QROM_security:
+    verdict: not_established
+    evidence_status: >-
+      No quantum reduction, compressed-oracle or one-way-to-hiding theorem,
+      q_H-dependent loss, conditional entropy bound, or quantum complete-
+      EndRing extractor is supplied.
+  NIST_Category_5:
+    verdict: not_established
+    evidence_status: >-
+      The normative source is explicitly unavailable, parameters are
+      unselected, all ten rows of the required reduction/cost table are empty,
+      and no classical, quantum, smaller-witness, memory, qubit, or reduction-
+      loss cost is quantified. The raw syntax is also IND-CCA2-insecure.
+  complete_PKE_security:
+    verdict: not_established
+    evidence_status: >-
+      Passive security is conditional on unsupported assumptions and active
+      security is broken for the exact syntax.
+
+source_and_cost_audit:
+  external_primary_sources_read: 0
+  primary_novelty_audit: absent
+  normative_Category_5_source: absent
+  quantum_EndRing_cost_sources: absent
+  concrete_parameter_sets: 0
+  completed_reduction_and_cost_rows: 0
+  measured_bounds: 0
+  conclusion: >-
+    No novelty, post-quantum, or Category-5 inference is available from this
+    evidence base. Absence of evidence is recorded as an open gate, not an
+    impossibility result.
+
+objections:
+  - id: J3-O5-EXTRACTOR
+    severity: blocking
+    statement: >-
+      Recipient possession of W_E permits decryption, but no attacker-to-W_E
+      conversion is given. This is the exact reverse-arrow gap.
+  - id: J3-O5-DISTRIBUTION
+    severity: blocking
+    statement: >-
+      The joint (pp,E) real-key marginal, endpoint law, and all simulation
+      errors are undefined, so even the public CPA embedding is not certified
+      as same-distribution.
+  - id: J3-O5-QROM
+    severity: blocking
+    statement: >-
+      The uniform-potential hybrid lacks the q_H/entropy-dependent quantum
+      search bound and all failure terms.
+  - id: J3-O6-CCA
+    severity: contradiction_scoped
+    statement: >-
+      The declared XOR payload is IND-CCA2-insecure with one related-
+      ciphertext decryption query.
+  - id: J3-O6-REUSE
+    severity: blocking_for_complete_view
+    statement: >-
+      Endpoint repetition, public resampling, and pad reuse have no quantified
+      single-user, multi-user, or multi-target analysis.
+
+required_controls:
+  - >-
+    Define the exact joint (pp,E,w,C,x) sampler and CEFC-POT-PR advantage
+    convention, then prove a distribution-preserving PKE-to-potential hybrid.
+  - >-
+    Supply a named QROM theorem with explicit q_H, conditional entropy/domain,
+    collision, failure, and programming terms; do not substitute a classical
+    random-oracle argument.
+  - >-
+    Construct a polynomial-time black-box solver that outputs a verifier-
+    accepted complete evaluable W_E from a successful attacker, with an exact
+    success/loss bound, or retain CEFC-POT-PR as a separate unsupported
+    assumption rather than relabeling it EndRing hardness.
+  - >-
+    Quantify repeated-endpoint, adversarial-resampling, pad-reuse, malformed,
+    auxiliary-input, multi-user, and multi-target behavior in the actual game.
+  - >-
+    Any active-security successor must prevent the same-endpoint payload
+    malleation and carry its own complete IND-CCA2 proof; this review does not
+    propose or validate such a repair.
+  - >-
+    Retrieve primary novelty, quantum-attack, and current normative NIST
+    sources before novelty, QPT/QROM, or Category-5 claims or parameter choice.
+
+narrowest_supported_statement: >-
+  CEFC-PKE is a typed but uninstantiated conditional endpoint-potential PKE
+  interface. If an exact potential-pseudorandomness game and an appropriate
+  QROM hiding lemma were later proved, the public syntax suggests a conditional
+  IND-CPA hybrid, but no such theorem or complete-EndRing extraction is present.
+  The exact raw XOR syntax is independently refuted for IND-CCA2 by one
+  related-ciphertext query. Novelty, quantum security, complete-EndRing-based
+  security, and NIST Category-5 security remain not established. Nothing here
+  proves universal nonexistence of EndRing-based PKE.
+
+next_concrete_action: >-
+  Freeze the exact CEFC-POT-PR game and joint real-key sampler, then require a
+  solver which, for E in that same marginal and black-box access to an attacker
+  of advantage epsilon_A, outputs a verifier-accepted complete evaluable W_E
+  with an explicit polynomial loss and QROM runtime. If only a potential
+  distinguisher or smaller decoder can be extracted, record that as a separate
+  assumption and do not claim EndRing-only security. Parameter selection and
+  Category-5 comparison remain downstream of that gate.
+
+sources_read:
+  scientific_scope:
+    - coordination/design/TASK-20261013-6b28a0/opening.yaml
+    - coordination/design/TASK-20261013-6b28a0/review-preparation/review-plan.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/public-statement.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/scheme-contract.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/cat5-evidence-plan.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/source-ledger.yaml
+  administrative_policy_scope:
+    - AGENTS.md
+    - agents/red-team.md
+    - docs/scheme-construction-contract.md
+    - skill://user/6ac50d83f64c8191a8b11b67786a618e/report-evidence/SKILL.md
+
+blindness_attestation:
+  independent_session: true
+  read_sibling_reports: false
+  read_producer_candidate_md: false
+  read_endpoint_fiber_relation: false
+  read_reduction_ledger: false
+  read_proof_search_map: false
+  read_composition: false
+  read_incomplete_BATCH_8864e0: false
+  blind_rederivation_used_only_declared_sources: true
+  procedure_deviations: []
+
+review_attestation:
+  joints_owned: [J3]
+  obligations_owned: [O5, O6]
+  gates_owned:
+    - raw_security_notions
+    - complete_EndRing_reduction
+    - complete_adversarial_view
+    - novelty
+    - QPT_QROM
+    - NIST_Category_5
+  paths_actually_read:
+    - coordination/design/TASK-20261013-6b28a0/opening.yaml
+    - coordination/design/TASK-20261013-6b28a0/review-preparation/review-plan.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/public-statement.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/scheme-contract.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/cat5-evidence-plan.yaml
+    - coordination/design/TASK-20261013-6b28a0/tasks/TASK-20261013-64d436/source-ledger.yaml
+    - AGENTS.md
+    - agents/red-team.md
+    - docs/scheme-construction-contract.md
+    - skill://user/6ac50d83f64c8191a8b11b67786a618e/report-evidence/SKILL.md
+  read_sibling_reports: false
+  verdict: holds
+  whole_candidate_vote: false
+
+inference:
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  actual_model: gpt-6.1-sol
+  actual_reasoning_effort: high
+  fallback_used: false
+  model_verified: false

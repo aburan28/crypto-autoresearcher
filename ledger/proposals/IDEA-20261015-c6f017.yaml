@@ -1,0 +1,207 @@
+# IDEA RECORD -- IDEA-20261015-c6f017  (idea-synthesist session, 2026-10-15)
+# Proposal only: changes no status, assigns no work, asserts no evidence. WRITE-ONCE.
+# Id minted as a random 6-hex token WITHOUT tools/allocate_id.py (no Bash in this
+# role); the Coordinator confirms with `allocate_id.py --check` before archiving.
+idea:
+  id: IDEA-20261015-c6f017
+  added: '2026-10-15'
+  recorded_at: '2026-10-15'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-synthesist (Claude Code, research-synthesis policy)
+  question_id: RQ-CERTBIN-836ce2
+  question_ids: [RQ-CERTBIN-836ce2, RQ-QSP-f9bbdb, RQ-ICPERF-94c86e, RQ-FROB-7d8dd4]
+  goal_id: GOAL-ECDLP2M-001
+  lanes: [certbin, qsp, binstd, icperf, frob]
+  title: >-
+    The n=131 denominator: every ECC2K-130 lane (QSP, CERTBIN, FROB at 131)
+    has no matched rho because no 131-bit walk exists in the code base. Build
+    it from the wide-field strong walk and the lift_scan canonicalizer, price
+    the canonicalize-every-step design against Bailey's canonicalize-at-DP
+    design per step at n=131 and per collision at n=83, and compare both with
+    the 2009 campaign's 530 cycles per iteration
+  class: measurement
+  bridges:
+    - >-
+      papers/frobenius-orbits sec-limitations ("No 131-bit normal-basis multiply
+      exists in the code base, so the cost relative to a point operation was
+      not measured"; "the right answer at n=83 and n=131 inside such a loop is
+      open") and cryptanalysis canon-n131-loop-20261014 (lift_scan ~68 ns/key,
+      task) <-> KR-RHO-18cc42 (ECC2K-130: 2^60.9 iterations; 530 cycles per
+      iteration per core on Core 2 in 2009, Bailey's walk, no per-step
+      canonicalization) <-> KR-RHO-482ed3 (canonicalization is charged in the
+      sqrt(m) count). Transfer: the program's reference design canonicalizes
+      every step; the 2009 design did not; at n=131 the first has a measured
+      68 ns canonicalization and an unmeasured step, the second has a
+      measured 2009 step and no canonicalization. One harness prices both.
+    - >-
+      GOAL-ECDLP2M-001 roll-ups RQ-QSP-f9bbdb (n=131 census, H-QSP-cd0c90),
+      RQ-CERTBIN-836ce2 (ECC2K curves), KN-OPEN-095df5 / KN-FIND-b9a41d (n=131
+      factor bases) <-> RQ-ICPERF-94c86e's rule that every cell carries a
+      matched rho on the same machine. Transfer: these lanes report costs at
+      n=131 with no denominator; a step price in the program's own ns and
+      units is the missing column of every one of their tables.
+    - >-
+      research/n83_evaluation_20261012 (StrongRhoG<WideGf2,u64> on
+      KoblitzCurve::new(1,83); tuned Fold/64/DP6) <-> BOUNDARY_TARGETS "Code
+      guard: MAX_N = 127". Transfer: the wide path exists to 127; 131 needs a
+      third limb, which is engineering, not research, and is the gate.
+  claim: >-
+    (1) A three-limb signed-Frobenius walk at n=131 (polynomial basis with
+    CLMUL, table-driven basis change, 64 lockstep lanes, batched inversion)
+    costs <= 2.5x the n=83 tuned walk's ns per step on the same host when it
+    canonicalizes every step with lift_scan, and the canonicalization share of
+    that step is in [0.2, 0.5]. (2) The same walk with Bailey's step
+    P <- P + sigma^{j(P)}(P), j = 3 + ((HW(x)/2) mod 8), canonicalizing only at
+    DPs (HW(x) <= 34 or a DP-bit predicate), costs <= 0.6x the canonicalizing
+    walk per step at n=131. (3) On the n=83 a=1 subgroup (r ~ 2^52.9), where
+    both walks run to a verified logarithm, the Bailey walk's steps-to-collision
+    over the floor sqrt(pi r/(4n)) is within [1.0, 1.25] of the canonicalizing
+    r-adding walk's. (4) Converted at the measured ns per step and 2^60.9
+    iterations (KR-RHO-18cc42), the program's own ECC2K-130 cost estimate lands
+    within a factor 4 of the 2009 figure scaled by core-count and clock, i.e.
+    the canonicalize-every-step reference is NOT cheaper per iteration than
+    the 2009 design despite seventeen years of hardware.
+  mechanism: >-
+    A 131-bit element is 64+64+3 bits; a field multiply is 6-9 CLMULs plus
+    reduction mod z^131 + z^13 + z^2 + z + 1 (ECC2K-130's field), against 3-4
+    CLMULs at 83 bits, so the arithmetic scales ~2-2.5x. The basis change for
+    canonicalization is a byte-table or GFNI kernel (~1 ns/key at n <= 64 per
+    R06-key-gfni, ~3x at three limbs). lift_scan at 68 ns/key is then a fixed
+    additive term per step; whether it is 20% or 50% of the step is the
+    number nobody has. Bailey's design pays no per-step canonicalization
+    because P + sigma^j(P) is a class function when j is; its known price is a
+    restricted selector (8 multipliers 1 + s^j), whose randomness penalty is
+    measurable only where the walk completes, hence n=83. Claim (4) is the
+    sanity check that turns the program's unit into the literature's: 530
+    cycles/iteration on a 2009 core with no CLMUL instruction is the bar.
+  novelty_status: unverified
+  citations:
+    - ref: KR-RHO-18cc42
+      provenance: internal
+      claim: 2^60.9 iterations; 530 cycles/iteration/core (Core 2, 2009)
+      verified_by: idea-synthesist-20261015 opened the row
+    - ref: KN-LIT-661e97
+      provenance: kb
+      claim: iteration function, DP predicate HW(x) <= 34, normalization only at DPs
+      verified_by: idea-synthesist-20261015 opened the entry
+    - ref: cryptanalysis:papers/frobenius-orbits/sec-limitations.tex, sec-benchmarks.tex (three limbs)
+      provenance: internal
+      claim: no 131-bit normal-basis multiply; lifting form 514 instructions/word; n=131 loop timing is open
+      verified_by: idea-synthesist-20261015 read both sections
+    - ref: crypto:research/n83_evaluation_20261012/README.md
+      provenance: internal
+      claim: StrongRhoG<WideGf2,u64> adapter at n=83; Fold/64/DP6 tuned policy
+      verified_by: idea-synthesist-20261015 read the README
+    - ref: crypto:docs/ic/BOUNDARY_TARGETS.md Regime B
+      provenance: internal
+      claim: MAX_N = 127 code guard; u128 path for wider admitted degrees
+      verified_by: idea-synthesist-20261015 read the file
+  assumptions:
+    - a three-limb field type can be added to WideGf2 without changing the walk's counting or DP logic
+    - the n=83 a=1 subgroup is a valid proxy for the walk's randomness penalty (same curve family, exact Frobenius order 83, A = 166)
+  proof_search_map:
+    not_applicable_reason: a measurement of two existing walk designs; no theorem
+    bottleneck: not_applicable
+    baseline_embedding: {parameter_slice: not_applicable, reproduction_check: not_applicable}
+    observation_collision: {observable: not_applicable, distinct_preimage_search: not_applicable}
+    constructive_transforms: []
+    quantifier_order: not_applicable
+    method_ceiling: {strongest_certifiable_claim: not_applicable, nearby_object_control: not_applicable}
+    proof_obligations: []
+  predictions:
+    - metric: ns_per_step(n=131, canonicalizing) / ns_per_step(n=83, tuned), same host
+      direction: different
+      minimum_effect: in [1.5, 2.5]; above 5 means the three-limb path is not the right base
+    - metric: canonicalization share of the n=131 step (cachegrind Ir)
+      direction: different
+      minimum_effect: in [0.2, 0.5]
+    - metric: ns_per_step(Bailey) / ns_per_step(canonicalizing) at n=131
+      direction: lower
+      minimum_effect: <= 0.6; falsified above 0.85
+    - metric: steps/floor(Bailey) / steps/floor(canonicalizing) at n=83, 64 targets
+      direction: different
+      minimum_effect: in [1.0, 1.25]; falsified above 1.4
+    - metric: program ECC2K-130 cost estimate / 2009 figure (cycle-normalised)
+      direction: different
+      minimum_effect: within a factor 4
+  minimal_test:
+    design: >-
+      Stage 0: lift the code guard to 131 with a three-limb type; unit tests
+      against Sage for the ECC2K-130 field and curve (order, Frobenius
+      eigenvalue, class size 262). Stage 1: step price at n=131 for the
+      canonicalizing r-adding walk (lift_scan) and the Bailey walk, 64 lanes,
+      10^7 steps each from public points (no solve), cachegrind Ir and isolated
+      ns; canonicalization share by annotation. Stage 2: both walks to verified
+      logarithms on the n=83 a=1 subgroup, 64 public points, steps/floor with
+      bootstrap intervals, paired. Stage 3: the conversion of claim (4).
+    controls:
+      - the n=83 tuned walk on the same host (the unit)
+      - a random 8-branch r-adding walk WITH canonicalization at n=83 (separates selector width from canonicalization)
+      - A/A of each walk
+    required_metrics:
+      - ns/step and Ir/step per design per n; canonicalization share
+      - steps/floor per design at n=83 with intervals; verified logarithm count
+      - DP rate and table bytes per design
+    stopping_rule: one pass; sizes 83 and 131 only
+    replication: {seed_policy: public hash-to-curve points, seeds listed in the protocol, seeds: []}
+  falsification_conditions:
+    - n=131 step > 5x the n=83 step: the wide path is not a reference; a dedicated implementation precedes any n=131 comparison
+    - Bailey walk steps/floor > 1.4x at n=83: the restricted selector's penalty eats its step saving; the canonicalizing design stays the reference and IDEA-20261015-2d8e5a's wide selector becomes the only route
+    - canonicalization share < 0.1 at n=131: the canonicalization lane (zero-gap, lift_scan, the key) is a <= 10% question at the ECC2K-130 degree and should be deprioritised
+    - any unverified logarithm: stop
+  confounders:
+    - the three-limb reduction polynomial choice (ECC2K-130's trinomial-plus) changes the step by itself; fix it to the challenge field
+    - DP density changes the table bytes and the collision-detection latency; equalise DP bits across designs
+    - the HW(x) <= 34 predicate yields far fewer DPs than a DP-bit predicate at these sizes; use the DP-bit form for both, HW only as Bailey's historical arm
+  interpretation_limits:
+    - a reference price, not an attack; nothing about solving ECC2K-130 (no walk completes at r ~ 2^129)
+    - one host class; cycles, not seconds, are the portable figure
+    - the n=83 randomness proxy transfers to 131 only under the stated assumption
+  heuristic_assumptions:
+    - id: H1
+      statement: the restricted Frobenius-adding selector's steps-to-collision penalty is a property of the multiplier set size, not of n
+      rigorous_support: none rigorous; KN-LIT-661e97's own design accepted it at 2^60.9 (recalled magnitude)
+      validation_plan: steps/floor at n = 41, 53, 61, 83 for 8 and 32 multipliers; a flat trend in n supports transfer to 131
+  target_complexity:
+    time_exponent: unchanged; sqrt(pi r/(4n)) steps for both designs
+    memory_exponent: DP table only
+    best_known: KR-RHO-18cc42 (2^60.9 iterations at 530 cycles/iteration, 2009)
+    hidden_overhead: none
+    tradeoff_note: none
+  estimated_cost:
+    implementation: medium
+    compute: low
+    note: the three-limb type is the cost; the measurements are minutes
+  recommended_priority: high
+  dominated_by: n/a (no result claimed; a reference instrument)
+  sota_delta: >-
+    No attack. Supplies the denominator every n=131 lane lacks and a measured
+    answer to the Bailey-vs-canonicalizing question (section 19.4 modelled the
+    Bailey step at 1.38-1.41 affine units vs 2.74-2.92 canonical; this measures
+    it). Quantitatively: a step price in ns at 131 and the ratio of the two
+    designs, predicted <= 0.6.
+  must_not_repeat:
+    - the packed n=83 backend (per-step inversion, polynomial-basis orbit scan) that the reference contract excluded; the wide strong walk is the base
+    - mixing the sqrt(n) and sqrt(2n) floors (EV-ICPERF-390707 correction; KR-RHO-482ed3): A = 2n only when Frobenius has exact order n on the subgroup, which must be asserted per curve
+    - reading a step price on an unisolated host as a timing (canon-n131's ns were unisolated; use Ir plus an isolated ns)
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-18cc42, KR-RHO-482ed3, KR-RHO-037e22, KR-RHO-1c2928, KR-RHO-cb1c58, KR-RHO-6239aa, KR-RHO-2480c6, KR-IC-49c882, KR-IC-b0fcda]
+    nearest:
+      - ref: KR-RHO-18cc42
+        provenance: internal
+        relation: adjacent
+        delta: that row reports 2009 rates; this record measures the program's two designs at the same degree in its own unit and ties them to that row
+      - ref: KR-RHO-1c2928
+        provenance: internal
+        relation: adjacent
+        delta: the toy-tier measured Koblitz rho constant stops at n = 29; this record is the n = 83/131 step price, not a constant at toy scale
+      - ref: KN-LIT-661e97
+        provenance: kb
+        relation: special_case
+        delta: the Bailey arm is their design re-implemented; the delta is the paired canonicalizing arm and the n=83 randomness measurement
+    searched:
+      corpus_grep: [ledger/.index/proposals.jsonl titles for Bailey|Hamming|131|ECC2K-130 reference (none pricing a 131-bit step), frontier rows above]
+      web: []
+      blocked: [no web search; the 2009 restricted-walk penalty magnitude is recalled]

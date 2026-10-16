@@ -10,10 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 CANONICAL = ROOT / ".claude" / "skills" / "audit-curve" / "SKILL.md"
 ADAPTER = ROOT / ".agents" / "skills" / "audit-curve" / "SKILL.md"
+TRANSFER = ROOT / ".claude" / "skills" / "transfer" / "SKILL.md"
+ENDOMORPHISM_RULES = ROOT / "docs" / "endomorphism-rules.md"
 KNOWLEDGE = ROOT / "knowledge" / "techniques" / "KN-TECH-6a2ef9.md"
 REPORT_TEMPLATE = (
     ROOT / ".claude" / "skills" / "audit-curve" / "references"
     / "report-template.md"
+)
+RESEARCH_VISUALS = (
+    ROOT / ".claude" / "skills" / "research-visuals" / "SKILL.md"
 )
 
 
@@ -28,15 +33,23 @@ def frontmatter_value(path: Path, key: str) -> str:
 class AuditCurveSkillTests(unittest.TestCase):
     def test_canonical_skill_and_report_contract_exist(self) -> None:
         self.assertTrue(CANONICAL.is_file(), f"missing {CANONICAL}")
+        self.assertTrue(TRANSFER.is_file(), f"missing {TRANSFER}")
+        self.assertTrue(
+            ENDOMORPHISM_RULES.is_file(), f"missing {ENDOMORPHISM_RULES}"
+        )
         self.assertTrue(KNOWLEDGE.is_file(), f"missing {KNOWLEDGE}")
         self.assertTrue(REPORT_TEMPLATE.is_file(), f"missing {REPORT_TEMPLATE}")
         self.assertEqual(frontmatter_value(CANONICAL, "name"), "audit-curve")
         body = CANONICAL.read_text(encoding="utf-8")
         self.assertIn("knowledge/techniques/KN-TECH-6a2ef9.md", body)
         self.assertIn("references/report-template.md", body)
+        self.assertIn(".claude/skills/transfer/SKILL.md", body)
+        self.assertIn("docs/endomorphism-rules.md", body)
 
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn(".claude/skills/audit-curve/SKILL.md", agents)
+        self.assertIn(".claude/skills/transfer/SKILL.md", agents)
+        self.assertIn("docs/endomorphism-rules.md", agents)
         self.assertIn("## Weak-curve and isogenous-representative audits", agents)
 
         report = REPORT_TEMPLATE.read_text(encoding="utf-8")
@@ -51,6 +64,7 @@ class AuditCurveSkillTests(unittest.TestCase):
             "conclusion:",
             "subgroup_order_factorization: null",
             "generator_nonidentity:",
+            "extension_orders_checked: []",
             "offline_work: null",
             "online_work: null",
             "indeterminate_samples: null",
@@ -58,6 +72,29 @@ class AuditCurveSkillTests(unittest.TestCase):
             "adversarial_input_capability: null",
             "formula_compatible_companions: []",
             "singular_smooth_locus_checks: []",
+            "fundamental_discriminant_D_K: null",
+            "frobenius_order_conductor_f_pi: null",
+            "endomorphism_order_conductor_f_E: null",
+            "conductor_gap_index_g_pi_E: null",
+            "volcano_levels: []",
+            "direct_kernel_field_certificates: []",
+            "execution_harness:",
+            "unexpected_exception_exits_nonzero: null",
+            "missing_completion_sentinel_exits_nonzero: null",
+            "inseparable_endomorphisms: []",
+            "selected_set_or_modeled_population: null",
+            "endpoint_selection_rule: null",
+            "common_native_action: null",
+            "best_native_action_by_level: []",
+            "counter: null",
+            "accounting_interval: null",
+            "calibration_rule: null",
+            "cluster_unit: null",
+            "multiplicity_family: null",
+            "aa_or_negative_control_gate:",
+            "label_release_status: INDETERMINATE",
+            "labels_withheld: null",
+            "conditional_follow_up_rule: null",
         ):
             self.assertIn(section, report)
 
@@ -101,15 +138,104 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("formula-compatible companion", body)
         self.assertIn("companion is not an elliptic curve", body)
         self.assertIn("inherit a square-root DLP cost automatically", body)
+        self.assertIn("t_m = t t_(m-1) - q t_(m-2)", body)
+        self.assertIn("Frob_q^m", body)
+        self.assertIn("sqrt(m)", body)
+        self.assertIn("one-time transfer control", body)
+        self.assertIn("[d^(-1) mod r] o phi o tau o dual(phi)", body)
+        self.assertIn("selected subgroup", body)
+        self.assertRegex(body, r"one\s+common native action")
+        self.assertIn(
+            "contrasts intended to isolate conductor or volcano-level", body
+        )
+        self.assertIn("Common random numbers", body)
+        self.assertIn("best certified usable native action", body)
+        self.assertIn("ordinary difference-in-differences `2I`", body)
+        self.assertIn("negative-control release gate", body)
+        self.assertIn("dependent empirical lane `INDETERMINATE`", body)
+        self.assertIn("cannot retroactively validate", body)
+
+        for required in (
+            "Delta_pi = f_pi^2 D_K",
+            "f_E | f_pi",
+            "g_(pi,E)",
+            "never copy `f_pi` into `f_E`",
+            "horizontal",
+            "ascending",
+            "descending",
+            "Koblitz `tau`",
+            "inseparable",
+            "N_vertical",
+            "Do not convert `f_pi`",
+            "ambient absolute field",
+            "Frob_p^(n/s)",
+            "abstract CM-module representative",
+            "None of these degrees",
+            "canonical launcher fail closed",
+            "completion sentinel",
+            "inject an unexpected exception",
+            "A clean transcript from a fail-open launcher",
+        ):
+            self.assertIn(required, body)
 
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn("formula-compatible", agents)
         self.assertIn("confirmation-only oracle", agents)
+        self.assertIn("deep endpoint scan", agents)
+        self.assertIn("A/A release gate", agents)
+        self.assertRegex(
+            agents,
+            r"All dependent primary-contrast inferential and equivalence labels",
+        )
+        self.assertIn("newly frozen independent replication", agents)
 
         knowledge = KNOWLEDGE.read_text(encoding="utf-8")
         self.assertIn("Follow the formulas beyond the named twist", knowledge)
         self.assertIn("singular parameter values", knowledge)
         self.assertIn("confirmation-only oracle", knowledge)
+        self.assertIn(
+            "does not prove that all of `E[ell]` is rational", knowledge
+        )
+        self.assertIn("`Frob_q^m` to act as the identity", knowledge)
+
+        for required in (
+            "Conductor and volcano accounting",
+            "Current NIST-family evidence boundary",
+            "Koblitz rho incumbent and conductor-transfer crossover",
+            "P-224",
+            "B-571",
+            "0.5 log2(m)",
+            "one-time",
+            "does not generally certify the representative conductor `f_E`",
+            "Full four-level `m=51` execution",
+            "M120871",
+            "inference withheld by A/A alert",
+        ):
+            self.assertIn(required, knowledge)
+
+        loop_rules = ENDOMORPHISM_RULES.read_text(encoding="utf-8")
+        for required in (
+            "explicit endpoint isomorphism",
+            "Matching `j`-invariants alone",
+            "hat(phi) o phi = [deg(phi)]",
+            "deg([n]) = n^2",
+            "nonsquare degree",
+            "characteristic-polynomial root alone is only a candidate",
+            "mixed-degree ideal-class relations",
+            "same mathematical map",
+            "Variable-base",
+            "known `k`",
+            "KN-LIT-390",
+        ):
+            self.assertIn(required, loop_rules)
+
+        visuals = RESEARCH_VISUALS.read_text(encoding="utf-8")
+        for required in (
+            "(D_K, f_pi, f_E)",
+            "horizontal | ascending | descending | unresolved",
+            "Koblitz `tau`",
+        ):
+            self.assertIn(required, visuals)
 
     def test_skill_does_not_create_a_second_execution_entry_point(self) -> None:
         body = CANONICAL.read_text(encoding="utf-8")

@@ -65,16 +65,41 @@ instrument_controls:
     status: NOT_RUN
     evidence: []
 
+execution_harness:
+  canonical_launcher: null
+  direct_body_execution_refused: null
+  unexpected_exception_exits_nonzero: null
+  missing_completion_sentinel_exits_nonzero: null
+  randomized_search_caps: []
+  source_and_receipt_digests: []
+  software_version: null
+
 class_invariants:
   q: null
   t: null
   frobenius_polynomial: null
   delta_pi: null
+  fundamental_discriminant_D_K: null
+  frobenius_order_conductor_f_pi: null
+  frobenius_order_conductor_factorization: null
   extension_orders_checked: []
   anomalous: null
   supersingular: null
   embedding_degrees: []
   quadratic_twist_order: null
+
+representative_structure:
+  endomorphism_order_discriminant_D_E: null
+  endomorphism_order_conductor_f_E: null
+  endomorphism_order_conductor_factorization: null
+  conductor_gap_index_g_pi_E: null
+  conductor_gap_factorization: null
+  endomorphism_order_basis_or_certificate: null
+  endomorphism_order_status: INDETERMINATE
+  volcano_levels: []
+  direct_kernel_field_certificates: []
+  inseparable_endomorphisms: []
+  explicit_endomorphism_actions: []
 
 attack_ledger:
   - attack: null
@@ -109,6 +134,8 @@ statistics:
   purpose: null
   population: null
   sampling_distribution: null
+  selected_set_or_modeled_population: null
+  endpoint_selection_rule: null
   unique_samples: null
   determinate_samples: null
   indeterminate_samples: null
@@ -116,6 +143,28 @@ statistics:
   weak_hits: null
   false_negative_assessment: null
   dependence_or_mixing: null
+  common_native_action: null
+  best_native_action_by_level: []
+  estimand: null
+  estimator: null
+  counter: null
+  accounting_interval: null
+  calibration_rule: null
+  cluster_unit: null
+  common_random_numbers: null
+  exact_pairing_justified: null
+  multiplicity_family: null
+  aa_or_negative_control_gate:
+    sample_disjoint_from_primary: null
+    statistic: null
+    margin: null
+    confidence_level: null
+    multiplicity_rule: null
+    pass_rule: null
+    observed_status: NOT_RUN
+  label_release_status: INDETERMINATE
+  labels_withheld: null
+  conditional_follow_up_rule: null
   interval_method: null
   confidence_level: null
   prevalence_interval: null
@@ -142,3 +191,11 @@ degrees, map or kernel artifact hashes, field of definition, path-discovery
 cost, construction cost, evaluation cost, and proof that the target subgroup
 survives. For each certificate include its format, producer, independent
 verification command, hash, and verification result.
+
+For each volcano-level record include `ell`, `v_ell(f_pi)`,
+`v_ell(f_E)`, the evidence for both valuations, and whether the level is
+certified or unresolved. For each isogeny edge include separability, field of
+definition, source and destination `f_E`, and direction
+`horizontal | ascending | descending | unresolved`. For certified path
+endpoints also include `N_vertical`; do not substitute it for total path
+degree or measured cost.

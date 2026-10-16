@@ -1,0 +1,370 @@
+schema: crypto.autoresearch.eigenx_v2_cost_adversarial_view.v1
+task_id: TASK-20261013-311565
+batch_id: BATCH-be2a37
+goal_id: GOAL-SSI-2fa82a
+date: '2026-10-13'
+analysis_class: symbolic_complete_view_and_total_cost
+
+execution:
+  scientific_runs: 0
+  implementation_runs: 0
+  benchmark_runs: 0
+  measurements: none
+  evidence_label: modeled_symbolic_only
+
+scope_and_boundary: >-
+  This is the full accounting template for only the opening's
+  prescribed-degree unique-isogeny trapdoor KEM. The opening has not fixed
+  algorithms or parameters, so every uninstantiated quantity remains an
+  explicit unknown; no zero, asymptotic, concrete-bit, performance, or
+  feasibility claim is inferred from a missing cost.
+
+symbols:
+  lambda: security parameter
+  n_p: "ceil(log2(p))"
+  n_q: "ceil(log2(q)), if a q-torsion component is used"
+  k: number of isogeny steps in an accepted path
+  degree_pattern: "(ell_1,...,ell_k), with D=product_i ell_i; exact law open"
+  a_key: probability that one TrapCurveGen attempt yields a fully accepted key
+  a_path_E: "probability that one path-sampling attempt on key curve E is accepted"
+  N_key: configured KeyGen retry cap
+  N_path: configured Encaps path-sampling retry cap
+  q_H: number of classical random-oracle queries
+  q_D: number of decapsulation queries
+  C_F: one F_(p^2) field-operation unit, with multiplication/squaring/inversion separated when instantiated
+  C_iso_ell: cost of constructing and evaluating one degree-ell isogeny step, including its kernel representation
+  C_canon: curve/model canonicalization plus explicit isomorphism and byte serialization
+  C_bind: binding-data construction and verification cost
+  C_path_inv_W: secret complete-ring-assisted path-recovery cost on one ciphertext
+  C_path_verify: public verification of a recovered path/kernel and binding relation
+  C_basis_gen: cost to generate or transport a complete End(E) witness
+  C_basis_verify: cost to certify saturation and equality with End(E), not merely a suborder
+  C_hash_L: cost of one domain-separated hash/KDF call on L input bits
+  C_AE_m: authenticated-encryption cost on an m-bit payload, if the optional DEM is used
+  B_field: bits in the canonical F_(p^2) description and one encoded element
+  B_curve: bits in one canonical curve model
+  B_path: bits in one canonical accepted path/kernel witness
+  B_bind: bits in public binding data
+  B_basis: bits in the complete evaluable rank-four End(E) witness, including evaluator descriptions
+
+required_operation_granularity:
+  field_arithmetic:
+    units: [F_p_multiplication, F_p_squaring, F_p_inversion, F_p_addition, extension_conversion]
+    status: weights_and_counts_open
+  curve_arithmetic:
+    units: [point_addition, point_doubling, scalar_multiplication, subgroup_test, pairing_if_used]
+    status: formulas_and_counts_open
+  isogeny_arithmetic:
+    units: [kernel_construction, step_construction, step_evaluation, dual, composition, interpolation]
+    status: degree_family_and_representation_open
+  ring_arithmetic:
+    units: [basis_generation, multiplication_table, saturation, equality_certificate, evaluator_conversion]
+    status: algorithms_and_counts_open
+  symmetric_arithmetic:
+    units: [hash, KDF, PRF, AE_encrypt, AE_decrypt, constant_time_compare]
+    status: primitives_and_message_lengths_open
+
+honest_costs:
+  setup_and_keygen:
+    per_attempt_time: >-
+      C_curve_sample + C_basis_gen + C_basis_verify + C_public_key_derive +
+      C_public_key_validate + C_serialize_pk.
+    capped_time: >-
+      N_key times the per-attempt time in the worst case, plus retained-output
+      validation. No term may be omitted when an attempt fails after expensive
+      ring generation.
+    expected_time_if_proved: "per_attempt_time/a_key"
+    retry_tail_if_independent: "Pr[no accepted key in N_key attempts]=(1-a_key)^N_key"
+    current_status: >-
+      a_key, independence, N_key, curve sampler, complete-ring generator,
+      saturation certificate and expected-polynomial tail are all open.
+    peak_memory: >-
+      C_curvegen_workspace + B_basis + evaluator/preprocessing tables +
+      public-key construction workspace; reuse is allowed only for data
+      explicitly retained by the secret key.
+    erasure_cost_and_state: >-
+      Charge overwriting generation coins, secret walks, intermediate ideals,
+      orientations, temporary bases and rejected candidates if erasure is
+      claimed. No erasure theorem is supplied.
+  encapsulation:
+    per_path_attempt_time: >-
+      C_path_sample + sum_i(C_kernel(ell_i)+C_iso_step_construct(ell_i)+
+      C_iso_step_eval(ell_i)+C_canon_i) + C_bind + C_endpoint_validate.
+    capped_time: >-
+      N_path times per_path_attempt_time + C_KDF + optional C_AE_m +
+      final serialization. Failed attempts and duplicate endpoints remain charged.
+    expected_time_if_proved: "per_path_attempt_time/a_path_E + C_KDF + optional C_AE_m"
+    retry_tail_if_independent: "(1-a_path_E)^N_path"
+    current_status: >-
+      The exact path law, acceptance predicate, duplicate policy, a_path_E,
+      retries, degree pattern and step formulas are open.
+    peak_memory: >-
+      Maximum path-construction workspace plus current path, endpoint,
+      binding bytes, KDF state and optional AE state. Streaming a path cannot
+      be assumed if canonical binding requires all step bytes.
+  decapsulation:
+    accepted_ciphertext_time: >-
+      C_parse + C_key_binding_check + C_curve_and_endpoint_validate +
+      C_path_inv_W + C_path_verify + C_bind_verify + C_KDF + optional C_AE_m.
+    malformed_ciphertext_time: >-
+      Exact parser/validation prefix plus explicit- or implicit-rejection work.
+      Timing equality with accepted ciphertexts is a separate implementation
+      obligation and is not assumed.
+    peak_memory: >-
+      B_basis + retained evaluator tables + path-recovery workspace + recovered
+      B_path + validation/KDF/AE state.
+    current_status: >-
+      C_path_inv_W, uniqueness, verification, failure distribution and every
+      ring-dependent operation are open.
+  correctness_verification:
+    time: >-
+      C_path_verify + endpoint recomputation or certificate checking + binding
+      verification + exact KDF/AE comparison. If correctness is probabilistic,
+      every retry and exceptional path is included.
+    current_status: no quantified correctness or failure theorem supplied
+
+bit_accounting:
+  public_parameters_bits: >-
+    version and domain identifiers + p and field-basis bytes + base/public
+    curve models + degree family and limits + canonicalization rules + hash,
+    KDF, AE and encoding identifiers + any torsion bases or pairings actually used.
+  public_key_bits: >-
+    public_parameters reference or inline bytes + key curve + every public
+    binding seed/commitment + public recovery-verification data. Path,
+    orientation, ideal and torsion advice are charged here if exposed.
+  secret_key_bits: >-
+    B_basis + evaluator descriptions + multiplication/trace/norm tables + any
+    secret path-recovery preprocessing + rejection secret + generation state
+    intentionally retained. Reporting only four algebraic basis coordinates
+    is insufficient when efficient evaluation requires more data.
+  ciphertext_bits: >-
+    framing + public-key/context digest + B_curve for the endpoint + degree or
+    path-family identifier + B_bind + transform/tag bytes + optional AE nonce
+    and payload. If a path/kernel is transmitted, add B_path and treat it as
+    public advice.
+  encapsulated_key_bits: "declared KDF output length; currently open"
+  witness_bits: >-
+    B_path must include every kernel, intermediate-model disambiguator,
+    isomorphism and normalization byte needed to reproduce the claimed path.
+  current_status: all exact lengths open; no concrete ciphertext or key size may be quoted
+
+preprocessing_and_reuse:
+  cold_start: >-
+    Charge public-parameter generation or validation, curve generation,
+    complete-ring generation and certification, canonicalizer setup, path
+    tables, pairings/torsion setup if present, and all serialization tables.
+  per_key: >-
+    Charge all work dependent on E, W, a retained orientation/ideal, degree
+    pattern or secret path-recovery tables. It cannot be amortized across
+    independently generated keys without a stated shared setup.
+  per_ciphertext: >-
+    Charge path sampling, every failed attempt, endpoint construction,
+    canonicalization, binding, KDF, validation, recovery and AE work.
+  amortized_N_keys: "C_global/N + C_per_key only if C_global is demonstrably reusable and public"
+  amortized_N_ciphertexts: "C_key/N + C_per_ciphertext only under one fixed key and retained preprocessing"
+  forbidden_zero_costs:
+    - hidden path, orientation, ideal or torsion advice
+    - complete-ring generation or saturation
+    - failed path samples and duplicate endpoints
+    - canonicalization and isomorphisms
+    - public verification and rejection handling
+    - representation conversion and evaluator construction
+    - random-oracle table and extraction storage in the reduction
+  current_status: no reuse theorem or amortized workload is specified
+
+reduction_cost:
+  desired_total_time: >-
+    T_B = C_embed_key + T_A + q_D*C_sim_dec + q_H*C_sim_H +
+    C_extract_path + C_compile_source_oracle + C_OneEnd + C_PW_reconstruct +
+    C_basis_convert_verify + C_pullback.
+  desired_peak_memory: >-
+    M_B = max(M_embed, M_A+M_oracle_tables, M_path_extract,
+    M_source_compiler, M_OneEnd, M_PW, M_basis_verify), plus retained
+    transcript and representation bytes that overlap in lifetime.
+  required_success_bound: >-
+    Succ_EndRing(B) >= (2*Adv_IND-CCA2(A)-delta_total)/L, where L is an
+    explicit polynomial loss and delta_total expands into key-distribution,
+    simulation, transform, path-collision, abort, source-law and reconstruction
+    tail terms. This form is a requirement, not an established inequality.
+  known_source_ceiling:
+    page_wesolowski: >-
+      Expected polynomial in log(p) and the bounded-OneEnd degree function,
+      conditional on a total valid adaptive oracle. The frozen theorem does not
+      give this packet a concrete memory or deterministic query-tail bound.
+    hlmw: >-
+      Probabilistic polynomial reductions for the exact source interfaces and
+      input/output lengths. No concrete EigenX-v2 cost follows.
+  current_values:
+    C_embed_key: unknown_first_global_gap
+    C_sim_dec: unknown_first_post_attacker_gap
+    C_extract_path: unknown_first_post_attacker_gap
+    C_compile_source_oracle: unknown_distribution_and_relation_gap
+    C_PW_reconstruct: conditional_source_polynomial_only
+    L: unknown
+    delta_total: unbounded
+  conclusion: no polynomial or concrete total-cost claim is established
+
+complete_adversarial_view:
+  setup_and_parameters:
+    - security parameter, p, field model/basis and all curve equations
+    - degree or degree-pattern family, path-length rules and sampling algorithms
+    - canonical curve/path/kernel/isomorphism and tuple encodings
+    - hash, KDF, PRF, AE, domain-separation and rejection algorithms
+    - torsion bases, pairings, modular polynomials or isogeny tables if used
+    - acceptance/retry rules and any public setup transcript
+  public_key:
+    - exact canonical key curve and any base/start curve
+    - all path commitments, binding seeds, endpoint selectors and verification keys
+    - all public images, torsion actions, orientations, ideals or tags actually exposed
+    - validation results and rejection timing observable to the adversary
+  challenge_ciphertext:
+    - exact endpoint curve/model and canonical bytes
+    - prescribed degree/length identifier and all binding data
+    - KEM transform fields, confirmation/tag fields and optional DEM nonce/payload
+    - bytewise equality rule used by the IND-CCA2 challenge exclusion
+  adaptive_oracles:
+    - every classical random-oracle query and response
+    - every decapsulation/decryption query except the exact challenge bytes
+    - accepted key, malformed, alternate-encoding, wrong-key and repeated-query responses
+    - same-endpoint/different-binding and same-binding/different-endpoint responses
+    - implicit-rejection outputs or explicit failure symbols and their correlations
+  repeated_and_multi_instance_view:
+    - multiple encapsulations under one key, including endpoint/path collisions
+    - multiple keys under one global setup and any reused path preprocessing
+    - cross-key ciphertext substitution and shared binding data
+    - concurrency, replay and state-reset behavior if state exists
+  omitted_channels_not_covered:
+    - timing, cache, power, fault, memory-remanence and parser side channels
+    - malicious setup or malicious public keys unless separately specified
+    - quantum computation or superposition oracle access
+    - multi-user and multi-challenge security
+    - concrete parameter security and implementation bugs
+  current_status: >-
+    The categories are enumerated, but their values and distributions are open
+    because the opening is not a complete scheme specification.
+
+path_and_auxiliary_controls:
+  exact_degree_nonuniqueness:
+    question: >-
+      Is the map from admissible canonical nonbacktracking degree-pattern paths
+      to (endpoint,binding) injective on every accepted key?
+    attacks_to_check:
+      - distinct cycles or graph relations yielding the same endpoint
+      - automorphism-equivalent kernels or endpoints
+      - dual insertion, cancellation and allowed backtracking variants
+      - different step orderings for composite degree patterns
+      - byte-distinct paths denoting the same semantic isogeny
+    status: open_no_relation_or_injectivity_proof
+    cost_if_repaired: >-
+      Charge canonical path enumeration or collision-resistant binding,
+      collision detection, endpoint recomputation and proof/certificate bytes.
+  smaller_witness_quotients:
+    variants:
+      - path-recovery oracle only
+      - one stored path or one kernel
+      - one isogeny evaluator
+      - one non-scalar endomorphism
+      - one finite torsion-action matrix
+      - orientation or ideal without a complete evaluable ring
+    acceptance_test: >-
+      For each variant, compare every accepted Decaps output and failure
+      response with the complete-W implementation on identical public data.
+    status: >-
+      No complete-ring necessity lemma is supplied. If a variant reproduces
+      the interface, functionality factors through that quotient until a
+      correct-direction lift is proved.
+  public_recovery:
+    test: >-
+      Run the claimed recovery operation on only the sender's public inputs and
+      charge exactly the same preprocessing. If it succeeds, the derived key is public.
+    status: required_not_executed_zero_run
+  auxiliary_leakage:
+    items: [path, kernel, orientation, ideal, incoming_edge, torsion_basis, torsion_action, ring_tag]
+    rule: >-
+      Each item changes the hard-problem instance and public-key/ciphertext
+      bits. It may not be treated as free or omitted from the assumption.
+    status: no_auxiliary_item_authorized_by_the_opening
+  multiple_paths_and_replays:
+    test: >-
+      Submit alternate accepted witnesses for one endpoint, repeat identical
+      ciphertext bytes, and change only binding/transform fields. Responses
+      must match the exact CCA game and cannot leak which secret path was selected.
+    status: open
+  reverse_arrow:
+    test: "give Decaps a complete W and show it can recover a path"
+    result: >-
+      This establishes only complete-EndRing-solver -> break-scheme. Its cost
+      belongs to an attack upper bound and supplies no attacker-to-EndRing reduction.
+  known_false_plaintext:
+    test: "append the recovered path, encapsulated key or plaintext to the challenge"
+    expected: >-
+      IND confidentiality is false. The proof must stop at challenge
+      message-independence, not continue because a tag verifies.
+    result: pass_symbolic_control
+
+validation_and_failure_matrix:
+  - case: noncanonical_field_curve_or_path_bytes
+    required_response: one declared rejection distribution
+    current_response: open
+  - case: off-curve_or_wrong-field_endpoint
+    required_response: one declared rejection distribution
+    current_response: open
+  - case: wrong_degree_or_path_length
+    required_response: reject or include in the exact relation
+    current_response: open
+  - case: same_endpoint_alternate_path
+    required_response: determined by canonical relation and bytewise equality
+    current_response: open
+  - case: valid_endpoint_invalid_binding
+    required_response: declared explicit or implicit rejection
+    current_response: open
+  - case: wrong_public_key_or_context_digest
+    required_response: reject before secret-dependent output
+    current_response: open
+  - case: exact_challenge_bytes
+    required_response: forbidden by the IND-CCA2 game
+    current_response: requirement_only
+  - case: challenge_endpoint_with_changed_nonendpoint_bytes
+    required_response: must be simulated and analyzed; it is not excluded automatically
+    current_response: open
+  - case: path_recovery_ambiguous_or_no_solution
+    required_response: one quantified failure distribution with no secret-dependent leakage
+    current_response: open
+  - case: accepted_honest_ciphertext
+    required_response: actual encapsulated key with quantified failure probability
+    current_response: open
+
+cold_and_amortized_summary:
+  cold_start_total: >-
+    C_parameters + C_curve_sample + C_basis_gen + C_basis_verify +
+    C_key_derive + C_key_validate + one complete Encaps + one complete Decaps +
+    correctness verification, with all retries and failed paths charged.
+  same_key_N_ciphertexts: >-
+    cold per-key setup + N times complete per-ciphertext Encaps/Decaps work;
+    divide only retained demonstrably reusable setup by N.
+  independent_N_keys: >-
+    N complete key generations unless a separately specified transparent
+    global setup is shared. Secret curve/ring preprocessing is per key.
+  failure_probability: >-
+    key retry tail + path retry tail + nonuniqueness/collision + transform or
+    KDF/AE failure + parser/validation error + secret recovery failure. None is
+    currently bounded.
+  final_status: symbolic_account_complete_values_uninstantiated
+
+conclusion:
+  cost_verdict: open
+  adversarial_view_verdict: open
+  reason: >-
+    All cost categories and adversarial inputs are enumerated, but the candidate
+    lacks the exact algorithms, distributions, encodings, transform and
+    recovery procedure needed to instantiate them. Missing quantities are not
+    zero and cannot support an efficiency or security claim.
+  earliest_cost_blocker: >-
+    TrapCurveGen/complete-ring certification for KeyGen and the secret
+    prescribed-path recovery algorithm for Decaps have no executable interface
+    or polynomial bound.
+  exact_exit_criterion: >-
+    Supply complete algorithms and parameterized representations; populate
+    every operation/bit/memory/retry term; prove the whole failure bound and
+    reuse conditions; and independently check the identical public-data
+    control and every adversarial-view case.

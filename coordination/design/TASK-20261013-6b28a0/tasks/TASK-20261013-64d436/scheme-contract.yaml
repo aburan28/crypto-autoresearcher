@@ -1,0 +1,334 @@
+format: scheme-construction-contract/v1
+title: "CEFC-PKE: conservative endpoint-fiber cocycle public-key encryption"
+primitive: pke
+parent_record_ids:
+  - GOAL-SSI-2fa82a
+  - RQ-SSI-1946c9
+  - BATCH-3e1bfd
+  - TASK-20261013-64d436
+artifact_revision: unreviewed_zero_run_producer_packet
+author: idea-generator
+security_parameter: lambda
+domains:
+  public_parameters: >-
+    Canonically encoded field and supersingular-curve domain, admissible
+    normalized separable-isogeny edges, walk length L(lambda), additive group
+    A_lambda, public EdgeLabel, canonical parsers, and domain-separated H_pad.
+  public_key: "A canonical encoding enc(E) of an accepted supersingular curve E."
+  secret_key: >-
+    (enc(E),W_E), where W_E is a complete efficiently evaluable rank-four
+    Z-basis of End(E), with multiplication/norm data and a verifiable
+    completeness/saturation certificate. No such key generator is supplied here.
+  message: "Bit strings m with 0 <= len(m) <= mu(lambda), for an unselected polynomial mu."
+  ciphertext: "A byte pair (enc(C), v) where C is an accepted endpoint and len(v)=len(m)."
+  signature: null
+  key_space: "A_lambda encoded in exactly kappa(lambda) bits; parameters are unselected."
+  encoding_and_equality: >-
+    Curve and group encodings must be canonical. Ciphertext equality in the
+    security game is byte equality after canonical parse; alternate encodings
+    are rejected, not silently identified with the challenge.
+  inapplicable_reasons:
+    signature: "The candidate is PKE, not a signature."
+
+security_claims:
+  - name: IND-CPA
+    primitive: pke
+    status: conjectured
+    adversary: QPT
+    oracle_model: QROM
+    oracle_query_access: specified_superposition_interfaces
+    game_definition: >-
+      Generate (pk,sk) with the exact real key sampler; give pk to A; receive
+      equal-length (m0,m1); choose b uniformly; return Enc(pk,m_b). A outputs
+      b'. Advantage is abs(Pr[b'=b]-1/2). Quantum queries are permitted only to
+      the declared H_pad interface; key generation, challenge selection, and
+      ciphertexts are classical.
+    advantage_convention: "abs(Pr[b'=b]-1/2)"
+    query_bounds:
+      q_H: "an explicit polynomial bound is required but not selected"
+      q_encapsulation: "challenge only in the baseline CPA game"
+    oracle_access_and_challenge_exclusions: "No decryption oracle. H_pad is quantum accessible in the QROM."
+    assumptions:
+      - CEFC-POT-PR on the exact real-key and WalkSample endpoint distribution
+      - a quantum-compatible extraction/programming theorem for the H_pad use
+      - negligible endpoint/key collision and algorithm-failure bounds
+    theorem_artifact: null
+    review_artifact: null
+  - name: IND-CCA2
+    primitive: pke
+    status: refuted_scoped
+    adversary: PPT
+    oracle_model: ROM
+    oracle_query_access: classical
+    game_definition: >-
+      Standard post-challenge decryption access excluding only the byte-equal
+      challenge ciphertext. For challenge (C,v), query (C,v XOR Delta) for
+      nonzero Delta; accepted decryption returns m_b XOR Delta.
+    advantage_convention: "abs(Pr[b'=b]-1/2); the worked malleation reaches 1/2 for distinct messages"
+    query_bounds: {q_D: 1, q_H: 1}
+    oracle_access_and_challenge_exclusions: "Only the exact challenge bytes are excluded."
+    assumptions: []
+    theorem_artifact: candidate.md
+    review_artifact: null
+
+obligations:
+  O1:
+    name: exact_hard_problem
+    status: open
+    instance_sampler: >-
+      TrapCurveGen_ER(1^lambda) should output (pp,E,W_E) with public marginal
+      D_ER, while the CEFC-POT-PR sampler additionally chooses
+      w <- WalkSample(E) and C=F_E(w). No distribution-matched polynomial
+      TrapCurveGen_ER is supplied.
+    real_key_distribution: "The as-yet-undefined public marginal D_ER; no replacement argument exists."
+    adversary_input_and_auxiliary_data: >-
+      pp, enc(E), enc(C), all validation rules, and either the real endpoint
+      potential or a uniform A_lambda value in CEFC-POT-PR; the PKE view also
+      includes ciphertext pads and QROM access.
+    solution_representation_and_success_predicate: >-
+      CompleteEndRing requires four evaluable endomorphisms forming a saturated
+      Z-basis of End(E), plus multiplication/norm data and a verifier-accepted
+      completeness certificate. CEFC-POT-PR asks for the hidden challenge bit.
+    setup_trust_and_erasure: >-
+      Unspecified. Any retained walk, connecting isogeny, order orientation,
+      potential table, or compressed decoder must be declared as secret advice.
+    secret_representation_and_conversion_costs: >-
+      Evaluation, basis verification, quaternion/order conversion, and bit
+      complexity are all open.
+    assumptions:
+      - name: CEFC-POT-PR
+        status: newly_named_intermediate_not_reduced_to_EndRing
+        formal_game: endpoint-fiber-relation.yaml
+        distribution: exact_real_key_and_WalkSample_distribution_required
+        model: QPT/QROM_target_unproved
+        provenance: internal
+        verified_by: TASK-20261013-64d436
+    cited_equivalences_and_hypotheses: []
+    evidence_artifacts: [endpoint-fiber-relation.yaml, reduction-ledger.yaml]
+    review_artifact: null
+    remaining_gap: >-
+      Neither the exact EndRing sampler nor an attacker-to-complete-EndRing
+      reduction for CEFC-POT-PR is provided.
+    next_action: >-
+      Instantiate and verify the exact real-key sampler before making a hardness claim.
+  O2:
+    name: honest_party_algorithms
+    status: open
+    algorithms:
+      - name: Setup
+        inputs: "1^lambda"
+        outputs: pp
+        randomness: unspecified_parameter_generation
+        validation: canonical_parameter_parser_required
+        failure_behavior: return_fail
+        pseudocode_artifact: candidate.md
+        time: open
+        memory: open
+        bit_length_bounds: open
+      - name: KeyGen
+        inputs: pp
+        outputs: "pk=enc(E), sk=(enc(E),W_E)"
+        randomness: TrapCurveGen_ER_coins
+        validation: CompleteEvalBasis
+        failure_behavior: reject_and_resample_with_unbounded_tail
+        pseudocode_artifact: candidate.md
+        time: open_missing_TrapCurveGen_ER
+        memory: open
+        bit_length_bounds: open
+      - name: Enc
+        inputs: "pk,m,rho"
+        outputs: "c=(enc(C),v) or fail"
+        randomness: public_WalkSample_coins_rho
+        validation: canonical_public_key_and_walk_edges
+        failure_behavior: return_fail
+        pseudocode_artifact: candidate.md
+        time: polynomial_conditional_on_WalkSample_and_EdgeLabel
+        memory: "O(L) edge state plus unpriced curve arithmetic"
+        bit_length_bounds: open
+      - name: Dec
+        inputs: "sk=(enc(E),W_E),c"
+        outputs: "m or bottom"
+        randomness: RingPotential_internal_coins_if_any
+        validation: canonical_endpoint_curve_and_length
+        failure_behavior: single_bottom_symbol_with_constant-observable_behavior_required
+        pseudocode_artifact: candidate.md
+        time: open_missing_RingPotential
+        memory: open
+        bit_length_bounds: open
+    preprocessing_and_retry_costs: "All setup, retry, path, table, and ring preprocessing costs are unbounded/open."
+    complexity_guarantee: "No unconditional polynomial-time guarantee."
+    unavailable_subroutines:
+      - TrapCurveGen_ER
+      - nontrivial_public_EdgeLabel_with_zero_circulation
+      - polynomial_complete-ring_RingPotential
+      - complete_ring_basis_verifier_and_conversion
+    evidence_artifacts: [candidate.md, endpoint-fiber-relation.yaml]
+    review_artifact: null
+    remaining_gap: "The typed syntax contains three unavailable load-bearing subroutines."
+    next_action: "Supply one concrete label/evaluator pair and prove its runtime and output law."
+  O3:
+    name: quantified_correctness
+    status: proposed_discharge
+    statement_and_quantifiers: >-
+      For every accepted (pp,E,W_E), every allowed m, and every honest
+      w in support(WalkSample(E)) ending at C, if RingPotential(pp,W_E,C)
+      returns then Dec(W_E,Enc(E,m;w))=m.
+    probability_space: "KeyGen, WalkSample, RingPotential, and parser randomness under the undefined real distributions."
+    valid_key_and_message_scope: "Accepted canonical keys, allowed messages, honest sampled walks, and canonical ciphertext encoding only."
+    per_key_or_average_guarantee: "Per accepted key conditionally; average failure bound is not supplied."
+    failure_probability_bound: "epsilon_key + epsilon_walk + epsilon_potential + epsilon_parse; every term is currently unbounded."
+    actual_message_or_key_recovery: "The conditional XOR identity recovers the actual selected message."
+    exceptional_inputs:
+      - invalid or noncanonical public key
+      - WalkSample failure
+      - invalid or alternate endpoint encoding
+      - RingPotential failure
+      - endpoint outside the honest sampled image
+    theorem_artifact: candidate.md
+    supporting_test_artifacts: []
+    review_artifact: null
+    remaining_gap: "The conservative property, RingPotential agreement, and every failure bound require proof."
+    next_action: "Prove the fiber theorem and a negligible total failure law for a concrete instantiation."
+  O4:
+    name: functionality_mechanism
+    status: open
+    public_operation: "Sample a public walk and sum EdgeLabel over its edges."
+    private_operation: "RingPotential(pp,W_E,C) evaluates the same endpoint potential without the sender walk."
+    agreement_or_message_binding_lemma: "Conditional zero-circulation identity in candidate.md; unproved for any concrete label."
+    extra_recipient_secrets:
+      - "Any retained path, orientation, ideal, cache, finite-action table, or opaque decoder; none may remain undeclared."
+    recipient_lift:
+      applicability: required
+      inapplicable_reason: null
+      interface: RingPotential
+      inputs: "pp, complete evaluable W_E, canonical endpoint C"
+      output_representation_and_equivalence: "The unique kappa-bit endpoint potential x in A_lambda."
+      uniqueness_or_acceptance_condition: "All admissible honest paths to C have the same sum."
+      polynomial_algorithm_and_cost: open
+      failure_bound: open
+      recovery_of_actual_message_or_key: "x determines the same H_pad input used by Enc."
+      identical_public_data_control: >-
+        Attempt public endpoint hash, public pathfinding, cached preimage,
+        finite-action, one-evaluator, compressed, and opaque-decoder recovery.
+    identification_and_transform:
+      applicability: false
+      inapplicable_reason: "No identification-to-encryption transform is used."
+      relation: null
+      completeness: null
+      soundness_extractor_and_knowledge_error: null
+      simulator_and_verifier_scope: null
+      challenge_space: null
+      transcript_message_key_and_context_binding: null
+      transform_theorem_and_hypotheses: null
+    ake_identity_and_session_binding: null
+    evidence_artifacts: [candidate.md, proof-search-map.yaml]
+    review_artifact: null
+    remaining_gap: >-
+      No concrete secret-dependent evaluator or proof that a complete ring,
+      rather than a smaller equivalent decoder, is necessary.
+    next_action: "Instantiate RingPotential and defeat every declared smaller-witness control."
+  O5:
+    name: correctly_directed_security_reduction
+    status: open
+    reductions:
+      - security_claim: IND-CPA
+        solver_input_distribution: "A complete-EndRing challenge E from the exact real public-key marginal."
+        scheme_attacker: "A QPT CEFC-PKE IND-CPA adversary with QROM access."
+        assumption_problem_solved: "CompleteEndRing(E)"
+        challenge_embedding: open
+        real_key_distribution_argument: open
+        oracle_simulation: open
+        extraction: "Must output a complete evaluable rank-four End(E) basis; absent."
+        aborts: open
+        advantage_loss_bound: absent
+        solver_runtime: absent
+        model: QPT/QROM_target
+        theorem_artifact: null
+        independently_reviewed_artifact: null
+    intermediate_assumptions:
+      - name: CEFC-POT-PR
+        game: endpoint-fiber-relation.yaml
+        status_to_EndRing: open
+        note: >-
+          At best the raw PKE can be related to this endpoint-potential game.
+          It is not relabeled as EndRing hardness.
+    multiple_assumption_dependency: >-
+      IND-CPA would require CEFC-POT-PR, a QROM pad theorem, collision/failure
+      bounds, and a separate correctly directed CEFC-POT-PR-to-EndRing
+      extraction. None is discharged.
+    classical_quantum_and_rewinding_scope: "No classical or quantum reduction, programming argument, or rewinding proof is supplied."
+    evidence_artifacts: [reduction-ledger.yaml, public-statement.yaml]
+    review_artifact: null
+    remaining_gap: "The same-distribution attacker-to-complete-EndRing extractor and quantitative QROM proof are absent."
+    next_action: "Construct the exact extractor or preserve CEFC-POT-PR as a separate unsupported assumption."
+  O6:
+    name: complete_adversarial_view
+    status: open
+    public_disclosures:
+      - pp and canonical enc(E)
+      - canonical endpoint enc(C)
+      - masked payload v and message length
+      - all validation rules and failure behavior
+      - H_pad domain and quantum query interface
+      - repeated public keys and ciphertexts in any multi-user extension
+    allowed_oracles_and_query_history: >-
+      Baseline proposal is IND-CPA with quantum H_pad queries and no decryption
+      oracle. IND-CCA2 is scoped-refuted for the raw syntax by one related-
+      ciphertext query.
+    validation_rejection_and_failure_observables: "Canonical parse and one bottom result are specified; timing and retry observables remain unmodeled."
+    malformed_inputs_and_alternate_encodings: "Must reject alternate encodings; endpoint-equivalent but byte-distinct ciphertext behavior remains to be analyzed."
+    repeated_use_and_collision_analysis: "Endpoint and potential collisions, pad reuse, multi-target and multi-user behavior are open."
+    side_channel_scope_and_exclusions: "No implementation-security or side-channel claim."
+    public_data_and_known_false_controls:
+      - public endpoint hash
+      - exact path hash
+      - EvalLine or one evaluator
+      - finite torsion action
+      - cached preimage or endpoint table
+      - compressed or opaque decoder
+      - public simultaneous-conjugation recovery
+      - raw CCA bit-flip malleation
+    concrete_parameter_security: "No parameter set or security-bit estimate."
+    asymptotic_to_concrete_limitations: "Every asymptotic and concrete cost, quantum loss, query count, memory term, and failure tail is open."
+    evidence_artifacts: [candidate.md, cat5-evidence-plan.yaml]
+    review_artifact: null
+    remaining_gap: "The full adaptive QPT/QROM, malformed, repeated, auxiliary, cost, and implementation view is incomplete."
+    next_action: "Complete the frozen view before any security or parameter claim."
+
+assessment:
+  verdict: candidate
+  finite_functionality_status: conditional_definition_only
+  efficient_functionality_status: unresolved
+  security_status: unresolved_IND_CPA_and_scoped_refuted_IND_CCA2
+  named_conditions:
+    - nontrivial public zero-circulation EdgeLabel
+    - polynomial complete-EndRing RingPotential
+    - CEFC-POT-PR on the exact public distribution
+    - attacker-to-complete-EndRing extraction
+    - QPT/QROM proof and complete failure/collision accounting
+  open_obligations: [O1, O2, O4, O5, O6]
+  obstruction:
+    affected_obligation: O2/O4/O5
+    exact_family_and_parameter_scope: "The CEFC edge-cocycle endpoint-potential interface at all presently unselected parameters."
+    counterexample_or_argument_artifact: candidate.md
+    what_remains_open: >-
+      Existence of another label, evaluator, reduction, or a materially
+      different EndRing PKE; no universal nonexistence is claimed.
+  independent_review_artifacts: []
+  next_action: >-
+    Independently test the fiber theorem and smaller-witness controls, then
+    require the correctly directed same-distribution extractor before any
+    construction label.
+  official_state_transition_record: null
+
+citations:
+  - source: docs/scheme-construction-contract.md
+    section: "The six obligations"
+    provenance: internal
+    verified_by: TASK-20261013-64d436
+    inspected_scope: "Full file; used as documentation rubric, not scientific support."
+  - source: problems/eigenx-cest-endring-reduction-not-established.md
+    section: "Evidence and uncertainty; reviewed updates"
+    provenance: internal
+    verified_by: TASK-20261013-64d436
+    inspected_scope: "Full current problem record; used only for controls and nonduplication."
