@@ -56,6 +56,12 @@ def load_campaign(attempt):
     events = [json.loads(line) for line in events_path.read_text().splitlines()]
     if len(events) != len(items):
         raise AssertionError("event count differs from plan")
+    by_item = {}
+    for event in events:
+        key = tuple(event["item"])
+        if key in by_item or key not in items:
+            raise AssertionError("duplicate or out-of-plan event")
+        by_item[key] = event
     candidates = {}
     with (PREVIOUS / "raw/candidates.jsonl").open() as source:
         for line in source:
@@ -64,7 +70,8 @@ def load_campaign(attempt):
                 candidates[(item["target"], item["index"])] = item
     rows = collections.defaultdict(dict)
     shard_hashes = {}
-    for item, event in zip(items, events, strict=True):
+    for item in items:
+        event = by_item[item]
         target, start, end, attempt_in_item = item
         if (event["item"] != list(item) or event["verification"] != "PASS" or
                 event["status"] != "PROCESS_OK" or event["returncode"] != 0 or

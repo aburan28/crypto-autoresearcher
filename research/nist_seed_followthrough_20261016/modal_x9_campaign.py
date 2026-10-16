@@ -189,15 +189,25 @@ def main(mode: str = "pilot", attempt: str = "modalpilot1"):
     plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
     events_path = run_dir / "events.jsonl"
     successful = 0
+    planned = set(items)
+    observed_items = set()
     with events_path.open("x") as events:
         outputs = count_shard.map(items, kwargs={"expected": EXPECTED},
-                                  order_outputs=True, return_exceptions=True)
-        for observed_count, (item, response) in enumerate(zip(items, outputs), 1):
+                                  order_outputs=False, return_exceptions=True,
+                                  wrap_returned_exceptions=False)
+        for observed_count, response in enumerate(outputs, 1):
             if isinstance(response, BaseException):
+                item = None
                 record = {"item": item, "verification": "FAIL",
                           "exception": f"{type(response).__name__}: {response}"}
             else:
-                record = save_result(item, response, mode)
+                item = tuple(response["item"])
+                if item not in planned or item in observed_items:
+                    record = {"item": item, "verification": "FAIL",
+                              "error": "out-of-grid or duplicate returned shard"}
+                else:
+                    observed_items.add(item)
+                    record = save_result(item, response, mode)
             events.write(json.dumps(record, sort_keys=True) + "\n")
             events.flush()
             successful += record["verification"] == "PASS"
@@ -205,7 +215,8 @@ def main(mode: str = "pilot", attempt: str = "modalpilot1"):
                               "total": len(items),
                               "last_item": item, "verification": record["verification"]}),
                   flush=True)
-    stop = {"status": "complete" if successful == len(items) else "partial",
+    stop = {"status": "complete" if successful == len(items) and
+            observed_items == planned else "partial",
             "successful_shards": successful, "total_shards": len(items),
             "plan_sha256": digest(plan_path.read_bytes()),
             "events_sha256": digest(events_path.read_bytes()),
