@@ -83,3 +83,5 @@ existing fields and authority. Problem status does not change a goal's status,
 approve an experiment, retire a direction, or promote a claim. An impeded goal
 remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
+
+- [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
