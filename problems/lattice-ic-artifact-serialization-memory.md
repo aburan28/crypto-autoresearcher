@@ -22,7 +22,7 @@ The prescribed three curves, windows2/4/8, m2/3 reductions and m2/3/5 density co
 
 ## What would unblock it
 
-- [ ] Distinct actual8+ownreceipt9 administrative custody passes native Git verification and is published; original scientific10 archive3047d1 and local9403cb remain uncompleted, absent outputs untouched.
+- [x] Distinct actual8+ownreceipt9 administrative custody passes native Git verification and is published; original scientific10 archive3047d1 and local9403cb remain uncompleted, absent outputs untouched.
 - [ ] [Narrow source handoff](../ledger/handoffs/TASK-20261016-282fd3.yaml) passes meaningful exact-byte/value/error/I/O and bounded synthetic serialization/check controls plus all shared-consumer regressions under unchanged hard+soft2GiB; actual software insight report retains every failure/limit. No study trial as a software test.
 - [ ] Accepted source2+ownreceipt3 and a fresh current-source closure4+ownreceipt5 are actually archived/native verified. Historical source snapshots are immutable; no old/new hash-map union.
 - [ ] A prospective fresh full-science-equal EXP/RUN/plan/amendment receives native-ready Coordinator approval and completes its full cold schedule and separate checker with exact custody, followed by required independent review. Execution-proof support/limits are explicit; no unsupported verification claim.
@@ -40,3 +40,6 @@ Software controls would establish only exact artifact-path behavior at their tes
 ## Resolution and history
 
 2026-10-16: opened after actual serialization failure. Both prior attempts, frozen23 inputs and all historical archives remain immutable. Three distinct failure9 archives must accompany future four successful observations and the preserved old/new blind archives. No review plan/candidate applied, independent reviewer dispatched, scientific status changed or improvement claimed.
+
+
+2026-10-16 custody/source release: actual9 snapshot `8e50dcacdd42d3f048899e6979581c6f9fdbdbc7`, parent `2230990122d78a9a12d97f44f4047782218ad9e3`, has native Git proof published at `049bb2b82a2744d54f78a6bd63bbe5da14049231`. Capturea59f61/archivef4a410 are completed administrative tasks only. Coordinator has explicitly queued source282fd3; root must publish that queued release and acquire a normal native source claim before implementation. Source acceptance, fresh currentclosure5, future full-grid/checker and independent review remain uncompleted.
