@@ -93,3 +93,15 @@ n=83 and n=131 settings; none is a substitute for a prime-field experiment.
 Open. This curation ran no cryptanalytic experiment and establishes no hidden
 weak curve, private solver, or new speedup. Citation provenance is inherited
 from the explicitly limited sources in KN-TECH-0f24d0.
+
+## Addendum (2026-10-16): the seed-manipulation falsifier and the NIST curves, a disclosure and not a change of status
+
+Added by the Coordinator under DEC-20261016-fb3a6f. The question and its
+status (open) are unchanged. The falsifier row "Seed manipulation delivers a
+hidden weak class" still stands as written. For the historical X9.62 /
+FIPS 186-2 prime curves, there is now a second, independent constraint on
+that claim: the seeds are `drand48` output after `srand48(t)` for 1997-98
+timestamps, which leaves about 30 bits of generator freedom per curve
+(KN-LIT-d2f917, Valsorda's bound and its stated assumptions). A seed-delivered
+weak class for those curves would need density of at least about `2^-30`.
+Nothing here changes any ECDLP cost.

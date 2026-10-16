@@ -84,6 +84,22 @@ compiled binary's source hash. A run manifest should copy it.
    Chunks own disjoint columns, so OpenMP threads take whole chunks with no
    locking. Table memory is allocated once per pass. The hot loops also have
    an AVX-512 clone next to the AVX2 one.
+   The update touches only words where some pivot tail of the block is
+   nonzero. Macaulay pivot rows are sparse at word level: on M_5 at nv = 24
+   the union of one block's pivot tails is nonzero in about 25% of the tail
+   words, in about 14 runs. So chunks are cut from those runs (gaps of up to
+   `SEG_GAP` = 4 zero words merged) instead of from the whole tail. Inside a
+   chunk, 8-pivot groups that are zero there are neither built nor read, and
+   a row none of whose groups is nonzero there is not touched. Elsewhere
+   every table entry is zero, so the output is bit-identical (op log and
+   final matrix). Measured end to end with `tools/gf2_bench_gpu.py`, CPU
+   column, best of 3 interleaved runs on a 4-core VM: M_5 nv=24 2.35 to
+   1.81 s (1.30x), M_6 nv=20 4.72 to 2.91 s (1.62x), M_5 nv=26 4.94 to
+   3.18 s (1.55x), W_5 nv=22 3.85 to 3.46 s (1.11x), W_5 nv=20 unchanged
+   within noise. On the captured M_5 nv=24 matrix the pass went from about
+   2.48 s to about 1.64 s with 4 threads and from 4.4 s to about 3.4 s with
+   one. The RC-1 replay is unchanged (its matrices are small): 0 mismatches,
+   268 valid certificates.
 5. **Super-blocks (`sb`).** Two words (128 columns) are eliminated per step,
    with exact multi-word row state and up to 128-bit pivot coefficients, so
    the far tail is updated once per 128 columns. The op log cannot change:
@@ -269,6 +285,19 @@ What was evaluated and not built:
   but 3x slower on M_6 at nv = 20, where the space left after the prefix has
   codimension about 6000 over denser echelon rows and the annihilator costs
   more than it saves. SPLIT = 1.0 has no such cliff.
+- **With the segment skip in place** (2026-10-16, same VM): `sb` at
+  SB_WORDS 1 to 4 against `blocked`, and SEG_GAP 1, 2, 8 and 16 against 4,
+  all moved the M_5 nv=24 pass only within run-to-run noise. Turning off
+  numpy's transparent-hugepage advice
+  (`numpy._core.multiarray._set_madvise_hugepage(False)`) makes the first
+  touch of a fresh 200 MB array about 12x cheaper (1.25 s to 0.1 s), but
+  every benchmark workload got 16 to 23% slower: the passes lose more to TLB
+  misses than the allocations save. With 4 threads the pass is now
+  0.06 s row scan, 0.22 s block elimination (serial) and 1.2 s trailing
+  update, which scales 2.5x on 4 cores; it is memory bound. The W_5
+  annihilator with 49 syndrome words (0.83 s at nv = 22) is bounded by
+  random reads of K rows; nibble tables would halve the reads but move them
+  to a 56 MB table, so it was left as is.
 
 ## Not covered yet
 

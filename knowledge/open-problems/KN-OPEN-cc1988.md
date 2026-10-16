@@ -81,3 +81,17 @@ would close GOAL-ECTD-001 and would be a real structural result about the
 prime-field ECDLP. Either outcome is worth the search; premature closure
 on the grounds that "nothing is known" is the failure mode the inventor
 protocol warns against.
+
+## Addendum (2026-10-16): the NIST application of condition (3), a disclosure and not a change of status
+
+Added by the Coordinator under DEC-20261016-fb3a6f. The question and its
+status (open) are unchanged. On the composition with seed manipulation in
+"Why it matters here": the historical X9.62 / FIPS 186-2 prime curves were
+generated from `drand48` output after `srand48(t)` for 1997-98 timestamps
+(KN-LIT-d2f917). Valsorda bounds the freedom at about 30 bits per curve. For
+those specific curves, a positive answer would therefore have to satisfy
+condition (3) with `k` at most about 30, under that bound's assumptions, to
+have been deliverable through their generation. Any `W` with `k` above that
+could not have been planted through the recovered generator, whatever its
+existence status. "Verifiably random" standards in general are unaffected.
+Nothing here changes any ECDLP cost.

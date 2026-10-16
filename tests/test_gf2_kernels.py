@@ -116,6 +116,13 @@ def test_column_pass_large_paths_agree(monkeypatch):
     base = (rng.random((200, C)) < 0.4).astype(np.uint8)
     comb = (rng.random((R, 200)) < 0.3).astype(np.uint8)
     cases.append((_pack((comb @ base % 2).astype(np.uint8), C), C))
+    # sparse at word level, like Macaulay pivot rows: whole zero words in the
+    # pivot tails, so the trailing update's run/segment and group skipping is used
+    R, Wd = 1400, 48
+    dense = (rng.random((R, 64 * Wd)) < 0.2).astype(np.uint8).reshape(R, Wd, 64)
+    dense[rng.random((R, Wd)) < 0.8] = 0
+    C = 64 * Wd - 5
+    cases.append((_pack(dense.reshape(R, 64 * Wd)[:, :C], C), C))
     for M, C in cases:
         want_M = M.copy()
         want = kernels.column_pass(want_M, C, True, algorithm="direct")

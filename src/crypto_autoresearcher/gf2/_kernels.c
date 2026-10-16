@@ -290,7 +290,18 @@ fail:
  * form; the previous version streamed each row once per 8-pivot group).
  * Chunks own disjoint columns, so threads take whole chunks: no two threads
  * write the same word, and each thread's tables are private.
+ *
+ * Only words where some pivot tail is nonzero are touched: elsewhere every
+ * table entry is zero and the XOR changes nothing. Macaulay pivot rows are
+ * sparse at word level (on M_5 nv=24 the union of one block's pivot tails is
+ * nonzero in ~25% of the tail words, in ~14 runs), so chunks are cut from the
+ * runs of that union (gaps of <= SEG_GAP zero words are merged into a run,
+ * keeping the inner loops long) instead of from the whole tail.
  */
+#ifndef SEG_GAP
+#define SEG_GAP 4
+#endif
+
 HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *rows,
                            const u64 *cfs, int cw, i64 nr, const u64 *Bs, i64 tail, int npiv,
                            int tables, u64 *T)
@@ -314,7 +325,24 @@ HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *row
         }
         return;
     }
+    /* gnz bit g: some pivot of group g is nonzero in this chunk; the other
+     * groups' tables are all zero here and are neither built nor read */
+    u64 gnz = 0;
+    for (int i = 0; i < npiv; i++) {
+        if (gnz >> (i >> 3) & 1)
+            continue;
+        const u64 *bi = Bs + (size_t)i * tail + x0;
+        for (i64 x = 0; x < ch; x++)
+            if (bi[x]) {
+                gnz |= 1ULL << (i >> 3);
+                break;
+            }
+    }
+    if (!gnz)
+        return;
     for (int g = 0; g < ngroups; g++) {
+        if (!(gnz >> g & 1))
+            continue;
         int k = npiv - 8 * g < 8 ? npiv - 8 * g : 8;
         int ns = 1 << k;
         u64 *Tg = T + (size_t)g * 256 * ch;
@@ -333,13 +361,15 @@ HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *row
         if (a + 1 < nr)
             __builtin_prefetch(M + (size_t)rows[a + 1] * W + w0 + x0, 1, 3);
         const u64 *cf = cfs + (size_t)a * cw;
-        u64 *row = M + (size_t)rows[a] * W + w0 + x0;
         int nt = 0;
         for (int g = 0; g < ngroups; g++) {
             int s2 = (int)((cf[g >> 3] >> (8 * (g & 7))) & 0xFF);
-            if (s2)
+            if (s2 && (gnz >> g & 1))
                 t[nt++] = T + ((size_t)g * 256 + s2) * ch;
         }
+        if (!nt)
+            continue;                       /* nothing of this row changes here */
+        u64 *row = M + (size_t)rows[a] * W + w0 + x0;
         int j = 0;
         for (; j + 4 <= nt; j += 4) {
             const u64 *a0 = t[j], *a1 = t[j + 1], *a2 = t[j + 2], *a3 = t[j + 3];
@@ -357,6 +387,44 @@ HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *row
                 row[x] ^= a0[x];
         }
     }
+}
+
+/* grow-only per-thread scratch for tail_update: the union of the pivot tails
+ * and the segment list */
+static __thread u64 *g_uni = NULL;
+static __thread i64 *g_seg = NULL;
+static __thread size_t g_seg_cap = 0;
+
+HOT static void tail_union(const u64 *Bs, i64 tail, int npiv, u64 *uni)
+{
+    memcpy(uni, Bs, (size_t)tail * sizeof(u64));
+    for (int i = 1; i < npiv; i++) {
+        const u64 *b = Bs + (size_t)i * tail;
+        for (i64 x = 0; x < tail; x++)
+            uni[x] |= b[x];
+    }
+}
+
+/* seg[2j], seg[2j+1] = start, length of segment j: the nonzero runs of uni,
+ * gaps of <= SEG_GAP words merged, each cut to at most ch words */
+static i64 tail_segments(const u64 *uni, i64 tail, i64 ch, i64 *seg)
+{
+    i64 ns = 0, x = 0;
+    while (x < tail) {
+        if (!uni[x]) {
+            x++;
+            continue;
+        }
+        i64 s0 = x, last = x;
+        for (x = x + 1; x < tail && x - last <= SEG_GAP && x - s0 < ch; x++)
+            if (uni[x])
+                last = x;
+        seg[2 * ns] = s0;
+        seg[2 * ns + 1] = last - s0 + 1;
+        ns++;
+        x = last + 1;
+    }
+    return ns;
 }
 
 static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u64 *coef,
@@ -389,17 +457,38 @@ static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u6
         ch = tail;
     if (ch >= 8)
         ch &= ~(i64)7;                       /* whole cache lines per chunk */
-    i64 nch = (tail + ch - 1) / ch;
+    if ((size_t)tail > g_seg_cap) {
+        i64 *ns2 = (i64 *)realloc(g_seg, (size_t)(2 * tail) * sizeof(i64));
+        if (ns2)
+            g_seg = ns2;
+        u64 *nu = (u64 *)realloc(g_uni, (size_t)tail * sizeof(u64));
+        if (nu)
+            g_uni = nu;
+        if (!ns2 || !nu)
+            return -1;
+        g_seg_cap = (size_t)tail;
+    }
+    i64 *seg = g_seg;
+    tail_union(Bs, tail, npiv, g_uni);
+    i64 nch = tail_segments(g_uni, tail, ch, seg), covered = 0;
+    for (i64 q = 0; q < nch; q++)
+        covered += seg[2 * q + 1];
+    if (!nch)
+        return 0;
     int nt = 1;
 #ifdef _OPENMP
     /* threads only where the block carries enough work to pay for them */
-    if (nthreads > 1 && (double)nr * (double)tail > (double)(1 << 15)) {
+    if (nthreads > 1 && (double)nr * (double)covered > (double)(1 << 15)) {
         nt = nthreads;
         if (nch < nt) {                       /* split finer so every thread has columns */
-            ch = (tail + nt - 1) / nt;
-            if (ch >= 8)
-                ch = (ch + 7) & ~(i64)7;
-            nch = (tail + ch - 1) / ch;
+            i64 c3 = (covered + nt - 1) / nt;
+            if (c3 >= 8)
+                c3 = (c3 + 7) & ~(i64)7;
+            if (c3 < 1)
+                c3 = 1;
+            if (c3 > ch)
+                c3 = ch;
+            nch = tail_segments(g_uni, tail, c3, seg);
         }
         if (nch < nt)
             nt = (int)nch;
@@ -421,10 +510,9 @@ static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u6
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic, 1)
 #endif
-        for (i64 q = 0; q < nch; q++) {
-            i64 x0 = q * ch, c2 = tail - x0 < ch ? tail - x0 : ch;
-            tail_chunk(M, W, w0, x0, c2, rows, cfs, cw, nr, Bs, tail, npiv, tables, T);
-        }
+        for (i64 q = 0; q < nch; q++)
+            tail_chunk(M, W, w0, seg[2 * q], seg[2 * q + 1], rows, cfs, cw, nr, Bs, tail, npiv,
+                       tables, T);
     }
     return 0;
 }
