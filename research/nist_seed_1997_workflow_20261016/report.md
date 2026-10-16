@@ -30,6 +30,8 @@ NIST's [2014 retrospective][nist-slides] (`retrieved, retrospective`) says it so
 
 The six reconstructed `srand48` inputs are dated **15 May 1997** (239-bit ANSI examples), **18 May** (192-bit examples/P-192), **8 August** (P-521), **16 August** (P-256), **30 August** (P-384), and **3 April 1998** (P-224). P-224 came after the larger curves. A separate 112-bit standards need or project pass fits that delay, but no recovered document says that was the cause. The dates are reconstructed PRNG seeds, not independently witnessed wall-clock records. [Census][census] (`internal`); [Anthropic][anthropic] (`retrieved`).
 
+There is a striking contemporary date match: on **13 May 1997**, NIST publicly announced a planned federal standard for public-key agreement and explicitly invited comment on elliptic-curve techniques. A later Federal Register notice says NIST also solicited comments that day on adding elliptic curves to the digital-signature standard. The recovered May 15 and May 18 inputs are **two and five days later**. This documents an active standards setting; it does not prove the public notices triggered either generator run, because the input timestamps need not be independently witnessed run times. [NIST's May 1997 notice][nist-1997-agreement] and [December 1998 Federal Register account][fr-1998-signatures] (`retrieved`).
+
 Anthropic identified a **different, FreeLIP generator** for the six May 1997 base points. Its small seeds were 20000 for P-192; 20420, 20507, 20509 for prime239v1–v3; and 20512, 20517 for prime192v2/v3. This assignment order differs from the two curves' timestamp order and their publication order. It is **consistent with** a separate base-point or standards-assembly pass. It also makes May base-point search consuming the same `drand48` seed stream a less direct explanation for omitted windows. The four later prime base points are still unexplained. [Anthropic][anthropic] (`retrieved`).
 
 ![Qualifying blocks through each stream's last published block](stream_counts.svg)
@@ -67,6 +69,8 @@ This search changes no curve identity, frozen point count, hypothesis status, or
 [anthropic]: https://www.anthropic.com/research/ecdsa-curve-origins
 [valsorda]: https://words.filippo.io/seeds-solved/
 [nist-slides]: https://csrc.nist.gov/csrc/media/projects/crypto-standards-development-process/documents/fips_186_and_elliptic_curves_052914.pdf
+[nist-1997-agreement]: https://csrc.nist.gov/News/1997/Plans-to-Develop-FIPS-for-Public-Key-Based-Crypto
+[fr-1998-signatures]: https://csrc.nist.rip/encryption/dss/fr981215.htm
 [miracl]: https://github.com/miracl/MIRACL/blob/master/source/curve/sea.cpp
 [twins]: https://arxiv.org/abs/1506.07269
 [weis]: https://saweis.net/posts/nist-curve-seed-origins.html
