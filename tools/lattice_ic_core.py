@@ -435,6 +435,89 @@ def _json_bytes(value):
     return (json.dumps(_json_safe(value), sort_keys=True, indent=2, allow_nan=False)+"\n").encode()
 
 
+def _json_chunks(value, depth=0):
+    """Canonical JSON text without copying the result tree or buffering output.
+
+    Memory is bounded by active object key sorts, nesting and the largest integer
+    token. Strings (including keys) are escaped in bounded character chunks.
+    A caller must not mutate containers while validating/writing them.
+    """
+    if isinstance(value, Fraction):
+        value = {"numerator": value.numerator, "denominator": value.denominator}
+    elif isinstance(value, Path):
+        value = str(value)
+    if isinstance(value, str):
+        yield '"'
+        for offset in range(0, len(value), 8192):
+            yield json.dumps(value[offset:offset+8192], ensure_ascii=True)[1:-1]
+        yield '"'
+    elif value is None or isinstance(value, (bool, Integral, float)):
+        if isinstance(value, Integral) and not isinstance(value, bool):
+            value = int(value)
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("nonfinite result value")
+        yield json.dumps(value, allow_nan=False)
+    elif isinstance(value, (tuple, list, dict)):
+        mapping = isinstance(value, dict)
+        if mapping:
+            keys = {}
+            for key in value:
+                if not isinstance(key, (str, int)) or isinstance(key, bool):
+                    raise TypeError("JSON object keys must be strings/integers")
+                text = str(key)
+                if text in keys:
+                    raise ValueError("JSON key normalization collision")
+                keys[text] = key
+            entries = sorted(keys)
+        else:
+            entries = range(len(value))
+        yield "{" if mapping else "["
+        for position, key in enumerate(entries):
+            yield (",\n" if position else "\n") + "  "*(depth+1)
+            if mapping:
+                yield from _json_chunks(key, depth+1)
+                yield ": "
+                item = value[keys[key]]
+            else:
+                item = value[key]
+            yield from _json_chunks(item, depth+1)
+        if len(value):
+            yield "\n" + "  "*depth
+        yield "}" if mapping else "]"
+    else:
+        raise TypeError(f"unsupported exact result type: {type(value).__name__}")
+
+
+def _validate_json(value):
+    # Consume the same encoder before creating either artifact: late/deep bad
+    # values and integer encoding errors must not produce successful artifacts.
+    for _ in _json_chunks(value):
+        pass
+
+
+def _write_json(path, value):
+    """Exclusively create canonical UTF-8 JSON and hash actual bytes written."""
+    digest = hashlib.sha256()
+    with path.open("xb") as stream:
+        for chunk in _json_chunks(value):
+            data = chunk.encode("utf-8")
+            if stream.write(data) != len(data):
+                raise OSError("short artifact write")
+            digest.update(data)
+        if stream.write(b"\n") != 1:
+            raise OSError("short artifact write")
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024*1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _installed_dependencies():
     result = {}
     for distribution, module in (("sympy", "sympy"), ("fpylll", "fpylll"), ("PyYAML", "yaml")):
@@ -477,10 +560,10 @@ def write_artifacts(result, directory, seed, started, wall_start, cpu_start):
     raw_path, manifest_path = directory/"raw-result.json", directory/"manifest.yaml"
     if raw_path.exists() or manifest_path.exists():
         raise FileExistsError("artifact paths already exist")
-    payload = _json_safe(result)
+    payload = result
     if not isinstance(payload, dict) or not isinstance(payload.get("parameters"), dict) or "checks" not in payload:
         raise ValueError("result requires parameters object and checks")
-    raw_bytes = _json_bytes(payload)
+    _validate_json(payload)
     launch_path, environment_path = directory/"launch.json", directory/"environment.json"
     if launch_path.exists() != environment_path.exists():
         raise ValueError("partial supervisor metadata; require both launch and environment")
@@ -512,6 +595,11 @@ def write_artifacts(result, directory, seed, started, wall_start, cpu_start):
     source_binding = environment.get("source_sha256")
     canonical_ready = supervised and not softwarecheck and all(
         (run_id, experiment_id, commit, argv, isinstance(source_binding, dict) and bool(source_binding)))
+    # Preserve the original preparation-timer boundary for the independent
+    # normalized protocol snapshots. The validation prepass is also inside;
+    # streamed encoding/hash/writes below remain outside this manifest timer.
+    parameters = _json_safe(payload["parameters"])
+    checks = _json_safe(payload["checks"])
     now_wall, now_cpu = time.monotonic(), time.process_time()
     if (not isinstance(started, str) or not started or now_wall < wall_start or now_cpu < cpu_start):
         raise ValueError("valid actual timing origins required")
@@ -535,19 +623,21 @@ def write_artifacts(result, directory, seed, started, wall_start, cpu_start):
         "environment": {**environment, "writer_python": sys.version,
                         "writer_platform": platform.platform(), "installed_dependencies": _installed_dependencies()},
         "supervisor": launch if supervised else None,
-        "inputs": {"parameters": payload["parameters"], "seeds": [seed],
+        "inputs": {"parameters": parameters, "seeds": [seed],
                    "instance_policy": "public synthetic finite-field curves/subgroups with supplied parameters; no planted ambient lattice orders"},
         "timing": {"started_at": started, "finished_at": datetime.now(timezone.utc).isoformat(),
                    "wall_seconds": now_wall-wall_start, "process_cpu_seconds": now_cpu-cpu_start,
                    "measurement_scope": "driver through result assembly; artifact I/O and checker/supervisor costs separate"},
-        "result": {"raw_result": "raw-result.json", "raw_result_sha256": hashlib.sha256(raw_bytes).hexdigest(),
-                   "outcome": "observations_only", "checks": payload["checks"],
+        "result": {"raw_result": "raw-result.json", "raw_result_sha256": None,
+                   "outcome": "observations_only", "checks": checks,
                    "certificate": {"kind": "none"},
                    "interpretation": "No scientific validation, novelty, speedup or official status promotion."}}}
-    manifest_bytes = _json_bytes(manifest)
-    for path, contents in ((raw_path, raw_bytes), (manifest_path, manifest_bytes)):
-        with path.open("xb") as stream:
-            stream.write(contents)
+    # The returned protocol manifest retains normalized, independent snapshots
+    # of parameters/checks. These selected subtrees must still fit in memory;
+    # raw cases/certificates are never cloned. Validate provenance too before I/O.
+    _validate_json(manifest)
+    manifest["run"]["result"]["raw_result_sha256"] = _write_json(raw_path, payload)
+    _write_json(manifest_path, manifest)
     return manifest
 
 
@@ -557,7 +647,7 @@ def check_artifacts(directory):
     raw = _read_object(directory/"raw-result.json")
     manifest = _read_object(directory/"manifest.yaml")
     run = manifest["run"]
-    digest = hashlib.sha256((directory/"raw-result.json").read_bytes()).hexdigest()
+    digest = _file_sha256(directory/"raw-result.json")
     if digest != run["result"]["raw_result_sha256"]:
         raise ValueError("raw result hash mismatch")
     if run["inputs"]["parameters"] != raw["parameters"] or run["result"]["checks"] != raw["checks"]:
