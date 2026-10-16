@@ -87,7 +87,9 @@ def prepare(out: Path, protocol: dict, traits: dict) -> dict:
         (out / f"candidates_{prefix}.txt").write_text("".join(candidate_lines))
         (out / f"metadata_{prefix}.jsonl").write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in metadata))
         rows.append({"timestamp": t, "field": stream["field_control"], "p": hex(p), "first": stream["first_new_ordinal"], "last": stream["last_new_ordinal"], "total_blocks": 1024, "point_count_candidates": len(candidate_lines), "candidate_sha256": digest(out / f"candidates_{prefix}.txt"), "metadata_sha256": digest(out / f"metadata_{prefix}.jsonl")})
-    manifest = {"protocol_sha256": digest(HERE / "protocol.json"), "scanner_sha256": digest(Path(__file__)), "traits_sha256": digest(ROOT / protocol["source"]), "sea_census_sha256": digest(ROOT / protocol["point_counter"]), "python": sys.version, "platform": platform.platform(), "generated_at_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(), "controls": controls, "streams": rows}
+    gp_version = subprocess.run(["gp", "--version"], capture_output=True, text=True, check=True).stdout.strip()
+    seadata_path = Path("/opt/homebrew/share/pari/seadata")
+    manifest = {"protocol_sha256": digest(HERE / "protocol.json"), "scanner_sha256": digest(Path(__file__)), "traits_sha256": digest(ROOT / protocol["source"]), "sea_census_sha256": digest(ROOT / protocol["point_counter"]), "python": sys.version, "gp_version": gp_version, "seadata_path": str(seadata_path.resolve()) if seadata_path.exists() else None, "platform": platform.platform(), "generated_at_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(), "controls": controls, "streams": rows}
     (out / "prepare_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
