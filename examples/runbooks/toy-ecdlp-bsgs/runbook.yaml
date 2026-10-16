@@ -1,0 +1,285 @@
+# Runbook conformance example. Generated once at design time; frozen by the
+# digests in `binds`. docs/runbook-execution.md explains every field.
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXAMPLE-toy-ecdlp-bsgs
+session_id: RBS-EXAMPLE-b301f5
+title: Solve twelve seeded toy discrete logarithms by baby-step giant-step, with two controls
+purpose: >-
+  Conformance example for mechanical-tier runbook execution. Twelve seeded discrete
+  logarithms on a 20-bit prime-order curve are solved by baby-step giant-step and their
+  group operations recorded, beside a planted-logarithm positive control and an off-curve
+  negative control. It exercises the runbook machinery and tests no research hypothesis.
+executor_tier: mechanical
+approval:
+  mode: example
+binds:
+  - path: examples/runbooks/toy-ecdlp-bsgs/curve.json
+    sha256: a172de7c7ddeab0fe49ed50d95cbd640cce1f98bfa38ee93495d67fed8d601fb
+  - path: examples/runbooks/toy-ecdlp-bsgs/solve.py
+    sha256: d13b05f89ff51207b861adf5137372320cbcecfb0fa7ec91872ecabb09fe49e3
+  - path: examples/runbooks/toy-ecdlp-bsgs/check.py
+    sha256: 65f75ca332d4dc0387b58381c6e0d2323176e032b3b6f65fdc40309b1fc47ed1
+  - path: examples/runbooks/toy-ecdlp-bsgs/trial-plan.json
+    sha256: 2b4659f46ad25d189b92b9b2bdc5a6e2db38241d3d83afc9bff0ace72e99b81f
+  - path: examples/runbooks/toy-ecdlp-bsgs/README.md
+    sha256: efb4cc2737b3cd1421d42442d7130e6813ae2e6b2b22bc84e0741eade9b7ed53
+  - path: formal/targets/runbook-example-bsgs-coverage.yaml
+    sha256: 1dbdf3d94890283a35f6c494fbd7a2c7e06a8cbe18f29f7a09b274ffb41e083a
+  - path: formal/CryptoResearch/Runbook/BsgsCoverage.lean
+    sha256: 867ce0f37099a30b34ce7d603549eb8b28f16b1c17183119657715108f79d9d0
+spec_bindings:
+  - file: examples/runbooks/toy-ecdlp-bsgs/curve.json
+    pointer: /n
+    equals: 1047689
+  - file: examples/runbooks/toy-ecdlp-bsgs/curve.json
+    pointer: /p
+    equals: 1048571
+environment:
+  programs: [python3]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+  - id: S01-probe-python
+    kind: command
+    purpose: probe
+    title: Record the interpreter that runs every later step
+    explain: Writes the python3 version and platform to environment.json in this step's output directory.
+    argv:
+      - python3
+      - -c
+      - "import json, platform, sys; json.dump({'python': platform.python_version(), 'major': sys.version_info[0], 'implementation': platform.python_implementation()}, open(sys.argv[1], 'w'))"
+      - "{out}/environment.json"
+    timeout_seconds: 60
+    validity:
+      exit_code: 0
+      outputs:
+        - path: "{out}/environment.json"
+          json: true
+          assertions:
+            - {pointer: /major, equals: 3}
+            - {pointer: /implementation, equals: CPython}
+    tell_on_failure: python3 did not run. The session has stopped; report this step's stderr log path.
+  - id: S02-solve
+    kind: trials
+    title: Run the fourteen trials of the frozen plan and record each unit
+    explain: Runs solve.py then check.py for every trial in trial-plan.json, each in its own write-once directory.
+    plan: examples/runbooks/toy-ecdlp-bsgs/trial-plan.json
+    engine: local
+    timeout_seconds: 600
+    validity:
+      files:
+        - path: manifest.yaml
+        - path: raw-result.json
+          json: true
+          assertions:
+            - {pointer: /schema, equals: example.toy_ecdlp_bsgs.result.v1}
+            - {pointer: /trial_id, equals: "{trial_id}"}
+            - {pointer: /curve/p, equals: 1048571}
+            - {pointer: /curve/a, equals: 3}
+            - {pointer: /curve/b, equals: 20}
+            - {pointer: /curve/n, equals: 1047689}
+            - {pointer: /curve/G, equals: [2, 199837]}
+            - {pointer: /group_ops, type: integer}
+            - {pointer: /elapsed_ms, type: integer}
+    by_trial:
+      s01:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 491728178}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s02:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 1209145839}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s03:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 3543393917}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s04:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 2733404430}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s05:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 3333051379}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s06:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 3713082063}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s07:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 2094999287}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s08:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 734877258}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s09:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 3333652737}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s10:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 2742890266}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s11:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 1706266940}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      s12:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: search}
+              - {pointer: /seed, equals: 2848212693}
+              - {pointer: /status, equals: solved}
+              - {pointer: /verified, equals: true}
+              - {pointer: /baby_steps, equals: 1024}
+              - {pointer: /giant_steps, min: 1}
+              - {pointer: /giant_steps, max: 1024}
+      c-known-k:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: known-k}
+              - {pointer: /k_input, equals: 123456}
+              - {pointer: /k_found, equals: 123456}
+              - {pointer: /verified, equals: true}
+      c-off-curve:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /mode, equals: off-curve}
+              - {pointer: /status, equals: rejected_input}
+              - {pointer: /k_found, equals: null}
+              - {pointer: /verified, equals: false}
+    controls: [c-known-k, c-off-curve]
+    replay:
+      mode: fields
+      sample: 4
+      compare:
+        - file: raw-result.json
+          pointers: [/Q, /status, /k_found, /verified, /m, /baby_steps, /giant_steps, /group_ops, /setup_ops]
+    tell_on_failure: A trial output failed its validity checks. The session has stopped; report the unit details printed by status --brief.
+  - id: S03-lean-coverage
+    kind: lean
+    title: Machine-check the coverage identity that makes an unsolved instance a defect
+    explain: Builds the Lean target runbook-example-bsgs-coverage and audits its axioms; records unavailable where Lean is not installed.
+    task_file: formal/targets/runbook-example-bsgs-coverage.yaml
+    required: false
+    timeout_seconds: 1800
+metrics:
+  - name: group_ops
+    unit: group operations
+    label: measured
+    step: S02-solve
+    file: raw-result.json
+    pointer: /group_ops
+    aggregate: [count, mean, median, min, max]
+  - name: giant_steps
+    unit: group operations
+    label: measured
+    step: S02-solve
+    file: raw-result.json
+    pointer: /giant_steps
+    aggregate: [mean, min, max]
+  - name: solved_fraction
+    unit: fraction of search trials
+    label: derived
+    step: S02-solve
+    file: raw-result.json
+    pointer: /verified
+    aggregate: [fraction_true, count]
+report:
+  graph_metric: group_ops
