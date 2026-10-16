@@ -83,3 +83,20 @@ beat for a planted prime-field trapdoor to be deployable, so this paper is
 the cost side of that open problem's condition (3). It is also the
 program's clearest statement that, as of 2018, no prime-field weak class
 beyond anomalous and low-embedding-degree curves is publicly known.
+
+## Addendum (2026-10-16): later context for the NIST application, a disclosure and not a correction of this summary
+
+Added by the Coordinator under DEC-20261016-fb3a6f. The summary above
+remains a faithful account of the paper and is unchanged. The paper's density
+argument treats the NIST seeds as freely searchable: a weak class of density
+`2^-40` is found by about `2^48` seed trials, and Remark 1 needs about `2^70`
+curve counts. KN-LIT-d2f917 now records that the historical seeds are `drand48`
+output after `srand48(t)` for 1997-98 timestamps. Valsorda bounds the freedom
+at about 30 bits per curve. Under that bound's assumptions, both scenarios
+exceed the freedom the historical generator had. The paper's conclusion,
+that a planted seed is implausible, is therefore reached for these curves by a
+different and more direct route. A class of density at least about `2^-30`
+would still fit within the bound, so the bound does not exclude a planted
+weak class outright. The selection among accepted candidates is unexplained
+(problems/nist-seed-selection-rule-unexplained.md). Nothing here changes any
+ECDLP cost.
