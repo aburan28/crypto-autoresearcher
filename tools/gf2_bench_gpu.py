@@ -50,6 +50,8 @@ def main():
     a = ap.parse_args()
     ok, why = gpu.available()
     info = {"host": platform.node(), "cpus": os.cpu_count(), "backend": kernels.backend(),
+            "affinity_cpus": len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
+            "cgroup_cpus": kernels._cgroup_cpus(), "threads": kernels.default_threads(),
             "gpu_available": ok, "gpu_reason": why}
     if ok:
         import cupy as cp
