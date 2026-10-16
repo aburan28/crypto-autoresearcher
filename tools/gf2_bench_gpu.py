@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np  # noqa: E402
 
 from crypto_autoresearcher.gf2 import gpu, kernels, rankprofile  # noqa: E402
+from crypto_autoresearcher.gf2.gpu import rankpass  # noqa: E402
 
 WORKLOADS = [("M", 24, 5), ("M", 20, 6), ("M", 26, 5), ("W", 20, 5), ("W", 22, 5)]
 QUICK = [("M", 20, 5), ("W", 18, 5)]
@@ -58,21 +59,25 @@ def main():
     for kind, nv, D in (QUICK if a.quick else WORKLOADS):
         eqs = system(nv, nv - 1)
         fn = rankprofile.macaulay_profile if kind == "M" else rankprofile.w_profile
-        times = {"cpu": [], "gpu": []}
+        modes = ("cpu", "gpu", "gpu_cupy") if ok else ("cpu",)
+        times = {m: [] for m in modes}
         recs = {}
         for _ in range(a.reps):
-            for mode in (("cpu", "gpu") if ok else ("cpu",)):
+            for mode in modes:
+                rankpass.IMPL = "cupy" if mode == "gpu_cupy" else "fused"
                 t = time.perf_counter()
-                rec, _, _ = fn(eqs, nv, D, gpu=(mode == "gpu"))
+                rec, _, _ = fn(eqs, nv, D, gpu=(mode != "cpu"))
                 times[mode].append(time.perf_counter() - t)
                 recs.setdefault(mode, rec)
                 if recs[mode] != rec:
                     raise SystemExit(f"{kind}{nv}/{D} {mode}: record changed between runs")
-        same = ok and recs["cpu"] == recs["gpu"]
-        row = {"workload": f"{kind}_{D} nv={nv}", "cpu_s": [round(x, 3) for x in times["cpu"]],
-               "gpu_s": [round(x, 3) for x in times["gpu"]], "records_equal": same if ok else None}
+        same = ok and all(recs[m] == recs["cpu"] for m in modes)
+        row = {"workload": f"{kind}_{D} nv={nv}", "records_equal": same if ok else None}
+        for m in modes:
+            row[f"{m}_s"] = [round(x, 3) for x in times[m]]
         if ok:
             row["speedup_best"] = round(min(times["cpu"]) / min(times["gpu"]), 2)
+            row["speedup_best_cupy"] = round(min(times["cpu"]) / min(times["gpu_cupy"]), 2)
         results.append(row)
         print(json.dumps(row), flush=True)
         if ok and not same:
