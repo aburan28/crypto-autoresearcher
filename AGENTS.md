@@ -522,6 +522,17 @@ references. A specification states, before any run, what each outcome changes
 
 ## Artifact policy
 
+**Execution-proof integration is integral to the proof chain** (owner,
+2026-10-16). Work implementing it follows
+[docs/execution-proof-chain.md](docs/execution-proof-chain.md): bind the approved
+protocol, executable, inputs, complete workload and raw output through metric
+checks, evidence, independent review and Cairn settlement/audit. No covered
+claim may be called execution verified merely because its receipt was hashed,
+its witness checks, or its schema passes. This is a required integration and
+release contract, not a claim that today's runners enforce it. Missing proof
+support stays explicit; scientific authority and historical records retain
+their existing rules.
+
 Each run retains: exact command; commit and dirty-tree state; environment and
 dependency versions; parameters and seeds; requested policy, backend and
 resolved model id with provenance and probe status; reasoning effort, fallback
