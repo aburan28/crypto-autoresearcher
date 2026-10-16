@@ -103,15 +103,17 @@ def count(out: Path, protocol: dict, manifest: dict) -> None:
             (out / f"orders_{t}.txt").write_text("")
             continue
         driver = out / f"driver_{t}.gp"
-        driver.write_text(f'P={p}; CAND="{source}"; read("{gp_source}");\n')
+        driver.write_text(f'P={p}; CAND="{source}";\n' + gp_source.read_text())
         start = time.monotonic()
         with (out / f"orders_{t}.txt").open("w") as stdout, (out / f"gp_{t}.stderr").open("w") as stderr:
             proc = subprocess.run(["gp", "-q", "-f", str(driver)], stdout=stdout, stderr=stderr, check=False)
         receipt = {"timestamp": t, "command": ["gp", "-q", "-f", str(driver)], "exit_code": proc.returncode, "wall_seconds": time.monotonic() - start, "orders_sha256": digest(out / f"orders_{t}.txt"), "stderr_sha256": digest(out / f"gp_{t}.stderr"), "driver_sha256": digest(driver)}
+        receipt["output_rows"] = len((out / f"orders_{t}.txt").read_text().splitlines())
+        receipt["valid_output_count"] = receipt["output_rows"] == row["point_count_candidates"]
         (out / f"count_receipt_{t}.json").write_text(json.dumps(receipt, indent=2) + "\n")
         print(json.dumps(receipt), flush=True)
-        if proc.returncode != 0:
-            raise RuntimeError(f"GP failed for {t}; retained stderr and partial output")
+        if proc.returncode != 0 or not receipt["valid_output_count"]:
+            raise RuntimeError(f"GP failed or returned incomplete output for {t}; retained stderr and partial output")
 
 
 def summarize(out: Path, protocol: dict, manifest: dict) -> dict:
@@ -128,7 +130,7 @@ def summarize(out: Path, protocol: dict, manifest: dict) -> dict:
             orders[i] = (n, nt)
         assert len(orders) == row["point_count_candidates"]
         driver = out / f"classify_driver_{t}.gp"
-        driver.write_text(f'P={p}; ORDERS="{out / f"orders_{t}.txt"}"; RUN="srand48({t})"; read("{classifier}");\n')
+        driver.write_text(f'P={p}; ORDERS="{out / f"orders_{t}.txt"}"; RUN="srand48({t})";\n' + classifier.read_text())
         classified = subprocess.run(["gp", "-q", "-f", str(driver)], capture_output=True, text=True, check=True)
         (out / f"classification_{t}.txt").write_text(classified.stdout)
         (out / f"classification_{t}.stderr").write_text(classified.stderr)
