@@ -180,3 +180,78 @@ multiplication, so a real implementation sits between the two columns.
 | `nist.json` | the same, machine-readable, including every `D_K` and `f` in full, the factorisation used, the Koblitz checks and the per-configuration counts with their standard deviations |
 | `factorizations.jsonl` | the factorisation certificates of `4q − t²` (11 complete; Ed25519, Ed448 and Ed448-Goldilocks share theirs with Curve25519 and Curve448), and B-571's partial certificate: its proven prime factors and the composite cofactor they leave, re-checked on reading |
 | `SHA256SUMS` | hashes of the JSON files |
+
+## Lean verification
+
+The arithmetic behind the results above is machine-checked in Lean 4 (core
+Lean, no Mathlib) under `formal/CryptoResearch/Endosweep/`. Each theorem has a
+frozen target spec in `formal/targets/`. The per-curve constants were written
+into the Lean files by a script that re-derives every number from `nist.json`,
+`factorizations.jsonl` and std-curves at the commit `nist.json` records. The
+kernel then checks them with exact big-integer arithmetic.
+
+These are the exact claims. "Prime" means the textbook definition
+`IsPrimeNat`.
+
+1. **Least non-scalar norm** (`Discriminant.minNonscalarDegree_isLeast`). For
+   every `D < 0` with `D ≡ 0, 1 (mod 4)`, every `a + bω` in the order of
+   discriminant `D` with `b ≠ 0` has norm at least
+   `(|D| + (D mod 2))/4`, and `ω` attains it. This is the closed form
+   `quadorder.min_nonscalar_degree` uses, proved for all `D`.
+2. **Fundamental discriminant from a factorisation**
+   (`Discriminant.isFundamental_of_primes`). If `core` is a product of
+   distinct primes, then `D = −core` with `D ≡ 1 (mod 4)` is a fundamental
+   discriminant. So is `D = −4·core` with `−core ≡ 2, 3 (mod 4)`.
+3. **Exact discriminants** (`NistCertificates.exact_discriminants`). This
+   covers P-192 to P-521, B-163 to B-409, Curve25519 = Ed25519 and
+   Curve448 = Ed448, Ed448-Goldilocks. On each, `t² − 4q = D_K·f²` holds,
+   and `4q − t²` equals the certificate's prime powers multiplied back.
+   `D_K` is built from the odd-exponent primes as
+   `nist.exact_discriminant` builds it, and `min_nonscalar_degree(D_K)` is
+   the value in `nist.json`. These facts are unconditional. That `D_K` is
+   fundamental is proved only *if* the listed factors above 10^8 are prime.
+   Lean proves the factors below 10^8 prime by trial division. The larger
+   ones rest on PARI `isprime` and are explicit hypotheses.
+4. **Finding 3's sizes** (`NistCertificates.finding3_bounds`). On those
+   curves `2^162 ≤ |D_K| < 2^523` and `min_nonscalar_degree(D_K) ≥ 2^160`.
+   It is at least `2^220` when `q ≥ 2^223`. The conductors are 1, 3 (P-224)
+   and 2 (Curve25519, Curve448).
+5. **Koblitz discriminant** (`NistCertificates.koblitz_discriminants`). On
+   K-163 to K-571, `t² − 4q = −7·f²` holds, `−7` is fundamental and
+   `min_nonscalar_degree(−7) = 2`.
+6. **B-571's bound** (`NistCertificates.B571.abs_DK_lower_bound`, built on
+   `Discriminant.prod_mul_bound_le_of_eq_mul_sq`). The general lemma: let
+   `N = P·C` with `gcd(P, C) = 1`, where `C > 1` is not a square and has no
+   divisor in `(1, B)`. Then every `N = s·k²` has
+   `s ≥ (∏ odd-exponent primes of P)·B`. For B-571 Lean checks
+   `4q − t² = 137 · 1502689 · 5608493523058319 · 3563521804312876303 · C`.
+   It also checks `gcd = 1`, that `C` has 130 digits and is not a square,
+   and that 137 and 1 502 689 are prime. Two things are hypotheses: that
+   5 608 493 523 058 319 and 3 563 521 804 312 876 303 are prime (PARI), and
+   that `C` has no divisor below 10^7 (the harness's trial division). Under
+   them, every `t² − 4q = D·f²` has
+   `|D| ≥ 41144834294568711165300914428595243383362010000000 > 2^164`. If `D`
+   is a discriminant, every non-scalar norm is at least a quarter of that,
+   which is more than `2^162`.
+7. **Z[τ]** (`Koblitz.ztau_iso_order_neg_seven`, `Koblitz.min_norm_nonscalar`).
+   For `μ = ±1`, `Z[τ]` (`τ² = μτ − 2`) has discriminant `μ² − 8 = −7`. It
+   is isomorphic, as a ring with its norm, to the order of discriminant −7.
+   Its non-scalar elements have norm at least `2 = N(τ)`.
+8. **The Lucas order formula** (`Koblitz.norm_one_sub_tau_pow`,
+   `Koblitz.norm_delta`). For every `m`, `Tr(τ^m) = V_m`,
+   `N(τ^m) = 2^m` and `N(1 − τ^m) = 2^m + 1 − V_m`. If
+   `δ(τ − 1) = τ^m − 1`, then `N(δ)·(3 − μ) = 2^m + 1 − V_m`.
+9. **The Koblitz checks** (`Koblitz.koblitz_certificates`). These use the
+   published `n`, `h` of K-163 to K-571 and `t`, `f`, `δ`, `λ` from
+   `nist.json`. On each curve `h = 3 − μ` and `h·n = 2^m + 1 − V_m`, and
+   `t = V_m`. Also `δ(τ − 1) = τ^m − 1`, `N(δ) = n`, and `f = |B|` where
+   `τ^m = A + Bτ`. Finally `λ² − μλ + 2 ≡ 0 (mod n)`.
+
+**What Lean does not certify.** Lean proves no prime above 10^8. It does not
+prove that B-571's cofactor has no factor below 10^7. No elliptic-curve fact
+is formalised: not that `t` is the curve's trace, that End(E) lies in the
+order of discriminant `D_K`, that degree equals norm, that the Frobenius
+satisfies `τ² − μτ + 2 = 0`, or that `τ(G) = [λ]G`. Two classical facts are
+also left out: the maximality of the order of a fundamental discriminant,
+and the uniqueness of the fundamental discriminant in a square class. The
+field-operation counts and ratios are measurements, not theorems.
