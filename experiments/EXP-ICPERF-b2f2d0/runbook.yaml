@@ -1,0 +1,115 @@
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-ICPERF-b2f2d0
+session_id: RBS-ICPERF-c4a91e
+title: Draw the frozen geometric sample and record the band flags
+purpose: >-
+  One deterministic trial draws 64 geometric counts at success probability
+  1/50 from seed 20261017 and records the sample moments. Observations only.
+  Host latency is not an input.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+  - path: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+    sha256: 36e31929db5cc9515d2bfa63caf7e1588b09aede5a7b7c2fbeeb8cc455a1c434
+  - path: experiments/EXP-ICPERF-b2f2d0/trial-plan.json
+    sha256: 07799d51f369b96770b078386885e6f3a214e2d60c653faeeefc912442744a1d
+  - path: experiments/EXP-ICPERF-b2f2d0/implementation/run.py
+    sha256: e7e91ca0af7bda4139c671985fb2e18e643ead557fb06762c7a42eb5fb6c2085
+  - path: experiments/EXP-ICPERF-b2f2d0/implementation/check.py
+    sha256: 43ecb69751d64b691a7184d51a939a3b29f7558c5316809f920e3c7caa323438
+spec_bindings:
+  - file: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+    pointer: /experiment/inputs/seed
+    equals: 20261017
+  - file: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+    pointer: /experiment/inputs/p_den
+    equals: 50
+  - file: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+    pointer: /experiment/inputs/n_targets
+    equals: 64
+environment:
+  python: "3.12"
+  programs: [python3]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+  - id: S01-probe-python
+    kind: command
+    purpose: probe
+    title: Record the interpreter that runs the trial
+    explain: Writes the CPython major version to environment.json in this step output directory.
+    argv:
+      - python3
+      - -c
+      - "import json, platform, sys; json.dump({'python': platform.python_version(), 'major': sys.version_info[0], 'implementation': platform.python_implementation()}, open(sys.argv[1], 'w'))"
+      - "{out}/environment.json"
+    timeout_seconds: 60
+    validity:
+      exit_code: 0
+      outputs:
+        - path: "{out}/environment.json"
+          json: true
+          assertions:
+            - {pointer: /major, equals: 3}
+            - {pointer: /implementation, equals: CPython}
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: python3 did not run. The session has stopped. Report this step stderr log path.
+  - id: S02-trials
+    kind: trials
+    title: Draw the geometric sample and record the cell
+    explain: Runs run.py then check.py for the single frozen trial in its own write-once directory.
+    plan: experiments/EXP-ICPERF-b2f2d0/trial-plan.json
+    engine: supervisor
+    claim: {ttl_minutes: 5}
+    timeout_seconds: 60
+    validity:
+      files:
+        - path: raw-result.json
+          json: true
+          assertions:
+            - {pointer: /schema, equals: crypto.autoresearch.exp-icperf-b2f2d0.stage0.v1}
+            - {pointer: /trial_id, equals: "{trial_id}"}
+            - {pointer: /experiment_id, equals: EXP-ICPERF-b2f2d0}
+            - {pointer: /seed, equals: 20261017}
+            - {pointer: /n_targets, equals: 64}
+            - {pointer: /sample_sum, type: integer}
+            - {pointer: /cv_in_band, type: boolean}
+    by_trial:
+      geometric-probe-sample:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /trial_id, equals: geometric-probe-sample}
+              - {pointer: /p_den, equals: 50}
+              - {pointer: /seed, equals: 20261017}
+    controls: []
+    replay:
+      mode: fields
+      sample: 1
+      compare:
+        - file: raw-result.json
+          pointers: [/sample_sum, /sum_squares, /median, /cv_in_band, /median_ratio_in_band]
+    on_invalid: stop
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: The trial stopped. Report the run directory named by the plan and do not edit the specification.
+metrics:
+  - name: sample_sum
+    unit: count
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /sample_sum
+    aggregate: [min, max]
+  - name: cv_in_band
+    unit: fraction
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /cv_in_band
+    aggregate: [fraction_true]
+report:
+  graph_metric: sample_sum
