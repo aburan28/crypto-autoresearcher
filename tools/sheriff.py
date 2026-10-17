@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import functools
 import hashlib
 import html
 import json
@@ -121,15 +122,89 @@ def discover(overrides: list[str], siblings: bool = True) -> dict[str, Path]:
 
 
 def snapshot(name: str, path: Path) -> dict[str, Any]:
+    """What tree was audited. `head` and `head_tree` (`HEAD^{tree}`) name the
+    committed tree; `worktree_digest` hashes the tree id with `git status` and
+    `git diff HEAD`, so it differs between any two trees and changes when a
+    checker writes. (Cases before SHF-20261017-e4d7f6 I1 carry `tree_digest`,
+    a hash of status and diff alone: every clean tree had one value.)"""
     head = git(path, "rev-parse", "HEAD").stdout.strip()
+    head_tree = git(path, "rev-parse", "--verify", "-q", "HEAD^{tree}").stdout.strip() or None
     main = git(path, "rev-parse", "--verify", "-q", "origin/main").stdout.strip() or None
     status = git(path, "status", "--porcelain").stdout
     diff = git(path, "diff", "HEAD").stdout
-    return {"path": str(path), "head": head,
+    return {"path": str(path), "head": head, "head_tree": head_tree,
             "branch": git(path, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip(),
             "origin_main": main, "at_origin_main": bool(main) and main == head,
             "dirty_paths": len(status.splitlines()),
-            "tree_digest": hashlib.sha256((status + "\0" + diff).encode()).hexdigest()}
+            "worktree_digest": hashlib.sha256(
+                "\0".join([head_tree or "", status, diff]).encode()).hexdigest(),
+            "sparse": sparse_info(path)}
+
+
+def tree_identity(snap: dict[str, Any]) -> tuple[Any, ...]:
+    """Comparable identity of a snapshot, new or legacy (`tree_digest`)."""
+    return (snap.get("head"), snap.get("head_tree"), snap.get("worktree_digest", snap.get("tree_digest")))
+
+
+@functools.lru_cache(maxsize=None)
+def _outside(repo: str) -> tuple[frozenset[str], frozenset[str]]:
+    """Tracked files with the skip-worktree bit (outside a sparse checkout),
+    and every directory above them."""
+    out = git(Path(repo), "ls-files", "-t", "-z").stdout
+    files = frozenset(p[2:].rstrip("/") for p in out.split("\0") if p.startswith("S "))
+    dirs = {str(Path(f).parent) for f in files}
+    for d in list(dirs):
+        dirs.update(str(a) for a in Path(d).parents)
+    dirs.discard(".")
+    return files, frozenset(dirs)
+
+
+def outside_sparse(repo: Path) -> frozenset[str]:
+    return _outside(str(repo))[0]
+
+
+def is_outside(repo: Path, rel: str) -> bool:
+    files, dirs = _outside(str(repo))
+    rel = rel.rstrip("/")
+    return rel in files or rel in dirs
+
+
+def sparse_root(rel: str) -> str:
+    parts = rel.split("/")
+    return "/".join(parts[:2]) if len(parts) > 2 else (parts[0] if len(parts) > 1 else ".")
+
+
+def sparse_info(repo: Path) -> dict[str, Any]:
+    """Whether a checkout is sparse, its patterns, and what it leaves out."""
+    files = outside_sparse(repo)
+    enabled = git(repo, "config", "--bool", "core.sparseCheckout").stdout.strip() == "true"
+    if not enabled and not files:
+        return {"sparse": False}
+    patterns = git(repo, "sparse-checkout", "list").stdout.splitlines()
+    roots: dict[str, int] = {}
+    for f in files:
+        roots[sparse_root(f)] = roots.get(sparse_root(f), 0) + 1
+    top = sorted(roots.items(), key=lambda kv: (-kv[1], kv[0]))
+    return {"sparse": True, "patterns": patterns[:LIST_CAP], "outside_files": len(files),
+            "outside_roots_total": len(roots), "outside_roots": dict(top[:LIST_CAP])}
+
+
+def bin_dirs() -> list[Path]:
+    """Toolchain directories probed after PATH: elan installs lean and lake
+    under $ELAN_HOME/bin (default ~/.elan/bin) and only edits shell profiles."""
+    dirs = [Path(os.environ["ELAN_HOME"]) / "bin"] if os.environ.get("ELAN_HOME") else []
+    return dirs + [Path.home() / ".elan" / "bin"]
+
+
+def find_bin(name: str) -> str | None:
+    hit = shutil.which(name)
+    if hit:
+        return hit
+    for d in bin_dirs():
+        cand = d / name
+        if cand.is_file() and os.access(cand, os.X_OK):
+            return str(cand)
+    return None
 
 
 def tracked(repo: Path, pathspecs: Iterable[str] = ()) -> list[str]:
@@ -560,11 +635,13 @@ PATH_REF = re.compile(r"(?:(?P<repo>crypto-autoresearcher|cryptanalysis|crypto):
                       r"(?P<path>(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]*)")
 
 
-def cited_paths(text: str, home: str, repos: dict[str, Path], base: str = "") -> set[tuple[str, str]]:
+def cited_paths(text: str, home: str, repos: dict[str, Path], base: str = "",
+                absent: set[tuple[str, str]] | None = None) -> set[tuple[str, str]]:
     """(repo, path) pairs a paper names that exist on disk, read as
     repository-relative or relative to the paper directory `base`. Bare
     top-level directories are dropped: citing `research/` is not citing an
-    artifact."""
+    artifact. A cited path that is tracked but outside a sparse checkout is
+    added to `absent` when given: it cannot be read, so it is not_covered."""
     text = re.sub(r"\\(?:allowbreak|slash|-)|\{\}", "", text.replace("\\_", "_"))
     out = set()
     for m in PATH_REF.finditer(text):
@@ -585,6 +662,11 @@ def cited_paths(text: str, home: str, repos: dict[str, Path], base: str = "") ->
                     if n in repos and f and f != "." and (repos[n] / f).exists()), None)
         if hit:
             out.add(hit)
+        elif absent is not None:
+            gone = next(((n, f) for f in forms for n in names
+                         if n in repos and f and f != "." and is_outside(repos[n], f)), None)
+            if gone:
+                absent.add(gone)
     return out
 
 
@@ -598,7 +680,7 @@ def artifact_numbers(repos: dict[str, Path], roots: dict[str, list[str]]) -> tup
     strings, their float values, and what was skipped."""
     exact: set[str] = set()
     values: list[float] = []
-    skipped = {"large_files": 0, "binary_files": 0, "over_budget_files": 0}
+    skipped = {"large_files": 0, "binary_files": 0, "over_budget_files": 0, "outside_sparse_files": 0}
     budget = TRACE_PAPER_BYTES
     for n, paths in roots.items():
         for rel in tracked(repos[n], paths):
@@ -608,6 +690,8 @@ def artifact_numbers(repos: dict[str, Path], roots: dict[str, list[str]]) -> tup
             try:
                 size = path.stat().st_size
             except OSError:
+                if is_outside(repos[n], rel):
+                    skipped["outside_sparse_files"] += 1
                 continue
             if size > TRACE_FILE_BYTES:
                 skipped["large_files"] += 1
@@ -664,9 +748,10 @@ def trace_numbers(name: str, repo: Path, repos: dict[str, Path], scope: list[str
     for paper in papers:
         numbers: dict[str, list[tuple[str, int]]] = {}
         cited: set[tuple[str, str]] = set()
+        absent: set[tuple[str, str]] = set()
         for rel in tracked(repo, [f"{paper}/*.tex", f"{paper}/*.md", f"{paper}/*.bib"]):
             src = read_text(repo / rel) or ""
-            cited |= cited_paths(src, name, repos, base=str(Path(rel).parent))
+            cited |= cited_paths(src, name, repos, base=str(Path(rel).parent), absent=absent)
             if rel.endswith(".tex"):
                 for value, ln in tex_numbers(src):
                     numbers.setdefault(value, []).append((rel, ln))
@@ -680,7 +765,19 @@ def trace_numbers(name: str, repo: Path, repos: dict[str, Path], scope: list[str
         untraced = [v for v in numbers if not is_traced(v, exact, rounded)]
         summary.append({"repo": name, "paper": paper, "numbers": len(numbers), "cited_paths": len(cited),
                         "traced": len(numbers) - len(untraced), "untraced": len(untraced),
+                        "cited_outside_sparse": sorted(f"{n}:{f}" for n, f in absent)[:LIST_CAP],
                         "skipped": skipped})
+        if absent:
+            # A cited artifact the checkout does not hold: its numbers were
+            # never searched, so an untraced number here is not a lead.
+            shown = ", ".join(f"{n}:{f}" for n, f in sorted(absent)[:10])
+            if untraced:
+                found.append(finding("B8", "paper.trace_partial", "info",
+                                     f"{len(untraced)} of {len(numbers)} numbers not traced, but {len(absent)} cited "
+                                     f"artifact path(s) are outside the sparse checkout ({shown}): not_covered "
+                                     "until traced on a full checkout", repo=name, path=paper, kind="not_covered",
+                                     excerpt=" ".join(untraced[:20])))
+            continue
         if not cited:
             found.append(finding("B8", "paper.no_cited_artifacts", "major",
                                  f"{len(numbers)} numbers and no committed artifact path cited: none can be traced",
@@ -712,6 +809,85 @@ def _pending_audits(proc: subprocess.CompletedProcess) -> tuple[str, str]:
 
 
 ECBENCH = "./target/release/ecbench"
+ECBENCH_SESSION_SCHEMA = "ecbench.session/v1"
+
+
+def head_blobs(repo: Path, paths: list[str]) -> dict[str, bytes]:
+    """Contents of `paths` at HEAD, read from the object store (one
+    `git cat-file --batch`), so files outside a sparse checkout are seen."""
+    if not paths:
+        return {}
+    proc = subprocess.run(["git", "-C", str(repo), "cat-file", "--batch"], capture_output=True,
+                          input="".join(f"HEAD:{p}\n" for p in paths).encode())
+    data, pos, out = proc.stdout, 0, {}
+    for rel in paths:
+        nl = data.index(b"\n", pos)
+        header = data[pos:nl].split()
+        pos = nl + 1
+        if len(header) == 3 and header[1] == b"blob":
+            size = int(header[2])
+            out[rel] = data[pos:pos + size]
+            pos += size + 1
+    return out
+
+
+def committed_ecbench_sessions(repo: Path) -> tuple[list[str], list[str]]:
+    """(session directories at HEAD whose session.json has schema
+    ecbench.session/v1, every tracked path at HEAD)."""
+    names = [p for p in git(repo, "ls-tree", "-r", "-z", "--name-only", "HEAD").stdout.split("\0") if p]
+    cands = [p for p in names if (p == "session.json" or p.endswith("/session.json")) and "\n" not in p]
+    sessions = []
+    for rel, blob in head_blobs(repo, cands).items():
+        try:
+            schema = json.loads(blob.decode("utf-8", "replace")).get("schema")
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if schema == ECBENCH_SESSION_SCHEMA:
+            sessions.append(str(Path(rel).parent))
+    return sorted(sessions), names
+
+
+def ecbench_sessions_check(repo: Path, scratch: Path, timeout: float) -> dict[str, Any]:
+    sessions, names = committed_ecbench_sessions(repo)
+    if not sessions:
+        return {"status": "error", "note": f"no {ECBENCH_SESSION_SCHEMA} session.json at HEAD", "exit_code": None,
+                "sessions": {"total": 0}}
+    members: dict[str, list[str]] = {d: [] for d in sessions}
+    for rel in names:
+        for anc in Path(rel).parents:
+            if str(anc) in members:
+                members[str(anc)].append(rel)
+                break
+    present = [d for d in sessions if all((repo / f).is_file() for f in members[d])]
+    absent = [d for d in sessions if d not in set(present)]
+    failed, errors, passed = [], [], 0
+    deadline = time.monotonic() + timeout
+    for d in present:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            errors.append(d)
+            continue
+        try:
+            proc = subprocess.run([str(repo / ECBENCH), "verify", "--dir", d, "--replay", "0", "--allow-interrupted",
+                                   "--exit-code", "--out", str(scratch / "v.json")], cwd=repo,
+                                  capture_output=True, text=True, errors="replace", timeout=left)
+        except subprocess.TimeoutExpired:
+            errors.append(d)
+            continue
+        if proc.returncode == 0:
+            passed += 1
+        else:
+            failed.append(d)
+    counts = {"total": len(sessions), "materialised": len(present), "passed": passed, "failed": len(failed),
+              "timed_out": len(errors), "not_materialised": len(absent)}
+    note = (f"{passed} of {len(sessions)} committed {ECBENCH_SESSION_SCHEMA} sessions (enumerated from HEAD) pass "
+            f"--replay 0 --allow-interrupted; {len(failed)} fail; {len(errors)} not run (time budget); "
+            f"{len(absent)} not materialised in this checkout")
+    status = ("fail" if failed else "error" if errors else "partial" if absent else "pass")
+    return {"status": status, "note": note, "exit_code": 1 if failed else 0, "sessions": counts,
+            "failed_sessions": failed[:LIST_CAP], "unrun_sessions": errors[:LIST_CAP],
+            "not_materialised_sessions": absent[:LIST_CAP],
+            "tail": "\n".join([*(f"FAIL {d}" for d in failed[:50]), note])}
 CHECKERS: list[dict[str, Any]] = [
     {"id": "progress-fidelity", "repo": HOME, "beat": "B5", "tier": "quick",
      "argv": [sys.executable, "-m", "tools.progress_fidelity", "portfolio", "claims/"]},
@@ -739,17 +915,17 @@ CHECKERS: list[dict[str, Any]] = [
     {"id": "ecbench-challenges", "repo": "crypto", "beat": "B5", "tier": "deep", "needs": [ECBENCH],
      "argv": ["bash", "-c", f"for f in docs/bounds/challenges/*.json; do {ECBENCH} challenge check --file \"$f\" "
               "|| exit 1; done"], "enable": "cargo build --release --bin ecbench"},
-    # Every committed ecbench session, not only the globs crypto's CI audits:
-    # integrity checks apply to interrupted sessions too (--allow-interrupted,
-    # as CI does); sessions outside CI's globs are listed so the gap is seen.
+    # Every committed ecbench session, found as crypto's ecbench.yml finds
+    # them: by schema (ecbench.session/v1), wherever it lives, enumerated from
+    # HEAD so a sparse checkout cannot shrink the list (SHF-20261017-e4d7f6
+    # I1). Interrupted sessions are integrity-checked too (--allow-interrupted,
+    # as CI does). A session the checkout does not hold is counted, never
+    # passed: the result is then `partial`.
     {"id": "ecbench-sessions-integrity", "repo": "crypto", "beat": "B7", "tier": "deep", "timeout": 3600,
      "needs": [ECBENCH], "enable": "cargo build --release --bin ecbench",
-     "argv": ["bash", "-c", "rc=0; n=0; for f in $(git grep -l -E '\"schema\": ?\"ecbench.session/v1\"' -- "
-              "'*/session.json'); do d=$(dirname \"$f\"); n=$((n+1)); "
-              "case \"$d/\" in research/ecbench_*/sessions/*/|research/ghs_curve_comparison_20261009/sessions/*/|"
-              "research/notes/ecc2k130/*_compact_orbit_ic_20261003/sessions/*/) ;; *) echo \"OUTSIDE-CI-GLOBS $d\";; esac; "
-              f"{ECBENCH} verify --dir \"$d\" --replay 0 --allow-interrupted --exit-code --out {{scratch}}/v.json "
-              ">/dev/null 2>&1 || { echo \"FAIL $d\"; rc=1; }; done; echo \"$n sessions\"; exit $rc"]},
+     "argv": [ECBENCH, "verify", "--dir", "<each ecbench.session/v1 dir at HEAD>", "--replay", "0",
+              "--allow-interrupted", "--exit-code"],
+     "fn": lambda repo, scratch, spec: ecbench_sessions_check(repo, scratch, spec.get("timeout", 600))},
     {"id": "zk-stark-tests", "repo": "crypto", "beat": "B2", "tier": "deep", "timeout": 3600,
      "needs_bin": ["cargo"], "argv": ["cargo", "test", "--release", "--lib", "zk::stark"]},
     {"id": "fb-archive", "repo": "cryptanalysis", "beat": "B7", "tier": "quick",
@@ -770,28 +946,54 @@ def run_checker(spec: dict[str, Any], repo: Path | None, deep: bool, scratch: Pa
         return {**row, "status": "not_covered", "reason": f"repository {spec['repo']} is not checked out"}
     if spec["tier"] == "deep" and not deep:
         return {**row, "status": "not_covered", "reason": "deep tier not requested (--deep)"}
-    missing = [b for b in spec.get("needs_bin", []) if not shutil.which(b)]
+    found = {b: find_bin(b) for b in spec.get("needs_bin", [])}
+    missing = [b for b, hit in found.items() if not hit]
     missing += [p for p in spec.get("needs", []) if not (repo / p).exists()]
     if missing:
-        return {**row, "status": "not_covered", "reason": f"missing: {', '.join(missing)}",
+        return {**row, "status": "not_covered", "reason": f"missing: {', '.join(missing)} "
+                f"(probed PATH and {', '.join(str(d) for d in bin_dirs())})",
                 "enable": spec.get("enable", "")}
-    argv = [a.replace("{scratch}", str(scratch)) for a in spec["argv"]]
+    if found:
+        row["toolchain"] = found
+    # A binary found off PATH (e.g. ~/.elan/bin/lake) must also be on the
+    # checker's PATH: `bash -c "lake ..."` and the tools it runs look it up.
+    extra = [str(Path(h).parent) for h in found.values() if h and shutil.which(Path(h).name) is None]
+    env = {**os.environ, "PATH": os.pathsep.join([*dict.fromkeys(extra), os.environ.get("PATH", "")])}
+    sparse = sparse_info(repo)
     start = time.monotonic()
-    try:
-        proc = subprocess.run(argv, cwd=repo, capture_output=True, text=True, errors="replace",
-                              timeout=spec.get("timeout", 600))
-    except subprocess.TimeoutExpired:
-        return {**row, "status": "error", "reason": f"timed out after {spec.get('timeout', 600)} s",
-                "seconds": round(time.monotonic() - start, 1)}
-    tail = (proc.stdout + ("\n" + proc.stderr if proc.stderr.strip() else "")).strip()[-4000:]
-    status, note = ("pass" if proc.returncode == 0 else "fail"), ""
-    if status == "fail" and git(repo, "config", "--bool", "core.sparseCheckout").stdout.strip() == "true":
-        note = "sparse checkout: a missing file can fail this checker; confirm on a full checkout"
-    if "parse" in spec and proc.returncode == 0:
-        status, note = spec["parse"](proc)
+    if "fn" in spec:
+        res = spec["fn"](repo, scratch, spec)
+        status, note, tail = res.pop("status"), res.pop("note", ""), res.pop("tail", "")
+        row.update(res)
+        row["exit_code"] = row.get("exit_code")
+    else:
+        argv = [a.replace("{scratch}", str(scratch)) for a in spec["argv"]]
+        try:
+            proc = subprocess.run(argv, cwd=repo, capture_output=True, text=True, errors="replace",
+                                  timeout=spec.get("timeout", 600), env=env)
+        except subprocess.TimeoutExpired:
+            return {**row, "status": "error", "reason": f"timed out after {spec.get('timeout', 600)} s",
+                    "seconds": round(time.monotonic() - start, 1)}
+        tail = (proc.stdout + ("\n" + proc.stderr if proc.stderr.strip() else "")).strip()[-4000:]
+        status, note = ("pass" if proc.returncode == 0 else "fail"), ""
+        row["exit_code"] = proc.returncode
+        if status == "fail" and sparse["sparse"]:
+            note = "sparse checkout: a missing file can fail this checker; confirm on a full checkout"
+        if "parse" in spec and proc.returncode == 0:
+            status, note = spec["parse"](proc)
     if status == "fail" and spec.get("advisory"):
         status = "advisory"
-    return {**row, "status": status, "exit_code": proc.returncode, "note": note,
+    if sparse["sparse"]:
+        # Whatever a checker read, it read a sparse tree: never a full pass.
+        row["coverage"] = "partial"
+        row["outside_sparse"] = {"files": sparse["outside_files"],
+                                 "roots": dict(list(sparse["outside_roots"].items())[:20])}
+        if status == "pass":
+            status = "partial"
+            note = (f"{note + '; ' if note else ''}sparse checkout: passed on the materialised tree only; "
+                    f"{sparse['outside_files']} tracked file(s) outside the sparse set "
+                    f"(repos.{spec['repo']}.sparse)")
+    return {**row, "status": status, "note": note,
             "seconds": round(time.monotonic() - start, 1), "tail": tail}
 
 
@@ -844,9 +1046,36 @@ def scan_repo(name: str, repo: Path, scope: list[str], repos: dict[str, Path]) -
     dev = scan_dev_mode(name, repo, scope)
     prose, prose_counts = scan_language(name, repo, scope)
     numbers, number_summary = trace_numbers(name, repo, repos, scope)
+    gaps, gap_summary = sparse_gaps(name, repo, files)
     summary = {"lean": lean_summary, "strong_words_by_file": dict(sorted(
-        prose_counts.items(), key=lambda kv: -kv[1])[:40]), "papers": number_summary}
-    return lean + zk + claims + dev + prose + numbers, summary
+        prose_counts.items(), key=lambda kv: -kv[1])[:40]), "papers": number_summary,
+        "outside_sparse": gap_summary}
+    return lean + zk + claims + dev + prose + numbers + gaps, summary
+
+
+SCANNED_EXTS = (".lean", ".rs", ".tex", ".md", ".json", ".txt", ".typ")
+
+
+def sparse_gaps(name: str, repo: Path, files: list[str]) -> tuple[list[dict], dict]:
+    """In-scope tracked files a sparse checkout leaves out were not scanned:
+    one not_covered row per root (first two path components), so a lead
+    there is reported as uncovered instead of vanishing."""
+    out = outside_sparse(repo)
+    gone = [f for f in files if f in out]
+    if not gone:
+        return [], {"files": 0}
+    roots: dict[str, dict[str, int]] = {}
+    for f in gone:
+        r = roots.setdefault(sparse_root(f), {})
+        ext = Path(f).suffix if Path(f).suffix in SCANNED_EXTS else "other"
+        r[ext] = r.get(ext, 0) + 1
+    rows = []
+    for root, exts in sorted(roots.items(), key=lambda kv: (-sum(kv[1].values()), kv[0]))[:LIST_CAP]:
+        rows.append(finding("B7", "sheriff.outside_sparse", "info",
+                            f"{sum(exts.values())} tracked file(s) outside the sparse checkout were not scanned "
+                            f"({', '.join(f'{k} {v}' for k, v in sorted(exts.items()))}): any lead there is "
+                            "not_covered", repo=name, path=root, kind="not_covered"))
+    return rows, {"files": len(gone), "roots": len(roots), "roots_listed": min(len(roots), LIST_CAP)}
 
 
 def cap(rows: list[dict]) -> tuple[list[dict], dict[str, int]]:
@@ -871,6 +1100,7 @@ def sweep(args: argparse.Namespace) -> int:
         raise SystemExit(f"{out} exists: a sweep writes a new directory, never over an old one")
     started = dt.datetime.now(dt.timezone.utc)
     canary_result = canary()
+    _outside.cache_clear()
     before = {n: snapshot(n, p) for n, p in repos.items()}
     rows: list[dict] = []
     summaries: dict[str, Any] = {}
@@ -886,7 +1116,7 @@ def sweep(args: argparse.Namespace) -> int:
                     checks.append(run_checker(spec, repos.get(spec["repo"]), args.deep, Path(scratch)))
     after = {n: snapshot(n, p) for n, p in repos.items()}
     for name in repos:
-        if after[name]["tree_digest"] != before[name]["tree_digest"] or after[name]["head"] != before[name]["head"]:
+        if tree_identity(after[name]) != tree_identity(before[name]):
             rows.append(finding("B7", "sheriff.checker_wrote", "major",
                                 "the working tree changed while the sweep ran: a checker is not read-only",
                                 repo=name))
@@ -901,6 +1131,10 @@ def sweep(args: argparse.Namespace) -> int:
             rows.append(finding(check["beat"], f"check.{check['id']}", "minor",
                                 f"advisory checker `{check['id']}` reported findings", repo=check["repo"],
                                 kind="lead"))
+        elif check["status"] == "partial":
+            rows.append(finding(check["beat"], f"check.{check['id']}", "info",
+                                f"`{check['id']}` partial (not a pass): {check.get('note', '')}",
+                                repo=check["repo"], kind="not_covered"))
         elif check["status"] == "not_covered":
             rows.append(finding(check["beat"], f"check.{check['id']}", "info",
                                 f"`{check['id']}` not run: {check['reason']}", repo=check["repo"],
@@ -955,9 +1189,13 @@ def render_md(rec: dict[str, Any]) -> str:
            f"- canary (positive control): **{'passed' if rec['canary']['passed'] else 'FAILED'}** "
            f"({len(rec['canary']['caught'])} plants caught, {len(rec['canary']['missed'])} missed, "
            f"{len(rec['canary']['false_positives'])} false positives)", "",
-           "| repository | HEAD | branch | at origin/main | dirty paths |", "| --- | --- | --- | --- | --- |"]
+           "| repository | HEAD | tree | branch | at origin/main | dirty paths | sparse (files outside) |",
+           "| --- | --- | --- | --- | --- | --- | --- |"]
     for name, r in rec["repos"].items():
-        out.append(f"| {name} | `{r['head'][:12]}` | {r['branch']} | {r['at_origin_main']} | {r['dirty_paths']} |")
+        sp = r.get("sparse") or {}
+        sparse = f"yes ({sp.get('outside_files', 0)})" if sp.get("sparse") else "no"
+        out.append(f"| {name} | `{r['head'][:12]}` | `{(r.get('head_tree') or '')[:12]}` | {r['branch']} | "
+                   f"{r['at_origin_main']} | {r['dirty_paths']} | {sparse} |")
     out += ["", "## Counts", "", "| beat | " + " | ".join([*SEVERITIES, "not_covered"]) + " |",
             "| --- |" + " --- |" * (len(SEVERITIES) + 1)]
     for beat, c in rec["counts"]["by_beat"].items():
@@ -1097,6 +1335,7 @@ CANARY_TRACED = {"12345"}
 
 
 def canary() -> dict[str, Any]:
+    _outside.cache_clear()
     with tempfile.TemporaryDirectory(prefix="sheriff-canary-") as tmp:
         root = Path(tmp)
         for rel, text in CANARY_FILES.items():
