@@ -9,7 +9,8 @@ The records were imported without changing their bytes from a local shared
 register. [Import provenance](provenance/shared-register-import.json) preserves
 the original checkpoint and record hashes. They are observations and scoped
 arguments pending the existing scientific review process, not approved progress
-claims or a replacement for the canonical ledger.
+claims or a replacement for the canonical ledger. Any future qualified numeric
+improvement claim must separately meet the existing progress-fidelity gate.
 
 ## Retrieve a focused handoff
 
@@ -111,3 +112,11 @@ python3 -m pytest tests/test_scoped_evidence.py
 The README and AGENTS pointers make this register discoverable after a checkout
 or merge. Existing running agents and other machines are not automatically
 updated. Use [AGENT_HANDOFF.txt](AGENT_HANDOFF.txt) as an explicit startup pointer.
+
+## Verification receipt and report
+
+[The existing formal worker receipt](verification/odd-torsion-20261017.json)
+records the exact source commit, input hashes, Lean version and pending semantic
+review for the new generic target. [The report](report/report.pdf) and
+[editable diagram](report/evidence-flow.svg) summarize the boundaries. They do
+not alter the original advisory records.
