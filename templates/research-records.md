@@ -643,7 +643,9 @@ handoff:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | research-synthesis | executor-implementation |
             executor-mechanical | review-adversarial | review-breakthrough |
-            consolidation-routing | audit-sweep
+            consolidation-routing | audit-sweep | director-runbook
+            # director-runbook only for writing a runbook and mechanical task
+            # card, or assessing a finished runbook session (docs/model-tiers.md).
             # audit-sweep only for the periodic audit of runbook sessions
             # (audit-runs); it screens and never satisfies a review gate.
             # review-breakthrough only for a claimed break, a closure result,
