@@ -13,6 +13,7 @@ from crypto_autoresearcher.index_calculus.factor_base import (
     FactorBase,
     dickson_value,
 )
+from tools.icperf_explicit_base import verify_base_record
 
 
 class ExplicitDivisorBaseTests(unittest.TestCase):
@@ -71,6 +72,16 @@ class ExplicitDivisorBaseTests(unittest.TestCase):
         self.assertTrue(all(pow(point[0], 788, curve.p) ==
                             pow(base.params["coset"], 788, curve.p)
                             for point in base.points))
+
+    def test_archived_base_rejects_a_changed_point(self):
+        root = Path(__file__).resolve().parents[1]
+        fixture = root / "research/icperf_prime_fixtures_20261017/n63_seed20261017.json"
+        path = root / "research/icperf_explicit_divisor_20261017/n63_m8_subgroup_seed20261017.json"
+        record = json.loads(path.read_text())
+        verify_base_record(record, fixture)
+        record["points"][0][1] += 1
+        with self.assertRaisesRegex(ValueError, "complete coset enumeration"):
+            verify_base_record(record, fixture)
 
 
 if __name__ == "__main__":
