@@ -4,7 +4,7 @@
 
 = Index-calculus baseline and factor-base search boundary
 
-2026-10-16 · Source-linked assessment; no new scientific trial or speed claim. The complete report and its source links are in `2026-10-16-elite-factor-base-baseline.md`.
+2026-10-16 · Source-linked assessment; no new scientific trial or speed claim. Corrected after PR #2309: tuple count and wide-entry size. The complete report and its source links are in `2026-10-16-elite-factor-base-baseline.md`.
 
 #image("2026-10-16-elite-factor-base-baseline.svg", width: 90%)
 
@@ -18,23 +18,23 @@
 
 == Derived high-arity capacity model
 
-The prime solver states h=ceil(m/2), B≈((m!N)/2)^(1/m)/2, and a B^h-tail table. The model S3-equivalent exponent is max(h,m−h+1)/m. The memory figures below multiply B^h by eight bytes; they are *derived payload floors*, not process measurements.
+The prime solver states h=ceil(m/2) and B≈((m!N)/2)^(1/m)/2. Its tail source gives a tuple-count upper bound U=2^(h−1)×binomial(B+h−1,h). The model S3-equivalent exponent is max(h,m−h+1)/m. The memory figures below multiply U by 16 bytes for a *hypothetical* wide array; they are derived payload upper bounds, not process measurements.
 
 #table(
   columns: (auto, auto, auto, auto, auto),
   inset: 4pt,
   stroke: .4pt + gray,
-  [m], [h], [Exponent], [50-bit tail payload], [63-bit tail payload],
-  [2], [1], [1.000], [0.13 GiB (ref)], [11.3 GiB (ref)],
-  [3], [2], [0.667], [41.9 GiB], [17,040 GiB],
-  [4], [2], [0.750], [0.22 GiB], [19.6 GiB],
-  [5], [3], [0.600], [11.7 GiB], [2,600 GiB],
-  [6], [3], [0.667], [0.59 GiB], [53.7 GiB],
-  [7], [4], [0.571], [16.3 GiB], [2,811 GiB],
-  [8], [4], [0.625], [2.17 GiB], [201 GiB],
+  [m], [h], [Exponent], [50-bit upper], [63-bit upper],
+  [2], [1], [1.000], [0.25 GiB (ref)], [22.63 GiB (ref)],
+  [3], [2], [0.667], [83.86 GiB], [34,080.15 GiB],
+  [4], [2], [0.750], [0.43 GiB], [39.19 GiB],
+  [5], [3], [0.600], [15.63 GiB], [3,469.10 GiB],
+  [6], [3], [0.667], [0.80 GiB], [71.75 GiB],
+  [7], [4], [0.571], [11.32 GiB], [1,890.96 GiB],
+  [8], [4], [0.625], [1.58 GiB], [136.96 GiB],
 )
 
-Ref = comparison-sized payload only: the m=2 engine does not allocate an h-point table of this kind. Actual base cardinality and payload depend on the curve and implementation; setup, sorting, extra arrays, matrix, and process memory are additional. m=7 has a lower model exponent than m=8 in this particular generic split. At 32 bits the measured m=7 count was still 1.3 times m=5. This is not a 50–63-bit timing forecast.
+Ref = comparison-sized payload only: the m=2 engine does not allocate an h-point table of this kind. The upper bound does not prove the actual table needs that much memory. Setup, sorting, extra arrays, matrix, and process memory are additional; the current wide-prime fallback uses a Python map. m=7 has a lower model exponent than m=8 in this generic split. At 32 bits the measured m=7 count was still 1.3 times m=5. This is not a 50–63-bit timing forecast.
 
 == Search and acceptance
 
