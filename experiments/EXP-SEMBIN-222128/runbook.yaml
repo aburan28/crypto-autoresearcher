@@ -1,0 +1,110 @@
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-SEMBIN-222128
+session_id: RBS-SEMBIN-7e2a14
+title: Close two toy ideals and record the degrees
+purpose: >-
+  One deterministic trial builds the HKYY closure of two frozen GF(2) ideals
+  and records the degrees. The chain-length slope is not an input.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+  - path: experiments/EXP-SEMBIN-222128/specification.yaml
+    sha256: ac6519c00651a1b70fc009efc16e4641dcee629869a92ac166600bc19ab74f81
+  - path: experiments/EXP-SEMBIN-222128/trial-plan.json
+    sha256: 3f68680df26c1c64c97bc8e80cc02feac7156dfb189f59f2486d238a19ab5c40
+  - path: experiments/EXP-SEMBIN-222128/implementation/run.py
+    sha256: a346e2c7f5089d8b4ef8550e069d9143a01c4dd5a393610605811bf1fa9a94a9
+  - path: experiments/EXP-SEMBIN-222128/implementation/check.py
+    sha256: 59b6520c54af13bbaa872bb2c631e8cf8c6902d62d7e6201408662964b10b6bc
+spec_bindings:
+  - file: experiments/EXP-SEMBIN-222128/specification.yaml
+    pointer: /experiment/inputs/d_max
+    equals: 4
+  - file: experiments/EXP-SEMBIN-222128/specification.yaml
+    pointer: /experiment/inputs/nvars
+    equals: 2
+environment:
+  python: "3.12"
+  programs: [python3]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+  - id: S01-probe-python
+    kind: command
+    purpose: probe
+    title: Record the interpreter that runs the trial
+    explain: Writes the CPython major version to environment.json in this step output directory.
+    argv:
+      - python3
+      - -c
+      - "import json, platform, sys; json.dump({'python': platform.python_version(), 'major': sys.version_info[0], 'implementation': platform.python_implementation()}, open(sys.argv[1], 'w'))"
+      - "{out}/environment.json"
+    timeout_seconds: 60
+    validity:
+      exit_code: 0
+      outputs:
+        - path: "{out}/environment.json"
+          json: true
+          assertions:
+            - {pointer: /major, equals: 3}
+            - {pointer: /implementation, equals: CPython}
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: python3 did not run. The session has stopped. Report this step stderr log path.
+  - id: S02-trials
+    kind: trials
+    title: Close the two ideals and record the degrees
+    explain: Runs run.py then check.py for the single frozen trial in its own write-once directory.
+    plan: experiments/EXP-SEMBIN-222128/trial-plan.json
+    engine: supervisor
+    claim: {ttl_minutes: 5}
+    timeout_seconds: 60
+    validity:
+      files:
+        - path: raw-result.json
+          json: true
+          assertions:
+            - {pointer: /schema, equals: crypto.autoresearch.exp-sembin-222128.stage0.v1}
+            - {pointer: /trial_id, equals: "{trial_id}"}
+            - {pointer: /experiment_id, equals: EXP-SEMBIN-222128}
+            - {pointer: /nvars, equals: 2}
+            - {pointer: /d_max, equals: 4}
+            - {pointer: /d_ref, type: integer}
+            - {pointer: /pins_agree, type: boolean}
+    by_trial:
+      hkyy-toy-closure:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /trial_id, equals: hkyy-toy-closure}
+              - {pointer: /d_max, equals: 4}
+    controls: []
+    replay:
+      mode: fields
+      sample: 1
+      compare:
+        - file: raw-result.json
+          pointers: [/d_ref, /d_pin, /d_pin_second, /sat_contains_one, /pins_agree]
+    on_invalid: stop
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: The trial stopped. Report the run directory named by the plan and do not edit the specification.
+metrics:
+  - name: d_ref
+    unit: degree
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /d_ref
+    aggregate: [min, max]
+  - name: pins_agree
+    unit: fraction
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /pins_agree
+    aggregate: [fraction_true]
+report:
+  graph_metric: d_ref
