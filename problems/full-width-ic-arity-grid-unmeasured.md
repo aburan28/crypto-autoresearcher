@@ -2,10 +2,10 @@
 
 - **Status:** `investigating`
 - **Kind:** implementation gap; resource limit; missing measurement. No mathematical obstruction is claimed.
-- **Affected work:** [2026-10-16 baseline and factor-base assessment](../docs/reports/2026-10-16-elite-factor-base-baseline.md); [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml); [prime-field implementation](../src/crypto_autoresearcher/index_calculus/README.md); [ordinary-binary arity-3 obstruction](../research/conductor_relation_yield_20261014/OBSTRUCTION.md).
+- **Affected work:** [2026-10-16 baseline and factor-base assessment](../docs/reports/2026-10-16-elite-factor-base-baseline.md); [certified prime fixtures](../docs/reports/2026-10-17-icperf-prime-fixture.md); [exact divisor fit and candidate base](../docs/reports/2026-10-17-icperf-divisor-fit.md); [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml); [prime-field implementation](../src/crypto_autoresearcher/index_calculus/README.md); [ordinary-binary arity-3 obstruction](../research/conductor_relation_yield_20261014/OBSTRUCTION.md).
 - **Related scheduling impediment:** [The ICPERF D6 archive commit is unreachable from main](icperf-d6-archive-commit-unreachable.md); its dispatcher refusal is an integrity gate, separate from the missing full-width measurements here.
 - **Next action owner:** Coordinator for a frozen runnable contract; Executor for implementation and trials under that contract.
-- **Last updated:** 2026-10-16
+- **Last updated:** 2026-10-17
 
 ## Problem
 
@@ -15,8 +15,9 @@ The requested complete end-to-end comparison for prime, Koblitz, and ordinary bi
 
 - **Observed:** [RUN-KIC-e3dbed](../research/cold_single_ic_20260921/REPORT.md), [RUN-KIC-8b5038](../research/cold_capacity_ic_20260921/REPORT.md), [RUN-KIC-56c897](../research/cold_target_stop_ic_20260921/REPORT.md), and [RUN-KIC-a15078](../research/cold_arm_composition_ic_20260921/REPORT.md) are four distinct reviewed N53 panels. The last composed implementation is the current same-curve/size reference, with its own matched strengthened-rho comparator; cross-panel ratios cannot be chained. The [prime arity ladder](../src/crypto_autoresearcher/index_calculus/README.md) completed m=2..7 through 32 bits and states that its compact numpy path stops below 2^32. [GF(2^51) relation study](../research/conductor_relation_yield_20261014/OBSTRUCTION.md) names an exact arity-3 collector/checker and point-map evaluator gap; it is not a full ECDLP pipeline.
 - **Derived:** Corrected 2026-10-16 after [PR #2309](https://github.com/aburan28/crypto-autoresearcher/pull/2309): the tail source's sign-symmetric sorted tuples have upper count `2^(h-1) * binomial(B+h-1,h)`. For a hypothetical wide array with 64-bit x and 64-bit packed code, that tuple upper bound yields about 1.58 GiB at 2^50 and 136.96 GiB at 2^63 for m=8, versus 11.32 GiB and 1,890.96 GiB for m=7. These are *upper estimates for one proposed array payload*, not measured memory or lower bounds. The published report previously used `B^h` and eight-byte entries; that overcounted tails and understated wide-entry size. The existing vectorized path has no >32-bit implementation, and smaller bases or different algorithms change the estimates.
+- **Observed preparation, 2026-10-17:** [50/53/63-bit prime-order fixtures](../research/icperf_prime_fixtures_20261017/) now have independent group-order witness checks. Exact [divisor-fit data](../research/icperf_explicit_divisor_20261017/divisor_fit.json) show the fixed 53-bit field lacks a divisor within 15% of `2B` at every `m=2..8`, while the 63-bit field has one at `m=3..8`. The [archived 63-bit m=8 explicit-coset base](../research/icperf_explicit_divisor_20261017/n63_m8_subgroup_seed20261017.json) has 380 realized points and an independently replayed membership/point list. The new constructor avoids trial-factoring all of `p-1` when `d` is supplied. These are preparation and correctness observations, not relations, rank, solver degree or complete-cost measurements.
 - **Suspected explanation:** Wide-prime table representation and memory may be practical bottlenecks for a direct extension; the upper-bound estimates do not prove they are. Whether a streaming join, alternative base density, or solver-aware structured base yields a lower complete cost is unknown.
-- **Missing capability:** A bounded >32-bit prime-field complete-solve runner, a verified ordinary-binary 50–63-bit complete-solve runner, and a frozen high-arity direct `S_8` / chained `S_3` comparison that distinguishes seven from eight summands.
+- **Missing capability:** A bounded >32-bit prime-field complete-solve runner; a target-blind, charged field/base-selection protocol for the sparse-coset arm, including a different 53-bit field if matched size there is required; a verified ordinary-binary 50–63-bit complete-solve runner; and a frozen high-arity direct `S_8` / chained `S_3` comparison that distinguishes seven from eight summands.
 - **What this evidence does not establish:** It does not rule out useful factor bases, high-arity decompositions, or end-to-end improvements. A capacity estimate is not a solver runtime or a failed search. Separate families and target panels cannot be pooled into a single speed ratio.
 
 ## What would unblock it
@@ -29,14 +30,15 @@ The first two conditions establish a trustworthy baseline matrix and honest cens
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Freeze a 50–53-bit three-family pilot with one existing Koblitz baseline arm, a prime and an ordinary-binary baseline arm, and memory preflight for m=2..8; implement only the missing exact runners needed for admission. Pair each candidate base with its equation formulation.
+- **Action or proof obligation:** Freeze a three-family pilot with the existing Koblitz N53 comparator, a certified prime fixture and an ordinary-binary fixture, plus memory preflight for m=2..8. For the prime sparse-coset m=8 arm, use the archived 63-bit 380-point base and equal-realized-size controls, or predeclare and charge selection of a new 50–53-bit field with a suitable divisor. Implement the missing exact runners needed for admission and pair each candidate base with its equation formulation.
 - **Inputs and controls:** Public known-answer targets held out from factor-base selection; size-matched random and affine-placement bases; planted correctness and independent point-sum checks; same-point matched rho; rank/duplicate controls. Keep Koblitz, ordinary binary and prime-field representations separate.
 - **Execution limits and stop condition:** A Coordinator-approved finite fixture/seed grid and justified per-process memory watchdog; do not infer a campaign budget cap. Stop a cell on its declared resource or time boundary and preserve the partial record as censored.
 - **Outcomes and next actions:** A complete candidate improvement advances to independent review and full-cost claim validation. A complete non-improvement redirects base/solver co-design in the exact tested scope. A timeout narrows the implementation/capacity question. An invalid certificate triggers a new source/protocol revision before any repeat.
-- **Recheck trigger:** Publication of a runnable full-width runner, an m=8/direct-`S_8` experiment contract, or a verified 50–63-bit complete-solve receipt.
+- **Recheck trigger:** Publication of a runnable full-width runner, a charged matched-size prime-base selection contract, an m=8/direct-`S_8` experiment contract, or a verified 50–63-bit complete-solve receipt.
 
 A planned step is not a completed experiment. Apply existing execution, review, budget and archival rules before acting on it.
 
 ## Resolution and history
 
 - 2026-10-16: Opened from the source-linked baseline assessment. Corrected the same-day tail count, entry-width estimate, and omission of the later reviewed N53 target-certificate and composition panels in a follow-up to PR #2309. Unresolved. The record preserves the original end-to-end requirement and asserts no scientific status transition.
+- 2026-10-17: Added exact prime-curve fixtures, divisor-fit boundaries, and one target-blind 63-bit base candidate. The missing relation-to-target measurements and wide exact solver remain open; the candidate is not a complete-cost result.
