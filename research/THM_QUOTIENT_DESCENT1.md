@@ -96,3 +96,32 @@ it was removed on 2026-10-16 when the theorem was proved. The hypothesis on S wa
 and is dropped, so the proved statement is stronger. Records that cite the stub (for
 example `ledger/handoffs/TASK-20260923-aa277e.yaml` and the EXP-GFPN-05ff43 v1→v2
 amendment) describe it, correctly, as an unchecked stub; the file is in git history.
+
+## Correction (2026-10-17): Status-line change and the pre-minting Sage check
+
+*Coordinator ruling DEC-20261017-edb475, on sheriff case SHF-20261017-e4d7f6, finding
+L-N8.* This note is a living research note, not an immutable record. The immutable records
+are the ledger entries that cite it (`IDEA-20260920-0490f5`, `DEC-20260920-11b44c`,
+`DEC-20260921-683a85`, `TASK-20260923-aa277e`), and none of them binds its bytes by hash.
+So it is corrected by dated, appended notes like this one, and the earlier text above
+stays as it is.
+
+- **Status line.** Until commit `418825c73` (2026-10-16) the Status line read "PROVED
+  (elementary); not yet formalized." That commit rewrote it in place to the current
+  wording, "formalized as `CryptoResearch.Quotient.translation_descends_iff_two_torsion`",
+  with no dated note. What changed is only that the Lemma's group-law identity was
+  formalized. The mathematical status (PROVED, elementary) is unchanged. The formal
+  statement is commutation with ι_S; the step from commutation to descent is the prose
+  argument above (sheriff finding L-N9). Sheriff case SHF-20261017-e4d7f6 built
+  `formal/CryptoResearch/Quotient/TranslationDescent.lean` on the pinned toolchain
+  (`lake build` exit 0; axiom audit: standard axioms only). CI has not built it, because
+  `lean-verification` is disabled.
+- **"Sage check (to run before minting the formal target)" is superseded.** The target is
+  minted, and nothing committed shows that this Sage snippet was run. It is retired
+  unrun and is not evidence. Its intended check (2-torsion translations commute on x;
+  a translation of order 3 does not) is covered by committed outputs:
+  `research/sheriff/SHF-20261016-3caa6f/scripts/readers/lean/descent_check.out` and
+  `research/sheriff/SHF-20261017-e4d7f6/scripts/readers/lean/descent_recheck.out` Part D.
+  Part D checks every T on two curves, over F_1009 and F_211, with S = 2R not 2-torsion.
+  The Lemma agrees for 1008/1008 and 228/228 translations, and the translations that
+  descend are exactly the 2-torsion ones (4 and 2).
