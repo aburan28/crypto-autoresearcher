@@ -19,6 +19,11 @@ monomial occurrences. These counts are serialized input sizes, not Gröbner
 matrix sizes. The formulation is a chained-S3 system with eight summands;
 it is not a direct S8 computation.
 
+For this 380-column base, signed multisets bound uniform-target coverage by
+binomial(760+m−1, m)/r. At m=7 the ceiling is 0.323848%; at m=8 it is
+31.048916%. Collisions can only lower these values. Extra target shifts,
+bases, or another complete-target method need explicit cost accounting.
+
 == Independent check
 
 The archived planted point sum satisfies all 16 direct and 112 lifted

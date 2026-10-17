@@ -24,6 +24,22 @@ The [record](../../research/icperf_prime_coset_quadratic_20261017/system.json) c
 
 At m=8 the lift adds 96 variables and 96 equations, and raises monomial occurrences from 118 to 310. The lower maximum input degree is offset by a larger algebraic system. Neither direction predicts degree of regularity or solving time without an actual solver comparison.
 
+## Exact one-base coverage ceiling
+
+Each of the 380 x-coordinate columns gives at most two signed points. An m-term sum is unchanged by permutation, so at most `C(2B+m−1,m)` signed multisets can produce distinct subgroup targets, with `B=380`. For a uniformly drawn target in the prime-order subgroup of size `r=9223372018953067627`, its representable fraction is therefore at most `min(1,C(760+m−1,m)/r)`. This bound ignores collisions between different multisets and is consequently optimistic. It is not an observed solver success rate. Exact integer counts can be reproduced with `math.comb(760+m-1,m)`.
+
+| m | Maximum signed multisets | Maximum uniform-target coverage |
+| ---: | ---: | ---: |
+| 2 | 289,180 | 3.1353 × 10⁻¹²% |
+| 3 | 73,451,720 | 7.9637 × 10⁻¹⁰% |
+| 4 | 14,010,915,590 | 1.5191 × 10⁻⁷% |
+| 5 | 2,140,867,902,152 | 0.0000232113% |
+| 6 | 272,960,657,524,380 | 0.00295945% |
+| 7 | 29,869,694,809,096,440 | 0.323848% |
+| 8 | 2,863,756,989,822,121,185 | 31.048916% |
+
+Thus direct `S8` with seven summands can represent at most 0.323848% of uniformly selected targets on this one base, even if its algebraic solver is perfect. Chained eight-summand input raises that upper bound to 31.048916%, still short of universal target coverage. Target shifts, additional bases, or another complete-target strategy must be specified and fully charged. This statement is scoped to the archived base and uniform-target model; it does not establish actual relation yield or block other base designs.
+
 ## Correctness checks and their limit
 
 The three [software tests](../../tests/test_icperf_prime_coset_quadratic.py) passed: all x in a small field were checked for membership equivalence; the archived m=8 planted point sum satisfies both serialized systems; an altered auxiliary value fails. The independently implemented [Sage checker](../../tools/icperf_prime_coset_quadratic_sage_verify.py) read the frozen JSON, evaluated its polynomials over `GF(p)`, checked the eight curve points and their sum, and produced a [write-once replay](../../research/icperf_prime_coset_quadratic_20261017/sage_replay.json): 16/16 direct and 112/112 lifted equations vanish, while one changed auxiliary causes two nonzero lifted equations. It binds the system SHA-256 `4ed209221a30fcfe554a2adb8b782c77082910a37e13513cbe25bc7beecfc731` and checker SHA-256 in the replay. The correctness check uses a deliberately known point sum, so it does not measure unplanted decomposition yield.
@@ -43,7 +59,7 @@ Its result was `[y^2 + 9223372021248595840, x + 9223372021248595840*y]`. The sta
 | Curve and base setup | Certified fixture; 380-point archived base; exact 788-element coset. | Charged field/curve search, rejected candidates, cold and genuinely reused setup. |
 | Algebraic input | Exact direct/lifted m=2…8 counts and planted checks. | Observed Gröbner degree, time/RSS, all roots and point filtering on matched controls. |
 | Relations and linear algebra | None for this formulation. | Natural yield, duplicate/sign handling, independent useful rank, LA time/memory. |
-| Target and comparison | Known planted sum only. | Unseen same-point target logarithm, all target work, independent replay, matched baseline and rho. |
+| Target and comparison | Known planted sum and exact one-base signed-multiset coverage ceiling only. | Unseen same-point target logarithm, any extra shifts/bases and all target work, independent replay, matched baseline and rho. |
 
 The next discriminating experiment needs a Coordinator-approved frozen protocol comparing the direct and lifted systems on **the same 380-point base and targets**, plus an equal-realized-size random/small-x control. It should first use bounded planted and unplanted instances with explicit time, RSS and model limits; report censoring separately from unsatisfiability; check each root as a curve-point relation; then continue only if useful yield and rank justify a complete ECDLP panel. A matched whole-pipeline comparison must include all setup, relation generation, linear algebra, unseen target work, retries, verification, and rho. The [full-width measurement problem](../../problems/full-width-ic-arity-grid-unmeasured.md) remains open.
 
