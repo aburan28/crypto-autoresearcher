@@ -115,7 +115,7 @@ for key, r in rows.items():
             gain_summary[(thr, V, m)].append((n, k, struct, dec, matched, lg(n)))
 
 for thr in (30, 300):
-    w(f'\n### Summary by V family (cells with >= {thr} decompositions in both the cell and its poly baseline)\n')
+    w(f'\n### Summary by V family (cells with >= {thr} projected rows in both the cell and its poly baseline)\n')
     w('| V | m | cells | struct bits: mean [min,max] | dec bits: mean [min,max] | matched bits: mean [min,max] | log2(n) range |')
     w('|---|---|---|---|---|---|---|')
     for (t_, V, m), L in sorted(gain_summary.items()):
@@ -124,6 +124,18 @@ for thr in (30, 300):
         s = [x[2] for x in L]; d = [x[3] for x in L]; t = [x[4] for x in L]; b = [x[5] for x in L]
         w(f"| {V} | {m} | {len(L)} | {sum(s)/len(s):.2f} [{min(s):.2f},{max(s):.2f}] | {sum(d)/len(d):.2f} [{min(d):.2f},{max(d):.2f}] | {sum(t)/len(t):.2f} [{min(t):.2f},{max(t):.2f}] | [{min(b):.2f},{max(b):.2f}] |")
 
+w('\n## Duplicate projected rows against the number of orbits in the factor base\n')
+w('dup = 1 - (distinct projected rows)/(decompositions), pooled over all cells with the same (V, m, orbits). Two decompositions of one target that collapse to one row differ by a kernel identity of the tau-module (e.g. tau^2 - t*tau + 2 = 0, i.e. 2*tau^i Q = -tau^(i+1) Q - tau^(i+2) Q up to the sign of t); with one orbit every successful target yields exactly one row.\n')
+w('| V | m | orbits | cells | decompositions | distinct rows | dup |')
+w('|---|---|---|---|---|---|---|')
+dd = collections.defaultdict(lambda: [0, 0, 0])
+for c in cells:
+    if c['decompositions'] == 0:
+        continue
+    key = (c['V'], c['m'], c['tau_orbits'])
+    dd[key][0] += 1; dd[key][1] += c['decompositions']; dd[key][2] += c.get('reduced_rows', c['decompositions'])
+for (V, m, o), (nc, de, ro) in sorted(dd.items()):
+    w(f"| {V} | {m} | {o} | {nc} | {de} | {ro} | {1 - ro/de:.3f} |")
 w('\n## V_nb: what fraction of the tau-orbit is usable\n')
 w('Inside V_nb itself a relation can be shifted only while every x_i stays in the window (`shifts` column above). '
   'The union of all n shifted windows U = union_j tau^j(V_nb) is an orbit union, in which every conjugate is usable; its orbit count equals `orbits` of V_nb (same orbits), but its point count is larger, so it is a V_orb of another size, not a free gain.\n')
