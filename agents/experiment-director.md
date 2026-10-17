@@ -53,6 +53,15 @@ specification, trial plan, launcher, queue) and the Coordinator's dispatch.
    specification (each one is a `specification_error` for the Coordinator,
    never a default you chose).
 
+For a re-run with no runbook (a frozen launcher, a benchmark binary, a
+build), write a `kind: frozen_command` card instead: every argv exact, every
+repository file it names bound by sha256, `commit` pinned when the result
+depends on the source, `stdout`/`stderr`/`receipt` paths inside
+`write_scope`. `tools/task_card.py run` executes it; the executor only relays
+what that prints. This is the one card format in every repository
+(crypto-autoresearcher, crypto, cryptanalysis), so whichever repository's
+`executor-mechanical` answers, the card works.
+
 If a complete runbook cannot be written, write none and say exactly which
 field of the specification blocks it. The task then stays with
 `executor-implementation`.
@@ -62,8 +71,10 @@ field of the specification blocks it. The task then stays with
 Input: the card and the executor's returned text, saved to a file.
 
 1. `python3 tools/task_card.py check-relay <card> --report <file>`. It
-   establishes, without judgment, whether every line of `status --brief`
-   appears verbatim in the executor's report and whether `verify` passes.
+   establishes, without judgment, whether the tool's own output (`status
+   --brief` for a runbook card, the receipt summary for a frozen-command
+   card) appears verbatim in the executor's report, and whether the record
+   checks out.
 2. `python3 tools/runbook.py status <session_dir>` for the full summary;
    read the failure class and `tell_on_failure` text when the session
    stopped.
