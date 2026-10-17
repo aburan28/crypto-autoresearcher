@@ -55,19 +55,17 @@ specification, experiment design, approval, and handoff.
    contract `review_required` and record its exact blockers. Do not interpret
    the ordinary execution selector's exclusion of an unapproved experiment
    as a readiness result.
-5a. **Runbook, so the mechanical tier can run it.** Write
-   `experiments/<EXP-ID>/runbook.yaml` from `templates/runbook.yaml`
-   (`docs/runbook-execution.md`): bind every file by sha256 (specification,
-   trial plan, sources, Lean target and theorem); one `trials` step,
-   `engine: supervisor`, over the committed plan; `by_trial` assertions tying
-   each output to its prescribed parameters; validity checks only, never a
-   predicted outcome; the fields a replay must reproduce, or `exempt` with the
-   reason; every retryable failure in `on_failure`; metrics with units and
-   labels. `python3 tools/runbook.py lint` must print `LINT OK`. The approval
-   decision carries `runbook_sha256`, the executor task's `write_scope`
-   includes `experiments/<EXP-ID>/runbook-sessions/` and `reports/`, and the
-   handoff names `inference.policy: executor-mechanical`. If it cannot lint
-   clean this turn, write no runbook: the task stays `executor-implementation`.
+5a. **Runbook, so the mechanical tier can run it.** Dispatch
+   `experiment-director` in `compile` mode (`docs/model-tiers.md`): it writes
+   `experiments/<EXP-ID>/runbook.yaml` (`docs/runbook-execution.md`) and a
+   task card under `task-cards/`, and returns both lint outputs. Require
+   `LINT OK`; resolve any value it reports missing in the specification. The
+   approval decision carries `runbook_sha256`, the executor task's
+   `write_scope` includes `experiments/<EXP-ID>/runbook-sessions/` and
+   `reports/`, and the handoff names `inference.policy: executor-mechanical`;
+   once approved, `tools/task_card.py lint` must print `CARD OK`. If it cannot
+   lint clean this turn, commit no runbook: the task stays
+   `executor-implementation`.
 6. Under the standing user authorization in `AGENTS.md`, the Coordinator
    records approval of the complete, runnable, frozen contract with
    `approved_by: coordinator` and a committed approval decision. Do not ask
