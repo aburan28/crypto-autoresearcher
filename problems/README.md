@@ -35,6 +35,8 @@ Keep resolved and superseded records in the index.
 
 | [Lattice IC runbook sparse output admission](lattice-ic-runbook-sparse-output-admission.md) | investigating | Native prelaunch refusal despite READY/LINT; stopped book session6/report5 retained/native verified, no RUN/scientific process | Publish report5 proof, then fresh same-science admission with native selected-experiment materialization before launch |
 
+| [Ten lead formal model bridge and raw artifact access](ten-lead-proof-scope-and-artifact-access.md) | investigating | Applying generic formal statements to concrete curve/domain claims and replaying private raw evidence from a public checkout | Independent semantic review, checked concrete-model bridges, and authorized artifact access |
+
 ## Add or update a problem
 
 1. Check this index and the affected work for an existing record. Reuse it when
