@@ -105,17 +105,39 @@ dispatch itself, and is checked by `tools/task_card.py`:
   `<placeholder>`. A `frozen_command` card (a re-run with no runbook) lists
   argv arrays with no shell syntax, a timeout and success exit codes per
   command, binds every repository file an argv names by sha256, keeps every
-  output inside `write_scope`, and cites its approval decision.
+  output, stdout, stderr and receipt path inside `write_scope`, refuses
+  secrets in `env`, and cites its approval decision; an optional `commit`
+  must exist in the repository.
+- `run` (frozen-command cards): the tool, not the executor, executes the
+  card. It refuses to start unless the card lints, the pinned `commit` is
+  `HEAD` and the receipt does not exist yet; then it runs each argv without
+  a shell under its timeout, stops at the first failure, writes stdout and
+  stderr where the card says, and writes a write-once receipt (exit codes,
+  timings, digests, output tails). It prints a summary derived from the
+  receipt alone. The executor runs this one command and relays the summary.
 - `prompt`: the exact dispatch text, deterministic in the card's bytes. The
   main session relays it unchanged, so the relay can introduce nothing the
   director did not write.
-- `check-relay`: after the run, whether every line of `status --brief`
+- `check-relay`: after the run, whether every line of the tool's output
+  (`status --brief` for a runbook card, the receipt summary for a
+  frozen-command card)
   appears, in order and unedited, in what the executor returned, and whether
   `verify` passes. A paraphrased, rounded or reordered report is
   `executor_deviated`, whatever it says, and goes to a Validator.
 
 `templates/mechanical-task-card.yaml` annotates every field;
 `examples/runbooks/toy-ecdlp-bsgs/task-card.yaml` is a complete instance.
+
+## One card format in every repository
+
+crypto-autoresearcher, crypto and cryptanalysis each define an
+`experiment-director` and an `executor-mechanical`. When a session has more
+than one of them checked out, whichever repository's agent answers a dispatch
+must accept the card, so all three use this one format: `tools/task_card.py`
+is canonical here and copied byte-identical into the siblings (it needs only
+PyYAML). `kind: runbook` needs `tools/runbook.py`, which only this repository
+has, and is refused elsewhere; the siblings use `kind: frozen_command`.
+Change the tool here and copy it; never edit a copy.
 
 ## What each tier never does
 
@@ -141,8 +163,5 @@ choice, and a card that does not lint is never relayed.
 - Tier classification is an operator assertion, like `capabilities`; the
   resolver cannot detect a model classified above its real class.
 - The vagueness lint is a word list: a forcing function, not a proof.
-- `check-relay` compares against the journal, so it applies to runbook cards;
-  a `frozen_command` card's relay is checked by the auditor reading its run
-  record.
 - The Sonnet and Haiku bindings stay `operator-supplied` until `python3 -m
   orchestration.adapter doctor --backend anthropic --probe` confirms them.
