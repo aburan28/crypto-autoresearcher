@@ -12,12 +12,14 @@ The original source, all local bounded observations, all 23 corrected designs an
 
 - A3 stage-0 instrument: existing RUN-ECDLP-06bb83 retained; no duplicate execution.
 - E3 and D4 stage-0 instruments: supervisor admission refused before a scientific process. Exact additive repair packets and fixture-tested schema transport preparation are preserved; no new approval or run is claimed.
-- G1 cyclotomic field lift: RUN-ECDLP-18d26b failed before launch because cargo was unavailable. Rust is now installed; the immutable retry remains a separate authorization/plan obligation.
+- G1 cyclotomic field lift: RUN-ECDLP-18d26b failed before launch because cargo was unavailable. Rust is now installed and its frozen crate builds successfully ([build log](toolchain/g1-build.log)); no scientific retry was launched. The immutable retry remains a separate authorization/plan obligation.
 - G2 embedding-degree/norm controls: RUN-ECDLP-2ac930 produced 1,532 curve rows, 12 small-order cells, four public-parameter checks and three norm boxes. Producer and checker returned 0; supervisor status remains invalid_output due to the legacy manifest. Additive schema metadata preserves that status.
 - G3 Solinas field-point search: completed 1,395 cells of its frozen full grid; producer and checker exited 0, supervisor invalid_output due to the legacy manifest. Its rank-descent arm was explicitly skipped; point counts do not certify independence or rank gain.
 - G4 rotation-class controls: launched after G3 under the existing single-executor concurrency rule; terminal outcomes are recorded separately.
 
 Existing overlapping p-adic, pairing and special-polynomial runs have been located and are linked from the canonical map; existing failed/invalid attempts are not repeated without a distinct authorized retry.
+
+For D1, a [candidate 31-point input from the existing rank campaign](dependencies/d1-rank-campaign/source-index.json) has now been located and hash-pinned. This read-only inventory is not a new independence/rank verification, a height matrix, or a saturated MW basis. Those obligations and the separate rank-30 input remain to be reconciled before its count experiment.
 
 ## All 23 leads
 
@@ -54,6 +56,8 @@ Only existing, admitted frozen plans launch through the ordinary supervisor. Mis
 The prospective manifest transport component has seven fixture checks, including compatibility with the current run schema and refusal to overwrite a sealed run. This is software preparation, not a scientific trial. The [repair packet](../../coordination/design/SNFS-INSTRUMENT-REPAIR-20261017/README.txt) lists the remaining exact-byte routing, binding and authority obligations.
 
 The configured Coordinator backend remains unavailable: the [readiness log](toolchain/coordinator-backend-readiness.log) reports absent configured credentials and unverified model identifiers; no live probe or substitution approval occurred. This reuses the [existing access impediment](../../problems/prime-field-arity3-relation-oracle.md). It is an execution limitation, not evidence against the affected leads.
+
+[Mathematical software readiness](toolchain/math-readiness/README.md) now records the isolated Sage/Pari/Singular/fplll/mwrank/CryptoMiniSat environment, pinned msolve source build and 71 passing upstream software tests. These are preparation checks; no additional lead protocol or G1 retry was executed through them.
 
 Scientific raw output, successful checker execution, schema completeness, independent review and a warranted conclusion are separate statuses. A metadata envelope cannot retroactively change a failed supervisor receipt.
 
