@@ -1,0 +1,143 @@
+idea:
+  id: IDEA-20261017-90d9c5
+  question_id: RQ-PFDR-ae2fba
+  added: '2026-10-17'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  title: >-
+    Rho-trail harvest of pair-sum coincidences: the table family's memory
+    exponent drops from h/(2h-1) to 1/(2h-1) at the same time exponent
+  class: algorithm
+  claim: >-
+    Stage: collision structure inside relation decomposition. Replace the stored
+    table of S = B^h h-sums by distinguished-point trails of s = H o f on
+    canonical index tuples, f(d) = x-key of the signed h-sum, H a hash into the
+    tuple domain D, |D| >= 10 L t (L trail length, t steps). Then n true
+    coincidences cost t = c_vow * sqrt(2nN/kappa) steps, c_vow in [1,3], with
+    memory O(n) words plus the DP store, against S = sqrt(2nN/kappa) table
+    entries. At n = c*U and the table-optimal base size U ~ N^(1/(2h-1)) this
+    gives (time, memory) = (N^(h/(2h-1)), N^(1/(2h-1))) against
+    (N^(h/(2h-1)), N^(h/(2h-1))) for the table. At h=2 the memory exponent
+    falls from 0.67 to 0.33, relations per step and rank unchanged.
+  mechanism: >-
+    Pair (R1 x-key of the h-sum, Sigma = trail step s composed with
+    canonicalisation of the index tuple under reordering and negation).
+    Trichotomy: coordinate-dependent. The step depends on the label x through
+    the hash, as a rho step function does. Relation extraction stays Class I
+    partial-action (IDEA-20260806-c5d183). Lossy-projection test: a trail
+    endpoint (DP, start, length) discards the interior; replaying two trails to
+    their merge recovers the pair (d,d') with s(d)=s(d'), and one equality test
+    on f separates true from false merges. True merges give certified rows
+    sum e(d) - sum e(d') = 0 as in the harvester. A merge is true with
+    probability about |D|/N, so n true rows need n*N/|D| merges and t^2/(2|D|)
+    = nN/|D| gives t = sqrt(2nN), independent of |D| while |D| >> t. F1 is the
+    lens (off-limits as primary); added: rows over ~U unknowns from trail
+    merges on an index-tuple domain, with the tuple canonicalisation that keeps
+    reordered tuples from merging trivially. Not a new factor base. Derivation
+    in the .notes.md.
+  novelty_status: unverified
+  citations:
+    - ref: KR-RHO-7d93f6
+      provenance: internal
+      claim: C collisions with time T and space S need T^2 S = C^2 N up to logs (Dinur 2020)
+      verified_by: idea-generator 2026-10-17, map row text read
+    - ref: KR-RHO-6239aa
+      provenance: internal
+      claim: parallel rho with distinguished points, memory proportional to stored DPs (van Oorschot-Wiener)
+      verified_by: idea-generator 2026-10-17, map row text read
+    - ref: IDEA-20260923-9e4b71
+      provenance: internal
+      claim: a charged model for fewer stored entries at fixed online cost
+      verified_by: idea-generator 2026-10-17, index excerpt only
+  assumptions:
+    - Trails behave as a random mapping on D after canonicalisation (H1).
+    - The engine's collision harvester can ingest rows from a trail merge.
+  predictions:
+    - metric: t_lean / S_table at equal true coincidences and equal base
+      direction: different
+      minimum_effect: within 1 to 3
+    - metric: peak resident words / table entries
+      direction: lower
+      minimum_effect: at most 0.1 at N = 2^28, h=2
+  minimal_test:
+    design: >-
+      h=2, N in {2^20,...,2^30} step 2, 5 curves, small_x and random bases,
+      base enlarged by (10L)^(2/3) so |D| >= 10 L t. Parallel trails with
+      DP bits tuned to L ~ 2^5. Canonical tuples (sorted indices, sign
+      normalised). Collect n = 0.92 U true rows, certify each as in harvest.py,
+      eliminate. Compare to the table harvest on the same curves.
+    controls:
+      - Table harvest on the same curves and base (same rows expected).
+      - Random mapping on D (replace f by a hash); merge statistics must match the lean run.
+      - Rho on the same curves.
+    required_metrics: [t, merges, true merges, rank, peak words, DP store, L, c_vow]
+  falsification_conditions:
+    - t_lean / S_table > 4 at N >= 2^26 means the trail overhead exceeds vOW constants; the memory gain is not free.
+    - Rank at n = 0.92 U below 0.9 U means the rows are correlated by trail merging.
+    - Merge statistics departing from the random-mapping control means f has structure that H does not erase.
+  confounders:
+    - Symmetry of f under tuple reordering and negation; handled by canonicalisation.
+    - The base must be enlarged for |D| >> t, which changes U by a constant.
+  interpretation_limits:
+    - Dominated by rho on time and memory; this is a position on the family's own frontier.
+    - Pair-sum (h=2) domain is too small for the claim without enlargement; h>=3 relaxes it.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        After canonicalisation, s = H o f is a uniformly random mapping on D,
+        so merges occur at t^2/(2|D|) and a merge is true with probability |D|/N.
+      rigorous_support: >-
+        Random-mapping collision statistics (van Oorschot-Wiener) hold when H is
+        a random oracle and f is injective on classes up to true coincidences.
+      validation_plan: >-
+        Compare merge count and true-merge fraction with the random-mapping
+        control at 6 sizes; tail check: trail length distribution against the
+        geometric law set by the DP rate.
+  target_complexity:
+    time_exponent: h/(2h-1) (same as the table family), times c_vow in 1 to 3
+    memory_exponent: 1/(2h-1) plus the DP store
+    best_known: rho N^(1/2), O(1) memory; table family (h/(2h-1), h/(2h-1))
+    hidden_overhead: c_vow, trail replay cost, base enlargement by (10L)^(1/(h-1/2))
+    tradeoff_note: >-
+      Lies on the Dinur curve T^2 S = C^2 N with C = U; the table sits above it
+      in memory. Parallelises linearly as vOW rho does.
+  estimated_cost: {implementation: medium, compute: low}
+  recommended_priority: low
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-7d93f6, KR-RHO-6239aa, KR-IC-5931ee, KR-IC-955fd6, KR-IC-f3da82, KR-RHO-13bf67, KR-RHO-cd0049, KR-RHO-1c2928]
+    nearest:
+      - ref: KR-RHO-13bf67
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          The lean harvester is a generic algorithm, so the row binds it:
+          t >= sqrt(2cUN) >= sqrt(N). It moves memory, not time, and cannot
+          cross rho; it uses no representation property.
+      - ref: KR-RHO-7d93f6
+        provenance: internal
+        relation: special_case
+        delta: the generic C-collision tradeoff applied to rows over U unknowns, with tuple canonicalisation
+      - ref: KR-RHO-6239aa
+        provenance: internal
+        relation: adjacent
+        delta: one rho collision there; n = c*U row-producing collisions on an index-tuple domain here
+      - ref: KR-RHO-cd0049
+        provenance: internal
+        relation: adjacent
+        delta: measured generic trade (0.825 ops for 15.8x table); this trades the other way in the table family
+      - ref: KR-RHO-1c2928
+        provenance: internal
+        relation: adjacent
+        delta: measured lean rho with 0.0167 entries per sqrt(r); the same lean-memory move, here for U-row harvests
+      - ref: KR-IC-f3da82
+        provenance: internal
+        relation: orthogonal
+        delta: trace reuse cuts per-system constants; this cuts the memory column
+  dominated_by: >-
+    Pollard rho: time N^(1/2) < N^(h/(2h-1)) and memory O(1) < N^(1/(2h-1))
+    (KR-RHO-6239aa, KR-RHO-7d93f6, Yun 2015 for the n-DL floor sqrt(nN))
+  sota_delta: >-
+    Memory exponent h/(2h-1) -> 1/(2h-1) (0.67 -> 0.33 at h=2); time exponent
+    unchanged; time worse than rho by N^(1/(2(2h-1))), 0.17 at h=2.
