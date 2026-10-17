@@ -86,6 +86,16 @@ the procedure"; under Claude Code, dispatch that subagent (Haiku) with the
 runbook path. A runbook that does not lint is an impediment to report, never
 something to repair here, and `tools/runbook.py report` writes the run report.
 
+When the experiment has a task card (`experiments/<EXP-ID>/task-cards/`),
+the dispatch is the card (`docs/model-tiers.md`): `python3
+tools/task_card.py lint <card>` must print `CARD OK` (otherwise report the
+findings as the impediment), and the prompt to `executor-mechanical` is
+exactly what `python3 tools/task_card.py prompt <card>` prints, with nothing
+added. Save the executor's returned text to a file and dispatch
+`experiment-director` in `assess` mode with the card and that file; its
+execution assessment is the result this skill reports. It is a relay check,
+not a review: it decides nothing about the hypothesis and blocks nothing.
+
 Keep the runner's built-in admission, resource, and output-correctness checks.
 Do not duplicate them in an agent-led validation phase or disable them to force
 a launch. Routine trials are processes; they do not need a new agent per seed.
