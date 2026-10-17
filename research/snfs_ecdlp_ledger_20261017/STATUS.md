@@ -4,6 +4,8 @@ This page tracks execution and outstanding work. It is not a scientific review o
 
 PR: https://github.com/aburan28/crypto-autoresearcher/pull/2382
 
+[PDF inventory of all 23 historical pilot scopes and limitations](reports/historical-inventory-20261017/report.pdf) · [Research direction and next obligations](NEXT-ACTIONS.md)
+
 The original source, all local bounded observations, all 23 corrected designs and their limits are preserved in [tracking.json](tracking.json). [canonical-coverage.json](canonical-coverage.json) maps each provisional source label to its existing IDEA ID and overlapping contracts.
 
 ## Current canonical work
