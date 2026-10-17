@@ -12,9 +12,7 @@ earlier long form of this file stays unchanged at
 
 ## What is Claude Code specific
 
-- **Batch delivery**: `python3 -m orchestration.adapter batch …` for
-  single-turn prompts; records are write-once under
-  `coordination/inference-batches/` (`docs/batch-inference.md`).
+- **Batch delivery**: AGENTS.md "Model policy"; `docs/batch-inference.md`.
 - **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
   `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
   Code only; `experiment-director` writes Haiku's task cards,

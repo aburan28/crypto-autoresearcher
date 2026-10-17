@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -75,11 +76,24 @@ def install() -> None:
         except (TypeError, ValueError):
             return
         if full.startswith(prefix) and off_disk(full[len(prefix):], excluded):
-            test = os.environ.get("PYTEST_CURRENT_TEST", "?").split(" ")[0]
+            test = os.environ.get("PYTEST_CURRENT_TEST", "").split(" ")[0] or \
+                _importing_test(prefix)
             with open(log, "a", encoding="utf-8") as fh:
                 fh.write(f"{test}\t{event}\t{full[len(prefix):]}\n")
 
     sys.addaudithook(hook)
+
+
+def _importing_test(prefix: str) -> str:
+    """Outside a test (a module-level read while pytest collects), the test file
+    on the stack: the one to pin, though the read is in a module it imports."""
+    frame = sys._getframe(2)
+    while frame:
+        name = frame.f_code.co_filename
+        if name.startswith(prefix) and re.search(r"/test_[^/]+\.py$", name):
+            return name[len(prefix):] + "::<import>"
+        frame = frame.f_back
+    return "?"
 
 
 def _tripwires(repo: Path) -> int:
