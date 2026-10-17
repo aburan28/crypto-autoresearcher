@@ -27,9 +27,19 @@ plan without inventing a predicted mechanism or a desired scientific outcome.
 If a deviation is called an anomaly, name its reference and uncertainty;
 exploratory patterns remain observations pending separate checks. Do not force
 a useful/useless, attack/no-attack, support/reject or security conclusion into
-an observation report. Do not routinely summarize measurements as "no attack
-advantage": assess applications only when that analysis is requested or is an
-explicit part of the protocol. Conclusions can be considered separately later.
+an observation report. Do not dismiss a pattern as unrelated to ECDLP or judge
+its value by anticipated application. The owner makes interpretation, relevance
+and usefulness calls; observation reports present the evidence for those calls.
+
+Owner's clarification, 2026-10-17: present candidate structure as "this pattern
+is worth inspecting" when the data warrant attention. Show the actual values,
+reference, uncertainty, alternative explanations and a concrete next check.
+Distinguish an observed deviation, an exploratory pattern and a suspected
+measurement artifact. Include ordinary/control behavior alongside flagged
+patterns; finding something unusual is not a required outcome. Do not issue
+scientific verdicts or change official scientific conclusions on the owner's
+behalf without an explicit request. This leaves technical readiness approvals
+and observation collection under the existing standing authorization.
 
 This instruction supersedes an improvement-only definition of research success.
 It guides future work and reporting; frozen protocols and historical records

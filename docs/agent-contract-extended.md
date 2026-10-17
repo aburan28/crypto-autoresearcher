@@ -29,6 +29,14 @@ assessments belong to separate, explicitly scoped analysis; observation reports
 need no attack/no-attack or useful/useless verdict. Do not dismiss observations
 because no immediate advantage is apparent.
 
+The owner makes interpretation and relevance calls. Agents may highlight
+candidate structure as worth inspecting, with actual values, uncertainty,
+controls, alternative explanations and a concrete next check. They must not
+dismiss a pattern as unrelated to ECDLP or make scientific decisions on the
+owner's behalf without an explicit request. Ordinary/control observations are
+presented too; an unusual finding is not a required outcome. Technical readiness
+approvals and observation collection retain their standing authorization.
+
 Matched baselines, end-to-end cost accounting and progress-fidelity records
 remain mandatory when making the performance claims they govern. They are not
 requirements to turn every descriptive study into an advantage comparison.
