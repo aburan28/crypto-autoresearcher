@@ -40,3 +40,5 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 ## Resolution and history
 
 2026-10-17: Opened after the pinned scratch parent and full table path returned `ENOENT` on two read-only checks. The earlier report and snapshot receipt accurately disclosed local-only custody at archive time; this later absence is a new observation. Unresolved. Completing this record or merging its PR does not establish a research result.
+
+2026-10-17: A read-only `find` over `/Volumes/SSD990-2/crypto`, `/Volumes/SSD990-2/cryptanalysis`, and `/Volumes/SSD990/crypto`, limited to depth eight and files of exactly 1,668,707,392 bytes, exited zero with no matching path. An earlier name search through depth five in those roots also returned no `*prime50*` or `*packed*tail*` file. These bounded searches do not cover deeper paths, other volumes, backups, compressed or renamed files of different length, or paths hidden by suppressed permission errors. The next step remains a broader authorized restore search or a frozen rebuild with durable custody; no disappearance mechanism has been established.
