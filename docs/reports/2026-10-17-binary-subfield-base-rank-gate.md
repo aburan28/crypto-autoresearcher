@@ -26,6 +26,8 @@ The [integer record](../../research/icperf_subfield_rank_gate_20261017/hasse_bou
 
 The inequalities hold for all proper subfields in the record. For `n=53` the only proper subfield is `F_2`; for `n=50,63` the largest proper degrees are 25 and 21. The 53-bit Koblitz comparator's target prime order is 21,044,858,204,113 [in the baseline report](2026-10-16-elite-factor-base-baseline.md); it exceeds the actual `F_2` ceiling 5, even though it is below the illustrative half-field-order threshold above. Its direct `F_2`-x base is therefore also excluded by the lemma.
 
+The separate [exact Koblitz order screen](2026-10-17-koblitz-size-screen.md) finds no standard Koblitz curve at field degrees 50–63 with `r≥2^50`. The 50- and 63-bit threshold rows above are conditional examples, not claims that those particular Koblitz fields supply an admissible large-prime target.
+
 ## Scope and remaining angles
 
 This is a **proved structural obstruction under the stated descent and x-membership assumptions**, pending independent review as a research record. It does not exclude a base only *near* a subfield, a union of displaced subfield-like sets, a different sparse ideal with full target-subgroup rank, or an ordinary binary curve whose coefficients do not descend to `F_q`. For a non-descended curve, `q`-Frobenius maps to a conjugate curve and the proof's first step fails. Prime fields have no proper subfield. A sparse input equation or low refutation degree alone cannot overcome zero target-subgroup rank.

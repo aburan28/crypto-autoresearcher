@@ -17,6 +17,7 @@ A direct base restricted to x-coordinates in `F_(2^d)` cannot contribute to a la
 - **Suspected explanation:** No conjecture is needed for this exact construction. Whether *near*-subfield sets retain low solver degree and full rank is unknown.
 - **Missing capability:** A target-blind near-subfield or other sparse-predicate base with independently verified nonzero subgroup projection, a certified 50–63-bit curve/subgroup, and a frozen complete-cost comparison.
 - **What this evidence does not establish:** It does not rule out ordinary binary curves whose coefficients do not descend to the proposed subfield, near-subfield x sets, shifted predicates, other structured bases, or any index-calculus improvement. It measures no relation yield, degree of regularity, rank growth, or ECDLP cost.
+- **Fixture selection note:** The [exact Koblitz size screen](../docs/reports/2026-10-17-koblitz-size-screen.md) finds that neither standard Koblitz curve over a 50–63-bit binary field has a prime subgroup of order at least `2^50`. The `r≥2^(n−1)` rows in the proof are conditional bounds, not existing Koblitz fixtures at n=50 or 63. The reviewed n=53 comparator's 45-bit target prime still exceeds its actual subfield ceiling 5.
 
 ## What would unblock it
 
