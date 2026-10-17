@@ -4,13 +4,13 @@
 
 = Index-calculus baseline and factor-base search boundary
 
-2026-10-16 · Source-linked assessment; no new scientific trial or speed claim. Corrected after PR #2309: tuple count and wide-entry size. The complete report and its source links are in `2026-10-16-elite-factor-base-baseline.md`.
+2026-10-16 · Source-linked assessment; no new scientific trial or speed claim. Corrected after PR #2309: later N53 baseline, tuple count and wide-entry size. Full source links: `2026-10-16-elite-factor-base-baseline.md`.
 
 #image("2026-10-16-elite-factor-base-baseline.svg", width: 90%)
 
 == Measured baseline
 
-*Koblitz GF(2^53).* RUN-KIC-e3dbed used 24 held-out public known-answer targets, one cold process per IC/rho arm. The median paired IC/rho wall ratio was *3.511028* (bootstrap 95% interval [2.757893, 6.672955]); IC median process wall was 4.787709 s and signed-Frobenius rho median was 1.324306 s. An independent review checked the finite comparison. RUN-KIC-8b5038, on 24 different fresh targets, measured a 0.870771 candidate/baseline wall ratio after doubling active hash slots, while peak RSS ratio rose to 1.762315. Its candidate/rho paired wall ratio was 3.561202. These panels must remain distinct.
+*Koblitz GF(2^53).* The latest reviewed complete implementation in this checkout is RUN-KIC-a15078: 24 fresh public known-answer targets, 96 valid four-arm processes, independent review and Coordinator decision DEC-20260921-6648da. The composed IC median cold wall was 3.080913 s; the paired IC/strengthened signed-Frobenius rho wall ratio was *3.294582* (bootstrap 95% interval [2.802517, 4.368945]). Its paired wall ratio against the larger-table full-rank IC control on the same panel was 0.820151. Median peak RSS was 773,734,400 bytes for IC and 88,391,680 bytes for strengthened rho. Earlier distinct panels measured allocation/density (RUN-KIC-e3dbed), table capacity (RUN-KIC-8b5038), and target-certificate stopping (RUN-KIC-56c897); their ratios cannot be chained.
 
 *Prime field.* The complete checked solver has measured m=2..7 through 32 bits. At 32 bits the m=3..7 median S3-equivalent counts were 2.08e6, 1.71e7, 1.38e6, 7.75e6 and 1.78e6, versus 93,546 rho walk additions. These are different operation units. No complete 50–63-bit row or m=8 run is established by those receipts. The compact numpy path stops below 2^32.
 
@@ -38,7 +38,7 @@ Ref = comparison-sized payload only: the m=2 engine does not allocate an h-point
 
 == Search and acceptance
 
-The prime-field sparse-subgroup equation helped one m=2 algebraic cell but not m=3; complete small-scale relation supply was similar for size-matched small-x, random and subgroup bases. The next comparison pairs base and equation formulation, measuring construction, monomials, observed solving degree, misses, verified rows, useful rank, final solve and blind target work. The Koblitz N53 query kernel and support setup are the measured first optimization targets. Ordinary binary first needs its own complete baseline.
+The prime-field sparse-subgroup equation helped one m=2 algebraic cell but not m=3; complete small-scale relation supply was similar for size-matched small-x, random and subgroup bases. The next comparison pairs base and equation formulation, measuring construction, monomials, observed solving degree, misses, verified rows, useful rank, final solve and blind target work. The composed N53 Koblitz median internal query kernel is 1.844756 s and setup 0.761544 s, so a frozen own-process query profile is the existing Coordinator's first-ranked diagnostic before base/query co-design. Ordinary binary first needs its own complete baseline.
 
 For m factor-base summands plus a target, a direct summation polynomial is `S_(m+1)`. Direct `S_8` means seven summands; eight summands require `S_9`. A chain of `S_3` constraints is a separate formulation. Each attempted construction and resource stop must be recorded.
 
@@ -46,4 +46,4 @@ A qualifying improvement needs unseen same-point targets, target-blind base sele
 
 == Sources
 
-Internal, retrieved from committed checkout: `research/cold_single_ic_20260921/REPORT.md`; `research/cold_capacity_ic_20260921/REPORT.md`; `src/crypto_autoresearcher/index_calculus/README.md` §§1–5; `research/conductor_relation_yield_20261014/OBSTRUCTION.md`; `research/factor_base_lab.md`. The Markdown report links each at its relevant claim.
+Internal, retrieved from committed checkout: `research/cold_arm_composition_ic_20260921/REPORT.md` and `ledger/decisions/DEC-20260921-6648da.md`; the three earlier `RUN-KIC-*` reports; `src/crypto_autoresearcher/index_calculus/README.md` §§1–5; `research/conductor_relation_yield_20261014/OBSTRUCTION.md`; `research/factor_base_lab.md`. The Markdown report links each at its relevant claim.
