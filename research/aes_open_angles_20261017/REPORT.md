@@ -4,7 +4,8 @@
 official goal transition, a security proof, or a claim to have broken AES.
 The implementation and first frozen synthetic suite are in
 [`aburan28/cryptanalysis`](https://github.com/aburan28/cryptanalysis/tree/codex/aes-distinguisher-research/tools/aes-discover).
-The `crypto` integration requires a Conductor reservation; its access gap is
+The native mirror is applied in `crypto` under current standalone authorization;
+its verification/delivery and separate scientific admission obligations are
 tracked in [the problem record](../../problems/aes-lab-conductor-and-campaign-admission.md).
 
 ## Assessment

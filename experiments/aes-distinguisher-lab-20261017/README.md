@@ -36,12 +36,17 @@ No autoresearcher official trial plan was executed or marked complete here.
 
 Remaining integration work is explicit: exact SAT/UNSAT certification, full
 published quartet algorithms, complete toy hull enumeration, learned-model
-training, independent campaign admission, and `crypto` Conductor access. A
+training and independent campaign admission. A
 planning or software PR does not discharge these requirements.
 
-[`crypto-integration.patch`](crypto-integration.patch) is the concrete prepared
-native integration. It applies cleanly in a read-only check against
-`crypto@c6d64436`, but remains unapplied pending that repository's Conductor
-reservation or an explicit current user instruction allowing a standalone
-checkout. It copies sources and lockfile rather than adding another cipher
-implementation, and links this study for source provenance and follow-ups.
+[`crypto-integration.patch`](crypto-integration.patch) preserves the original
+prepared integration. The current user authorized standalone application; the
+native mirror is now applied in `crypto`, with eleven implementation/Cargo files
+matching the companion and fourteen native tests passing. It is delivered in
+[crypto PR #2105](https://github.com/aburan28/crypto/pull/2105). The required root
+suite fails before tests on 26 unchanged-base compile errors; exact evidence
+and remaining obligations are tracked in
+[the problem record](../../problems/aes-lab-conductor-and-campaign-admission.md).
+Nine native backlog proposals retain their missing implementation and admission
+requirements. This integration copies the cipher sources and lockfile rather
+than adding a separate implementation.
