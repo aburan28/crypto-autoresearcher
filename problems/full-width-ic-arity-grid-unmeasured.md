@@ -4,6 +4,7 @@
 - **Kind:** implementation gap; resource limit; missing measurement. No mathematical obstruction is claimed.
 - **Affected work:** [2026-10-16 baseline and factor-base assessment](../docs/reports/2026-10-16-elite-factor-base-baseline.md); [certified prime fixtures](../docs/reports/2026-10-17-icperf-prime-fixture.md); [exact divisor fit and candidate base](../docs/reports/2026-10-17-icperf-divisor-fit.md); [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml); [prime-field implementation](../src/crypto_autoresearcher/index_calculus/README.md); [ordinary-binary arity-3 obstruction](../research/conductor_relation_yield_20261014/OBSTRUCTION.md).
 - **Related scheduling impediment:** [The ICPERF D6 archive commit is unreachable from main](icperf-d6-archive-commit-unreachable.md); its dispatcher refusal is an integrity gate, separate from the missing full-width measurements here.
+- **Related structural obstruction:** [A direct proper-subfield x base has zero large-prime component](binary-subfield-base-has-no-large-prime-component.md) on a descended binary curve under the stated prime-order bound; near-subfield and non-descended alternatives remain open.
 - **Next action owner:** Coordinator for a frozen runnable contract; Executor for implementation and trials under that contract.
 - **Last updated:** 2026-10-17
 
@@ -42,3 +43,4 @@ A planned step is not a completed experiment. Apply existing execution, review, 
 
 - 2026-10-16: Opened from the source-linked baseline assessment. Corrected the same-day tail count, entry-width estimate, and omission of the later reviewed N53 target-certificate and composition panels in a follow-up to PR #2309. Unresolved. The record preserves the original end-to-end requirement and asserts no scientific status transition.
 - 2026-10-17: Added exact prime-curve fixtures, divisor-fit boundaries, and one target-blind 63-bit base candidate. The missing relation-to-target measurements and wide exact solver remain open; the candidate is not a complete-cost result.
+- 2026-10-17: Added the conditional binary subfield rank gate as a separate problem. It excludes one exact construction under its hypotheses and changes no full-width measurement status.
