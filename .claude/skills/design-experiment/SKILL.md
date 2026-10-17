@@ -39,13 +39,12 @@ specification, experiment design, approval, and handoff.
      variables, primary/secondary metrics, seeds and replication plan,
      budget, stopping and invalidation rules, success and falsification
      criteria, and required artifacts;
-   - write the `variable_ledger` and `prediction_provenance` blocks
-     (`docs/confound-control.md`): each factor that could move a primary
-     metric is fixed, randomized, crossed or measured; each comparison differs
-     in one named factor, or is declared factorial or confounded; each
-     prediction lists the data seen before it was written;
+   - write the blocks of `docs/confound-control.md`: a `variable_ledger`
+     with an A/A comparison, `prediction_provenance`, and, when a claim
+     crosses a map, `transfer_obligations` with the `transfer` skill's
+     assessment;
    - refuse approval while required scientific-contract fields, including
-     both blocks, are incomplete (status stays `review_required`). Advisory
+     those blocks, are incomplete (status stays `review_required`). Advisory
      research estimates and unlimited campaign budgets may be null under the
      current budget policy; that alone does not prevent approval.
 4. Create the experiment directory:
@@ -191,6 +190,7 @@ of a prediction. The contract must include:
   never silently re-scored against the new one.
 - The success criterion must be decidable from the predefined metrics —
   reject contracts where no possible outcome would count as negative.
-- Only one-factor or factorial comparisons and out-of-sample predictions
-  carry success or falsification criteria; confounded comparisons and
-  in-sample predictions are reported, never decisive.
+- Only one-factor, factorial or absolute comparisons and out-of-sample
+  predictions carry success or falsification criteria; an A/A comparison
+  sets their noise floor; confounded and in-sample ones are reported, never
+  decisive.
