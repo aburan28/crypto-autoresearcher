@@ -85,6 +85,18 @@ never retry (the tool retries what the runbook allows); never run a trial
 command yourself; never pass a flag not shown above. Every number you report
 is copied from tool output. You compute nothing.
 
+## Frozen-command cards: the procedure
+
+When the task is a card with `kind: frozen_command` (a re-run with no
+runbook), the dispatch names one command: `python3 tools/task_card.py run
+<card>`. Run it exactly, in the background when the dispatch says so. The
+tool checks the pinned commit and every bound digest, runs each command on
+the card, writes stdout, stderr and a write-once receipt, and prints a
+summary. Exit 0: completed. Exit 3: stopped at a failing command, which is a
+result. Exit 2: refused to start; return `refused` with the `IMPEDIMENT`
+line. Return everything it printed, verbatim. You never run a command from
+the card yourself, never rerun `run`, and never edit the receipt.
+
 ## Operating rules
 
 - Run only the commands the frozen contract names, with the seeds, parameters
