@@ -1,0 +1,120 @@
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-ICPERF-e467a5
+session_id: RBS-ICPERF-b7e41c
+title: Evaluate the integer price ratio on three toy cells and record each count
+purpose: >-
+  One deterministic trial computes the reduced Bernstein-Lange price ratio and
+  the online ratios at three frozen (r, A) cells. Observations only. The n=83
+  host arm is not an input.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+  - path: experiments/EXP-ICPERF-e467a5/specification.yaml
+    sha256: dc1824e89db2fc43f6d0ed5472472033bdc07f72fd4e2eccfa9b45742383433c
+  - path: experiments/EXP-ICPERF-e467a5/trial-plan.json
+    sha256: aaae3c44610b7e2ebf2dba27a09da0947b813d4bde58b5a50cce0d983d182be1
+  - path: experiments/EXP-ICPERF-e467a5/implementation/run.py
+    sha256: 631fbcb926e416cb1a9818ce2f5ce4c41bae63f4e4af247b905eb61441a0109c
+  - path: experiments/EXP-ICPERF-e467a5/implementation/check.py
+    sha256: 45e4a5a25baf995708b2adde4bcd491f2f847c07587a28c85adf45e03c0d7580
+spec_bindings:
+  - file: experiments/EXP-ICPERF-e467a5/specification.yaml
+    pointer: /experiment/inputs/c_probe_ns
+    equals: 370
+  - file: experiments/EXP-ICPERF-e467a5/specification.yaml
+    pointer: /experiment/inputs/c_state_ns
+    equals: 2100
+  - file: experiments/EXP-ICPERF-e467a5/specification.yaml
+    pointer: /experiment/inputs/c_step_ns
+    equals: 40
+  - file: experiments/EXP-ICPERF-e467a5/specification.yaml
+    pointer: /experiment/inputs/states
+    equals: 10
+environment:
+  python: "3.12"
+  programs: [python3]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+  - id: S01-probe-python
+    kind: command
+    purpose: probe
+    title: Record the interpreter that runs the trial
+    explain: Writes the CPython major version to environment.json in this step output directory.
+    argv:
+      - python3
+      - -c
+      - "import json, platform, sys; json.dump({'python': platform.python_version(), 'major': sys.version_info[0], 'implementation': platform.python_implementation()}, open(sys.argv[1], 'w'))"
+      - "{out}/environment.json"
+    timeout_seconds: 60
+    validity:
+      exit_code: 0
+      outputs:
+        - path: "{out}/environment.json"
+          json: true
+          assertions:
+            - {pointer: /major, equals: 3}
+            - {pointer: /implementation, equals: CPython}
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: python3 did not run. The session has stopped. Report this step stderr log path.
+  - id: S02-trials
+    kind: trials
+    title: Run the price-ratio identity and record the cell
+    explain: Runs run.py then check.py for the single frozen trial in its own write-once directory.
+    plan: experiments/EXP-ICPERF-e467a5/trial-plan.json
+    engine: supervisor
+    claim: {ttl_minutes: 5}
+    timeout_seconds: 60
+    validity:
+      files:
+        - path: raw-result.json
+          json: true
+          assertions:
+            - {pointer: /schema, equals: crypto.autoresearch.exp-icperf-e467a5.stage0.v1}
+            - {pointer: /trial_id, equals: "{trial_id}"}
+            - {pointer: /experiment_id, equals: EXP-ICPERF-e467a5}
+            - {pointer: /c_probe_ns, equals: 370}
+            - {pointer: /states, equals: 10}
+            - {pointer: /price_ratio_num, type: integer}
+            - {pointer: /ratios_agree, type: boolean}
+    by_trial:
+      price-ratio-identity:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /trial_id, equals: price-ratio-identity}
+              - {pointer: /c_state_ns, equals: 2100}
+              - {pointer: /c_step_ns, equals: 40}
+              - {pointer: /bl_num, equals: 21}
+              - {pointer: /bl_den, equals: 10}
+    controls: []
+    replay:
+      mode: fields
+      sample: 1
+      compare:
+        - file: raw-result.json
+          pointers: [/price_ratio_num, /price_ratio_den, /ratios_agree, /all_match_bsgs]
+    on_invalid: stop
+    on_failure:
+      - {when: {timed_out: true}, class: resource_exhaustion, action: retry, max_attempts: 2}
+    tell_on_failure: The trial stopped. Report the run directory named by the plan and do not edit the specification.
+metrics:
+  - name: price_ratio_num
+    unit: count
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /price_ratio_num
+    aggregate: [min, max]
+  - name: ratios_agree
+    unit: fraction
+    label: measured
+    step: S02-trials
+    file: raw-result.json
+    pointer: /ratios_agree
+    aggregate: [fraction_true]
+report:
+  graph_metric: price_ratio_num
