@@ -610,6 +610,14 @@ tools and indexes before records, sizes before contents, run outputs by receipt
 (`docs/agent-runtime-core.md`, "Reading discipline"). A path off disk in a
 sparse checkout still exists (`docs/sparse-checkout.md`).
 
+For the ten-lead campaign, the advisory handoff is
+[`research/ten-lead-evidence/README.md`](research/ten-lead-evidence/README.md).
+Retrieve one lead with `python3 tools/scoped_evidence.py lead N --json` and keep
+its scope, assumptions, non-implications and artifact bindings with citations.
+This supplements KB retrieval; it changes no official research state and adds
+no prerequisite to `run`. Missing private artifact access is an access gap,
+never mathematical evidence against a lead.
+
 ## Curve identity and measured bounds
 
 New curve comparisons and UI exports follow `docs/curve-identities.md` and
