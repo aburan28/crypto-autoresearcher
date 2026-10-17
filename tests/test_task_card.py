@@ -247,3 +247,39 @@ def test_commands_may_run_in_a_repository_subdirectory_and_carry_an_id(tmp_path)
     assert 'command 2 (in-sub): ["python3"' in tc.brief(receipt, "out/receipt.json", "x")
     card["commands"][1]["cwd"] = "../escape"
     assert any(".cwd:" in f for f in tc.lint(card, repo))
+
+
+def test_a_missing_declared_output_fails_the_command(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    card = _frozen_card(script, head)
+    card["commands"][0]["outputs"] = ["out/never-written.json"]
+    receipt = tc.run_card("card.yaml", "0" * 64, card, repo)
+    assert receipt["status"] == "stopped at command 1"
+    assert receipt["commands"][0]["outputs"] == {"out/never-written.json": None}
+
+
+def test_retry_reruns_only_on_the_named_exit_codes(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    card = _frozen_card(script, head, first_exit="75")
+    card["commands"][0]["retry"] = {"exit_codes": [75], "max_attempts": 3}
+    receipt = tc.run_card("card.yaml", "0" * 64, card, repo)
+    assert receipt["commands"][0]["attempts"] == 3
+    assert "after 3 attempts" in tc.brief(receipt, "out/receipt.json", "x")
+
+    repo2, script2, head2 = _git_repo(tmp_path / "second")
+    card2 = _frozen_card(script2, head2, first_exit="5")
+    card2["commands"][0]["retry"] = {"exit_codes": [75], "max_attempts": 3}
+    assert tc.run_card("card.yaml", "0" * 64, card2, repo2)["commands"][0]["attempts"] == 1
+
+    card2["commands"][0]["retry"] = {"exit_codes": [75], "max_attempts": 9}
+    assert any(".retry:" in f for f in tc.lint(card2, repo2))
+
+
+def test_must_not_exist_is_checked_before_anything_runs(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    card = _frozen_card(script, head)
+    card["must_not_exist"] = ["out/session"]
+    (repo / "out/session").mkdir(parents=True)
+    with pytest.raises(tc.CardError, match="already exist"):
+        tc.run_card("card.yaml", "0" * 64, card, repo)
+    assert not (repo / "out/receipt.json").exists()

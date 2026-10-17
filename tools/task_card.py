@@ -248,6 +248,12 @@ def _command_findings(repo: Path, card: dict[str, Any], scope: list[str]) -> lis
         elif git(repo, "cat-file", "-e", f"{commit}^{{commit}}")[0] != 0:
             findings.append(f"commit: {commit} is not a commit in this repository")
     findings += _in_scope("receipt", scope, card.get("receipt"))
+    fresh = card.get("must_not_exist") or []
+    if not isinstance(fresh, list):
+        findings.append("must_not_exist: must list repository paths")
+        fresh = []
+    for index, path in enumerate(fresh):
+        findings += _in_scope(f"must_not_exist[{index}]", scope, path)
     binds = card.get("binds") or []
     bound: set[str] = set()
     if not isinstance(binds, list):
@@ -290,6 +296,15 @@ def _command_findings(repo: Path, card: dict[str, Any], scope: list[str]) -> lis
         codes = command.get("success_exit_codes")
         if not (isinstance(codes, list) and codes and all(isinstance(c, int) for c in codes)):
             findings.append(f"{at}.success_exit_codes: must list the exit codes that mean success")
+        retry = command.get("retry")
+        if retry is not None:
+            codes_ok = (isinstance(retry, dict) and isinstance(retry.get("exit_codes"), list)
+                        and retry["exit_codes"] and all(isinstance(c, int) for c in retry["exit_codes"]))
+            attempts = retry.get("max_attempts") if isinstance(retry, dict) else None
+            if not codes_ok or not isinstance(attempts, int) or isinstance(attempts, bool) \
+                    or not 2 <= attempts <= 3:
+                findings.append(f"{at}.retry: needs exit_codes (the infrastructure failures to retry) "
+                                f"and max_attempts of 2 or 3")
         if command.get("id") is not None and not OWNER.match(str(command["id"])):
             findings.append(f"{at}.id: lowercase letters, digits and hyphens")
         if command.get("cwd") is not None:
@@ -423,12 +438,28 @@ def _write(repo: Path, relative: str, data: bytes) -> None:
     path.write_bytes(data)
 
 
+def _execute(repo: Path, command: dict[str, Any], env: dict[str, str]):
+    started = time.monotonic()
+    try:
+        proc = subprocess.run(command["argv"], cwd=repo / safe_relative(str(command.get("cwd") or ".")),
+                              env=env, capture_output=True, timeout=command["timeout_seconds"])
+        result = proc.returncode, proc.stdout, proc.stderr, False
+    except subprocess.TimeoutExpired as exc:
+        result = None, exc.stdout or b"", exc.stderr or b"", True
+    except OSError as exc:
+        result = None, b"", str(exc).encode(), False
+    return (*result, round(time.monotonic() - started, 3))
+
+
 def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = REPO) -> dict[str, Any]:
     """Execute a linted frozen-command card and write its write-once receipt.
 
     Raises CardError (an impediment: nothing ran, nothing was written) when
     the card is not a frozen-command card, does not lint, names a commit that
-    is not HEAD, or already has a receipt.
+    is not HEAD, already has a receipt, or names a `must_not_exist` path that
+    exists. A command succeeds only with a success exit code and every
+    declared output written; `retry` reruns it, up to its `max_attempts`,
+    only on the exit codes it names.
     """
     if card.get("kind") != "frozen_command":
         raise CardError("run executes frozen_command cards; a runbook card runs through tools/runbook.py")
@@ -438,6 +469,9 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
     receipt_path = repo / safe_relative(card["receipt"])
     if receipt_path.exists():
         raise CardError(f"receipt {card['receipt']} already exists; receipts are write-once")
+    present = [path for path in card.get("must_not_exist") or [] if (repo / path).exists()]
+    if present:
+        raise CardError(f"must_not_exist paths already exist: {present}")
     head = git(repo, "rev-parse", "HEAD")[1]
     if card.get("commit") and card["commit"] != head:
         raise CardError(f"card pins commit {card['commit']}, HEAD is {head}")
@@ -445,25 +479,24 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
     results, status = [], "completed"
     for index, command in enumerate(card["commands"], 1):
         env = dict(os.environ, **(command.get("env") or {}))
-        started = time.monotonic()
-        try:
-            proc = subprocess.run(command["argv"], cwd=repo / safe_relative(str(command.get("cwd") or ".")),
-                                  env=env, capture_output=True,
-                                  timeout=command["timeout_seconds"])
-            code, out, err, timed_out = proc.returncode, proc.stdout, proc.stderr, False
-        except subprocess.TimeoutExpired as exc:
-            code, out, err, timed_out = None, exc.stdout or b"", exc.stderr or b"", True
-        except OSError as exc:
-            code, out, err, timed_out = None, b"", str(exc).encode(), False
-        elapsed = round(time.monotonic() - started, 3)
+        retry = command.get("retry") or {}
+        attempts = []
+        for _attempt in range(retry.get("max_attempts", 1)):
+            code, out, err, timed_out, elapsed = _execute(repo, command, env)
+            attempts.append({"exit_code": code, "timed_out": timed_out, "seconds": elapsed})
+            if timed_out or code not in (retry.get("exit_codes") or []):
+                break
         for stream, data in (("stdout", out), ("stderr", err)):
             if command.get(stream):
                 _write(repo, command[stream], data)
         outputs = {path: (sha256_file(repo / path) if (repo / path).is_file() else None)
                    for path in command.get("outputs") or []}
-        ok = (not timed_out) and code in command["success_exit_codes"]
+        # A declared output the command did not write is a failure: the card
+        # said the command writes it.
+        ok = (not timed_out) and code in command["success_exit_codes"] and None not in outputs.values()
         results.append({"index": index, "id": command.get("id"), "cwd": command.get("cwd") or ".",
-                        "argv": command["argv"], "exit_code": code,
+                        "argv": command["argv"], "exit_code": code, "attempts": len(attempts),
+                        "attempt_log": attempts,
                         "timed_out": timed_out, "seconds": elapsed, "succeeded": ok,
                         "stdout_sha256": sha256_bytes(out), "stderr_sha256": sha256_bytes(err),
                         "stdout_tail": _tail(out), "stderr_tail": _tail(err), "outputs": outputs})
@@ -488,6 +521,8 @@ def brief(receipt: dict[str, Any], receipt_rel: str, receipt_sha: str) -> str:
         exit_text = "timed out" if item["timed_out"] else f"exit {item['exit_code']}"
         label = f"{item['index']}" + (f" ({item['id']})" if item.get("id") else "")
         where = f" in {item['cwd']}" if item.get("cwd", ".") != "." else ""
+        if item.get("attempts", 1) > 1:
+            exit_text += f" after {item['attempts']} attempts"
         lines.append(f"command {label}: {json.dumps(item['argv'])}{where} {exit_text} "
                      f"({item['seconds']} s) {'succeeded' if item['succeeded'] else 'FAILED'}")
         lines.append(f"  stdout sha256 {item['stdout_sha256']}; last {len(item['stdout_tail'])} lines:")

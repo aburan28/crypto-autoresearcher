@@ -110,8 +110,11 @@ dispatch itself, and is checked by `tools/task_card.py`:
   must exist in the repository.
 - `run` (frozen-command cards): the tool, not the executor, executes the
   card. It refuses to start unless the card lints, the pinned `commit` is
-  `HEAD` and the receipt does not exist yet; then it runs each argv without
-  a shell under its timeout, stops at the first failure, writes stdout and
+  `HEAD`, the receipt does not exist yet and no `must_not_exist` path
+  exists; then it runs each argv without a shell under its timeout (a
+  command succeeds only with a success exit code and every declared output
+  written; `retry` reruns it at most 3 times, and only on the exit codes it
+  names), stops at the first failure, writes stdout and
   stderr where the card says, and writes a write-once receipt (exit codes,
   timings, digests, output tails). It prints a summary derived from the
   receipt alone. The executor runs this one command and relays the summary.
