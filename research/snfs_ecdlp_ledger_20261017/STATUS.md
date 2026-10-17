@@ -15,11 +15,13 @@ The original source, all local bounded observations, all 23 corrected designs an
 - G1 cyclotomic field lift: RUN-ECDLP-18d26b failed before launch because cargo was unavailable. Rust is now installed and its frozen crate builds successfully ([build log](toolchain/g1-build.log)); no scientific retry was launched. The immutable retry remains a separate authorization/plan obligation.
 - G2 embedding-degree/norm controls: RUN-ECDLP-2ac930 produced 1,532 curve rows, 12 small-order cells, four public-parameter checks and three norm boxes. Producer and checker returned 0; supervisor status remains invalid_output due to the legacy manifest. Additive schema metadata preserves that status.
 - G3 Solinas field-point search: completed 1,395 cells of its frozen full grid; producer and checker exited 0, supervisor invalid_output due to the legacy manifest. Its rank-descent arm was explicitly skipped; point counts do not certify independence or rank gain.
-- G4 rotation-class controls: launched after G3 under the existing single-executor concurrency rule; terminal outcomes are recorded separately.
+- G4 rotation-class controls: RUN-ECDLP-a5281a completed all 90 frozen cells; producer and checker returned 0, supervisor invalid_output due to the legacy manifest. Actual control densities are not matched, and the sampler and exact enumerator have different domains; this is not a matched-density comparison or a DLP cost measurement. [Report PDF](../../experiments/EXP-ECDLP-ad27ad/reports/run-20261017T1901Z/report.pdf) and [additive accounting](../../coordination/design/SNFS-RUN-SCHEMA-G4-20261017/README.txt) preserve these limitations.
 
 Existing overlapping p-adic, pairing and special-polynomial runs have been located and are linked from the canonical map; existing failed/invalid attempts are not repeated without a distinct authorized retry.
 
 For D1, a [candidate 31-point input from the existing rank campaign](dependencies/d1-rank-campaign/source-index.json) has now been located and hash-pinned. This read-only inventory is not a new independence/rank verification, a height matrix, or a saturated MW basis. Those obligations and the separate rank-30 input remain to be reconciled before its count experiment.
+
+[Terminal attempt inventory](execution-status-terminal.json) pins the four original archived bundles and their literal supervisor receipts. The earlier initial snapshot is retained unchanged.
 
 ## All 23 leads
 
