@@ -6,6 +6,12 @@
 
 2026-10-16 · Source-linked assessment; no new scientific trial or speed claim. Corrected after PR #2309: later N53 baseline, tuple count and wide-entry size. Full source links: `2026-10-16-elite-factor-base-baseline.md`.
 
+*Size correction, 2026-10-17.* The n=53 Koblitz comparator's target prime is
+21,044,858,204,113 (bit length 45, log₂ r≈44.26). It measures a 53-bit
+field, not a prime subgroup of order 2^50…2^63. Exact order screening finds
+no such prime subgroup for the two standard binary Koblitz curves at field
+degrees 50…63; see `2026-10-17-koblitz-size-screen.md`.
+
 #image("2026-10-16-elite-factor-base-baseline.svg", width: 90%)
 
 == Measured baseline
@@ -43,7 +49,3 @@ The prime-field sparse-subgroup equation helped one m=2 algebraic cell but not m
 For m factor-base summands plus a target, a direct summation polynomial is `S_(m+1)`. Direct `S_8` means seven summands; eight summands require `S_9`. A chain of `S_3` constraints is a separate formulation. Each attempted construction and resource stop must be recorded.
 
 A qualifying improvement needs unseen same-point targets, target-blind base selection, matched baseline and rho, full cold or genuinely amortized S, memory, independent replay, and a machine-readable progress-fidelity claim. The named implementation and measurement obstruction is `problems/full-width-ic-arity-grid-unmeasured.md`. This assessment leaves canonical scientific graphs unchanged.
-
-== Sources
-
-Internal, retrieved from committed checkout: `research/cold_arm_composition_ic_20260921/REPORT.md` and `ledger/decisions/DEC-20260921-6648da.md`; the three earlier `RUN-KIC-*` reports; `src/crypto_autoresearcher/index_calculus/README.md` §§1–5; `research/conductor_relation_yield_20261014/OBSTRUCTION.md`; `research/factor_base_lab.md`. The Markdown report links each at its relevant claim.
