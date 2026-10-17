@@ -85,7 +85,7 @@ def main():
             cod = f"{sum(1 for r in S if r['codim'] == r['nsol'])}/{len(S)}" if S else "—"
             med = lambda L, key: (f"{st.median(r[key] for r in L):.1f}" if L else "—")
             medi = lambda L, key: (f"{int(st.median(r[key] for r in L))}" if L else "—")
-            out.append(f"| m={m} n={n} | {k}, {N}, {nb} | {v} | {red} | {fmt_ci(sum(r['contains_one'] for r in U), len(U))} | "
+            out.append(f"| m={m} n={n}{' k=3 (ext.)' if m==5 else (' (ext.)' if (m,n)==(4,11) else '')} | {k}, {N}, {nb} | {v} | {red} | {fmt_ci(sum(r['contains_one'] for r in U), len(U))} | "
                        f"{fmt_ci(sum(r['contains_one'] for r in S), len(S))} | {cod} | {med(U, 'wall_s')} s / {med(S, 'wall_s')} s | "
                        f"{med(done, 'peak_rss_mb')} | {medi(U, 'rows')} / {medi(S, 'rows')} | {medi(U, 'products_dropped')} | {inc} |")
     # soundness summary
@@ -95,7 +95,7 @@ def main():
             f"(witness evaluations = {sum(len(r.get('eval_rows_not_vanishing', [])) for r in sat)})."]
     pooled_u = [r for r in rows if r["label"] == "UNSAT" and r.get("status") == "completed"]
     out.append("")
-    out.append("Pooled over cells (m = 3 and 4), per variant: UNSAT refuted / SAT false refutations.")
+    out.append("Pooled over ALL cells including the extension cells (m = 4 n = 11, m = 5 n = 9 k = 3), per variant: UNSAT refuted / SAT false refutations.")
     for v in order:
         U = [r for r in pooled_u if r["variant"] == v]
         S = [r for r in sat if r["variant"] == v]
