@@ -233,3 +233,17 @@ def test_runbook_cards_are_refused_where_runbook_py_is_absent(tmp_path):
     card = _frozen_card(script, head)
     card.update(kind="runbook", runbook="x.yaml", runbook_sha256="0" * 64)
     assert any("only crypto-autoresearcher has" in f for f in tc.lint(card, repo))
+
+
+def test_commands_may_run_in_a_repository_subdirectory_and_carry_an_id(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    (repo / "sub").mkdir()
+    card = _frozen_card(script, head)
+    card["commands"][1].update(id="in-sub", cwd="sub",
+                               argv=["python3", "-c", "import os; print(os.path.basename(os.getcwd()))"])
+    assert tc.lint(card, repo) == []
+    receipt = tc.run_card("card.yaml", "0" * 64, card, repo)
+    assert receipt["commands"][1]["stdout_tail"] == ["sub"]
+    assert 'command 2 (in-sub): ["python3"' in tc.brief(receipt, "out/receipt.json", "x")
+    card["commands"][1]["cwd"] = "../escape"
+    assert any(".cwd:" in f for f in tc.lint(card, repo))

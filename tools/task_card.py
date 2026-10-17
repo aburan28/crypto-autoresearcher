@@ -290,6 +290,16 @@ def _command_findings(repo: Path, card: dict[str, Any], scope: list[str]) -> lis
         codes = command.get("success_exit_codes")
         if not (isinstance(codes, list) and codes and all(isinstance(c, int) for c in codes)):
             findings.append(f"{at}.success_exit_codes: must list the exit codes that mean success")
+        if command.get("id") is not None and not OWNER.match(str(command["id"])):
+            findings.append(f"{at}.id: lowercase letters, digits and hyphens")
+        if command.get("cwd") is not None:
+            try:
+                cwd = safe_relative(str(command["cwd"]))
+            except CardError as exc:
+                findings.append(f"{at}.cwd: {exc}")
+            else:
+                if not (repo / cwd).is_dir():
+                    findings.append(f"{at}.cwd: {cwd} is not a directory in the repository")
         for stream in ("stdout", "stderr"):
             if command.get(stream) is not None:
                 findings += _in_scope(f"{at}.{stream}", scope, command[stream])
@@ -437,7 +447,8 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
         env = dict(os.environ, **(command.get("env") or {}))
         started = time.monotonic()
         try:
-            proc = subprocess.run(command["argv"], cwd=repo, env=env, capture_output=True,
+            proc = subprocess.run(command["argv"], cwd=repo / safe_relative(str(command.get("cwd") or ".")),
+                                  env=env, capture_output=True,
                                   timeout=command["timeout_seconds"])
             code, out, err, timed_out = proc.returncode, proc.stdout, proc.stderr, False
         except subprocess.TimeoutExpired as exc:
@@ -451,7 +462,8 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
         outputs = {path: (sha256_file(repo / path) if (repo / path).is_file() else None)
                    for path in command.get("outputs") or []}
         ok = (not timed_out) and code in command["success_exit_codes"]
-        results.append({"index": index, "argv": command["argv"], "exit_code": code,
+        results.append({"index": index, "id": command.get("id"), "cwd": command.get("cwd") or ".",
+                        "argv": command["argv"], "exit_code": code,
                         "timed_out": timed_out, "seconds": elapsed, "succeeded": ok,
                         "stdout_sha256": sha256_bytes(out), "stderr_sha256": sha256_bytes(err),
                         "stdout_tail": _tail(out), "stderr_tail": _tail(err), "outputs": outputs})
@@ -474,7 +486,9 @@ def brief(receipt: dict[str, Any], receipt_rel: str, receipt_sha: str) -> str:
              f"status: {receipt['status']}"]
     for item in receipt["commands"]:
         exit_text = "timed out" if item["timed_out"] else f"exit {item['exit_code']}"
-        lines.append(f"command {item['index']}: {json.dumps(item['argv'])} {exit_text} "
+        label = f"{item['index']}" + (f" ({item['id']})" if item.get("id") else "")
+        where = f" in {item['cwd']}" if item.get("cwd", ".") != "." else ""
+        lines.append(f"command {label}: {json.dumps(item['argv'])}{where} {exit_text} "
                      f"({item['seconds']} s) {'succeeded' if item['succeeded'] else 'FAILED'}")
         lines.append(f"  stdout sha256 {item['stdout_sha256']}; last {len(item['stdout_tail'])} lines:")
         lines += [f"    {line}" for line in item["stdout_tail"]]
