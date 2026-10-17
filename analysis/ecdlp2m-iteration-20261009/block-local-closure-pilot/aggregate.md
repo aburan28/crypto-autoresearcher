@@ -22,17 +22,21 @@ of the worker process (one process per job, host shared with two other pilots: u
 | m=4 n=7 | 2, 22, 3 | adj0 | 9109 (0% fewer) | 25/25 [0.86, 1.00] | 0/4 [0.00, 0.60] | 3/4 | 0.2 s / 5.5 s | 16.8 | 9359 / 33471 | 0 | 0 |
 | m=4 n=7 | 2, 22, 3 | adj1 | 9109 (0% fewer) | 25/25 [0.86, 1.00] | 0/4 [0.00, 0.60] | 4/4 | 0.1 s / 2.0 s | 19.2 | 15407 / 38412 | 0 | 0 |
 | m=4 n=7 | 2, 22, 3 | L1adj0 | 3137 (66% fewer) | 4/25 [0.05, 0.36] | 0/4 [0.00, 0.60] | 1/4 | 0.0 s / 0.1 s | 12.5 | 7656 / 7866 | 2395 | 0 |
-| m=4 n=9 | 3, 30, 3 | L1 | 9770 | 1/1 [0.02, 1.00] | — | — | 1.6 s / — s | 23.3 | 28077 / — | 26277 | 0 |
-| m=4 n=9 | 3, 30, 3 | L2 | 26258 | 1/1 [0.02, 1.00] | — | — | 6.6 s / — s | 78.6 | 52852 / — | 9519 | 0 |
+| m=4 n=9 | 3, 30, 3 | full | 31931 | 10/10 [0.69, 1.00] | 0/4 [0.00, 0.60] | 4/4 | 9.3 s / 113.7 s | 122.3 | 77454 / 134712 | 0 | 0 |
+| m=4 n=9 | 3, 30, 3 | L1 | 9770 (69% fewer) | 9/10 [0.55, 1.00] | 0/4 [0.00, 0.60] | 0/4 | 1.6 s / 2.0 s | 23.3 | 27667 / 28657 | 24394 | 0 |
+| m=4 n=9 | 3, 30, 3 | L2 | 26258 (18% fewer) | 10/10 [0.69, 1.00] | 0/4 [0.00, 0.60] | 4/4 | 7.1 s / 53.5 s | 78.6 | 52757 / 99147 | 9501 | 0 |
+| m=4 n=9 | 3, 30, 3 | adj1 | 31931 (0% fewer) | 10/10 [0.69, 1.00] | 0/4 [0.00, 0.60] | 4/4 | 8.6 s / 166.3 s | 113.1 | 60459 / 131625 | 0 | 0 |
+| m=4 n=9 | 3, 30, 3 | L2adj1 | 26258 (18% fewer) | 10/10 [0.69, 1.00] | 0/4 [0.00, 0.60] | 4/4 | 6.8 s / 54.2 s | 76.6 | 51501 / 98275 | 6801 | 0 |
 
-Soundness: SAT instances completed = 86, with contains_one = 0, basis rows not vanishing at a known solution = 0 (witness evaluations = 479).
+Soundness: SAT instances completed = 106, with contains_one = 0, basis rows not vanishing at a known solution = 0 (witness evaluations = 739).
 
 Pooled over cells (m = 3 and 4), per variant: UNSAT refuted / SAT false refutations.
-- full: UNSAT 105/105 [0.97, 1.00]; SAT false 0/22 [0.00, 0.15]
-- L1: UNSAT 106/106 [0.97, 1.00]; SAT false 0/22 [0.00, 0.15]
-- L2: UNSAT 26/26 [0.87, 1.00]; SAT false 0/4 [0.00, 0.60]
+- full: UNSAT 115/115 [0.97, 1.00]; SAT false 0/26 [0.00, 0.13]
+- L1: UNSAT 114/115 [0.95, 1.00]; SAT false 0/26 [0.00, 0.13]
+- L2: UNSAT 35/35 [0.90, 1.00]; SAT false 0/8 [0.00, 0.37]
 - adj0: UNSAT 85/85 [0.96, 1.00]; SAT false 0/12 [0.00, 0.26]
-- adj1: UNSAT 105/105 [0.97, 1.00]; SAT false 0/22 [0.00, 0.15]
+- adj1: UNSAT 115/115 [0.97, 1.00]; SAT false 0/26 [0.00, 0.13]
 - L1adj0: UNSAT 4/25 [0.05, 0.36]; SAT false 0/4 [0.00, 0.60]
+- L2adj1: UNSAT 10/10 [0.69, 1.00]; SAT false 0/4 [0.00, 0.60]
 
-UNSAT instances NOT refuted by some variant: m4-n7-S3-0000 (L1adj0), m4-n7-S3-0001 (L1adj0), m4-n7-S3-0002 (L1adj0), m4-n7-S3-0005 (L1adj0), m4-n7-S3-0007 (L1adj0), m4-n7-S3-0008 (L1adj0), m4-n7-S3-0009 (L1adj0), m4-n7-S3-0014 (L1adj0), m4-n7-S3-0016 (L1adj0), m4-n7-S3-0020 (L1adj0), m4-n7-S3-0022 (L1adj0), m4-n7-S3-0023 (L1adj0), m4-n7-S3-0029 (L1adj0), m4-n7-S3-0031 (L1adj0), m4-n7-S3-0034 (L1adj0), m4-n7-S3-0035 (L1adj0), m4-n7-S3-0041 (L1adj0), m4-n7-S3-0043 (L1adj0), m4-n7-S3-0064 (L1adj0), m4-n7-S3-0069 (L1adj0), m4-n7-S3-0088 (L1adj0)
+UNSAT instances NOT refuted by some variant: m4-n7-S3-0000 (L1adj0), m4-n7-S3-0001 (L1adj0), m4-n7-S3-0002 (L1adj0), m4-n7-S3-0005 (L1adj0), m4-n7-S3-0007 (L1adj0), m4-n7-S3-0008 (L1adj0), m4-n7-S3-0009 (L1adj0), m4-n7-S3-0014 (L1adj0), m4-n7-S3-0016 (L1adj0), m4-n7-S3-0020 (L1adj0), m4-n7-S3-0022 (L1adj0), m4-n7-S3-0023 (L1adj0), m4-n7-S3-0029 (L1adj0), m4-n7-S3-0031 (L1adj0), m4-n7-S3-0034 (L1adj0), m4-n7-S3-0035 (L1adj0), m4-n7-S3-0041 (L1adj0), m4-n7-S3-0043 (L1adj0), m4-n7-S3-0064 (L1adj0), m4-n7-S3-0069 (L1adj0), m4-n7-S3-0088 (L1adj0), m4-n9-S3-0004 (L1)
