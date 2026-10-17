@@ -106,15 +106,19 @@ for key, r in rows.items():
     matched = struct + dec
     unred = lg((r['rpa'] * 2 * (r['shifts'] or 0) / r['FBp']) / (base['rpa'] * 2 * 1 / base['FBp'])) if r['shifts'] else float('nan')
     w(f"| {n} | {m} | {k} | {V} | {fmt(raw,2)} | {fmt(struct,2)} | {fmt(dec,2)} | {fmt(matched,2)} | {fmt(lg(n),2)} | {fmt(unred,2)} |")
-    if r['dec'] >= 30 and base['dec'] >= 30:
-        gain_summary[(V, m)].append((n, k, struct, dec, matched, lg(n)))
+    for thr in (30, 300):
+        if r['dec'] >= thr and base['dec'] >= thr:
+            gain_summary[(thr, V, m)].append((n, k, struct, dec, matched, lg(n)))
 
-w('\n### Summary by V family (cells with >= 30 decompositions in both the cell and its poly baseline)\n')
-w('| V | m | cells | struct bits: mean [min,max] | dec bits: mean [min,max] | matched bits: mean [min,max] | log2(n) range |')
-w('|---|---|---|---|---|---|---|')
-for (V, m), L in sorted(gain_summary.items()):
-    s = [x[2] for x in L]; d = [x[3] for x in L]; t = [x[4] for x in L]; b = [x[5] for x in L]
-    w(f"| {V} | {m} | {len(L)} | {sum(s)/len(s):.2f} [{min(s):.2f},{max(s):.2f}] | {sum(d)/len(d):.2f} [{min(d):.2f},{max(d):.2f}] | {sum(t)/len(t):.2f} [{min(t):.2f},{max(t):.2f}] | [{min(b):.2f},{max(b):.2f}] |")
+for thr in (30, 300):
+    w(f'\n### Summary by V family (cells with >= {thr} decompositions in both the cell and its poly baseline)\n')
+    w('| V | m | cells | struct bits: mean [min,max] | dec bits: mean [min,max] | matched bits: mean [min,max] | log2(n) range |')
+    w('|---|---|---|---|---|---|---|')
+    for (t_, V, m), L in sorted(gain_summary.items()):
+        if t_ != thr:
+            continue
+        s = [x[2] for x in L]; d = [x[3] for x in L]; t = [x[4] for x in L]; b = [x[5] for x in L]
+        w(f"| {V} | {m} | {len(L)} | {sum(s)/len(s):.2f} [{min(s):.2f},{max(s):.2f}] | {sum(d)/len(d):.2f} [{min(d):.2f},{max(d):.2f}] | {sum(t)/len(t):.2f} [{min(t):.2f},{max(t):.2f}] | [{min(b):.2f},{max(b):.2f}] |")
 
 w('\n## V_nb: what fraction of the tau-orbit is usable\n')
 w('Inside V_nb itself a relation can be shifted only while every x_i stays in the window (`shifts` column above). '

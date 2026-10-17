@@ -136,6 +136,22 @@ class Koblitz:
         self.h = 4 if a == 0 else 2
         assert self.order % self.h == 0
         self.r = self.order // self.h
+        self.t1 = t1
+        self.mu = None   # set by find_mu() once the field tables exist
+
+    def find_mu(self, rng):
+        """mu with tau(P) = mu*P on the order-r subgroup: a root of
+        X^2 - t1*X + 2 = 0 mod r, selected by checking on random points."""
+        r = self.r
+        roots = [u for u in range(r) if (u * u - self.t1 * u + 2) % r == 0]
+        G = self.random_subgroup_points(rng, 8)
+        TG = (self.F.sq[G[0]], self.F.sq[G[1]], G[2])
+        for u in roots:
+            M = self.smul(u, G)
+            if np.all((M[0] == TG[0]) & (M[1] == TG[1]) & ~M[2]):
+                self.mu = u
+                return u
+        raise RuntimeError('no mu found')
 
     # points: (x, y, inf) int64 arrays; inf is bool
     def neg(self, P):
@@ -395,8 +411,40 @@ def run_cell(E, m, k, vname, targets, rng, out, match_points=None, time_limit=No
         PU = E.points_over_x(U)
         extra['nb_union_size'] = int(len(U))
         extra['nb_union_FB_points'] = int(E.in_subgroup(PU).sum())
+    # projection data: for every FB point, (orbit representative x, shift j, sign)
+    # such that P = sign * tau^j(P_rep) where P_rep = (rep, min y over rep).
+    # representative = min over the orbit INSIDE FB_x (the full-orbit min may lie outside V)
+    xset = set(xs.tolist())
+    rep_of = {}
+    for x in xs.tolist():
+        best, t = x, x
+        for _ in range(n):
+            t = int(F.sq[t])
+            if t in xset and t < best:
+                best = t
+        rep_of[x] = best
+    assert len(set(rep_of.values())) == n_orbits
+    ymin = {}
+    for x, y in zip(FB[0].tolist(), FB[1].tolist()):
+        ymin[x] = min(y, ymin.get(x, y))
+    proj = []
+    for x, y in zip(FB[0].tolist(), FB[1].tolist()):
+        rp = rep_of[x]
+        t, yt, j = rp, ymin[rp], 0
+        while t != x:
+            t, yt, j = int(F.sq[t]), int(F.sq[yt]), j + 1
+        proj.append((rp, j, 1 if y == yt else -1))
+    mu, rr = E.mu, E.r
+
+    def reduced_row(sol):
+        acc = {}
+        for i in sol:
+            rp, j, sg = proj[i]
+            acc[rp] = (acc.get(rp, 0) + sg * pow(mu, j, rr)) % rr
+        return tuple(sorted((a_, b_) for a_, b_ in acc.items() if b_))
+
     R = E.random_subgroup_points(rng, targets)
-    n_succ, n_dec = 0, 0
+    n_succ, n_dec, n_rows = 0, 0, 0
     shifts = []
     sizes = []
     done = 0
@@ -408,6 +456,7 @@ def run_cell(E, m, k, vname, targets, rng, out, match_points=None, time_limit=No
         if sols:
             n_succ += 1
             n_dec += len(sols)
+            n_rows += len({reduced_row(s_) for s_ in sols})
             for s in sols:
                 shifts.append(usable_shifts(F, FB[0][list(s)], inV))
                 sizes.append(len(set(FB[0][list(s)].tolist())))
@@ -415,7 +464,8 @@ def run_cell(E, m, k, vname, targets, rng, out, match_points=None, time_limit=No
     row = dict(n=n, a=E.a, h=E.h, r=E.r, order=E.order, m=m, k=k, V=vname, rep=rep, seed=seed,
                V_size=int(len(V)), FB_points=nF, FB_x=int(len(xs)),
                tau_orbits=n_orbits, mean_conjugates_in_V=float(overlap.mean()) if len(xs) else None,
-               targets=done, successes=n_succ, decompositions=n_dec,
+               targets=done, successes=n_succ, decompositions=n_dec, reduced_rows=n_rows,
+               rows_per_attempt=n_rows / done if done else None, mu=mu,
                p_success=n_succ / done if done else None,
                dec_per_success=(n_dec / n_succ) if n_succ else None,
                rel_per_attempt=n_dec / done if done else None,
@@ -464,7 +514,8 @@ def main():
                 choice = E
         cur.flush()
         E = choice
-        print(f'n={n}: a={E.a} #E={E.order}={E.h}*{E.r}', flush=True)
+        E.find_mu(np.random.default_rng([args.seed, n, 99]))
+        print(f'n={n}: a={E.a} #E={E.order}={E.h}*{E.r} mu={E.mu} (root of X^2-({E.t1})X+2 mod r)', flush=True)
         for m in (2, 3):
             k0 = math.ceil(n / m)
             ks = (k0 - 1, k0, k0 + 1) if m == 2 else (k0 - 1, k0, k0 + 1, k0 + 2)
@@ -483,7 +534,7 @@ def main():
                         match = row['FB_points']
                     print(f"  m={m} k={k} V={vname:4s} rep={rep} |V|={row['V_size']:5d} |FB|={row['FB_points']:5d} "
                           f"orbits={row['tau_orbits']:5d} p={row['p_success']:.3f} rpa={row['rel_per_attempt']:.3f} "
-                          f"lam={row['heuristic_lambda_r']:.3f} shifts={row['mean_usable_shifts']} t={row['seconds']}s"
+                          f"rows={row['rows_per_attempt']:.3f} lam={row['heuristic_lambda_r']:.3f} shifts={row['mean_usable_shifts']} t={row['seconds']}s"
                           + (' CENSORED' if row['censored'] else ''), flush=True)
     out.close()
 
