@@ -1,0 +1,508 @@
+# EXP-ICPERF-9cd390 -- Frozen contract for H-ICPERF-b3d1a4: IC ns/probe against
+# an 8 GiB pointer-chase null object, geometric probe counts, and 2 MiB pages on
+# the root table, on one host. Source IDEA-20261015-b41f68 under
+# RQ-ICPERF-94c86e / GOAL-ICPERF-e6b6a4. Approved DEC-20261017-3e00ee.
+# Executor TASK-20261017-d53b9c; run-artifact snapshot TASK-20261017-4c890d.
+# The scientific design is frozen in the crypto repository (commit 286bc22cc,
+# PR aburan28/crypto#2069); this contract transcribes it and binds the launcher.
+experiment:
+  id: EXP-ICPERF-9cd390
+  version: 1
+  hypothesis_id: H-ICPERF-b3d1a4
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  source_idea: IDEA-20261015-b41f68
+  derived_from_idea: IDEA-20261015-b41f68
+  related_idea_ids:
+    - IDEA-20261015-2d8e5a
+  title: >-
+    IC probe time against a pointer-chase null object at n = 83, K1798 dense
+    8 GiB root table, one host: geometric probe counts (H1), ns/probe over
+    the 8 GiB dependent chase (L1), 2 MiB pages on the table in ABAB (T1),
+    with the tuned rho as compute control
+  status: approved
+  frozen: true
+  frozen_at: '2026-10-17'
+  designed_at: '2026-10-17'
+  designed_by: coordinator
+  approved_by: DEC-20261017-3e00ee
+  approval_decision: DEC-20261017-3e00ee
+  approved_at: '2026-10-17'
+  execution_authorized: true
+  executor_task: TASK-20261017-d53b9c
+  snapshot_task: TASK-20261017-4c890d
+  status_note: >-
+    Frozen at version 1 and approved 2026-10-17 by DEC-20261017-3e00ee under
+    the AGENTS.md standing user authorization. Approval asserts nothing about
+    H-ICPERF-b3d1a4. Any change after approval is a versioned
+    protocol_amendment under experiments/EXP-ICPERF-9cd390/amendments/.
+  approval:
+    approved_by: DEC-20261017-3e00ee
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+    scientific_execution_authorized: true
+    execution_state: >-
+      approved frozen contract; /run-admissible once the committing session
+      confirms tools/newest_experiments.py --experiment EXP-ICPERF-9cd390
+      reports execution_state ready on the committed tree
+
+  objective: >-
+    On one host, measure (1) whether per-target probe counts of the n = 83
+    folded pair-state IC are geometric, from four archived 64-target panels
+    (zero compute) and the on-host K1798 panel; (2) the ratio of IC ns per
+    probe on 4 KiB pages to the dependent pointer-chase latency over an
+    array of the table's byte size (8 GiB), interleaved in the same trial;
+    (4) the ratio of IC ns per probe with the root table on 2 MiB pages to
+    4 KiB pages in an ABAB order, gated on the kernel actually backing the
+    table with huge pages and on the null object seeing a huge-page gain.
+    The tuned rho ns/step is measured before and after as the compute
+    control. Every verdict is computed by `ic_probe_latency claims`; none by
+    hand. Observations only for the executor.
+
+  claim_tier: measurement
+  claim_tier_note: >-
+    Cost-model / attribution measurement. Measured quantities (ns/probe,
+    chase ns/access, gather ns/access, rho ns/step, probe counts,
+    AnonHugePages, vm_hwm_bytes) are kept separate from modeled ones (the
+    geometric law, one-latency-per-probe, the TLB page-walk mechanism). It is
+    not an index-calculus improvement and adds no gap-to-rho row (crypto
+    CLAUDE.md success criterion; AGENTS.md "Every improvement is a success").
+    D is descriptive per-unit pricing on one host; per crypto AGENTS.md
+    section 5a no cross-method ranking is made.
+  class: measurement
+  class_note: >-
+    Cost-model / attribution measurement with preregistered bands copied from
+    the proposal's own predictions; also the heuristic-validation measurement
+    for the proposal's heuristics H1 (geometric probes) and H2 (TLB/DRAM-bound
+    lookups). No asymptotic claim.
+
+  inputs:
+    proposal: ledger/proposals/IDEA-20261015-b41f68.yaml
+    hypothesis: ledger/hypotheses/H-ICPERF-b3d1a4.yaml
+    decision: ledger/decisions/DEC-20261017-3e00ee.yaml
+    question: ledger/questions/RQ-ICPERF-94c86e.yaml
+    goal: ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml
+    trial_plan: experiments/EXP-ICPERF-9cd390/trial-plan.json
+    dispatch_queue: coordination/design/TASK-20261017-d53b9c/dispatch_queue.json
+    implementation:
+      - experiments/EXP-ICPERF-9cd390/implementation/run.py
+      - experiments/EXP-ICPERF-9cd390/implementation/check.py
+    crypto_protocol:
+      repository: aburan28/crypto
+      commit: 286bc22cc7c4f93a354b667981bf786f2f9fa671
+      pull_request: aburan28/crypto#2069
+      root: $CRYPTO_ROOT, else ../crypto beside this repository (run.py)
+      frozen_launcher_sha256:
+        research/ic_probe_latency_20261017/run_step.sh: 5483dc906224a0385221f5cf3c94dd10348faf57b72ce673dc0585df9d88df91
+        research/ic_probe_latency_20261017/sources.sha256: 415d0e8ed4a0811555bb7740ea032fb329ae9dca7276d2e9d53e03560be3f20f
+        research/ic_probe_latency_20261017/PROTOCOL.md: 8a2d32f46c940abca0dd825d85fddf948736c8a597e42c1299f7e23073f87b84
+      frozen_sources: research/ic_probe_latency_20261017/sources.sha256 (checked by run_step.sh before every step)
+      code:
+        - examples/ic_probe_latency.rs (chase, geomfit, claims)
+        - examples/koblitz_orbit_dlp_fast.rs (producer; KIC_ROOT_TABLE_HUGEPAGE switch)
+        - examples/n83_rho_optimization_eval.rs (compute control)
+    workload:
+      archive: research/n83_dense_root_20261013 (crypto)
+      curve: Koblitz a = b = 1 over F_2^83, subgroup order 8569786107849059
+      base: construct:83:1:1798 (1,798 signed-Frobenius columns)
+      table: packed dense root table, 2^29 slots x 16 bytes = 8 GiB
+      targets: targets.jsonl, 64 public targets, sha256 e9ed7ddb0aeafdbfc7354d67279a8712572eea9d2aee3896f99633bdc2e937cc
+      answers: answers.jsonl, sha256 6a7022f739df0b2a9e7d7bbbf542820244497147f98d595dff0dbafba0bb9181 (read only by the claims step)
+      archived_probe_panel: runs/panel/k1798_dense/targets_result.jsonl (G.probes reference)
+      stage0_panels: runs/panel/{k1271_regular,k1271_dense,k1500_dense,k1798_dense}/targets_result.jsonl
+      rho_target: primary_target.jsonl; rho_config.json policy fold-L64-DP6-E0
+      environment: >-
+        KIC_PACKED_ROOT_TABLE=1 KIC_PACKED_ROOT_TABLE_DENSE=1 KIC_ROOT_BLOOM=0
+        (pins the archived run's setting; the Bloom default has since changed
+        to on) KIC_RANK_THREADS=4 KIC_TARGET_THREADS=1;
+        KIC_ROOT_TABLE_HUGEPAGE=0 (A arms) or 1 (B arms)
+      online_interval: >-
+        IC ns per probe per target = target_ms x 10^6 / probes; a run's value
+        is the median over its 64 targets.
+    host:
+      description: this session's cloud container
+      cpu: Intel Xeon @ 2.10 GHz, family 6 model 207
+      vcpus: 4
+      hypervisor: KVM
+      memory: 15 GiB
+      thp: madvise
+      isolation: L0 (no CPU pinning receipt), no PMU
+      exclusivity: no other build, test or large process runs during the session
+    off_limits:
+      - Editing the crypto launcher files after the protocol commit without a protocol_amendment.
+      - Editing IDEA-20261015-b41f68 claim text or the goal head.
+      - Computing any claim by hand or in a different script.
+      - Pooling with any other host or any earlier panel run.
+      - Adding trials, bases, K values, seeds or hosts.
+
+  instruments:
+    null_object:
+      tool: ic_probe_latency chase
+      layout: one 64-byte node per cache line over an array of the table's byte size (8 GiB); Sattolo's shuffle links all nodes into one cycle
+      timed: dependent chase (latency) and independent random gather (throughput with memory-level parallelism); 2^24 accesses per repetition, 7 repetitions, seed 20261017
+      pages: MADV_NOHUGEPAGE (4 KiB) or MADV_HUGEPAGE (2 MiB) advised before first write
+      recorded: AnonHugePages
+    huge_page_switch:
+      tool: koblitz_orbit_dlp_fast with KIC_ROOT_TABLE_HUGEPAGE=1
+      effect: advises the root slots MADV_HUGEPAGE before they are filled; off by default; contents and probe order unchanged
+      summary_fields: [root_table_hugepage_requested, anon_huge_pages_bytes, vm_hwm_bytes, root_table_allocated_bytes]
+    compute_control:
+      tool: n83_rho_optimization_eval, policy fold-L64-DP6-E0, seed 2026101301, archived primary target
+      measured: ns per walk step = online_phase_ns.walk_and_collision / outcome.walk_steps
+      pages: allocates no advised memory, so the page mode cannot reach it
+    distribution_fit:
+      tool: ic_probe_latency geomfit
+      statistics: CV, median/mean, max/mean (against ln n + 1), Kolmogorov distance to Geometric(1/mean)
+      note: the KS 5% reference 1.36/sqrt(n) is descriptive because the parameter is estimated
+
+  controls:
+    - name: pointer_chase_null_object
+      description: >-
+        8 GiB dependent chase on the same page size, run first in the same
+        trial as each IC arm (interleaved to absorb neighbour-tenant
+        bandwidth contention); the L1 denominator.
+    - name: independent_gather
+      description: >-
+        8 GiB independent random gather in the same trials; L1g, separating
+        overlapped lookups from serialized latency.
+    - name: huge_page_positive_control
+      description: >-
+        T1.null: 8 GiB chase on 2 MiB / on 4 KiB (B vs A runs) must be <= 0.9
+        for T1 to be read; otherwise T1 is INSTRUMENT_CANNOT_SEE.
+    - name: huge_page_applied_check
+      description: >-
+        T1.applied: AnonHugePages >= 90% of the table bytes in B1, B2 and
+        < 10% in A1, A2; otherwise T1 is INSTRUMENT_CANNOT_SEE.
+    - name: same_workload_gate
+      description: >-
+        G.scalars (every target of A1, B1, A2, B2 recovers its published
+        scalar) and G.probes (every target's probe count equals the archived
+        K1798 dense panel's).
+    - name: rho_compute_control
+      description: >-
+        Tuned rho ns/step before (rho-1) and after (rho-2) the IC arms; R is
+        its drift (max/min), descriptive.
+    - name: abab_drift
+      description: >-
+        A1, B1, A2, B2 order; drift d = |A2/A1 - 1| reported beside T1 as the
+        on-session timing-noise floor.
+    - name: chase_size_sweep
+      description: >-
+        Chase at 1 MiB, 16 MiB, 256 MiB, 1 GiB, 8 GiB x {4 KiB, 2 MiB}:
+        descriptive latency curve of the host's memory hierarchy.
+
+  independent_variables:
+    - name: page_mode
+      levels: [4k, 2m]
+    - name: abab_position
+      levels: [A1, B1, A2, B2]
+    - name: chase_bytes (sweep only)
+      levels: [1Mi, 16Mi, 256Mi, 1Gi, 8Gi]
+    - name: stage0_base_panel
+      levels: [k1271_regular, k1271_dense, k1500_dense, k1798_dense]
+
+  metrics:
+    primary:
+      - name: H1.<base>
+        definition: >-
+          per 64-target panel (four archived bases and k1798_dense_on_host_a1):
+          CV and median/mean of probe counts; SUPPORT if CV in [0.9, 1.1] and
+          median/mean in [0.6, 0.8]; FALSIFIED if CV < 0.6 or > 1.5; else
+          NOT_SUPPORTED.
+        source: claims.json claims[id=H1.<base>]
+      - name: L1
+        definition: >-
+          median IC ns/probe over (A1, A2) / median 8 GiB dependent-chase
+          ns/access over (A1, A2), 4 KiB pages; SUPPORT if in [1.0, 2.0];
+          FALSIFIED if < 0.5; else NOT_SUPPORTED.
+        source: claims.json claims[id=L1]
+      - name: T1
+        definition: >-
+          max(r1, r2), r_k = IC ns/probe B_k / A_k; INSTRUMENT_CANNOT_SEE if
+          T1.applied or T1.null FAIL; else SUPPORT if <= 0.67; FALSIFIED if
+          both |r_k - 1| < 0.10; else NOT_SUPPORTED.
+        source: claims.json claims[id=T1]
+      - name: G.scalars
+        definition: PASS / FAIL; FAIL invalidates the run set.
+        source: claims.json claims[id=G.scalars]
+      - name: G.probes
+        definition: PASS / FAIL; FAIL with G.scalars PASS is a recorded deviation.
+        source: claims.json claims[id=G.probes]
+    secondary:
+      - name: T1.applied
+        definition: AnonHugePages fraction of root_table_allocated_bytes per IC run; PASS / FAIL gate.
+      - name: T1.null
+        definition: 8 GiB chase 2 MiB / 4 KiB, B vs A runs; PASS if <= 0.9.
+      - name: L1g
+        definition: median IC ns/probe (A1, A2) / median 8 GiB independent-gather ns/access (A1, A2); descriptive.
+      - name: R
+        definition: rho ns/step rho-2 vs rho-1, max/min; descriptive drift of the compute control.
+      - name: D
+        definition: >-
+          IC ns/probe (4 KiB) / rho ns/step, raw and divided by the chase
+          latency, this host; descriptive per-unit pricing, not a ranking.
+      - name: per_run_ns_per_probe
+        definition: median over 64 targets of target_ms x 10^6 / probes, per IC run (claims.json runs[]).
+      - name: geomfit_tail
+        definition: max/mean against ln 64 + 1 and KS distance to Geometric(1/mean) per panel (stage0 geomfit.json); descriptive.
+      - name: chase_sweep_latency
+        definition: chase and gather ns/access per (bytes, page mode) in the sweep trial; descriptive.
+      - name: memory
+        definition: >-
+          vm_hwm_bytes (peak RSS) and anon_huge_pages_bytes per IC run from
+          the producer summary, beside its wall time; the archived K1798 run
+          peaked at 8.7 GB RSS.
+
+  preregistered_prediction:
+    quantity: H1.<base>, L1 and T1 as computed by ic_probe_latency claims
+    formula: >-
+      H1: CV in [0.9, 1.1] and median/mean in [0.6, 0.8]; L1 in [1.0, 2.0];
+      T1 = max(r1, r2) <= 0.67
+    source: >-
+      IDEA-20261015-b41f68 predictions (1), (2), (4) and its falsification
+      conditions, copied unchanged into crypto PROTOCOL.md before any run.
+      The T1 gate (T1.applied, T1.null) is the protocol's addition.
+  heuristic_under_test: H1 and H2 of IDEA-20261015-b41f68 (H-ICPERF-b3d1a4 heuristic_assumptions)
+  heuristic_validation:
+    distribution_sampled: per-target probe counts at fixed base, 64 targets per panel, four archived bases plus one on-host panel
+    predicted_distribution: Geometric(1/mean); CV ~ 1, median/mean ~ ln 2
+    tail_consistency: max/mean against ln n + 1 and KS distance, recorded per panel by geomfit; descriptive
+    scale: the target scale of the proposal's claim (n = 83, 8 GiB table, the archived production panel), not a toy proxy
+  scale_relevance:
+    tier: medium
+    justification: >-
+      n = 83 Koblitz curve, 8 GiB root table, 64 targets, one host. No
+      statement about deployed curve sizes, other hosts, other page-table
+      regimes or other table sizes; no transfer assumption is made.
+    correspondence: null
+  tail_checks:
+    - geomfit max/mean per panel against ln 64 + 1 (descriptive)
+    - geomfit KS distance per panel against 1.36/sqrt(64) (descriptive; parameter estimated)
+    - per-target ns/probe distributions of each IC run are kept in targets_result.jsonl for review
+
+  disclosure:
+    source: crypto research/ic_probe_latency_20261017/PROTOCOL.md "Disclosure"
+    seen_before_freeze:
+      - >-
+        The designer smoke-tested geomfit on two archived panels
+        (k1271_regular, k1798_dense) and saw their CV and median/mean.
+      - >-
+        A stand-in test of the claims step on archived files (archived K1798
+        rows copied into four fake run directories) printed the H1 readings
+        of those two bases: NOT_SUPPORTED, CV 0.81 and 0.92, median/mean
+        0.91 and 0.59. Stage 0 reads archived data, so its outcome was fixed
+        before the protocol; thresholds are the proposal's, unchanged after
+        seeing it; the archived panels are public inputs the proposal cites.
+      - A 1 GiB chase was smoke-tested on both page sizes (195 and 151 ns/access).
+      - >-
+        A K = 256 producer run was started on both page modes and stopped in
+        its rank stage after AnonHugePages showed 254 MiB of its 256 MiB
+        table on huge pages with the switch on.
+    not_seen: no target was solved and no IC per-probe time was seen
+    status_of_smoke_output: no smoke output is a run record
+    review_consequence: >-
+      H1.k1271_regular and H1.k1798_dense are disclosed-in-advance readings,
+      not blind tests. If G.probes passes, H1.k1798_dense_on_host_a1 repeats
+      the archived k1798_dense probe counts and is not an independent sample.
+
+  trials:
+    plan: experiments/EXP-ICPERF-9cd390/trial-plan.json
+    order_is_frozen: true
+    command: python3 experiments/EXP-ICPERF-9cd390/implementation/run.py --step <step> --run-dir {run_dir}
+    claims_command: >-
+      python3 experiments/EXP-ICPERF-9cd390/implementation/run.py --step claims
+      --run-dir {run_dir} --dep <RUN-ICPERF-620cfc> --dep <RUN-ICPERF-78de0f>
+      --dep <RUN-ICPERF-8d4b4e> --dep <RUN-ICPERF-d9b642> --dep
+      <RUN-ICPERF-7bd68a> --dep <RUN-ICPERF-9a8b93> --dep <RUN-ICPERF-a3c228>
+      (run directories in the order stage0, A1, B1, A2, B2, rho-1, rho-2, as
+      run_step.sh claims requires)
+    checker_command: python3 experiments/EXP-ICPERF-9cd390/implementation/check.py {run_dir} <step>
+    list:
+      - {index: 0, trial: build, step: build, run_id: RUN-ICPERF-caa0c1, what: "release build of the three examples at the protocol commit"}
+      - {index: 1, trial: stage0, step: stage0, run_id: RUN-ICPERF-620cfc, what: "geomfit over the four archived 64-target panels (zero compute)"}
+      - {index: 2, trial: sweep, step: sweep, run_id: RUN-ICPERF-c17b55, what: "chase at 1 MiB, 16 MiB, 256 MiB, 1 GiB, 8 GiB x {4 KiB, 2 MiB}"}
+      - {index: 3, trial: rho-1, step: rho, run_id: RUN-ICPERF-9a8b93, what: "compute control, before"}
+      - {index: 4, trial: A1, step: ic-4k, run_id: RUN-ICPERF-78de0f, what: "8 GiB chase on 4 KiB pages, then K1798 on 4 KiB pages, 64 targets"}
+      - {index: 5, trial: B1, step: ic-2m, run_id: RUN-ICPERF-8d4b4e, what: "the same on 2 MiB pages"}
+      - {index: 6, trial: A2, step: ic-4k, run_id: RUN-ICPERF-d9b642, what: "repeat of A1"}
+      - {index: 7, trial: B2, step: ic-2m, run_id: RUN-ICPERF-7bd68a, what: "repeat of B1"}
+      - {index: 8, trial: rho-2, step: rho, run_id: RUN-ICPERF-a3c228, what: "compute control, after"}
+      - {index: 9, trial: claims, step: claims, run_id: RUN-ICPERF-407b07, what: "the claims, computed in Rust from trials 1-8"}
+    caps:
+      ic_seconds_per_run: 10800
+      rho_seconds_per_run: 600
+      enforced_by: timeout in run_step.sh
+
+  replication:
+    seeds: [29, 20261017, 2026101301]
+    seed_roles:
+      rank_seed: 29
+      chase_seed: 20261017
+      rho_seed: 2026101301
+    independent_instances: 2
+    design: >-
+      ABAB: two A (4 KiB) and two B (2 MiB) IC runs on the same 64 targets,
+      rank seed and chase seed; L1 takes the median over A1, A2; T1 requires
+      both pairs; the drift d = |A2/A1 - 1| is reported. Rho runs before and
+      after the IC arms (R). Stage 0 is a deterministic read of archived
+      panels and is not replicated. No second host, seed set or base.
+    rerun_rule: >-
+      A timed-out or failed trial stays in the record with its exit status.
+      No trial is re-run to change an outcome. One re-run is allowed only for
+      infrastructure loss (the process died before its first target), and it
+      is recorded with both run directories kept.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 10800
+    wall_clock_seconds_total: 43200
+    maximum_memory_gb: 14
+    maximum_runs: 10
+    cpu_note: >-
+      Advisory, about 12 h wall clock: four IC runs capped at 10,800 s each,
+      two rho runs capped at 600 s, plus build, stage 0 (zero compute) and
+      the chase sweep. The IC rank stage uses 4 threads (KIC_RANK_THREADS=4
+      on 4 vCPUs). The 14 GiB per-trial memory limit is machine protection on
+      a 15 GiB host, not a research budget: the 8 GiB table (archived peak
+      RSS 8.7 GB) and the 8 GiB chase array run in separate processes, one
+      after the other, and no other large process may run.
+
+  stopping_rules:
+    - Run trials 0-9 once each, in the frozen order; then stop.
+    - A build failure (trial 0) leaves nothing runnable; record failed_infrastructure and stop the batch.
+    - An IC run is killed at 10,800 s and a rho run at 600 s by the launcher's timeout; the trial stays in the record with its exit status.
+    - Run the claims trial after trials 1-8 even if one of them failed; a claims failure caused by a missing input is recorded as failed, not repaired.
+    - A timeout, crash, OOM or memory-limit kill is infrastructure signal, never a negative result for any claim.
+    - No additional trial, host, base, K, seed or page mode without a protocol_amendment and a new approval.
+
+  invalidation_rules:
+    - G.scalars FAIL invalidates the run set; it is not evidence for or against any claim (this includes an IC run that stopped before all 64 targets).
+    - G.probes FAIL with G.scalars PASS is a recorded deviation (on-host walk differs from the archived one, for example by host or ISA); H1 and L1 still use the on-host probe counts.
+    - run.py frozen-launcher hash mismatch or a run_step.sh source/input hash mismatch makes that trial failed_infrastructure; not evidence.
+    - A trial whose check.py exits non-zero is not output_validated and its outputs are not read as evidence.
+    - A launch.tsv host record (cpu, nproc, mem_total_kib, thp) that differs from the declared host puts that trial outside the tested scope; it is recorded and never pooled.
+    - Any claim value computed by hand or outside ic_probe_latency claims is not evidence.
+    - Any edit of PROTOCOL.md, run_step.sh, sources.sha256 or a frozen source after the protocol commit without a protocol_amendment invalidates the affected trials.
+    - Another build, test or large process during the session is a recorded isolation breach; L1, L1g, T1, R and D from the affected trials are inconclusive.
+
+  success_criterion: >-
+    Decidable from claims.json alone. The experiment SUCCEEDS as a
+    measurement when all 10 trials carry a recorded status, trials 0-8 that
+    completed pass check.py, claims.json (RUN-ICPERF-407b07) exists with all
+    14 claim ids (G.scalars, G.probes, H1.k1271_regular, H1.k1271_dense,
+    H1.k1500_dense, H1.k1798_dense, H1.k1798_dense_on_host_a1, L1, L1g,
+    T1.applied, T1.null, T1, R, D), G.scalars is PASS, and vm_hwm_bytes and
+    anon_huge_pages_bytes are recorded beside every IC run. SUPPORT readings
+    of H-ICPERF-b3d1a4, per claim id and scoped to this host and workload,
+    without pooling: claim (1) at a base iff H1.<base> is SUPPORT; claim (2)
+    iff L1 is SUPPORT; claim (4) iff T1 is SUPPORT (which requires T1.applied
+    and T1.null PASS).
+  falsification_criterion: >-
+    Stated before any run, scoped to this host and workload, on a valid run
+    set (G.scalars PASS). Claim (1) is falsified at a base iff H1.<base> is
+    FALSIFIED (CV < 0.6 or > 1.5). Claim (2) is falsified iff L1 is FALSIFIED
+    (< 0.5). Claim (4) is falsified iff T1 is FALSIFIED (both |r_k - 1| <
+    0.10 with T1.applied and T1.null PASS). INSTRUMENT_CANNOT_SEE,
+    NOT_SUPPORTED, a G.scalars FAIL, a missing claims.json, a timeout, crash
+    or OOM falsify nothing. Because each reading rests on one session on one
+    host, an adverse reading supports at most weaken plus replication, not
+    reject_scoped, unless the evidence review finds the ABAB pairs a
+    sufficient replication for that claim.
+  inconclusive_criterion: >-
+    G.scalars FAIL; claims.json absent or missing ids; any NOT_SUPPORTED
+    band; T1 INSTRUMENT_CANNOT_SEE; a recorded isolation breach on an IC or
+    rho trial.
+
+  decision_impact:
+    on_positive: >-
+      L1 SUPPORT (and T1 SUPPORT): an IC online ns at n = 83 on this host is
+      read as probes x the host's random-access latency over the table bytes;
+      later vs_rho rows on GOAL-ICPERF-e6b6a4 carry the host's 8 GiB chase
+      latency beside them, and 2 MiB pages become an engineering lever to be
+      tested as an IC change in a separate contract that charges it on both
+      arms and reports a gap-to-rho row. H1 SUPPORT at a base: one-point
+      IC/rho ratios at that base carry the geometric spread.
+    on_negative: >-
+      L1 FALSIFIED: lookups are not latency-bound on this host and the
+      lookup share is compute (canonicalization/hash), routing the question
+      to IDEA-20261015-2d8e5a. T1 FALSIFIED: the TLB mechanism is wrong on
+      this host and the huge-page lever is dropped. H1 FALSIFIED at a base:
+      the unlucky-seed reading of the n = 83 history needs another model.
+      Each adverse reading leads to weaken plus a replication proposal, not a
+      lane closure.
+
+  interpretation_limits:
+    - Measurement and attribution only; no IC arm is made faster or slower; no gap-to-rho row.
+    - One host; proposal claim (3), cross-host normalised spread, is not tested and nothing transfers to another host.
+    - >-
+      The cache-resident small-table control is not run (rank cost grows as
+      1/K; a K = 256 smoke run was still in its rank stage after 12 minutes;
+      K = 32 would take hours), so the compute term c0 is unseparated and
+      L1's band [1.0, 2.0] admits a compute term of up to one latency. L1
+      above 2 means a compute term beyond one latency, which this study does
+      not separate.
+    - L1 below 1 with L1g near 1 means overlapped lookups; the latency model is then the wrong null.
+    - H1 NOT_SUPPORTED with CV in [0.6, 0.9) is the proposal's model with a lighter tail than geometric, a refinement.
+    - H1 readings for k1271_regular and k1798_dense were seen before freeze (disclosure); not blind.
+    - The proposal's "rho ns/step changes < 5% under 2 MiB pages" is not tested; rho allocates no advised memory and R is session drift only.
+    - k1500_regular and the section-23 sizes named in the proposal's minimal test are not in the frozen stage-0 panel list.
+    - D is descriptive per-unit pricing on one host; no cross-method ranking (crypto AGENTS.md section 5a).
+
+  required_artifacts:
+    run_records:
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-caa0c1/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-620cfc/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-c17b55/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-9a8b93/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-78de0f/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-8d4b4e/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-d9b642/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-7bd68a/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-a3c228/
+      - experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-407b07/
+    per_run_files: >-
+      launch.json, execution-receipt.json, command.txt, environment.json,
+      stdout.log, stderr.log, check.stdout.log, check.stderr.log,
+      raw-result.json, manifest.yaml and the step's crypto/ outputs as listed
+      per trial in trial-plan.json
+    claims: experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-407b07/crypto/claims.json
+    run_report: >-
+      experiments/EXP-ICPERF-9cd390/reports/run-<YYYYMMDDTHHMMZ>/ (report
+      source, at least one SVG graph with its drawing script or data, and
+      report.pdf; research-visuals skill, "Every experiment run";
+      observations only)
+    results_report_crypto: >-
+      crypto research/ic_probe_latency_20261017/REPORT.md with its graphs
+      (SVG and PNG) and report PDF, transcribing claims.json values and
+      verdicts as computed by ic_probe_latency claims, with no review
+      language
+    benchmarks_copy_crypto: >-
+      crypto benchmarks/<YYYYMMDD>-ic-probe-latency/ holding the PDFs, SVG
+      graphs and PNG renders, and a row in crypto benchmarks/README.md, in
+      the same crypto PR (crypto AGENTS.md "Performance results also land in
+      benchmarks/")
+    snapshot_receipt: coordination/design/TASK-20261017-d53b9c/archives/TASK-20261017-4c890d/snapshot-receipt.json
+
+  amendment_rule: >-
+    No field of this contract, trial-plan.json, run.py, check.py or the
+    crypto launcher changes after approval. Any change is a versioned
+    protocol_amendment under experiments/EXP-ICPERF-9cd390/amendments/,
+    recorded and approved by a Coordinator decision before the affected
+    trial runs. Success, falsification and invalidation rules never change
+    after any output is observed.
+
+  launcher:
+    trial_plan: experiments/EXP-ICPERF-9cd390/trial-plan.json
+    driver: experiments/EXP-ICPERF-9cd390/implementation/run.py
+    checker: experiments/EXP-ICPERF-9cd390/implementation/check.py
+    crypto_step_script: research/ic_probe_latency_20261017/run_step.sh (crypto, commit 286bc22cc7c4f93a354b667981bf786f2f9fa671)
+    executor: tools/experiment_execution.py run --plan experiments/EXP-ICPERF-9cd390/trial-plan.json
+
+  assigned_to: executor
+  out_of_scope:
+    - Proposal claim (3) and any second host.
+    - The cache-resident small-table control and any K other than 1798.
+    - Any IC speed-up claim, gap-to-rho row or cross-method ranking.
+    - Any deployed-curve statement.
