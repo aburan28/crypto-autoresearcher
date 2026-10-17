@@ -46,14 +46,15 @@ specification, experiment design, approval, and handoff.
 4. Create the experiment directory:
    `experiments/<EXP-ID>/specification.yaml` (plus empty `amendments/` and
    `runs/`).
-5. **Make it runnable, in this turn.** Implement or bind the launcher: a
-   committed trial plan, an existing command-based runner named in the
-   specification, or the code the contract needs. Then check
-   `python3 tools/newest_experiments.py --experiment <EXP-ID> --json` and
-   require `execution_state: ready`. If that cannot be reached this turn,
-   leave the contract `review_required`, record the exact missing piece in
-   the report, and stop here: an approved contract nobody can run is the
-   backlog this program is paying for (`docs/track-record-review-20261006.md`).
+5. **Make it prospectively runnable, in this turn.** Implement or bind the
+   launcher, trial plan, executor handoff and dispatch queue. Before approval,
+   provide preview copies of the exact proposed final bytes in a packet for
+   `python3 tools/experiment_preapproval.py --packet <PACKET.json>`. Require
+   `approvable: true`; the probe checks hashes, archive coverage, execution
+   route and lawful lane without authorizing a run. If it refuses, leave the
+   contract `review_required` and record its exact blockers. Do not interpret
+   the ordinary execution selector's exclusion of an unapproved experiment
+   as a readiness result.
 5a. **Runbook, so the mechanical tier can run it.** Write
    `experiments/<EXP-ID>/runbook.yaml` from `templates/runbook.yaml`
    (`docs/runbook-execution.md`): bind every file by sha256 (specification,
@@ -80,8 +81,11 @@ specification, experiment design, approval, and handoff.
    are null; a block of `null`s is not a budget.
 8. The Coordinator runs an isolated snapshot archive task that commits the
    selected proposal, hypothesis, frozen specification, launcher, and handoff
-   by exact path. Do not dispatch the Executor until its post-commit receipt
-   verifies.
+   by exact path. After its receipt verifies, require `python3
+   tools/newest_experiments.py --experiment <EXP-ID> --json` to report
+   `execution_state: ready` before dispatch. A mismatch stops dispatch and
+   requires an additive correction. The preapproval probe never replaces the
+   ordinary selector, dispatcher or live-claim checks.
 9. Push the branch and open or refresh a PR against `main` naming the new
    `H-*`/`EXP-*`/`TASK-*` records (see "Branch and PR hygiene"). A frozen
    contract that exists only in a local commit is not approved — it is
