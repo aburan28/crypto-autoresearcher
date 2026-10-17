@@ -1,0 +1,78 @@
+--- a/tools/experiment_preapproval.py
++++ b/tools/experiment_preapproval.py
+@@ -39,6 +39,7 @@
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(ROOT / "tools"))
++from additive_guards import SCHEMA as ADDITIVE_SCHEMA, assess_original
+ from experiment_execution import GENERATED, RUN_ID, safe_path  # noqa: E402
+ from goal_lanes import load_lanes  # noqa: E402
+ from research_dispatch import DispatchError, paths_within_scopes, validate_queue  # noqa: E402
+@@ -193,7 +194,8 @@
+     blockers: list[str] = []
+     report: dict[str, Any] = {"schema": SCHEMA, "approvable": False, "blockers": blockers,
+                               "prospective_sha256": {}}
+-    if packet.get("schema") != SCHEMA:
++    additive = packet.get("schema") == ADDITIVE_SCHEMA
++    if packet.get("schema") not in (SCHEMA, ADDITIVE_SCHEMA):
+         blockers.append(f"packet: schema must be {SCHEMA}")
+     exp_id = packet.get("experiment_id")
+     decision = packet.get("approval_decision_id")
+@@ -206,7 +208,8 @@
+     report["canonical_paths"] = canonical
+     expected_spec = f"experiments/{exp_id}/specification.yaml"
+     expected_plan = f"experiments/{exp_id}/trial-plan.json"
+-    if canonical["specification"] != expected_spec or canonical["trial_plan"] != expected_plan:
++    scoped_plan = isinstance(canonical["trial_plan"], str) and canonical["trial_plan"].startswith(f"experiments/{exp_id}/amendments/")
++    if canonical["specification"] != expected_spec or (not additive and canonical["trial_plan"] != expected_plan) or (additive and not scoped_plan):
+         blockers.append("packet: canonical specification/trial-plan paths do not match experiment")
+     preview = packet.get("preview") if isinstance(packet.get("preview"), dict) else {}
+     raw: dict[str, bytes | None] = {}
+@@ -224,10 +227,11 @@
+     handoff_doc = _mapping(raw["handoff"], "handoff", blockers, kind="yaml")
+     handoff = handoff_doc.get("handoff") if isinstance(handoff_doc.get("handoff"), dict) else handoff_doc
+     canonical_spec = root / expected_spec
++    current = {}
+     try:
+         current = yaml.safe_load(canonical_spec.read_text())
+         current = current.get("experiment", current)
+-        if current.get("status") not in ("review_required", "specified") or current.get("approved_by"):
++        if ((not additive and (current.get("status") not in ("review_required", "specified") or current.get("approved_by"))) or (additive and (current.get("status") not in ("approved", "running") or current.get("frozen") is not True or not current.get("approved_by") or current.get("execution_authorized") is not True))):
+             blockers.append("canonical experiment is already approved or not in a preapproval state")
+         ref = packet.get("source_ref")
+         if isinstance(ref, str) and ref.startswith("origin/"):
+@@ -236,7 +240,7 @@
+                 blockers.append("canonical draft specification is not committed with these bytes at source_ref")
+     except (OSError, ValueError, yaml.YAMLError, AttributeError):
+         blockers.append("canonical review_required specification is unreadable")
+-    if spec.get("id") != exp_id or spec.get("status") != "approved" or spec.get("frozen") is not True or spec.get("approved_by") != decision or spec.get("execution_authorized") is not True:
++    if spec.get("id") != exp_id or spec.get("status") != "approved" or spec.get("frozen") is not True or (not additive and spec.get("approved_by") != decision) or (additive and spec.get("approved_by") != current.get("approved_by")) or spec.get("execution_authorized") is not True:
+         blockers.append("prospective specification must bind this ID, approval decision, frozen and authorized state")
+     for field in ("hypothesis_id", "version", "budget", "controls", "stopping_rules",
+                   "invalidation_rules", "success_criterion", "falsification_criterion"):
+@@ -259,6 +263,11 @@
+         blockers.append("prospective trial plan: reserved task_id required")
+     if not canonical["queue"] or plan.get("queue") != canonical["queue"]:
+         blockers.append("prospective trial plan: canonical queue binding missing")
++    if additive:
++        supplemental_inputs = assess_original(root, packet, canonical, raw, plan, blockers)
++        spec = {**spec, "input_bindings": supplemental_inputs}
++        report["execution_authorized"] = False
++        report["runtime_obligations"] = ["Committed lawful additive approval and exact amendment bytes", "Postapproval explicit additive plan selection", "Fresh published claim with runtime owner/epoch", "At launch: prior retry worker inactive and old claim terminal/released", "Unchanged source/archive/resource/identity gates"]
+     source_ref = packet.get("source_ref")
+     if not isinstance(source_ref, str) or not source_ref.startswith("origin/") or not re.fullmatch(r"origin/[A-Za-z0-9_./-]+", source_ref):
+         blockers.append("packet: pushed origin source_ref required")
+@@ -295,6 +304,13 @@
+         if (archive is None or task_id not in (archive_binding.get("source_task_ids") or [])
+                 or not paths_within_scopes(sorted(required), archive.get("read_scope") or [])):
+             blockers.append("prospective Coordinator archive task does not bind every supervisor and trial artifact path")
++    if additive and task is not None:
++        budget = handoff.get("budget") or {}
++        if any(budget.get(k) == 0 for k in ("maximum_runs", "experiment_maximum_runs")):
++            blockers.append("additive executor: zero-run task cannot authorize trials")
++        for trial in plan.get("trials", []):
++            if budget.get("memory_gb") is not None and isinstance(trial.get("memory_mb"), (int, float)) and trial["memory_mb"] > float(budget["memory_gb"]) * 1024:
++                blockers.append("additive resource: trial memory exceeds handoff protection")
+     route = packet.get("execution_route")
+     if not isinstance(route, dict) or route.get("kind") not in ("implementation", "runbook"):
+         blockers.append("packet: lintable runbook or implementation-tier route required")
