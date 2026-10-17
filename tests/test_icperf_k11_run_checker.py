@@ -99,3 +99,27 @@ def test_direct_runner_refuses_review_required_protocol(tmp_path):
     (run_dir / "environment.json").write_text("{}\n")
     with pytest.raises(ValueError, match="not frozen and authorized"):
         runner.approved_launch(run_dir, "positive")
+
+
+def test_raw_call_bundle_binds_every_file_and_rejects_tampering(tmp_path):
+    runner = load_module(EXECUTE_PATH, "k11_bundle_writer")
+    checker = load_module(CHECKER_PATH, "k11_bundle_checker")
+    run_dir = tmp_path / "RUN-ICPERF-fixture01"
+    attempt = run_dir / "calls" / "positive_weighted" / "attempt-0001"
+    attempt.mkdir(parents=True)
+    (attempt / "input.xcnf").write_bytes(b"p cnf 1 1\n1 0\n")
+    (attempt / "stdout.txt").write_bytes(b"s SATISFIABLE\nv 1 0\n")
+    (attempt / "stderr.txt").write_bytes(b"")
+    bundle = runner.bundle_calls(run_dir)
+    result = {"calls_manifest_sha256": checker.sha_file(run_dir / "calls-manifest.json"),
+              "calls_bundle_sha256": bundle["bundle_sha256"]}
+    assert checker.check_call_bundle(run_dir, result) == 3
+
+    (attempt / "stdout.txt").write_bytes(b"s UNKNOWN\n")
+    with pytest.raises(AssertionError):
+        checker.check_call_bundle(run_dir, result)
+    (attempt / "stdout.txt").write_bytes(b"s SATISFIABLE\nv 1 0\n")
+    with (run_dir / "calls.tar.gz").open("ab") as stream:
+        stream.write(b"tamper")
+    with pytest.raises(AssertionError):
+        checker.check_call_bundle(run_dir, result)

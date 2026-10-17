@@ -16,6 +16,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tarfile
 import time
 from pathlib import Path
 
@@ -51,6 +52,14 @@ def sha(blob: bytes) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def sha_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -63,6 +72,37 @@ def write(path: Path, record: dict) -> None:
     with path.open("x") as stream:
         json.dump(record, stream, indent=2, sort_keys=True, allow_nan=False)
         stream.write("\n")
+
+
+def bundle_calls(run_dir: Path) -> dict:
+    """Bind every retained call file to two fixed-name archive artifacts."""
+    calls = run_dir / "calls"
+    paths = sorted(path for path in calls.rglob("*") if path.is_file())
+    if any(path.is_symlink() for path in calls.rglob("*")):
+        raise ValueError("call tree contains a symlink")
+    files = []
+    bundle_path = run_dir / "calls.tar.gz"
+    with bundle_path.open("xb") as sink:
+        with gzip.GzipFile(fileobj=sink, mode="wb", filename="", mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w|") as archive:
+                for path in paths:
+                    relative = path.relative_to(run_dir).as_posix()
+                    size = path.stat().st_size
+                    digest = sha_file(path)
+                    entry = tarfile.TarInfo(relative)
+                    entry.size = size
+                    entry.mtime = 0
+                    entry.mode = 0o644
+                    with path.open("rb") as source:
+                        archive.addfile(entry, source)
+                    files.append({"path": relative, "size_bytes": size,
+                                  "sha256": digest})
+    record = {"schema": "icperf-k11-call-tree-v1", "files": files,
+              "bundle_path": bundle_path.name,
+              "bundle_size_bytes": bundle_path.stat().st_size,
+              "bundle_sha256": sha_file(bundle_path)}
+    write(run_dir / "calls-manifest.json", record)
+    return record
 
 
 def approved_launch(run_dir: Path, step: str) -> tuple[dict, dict, dict, dict]:
@@ -308,11 +348,15 @@ def main() -> None:
             raise ValueError("wrong positive dependency")
         observations = natural_stage(calls, read(FORMULA_PATH), read(TARGET_PATH),
                                      bases, chain, solver, begin, previous)
-    elapsed = time.monotonic() - begin
     stopping = next((row["status"] for row in observations if row["status"] in
                      ("host_admission_stop", "panel_wall_censored", "infrastructure_or_input_failure",
                       "invalid_model_or_certificate", "solver_launch_failure",
                       "solver_failure_or_unclassified", "gated_by_positive_controls")), None)
+    bundle_started_wall, bundle_started_cpu = time.monotonic(), time.process_time()
+    bundle = bundle_calls(run_dir)
+    bundle_wall = time.monotonic() - bundle_started_wall
+    bundle_cpu = time.process_time() - bundle_started_cpu
+    elapsed = time.monotonic() - begin
     result = {"schema": "icperf-k11-bounded-solver-stage-v1",
               "experiment_id": EXPERIMENT, "step": args.step,
               "status": stopping or "completed_bounded_observation",
@@ -320,7 +364,13 @@ def main() -> None:
               "plan_sha256": launch["plan_sha256"],
               "source_commit": environment["commit"],
               "started_at": started_at, "finished_at": now(),
-              "total_wall_seconds": elapsed, "calls": observations}
+              "total_wall_seconds": elapsed, "calls": observations,
+              "calls_bundle": {"wall_seconds": bundle_wall, "cpu_seconds": bundle_cpu,
+                               "tar_bytes": bundle["bundle_size_bytes"],
+                               "manifest_bytes": (run_dir / "calls-manifest.json").stat().st_size,
+                               "raw_file_count": len(bundle["files"])}}
+    result["calls_bundle_sha256"] = bundle["bundle_sha256"]
+    result["calls_manifest_sha256"] = sha((run_dir / "calls-manifest.json").read_bytes())
     write(run_dir / "raw-result.json", result)
     with (run_dir / "manifest.yaml").open("x") as stream:
         yaml.safe_dump(manifest(run_dir, launch, environment, result, solver,
