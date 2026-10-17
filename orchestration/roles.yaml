@@ -154,7 +154,7 @@ runtime_model_pins:
     backend: anthropic
     roles: [executor, executor-mechanical, idea-generator, consolidator,
             idea-synthesist, validator-breakthrough, red-team-breakthrough,
-            validator-sweep]
+            validator-sweep, experiment-director]
 
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
@@ -275,6 +275,30 @@ roles:
     runtime_bindings:
       claude_code: .claude/agents/consolidator.md
       opencode: .opencode/agent/consolidator.md
+
+  # The director tier of docs/model-tiers.md. Frontier and core models
+  # reason; this role writes the instructions the mechanical tier runs (a
+  # runbook that lints clean and a task card) and assesses the finished
+  # session against its tool-written record. It is a role of its own, not a
+  # variant of the Executor, because its authority differs: it may not
+  # execute experiments. `run_commands` is for `tools/runbook.py lint` and
+  # `status` and `tools/task_card.py`; the contract forbids `runbook.py run`
+  # and every trial, and -- as with the Consolidator -- a shell could do
+  # more, so the line is held by the contract and stated here plainly.
+  experiment-director:
+    contract: agents/experiment-director.md
+    default_policy: director-runbook
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/experiment-director.md
+      codex_cli: .codex/agents/experiment-director.toml
+      opencode: .opencode/agent/experiment-director.md
 
   # ------------------------------------------------------------------
   # Policy-tier variants.

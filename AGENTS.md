@@ -105,6 +105,7 @@ assessment are not launch prerequisites. This map adds no runtime role or author
 | Coordinator | priorities, decomposition, state transitions, synthesis; alone changes the official status of a hypothesis or direction | `coordinator-orchestration-code` (`coordinator-orchestration` without code) |
 | Idea Generator; research tasks | falsifiable mechanisms and experiments | `research-deep` |
 | Idea Synthesist | cross-goal ideation | `research-synthesis`, `high` |
+| Experiment Director | writes the mechanical tier's runbook and task card, assesses its runs | `director-runbook` |
 | Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs and approved runbooks |
 | Reviewer | challenges claims, validity and transitions | `review-adversarial`, `xhigh`, independent session |
 | Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer; `audit-sweep` screens runbook sessions, never a review gate |
@@ -148,6 +149,10 @@ Permissions: the role contract. Inference requirements:
 `orchestration/model-bindings.yaml`, resolved by `orchestration/adapter/`.
 None names a vendor (`docs/inference-backends.md`). Each role's policy is in
 "Roles".
+
+**Model tiers** (`docs/model-tiers.md`): each policy has a `model_tier`
+floor (mechanical < director < core < frontier); the resolver refuses models
+below it.
 
 Policy ids are permanent; pre-2.0 aliases (`model-policies.yaml`) resolve
 forever; new handoffs use canonical ids. The adapter records requested policy
@@ -344,10 +349,18 @@ The approved-unrun capacity cap from 2026-10-07 is removed by user direction
 neither its count nor `--capacity` blocks design or approval. An open ECC idea
 is ranked and designed when its protocol can be completed. Approval requires:
 
-- **Runnable.** Approve only when `python3 tools/newest_experiments.py
-  --experiment <EXP-ID>` reports `execution_state: ready`. Implementation is
-  the design lane's; a contract not runnable in its designing session stays
-  `review_required` with the reason recorded.
+- **Runnable.** Before approval, require `python3
+  tools/experiment_preapproval.py --packet <PACKET.json>` to report
+  `approvable: true` for the exact prospective frozen specification, trial
+  plan, executor handoff and queue, including committed source/input hashes,
+  complete supervisor and trial archive coverage, an execution route, and a
+  lawful goal lane. The probe is read-only and grants no execution authority.
+  Implementation is the design lane's; a contract that fails this check stays
+  `review_required` with its exact blockers recorded. After the Coordinator's
+  approval decision and archive are committed, `python3
+  tools/newest_experiments.py --experiment <EXP-ID> --json` must report
+  `execution_state: ready` before dispatch. A mismatch stops dispatch and
+  requires an additive correction.
 
 If a complete contract cannot yet be made runnable, keep it `review_required`
 and record the missing launcher in the goal's `next_action`. An approved, unrun
@@ -609,6 +622,14 @@ Deduplicate against the ledger with the generated `ledger/.index/*.jsonl`
 tools and indexes before records, sizes before contents, run outputs by receipt
 (`docs/agent-runtime-core.md`, "Reading discipline"). A path off disk in a
 sparse checkout still exists (`docs/sparse-checkout.md`).
+
+For the ten-lead campaign, the advisory handoff is
+[`research/ten-lead-evidence/README.md`](research/ten-lead-evidence/README.md).
+Retrieve one lead with `python3 tools/scoped_evidence.py lead N --json` and keep
+its scope, assumptions, non-implications and artifact bindings with citations.
+This supplements KB retrieval; it changes no official research state and adds
+no prerequisite to `run`. Missing private artifact access is an access gap,
+never mathematical evidence against a lead.
 
 ## Curve identity and measured bounds
 

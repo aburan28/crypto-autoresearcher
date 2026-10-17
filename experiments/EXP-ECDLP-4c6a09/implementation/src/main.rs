@@ -162,6 +162,13 @@ struct CellOut {
     gamma: Option<f64>,
     new_nontorsion: u64,
     min_height_over_logp: Option<f64>,
+    samples: Vec<Value>,
+}
+
+const SAMPLE_POINTS_PER_CELL: usize = 8;
+
+fn elt_json(a: &nfield::Elt) -> Value {
+    json!(a.iter().map(nfield::field::rat_to_string).collect::<Vec<_>>())
 }
 
 fn run_cell(k: &NumberField, e: &CurveNF, p: &BigUint, root: &BigUint, ladder: &[u64], aux: &[u64], split_for_t: &[u64], t: u64, seed: u64) -> CellOut {
@@ -176,6 +183,7 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: &BigUint, root: &BigUint, ladder: &
     let mut rung_i = 0usize;
     let (mut last_tried, mut last_shells) = (0u64, 0u64);
     let logp = ln_big(&BigInt::from(p.clone()));
+    let mut samples: Vec<Value> = Vec::new();
     let snapshot = |rungs: &mut Vec<Rung>, cum: &Rung, residues: &HashSet<String>, seen: &HashSet<String>, tried: u64, shells: u64| {
         let mut r = cum.clone();
         r.work = tried;
@@ -205,20 +213,29 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: &BigUint, root: &BigUint, ladder: &
             if !seen.insert(key) {
                 return;
             }
-            match e.reduce_point_big(&point, p, root) {
-                None => {
-                    cum.points_without_residue += 1;
-                    return;
-                }
+            let rational = k.is_rational(&point.0) && k.is_rational(&point.1);
+            let want_sample = samples.len() < SAMPLE_POINTS_PER_CELL;
+            let residue = e.reduce_point_big(&point, p, root);
+            match &residue {
+                None => cum.points_without_residue += 1,
                 Some((x, y)) => {
                     residues.insert(format!("{},{}", x, y));
                 }
             }
-            if k.is_rational(&point.0) && k.is_rational(&point.1) {
-                cum.rational_points_seen += 1;
+            let witness = if rational || residue.is_none() { None } else { ecnf::nontorsion_witness(e, &point, split_for_t, t) };
+            if want_sample {
+                samples.push(json!({"x": elt_json(&point.0), "y": elt_json(&point.1),
+                                    "residue": residue.as_ref().map(|(x, y)| json!([x.to_string(), y.to_string()])),
+                                    "rational": rational,
+                                    "nontorsion_witness": witness.map(|(q, r)| json!({"q": q, "root": r}))}));
+            }
+            if residue.is_none() || rational {
+                if rational && residue.is_some() {
+                    cum.rational_points_seen += 1;
+                }
                 return;
             }
-            if !ecnf::is_torsion_candidate(e, &point, split_for_t, t) {
+            if witness.is_some() {
                 cum.new_nontorsion_points_cumulative += 1;
                 let h = k.height(&point.0);
                 min_height = Some(min_height.map_or(h, |m: f64| m.min(h)));
@@ -230,7 +247,7 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: &BigUint, root: &BigUint, ladder: &
         rung_i += 1;
     }
     let gamma = fit_gamma(&rungs);
-    CellOut { gamma, new_nontorsion: cum.new_nontorsion_points_cumulative, min_height_over_logp: min_height.map(|h| h / logp), rungs }
+    CellOut { gamma, new_nontorsion: cum.new_nontorsion_points_cumulative, min_height_over_logp: min_height.map(|h| h / logp), rungs, samples }
 }
 
 fn slope(pairs: &[(f64, f64)]) -> Option<f64> {
@@ -429,7 +446,8 @@ fn main() {
                 eprintln!("seed={} {} {} k={} curve={}: D={} gamma={:?} N={}", seed, fld.kind, fld.shape, fld.k, ci, last.distinct_residues, cell.gamma, cell.new_nontorsion);
                 cells.push(json!({
                     "seed": seed, "field": frec, "curve": {"A": a.to_string(), "B": b.to_string()}, "curve_index": ci,
-                    "torsion_bound_T": t,
+                    "torsion_bound_T": t, "torsion_bound_primes": split_for_t, "aux_primes": aux,
+                    "root_mod_p": root.to_string(), "sample_points": cell.samples,
                     "rungs": cell.rungs.iter().map(|r| json!({
                         "work": r.work, "shells_completed": r.shells_completed, "points_found_cumulative": r.points_found_cumulative,
                         "distinct_residues": r.distinct_residues, "new_nontorsion_points_cumulative": r.new_nontorsion_points_cumulative,

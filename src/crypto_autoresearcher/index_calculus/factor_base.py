@@ -25,7 +25,7 @@ import random
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from .curve import Curve, Point, divisors, primitive_root
+from .curve import Curve, Point, divisors, factorize, primitive_root
 
 FACTOR_BASES = ("small_x", "subgroup", "random", "dickson")
 
@@ -54,6 +54,26 @@ def _base_divisor(p: int, size: int, divisor_multiple_of: int) -> int:
         raise ValueError(f"p - 1 = {p - 1} has no divisor that is a multiple of "
                          f"{divisor_multiple_of}")
     return min(ds, key=lambda d: (abs(d - 2 * size), d))
+
+
+def _explicit_coset(p: int, d: int, seed: int, kind: str) -> tuple[int, int, int]:
+    """Return (g, zeta, draws) for g * mu_d, proving zeta has exact order d.
+
+    A frozen divisor avoids factoring p-1 or finding a primitive root of the
+    full field. Only d is factored; trial division is bounded by sqrt(d).
+    The exact-order test makes the enumeration complete even if a sampled h
+    generates only a proper subgroup after exponentiation.
+    """
+    if type(d) is not int or d < 1 or (p - 1) % d:
+        raise ValueError("explicit divisor must be a positive divisor of p-1")
+    factors = factorize(d)
+    rng = random.Random(f"fb-{kind}-explicit|{p}|{d}|{seed}")
+    for draws in range(1, 10_001):
+        h = rng.randrange(1, p)
+        zeta = pow(h, (p - 1) // d, p)
+        if all(pow(zeta, d // q, p) != 1 for q in factors):
+            return rng.randrange(1, p), zeta, draws
+    raise ValueError("failed to sample an element of the exact requested order")
 
 
 def dickson_value(x: int, c: int, d: int, p: int) -> int:
@@ -190,7 +210,8 @@ class FactorBase:
 
     @classmethod
     def subgroup(cls, E: Curve, size: int, seed: int = 0,
-                 divisor_multiple_of: int = 1) -> "FactorBase":
+                 divisor_multiple_of: int = 1,
+                 divisor: int | None = None) -> "FactorBase":
         """Points with x in a coset g * mu_d, d | p-1 chosen so |F| ~ size.
 
         About half of the d coset elements are x-coordinates of points, so d
@@ -200,36 +221,53 @@ class FactorBase:
         j = 0 control uses 3); with the default 1 nothing changes.
         """
         p = E.p
-        d = _base_divisor(p, size, divisor_multiple_of)
-        gen = primitive_root(p)
-        zeta = pow(gen, (p - 1) // d, p)
-        rng = random.Random(f"fb-subgroup|{p}|{d}|{seed}")
-        g = pow(gen, rng.randrange(p - 1), p)
+        if divisor is None:
+            d = _base_divisor(p, size, divisor_multiple_of)
+            gen = primitive_root(p)
+            zeta = pow(gen, (p - 1) // d, p)
+            rng = random.Random(f"fb-subgroup|{p}|{d}|{seed}")
+            g = pow(gen, rng.randrange(p - 1), p)
+        else:
+            if divisor_multiple_of < 1 or divisor % divisor_multiple_of:
+                raise ValueError("explicit divisor violates divisor_multiple_of")
+            d = divisor
+            g, zeta, root_draws = _explicit_coset(p, d, seed, "subgroup")
         xs, z = [], g
         for _ in range(d):
             xs.append(z)
             z = z * zeta % p
         params = {"d": d, "coset": g, "seed": seed, "target_size": size}
+        if divisor is not None:
+            params.update({"zeta": zeta, "divisor_source": "explicit",
+                           "root_draws": root_draws})
         if divisor_multiple_of != 1:
             params["divisor_multiple_of"] = divisor_multiple_of
         return cls._from_xs(E, xs, "subgroup", params)
 
     @classmethod
     def dickson(cls, E: Curve, size: int, seed: int = 0,
-                divisor_multiple_of: int = 1) -> "FactorBase":
+                divisor_multiple_of: int = 1,
+                divisor: int | None = None) -> "FactorBase":
         """Points with x = u + c/u, u in a coset g * mu_d: D_d(x, c) = lambda.
 
         d is chosen exactly as for ``subgroup``.  c is drawn until c is not in
         g^2 * mu_d, which makes the d values u + c/u distinct.
         """
         p = E.p
-        d = _base_divisor(p, size, divisor_multiple_of)
-        gen = primitive_root(p)
-        zeta = pow(gen, (p - 1) // d, p)
-        rng = random.Random(f"fb-dickson|{p}|{d}|{seed}")
-        g = pow(gen, rng.randrange(p - 1), p)
+        if divisor is None:
+            d = _base_divisor(p, size, divisor_multiple_of)
+            gen = primitive_root(p)
+            zeta = pow(gen, (p - 1) // d, p)
+            rng = random.Random(f"fb-dickson|{p}|{d}|{seed}")
+            g = pow(gen, rng.randrange(p - 1), p)
+        else:
+            if divisor_multiple_of < 1 or divisor % divisor_multiple_of:
+                raise ValueError("explicit divisor violates divisor_multiple_of")
+            d = divisor
+            g, zeta, root_draws = _explicit_coset(p, d, seed, "dickson")
+            rng = random.Random(f"fb-dickson-explicit-c|{p}|{d}|{seed}")
         g_2 = pow(g, -2, p)
-        for _ in range(10_000):
+        for c_draws in range(1, 10_001):
             c = rng.randrange(1, p)
             if pow(c * g_2 % p, d, p) != 1:
                 break
@@ -242,6 +280,9 @@ class FactorBase:
         assert len(set(xs)) == d, "Dickson preimages must give distinct x"
         lam = (pow(g, d, p) + pow(c, d, p) * pow(g, -d, p)) % p
         params = {"d": d, "coset": g, "c": c, "lambda": lam, "seed": seed, "target_size": size}
+        if divisor is not None:
+            params.update({"zeta": zeta, "divisor_source": "explicit",
+                           "root_draws": root_draws, "c_draws": c_draws})
         if divisor_multiple_of != 1:
             params["divisor_multiple_of"] = divisor_multiple_of
         return cls._from_xs(E, xs, "dickson", params)
