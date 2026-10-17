@@ -52,6 +52,7 @@ SOURCES = {
     "other/BADA55-R-256": "BADA55 paper, bada55.cr.yp.to (2015)",
     "other/ssc-288": "MIRACL standard curves",
     "other/ssc-512": "MIRACL standard curves",
+    "other/E-382": "Aranha-Barreto-Pereira-Ricardini, ePrint 2013/647",
     "gost": "TC26 GOST R 34.10-2012 parameter set C",
     "bls": "BLS12 pairing-friendly family (RELIC; ePrint 2012/232)",
     "bn": "BN pairing-friendly family",

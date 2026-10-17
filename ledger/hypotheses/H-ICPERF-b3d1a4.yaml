@@ -1,0 +1,227 @@
+# H-ICPERF-b3d1a4 -- IC online time = geometric probe count x host random-access
+# latency over the root-table bytes (GOAL-ICPERF-e6b6a4 / RQ-ICPERF-94c86e).
+# Specified from IDEA-20261015-b41f68 claims (1), (2) and (4) on one host.
+# Claim (3), cross-host spread, is outside this hypothesis's test boundary.
+# Approved DEC-20261017-3e00ee; contract EXP-ICPERF-9cd390. Measurement and
+# attribution only: no attack, no exponent, no gap-to-rho row.
+hypothesis:
+  id: H-ICPERF-b3d1a4
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  source_idea: IDEA-20261015-b41f68
+  derived_from_idea: IDEA-20261015-b41f68
+  experiment_id: EXP-ICPERF-9cd390
+  specified_at: '2026-10-17'
+  approved_at: '2026-10-17'
+  authorised_by: DEC-20261017-3e00ee
+  status: approved
+  status_history:
+    - status: proposed
+      at: '2026-10-17'
+      by: coordinator
+      note: specified from IDEA-20261015-b41f68 under design-experiment
+    - status: approved
+      at: '2026-10-17'
+      by: DEC-20261017-3e00ee
+      note: >-
+        Pre-run approval under the AGENTS.md standing user authorization.
+        Approval asserts nothing about the truth of the hypothesis.
+  proposed_by: coordinator
+  title: >-
+    n = 83 folded pair-state IC on its 8 GiB K1798 dense root table: probes
+    per target are geometric, ns per probe is one random-access latency over
+    the table bytes plus a compute term, and 2 MiB pages cut it (one host)
+
+  statement: >-
+    CLAIM (measurement / attribution; no attack, no exponent). Setting: the
+    crypto repository's folded pair-state index calculus on Koblitz a = b = 1
+    over F_2^83 (subgroup order 8569786107849059), base construct:83:1:1798,
+    packed dense root table of 2^29 16-byte slots (8 GiB), rank seed 29, the
+    64 public targets of research/n83_dense_root_20261013, measured on one
+    host (Intel Xeon family 6 model 207, 4 vCPU KVM, 15 GiB, THP madvise,
+    isolation L0, no PMU). (1) GEOMETRIC PROBES: per-target probe counts at a
+    fixed base are geometric: CV in [0.9, 1.1] and median/mean in [0.6, 0.8]
+    over 64 targets, for each archived base panel (k1271_regular,
+    k1271_dense, k1500_dense, k1798_dense) and for the on-host K1798 panel.
+    (2) LATENCY-BOUND PROBES: the median IC ns per probe on 4 KiB pages,
+    divided by the median dependent pointer-chase ns per access over an
+    8 GiB array on 4 KiB pages measured in the same trial, lies in
+    [1.0, 2.0] (one latency plus a compute term of at most one latency).
+    (4) TLB MECHANISM: backing the root table with 2 MiB pages gives
+    max(r1, r2) <= 0.67, r_k = IC ns/probe on 2 MiB pages / on 4 KiB pages
+    in ABAB pair k. Each sub-claim is read separately from the claims step
+    of crypto examples/ic_probe_latency.rs; no pooled verdict is formed.
+
+  mechanism: >-
+    Each probe canonicalizes a walked x and looks it up at a hash-indexed
+    address of a table larger than any cache; on 4 KiB pages a random access
+    over 8 GiB misses the TLB and every cache level, and under KVM nested
+    paging a TLB miss costs a two-dimensional page walk (recalled figure,
+    unverified: about 2-3x a bare-metal walk). The IC online interval is
+    therefore approximately probes x latency, and RESEARCH_IC_BOUNDARY_LEDGER
+    section 23.5 attributes 53-96% of it to lookups. The probe count is
+    geometric because the walked target is memoryless on the quotient, so
+    one-point ratios inherit an exponential's spread. 2 MiB pages cut the
+    page-walk component of the latency without changing contents or probe
+    order. A rho step is register CLMUL arithmetic with a DP table touched
+    once per 2^d steps, so its ns/step is the compute control.
+
+  assumptions:
+    - >-
+      The root table is accessed at hash/canonical-key addresses, not
+      sequentially (proposal assumption; the pointer-chase null object is
+      built as a single random Sattolo cycle to match).
+    - >-
+      KIC_ROOT_TABLE_HUGEPAGE=1 changes only the madvise of the root slots;
+      table contents and probe order are unchanged (crypto protocol,
+      "Instruments"). G.probes checks the probe order against the archive.
+    - >-
+      The rho compute control allocates no advised memory, so the page mode
+      cannot reach it; R reports its drift across the session only.
+    - >-
+      One host only. Hosts are never pooled; claim (3) of the proposal
+      (cross-host normalised spread) is not tested here.
+    - >-
+      The compute term c0 of a probe is not separated: the proposal's
+      cache-resident small-table control is not run (rank work grows as 1/K;
+      a K = 256 smoke run was still ranking after 12 minutes on this host).
+
+  heuristic_assumptions:
+    - id: H1
+      formal_statement: >-
+        For a fixed base K and table, the number of probes until the walk of
+        a uniformly random target hits a stored state is distributed as
+        Geometric(p) with p = A * #states / r, independently across targets;
+        hence CV = sqrt(1 - p) ~ 1, median/mean ~ ln 2 ~ 0.69 and, over n
+        targets, max/mean ~ ln n + 1.
+      random_model_justification: >-
+        The walk on the quotient is memoryless and each probe lands on a
+        stored state with roughly constant probability, so the hitting time
+        is that of a Bernoulli sequence.
+      supporting_results:
+        - section-23 per-target A/A spread 0.81-1.39x (proposal citation, internal)
+      validation_experiment_ids: [EXP-ICPERF-9cd390]
+      falsification_condition: CV < 0.6 or CV > 1.5 on a 64-target panel at a fixed base
+    - id: H2
+      formal_statement: >-
+        On the measured host, a probe's random access into an 8 GiB table is
+        bound by TLB and DRAM latency, so its time is within a constant of
+        the dependent pointer-chase latency over an array of the same bytes
+        and page size.
+      random_model_justification: >-
+        Standard memory-hierarchy behaviour (recalled); the pointer-chase
+        array is a uniform random single cycle over the same bytes.
+      supporting_results: []
+      validation_experiment_ids: [EXP-ICPERF-9cd390]
+      falsification_condition: >-
+        IC ns/probe < 0.5 x the dependent-chase latency (L1 < 0.5), or 2 MiB
+        pages changing IC ns/probe by < 10% in both ABAB pairs while the
+        null object shows a huge-page gain and the kernel backed the table
+        with huge pages.
+
+  heuristic_note: >-
+    H1 and H2 are the proposal's numbered heuristics, kept under its labels.
+    The protocol's claim ids H1.<base> test H1; L1 and T1 test H2. Neither
+    heuristic supports an asymptotic claim; this is a cost-model attribution.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Measurement against null objects; no theorem, reduction or algorithm
+      is claimed (proposal proof_search_map, unchanged).
+    bottleneck: null
+    baseline_embedding: {parameter_slice: null, reproduction_check: null}
+    observation_collision: {observable: null, distinct_preimage_search: null}
+    constructive_transforms: []
+    quantifier_order: null
+    method_ceiling: {strongest_certifiable_claim: null, nearby_object_control: null}
+    proof_obligations: []
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    No complexity claim. Time and memory exponents are unchanged; the record
+    prices constants on one host.
+
+  predictions:
+    - metric: probe_count_cv and median_over_mean per 64-target base panel (H1.<base>)
+      direction: different
+      minimum_effect: CV in [0.9, 1.1] and median/mean in [0.6, 0.8]; falsified if CV < 0.6 or > 1.5
+    - metric: L1 = median IC ns/probe (A1, A2) / median 8 GiB dependent-chase ns/access (A1, A2), 4 KiB pages
+      direction: different
+      minimum_effect: in [1.0, 2.0]; falsified below 0.5
+    - metric: T1 = max(r1, r2), r_k = IC ns/probe B_k / A_k (2 MiB / 4 KiB)
+      direction: lower
+      minimum_effect: <= 0.67; falsified if both |r_k - 1| < 0.10; gated on T1.applied and T1.null
+
+  test_boundary:
+    instances:
+      - curve: Koblitz a = b = 1 over F_2^83, subgroup order 8569786107849059
+      - base: construct:83:1:1798 (1,798 signed-Frobenius columns), packed dense root table 2^29 x 16 B = 8 GiB
+      - targets: 64 public targets research/n83_dense_root_20261013/targets.jsonl (sha256 e9ed7ddb0aeafdbfc7354d67279a8712572eea9d2aee3896f99633bdc2e937cc)
+      - archived panels for H1: k1271_regular, k1271_dense, k1500_dense, k1798_dense (64 targets each)
+    parameters:
+      rank_seed: 29
+      chase_seed: 20261017
+      rho_seed: 2026101301
+      rho_policy: fold-L64-DP6-E0 (research/n83_dense_root_20261013/rho_config.json)
+      env: KIC_PACKED_ROOT_TABLE=1 KIC_PACKED_ROOT_TABLE_DENSE=1 KIC_ROOT_BLOOM=0 KIC_RANK_THREADS=4 KIC_TARGET_THREADS=1
+      page_modes: [4 KiB (MADV_NOHUGEPAGE / switch off), 2 MiB (MADV_HUGEPAGE / KIC_ROOT_TABLE_HUGEPAGE=1)]
+      host: Intel Xeon @ 2.10 GHz family 6 model 207, 4 vCPU KVM, 15 GiB, THP madvise, isolation L0, no PMU
+    implementation: >-
+      crypto commit 286bc22cc7c4f93a354b667981bf786f2f9fa671 (PR
+      aburan28/crypto#2069): research/ic_probe_latency_20261017/run_step.sh,
+      PROTOCOL.md, sources.sha256; examples/ic_probe_latency.rs (chase,
+      geomfit, claims), examples/koblitz_orbit_dlp_fast.rs (producer),
+      examples/n83_rho_optimization_eval.rs (compute control).
+    budget:
+      wall_clock_seconds: 43200
+      memory_gb: 14
+      maximum_runs: 10
+    out_of_boundary:
+      - proposal claim (3), cross-host normalised spread (needs a second host)
+      - the cache-resident small-table control and the compute term c0
+      - k1500_regular and the section-23 sizes (not in the frozen stage-0 panel list)
+      - rho ns/step under 2 MiB pages (rho allocates no advised memory; R is drift only)
+
+  falsification_conditions:
+    - >-
+      H1.<base> FALSIFIED (CV < 0.6 or > 1.5) on a panel: the probe count at
+      that base is not geometric and the unlucky-seed reading needs another
+      model.
+    - >-
+      L1 FALSIFIED (< 0.5): lookups are not latency-bound on this host; the
+      53-96% lookup share is compute (canonicalization/hash), which routes the
+      question to IDEA-20261015-2d8e5a.
+    - >-
+      T1 FALSIFIED (both |r_k - 1| < 0.10 with T1.applied and T1.null PASS):
+      the TLB mechanism is wrong on this host.
+    - >-
+      Not falsifiers: T1 INSTRUMENT_CANNOT_SEE (T1.applied or T1.null FAIL),
+      any NOT_SUPPORTED band, a timeout, crash or OOM, a G.scalars FAIL
+      (invalid run set) and a missing claims.json. Each is infrastructure or
+      an inconclusive reading (AGENTS.md rule 5).
+
+  interpretation_limits:
+    - A reporting and attribution result; it makes no IC arm faster or slower and adds no gap-to-rho row.
+    - One host; no cross-host statement, and no transfer to another host, page-table regime or table size is assumed.
+    - c0 is unseparated; L1's band [1.0, 2.0] admits a compute term of up to one latency.
+    - >-
+      H1 for k1271_regular and k1798_dense was seen by the designer before the
+      freeze (crypto PROTOCOL.md "Disclosure"); those two readings are not
+      blind. If G.probes passes, H1.k1798_dense_on_host_a1 repeats the
+      archived k1798_dense counts and is not an independent sample.
+    - If huge pages help, they are an engineering lever that must then be charged on both arms in a separate contract.
+    - D is descriptive per-unit pricing on one host; no cross-method ranking is made (crypto AGENTS.md section 5a).
+
+  distinguishable_outcomes:
+    - id: SUPPORT
+      when: claim id verdict SUPPORT in claims.json (per claim id; no pooling)
+    - id: NOT_SUPPORTED
+      when: claim id verdict NOT_SUPPORTED (inside neither band)
+    - id: FALSIFIED
+      when: claim id verdict FALSIFIED
+    - id: INSTRUMENT_CANNOT_SEE
+      when: T1 with T1.applied or T1.null FAIL
+    - id: INVALID
+      when: G.scalars FAIL, or claims.json absent
+    - id: DEVIATION
+      when: G.probes FAIL with G.scalars PASS (H1/L1 still read on on-host counts)

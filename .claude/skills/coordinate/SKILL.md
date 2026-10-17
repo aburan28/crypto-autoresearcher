@@ -82,10 +82,13 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    `python3 -m orchestration.adapter resolve --role coordinator`. Refuse
    Bedrock before any inference call.
 5. **Do the ranked Coordinator act**, then stop or continue by mode:
-   - complete a protocol and record approval (`/design-experiment`) when
-     `python3 tools/newest_experiments.py --experiment <EXP-ID> --json`
-     reports `execution_state: ready`. Use approved-unrun counts to rank
-     execution work, never as an approval gate;
+   - complete a protocol and record approval (`/design-experiment`) only
+     after `python3 tools/experiment_preapproval.py --packet <PACKET.json>`
+     reports `approvable: true` for exact prospective final bytes. After the
+     approval archive, require `python3 tools/newest_experiments.py
+     --experiment <EXP-ID> --json` to report `execution_state: ready` before
+     dispatch. Use approved-unrun counts to rank execution work, never as an
+     approval gate;
    - open a bounded batch and write handoffs with exclusive `write_scope`,
      budget, and completion gate (`tools/research_dispatch.py`);
    - freeze a `review_plan` **before** reviewers run, then dispatch
