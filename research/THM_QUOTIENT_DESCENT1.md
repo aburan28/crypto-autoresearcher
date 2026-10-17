@@ -6,6 +6,9 @@
   `formal/targets/quotient-translation-descent.yaml`); see "Formal target" below.
   Despite its name, the theorem proves commutation with ι_S; descent follows as stated in the file header (sheriff SHF-20261017-e4d7f6 L-N9).
   Companion to `IDEA-20260920-0490f5`.
+  *Status history.* Until 2026-10-16 this line read "PROVED (elementary); not yet
+  formalized." It changed when the identity was formalized (sheriff SHF-20261016-3caa6f,
+  L1); this note was added 2026-10-17 (sheriff SHF-20261017-e4d7f6, L-N8).
 - **Closes:** the "Larger group actions?" question on Galbraith's ECC 2015 slides, for every
   x-type coordinate.
 - **Reads:** none required; the proof uses only the group law. Kohel (INDOCRYPT 2012) and
@@ -67,6 +70,13 @@ summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
 
 ## Sage check (to run before minting the formal target)
 
+*Note (2026-10-17, sheriff SHF-20261017-e4d7f6, L-N8).* The formal target was minted
+on 2026-10-16 without this script being run as written; it is kept as written. The
+Lemma's identity is now proved in Lean (below). The background claim was checked
+numerically in Python by the sheriff readers on curves over F_1009 and F_211
+(`research/sheriff/SHF-20261016-3caa6f/scripts/readers/lean/descent_check.out`,
+`research/sheriff/SHF-20261017-e4d7f6/scripts/readers/lean/descent_recheck.out`).
+
     p = 1009; F = GF(p)
     E = EllipticCurve(F, [0, 2, 0, 5, 0])      # y^2 = x(x^2 + 2x + 5), T2 = (0,0)
     T2 = E(0, 0)
@@ -85,7 +95,10 @@ summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
 
 The statement needs only the abelian-group structure of E(k̄); no scheme theory. It is
 proved for any additive commutative group and is built and axiom-audited by the
-`formal-workspace` job of `.github/workflows/lean-verification.yml`. It formalizes the
+`formal-workspace` job of `.github/workflows/lean-verification.yml`. (That workflow has been
+disabled on GitHub since 2026-10-12, so CI has not yet built it; the module was built and
+axiom-audited, `[propext]` only, by sheriff case SHF-20261017-e4d7f6,
+`research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/`. Note added 2026-10-17.) It formalizes the
 Lemma's computation only: that degree-2 maps are quotients by some ι_S, and that
 "descends" means "commutes with ι_S", remain the prose argument above.
 
