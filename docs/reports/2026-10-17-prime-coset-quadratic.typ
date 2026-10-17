@@ -22,7 +22,9 @@ it is not a direct S8 computation.
 For this 380-column base, signed multisets bound uniform-target coverage by
 binomial(760+m−1, m)/r. At m=7 the ceiling is 0.323848%; at m=8 it is
 31.048916%. Collisions can only lower these values. Extra target shifts,
-bases, or another complete-target method need explicit cost accounting.
+bases, or another complete-target method need explicit cost accounting. The
+optimistic m=8 count reaches subgroup order only at B=441 or more; the archived
+base has B=380, and counting alone never guarantees coverage.
 
 == Independent check
 
