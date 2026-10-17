@@ -283,3 +283,81 @@ def test_must_not_exist_is_checked_before_anything_runs(tmp_path):
     with pytest.raises(tc.CardError, match="already exist"):
         tc.run_card("card.yaml", "0" * 64, card, repo)
     assert not (repo / "out/receipt.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Batch lane: request carries every fact, ingest accepts only a correct reply
+# ---------------------------------------------------------------------------
+
+def _with_contract(repo):
+    agents = repo / ".claude" / "agents"
+    agents.mkdir(parents=True)
+    (agents / "experiment-director.md").write_text("---\nname: experiment-director\n---\nDirector rules.\n")
+    (repo / "design.md").write_text("Run tools/emit.py with argument 0, timeout 30 s.\n")
+    return repo
+
+
+def _fence(doc):
+    return "```yaml\n" + tc.yaml.safe_dump(doc, sort_keys=False) + "```\n"
+
+
+def test_compile_request_carries_head_digests_contract_and_design(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    _with_contract(repo)
+    prompt = tc.compile_request(["design.md"], ["tools/emit.py", "missing.py"], "cards/c.yaml", repo)
+    assert head in prompt and rb.sha256_file(script) in prompt
+    assert "bind missing.py: DOES NOT EXIST" in prompt
+    assert "Director rules." in prompt and "name: experiment-director" not in prompt
+    assert "Run tools/emit.py with argument 0" in prompt
+    assert prompt == tc.compile_request(["design.md"], ["tools/emit.py", "missing.py"], "cards/c.yaml", repo)
+
+
+def test_ingest_writes_a_clean_card_and_refuses_errors_and_bad_digests(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    card = _frozen_card(script, head)
+    good = _fence(card) + _fence({"specification_errors": []})
+    assert tc.ingest("Here:\n" + good, "cards/c.yaml", "card", None, repo) == []
+    assert (repo / "cards/c.yaml").is_file()
+    assert any("write-once" in f for f in tc.ingest(good, "cards/c.yaml", "card", None, repo))
+
+    errs = _fence(card) + _fence({"specification_errors": ["timeout not in the design"]})
+    assert tc.ingest(errs, "cards/d.yaml", "card", None, repo) == [
+        "specification_error: timeout not in the design"]
+    card["binds"][0]["sha256"] = "0" * 64           # a digest the model invented
+    bad = _fence(card) + _fence({"specification_errors": []})
+    assert any("does not match its sha256" in f for f in tc.ingest(bad, "cards/e.yaml", "card", None, repo))
+    assert not (repo / "cards/d.yaml").exists() and not (repo / "cards/e.yaml").exists()
+
+
+def _assessment(card, outcome, recommendation):
+    return _fence({"execution_assessment": {
+        "card_id": card["card_id"], "card_sha256": "x", "outcome": outcome,
+        "recommendation": recommendation, "reasons": ["status: completed"],
+        "interpretation": "not_assessed"}})
+
+
+def test_assessment_outcome_is_determined_by_the_facts(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    _with_contract(repo)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "contract"], cwd=repo, check=True)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True,
+                          text=True, check=True).stdout.strip()
+    card = _frozen_card(script, head)
+    assert tc.assessment_facts(card, None, repo)["outcome"] == "impeded"
+    (repo / "preexisting.txt").write_text("dirty before the run")
+    tc.run_card("card.yaml", "0" * 64, card, repo)
+    facts = tc.assessment_facts(card, None, repo)
+    assert facts["outcome"] == "executed_as_specified" and facts["writes_outside_scope"] == []
+    prompt = tc.assess_request("card.yaml", "0" * 64, card, None, repo)
+    assert "`executed_as_specified`" in prompt and "value=42" in prompt
+
+    wrong = _assessment(card, "stopped", "respecify")
+    assert any("the facts determine executed_as_specified" in f
+               for f in tc.ingest(wrong, "out/a.yaml", "assessment", card, repo))
+    assert tc.ingest(_assessment(card, "executed_as_specified", "proceed_to_analysis"),
+                     "out/a.yaml", "assessment", card, repo) == []
+
+    (repo / "stray.txt").write_text("written after the run, outside write_scope")
+    facts = tc.assessment_facts(card, None, repo)
+    assert facts["writes_outside_scope"] == ["stray.txt"] and facts["outcome"] == "executor_deviated"

@@ -40,6 +40,17 @@ it; never edit a copy.
     python3 tools/task_card.py prompt <card.yaml>
     python3 tools/task_card.py run <card.yaml>            # frozen_command only
     python3 tools/task_card.py check-relay <card.yaml> --report <executor-report.txt>
+    python3 tools/task_card.py request compile --design <spec> [--bind <path>]... --out <card.yaml>
+    python3 tools/task_card.py request assess <card.yaml> [--report <executor-report.txt>]
+    python3 tools/task_card.py ingest <reply.md> --expect card --out <card.yaml>
+    python3 tools/task_card.py ingest <reply.md> --expect assessment --card <card.yaml> --out <assessment.yaml>
+
+BATCH LANE. `request` prints a single-turn prompt with every fact computed
+(HEAD, sha256s, the receipt, what changed on disk), for a batch API: Delphi
+(`conductor delphi ask --profile director --wait --file <prompt>`) or
+`python3 -m orchestration.adapter batch submit --role experiment-director`
+in crypto-autoresearcher. `ingest` writes the reply only when it is
+mechanically right. Between them, `run` executes the card with no model.
 
 Exit status: 0 clean / completed, 1 findings, 2 the card could not be read or
 `run` refused to start, 3 `run` stopped at a failing command (a result to
@@ -475,6 +486,7 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
     head = git(repo, "rev-parse", "HEAD")[1]
     if card.get("commit") and card["commit"] != head:
         raise CardError(f"card pins commit {card['commit']}, HEAD is {head}")
+    dirty_before = _dirty_paths(repo)
 
     results, status = [], "completed"
     for index, command in enumerate(card["commands"], 1):
@@ -505,6 +517,7 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
             break
     receipt = {"schema": RECEIPT_SCHEMA, "card_id": card["card_id"], "card_path": card_path,
                "card_sha256": card_sha, "commit": head, "status": status,
+               "dirty_before": dirty_before,
                "commands_total": len(card["commands"]), "commands": results}
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -595,6 +608,245 @@ def check_relay(card: dict[str, Any], report_text: str, repo: Path = REPO) -> di
     return result
 
 
+# ---------------------------------------------------------------------------
+# Batch lane: self-contained director requests, mechanically ingested replies
+# ---------------------------------------------------------------------------
+#
+# A batch request (Delphi through Conductor, or `orchestration.adapter batch`
+# in crypto-autoresearcher) is one turn: the model reads no file and runs no
+# command. So `request` puts every fact in the prompt, computed by this tool
+# (HEAD, every sha256, the receipt, what changed on disk), and `ingest` accepts
+# a reply only when it is mechanically right: the card lints, the assessment's
+# outcome is the one the facts determine. The mechanical tier needs no model
+# here at all: `run` executes the card.
+
+YAML_BLOCK = re.compile(r"```ya?ml[ \t]*\n(.*?)\n```", re.DOTALL)
+OUTCOMES = ("executed_as_specified", "stopped", "impeded", "executor_deviated")
+RECOMMENDATIONS = ("proceed_to_analysis", "rerun_after_infrastructure_fix", "respecify", "escalate")
+ALLOWED = {"executed_as_specified": ("proceed_to_analysis",),
+           "executor_deviated": ("escalate",),
+           "stopped": ("rerun_after_infrastructure_fix", "respecify", "escalate"),
+           "impeded": ("rerun_after_infrastructure_fix", "respecify", "escalate")}
+
+
+def _dirty_paths(repo: Path) -> list[str]:
+    code, out = git(repo, "status", "--porcelain", "--untracked-files=all")
+    if code != 0:
+        return []
+    return sorted(line[3:].split(" -> ")[-1].strip('"') for line in out.splitlines() if line)
+
+
+def _contract(repo: Path) -> str:
+    """The director's full contract: `agents/` in crypto-autoresearcher, where the
+    `.claude/agents/` file is a generated pointer to it; `.claude/agents/` elsewhere."""
+    for path in (repo / "agents" / "experiment-director.md",
+                 repo / ".claude" / "agents" / "experiment-director.md"):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            break
+    else:
+        raise CardError("no experiment-director contract in this repository")
+    if text.startswith("---"):
+        text = text.split("---", 2)[2]
+    return text.strip()
+
+
+def _fenced(label: str, text: str, lang: str = "") -> list[str]:
+    return [f"### {label}", "", f"````{lang}", text.rstrip("\n"), "````", ""]
+
+
+def compile_request(designs: list[str], binds: list[str], card_out: str, repo: Path = REPO) -> str:
+    """The prompt for a director compile in one turn, deterministic in the repository state."""
+    card_out = safe_relative(card_out)
+    head = git(repo, "rev-parse", "HEAD")[1]
+    facts = [f"repository HEAD: {head}", f"card path: {card_out}"]
+    for relative in binds:
+        relative = safe_relative(relative)
+        file = repo / relative
+        facts.append(f"bind {relative}: " + (f"sha256 {sha256_file(file)}" if file.is_file() else "DOES NOT EXIST"))
+    lines = [
+        "You are experiment-director in compile mode, answering in a single turn through a batch API.",
+        "You cannot read files or run commands. Every fact you may use is in this message; the facts "
+        "under 'Computed facts' were computed by tools/task_card.py and are copied, never recomputed. "
+        "A value the design does not give is a specification error, never a default.",
+        "",
+        "Write a `kind: frozen_command` card. Reply with exactly two fenced yaml blocks and nothing "
+        "else: first the card, then `specification_errors: [...]` (an empty list only when every value "
+        "came from the design or the facts). `tools/task_card.py ingest` writes the card only when it "
+        "lints clean and the error list is empty.",
+        "",
+    ]
+    lines += _fenced("Your role contract (this repository's experiment-director)", _contract(repo), "markdown")
+    template = repo / "templates" / "mechanical-task-card.yaml"
+    if template.is_file():
+        lines += _fenced("Card template", template.read_text(encoding="utf-8"), "yaml")
+    lines += _fenced("Computed facts", "\n".join(facts))
+    for relative in designs:
+        relative = safe_relative(relative)
+        file = repo / relative
+        try:
+            data = file.read_bytes()
+        except OSError:
+            raise CardError(f"design {relative} cannot be read") from None
+        lines += _fenced(f"Decided design: {relative} (sha256 {sha256_bytes(data)})",
+                         data.decode("utf-8", errors="replace"))
+    return "\n".join(lines)
+
+
+def assessment_facts(card: dict[str, Any], report_text: str | None = None, repo: Path = REPO) -> dict[str, Any]:
+    """Everything an assessment rests on, and the outcome those facts determine."""
+    facts: dict[str, Any] = {"card_id": card["card_id"], "receipt": card.get("receipt")}
+    path = repo / safe_relative(str(card.get("receipt") or ""))
+    if card.get("kind") != "frozen_command" or not path.is_file():
+        facts.update(receipt_present=False, outcome="impeded")
+        return facts
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    mismatched = []
+    for item in receipt.get("commands", []):
+        for output, digest in (item.get("outputs") or {}).items():
+            now = sha256_file(repo / output) if (repo / output).is_file() else None
+            if digest is not None and now != digest:
+                mismatched.append(output)
+    scope = card["write_scope"]
+    before = set(receipt.get("dirty_before") or [])
+    outside = [p for p in _dirty_paths(repo)
+               if p not in before and not _scope_covers(scope, p)]
+    facts.update(receipt_present=True, receipt_sha256=sha256_file(path), status=receipt["status"],
+                 summary=brief(receipt, card["receipt"], sha256_file(path)),
+                 outputs_changed_since_run=mismatched, writes_outside_scope=outside)
+    deviated = bool(mismatched or outside)
+    if report_text is not None:
+        relay = check_relay(card, report_text, repo)
+        facts["relay_verbatim"] = relay["relay_verbatim"]
+        deviated = deviated or not relay["relay_verbatim"]
+    else:
+        facts["relay"] = "none: tools/task_card.py run was invoked directly, no executor relayed"
+    if deviated:
+        facts["outcome"] = "executor_deviated"
+    else:
+        facts["outcome"] = "executed_as_specified" if receipt["status"] == "completed" else "stopped"
+    return facts
+
+
+def assess_request(card_path: str, card_sha: str, card: dict[str, Any], report_text: str | None = None,
+                   repo: Path = REPO) -> str:
+    facts = assessment_facts(card, report_text, repo)
+    allowed = ALLOWED[facts["outcome"]]
+    summary = facts.pop("summary", None)
+    lines = [
+        "You are experiment-director in assess mode, answering in a single turn through a batch API.",
+        "You cannot read files or run commands. The facts below were computed by tools/task_card.py "
+        f"from the receipt and the checkout. They determine the outcome: `{facts['outcome']}`. Your "
+        f"part is the recommendation, one of {list(allowed)}, and one reason per line citing the fact "
+        "or summary line it rests on. Never interpret the result.",
+        "",
+        "Reply with exactly one fenced yaml block and nothing else:",
+        "",
+        "```yaml",
+        "execution_assessment:",
+        f"  card_id: {card['card_id']}",
+        f"  card_sha256: {card_sha}",
+        f"  outcome: {facts['outcome']}",
+        f"  recommendation: <one of {' | '.join(allowed)}>",
+        "  reasons: [<one line each>]",
+        "  interpretation: not_assessed",
+        "```",
+        "",
+    ]
+    lines += _fenced("Your role contract (this repository's experiment-director)", _contract(repo), "markdown")
+    lines += _fenced(f"Card {card_path} (sha256 {card_sha})", yaml.safe_dump(card, sort_keys=False), "yaml")
+    lines += _fenced("Computed facts", yaml.safe_dump(facts, sort_keys=True), "yaml")
+    if summary:
+        lines += _fenced("Run summary (tools/task_card.py, derived from the receipt)", summary)
+    return "\n".join(lines)
+
+
+def _blocks(text: str) -> list[Any]:
+    out = []
+    for body in YAML_BLOCK.findall(text):
+        try:
+            out.append(yaml.safe_load(body))
+        except yaml.YAMLError:
+            out.append(None)
+    return out
+
+
+def ingest(reply: str, out: str, expect: str, card: dict[str, Any] | None = None,
+           repo: Path = REPO) -> list[str]:
+    """Validate a model's reply and write it write-once; findings mean nothing was written."""
+    out = safe_relative(out)
+    target = repo / out
+    if target.exists():
+        return [f"{out} already exists; cards and assessments are write-once"]
+    blocks = [b for b in _blocks(reply) if isinstance(b, dict)]
+    if expect == "card":
+        cards = [b for b in blocks if "schema" in b]
+        errors = [b for b in blocks if "specification_errors" in b]
+        if len(cards) != 1:
+            return [f"reply must hold exactly one card block, found {len(cards)}"]
+        if not errors:
+            return ["reply has no specification_errors block"]
+        listed = errors[0]["specification_errors"] or []
+        if listed:
+            return [f"specification_error: {item}" for item in listed]
+        findings = lint(cards[0], repo)
+        if findings:
+            return findings
+        document = cards[0]
+    else:
+        assessments = [b["execution_assessment"] for b in blocks
+                       if isinstance(b.get("execution_assessment"), dict)]
+        if len(assessments) != 1:
+            return [f"reply must hold exactly one execution_assessment block, found {len(assessments)}"]
+        record = assessments[0]
+        facts = assessment_facts(card, None, repo)
+        findings = []
+        if record.get("card_id") != card["card_id"]:
+            findings.append(f"card_id: {record.get('card_id')} is not {card['card_id']}")
+        if record.get("outcome") != facts["outcome"]:
+            findings.append(f"outcome: {record.get('outcome')}; the facts determine {facts['outcome']}")
+        if record.get("recommendation") not in ALLOWED[facts["outcome"]]:
+            findings.append(f"recommendation: {record.get('recommendation')} is not one of "
+                            f"{list(ALLOWED[facts['outcome']])} for {facts['outcome']}")
+        if record.get("interpretation") != "not_assessed":
+            findings.append("interpretation: must be not_assessed")
+        reasons = record.get("reasons")
+        if not (isinstance(reasons, list) and reasons and all(isinstance(r, str) and r for r in reasons)):
+            findings.append("reasons: list at least one reason")
+        if findings:
+            return findings
+        record["facts"] = {k: v for k, v in facts.items() if k != "summary"}
+        document = {"execution_assessment": record}
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    return []
+
+
+def _main_batch(args) -> int:
+    try:
+        if args.command == "request" and args.mode == "compile":
+            sys.stdout.write(compile_request(args.design, args.bind or [], args.out) + "\n")
+            return 0
+        card = None
+        if args.card:
+            card_path, card_sha, card = load_card(args.card)
+        if args.command == "request":
+            report = Path(args.report).read_text(encoding="utf-8") if args.report else None
+            sys.stdout.write(assess_request(card_path, card_sha, card, report) + "\n")
+            return 0
+        if args.expect == "assessment" and card is None:
+            raise CardError("ingest --expect assessment needs --card")
+        reply = Path(args.reply).read_text(encoding="utf-8")
+        findings = ingest(reply, args.out, args.expect, card)
+    except CardError as exc:
+        print(f"CARD ERROR {exc}")
+        return 2
+    for item in findings:
+        print(f"INGEST: {item}")
+    print(f"INGEST {'FAIL' if findings else 'OK'} {args.out}")
+    return 1 if findings else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -603,7 +855,25 @@ def main(argv: list[str] | None = None) -> int:
     relay = sub.add_parser("check-relay")
     relay.add_argument("card")
     relay.add_argument("--report", required=True, help="the executor's returned text, saved to a file")
+    request = sub.add_parser("request", help="a self-contained director prompt for a batch API")
+    request.add_argument("mode", choices=("compile", "assess"))
+    request.add_argument("card", nargs="?", help="assess: the card")
+    request.add_argument("--design", action="append", help="compile: a decided design file (repeatable)")
+    request.add_argument("--bind", action="append", help="compile: a file whose sha256 the card binds")
+    request.add_argument("--out", help="compile: where the card will be written")
+    request.add_argument("--report", help="assess: an executor's relayed text, when one relayed")
+    take = sub.add_parser("ingest", help="validate a batch reply and write it write-once")
+    take.add_argument("reply")
+    take.add_argument("--expect", choices=("card", "assessment"), required=True)
+    take.add_argument("--out", required=True)
+    take.add_argument("--card", help="assessment: the card it assesses")
     args = parser.parse_args(argv)
+    if args.command in ("request", "ingest"):
+        if args.command == "request" and args.mode == "compile" and not (args.design and args.out):
+            parser.error("request compile needs --design and --out")
+        if args.command == "request" and args.mode == "assess" and not args.card:
+            parser.error("request assess needs the card")
+        return _main_batch(args)
 
     try:
         card_path, card_sha, card = load_card(args.card)
