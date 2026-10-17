@@ -21,12 +21,13 @@ def fmt(x, d=3):
 pool = collections.OrderedDict()
 for c in cells:
     key = (c['n'], c['m'], c['k'], c['V'])
-    p = pool.setdefault(key, dict(reps=0, targets=0, succ=0, dec=0, lam_t=0.0, FBp=[], FBx=[], orb=[], Vs=[],
+    p = pool.setdefault(key, dict(reps=0, targets=0, succ=0, dec=0, rows=0, lam_t=0.0, FBp=[], FBx=[], orb=[], Vs=[],
                                   shifts_w=0.0, shifts_n=0, conj=[], nbU=[], nbUFB=[], censored=False, a=c['a'], r=c['r'], h=c['h']))
     p['reps'] += 1
     p['targets'] += c['targets']
     p['succ'] += c['successes']
     p['dec'] += c['decompositions']
+    p['rows'] += c.get('reduced_rows', c['decompositions'])
     p['lam_t'] += c['heuristic_lambda_r'] * c['targets']
     p['FBp'].append(c['FB_points']); p['FBx'].append(c['FB_x']); p['orb'].append(c['tau_orbits']); p['Vs'].append(c['V_size'])
     if c['mean_usable_shifts'] is not None:
@@ -42,13 +43,15 @@ for key, p in pool.items():
     n, m, k, V = key
     FBp = sum(p['FBp']) / p['reps']; FBx = sum(p['FBx']) / p['reps']; orb = sum(p['orb']) / p['reps']
     rpa = p['dec'] / p['targets'] if p['targets'] else None
+    rows_pa = p['rows'] / p['targets'] if p['targets'] else None
     lam = p['lam_t'] / p['targets'] if p['targets'] else None
-    eff = (rpa / lam) if (rpa is not None and lam) else None
-    # binomial-ish standard error on eff from Poisson count of decompositions
-    eff_se = (math.sqrt(p['dec']) / (lam * p['targets'])) if (lam and p['dec']) else None
+    eff = (rows_pa / lam) if (rows_pa is not None and lam) else None
+    eff_dec = (rpa / lam) if (rpa is not None and lam) else None
+    # Poisson-count standard error on eff
+    eff_se = (math.sqrt(p['rows']) / (lam * p['targets'])) if (lam and p['rows']) else None
     rows[key] = dict(n=n, m=m, k=k, V=V, reps=p['reps'], Vsize=sum(p['Vs']) / p['reps'], FBp=FBp, FBx=FBx, orb=orb,
                      g=(FBx / orb) if orb else None, targets=p['targets'], succ=p['succ'], dec=p['dec'],
-                     p=p['succ'] / p['targets'] if p['targets'] else None, rpa=rpa, lam=lam, eff=eff, eff_se=eff_se,
+                     p=p['succ'] / p['targets'] if p['targets'] else None, rpa=rpa, rows=rows_pa, nrows=p['rows'], lam=lam, eff=eff, eff_dec=eff_dec, eff_se=eff_se,
                      shifts=(p['shifts_w'] / p['shifts_n']) if p['shifts_n'] else None,
                      conj=(sum(p['conj']) / len(p['conj'])) if p['conj'] else None,
                      nbU=(sum(p['nbU']) / len(p['nbU'])) if p['nbU'] else None,
@@ -71,15 +74,16 @@ w('## Per-cell table (pooled over replicates)\n')
 w('Columns: |V| x-values; |FB| subgroup points with x in V; FB_x distinct x in FB (= negation-reduced size); '
   'orbits = number of tau-orbits meeting FB_x (= <tau,-1>-orbit count, the orbit-reduced factor-base size); '
   'g = FB_x/orbits; T targets; p = P(at least one decomposition); d/s = decompositions per success; '
-  'rpa = decompositions per attempt (relations per attempt, one row each in the orbit-reduced matrix); '
-  'lambda = C(|FB|,m)/r; eff = rpa/lambda (+- 1 s.e.); shifts = mean number of j in [0,n) such that the conjugate relation tau^j(.) lies entirely inside FB again '
+  'dpa = decompositions per attempt; rpa = DISTINCT relations per attempt after projecting each decomposition onto <tau,-1>-orbit representatives '
+  '(row = {orbit rep: sum of sign*mu^j} mod r; decompositions of one target that differ by a kernel identity such as tau^2 - t*tau + 2 = 0 collapse to one row); '
+  'dup = 1 - rpa/dpa; lambda = C(|FB|,m)/r; eff = rpa/lambda (+- 1 s.e.); shifts = mean number of j in [0,n) such that the conjugate relation tau^j(.) lies entirely inside FB again '
   '(the usable part of the orbit; 1 means only j=0).\n')
-w('| n | m | k | V | reps | \\|V\\| | \\|FB\\| | FB_x | orbits | g | T | p | d/s | rpa | lambda | eff | shifts/n |')
-w('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|')
+w('| n | m | k | V | reps | \\|V\\| | \\|FB\\| | FB_x | orbits | g | T | p | d/s | dpa | rpa | dup | lambda | eff | shifts/n |')
+w('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|')
 for key, r in rows.items():
     ds = (r['dec'] / r['succ']) if r['succ'] else None
     effs = f"{fmt(r['eff'],2)}+-{fmt(r['eff_se'],2)}" if r['eff'] is not None else '--'
-    w(f"| {r['n']} | {r['m']} | {r['k']} | {r['V']} | {r['reps']} | {r['Vsize']:.0f} | {r['FBp']:.0f} | {r['FBx']:.0f} | {r['orb']:.0f} | {fmt(r['g'],2)} | {r['targets']} | {fmt(r['p'])} | {fmt(ds,2)} | {fmt(r['rpa'])} | {fmt(r['lam'])} | {effs} | {fmt(r['shifts'],1)}/{r['n']} |"
+    w(f"| {r['n']} | {r['m']} | {r['k']} | {r['V']} | {r['reps']} | {r['Vsize']:.0f} | {r['FBp']:.0f} | {r['FBx']:.0f} | {r['orb']:.0f} | {fmt(r['g'],2)} | {r['targets']} | {fmt(r['p'])} | {fmt(ds,2)} | {fmt(r['rpa'])} | {fmt(r['rows'])} | {fmt(1 - r['rows']/r['rpa'] if r['rpa'] else None,2)} | {fmt(r['lam'])} | {effs} | {fmt(r['shifts'],1)}/{r['n']} |"
       + (' CENSORED' if r['censored'] else ''))
 
 w('\n## Gain in the relation-collection phase, per V, relative to V_poly with negation only\n')
@@ -87,7 +91,7 @@ w('Accounting (derived, see README): in the orbit-reduced matrix each decomposit
   'unknowns is `orbits`; the conjugate rows tau^j(rel) are the same row times mu^j, so they add no rank. '
   'Relations needed = orbits. Attempts needed = orbits/rpa. '
   'Baseline: V_poly, negation only (unknowns = FB_x_poly, rows per attempt = rpa_poly).\n')
-w('- `raw` = log2((rpa_V/orbits_V)/(rpa_poly/FB_x_poly)) at the sizes actually realised (|FB| differ slightly between V families at the same k).')
+w('- `raw` = log2((rpa_V/orbits_V)/(rpa_poly/FB_x_poly)) at the sizes actually realised (|FB| differ slightly between V families at the same k); rpa counts distinct projected rows.')
 w('- `struct` = log2(g_V): the orbit-reduction factor alone (pure counting of the factor base).')
 w('- `dec` = log2(eff_V/eff_poly): change in decomposition yield at matched |FB| (measured; 0 means tau-friendliness does not change the decomposition probability).')
 w('- `matched` = struct + dec: the size-normalised gain. Bound: log2(n) for tau (negation is shared by all three V and is not counted).')
@@ -98,16 +102,16 @@ gain_summary = collections.defaultdict(list)
 for key, r in rows.items():
     n, m, k, V = key
     base = rows.get((n, m, k, 'poly'))
-    if base is None or not base['rpa'] or not r['rpa'] or not r['orb']:
+    if base is None or not base['rows'] or not r['rows'] or not r['orb']:
         continue
-    raw = lg((r['rpa'] / r['orb']) / (base['rpa'] / base['FBx']))
+    raw = lg((r['rows'] / r['orb']) / (base['rows'] / base['FBx']))
     struct = lg(r['g'])
     dec = lg(r['eff'] / base['eff']) if (r['eff'] and base['eff']) else float('nan')
     matched = struct + dec
-    unred = lg((r['rpa'] * 2 * (r['shifts'] or 0) / r['FBp']) / (base['rpa'] * 2 * 1 / base['FBp'])) if r['shifts'] else float('nan')
+    unred = lg((r['rows'] * 2 * (r['shifts'] or 0) / r['FBp']) / (base['rows'] * 2 * 1 / base['FBp'])) if r['shifts'] else float('nan')
     w(f"| {n} | {m} | {k} | {V} | {fmt(raw,2)} | {fmt(struct,2)} | {fmt(dec,2)} | {fmt(matched,2)} | {fmt(lg(n),2)} | {fmt(unred,2)} |")
     for thr in (30, 300):
-        if r['dec'] >= thr and base['dec'] >= thr:
+        if r['nrows'] >= thr and base['nrows'] >= thr:
             gain_summary[(thr, V, m)].append((n, k, struct, dec, matched, lg(n)))
 
 for thr in (30, 300):
@@ -140,13 +144,13 @@ for key, r in rows.items():
 
 w('\n## Heuristic check (d): V_poly, m = 2\n')
 w('lambda_r = C(|FB|,2)/r (targets and factor base in the order-r subgroup); lambda_E = C(|FB|,2)/#E is the formula with #E, off by the cofactor h.\n')
-w('| n | k | \\|FB\\| | T | p measured | 1-exp(-lambda_r) | rpa measured | lambda_r | rpa/lambda_r | lambda_E | rpa/lambda_E |')
+w('| n | k | \\|FB\\| | T | p measured | 1-exp(-lambda_r) | dpa measured | lambda_r | dpa/lambda_r | lambda_E | dpa/lambda_E |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
 for key, r in rows.items():
     if r['V'] != 'poly' or r['m'] != 2:
         continue
     lamE = r['lam'] / r['h']
-    w(f"| {r['n']} | {r['k']} | {r['FBp']:.0f} | {r['targets']} | {fmt(r['p'])} | {fmt(1-math.exp(-r['lam']))} | {fmt(r['rpa'])} | {fmt(r['lam'])} | {fmt(r['eff'],2)} | {fmt(lamE)} | {fmt(r['rpa']/lamE if lamE else None,2)} |")
+    w(f"| {r['n']} | {r['k']} | {r['FBp']:.0f} | {r['targets']} | {fmt(r['p'])} | {fmt(1-math.exp(-r['lam']))} | {fmt(r['rpa'])} | {fmt(r['lam'])} | {fmt(r['eff_dec'],2)} | {fmt(lamE)} | {fmt(r['rpa']/lamE if lamE else None,2)} |")
 
 # provenance
 w('\n## Provenance\n')
@@ -154,6 +158,6 @@ for fn in ['tau_fb_pilot.py', 'aggregate.py', 'results/cells.jsonl', 'results/cu
     pth = os.path.join(HERE, fn)
     if os.path.exists(pth):
         w(f"- `{fn}` sha256 `{hashlib.sha256(open(pth,'rb').read()).hexdigest()}`")
-w(f"- cells: {len(cells)} rows; censored cells: {sum(1 for c in cells if c['censored'])}; total enumeration seconds: {sum(c['seconds'] for c in cells):.0f}")
+w(f"- cells: {len(cells)} rows; mu per curve: { {c['n']: c.get('mu') for c in cells} }; censored cells: {sum(1 for c in cells if c['censored'])}; total enumeration seconds: {sum(c['seconds'] for c in cells):.0f}")
 open(os.path.join(HERE, 'aggregate.md'), 'w').write('\n'.join(out) + '\n')
 print('\n'.join(out))
