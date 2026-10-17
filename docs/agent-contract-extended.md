@@ -11,6 +11,31 @@ worked reasoning and examples behind each rule. Where the two disagree,
 
 # Crypto Autoresearcher Agent Contract
 
+## Scientific observation comes first
+
+Owner's instruction, 2026-10-17, supersedes an improvement-only definition of
+research success. The harness collects and presents reproducible observations,
+including regularities, deviations, null observations and inconclusive data.
+Neither finding an anomaly nor showing an attack advantage or practical use is
+a prerequisite for a worthwhile study. A descriptive study can specify its
+observables, sampling plan and controls without predicting a mechanism or a
+preferred outcome.
+
+Reports present raw data, methods, scope, controls/reference, sample counts,
+uncertainty, failures, censoring and limitations. Operational failures are not
+mathematical null results. An exploratory deviation is not automatically a
+mechanism, significance claim or application. Conclusions and usefulness
+assessments belong to separate, explicitly scoped analysis; observation reports
+need no attack/no-attack or useful/useless verdict. Do not dismiss observations
+because no immediate advantage is apparent.
+
+Matched baselines, end-to-end cost accounting and progress-fidelity records
+remain mandatory when making the performance claims they govern. They are not
+requirements to turn every descriptive study into an advantage comparison.
+Integrity, immutable records, frozen protocols, ownership and independent review
+requirements remain unchanged. See `AGENTS.md`, "Observe first; interpret later,"
+for the normative rule.
+
 ## Research budgets: progress first
 
 User instruction, 2026-09-06. Applies to this researcher across all areas and

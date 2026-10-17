@@ -5,19 +5,46 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
-## Every improvement is a success
+## Observe first; interpret later
 
-Owner's rule, 2026-10-15. The success criterion is a verified, measured
-improvement over the current index-calculus baseline: the best verified
-pipeline for that curve and size, frozen with its protocol and end-to-end
-`S`. Beating Pollard rho is the long-term goal, reached by accumulating
-such improvements, not by one breakthrough. Advance and engineering
-results are successes. Relabelling, accounting and null results are
-recorded but are not improvements. Each landed improvement becomes the new
-baseline, recorded with its delta. Every row reports its gap to the
-matched rho (and to Bernstein–Lange when setup is excluded) as the
-distance remaining, never as a pass/fail gate. A claim to beat rho still
-needs the full reference rules.
+Owner's instruction, 2026-10-17. This is a scientific research harness.
+Its primary purpose is to collect and present reproducible observations:
+distributions, regularities, deviations, unexpected behavior, null observations
+and unresolved measurements. A valid study does not need to discover an
+anomaly, demonstrate an attack advantage, beat a baseline, or establish
+practical usefulness. Those are possible later research questions, not the
+default test of whether an observation is worth collecting or reporting.
+
+Present the data first: exact inputs and scope, methods, controls or stated
+reference, sample counts, raw outputs, uncertainty, censoring, failures and
+limitations. Distinguish successful execution and measurement integrity from
+the direction or interpretation of the observations. Keep operational failures
+separate from mathematical null results. Preserve all outcomes without selecting
+only favorable or surprising ones.
+
+Descriptive studies are legitimate work. State their observables and sampling
+plan without inventing a predicted mechanism or a desired scientific outcome.
+If a deviation is called an anomaly, name its reference and uncertainty;
+exploratory patterns remain observations pending separate checks. Do not force
+a useful/useless, attack/no-attack, support/reject or security conclusion into
+an observation report. Do not routinely summarize measurements as "no attack
+advantage": assess applications only when that analysis is requested or is an
+explicit part of the protocol. Conclusions can be considered separately later.
+
+This instruction supersedes an improvement-only definition of research success.
+It guides future work and reporting; frozen protocols and historical records
+remain intact. Existing integrity, ownership, resource and claim-review rules
+still apply.
+
+### When a task actually studies performance
+
+Verified improvements are valid findings within an explicitly scoped performance
+study, using its stated matched reference. ECDLP pipeline comparisons use the
+frozen matched index-calculus baseline and end-to-end `S`, and report the matched
+rho gap where applicable; a claim to beat rho retains the full reference rules.
+These requirements qualify performance claims, not unrelated descriptive
+measurements. A null observation is valid research data without being relabeled
+an improvement.
 
 ## Name the obstruction
 
@@ -173,7 +200,11 @@ than requesting them.
 
 ## Mandatory progress-fidelity gate
 
-Every new quantitative speedup, performance advantage, or ECDLP attack-cost claim MUST carry a machine-readable record in `claims/*.json` passing `python3 -m tools.progress_fidelity validate`. Local subroutine gains must not be presented as end-to-end gains. All claims require matched baseline/candidate evidence and independent verification; see `docs/progress-fidelity.md`. Missing evidence is unqualified, never inferred. The Coordinator must enforce this for claims in prose as well as code; the `progress-fidelity` CI check must be required by branch protection before merge.
+Every new quantitative speedup, performance advantage, or ECDLP attack-cost claim MUST carry a machine-readable record in `claims/*.json` passing `python3 -m tools.progress_fidelity validate`. Local subroutine gains must not be presented as end-to-end gains. Such claims require matched baseline/candidate evidence and independent verification; see `docs/progress-fidelity.md`. Missing evidence is unqualified, never inferred. The Coordinator must enforce this for claims in prose as well as code; the `progress-fidelity` CI check must be required by branch protection before merge.
+
+This gate qualifies those claims; it does not require descriptive observations
+to assert an advantage or invent a baseline comparison. Report the actual
+controls and reference specified by the study, and defer broader interpretation.
 
 ## Intermediate-cost and asymmetric-access hypotheses
 
@@ -287,6 +318,11 @@ revisit condition. Decision records (candidate, evidence, rationale, ranking,
 action, model/session provenance) are the audit trail; private chain-of-thought
 is neither stored nor inferred.
 
+Rank observational work by the question it can clarify, measurement quality,
+reproducibility and unresolved uncertainty. Lack of an expected attack advantage
+or immediate application is not grounds to dismiss a measurement or stop
+presenting its data.
+
 ## Goal closure quorum (suspended)
 
 Rule 13 (three `CONCUR` attestations from pairwise-distinct resolved models
@@ -369,7 +405,8 @@ work ahead of drafting more contracts when it offers a justified next run.
 
 ## Research direction
 
-Target profile: Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
+For work explicitly pursuing an algorithmic-complexity claim, the target
+profile is Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
 (`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`;
 `docs/target-result-profile.md`, checklist C1–C18; `KN-TECH-055`):
 exponent first; numbered heuristics, each with random-model justification,
@@ -377,8 +414,9 @@ falsification condition and validation plan; single-responsibility lemmas;
 external structural ingredients; validation at scale; honest cost and scope
 (memory beside time, o(1) disclosed, a concrete cost table, affected-vs-safe
 scope). The Coordinator checks the promotion gates of `agents/coordinator.md`
-before an asymptotic claim moves toward `supported`. The profile biases
-direction and lowers no rule.
+before an asymptotic claim moves toward `supported`. This profile qualifies
+those claims; it is not an admission or success criterion for descriptive
+observation and anomaly measurement.
 
 The **inventor protocol** (`docs/inventor-protocol.md`; `KN-TECH-056`,
 `KN-TECH-080`) binds the Idea Generator, Validator, Red Team and, for §8, the
@@ -386,8 +424,10 @@ Coordinator: premature closure fails like overclaiming; a closure needs a
 named obstruction, recorded as a measured `obstruction` block with a
 `resource_check`, an argument and forward guidance (a count of rejected
 mechanisms is `unverified`); a signal is an artifact until run against a null
-object of the same shape; every deliverable carries a checked `dominated_by`
-and a quantitative `sota_delta`; a proof-oriented proposal carries a
+object of the same shape; deliverables claiming a comparative algorithmic
+advance carry a checked `dominated_by` and a quantitative `sota_delta`.
+Descriptive deliverables state their actual reference and uncertainty without
+inventing a competitive claim. A proof-oriented proposal carries a
 `proof_search_map` whose four cheap audits run before compute and before the
 Coordinator approves implementation.
 
@@ -559,12 +599,13 @@ and solution certificates: `docs/claims-and-verification.md`. Session receipts
 cost; they are never evidence.
 
 Every benchmark, profiler session, and evaluation an agent runs also produces a
-durable insight report, including regressions, failed attempts, and censored
-runs. The report states the question, exact workload and controls, baseline and
-candidate revisions, hardware and tool versions, commands, raw measurements,
-correctness checks, costs, uncertainty, interpretation, and limits; it links to
-the underlying artifacts. Retain native profiler captures (for example Nsight
-Compute `.ncu-rep` files) and source or instruction-level exports when produced.
+durable measurement report, including regressions, failed attempts, and censored
+runs. The report states the question, exact workload and controls, revisions
+(baseline and candidate where applicable), hardware and tool versions, commands, raw measurements,
+correctness checks, costs, uncertainty and limits; it links to the underlying
+artifacts. Any interpretation is labeled separately; a usefulness or attack
+verdict is not a required report field. Retain native profiler captures (for
+example Nsight Compute `.ncu-rep` files) and source or instruction-level exports when produced.
 If capture fails, retain its logs and state which artifact is absent. Keep the
 report and raw artifacts in a durable evidence path, or commit a manifest with
 digests and stable artifact locations. Never replace a raw capture with a
