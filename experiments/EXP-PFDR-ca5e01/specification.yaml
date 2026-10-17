@@ -1,0 +1,582 @@
+experiment:
+  id: EXP-PFDR-ca5e01
+  hypothesis_id: H-PFDR-011a4b
+  source_idea: IDEA-20261017-077f12
+  question_id: RQ-PFDR-ae2fba
+  goal_id: GOAL-PFDR-fd09e0
+  version: 1
+  title: 'Heuristic validation of H1 of IDEA-20261017-077f12 on the base-size axis: exact nontrivial pair-sum
+    coincidence counts of window (d = 1) and rank-d label-GAP (d = 2, 3) symmetric bases against a matched
+    uniformly random symmetric null on prime-order E/F_p, bits in {16,18,20,22}, theta in [0.30, 0.65], 90
+    cells, with a planted known-log AP, null-vs-null calibration and replication on fresh curves'
+  experiment_class: heuristic-validation
+  status: review_required
+  frozen: false
+  designed_at: '2026-10-17'
+  designed_under_task: TASK-20261017-b3d6ed
+  approved_by: null
+  execution_authorized: false
+  status_note: >-
+    Canonical draft at version 1, written under TASK-20261017-b3d6ed and held at review_required until the
+    Coordinator's approval decision is committed with the approved bytes. No approval field is set and no
+    execution is authorized by this file. Every number in this contract is transcribed from
+    experiments/EXP-PFDR-ca5e01/implementation/run.py (the frozen driver) or from IDEA-20261017-077f12 and its
+    notes; Coordinator resolutions R1-R5 below record where the contract departs from or adds to the IDEA, and
+    why, before any run.
+  objective: >-
+    For each of the 90 cells (bits, theta, d) of the grid, build on n_curves prime-order curves per cell one
+    structured symmetric base (window for d = 1, rank-d label GAP for d = 2, 3), 20 uniformly random symmetric
+    null bases and one planted base, all of exactly b points, count the nontrivial pair-sum coincidences C(F)
+    of each exactly with the C kernel, and record per cell kappa = S/M, its curve-cluster bootstrap 95%
+    interval, z against the measured null variance, the planted recovery, and a null-vs-null calibration z;
+    replicate every flagged cell on a disjoint block of fresh curves. The experiment measures a coincidence
+    count; it measures no cost against rho and claims no speedup.
+  inputs:
+    implementation_sources:
+      note: >-
+        Files under experiments/EXP-PFDR-ca5e01/implementation/ (paths below relative to it). Their sha256
+        values are bound by trial-plan.json source_sha256, which itself binds this specification by sha256;
+        this specification carries no digest of the trial plan or runbook. The vendored curve.py digest is
+        also recorded here and under input_bindings. __pycache__ directories are not sources and are never
+        staged.
+      sha256_binding: trial_plan_source_sha256
+      files:
+      - path: run.py
+        provenance: new; frozen driver (subcommands trial, build, selftest, pilot, census, analyze); standard
+          library plus PyYAML for the manifest
+      - path: check.py
+        provenance: new; producer-written output checker (imports run.py from the same bound directory)
+      - path: paircount.c
+        provenance: new; C kernel, affine sums with batched inversion, keys x*p + y in 64 bits, LSD radix
+          sort, run counting; 16 bytes per pair
+      - path: vendor/curve.py
+        sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+        provenance: verbatim copy of src/crypto_autoresearcher/index_calculus/curve.py at commit
+          dc61c5e1ec10c2e5aacffac9d46ca4b9bf8ba542
+    curves:
+      family: prime-order ordinary short-Weierstrass E/F_p (odd prime order excludes supersingular curves for
+        p > 3 and leaves no 2-torsion)
+      generator: vendor curve.generate_prime_order_curve(bits, seed)
+      bits: [16, 18, 20, 22]
+      seed_rule: 'seed = block_offset + c, c = 0, 1, ...; block offsets pilot 7,000,000, main 7,100,000,
+        replication 7,200,000; disjoint because c < 4000 < 100,000. Cells at the same bits share the curve set
+        of their block. Selftest curves use seeds 9,900,000 + c (bits 10, 12, 14) and 9,900,100 (bits 16).'
+      source: run.py SEED_BLOCK, get_curve, cmd_selftest
+    cells:
+      rule: 'bits x theta in {0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65} x d in {1, 2, 3}; b =
+        2*round(2^(bits*theta)/2); a cell is kept iff 16 <= b <= 8192'
+      count: 90
+      note: 'bits 16, 18 and 20 keep all eight theta values (bits 20, theta 0.65 gives b = 8192); bits 22 drops
+        theta 0.60 and 0.65 (b > 8192); cell ids b<bits>-t<theta>-d<d>; the full table is run.py cells() and is
+        recorded in design.json by the pilot'
+      source: run.py BITS, THETAS, DIMS, B_MIN, B_MAX, cells()
+    counting_convention: >-
+      For a symmetric base F (F = -F) of exactly b points, C(F) = sum over s != O of binom(m_s, 2), with m_s
+      the number of unordered pairs {P, Q} in F with P != Q, Q != -P and P + Q = s. Exact for every base; no
+      sampling. The kernel paircount.c is checked against a brute-force Python count in the selftest trial.
+    bases:
+      structured_d1: 'window: x0 uniform in [0, p); x = x0, x0 + 1, ... in order; each x with f(x) a nonzero
+        square contributes both lifts; stop at exactly b points (span recorded)'
+      structured_d2_d3: 'rank-d label GAP x0 + a + c*w1 (+ e*w2) mod p; x0 uniform, w uniform in [1, p); box
+        side ceil(b^(1/d)) (at least 2); indices filled in lexicographic order with the innermost index a
+        fastest and the outermost index unbounded, so the last layer is partial; repeated x skipped; both lifts
+        of each square f(x) added until exactly b points (side and enumerated count recorded)'
+      null: '20 bases per (cell, curve): x uniform in [0, p), both lifts added when f(x) is a nonzero square,
+        repeated x skipped, until exactly b points'
+      planted: '{+-kG : 1 <= k <= L} plus uniformly random symmetric points (avoiding the planted x) to exactly b
+        points; L is the smallest integer in [1, b//4] with plant_internal(L) >= 0.30 x that curve''s null mean;
+        plant_feasible is false when even L = b//4 (the cap 2L <= b/2) falls short'
+      rng: 'every base is drawn from random.Random seeded by sha256("EXP-PFDR-ca5e01|" + labels) with labels
+        (kind, block, cell, curve index[, replicate]) (run.py _rng)'
+      source: run.py null_base, window_base, gap_base, plant_internal, plant_size, planted_base, job
+    sizing:
+      trial: pilot (RUN-PFDR-93c865)
+      rule: 'mean_null = mean over 8 pilot curves x 20 null bases; n_curves = clamp(ceil(1.1 x 2500 /
+        mean_null), 10, 4000) (4000 when mean_null <= 0); recorded with expected_null_total and
+        powered_by_design in design.json before any main census run'
+      source: run.py cmd_pilot
+    statistics:
+      per_cell: 'S = sum over curves of C(structured); M = sum of per-curve null means; V = sum of per-curve
+        null sample variances; kappa = S/M; z = (S - M)/sqrt(V (1 + 1/20)); 95% curve-cluster bootstrap
+        interval of kappa (2000 resamples, seeded per cell, percentile 2.5/97.5); plant_kappa and plant_z the
+        same way with the planted counts; z_cal = null replicate 0 of each curve as a pseudo-structured base
+        against the other 19 (variance factor 1 + 1/19)'
+      powered: M >= 2500
+      source: run.py _cell_stats, cmd_analyze
+    cell_classes:
+      order: first matching class in the order below
+      invalid: 'pilot incomplete, or fewer ok main-census records than n_curves (failed_infrastructure)'
+      inconclusive_underpowered: M < 2500
+      inconclusive_plant_not_recovered: 'not (plant feasible on every curve and plant_kappa >= 1.15 and plant_z
+        > 4)'
+      flagged: '|kappa - 1| >= 0.10 and |z| > 4'
+      'null': '|kappa - 1| < 0.05 and the bootstrap 95% interval inside [0.90, 1.10]'
+      intermediate: otherwise
+      valid_cells: the classes null, flagged and intermediate
+    calibration_gate: 'over powered cells: population sd of z_cal in [0.85, 1.15] and |mean of z_cal| <= 0.25'
+    replication_rule: 'every flagged cell is re-run on the replication block with its n_curves; it survives iff
+      the replication kappa deviates in the same sign, |z| > 3 and |kappa - 1| >= 0.05'
+    outcome_rules:
+      field: analysis.json /outcome (analyze-final, RUN-PFDR-b7c582)
+      order: first matching rule in the order below
+      O-INVALID: calibration gate fails, or fewer than 50% of the 90 cells are valid
+      O-STRUCT: at least one flagged cell survives replication
+      O-PENDING-REPLICATION: 'a flagged cell has no replication records; legitimate only as the intermediate
+        value of analyze-main (RUN-PFDR-c08b70); at analyze-final it means the replication did not run and
+        the reading is O-MIXED pending repair'
+      O-NULL: every valid cell is null and at least 80% of the 90 cells are valid
+      O-MIXED: otherwise
+    secondary_analysis: 'per (bits, d) least-squares slope of log kappa on theta over valid cells with kappa > 0
+      and at least three such cells; reported, not decisive'
+  coordinator_resolutions:
+  - id: R1
+    topic: calibration band
+    text: >-
+      IDEA-20261017-077f12 control 3 asks the null-vs-null z distribution to be N(0,1) within 10%. With about
+      90 powered cells the sampling sd of a sample sd of N(0,1) values is about 1/sqrt(2 x 90) = 0.075, so a
+      +-0.10 band would fail a correctly calibrated run about 18% of the time. The contract uses sd(z_cal) in
+      [0.85, 1.15] (about 2 standard errors) and |mean| <= 0.25 (about 2.4 standard errors); the combined
+      false-failure rate under exact calibration is about 6% at 90 powered cells and grows as fewer cells are
+      powered (about 23% at 45). Cells at the same bits share curves, so the z_cal values are not independent.
+      A calibration failure is O-INVALID (no evidence), never a reading of H1.
+  - id: R2
+    topic: flag and replication rule
+    text: >-
+      IDEA falsification condition 2 reads kappa >= 1.10 at z > 4 on fresh curves; its validation plan reads
+      flag any z > 3 and replicate on fresh curves. The contract flags in both directions at |kappa - 1| >= 0.10
+      and |z| > 4 (the IDEA prediction block's minimum effect) and confirms on the disjoint replication block at
+      the same sign, |z| > 3 and |kappa - 1| >= 0.05. The effect size of a surviving cell is read from the
+      replication block, not the discovery block (winner's curse).
+  - id: R3
+    topic: incomplete replication
+    text: >-
+      A flagged cell whose census-rep has fewer distinct ok curves than its n_curves is recorded by run.py
+      analyze as replication "incomplete" (its statistics are not computed), so it cannot carry O-STRUCT; the
+      outcome is then O-PENDING-REPLICATION, never a survival. This was fixed in run.py before the freeze and is
+      exercised by a synthetic test (full replication survives, a partial one is "incomplete") recorded in the
+      design session. check.py re-derives the outcome from the recorded cell rows.
+  - id: R4
+    topic: bootstrap order
+    text: >-
+      With 4 workers, jobs.jsonl records are written in completion order. run.py sorts each cell's records by
+      curve index before the bootstrap, so the interval is independent of completion order (fixed before the
+      freeze; a synthetic reordering test returns the identical interval). Every job record is a pure function
+      of (cell, block, curve index) except its seconds field; a determinism comparison is made per (cell, block,
+      c) with seconds stripped.
+  - id: R5
+    topic: checker scope
+    text: >-
+      check.py exits 0 (CHECK OK) or 3 (CHECK FAIL). It re-derives pilot sizing; census completeness (every
+      planned key is present as an ok record or accounted for by a failed_infrastructure record for that same
+      key); a seeded replay of up to 4 small-base jobs (b <= 64) with a brute-force recount of their structured
+      bases; and, per cell, S, M, kappa, z, z_cal and the class, plus the calibration gate, fraction_valid, the
+      flagged list and the outcome. It does not recompute the bootstrap interval or the replication statistics
+      (the producer's seeded resampling; the class rule reads the interval as recorded). Negative tests in the
+      design session show a tampered outcome, calibration flag, z_cal or an unaccounted missing job each fail
+      the check. It is producer-written and is not independent review, which re-derives these.
+  input_bindings:
+    vendor_curve_py:
+      path: experiments/EXP-PFDR-ca5e01/implementation/vendor/curve.py
+      sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+      upstream_path: src/crypto_autoresearcher/index_calculus/curve.py
+      upstream_commit: dc61c5e1ec10c2e5aacffac9d46ca4b9bf8ba542
+      role: 'curve generator for every trial (generate_prime_order_curve, sqrt_mod, group law); verbatim copy of
+        the upstream source at the named commit, read only'
+  controls:
+  - id: C1
+    name: kernel selftest
+    check: 'trial selftest (RUN-PFDR-936605): paircount.c equals a brute-force Python count on 45 bases (bits
+      10, 12, 14; three curves each; null, window, gap2, gap3 and plant bases of 40 points), every base has 40
+      distinct on-curve points and is symmetric, and plant_internal(L) equals a group brute force for L in {1,
+      2, 3, 5, 9, 14}'
+    role: instrument gate; a failure voids the experiment as an instrument defect
+    provenance: run.py cmd_selftest
+  - id: C2
+    name: matched random null
+    check: 20 uniformly random symmetric bases of the same b on the same curve; kappa and z are read against
+      their per-curve means and variances
+    role: removes Hasse fluctuation of N at fixed b and the negation symmetry shared by every base
+    provenance: IDEA-20261017-077f12 control 1
+  - id: C3
+    name: planted known-log AP
+    check: 'per curve {+-kG : 1 <= k <= L} plus random symmetric fill, L sized for internal coincidences >= 0.30
+      x the null mean; a cell is read only if the plant is feasible on every curve and plant_kappa >= 1.15 with
+      plant_z > 4'
+    role: positive control; a cell that does not recover the plant is inconclusive, never null
+    provenance: IDEA-20261017-077f12 control 2 and falsification condition 3
+  - id: C4
+    name: null-vs-null calibration
+    check: calibration gate over powered cells (sd of z_cal in [0.85, 1.15], |mean| <= 0.25)
+    role: checks that z is N(0,1) under the null for this counting convention and variance estimate
+    provenance: IDEA-20261017-077f12 control 3; band per Coordinator resolution R1
+  - id: C5
+    name: disjoint seed blocks and replication on fresh curves
+    check: pilot, main and replication curves come from disjoint seed blocks; every flagged cell is replicated on
+      the replication block
+    role: separates sizing from measurement and discovery from confirmation
+    provenance: IDEA-20261017-077f12 H1 validation plan and falsification condition 2; Coordinator resolution
+      R2
+  - id: C6
+    name: checker replay and brute recount
+    check: check.py replays up to 4 seeded small-base jobs (b <= 64) per census run field by field and recounts
+      each sampled structured base by brute force without the kernel
+    role: catches a kernel or base-builder defect on the measured data
+    provenance: check.py census branch
+  - id: C7
+    name: Pollard rho
+    check: not run
+    role: >-
+      No cost claim is made. RQ-PFDR-ae2fba's mandatory matched rho control applies to cost cells; this is a
+      pure coincidence-count cell (yield-column side). A costed follow-up (for example the table-table cost of
+      IDEA-20261017-bbc53e) adds rho on the same curves as its matched cost control, recording iterations and
+      wall time per curve at the same bits.
+    provenance: RQ-PFDR-ae2fba constraints
+  independent_variables:
+  - bits in {16, 18, 20, 22}
+  - theta in {0.30, 0.35, ..., 0.65}, b = 2*round(2^(bits*theta)/2), 16 <= b <= 8192
+  - d in {1 (window), 2, 3 (label GAP)}
+  - base family in {structured, null, planted}
+  - seed block in {pilot, main, replication}
+  metrics:
+    primary:
+    - name: kappa per cell
+      pointer: 'analysis.json (RUN-PFDR-b7c582) /cells[]/kappa with /ci95, /z, /S, /M, /V, /curves, /powered,
+        /cls'
+      prediction: P1
+    - name: outcome
+      pointer: analysis.json (RUN-PFDR-b7c582) /outcome, /fraction_valid, /flagged_cells
+      prediction: P1 (O-NULL) against P-detect (O-STRUCT)
+    - name: calibration
+      pointer: analysis.json /calibration (n, mean, sd, pass) and /cells[]/z_cal
+      prediction: C4
+    - name: planted recovery
+      pointer: analysis.json /cells[]/plant_kappa, /plant_z, /plant_feasible_all, /planted_recovered
+      prediction: P2
+    - name: replication of flagged cells
+      pointer: analysis.json /cells[]/replication (curves, kappa, ci95, z, survives) for cls == flagged
+      prediction: P-detect
+    secondary:
+    - name: slope of log kappa on theta per (bits, d)
+      pointer: analysis.json /secondary_slope_logkappa_per_theta
+      prediction: descriptive; reported, not decisive
+    - name: sizing record
+      pointer: design.json (RUN-PFDR-93c865) /cells[]/pilot_mean_null, /n_curves, /expected_null_total,
+        /powered_by_design, /status
+      prediction: descriptive
+    - name: infrastructure failures
+      pointer: raw-result.json /summary/jobs and /summary/failed_infrastructure of RUN-PFDR-eb4733 and
+        RUN-PFDR-e15482; records with status != ok in main-jobs.jsonl and rep-jobs.jsonl
+      prediction: must be reported; never a metric value
+    - name: structured-base geometry
+      pointer: main-jobs.jsonl /struct_meta (window x0, span; GAP x0, w, side, enumerated)
+      prediction: descriptive
+    - name: per-job wall time
+      pointer: main-jobs.jsonl /seconds
+      prediction: descriptive; excluded from determinism comparisons
+  preregistered_predictions:
+  - id: P1
+    claim: H1 at the tested scope
+    test: '|kappa - 1| < 0.05 with the bootstrap 95% interval inside [0.90, 1.10] in every powered cell
+      (every valid cell null, outcome O-NULL)'
+    source: IDEA-20261017-077f12 claim and H1; recalled Parseval argument (IDEA notes section 1); never
+      adjusted after a run
+  - id: P-detect
+    claim: detection threshold of the alternative
+    test: '|kappa - 1| >= 0.10 at |z| > 4 in some cell, confirmed on fresh curves (outcome O-STRUCT)'
+    source: IDEA-20261017-077f12 predictions block and falsification condition 2; replication rule per R2
+  - id: P2
+    claim: the instrument detects a known excess
+    test: plant_kappa >= 1.15 and plant_z > 4 in every powered cell
+    source: IDEA-20261017-077f12 control 2
+  preregistered_prediction:
+    quantity: kappa per powered cell against 1; plant recovery; calibration of z_cal
+    formula: 'P1 |kappa - 1| < 0.05 and CI inside [0.90, 1.10] in every powered cell; P2 plant_kappa >= 1.15,
+      plant_z > 4; calibration sd(z_cal) in [0.85, 1.15], |mean| <= 0.25'
+    source: IDEA-20261017-077f12 claim, H1 and controls; recalled Parseval argument; never adjusted after a run
+  heuristic_under_test: H1
+  heuristic_validation:
+    heuristic: >-
+      H1 of IDEA-20261017-077f12 (carried as H1 of H-PFDR-011a4b): for b <= p^(2/3), the nontrivial pair energy
+      of window and rank-d GAP bases is (1 + o(1)) times that of a uniform random symmetric base of the same
+      size. Quantifiers as tested: for every powered cell (bits in {16, 18, 20, 22}, theta in {0.30, ..., 0.65},
+      d in {1, 2, 3}, 16 <= b <= 8192), pooled over the cell's curves, |kappa - 1| < 0.05.
+    source: IDEA-20261017-077f12 (heuristic_assumptions H1, claim)
+    rigorous_support: >-
+      Recalled, not read: Parseval plus a Weil-type sup-norm bound K <~ p^(1/2) log p for characters summed over
+      an x-interval (Kohel-Shparlinski type) gives the random model for windows only at b >= p^(2/3) (IDEA notes
+      section 1). No bound over multi-dimensional label boxes is recalled, so for d >= 2 there is no theorem
+      range at all. Every tested theta (<= 0.65) lies below p^(2/3).
+    operationalization: >-
+      C(F) per the counting convention is the nontrivial pair energy of F up to the factor fixed by the
+      convention; kappa = S/M pools structured counts against matched null means over the cell's curves. H1
+      not contradicted at a cell = class null; H1 contradicted at a cell = flagged and surviving replication.
+    what_is_uniform: >-
+      The comparison object is the uniformly random symmetric subset of the points with f(x) a nonzero square,
+      of the same size b on the same curve, measured (20 replicates per curve), not the formula b^4/N.
+    scale_access: >-
+      Toy scale only (p < 2^22, b <= 8192); direct sampling, no correspondence reaches a larger scale and no
+      transfer to cryptographic sizes is claimed.
+    sample_size_justification: >-
+      Curves per cell are sized so the expected null total is >= 2500 (1.1 safety factor; IDEA notes section
+      4). For Poisson-like counts the sd of S - M is then about sqrt(2500 x 1.05) = 51, so a true 10% excess
+      (250) sits about 4.9 sd out and the flag rule |z| > 4 detects it with probability about 0.8; over-dispersed
+      per-base counts lower this, and z uses the measured null variance, so it stays calibrated while power may
+      drop. The null class needs the bootstrap interval inside [0.90, 1.10], which at M = 2500 needs a relative
+      sd near 2%. A cell with M < 2500 is underpowered and inconclusive, never null. The n_curves cap of 4000
+      can leave the smallest cells underpowered.
+    comparison_metric: per cell kappa with its curve-cluster bootstrap 95% interval and z; plant_kappa and
+      plant_z; calibration sd and mean of z_cal over powered cells; replication kappa and z per flagged cell
+    tail_checks_available: >-
+      every flagged and intermediate cell is listed with its statistics; the largest |z| over powered cells is
+      compared descriptively with the expected maximum of that many standard normals (about 2.8 at 90); cells
+      whose plant is infeasible are listed; every failed_infrastructure job is listed with its cell and curve.
+    controls_for_heuristic: C1-C6 above; C2 is the null object of the same shape and C3 the planted positive.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      bits 16-22, b <= 8192, 10 to 4000 curves per cell; pair level h = 2 only. No cryptographic-scale
+      statement; no transfer or extrapolation assumption is made (RQ-PFDR-ae2fba constraints; AGENTS.md rule 7).
+    correspondence: null
+  tail_checks:
+  - every flagged and intermediate cell is reported individually with S, M, kappa, interval, z and plant
+    statistics
+  - the largest |z| over powered cells against the expected maximum of that many standard normals (descriptive)
+  - every cell with plant_feasible false on any curve is listed with its L cap
+  - every failed_infrastructure job is listed with its cell, block, curve index and status string
+  replication:
+    seeds: [7000000, 7100000, 7200000]
+    seed_rule: 'curve seed = block offset + curve index (pilot 7,000,000, main 7,100,000, replication 7,200,000);
+      base seeds = sha256 of the experiment id and (kind, block, cell, curve, replicate) labels'
+    independent_instances: 6
+    trials:
+    - trial_id: selftest
+      run_id: RUN-PFDR-936605
+      stage: selftest
+    - trial_id: pilot
+      run_id: RUN-PFDR-93c865
+      stage: pilot
+      note: sizing only; null bases on 8 pilot curves per cell; writes design.json
+    - trial_id: census-main
+      run_id: RUN-PFDR-eb4733
+      stage: census
+      note: main block, every ok cell of design.json with its n_curves
+    - trial_id: analyze-main
+      run_id: RUN-PFDR-c08b70
+      stage: analyze
+      note: writes analysis-main.json and flags.json; O-PENDING-REPLICATION is a legitimate value here
+    - trial_id: census-rep
+      run_id: RUN-PFDR-e15482
+      stage: census
+      note: replication block, flagged cells of RUN-PFDR-c08b70 flags.json only; an empty rep-jobs.jsonl is the
+        recorded result when no cell is flagged
+    - trial_id: analyze-final
+      run_id: RUN-PFDR-b7c582
+      stage: analyze
+      note: writes analysis.json (the decisive outcome) and flags.json
+    replication_note: >-
+      Within-cell replication is across curves (10 to 4000 per cell) and across 20 null replicates per curve;
+      confirmation is the replication block on fresh curves for flagged cells only. Trials run strictly in the
+      order above, each depending on the previous one.
+    determinism_excluded_fields: [seconds, jobs.jsonl record order]
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 43200
+    wall_clock_seconds_per_run_overrides:
+      RUN-PFDR-936605: 1800
+      RUN-PFDR-93c865: 14400
+      RUN-PFDR-eb4733: 43200
+      RUN-PFDR-c08b70: 3600
+      RUN-PFDR-e15482: 43200
+      RUN-PFDR-b7c582: 3600
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: 6
+    maximum_workers: 4
+    note: >-
+      Machine protection only: at most 4 worker processes (run.py WORKERS), kernel timeout 3600 s per call,
+      about 600 MB per worker at b = 8192, trial memory caps 2048/4096/4096/2048/4096/2048 MB, per-trial
+      watchdogs as overridden above. Design-session estimate about 1.4 CPU-hours for the main census (4
+      workers, about 0.35 h wall) plus a short pilot; the replication census is bounded by the main census.
+      A timeout, memory kill or kernel failure is failed_infrastructure, never evidence. Not a research budget.
+  stage_estimates:
+  - stage: selftest
+    run_id: RUN-PFDR-936605
+    wall_clock: minutes
+    cpu: negligible
+    memory_mb: 2048
+    sharding: one process
+  - stage: pilot
+    run_id: RUN-PFDR-93c865
+    wall_clock: short (null bases only, 8 curves x 90 cells x 20 nulls); not separately estimated by the design
+      session
+    cpu: below the main census
+    memory_mb: 4096
+    sharding: 4 workers over (cell, curve) jobs, largest b first
+  - stage: census main
+    run_id: RUN-PFDR-eb4733
+    wall_clock: about 0.35 h (design-session estimate)
+    cpu: about 1.4 CPU-hours (design-session estimate)
+    memory_mb: 4096
+    sharding: 4 workers over (cell, curve) jobs, largest b first
+  - stage: analyze main
+    run_id: RUN-PFDR-c08b70
+    wall_clock: minutes (2000 bootstrap resamples per cell)
+    cpu: negligible
+    memory_mb: 2048
+    sharding: one process
+  - stage: census replication
+    run_id: RUN-PFDR-e15482
+    wall_clock: zero to at most the main census, depending on the number of flagged cells
+    cpu: at most the main census
+    memory_mb: 4096
+    sharding: 4 workers
+  - stage: analyze final
+    run_id: RUN-PFDR-b7c582
+    wall_clock: minutes
+    cpu: negligible
+    memory_mb: 2048
+    sharding: one process
+  stopping_rules:
+  - 'selftest stops after its 45 kernel-vs-brute checks and the plant_internal check; pilot after every (cell,
+    pilot curve) job; a census after every planned (cell, curve) job of its block; an analyze trial after
+    writing its analysis file and flags.json.'
+  - A kernel call exceeding 3600 s is failed_infrastructure for that job; its cell is invalid in that block,
+    never null; the census continues.
+  - A trial exceeding its watchdog (1800/14400/43200/3600/43200/3600 s) stops and is failed_infrastructure for
+    its unfinished work, never a metric value.
+  - census-rep runs only the flagged cells named in RUN-PFDR-c08b70 flags.json; with none flagged it records an
+    empty rep-jobs.jsonl and stops.
+  - Stop after the six planned trials; no seventh run without a protocol amendment and a new approval.
+  - A crash, timeout or memory kill is failed_infrastructure; never a metric value (AGENTS.md rule 5).
+  invalidation_rules:
+  - selftest fails (any kernel count differs from brute force, a base is not symmetric or not on the curve, or
+    plant_internal disagrees); the experiment is void as an instrument defect and no later trial is read
+  - check.py exits non-zero on a run directory; that run is invalid and every trial reading it is held
+  - pilot n_curves does not re-derive from pilot-jobs.jsonl under the frozen rule; the pilot and every later
+    trial are invalid
+  - a census replay or brute-force recount mismatch (check.py C6); that census run is invalid
+  - a job with status failed_infrastructure; its cell is invalid in that block (main) or replication incomplete
+    (replication, resolution R3), never null and never a refutation
+  - the calibration gate fails; outcome O-INVALID, no evidence about H1
+  - a manifest trial_plan_sha256 or code_sha256 differs from the frozen trial plan; the run is invalid
+  - any byte of the specification, hypothesis, trial plan, runbook or implementation/ changed after approval
+    without a versioned protocol_amendment; every affected run is invalid
+  success_criterion: >-
+    SUPPORT of H1 at the tested scope (90 cells, bits 16-22, theta 0.30-0.65, d <= 3, h = 2, these curve seed
+    blocks): analysis.json /outcome == O-NULL, i.e. the calibration gate passes, at least 80% of the 90 cells
+    are valid and every valid cell is null (|kappa - 1| < 0.05, interval inside [0.90, 1.10], plant
+    recovered); selftest passes; check.py exits 0 on all six runs.
+  falsification_criterion: >-
+    FALSIFY H1 at the surviving cells only: analysis.json /outcome == O-STRUCT, i.e. at least one cell flagged
+    at |kappa - 1| >= 0.10 and |z| > 4 on the main block survives replication on the replication block (same
+    sign, |z| > 3, |kappa - 1| >= 0.05) with a complete replication (resolution R3), on checker-valid runs with
+    the calibration gate passing and the selftest passed.
+  inconclusive_criterion: >-
+    INCONCLUSIVE: O-MIXED (calibration passes and at least 50% of cells are valid, but neither O-NULL nor
+    O-STRUCT holds: some valid cell is intermediate or flagged without surviving replication, or fewer than 80%
+    of cells are valid); the decision names those cells. O-INVALID (calibration fails or fewer than 50% of
+    cells valid) and any checker-invalid run are not evidence. O-PENDING-REPLICATION at analyze-final means the
+    replication did not run and is read as O-MIXED pending repair. A timeout, memory kill or crash is
+    failed_infrastructure, never evidence.
+  heuristic_criterion: >-
+    O-NULL leaves H1 not contradicted at the tested toy scope; it never confirms the asymptotic (1 + o(1))
+    statement and says nothing about b above 8192, p above 2^22, h >= 3 or excess that grows with N. O-STRUCT
+    contradicts H1 at the surviving cells only, with the effect size read from the replication block. A cell
+    whose plant is not recovered is inconclusive, never null.
+  decision_impact:
+    on_positive: >-
+      O-NULL: H-PFDR-011a4b may move to analyzed and, after independent review (blind recount of S, M and kappa
+      from the job records, re-derivation of every class and of the outcome, and a kernel spot-check on
+      sampled bases), to supported at the tested scope only. The evidence record carries an obstruction block
+      (quantity kappa per cell with its 95% interval, the runs it is read from, the scope above) with its
+      resource_check, and the reading is a scoped closure of window and rank <= 3 label-GAP pair-level excess
+      at h = 2 for bits 16-22, theta 0.30-0.65 (scoped, not reject_scoped). IDEA-20261017-bbc53e's delta then
+      reads 0 at this scope; the growth-in-N question stays with the EXP-PFDR-0b3699 lineage.
+    on_negative: >-
+      O-STRUCT: instrument before theory; independent review re-derives the surviving cells from the job
+      records, replays sampled jobs and spot-checks the kernel. On a confirmed surviving cell H-PFDR-011a4b is
+      rejected in scope at those cells only, on a declared empirical_only basis carrying its replication, or
+      weakened if review does not confirm. The surviving cells feed a costed follow-up contract with the matched
+      Pollard rho control and IDEA-20261017-bbc53e's delta-to-exponent translation using the replication-block
+      kappa; never an attack claim.
+    on_inconclusive: >-
+      O-MIXED: inconclusive; the decision names the non-null cells and the next contract refines only those (more
+      curves, or a replication-only amendment). No status move.
+    on_invalid: >-
+      O-INVALID or a checker-invalid run: no evidence; the instrument or infrastructure is repaired and the
+      affected trials re-run under a versioned amendment.
+  interpretation_limits:
+  - pair level h = 2 only; nothing about h >= 3
+  - toy scale bits 16-22 and b <= 8192; nothing about other N, any cost, or any cryptographic size
+  - not a test of Choi's characteristic-0 theorem (arXiv:2510.03828), only of its toy F_p transfer
+  - a null does not exclude excess that grows with N (Part C's question, EXP-PFDR-0b3699 lineage)
+  - 'no cost claim: a coincidence count for the table-table family, not a decomposition yield or a degree; under
+    RQ-PFDR-ae2fba it is a half-cell and does not enter the per-representation decision table on its own'
+  - the theorem range (b >= p^(2/3)) is recalled, unchecked for prime-order E, and covers windows only; no
+    tested cell lies in it, so no structured cell has a proven kappa = 1 anchor
+  - cells at the same bits share their curve sets; cell statistics and z_cal values are correlated
+  - check.py is producer-written; it is not independent review, which precedes any status move (resolution R5)
+  - the thresholds are pre-registered; no threshold is moved after a run without a versioned protocol_amendment
+  required_artifacts:
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-936605/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-936605/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-936605/selftest.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-93c865/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-93c865/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-93c865/design.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-93c865/pilot-jobs.jsonl
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-eb4733/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-eb4733/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-eb4733/main-jobs.jsonl
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-c08b70/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-c08b70/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-c08b70/analysis-main.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-c08b70/flags.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-e15482/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-e15482/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-e15482/rep-jobs.jsonl
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-b7c582/manifest.yaml
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-b7c582/raw-result.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-b7c582/analysis.json
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-b7c582/flags.json
+  artifact_schema:
+    raw_result: 'raw-result.json: experiment, trial_id, run_id, summary (selftest_pass | cells, cells_ok,
+      curves_planned | jobs, failed_infrastructure | outcome, flagged_cells, calibration, fraction_valid),
+      invalid_reason'
+    manifest: 'manifest.yaml /run: id, experiment_id, hypothesis_id, task_id, trial_id, status, validity, code
+      (commit, dirty, command, code_sha256 of every .py and .c under implementation/, trial_plan_sha256),
+      environment (host, operating_system, python_version, processor_count), inputs, timing, resources
+      (peak_rss_bytes, cpu_seconds), result (certificate kind none: exact counts, no logarithm, relation or
+      speedup claimed), artifacts'
+    jobs_jsonl: 'one record per (cell, block, curve index): cell, block, c, p, a, b_coef, N, b, status (ok |
+      failed_infrastructure:<reason>), null (20 counts), pairs, struct, struct_meta, struct_pairs, plant,
+      plant_L, plant_internal, plant_feasible, seconds'
+    design_json: 'experiment, rule, cells[] (cell, bits, theta, d, b, status, pilot_mean_null, n_curves,
+      expected_null_total, powered_by_design)'
+    analysis_json: 'experiment, outcome, calibration (n, mean, sd, pass), fraction_valid, flagged_cells,
+      secondary_slope_logkappa_per_theta, cells[] (cell, bits, theta, d, b, cls, curves, S, M, V, kappa, ci95,
+      z, plant_kappa, plant_z, plant_feasible_all, z_cal, b_matched, powered, planted_recovered, replication)'
+    selftest_json: pass, checks[] (bits, c, base, kernel, brute)
+    environment_record: manifest.yaml /run/environment; the environment.json in a run directory is written by
+      the supervisor, not by run.py
+  launcher:
+    trial_plan: experiments/EXP-PFDR-ca5e01/trial-plan.json
+    driver: experiments/EXP-PFDR-ca5e01/implementation/run.py
+    checker: experiments/EXP-PFDR-ca5e01/implementation/check.py
+    kernel: experiments/EXP-PFDR-ca5e01/implementation/paircount.c (compiled by run.py into a temporary build
+      directory per trial)
+    command: python3 experiments/EXP-PFDR-ca5e01/implementation/run.py trial --run-dir {run_dir} --run-id <RUN>
+      --trial-id <trial> --plan experiments/EXP-PFDR-ca5e01/trial-plan.json
+    checker_command: python3 experiments/EXP-PFDR-ca5e01/implementation/check.py {run_dir}
+      experiments/EXP-PFDR-ca5e01/trial-plan.json <trial>
+    runbook: experiments/EXP-PFDR-ca5e01/runbook.yaml
+    runbook_session: RBS-PFDR-ca5e01
+    library:
+    - gcc with C11 and unsigned __int128
+    - Python 3 standard library and PyYAML (manifest writing)
+  assigned_to: executor
+  out_of_scope:
+  - h >= 3 coincidences and any N above 2^22 or b above 8192
+  - any base family other than window and rank-d label GAP with d <= 3
+  - any cost table, crossover, extrapolation or comparison against rho
+  - any statement about Choi's characteristic-0 theorem or about the security of any deployed curve
