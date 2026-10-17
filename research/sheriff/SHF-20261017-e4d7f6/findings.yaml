@@ -1,0 +1,428 @@
+# Sheriff case SHF-20261017-e4d7f6: independent re-audit of SHF-20261016-3caa6f.
+# Paths: bare = crypto-autoresearcher; crypto: / cryptanalysis: = sibling
+# repositories at the commits recorded in sweep.json (crypto 42b9ca8a5a and
+# cryptanalysis 4fa77724f6, both origin/main, sparse checkouts; crypto-autoresearcher
+# origin/main ea8a9f6f1d). Reader reports were written in a scratch staging
+# directory and copied verbatim into readers/ and scripts/readers/; absolute
+# /tmp/... paths inside them refer to that staging copy.
+sheriff_case:
+  schema: sheriff.case/v1
+  id: SHF-20261017-e4d7f6
+  target: >-
+    all (deterministic sweep, deep tier) + re-audit of every finding of
+    SHF-20261016-3caa6f on origin/main of crypto-autoresearcher, crypto and cryptanalysis
+  prior: >-
+    Written before reading any fix (prior.md). Expected S1 partially fixed (the four known
+    mutants patched, new mutants still accepted); S2, P1, P3-P5 likely fixed in text; L1
+    possibly not compiling; L6 workflows possibly never run; M2 count at or above 287;
+    R1 not fixed; regressions as new untraced numbers or strong words in the fix PRs.
+  supersedes_nothing: "SHF-20261016-3caa6f stays as written; this is a new case (write-once)."
+  readers:
+    - {role: validator, model: claude-opus-5-5, joint: "B2 STARK verifier soundness and mutation controls (S1, S2)", report: readers/stark.yaml}
+    - {role: validator, model: claude-opus-5-5, joint: "B3 Lean statement fidelity, holes, axiom coverage (L1, L2, L3, L5, L6)", report: readers/lean.yaml}
+    - {role: validator, model: claude-opus-5-5, joint: "B8/B4 paper numbers, wording, re-runs (P1, P3, P4, P5, P6, L4, L7)", report: readers/papers.yaml}
+    - {role: red-team, model: claude-opus-5-5, joint: "B5/B7 cost model, baseline rows, disclosure (K1-K4, R1, X2)", report: readers/costmodel.yaml}
+    - {role: session (sheriff), model: claude-opus-5-5, joint: "sweep, Lean builds and axiom audits, ledger and hygiene, ecbench sessions, runbook re-audits, CI-run evidence; re-run of the B2 mutants", report: REPORT.md}
+
+  # Per-original-finding verdicts (fixed | partially_fixed | not_fixed | regressed | not_covered).
+  original_case: research/sheriff/SHF-20261016-3caa6f
+  original_finding_verdicts:
+    - {id: S1, severity: blocker, verdict: partially_fixed, claimed_fix: "crypto#2014", residual: [V1], evidence: [scripts/readers/stark/original-harness.jsonl, scripts/readers/stark/new-mutants.jsonl, scripts/readers/stark/new-mutants.session-rerun.jsonl],
+       why: "The four original mutants are rejected (0/4 accepted, was 4/4) and negative tests exist (cargo test zk::stark 18/18). But stark_v2 accepts three frozen-heart forgeries of false statements (the transcript never absorbs the public boundary), and stark v1 accepts false statements via prover-chosen query count, truncation, grinding and zero-fold FRI. Reproduced by the session."}
+    - {id: S2, severity: major, verdict: partially_fixed, claimed_fix: "crypto#2014", residual: [V2, V3],
+       why: "The false (q/β)^q formula is gone; the new text states q·log2 β bits (240 default, 40 fast) with field, grinding and blow-up, but that bound does not hold for a verifier that accepts frozen-heart forgeries and ignores SHA-256's ~128-bit collision cap; v1's (1-k/n)^q assumes a query count the verifier does not enforce."}
+    - {id: P1, severity: blocker, verdict: fixed, claimed_fix: "crypto#2015", residual: [P-N1],
+       why: "Title, abstract, dated correction, README and PDF now say f64 Gram-Schmidt overflow; PDF built from the committed text; re-run committed with raw logs; exact n^4 > f64::MAX only for secp256k1; exact-precision LLL recovers 5/5 on all eight curves (reader re-derivation). New P-521 mechanism sentence unsupported (minor)."}
+    - {id: P3, severity: major, verdict: fixed, claimed_fix: "crypto#2026", residual: [P-N4, P-N5],
+       why: "Independent recount gives 26,278 instances, 9,864 ordinary in the hypothesis classes, 0 violations; wording matches with minor edges."}
+    - {id: P4, severity: major, verdict: fixed, claimed_fix: "crypto#2026",
+       why: "330 primes p ≡ 1 mod 6, 7 <= p <= 5000 of 669 (session and reader); CM-73 sweep over all 330 reproduces {19, 37, 79, 109}."}
+    - {id: P5, severity: major, verdict: fixed, claimed_fix: "crypto#2026", residual: [P-N6],
+       why: "Abstract carries the standing assumptions and tested ranges; 'empirically verified' removed. The Markdown twin still keeps the deleted 'unconditional' paragraph (minor)."}
+    - {id: P6, severity: minor, verdict: fixed, claimed_fix: "crypto-autoresearcher#2298",
+       why: "paper.tex cites the EXP-SMON run, code and manifest with a number-to-key table; all keys and five hashes match; scratch replay byte-identical."}
+    - {id: L1, severity: minor, verdict: fixed, claimed_fix: "crypto-autoresearcher#2298", residual: [CI1, L-N9],
+       why: "Axiom stub deleted; formal/CryptoResearch/Quotient/TranslationDescent.lean built by the session on the pinned toolchain (v4.35.0-rc1) and Mathlib rev 7fa22735: lake build exit 0, axiom audit 'all standard axioms only', #print axioms [propext]; two proves-too-much variants fail; statement fidelity a-e passes (Lean reader). CI never built it (lean-verification disabled); the whole-workspace build and verify_formal_targets are not covered."}
+    - {id: L2, severity: minor, verdict: fixed, claimed_fix: "crypto-autoresearcher#2298", residual: [L-N8],
+       why: "THM_QUOTIENT_DESCENT1.md now takes S in E(k) with a dated correction; reader re-checked on curves over F_1009 and F_211."}
+    - {id: L3, severity: minor, verdict: fixed, claimed_fix: "crypto#2033", residual: [L-N1],
+       why: "Leak.lean uses decide +kernel; the session built TreeSplit on v4.34.1: the two Leak theorems depend on [propext, Quot.sound] only; replay_ok keeps native_decide but is labelled compiler-trusted replay, not a proof, in RESULTS.md and the audit. The repo-wide trusted-native list still allow-lists the Leak theorems (minor)."}
+    - {id: L4, severity: minor, verdict: fixed, claimed_fix: "crypto#2033", residual: [P-N7],
+       why: "5 frob cells at gap -1, 15 at 0 (re-counted); dated correction in RESULTS.md and report.typ; report PDF regenerated."}
+    - {id: L5, severity: major, verdict: partially_fixed, claimed_fix: "crypto#2026", residual: [L-N2],
+       why: "README, PROTOCOL correction, lean/README and the GenericInvariance docstring now limit the theorem to BSGS-type algorithms and call the l = 8209 rho interval unexplained. TransferBound.lean:13-16 still says generic methods cannot see the conductor at all, new text puts rho and kangaroo under TransferBound, README §5 concludes in bold that no implemented method sees the gap, and 'S = 1 is a theorem' for BSGS ignores finite-sample variation."}
+    - {id: L6, severity: major, verdict: partially_fixed, claimed_fix: "crypto#2026", residual: [L-N7],
+       why: "AxiomAudit.lean and CI workflows exist for conductor_gap and S3Roots and fail closed on non-standard axioms. Session built conductor_gap locally on v4.34.1: 9 theorems, [propext] only. S3Roots build not covered (Mathlib.Tactic closure exceeds disk); whether the crypto workflows ran is not covered (no API access to crypto); the audit log the fix asked to commit is not committed."}
+    - {id: L7, severity: minor, verdict: fixed, claimed_fix: "crypto#2033",
+       why: "Abstract says 'its root identity, Proposition 1, is proved in Lean'; abstract.txt and PDF match."}
+    - {id: K1, severity: minor, verdict: fixed, claimed_fix: "cryptanalysis#942", residual: [K-N4], evidence: [scripts/readers/costmodel/k1k2.out],
+       why: "Headline labelled wall time on one host class (EPYC 9V74, CPU-only) with the 1.4773 operation-count ratio beside it; probe ratio 1.47730, root ratio 1.47725, rank-stage wall 3.37373 = 1.47730 x 2.28371 re-derived."}
+    - {id: K2, severity: minor, verdict: partially_fixed, claimed_fix: "cryptanalysis#942", residual: [K-N1], evidence: [scripts/readers/costmodel/k1k2.out, scripts/readers/costmodel/band.out],
+       why: "Factor-base construction disclosed as uncharged everywhere, with a sensitivity that re-derives (R < 2 needs X >= 351.6 s). No group-operation counts are emitted, so the 0/0.1/1 GAE band is still unreported and X is unmeasured (both disclosed)."}
+    - {id: K3, severity: major, verdict: fixed, claimed_fix: "cryptanalysis#942", residual: [K-N1, K-N2], evidence: [scripts/readers/costmodel/rows.out, scripts/readers/costmodel/blind_n83.out],
+       why: "s_ic_setup = s_ic_cold - s_ic_online on every row (session and reader), stated in conventions.setup; blind n=83 from raw records: 8.79486 rank + 0.87245 = 9.66731 (row 9.6673); B 32.848 = 31.114 rank + 1.734; proves-too-much on the pre-#942 file flags only n=83. Cross-row 32.848 -> 9.667 replaces the spurious 37x."}
+    - {id: K4, severity: minor, verdict: fixed, claimed_fix: "cryptanalysis#942", residual: [K-N2],
+       why: "Ratchet history records paired within-run deltas: cold 305.8238 -> 94.4168, online 0.13304 -> 0.13912 (regression stated); re-derived blind."}
+    - {id: R1, severity: minor, verdict: not_fixed, claimed_fix: "none (disclosure only)", residual: [R1-R],
+       why: "No replay on another host class was run. The disclosure is now present (row, BASELINES.md, README) and nothing claims otherwise."}
+    - {id: X2, severity: minor, verdict: fixed, claimed_fix: "cryptanalysis#942", evidence: [scripts/readers/costmodel/fbarchive_verify.out],
+       why: "fbarchive.py verify: 2681 archives, 0 problems (was 2678 indexed + 3 unindexed). refs.py check not covered (sparse checkout)."}
+    - {id: M1, severity: major, verdict: fixed, claimed_fix: "crypto-autoresearcher#2293", evidence: [checks/m1-supersession.txt, checks/merge-hygiene-absolute.txt],
+       why: "Original unchanged (sha256 76740278… matches registry); replacement differs by one line of indentation, parses, sha256 matches registry; check_merge_hygiene --absolute passes."}
+    - {id: M2, severity: major, verdict: not_fixed, claimed_fix: "crypto-autoresearcher#2296", residual: [M2-R, CI1], evidence: [checks/validate-ledger.txt, checks/m2-ledger-count.txt],
+       why: "validate_ledger on main: FAIL, 330 new validation errors (claimed 287 after #2296; was 349). 11 are from a record added since (RUN-SEMBIN-9ecb77); the validator, baseline and registries are unchanged since #2296, so 319 vs 287 is unexplained here. The record defects were left for Coordinator triage and no absolute gate exists; the validate workflow is disabled. The indexing part of the fix is not separately re-derivable here."}
+    - {id: E1, severity: minor, verdict: fixed, claimed_fix: "crypto#2033", residual: [E1-R], evidence: [checks/ecbench-sessions-all-256.txt],
+       why: "All 256 committed ecbench.session/v1 sessions pass --replay 0 --allow-interrupted (session run, CI's own script); the 7 sessions are untouched since creation; verify now classifies never-finalised sessions."}
+    - {id: E2, severity: minor, verdict: fixed, claimed_fix: "crypto#2033",
+       why: "ecbench.yml enumerates sessions by schema across the tree; ci-scope triggers on any research/**/session.json or records.jsonl change. Whether the workflow ran is not covered."}
+    - {id: X1, severity: minor, verdict: fixed, claimed_fix: "crypto-autoresearcher#2298", evidence: [checks/runbook-reaudit, checks/runbook-pending-audits.json],
+       why: "pending-audits empty; the session re-audited both sessions with fresh nonces: verdict clean at the same journal tips (RBS-EXAMPLE lean-coverage step not covered: no lake on PATH; RBS-IC replay exempt, prelaunch refusal)."}
+    - {id: X3, severity: minor, verdict: fixed, claimed_fix: "original sheriff PR", residual: [I1],
+       why: "Sweep records its instrument (path, sha256, head); ecbench checker passes --allow-interrupted; canary 15/15. New instrument defects are listed as I1."}
+
+  claims:
+    # One claim per claimed fix, in the fixing PRs' terms as relayed in the task.
+    - id: C1
+      text: "the stark/stark_v2 verifiers now reject mutants (S1 fixed)"
+      location: crypto#2014; crypto:src/zk/stark.rs, crypto:src/zk/stark_v2.rs
+      verdict: broken
+      beats: {B2: fail}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/stark/new-mutants.session-rerun.jsonl, "crypto:src/zk/stark_v2.rs"]
+      findings: [V1]
+    - id: C2
+      text: "the false soundness formula was removed (S2 fixed)"
+      location: crypto#2014; crypto:src/zk/stark_v2.rs:34-41
+      verdict: overclaimed
+      scoped_to: "the (q/β)^q formula is gone; the replacement 240/40-bit statement does not hold for the implemented verifier"
+      beats: {B2: fail}
+      evidence: ["crypto:src/zk/stark_v2.rs"]
+      findings: [V2, V3]
+    - id: C3
+      text: "the LLL degeneracy note is corrected; secp256k1 failure was an f64 overflow (P1 fixed)"
+      location: crypto#2015; crypto:papers/lll-degeneracy-note
+      verdict: upheld_scoped
+      scoped_to: "correct as to secp256k1 and the re-run table; the new P-521 cancellation mechanism is unsupported and trial counts are probe executions"
+      beats: {B4: pass, B8: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/papers/p1_f64_overflow.out, research/sheriff/SHF-20261017-e4d7f6/scripts/readers/papers/p1_lll_exact.out, "crypto:research/lll_degeneracy_rerun_20261016"]
+      findings: [P-N1, P-N2]
+    - id: C4
+      text: "structural-completeness: 26 278 instances, 9 864 in hypothesis classes, 330 primes; abstract carries assumptions (P3, P4, P5 fixed)"
+      location: crypto#2026; crypto:papers/structural-completeness
+      verdict: upheld_scoped
+      scoped_to: "all three numbers re-derive exactly; the Markdown twin still keeps a deleted 'unconditional' paragraph and recount/README misstates script history"
+      beats: {B8: pass, B4: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/papers/p3_lemma_recount.out, research/sheriff/SHF-20261017-e4d7f6/scripts/readers/papers/p4_cm73_sweep.out]
+      findings: [P-N4, P-N5, P-N6]
+    - id: C5
+      text: "the quotient-descent axiom stub is replaced by a proved theorem in formal/ (L1), with the background statement corrected (L2)"
+      location: crypto-autoresearcher#2298; formal/CryptoResearch/Quotient/TranslationDescent.lean
+      verdict: upheld_scoped
+      scoped_to: "the module builds on the pinned toolchain and Mathlib with axioms [propext] and fails on false variants; only that module was built (not the whole workspace, not verify_formal_targets, no lean4checker), and CI never built it"
+      beats: {B3: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/axiom-audit.out, research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/proves-too-much.out, research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/translation-descent-build.log]
+      findings: [CI1, L-N8, L-N9]
+    - id: C6
+      text: "Leak.lean is kernel-checked; native_decide only in replay_ok, disclosed (L3); frob cell counts corrected (L4); abstract scoped to Proposition 1 (L7)"
+      location: crypto#2033; crypto:research/ic_tree_split_structured_v_20261011
+      verdict: upheld_scoped
+      scoped_to: "builds on v4.34.1, Leak theorems on [propext, Quot.sound]; the repo-wide trusted-native list still allow-lists them and RESULTS.md:52 keeps an 'exactly' that its next sentence contradicts"
+      beats: {B3: pass, B8: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/crypto-treesplit-build-and-audit.out]
+      findings: [L-N1, P-N7]
+    - id: C7
+      text: "generic invariance narrowed to BSGS-type algorithms (L5)"
+      location: crypto#2026; crypto:research/conductor_gap_cm_pairs_20261010
+      verdict: overclaimed
+      scoped_to: "narrowed in README, PROTOCOL correction and GenericInvariance; TransferBound's docstring, the new rho/kangaroo sentence and README §5's bold conclusion still overreach"
+      beats: {B3: fail, B6: fail}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/lean.yaml]
+      findings: [L-N2]
+    - id: C8
+      text: "AxiomAudit.lean and CI workflows conductor-gap-lean.yml and rootfinding-s3roots-lean.yml added (L6)"
+      location: crypto#2026
+      verdict: upheld_scoped
+      scoped_to: "conductor_gap builds and audits [propext] only (session, local); S3Roots build and both CI runs are not covered; no audit log committed"
+      beats: {B3: not_covered, B7: not_covered}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/crypto-conductor-build-and-audit.out, research/sheriff/SHF-20261017-e4d7f6/checks/ci-runs.txt]
+      findings: [L-N7]
+    - id: C9
+      text: "semaev paper cites its artifacts (P6)"
+      location: crypto-autoresearcher#2298; papers/semaev-conservation-specialization/paper.tex
+      verdict: upheld
+      beats: {B8: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml, papers/semaev-conservation-specialization/paper.tex]
+      findings: []
+    - id: C10
+      text: "DEC-20261016-5d2fb8 superseded; parseability absolute on main (M1)"
+      location: crypto-autoresearcher#2293; tools/schema_supersession_registry.yaml:1444-1455
+      verdict: upheld
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/m1-supersession.txt, research/sheriff/SHF-20261017-e4d7f6/checks/merge-hygiene-absolute.txt]
+      findings: []
+    - id: C11
+      text: "validate_ledger indexing fixed (349 -> 287 errors), remainder left to Coordinator triage (M2)"
+      location: crypto-autoresearcher#2296; tools/validate_ledger.py
+      verdict: broken
+      beats: {B7: fail}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/validate-ledger.txt]
+      findings: [M2-R, CI1]
+    - id: C12
+      text: "killed ecbench sessions verify; every session audited by schema in CI (E1, E2)"
+      location: crypto#2033; crypto:.github/workflows/ecbench.yml, crypto:src/cryptanalysis/ecbench/audit.rs
+      verdict: upheld_scoped
+      scoped_to: "256/256 sessions pass integrity (session re-run); never-finalised sessions have no whole-file records hash; CI runs not observed"
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/ecbench-sessions-all-256.txt]
+      findings: [E1-R]
+    - id: C13
+      text: "both runbook sessions audited (X1)"
+      location: crypto-autoresearcher#2298
+      verdict: upheld
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/runbook-reaudit]
+      findings: []
+    - id: C14
+      text: "fb-archive index complete (X2)"
+      location: cryptanalysis#942; cryptanalysis:experiments/fb-archive
+      verdict: upheld_scoped
+      scoped_to: "fbarchive.py verify passes (2681 archives, 0 problems); refs.py check not covered (sparse checkout)"
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/fbarchive_verify.out]
+      findings: []
+    - id: C15
+      text: "n=83 stacked producer: 3.24x end-to-end cold wall time on one host class, 1.48x in operation counts; s_ic_setup one meaning across rows (K1, K3, K4)"
+      location: cryptanalysis#942; cryptanalysis:docs/ic/baselines.json, cryptanalysis:docs/ic/BASELINES.md
+      verdict: upheld_scoped
+      scoped_to: "3.24x cold wall-time ratio on one GitHub-hosted host class (Tier 1, no other-host replay), 1.4773x in operation counts; s_ic_setup consistent (9.6673 at n=83); factor-base construction uncharged in both arms and the GAE band unreported"
+      beats: {B5: pass, B7: not_covered, B8: pass}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/blind_n83.out, research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/k1k2.out, "cryptanalysis:docs/ic/baselines.json"]
+      findings: [K-N1, K-N2, K-N4, R1-R]
+    - id: C16
+      text: "factor-base construction disclosed; 0/0.1/1 GAE band (K2)"
+      location: cryptanalysis#942; cryptanalysis:experiments/koblitz-n83-stacked-20261016/README.md
+      verdict: overclaimed
+      scoped_to: "the uncharged phase is disclosed and its sensitivity re-derives; the GAE band cannot be computed because group-operation counts are not emitted"
+      beats: {B5: fail}
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/band.out]
+      findings: [K-N1]
+
+  findings:
+    - id: V1
+      beat: B2
+      severity: blocker
+      claim_ids: [C1]
+      what: >-
+        Both STARK verifiers still accept proofs of false statements. stark_v2: the Fiat-Shamir
+        transcript (transcript_to_fri, stark_v2.rs:226-240) absorbs only FS_TAG, the trace
+        commitment and the composition commitment, never the public boundary values, n, the
+        transition, beta or q; a prover picks the public input after alpha1, alpha2 so the boundary
+        pole cancels, and stark_v2::verify accepts (N8a fast and default configs, N8b row-6
+        boundary; control N8c with v+1 rejected). Deterministic, not probabilistic. stark v1:
+        the verifier takes q from the proof (stark.rs:504), so a false output proved with q=1 is
+        accepted (N7a), a rejected 20-query forgery cut to 3 queries is accepted (N7b), grinding
+        two broken rows at q=20 succeeds (N8b, attempt 107), and zero-fold FRI is accepted (N5c).
+        v1 is documented as a spot-check that may not back a claim. Reproduced by the session
+        (new-mutants.session-rerun.jsonl). The original four mutants are now rejected.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/stark/new-mutants.jsonl, research/sheriff/SHF-20261017-e4d7f6/scripts/readers/stark/new-mutants.session-rerun.jsonl, research/sheriff/SHF-20261017-e4d7f6/scripts/readers/stark/new-mutants/src/main.rs]
+      fix: >-
+        Absorb the full statement (boundary values and positions, n, AIR identifier, beta, q)
+        into the transcript before alpha1; fix q and FRI depth in the verifier for v1; add the
+        frozen-heart, query-count, truncation and grinding mutants as negative tests. Until then
+        mark both modules unsound in their docs and README:484.
+    - id: V2
+      beat: B2
+      severity: major
+      claim_ids: [C2]
+      what: >-
+        stark_v2.rs:34-41 states q·log2 β bits (240 default, 40 fast). That bound does not hold for
+        a verifier that accepts frozen-heart forgeries, ignores SHA-256's ~128-bit collision bound,
+        and 'proven bounds are about half' has no formula.
+      evidence: ["crypto:src/zk/stark_v2.rs", research/sheriff/SHF-20261017-e4d7f6/readers/stark.yaml]
+      fix: "Withdraw the bit figure until V1 is fixed; then state the conjectured and proven bounds with formula, hash cap, field size and grinding."
+    - id: V3
+      beat: B2
+      severity: minor
+      claim_ids: [C2]
+      what: >-
+        Residual verifier defects: v1's (1-k/n)^q text assumes a q the verifier does not enforce and
+        'caught with probability about q/n' exceeds 1 at the sizes used; the last FRI root and final
+        constant are not absorbed (zeroed last root accepted, M1); non-canonical encodings v+r are
+        accepted (M2); an opened value of 2^300 panics instead of returning false; no out-of-domain
+        sample; README:484 has no 'unsound' marker; the module tests miss frozen heart, wrong AIR,
+        duplicated query and v1 query count.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/stark.yaml]
+      fix: "Absorb every commitment, reduce and range-check opened values, return false on malformed input, and add the missing negative tests."
+    - id: CI1
+      beat: B7
+      severity: major
+      claim_ids: [C5, C11]
+      what: >-
+        In crypto-autoresearcher, 19 of 22 GitHub Actions workflows are disabled_manually,
+        including validate, lean-verification and main-health (most since 2026-10-12); only
+        scoped-evidence and two dynamic Copilot workflows are active. The last lean-verification
+        run (152, 2026-10-12) was cancelled. PRs #2296 and #2298 ran only Cursor checks. So the
+        ledger gate, the formal build and every other repository gate have not run on the fixes,
+        and TranslationDescent was never built by CI.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/ci-runs.txt]
+      fix: "Re-enable validate and lean-verification (or replace them) and run them on main; until then, state in fix PRs which checks were run locally."
+    - id: M2-R
+      beat: B7
+      severity: major
+      claim_ids: [C11]
+      what: >-
+        tools/validate_ledger.py on main fails with 330 new validation errors beyond the 1,210
+        grandfathered (claimed 287 after #2296). 11 come from experiments/EXP-SEMBIN-7c8e98/runs/
+        RUN-SEMBIN-9ecb77/manifest.yaml, added after #2296; the validator, baseline and registries
+        are unchanged since, leaving 319 vs 287 unexplained here (a full worktree at the #2296 merge
+        did not fit on disk; a filesystem-only run is not comparable). No Coordinator triage record
+        resolving the remaining defects was found, and the count is rising.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/checks/validate-ledger.txt, research/sheriff/SHF-20261017-e4d7f6/checks/m2-ledger-count.txt]
+      fix: "Coordinator triage (supersede, never edit) of the failing records, starting with RUN-SEMBIN-9ecb77; re-derive the 287 figure at ecdb13bdff on a full checkout; an absolute ledger gate on main."
+    - id: L-N1
+      beat: B3
+      severity: minor
+      claim_ids: [C6]
+      what: "crypto:tools/lean/trusted-native.txt:7-8 still allow-lists both TreeSplit.Leak theorems for native_decide; if either reverted, the repo-wide proof gate would pass it as TRUST."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/lean.yaml]
+      fix: "Remove the two Leak entries from the trusted-native list."
+    - id: L-N2
+      beat: B3
+      severity: minor
+      claim_ids: [C7]
+      what: >-
+        L5 narrowing incomplete: TransferBound.lean:13-16 still says generic methods cannot see the
+        conductor at all; new lean/README text puts rho and kangaroo under TransferBound, which bounds
+        the best cost across levels for always-correct solvers, not a method's measured S; README §5
+        calls the l = 8209 interval unexplained yet concludes in bold that no implemented method sees
+        the gap; 'for bsgs.* S = 1 is a theorem, a deviation is a harness fault' ignores that S is a
+        finite-sample statistic (recorded BSGS ratios 0.84, 0.98, 1.25).
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/lean.yaml]
+      fix: "Narrow TransferBound's docstring and the README §5 conclusion; say S = 1 in expectation for BSGS."
+    - id: L-N7
+      beat: B3
+      severity: minor
+      claim_ids: [C8]
+      what: >-
+        No axiom-audit output is committed for conductor_gap, S3Roots or TreeSplit while the papers
+        and RESULTS.md state the axiom sets; the evidence is a CI artifact whose run this case could
+        not observe. S3Roots' build was not reproduced here (Mathlib.Tactic closure did not fit).
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/lean.yaml, research/sheriff/SHF-20261017-e4d7f6/checks/ci-runs.txt]
+      fix: "Commit the audit logs (as the original fix asked) or cite the run URL; re-audit with crypto attached to the session."
+    - id: L-N8
+      beat: B7
+      severity: minor
+      claim_ids: [C5]
+      what: "research/THM_QUOTIENT_DESCENT1.md was rewritten in place in three places; the Status-line change has no dated note and its pre-minting 'Sage check' section still stands."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/lean.yaml]
+      fix: "Coordinator decides whether the note is an immutable record; if so, a dated correction note."
+    - id: L-N9
+      beat: B3
+      severity: minor
+      claim_ids: [C5]
+      what: "translation_descends_iff_two_torsion proves commutation with ι_S; its name and docstring say 'descends'. The file header discloses the gap; two unreachable `first` fallbacks raise linter warnings."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/lean-build/translation-descent-build.log]
+      fix: "Rename (e.g. translation_commutes_iff_two_torsion) or keep the header disclosure next to every citation."
+    - id: P-N1
+      beat: B8
+      severity: minor
+      claim_ids: [C3]
+      what: "The corrected LLL note's P-521 'catastrophic cancellation' mechanism is unsupported: the scaled P-521 diagonal is exactly 2^500 in f64, so the subtraction described is exact; recovering curves show larger residuals. The measured 0/4 (f64) and 3/3 (2048-bit) stand."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml]
+      fix: "Drop or re-derive the mechanism sentence; keep the measured result."
+    - id: P-N2
+      beat: B6
+      severity: minor
+      claim_ids: [C3]
+      what: "Re-run counts are probe executions of deterministic overlapping tests ('6/6' for secp256k1 is 3 distinct seed pairs); P-521 ran at k_bits=384, not 3n/4 = 390."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml]
+      fix: "Report distinct instances and the actual k_bits."
+    - id: P-N4
+      beat: B8
+      severity: minor
+      claim_ids: [C4]
+      what: "P3 wording edges: both scripts skip r = 0 (drops (7,7,5)); 'classes that contain any instance' should say hypothesis classes; 9,864 instances are 249 distinct (l,p,#E) checks and 26,278 are 336."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/papers/p3_lemma_recount.out]
+      fix: "Tighten the sentence and give distinct-check counts."
+    - id: P-N5
+      beat: B7
+      severity: minor
+      claim_ids: [C4]
+      what: "recount/README.md says the scripts are unchanged since 8b6b8c8ba, but exp_zdoubleprime_lemma_extended.py was edited in the same commit; its committed output still prints the old 16562 literal."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml]
+      fix: "Correct the README's provenance line and regenerate or annotate the output."
+    - id: P-N6
+      beat: B8
+      severity: minor
+      claim_ids: [C4]
+      what: "PAPER_STRUCTURAL_COMPLETENESS.md:50-54 keeps the deleted 'proof is unconditional' paragraph, contradicting the corrected one above it; the abstract says 'proven' while the README calls §8 proof sketches."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml]
+      fix: "Delete the stale paragraph; align 'proven' with the sketch status."
+    - id: P-N7
+      beat: B8
+      severity: minor
+      claim_ids: [C6]
+      what: "RESULTS.md:52 and report.typ:29 still say the subfield (g | t^7-1) cells are 'exactly' the gap -1 cells; there are six such cells and five at gap -1."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/papers.yaml]
+      fix: "Replace 'exactly' with the 5-of-6 statement."
+    - id: E1-R
+      beat: B7
+      severity: minor
+      claim_ids: [C12]
+      what: "A never-finalised session is accepted with no records.jsonl hash to compare (audit.rs:196-255): truncation or appended records are detected only by per-record seals, which are unkeyed hashes. Such sessions must not be cited as complete."
+      evidence: ["crypto:src/cryptanalysis/ecbench/audit.rs"]
+      fix: "Finalize killed sessions with a new sealed interruption record binding the records hash, or report them as unbound."
+    - id: I1
+      beat: B9
+      severity: minor
+      claim_ids: []
+      what: >-
+        Instrument defects in tools/sheriff.py: (a) repos[*].tree_digest hashes only git status and
+        diff, so every clean tree has the same value (6e340b9c…; also in the original case) and it
+        identifies no tree; (b) the ecbench-sessions-integrity checker enumerates sessions with
+        `git grep` on the worktree, so on a sparse checkout it audits 6 of 256 sessions and reports
+        pass with no sparse note (the note is added only on failure), and its OUTSIDE-CI-GLOBS list
+        uses globs CI no longer uses; (c) sparse sibling checkouts silently drop leads (63 original
+        leads 'gone' here are mostly paths outside the sparse set, and many new untraced-number
+        leads are papers whose cited artifacts are absent); (d) formal and lean checkers look only on
+        PATH, so a toolchain installed under ~/.elan is reported not_covered.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/sweep.json, research/sheriff/SHF-20261017-e4d7f6/checks/ecbench-sessions-all-256.txt]
+      fix: "Rename tree_digest or hash the tree; enumerate sessions with git grep on HEAD; mark every result from a sparse sibling as partial; probe ~/.elan/bin."
+    - id: R1-R
+      beat: B7
+      severity: minor
+      claim_ids: [C15]
+      what: "The n=83 result has still not been replayed on another host class (carried from R1); only the disclosure was added."
+      evidence: ["cryptanalysis:docs/ic/baselines.json"]
+      fix: "Replay rank block K1 for kP and kS on another host class in the order kS, kP, kP, kS, with one timed cold K600 base construction in the same job."
+    - id: K-N1
+      beat: B5
+      severity: minor
+      claim_ids: [C15, C16]
+      what: >-
+        Group-operation counts are still not emitted, so the 0/0.1/1 GAE band is unreported and
+        factor-base construction time X is unmeasured (R falls below 2 only at X >= 351.6 s). The
+        new conventions.setup says 'all reusable work' is included, yet both n=83 rows omit
+        factor-base construction and B's row omits 51 ms of linear algebra without naming it.
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/band.out, research/sheriff/SHF-20261017-e4d7f6/readers/costmodel.yaml]
+      fix: "Emit counted group operations and time base construction; name every uncharged phase per row."
+    - id: K-N2
+      beat: B5
+      severity: minor
+      claim_ids: [C15]
+      what: "The B -> stack ratchet entry keeps cross-run figures (360 -> 94.4, 1.01 -> 0.139) in the standard cold_gap/online_gap fields while entries 6-8 hold within-run figures in the same fields; a uniform reader of the JSON is misled."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/costmodel.yaml]
+      fix: "Put paired within-run deltas in the standard fields, or rename the cross-run ones."
+    - id: K-N3
+      beat: B8
+      severity: minor
+      claim_ids: []
+      what: "The new fb-archive README sentence says the three formerly unindexed archives' gzip OS byte (3) shows a different writer; they match fbarchive.py's output except that byte, and 2,568 of 2,664 indexed .gz archives carry OS byte 3."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/scripts/readers/costmodel/gzwriter.out]
+      fix: "Correct or drop the sentence."
+    - id: K-N4
+      beat: B8
+      severity: minor
+      claim_ids: [C15]
+      what: "Precision: a 'probe' is not the same work in both arms, so the 2.28x per-probe factor is not pure host speed (conservative labelling); 8.79486 rounds to 8.7949, not 8.7948; the README's 'about 1.3' is 1.358."
+      evidence: [research/sheriff/SHF-20261017-e4d7f6/readers/costmodel.yaml]
+      fix: "Fix the roundings; describe the per-probe factor as per-probe wall time."
