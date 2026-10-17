@@ -51,6 +51,8 @@ Only existing, admitted frozen plans launch through the ordinary supervisor. Mis
 
 The prospective manifest transport component has seven fixture checks, including compatibility with the current run schema and refusal to overwrite a sealed run. This is software preparation, not a scientific trial. The [repair packet](../../coordination/design/SNFS-INSTRUMENT-REPAIR-20261017/README.txt) lists the remaining exact-byte routing, binding and authority obligations.
 
+The configured Coordinator backend remains unavailable: the [readiness log](toolchain/coordinator-backend-readiness.log) reports absent configured credentials and unverified model identifiers; no live probe or substitution approval occurred. This reuses the [existing access impediment](../../problems/prime-field-arity3-relation-oracle.md). It is an execution limitation, not evidence against the affected leads.
+
 Scientific raw output, successful checker execution, schema completeness, independent review and a warranted conclusion are separate statuses. A metadata envelope cannot retroactively change a failed supervisor receipt.
 
 ## Current success and budget conventions
