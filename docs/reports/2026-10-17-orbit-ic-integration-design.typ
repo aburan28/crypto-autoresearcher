@@ -39,4 +39,6 @@ The 50–63-bit prime/Koblitz/ordinary-binary, `m=2..8` grid remains open. Each 
 
 The immediate Coordinator act is to freeze Gates A and B as one bounded N53 experiment. Gate C gets a separate holdout whose values remain undisclosed during base selection. No canonical frontier graph changes now: these pages connect accepted finite receipts to an unrun gate.
 
+The configured Coordinator inference backend was unavailable at the 2026-10-17 check. `problems/prime-field-arity3-relation-oracle.md` now records the shared access limit and the exact exit condition for this ICPERF continuation. This is separate from the scientific uncertainty in Gates A–C.
+
 Internal evidence: `research/cold_arm_composition_ic_20260921/REPORT.md`; `research/pair_reuse_20260922/REPORT.md`; `ledger/decisions/DEC-20260921-6648da.md`; `ledger/decisions/DEC-20260922-38ca94.md`; baseline grid `docs/reports/2026-10-16-elite-factor-base-baseline.md`.
