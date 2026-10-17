@@ -4,6 +4,7 @@
   `CryptoResearch.Quotient.translation_descends_iff_two_torsion`
   (`formal/CryptoResearch/Quotient/TranslationDescent.lean`, target
   `formal/targets/quotient-translation-descent.yaml`); see "Formal target" below.
+  Despite its name, the theorem proves commutation with ι_S; descent follows as stated in the file header (sheriff SHF-20261017-e4d7f6 L-N9).
   Companion to `IDEA-20260920-0490f5`.
 - **Closes:** the "Larger group actions?" question on Galbraith's ECC 2015 slides, for every
   x-type coordinate.
@@ -77,6 +78,7 @@ summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
 ## Formal target
 
     theorem_name: CryptoResearch.Quotient.translation_descends_iff_two_torsion
+    name_note: proves commutation with ι_S; descent follows as stated in the file header (sheriff L-N9)
     statement: ∀ (S T : E), (∀ P, -(P+S)+T = -(P+T+S)) ↔ (2:ℕ)•T = 0
     file:      formal/CryptoResearch/Quotient/TranslationDescent.lean
     target:    formal/targets/quotient-translation-descent.yaml
