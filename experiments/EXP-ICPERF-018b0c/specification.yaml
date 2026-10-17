@@ -43,14 +43,18 @@ experiment:
     sage_input_replay: {path: experiments/EXP-ICPERF-018b0c/inputs/sage_replay.json, sha256: 2c5cd62fe9ecd9478b67e296b9a0d02b8a804d137b8ea020716b47690b990fc1}
     preparation_failures: {path: experiments/EXP-ICPERF-018b0c/inputs/preparation_failures.md, sha256: 21dc9b48ee8287262d82c90242bb423310ad6e4a6d715d8a52ce55af8f033e03}
     preparation_report: docs/reports/2026-10-17-icperf-k11-common-target-inputs.md
+    bounded_stage_runner: {path: experiments/EXP-ICPERF-018b0c/implementation/execute.py, sha256: c98a54146d54039cc040f00573f06c4da02e45c850730a0eea763b25da3a6a94}
+    independent_result_checker: {path: experiments/EXP-ICPERF-018b0c/implementation/verify_run.py, sha256: 8670801359514b61c009d6ed73c6beb9b402c1db7fedc51f737b4eb7c47db2a5}
+    solver_interface_receipt: {path: experiments/EXP-ICPERF-018b0c/implementation/solver_interface_receipt.json, sha256: 54e64ecf0b9263921901acb662adf2f89557b096d5e021ab13c4b760094cffce}
+    solver_interface_report: experiments/EXP-ICPERF-018b0c/implementation/solver_interface_report.md
     trial_plan: experiments/EXP-ICPERF-018b0c/trial-plan.json
     note: >-
-      The input emitter, both input checkers, three manifests and two replay
-      records exist and are bound above. run.py prepares inputs only; it is
-      not a solver trial runner. A bounded new-target solver runner, its
-      independent result checker and a trial plan binding exact source and
-      input digests remain prerequisites for approval. No code or target is
-      silently substituted.
+      The input emitter, stage runner, both input checkers, independent result
+      checker, three manifests, two replay records and synthetic solver CLI
+      receipt are bound above. run.py prepares inputs only; execute.py is the
+      admitted scientific driver. A frozen trial plan, archive coverage,
+      dispatch queue and legal goal lane remain prerequisites for approval.
+      No code or target is silently substituted.
 
   input_preparation:
     status: independently_replayed_inputs_only
@@ -132,6 +136,14 @@ experiment:
       Deduplicate exact projected coefficient vectors across signs, torsion
       pair presentations and the four channels of a subgroup target. Report
       distinct rows only; do not infer linear rank without modular elimination.
+    static_size_control: >-
+      Under this fixed forbidden-value encoding the archived weighted and
+      local-random k11 arms have equal per-channel CNF and native-XOR counts:
+      89,122 clauses per channel and 62,655 XOR rows on channel 0. Their
+      accepted 632-value membership tables differ. This pilot may observe
+      solver behavior or certified yield, but cannot show a static
+      formula-size sparsity gain from weighting. Degree of regularity remains
+      unmeasured.
 
   controls:
     - Equal-column local-random base on the same curve, circuit and target schedule.
@@ -149,6 +161,42 @@ experiment:
     natural targets i=0..7 in order; for each i, use weighted then local_random
     when i is even and local_random then weighted when i is odd; within each
     arm use channels 0,1,2,3. This fixed alternation exposes host drift.
+  stage_schedule:
+    positive:
+      run_id: RUN-ICPERF-712e85
+      trial_id: positive
+      calls: 2
+      order: [weighted, local_random]
+      output: runs/RUN-ICPERF-712e85
+    natural:
+      run_id: RUN-ICPERF-1c8bfe
+      trial_id: natural
+      calls: 64
+      depends_on: positive output_validated receipt and exact raw-result.json digest
+      output: runs/RUN-ICPERF-1c8bfe
+      gate: >-
+        The driver launches natural solver calls only if both positive calls
+        have independently checked full-point certificates. Otherwise it
+        records the gated stage without a natural solver call. Four raw
+        channels share one subgroup target.
+    archive_requirement: >-
+      For each stage the executor handoff and isolated archive task must
+      declare the exact files calls-manifest.json and calls.tar.gz, alongside
+      manifest.yaml, raw-result.json, independent_check.json and the adapter
+      receipts. The fixed bundle retains every dynamic calls/ file, including
+      solver input, stdout, stderr, attempt.json, certificate.json and
+      summary.json. The independent checker must compare the complete raw
+      tree, file-hash manifest and bundle; archiving only top-level summaries
+      is incomplete.
+  runbook_route:
+    status: not_written
+    reason: >-
+      A supervisor runbook cannot pass tools/runbook.py lint until the trial
+      plan names a readable dispatch queue containing an executor task whose
+      artifact_paths cover every declared run file. Both ICPERF lanes remain
+      open, and BATCH-e261c2 has a dispatcher archive-ancestry refusal. Do
+      not fabricate a queue or mark a runbook lintable.
+    handoff_policy_if_no_lintable_runbook: executor-implementation
 
   solver_limits:
     binary_options: [--verb, '0', --threads, '1', --maxsol, '1', --random, '20261017', --maxtime, '<remaining-call-seconds>', '<xcnf-path>']
@@ -160,6 +208,13 @@ experiment:
     maximum_primary_models_per_call: 64
     total_wall_seconds: 25200
     watchdog_interval_seconds: 0.02
+    panel_wall_interpretation: >-
+      The 25,200-second allowance stops admission of additional solver calls
+      across the positive and natural stages. The positive stage's recorded
+      total, including its bundle packaging, is subtracted before natural
+      calls. The natural stage's final bundle packaging and independent
+      checker may extend full charged wall beyond that call-admission bound;
+      the outer stage watchdogs are 1,200 and 27,000 seconds respectively.
     host_admission: >-
       Run one solver process at a time on a quiet host. Before each call,
       retain MemAvailable/free-memory and disk receipts; require at least
@@ -173,17 +228,21 @@ experiment:
 
   budget:
     enforcement: advisory
-    maximum_runs: 1
+    maximum_runs: 2
     maximum_workers: 1
     maximum_calls: 66
     wall_clock_seconds_per_call: 300
-    total_wall_clock_seconds: 25200
+    total_wall_clock_seconds: 56400
     maximum_memory_bytes_per_call: 8589934592
     maximum_primary_models_per_call: 64
     note: >-
       Sample count and locked trial order are scientific protocol limits;
-      time, memory and disk guards protect the host. The ECC campaign budget
-      remains unlimited under AGENTS.md.
+      25,200 seconds is the internal cross-stage solver-call admission bound.
+      The 56,400-second sum of the two driver and two checker watchdogs is a
+      conservative machine-protection ceiling, not a scientific stopping
+      threshold or spending cap. Report full observed wall, CPU and bytes
+      even if a watchdog stops a stage. The ECC
+      campaign budget remains unlimited under AGENTS.md.
 
   metrics:
     primary:
@@ -193,6 +252,7 @@ experiment:
       - Full classification of all 64 natural calls as certified, solver_reported_exhausted_unvalidated, wall_censored, memory_censored, model_cap_censored, invalid, or infrastructure_failure.
     secondary:
       - Per-call wall and process CPU seconds, sampled peak RSS and host load; censored calls retain their spent work.
+      - calls_bundle.wall_seconds, cpu_seconds, tar_bytes, manifest_bytes and raw_file_count from each raw-result.json; packaging wall is included in that stage's total_wall_seconds.
       - Solver-reported conflicts where available, labeled diagnostic and never degree of regularity.
       - Models attempted, CNF/XOR-valid models, point-rejected models and reasons, sign certificates and repeated rows.
       - Candidate and control base selection scans, setup CPU/wall/memory, XCNF construction, decompression, solver, extraction and verification times separately.
@@ -227,7 +287,7 @@ experiment:
     - Stop before solver work on input, binary, source or target-manifest hash mismatch.
     - Stop natural calls if either planted solver-positive gate fails as specified above.
     - Stop one call at 300 seconds, 8 GiB sampled RSS, 64 primary models or solver terminal status; preserve its raw attempts.
-    - Stop the panel at 25,200 seconds total wall, preserving all completed and partial calls.
+    - Stop admitting solver calls at the remaining 25,200-second cross-stage panel allowance; charge final packaging and checker work separately in full observed totals, preserving all completed and partial calls.
     - Stop on disk or memory admission refusal; classify infrastructure, not zero yield.
   invalidation_rules:
     - A SAT model failing CNF or native XOR checks is invalid and preserved.
@@ -247,7 +307,6 @@ experiment:
     UNSAT, timeout or memory stop is inconclusive for natural yield.
   required_artifacts:
     - experiments/EXP-ICPERF-018b0c/trial-plan.json
-    - experiments/EXP-ICPERF-018b0c/runbook.yaml if it lints cleanly
     - experiments/EXP-ICPERF-018b0c/implementation/run.py
     - experiments/EXP-ICPERF-018b0c/implementation/check.py
     - experiments/EXP-ICPERF-018b0c/implementation/check_sage.py
@@ -259,7 +318,8 @@ experiment:
     - experiments/EXP-ICPERF-018b0c/inputs/preparation_failures.md
     - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/manifest.yaml
     - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/raw-result.json
-    - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/attempts/
+    - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/calls-manifest.json
+    - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/calls.tar.gz
     - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/independent_check.json
     - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/report.md
     - experiments/EXP-ICPERF-018b0c/runs/<RUN-ID>/diagram.svg
@@ -267,8 +327,8 @@ experiment:
   assigned_to: executor
   approval_preconditions:
     - The bound input emitter, input checkers, positive controls and base-independent common-target formulas are archived by exact digest; the existing input replays alone are not solver-result checks.
-    - A bounded solver trial runner for the 66-call schedule and a distinct independent result checker exist, with source hashes and exact commands bound in the plan.
-    - The pinned CryptoMiniSat binary and all CLI flags are checked on a small synthetic XCNF; this is an implementation check, not a scientific pilot call.
+    - The bound execute.py and verify_run.py are included by exact hash in a complete two-stage trial plan, with calls-manifest.json and calls.tar.gz declared as exact files for each run in the executor and archive handoffs.
+    - The pinned CryptoMiniSat binary and CLI flags match the bound small synthetic XCNF receipt; that receipt is an implementation check, not a scientific pilot call.
     - A complete trial-plan.json binds exact commands, inputs, caps, output paths, task and queue; `tools/newest_experiments.py --experiment EXP-ICPERF-018b0c --json` reports execution_state ready.
     - A runbook satisfying design-experiment requirements lints with `LINT OK`, or an explicit implementation-tier reason is recorded and the execution handoff names executor-implementation.
     - The two existing goal lanes are reconciled or a disjoint lane is lawfully admitted within max_concurrent=2; BATCH-e261c2's archive ancestry failure is not ignored.
@@ -276,10 +336,12 @@ experiment:
   readiness_note: >-
     The eight base-independent subgroup targets, 32 raw channels, 64 natural
     XCNF inputs, two planted positives and their independent input replays
-    are prepared and bound by digest. The input emitter and checkers do not
-    execute solver trials. A new-target bounded solver runner, independent
-    result checker, complete trial plan, runbook or recorded implementation-tier
-    reason, dispatch queue and legal goal lane remain missing. The historical
-    standalone solver is not bound to this common-target schedule. Keep
+    are prepared and bound by digest. The bounded two-stage runner and
+    independent result checker are archived, and a synthetic CLI check passed;
+    no scientific solver call has run. A frozen, authority-bound trial plan,
+    complete raw-bundle archive handoff, lintable runbook or recorded
+    implementation-tier reason, dispatch queue and legal goal lane remain
+    missing. The historical standalone solver is not bound to this
+    common-target schedule. Keep
     review_required, approved_by null and execution_authorized false until
     `newest_experiments` reports ready and a Coordinator decision approves.
