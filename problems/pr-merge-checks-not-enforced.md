@@ -2,7 +2,7 @@
 
 - **Status:** `open`
 - **Kind:** repository governance and CI implementation gap; administrator access/authorization may be needed for the settings change.
-- **Affected work:** [AGENTS.md merge rule](../AGENTS.md#concurrency-many-agents-many-worktrees), [mandatory progress-fidelity gate](../AGENTS.md#mandatory-progress-fidelity-gate), [progress-fidelity workflow](../.github/workflows/progress-fidelity.yml), and PRs [#2322](https://github.com/aburan28/crypto-autoresearcher/pull/2322), [#2323](https://github.com/aburan28/crypto-autoresearcher/pull/2323), [#2324](https://github.com/aburan28/crypto-autoresearcher/pull/2324), and [#2327](https://github.com/aburan28/crypto-autoresearcher/pull/2327).
+- **Affected work:** [AGENTS.md merge rule](../AGENTS.md#concurrency-many-agents-many-worktrees), [mandatory progress-fidelity gate](../AGENTS.md#mandatory-progress-fidelity-gate), [progress-fidelity workflow](../.github/workflows/progress-fidelity.yml), and PRs [#2322](https://github.com/aburan28/crypto-autoresearcher/pull/2322), [#2323](https://github.com/aburan28/crypto-autoresearcher/pull/2323), [#2324](https://github.com/aburan28/crypto-autoresearcher/pull/2324), [#2327](https://github.com/aburan28/crypto-autoresearcher/pull/2327), and [#2329](https://github.com/aburan28/crypto-autoresearcher/pull/2329).
 - **Next action owner:** repository administrator for GitHub settings; PR author and reviewer for verifying the restored gate.
 - **Last updated:** 2026-10-17 UTC.
 
@@ -18,11 +18,12 @@ This is a delivery-integrity issue for changes to the ICPERF goal and any other 
 - **Observed:** the same query for #2323 reported merge at `06:00:56Z` by `app/cursor`; Cursor Automation completed at `06:01:27Z` and Cursor Security Agent at `06:04:32Z`.
 - **Observed:** the same query for #2324 reported merge at `06:04:34Z` by `app/cursor`; Cursor Approval Agent completed at `06:05:13Z`, Cursor Automation at `06:05:23Z`, and Cursor Security Agent at `06:09:32Z`.
 - **Observed, later recurrence:** `gh pr view 2327 --json mergedAt,mergeCommit,mergedBy,statusCheckRollup` reported merge at `06:34:33Z` by `app/cursor`; Cursor Automation completed at `06:35:12Z` and Cursor Security Agent at `06:36:46Z`. Both later checks reported success, but both were pending at merge. Its check rollup also lacked `progress-fidelity`.
+- **Observed, distinct recurrence:** PR #2329 head `39efd16d4a5a4ad7e3667056bed4c90d635fdf15` merged at `07:00:02Z` as `ce38eab4a68ecc332901cfd0aba6dd64b630a1bf`. Cursor Approval completed `SUCCESS` at `06:56:44Z`, Security completed `SUCCESS` at `06:59:49Z`, and Cursor Bugbot completed `NEUTRAL` at `06:56:32Z` because its usage limit prevented review. This PR did wait for Security, but its rollup had no `progress-fidelity` job and the neutral Bugbot was not a successful review. The record does not establish that Bugbot was a required context.
 - **Observed:** `gh api repos/aburan28/crypto-autoresearcher/branches/main` reported `protected: false` and required status checks `enforcement_level: off`, with empty checks and contexts. `gh api 'repos/aburan28/crypto-autoresearcher/rulesets?includes_parents=true'` returned `[]`. `gh api repos/aburan28/crypto-autoresearcher/actions/permissions` reported `enabled: false`. The [workflow source](../.github/workflows/progress-fidelity.yml) declares a `progress-fidelity` job for `pull_request`, but it did not appear in the three PR check rollups.
 - **Derived or proved:** the cited check completion timestamps are after their respective merge timestamps. The current branch settings cannot require status checks. The reported Actions setting prevents the repository workflow from running under that setting.
 - **Suspected explanation:** the merge automation and absent branch gates together allowed premature merges. Its exact internal trigger and permissions are unverified; inspect its configuration and audit log before assigning a narrower cause.
 - **Missing capability:** authorized repository-setting changes and a controlled PR showing the resulting gate in operation.
-- **What this evidence does not establish:** it does not establish that the late checks would have failed, that `app/cursor` bypassed an enabled rule, or that all historical PRs had the same timing. The cited late checks eventually reported success, but none was complete when its PR merged.
+- **What this evidence does not establish:** it does not establish that the late checks would have failed, that `app/cursor` bypassed an enabled rule, or that all historical PRs had the same timing. The cited late checks eventually reported success, but none was complete when its PR merged. PR #2329 had a different timeline: its Security review passed before merge, while the required progress-fidelity workflow remained unavailable and Bugbot's neutral result did not inspect the diff.
 
 ## What would unblock it
 
@@ -46,3 +47,5 @@ A planned step is not a completed test. Repository settings are not changed by t
 Unresolved. This record names an observed delivery-integrity obstruction; merging the record does not repair enforcement. The three source PRs remain merged with their original check timelines intact.
 
 2026-10-17 UTC: PR #2327 supplied a fourth observed early merge on the same app path. Its later checks passed, which does not change their pending state at merge time. The enforcement exit criteria remain unmet.
+
+2026-10-17 UTC: PR #2329 merged after Security succeeded, but without an Actions-run `progress-fidelity` job or branch protection; Bugbot was neutral from a usage limit. This is a gate-enforcement recurrence, not another early-Security example.
