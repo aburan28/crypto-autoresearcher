@@ -105,6 +105,7 @@ assessment are not launch prerequisites. This map adds no runtime role or author
 | Coordinator | priorities, decomposition, state transitions, synthesis; alone changes the official status of a hypothesis or direction | `coordinator-orchestration-code` (`coordinator-orchestration` without code) |
 | Idea Generator; research tasks | falsifiable mechanisms and experiments | `research-deep` |
 | Idea Synthesist | cross-goal ideation | `research-synthesis`, `high` |
+| Experiment Director | writes the mechanical tier's runbook and task card, assesses its runs | `director-runbook` |
 | Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs and approved runbooks |
 | Reviewer | challenges claims, validity and transitions | `review-adversarial`, `xhigh`, independent session |
 | Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer; `audit-sweep` screens runbook sessions, never a review gate |
@@ -148,6 +149,10 @@ Permissions: the role contract. Inference requirements:
 `orchestration/model-bindings.yaml`, resolved by `orchestration/adapter/`.
 None names a vendor (`docs/inference-backends.md`). Each role's policy is in
 "Roles".
+
+**Model tiers** (`docs/model-tiers.md`): each policy has a `model_tier`
+floor (mechanical < director < core < frontier); the resolver refuses models
+below it.
 
 Policy ids are permanent; pre-2.0 aliases (`model-policies.yaml`) resolve
 forever; new handoffs use canonical ids. The adapter records requested policy
