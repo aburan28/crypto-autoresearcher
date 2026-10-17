@@ -94,3 +94,83 @@ and `aggregate.md`. UNSAT instances are fitted; SAT costs are reported separatel
 fitted. Host: 4 vCPU Intel Xeon 2.10 GHz, 15 GB shared with two other pilots and with this
 pilot's own labelling process, so wall times are indicative only; conflict counts are
 deterministic and unaffected.
+
+## Result (state of `results/` at 15:57 UTC, 2026-10-17; the campaign continues in the background until its 17:15 UTC deadline — re-run `python3 fit.py` afterwards; `aggregate.md`/`fit.json` are regenerated from whatever `results/` holds)
+
+Per-cell UNSAT medians (full table with means, walls and SAT rows in `aggregate.md`):
+
+| family | m | n | l | config | N | UNSAT | median conf | 2^(ml)/m! | median/law | median/2^(ml) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| trimoska_S4 (paper instances) | 3 | 15 | 5 | b (paper config) | 42 | 4 | 5587 | 5461 | 1.023 | 0.171 |
+| trimoska_S4 | 3 | 17 | 6 | b | 51 | 4 | 43960 | 43691 | 1.006 | 0.168 |
+| trimoska_S4 | 3 | 19 | 6 | b | 51 | 4 | 43976 | 43691 | 1.007 | 0.168 |
+| chained_S3 | 3 | 13 | 4 | xg | 25 | 10 | 355 | 683 | 0.52 | 0.087 |
+| chained_S3 | 3 | 17 | 5 | xg | 32 | 10 | 1753 | 5461 | 0.32 | 0.054 |
+| chained_S3 | 3 | 19 | 6 | xg | 37 | 10 | 12278 | 43691 | 0.28 | 0.047 |
+| chained_S3 | 3 | 13/17/19 | 4/5/6 | xg_b | | 10 each | 159 / 678 / 3615 | | 0.23 / 0.12 / 0.08 | |
+| chained_S3 | 4 | 13 | 3 | xg | 38 | 10 | 1890 | 171 | 11.1 | 0.46 |
+| chained_S3 | 4 | 17 | 3 | xg | 46 | 10 | 1887 | 171 | 11.1 | 0.46 |
+| chained_S3 | 4 | 15 | 4 | xg | 46 | 10 | 38110 | 2731 | 14.0 | 0.58 |
+| chained_S3 | 4 | 17 | 4 | xg | 50 | 5 (running) | 37048 | 2731 | 13.6 | 0.57 |
+| chained_S3 | 4 | 13 | 3 | xg_symfull | 38 | 10 | 160 | 171 | 0.94 | 0.039 |
+| chained_S3 | 4 | 17 | 3 | xg_symfull | 46 | 10 | 177 | 171 | 1.04 | 0.043 |
+| chained_S3 | 4 | 15 | 4 | xg_symfull | 46 | 10 | 2384 | 2731 | 0.87 | 0.036 |
+
+Fits log2(conf) = a + alpha l over completed UNSAT rows (bootstrap 95% CI):
+
+| group | alpha | CI | budget needs |
+|---|---|---|---|
+| trimoska_S4, m=3, b (paper object + config) | 2.981 | [2.973, 2.997] | < 0.5 |
+| chained_S3, m=3, xg | 2.551 | [2.505, 2.601] | < 0.5 |
+| chained_S3, m=3, xg_b | 2.257 | [2.226, 2.289] | < 0.5 |
+| **chained_S3, m=4, xg** | **4.328** | **[4.315, 4.340]** (fixed n=17: 4.310 [4.297, 4.325]) | **< 1** |
+| **chained_S3, m=4, xg_symfull** | **3.824** | **[3.790, 3.859]** | **< 1** |
+
+Still queued when this README was written (they append to `results/` and enter the fits on
+re-running `fit.py`): m4-n17-k4 symfull, m4-n19-k5 symfull (l = 5), m4-n19-k5 xg (1 instance,
+expected censored at 600 s), m3-n23-k5/k6/k7, m4-n23-k4, m4-n17-k5 symfull. m = 4 at l = 6 was
+not attempted (xg needs ~2^24 branch points at ~1 ms each per instance, outside the 10-minute
+limit); m4-n23-k5 could not be labelled (N = 66 > 63-bit enumerator masks).
+
+## Reading (derived, not a decision)
+- At m = 4 WDSat's UNSAT cost on chained S_3 grows at alpha = 4.3 bits per unit l with Gaussian
+  elimination and 3.8 with symmetry breaking (medians sit at 0.9-1.0 x 2^(4l)/4!), against the
+  alpha < 1 that the m = 4 budget requires. The first SAT measurement at m >= 4 therefore lands
+  where the harvest's extrapolation put it: the solver enumerates the factor-base tuple up to
+  symmetry; nothing in the m = 4 data hints at sub-exhaustive behaviour.
+- The symmetry-breaking law 2^(ml)/m! transfers from m = 3 to m = 4 almost exactly
+  (ratios 0.87-1.04 on the three completed symfull cells).
+- The m = 3 control through this pilot's exporter is cheaper than the paper's law (alpha 2.3-2.6,
+  not 3): with Gaussian elimination the chained presentation gives WDSat the u block and the last
+  x block linearly once the first two x's are fixed. This is a presentation effect, visible also on
+  the paper's own instances (xg/xg_b rows: 0.63-0.73 x law at the same l but slope 3.2), and it does
+  not reach the m = 4 verdict (alpha 3.8-4.3 against 1).
+- The build itself reproduces the harvest's object and law: paper instances, paper config, 1.006-1.023 x
+  2^(3l)/3!, slope 2.981 against the harvest's 2.9985.
+
+## Limitations
+1. Chained S_3 is a presentation choice; direct S_5 was not run (no builder exists). Different
+   presentations change the constant and, as the m = 3 control shows, even the slope under XG.
+2. Two to three l values per m = 4 group so far (l = 3, 4; l = 5 only with symmetry breaking, and
+   only once the queued runs land); fits over such short ranges are slopes, not laws. Censoring
+   at l >= 5 (xg) biases nothing in the tables (nothing is imputed) but limits the range.
+3. Wall times were taken on a shared 4-vCPU host while labelling and two other pilots ran;
+   only conflict/node counts are reproducible figures. WDSat has no decision counter separate
+   from `conf`; `nodes` and `fails` were added by patch and agree with it row by row.
+4. Stock `-b` is incomplete on chained m >= 4 (false SAT with undefined bits); its m = 4 rows
+   are recorded as `unknown` and excluded. The `symfull` patch is this pilot's, not the paper's.
+5. One curve per n, seed 0, 10-14 targets per cell; SAT instances are rare at these parameters
+   (2^(ml)/(m! 2^n) << 1) and their costs are reported only as lists.
+
+## Regenerate
+Labelling: `python3 label.py <m> <n> <k> 14 --pilot2 <dir>` where `<dir>` holds pilot #2's code
+(`../m45-closure-pilot/`, byte-identical `pilot2_lib.py`, `pilot_lib.py`, `count_chain.c`,
+`vendor/boolsys.py`; `vendor/gf2n.py` and `vendor/curve.py` are `experiments/EXP-CERTBIN-060020/impl/`
+per `vendor/SOURCES.sha256`; build `libcountchain.so` with gcc -O2 -shared -fPIC). Solving:
+`python3 run_cells.py <cell> xg|xg_b|xg_symfull [--unsat 10 --sat 3 --timeout 600]`,
+`python3 run_trimoska.py --configs b,xg,xg_b`; both need the WDSat source at `wdsat_io.WDSAT_SRC`
+(the vendored `wdsat_987b7f5ef9`, hashes in `wdsat_source_sha256.txt`) and gcc. Then
+`python3 fit.py` (deterministic; two runs give identical `fit.json` and `aggregate.md`).
+Campaign order as actually run: `campaign.sh`/`campaign2.sh`/`campaign3.sh` (copied here).
+Provenance of every number: the `results/*.jsonl` row (instance id, flags, build hash,
+anf_sha256, sizing, status, conf/nodes/fails, wall, cpu).
