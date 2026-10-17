@@ -1,7 +1,8 @@
 """Tests for the collision harvest of EXP-PFDR-1b78f7 (IC-8).
 
-Every test here is on toy curves (p <= 2^20).  tests/test_index_calculus_fp.py
-covers the engine itself and must pass unedited.
+Most tests use small curves (p <= 2^20); one checks the sorted collision
+store against the scalar reference on an archived 63-bit prime fixture.
+tests/test_index_calculus_fp.py covers the engine itself and must pass unedited.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import json
 import math
 import random
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -51,6 +53,41 @@ from crypto_autoresearcher.index_calculus.tails import TailTable
 SOLVER_COLUMNS = ("k", "verified", "attempts", "relations", "rank", "s3_solves",
                   "table_s3_solves", "table_entries", "membership_tests", "group_ops",
                   "target_ops", "la_ops", "la_pivot", "factor_base", "table_arity")
+
+
+def test_wide_prime_harvest_preserves_full_x_keys_and_scalar_counts():
+    np = pytest.importorskip("numpy")
+    root = Path(__file__).resolve().parents[1]
+    fixture = json.loads((root / "research/icperf_prime_fixtures_20261017" /
+                          "n63_seed20261017.json").read_text())["curve"]
+    points = json.loads((root / "research/icperf_explicit_divisor_20261017" /
+                         "n63_m8_subgroup_seed20261017.json").read_text())["points"]
+    E = Curve(fixture["p"], fixture["a"], fixture["b"], fixture["order"])
+    fb = FactorBase("fixed_control", [tuple(point) for point in points[:3]], p=E.p)
+    P, Q = fb.points[:2]
+    table = TailTable(E, fb, 2)
+    harvested = []
+    for compact in (True, False):
+        hv = Harvester(E, P, Q, fb, table, "census", None)
+        if not compact:
+            hv.recorder.np = None  # exact scalar/dict reference store
+        else:
+            assert hv.recorder.np is np
+            assert not hv.recorder.vectorized_scan
+        for t in (1, 2):
+            hv.begin_attempt(t, 1, 0)
+            hv.recorder.scan(P, 0, len(fb) - 1)
+            hv.end_attempt()
+        harvested.append(hv)
+    compact, reference = harvested
+    assert compact.runs and compact.runs[0][0].dtype == np.uint64
+    assert max(int(x) for run, _ in compact.runs for x in run) > 1 << 32
+    assert {int(x) for run, _ in compact.runs for x in run} == set(reference.runs[0])
+    assert compact.recorder.encodings_recorded == reference.recorder.encodings_recorded
+    assert compact.ss_dup == reference.ss_dup
+    assert compact.cls["SS"].pairs_raw == reference.cls["SS"].pairs_raw
+    assert compact.cls["SS"].cert_pass == reference.cls["SS"].cert_pass
+    assert compact.cls["SS"].cert_pass > 0
 
 
 def _hard_targets(E, fb, m, count, seed):
