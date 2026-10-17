@@ -2,7 +2,7 @@
 
 Run with Sage's Python environment.  This is implementation preparation for
 EXP-ICPERF-42ef30 AP-2, not an experiment launcher or a solve certificate.
-The unmet byte-identity gate is tracked in
+The byte-identity history and remaining parser admission are tracked in
 ../../../problems/affine-weil-descent-byte-identity.md.
 The input x coordinates are x = offset + sum(bit_j * basis_j), independently
 for each of the three factor-base points.  The target is an explicit field
@@ -33,45 +33,62 @@ def _sr_mod(poly, modulus, variable):
 
 
 def _remove_powers(poly, field_equations):
-    # Preserve the upstream reduction and printed polynomial order.  A faster
-    # Boolean reduction would need its own byte-identity regression first.
+    # Match the upstream Boolean reduction. Output order is handled separately
+    # by the C producer's degree/group/coordinate serialization convention.
     for equation in field_equations:
         poly = Ideal(poly, equation).groebner_basis()[0]
     return poly
 
 
-def _anf_x(nb_vars_x, nb_vars, n, equations):
+def _ordered_terms(poly, names):
+    """Return nonconstant Boolean terms in the shipped C producer's order."""
+    groups = [int(name.split("_")[1]) for name in names]
+    coordinates = [int(name.split("_")[2]) for name in names]
+    terms = []
+    for monomial in poly.monomials():
+        exponents = next(iter(monomial.dict()))
+        if any(power > 1 for power in exponents):
+            raise ValueError("non-Boolean monomial in descended equation")
+        indices = tuple(i for i, power in enumerate(exponents) if power)
+        if indices:
+            terms.append(indices)
+    return sorted(terms, key=lambda indices: (
+        len(indices), tuple(groups[i] for i in indices),
+        tuple(coordinates[i] for i in indices)))
+
+
+def _anf_terms(poly, names, variable_offset):
+    result = ""
+    for indices in _ordered_terms(poly, names):
+        if len(indices) > 1:
+            result += f" .{len(indices)}"
+        result += "".join(f" {i + variable_offset + 1}" for i in indices)
+    return result
+
+
+def _anf_x(nb_vars_x, nb_vars, n, equations, names):
     out = f"p cnf {nb_vars} {len(equations) + n}\n"
     equation_id = nb_vars_x
     for poly in equations:
         equation_id += 1
         out += f"x{'' if poly.constant_coefficient() == 1 else ' T'} {equation_id}"
-        for monomial in poly.monomials():
-            degree = monomial.degree()
-            if degree > 1:
-                out += f" .{degree}"
-            for exponent in monomial.dict().keys():
-                for i in range(nb_vars_x):
-                    if exponent[i] > 0:
-                        out += f" {i + 1}"
+        out += _anf_terms(poly, names, 0)
         out += " 0\n"
     return out
 
 
-def _anf_e(offset, nb_vars_e, equations):
+def _anf_e(offset, equations, names):
     out = ""
     for poly in equations:
         out += "x" if poly.constant_coefficient() == 1 else "x T"
-        for monomial in poly.monomials():
-            degree = monomial.degree()
-            if degree > 1:
-                out += f" .{degree}"
-            for exponent in monomial.dict().keys():
-                for i in range(nb_vars_e):
-                    if exponent[i] > 0:
-                        out += f" {i + offset + 1}"
+        out += _anf_terms(poly, names, offset)
         out += " 0\n"
     return out
+
+
+def _magma_terms(poly, names):
+    return ["*".join(names[i] for i in indices)
+            for indices in _ordered_terms(poly, names)]
 
 
 def build_instance(n: int, basis: list[int], offset: int, target: int):
@@ -135,7 +152,13 @@ def build_instance(n: int, basis: list[int], offset: int, target: int):
     for poly in (e1, e2, e3):
         coeffs.extend(expand(coefficient) for coefficient in poly.coefficients(sparse=False))
     eqs_x = coeffs
-    eqs_x_str = [f"{ec[i]} + {poly}" for i, poly in enumerate(eqs_x)]
+    eqs_x_str = []
+    for i, poly in enumerate(eqs_x):
+        summands = [str(ec[i])]
+        if poly.constant_coefficient() == 1:
+            summands.append("1")
+        summands.extend(_magma_terms(poly, x_names))
+        eqs_x_str.append(" + ".join(summands))
 
     offset_e = 0
     symmetric = []
@@ -154,15 +177,18 @@ def build_instance(n: int, basis: list[int], offset: int, target: int):
     f3 = _sr_mod(f3, irr_e, e)
     eqs_e = [_remove_powers(expand(poly), field_equations)
              for poly in f3.coefficients(sparse=False)]
-    eqs_e_str = [str(poly) for poly in eqs_e]
+    eqs_e_str = [" + ".join([str(int(poly.constant_coefficient())),
+                             *_magma_terms(poly, e_names)]) for poly in eqs_e]
 
     variable_names = ",".join(map(str, xc))
     symmetric_names = ",".join(map(str, ec))
+    equations = eqs_x_str + eqs_e_str
+    formatted_equations = "\n, ".join(equations)
     magma = (
-        f'R<{variable_names},{symmetric_names}> := BooleanPolynomialRing({nb_vars}, "grevlex"); '
-        f"\n B := [ {','.join(eqs_x_str)},{','.join(eqs_e_str)}]; \n I := Ideal(B); \n Variety(I);"
+        f'R<{variable_names},{symmetric_names}> := BooleanPolynomialRing({nb_vars}, "grevlex");\n'
+        f"B := [ {formatted_equations}];\nI := Ideal(B);\nVariety(I);\n"
     )
-    anf = _anf_x(nb_vars_x, nb_vars, n, eqs_x) + _anf_e(nb_vars_x, nb_vars_e, eqs_e)
+    anf = _anf_x(nb_vars_x, nb_vars, n, eqs_x, x_names) + _anf_e(nb_vars_x, eqs_e, e_names)
     metadata = {
         "n": n, "dimension": l, "basis": basis, "offset": offset,
         "target_x": target, "field_modulus": sum(bit << i for i, bit in enumerate(modulus_coefficients)),
