@@ -3,6 +3,7 @@
 - **Status:** `investigating`
 - **Kind:** implementation gap; resource limit; missing measurement. No mathematical obstruction is claimed.
 - **Affected work:** [2026-10-16 baseline and factor-base assessment](../docs/reports/2026-10-16-elite-factor-base-baseline.md); [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml); [prime-field implementation](../src/crypto_autoresearcher/index_calculus/README.md); [ordinary-binary arity-3 obstruction](../research/conductor_relation_yield_20261014/OBSTRUCTION.md).
+- **Related scheduling impediment:** [The ICPERF D6 archive commit is unreachable from main](icperf-d6-archive-commit-unreachable.md); its dispatcher refusal is an integrity gate, separate from the missing full-width measurements here.
 - **Next action owner:** Coordinator for a frozen runnable contract; Executor for implementation and trials under that contract.
 - **Last updated:** 2026-10-16
 
