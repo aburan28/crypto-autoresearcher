@@ -15,8 +15,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import random
+import resource
 import subprocess
 import sys
 import time
@@ -88,6 +90,8 @@ def validate_curve(n: int, a2_encoded: int, b_encoded: int, sample_count: int):
 
     started = datetime.now(timezone.utc).isoformat()
     start_wall = time.monotonic()
+    start_usage = resource.getrusage(resource.RUSAGE_SELF)
+    loadavg_start = os.getloadavg()
     width = (n + 7) // 8
     digest = hashlib.sha256()
     disagreements = []
@@ -117,6 +121,8 @@ def validate_curve(n: int, a2_encoded: int, b_encoded: int, sample_count: int):
             break
     if checked != sample_count:
         raise RuntimeError(f"only {checked} distinct affine points found")
+    end_usage = resource.getrusage(resource.RUSAGE_SELF)
+    rss_scale = 1 if sys.platform == "darwin" else 1024
     return {
         "n": n, "a2": a2_encoded, "b": b_encoded,
         "field_modulus": sum(int(coefficient) << i for i, coefficient in
@@ -132,6 +138,11 @@ def validate_curve(n: int, a2_encoded: int, b_encoded: int, sample_count: int):
         "started_utc": started,
         "ended_utc": datetime.now(timezone.utc).isoformat(),
         "wall_seconds": time.monotonic() - start_wall,
+        "cpu_user_seconds": end_usage.ru_utime - start_usage.ru_utime,
+        "cpu_system_seconds": end_usage.ru_stime - start_usage.ru_stime,
+        "process_peak_rss_bytes": end_usage.ru_maxrss * rss_scale,
+        "loadavg_start": list(loadavg_start),
+        "loadavg_end": list(os.getloadavg()),
         "status": "agree" if not disagreements else "disagree",
     }
 
@@ -152,6 +163,9 @@ def main():
         "source_sha256": _sha256(source),
         "sage_version": sage_version,
         "python_version": platform.python_version(),
+        "machine": platform.machine(),
+        "platform": sys.platform,
+        "exact_argv": sys.argv,
         "git_head": _git("rev-parse", "HEAD"),
         "git_status_porcelain": _git("status", "--porcelain"),
         "samples_per_curve": args.samples_per_curve,
