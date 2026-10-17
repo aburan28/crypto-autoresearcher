@@ -27,6 +27,7 @@ import primeset  # noqa: E402
 
 EXP = "EXP-ECDLP-ad27ad"
 HYP = "H-ECDLP-986bab"
+REPLAY_SAMPLE = 24  # recorded closure pairs / decomposition triples per cell kind, for independent replay
 
 
 def ec_add(P, Q, a, p):
@@ -126,29 +127,39 @@ def cell(p, a, b, c, m, kind, key, pairs, targets, per_target, rng):
             if mem(P[0]):
                 return P
     clos = 0
-    for _ in range(pairs):
+    replay_pairs = []
+    for i in range(pairs):
         P, Q = sample_in_D(), sample_in_D()
         S = ec_add(P, Q, a, p)
-        if S is not None and mem(S[0]):
+        hit = S is not None and mem(S[0])
+        if hit:
             clos += 1
+        if i < REPLAY_SAMPLE:
+            replay_pairs.append({"P": list(P), "Q": list(Q), "S": (list(S) if S is not None else None), "in_D": bool(hit)})
     cf = clos / pairs
     # decomposition
     dec = 0
     tot = 0
-    for _ in range(targets):
+    replay_dec = []
+    for ti in range(targets):
         R = random_point(p, a, b, rng)
-        for _ in range(per_target):
+        for j in range(per_target):
             P = sample_in_D()
             T = ec_sub(R, P, p, a)
             tot += 1
-            if T is not None and mem(T[0]):
+            hit = T is not None and mem(T[0])
+            if hit:
                 dec += 1
+            if ti < 2 and j < REPLAY_SAMPLE // 2:
+                replay_dec.append({"R": list(R), "P": list(P), "T": (list(T) if T is not None else None), "in_D": bool(hit)})
     df = dec / tot
     se_c = math.sqrt(cf * (1 - cf) / pairs) if 0 < cf < 1 else 0.0
     se_d = math.sqrt(df * (1 - df) / tot) if 0 < df < 1 else 0.0
     return {"kind": kind, "m": m, "density": dens, "closure_fraction": cf, "closure_ratio": cf / dens,
             "closure_ratio_se": se_c / dens, "decomposition_fraction": df, "decomposition_ratio": df / dens,
-            "decomposition_ratio_se": se_d / dens, "pairs": pairs, "targets": targets, "per_target": per_target}
+            "decomposition_ratio_se": se_d / dens, "pairs": pairs, "targets": targets, "per_target": per_target,
+            "density_hits": hits, "density_n": dens_n, "closure_hits": clos, "decomposition_hits": dec, "decomposition_total": tot,
+            "replay_closure_pairs": replay_pairs, "replay_decomposition": replay_dec}
 
 
 def exhaustive_check(p, a, b, c, m, rng, targets=20):
@@ -204,7 +215,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     started = time.time()
-    raw = {"experiment_id": EXP, "hypothesis_id": HYP, "argv": sys.argv, "cells": []}
+    raw = {"experiment_id": EXP, "hypothesis_id": HYP, "cells": []}
     for seed in args.seeds:
         for c in args.c:
             p = 2 ** c - 1
@@ -221,9 +232,10 @@ def main():
                     if (4 * ar * ar * ar + 27 * br * br) % rp:
                         break
                 for m in args.m:
-                    rec = {"seed": seed, "c": c, "p": p, "curve": ci, "a": a, "b": b, "random_prime": rp, "m": m}
+                    rec = {"seed": seed, "c": c, "p": p, "curve": ci, "a": a, "b": b, "random_prime": rp, "random_prime_a": ar, "random_prime_b": br, "m": m}
                     rec["rot"] = cell(p, a, b, c, m, "rot", None, args.pairs, args.targets, args.per_target, rng)
-                    rec["hash"] = cell(p, a, b, c, m, "hash", f"{seed}:{c}:{ci}", args.pairs, args.targets, args.per_target, rng)
+                    rec["hash_key"] = f"{seed}:{c}:{ci}"
+                    rec["hash"] = cell(p, a, b, c, m, "hash", rec["hash_key"], args.pairs, args.targets, args.per_target, rng)
                     rec["size_random_prime"] = cell(rp, ar, br, c, m, "size", None, args.pairs, args.targets, args.per_target, rng)
                     if c <= args.exhaustive_max_c and ci == 0:
                         rec["exhaustive"] = exhaustive_check(p, a, b, c, m, rng)
@@ -231,7 +243,7 @@ def main():
                     print(f"c={c} seed={seed} curve={ci} m={m} rot={rec['rot']['closure_ratio']:.3f} "
                           f"hash={rec['hash']['closure_ratio']:.3f} size={rec['size_random_prime']['closure_ratio']:.3f}",
                           file=sys.stderr, flush=True)
-    raw["membership_cost_us"] = {str(c): membership_cost(c, 20000, random.Random(f"{EXP}:cost:{c}")) for c in args.c}
+    membership_cost_us = {str(c): membership_cost(c, 20000, random.Random(f"{EXP}:cost:{c}")) for c in args.c}
     # summary: max |ratio - 1| per kind, and rot-minus-hash differences in SE units
     summ = {}
     for kind in ("rot", "hash", "size_random_prime"):
@@ -246,7 +258,6 @@ def main():
     summ["rot_minus_hash_closure_z"] = {"max_abs": max(abs(d) for d in diffs),
                                         "cells_beyond_3se": sum(1 for d in diffs if abs(d) > 3)}
     raw["summary"] = summ
-    raw["wall_clock_seconds"] = time.time() - started
     raw_path = os.path.join(args.out, "raw-result.json")
     with open(raw_path, "w", encoding="utf-8") as fh:
         json.dump(raw, fh, indent=1, sort_keys=True, default=str)
@@ -257,7 +268,9 @@ def main():
                 "source_sha256": {"run.py": hashlib.sha256(open(src, "rb").read()).hexdigest(),
                                   "primeset.py": hashlib.sha256(open(os.path.join(here, "primeset.py"), "rb").read()).hexdigest()},
                 "raw_result_sha256": hashlib.sha256(open(raw_path, "rb").read()).hexdigest(),
-                "started_unix": started, "finished_unix": time.time(),
+                "started_unix": started, "finished_unix": time.time(), "wall_clock_seconds": round(time.time() - started, 3),
+                "membership_cost_us": membership_cost_us,
+                "raw_result_is_replay_deterministic": "raw-result.json carries no timing or argv; CTRL-REPLAY compares it byte for byte",
                 "asserts_nothing_about": "the hypothesis; observations only"}
     try:
         manifest["git_commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
