@@ -517,7 +517,7 @@ def run_card(card_path: str, card_sha: str, card: dict[str, Any], repo: Path = R
             break
     receipt = {"schema": RECEIPT_SCHEMA, "card_id": card["card_id"], "card_path": card_path,
                "card_sha256": card_sha, "commit": head, "status": status,
-               "dirty_before": dirty_before,
+               "dirty_before": dirty_before, "dirty_after": _dirty_paths(repo),
                "commands_total": len(card["commands"]), "commands": results}
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -708,8 +708,12 @@ def assessment_facts(card: dict[str, Any], report_text: str | None = None, repo:
             if digest is not None and now != digest:
                 mismatched.append(output)
     scope = card["write_scope"]
+    # What the run changed is read from the receipt (dirty right after the run, not before
+    # it), so the director's own later files -- prompts, replies, this assessment -- are
+    # never mistaken for executor writes.
     before = set(receipt.get("dirty_before") or [])
-    outside = [p for p in _dirty_paths(repo)
+    after = receipt.get("dirty_after")
+    outside = [p for p in (after if after is not None else _dirty_paths(repo))
                if p not in before and not _scope_covers(scope, p)]
     facts.update(receipt_present=True, receipt_sha256=sha256_file(path), status=receipt["status"],
                  summary=brief(receipt, card["receipt"], sha256_file(path)),

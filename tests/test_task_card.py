@@ -358,6 +358,12 @@ def test_assessment_outcome_is_determined_by_the_facts(tmp_path):
     assert tc.ingest(_assessment(card, "executed_as_specified", "proceed_to_analysis"),
                      "out/a.yaml", "assessment", card, repo) == []
 
-    (repo / "stray.txt").write_text("written after the run, outside write_scope")
-    facts = tc.assessment_facts(card, None, repo)
+    (repo / "director-reply.md").write_text("written after the run by the director, not the run")
+    assert tc.assessment_facts(card, None, repo)["writes_outside_scope"] == []
+
+    repo2, script2, head2 = _git_repo(tmp_path / "second")
+    stray = _frozen_card(script2, head2)
+    stray["commands"][1]["argv"] = ["python3", "-c", "open('stray.txt', 'w').write('outside scope')"]
+    tc.run_card("card.yaml", "0" * 64, stray, repo2)
+    facts = tc.assessment_facts(stray, None, repo2)
     assert facts["writes_outside_scope"] == ["stray.txt"] and facts["outcome"] == "executor_deviated"

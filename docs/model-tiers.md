@@ -155,8 +155,9 @@ batch registry (it resolves to `director-runbook`, Sonnet 5.5 at high).
   `request` therefore puts every fact in the prompt, computed by the tool:
   `HEAD`, the sha256 of every bound file, the director's full contract, the
   design text; for an assessment, the receipt summary, output digests
-  re-checked now, and paths written outside `write_scope` since the run
-  (the receipt records what was dirty before it).
+  re-checked now, and paths the run wrote outside `write_scope` (the receipt
+  records what was dirty before and right after it, so the director's later
+  files are not counted).
 - **`ingest` accepts a reply only when it is mechanically right.** A card is
   written only when `specification_errors` is empty and it lints (an invented
   digest fails lint). An assessment's `outcome` is determined by the facts
@@ -169,6 +170,9 @@ batch registry (it resolves to `director-runbook`, Sonnet 5.5 at high).
   is none. Haiku (`--profile executor.mechanical`) stays the tier for
   single-turn mechanical work that is text, not commands: reformatting a
   record, regenerating an index from given inputs.
+- `examples/batch-lane/smoke.sh` runs the whole lane once against a live
+  Message Batch through standalone `delphi` (two Sonnet requests); it exits 2
+  without `ANTHROPIC_API_KEY`.
 - Kind `runbook` cards are not compiled in this lane: a runbook is written and
   linted against files.
 
