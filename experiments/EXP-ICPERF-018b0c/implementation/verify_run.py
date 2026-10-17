@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import sys
+import tarfile
 from pathlib import Path
 
 import yaml
@@ -31,8 +32,60 @@ def sha(blob: bytes) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def sha_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def read(path: Path) -> dict:
     return json.loads(path.read_bytes())
+
+
+def check_call_bundle(run_dir: Path, result: dict) -> int:
+    """Independently bind the raw call tree, fixed bundle, and run summary."""
+    manifest_path = run_dir / "calls-manifest.json"
+    bundle_path = run_dir / "calls.tar.gz"
+    assert sha_file(manifest_path) == result["calls_manifest_sha256"]
+    manifest = read(manifest_path)
+    assert manifest["schema"] == "icperf-k11-call-tree-v1"
+    assert manifest["bundle_path"] == bundle_path.name
+    assert bundle_path.stat().st_size == manifest["bundle_size_bytes"]
+    assert sha_file(bundle_path) == manifest["bundle_sha256"] == result["calls_bundle_sha256"]
+    expected = manifest["files"]
+    names = [row["path"] for row in expected]
+    assert names == sorted(set(names))
+    assert all(name.startswith("calls/") and
+               all(part not in ("", ".", "..") for part in name.split("/"))
+               for name in names)
+    calls = run_dir / "calls"
+    assert calls.is_dir()
+    assert not any(path.is_symlink() for path in calls.rglob("*"))
+    actual = sorted(path.relative_to(run_dir).as_posix()
+                    for path in calls.rglob("*") if path.is_file())
+    assert actual == names
+    by_name = {row["path"]: row for row in expected}
+    for row in expected:
+        path = run_dir / row["path"]
+        assert path.stat().st_size == row["size_bytes"]
+        assert sha_file(path) == row["sha256"]
+    seen = []
+    with tarfile.open(bundle_path, mode="r:gz") as archive:
+        for member in archive:
+            assert member.isfile() and member.name in by_name
+            row = by_name[member.name]
+            assert member.name not in seen and member.size == row["size_bytes"]
+            source = archive.extractfile(member)
+            assert source is not None
+            digest = hashlib.sha256()
+            for chunk in iter(lambda: source.read(1 << 20), b""):
+                digest.update(chunk)
+            assert digest.hexdigest() == row["sha256"]
+            seen.append(member.name)
+    assert seen == names
+    return len(names)
 
 
 def gf_mul(a: int, b: int) -> int:
@@ -425,6 +478,7 @@ def main() -> None:
     assert run_manifest["environment"]["solver_sha256"] == spec["input_bindings"]["solver_binary"]["sha256"]
     assert run_manifest["result"]["outcome"] == result["status"]
     assert run_manifest["result"]["certificate"] == {"kind": "none", "verified": False}
+    bundled_files = check_call_bundle(run_dir, result)
     all_rows = set()
     checked = 0
     for ordinal, row in enumerate(result["calls"]):
@@ -460,6 +514,9 @@ def main() -> None:
               "run_id": launch["run_id"], "stage": result["step"],
               "raw_result_sha256": sha((run_dir / "raw-result.json").read_bytes()),
               "source_sha256": sha(Path(__file__).read_bytes()),
+              "raw_call_files_bound": bundled_files,
+              "calls_manifest_sha256": result["calls_manifest_sha256"],
+              "calls_bundle_sha256": result["calls_bundle_sha256"],
               "calls_checked_from_raw": checked,
               "distinct_projected_rows": len(all_rows),
               "validated": True}
