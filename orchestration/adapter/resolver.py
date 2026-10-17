@@ -60,6 +60,9 @@ class Resolution:
     reasoning_effort_overridden: bool = False
     reasoning_effort_capped: bool = False   # the backend could not go that deep
     request: dict[str, Any] = field(default_factory=dict)
+    model_tier: str | None = None           # model-bindings.yaml model_tiers
+    policy_model_tier: str | None = None    # the policy's requires.model_tier
+    below_model_tier: bool = False          # recorded on tier-exempt backends
     adapter_version: str = ADAPTER_VERSION
     config_digest: str = ""
 
@@ -84,6 +87,11 @@ class Resolution:
                 f"{self.resolved_model_id} ({effort})")
         if self.fallback_used:
             line += f"  FALLBACK: {self.fallback_reason}"
+        if self.below_model_tier:
+            line += (f"  BELOW TIER: {self.model_tier or 'unclassified'} model "
+                     f"on a {self.policy_model_tier} policy")
+        elif self.policy_model_tier and not self.model_tier:
+            line += "  [model tier unclassified]"
         if self.degraded_requirements:
             line += f"  DEGRADED: {'; '.join(self.degraded_requirements)}"
         if not self.verified_model:
@@ -98,13 +106,48 @@ def _effort_rank(order: list[str], effort: str | None) -> int:
         return -1
 
 
+def _below_tier(config: Config, policy: dict[str, Any],
+                binding: dict[str, Any]) -> tuple[str | None, bool]:
+    """Why the bound model may not meet the policy's tier floor, and whether
+    that is enforced.
+
+    A model classified below the floor is a shortfall. A model nobody
+    classified (a local overlay, an OpenRouter id) is recorded on the
+    resolution as `model_tier: null` but only refused where the policy cannot
+    be degraded: the frontier gate needs a model someone has asserted is
+    frontier, not one nobody looked at.
+    """
+    floor = (policy.get("requires") or {}).get("model_tier")
+    order = config.model_tier_order
+    if not floor or not order:
+        return None, False
+    model = binding.get("model")
+    tier = config.model_tier(model)
+    if tier is None:
+        return (f"model_tier: policy requires {floor}, model {model!r} is "
+                f"unclassified (add it to model-bindings.yaml model_tiers)",
+                not policy.get("degradable", True))
+    if order.index(tier) < order.index(floor):
+        return (f"model_tier: policy requires {floor}, model {model!r} is "
+                f"{tier}", True)
+    return None, False
+
+
 def _shortfalls(config: Config, policy: dict[str, Any],
-                binding: dict[str, Any]) -> list[str]:
-    """Requirements the binding does not meet, as human-readable reasons."""
+                binding: dict[str, Any], backend_id: str | None = None) -> list[str]:
+    """Requirements the binding does not meet, as human-readable reasons.
+
+    The tier floor is enforced everywhere except on a tier-exempt backend,
+    where `_build` records the gap on the resolution instead.
+    """
     requires = policy.get("requires") or {}
     caps = binding.get("capabilities") or {}
     order = config.effort_order
     gaps: list[str] = []
+
+    tier_gap, enforced = _below_tier(config, policy, binding)
+    if enforced and not (backend_id and config.tier_exempt(backend_id)):
+        gaps.append(tier_gap)
 
     need = requires.get("reasoning_effort")
     ceiling = caps.get("max_reasoning_effort")
@@ -230,7 +273,7 @@ def resolve(config: Config, requested_policy: str, *,
         binding = config.binding(target_backend, canonical)
         hard = _hard_blockers(binding)
         if not hard:
-            gaps = _shortfalls(config, policy, binding)
+            gaps = _shortfalls(config, policy, binding, target_backend)
             return _build(config, requested_policy, canonical, canonical,
                           target_backend, binding, fallback_used=True,
                           fallback_reason="degraded resolution explicitly permitted",
@@ -263,7 +306,7 @@ def _binding_blockers(config: Config, policy_id: str, backend_id: str,
     hard = _hard_blockers(binding)
     if hard:
         return hard
-    return _shortfalls(config, config.policy_table[policy_id], binding)
+    return _shortfalls(config, config.policy_table[policy_id], binding, backend_id)
 
 
 def _fallback_reason(rejected: list[Attempt]) -> str:
@@ -306,6 +349,9 @@ def _build(config: Config, requested: str, canonical: str, policy_id: str,
         base_url=config.base_url(backend_id, env),
         api_key_env=backend["api_key_env"],
         request=dict(binding.get("request") or {}),
+        model_tier=config.model_tier(binding["model"]),
+        policy_model_tier=(policy.get("requires") or {}).get("model_tier"),
+        below_model_tier=_below_tier(config, policy, binding)[1],
         config_digest=config.digest,
     )
 

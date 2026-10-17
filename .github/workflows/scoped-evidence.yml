@@ -1,0 +1,58 @@
+name: scoped-evidence
+on:
+  pull_request:
+    paths:
+      - 'tools/scoped_evidence.py'
+      - 'tests/test_scoped_evidence.py'
+      - 'tests/test_scoped_obstruction_lean.py'
+      - 'research/ten-lead-evidence/**'
+      - 'formal/scoped-obstructions/**'
+      - 'formal/targets/scoped-odd-torsion-translation.yaml'
+      - '.github/workflows/scoped-evidence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scoped-register-and-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools
+            tests
+            orchestration
+            research/ten-lead-evidence
+            formal/scoped-obstructions
+            formal/targets
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest jsonschema PyYAML pydantic
+      - name: Check portable records without implying private artifact access
+        run: python tools/scoped_evidence.py check
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal/scoped-obstructions
+          build: 'true'
+          test: 'false'
+          lint: 'false'
+          use-mathlib-cache: 'false'
+      - name: Require the real kernel for proof controls
+        run: |
+          command -v lake
+          (cd formal/scoped-obstructions && lake env lean --version)
+      - name: Run evidence guards and positive and negative Lean controls
+        run: python -m pytest tests/test_scoped_evidence.py tests/test_scoped_obstruction_lean.py -q
+      - name: Verify the exact frozen formal target through the existing worker
+        run: |
+          python -m orchestration.formal.cli --repo-root . verify \
+            --task-file formal/targets/scoped-odd-torsion-translation.yaml \
+            --artifact-out "$RUNNER_TEMP/scoped-odd-torsion-verification.json" \
+            --build-timeout 120
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scoped-odd-torsion-verification
+          path: ${{ runner.temp }}/scoped-odd-torsion-verification.json

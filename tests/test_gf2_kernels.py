@@ -279,3 +279,21 @@ def test_reference_backend_fallback_gives_the_same_closure(tmp_path):
         out[mode] = json.loads(p.stdout)
     assert out["reference"][0] == "reference"
     assert out["reference"][1:] == out["auto"][1:]
+
+
+def test_cgroup_cpu_quota_caps_default_threads(tmp_path):
+    """A container quota smaller than the visible CPUs caps the thread count."""
+    (tmp_path / "cpu.max").write_text("800000 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) == 8
+    (tmp_path / "cpu.max").write_text("150000 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) == 2
+    (tmp_path / "cpu.max").write_text("max 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) is None
+    v1 = tmp_path / "v1"
+    (v1 / "cpu").mkdir(parents=True)
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("400000\n")
+    (v1 / "cpu" / "cpu.cfs_period_us").write_text("100000\n")
+    assert kernels._cgroup_cpus(str(v1)) == 4
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("-1\n")
+    assert kernels._cgroup_cpus(str(v1)) is None
+    assert kernels._cgroup_cpus(str(tmp_path / "missing")) is None

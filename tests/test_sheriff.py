@@ -43,7 +43,7 @@ def test_canary_fails_when_comments_are_not_stripped(monkeypatch):
 
 
 def test_canary_fails_when_tracing_counts_uncited_files(monkeypatch):
-    monkeypatch.setattr(sh, "cited_paths", lambda text, home, repos, base="": {(home, ".")})
+    monkeypatch.setattr(sh, "cited_paths", lambda text, home, repos, base="", absent=None: {(home, ".")})
     result = sh.canary()
     assert not result["passed"]
 
@@ -196,3 +196,160 @@ def test_unrun_checkers_are_recorded_not_covered(tmp_path):
     assert row["status"] == "not_covered" and "ecbench" in row["reason"]
     row = sh.run_checker(spec, None, deep=True, scratch=tmp_path)
     assert row["status"] == "not_covered"
+
+
+# ---------------------------------------------------------------------------
+# Instrument defects of SHF-20261017-e4d7f6 I1: tree identity, session
+# enumeration from HEAD, sparse checkouts marked partial, ~/.elan/bin.
+# ---------------------------------------------------------------------------
+
+GIT_ENV = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+           "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid"}
+
+
+def _git(root: Path, *args: str) -> None:
+    import os
+    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True,
+                   env={**os.environ, **GIT_ENV})
+
+
+def _repo(tmp_path: Path, name: str, files: dict[str, str]) -> Path:
+    root = tmp_path / name
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    _git(root, "init", "-q")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "init")
+    sh._outside.cache_clear()
+    return root
+
+
+def _sparse(root: Path, *patterns: str) -> None:
+    _git(root, "sparse-checkout", "set", "--no-cone", *patterns)
+    sh._outside.cache_clear()
+
+
+def test_snapshot_identifies_the_tree_not_just_its_cleanliness(tmp_path):
+    a = _repo(tmp_path, "a", {"x.txt": "one\n"})
+    b = _repo(tmp_path, "b", {"x.txt": "two\n"})
+    sa, sb = sh.snapshot("a", a), sh.snapshot("b", b)
+    assert "tree_digest" not in sa and sa["dirty_paths"] == sb["dirty_paths"] == 0
+    assert sa["head_tree"] and sa["head_tree"] != sb["head_tree"]
+    assert sa["worktree_digest"] != sb["worktree_digest"]
+    (a / "x.txt").write_text("changed\n")
+    dirty = sh.snapshot("a", a)
+    assert dirty["head_tree"] == sa["head_tree"] and dirty["worktree_digest"] != sa["worktree_digest"]
+    assert sh.tree_identity(dirty) != sh.tree_identity(sa)
+    legacy = {"head": "h", "tree_digest": "d"}
+    assert sh.tree_identity(legacy) == ("h", None, "d")
+
+
+FAKE_ECBENCH = "#!/bin/sh\n[ -f \"$3/BAD\" ] && exit 1\nexit 0\n"
+SESSION = '{"schema": "ecbench.session/v1"}'
+
+
+def _ecbench_repo(tmp_path: Path, bad: bool = False) -> Path:
+    files = {"research/a/sessions/s1/session.json": SESSION,
+             "research/a/sessions/s1/records.jsonl": "{}\n",
+             "research/deep/x/y/sessions/s2/session.json": SESSION,
+             "research/b/sessions/s3/session.json": SESSION,
+             "research/b/sessions/s3/records.jsonl": "{}\n",
+             "research/other/session.json": '{"schema": "something.else/v1"}',
+             "README.md": "x\n"}
+    if bad:
+        files["research/a/sessions/s1/BAD"] = ""
+    root = _repo(tmp_path, "crypto", files)
+    exe = root / sh.ECBENCH
+    exe.parent.mkdir(parents=True)
+    exe.write_text(FAKE_ECBENCH)
+    exe.chmod(0o755)
+    return root
+
+
+def _ecbench_spec() -> dict:
+    return next(c for c in sh.CHECKERS if c["id"] == "ecbench-sessions-integrity")
+
+
+def test_ecbench_sessions_are_enumerated_by_schema_from_head(tmp_path):
+    root = _ecbench_repo(tmp_path)
+    sessions, _ = sh.committed_ecbench_sessions(root)
+    assert sessions == ["research/a/sessions/s1", "research/b/sessions/s3", "research/deep/x/y/sessions/s2"]
+    row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
+    assert row["status"] == "pass", row
+    assert row["sessions"] == {"total": 3, "materialised": 3, "passed": 3, "failed": 0, "timed_out": 0,
+                               "not_materialised": 0}
+
+
+def test_ecbench_sessions_on_a_sparse_checkout_are_partial_never_pass(tmp_path):
+    root = _ecbench_repo(tmp_path)
+    _sparse(root, "/*", "!/research/b/")
+    assert not (root / "research/b/sessions/s3/session.json").exists()
+    row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
+    assert row["status"] == "partial", row
+    assert row["sessions"]["total"] == 3 and row["sessions"]["passed"] == 2
+    assert row["sessions"]["not_materialised"] == 1
+    assert row["not_materialised_sessions"] == ["research/b/sessions/s3"]
+    assert row["coverage"] == "partial" and row["outside_sparse"]["files"] == 2
+
+
+def test_ecbench_sessions_fail_is_reported(tmp_path):
+    root = _ecbench_repo(tmp_path, bad=True)
+    row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
+    assert row["status"] == "fail" and row["failed_sessions"] == ["research/a/sessions/s1"]
+
+
+def test_checker_passing_on_a_sparse_checkout_is_partial(tmp_path):
+    root = _repo(tmp_path, "r", {"a/x.txt": "1\n", "b/y.txt": "2\n"})
+    spec = {"id": "x", "repo": "r", "beat": "B7", "tier": "quick", "argv": ["true"]}
+    assert sh.run_checker(spec, root, deep=False, scratch=tmp_path)["status"] == "pass"
+    _sparse(root, "/*", "!/b/")
+    row = sh.run_checker(spec, root, deep=False, scratch=tmp_path)
+    assert row["status"] == "partial" and row["coverage"] == "partial"
+    assert row["outside_sparse"] == {"files": 1, "roots": {"b": 1}}
+
+
+def test_sparse_sweep_reports_unscanned_paths_and_cited_artifacts_as_not_covered(tmp_path):
+    root = _repo(tmp_path, "s", {
+        "kept/Ok.lean": "theorem t : 1 = 1 := rfl\n",
+        "gone/deep/Hole.lean": "def h : Nat := sorry\n",
+        "papers/p/main.tex": "A ratio of 3.217, from \\texttt{data/out/r.json}.\n",
+        "data/out/r.json": '{"ratio": 3.217}\n'})
+    _sparse(root, "/*", "!/gone/", "!/data/")
+    out = tmp_path / "SHF-20261017-111111"
+    args = argparse.Namespace(target="s:.", deep=False, repo=[f"s={root}"], no_siblings=True,
+                              no_checkers=True, out=str(out))
+    assert sh.sweep(args) == 0
+    rec = json.loads((out / "sweep.json").read_text())
+    assert rec["repos"]["s"]["sparse"]["sparse"] and rec["repos"]["s"]["sparse"]["outside_files"] == 2
+    rows = {(f["rule"], f["path"]): f for f in rec["findings"]}
+    gap = rows[("sheriff.outside_sparse", "gone/deep")]
+    assert gap["kind"] == "not_covered" and ".lean 1" in gap["message"]
+    assert rows[("sheriff.outside_sparse", "data/out")]["kind"] == "not_covered"
+    partial = rows[("paper.trace_partial", "papers/p")]
+    assert partial["kind"] == "not_covered" and "data/out/r.json" in partial["message"]
+    assert not any(f["rule"] in ("paper.untraced_number", "paper.no_cited_artifacts") for f in rec["findings"])
+    assert rec["summary"]["s"]["papers"][0]["cited_outside_sparse"] == ["s:data/out/r.json"]
+
+
+def test_toolchain_is_found_under_elan_when_not_on_path(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    lake = home / ".elan" / "bin" / "lake"
+    lake.parent.mkdir(parents=True)
+    lake.write_text("#!/bin/sh\necho lake-ok\n")
+    lake.chmod(0o755)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("ELAN_HOME", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    assert sh.find_bin("lake") == str(lake)
+    spec = {"id": "f", "repo": "r", "beat": "B3", "tier": "quick", "needs_bin": ["lake"],
+            "argv": ["bash", "-c", "lake"]}
+    work = tmp_path / "w"
+    work.mkdir()
+    row = sh.run_checker(spec, work, deep=False, scratch=tmp_path)
+    assert row["status"] == "pass" and "lake-ok" in row["tail"], row
+    assert row["toolchain"] == {"lake": str(lake)}
+    lake.unlink()
+    row = sh.run_checker(spec, work, deep=False, scratch=tmp_path)
+    assert row["status"] == "not_covered" and ".elan" in row["reason"]

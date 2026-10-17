@@ -476,6 +476,22 @@ pub fn is_torsion_candidate(curve: &CurveNF, pt: &KPoint, primes: &[u64], t: u64
     true
 }
 
+/// A (q, root) at which [T] * (P mod (t - root, q)) != O, proving P is not torsion; None if every
+/// listed reduction is killed by T (P is a torsion candidate).
+pub fn nontorsion_witness(curve: &CurveNF, pt: &KPoint, primes: &[u64], t: u64) -> Option<(u64, u64)> {
+    for &q in primes {
+        let (a, _) = curve.short_mod(q);
+        for root in curve.k.roots_mod(q) {
+            if let Some(r) = curve.reduce_point(pt, q, root) {
+                if fp_mul(t, Some(r), a, q).is_some() {
+                    return Some((q, root));
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Residues of P at every degree-one prime above p (one per root of g mod p); None entries for
 /// non-integral reductions.
 pub fn residues_at_p(curve: &CurveNF, pt: &KPoint, p: u64) -> Vec<FpPoint> {
