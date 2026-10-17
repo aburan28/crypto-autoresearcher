@@ -7,13 +7,17 @@ It never edits an artifact and never interprets a result.
   pilot     every declared cell has PILOT_CURVES ok pilot records; design.json's
             n_curves is re-derived from pilot-jobs.jsonl with the frozen rule.
   census    every (cell, curve) the design plans is present exactly once with
-            NULL_REPS null counts; failed_infrastructure records are counted, not
-            hidden; a seeded sample of up to 4 small-base jobs (b <= 64) is
+            NULL_REPS null counts, or is accounted for by a failed_infrastructure
+            record for that same key (never hidden); a seeded sample of up to 4 small-base jobs (b <= 64) is
             recomputed from scratch and compared field by field, and each sampled
             structured base is recounted by brute force in Python (no kernel).
-  analyze   per cell, S, M and kappa are recomputed from the job records with an
-            independent sum, and each cell class and the outcome are re-derived
-            from the recorded statistics with the frozen thresholds.
+  analyze   per cell, S, M, kappa, z and z_cal are recomputed from the job records
+            with independent sums; each cell class, the calibration gate,
+            fraction_valid, the flagged list and the outcome are re-derived from the
+            recorded statistics with the frozen thresholds. The bootstrap interval
+            and replication statistics are not recomputed here (they are the
+            producer's seeded resampling); the class rule reads the interval as
+            recorded, so a wrong interval is visible in analysis.json only.
 """
 from __future__ import annotations
 
@@ -32,7 +36,7 @@ import run  # noqa: E402  (same sha256-bound directory)
 
 def fail(msg: str) -> None:
     print("CHECK FAIL:", msg)
-    sys.exit(1)
+    sys.exit(3)
 
 
 def load_jsonl(path: str) -> list[dict]:
@@ -107,9 +111,12 @@ def main() -> None:
                     fail(f"{key} has {len(r['null'])} null counts")
                 ok[key] = r
         missing = planned - set(ok)
-        nfail = sum(r["status"] != "ok" for r in recs)
-        if missing and nfail == 0:
-            fail(f"{len(missing)} planned jobs absent with no failed_infrastructure record")
+        failed_keys = {(r["cell"], r["c"]) for r in recs if r["status"] != "ok"}
+        if not all(str(r["status"]).startswith("failed_infrastructure:") for r in recs if r["status"] != "ok"):
+            fail("a non-ok record is not labelled failed_infrastructure")
+        unaccounted = missing - failed_keys
+        if unaccounted:
+            fail(f"{len(unaccounted)} planned jobs absent with no failed_infrastructure record for that key")
         if set(ok) - planned:
             fail("records outside the plan")
         small = sorted(k for k in ok if ok[k]["b"] <= 64)
@@ -160,10 +167,51 @@ def main() -> None:
                 cls = "intermediate"
             if cls != row["cls"]:
                 fail(f"{row['cell']} class {row['cls']} != re-derived {cls}")
+        for row in an["cells"]:
+            if "S" not in row:
+                continue
+            rs = sorted((r for r in main_recs if r["cell"] == row["cell"]), key=lambda r: r["c"])
+            V = sum(statistics.variance(r["null"]) for r in rs)
+            sd = math.sqrt(V * (1 + 1 / run.NULL_REPS)) if V > 0 else float("nan")
+            z = (row["S"] - row["M"]) / sd if sd == sd and sd > 0 else float("nan")
+            if not (z == z and math.isclose(z, row["z"], rel_tol=1e-9, abs_tol=1e-12)):
+                fail(f"{row['cell']} z does not recompute")
+            pS = sum(r["null"][0] for r in rs)
+            pM = sum(statistics.fmean(r["null"][1:]) for r in rs)
+            pV = sum(statistics.variance(r["null"][1:]) for r in rs)
+            zcal = (pS - pM) / math.sqrt(pV * (1 + 1 / (run.NULL_REPS - 1))) if pV > 0 else float("nan")
+            if not math.isclose(zcal, row["z_cal"], rel_tol=1e-9, abs_tol=1e-12):
+                fail(f"{row['cell']} z_cal does not recompute")
         zc = [r["z_cal"] for r in an["cells"] if r.get("powered")]
-        if zc:
-            if not math.isclose(statistics.pstdev(zc), an["calibration"]["sd"], rel_tol=1e-9):
-                fail("calibration sd does not recompute")
+        cal_pass = bool(zc) and len(zc) > 1 and run.CAL_SD_LO <= statistics.pstdev(zc) <= run.CAL_SD_HI \
+            and abs(statistics.fmean(zc)) <= run.CAL_MEAN_ABS
+        if cal_pass != an["calibration"]["pass"]:
+            fail("calibration gate does not re-derive")
+        if zc and not math.isclose(statistics.pstdev(zc), an["calibration"]["sd"], rel_tol=1e-9):
+            fail("calibration sd does not recompute")
+        cls = [r["cls"] for r in an["cells"]]
+        valid = [c for c in cls if c in ("null", "flagged", "intermediate")]
+        frac = len(valid) / len(cls) if cls else 0.0
+        if not math.isclose(frac, an["fraction_valid"], rel_tol=1e-9):
+            fail("fraction_valid does not recompute")
+        flagged = [r["cell"] for r in an["cells"] if r["cls"] == "flagged"]
+        if flagged != an["flagged_cells"]:
+            fail("flagged_cells do not re-derive")
+        reps = {r["cell"]: r.get("replication") for r in an["cells"] if r["cls"] == "flagged"}
+        survives = any(isinstance(v, dict) and v.get("survives") for v in reps.values())
+        pending = any(v in ("not_run", "incomplete") for v in reps.values())
+        if not cal_pass or frac < 0.5:
+            outcome = "O-INVALID"
+        elif survives:
+            outcome = "O-STRUCT"
+        elif pending:
+            outcome = "O-PENDING-REPLICATION"
+        elif valid and all(c == "null" for c in valid) and frac >= 0.8:
+            outcome = "O-NULL"
+        else:
+            outcome = "O-MIXED"
+        if outcome != an["outcome"]:
+            fail(f"outcome {an['outcome']} != re-derived {outcome}")
         print("analyze outcome as recorded:", an["outcome"])
     else:
         fail(f"unknown stage {stage}")

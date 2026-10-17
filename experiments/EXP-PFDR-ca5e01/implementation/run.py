@@ -359,6 +359,7 @@ def cmd_census(a) -> None:
 
 
 def _cell_stats(rs: list[dict], seed: str) -> dict:
+    rs = sorted(rs, key=lambda r: r["c"])  # completion order of a 4-worker run must not move the bootstrap
     S = sum(r["struct"] for r in rs)
     Pl = sum(r["plant"] for r in rs)
     means = [statistics.fmean(r["null"]) for r in rs]
@@ -432,6 +433,10 @@ def cmd_analyze(a) -> None:
         if not rr:
             r["replication"] = "not_run"
             continue
+        planned = next(c["n_curves"] for c in design["cells"] if c["cell"] == r["cell"])
+        if len({x["c"] for x in rr}) != planned:
+            r["replication"] = "incomplete"  # failed_infrastructure curves: never evidence, never a survival
+            continue
         st = _cell_stats(rr, r["cell"] + "|rep")
         same = (st["kappa"] - 1) * (r["kappa"] - 1) > 0
         r["replication"] = {**st, "survives": bool(same and abs(st["z"]) > REP_Z
@@ -442,7 +447,8 @@ def cmd_analyze(a) -> None:
         outcome = "O-INVALID"
     elif any(isinstance(r.get("replication"), dict) and r["replication"]["survives"] for r in cellrows):
         outcome = "O-STRUCT"
-    elif flagged and any(r.get("replication") == "not_run" for r in cellrows if r["cls"] == "flagged"):
+    elif flagged and any(r.get("replication") in ("not_run", "incomplete")
+                         for r in cellrows if r["cls"] == "flagged"):
         outcome = "O-PENDING-REPLICATION"
     elif valid and all(r["cls"] == "null" for r in valid) and frac_valid >= 0.8:
         outcome = "O-NULL"
