@@ -479,6 +479,13 @@ def main() -> None:
     assert run_manifest["result"]["outcome"] == result["status"]
     assert run_manifest["result"]["certificate"] == {"kind": "none", "verified": False}
     bundled_files = check_call_bundle(run_dir, result)
+    bundle_cost = result["calls_bundle"]
+    assert bundle_cost["raw_file_count"] == bundled_files
+    assert bundle_cost["tar_bytes"] == (run_dir / "calls.tar.gz").stat().st_size
+    assert bundle_cost["manifest_bytes"] == (run_dir / "calls-manifest.json").stat().st_size
+    assert all(math.isfinite(bundle_cost[key]) and bundle_cost[key] >= 0
+               for key in ("wall_seconds", "cpu_seconds"))
+    assert bundle_cost["wall_seconds"] <= result["total_wall_seconds"]
     all_rows = set()
     checked = 0
     for ordinal, row in enumerate(result["calls"]):
@@ -515,6 +522,8 @@ def main() -> None:
               "raw_result_sha256": sha((run_dir / "raw-result.json").read_bytes()),
               "source_sha256": sha(Path(__file__).read_bytes()),
               "raw_call_files_bound": bundled_files,
+              "bundle_wall_seconds_charged": bundle_cost["wall_seconds"],
+              "bundle_cpu_seconds_charged": bundle_cost["cpu_seconds"],
               "calls_manifest_sha256": result["calls_manifest_sha256"],
               "calls_bundle_sha256": result["calls_bundle_sha256"],
               "calls_checked_from_raw": checked,
