@@ -105,17 +105,83 @@ dispatch itself, and is checked by `tools/task_card.py`:
   `<placeholder>`. A `frozen_command` card (a re-run with no runbook) lists
   argv arrays with no shell syntax, a timeout and success exit codes per
   command, binds every repository file an argv names by sha256, keeps every
-  output inside `write_scope`, and cites its approval decision.
+  output, stdout, stderr and receipt path inside `write_scope`, refuses
+  secrets in `env`, and cites its approval decision; an optional `commit`
+  must exist in the repository.
+- `run` (frozen-command cards): the tool, not the executor, executes the
+  card. It refuses to start unless the card lints, the pinned `commit` is
+  `HEAD`, the receipt does not exist yet and no `must_not_exist` path
+  exists; then it runs each argv without a shell under its timeout (a
+  command succeeds only with a success exit code and every declared output
+  written; `retry` reruns it at most 3 times, and only on the exit codes it
+  names), stops at the first failure, writes stdout and
+  stderr where the card says, and writes a write-once receipt (exit codes,
+  timings, digests, output tails). It prints a summary derived from the
+  receipt alone. The executor runs this one command and relays the summary.
 - `prompt`: the exact dispatch text, deterministic in the card's bytes. The
   main session relays it unchanged, so the relay can introduce nothing the
   director did not write.
-- `check-relay`: after the run, whether every line of `status --brief`
+- `check-relay`: after the run, whether every line of the tool's output
+  (`status --brief` for a runbook card, the receipt summary for a
+  frozen-command card)
   appears, in order and unedited, in what the executor returned, and whether
   `verify` passes. A paraphrased, rounded or reordered report is
   `executor_deviated`, whatever it says, and goes to a Validator.
 
 `templates/mechanical-task-card.yaml` annotates every field;
 `examples/runbooks/toy-ecdlp-bsgs/task-card.yaml` is a complete instance.
+
+## Batch lane: Delphi and the Message Batches adapter
+
+Under Claude Code, the director and the executor are subagents. Anywhere else
+(Conductor tasks, overnight sweeps, a Mythos-led session that delegates) the
+same topology runs through a batch API at half price, with no subagent:
+
+```sh
+python3 tools/task_card.py request compile --design <spec> --bind <file>... --out <card> > compile.md
+conductor delphi ask --profile director --task T-42 --wait --file compile.md > reply.md
+python3 tools/task_card.py ingest reply.md --expect card --out <card>      # writes only if CARD OK
+python3 tools/task_card.py run <card>                                      # the mechanical tier: no model
+python3 tools/task_card.py request assess <card> > assess.md
+conductor delphi ask --profile director --task T-42 --wait --file assess.md > reply.md
+python3 tools/task_card.py ingest reply.md --expect assessment --card <card> --out <assessment>
+```
+
+`python3 -m orchestration.adapter batch submit --role experiment-director
+--prompt-file compile.md` is the same request through this repository's own
+batch registry (it resolves to `director-runbook`, Sonnet 5.5 at high).
+
+- **A batch call is one turn**: the model reads no file and runs no command.
+  `request` therefore puts every fact in the prompt, computed by the tool:
+  `HEAD`, the sha256 of every bound file, the director's full contract, the
+  design text; for an assessment, the receipt summary, output digests
+  re-checked now, and paths written outside `write_scope` since the run
+  (the receipt records what was dirty before it).
+- **`ingest` accepts a reply only when it is mechanically right.** A card is
+  written only when `specification_errors` is empty and it lints (an invented
+  digest fails lint). An assessment's `outcome` is determined by the facts
+  (`impeded` with no receipt, `executor_deviated` on changed outputs, writes
+  outside scope or an unverbatim relay, otherwise `executed_as_specified` or
+  `stopped`), so the model's only choice is the recommendation the outcome
+  allows and its reasons. Nothing is written on a finding; exit 1.
+- **The mechanical tier costs no tokens in this lane.** `task_card.py run`
+  executes the card; a Haiku relay adds nothing a batch could check, so there
+  is none. Haiku (`--profile executor.mechanical`) stays the tier for
+  single-turn mechanical work that is text, not commands: reformatting a
+  record, regenerating an index from given inputs.
+- Kind `runbook` cards are not compiled in this lane: a runbook is written and
+  linted against files.
+
+## One card format in every repository
+
+crypto-autoresearcher, crypto and cryptanalysis each define an
+`experiment-director` and an `executor-mechanical`. When a session has more
+than one of them checked out, whichever repository's agent answers a dispatch
+must accept the card, so all three use this one format: `tools/task_card.py`
+is canonical here and copied byte-identical into the siblings (it needs only
+PyYAML). `kind: runbook` needs `tools/runbook.py`, which only this repository
+has, and is refused elsewhere; the siblings use `kind: frozen_command`.
+Change the tool here and copy it; never edit a copy.
 
 ## What each tier never does
 
@@ -141,8 +207,5 @@ choice, and a card that does not lint is never relayed.
 - Tier classification is an operator assertion, like `capabilities`; the
   resolver cannot detect a model classified above its real class.
 - The vagueness lint is a word list: a forcing function, not a proof.
-- `check-relay` compares against the journal, so it applies to runbook cards;
-  a `frozen_command` card's relay is checked by the auditor reading its run
-  record.
 - The Sonnet and Haiku bindings stay `operator-supplied` until `python3 -m
   orchestration.adapter doctor --backend anthropic --probe` confirms them.
