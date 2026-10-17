@@ -159,19 +159,58 @@ experiment:
     - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.lock
     - experiments/EXP-ECDLP-4c6a09/implementation/src/main.rs
     - experiments/EXP-ECDLP-84af7b/implementation/nfield/ (shared library crate, see EXP-ECDLP-84af7b)
+    - experiments/EXP-ECDLP-4c6a09/implementation/check.py
+    - experiments/EXP-ECDLP-4c6a09/implementation/Cargo.lock
     - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/manifest.yaml
     - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/check.stdout.log
+  trial_plan: experiments/EXP-ECDLP-4c6a09/trial-plan.json
+  input_bindings:
+    sources:
+      - path: experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml
+        sha256: 002bd6b05db3cf0a61d710f1e7517441afe60e07e3a441ddea93098ce71f9c72
+      - path: experiments/EXP-ECDLP-4c6a09/implementation/src/main.rs
+        sha256: 04f91578dff0f425b98fbaef1463fa0240ac6652efadf54b0b63ae89c99b22e4
+      - path: experiments/EXP-ECDLP-4c6a09/implementation/check.py
+        sha256: 81410372ca59816dec05621964d00f6e9025a893120f594980245ad3715438c5
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/Cargo.toml
+        sha256: f026a4f2e800bebba0768e177549ba45322ac452774a0b8645c7dfc98a641638
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/build.rs
+        sha256: 8ddc90f5209551c0949f0d0465ebdba64cfb482b0eb541676f0ac4eda9604c04
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/lib.rs
+        sha256: 7565a6d44836f6ab27e5e64b7e9f75074660060548b8b1880feccd8e7d065171
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/field.rs
+        sha256: b858822dab9fdfc076e6383447f849971e155eb965fd5935719cfc6b347914b7
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/ecnf.rs
+        sha256: ddceaf9cea9f84fcf1e35746d934ca45af6096bbc21b23a35112bb3b98115ac0
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/modpoly.rs
+        sha256: 2f078b192595e6ec63c4b6cf1b26c37b4d735d63c97b1ff3ba3d4a1194427255
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/rng.rs
+        sha256: 1909eed30fb545b9ed2e749921966d2ab741498493078e71ab738e3eeaf6457c
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/src/gp.rs
+        sha256: 93a2c2e30aaf2c60d842353f40c5ade7ab6e8e6f926892e3ac8134a53eaca0bd
+      - path: experiments/EXP-ECDLP-84af7b/implementation/nfield/csrc/pari_shim.c
+        sha256: a2e4ee23b4cb53a1032c173706b54f4e5d744d37c117ccd60ff260466f541eff
+    inputs:
+      - path: experiments/EXP-ECDLP-4c6a09/implementation/Cargo.lock
+        sha256: 914325d877dcd54cca06daebe978e82c8524419a2eb332cef7c026c2ed8d33f4
+  independent_checker: >-
+    implementation/check.py shares no code with the runner and replays a seeded
+    sample of recorded inputs with its own arithmetic (docs/subversion-resistance-20261010.md);
+    it fails on every tamper test run at design time. The supervisor runs it as check_argv after
+    the driver; a non-zero exit is not output_validated.
   launcher:
     command: >-
-      cargo run --release --features pari --manifest-path
+      cargo run --release --locked --manifest-path
       experiments/EXP-ECDLP-4c6a09/implementation/Cargo.toml --bin g3 --
       --kmin 4 --kmax 12 --min-bits 12 --max-primes-per-shape 3 --random-g 20
       --curves 5 --ladder 300 1000 3000 10000 30000 100000 --seeds 1 2 3
-      --aux-primes 8 --out experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>
+      --aux-primes 8 --out <run_dir>
     build_requirements: >-
-      Rust 1.97 and crates.io (same crates as EXP-ECDLP-84af7b); the `pari`
-      feature needs libpari-dev, libgmp-dev and a C compiler; without it the
-      binary builds and runs and the nfdisc cross-check is recorded as absent.
+      Rust 1.97 and crates.io (same crates as EXP-ECDLP-84af7b); the frozen
+      launcher builds without the optional `pari` feature, so the nfdisc
+      cross-check is recorded as absent in the run (verified at design time
+      with the feature on). `--locked` pins Cargo.lock.
     runnable_state_at_design: >-
       RUNNABLE for the coverage and height arms; the rank arm is skipped and
       reported as skipped. implementation/src/main.rs (binary g3) on the
