@@ -148,5 +148,22 @@ python3 falls_check.py <instance params>                                        
 python3 g1g2_check.py ../results/instances.json                                 # Prop 2.6 hypotheses
 ```
 
+A closure certificate is checked instead of re-running a closure when the
+instance is too large for the pure-Python verifier (Proposition 1.5).
+`lfdclose2` writes the quotient map $B_{\le4}\to B_{\le4}/W_4$ when its fourth
+argument is a file name. `cert_check.py` rebuilds the equations from the curve
+parameters with its own descent and verifies that the map kills them, that its
+kernel is closed under the variables on degree $\le3$, and that it does not
+kill 1. It does not trust how the certificate was made. `make_cert_py.py` is a
+second, pure-Python producer, and `cert_batch.py` runs the whole pipeline
+for named instances:
+
+```sh
+cd code && python3 mksys.py ../results/instances.json P45a ../P45a.sys       # system of a recorded instance
+./lfdclose2 4 1 60000 ../P45a.cert < ../P45a.sys                              # writes the certificate (about 0.3 GB at n = 45)
+python3 ../verify/cert_check.py ../P45a.cert 45 20000000001b 0 17cadafccda0 13ffe62d3f4d <23 basis words>
+cd .. && python3 verify/cert_batch.py 2 4 results/instances.json:R35a results/instances_t3.json:C19a   # whole pipeline
+```
+
 [`results/verification.md`](results/verification.md) records which
 implementation checked which claim, with its output.

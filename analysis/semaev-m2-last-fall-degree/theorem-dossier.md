@@ -18,7 +18,10 @@ also recomputed by implementation B (`verify/`), which shares no code with A.
 - **Computer-verified (instance)** means an exact finite computation on one
   named instance. Nothing is extrapolated beyond the named instance. An
   instance marked *(B)* was reproduced by implementation B with identical
-  results. Every other instance was computed by implementation A alone.
+  results. An instance marked *(cert)* has a closure certificate
+  (Proposition 1.5) that `verify/cert_check.py` accepted. That check proves
+  $1\notin W_4$ without trusting the program that produced the certificate.
+  Every other instance was computed by implementation A alone.
 - **Observed** means a pattern seen on every instance computed, with no proof
   and no claim beyond those instances.
 
@@ -163,6 +166,30 @@ would lie in $V_{\tilde F,d}$. Then $f$ would have a standard representation
 $f=\sum h_ig_i$ with $g_i\in G$ and $\deg(h_ig_i)\le\deg f\le d$, for a
 degree-compatible order, putting $f\in V_{\tilde F,d}$. This is a
 contradiction. $\square$
+
+**Proposition 1.5** (dual certificate for $1\notin W_d$). **Proved.**
+Let $d\ge2$ and let $\pi:B_{\le d}\to Z$ be an $\mathbb F_2$-linear map onto a
+vector space $Z$. Put $U=\ker\pi$. Suppose:
+
+- **(i)** $\pi(f)=0$ for every $f\in F$ with $\deg f\le d$;
+- **(ii)** $\pi(xu)=0$ for every variable $x$ and every $u\in U$ with $\deg u\le d-1$.
+
+Then $W_d(F)\subseteq U$. Hence $\operatorname{codim}(W_d(F)\subseteq B_{\le d})\ge\dim Z$,
+and if $\pi(1)\ne0$ then $1\notin W_d(F)$.
+
+Conversely, if $1\notin W_d(F)$, the quotient map $B_{\le d}\to B_{\le d}/W_d(F)$
+satisfies (i), (ii) and $\pi(1)\ne0$ with $U=W_d(F)$. So a certificate exists
+exactly when the claim is true.
+
+*Proof.* (i) and (ii) say that $U$ has both properties in the definition of
+$W_d(F)$ (§0.2). The intersection of all subspaces with those two properties
+has them too, so it is the smallest one, and it lies in $U$. For the converse,
+$W_d(F)$ has both properties by definition. $\square$
+
+For (ii), only a basis of $U\cap B_{\le d-1}$ needs to be tested, against the
+$N$ variables. A certificate can be checked without knowing how it was found.
+`verify/cert_check.py` does this with its own descent of $S_3$, and
+`results/verification.md` lists the instances whose certificates it accepted.
 
 ---
 
@@ -427,12 +454,12 @@ $W_{d-1}\cap B_{\le e}$ for every $e$, and $1\in W_d$
 For each of the following unsatisfiable instances, $1\notin W_4(F)$. Hence
 $d_{\tilde F}\ge5$ and every F4 run has $d_{F4}\ge5$.
 
-- R35a *(B)* and R35b: $n=35$, $k=18$, random $V$.
-- U35a and U35b: $n=35$, $k=18$, random $V$, with $z$ uniform in $K^{\times}$ as in Semaev's experiments.
+- R35a *(B, cert)* and R35b *(cert)*: $n=35$, $k=18$, random $V$.
+- U35a and U35b *(cert)*: $n=35$, $k=18$, random $V$, with $z$ uniform in $K^{\times}$ as in Semaev's experiments.
 - R37a and R37b: $n=37$, $k=19$, random $V$.
 - R39a and R39b: $n=39$, $k=20$, random $V$.
-- T33a and T33b: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
-- P45a: $n=45$, $k=23$, Semaev's default polynomial subspace
+- T33a and T33b *(cert)*: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
+- P45a *(cert)*: $n=45$, $k=23$, Semaev's default polynomial subspace
   $V=\langle1,t,\dots,t^{22}\rangle$. Here $f=t^{45}+t^4+t^3+t+1$
   (`20000000001b`), $a_2=0$, $a_6$=`17cadafccda0` and $z$=`13ffe62d3f4d`.
 
@@ -450,7 +477,7 @@ the step to degree $\ge5$ comes between $n=43$ and $n=45$ for polynomial $V$,
 against $n=35$ for random $V$.
 
 **Theorem 3.3** (satisfiable instances). **Computer-verified (instance).**
-Q35a *(B)* and Q35b are random-$V$ instances with $n=35$ and $k=18$, having 6 and 2
+Q35a *(B, cert)* and Q35b *(cert)* are random-$V$ instances with $n=35$ and $k=18$, having 6 and 2
 Boolean solutions respectively (`results/instances_sat.json`). Their closure
 $W_4$ has the same dimensions $(0,1,105,3885,61425)$ as the unsatisfiable
 instances, so $\operatorname{codim}W_4=5287$, far above the solution count. By
@@ -495,7 +522,8 @@ $a_6$=`1926`, $z$=`79a26`, and random
 $V=\langle$`e632 61ca0 32488 12079 5788e 589e 11c0a`$\rangle$. It is
 unsatisfiable, and $1\notin W_4(F)$:
 - the closure stabilizes after 8 rounds at $\dim W_4\cap B_{\le d}=(0,2,272,7000,92838)$;
-- the independent implementation `verify/indep_verify_t3.py` reproduces these dimensions exactly.
+- the independent implementation `verify/indep_verify_t3.py` reproduces these dimensions exactly;
+- the closure certificate (Proposition 1.5) is accepted by `verify/cert_check.py --t3`, which uses its own descent of the chained system *(cert)*.
 
 So $d_{\tilde F}\ge5$, and $d_{F4}\ge5$ for every F4 run. Three more
 random-$V$ instances also have $1\notin W_4$: C19b at $n=19$, and C21a and C21b at
