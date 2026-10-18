@@ -1,6 +1,6 @@
 # Legacy stage-0 ECDLP trial manifests fail native admission
 
-- **Status:** investigating two additional three-output scopes; the original four exact scopes are resolved
+- **Status:** resolved for native metadata reproduction of six named worksheet scopes
 - **Kind:** implementation gap; separate director access/tool limit
 - **Affected work:** [four original/successor mappings](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/mapping.json), [GOAL-ECDLP-001](../ledger/goals/GOAL-ECDLP-001/goal.yaml)
 - **Next action owner:** Coordinator archives/publishes the scoped implementation resolution; independent scientific assessment remains separate
@@ -58,3 +58,10 @@ The current executable inventory exposed two more finite stage-0 programs: EXP-E
 A role-separated Executor implemented a new standalone three-output adapter under tools/legacy_stage0_manifest.py. It preserves the exact newly produced raw/RESULTS/legacy-manifest bytes and maps only prospectively named observed scalar fields. It does not claim byte equality across separate timed reruns. Twenty-three synthetic controls pass, including native minimum-envelope validation with honest null seed, failure/partial-byte retention and source/provenance/tamper refusals. No real fixture was invoked during source implementation. The old two-output adapter remains unchanged.
 
 Two fresh canonical specs remain review_required: EXP-ECDLP-ee406e and EXP-ECDLP-5c8854. [Their exact prospective packets](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-5b3b39/preapproval/) currently have only publication blockers (new draft/lane/helper absent at source_ref). Source publication, actual approvable:true, exact approval archival/publication and fresh claimed executions remain required. Full ledger now reports223 errors: prior207 plus exactly16 errors from the two deliberately retained new malformed manifests, with no other added/removed error. No old result was rewritten.
+
+
+## Two additional native acceptances (DEC-20261018-ae74db)
+
+EXP-ECDLP-ee406e/RUN-ECDLP-4110e6 and EXP-ECDLP-5c8854/RUN-ECDLP-67ed93 now actually report native output_validated with driver/checker0. Their canonical drafts, source closure and lane were published before native approvable:true; accepted final bytes were archived/published before fresh claims. Each exact13-file output and its own original failed11-file output was archived/published before the corresponding inspected report. [Six-scope actual mappings and thirteen attempts](../reports/ideas_execution_20261018/six-native-reproductions/) retain all statuses, fresh byte hashes and limits.
+
+The earlier future-tense preparation text above records the historical source-stage state; it is superseded operationally by these actual receipts. Fresh raw timing bytes remain fresh observations, never copied from the old run. This resolves only the six named native metadata routes. Full ledger remains223preserved/historical errors; seed-schema/director/proof/independent-scientific-review limitations remain. No old scientific record or status changed.
