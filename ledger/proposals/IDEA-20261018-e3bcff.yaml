@@ -1,0 +1,109 @@
+idea:
+  id: IDEA-20261018-e3bcff
+  title: Port cryptanalysis f4_gf2 / f4_gpu into crypto and run it on a device
+  class: tooling
+  question_id: RQ-ICPERF-94c86e
+  area: ICPERF
+  goal_ids:
+  - GOAL-ICPERF-e6b6a4
+  status: proposed
+  proposed_by: idea-generator (Sonnet subagent logging the missed items of the 2026-10-18 index-calculus
+    review)
+  added: '2026-10-18'
+  claim: 'The ported f4_gf2 / f4_gpu returns RREFs identical to crypto''s gf2_elim on the same degree-6
+    matrices and is at least 10x faster on a device (25-75x on degree-6 matrices in cryptanalysis: 426
+    s to 5.7 s on an RTX 5090), and moves the stage cost of a crypto IC row; whether it moves end-to-end
+    S is measured, not assumed.'
+  mechanism: cryptanalysis holds the fastest Boolean F4; crypto has no copy under those names, and no
+    GPU IC kernel in crypto has ever run on a device. The port should also move crypto's newer Koblitz
+    core back. The equivariant-pass result (2-3x against gf2_elim) shows how fast the baseline kernel
+    already is.
+  novelty_status: adaptation
+  regime: binary Boolean F4; engineering; 1-2 weeks; needs a GPU host
+  citations:
+  - ref: crypto:research/ic_leads_review_20261018/README.md 3.7 bullet 2, 2.4
+    provenance: internal
+    claim: Source of the opportunity, the measured figures quoted here and the cost estimate; desk review,
+      no new measurement, costs are the reviewer's estimates.
+    verified_by: idea-generator
+  - ref: cryptanalysis:suite/src/cryptanalysis/f4_gf2.rs; cryptanalysis:suite/src/cryptanalysis/f4_gpu.rs
+    provenance: internal
+    claim: Boolean F4 and GPU backend; degree-6 matrices 426 s to 5.7 s on RTX 5090.
+    verified_by: idea-generator
+  - ref: crypto:research/ic_improve_20261015 item 03
+    provenance: internal
+    claim: Equivariant pass 2-3x honest against gf2_elim.
+    verified_by: idea-generator
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+    - KR-IC-f3da82
+    - KR-IC-0d2021
+    nearest:
+    - ref: KN-TECH-008
+      provenance: internal
+      relation: adjacent
+      delta: Sparse and structured linear algebra over finite fields; the port reuses an existing dense/Boolean
+        F4 and does not claim a new algorithm.
+    searched:
+      note: Positioned against the cited review and the records it names. The frontier map was not rendered
+        or matched in this logging pass; the Coordinator should run tools/build_frontier_map.py --match
+        before ranking. A missing row is not evidence of novelty.
+  assumptions:
+  - The same matrices are fed to both kernels (hash-pinned).
+  - A GPU host with a recorded driver and model is available.
+  predictions:
+  - metric: rref_identity
+    direction: higher
+    minimum_effect: Bit-identical on all test matrices.
+  - metric: kernel_speedup_over_gf2_elim
+    direction: higher
+    minimum_effect: At least 10x on degree-6 matrices, interval excluding 1.
+  - metric: end_to_end_S_effect
+    direction: different
+    minimum_effect: Reported separately; counted only if it moves verified end-to-end S.
+  minimal_test:
+    design: Port the kernels behind the crypto solver interface, run both kernels on a frozen set of saved
+      degree-5 and degree-6 matrices from crypto, then on one full crypto IC row, on a device with isolation
+      tier recorded.
+    controls:
+    - gf2_elim as exact oracle
+    - A/A repeat
+    - CPU f4_gf2 vs GPU f4_gpu
+    - kernel microbenchmark positive control from cryptanalysis
+    required_metrics:
+    - RREF equality
+    - stage time and counted cost
+    - end-to-end S
+    - device and driver
+  falsification_conditions:
+  - Any RREF mismatch rejects the port.
+  - Speedup below 2x refutes the transfer of the 25-75x figure.
+  - A stage gain with no end-to-end gain is a stage improvement only.
+  confounders:
+  - host-dependent timing
+  - GPU memory limits
+  - matrix shape differences
+  interpretation_limits:
+  - Engineering, not an advance; time is not the unit for any ranking beyond the stage.
+  heuristic_assumptions:
+  - id: H1
+    statement: The cryptanalysis speedup holds on crypto's matrices.
+    rigorous_support: Measured on cryptanalysis degree-6 matrices.
+    validation_plan: Run both kernels on crypto's saved matrices.
+  target_complexity:
+    time_exponent: Constant-factor only; no exponent.
+    memory_exponent: No exponent claimed; memory is the measured constraint, reported as peak RSS.
+    best_known: Matched generic rho, r^0.5 group operations; the index-calculus baseline is Table A/B
+      of crypto:docs/ic/LEADERBOARD.md (5.23x to 21x matched rho on Koblitz, 5.47x to 13.5x on prime fields).
+      Report this row's gap to matched rho (and to Bernstein-Lange where setup is excluded) as distance
+      remaining.
+    hidden_overhead: Every phase, cold, is charged; unpriced native work is priced at 0, 0.1 and 1 GAE
+      per operation (AGENTS.md 5a) wherever two arms are ranked.
+    tradeoff_note: Not applicable beyond the stated resource envelope.
+  estimated_cost:
+    implementation: medium
+    compute: low-medium (needs a GPU device)
+  recommended_priority: medium
+  dominated_by: No attack result; the item is an unrun measurement or an unpaid baseline debt.
+  sota_delta: 'Component: 25-75x on degree-6 matrices in cryptanalysis; none measured in crypto.'
