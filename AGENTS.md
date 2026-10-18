@@ -540,7 +540,7 @@ verdict, changes state. Wall time is never a bound.
 
 ## Weak-curve and isogenous-representative audits
 
-Audit weak curves and isogenous representatives under [the curve-audit rules](docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits).
+Before a weak-curve claim, read [`audit-curve`](.claude/skills/audit-curve/SKILL.md) and [the curve-audit rules](docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits). A singular or invalid formula-compatible companion supports only an implementation-weak label.
 
 ## Cursor Cloud specific instructions
 
