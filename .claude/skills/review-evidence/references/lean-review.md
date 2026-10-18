@@ -52,7 +52,10 @@ coverage. A named audit covers its named declarations, not all adjacent files.
 Retain the CLI's complete local `workspace_inputs` and `verifier_inputs` in
 new receipts, and compare them before and after verification and on reuse.
 This binds imported helpers, audit code and Lake configuration, including
-created/deleted files; four hashes for only the target/spec/pins are insufficient.
+created/deleted files and configured hidden source directories; four hashes for
+only the target/spec/pins are insufficient. Only `.git`/`.lake` infrastructure
+is excluded from the local snapshot. Check that configured local source roots
+are inside the immutable workspace and outside these excluded directories.
 Dependency binaries retain Lean/Lake's trust boundary: record exact dependency
 pins and clean installed revisions, and disclose the absence of an independent
 binary/kernel rechecker. Pre/post hashes do not prove absence of a transient
@@ -64,6 +67,11 @@ not authenticate execution: a fully fabricated JSON can contain fabricated
 hashes and logs. Fresh Lean checks are mandatory for this review route, even
 when an archived receipt passes every consistency check. Preserve legacy
 receipts, label their narrower provenance and create new evidence paths.
+When reviewing an older verifier run, select its exact reviewed revision
+explicitly (`--verifier-revision <SHA>`) and match the recorded verifier bytes
+to that Git tree. Never attribute later input-binding repairs to an older run.
+Both main-workspace counted audits and scoped zero-axiom audits are supported;
+neither log format authenticates execution by itself.
 
 Reject unapproved axioms, holes, kernel bypasses and unverified native
 evaluation as ordinary theorem proofs. Report deliberate compiler-trust
