@@ -84,7 +84,11 @@ def receipt_errors(receipt: dict, *, repo: Path, spec: Path, task,
         'forbidden constructs': verification.get('forbidden_constructs') == [],
         'blocking reason': verification.get('blocking_reason') is None,
         'build log': isinstance(receipt.get('build_log'), str) and bool(receipt['build_log'].strip()),
-        'named audit log': f'target axiom audit passed: {task.theorem_name}' in str(receipt.get('audit_log', '')),
+        'named audit log': any(line.strip() == f'target axiom audit passed: {task.theorem_name}'
+                              for line in str(receipt.get('audit_log', '')).splitlines()),
+        'negative audit diagnostics': not re.search(
+            r'target axiom audit failed:|requested declaration is not a theorem:|zero-axiom audit failed:|^.*error(?:\([^\n)]*\))?:|^FAIL\b',
+            str(receipt.get('audit_log', '')), re.MULTILINE),
         'nonempty project audit': bool(re.search(
             r'axiom audit: [1-9][0-9]* theorem\(s\), all standard axioms only|^zero-axiom audit passed: \S+',
             str(receipt.get('audit_log', '')), re.MULTILINE)),

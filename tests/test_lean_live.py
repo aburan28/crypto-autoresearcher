@@ -137,6 +137,14 @@ def test_receipt_consistency_rejects_tampering_and_stale_helpers(workspace):
         forged = deepcopy(data)
         (forged[section] if section else forged)[key] = value
         assert receipt_errors(forged, repo=workspace, spec=spec, task=task()), (section, key)
+    forged = deepcopy(data)
+    forged['audit_log'] = forged['audit_log'].replace(
+        f'target axiom audit passed: {task().theorem_name}',
+        f'target axiom audit passed: {task().theorem_name}_WRONG')
+    assert 'named audit log' in receipt_errors(forged, repo=workspace, spec=spec, task=task())
+    forged = deepcopy(data)
+    forged['audit_log'] += '\nerror: target axiom audit failed: sorryAx\n'
+    assert 'negative audit diagnostics' in receipt_errors(forged, repo=workspace, spec=spec, task=task())
     helper.write_text('theorem anotherHelper : True := by trivial\n')
     assert 'local source inputs' in receipt_errors(data, repo=workspace, spec=spec, task=task())
 

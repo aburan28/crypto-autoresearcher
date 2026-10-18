@@ -153,3 +153,5 @@ Use a new output path. To verify with current code instead, run the verifier
 into a new receipt directory, then select that directory without an archived
 verifier override. The original producer PDF predates this review; current
 review PDFs are linked through semantic-review.json.
+
+The final audit-log consistency correction requires an exact theorem-name line and rejects explicit audit failures. Its archived-revision recheck is [verification-summary-v4.json](verification-summary-v4.json) and [summary-v4.log](summary-v4.log): all 65 available receipts remain consistent with verifier `2951f9b77d96606820be80bf61ee0d539cfbb4dd`; this does not attribute later repairs to those runs.
