@@ -3,6 +3,7 @@
 - **Status:** `open`
 - **Kind:** repository CI implementation and dependency gaps; an unresolved set of test failures. No cryptanalytic obstruction is asserted.
 - **Affected work:** [PR #2395](https://github.com/aburan28/crypto-autoresearcher/pull/2395), [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), [prime63 diagnostic integration](../research/icperf_prime63_m2_diagnostic_integration_20261018/report.md), and the separate [merge-enforcement problem](pr-merge-checks-not-enforced.md).
+- **Related delivery obstruction:** [GitHub Actions jobs remain queued without runner assignment](github-actions-jobs-queued-without-runners.md), so later current-head checks have not yet exercised the repaired source. The prior completed shard failures remain real and separate.
 - **Next action owner:** PR author for check triage and fixes within the PR; maintainers of unrelated failing tests for their own source and fixtures.
 - **Last updated:** 2026-10-18.
 
