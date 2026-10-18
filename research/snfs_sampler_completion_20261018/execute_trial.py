@@ -28,6 +28,9 @@ def main(mode,directory):
         assert digest(Path(binding["path"]))==binding["sha256"], "runtime binding changed"
     directory=directory.resolve()
     assert directory.is_dir(), "supervisor must create the run directory"
+    launch=json.loads((directory/"launch.json").read_text())
+    launch_environment=json.loads((directory/"environment.json").read_text())
+    dirty_paths=subprocess.check_output(["git","status","--porcelain"],cwd=ROOT,text=True).splitlines()
     run_id=directory.name;experiment=directory.parents[1].name
     assert run_id.startswith("RUN-") and experiment.startswith("EXP-")
     started=time.time();wall=time.monotonic()
@@ -56,8 +59,10 @@ def main(mode,directory):
     with (directory/"instrument-index.json").open("x") as h:json.dump(index,h,indent=2);h.write("\n")
     usage=resource.getrusage(resource.RUSAGE_CHILDREN)
     manifest=dict(run=dict(id=run_id,experiment_id=experiment,status="completed",
-        code=dict(commit=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
-                  command=list(sys.argv),dirty=subprocess.check_output(["git","status","--porcelain"],cwd=ROOT,text=True).splitlines()),
+        code=dict(commit=launch_environment["commit"],commit_meaning="supervisor_execution_start",
+                  command=launch["argv"],dirty=bool(dirty_paths),dirty_paths_at_start=dirty_paths,
+                  source_sha256=launch_environment["source_sha256"],
+                  head_at_wrapper_end=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip()),
         environment=dict(python=platform.python_version(),platform=platform.platform(),point_binary_sha256=digest(BIN/"fixed_input"),screen_binary_sha256=digest(BIN/"screen")),
         inputs=dict(panel_sha256=digest(HERE/"panel.json"),coefficients_sha256=digest(HERE/"coefficients.json")),
         timing=dict(started_unix=started,finished_unix=time.time(),wall_seconds=time.monotonic()-wall,

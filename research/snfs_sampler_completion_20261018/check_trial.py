@@ -123,6 +123,14 @@ def main(run):
     for binding in json.loads((HERE/"runtime-bindings.json").read_text()).values():
         assert hashlib.sha256(Path(binding["path"]).read_bytes()).hexdigest()==binding["sha256"], "runtime binding changed"
     raw=json.loads((run/"raw-result.json").read_text())
+    manifest=json.loads((run/"manifest.yaml").read_text())["run"]
+    launch=json.loads((run/"launch.json").read_text())
+    environment=json.loads((run/"environment.json").read_text())
+    assert manifest["code"]["commit"]==environment["commit"]
+    assert manifest["code"]["command"]==launch["argv"]
+    assert manifest["result"]["certificate"]["kind"]=="none"
+    assert manifest["result"]["raw_sha256"]==hashlib.sha256((run/"raw-result.json").read_bytes()).hexdigest()
+    assert manifest["result"]["instrument_sha256"]==hashlib.sha256((run/"instrument.tar.gz").read_bytes()).hexdigest()
     index=json.loads((run/"instrument-index.json").read_text())
     contents={}
     with tarfile.open(run/"instrument.tar.gz","r:gz") as archive:
