@@ -3,6 +3,8 @@ from collections import Counter
 from pathlib import Path
 import argparse
 import json
+import os
+os.environ.setdefault("DOT_SAGE", "/workspace/snfs-toolchains/sage-state")
 from sage.all import PolynomialRing, QQ, ZZ
 from sage.env import SAGE_VERSION
 

@@ -5,8 +5,10 @@ from pathlib import Path
 import hashlib
 import importlib.util
 import json
+import os
 import sys
 import tarfile
+os.environ.setdefault("DOT_SAGE", "/workspace/snfs-toolchains/sage-state")
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
