@@ -319,6 +319,95 @@ most two lanes at once on the host. Disk: the instrument binary is built under
   command's non-zero exit does stop it (the supervisor's `infrastructure_error`),
   and the remaining trials of that card are reported as not run.
 
+## Instrument notes and pre-freeze smoke (added by the director before any card was frozen)
+
+Written after the instrument existed and before any card was frozen or run. It
+tightens nothing and loosens nothing; it records what the build changed in how
+a gate is evaluated, so the deviation list below stays complete.
+
+* **Modes.** `selftest`, `scan`, `emit-cards` and `table` as above, plus two
+  diagnostics, `yaml-check` and `yaml-dump`, that read one YAML file and run
+  no gate. `selftest` takes `--work DIR` (a scratch directory outside the
+  repository, removed at the end) because its fixture is a real git
+  repository with a remote-tracking ref.
+* **Controls built.** 68 in `selftest`: the three FIPS 180-2 vectors plus the
+  one-million-`a` vector, a 5000-byte file digest against `sha256sum`, JSON
+  and YAML fixtures (including plain `null` and `~` as null, a quoted `'null'`
+  as text, an anchor before a sequence, an apostrophe inside a flow
+  collection), and one fixture contract per gate reason, each classified with
+  exactly its own reason: all-pass, the four `not_frozen` reasons (status,
+  no `approved_by`, `approved_by: null`, execution not authorized, plus a
+  superseded contract), tracked runs, a run directory on disk only, a run on a
+  remote branch, no approval, an approval by a different decision, a hold, a
+  hold released by a later decision, a hold whose guard fields are incomplete,
+  no launcher, a wrong specification digest, a wrong source digest, a
+  specification without `frozen: true`, no queue, a queue that does not bind
+  the plan, a queue lacking three supervisor files, a zero-run handoff,
+  memory 8192 MB, a 5000 s watchdog, no time bound, a missing tool, a missing
+  Python module, a module the repository itself provides, a trial that depends
+  on a non-runnable trial, and a contract with one runnable and one
+  non-runnable trial (`partial`); and the scope controls (an `SSI` contract is
+  `other_ecc` and gets no card, an `AEADC` contract is `non_ecc` and gets no
+  row). The emitted card for the fixture carries the plan's argv with
+  `{run_dir}` replaced and nothing else.
+* **Cross-check of the readers (design time, outside the instrument).** The
+  instrument's YAML reader was compared with PyYAML on every field the gates
+  read: 2687 specifications (`id`, `status`, `approved_by`,
+  `execution_authorized`, `frozen`, `budget.wall_clock_seconds_per_run`) and
+  2716 decisions (`id`, `decision`, `target_ids`, `decided_at`,
+  `withheld_contracts` and `released_contracts` ids and guard fields). No
+  difference remained other than text normalisation and the timezone suffix of
+  two `decided_at` formats, which the ordering rule compares as strings in both
+  implementations. PyYAML itself rejects 14 specifications and 5 decisions of those read.
+  The instrument reports 10 of the 14 and 4 of the 5 as unreadable
+  (`not_frozen:unreadable_specification:<why>`, and `decision_parse_failures`
+  in `summary.json`; `tools/newest_experiments.py` skips such files
+  silently). It is more lenient on the rest: it reads four specifications
+  PyYAML rejects (`EXP-P13-NC2b`, `EXP-P13-NC2d`, `EXP-REP-001`,
+  `EXP-SSI-697354-v2`, none in the ECDLP class) and one decision
+  (`DEC-20260905-eb1df9`, which no ECDLP-class or named contract cites).
+* **Pre-freeze smoke run.** `scan` was run once on the live tree (HEAD
+  `871192fd8`) into a scratch directory outside the repository, and
+  `emit-cards` once into another, to prove neither panics and that the emitted
+  cards lint. That output is not committed and no card was edited to match it.
+  Two facts from it belong here because they decide how the table reads. (1)
+  Five of the six anchors matched. `EXP-IC-002` was classified
+  `no_committed_approval`, not the `no_launcher` the anchor list predicted:
+  its specification says `approved_by: coordinator`, but no committed decision
+  with `decision: approve` lists it in `target_ids` (the decisions that name
+  it are `supersede`, `weaken` and `pause`). The anchor stays as frozen, so
+  `anchors_ok` will read `false` in the card-01 summary, and the table gives
+  the instrument's reason. (2) `scan` takes about 12 s of one core.
+* **Deviation D8. Off-branch run probe pathspec.** The probe uses
+  `git log --remotes=origin --not origin/main --name-only -- 'experiments/*/runs/*'`.
+  The selector's `off_main_runs` passes `'experiments/*/runs'`, which git does
+  not expand to the files below it (checked on a throwaway repository: it
+  prints nothing where `'experiments/*/runs/*'` prints the file), so that
+  helper cannot report a run on another branch. This item uses the working
+  pathspec; the `run` skill's `off_main_runs` check is therefore not what this
+  item relies on. A tightening (it can only add `run_elsewhere` rows).
+* **Deviation D9. G9 module rule.** A module that the repository itself
+  provides (`<name>.py` or a `<name>/` directory found under the bound
+  source's directory tree, at the repository root, or in `tools/`) is not
+  third-party, because the frozen drivers insert their own vendor directory in
+  `sys.path` (`EXP-PFDR-ca5e01` imports `curve` from `implementation/vendor/`).
+  Other non-standard-library modules are tested with
+  `importlib.util.find_spec` in the host `python3`.
+* **Deviation D10. Gate detail.** G6 also requires the specification's `id` to
+  equal the directory, the plan's `specification` to be the contract's own
+  file and the plan's `experiment_id` to match (the loader's own checks). G8
+  tests a zero `maximum_runs` before archive coverage, in the order of
+  `authorize()`. G3 reads a `DEC-*` token at the start of a long `approved_by`
+  text. G1 treats a specification the reader cannot parse as
+  `not_frozen:unreadable_specification:<why>`.
+* **Card cap.** Every emitted card has a worst-case wall time (sum of its
+  command timeouts, including a 5 s `mkdir`) under 450 s; `selftest` asserts
+  that. Cards 02 to 05 run only `python3` and `prlimit` (system programs); the
+  one binary any card runs, `raw/build/b18`, is built by card-01 itself.
+* **Stage for the assess step.** `table` needs the receipts of all five cards;
+  rebuild the instrument with the card-01 `rustc` line, run `table --scan
+  raw/scan --receipts raw --out table.md`, then delete the binary.
+
 ## What this item does not claim
 
 It does not claim that any contract's hypothesis holds. It does not claim that a
