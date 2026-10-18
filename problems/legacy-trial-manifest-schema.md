@@ -1,0 +1,40 @@
+# Legacy stage-0 ECDLP trial manifests fail native admission
+
+- **Status:** investigating
+- **Kind:** implementation gap; separate director access/tool limit
+- **Affected work:** [four original/successor mappings](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/mapping.json), [GOAL-ECDLP-001](../ledger/goals/GOAL-ECDLP-001/goal.yaml)
+- **Next action owner:** Coordinator design plus Executor implementation; root owns native scientific launches
+- **Last updated:** 2026-10-18
+
+## Problem
+
+The four frozen stage-0 worksheet drivers write `run_id` and metrics but omit the current canonical run fields, so successful original processes cannot yield native `output_validated` receipts. The affected original experiments are EXP-ECDLP-bfbe6f, EXP-ECDLP-5f4f14, EXP-ECDLP-3c166b and EXP-ECDLP-20ac31. Their exact toy curves, samples, seeds and criteria remain fixed in their original specifications.
+
+## Evidence and uncertainty
+
+- **Observed:** [retained original receipts and hashes](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/gates/original-attempts.json). RUN-ECDLP-8f5190 has driver/checker exits 0 but native `invalid_output`: its manifest lacks id, status, code, environment, inputs, timing and result, including commit/command and certificate.kind. Other original receipts are retained as they actually arrive; no failed receipt is edited.
+- **Derived:** `experiment_execution.trial_state` keeps invalid attempts `needs_reconciliation`. The CLI offers status/run/report, with no command that retroactively validates that attempt. `docs/experiment-execution.md` requires additive contracts/successors; native preapproval refuses an already-approved canonical specification. A protocol amendment alone therefore cannot grant native in-place reapproval.
+- **Missing capability:** a new, source-bound adapter producing a canonical outer manifest while preserving old driver/checker/raw bytes, plus complete native-approved successor packages. Nine synthetic adapter tests have passed without invoking the four scientific censuses; full successor trials remain unexecuted at design time.
+- **Access/tool limit:** the configured director backend reports ANTHROPIC_API_KEY unset and model IDs unverified. The allowed implementation-tier route is retained; no mechanical runbook, director inference or model binding is fabricated.
+- **What this does not establish:** no failure of a mathematical hypothesis, security result, ECDLP attack, new negative theorem or measured pipeline improvement follows from a manifest defect. A schema-valid envelope alone also does not prove computation or independent scientific correctness.
+
+## What would unblock it
+
+- [ ] Native prospective preapproval reports approvable:true for the exact four new successor specifications/plans/handoffs/queue after their review_required drafts, source and lane are committed and published.
+- [ ] Exact approved-byte archives verify against Git, are published, and ordinary selection reports each successor ready.
+- [ ] Under fresh native claims, all four new successor trials retain original raw bytes/metrics, pass the unchanged original checker controls and the native canonical-manifest gate, with complete source/provenance/output hashes.
+- [ ] Every original invalid receipt/artifact remains immutable and the new reports label original deterministic readings as in-sample calibration; no scientific interpretation status changes.
+
+Meeting these conditions establishes a compatible reproduction route for these four exact worksheets. Scientific review, execution-proof integration and broader ECDLP conclusions remain separate obligations.
+
+## Next discriminating step
+
+- **Action:** publish the new review_required drafts/source/lane, then run the four exact native preapproval packets in [BATCH-7ddcd6](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/preapproval/). Only accepted exact final bytes may be approved, archived and dispatched.
+- **Inputs and controls:** original hash-bound driver, checker, plan and specification; one fresh deterministic driver pass and two fixed original-checker recomputations; preserved raw/legacy-manifest identities; command/source/tamper/no-overwrite controls.
+- **Execution limits:** one newly allocated run per successor, memory256MiB in its plan, queue concurrency1; no old slot is reused and no campaign spending cap is introduced.
+- **Outcomes:** accepted metadata allows the exact reproduction route; schema/provenance/checker failure retains a new invalid attempt and names the adapter defect; infrastructure refusal carries no mathematical reading.
+- **Recheck trigger:** native preapproval/publication/readiness completion and the first successor execution receipts.
+
+## Resolution and history
+
+2026-10-18: original driver/checker processes exposed the native manifest defect. A role-separated Executor implemented a new adapter and synthetic failure tests; the Coordinator prepared four review_required successor packages. Unresolved: no full successor trial or scientific promotion is claimed.
