@@ -1,0 +1,186 @@
+# EXPERIMENT CONTRACT -- EXP-SLHDSA-8ada4e (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-SLHDSA-8ada4e
+  hypothesis_id: H-SLHDSA-a9f291
+  derived_from_idea: IDEA-20261018-007845
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Reachable-address tweak injectivity census, SHA2 vs SHAKE
+  objective: >-
+    Whether any reachable address collides under compression, and how much headroom FIPS 205
+    sets leave.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      Python 3 toy signer instrumented to log every (type, layer, tree, keypair, chain, hash,
+      height, index) tuple
+    parameters: h in {8,12}; d in {2,4}; k in {8,14}; a in {4,6}; w=16; 2^12 signatures per
+      cell
+    procedure: >-
+      1. Instrument signer. 2. Enumerate keygen and signatures. 3. Encode tweaks both ways
+      and count duplicates. 4. Sweep unreachable field values. 5. Analytic headroom table
+      for 12 FIPS 205 sets.
+  controls:
+  - 'null: full uncompressed ADRS with SHAKE, where collisions must be zero by construction'
+  - 'positive: planted bug truncating tree address to 4 bytes, where collisions must appear'
+  - 'A/A: SHA2 census under two seed blocks of signed messages'
+  independent_variables:
+  - encoding
+  - field_population
+  metrics:
+    primary:
+    - reachable collision count
+    - minimum headroom bits
+    secondary:
+    - coverage of address types
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: reachable collisions
+    formula: 0 if every used field value < 2^(compressed width)
+    source: FIPS 205 ADRSc layout (secondary)
+  scale_relevance:
+    tier: toy
+    justification: >-
+      exhaustive at reduced sizes; analytic at FIPS 205; transfer assumption: field ranges
+      grow as the analytic formula states
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1200
+    total_cpu_hours: 2
+    maximum_memory_gb: 8
+    maximum_runs: 16
+  stopping_rules:
+  - stop when every cell enumerated
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - census with incomplete type coverage is invalid
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    Success (encoding confirmed safe) if C1 and C3 show zero reachable collisions and headroom
+    >= 8 bits (P1, P2), with C2 locating the unreachable boundary (P3), beyond the AA1 noise
+    floor.
+  falsification_criterion: >-
+    Falsified if C1 shows any reachable collision or C3 finds a field with headroom under
+    8 bits.
+  decision_impact:
+    on_positive: >-
+      Record the reachable/unreachable boundary as a certified control used by fault and alias
+      ideas.
+    on_negative: >-
+      Escalate an encoding defect at the named set to a separate claim with a verified duplicate-tweak
+      pair.
+  variable_ledger:
+    independent:
+    - name: encoding
+      levels:
+      - sha2_compressed
+      - shake_full
+    - name: field_population
+      levels:
+      - reachable_only
+      - unreachable_swept
+    factors:
+    - name: seed_block
+      treatment: randomized
+      value: seed blocks A and B, disjoint master seeds
+      how: >-
+        two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under
+        both
+    comparisons:
+    - id: C1
+      arms:
+      - sha2_compressed reachable_only
+      - shake_full reachable_only
+      differs_in:
+      - encoding
+      design: one_factor
+    - id: C2
+      arms:
+      - sha2_compressed reachable_only
+      - sha2_compressed unreachable_swept
+      differs_in:
+      - field_population
+      design: one_factor
+    - id: C3
+      arms:
+      - analytic headroom FIPS 205
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - sha2_compressed reachable_only seed-block A
+      - sha2_compressed reachable_only seed-block B
+      differs_in:
+      - seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-007845.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-007845.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P3
+    first_recorded_in: ledger/proposals/IDEA-20261018-007845.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml with frozen parameters, seeds, code commit and tool versions
+  - raw-result.json with per-trial records and verification flags
+  - collision census JSON
+  - headroom table CSV
+  - PDF report
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-SLHDSA-8ada4e/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-007845.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

@@ -1,0 +1,106 @@
+# HYPOTHESIS -- H-MLKEM-bf2f3c, specified from IDEA-20261018-9b3937. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-bf2f3c
+  question_id: RQ-MLKEM-003
+  goal_id: null
+  derived_from_idea: IDEA-20261018-9b3937
+  added: '2026-10-18'
+  statement: >-
+    Core-SVP charges only the SVP oracle and treats basis maintenance (LLL, size reduction,
+    Gram-Schmidt updates, insertion) as polynomial and free. On full primal embedding bases
+    at the real ML-KEM-512 and ML-KEM-768 shapes (lattice dimension about 1000 to 1500, q=3329),
+    the measured cost of the non-oracle work for one BKZ tour at small block size, with the
+    floating-point precision the run needs to stay numerically sound, is at least 2^40 bit
+    operations. That puts a measured floor under the polynomial factor. If it is below 2^30,
+    the polynomial factor is negligible against any oracle cost and the convention is confirmed
+    for this term.
+  mechanism: >-
+    fpylll and G6K keep Gram-Schmidt data in floating point. At dimensions above about 600,
+    double precision fails for q-ary bases with large log-profile slopes, which forces long-double,
+    dd, qd or MPFR, and each step up multiplies the cost of every size reduction. A BKZ tour
+    does O(d) insertions, each followed by an O(d^2) update, so per-tour maintenance is O(d^3)
+    multiplications at the required precision. This is the one part of the attack that can
+    be measured at the true FIPS dimension, because it needs no large SVP oracle. Core-SVP
+    sets it to zero.
+  assumptions:
+  - A full attack's maintenance cost is about (number of tours) times the cost of one tour.
+  - >-
+    The cost table per precision type (for example, dd at about 10 double flops) reflects
+    relative cost.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: A full attack's maintenance cost is about (number of tours) times the
+      cost of one tour.
+    random_model_justification: Tour structure of BKZ.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-e9789d
+    falsification_condition: Measure 3 consecutive tours at d=800 and report the per-tour
+      variation.
+  - id: HEUR-002
+    formal_statement: >-
+      The cost table per precision type (for example, dd at about 10 double flops) reflects
+      relative cost.
+    random_model_justification: Library benchmarks.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-e9789d
+    falsification_condition: Microbenchmark each type on the host and record the table in
+      the manifest.
+  predictions:
+  - metric: log2 bit-operation cost of LLL plus one BKZ-20 tour at the ML-KEM-768 shape
+    direction: higher
+    minimum_effect: '>= 40'
+  - metric: minimum sound precision type at d >= 1200
+    direction: different
+    minimum_effect: beyond double (long double, dd or MPFR)
+  - metric: fitted exponent of maintenance cost in d
+    direction: different
+    minimum_effect: within [2.5, 3.5]
+  test_boundary:
+    instances:
+    - >-
+      d in {400, 600, 800, 1000, 1200, 1500}, including the ML-KEM-512 and ML-KEM-768 shapes
+      (n=256, k in {2,3}, q=3329, CBD(3)/CBD(2)); precision types double, long double, dd,
+      qd and MPFR-128; LLL plus one BKZ-20 tour; 3 bases per d
+    parameters:
+      scale_tier: crypto
+      scale_justification: >-
+        This runs at the true ML-KEM-512 and ML-KEM-768 lattice dimensions for the maintenance
+        component only. The SVP oracle is not run at scale, so no end-to-end FIPS claim is
+        made.
+    implementation: >-
+      fpylll with counters in its GSO and size-reduction loops, MPFR, SageMath for basis construction
+      and exact GSO spot checks, Python
+    budget:
+      wall_clock_seconds_per_run: 14400
+      total_cpu_hours: 200
+      maximum_memory_gb: 64
+      maximum_runs: 300
+  distinguishable_outcomes:
+  - < 30
+  - double suffices at every tested d
+  - outside [2, 4]
+  falsification_conditions:
+  - 'P1: measured cost below 2^30 at the ML-KEM-768 shape'
+  - 'P2: double is sound at every d, so the precision escalation is absent'
+  - >-
+    the positive control does not fail under double, which means the consistency check is
+    too weak and the batch is invalid
+  interpretation_limits:
+  - >-
+    This measures only the non-oracle term, at true FIPS dimension. It says nothing about
+    the SVP oracle's cost and is not a statement of ML-KEM security. The total-attack implication
+    is a conditional sum with the oracle cost taken from the model.
+  - >-
+    One library family (fpylll/G6K). Other implementations may use different precision strategies.
+  status: specified
+  proposed_by: idea-generator
+  goal_id_note: >-
+    RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open goal
+    serves this question. The Coordinator must open a successor goal or rebind before dispatch.

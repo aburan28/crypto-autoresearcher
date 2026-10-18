@@ -1,0 +1,68 @@
+# HYPOTHESIS -- H-MLKEM-a2adaa, specified from IDEA-20261018-b3837a. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-a2adaa
+  question_id: RQ-MLKEM-003
+  goal_id: null
+  derived_from_idea: IDEA-20261018-b3837a
+  added: '2026-10-18'
+  statement: >-
+    Core-SVP prices total operations as if they parallelize freely. Measured G6K throughput
+    (pair tests per second) at d=70-85 on one node scales with efficiency E(t) = speedup/t
+    that falls below 0.6 at t=64, and the fall steepens with d (memory-bandwidth saturation).
+    If E(64) >= 0.85 at all d, parallel memory contention is negligible at this scale and
+    the objection is falsified.
+  mechanism: >-
+    Bucketed sieves share one database; as threads grow, DRAM bandwidth and cache coherence
+    become the bottleneck rather than arithmetic. An attacker's area-time cost then includes
+    idle arithmetic, so a parallel attack's real cost exceeds the operation count by 1/E.
+    The d-dependence of E reveals whether this is a constant or an exponent-level effect.
+  assumptions:
+  - Throughput loss is caused by memory contention, not lock contention.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Throughput loss is caused by memory contention, not lock contention.
+    random_model_justification: G6K uses lock-free bucketing mostly.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-19e5b7
+    falsification_condition: Profile with perf where PMU exists; otherwise report as unverified.
+  predictions:
+  - metric: E(64) at d=85
+    direction: lower
+    minimum_effect: <= 0.6
+  - metric: dE(64)/dd
+    direction: lower
+    minimum_effect: negative with CI excluding 0
+  test_boundary:
+    instances:
+    - d in {70,75,80,85}; t in {1,2,4,8,16,32,64}; bgj1 and BDGL; 3 instances
+    parameters:
+      scale_tier: medium
+      scale_justification: >-
+        sieve dimensions 60-90 on a single node; transfer assumption: the per-dimension exponent
+        of the measured quantity is extrapolated to beta~400-900 only as a conditional statement
+        with the fit interval; no FIPS 203 security claim
+    implementation: G6K, numactl, isolab independent runner if available, Python
+    budget:
+      wall_clock_seconds_per_run: 7200
+      total_cpu_hours: 600
+      maximum_memory_gb: 256
+      maximum_runs: 260
+  distinguishable_outcomes:
+  - '>= 0.85'
+  - CI includes 0
+  falsification_conditions:
+  - 'P1: E(64) >= 0.85 at all d'
+  - null control E < 0.9 (host noisy, invalid)
+  interpretation_limits:
+  - One host type; d <= 85; area-time interpretation is a model choice stated as an assumption
+  status: specified
+  proposed_by: idea-generator
+  goal_id_note: >-
+    RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open goal
+    serves this question. The Coordinator must open a successor goal or rebind before dispatch.

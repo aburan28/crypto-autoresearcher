@@ -1,0 +1,177 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-e26487 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-e26487
+  hypothesis_id: H-MLKEM-41ccde
+  derived_from_idea: IDEA-20261018-70bd4a
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Calibrated versus uniform-model pruning inside BKZ-50..64
+  objective: Test whether the target is non-uniform and whether calibration saves nodes.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: fpylll (Pruner, BKZ 2.0) with node counters; SciPy for fitting
+    parameters: >-
+      lattice dim 120-160, Kyber shape, q=3329; beta in {50,56,60,64}; 5000 training solutions;
+      40 test instances
+    procedure: >-
+      1) Freeze. 2) Collect training solutions. 3) Fit model, derive pruning. 4) Run test
+      tours both arms. 5) Compare nodes/success.
+  controls:
+  - >-
+    null: random q-ary lattice blocks preprocessed to the same profile but with targets re-sampled
+    uniformly - calibration must not help
+  - >-
+    positive: planted short vector with known biased coordinate law where calibrated pruning
+    gain is computable
+  - 'A/A: uniform pruning arm with two enumeration-randomization seed blocks'
+  independent_variables:
+  - pruning_model
+  - lattice_family
+  metrics:
+    primary:
+    - nodes per successful SVP
+    secondary:
+    - KS statistic
+    - tour wall time
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: node ratio at beta=60
+    formula: <= 0.8
+    source: preregistered threshold
+  scale_relevance:
+    tier: toy
+    justification: beta <= 64; transfer only to enumeration-based preprocessing
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    independent_instances: 2
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 60
+    maximum_memory_gb: 8
+    maximum_runs: 200
+  stopping_rules:
+  - stop if C2 not significant after 5000 samples
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: C2 rejects uniformity (P2) and C1 ratio <= 0.8 (P1), beyond AA1 noise
+    floor.
+  falsification_criterion: C2 p > 0.05 or C1 ratio >= 0.95.
+  decision_impact:
+    on_positive: >-
+      Adopt calibrated pruning in enumeration-preprocessing of the baseline and test the transfer
+      to larger blocks.
+    on_negative: Record that the uniform model is adequate in BKZ blocks; close this lane.
+  variable_ledger:
+    independent:
+    - name: pruning_model
+      levels:
+      - uniform_gnr
+      - empirical_calibrated
+    - name: lattice_family
+      levels:
+      - kyber_shape
+      - random_qary_null
+      - planted_bias_positive
+    factors:
+    - name: enum_seed_block
+      treatment: randomized
+      value: A,B
+      how: basis rerandomization before each SVP call
+    - name: block_size
+      treatment: fixed
+      value: 60 primary
+      how: secondary sweep reported
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - empirical_calibrated
+      - uniform_gnr
+      differs_in:
+      - pruning_model
+      design: one_factor
+    - id: C2
+      arms:
+      - KS test of coordinate law
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - uniform_gnr block A
+      - uniform_gnr block B
+      differs_in:
+      - enum_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-70bd4a.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-70bd4a.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-e26487/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-70bd4a.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

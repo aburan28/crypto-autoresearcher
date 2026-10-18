@@ -1,0 +1,73 @@
+# HYPOTHESIS -- H-MLDSA-651c54, specified from IDEA-20261018-fb4a86. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-651c54
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-fb4a86
+  added: '2026-10-18'
+  statement: >-
+    For single-bit faults on c (or on mu before the challenge hash), differential recovery
+    z - z' = (c - c') s1 needs two signatures of the same message with the same mask. In deterministic
+    mode this needs 2 signing queries; with an rnd source of h bits it needs about 2^{h/2}
+    same-message queries; with caller-supplied rnd (an API exposing it) it collapses to 2.
+    Measured on real ML-DSA-44 with simulated faults, median queries to recovery fit 2^{h/2}
+    within factor 2 for h in {8..24}, and a census of fault positions shows which positions
+    are mode-independent (attack works in hedged mode at h = 256).
+  mechanism: >-
+    rho'' = H(K || rnd || mu): equal masks need equal (rnd, mu). A fault after rho'' (e.g.
+    on c) with the mask reused gives an exact linear relation. Hedging thus converts a 2-query
+    attack into a birthday search over rnd. Faults that do not need mask reuse (e.g. zeroing
+    y, skipping the addition) are unaffected by hedging; the census separates the two classes,
+    which is a mode-dependent fault boundary.
+  assumptions:
+  - rnd is uniform over 2^h values
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: rnd is uniform over 2^h values
+    random_model_justification: construction
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-0a3ffb
+    falsification_condition: chi-square of rnd values
+  predictions:
+  - metric: log2 median queries vs h
+    direction: different
+    minimum_effect: slope 0.5 +- 0.1
+  - metric: mode-independent positions
+    direction: different
+    minimum_effect: >-
+      the census assigns each of 12 fault positions to exactly one class with 100 percent
+      agreement across seeds
+  test_boundary:
+    instances:
+    - >-
+      ML-DSA-44; positions: c_tilde bit, c coefficient sign, mu bit, w1 bit, y zeroing, z
+      addition skip, kappa, NTT twiddle, s1 load, h bit, rho'' bit, A entry; h in {0 (deterministic),
+      8, 12, 16, 20, 24, 256}; 20 keys per cell
+    parameters:
+      scale_tier: crypto
+      scale_justification: real parameters; faults simulated
+    implementation: >-
+      Python FIPS 204 implementation with fault-injection hooks, cross-checked against PQClean
+      KATs
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - slope outside [0.35, 0.65]
+  - a position whose class changes across seeds
+  falsification_conditions:
+  - slope not 0.5
+  - census inconsistent
+  interpretation_limits:
+  - simulated faults only; real fault success rates are not measured
+  - real parameters
+  status: specified
+  proposed_by: idea-generator

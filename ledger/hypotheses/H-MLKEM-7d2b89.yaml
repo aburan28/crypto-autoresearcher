@@ -1,0 +1,74 @@
+# HYPOTHESIS -- H-MLKEM-7d2b89, specified from IDEA-20261018-03bbdd. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-7d2b89
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-03bbdd
+  added: '2026-10-18'
+  statement: >-
+    An attacker who generates ciphertexts knows the exact rounding errors introduced by Compress_du(u)
+    and Compress_dv(v). Scoring candidate encapsulations by the full known part of the failure
+    term, including these rounding errors, rather than by ||(r,e1)|| alone, raises the failure
+    probability of the top 2^-10 filtered fraction by a factor >= 2 at equal precomputation,
+    measured on reduced parameters with elevated base DFR. If the ratio is within the A/A
+    noise, the compression terms add nothing to boosting.
+  mechanism: >-
+    The decryption noise is e^T r - s^T(e1 + du_err) + e2 + dv_err. The attacker knows r,
+    e1, e2, du_err and dv_err exactly; only s and e are secret. dv_err enters additively with
+    magnitude up to q/2^(dv+1) (about 104 at dv=4), a known shift toward the failure threshold,
+    while du_err enlarges the effective vector multiplying s. Published boosting weights only
+    by the norms of (r,e1); conditioning on the known additive shift dv_err in the coordinate
+    where the failure is tested changes the per-coordinate tail probability directly.
+  assumptions:
+  - Failure coordinates are nearly independent given the ciphertext.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Failure coordinates are nearly independent given the ciphertext.
+    random_model_justification: Standard in Kyber DFR analysis.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-f55221
+    falsification_condition: Measure pairwise coordinate failure correlations in the run.
+  predictions:
+  - metric: failure rate ratio full_score / norm_score at filter 2^-10
+    direction: higher
+    minimum_effect: '>= 2'
+  - metric: analytic per-coordinate tail model vs measured failure rate
+    direction: different
+    minimum_effect: within factor 1.5
+  test_boundary:
+    instances:
+    - >-
+      n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; 20 keys; 2^30 candidates per key; filter
+      2^-10 and 2^-14
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        elevated-DFR reduced params; transfer assumption: score efficiency ratio is governed
+        by the tail model checked in P2
+    implementation: C (PQClean-derived reference ML-KEM with n, eta, d_u, d_v parameterized)
+      + Python analysis
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 60
+      maximum_memory_gb: 8
+      maximum_runs: 200
+  distinguishable_outcomes:
+  - ratio < 1.3 with CI
+  - model off by > 3x
+  falsification_conditions:
+  - P1 ratio < 1.3
+  - shuffled null shows ratio > 1.2 (harness leak)
+  interpretation_limits:
+  - >-
+    Elevated-DFR reduced parameters; at FIPS 203 DFR (2^-139..2^-174) the relative gain may
+    differ; any transfer is a statement about the score's relative efficiency under the model
+    P2 validates
+  - simulated oracle only
+  status: specified
+  proposed_by: idea-generator

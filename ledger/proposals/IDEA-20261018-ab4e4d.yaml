@@ -1,0 +1,129 @@
+# IDEA RECORD -- IDEA-20261018-ab4e4d
+# RQ-MLKEM-003 / no open goal; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-ab4e4d
+  question_id: RQ-MLKEM-003
+  goal_id: null
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Bytes moved per pair test in G6K's bucketed sieves at d=60-90: a measured DRAM-bandwidth
+    floor under the core-SVP time exponent
+  class: measurement
+  claim: >-
+    In G6K's bgj1 and BDGL (bdgl) sieves at dimensions 60-90, the DRAM traffic per reduction
+    pair test, measured by cache simulation and instrumented database accesses, grows with
+    d such that a bandwidth-charged cost (bytes moved / bandwidth) exceeds the arithmetic
+    cost by a factor that itself grows by at least 2^{0.01 d}. If bytes per pair test are
+    flat in d (cache-resident buckets), a bandwidth charge only shifts core-SVP by a constant
+    and the memory-access objection is falsified at this scale.
+  mechanism: >-
+    Bucketed sieves stream the database through buckets; once the database exceeds last-level
+    cache, each bucket pass costs DRAM traffic proportional to bucket size times vector size.
+    The ratio of pair tests to bytes depends on bucket size and filtering, which G6K tunes
+    for CPU caches. Core-SVP charges only operations. Measuring bytes per test against d gives
+    the exponent gap between an operation count and a bandwidth-limited cost, the quantity
+    a full-cost model needs.
+  tracked_object: >-
+    LLC-miss bytes (cachegrind/simulated 32 MB LLC) and instrumented database bytes read per
+    pair test, as a function of sieve dimension and sieve kernel.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-106
+    provenance: kb
+    claim: instrument; reports time, not memory traffic
+    verified_by: knowledge/literature/KN-LIT-106.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Ducas, Stevens, van Woerden, Advanced Lattice Sieving on GPUs, with Tensor Cores, EUROCRYPT
+      2021 (recalled)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: slope of log2(bytes per pair test) vs d
+    direction: higher
+    minimum_effect: '>= 0.01 per dimension'
+    falsified_by: slope CI includes 0
+  - id: P2
+    metric: bandwidth-charged / op-charged cost ratio at d=90 (20 GB/s/core, 1 ns/op)
+    direction: higher
+    minimum_effect: '>= 2'
+    falsified_by: <= 1.2
+  minimal_test:
+    design: >-
+      Run G6K bgj1 and bdgl sieves to saturation on random q-ary (Kyber-shape) lattices of
+      d in {60,65,...,90}, 5 instances each; record instrumented DB reads and, for d <= 75,
+      cachegrind LL misses; fit slopes.
+    controls:
+    - >-
+      null: same sieves with the database artificially capped below LLC size (forced cache
+      residency) - slope must be ~0
+    - >-
+      positive: Gauss sieve (list-based, uniform access) where bytes per test growth is known
+      to be large
+    - 'A/A: bgj1 at each d with two database-seed blocks'
+  falsification_conditions:
+  - P1 slope CI includes 0 for bdgl and bgj1
+  - positive control fails to show growth (instrument broken)
+  confounders:
+  - hardware prefetching hides traffic in cachegrind's model
+  - thread count changes sharing
+  - simhash prefilter changes access count
+  interpretation_limits:
+  - >-
+    d <= 90 single node; extrapolation to beta~600 is a conditional on the fitted slope; cache
+    simulation is a model of one hierarchy
+  heuristic_assumptions:
+  - id: H1
+    statement: Cachegrind LL-miss counts track real DRAM traffic within 2x.
+    rigorous_support: Simulator of an inclusive LLC.
+    validation_plan: >-
+      Cross-check one dimension with hardware counters on a host with PMU (perf-ipc skill),
+      if available.
+  target_complexity:
+    time_exponent: 0.292d ops plus measured bandwidth term
+    memory_exponent: 0.2075d
+    best_known: core-SVP ops-only
+    hidden_overhead: the measured term itself
+    tradeoff_note: measurement of a constant or small exponent
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-106
+      provenance: kb
+      relation: adjacent
+      delta: instrument; reports time, not memory traffic
+    internal_neighbours:
+    - IDEA-20260816-7bc28c
+    - IDEA-20260816-70e41d
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-3de234
+    experiment_id: EXP-MLKEM-efc1c8
+  goal_id_note: >-
+    RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open goal
+    serves this question. The Coordinator must open a successor goal or rebind before dispatch.

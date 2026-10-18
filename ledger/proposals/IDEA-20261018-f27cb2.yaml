@@ -1,0 +1,142 @@
+# IDEA RECORD -- IDEA-20261018-f27cb2
+# RQ-MLDSA-001 / GOAL-MLDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-f27cb2
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Leaked aborted FSwA transcripts: edge inequalities on rejected z recover s1 far faster
+    than ILWE regression on the same leak
+  class: algorithm
+  claim: >-
+    If an implementation exposes rejected attempts (z_rej, c_rej) (debug logs, a retry API,
+    or an unprotected loop), each coordinate with |z_j| >= gamma1 - beta gives an inequality
+    on (c s1)_j with threshold uniform in [-beta, beta]. An inequality-constrained solver
+    (linear programming plus BKZ finish) recovers s1 at toyDSA(64,2,2) from at least 30 times
+    fewer rejected attempts than least-squares ILWE regression on the same leaked z, whose
+    requirement is about 16 gamma1^2 / (3 tau).
+  mechanism: >-
+    A rejected z is y + c s1 with uniform y and no truncation, so its mean carries s1 only
+    with noise variance gamma1^2/3, which is ILWE with huge noise. But z_j lies in [-gamma1
+    + 1 + u_j, gamma1 + u_j], so coordinates near the edge pin u_j = (c s1)_j from one side
+    with resolution about gamma1 - |z_j|; extreme values give inequalities of width O(beta),
+    roughly 2^10 times tighter information per useful coordinate than the mean. Accumulating
+    thousands of such half-space constraints over the s1 box shrinks the feasible set to one
+    point; the inequality-hint integration of LWE side-information work then finishes.
+  tracked_object: >-
+    number of leaked rejected attempts until exact s1 recovery, for two solvers on identical
+    leak streams
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-4828
+    provenance: kb
+    claim: >-
+      ILWE gives sample bounds for unbiased linear leakage without rejection; this measures
+      the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE
+      signal is multiplied by a bias-dependent gain that the paper does not price
+    verified_by: knowledge/literature/KN-LIT-4828.md (opened by the drafting session)
+  - ref: KN-LIT-118
+    provenance: kb
+    claim: >-
+      supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints
+      and measures prediction vs actual block size
+    verified_by: knowledge/literature/KN-LIT-118.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Devevey, Fallahpour, Passelegue, Stehle, A Detailed Analysis of Fiat-Shamir with Aborts,
+      CRYPTO 2023 (recalled, hedged)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: ratio N_ILWE / N_ineq
+    direction: higher
+    minimum_effect: '>= 30 at toyDSA(64,2,2) gamma1 = 2^12'
+    falsified_by: ratio below 10
+  - id: P2
+    metric: N_ineq scaling with n*l
+    direction: different
+    minimum_effect: N_ineq grows at most linearly in n*l over n in {32, 64, 96}
+    falsified_by: superlinear growth with exponent > 1.5
+  - id: P3
+    metric: accepted-only stream
+    direction: different
+    minimum_effect: zero recoveries from 10^6 accepted signatures (rejection hides s1)
+    falsified_by: any recovery from accepted signatures alone
+  minimal_test:
+    design: >-
+      Collect rejected attempts with their c; solver A regresses, solver B builds edge inequalities
+      and runs an LP feasibility shrink plus G6K finish.
+    controls:
+    - 'null: accepted signatures only, identical counts'
+    - 'positive: leaked y alongside z, giving exact c s1 per attempt'
+    - 'A/A: solver B on two seed blocks'
+  falsification_conditions:
+  - solver B needs as many attempts as solver A
+  - accepted-only stream recovers s1
+  confounders:
+  - LP tolerance and BKZ finish can trade against each other; both reported
+  - gamma1 reduced to 2^12 to keep ILWE arm feasible
+  interpretation_limits:
+  - >-
+    toy n <= 96 and gamma1 = 2^12; the ratio transfer to ML-DSA-44 assumes the edge information
+    per attempt scales as beta/gamma1
+  - the leak is simulated, not a physical channel
+  heuristic_assumptions:
+  - id: H1
+    statement: edge inequalities are approximately independent half-spaces
+    rigorous_support: heuristic; rotations of c share structure
+    validation_plan: measure feasible-set volume decay per inequality vs independent model
+  target_complexity:
+    time_exponent: polynomial LP in n*l with N_ineq = O(n l gamma1/beta) attempts
+    memory_exponent: O(N n l)
+    best_known: ILWE least squares O(gamma1^2/tau) attempts
+    hidden_overhead: LP numerics
+    tradeoff_note: information-per-sample gain, not an exponent change
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-4828
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        ILWE gives sample bounds for unbiased linear leakage without rejection; this measures
+        the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE
+        signal is multiplied by a bias-dependent gain that the paper does not price
+    - ref: KN-LIT-118
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived
+        hints and measures prediction vs actual block size
+    internal_neighbours:
+    - IDEA-20260821-60ba98
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLDSA-61fc94
+    experiment_id: EXP-MLDSA-76fd1a

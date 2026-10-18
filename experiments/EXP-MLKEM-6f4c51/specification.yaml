@@ -1,0 +1,184 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-6f4c51 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-6f4c51
+  hypothesis_id: H-MLKEM-751f5c
+  derived_from_idea: IDEA-20261018-f709ae
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Amortization factor of shared weak-ciphertext precomputation, bound versus unbound
+    G
+  objective: Turn the H(ek)-binding argument into a measured control.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      C reference ML-KEM (parameterized) with a compile-time switch for H(ek) in G; Python
+      analysis
+    parameters: >-
+      n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; T in {1,4,16,64}; filter 2^-10; 5 repetitions
+    procedure: >-
+      1) Freeze. 2) Precompute filtered m set. 3) Run bound and unbound arms for each T. 4)
+      Count work to first failure per key. 5) Compute A(T) with CIs.
+  controls:
+  - >-
+    null: bound G with the shared set (expected: filtered m are random for other keys, failure
+    rate = base DFR)
+  - 'positive: unbound G where reuse must work'
+  - 'A/A: bound arm with two m-RNG seed blocks'
+  independent_variables:
+  - key_binding
+  - num_targets
+  metrics:
+    primary:
+    - A(T)
+    secondary:
+    - failure rate of shared set on non-source keys
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: A(64)
+    formula: ~T unbound, 1 bound
+    source: FO randomness derivation in FIPS 203 vs Kyber round 1
+  scale_relevance:
+    tier: toy
+    justification: binding is parameter independent; reduced params only affect failure counts
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    - 2026101803
+    - 2026101804
+    independent_instances: 5
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 20
+    maximum_memory_gb: 8
+    maximum_runs: 80
+  stopping_rules:
+  - stop a key after 2^34 queries without failure; record censored
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C1/C2 show A(64) >= 32 unbound (P1) and A(64) in [0.8,1.25] bound (P2), beyond AA1 noise
+    floor.
+  falsification_criterion: C2 shows A(64) > 1.5 under binding, or unbound A(64) < 8.
+  decision_impact:
+    on_positive: >-
+      Register the measured control; every multi-target failure claim against FIPS 203 must
+      cite it and is closed unless it breaks binding.
+    on_negative: If binding leaks reuse, escalate as a potential issue for review before any
+      further claim.
+  variable_ledger:
+    independent:
+    - name: key_binding
+      levels:
+      - bound_fips203
+      - unbound_round1
+    - name: num_targets
+      levels:
+      - '1'
+      - '4'
+      - '16'
+      - '64'
+    factors:
+    - name: m_seed_block
+      treatment: randomized
+      value: A,B
+      how: seed of message sampling
+    - name: key_set_seed
+      treatment: randomized
+      value: '5'
+      how: paired
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - unbound_round1
+      - bound_fips203
+      differs_in:
+      - key_binding
+      design: one_factor
+    - id: C2
+      arms:
+      - A(T) curve
+      differs_in:
+      - key_binding
+      - num_targets
+      design: factorial
+    - id: AA1
+      arms:
+      - bound block A
+      - bound block B
+      differs_in:
+      - m_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-f709ae.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-f709ae.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-6f4c51/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-f709ae.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

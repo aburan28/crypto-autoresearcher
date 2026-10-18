@@ -1,0 +1,85 @@
+# HYPOTHESIS -- H-MLDSA-cfbda2, specified from IDEA-20261018-3e1f14. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-cfbda2
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-3e1f14
+  added: '2026-10-18'
+  statement: >-
+    With the FIPS 204 derivation rho'' = H(K || rnd || mu), signatures-to-key-recovery is
+    infinite at every rnd entropy h from 0 to 256 bits: degraded rnd costs nothing against
+    a passive observer. If K is dropped (rho'' = H(rnd || mu)), one signature plus 2^h ExpandMask
+    evaluations recovers s1; if mu is dropped (rho'' = H(K || rnd)), a mask collision between
+    different messages appears after about 2^{h/2} signatures and one colliding pair gives
+    s1 = (c1 - c2)^{-1}(z1 - z2). Both defective arms verify under a conformant verifier.
+  mechanism: >-
+    y = ExpandMask(rho'', kappa) is fully determined by rho''. With K inside, an observer
+    cannot evaluate y even when rnd is known; with mu inside, equal rnd on different messages
+    gives unrelated masks. Dropping K makes y a public function of a low-entropy rnd and a
+    known message, so z - y = c s1 and c is invertible mod q with overwhelming probability.
+    Dropping mu makes y depend only on (K, rnd), so equal rnd across messages reuses y with
+    kappa equal whenever both signatures accept on the same iteration, and z1 - z2 = (c1 -
+    c2) s1 exactly. This turns the RQ's hedged-vs-deterministic question into three measured
+    curves.
+  assumptions:
+  - c1 - c2 is invertible in R_q for independent challenges
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: c1 - c2 is invertible in R_q for independent challenges
+    random_model_justification: >-
+      q = 1 mod 512, so R_q splits into 256 fields; c1 - c2 nonzero in each slot with probability
+      about 1 - 256/q
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-b675fd
+    falsification_condition: count non-invertible differences among all colliding pairs
+  predictions:
+  - metric: signatures to recovery, mu-dropped arm
+    direction: lower
+    minimum_effect: median within factor 2 of sqrt(2 ln 2 * 2^h) / p_same_kappa over h in
+      {8,12,16,20}
+  - metric: work to recovery, K-dropped arm
+    direction: lower
+    minimum_effect: 1 signature and at most 2^h ExpandMask calls, 100 percent of keys at h
+      <= 24
+  - metric: conformant arm
+    direction: different
+    minimum_effect: zero recoveries and zero mask reuses in 2^20 signatures at h = 8
+  test_boundary:
+    instances:
+    - >-
+      ML-DSA-44 real parameters; h in {8, 12, 16, 20, 24}; derivations {conformant, K_dropped,
+      mu_dropped}; 20 keys per cell; cap 2^20 signatures per key
+    parameters:
+      scale_tier: crypto
+      scale_justification: >-
+        real ML-DSA-44 parameters; only the RNG entropy is reduced, which is the variable
+        under study
+    implementation: >-
+      Python with a patched pure-Python FIPS 204 implementation cross-checked against PQClean
+      ML-DSA-44 KATs
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - median off by more than factor 4 at two h levels
+  - any failure at h <= 24
+  - any recovery or reuse
+  falsification_conditions:
+  - conformant derivation shows any mask reuse
+  - mu-dropped arm recovery count does not follow birthday scaling
+  - colliding pairs exist but the difference system fails to give s1
+  interpretation_limits:
+  - >-
+    real parameters are used, but rnd entropy is reduced by construction; the result concerns
+    implementations with the stated derivation defects, not FIPS 204 itself
+  - passive observer only; fault adversaries are a separate idea
+  status: specified
+  proposed_by: idea-generator

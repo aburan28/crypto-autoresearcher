@@ -1,0 +1,146 @@
+# IDEA RECORD -- IDEA-20261018-5eddc6
+# RQ-HQC-001 / GOAL-HQC-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-5eddc6
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Certified importance-sampling estimator of HQC's decoding failure rate at reduced n: weight
+    tilting with a provable upper bound
+  class: tooling
+  claim: >-
+    At reduced n where direct Monte Carlo sees failures only at DFR >= 2^-24, an importance-sampling
+    estimator that tilts the weights of r1, r2, e upward and reweights by the exact likelihood
+    ratio of fixed-weight distributions estimates DFRs down to 2^-40 with relative error under
+    20%, and its empirical-Bernstein upper confidence bound covers the true value in at least
+    95% of replicate runs where the truth is known by direct MC. Where direct MC and IS overlap
+    they agree within the A/A band; if they do not, the IS estimator is biased and must not
+    be used for extrapolation.
+  mechanism: >-
+    Failures come from heavy-tailed weight of e' = x r2 - r1 y + e; tilting r1, r2, e weights
+    to larger values makes failures common, and the exact ratio of the two fixed-weight hypergeometric-type
+    distributions restores unbiasedness. Because weight is the dominant failure driver, the
+    tilt captures most variance. A certified bound needs bounded likelihood ratios, which
+    holds since weights range over a finite set; empirical Bernstein gives a finite-sample
+    upper bound.
+  tracked_object: >-
+    IS estimate of DFR and its 95% upper confidence bound, versus direct MC estimate, per
+    reduced parameter set.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-b9e1a8
+    provenance: kb
+    claim: >-
+      spec's analytic DFR model; this provides a measured, certified estimator to test it
+      below MC reach
+    verified_by: knowledge/literature/KN-LIT-b9e1a8.md (opened by the drafting session)
+  - ref: KN-LIT-1c9474
+    provenance: kb
+    claim: RMRS DFR analysis source
+    verified_by: knowledge/literature/KN-LIT-1c9474.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: Rubinstein and Kroese, The Cross-Entropy Method, Springer 2004 (recalled)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: log2 IS/MC ratio in overlap region
+    direction: different
+    minimum_effect: '|log2 ratio| <= 0.25'
+    falsified_by: '|log2 ratio| > 0.5'
+  - id: P2
+    metric: coverage of 95% UCB over 40 replicates
+    direction: higher
+    minimum_effect: '>= 0.92'
+    falsified_by: < 0.85
+  - id: P3
+    metric: relative SE at DFR 2^-40 per 10^8 samples
+    direction: lower
+    minimum_effect: <= 20%
+    falsified_by: '> 50%'
+  minimal_test:
+    design: >-
+      Implement reduced HQC (n ~ 2000-4000, scaled RM(1,m) inner and shortened RS outer) in
+      C; direct MC at parameter sets with DFR 2^-12..2^-24; IS with tilt chosen by cross-entropy
+      on a pilot run; compare overlaps and extend to 2^-40.
+    controls:
+    - 'null: tilt = identity, IS must reduce to MC exactly'
+    - >-
+      positive: planted weaker decoder (one RS correction fewer) with known higher DFR, IS
+      must track the change
+    - 'A/A: IS under two seed blocks'
+  falsification_conditions:
+  - overlap disagreement beyond 0.5 bit
+  - UCB coverage below 0.85
+  confounders:
+  - dependence of failure on more than weight (structure of supports)
+  - pilot-tuned tilt overfitting
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5
+    without the stated transfer assumption and a crypto-tier certificate.
+  - IS validated only where MC overlaps; extrapolated region relies on H1.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      Conditional on (w(r1),w(r2),w(e)), failure probability is the same under tilted and
+      nominal distributions
+    rigorous_support: likelihood ratio is exact for weight-level tilting of uniform fixed-weight
+      sampling
+    validation_plan: overlap test P1
+  - id: H2
+    statement: Likelihood ratios are bounded for empirical Bernstein
+    rigorous_support: finite weight range
+    validation_plan: compute max ratio
+  target_complexity:
+    time_exponent: samples ~ 1/(DFR * efficiency gain)
+    memory_exponent: O(n)
+    best_known: direct MC; analytic model in KN-LIT-b9e1a8
+    hidden_overhead: decoder per sample
+    tradeoff_note: tilt gain vs variance blow-up
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-b9e1a8
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        spec's analytic DFR model; this provides a measured, certified estimator to test it
+        below MC reach
+    - ref: KN-LIT-1c9474
+      provenance: kb
+      relation: adjacent
+      delta: RMRS DFR analysis source
+    internal_neighbours:
+    - IDEA-20260801-011
+    - IDEA-20260808-9f9ed8
+    - IDEA-20260816-6536d7
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-HQC-497593
+    experiment_id: EXP-HQC-f546f2

@@ -1,0 +1,68 @@
+# HYPOTHESIS -- H-FNDSA-e3a891, specified from IDEA-20261018-9b273e. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-e3a891
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-9b273e
+  added: '2026-10-18'
+  statement: >-
+    Reference Falcon code (RECALLED) ships an integer-emulated floating-point backend and
+    a native one, and compilers may contract a*b + c into FMA, changing rounding. Claim: on
+    self-generated keys and identical RNG tapes, emulated and strict-native builds produce
+    bit-identical signatures on 10^6 signatures, while FMA-contracted builds disagree on a
+    fraction >= 1e-5 of signatures at n = 512. Each disagreement is a real-world arithmetic
+    defect instance at deployed dimension; its first-differing tree node locates it.
+  mechanism: >-
+    IEEE-754 binary64 with correct rounding is deterministic, so a faithful emulation matches
+    strict native. FMA rounds once instead of twice, so it changes some centres by one ulp;
+    a one-ulp centre change flips the sampled integer only when the centre sits near a decision
+    boundary, which happens at a rate set by width and precision. The flip rate measured here
+    is the empirical counterpart of the p-bit flip-set model.
+  assumptions:
+  - Disagreement rate approximates the flip-set measure for one-ulp errors
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Disagreement rate approximates the flip-set measure for one-ulp errors
+    random_model_justification: follows from coupling definition
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-2dab1c
+    falsification_condition: compare with e5c333-style simulation at the same precision
+  predictions:
+  - metric: disagreement rate emulated vs strict
+    direction: lower
+    minimum_effect: 0 in 10^6
+  - metric: disagreement rate strict vs FMA
+    direction: higher
+    minimum_effect: '>= 1e-5'
+  test_boundary:
+    instances:
+    - n in {512, 1024}; 20 self-generated keys; 5x10^4 signatures per key per build
+    parameters:
+      scale_tier: medium
+      scale_justification: deployed n, self-generated keys, no attack
+    implementation: C reference signer, gcc and clang, deterministic seeded RNG, Python diff
+      tool
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 6
+      maximum_memory_gb: 2
+      maximum_runs: 12
+  distinguishable_outcomes:
+  - any disagreement
+  - 0 in 10^6
+  falsification_conditions:
+  - emulated vs strict disagree (emulation not faithful)
+  - FMA build never disagrees
+  interpretation_limits:
+  - >-
+    Scale and transfer: deployed n on self-generated keys; disagreement does not imply leakage;
+    no fielded device or key is involved
+  - Results are for the tested builds only
+  status: specified
+  proposed_by: idea-generator

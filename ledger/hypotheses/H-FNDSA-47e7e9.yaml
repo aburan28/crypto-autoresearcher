@@ -1,0 +1,70 @@
+# HYPOTHESIS -- H-FNDSA-47e7e9, specified from IDEA-20261018-574a9f. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-47e7e9
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-574a9f
+  added: '2026-10-18'
+  statement: >-
+    Extrapolating any leak-to-key curve to n = 512/1024 will go through a hint-integration
+    estimator (recalled: Dachman-Soled, Ducas, Gong, Rossi framework). Center-exponent buckets
+    map to approximate hints with variance set by bucket width. Claim: the estimator's predicted
+    block size is within +-5 of the measured minimal successful block size at n = 64 and 128
+    for 20 to 200 signatures of hints; if errors exceed 10 or are one-sided across n, the
+    estimator cannot carry the curve to deployed n.
+  mechanism: >-
+    The framework updates the lattice volume and the secret's covariance ellipsoid with each
+    hint and predicts block size from a GSA-style model. Bucket hints are interval constraints,
+    not Gaussian, and they are correlated within a signature; both break the framework's assumptions
+    in measurable ways that scale with the hint count.
+  assumptions:
+  - Bucket hints can be modelled as approximate Gaussian hints
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Bucket hints can be modelled as approximate Gaussian hints
+    random_model_justification: none
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-6cc547
+    falsification_condition: compare against an interval-constrained enumeration at n = 32
+  predictions:
+  - metric: '|beta_pred - beta_meas| at n = 64, 128'
+    direction: lower
+    minimum_effect: <= 5
+  - metric: sign consistency of error across cells
+    direction: different
+    minimum_effect: mixed signs (no systematic bias)
+  test_boundary:
+    instances:
+    - >-
+      n in {32, 64, 128}; hint signature counts in {20, 50, 100, 200}; 10 keys per cell; BKZ
+      beta 10..60
+    parameters:
+      scale_tier: toy
+      scale_justification: n <= 128; the experiment exists to quantify the transfer step
+    implementation: >-
+      Python, fpylll progressive BKZ, a public implementation of the hints framework (recalled
+      availability), toy Falcon
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 40
+      maximum_memory_gb: 16
+      maximum_runs: 48
+  distinguishable_outcomes:
+  - '> 10 in any cell'
+  - all cells same sign with |error| > 5
+  falsification_conditions:
+  - any cell error > 10
+  - null hints produce measured gain
+  interpretation_limits:
+  - >-
+    Scale and transfer: n <= 128 with simulated hints; the estimator's validity at 512/1024
+    is inferred, not measured
+  - Says nothing about physical leakage fidelity
+  status: specified
+  proposed_by: idea-generator

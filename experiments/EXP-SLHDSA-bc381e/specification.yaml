@@ -1,0 +1,196 @@
+# EXPERIMENT CONTRACT -- EXP-SLHDSA-bc381e (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-SLHDSA-bc381e
+  hypothesis_id: H-SLHDSA-84ed4d
+  derived_from_idea: IDEA-20261018-c09848
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Quantum multi-target cost table with statevector validation
+  objective: >-
+    Which FIPS 205 role and parameter set has the thinnest depth-capped quantum margin, and
+    how much the t convention moves it.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: Python 3 with mpmath for interval arithmetic; Qiskit Aer statevector for n<=20
+      validation
+    parameters: >-
+      Table: 12 FIPS 205 sets x 5 roles x D in {2^40,2^64,2^96} x 2 t conventions. Validation:
+      n in {12,16,20}, t in {1,4,16}, P in {1,4,16}, 200 shots x 50 placements per cell
+    procedure: >-
+      1. Freeze role exposure counts per signature budget 2^64. 2. Compute interval table.
+      3. Statevector simulate parallel multi-target Grover and fit success curves. 4. Compare
+      with formula. 5. Render table and margin plot.
+  controls:
+  - >-
+    null: single-target (t=1) row, which must reproduce the standard 2^{n/2} quantum preimage
+    cost
+  - >-
+    positive: a planted role with t = 2^{n/2} targets in one domain, where the table must
+    show the collapse to depth-limited constant
+  - 'A/A: statevector validation run under two seed blocks of target placement'
+  independent_variables:
+  - t_convention
+  - depth_cap
+  metrics:
+    primary:
+    - minimum category margin in bits per set
+    - log2 cost spread across t conventions
+    secondary:
+    - statevector fit residuals
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: log2 total gates for multi-target preimage
+    formula: n - log2 t - log2 D + log2 c_oracle (depth-capped regime)
+    source: BBHT/Zalka scaling with NIST MAXDEPTH
+  scale_relevance:
+    tier: medium
+    justification: >-
+      table at full FIPS 205 sizes is computation; empirical validation at n<=20; transfer
+      assumption: Grover scaling is exact up to constants
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 6
+    maximum_memory_gb: 16
+    maximum_runs: 40
+  stopping_rules:
+  - stop once every validation cell reaches 50 placements
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - >-
+    a table row whose t=1 entry misses the standard single-target cost by >1 bit invalidates
+    the row
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    Success if C1 shows spread >= 10 bits (P2) or C2/C3 reveal a set below its floor by >=
+    4 bits (P1), with C3 validation agreeing beyond the AA1 noise floor.
+  falsification_criterion: >-
+    Falsified as a margin concern if every set stays within 4 bits under C2 at D=2^64 and
+    C1 spread is under 10 bits.
+  decision_impact:
+    on_positive: >-
+      Adopt the per-tweak-domain table as the program's quantum cost convention for SLH-DSA
+      and open a targeted slack measurement on the thinnest role.
+    on_negative: >-
+      Record the quantum margin as comfortable under all tested conventions and close the
+      quantum-convention target of RQ-SLHDSA-001 at toy-tier.
+  variable_ledger:
+    independent:
+    - name: t_convention
+      levels:
+      - per_transcript
+      - per_tweak_domain
+    - name: depth_cap
+      levels:
+      - 2^40
+      - 2^64
+      - 2^96
+    factors:
+    - name: seed_block
+      treatment: randomized
+      value: seed blocks A and B, disjoint master seeds
+      how: >-
+        two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under
+        both
+    - name: oracle_cost_end
+      treatment: crossed
+      value: low and high interval ends
+      how: both ends computed for every cell
+    comparisons:
+    - id: C1
+      arms:
+      - per_transcript D=2^64
+      - per_tweak_domain D=2^64
+      differs_in:
+      - t_convention
+      design: one_factor
+    - id: C2
+      arms:
+      - per_tweak_domain D=2^40
+      - per_tweak_domain D=2^96
+      differs_in:
+      - depth_cap
+      design: one_factor
+    - id: C3
+      arms:
+      - statevector vs formula all cells
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - statevector n=16 t=4 P=4 seed-block A
+      - statevector n=16 t=4 P=4 seed-block B
+      differs_in:
+      - seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-c09848.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-c09848.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P3
+    first_recorded_in: ledger/proposals/IDEA-20261018-c09848.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml with frozen parameters, seeds, code commit and tool versions
+  - raw-result.json with per-trial records and verification flags
+  - cost table CSV and JSON with intervals
+  - statevector validation SVG
+  - PDF report
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-SLHDSA-bc381e/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-c09848.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

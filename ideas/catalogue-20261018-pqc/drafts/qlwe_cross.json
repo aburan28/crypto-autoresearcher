@@ -1,0 +1,3907 @@
+[
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Calibrate a step-audit statevector simulator on Chen 2024 Step 9 before it audits any live claim",
+  "class": "control",
+  "claim": "A small exact statevector simulator of a claimed quantum lattice step, run at toy modulus and dimension, detects the known Step-9 failure of Chen 2024 (KN-LIT-52ce4c): the simulated output distribution of the windowed-QFT stage deviates from the distribution the paper's step asserts by total variation >= 0.2 at n=2..4. The same simulator run on a corrected textbook step (Regev's Fourier sampling on an exact coset state) reproduces the asserted distribution within TV <= 0.02. Only a simulator that passes both is admitted as the instrument for auditing Simon 2026 or Luo 2026.",
+  "mechanism": "Step audits in this goal are otherwise prose reviews. A load-bearing quantum step usually asserts that some register, after a transform and a measurement, has a stated distribution; at toy sizes that distribution is exactly computable by dense linear algebra. A retracted claim with a publicly named failing step is the only available positive control: if the simulator cannot see a bug that is known to exist, its silence on another claim means nothing. A correct textbook step is the negative control showing the simulator does not manufacture discrepancies from discretisation.",
+  "tracked_object": "Total variation distance between the simulated post-measurement distribution of the audited register and the distribution asserted by the audited step, per (n, q, window width).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "tv_chen_step9",
+    "direction": "higher",
+    "minimum_effect": "TV >= 0.2 at some toy (n<=4, q<=64) configuration of Chen's stated step",
+    "falsified_by": "TV < 0.05 at every toy configuration the step admits"
+   },
+   {
+    "id": "P2",
+    "metric": "tv_textbook_regev_fourier",
+    "direction": "lower",
+    "minimum_effect": "TV <= 0.02 at all configurations",
+    "falsified_by": "TV > 0.05 at any configuration (simulator manufactures error)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement the Chen Step 8-9 state preparation and windowed QFT at n in {2,3,4}, q in {17,31,61}, with Gaussian widths scaled down; compute the exact output distribution; compare to the distribution the step claims. Same code path on the textbook Regev Fourier-sampling step.",
+   "controls": [
+    "null/negative: textbook Regev Fourier sampling step, whose distribution is proven, must give TV near 0",
+    "positive: Chen Step 9, publicly known to fail, must give large TV",
+    "A/A: two runs differing only in amplitude truncation tolerance (1e-12 vs 1e-10) must agree to TV < 0.005"
+   ]
+  },
+  "falsification_conditions": [
+   "Simulator reports TV < 0.05 on Chen Step 9 at every toy configuration (instrument blind; not admitted)",
+   "Simulator reports TV > 0.05 on the textbook step (instrument biased)"
+  ],
+  "confounders": [
+   "Chen's failure may only manifest asymptotically and be invisible at toy n",
+   "Discretisation of complex Gaussians at small q",
+   "Transcription error in re-implementing the step from the PDF"
+  ],
+  "interpretation_limits": [
+   "Scale limit: a toy-size discrepancy shows the step's assertion is false as written at those sizes; absence of discrepancy at toy size does not establish the step at cryptographic size",
+   "Calibration of an instrument, not a verdict on any LWE hardness claim"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Chen's Step-9 bug is visible at dimension <= 4",
+    "rigorous_support": "Author's retraction note names a structural (not asymptotic) error, as recorded in KN-LIT-52ce4c",
+    "validation_plan": "If invisible at n<=4, record instrument as blind for asymptotic-only bugs and narrow its admitted use"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a (audit instrument, exact simulation cost q^n)",
+   "memory_exponent": "q^n complex amplitudes",
+   "best_known": "n/a",
+   "hidden_overhead": "state transcription effort dominates",
+   "tradeoff_note": "Defensive/measurement result; no exponent claim"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-52ce4c",
+    "provenance": "kb",
+    "citation_text": "Chen, Quantum Algorithms for Lattice Problems, ePrint 2024/555, main claim retracted",
+    "relation": "adjacent",
+    "delta": "Uses the retracted step as a positive control for an audit instrument rather than as history"
+   },
+   {
+    "ref": "KN-LIT-21383c",
+    "provenance": "kb",
+    "citation_text": "Regev, Quantum Computation and Lattice Problems, 2004",
+    "relation": "adjacent",
+    "delta": "Supplies the proven negative-control step"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Positive/negative-control calibration of the toy step-audit simulator",
+   "objective": "Whether a dense statevector simulator can distinguish a known-broken quantum lattice step from a known-correct one at toy size",
+   "instrument": "Python 3, NumPy/SciPy dense statevector, exact output distributions; no sampling noise",
+   "parameters": "n in {2,3,4}; q in {17,31,61}; window widths w in {2,4,8}; amplitude truncation 1e-12; 3 seeds for random secrets",
+   "procedure": "1. Transcribe Chen Steps 8-9 and Regev Fourier step into a frozen spec. 2. Implement both on one simulator core. 3. Compute exact distributions and asserted distributions. 4. Report TV per cell. 5. Run A/A truncation check.",
+   "independent_variables": [
+    {
+     "name": "audited_step",
+     "levels": [
+      "chen_step9",
+      "regev_textbook_fourier"
+     ]
+    },
+    {
+     "name": "toy_size",
+     "levels": [
+      "n2_q17",
+      "n3_q31",
+      "n4_q61"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "truncation_tol",
+     "treatment": "crossed",
+     "value": "1e-12 or 1e-10",
+     "how": "run every cell at both tolerances"
+    },
+    {
+     "name": "secret_seed",
+     "treatment": "randomized",
+     "value": "3 seeds",
+     "how": "numpy default_rng seeds 1..3"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "chen_step9",
+      "regev_textbook_fourier"
+     ],
+     "differs_in": [
+      "audited_step"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "chen_step9 at all toy sizes"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "regev_textbook tol 1e-12",
+      "regev_textbook tol 1e-10"
+     ],
+     "differs_in": [
+      "truncation_tol"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "max TV per audited step"
+   ],
+   "secondary_metrics": [
+    "TV vs n trend",
+    "runtime per cell"
+   ],
+   "preregistered_prediction": {
+    "quantity": "TV gap between steps",
+    "formula": "max_cells TV(chen) - max_cells TV(regev) >= 0.15",
+    "source": "retraction note recorded in KN-LIT-52ce4c"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n<=4, q<=61, exact; transfer assumption: structural step errors are dimension-independent",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "stop after all 9 cells x 2 steps x 2 tolerances",
+    "stop if Step 9 cannot be transcribed unambiguously; record as not reached"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A TV > 0.005 invalidates the run"
+   ],
+   "success_criterion": "C1 shows TV(chen) - TV(regev) >= 0.15 (P1, P2) and C2 shows TV >= 0.2 in some cell, with AA1 below 0.005 as noise floor",
+   "falsification_criterion": "C2 shows TV(chen) < 0.05 in every cell, or C1 shows TV(regev) > 0.05 (P1 or P2 falsified)",
+   "decision_impact": {
+    "on_positive": "Instrument admitted for the Simon and Luo step audits under this RQ",
+    "on_negative": "Instrument recorded as blind or biased; step audits proceed by prose adjudication only and the simulator is not cited"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "tv_table.csv",
+    "transcription.md of both steps with page/equation references",
+    "report.pdf with TV heatmap"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Signed-C cancellation ratio in Simon 2026 Lemma 3, measured by exact simulation at reduced group size",
+  "class": "measurement",
+  "claim": "In Simon's DCP erasure step (KN-LIT-e204ab), the amplitude gap between h*=0 and h*=1 is a signed sum over z* of count differences times C_{z*}. At reduced bit-length n in {6,8,10} and reduced group exponent c in {1,2,3}, the cancellation ratio R = |sum_z C_z| / sum_z |C_z| is at most 0.1 on average over secrets, so the bound in Lemma 3 that treats C as well-behaved fails at these sizes, and the measured bias of h* toward d_n is below 0.05.",
+  "mechanism": "KN-LIT-e204ab names the signed-C cancellation as the entire game and KN-LIT-3b271a reports a no-go for the algorithm. Both are text-level. The quantity is classically computable at small n: the B-side contributions C depend only on the low bits of z* and are explicit sums of roots of unity over measured y values, so one can enumerate them exactly. A measured R near 1 would support Lemma 3's intent; R near 0 with negligible bias would corroborate the no-go numerically and pin which step fails.",
+  "tracked_object": "Per-instance cancellation ratio R and the exact probability that the Hadamard measurement of h* returns d_n, as functions of (n, c, number of groups).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "mean_cancellation_ratio_R",
+    "direction": "lower",
+    "minimum_effect": "mean R <= 0.1 at n=10",
+    "falsified_by": "mean R >= 0.5 at n=10"
+   },
+   {
+    "id": "P2",
+    "metric": "bias_h_star",
+    "direction": "lower",
+    "minimum_effect": "|Pr[h*=d_n] - 1/2| <= 0.05 at n=10",
+    "falsified_by": "bias >= 0.15 at n=10 with groups chosen as written"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exact classical enumeration of Simon's per-group subset-sum structure for n in {6,8,10}, c in {1,2,3}, with N=2^n and the sample budget scaled as k n^{c+1} truncated to tractable size; compute C_z, R and h* bias over 200 random secrets.",
+   "controls": [
+    "null/negative: replace the C weights with i.i.d. random signs of the same magnitudes (pure cancellation baseline)",
+    "positive: Regev's oracle erasure (subset-sum preimage known), which must give bias near 1/2 toward d_n i.e. Pr ~ 1",
+    "A/A: same configuration with two independent secret-sampling seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "Bias >= 0.15 at n=10 with R >= 0.5 (supports Lemma 3 at toy size)",
+   "Positive control fails to reach Pr >= 0.9 (instrument broken)"
+  ],
+  "confounders": [
+   "Truncated sample budget changes conditioning events",
+   "Small n makes balls-in-bins concentration meaningless",
+   "Transcription choices where the draft is a sketch"
+  ],
+  "interpretation_limits": [
+   "Scale limit: c and n are far below the draft's c >= 12; a toy failure shows the argument does not hold at small parameters, not that it fails asymptotically",
+   "A verdict on a named step of a document, never on LWE hardness or any scheme"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Reduced c preserves the qualitative sign structure of C",
+    "rigorous_support": "None; C depends on c only through group size",
+    "validation_plan": "Report R as a function of c and check monotone trend before reading n=10"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "2^n amplitudes per branch",
+   "best_known": "Kuperberg 2^{O(sqrt log N)} for DCP (KN-LIT-2c8264)",
+   "hidden_overhead": "enumeration over measured strings",
+   "tradeoff_note": "Adjudication evidence only"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-e204ab",
+    "provenance": "kb",
+    "citation_text": "Simon, A Polynomial-Time Quantum Algorithm for the DCP, ePrint 2026/1591",
+    "relation": "same",
+    "delta": "Numerical measurement of the quantity the entry names as load-bearing"
+   },
+   {
+    "ref": "KN-LIT-3b271a",
+    "provenance": "kb",
+    "citation_text": "Gupte et al., The ePrint:2026/1591 Quantum Algorithm Does Not Solve DCP, 2026",
+    "relation": "adjacent",
+    "delta": "Provides a toy-size numerical corroboration or contradiction of a text no-go"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Exact toy enumeration of Simon's Lemma-3 amplitude gap",
+   "objective": "Whether the signed C terms cancel at toy size and whether any bias toward d_n survives",
+   "instrument": "Python/NumPy exact enumeration; optional Qiskit statevector cross-check at n=6",
+   "parameters": "n in {6,8,10}; c in {1,2,3}; groups a = ceil(n/log2 n); 200 random secrets per cell; faulty-sample rate 0",
+   "procedure": "1. Freeze transcription of steps 1-5 of the erasure procedure. 2. Enumerate subset sums per group. 3. Compute C_z and A-side counts. 4. Compute R and exact h* bias. 5. Run random-sign null and Regev-oracle positive control.",
+   "independent_variables": [
+    {
+     "name": "erasure_rule",
+     "levels": [
+      "simon_hadamard_postselect",
+      "regev_subset_sum_oracle",
+      "random_sign_null"
+     ]
+    },
+    {
+     "name": "bit_length_n",
+     "levels": [
+      "6",
+      "8",
+      "10"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "secret_seed_block",
+     "treatment": "randomized",
+     "value": "two blocks of 100 secrets",
+     "how": "rng seeds 100-199 vs 200-299"
+    },
+    {
+     "name": "group_exponent_c",
+     "treatment": "crossed",
+     "value": "1,2,3",
+     "how": "full cross"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "simon_hadamard_postselect",
+      "regev_subset_sum_oracle"
+     ],
+     "differs_in": [
+      "erasure_rule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "simon_hadamard_postselect",
+      "random_sign_null"
+     ],
+     "differs_in": [
+      "erasure_rule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "simon block A",
+      "simon block B"
+     ],
+     "differs_in": [
+      "secret_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "mean R",
+    "bias of h* toward d_n"
+   ],
+   "secondary_metrics": [
+    "bias vs c trend",
+    "post-selection success probability"
+   ],
+   "preregistered_prediction": {
+    "quantity": "bias at n=10",
+    "formula": "|Pr[h*=d_n]-1/2| <= 0.05",
+    "source": "no-go claim in KN-LIT-3b271a"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n<=10 bits, c<=3; transfer assumption: sign structure of C is not reversed by larger c",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 27
+   },
+   "stopping_rules": [
+    "stop when all 9 (n,c) cells done",
+    "stop at n where enumeration exceeds 16 GB; record ceiling"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "Positive control Pr < 0.9 invalidates",
+    "A/A bias difference > 0.03 invalidates the n=10 reading"
+   ],
+   "success_criterion": "C1 shows Simon bias <= 0.05 while oracle bias >= 0.4 and C2 shows Simon indistinguishable from random-sign null (P1, P2), with AA1 as noise floor",
+   "falsification_criterion": "C2 shows Simon bias exceeds the null by >= 0.15 at n=10 and R >= 0.5 (P1 and P2 falsified)",
+   "decision_impact": {
+    "on_positive": "Record Lemma 3 as not established as written at toy size with the measured R, citing KN-LIT-3b271a as consistent",
+    "on_negative": "Record that toy evidence does not contradict Lemma 3 and escalate the step to full proof reading before any verdict"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "R_and_bias_table.csv",
+    "transcription.md",
+    "report.pdf with R histogram and bias-vs-n plot"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Adaptive versus fixed partition in Simon's erasure step: does the independence condition named by Guo-Yang carry the bias?",
+  "class": "mechanism",
+  "claim": "Guo and Yang (KN-LIT-a2a423) isolate an unproved condition: the A/B partition must be fixed independently of the measured string, while the algorithm chooses it from the measurement. At toy size the h* bias toward d_n differs by at least 0.1 between a partition fixed in advance (oracle-free but unrealisable) and the adaptive partition the algorithm actually uses. If the bias exists only under the fixed partition, the gap is exactly the unproved condition.",
+  "mechanism": "The Lemma 2 cancellation argument holds for any fixed partition. Selecting A as the all-zero-Hadamard groups correlates A with the measured b' values, which can reweight the z* branches unequally. Exact enumeration lets both partitions be computed on identical randomness, isolating the effect of adaptivity alone.",
+  "tracked_object": "Difference in exact Pr[h* = d_n] between adaptive (as specified) and fixed-in-advance partitions on identical secrets and measurement outcomes.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "bias_fixed_minus_adaptive",
+    "direction": "higher",
+    "minimum_effect": ">= 0.1 at n=8",
+    "falsified_by": "difference < 0.03 at all n (adaptivity irrelevant)"
+   },
+   {
+    "id": "P2",
+    "metric": "bias_adaptive",
+    "direction": "lower",
+    "minimum_effect": "<= 0.05",
+    "falsified_by": "adaptive bias >= 0.15"
+   }
+  ],
+  "minimal_test": {
+   "design": "Same enumeration core as the signed-C audit; for each secret and outcome draw compute bias under (a) adaptive A selection and (b) a partition fixed before measurement with the same group sizes.",
+   "controls": [
+    "null/negative: both partitions applied to a d with d_n uniformly resampled independent of the state (bias must be 0)",
+    "positive: fixed partition with Regev oracle erasure (bias near 1/2)",
+    "A/A: adaptive arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "Adaptive and fixed biases agree within 0.03 at all sizes",
+   "Null arm shows bias > 0.03 (instrument artefact)"
+  ],
+  "confounders": [
+   "Fixed partition may change post-selection probability, confounding bias with acceptance rate",
+   "Toy group sizes"
+  ],
+  "interpretation_limits": [
+   "Scale limit: toy n<=10; identifies which condition carries the effect at small size, no asymptotic statement",
+   "A verdict about a document's step, not LWE"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "The adaptive rule as transcribed matches the draft",
+    "rigorous_support": "Draft steps 2-3 quoted in KN-LIT-e204ab",
+    "validation_plan": "Two independent transcriptions compared before running"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "2^n",
+   "best_known": "n/a",
+   "hidden_overhead": "post-selection probability 2/n",
+   "tradeoff_note": "Adjudication evidence"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-a2a423",
+    "provenance": "kb",
+    "citation_text": "Guo, Yang, Rigorous Statements and Proofs of the Lemmas in Simon's Algorithm..., ePrint 2026/1714",
+    "relation": "same",
+    "delta": "Measures the effect size of the condition they isolate"
+   },
+   {
+    "ref": "KN-LIT-e204ab",
+    "provenance": "kb",
+    "citation_text": "Simon 2026, ePrint 2026/1591",
+    "relation": "adjacent",
+    "delta": "Target of the audit"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Adaptive vs fixed partition bias on identical randomness",
+   "objective": "Whether the unproved independence condition is where Simon's bias lives",
+   "instrument": "Python/NumPy exact enumeration sharing the signed-C audit core",
+   "parameters": "n in {6,8,10}; c=2; 200 secrets; partition sizes matched",
+   "procedure": "1. Reuse frozen transcription. 2. For each draw compute adaptive and fixed partitions. 3. Exact bias and acceptance probability. 4. Null and positive controls. 5. A/A.",
+   "independent_variables": [
+    {
+     "name": "partition_rule",
+     "levels": [
+      "adaptive_as_written",
+      "fixed_in_advance"
+     ]
+    },
+    {
+     "name": "bit_length_n",
+     "levels": [
+      "6",
+      "8",
+      "10"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "secret_seed_block",
+     "treatment": "randomized",
+     "value": "2 blocks x 100",
+     "how": "rng seeds"
+    },
+    {
+     "name": "acceptance_probability",
+     "treatment": "measured",
+     "value": "per cell",
+     "how": "recorded and reported next to bias"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "adaptive_as_written",
+      "fixed_in_advance"
+     ],
+     "differs_in": [
+      "partition_rule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "adaptive_as_written all n"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "adaptive block A",
+      "adaptive block B"
+     ],
+     "differs_in": [
+      "secret_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "bias difference fixed minus adaptive"
+   ],
+   "secondary_metrics": [
+    "acceptance probability per arm"
+   ],
+   "preregistered_prediction": {
+    "quantity": "bias difference",
+    "formula": "bias_fixed - bias_adaptive >= 0.1",
+    "source": "KN-LIT-a2a423 abstract"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n<=10; transfer assumption: the direction of the adaptivity effect is size-independent",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "stop after 6 cells"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "null bias > 0.03 invalidates"
+   ],
+   "success_criterion": "C1 shows a difference >= 0.1 and C2 shows adaptive bias <= 0.05 (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C1 shows difference < 0.03 at all n, or C2 adaptive bias >= 0.15 (P1 or P2 falsified)",
+   "decision_impact": {
+    "on_positive": "Name the partition-independence condition as the failing hypothesis in the adjudication record",
+    "on_negative": "Record that adaptivity is not the carrier at toy size and look elsewhere (conditioning, recursion)"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "bias_by_partition.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Luo Part III Voronoi claim at small 2-power conductors: is the CVP target from a short ring element inside the origin's Voronoi cell?",
+  "class": "measurement",
+  "claim": "Luo Part III (KN-LIT-1742) claims the CVP distance from the log-embedding of a random short ring element to the log-unit lattice of Q(zeta_{2^k}) converges to a stated multiple of sqrt(n), and that the target lies inside the Voronoi cell of the origin for k >= 4, so Babai returns zero. Measured at k = 4..7 (n = 8..64) with exact unit lattices, the fraction of targets inside the origin's Voronoi cell is either >= 0.95 (claim reproduced at these sizes) or < 0.5 (claim fails as written), and this reading is the input Part IV's tower step relies on.",
+  "mechanism": "Part IV (KN-LIT-1743) builds on Parts I-III. If the Part III geometry is false at small conductors where it is asserted (k >= 4), the Part IV chain loses its premise before any quantum step. The log-unit lattice of 2-power cyclotomics has an explicit cyclotomic-unit basis of finite index (h+ = 1 known for small k), so exact CVP at rank n/2-1 <= 31 is feasible by enumeration.",
+  "tracked_object": "Distribution of the exact CVP distance and the indicator that the closest log-unit vector is the origin, for log-embeddings of short ring elements (ternary and discrete Gaussian), per k.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "frac_inside_origin_voronoi_k6",
+    "direction": "different",
+    "minimum_effect": "either >= 0.95 or <= 0.5 decides; between is inconclusive",
+    "falsified_by": "observed fraction in (0.5, 0.95) at k=6 and 7"
+   },
+   {
+    "id": "P2",
+    "metric": "cvp_distance_over_sqrt_n",
+    "direction": "different",
+    "minimum_effect": "relative error vs Luo's limit constant <= 10% at k=7",
+    "falsified_by": "relative error > 25% at k=7"
+   }
+  ],
+  "minimal_test": {
+   "design": "Sage: build cyclotomic unit basis for k=4..7, compute log embeddings of 1000 random short generators per k, solve exact CVP by fpylll enumeration, record distances and whether the solution is 0.",
+   "controls": [
+    "null/negative: targets drawn uniformly on the span of the log-unit lattice (Voronoi-uniform), expected fraction inside origin cell = 1/index-related baseline",
+    "positive: targets = log-embedding of short g times a random unit of large log-norm, which must NOT decode to 0",
+    "A/A: two sampling seed blocks of short elements"
+   ]
+  },
+  "falsification_conditions": [
+   "Fraction inside origin cell between 0.5 and 0.95 (inconclusive, recorded as such)",
+   "Positive control decodes to 0 more than 5% (instrument broken)"
+  ],
+  "confounders": [
+   "Cyclotomic units vs full unit group index",
+   "Short element law (ternary vs Gaussian)",
+   "Precision of log embedding"
+  ],
+  "interpretation_limits": [
+   "Scale limit: n <= 64; Part III's limit statement is asymptotic, but its Voronoi claim is stated for all k >= 4 and is directly testable here",
+   "Verdict on Part III's named step only; no NTRU, ML-KEM or hardness verdict (GOAL-NTRU-001 owns NTRU)"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Cyclotomic units generate the full unit group up to torsion for k <= 7",
+    "rigorous_support": "h+ = 1 for small 2-power conductors (classical results, recalled)",
+    "validation_plan": "Check index via Sage bnfinit/units at k<=6"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "CDPR short generator recovery, quantum poly time with Biasse-Song (KN-LIT-115, KN-LIT-117)",
+   "hidden_overhead": "exact CVP at rank 31 feasible",
+   "tradeoff_note": "Adjudication input"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1742",
+    "provenance": "kb",
+    "citation_text": "Luo, Module Lattice Security (Part III): Structured CVP Distance on the Log-Unit Lattice, arXiv 2605.17404",
+    "relation": "same",
+    "delta": "First numerical check of the stated Voronoi claim"
+   },
+   {
+    "ref": "KN-LIT-115",
+    "provenance": "kb",
+    "citation_text": "Cramer, Ducas, Peikert, Regev, Recovering Short Generators of Principal Ideals in Cyclotomic Rings, EUROCRYPT 2016",
+    "relation": "adjacent",
+    "delta": "Provides the established decoding geometry to compare against"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20261005-9f4777"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Exact log-unit CVP on short-element targets at k = 4..7",
+   "objective": "Whether Part III's Voronoi claim holds at the conductors where it is asserted",
+   "instrument": "SageMath 10.x, fpylll exact CVP, NumPy",
+   "parameters": "k in {4,5,6,7}; 1000 targets per (k, law); laws ternary and discrete Gaussian sigma=1.0",
+   "procedure": "1. Build log-unit basis. 2. Sample short elements, compute log embeddings projected to trace-zero hyperplane. 3. Exact CVP. 4. Record distance and zero-indicator. 5. Controls.",
+   "independent_variables": [
+    {
+     "name": "target_law",
+     "levels": [
+      "short_ternary",
+      "short_gaussian",
+      "uniform_span_null",
+      "planted_unit_positive"
+     ]
+    },
+    {
+     "name": "conductor_k",
+     "levels": [
+      "4",
+      "5",
+      "6",
+      "7"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "sampling_seed_block",
+     "treatment": "randomized",
+     "value": "2 blocks x 500",
+     "how": "rng seeds"
+    },
+    {
+     "name": "log_precision_bits",
+     "treatment": "fixed",
+     "value": "200",
+     "how": "Sage RealField(200)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "short_ternary",
+      "uniform_span_null"
+     ],
+     "differs_in": [
+      "target_law"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "short_ternary k=4..7"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "short_ternary block A",
+      "short_ternary block B"
+     ],
+     "differs_in": [
+      "sampling_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "fraction decoding to origin"
+   ],
+   "secondary_metrics": [
+    "CVP distance / sqrt(n)",
+    "L-infinity distance"
+   ],
+   "preregistered_prediction": {
+    "quantity": "fraction inside origin cell at k>=4",
+    "formula": "Luo claims 1 (all targets)",
+    "source": "KN-LIT-1742 abstract"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 64; transfer: claim is stated for every k >= 4 so small k is in scope",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 32
+   },
+   "stopping_rules": [
+    "stop at k where exact CVP exceeds 1 h per target"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive control decoding to 0 > 5% invalidates"
+   ],
+   "success_criterion": "C2 shows fraction >= 0.95 at every k (P1 reproduced) and C1 separates short from uniform targets, AA1 noise floor",
+   "falsification_criterion": "C2 shows fraction <= 0.5 at some k >= 4 (P1 falsifies the claim as written) or P2 relative error > 25%",
+   "decision_impact": {
+    "on_positive": "Part III's step recorded as reproduced at small k; adjudication of KN-LIT-1743 proceeds to the Part IV tower step",
+    "on_negative": "Part III's Voronoi claim recorded as not established as written with the measured fraction; Part IV adjudication cites the broken premise"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "voronoi_fraction.csv",
+    "distance_hist.png",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Luo Part IV tower PIP descent at 2-power degree <= 32: measured length of the lifted generator against the planted one",
+  "class": "mechanism",
+  "claim": "KN-LIT-1743 claims a tower decomposition of the Principal Ideal Problem through Q subset Q(zeta_8) subset ... subset Q(zeta_{2^k}) returns a generator short enough to give approximation factor gamma <= 21. Executed classically (PIP solved by Sage/PARI bnfisprincipal at each level, standing in for the quantum PIP) on planted principal ideals with short generators at degree n in {8,16,32}, the lifted generator's length ratio to the planted generator is either <= 21 in >= 90% of instances (step reproduced) or exceeds 21 in the majority (step fails as written).",
+  "mechanism": "The quantum part of the claim is PIP, which is classically solvable at small degree; the tower descent and lift are classical algebra. Thus the load-bearing classical step can be executed exactly at small degree with an honest PIP oracle substitute. If the lifted generator is long, the failure is in the descent/lift, independent of any quantum speedup.",
+  "tracked_object": "Ratio ||g_lifted|| / ||g_planted|| after tower descent and lift plus log-unit reduction, and the induced approximation factor, per degree.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "frac_gamma_le_21",
+    "direction": "different",
+    "minimum_effect": ">= 0.9 reproduces, <= 0.5 fails",
+    "falsified_by": "fraction in between at n=32 (inconclusive)"
+   },
+   {
+    "id": "P2",
+    "metric": "log_ratio_growth_per_level",
+    "direction": "higher",
+    "minimum_effect": "median log-ratio increases by >= 1 bit per tower level",
+    "falsified_by": "no growth across levels"
+   }
+  ],
+  "minimal_test": {
+   "design": "Sage: plant g ternary in Z[zeta_{2^k}], form <g>, run the transcribed descent (relative norms down the tower), solve PIP at the base, lift and reduce with the log-unit lattice; 200 instances per degree.",
+   "controls": [
+    "null/negative: direct CDPR pipeline without tower (bnfisprincipal at full degree + log-unit Babai), the established method",
+    "positive: tower descent with the planted generator's norms supplied exactly (oracle lift), which must recover g up to units",
+    "A/A: two seed blocks of planted generators"
+   ]
+  },
+  "falsification_conditions": [
+   "Fraction gamma <= 21 between 0.5 and 0.9 at n=32",
+   "Positive control fails to recover g up to units in >= 5% (implementation error)"
+  ],
+  "confounders": [
+   "Transcription of the descent from a bulk-seeded entry; primary document must be read first",
+   "Class group nontrivial at intermediate levels (not the case for small 2-power)"
+  ],
+  "interpretation_limits": [
+   "Scale limit: n <= 32 (bnfisprincipal feasibility); the claim is for n=256; a small-degree failure falsifies the step as written, a success does not establish it at n=256",
+   "No ML-KEM, Falcon, Hawk or NTRU verdict; document-step verdict only"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Classical PIP is an exact functional substitute for the quantum PIP oracle",
+    "rigorous_support": "Both return some generator; output law may differ",
+    "validation_plan": "Randomise the returned generator by a random unit before lift and report sensitivity"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "claimed O(n^3 log^2 n) gates",
+   "memory_exponent": "claimed O(n^2 log n) qubits",
+   "best_known": "CDPR/Biasse-Song quantum poly at gamma = exp(O~(sqrt n))",
+   "hidden_overhead": "classical PIP exponential, irrelevant to the audit",
+   "tradeoff_note": "Tests the classical half of the claim"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1743",
+    "provenance": "kb",
+    "citation_text": "Luo, Module Lattice Security (Part IV), arXiv 2605.17412",
+    "relation": "same",
+    "delta": "Executes the named load-bearing step at small degree"
+   },
+   {
+    "ref": "KN-LIT-115",
+    "provenance": "kb",
+    "citation_text": "Cramer-Ducas-Peikert-Regev 2016",
+    "relation": "adjacent",
+    "delta": "Null arm baseline pipeline"
+   },
+   {
+    "ref": "KN-LIT-117",
+    "provenance": "kb",
+    "citation_text": "Biasse, Song, quantum PIP in arbitrary degree, 2016",
+    "relation": "adjacent",
+    "delta": "Justifies replacing the quantum PIP by a classical oracle in the audit"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20261005-9f4777",
+   "IDEA-20261009-eb7369"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Classical execution of the Part IV tower descent with a PIP oracle",
+   "objective": "Whether the tower step yields gamma <= 21 at small degree",
+   "instrument": "SageMath/PARI bnfinit, bnfisprincipal, fpylll",
+   "parameters": "n in {8,16,32}; 200 planted ternary generators per n; unit reduction by Babai on cyclotomic units",
+   "procedure": "1. Read primary PDF and transcribe the descent. 2. Implement. 3. Run tower, direct CDPR null, oracle-lift positive. 4. Record ratios. 5. A/A.",
+   "independent_variables": [
+    {
+     "name": "pipeline",
+     "levels": [
+      "luo_tower",
+      "cdpr_direct_null",
+      "oracle_lift_positive"
+     ]
+    },
+    {
+     "name": "degree_n",
+     "levels": [
+      "8",
+      "16",
+      "32"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "plant_seed_block",
+     "treatment": "randomized",
+     "value": "2 x 100",
+     "how": "rng seeds"
+    },
+    {
+     "name": "returned_generator_unit_twist",
+     "treatment": "randomized",
+     "value": "random unit of log-norm <= 10",
+     "how": "applied before lift"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "luo_tower",
+      "cdpr_direct_null"
+     ],
+     "differs_in": [
+      "pipeline"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "luo_tower all n"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "luo_tower block A",
+      "luo_tower block B"
+     ],
+     "differs_in": [
+      "plant_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "fraction with gamma <= 21"
+   ],
+   "secondary_metrics": [
+    "median log ratio per level",
+    "bnfisprincipal time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "fraction gamma <= 21",
+    "formula": "claimed >= 0.99",
+    "source": "KN-LIT-1743 abstract (success probability >= 0.99)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 32; transfer: the claim is uniform in k, so failure at small k is a counterexample to the statement as written",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 24,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "stop at n=32 or when bnfisprincipal exceeds 2 h"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive-control failure >= 5% invalidates"
+   ],
+   "success_criterion": "C2 shows fraction >= 0.9 at each n and C1 shows tower no worse than CDPR (P1), AA1 noise floor",
+   "falsification_criterion": "C2 shows fraction <= 0.5 at some n or P2 log-ratio grows >= 1 bit per level",
+   "decision_impact": {
+    "on_positive": "Step recorded as reproduced at small degree; escalate to review-breakthrough reading before any wider statement",
+    "on_negative": "Tower step recorded as not established as written with the measured gamma distribution"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "gamma_table.csv",
+    "transcription_with_page_refs.md",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-1c4a3b",
+  "title": "Structure-blindness test for quantum enumeration: is the Montanaro tree size on ring and module bases the same as on plain LWE?",
+  "class": "control",
+  "claim": "The quantum-frontier schema classifies rows as structure-blind or structure-dependent, but for quantum enumeration (KN-LIT-3072) the cost is a function of the classical enumeration tree size T (roughly sqrt(T) quantum steps). On BKZ-reduced bases of plain LWE, Ring-LWE (x^d+1) and Module-LWE (rank 2,4) embeddings of identical total dimension 40..70, the measured log2 T for the same pruning radius differs by less than 1 bit across structures, so the row is structure-blind by measurement.",
+  "mechanism": "If T depends only on the Gram-Schmidt profile, and the profile after BKZ is indistinguishable between structured and plain bases (the usual assumption), then quantum enumeration's exponent cannot see the ring. Measuring T exactly with fpylll node counts tests the classification instead of asserting it, and a planted-structure positive control shows the instrument detects a profile difference when one exists.",
+  "tracked_object": "Exact enumeration node count T (fpylll, fixed pruning coefficients and radius) on the last projected block after BKZ-beta, per structure.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "abs_delta_log2_T_ring_vs_plain",
+    "direction": "lower",
+    "minimum_effect": "< 1 bit at all dims",
+    "falsified_by": ">= 2 bits at some dim with CI excluding 0"
+   },
+   {
+    "id": "P2",
+    "metric": "delta_log2_T_planted_dense_sublattice",
+    "direction": "higher",
+    "minimum_effect": ">= 3 bits",
+    "falsified_by": "< 1 bit (instrument cannot see structure)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate 20 instances per (structure, dim); BKZ-20 preprocess; enumerate the last 40-60 dimension block at the GH radius with fixed pruning; record node counts.",
+   "controls": [
+    "null/negative: plain LWE of the same dimension, modulus and error",
+    "positive: plain LWE with a planted dense rank-4 sublattice (NTRU-like overstretched shape) where T must shrink",
+    "A/A: plain LWE under two basis-randomisation seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "Ring vs plain delta >= 2 bits with bootstrap CI excluding 0",
+   "Positive control delta < 1 bit"
+  ],
+  "confounders": [
+   "BKZ preprocessing quality differs per run",
+   "Rotation symmetry may make several shortest vectors, inflating solution counts not tree size"
+  ],
+  "interpretation_limits": [
+   "Scale limit: block dims <= 60; transfer assumes the profile-only model of T continues; no ML-KEM verdict (QALG owns sieving/enumeration vs ML-KEM)",
+   "A classification row for the frontier, not a cost estimate"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Quantum backtracking cost is monotone in classical T",
+    "rigorous_support": "Montanaro's bound O(sqrt(T n)) (recalled via KN-LIT-3072)",
+    "validation_plan": "Report T, not quantum cost, as primary"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.0936 b log b + ...}/2 heuristic quantum enumeration (recalled)",
+   "memory_exponent": "poly",
+   "best_known": "quantum sieve 2^{0.257b} (recalled)",
+   "hidden_overhead": "tree depth factor",
+   "tradeoff_note": "Classification, not speedup"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-3072",
+    "provenance": "kb",
+    "citation_text": "Bai, Lange, Ngo et al., Concrete Analysis of Quantum Lattice Enumeration",
+    "relation": "adjacent",
+    "delta": "Measures the input T on structured vs plain bases"
+   },
+   {
+    "ref": "KN-LIT-102",
+    "provenance": "kb",
+    "citation_text": "Gama, Nguyen, Regev, Lattice Enumeration Using Extreme Pruning, 2010",
+    "relation": "adjacent",
+    "delta": "Pruning coefficients"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-b824af"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Enumeration tree size across plain, ring and module embeddings",
+   "objective": "Whether the quantum-enumeration frontier row is structure-blind by measurement",
+   "instrument": "fpylll 0.6.x, SageMath for ring construction, NumPy bootstrap",
+   "parameters": "total dim n in {40,50,60,70}; q=3329; CBD eta=2; module ranks k in {1(ring),2,4} with d = n/k; plain LWE; 20 instances each; BKZ-20; enumeration block 40-60",
+   "procedure": "1. Generate instances. 2. Embed (Kannan). 3. BKZ-20. 4. Enumerate last block with fixed pruning. 5. Record T. 6. Bootstrap deltas.",
+   "independent_variables": [
+    {
+     "name": "structure",
+     "levels": [
+      "plain_lwe",
+      "ring_lwe",
+      "module_k2",
+      "module_k4",
+      "planted_dense_positive"
+     ]
+    },
+    {
+     "name": "total_dim",
+     "levels": [
+      "40",
+      "50",
+      "60",
+      "70"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_randomisation_seed",
+     "treatment": "randomized",
+     "value": "2 seeds",
+     "how": "fpylll random unimodular pre-transform"
+    },
+    {
+     "name": "cpu_model",
+     "treatment": "fixed",
+     "value": "single host",
+     "how": "node counts are machine-independent"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "ring_lwe",
+      "plain_lwe"
+     ],
+     "differs_in": [
+      "structure"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "planted_dense_positive",
+      "plain_lwe"
+     ],
+     "differs_in": [
+      "structure"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "plain_lwe seed A",
+      "plain_lwe seed B"
+     ],
+     "differs_in": [
+      "basis_randomisation_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "delta log2 T vs plain"
+   ],
+   "secondary_metrics": [
+    "GSO profile slope",
+    "solution count"
+   ],
+   "preregistered_prediction": {
+    "quantity": "delta log2 T ring vs plain",
+    "formula": "|delta| < 1",
+    "source": "standard profile-only enumeration model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "block dim <= 60; transfer: structure-blindness at small block extends if profile model holds",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 40
+   },
+   "stopping_rules": [
+    "stop when a cell's T exceeds 2^40 nodes"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A delta > 0.5 bits invalidates that dim"
+   ],
+   "success_criterion": "C1 |delta| < 1 bit at all dims and C2 delta >= 3 bits (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C1 delta >= 2 bits with CI excluding 0 at some dim (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "Frontier row for quantum enumeration classified structure-blind with measured support",
+    "on_negative": "Row classified structure-dependent; the measured delta becomes a Lane 2 candidate requiring a proof_search_map"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "tree_sizes.csv",
+    "report.pdf with delta-vs-dim plot"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-9108dc",
+  "title": "Measured approximation-factor crossover between the Stickelberger quantum Ideal-SVP pipeline and BKZ at small cyclotomic conductors",
+  "class": "measurement",
+  "claim": "The Cramer-Ducas-Wesolowski pipeline (KN-LIT-116) solves Ideal-SVP at approximation factor exp(O~(sqrt n)) given a quantum class-group/PIP oracle. Simulated classically at prime-power conductors with phi(m) in {16..64} (class group and PIP via PARI), the achieved approximation factor exceeds the factor BKZ-20 achieves on the same ideal lattices at every tested n, so the crossover dimension n* where the quantum pipeline wins is above 64; the fitted crossover extrapolates to n* in a stated range with CI.",
+  "mechanism": "The structural advantage in the ideal-lattice regime is asymptotic; deployed parameters live at small gamma. Measuring both gamma curves at small n and fitting the crossover turns the quantifier separation (large gamma vs small gamma) into a number. The structure-removed control is a random lattice of the same determinant and dimension, where only BKZ applies.",
+  "tracked_object": "Ratio gamma_CDW(n) / gamma_BKZ20(n) on random ideals of cyclotomic fields, and the fitted crossover n*.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log_gamma_ratio_n64",
+    "direction": "higher",
+    "minimum_effect": "log2(gamma_CDW/gamma_BKZ) >= 2 at phi(m)=64",
+    "falsified_by": "ratio <= 0 at phi(m) <= 64 (crossover already reached)"
+   },
+   {
+    "id": "P2",
+    "metric": "fitted_crossover_n_star",
+    "direction": "higher",
+    "minimum_effect": "n* > 128 with 95% CI",
+    "falsified_by": "CI for n* includes values <= 64"
+   }
+  ],
+  "minimal_test": {
+   "design": "For each conductor, sample 50 random ideals, run the classical simulation of CPM via Stickelberger short relations and log-unit decoding, compute ||v||/lambda_1 (lambda_1 by exact SVP at n<=64), and BKZ-20 on the same basis.",
+   "controls": [
+    "null/negative: random lattices with identical det and dimension (no ring structure): only BKZ is applicable",
+    "positive: principal ideals with planted short generator, where the log-unit step alone must give gamma near 1",
+    "A/A: two ideal-sampling seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "CDW gamma below BKZ gamma at some phi(m) <= 64",
+   "Positive control gamma > 2 on > 10% instances"
+  ],
+  "confounders": [
+   "Classical class-group computation conditional on GRH",
+   "Choice of Stickelberger generating set",
+   "lambda_1 estimation"
+  ],
+  "interpretation_limits": [
+   "Scale limit: phi(m) <= 64; crossover extrapolation is a fitted model, not a measurement at crypto size",
+   "Ideal-lattice regime only; no RLWE/MLWE statement (lossy projection: RLWE is not an ideal-SVP instance)"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Classical PIP output distribution matches the quantum oracle's for gamma purposes",
+    "rigorous_support": "Any generator then reduced by log-unit decoding",
+    "validation_plan": "Random unit twist sensitivity check"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "quantum poly at gamma = exp(O~(sqrt n))",
+   "memory_exponent": "poly",
+   "best_known": "BKZ-beta 2^{0.292 beta} classical",
+   "hidden_overhead": "class-group computation hidden in oracle",
+   "tradeoff_note": "Measures where structure begins to pay"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-116",
+    "provenance": "kb",
+    "citation_text": "Cramer, Ducas, Wesolowski, Short Stickelberger Class Relations and application to Ideal-SVP, EUROCRYPT 2017",
+    "relation": "same",
+    "delta": "Concrete gamma curve at small n instead of asymptotics"
+   },
+   {
+    "ref": "KN-LIT-115",
+    "provenance": "kb",
+    "citation_text": "CDPR 2016",
+    "relation": "adjacent",
+    "delta": "Positive-control decoding step"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20261005-9f4777",
+   "IDEA-20261009-511c5c",
+   "IDEA-20261009-eb7369"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "gamma_CDW vs gamma_BKZ on random cyclotomic ideals",
+   "objective": "Where the quantum ideal-lattice pipeline's gamma crosses BKZ's",
+   "instrument": "SageMath/PARI (bnfinit under GRH), fpylll",
+   "parameters": "phi(m) in {16,20,24,32,40,48,64} (frozen conductor list); 50 ideals each; BKZ-20",
+   "procedure": "1. Frozen conductor list. 2. Random ideals of small norm. 3. Simulated CDW. 4. BKZ-20. 5. Exact lambda_1. 6. Fit log gamma vs n, solve crossover.",
+   "independent_variables": [
+    {
+     "name": "solver",
+     "levels": [
+      "cdw_simulated",
+      "bkz20"
+     ]
+    },
+    {
+     "name": "degree",
+     "levels": [
+      "16",
+      "20",
+      "24",
+      "32",
+      "40",
+      "48",
+      "64"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "ideal_seed_block",
+     "treatment": "randomized",
+     "value": "2 x 25",
+     "how": "rng"
+    },
+    {
+     "name": "grh_assumption",
+     "treatment": "fixed",
+     "value": "assumed",
+     "how": "PARI flag recorded"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "cdw_simulated",
+      "bkz20"
+     ],
+     "differs_in": [
+      "solver"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "fitted n* from cdw_simulated"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "cdw block A",
+      "cdw block B"
+     ],
+     "differs_in": [
+      "ideal_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log gamma ratio per degree",
+    "fitted n*"
+   ],
+   "secondary_metrics": [
+    "Stickelberger relation length"
+   ],
+   "preregistered_prediction": {
+    "quantity": "n*",
+    "formula": "n* > 128",
+    "source": "asymptotic exp(O~(sqrt n)) vs BKZ-20 linear-exponent gamma"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "phi(m) <= 64; transfer: fitted curves extrapolate; crossover reported with CI only",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 21
+   },
+   "stopping_rules": [
+    "stop at first degree where bnfinit exceeds 2 h"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive-control failure invalidates degree"
+   ],
+   "success_criterion": "C1 shows CDW gamma above BKZ at all degrees (P1) and C2 gives n* > 128 with CI (P2), AA1 noise floor",
+   "falsification_criterion": "C1 shows CDW below BKZ at some degree <= 64, or C2 CI includes n* <= 64",
+   "decision_impact": {
+    "on_positive": "Record measured n* as the boundary of the ideal-lattice regime in the Lane 2 obstruction entry",
+    "on_negative": "Structure pays already at toy size; open a follow-up asking whether any lossy projection carries it to RLWE"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "gamma_curves.csv",
+    "crossover_fit.json",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-9108dc",
+  "title": "Galois-orbit Fourier sampling on toy Ring-LWE: does the automorphism group leak mutual information that a random permutation group does not?",
+  "class": "mechanism",
+  "claim": "Prepare (in exact classical simulation) the quantum state over Z_q^n obtained by superposing an RLWE sample's Galois conjugates sigma_i(b) for sigma_i in Gal(Q(zeta_{2n})/Q), then apply QFT over Z_q^n and measure. At n in {4,8}, q in {17,41}, the mutual information I(outcome; s) per sample is no larger than for the structure-removed control in which the Galois group is replaced by a random permutation group of the same order acting on coefficients, within 0.01 bits.",
+  "mechanism": "A ring-only quantum mechanism must use something plain LWE lacks; the Galois action is the most direct candidate, since it permutes the CRT slots and maps s to sigma(s). Fourier sampling over an orbit superposition is the generic way a quantum algorithm exploits a group action. Exact simulation at q^n <= 41^4 is feasible, and comparing against an isomorphic-size random permutation group isolates whether the algebraic action, not merely symmetry, carries information.",
+  "tracked_object": "Exact mutual information I(Y; s) between the measured Fourier outcome Y and the secret s, per sample, per group action.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "mi_galois_minus_randperm",
+    "direction": "lower",
+    "minimum_effect": "|delta MI| <= 0.01 bits",
+    "falsified_by": "delta MI >= 0.05 bits at n=8 with CI excluding 0"
+   },
+   {
+    "id": "P2",
+    "metric": "mi_planted_positive",
+    "direction": "higher",
+    "minimum_effect": ">= 0.5 bits",
+    "falsified_by": "< 0.1 bits (instrument cannot detect a group-encoded secret)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exact enumeration of the orbit state for each s (all s for n=4,q=17; 2000 sampled s otherwise); compute outcome distributions and MI; repeat with random permutation group and with plain LWE (no group).",
+   "controls": [
+    "null/negative: random coefficient permutation group of the same order (structure-removed nearby object) and plain LWE with no orbit",
+    "positive: a planted hidden-shift instance where the orbit state encodes s as a shift (MI must be large)",
+    "A/A: two secret-sampling seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "Galois MI exceeds random-permutation MI by >= 0.05 bits",
+   "Positive control MI < 0.1"
+  ],
+  "confounders": [
+   "Finite q effects",
+   "Choice of orbit amplitudes",
+   "Error law truncation"
+  ],
+  "interpretation_limits": [
+   "Scale limit: n <= 8; MI at toy size bounds information per sample, not algorithmic cost",
+   "A positive signal would be a candidate requiring a proof_search_map and lossy-projection test before any claim"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Uniform orbit amplitudes are representative",
+    "rigorous_support": "None",
+    "validation_plan": "Also test amplitudes weighted by error likelihood"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "q^n",
+   "best_known": "no known ring-specific quantum mechanism at small gamma",
+   "hidden_overhead": "orbit state preparation needs coherent automorphism evaluation (cheap)",
+   "tradeoff_note": "Mechanism probe"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2c8264",
+    "provenance": "kb",
+    "citation_text": "Kuperberg 2005, dihedral HSP",
+    "relation": "adjacent",
+    "delta": "Fourier sampling over group-action states; here the group is the cyclotomic Galois group, not an isogeny class group"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20261009-3642dd",
+   "IDEA-20261005-9f4777"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Exact Fourier-sampling MI under Galois vs random permutation orbits",
+   "objective": "Whether the Galois action carries information about s inaccessible to a structure-removed group action",
+   "instrument": "Python/NumPy exact FFT over Z_q^n",
+   "parameters": "n in {4,8}; q in {17,41}; error discrete Gaussian sigma=1; orbit size n (Galois group order)",
+   "procedure": "1. For each s, sample b. 2. Build orbit state. 3. QFT. 4. Outcome distribution. 5. MI. 6. Controls.",
+   "independent_variables": [
+    {
+     "name": "group_action",
+     "levels": [
+      "galois",
+      "random_permutation_same_order",
+      "no_orbit_plain",
+      "planted_shift_positive"
+     ]
+    },
+    {
+     "name": "ring_size",
+     "levels": [
+      "n4_q17",
+      "n4_q41",
+      "n8_q17"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "secret_seed_block",
+     "treatment": "randomized",
+     "value": "2 blocks",
+     "how": "rng"
+    },
+    {
+     "name": "orbit_amplitude_profile",
+     "treatment": "crossed",
+     "value": "uniform or likelihood-weighted",
+     "how": "both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "galois",
+      "random_permutation_same_order"
+     ],
+     "differs_in": [
+      "group_action"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "galois",
+      "no_orbit_plain"
+     ],
+     "differs_in": [
+      "group_action"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "galois block A",
+      "galois block B"
+     ],
+     "differs_in": [
+      "secret_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "MI difference vs random-permutation control"
+   ],
+   "secondary_metrics": [
+    "MI vs plain",
+    "outcome entropy"
+   ],
+   "preregistered_prediction": {
+    "quantity": "MI difference",
+    "formula": "<= 0.01 bits",
+    "source": "no known ring-specific mechanism"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "q^n <= 41^4 or 17^8 sampled; transfer: MI per sample is non-increasing in n for fixed structure (assumption)",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop after all cells"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive control MI < 0.1 invalidates"
+   ],
+   "success_criterion": "C1 shows |delta MI| <= 0.01 and P2 positive control >= 0.5 bits, AA1 noise floor",
+   "falsification_criterion": "C1 shows delta MI >= 0.05 bits with CI excluding 0 (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "Named obstruction entry: Galois orbit Fourier sampling yields no information beyond a structure-removed group at toy size",
+    "on_negative": "Candidate mechanism admitted to proof_search_map audit and lossy-projection test"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "mi_table.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-9108dc",
+  "title": "Measured noise growth of the Albrecht-Deo RLWE self-reduction chain against its proven bound, and the gamma regime it lands in",
+  "class": "measurement",
+  "claim": "Albrecht-Deo (KN-LIT-4628) give an RLWE self-reduction that halves ring dimension and squares the modulus with a stated error-rate increase. Iterated k times at n=256 down to 32 on toy instances, the measured error rate grows by a factor at least 4x smaller than the proven worst-case bound per step, but the resulting low-dimension instance still sits at an approximation factor at least 2^10 below the regime where ideal-lattice quantum algorithms (gamma = exp(O~(sqrt n))) apply.",
+  "mechanism": "Dimension-reducing reductions are the only known way to move structured instances toward small n where structure-dependent quantum results bite. Proven bounds are worst-case; measured growth tells whether the chain is tighter in practice. Comparing the landed alpha against the gamma at which known quantum ideal methods operate makes the quantifier gap a measured number per step.",
+  "tracked_object": "Empirical standard deviation of error after each halving step divided by q at that step, versus the proven bound, and the implied gamma.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "measured_over_bound_ratio",
+    "direction": "lower",
+    "minimum_effect": "<= 0.25 per step",
+    "falsified_by": ">= 0.8 (bound tight)"
+   },
+   {
+    "id": "P2",
+    "metric": "log2_gap_to_ideal_regime",
+    "direction": "higher",
+    "minimum_effect": ">= 10 bits after 3 steps",
+    "falsified_by": "< 3 bits"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement the self-reduction on toy RLWE (n=256, q=3329) for 1..3 halvings, 2000 samples per step, measure error statistics with known secret.",
+   "controls": [
+    "null/negative: plain LWE dimension halving by coordinate projection (structure-free), which increases error trivially",
+    "positive: noise-free RLWE (sigma=0) through the chain: measured growth must equal the rounding term exactly",
+    "A/A: two sample seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "Measured growth equals proven bound within 20%",
+   "Positive control growth deviates from exact rounding term"
+  ],
+  "confounders": [
+   "Rounding implementation choices",
+   "Secret law effects"
+  ],
+  "interpretation_limits": [
+   "Scale limit: starts at n=256 toy modulus; transfer is the reduction's own analysis",
+   "No quantum algorithm is run; measures where a reduction lands, not an attack"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Error after reduction is approximately Gaussian",
+    "rigorous_support": "Sum of many terms",
+    "validation_plan": "KS test per step"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "Ideal quantum methods at gamma=exp(O~(sqrt n))",
+   "hidden_overhead": "modulus squaring per step",
+   "tradeoff_note": "Regime map"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4628",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Deo, Large Modulus Ring-LWE >= Module-LWE",
+    "relation": "same",
+    "delta": "Measures the self-reduction's real noise growth rather than its bound"
+   },
+   {
+    "ref": "KN-LIT-7208",
+    "provenance": "kb",
+    "citation_text": "Boudgoust, Jeudy, Roux-Langlois, Towards Classical Hardness of Module-LWE: The Linear Rank Case",
+    "relation": "adjacent",
+    "delta": "Rank-vs-degree context for the landed instances"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20261009-11cbd9"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Measured error growth through RLWE halvings",
+   "objective": "How tight the proven self-reduction bound is and where the chain lands",
+   "instrument": "SageMath, NumPy",
+   "parameters": "n=256 -> 128 -> 64 -> 32; q=3329 -> q^2 ...; sigma=1.0; 2000 samples per step",
+   "procedure": "1. Generate RLWE with known s. 2. Apply halving. 3. Measure error. 4. Compare bound. 5. Compute gamma. 6. Controls.",
+   "independent_variables": [
+    {
+     "name": "reduction",
+     "levels": [
+      "ad_self_reduction",
+      "plain_projection_null"
+     ]
+    },
+    {
+     "name": "halvings",
+     "levels": [
+      "1",
+      "2",
+      "3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "sample_seed_block",
+     "treatment": "randomized",
+     "value": "2 blocks",
+     "how": "rng"
+    },
+    {
+     "name": "error_sigma",
+     "treatment": "fixed",
+     "value": "1.0",
+     "how": "frozen"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "ad_self_reduction",
+      "plain_projection_null"
+     ],
+     "differs_in": [
+      "reduction"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ad_self_reduction 3 halvings"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "block A",
+      "block B"
+     ],
+     "differs_in": [
+      "sample_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "measured/bound ratio"
+   ],
+   "secondary_metrics": [
+    "gamma gap bits"
+   ],
+   "preregistered_prediction": {
+    "quantity": "ratio",
+    "formula": "<= 0.25",
+    "source": "worst-case slack typical of such reductions"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 256; transfer: measured slack is a property of the reduction's algebra",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "stop after 3 halvings"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive-control mismatch invalidates"
+   ],
+   "success_criterion": "C1 and C2 show ratio <= 0.25 per step and gap >= 10 bits (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C2 shows ratio >= 0.8 or gap < 3 bits (P1 or P2 falsified)",
+   "decision_impact": {
+    "on_positive": "Record the measured landed regime as a named obstruction boundary for dimension-reduction routes",
+    "on_negative": "Dimension-reduction routes stay open; open a proposal pricing the landed instance against ideal-lattice quantum methods"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "noise_growth.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-9108dc",
+  "title": "Rotation-orbit augmentation in a quantum-priced sieve: does the ring's n-fold symmetry gain survive QRAM charging?",
+  "class": "measurement",
+  "claim": "In a classical Gauss sieve on Ring-LWE lattices (x^d+1), adding all d signed rotations of each list vector raises the reduction hit rate per stored vector by a factor near d, a known polynomial gain. When the near-neighbour search is priced as Grover over a QRAM-held list at QRAM cost per query in {0, 0.1, 1} gate-equivalents per bit, the gain in total cost at dims 40-70 shrinks to at most sqrt(d) or below, and on the plain-LWE control it is exactly 1.",
+  "mechanism": "Ring structure gives free rotations, which is the only well-established ring advantage for sieving. Under a quantum cost model the list search is Grover-accelerated and QRAM is the bottleneck; enlarging the effective list by rotations helps classical pairing linearly but quantum search only by a square root, while QRAM loading of rotations costs extra. Measuring hits and list sizes and pricing them makes the structure-dependent factor explicit and bounded.",
+  "tracked_object": "Total priced cost (classical ops + Grover iterations x QRAM charge) to reach saturation, ring with rotations vs ring without vs plain LWE, per dimension and QRAM price.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "quantum_priced_gain",
+    "direction": "lower",
+    "minimum_effect": "<= sqrt(d) at QRAM price 1",
+    "falsified_by": ">= d/2 at price 1"
+   },
+   {
+    "id": "P2",
+    "metric": "classical_gain",
+    "direction": "higher",
+    "minimum_effect": ">= d/2",
+    "falsified_by": "< 2 (rotation trick broken in implementation)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Instrument a Python/C Gauss sieve (or G6K with orbit option) to log list size, pairs tested, hits; price under three QRAM costs; dims 40..70; 10 instances each.",
+   "controls": [
+    "null/negative: plain LWE lattices of the same dimension (rotations meaningless; apply random coordinate permutations as fake orbit)",
+    "positive: classical cost gain on ring lattices must be near d (known)",
+    "A/A: two instance seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "Quantum-priced gain >= d/2 at QRAM price 1",
+   "Classical gain < 2"
+  ],
+  "confounders": [
+   "Sieve implementation constants",
+   "Saturation threshold choice",
+   "QRAM model"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 70; polynomial factor only, no exponent claim; quantum cost is modelled, not run",
+   "Structure-dependent but polynomial: a constant/poly result, recorded as such"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Grover over list of size L costs sqrt(L) QRAM queries",
+    "rigorous_support": "Standard (recalled), as used in KN-LIT-122",
+    "validation_plan": "Sensitivity with sqrt(L)*log L"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.257b+o(b)} quantum sieve (recalled)",
+   "memory_exponent": "2^{0.2075b}",
+   "best_known": "same exponent; poly(d) factor",
+   "hidden_overhead": "QRAM",
+   "tradeoff_note": "Poly factor only"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-122",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Gheorghiu, Postlethwaite, Schanck, Estimating quantum speedups for lattice sieves, ASIACRYPT 2020",
+    "relation": "adjacent",
+    "delta": "Adds ring-orbit augmentation to the quantum pricing"
+   },
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, 2019",
+    "relation": "adjacent",
+    "delta": "Sieve implementation"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-7bc28c",
+   "IDEA-20260816-b824af"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Orbit-augmented sieve under QRAM pricing",
+   "objective": "Size of the ring-symmetry gain under quantum pricing",
+   "instrument": "G6K or instrumented Python Gauss sieve, NumPy",
+   "parameters": "dims {40,50,60,70}; ring degree d = dim (k=1) and d = dim/2 (k=2); q=3329; 10 instances; QRAM price {0,0.1,1}",
+   "procedure": "1. Generate. 2. BKZ-20 preprocess. 3. Sieve with/without orbits. 4. Log counts. 5. Price. 6. Controls.",
+   "independent_variables": [
+    {
+     "name": "orbit_augmentation",
+     "levels": [
+      "ring_with_rotations",
+      "ring_without_rotations",
+      "plain_fake_orbit_null"
+     ]
+    },
+    {
+     "name": "dimension",
+     "levels": [
+      "40",
+      "50",
+      "60",
+      "70"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "2 blocks of 5",
+     "how": "rng"
+    },
+    {
+     "name": "qram_price",
+     "treatment": "crossed",
+     "value": "0, 0.1, 1",
+     "how": "post-hoc pricing on same logs"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "ring_with_rotations",
+      "ring_without_rotations"
+     ],
+     "differs_in": [
+      "orbit_augmentation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ring_without_rotations",
+      "plain_fake_orbit_null"
+     ],
+     "differs_in": [
+      "orbit_augmentation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "ring_with_rotations seed A",
+      "seed B"
+     ],
+     "differs_in": [
+      "instance_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "priced cost ratio with/without rotations"
+   ],
+   "secondary_metrics": [
+    "classical ratio"
+   ],
+   "preregistered_prediction": {
+    "quantity": "priced gain at price 1",
+    "formula": "<= sqrt(d)",
+    "source": "Grover square-root on list"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "dims <= 70; transfer: per-query pricing model scales",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 20,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at dim where a sieve exceeds 1 h"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "classical gain < 2 invalidates"
+   ],
+   "success_criterion": "C1 shows priced gain <= sqrt(d) at price 1 and classical gain >= d/2 (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C1 shows priced gain >= d/2 at price 1 (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "Record ring symmetry as a bounded polynomial factor under quantum pricing in the Lane 2 map",
+    "on_negative": "Ring symmetry survives quantum pricing; route the constant to Lane 1 frontier as a structure-dependent row"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "sieve_logs.csv",
+    "priced_costs.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-d2d713",
+  "title": "Kuperberg and Regev DHSP sieves under faulty samples: classically simulated success-vs-fault-rate tables at toy group sizes",
+  "class": "measurement",
+  "claim": "Kuperberg-style sieves act on classical phase labels with random measurement outcomes, so they are exactly simulable classically. At N = 2^16..2^40, the probability of recovering the low bit of d drops below 0.6 once the faulty-sample rate exceeds 1/(number of combining levels)^c for a fitted c; for the fault rates the LWE-to-DCP reduction forces (1/poly at toy n) Kuperberg's sieve fails, while the query/memory tradeoff between Kuperberg-1 and Regev's polynomial-memory variant is reproduced within 20% of published exponents.",
+  "mechanism": "Noise tolerance, not speed, is the binding constraint for the LWE route (KN-LIT-2c8264). Each combining step of the sieve XORs labels; a faulty sample contaminates every descendant, so success decays geometrically with depth. Simulation gives the empirical decay curve and therefore the maximum fault rate as a function of N, which can be matched against the fault rate the reduction produces.",
+  "tracked_object": "Success probability of recovering d mod 2 versus (log N, fault rate, sieve variant), and queries and peak memory per run.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "max_tolerable_fault_rate_logN32",
+    "direction": "lower",
+    "minimum_effect": "< 1/64 at log N = 32 for success >= 0.6",
+    "falsified_by": ">= 1/8"
+   },
+   {
+    "id": "P2",
+    "metric": "query_exponent_fit_error",
+    "direction": "lower",
+    "minimum_effect": "<= 20% vs published Kuperberg exponent",
+    "falsified_by": "> 40%"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate labels: draw uniform k_i in Z_N, sample outcome bits with correct probabilities for a fixed d, combine as in Kuperberg-1 and Regev variant, inject faulty samples (random phase) at rate f; 500 runs per cell.",
+   "controls": [
+    "null/negative: all samples faulty (f=1): success must be 0.5",
+    "positive: f=0: success must reach >= 0.95 with the published query count",
+    "A/A: same cell with two RNG streams"
+   ]
+  },
+  "falsification_conditions": [
+   "Fault tolerance at log N=32 >= 1/8",
+   "Positive control success < 0.95"
+  ],
+  "confounders": [
+   "Combining-schedule choices",
+   "Label distribution approximations"
+  ],
+  "interpretation_limits": [
+   "Scale limit: log N <= 40 versus crypto-relevant N; the fitted decay curve is extrapolated",
+   "Statement about these sieves, not about Simon's algorithm or LWE hardness"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Classical label simulation reproduces the quantum outcome law exactly",
+    "rigorous_support": "Measurement outcomes are Bernoulli with explicit probabilities (standard)",
+    "validation_plan": "Statevector cross-check at log N <= 10"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{O(sqrt(log N))}",
+   "memory_exponent": "2^{O(sqrt(log N))} (K-1) or poly (Regev)",
+   "best_known": "Kuperberg 2005/2011, Regev 2004 variant",
+   "hidden_overhead": "fault contamination",
+   "tradeoff_note": "Tradeoff table"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2c8264",
+    "provenance": "kb",
+    "citation_text": "Kuperberg 2005, SIAM J. Comput.",
+    "relation": "same",
+    "delta": "Adds measured fault-tolerance curves"
+   },
+   {
+    "ref": "KN-LIT-21383c",
+    "provenance": "kb",
+    "citation_text": "Regev 2004",
+    "relation": "adjacent",
+    "delta": "Source of the forced fault rate"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Faulty-sample DHSP sieve simulation",
+   "objective": "Maximum fault rate at which known DHSP sieves still succeed, per N",
+   "instrument": "Python/NumPy or Rust label simulator",
+   "parameters": "log N in {16,24,32,40}; fault rates {0, 1/256, 1/64, 1/16, 1/8, 1/4, 1}; variants Kuperberg-1, Regev poly-memory; 500 runs per cell",
+   "procedure": "1. Implement label sieve. 2. Validate against statevector at log N=8. 3. Sweep. 4. Fit decay. 5. Record queries/memory.",
+   "independent_variables": [
+    {
+     "name": "sieve_variant",
+     "levels": [
+      "kuperberg1",
+      "regev_polymem"
+     ]
+    },
+    {
+     "name": "fault_rate",
+     "levels": [
+      "0",
+      "1/256",
+      "1/64",
+      "1/16",
+      "1/8",
+      "1/4",
+      "1"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "rng_stream",
+     "treatment": "randomized",
+     "value": "2 streams",
+     "how": "PCG64 seeds"
+    },
+    {
+     "name": "log_N",
+     "treatment": "crossed",
+     "value": "16,24,32,40",
+     "how": "full cross"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "kuperberg1",
+      "regev_polymem"
+     ],
+     "differs_in": [
+      "sieve_variant"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "kuperberg1 fault sweep"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "stream A",
+      "stream B"
+     ],
+     "differs_in": [
+      "rng_stream"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "success probability",
+    "max tolerable fault rate"
+   ],
+   "secondary_metrics": [
+    "queries",
+    "peak memory"
+   ],
+   "preregistered_prediction": {
+    "quantity": "max fault rate at log N=32",
+    "formula": "< 1/64",
+    "source": "contamination grows with depth ~ sqrt(log N)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "log N <= 40; transfer: fitted decay vs depth",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 10,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 60
+   },
+   "stopping_rules": [
+    "stop cells with success at 0.5 +/- 0.02 for three consecutive fault rates"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive control < 0.95 invalidates"
+   ],
+   "success_criterion": "C2 gives tolerance < 1/64 at log N = 32 (P1) and C1 exponents within 20% (P2), AA1 noise floor",
+   "falsification_criterion": "C2 tolerance >= 1/8 at log N=32 (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "Lane 3 obstruction entry: noise-tolerance ceiling of known DHSP sieves quantified",
+    "on_negative": "Sieves tolerate more noise than believed; open costing of LWE->DCP->Kuperberg composition"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "success_table.csv",
+    "tradeoff_table.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-d2d713",
+  "title": "Information per sample of extrapolated dihedral coset states versus plain DCP, as a function of extrapolation width",
+  "class": "measurement",
+  "claim": "BKSW eDCP states (KN-LIT-4706) superpose j in [0, M) with amplitude profile f(j) instead of j in {0,1}. Computed exactly for N in {2^8..2^16}, the Fourier-sampling mutual information between the measured y and the secret s grows with M at least as log M for Gaussian profiles, so eDCP samples carry more information than DCP samples; the per-sample gain at the M implied by LWE noise rates is at least 3 bits.",
+  "mechanism": "If extrapolated samples are informationally richer, the equivalence suggests that eDCP-specific algorithms might need fewer samples than DCP sieves. Exact distributions of y given s are computable classically, giving the information budget per sample, which bounds any algorithm's sample count from below.",
+  "tracked_object": "I(Y; s) per eDCP sample under uniform s, versus M and amplitude profile.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "mi_gain_vs_dcp_at_M16",
+    "direction": "higher",
+    "minimum_effect": ">= 3 bits",
+    "falsified_by": "< 1 bit"
+   },
+   {
+    "id": "P2",
+    "metric": "mi_growth_slope_in_logM",
+    "direction": "higher",
+    "minimum_effect": ">= 0.8",
+    "falsified_by": "<= 0.3"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exact computation of Pr[y|s] for each s in Z_N, profiles uniform and Gaussian, M in {2,4,16,64,256}; MI by summation.",
+   "controls": [
+    "null/negative: M=1 (no coset structure): MI must be 0",
+    "positive: M=N with uniform profile (Fourier sampling reveals s fully): MI near log N",
+    "A/A: two numerical precisions (float64 vs mpmath 50 digits) on M=16"
+   ]
+  },
+  "falsification_conditions": [
+   "MI gain at M=16 < 1 bit",
+   "Positive control MI < 0.9 log N"
+  ],
+  "confounders": [
+   "Profile choice",
+   "Noise (faulty samples) omitted in base run"
+  ],
+  "interpretation_limits": [
+   "Scale limit: N <= 2^16; information is a lower bound on sample count, not an algorithm",
+   "No claim on Simon's algorithm correctness (Lane 1 owns)"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Gaussian profile width relates to LWE alpha as in BKSW",
+    "rigorous_support": "KN-LIT-4706 abstract states extrapolation varies with noise rate",
+    "validation_plan": "Transcribe exact relation from the paper before mapping regimes"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "N",
+   "best_known": "Kuperberg for DCP",
+   "hidden_overhead": "state preparation",
+   "tradeoff_note": "Information bound"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4706",
+    "provenance": "kb",
+    "citation_text": "Brakerski, Kirshanova, Stehle, Wen, Learning With Errors and Extrapolated Dihedral Cosets",
+    "relation": "same",
+    "delta": "Quantifies per-sample information"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Exact eDCP Fourier MI",
+   "objective": "How much more information an extrapolated sample carries",
+   "instrument": "Python/NumPy, mpmath",
+   "parameters": "log N in {8,12,16}; M in {1,2,4,16,64,256,N}; profiles uniform, Gaussian",
+   "procedure": "1. Compute amplitudes. 2. FFT per s. 3. MI. 4. Controls.",
+   "independent_variables": [
+    {
+     "name": "extrapolation_width_M",
+     "levels": [
+      "1",
+      "2",
+      "16",
+      "64",
+      "256",
+      "N"
+     ]
+    },
+    {
+     "name": "profile",
+     "levels": [
+      "uniform",
+      "gaussian"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "numeric_precision",
+     "treatment": "crossed",
+     "value": "float64 or mpmath50",
+     "how": "both on M=16"
+    },
+    {
+     "name": "log_N",
+     "treatment": "fixed",
+     "value": "8,12,16 reported separately",
+     "how": "per cell"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "M=16",
+      "M=2"
+     ],
+     "differs_in": [
+      "extrapolation_width_M"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "gaussian profile slope"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "float64",
+      "mpmath50"
+     ],
+     "differs_in": [
+      "numeric_precision"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "MI gain over DCP"
+   ],
+   "secondary_metrics": [
+    "slope in log M"
+   ],
+   "preregistered_prediction": {
+    "quantity": "gain at M=16",
+    "formula": ">= 3 bits",
+    "source": "log M scaling of Fourier support"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "N <= 2^16; transfer: MI as function of M/N",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 600,
+    "total_cpu_hours": 1,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop after grid"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A difference > 1e-6 bits invalidates"
+   ],
+   "success_criterion": "C1 gain >= 3 bits (P1) and C2 slope >= 0.8 (P2), AA1 noise floor",
+   "falsification_criterion": "C1 gain < 1 bit or C2 slope <= 0.3",
+   "decision_impact": {
+    "on_positive": "Record eDCP sample-information advantage; motivates eDCP-specific sieve design in Lane 3",
+    "on_negative": "Record that extrapolation adds little information; eDCP route reduces to DCP sample complexity"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "mi_grid.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-d2d713",
+  "title": "Regev's quantum step read in the attack direction: how much BDD-radius shortfall does the iterative DGS-width reduction tolerate?",
+  "class": "mechanism",
+  "claim": "Regev's reduction iterates: DGS samples of width r on the dual plus a BDD oracle of radius ~ alpha q / r yield DGS samples of width r/2. Simulated exactly in dimension 2..3 with a perfect oracle and with oracles whose decoding radius is a factor rho < 1 of the required one, the width stops shrinking once rho falls below a threshold rho* in (0.3, 0.9); an attacker's average-case LWE solver corresponds to rho << rho* for worst-case lattices, making the obstruction quantitative with measured rho*.",
+  "mechanism": "Lane 3 asks whether the asymmetry is definitional or quantitative. The reduction consumes a BDD oracle valid on all lattices; an attacker has at best an average-case solver. Replacing the oracle by one with shrunken radius and measuring whether the iteration still contracts gives a number for the tolerance; the quantifier failure is then that the attacker's oracle fails the 'for all lattices' quantifier at radius rho*.",
+  "tracked_object": "Ratio of output DGS width to input width per iteration, versus oracle radius factor rho, in toy dimension.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "rho_star",
+    "direction": "different",
+    "minimum_effect": "rho* in (0.3, 0.9) with CI width <= 0.1",
+    "falsified_by": "no contraction even at rho=1 (simulation error) or contraction at rho=0.1"
+   },
+   {
+    "id": "P2",
+    "metric": "width_ratio_at_rho1",
+    "direction": "lower",
+    "minimum_effect": "<= 0.55",
+    "falsified_by": ">= 0.8"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exact quantum-step simulation in dimension 2-3 on discretised lattice grids: prepare superposition over lattice points with Gaussian over BDD-decoded offsets, apply QFT, compute output distribution and its effective width.",
+   "controls": [
+    "null/negative: oracle returning random lattice point (rho=0): no contraction",
+    "positive: exact oracle (rho=1): width halves per iteration",
+    "A/A: two grid resolutions"
+   ]
+  },
+  "falsification_conditions": [
+   "rho* outside (0.3,0.9) or contraction absent at rho=1"
+  ],
+  "confounders": [
+   "Grid discretisation",
+   "Toy dimension unrepresentative of smoothing parameter behaviour"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dimension <= 3; rho* is a toy measurement and the transfer to high dimension is an assumption",
+   "Produces an obstruction-map entry candidate, not an attack"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "The contraction threshold is roughly dimension-independent",
+    "rigorous_support": "None",
+    "validation_plan": "Compare d=2 and d=3"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "grid size",
+   "best_known": "n/a",
+   "hidden_overhead": "oracle",
+   "tradeoff_note": "Obstruction quantification"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-21383c",
+    "provenance": "kb",
+    "citation_text": "Regev 2004, Quantum Computation and Lattice Problems",
+    "relation": "adjacent",
+    "delta": "Attack-direction reading with measured tolerance (Regev 2005 LWE reduction recalled)"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Regev, On lattices, learning with errors, random linear codes, and cryptography, STOC 2005 / JACM 2009 (recalled)",
+    "relation": "same",
+    "delta": "Measures oracle-weakness tolerance of its quantum step"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Weakened-oracle iteration of Regev's quantum step",
+   "objective": "Measured tolerance rho* of the quantum step to BDD oracle shortfall",
+   "instrument": "Python/NumPy dense simulation",
+   "parameters": "dimension in {2,3}; grid 256^d; rho in {0,0.1,0.3,0.5,0.7,0.9,1}; 5 random bases",
+   "procedure": "1. Random basis. 2. Initial DGS width. 3. Iterate with oracle radius rho. 4. Measure width ratio. 5. Fit rho*.",
+   "independent_variables": [
+    {
+     "name": "oracle_radius_factor",
+     "levels": [
+      "0",
+      "0.1",
+      "0.3",
+      "0.5",
+      "0.7",
+      "0.9",
+      "1"
+     ]
+    },
+    {
+     "name": "dimension",
+     "levels": [
+      "2",
+      "3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "grid_resolution",
+     "treatment": "crossed",
+     "value": "128 or 256 per axis",
+     "how": "both"
+    },
+    {
+     "name": "basis_seed",
+     "treatment": "randomized",
+     "value": "5",
+     "how": "rng"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "rho=1",
+      "rho=0.5"
+     ],
+     "differs_in": [
+      "oracle_radius_factor"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "fitted rho*"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "grid 128",
+      "grid 256"
+     ],
+     "differs_in": [
+      "grid_resolution"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "rho*"
+   ],
+   "secondary_metrics": [
+    "width ratio per iteration"
+   ],
+   "preregistered_prediction": {
+    "quantity": "rho*",
+    "formula": "in (0.3,0.9)",
+    "source": "smoothing-parameter argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "d <= 3; transfer assumption H1",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 4,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 28
+   },
+   "stopping_rules": [
+    "stop after grid"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "width ratio at rho=1 > 0.6 invalidates"
+   ],
+   "success_criterion": "C2 gives rho* in (0.3,0.9) with CI <= 0.1 and C1 ratio at rho=1 <= 0.55 (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C2 rho* outside the interval or C1 shows no contraction at rho=1",
+   "decision_impact": {
+    "on_positive": "Obstruction map entry: reduction-as-attack fails the worst-case oracle quantifier with measured tolerance rho*",
+    "on_negative": "Tolerance anomalous; re-derive the step before any obstruction entry"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "width_table.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-QLWE-d2d713",
+  "title": "LWE-to-eDCP regime map under three alpha conventions, overlaid on measured DHSP sieve fault tolerance",
+  "class": "composition",
+  "claim": "Using the BKSW reduction (KN-LIT-4706), map each LWE regime (n, q, alpha) to its eDCP parameters (group size, extrapolation width, effective fault rate) under three alpha normalisation conventions (alpha = sigma/q, sqrt(2 pi) sigma/q, and the inverse convention). For n in [64, 1024] and alpha from 1/n^2 to 1/sqrt(n), no regime with q = poly(n) lands at a fault rate below the tolerance measured for Kuperberg sieves at the matching group size; the convention choice shifts regime boundaries by at least a factor sqrt(n), explaining the corpus's unparsable alpha.",
+  "mechanism": "The reduction is a formula; composing it with a measured tolerance curve turns the route into an explicit feasibility map. Writing the three conventions side by side resolves the ambiguity KN-OPEN-8a5965 flags without adjudicating Simon's algorithm.",
+  "tracked_object": "For each (n, q, alpha, convention): eDCP group size, extrapolation width, fault rate, and whether the fault rate is below the measured Kuperberg tolerance.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "regimes_below_tolerance",
+    "direction": "lower",
+    "minimum_effect": "0 regimes with q=poly(n)",
+    "falsified_by": ">= 1 regime with q <= n^4 below tolerance"
+   },
+   {
+    "id": "P2",
+    "metric": "convention_shift_factor",
+    "direction": "higher",
+    "minimum_effect": ">= sqrt(n)",
+    "falsified_by": "< 2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Symbolic transcription of BKSW parameter maps, numeric evaluation on a grid of 200 regimes, overlay with the fault-tolerance curve from the DHSP sieve simulation idea.",
+   "controls": [
+    "null/negative: plain DCP from Regev 2004's original reduction with its quadratic blow-up (known infeasible)",
+    "positive: noise-free LWE (alpha=0), which must map to fault rate 0",
+    "A/A: two independent transcriptions of the parameter map evaluated on the same grid"
+   ]
+  },
+  "falsification_conditions": [
+   ">= 1 polynomial-modulus regime below tolerance",
+   "Transcriptions disagree on > 5% of cells"
+  ],
+  "confounders": [
+   "Tolerance curve extrapolated beyond log N=40",
+   "Constants in BKSW"
+  ],
+  "interpretation_limits": [
+   "Scale limit: depends on an extrapolated tolerance curve; asymptotic map only",
+   "No ML-KEM reach statement (H-MLKEM-7f3a2c owns that)"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "BKSW fault rate is the dominant obstruction",
+    "rigorous_support": "Stated role of extrapolation",
+    "validation_plan": "Report group size and width too"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "Kuperberg composed with Regev gives 2^{O(sqrt n)} gamma",
+   "hidden_overhead": "extrapolation",
+   "tradeoff_note": "Feasibility map"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4706",
+    "provenance": "kb",
+    "citation_text": "BKSW, LWE and Extrapolated Dihedral Cosets",
+    "relation": "same",
+    "delta": "Numerical regime map with three conventions"
+   },
+   {
+    "ref": "KN-LIT-e204ab",
+    "provenance": "kb",
+    "citation_text": "Simon 2026, notation caveat on alpha",
+    "relation": "adjacent",
+    "delta": "Resolves the convention ambiguity only"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "eDCP regime map under three alpha conventions",
+   "objective": "Which LWE regimes the eDCP route can reach given measured sieve tolerance",
+   "instrument": "SageMath symbolic, NumPy, matplotlib",
+   "parameters": "n in {64,128,256,512,1024}; q in {n^2, n^3, n^4, 2^{sqrt n}}; alpha grid 10 points; 3 conventions",
+   "procedure": "1. Transcribe map twice. 2. Evaluate grid. 3. Overlay tolerance. 4. Count reachable regimes.",
+   "independent_variables": [
+    {
+     "name": "alpha_convention",
+     "levels": [
+      "sigma_over_q",
+      "sqrt2pi_sigma_over_q",
+      "inverse"
+     ]
+    },
+    {
+     "name": "modulus_class",
+     "levels": [
+      "n2",
+      "n3",
+      "n4",
+      "subexp"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "transcription_copy",
+     "treatment": "crossed",
+     "value": "A or B",
+     "how": "independent transcriptions"
+    },
+    {
+     "name": "tolerance_curve_version",
+     "treatment": "fixed",
+     "value": "frozen fit",
+     "how": "hash recorded"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "sigma_over_q",
+      "inverse"
+     ],
+     "differs_in": [
+      "alpha_convention"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "reachable regime count"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "transcription A",
+      "transcription B"
+     ],
+     "differs_in": [
+      "transcription_copy"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "reachable regime count"
+   ],
+   "secondary_metrics": [
+    "convention shift factor"
+   ],
+   "preregistered_prediction": {
+    "quantity": "reachable count for q=poly",
+    "formula": "0",
+    "source": "Kuperberg needs error-free samples"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "symbolic; transfer: tolerance curve extrapolation",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 600,
+    "total_cpu_hours": 1,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 6
+   },
+   "stopping_rules": [
+    "stop after grid"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A disagreement > 5% invalidates"
+   ],
+   "success_criterion": "C2 count is 0 for polynomial q (P1) and C1 shift >= sqrt(n) (P2), AA1 noise floor",
+   "falsification_criterion": "C2 count >= 1 for q <= n^4 (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "Obstruction map entry for the eDCP route with explicit regime boundaries and convention table",
+    "on_negative": "Open a costing of the reachable regime end to end under the declared quantum cost model"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "regime_map.csv",
+    "conventions.md",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "One BKZ-simulator calibration for both ML-KEM and ML-DSA lattice shapes: per-index Gram-Schmidt residual of CN11 and sharp simulators",
+  "class": "measurement",
+  "claim": "On q-ary lattices shaped like scaled-down ML-KEM (q=3329, CBD eta=2) and ML-DSA key recovery (q=8380417, eta=2) at dims 80-160, the measured log Gram-Schmidt profile after BKZ-beta (beta 20..50) deviates from the CN11 simulator by a signed residual whose head region (q-vector plateau) differs between the two shapes by at least 0.5 bits in log||b_i*||, while the sharp simulator (KN-LIT-4429) cuts the mean absolute residual by at least 30% on both.",
+  "mechanism": "Both schemes' estimates pass through the same simulator, but ML-DSA's large q keeps a long unreduced q-vector plateau that ML-KEM lacks at matched beta. A residual model fitted per shape tells whether one calibration can serve both. f7c912 calibrates only delta(beta) on ML-KEM shape; this tracks the full profile and the shape-dependent head.",
+  "tracked_object": "Per-index residual log||b_i*||_measured - log||b_i*||_simulated after BKZ-beta tours, per shape and simulator.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "head_residual_shape_gap",
+    "direction": "higher",
+    "minimum_effect": ">= 0.5 bits",
+    "falsified_by": "< 0.2 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "sharp_vs_cn11_mae_reduction",
+    "direction": "higher",
+    "minimum_effect": ">= 30%",
+    "falsified_by": "< 10%"
+   }
+  ],
+  "minimal_test": {
+   "design": "fpylll BKZ 2.0 with 8 tours at beta in {20,30,40,50} on 10 instances per shape and dim; simulate with CN11 and sharp simulators from same initial profile.",
+   "controls": [
+    "null/negative: random q-ary lattices with uniform secret (no short planted vector) of same dims",
+    "positive: profile of a lattice with a planted short vector of known norm at beta large enough to find it (residual spike expected)",
+    "A/A: same shape and beta under two basis randomisations"
+   ]
+  },
+  "falsification_conditions": [
+   "Head gap < 0.2 bits",
+   "Sharp simulator not better than CN11"
+  ],
+  "confounders": [
+   "Tour count",
+   "Floating-point type in fpylll",
+   "Pruning parameters"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 160 and beta <= 50; transfer assumes residual shape is stable in beta; no FIPS 203/204 statement",
+   "Calibration instrument, not a security estimate"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Simulators take the same initial profile as measured",
+    "rigorous_support": "By construction",
+    "validation_plan": "Assert equality before simulation"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "CN11 simulator (KN-LIT-101)",
+   "hidden_overhead": "tours",
+   "tradeoff_note": "Measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-101",
+    "provenance": "kb",
+    "citation_text": "Chen, Nguyen, BKZ 2.0, ASIACRYPT 2011",
+    "relation": "adjacent",
+    "delta": "Simulator being calibrated"
+   },
+   {
+    "ref": "KN-LIT-4429",
+    "provenance": "kb",
+    "citation_text": "Aono et al., Improved Progressive BKZ ... Sharp Simulator",
+    "relation": "adjacent",
+    "delta": "Second simulator"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-f7c912",
+   "IDEA-20260816-08eda1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Profile residuals across ML-KEM and ML-DSA shapes",
+   "objective": "Whether one simulator calibration transfers across the two schemes' lattice shapes",
+   "instrument": "fpylll, BKZ simulators (fpylll.tools.bkz_simulator and sharp re-implementation), NumPy",
+   "parameters": "dims {80,120,160}; beta {20,30,40,50}; 10 instances; shapes kem (q=3329, k=2 module d=dim/2) and dsa (q=8380417)",
+   "procedure": "1. Generate. 2. BKZ. 3. Simulate. 4. Residuals. 5. Controls.",
+   "independent_variables": [
+    {
+     "name": "lattice_shape",
+     "levels": [
+      "kem_shape",
+      "dsa_shape",
+      "uniform_null"
+     ]
+    },
+    {
+     "name": "simulator",
+     "levels": [
+      "cn11",
+      "sharp"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_randomisation_seed",
+     "treatment": "randomized",
+     "value": "2",
+     "how": "unimodular pre-transform"
+    },
+    {
+     "name": "fplll_float_type",
+     "treatment": "fixed",
+     "value": "long double",
+     "how": "frozen"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "kem_shape",
+      "dsa_shape"
+     ],
+     "differs_in": [
+      "lattice_shape"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cn11",
+      "sharp"
+     ],
+     "differs_in": [
+      "simulator"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "kem seed A",
+      "kem seed B"
+     ],
+     "differs_in": [
+      "basis_randomisation_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "head residual gap",
+    "MAE reduction"
+   ],
+   "secondary_metrics": [
+    "tail residual"
+   ],
+   "preregistered_prediction": {
+    "quantity": "head gap",
+    "formula": ">= 0.5 bits",
+    "source": "q-vector plateau length grows with log q"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dims <= 160; transfer by residual stability in beta",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 48
+   },
+   "stopping_rules": [
+    "stop cells exceeding 1 h"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A MAE difference > 0.1 bits invalidates"
+   ],
+   "success_criterion": "C1 head gap >= 0.5 bits and C2 reduction >= 30% (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C1 gap < 0.2 bits or C2 reduction < 10%",
+   "decision_impact": {
+    "on_positive": "Shape-specific residual corrections adopted in both ML-KEM and ML-DSA calibration lanes",
+    "on_negative": "A single shape-agnostic simulator calibration is used for both schemes"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "residuals.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Measure the Grover search-space sizes a quantum sieve would actually face: instrumented G6K bucket/filter sizes priced with QRAM",
+  "class": "measurement",
+  "claim": "KN-LIT-122 prices quantum near-neighbour search from modelled bucket sizes. Instrumenting G6K's bucketed sieve at dims 50-90 on lattices shaped like ML-KEM and ML-DSA key recovery, the measured mean bucket size deviates from the model's prediction by at least 15% at some dimension, and when Grover cost is computed from measured sizes with QRAM priced at 0, 0.1 and 1 gate-equivalents per query, the quantum/classical cost ratio at dim 90 differs from the model's by at least 2 bits at price 1.",
+  "mechanism": "Quantum sieve speedup lives in searching buckets with Grover; its value depends on bucket size distributions (Grover cost sqrt(size), but variance matters since sum of sqrt is not sqrt of mean) and on QRAM loads. Measured distributions replace model means, and both schemes share the same instrument. 472aa2 asserts QRAM inputs are hidden; this measures the input distribution.",
+  "tracked_object": "Distribution of bucket sizes and per-bucket near-neighbour hit counts in G6K bgj1/bdgl sieves, and the induced priced quantum cost.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "bucket_size_model_deviation",
+    "direction": "higher",
+    "minimum_effect": ">= 15% at some dim",
+    "falsified_by": "< 5% at all dims"
+   },
+   {
+    "id": "P2",
+    "metric": "priced_ratio_deviation_bits_price1",
+    "direction": "higher",
+    "minimum_effect": ">= 2 bits at dim 90",
+    "falsified_by": "< 0.5 bits"
+   }
+  ],
+  "minimal_test": {
+   "design": "G6K pump with bdgl at dims 50,60,70,80,90 on 5 instances per shape; log every bucket size; compute sum sqrt(size) Grover iterations and QRAM loads; compare with model.",
+   "controls": [
+    "null/negative: random lattices of same det/dim",
+    "positive: synthetic bucket logs drawn from the model law must give deviation < 2%",
+    "A/A: two seeds per shape"
+   ]
+  },
+  "falsification_conditions": [
+   "Deviation < 5% everywhere",
+   "Positive control deviation > 2%"
+  ],
+  "confounders": [
+   "G6K parameter defaults",
+   "Threading",
+   "Bucket count"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 90; quantum cost modelled from classical logs; no FIPS verdict; QALG owns ML-KEM quantum sieving verdicts, this provides an instrument only",
+   "Priced at 0/0.1/1 per query; order must hold across the band to rank"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Grover per bucket costs sqrt(size) iterations",
+    "rigorous_support": "Standard (recalled)",
+    "validation_plan": "Sensitivity with amplitude-amplification overhead factor pi/4"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.257b} (recalled)",
+   "memory_exponent": "2^{0.2075b}",
+   "best_known": "KN-LIT-122 estimates",
+   "hidden_overhead": "QRAM per query",
+   "tradeoff_note": "Measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-122",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Gheorghiu, Postlethwaite, Schanck 2020",
+    "relation": "same",
+    "delta": "Measured distributions replace modelled means"
+   },
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "G6K, 2019",
+    "relation": "adjacent",
+    "delta": "Instrumented implementation"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-472aa2",
+   "IDEA-20260816-7bc28c",
+   "IDEA-20260805-fc6361"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "G6K bucket-size logging and QRAM pricing",
+   "objective": "Gap between modelled and measured Grover search-space inputs",
+   "instrument": "G6K (patched to log buckets), Python",
+   "parameters": "dims {50,60,70,80,90}; 5 instances per shape; QRAM price {0,0.1,1}",
+   "procedure": "1. Patch logging. 2. Run pumps. 3. Aggregate. 4. Price. 5. Compare to model.",
+   "independent_variables": [
+    {
+     "name": "lattice_shape",
+     "levels": [
+      "kem_shape",
+      "dsa_shape",
+      "random_null"
+     ]
+    },
+    {
+     "name": "dimension",
+     "levels": [
+      "50",
+      "60",
+      "70",
+      "80",
+      "90"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "2 blocks",
+     "how": "rng"
+    },
+    {
+     "name": "qram_price",
+     "treatment": "crossed",
+     "value": "0,0.1,1",
+     "how": "post-hoc"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "kem_shape",
+      "random_null"
+     ],
+     "differs_in": [
+      "lattice_shape"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "measured vs model deviation"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "seed A",
+      "seed B"
+     ],
+     "differs_in": [
+      "instance_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "bucket size deviation",
+    "priced ratio deviation"
+   ],
+   "secondary_metrics": [
+    "hit count per bucket"
+   ],
+   "preregistered_prediction": {
+    "quantity": "deviation",
+    "formula": ">= 15%",
+    "source": "variance of bucket sizes"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dims <= 90; transfer: deviation trend in dim",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop dims exceeding 2 h"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive control > 2% invalidates"
+   ],
+   "success_criterion": "C2 deviation >= 15% and priced difference >= 2 bits (P1, P2), C1 shape effect reported, AA1 noise floor",
+   "falsification_criterion": "C2 deviation < 5% at all dims and priced difference < 0.5 bits",
+   "decision_impact": {
+    "on_positive": "Measured bucket laws become the shared quantum-sieve input for ML-KEM and ML-DSA cost work",
+    "on_negative": "Model means adopted as adequate; no instrument change"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "bucket_logs.parquet (S3 per data rule)",
+    "priced.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Measured pruned-enumeration tree sizes on reduced blocks from both schemes' lattices against the GSA prediction quantum enumeration uses",
+  "class": "measurement",
+  "claim": "Quantum enumeration cost estimates (KN-LIT-3072) take classical tree size T from a GSA-based formula. On BKZ-reduced projected blocks (block dim 40-64) of ML-KEM- and ML-DSA-shaped lattices, the measured log2 T exceeds the GSA prediction by at least 1.5 bits at block dim 64, because the measured profile's tail deviates from GSA, and the deviation propagates to the sqrt(T) quantum cost as at least 0.75 bits.",
+  "mechanism": "Enumeration cost is exponentially sensitive to the profile; GSA is known to be wrong at the tail. Measuring T exactly and comparing with prediction from the GSA versus measured profile isolates the profile error. 70e41d measures classical crossover vs memory price; this measures the quantum enumeration input.",
+  "tracked_object": "Exact node count T vs GSA-predicted T for identical pruning and radius on reduced blocks.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2_T_minus_gsa_pred_dim64",
+    "direction": "higher",
+    "minimum_effect": ">= 1.5 bits",
+    "falsified_by": "<= 0.3 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "pred_from_measured_profile_error",
+    "direction": "lower",
+    "minimum_effect": "<= 0.3 bits",
+    "falsified_by": ">= 1 bit (node-count model itself off)"
+   }
+  ],
+  "minimal_test": {
+   "design": "fpylll enumeration with fixed extreme-pruning coefficients on last blocks after BKZ-30, 20 instances per shape and block dim; predictions from GSA and from measured profile.",
+   "controls": [
+    "null/negative: random lattices",
+    "positive: synthetic exact-GSA profile basis (constructed) where prediction must match within 0.3 bits",
+    "A/A: two basis randomisations"
+   ]
+  },
+  "falsification_conditions": [
+   "Deviation <= 0.3 bits at block dim 64"
+  ],
+  "confounders": [
+   "Pruning coefficient choice",
+   "Radius",
+   "Tour count"
+  ],
+  "interpretation_limits": [
+   "Scale limit: block dim <= 64; transfer assumes tail-deviation persists; no FIPS verdict",
+   "Input calibration for quantum enumeration, cost of quantum circuits modelled not measured"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Quantum cost scales as sqrt(T)",
+    "rigorous_support": "Montanaro backtracking (recalled via KN-LIT-3072)",
+    "validation_plan": "Report T primary"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "sqrt of classical enumeration",
+   "memory_exponent": "poly",
+   "best_known": "KN-LIT-3072",
+   "hidden_overhead": "tree depth",
+   "tradeoff_note": "Measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-3072",
+    "provenance": "kb",
+    "citation_text": "Bai, Lange, Ngo et al., Concrete Analysis of Quantum Lattice Enumeration",
+    "relation": "same",
+    "delta": "Measured T replaces GSA-predicted T"
+   },
+   {
+    "ref": "KN-LIT-102",
+    "provenance": "kb",
+    "citation_text": "Gama-Nguyen-Regev 2010",
+    "relation": "adjacent",
+    "delta": "Pruning"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-70e41d"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Enumeration tree size vs GSA prediction",
+   "objective": "Size of the GSA-induced error in quantum enumeration inputs",
+   "instrument": "fpylll, NumPy",
+   "parameters": "block dims {40,48,56,64}; BKZ-30; 20 instances per shape",
+   "procedure": "1. Reduce. 2. Enumerate with node count. 3. Predict two ways. 4. Compare.",
+   "independent_variables": [
+    {
+     "name": "prediction_source",
+     "levels": [
+      "gsa",
+      "measured_profile"
+     ]
+    },
+    {
+     "name": "block_dim",
+     "levels": [
+      "40",
+      "48",
+      "56",
+      "64"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_randomisation_seed",
+     "treatment": "randomized",
+     "value": "2",
+     "how": "unimodular"
+    },
+    {
+     "name": "lattice_shape",
+     "treatment": "crossed",
+     "value": "kem, dsa",
+     "how": "both shapes"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "gsa",
+      "measured_profile"
+     ],
+     "differs_in": [
+      "prediction_source"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "log2 T - gsa at 64"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "seed A",
+      "seed B"
+     ],
+     "differs_in": [
+      "basis_randomisation_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 T deviation"
+   ],
+   "secondary_metrics": [
+    "per-level node distribution"
+   ],
+   "preregistered_prediction": {
+    "quantity": "deviation at 64",
+    "formula": ">= 1.5 bits",
+    "source": "GSA tail error"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "block dim <= 64",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 32
+   },
+   "stopping_rules": [
+    "stop at T > 2^40"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A > 0.5 bits invalidates"
+   ],
+   "success_criterion": "C2 deviation >= 1.5 bits and C1 measured-profile error <= 0.3 bits (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C2 deviation <= 0.3 bits",
+   "decision_impact": {
+    "on_positive": "Quantum-enumeration inputs in both schemes' cost work use measured-profile predictions",
+    "on_negative": "GSA retained for enumeration inputs"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "tree_sizes.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "A shared A/A noise-floor registry for lattice-reduction measurements: minimum detectable effect per instrument, shape and dimension",
+  "class": "control",
+  "claim": "Across BKZ (fpylll) and sieving (G6K) measurements on ML-KEM- and ML-DSA-shaped lattices, run-to-run variability from basis randomisation, instance sampling and thread scheduling sets a minimum detectable effect (MDE at 80% power) of at least 0.3 bits for log-cost quantities at dims 60-100. Several calibration proposals in this RQ target effects at or below that size, so without the registry their outcomes cannot be distinguished from noise.",
+  "mechanism": "Every comparison needs an A/A noise floor, but each proposal measures it ad hoc and with few repeats. A dedicated registry with many repeats per nuisance factor provides variance components (instance vs basis vs scheduling) shared by both schemes' lanes, turning each proposal's minimum_effect into a checkable power statement.",
+  "tracked_object": "Variance components of log2 cost (BKZ time-to-target, sieve ops to saturation, success beta) per nuisance factor, and the derived MDE.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "mde_bits_dim80",
+    "direction": "higher",
+    "minimum_effect": ">= 0.3 bits",
+    "falsified_by": "< 0.1 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "basis_randomisation_share",
+    "direction": "higher",
+    "minimum_effect": ">= 40% of variance",
+    "falsified_by": "< 10%"
+   }
+  ],
+  "minimal_test": {
+   "design": "Nested design: 10 instances x 5 basis randomisations x 2 thread counts, for BKZ-40 and G6K pump at dims 60,80,100 on both shapes; random-effects ANOVA.",
+   "controls": [
+    "null/negative: identical instance, identical basis, single thread (pure determinism check: variance must be 0 for op counts)",
+    "positive: inject a known 0.5-bit cost offset in one arm; the registry's test must detect it at 80% power",
+    "A/A: the full design repeated on two days/hosts"
+   ]
+  },
+  "falsification_conditions": [
+   "MDE < 0.1 bits",
+   "Positive injected effect not detected"
+  ],
+  "confounders": [
+   "Host noise for wall-clock metrics (use op counts primarily)"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 100; variance scaling extrapolated; no security statement",
+   "Tooling/control result"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Op counts are deterministic given seeds",
+    "rigorous_support": "fpylll and G6K deterministic modulo threading",
+    "validation_plan": "Determinism control"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "n/a",
+   "hidden_overhead": "repeats",
+   "tradeoff_note": "Noise floor"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Standard random-effects variance-components ANOVA (textbook, e.g. Searle, Casella, McCulloch, Variance Components, 1992)",
+    "relation": "adjacent",
+    "delta": "Applied as a shared registry for lattice instruments"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260829-cca84c",
+   "IDEA-20260816-08eda1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Variance-component registry for lattice measurements",
+   "objective": "The noise floor every calibration in RQ-MLKEM-003 and ML-DSA lanes must beat",
+   "instrument": "fpylll, G6K, statsmodels",
+   "parameters": "dims {60,80,100}; 10 instances x 5 basis seeds x 2 thread counts; shapes kem, dsa",
+   "procedure": "1. Generate. 2. Run nested design. 3. ANOVA. 4. MDE. 5. Injected-effect check.",
+   "independent_variables": [
+    {
+     "name": "instrument",
+     "levels": [
+      "bkz40_fpylll",
+      "g6k_pump"
+     ]
+    },
+    {
+     "name": "dimension",
+     "levels": [
+      "60",
+      "80",
+      "100"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_randomisation_seed",
+     "treatment": "randomized",
+     "value": "5",
+     "how": "nested"
+    },
+    {
+     "name": "thread_count",
+     "treatment": "crossed",
+     "value": "1 or 8",
+     "how": "both"
+    },
+    {
+     "name": "host_day",
+     "treatment": "crossed",
+     "value": "two runs",
+     "how": "repeat"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "bkz40_fpylll",
+      "g6k_pump"
+     ],
+     "differs_in": [
+      "instrument"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "MDE per cell"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "run day 1",
+      "run day 2"
+     ],
+     "differs_in": [
+      "host_day"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "MDE bits"
+   ],
+   "secondary_metrics": [
+    "variance shares"
+   ],
+   "preregistered_prediction": {
+    "quantity": "MDE at dim 80",
+    "formula": ">= 0.3 bits",
+    "source": "typical lattice-reduction variability"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dims <= 100",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 80,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 120
+   },
+   "stopping_rules": [
+    "stop when CI on each variance share < 10%"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "determinism control failure invalidates op-count metrics"
+   ],
+   "success_criterion": "C2 MDE >= 0.3 bits with P2 share >= 40%, C1 contrasts instruments, AA1 noise floor",
+   "falsification_criterion": "C2 MDE < 0.1 bits",
+   "decision_impact": {
+    "on_positive": "Registry adopted; proposals with minimum_effect below MDE must enlarge samples",
+    "on_negative": "Noise is negligible; proposals proceed with current sample sizes"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "variance_components.csv",
+    "mde_table.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Memory-capped sieving: success and cost when G6K's database is held below the 2^{0.2075n} list size, on both schemes' lattices",
+  "class": "measurement",
+  "claim": "Holding G6K's database size factor below 1 (0.5, 0.7, 0.85 of default) at dims 60-90 on ML-KEM- and ML-DSA-shaped lattices, the saturation success probability falls below 0.5 at a factor of about 0.7, and the cost-memory tradeoff exponent (d log time / d log memory) near the floor is at least -2, so memory-charged cost with an area-time price cannot be lowered by more than 2 bits by shrinking memory.",
+  "mechanism": "Memory-charged cost models (area x time) reward smaller memory only if time does not explode. The tradeoff near the minimal list size is unmeasured; 7bc28c prices access pattern, fc6361 counts saturation balls at full size, 70e41d moves the crossover with memory price. This measures the time penalty of capping memory directly, one instrument for both schemes.",
+  "tracked_object": "Saturation success probability and op count to saturation as functions of database cap, per dimension and shape.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "cap_at_half_success",
+    "direction": "different",
+    "minimum_effect": "factor in [0.6, 0.8]",
+    "falsified_by": "outside [0.5, 0.9]"
+   },
+   {
+    "id": "P2",
+    "metric": "tradeoff_slope_near_floor",
+    "direction": "lower",
+    "minimum_effect": "<= -2",
+    "falsified_by": ">= -1"
+   }
+  ],
+  "minimal_test": {
+   "design": "G6K pump with db_size_factor in {0.5,0.7,0.85,1.0,1.2}; 10 instances per cell; dims 60,70,80,90.",
+   "controls": [
+    "null/negative: random lattices of matching det",
+    "positive: db factor 1.2 must give success >= 0.95",
+    "A/A: two seeds at factor 1.0"
+   ]
+  },
+  "falsification_conditions": [
+   "Success at factor 0.5 >= 0.5",
+   "Slope >= -1"
+  ],
+  "confounders": [
+   "Saturation criterion definition",
+   "Bucket parameters adapting to db size"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 90; area-time pricing is modelled; no FIPS verdict",
+   "Constant-level result about memory exponent near floor"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Saturation success at small dims predicts larger dims",
+    "rigorous_support": "None",
+    "validation_plan": "Check trend over 60-90"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.292n}",
+   "memory_exponent": "2^{0.2075n}",
+   "best_known": "BDGL",
+   "hidden_overhead": "memory access",
+   "tradeoff_note": "Tradeoff near floor"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "G6K 2019",
+    "relation": "adjacent",
+    "delta": "Database factor knob measured below default"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-fc6361",
+   "IDEA-20260816-7bc28c",
+   "IDEA-20260816-70e41d"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Capped database sieving",
+   "objective": "Time penalty of memory caps near the list-size floor",
+   "instrument": "G6K, Python",
+   "parameters": "dims {60,70,80,90}; db factor {0.5,0.7,0.85,1.0,1.2}; 10 instances; shapes kem, dsa",
+   "procedure": "1. Generate. 2. Pump at each cap. 3. Record success and ops. 4. Fit slope.",
+   "independent_variables": [
+    {
+     "name": "db_size_factor",
+     "levels": [
+      "0.5",
+      "0.7",
+      "0.85",
+      "1.0",
+      "1.2"
+     ]
+    },
+    {
+     "name": "lattice_shape",
+     "levels": [
+      "kem_shape",
+      "dsa_shape",
+      "random_null"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "2 blocks",
+     "how": "rng"
+    },
+    {
+     "name": "thread_count",
+     "treatment": "fixed",
+     "value": "8",
+     "how": "frozen"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "factor 0.7",
+      "factor 1.0"
+     ],
+     "differs_in": [
+      "db_size_factor"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "fitted slope"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "factor 1.0 seed A",
+      "seed B"
+     ],
+     "differs_in": [
+      "instance_seed"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "success vs cap",
+    "tradeoff slope"
+   ],
+   "secondary_metrics": [
+    "ops to saturation"
+   ],
+   "preregistered_prediction": {
+    "quantity": "cap at half success",
+    "formula": "about 0.7",
+    "source": "list must cover enough of the sphere"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dims <= 90",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 80,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 60
+   },
+   "stopping_rules": [
+    "stop cells with success 0 in 5 consecutive runs"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "positive control < 0.95 invalidates"
+   ],
+   "success_criterion": "C1 shows success drop and C2 slope <= -2 (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C2 slope >= -1 or success at 0.5 >= 0.5",
+   "decision_impact": {
+    "on_positive": "Memory-charged costs for both schemes use the measured near-floor slope",
+    "on_negative": "Memory caps are cheap; reopen memory-charged estimates with smaller memory"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "cap_results.csv",
+    "report.pdf"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Held-out cross-shape validation of lattice-estimator residuals: fit on ML-KEM-shaped instances, predict ML-DSA key-recovery instances",
+  "class": "control",
+  "claim": "A residual correction for the lattice-estimator's primal-uSVP success blocksize, fitted on scaled-down ML-KEM-shaped MLWE (q=3329, eta=2), predicts measured success blocksizes on scaled-down ML-DSA key-recovery MLWE (q=8380417, eta=2, rank (k,l)) with mean absolute error at most 2 blocksize units at dims 100-180; if the error exceeds 5, residuals are shape-specific and cannot be borrowed across the two schemes.",
+  "mechanism": "08eda1 measures residuals but within one shape; the two schemes share the estimator but differ hugely in q/sigma. A held-out shape is the right test of transfer, and is cheap because ML-DSA key recovery is itself MLWE.",
+  "tracked_object": "Measured minimal BKZ blocksize at which primal-uSVP succeeds with probability >= 0.5, versus estimator prediction with and without the KEM-fitted correction.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "holdout_mae_beta",
+    "direction": "lower",
+    "minimum_effect": "<= 2",
+    "falsified_by": ">= 5"
+   },
+   {
+    "id": "P2",
+    "metric": "in_shape_mae_beta",
+    "direction": "lower",
+    "minimum_effect": "<= 1.5",
+    "falsified_by": ">= 3 (fit itself poor)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Progressive BKZ on 20 instances per dim per shape, record success beta; fit linear residual model on KEM shape dims 100-180; predict DSA shape.",
+   "controls": [
+    "null/negative: predict DSA with no correction (raw estimator)",
+    "positive: refit on DSA itself (in-shape) must give MAE <= 1.5",
+    "A/A: two instance seed blocks on KEM fit"
+   ]
+  },
+  "falsification_conditions": [
+   "Holdout MAE >= 5",
+   "In-shape MAE >= 3"
+  ],
+  "confounders": [
+   "Pinned estimator commit",
+   "Success definition",
+   "Progressive schedule"
+  ],
+  "interpretation_limits": [
+   "Scale limit: dims <= 180 (beta <= ~60); transfer to FIPS dims is an extrapolation; no FIPS 203/204 claim",
+   "Validation of an instrument's transfer, not a security number"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Residual is smooth in dimension",
+    "rigorous_support": "None",
+    "validation_plan": "Check with leave-one-dim-out"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "n/a",
+   "best_known": "lattice-estimator primal_usvp (KN-LIT-061 lineage)",
+   "hidden_overhead": "pinned commit",
+   "tradeoff_note": "Transfer test"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of LWE, 2015",
+    "relation": "adjacent",
+    "delta": "Estimator lineage whose residual transfer is tested"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-08eda1",
+   "IDEA-20260829-217643"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "KEM-to-DSA residual transfer",
+   "objective": "Whether estimator corrections can be shared across the two schemes",
+   "instrument": "fpylll progressive BKZ, lattice-estimator pinned commit, NumPy",
+   "parameters": "dims {100,120,140,160,180}; 20 instances per dim per shape",
+   "procedure": "1. Generate. 2. Measure success beta. 3. Fit on KEM. 4. Predict DSA. 5. Controls.",
+   "independent_variables": [
+    {
+     "name": "correction_source",
+     "levels": [
+      "kem_fit",
+      "none_raw",
+      "dsa_in_shape"
+     ]
+    },
+    {
+     "name": "dimension",
+     "levels": [
+      "100",
+      "120",
+      "140",
+      "160",
+      "180"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "instance_seed_block",
+     "treatment": "randomized",
+     "value": "2 blocks of 10",
+     "how": "rng"
+    },
+    {
+     "name": "estimator_commit",
+     "treatment": "fixed",
+     "value": "pinned",
+     "how": "hash recorded"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "kem_fit",
+      "none_raw"
+     ],
+     "differs_in": [
+      "correction_source"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "kem_fit holdout MAE"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "kem block A",
+      "kem block B"
+     ],
+     "differs_in": [
+      "instance_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "holdout MAE"
+   ],
+   "secondary_metrics": [
+    "in-shape MAE"
+   ],
+   "preregistered_prediction": {
+    "quantity": "holdout MAE",
+    "formula": "<= 2",
+    "source": "residual driven by profile, not q"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dims <= 180",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 100,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop dims where success beta > 65"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "A/A fit difference > 1 invalidates"
+   ],
+   "success_criterion": "C2 holdout MAE <= 2 and C1 improves over raw (P1, P2), AA1 noise floor",
+   "falsification_criterion": "C2 holdout MAE >= 5 (P1 falsified)",
+   "decision_impact": {
+    "on_positive": "One residual correction used for both ML-KEM and ML-DSA estimates",
+    "on_negative": "Residual corrections recorded as shape-specific; each scheme calibrates separately"
+   },
+   "required_artifacts": [
+    "manifest.yaml (frozen protocol, tool versions, seeds, git commit)",
+    "raw-result.json (per-trial records)",
+    "success_beta.csv",
+    "fit.json",
+    "report.pdf"
+   ]
+  }
+ }
+]

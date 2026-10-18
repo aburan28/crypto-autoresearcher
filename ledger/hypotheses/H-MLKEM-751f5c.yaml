@@ -1,0 +1,72 @@
+# HYPOTHESIS -- H-MLKEM-751f5c, specified from IDEA-20261018-f709ae. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-751f5c
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-f709ae
+  added: '2026-10-18'
+  statement: >-
+    In FIPS 203, (K, r) = G(m || H(ek)), so the encryption randomness of a ciphertext depends
+    on the target public key and weak-ciphertext precomputation cannot be shared across keys.
+    A Kyber-round-1-style variant without H(ek) in G lets one precomputed weak set be reused
+    against T keys, with measured cost per first failure falling by a factor >= T/2 for T
+    up to 64. With key binding the amortization factor must be 1 within the A/A noise. This
+    turns an argued property into a measured control for every multi-target failure claim.
+  mechanism: >-
+    Weak ciphertexts are selected by properties of (r, e1, e2), which in the FO transform
+    are derived from m and, in FIPS 203, from H(ek). Without binding, a filtered m works for
+    any key; with binding, each key needs its own search. D'Anvers-Batsleer multitarget attacks
+    rely on reuse; the binding should remove it exactly, but this has not been measured at
+    the level of the filtering pipeline.
+  assumptions:
+  - G and H behave as random oracles.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: G and H behave as random oracles.
+    random_model_justification: FO analysis assumption.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-6f4c51
+    falsification_condition: Use SHA3/SHAKE as in FIPS 203; no structural test needed beyond
+      the null arm.
+  predictions:
+  - metric: A(64) unbound
+    direction: higher
+    minimum_effect: '>= 32'
+  - metric: A(64) bound (FIPS 203)
+    direction: lower
+    minimum_effect: within [0.8,1.25]
+  test_boundary:
+    instances:
+    - >-
+      n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; T in {1,4,16,64}; filter 2^-10; 5 repetitions
+    parameters:
+      scale_tier: toy
+      scale_justification: binding is parameter independent; reduced params only affect failure
+        counts
+    implementation: >-
+      C reference ML-KEM (parameterized) with a compile-time switch for H(ek) in G; Python
+      analysis
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 20
+      maximum_memory_gb: 8
+      maximum_runs: 80
+  distinguishable_outcomes:
+  - A(64) < 8
+  - A(64) > 1.5, meaning binding leaks reuse
+  falsification_conditions:
+  - P2 violated
+  - P1 violated (pipeline cannot show reuse even when allowed; batch invalid)
+  interpretation_limits:
+  - >-
+    Reduced, elevated-DFR parameters; a control establishing the property, not a cost at FIPS
+    DFR
+  - says nothing about implementations that omit or mis-hash H(ek)
+  status: specified
+  proposed_by: idea-generator

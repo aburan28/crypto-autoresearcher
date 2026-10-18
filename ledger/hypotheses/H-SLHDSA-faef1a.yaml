@@ -1,0 +1,74 @@
+# HYPOTHESIS -- H-SLHDSA-faef1a, specified from IDEA-20261018-782c3e. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-faef1a
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-782c3e
+  added: '2026-10-18'
+  statement: >-
+    A fault that skips delta iterations in the chain function when computing a WOTS+ signature
+    releases chain value at position b_i - delta instead of b_i, permanently granting positions
+    >= b_i - delta for that chain. At w=16 with len=35 (n reduced), a single 1-iteration skip
+    in one chain raises the single-signature domination probability by a factor predicted
+    by the domination count, and three skip faults on the same top-layer key suffice for a
+    verified forgery in at least half of trials; bit-flip faults of equal count (the graded
+    model of IDEA-20260816-698819) need at least 4x more.
+  mechanism: >-
+    Bit-flip faults corrupt a value, which mostly yields garbage the attacker cannot use;
+    an iteration-skip yields a valid chain value lower in the chain, which is exactly what
+    WOTS+ forgery needs. Because top-layer keys are reused across all signatures, a skip on
+    them accumulates. The fault model is therefore qualitatively stronger per fault, and countermeasures
+    that check output consistency (recompute the WOTS public key) detect it while those that
+    only duplicate data do not.
+  assumptions:
+  - Skip faults are uniformly located among chains and iterations
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Skip faults are uniformly located among chains and iterations
+    random_model_justification: modelling choice
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-a6c6d8
+    falsification_condition: report per-location breakdown
+  predictions:
+  - metric: faults to verified forgery, skip model, median
+    direction: lower
+    minimum_effect: <= 3
+  - metric: ratio bit-flip/skip faults to forgery
+    direction: higher
+    minimum_effect: '>= 4'
+  - metric: detection by WOTS pk recompute
+    direction: higher
+    minimum_effect: 100% of skip faults detected in 10^4
+  test_boundary:
+    instances:
+    - w=16; len1=32 (n=16 bytes reduced output); h=8,d=2; 200 trials per cell; grinding 2^24
+    parameters:
+      scale_tier: toy
+      scale_justification: 'reduced h,d; transfer: per-chain mechanism independent of h'
+    implementation: Python 3 toy signer with fault hooks; independent verifier
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 6
+      maximum_memory_gb: 4
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - median above 3
+  - below 4
+  - any undetected
+  falsification_conditions:
+  - median skip faults to forgery above 3
+  - bit-flip ratio under 4
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - 'Deployment-class result: simulated fault model, not a hash-assumption statement.'
+  status: specified
+  proposed_by: idea-generator

@@ -1,0 +1,77 @@
+# HYPOTHESIS -- H-MLDSA-304ea5, specified from IDEA-20261018-0faaef. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-304ea5
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-0faaef
+  added: '2026-10-18'
+  statement: >-
+    The SelfTargetMSIS hash arm predicts that a forger who tries random short z and random
+    challenge c needs |image(SampleInBall)| trials, with no lattice work. For three plausible
+    SampleInBall defects (sign bits from only s bytes of the XOF, position loop seeded from
+    a truncated c_tilde, and tau' < tau nonzeros), the measured median trials to a verifying
+    forgery at real ML-DSA-44 are within a factor 2 of the exactly counted image size for
+    image sizes 2^16 to 2^32, and the honest arm's |B_tau| = C(256, tau) 2^tau gives log2
+    = 192.76 by exact arithmetic, consistent with the same model.
+  mechanism: >-
+    The verifier accepts if c_tilde equals H(mu || w1Encode(UseHint(h, A z - c t1 2^d))).
+    A forger who picks z with ||z||_inf < gamma1 - beta and h = 0 computes w1 directly; success
+    requires the hash to land on the challenge whose SampleInBall image is c, probability
+    1/|image| when the challenge was chosen uniformly from the image. The honest cost 2^192.76
+    is unmeasurable, but the hash arm is a pure counting argument, so defective images let
+    the arm be exercised end to end and its constant measured, which is the cheapest calibration
+    of the arm's model that exists.
+  assumptions:
+  - the hash output behaves uniformly over c_tilde so success is 1/|image| per trial
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: the hash output behaves uniformly over c_tilde so success is 1/|image|
+      per trial
+    random_model_justification: standard ROM modelling of SHAKE256
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-eed16d
+    falsification_condition: chi-square of image hits over 2^24 trials at image 2^16
+  predictions:
+  - metric: log2 median trials - log2 |image|
+    direction: different
+    minimum_effect: within [-1, +1] for image sizes 2^16..2^32
+  - metric: forgeries against honest verifier
+    direction: different
+    minimum_effect: zero in the same total trial budget (2^36)
+  test_boundary:
+    instances:
+    - >-
+      ML-DSA-44; defects: sign_bytes s in {2,3,4} (images ~2^16..2^32), truncated seed t in
+      {16,24,32} bits, tau' in {1,2,3}; 50 forgeries per cell; total budget 2^36 trials
+    parameters:
+      scale_tier: crypto
+      scale_justification: >-
+        real ML-DSA-44 arithmetic and hash; only the challenge image is reduced, which is
+        the variable
+    implementation: C (patched PQClean ML-DSA-44 verify) driven from Python; exact image enumeration
+      in C
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - outside [-2, +2] at any size
+  - any honest-verifier acceptance
+  falsification_conditions:
+  - median trials deviate from |image| by more than factor 4
+  - honest verifier accepts a forgery
+  interpretation_limits:
+  - >-
+    real parameters, but the challenge space is reduced by construction; no statement about
+    the 2^192.76 arm beyond confirming the counting model
+  - >-
+    a defect must exist in the VERIFIER for forgery; signer-side defects are a separate question
+  status: specified
+  proposed_by: idea-generator

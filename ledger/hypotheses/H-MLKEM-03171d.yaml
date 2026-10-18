@@ -1,0 +1,106 @@
+# HYPOTHESIS -- H-MLKEM-03171d, specified from IDEA-20261018-6a1f41. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-03171d
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-6a1f41
+  added: '2026-10-18'
+  statement: >-
+    Each decryption failure observed for an attacker-generated ML-KEM ciphertext conditions
+    the secret (s,e) to satisfy |<(s,e),c> + known| > q/4 along a public direction c built
+    from (r,e1,e2). Integrated as approximate hints (truncated-Gaussian posterior along c)
+    in the DDGR distorted-BDD framework, F failures lower the measured success block size
+    of progressive BKZ on reduced instances by at least 2 per failure over the first 4 failures,
+    and the DDGR leaky-LWE estimator predicts the measured success beta within +-3. If the
+    measured drop is within the A/A noise floor, or the estimator misses by more than 5, the
+    claim is false.
+  mechanism: >-
+    Failure-boosting literature (D'Anvers et al.) uses failures to estimate a secret direction
+    and then argues a lattice gain informally. DDGR shows any linear hint with a known posterior
+    can be folded into the BDD ellipsoid, shrinking the volume along c. A failure is a one-sided
+    inequality on a projection, whose posterior has variance reduced and mean shifted away
+    from 0; the variance reduction along c is the information gained. Because the conditioning
+    is along F nearly independent directions, the lattice dimension effectively loses roughly
+    a fraction of a dimension per failure. Measuring this directly closes the gap between
+    the failure-oracle cost (query count) and the lattice cost that follows.
+  assumptions:
+  - >-
+    The posterior of <(s,e),c> conditioned on failure is well approximated by a truncated
+    Gaussian.
+  - Failures from different ciphertexts give nearly independent directions.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: >-
+      The posterior of <(s,e),c> conditioned on failure is well approximated by a truncated
+      Gaussian.
+    random_model_justification: CLT over n*k CBD terms; DDGR use the same approximation for
+      approximate hints.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-641142
+    falsification_condition: >-
+      Compare empirical conditioned moments from 10^6 simulated failures at n=64 against the
+      truncated-Gaussian moments (KS test).
+  - id: HEUR-002
+    formal_statement: Failures from different ciphertexts give nearly independent directions.
+    random_model_justification: Random r,e1 directions are nearly orthogonal in dimension
+      2kn.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-641142
+    falsification_condition: Report the Gram matrix of the F normalized directions; max off-diagonal
+      |cos| logged.
+  predictions:
+  - metric: mean beta*(F=0) - beta*(F=4)
+    direction: higher
+    minimum_effect: '>= 8 block-size units at n=64,k=2'
+  - metric: '|beta*_measured - beta*_DDGR_predicted| at F in {1,2,4,8}'
+    direction: lower
+    minimum_effect: <= 3 units at every F
+  - metric: beta* drop for non-failure hints (null arm)
+    direction: lower
+    minimum_effect: <= 1 unit at matched hint count
+  test_boundary:
+    instances:
+    - >-
+      n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=4; 30 keys; F in {0,1,2,4,8}; candidate
+      encapsulations up to 2^26 per key filtered to the top 2^-10 by ||(r,e1)||; G6K progressive
+      pumps from beta=30 in steps of 2 up to 110; embedding dimension 2kn+1=257
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        reduced ML-KEM shape: ring Z_3329[X]/(X^n+1) with n in {32,64}, module rank k=2, CBD(eta)
+        secrets/errors; transfer assumption: the measured ratio (not the absolute cost) carries
+        to n=256 when the governing statistic scales as stated; no FIPS 203 claim is made
+    implementation: >-
+      Python 3, SageMath 10, leaky-LWE-estimator (DDGR framework), G6K pump/progressive BKZ
+      via fpylll, NumPy; reduced ML-KEM keygen/encaps written from FIPS 203 pseudocode with
+      n parameterized
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 48
+      maximum_memory_gb: 16
+      maximum_runs: 300
+  distinguishable_outcomes:
+  - drop below the AA1 noise floor or below 4 units
+  - any F with absolute miss > 5 units
+  - null arm drop >= 3 units, meaning the pipeline leaks secret information
+  falsification_conditions:
+  - 'P1 fails: failure-hint arm beta* within noise of the no-hint arm at F=4'
+  - >-
+    positive control fails to show >= 0.7 dimension per perfect hint (pipeline broken; the
+    batch is invalid, not negative)
+  - null arm shows a material drop (leakage in the harness)
+  interpretation_limits:
+  - >-
+    Reduced n=64 and raised eta: the result is a calibration of the hint-integration step,
+    not an ML-KEM failure attack cost; at FIPS 203 the dominant cost remains finding the first
+    failure (2^100+ queries by published DFR), which this test does not touch
+  - Simulated oracle only; no implementation or deployed key is queried
+  status: specified
+  proposed_by: idea-generator

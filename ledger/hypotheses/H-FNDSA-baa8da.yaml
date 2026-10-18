@@ -1,0 +1,91 @@
+# HYPOTHESIS -- H-FNDSA-baa8da, specified from IDEA-20261018-045269. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-baa8da
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-045269
+  added: '2026-10-18'
+  statement: >-
+    KN-LIT-7909ee reports Falcon key recovery from tens of power traces that leak the signed
+    exponent of each ffSampling center at integer-to-float conversion. Abstract that leak
+    as a noisy channel (exponent bucket of each center, flipped to a neighbouring bucket with
+    probability eps) on a self-built toy Falcon. The claim: the median number of signatures
+    to certified key recovery N*(n, eps) scales as C * n^b / I(eps), with I(eps) the per-center
+    mutual information of the channel, b in [0, 1.5], and leaks restricted to the top half
+    of the tree carry at least twice the key information per leaked bit of leaf-only leaks.
+    Falsified if N* is not monotone in I(eps) or the log-log fit in n leaves residuals above
+    0.3 in log2 N*.
+  mechanism: >-
+    Each center c_i is an affine function of the target and of previously drawn integers through
+    the secret ffLDL tree, so an exponent bucket is a two-sided interval constraint on a secret-dependent
+    linear form. Many signatures give many intervals; maximum-likelihood over the bucket observations
+    turns them into approximate linear hints, and lattice reduction finishes the key, which
+    is the reported pipeline. The information per observation is bounded by the bucket entropy
+    times the channel capacity, so signature count should track 1/I(eps). Top-level centers
+    are larger dense combinations of more secret coordinates, so a bit there should constrain
+    more of the key than a leaf bit.
+  assumptions:
+  - Exponent buckets of distinct centers are conditionally independent given the key
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Exponent buckets of distinct centers are conditionally independent given
+      the key
+    random_model_justification: none; centers within one signature are correlated through
+      the recursion
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-ab833e
+    falsification_condition: >-
+      measure empirical mutual information between sibling-center buckets under a fixed key
+      at n = 32
+  predictions:
+  - metric: N*(eps=0.2)/N*(eps=0)
+    direction: higher
+    minimum_effect: ratio >= 2 at n = 64
+  - metric: N*(leaf_only)/N*(top_half) at matched leaked bits
+    direction: higher
+    minimum_effect: ratio >= 2 at n = 64 and n = 128
+  - metric: log-log slope b of N* in n at eps = 0
+    direction: different
+    minimum_effect: b in [0, 1.5] with 95% CI width < 0.6
+  test_boundary:
+    instances:
+    - >-
+      n in {16, 32, 64, 128}; q = 12289; eps in {0, 0.05, 0.2, 0.4}; leak level in {all, top_half,
+      leaf_only}; 10 keys per cell; signature cap 2000 per trial; BKZ block size up to 40
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        n <= 128 with simulated leak; transfer to 512/1024 only through the fitted slope b,
+        reported with its CI
+    implementation: >-
+      Python 3, NumPy, fpylll (BKZ 2.0), toy Falcon port with exact-rational verification
+      of recovered keys
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 40
+      maximum_memory_gb: 8
+      maximum_runs: 60
+  distinguishable_outcomes:
+  - ratio below 1.3 at n = 64 with 10 keys
+  - ratio at or below 1 at both n
+  - b outside [0, 1.5] or residual > 0.3 log2 units
+  falsification_conditions:
+  - N* not monotone in I(eps) across the 4 noise levels at n = 64
+  - null-oracle arm recovers the key in any trial (pipeline leaks the key by another path)
+  - positive control fails, so the attack harness is not able to see a leak
+  interpretation_limits:
+  - >-
+    Scale and transfer: toy n up to 128 with a simulated channel; transfer to n = 512/1024
+    assumes the fitted n^b law holds and is not a statement about any physical device or deployed
+    implementation
+  - >-
+    The channel model is an abstraction of KN-LIT-7909ee, whose own counts were not reproduced
+    here
+  status: specified
+  proposed_by: idea-generator

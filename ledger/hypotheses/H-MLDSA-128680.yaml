@@ -1,0 +1,92 @@
+# HYPOTHESIS -- H-MLDSA-128680, specified from IDEA-20261018-73fed4. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-128680
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-73fed4
+  added: '2026-10-18'
+  statement: >-
+    If the mask y has density proportional to 1 + eps*f(y/gamma1) instead of uniform, the
+    accepted z = y + c s1 has conditional mean E[z_j | u_j] = a + g*u_j with u = c s1, and
+    least squares of z on rot(c) recovers s1 from N* = 16 sigma_z^2 / (tau g^2) signatures.
+    For an ODD defect f(x) = x the gain is second order, g = eps^2 B^2/(3 G^2), so N* scales
+    as eps^-4; for an EVEN defect f(x) = x^2 it is first order, g = -2 eps B^2/(3 G^2), so
+    N* scales as eps^-2 (G = gamma1, B = gamma1 - beta). At toyDSA(32,2,2) with gamma1 = 2^6
+    the two fitted slopes are -4 and -2 within +-0.5, and eps = 0 gives no recovery.
+  mechanism: >-
+    Rejection sampling hides u only because the accepted density of z, p(z - u) restricted
+    to the box, is flat. For a perturbed density the u-dependence of the accepted mean comes
+    from the perturbation's derivative inside the box: an even perturbation (curvature, as
+    produced by summed or edge-biased samplers) has a z-linear cross term -2 eps u z / G^2
+    at first order, while an odd linear tilt moves the mean only through the normalising constant
+    1 - eps u / G, a second-order effect. So the parity of a sampler defect, not its size,
+    sets the exponent of the signature count, which is the quantity a defect triage needs
+    and which the uniform-y proof does not discuss.
+  assumptions:
+  - the accepted-z conditional mean is linear in u with the stated gains
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: the accepted-z conditional mean is linear in u with the stated gains
+    random_model_justification: exact integrals of the truncated perturbed density; first-order
+      in u/B
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-3625ec
+    falsification_condition: >-
+      measure the empirical slope of E[z|u] on 10^6 single-coefficient samples per (f, eps)
+      and compare with the formulas
+  predictions:
+  - metric: slope of log N* vs log eps, odd defect
+    direction: lower
+    minimum_effect: fitted slope in [-4.5, -3.5] over eps in {1, 2^-1, 2^-2}
+  - metric: slope of log N* vs log eps, even defect
+    direction: lower
+    minimum_effect: fitted slope in [-2.5, -1.5] over eps in {2^-1..2^-4}
+  - metric: recovery at eps = 0
+    direction: different
+    minimum_effect: >-
+      zero exact recoveries in 2^24 signatures per key and per-coefficient error rate within
+      1 percent of chance
+  test_boundary:
+    instances:
+    - >-
+      toyDSA(32,2,2), gamma1 = 2^6, eta = 1, tau = 8, beta = 8; odd eps in {0, 1, 2^-1, 2^-2};
+      even eps in {0, 2^-1, 2^-2, 2^-3, 2^-4}; N grid doubling 2^10..2^24; 5 keys per seed
+      block. Predicted N*: even 8.0e3/eps^2, odd 3.2e4/eps^4
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        n = 32, gamma1 = 2^6 keep N* <= 2^24; transfer through the closed-form gain, stated
+        not tested
+    implementation: >-
+      Python 3.11, NumPy; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms
+      1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2,
+      beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean
+      ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run
+    budget:
+      wall_clock_seconds_per_run: 7200
+      total_cpu_hours: 24
+      maximum_memory_gb: 8
+      maximum_runs: 30
+  distinguishable_outcomes:
+  - slope above -3 (first-order leak)
+  - slope outside [-3, -1]
+  - any exact recovery at eps = 0
+  falsification_conditions:
+  - odd-defect slope is first order (above -3)
+  - even-defect slope outside [-3, -1]
+  - eps = 0 yields recovery
+  - positive control fails at 4x its predicted N (instrument broken)
+  interpretation_limits:
+  - >-
+    toy ring n = 32 and gamma1 = 2^6: transfer to ML-DSA-44 is through the closed-form gain
+    and sigma_z^2 proportional to gamma1^2, a model stated here and not tested at 2^17
+  - two defect shapes only; edge and step defects are a separate idea
+  - no statement about any deployed sampler
+  status: specified
+  proposed_by: idea-generator

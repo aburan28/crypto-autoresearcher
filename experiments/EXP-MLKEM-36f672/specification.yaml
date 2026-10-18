@@ -1,0 +1,184 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-36f672 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-36f672
+  hypothesis_id: H-MLKEM-7592be
+  derived_from_idea: IDEA-20261018-0c5d75
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Held-out counted cost of learned versus fixed pump-and-jump schedules
+  objective: >-
+    Determine whether profile-conditioned scheduling lowers end-to-end cost of the current
+    primal baseline.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: G6K + fpylll with pair-test counters; scikit-learn gradient boosting; Python
+    parameters: embedding dim 140-180, q=3329, CBD(2); 400 train / 100 held-out instances;
+      3 seed blocks
+    procedure: >-
+      1) Freeze. 2) Search best schedules on training set. 3) Train policy. 4) Evaluate default,
+      two-step, learned, shuffled-null, oracle on held-out. 5) Paired ratios with bootstrap
+      CI.
+  controls:
+  - 'null: a policy trained on shuffled profile features (labels kept) must not beat default'
+  - >-
+    positive: an oracle schedule with knowledge of the planted secret's projected norm per
+    position (upper bound on achievable gain)
+  - 'A/A: default schedule run twice with different basis-randomization seed blocks'
+  independent_variables:
+  - schedule
+  metrics:
+    primary:
+    - median counted cost ratio
+    secondary:
+    - success rate
+    - wall clock
+    - peak memory
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: learned/default median cost
+    formula: <= 0.85
+    source: pilot-free preregistered threshold
+  scale_relevance:
+    tier: medium
+    justification: >-
+      dim 140-180 (LWE-challenge-like); transfer assumption: profile deviations persist at
+      larger beta but magnitude unknown
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 400
+    maximum_memory_gb: 64
+    maximum_runs: 1500
+  stopping_rules:
+  - censor instances exceeding 2x default median cost
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - any training instance appearing in held-out voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C1 median ratio <= 0.85 (P1) and C2 <= 0.95 (P2), CIs beyond the AA1 noise floor, with
+    the shuffled_null not beating default.
+  falsification_criterion: C1 median ratio CI includes 0.95 or above.
+  decision_impact:
+    on_positive: >-
+      Adopt the learned schedule as the new primal baseline at medium scale (ratchet) and
+      record the delta.
+    on_negative: Record that simulator schedules are near-optimal at this scale; stop ML scheduling
+      work.
+  variable_ledger:
+    independent:
+    - name: schedule
+      levels:
+      - g6k_default
+      - two_step_opt
+      - learned
+      - shuffled_null
+      - oracle_positive
+    factors:
+    - name: basis_seed_block
+      treatment: randomized
+      value: A,B,C
+      how: basis randomization
+    - name: instance_seed
+      treatment: randomized
+      value: 100 held-out
+      how: paired
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - learned
+      - g6k_default
+      differs_in:
+      - schedule
+      design: one_factor
+    - id: C2
+      arms:
+      - learned
+      - two_step_opt
+      differs_in:
+      - schedule
+      design: one_factor
+    - id: AA1
+      arms:
+      - g6k_default block A
+      - g6k_default block B
+      differs_in:
+      - basis_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-0c5d75.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-0c5d75.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - model/ with trained policy and feature spec
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-36f672/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-0c5d75.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

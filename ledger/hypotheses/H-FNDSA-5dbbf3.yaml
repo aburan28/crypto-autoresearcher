@@ -1,0 +1,73 @@
+# HYPOTHESIS -- H-FNDSA-5dbbf3, specified from IDEA-20261018-3e25a1. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-5dbbf3
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-3e25a1
+  added: '2026-10-18'
+  statement: >-
+    Mitaka (KN-LIT-4936) replaces Falcon's ffSampling by a hybrid sampler and Antrag (KN-LIT-2565)
+    changes keygen to make Mitaka's quality close to Falcon's. Plant the same defect family
+    (one-leaf width miscalibration) scaled to an identical per-signature KL divergence delta
+    in each. Claim: the number of signatures for a second-moment learner to estimate a secret
+    direction to angle < 10 degrees differs between ffSampling and Mitaka by at least 2x at
+    n = 32 and 64, and Antrag keys move Mitaka at least halfway toward ffSampling. Falsified
+    if all three are within 1.5x at every delta.
+  mechanism: >-
+    Equal KL does not mean equal information about the basis: the defect enters the output
+    law through the sampler's own decomposition (ffLDL tree vs per-embedding hybrid sampling),
+    which rotates where the defect lands relative to secret directions. A learner reads only
+    the key-dependent part, so the Fisher information about the basis per signature can differ
+    at matched KL.
+  assumptions:
+  - Second-moment learner sample complexity tracks Fisher information
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Second-moment learner sample complexity tracks Fisher information
+    random_model_justification: asymptotic efficiency of moment estimators under Gaussian-like
+      noise
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-cc92c2
+    falsification_condition: compare with numeric Fisher information at n = 16
+  predictions:
+  - metric: N_theta(Mitaka)/N_theta(ffSampling) at matched delta
+    direction: different
+    minimum_effect: ratio >= 2 or <= 0.5 at n = 32, 64
+  - metric: fraction of gap closed by Antrag keys
+    direction: higher
+    minimum_effect: '>= 0.5'
+  test_boundary:
+    instances:
+    - >-
+      n in {16, 32, 64}; q = 12289; delta in {0, 1e-3, 1e-2, 1e-1, 0.3}; 10 keys per cell;
+      up to 10^6 signatures
+    parameters:
+      scale_tier: toy
+      scale_justification: n <= 64; transfer assumes ratio stable across n, checked over 16/32/64
+    implementation: >-
+      Python/NumPy toy samplers, exact KL by enumeration at n=16 and by numerical integration
+      otherwise
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 30
+      maximum_memory_gb: 8
+      maximum_runs: 45
+  distinguishable_outcomes:
+  - ratio within [0.67, 1.5] at all delta
+  - < 0.2
+  falsification_conditions:
+  - ratio within [0.67, 1.5] for all delta at n = 32 and 64
+  - null arm reaches 10 degrees
+  interpretation_limits:
+  - >-
+    Scale and transfer: toy n <= 64 and a planted defect family; deployed samplers' real defects
+    are not measured
+  - learner is second-moment only; higher-order learners may reorder samplers
+  status: specified
+  proposed_by: idea-generator

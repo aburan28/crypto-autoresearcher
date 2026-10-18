@@ -1,0 +1,92 @@
+# HYPOTHESIS -- H-MLDSA-88e591, specified from IDEA-20261018-0eb5a3. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-88e591
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-0eb5a3
+  added: '2026-10-18'
+  statement: >-
+    If the low b bits of every mask coefficient y_j leak (for example from a table-indexed
+    ExpandMask unpack), then z - y_low = 2^b y_high + c s1 gives c s1 mod 2^b exactly, and
+    since c(1), the sum of tau signs, is congruent to tau mod 2, c is invertible in Z_{2^b}[X]/(X^n+1)
+    whenever tau is odd (39 and 49 at ML-DSA-44/65), so ONE signature yields s1 mod 2^b; at
+    b >= ceil(log2(2 eta + 1)) that is s1 itself. At ML-DSA-87 (tau = 60) c is never a unit
+    mod 2 and one signature leaves a kernel. With with partial leakage (a fraction rho of
+    coefficients) the remaining unknowns are finished with DDGR modular hints plus BKZ.
+  mechanism: >-
+    X^n + 1 = (X + 1)^n mod 2, so an element of Z_2[X]/(X^n+1) is a unit iff its value at
+    X = 1 is odd, and Hensel lifting extends units to Z_{2^b}. c in B_tau has c(1) congruent
+    to tau mod 2; tau = 39, 49, 60 at ML-DSA-44/65/87, so ML-DSA-87's c is NOT invertible
+    mod 2 and needs a different finish (prediction P3). The z-bound rejection does not alter
+    z = y + c s1 for accepted signatures, so the leak is exact through rejection. Partial
+    leakage turns each known LSB into a modular hint on one linear form of s1, and DDGR's
+    modular-hint integration predicts the remaining block size.
+  assumptions:
+  - DDGR modular-hint integration predicts the finishing BKZ block size for these hints
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: DDGR modular-hint integration predicts the finishing BKZ block size
+      for these hints
+    random_model_justification: DDGR validated on LWE instances with hints, not on ML-DSA
+      rotations
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-20961f
+    falsification_condition: compare predicted vs measured beta at 5 rho levels
+  predictions:
+  - metric: signatures needed for s1 mod 2^b at rho = 1
+    direction: lower
+    minimum_effect: exactly 1 signature for tau odd, 100 percent of 50 keys
+  - metric: finishing block size vs rho at toyDSA(128,2,2)
+    direction: lower
+    minimum_effect: >-
+      beta_finish falls by at least 20 between rho = 0.25 and rho = 1 and matches the DDGR
+      prediction within +-5
+  - metric: tau-parity dependence
+    direction: different
+    minimum_effect: >-
+      tau even: one signature leaves a kernel mod 2 whose dimension equals the (X+1)-adic
+      valuation of c mod 2, and at most 3 signatures give s1 mod 2^b on 95 percent of keys
+  test_boundary:
+    instances:
+    - >-
+      algebra arm at n = 256 with ML-DSA-44 (tau 39), ML-DSA-65 (49), ML-DSA-87 (60) shapes,
+      50 keys each, b in {1,2,3}; lattice arm toyDSA(128,2,2) and (96,2,2), rho in {0.25,0.5,0.75,1},
+      b = 2, 10 keys
+    parameters:
+      scale_tier: medium
+      scale_justification: algebra at true n = 256; lattice finish at n <= 128 with transfer
+        through DDGR predictions
+    implementation: >-
+      Python/NumPy for algebra; SageMath 10 for Hensel inversion; fpylll 0.6 + G6K for BKZ;
+      DDGR toolkit; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with
+      the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta
+      = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44
+      reference at n = 256 on 1000 KAT vectors before any reduced run
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - any key with tau odd needing more than 1 signature
+  - measured beta outside +-8 of prediction at two or more rho levels
+  - >-
+    tau-even arm recovering s1 mod 2 from one signature on any key, or needing more than 5
+    signatures
+  falsification_conditions:
+  - one-signature recovery fails for tau odd at rho = 1
+  - measured finishing block size deviates from DDGR by more than 8 at most rho levels
+  interpretation_limits:
+  - >-
+    the algebraic one-signature statement is exact at real n = 256; the rho < 1 lattice finish
+    is measured only at n <= 128 with transfer via DDGR predictions
+  - leak is simulated, no physical side channel is measured
+  - no deployed implementation is claimed to leak
+  status: specified
+  proposed_by: idea-generator

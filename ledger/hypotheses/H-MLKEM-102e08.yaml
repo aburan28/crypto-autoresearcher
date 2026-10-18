@@ -1,0 +1,75 @@
+# HYPOTHESIS -- H-MLKEM-102e08, specified from IDEA-20261018-5272db. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-102e08
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-5272db
+  added: '2026-10-18'
+  statement: >-
+    On the full (unprojected) primal lattice of a module-LWE instance over Z[X]/(X^n+1), inserting
+    all 2n signed rotations of each new short vector into a G6K database cuts the number of
+    sieve iterations to saturation by a factor >= 4 at lattice dimension 64-96. Inside BKZ
+    the projected block pi_i(L) is not rotation invariant, so the gain must collapse to <=
+    1.1x once the block is a proper projection. The falsifiable content is the collapse curve
+    as a function of projection depth.
+  mechanism: >-
+    The module lattice is invariant under multiplication by X acting coordinatewise on each
+    ring component, so each lattice vector carries an orbit of 2n vectors of equal norm (Schneider;
+    Bos-Naehrig-van de Pol exploited this for ideal Gauss sieving). Projection orthogonal
+    to the first i Gram-Schmidt vectors destroys the invariance because the projection subspace
+    is not X-stable. The fraction of the orbit that stays short after projection decays with
+    i. Measuring that decay tells whether any rotation saving can reach the projected sieves
+    that dominate the real attack.
+  assumptions:
+  - Saturation at 90% is a fair stopping point across arms.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Saturation at 90% is a fair stopping point across arms.
+    random_model_justification: G6K default saturation criterion.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-e08b88
+    falsification_condition: Repeat at 70% and 95% saturation and report sensitivity.
+  predictions:
+  - metric: iteration ratio plain/augmented at i=0 (full lattice)
+    direction: higher
+    minimum_effect: '>= 4 at d=80'
+  - metric: iteration ratio at i >= d/4
+    direction: lower
+    minimum_effect: <= 1.1
+  test_boundary:
+    instances:
+    - >-
+      n in {16,32}, k in {2,3}, q=3329, CBD(2); d in {64,96}; projection depth i in {0,4,8,d/8,d/4,d/2};
+      10 instances per (n,k); saturation 0.9
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        d=64..96; transfer assumption: if the gain is already ~1 at i=d/4 it is ~1 at the
+        i~d-beta used for FIPS 203
+    implementation: >-
+      G6K (Python/C++) with a small augmentation hook in the insert path, fpylll, SageMath
+      for lattice construction
+    budget:
+      wall_clock_seconds_per_run: 1800
+      total_cpu_hours: 40
+      maximum_memory_gb: 16
+      maximum_runs: 480
+  distinguishable_outcomes:
+  - ratio < 2
+  - ratio >= 1.5 at i=d/4, which would mean rotation structure survives projection
+  falsification_conditions:
+  - no gain at i=0 on the positive control (implementation broken)
+  - 'P2 violated: gain persists at deep projection'
+  interpretation_limits:
+  - >-
+    At FIPS 203 dimensions the final sieve runs at i ~ d - beta >> d/4, so only a negative
+    P2 can matter there; a positive P1 alone is a toy-dimension statement
+  - d <= 96 only
+  status: specified
+  proposed_by: idea-generator

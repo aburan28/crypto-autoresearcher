@@ -1,0 +1,79 @@
+# HYPOTHESIS -- H-MLKEM-e3175d, specified from IDEA-20261018-373b94. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-e3175d
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-373b94
+  added: '2026-10-18'
+  statement: >-
+    A simulated side channel that yields noisy estimates of NTT-domain secret coefficients,
+    s_hat_i + noise mod q with noise std sigma_h, is equivalent to T extra LWE samples on
+    s with public vectors given by NTT rows. Integrating them in the primal embedding lowers
+    the success block size only when sigma_h is below a threshold sigma* that we predict lies
+    between 2 and 20 at n=64,k=2; above sigma* the drop is within A/A noise. The measured
+    threshold and slope are the defensive deliverable: how accurate an NTT-output leakage
+    must be before it matters to a lattice attacker.
+  mechanism: >-
+    NTT outputs are q-ary linear combinations of all secret coefficients, so a noisy reading
+    is a modular approximate hint that DDGR's framework (which takes approximate hints over
+    Z or exact modular hints) does not directly handle. Rewriting the reading as an LWE sample
+    with error sigma_h makes it integrable: it is a new row in the q-ary embedding with error
+    column scaled by sigma_h/sigma_e. Primal gain depends on the ratio sigma_h/sigma_e and
+    on how many such rows are added, giving a sharp threshold.
+  assumptions:
+  - Hint noise is Gaussian and independent across slots.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Hint noise is Gaussian and independent across slots.
+    random_model_justification: Simulation choice.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-0a97f8
+    falsification_condition: Repeat with uniform and Laplace noise of equal variance.
+  predictions:
+  - metric: beta* drop at T=64 hints, sigma_h=1
+    direction: higher
+    minimum_effect: '>= 15 units'
+  - metric: beta* drop at T=64, sigma_h=100
+    direction: lower
+    minimum_effect: within AA1 noise
+  - metric: estimator-predicted sigma* vs measured
+    direction: different
+    minimum_effect: within factor 2
+  test_boundary:
+    instances:
+    - >-
+      n=64, k=2, q=3329, CBD(2); T in {16,32,64,128}; sigma_h in {0,0.5,1,2,5,10,20,50,100};
+      15 keys
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        reduced ML-KEM shape: ring Z_3329[X]/(X^n+1) with n in {32,64}, module rank k=2, CBD(eta)
+        secrets/errors; transfer assumption: the measured ratio (not the absolute cost) carries
+        to n=256 when the governing statistic scales as stated; no FIPS 203 claim is made
+    implementation: SageMath (NTT, embedding), G6K/fpylll, leaky-LWE-estimator for predictions
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 80
+      maximum_memory_gb: 16
+      maximum_runs: 1200
+  distinguishable_outcomes:
+  - drop < 5
+  - drop >= 3
+  - off by > 4x
+  falsification_conditions:
+  - no threshold behavior (monotone flat curve)
+  - positive control fails
+  - null arm lowers beta*
+  interpretation_limits:
+  - >-
+    Simulated hints only, no device or implementation; reduced n=64; the threshold in sigma_h/sigma_e
+    is the transferable object, with T scaled by n
+  - defensive calibration, not an attack
+  status: specified
+  proposed_by: idea-generator

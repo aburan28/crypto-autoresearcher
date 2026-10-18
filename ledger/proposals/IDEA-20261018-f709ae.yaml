@@ -1,0 +1,119 @@
+# IDEA RECORD -- IDEA-20261018-f709ae
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-f709ae
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Multi-key failure precomputation is killed by FIPS 203's H(ek) in G: measure the amortization
+    factor with and without key binding
+  class: control
+  claim: >-
+    In FIPS 203, (K, r) = G(m || H(ek)), so the encryption randomness of a ciphertext depends
+    on the target public key and weak-ciphertext precomputation cannot be shared across keys.
+    A Kyber-round-1-style variant without H(ek) in G lets one precomputed weak set be reused
+    against T keys, with measured cost per first failure falling by a factor >= T/2 for T
+    up to 64. With key binding the amortization factor must be 1 within the A/A noise. This
+    turns an argued property into a measured control for every multi-target failure claim.
+  mechanism: >-
+    Weak ciphertexts are selected by properties of (r, e1, e2), which in the FO transform
+    are derived from m and, in FIPS 203, from H(ek). Without binding, a filtered m works for
+    any key; with binding, each key needs its own search. D'Anvers-Batsleer multitarget attacks
+    rely on reuse; the binding should remove it exactly, but this has not been measured at
+    the level of the filtering pipeline.
+  tracked_object: >-
+    Amortization factor A(T) = (cost to first failure on each of T keys, independent searches)
+    / (cost with shared precomputation), for bound and unbound G.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-5045
+    provenance: kb
+    claim: measures that FIPS 203 key binding removes their amortization, as a reusable control
+    verified_by: knowledge/literature/KN-LIT-5045.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: A(64) unbound
+    direction: higher
+    minimum_effect: '>= 32'
+    falsified_by: A(64) < 8
+  - id: P2
+    metric: A(64) bound (FIPS 203)
+    direction: lower
+    minimum_effect: within [0.8,1.25]
+    falsified_by: A(64) > 1.5, meaning binding leaks reuse
+  minimal_test:
+    design: >-
+      Elevated-DFR reduced ML-KEM (as in the compression-boosting test), T in {1,4,16,64}
+      keys. Precompute a filtered set of m values once; for unbound G reuse it on all keys;
+      for bound G regenerate per key. Count total encaps work and oracle queries to the first
+      failure per key.
+    controls:
+    - >-
+      null: bound G with the shared set (expected: filtered m are random for other keys, failure
+      rate = base DFR)
+    - 'positive: unbound G where reuse must work'
+    - 'A/A: bound arm with two m-RNG seed blocks'
+  falsification_conditions:
+  - P2 violated
+  - P1 violated (pipeline cannot show reuse even when allowed; batch invalid)
+  confounders:
+  - key-to-key variance of ||s|| changes per-key failure rates
+  - finite failure counts
+  interpretation_limits:
+  - >-
+    Reduced, elevated-DFR parameters; a control establishing the property, not a cost at FIPS
+    DFR
+  - says nothing about implementations that omit or mis-hash H(ek)
+  heuristic_assumptions:
+  - id: H1
+    statement: G and H behave as random oracles.
+    rigorous_support: FO analysis assumption.
+    validation_plan: Use SHA3/SHAKE as in FIPS 203; no structural test needed beyond the null
+      arm.
+  target_complexity:
+    time_exponent: multi-target gain log2 T bits without binding; 0 with binding
+    memory_exponent: precomputed set size
+    best_known: D'Anvers-Batsleer multitarget failure attack
+    hidden_overhead: none beyond encaps
+    tradeoff_note: defensive control
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-5045
+      provenance: kb
+      relation: special_case
+      delta: measures that FIPS 203 key binding removes their amortization, as a reusable
+        control
+    internal_neighbours:
+    - IDEA-20260805-1d76e9
+    - IDEA-20260906-e5e51c
+    - IDEA-20260806-7c1ae4
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-751f5c
+    experiment_id: EXP-MLKEM-6f4c51

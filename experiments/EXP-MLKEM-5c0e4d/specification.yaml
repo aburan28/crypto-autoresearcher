@@ -1,0 +1,184 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-5c0e4d (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-5c0e4d
+  hypothesis_id: H-MLKEM-23e144
+  derived_from_idea: IDEA-20261018-ae2c35
+  question_id: RQ-MLKEM-003
+  goal_id: null
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Slicer CVPP versus Babai per-query cost and success at hybrid distances
+  objective: Measure whether batch CVPP changes the hybrid attack's cost structure.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: G6K for lists, C++ slicer, fpylll Babai, Python
+    parameters: d in {50,55,60,65,70}; r in {0.3,0.5,0.7,0.9}; 10^4 targets per cell; 3 lattices
+      per d
+    procedure: >-
+      1) Freeze. 2) Sieve lists. 3) Generate targets. 4) Run both methods. 5) Fit c_q and
+      success curves.
+  controls:
+  - >-
+    null: targets uniform in space (no planted close vector) - both methods must 'succeed'
+    only at the base rate
+  - 'positive: r=0.3 where both must succeed ~100%'
+  - 'A/A: slicer with two target-RNG seed blocks'
+  independent_variables:
+  - cvp_method
+  - target_distance
+  metrics:
+    primary:
+    - success rate
+    - per-query ops
+    secondary:
+    - hybrid re-optimized cost
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: c_q
+    formula: <= 0.1
+    source: DLW19 analysis (recalled)
+  scale_relevance:
+    tier: toy
+    justification: d <= 70; transfer conditional on c_q fit
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 40
+    maximum_memory_gb: 32
+    maximum_runs: 150
+  stopping_rules:
+  - none beyond budget
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: C1 success gap >= 0.4 at r=0.9 (P1) and C2 c_q <= 0.1 (P2), beyond AA1
+    noise floor.
+  falsification_criterion: C1 gap < 0.1 or C2 c_q >= 0.2.
+  decision_impact:
+    on_positive: >-
+      Re-run the hybrid estimate with measured CVPP costs and report the bit change at ML-KEM
+      parameters as conditional.
+    on_negative: Confirm Babai pricing for hybrid estimates at these shapes.
+  variable_ledger:
+    independent:
+    - name: cvp_method
+      levels:
+      - babai
+      - slicer
+    - name: target_distance
+      levels:
+      - '0.3'
+      - '0.5'
+      - '0.7'
+      - '0.9'
+      - uniform_null
+    factors:
+    - name: target_seed_block
+      treatment: randomized
+      value: A,B
+      how: target RNG
+    - name: lattice_seed
+      treatment: randomized
+      value: 3 per d
+      how: paired
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - slicer
+      - babai
+      differs_in:
+      - cvp_method
+      design: one_factor
+    - id: C2
+      arms:
+      - c_q fit
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - slicer block A
+      - slicer block B
+      differs_in:
+      - target_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-ae2c35.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-ae2c35.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-5c0e4d/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-ae2c35.
+    - >-
+      RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open
+      goal serves this question. The Coordinator must open a successor goal or rebind before
+      dispatch.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.
+  goal_id_note: >-
+    RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open goal
+    serves this question. The Coordinator must open a successor goal or rebind before dispatch.

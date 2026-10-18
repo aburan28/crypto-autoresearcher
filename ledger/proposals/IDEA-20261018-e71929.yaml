@@ -1,0 +1,123 @@
+# IDEA RECORD -- IDEA-20261018-e71929
+# RQ-SLHDSA-001 / GOAL-SLHDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-e71929
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Merkle-Damgard chaining bottleneck at toy scale: multi-target second preimages via the
+    internal state when n exceeds c/2
+  class: mechanism
+  claim: >-
+    With a toy MD hash of chaining width c and output n, multi-target attacks on multi-block
+    roles (T_len, H_msg) can target the internal chaining value rather than the output, so
+    their cost scales with c rather than n once n > c/2; at c=32, n in {16,20,24} bits the
+    measured cost of a second-preimage on T_len with t targets follows 2^{c}/(t * blocks)
+    and flattens in n, while a sponge with capacity 2n follows 2^n/t. This reproduces at toy
+    scale why FIPS 205 uses SHA-512 for some roles in categories 3 and 5.
+  mechanism: >-
+    In MD, every intermediate chaining value of a long input is a target for an expandable-message-style
+    second preimage; the number of targets grows with blocks, and the search space is the
+    chaining width. When n is large relative to c, the chaining value is the cheaper target.
+    A sponge instantiated with sufficient capacity does not have this shortcut. Measuring
+    the crossover validates the parameter choice and exposes where the margin is thinnest.
+  tracked_object: >-
+    Hash evaluations to a second preimage of a multi-block role input under MD(c) vs sponge,
+    as a function of n and blocks.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Sydney Antonov, multi-target attack on SPHINCS+ SHA-256 instantiation, NIST pqc-forum
+      / ePrint 2022 (recalled, hedged)
+    verified_by: null
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Kelsey, Schneier, 'Second preimages on n-bit hash functions for much less than 2^n work',
+      EUROCRYPT 2005 (recalled)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: slope of log2 cost vs n for MD at n > c/2
+    direction: different
+    minimum_effect: within 0.15 of 0
+    falsified_by: slope above 0.5
+  - id: P2
+    metric: MD cost / sponge cost at n=24, c=32
+    direction: lower
+    minimum_effect: <= 2^-4
+    falsified_by: ratio above 2^-2
+  minimal_test:
+    design: >-
+      Build toy MD (Davies-Meyer over a 32-bit block cipher from truncated SHAKE) and toy
+      sponge; run multi-target second-preimage search on inputs of 8-64 blocks; 100 trials
+      per cell.
+    controls:
+    - 'null: single-block input where both constructions must match'
+    - 'positive: c=n/2 artificially narrow chain, effect must be maximal'
+    - 'A/A: MD arm under two seed blocks'
+  falsification_conditions:
+  - MD slope in n not flat
+  - ratio not below 2^-2
+  confounders:
+  - toy compression function quality
+  - expandable message overhead
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - >-
+    Reproduces a known structural point; FIPS 205 already mitigates it, so this measures margin,
+    not a break.
+  heuristic_assumptions:
+  - id: H1
+    statement: Toy compression from truncated SHAKE behaves as a random function
+    rigorous_support: model
+    validation_plan: chi-square on outputs
+  target_complexity:
+    time_exponent: 2^c/(t*blocks) MD vs 2^n/t sponge
+    memory_exponent: O(t*blocks)
+    best_known: Antonov-style SHA-256 multi-target attack (recalled)
+    hidden_overhead: expandable message construction
+    tradeoff_note: memory for chain-value table charged
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    none_found_after:
+    - >-
+      grep of knowledge/literature for the scheme name and mechanism keywords (drafting session,
+      2026-10-18)
+    - ledger/.index/proposals.jsonl titles and claims for RQ-SLHDSA-001
+    internal_neighbours:
+    - IDEA-20260807-c4f1fc
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-SLHDSA-1b8576
+    experiment_id: EXP-SLHDSA-5c7662

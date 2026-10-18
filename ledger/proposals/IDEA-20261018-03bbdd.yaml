@@ -1,0 +1,130 @@
+# IDEA RECORD -- IDEA-20261018-03bbdd
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-03bbdd
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Compression-error-aware failure boosting: include the attacker-known Compress_dv/Compress_du
+    rounding errors in the weak-ciphertext score
+  class: mechanism
+  claim: >-
+    An attacker who generates ciphertexts knows the exact rounding errors introduced by Compress_du(u)
+    and Compress_dv(v). Scoring candidate encapsulations by the full known part of the failure
+    term, including these rounding errors, rather than by ||(r,e1)|| alone, raises the failure
+    probability of the top 2^-10 filtered fraction by a factor >= 2 at equal precomputation,
+    measured on reduced parameters with elevated base DFR. If the ratio is within the A/A
+    noise, the compression terms add nothing to boosting.
+  mechanism: >-
+    The decryption noise is e^T r - s^T(e1 + du_err) + e2 + dv_err. The attacker knows r,
+    e1, e2, du_err and dv_err exactly; only s and e are secret. dv_err enters additively with
+    magnitude up to q/2^(dv+1) (about 104 at dv=4), a known shift toward the failure threshold,
+    while du_err enlarges the effective vector multiplying s. Published boosting weights only
+    by the norms of (r,e1); conditioning on the known additive shift dv_err in the coordinate
+    where the failure is tested changes the per-coordinate tail probability directly.
+  tracked_object: >-
+    Empirical failure probability of the filtered ciphertext set (top fraction 2^-10 by score)
+    under the full-known-term score vs the (r,e1)-norm score.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-119
+    provenance: kb
+    claim: adds the exactly known compression terms to the weakness score
+    verified_by: knowledge/literature/KN-LIT-119.md (opened by the drafting session)
+  - ref: KN-LIT-5045
+    provenance: kb
+    claim: their scoring; this measures the compression-aware variant
+    verified_by: knowledge/literature/KN-LIT-5045.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: failure rate ratio full_score / norm_score at filter 2^-10
+    direction: higher
+    minimum_effect: '>= 2'
+    falsified_by: ratio < 1.3 with CI
+  - id: P2
+    metric: analytic per-coordinate tail model vs measured failure rate
+    direction: different
+    minimum_effect: within factor 1.5
+    falsified_by: model off by > 3x
+  minimal_test:
+    design: >-
+      Reduced ML-KEM with n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3 so base DFR is ~2^-14
+      (calibrated first). Generate 2^30 encapsulations per key for 20 keys, score with both
+      rules, keep the top 2^-10, query the simulated oracle, count failures.
+    controls:
+    - >-
+      null: score using dv_err from an independent random ciphertext (shuffled), keeping its
+      distribution but breaking the link - ratio must be 1
+    - >-
+      positive: planted extra additive known shift of +q/16 on the tested coordinate where
+      the gain is analytically computable and must appear
+    - 'A/A: norm_score arm with two encapsulation-RNG seed blocks'
+  falsification_conditions:
+  - P1 ratio < 1.3
+  - shuffled null shows ratio > 1.2 (harness leak)
+  confounders:
+  - raising eta and lowering d_v changes which noise term dominates relative to FIPS 203
+  - finite failure counts (Poisson noise)
+  - per-key variability of ||s||
+  interpretation_limits:
+  - >-
+    Elevated-DFR reduced parameters; at FIPS 203 DFR (2^-139..2^-174) the relative gain may
+    differ; any transfer is a statement about the score's relative efficiency under the model
+    P2 validates
+  - simulated oracle only
+  heuristic_assumptions:
+  - id: H1
+    statement: Failure coordinates are nearly independent given the ciphertext.
+    rigorous_support: Standard in Kyber DFR analysis.
+    validation_plan: Measure pairwise coordinate failure correlations in the run.
+  target_complexity:
+    time_exponent: failure-search cost lowered by a constant factor
+    memory_exponent: negligible
+    best_known: norm-based boosting (D'Anvers et al.)
+    hidden_overhead: computing the full score requires the full encaps per candidate (already
+      paid)
+    tradeoff_note: query reduction only; precomputation unchanged
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-119
+      provenance: kb
+      relation: generalizes
+      delta: adds the exactly known compression terms to the weakness score
+    - ref: KN-LIT-5045
+      provenance: kb
+      relation: adjacent
+      delta: their scoring; this measures the compression-aware variant
+    internal_neighbours:
+    - IDEA-20260807-05e12c
+    - IDEA-20260813-fbedca
+    - IDEA-20260808-4854f8
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-7d2b89
+    experiment_id: EXP-MLKEM-f55221

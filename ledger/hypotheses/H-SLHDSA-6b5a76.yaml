@@ -1,0 +1,91 @@
+# HYPOTHESIS -- H-SLHDSA-6b5a76, specified from IDEA-20261018-8d765b. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-6b5a76
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-8d765b
+  added: '2026-10-18'
+  statement: >-
+    At reduced parameters (h in {8,12}, d in {2,3,4}, w=16, n=16 bytes), a single transient
+    fault in the computation of a non-top-layer subtree root causes the parent WOTS+ key to
+    sign an attacker-useful wrong root; the number of faulty signatures needed until a grafted
+    subtree yields a verified universal forgery is predicted by the WOTS domination count
+    and is at most 8 for faults on layer d-2 at w=16. The number grows with layer height in
+    a way set by how many signatures reuse the parent one-time key, and an implementation
+    that recomputes and compares roots needs zero-false-negative detection to reach parity
+    with the unfaulted scheme.
+  mechanism: >-
+    Upper-layer WOTS+ keys sign the same subtree root every time a signature passes through
+    them, so they are used many times by design and expose one fixed chain-position vector.
+    A fault that corrupts the root being signed makes that key sign a second value, granting
+    the elementwise max of two position vectors. Once the attacker can sign an arbitrary root
+    of their own subtree by domination, they graft a fresh subtree and forge for any message.
+    The layer chosen sets how often a faulted signature hits the same parent key and therefore
+    how many faults are needed.
+  assumptions:
+  - A transient bit flip in the root register is uniformly located
+  - Grinding success follows the domination count
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: A transient bit flip in the root register is uniformly located
+    random_model_justification: modelling choice
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-e9b016
+    falsification_condition: sweep fault location as nuisance and report per-location
+  - id: HEUR-002
+    formal_statement: Grinding success follows the domination count
+    random_model_justification: exact combinatorics
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-e9b016
+    falsification_condition: compare measured vs DP prediction
+  predictions:
+  - metric: median faulty signatures to verified forgery at layer d-2, w=16
+    direction: lower
+    minimum_effect: <= 8
+  - metric: faulty signatures needed, layer 0 vs layer d-2
+    direction: higher
+    minimum_effect: '>= 4x more at layer 0'
+  - metric: forgery rate with recompute-and-compare countermeasure
+    direction: lower
+    minimum_effect: 0 forgeries in 10^4 fault trials
+  test_boundary:
+    instances:
+    - >-
+      h in {8,12}; d in {2,3,4}; w=16; n=16 bytes; 200 attack trials per cell; grinding budget
+      2^24 per attempt; countermeasure arm 10^4 faults
+    parameters:
+      scale_tier: toy
+      scale_justification: 'h,d,n reduced; transfer assumption: count depends on w and reuse
+        rate, not n'
+    implementation: >-
+      Python 3 toy SLH-DSA (shared with lane tooling), SHAKE256 truncated to 16 bytes, independent
+      verifier module
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 4
+      maximum_runs: 30
+  distinguishable_outcomes:
+  - median above 8
+  - ratio below 4
+  - any forgery
+  falsification_conditions:
+  - median count at layer d-2 exceeds 8 at w=16
+  - null arm produces any verified forgery (instrument broken)
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - >-
+    Fault class only: deployment-level failure, not a statement about the hash assumption;
+    simulated faults, no hardware.
+  status: specified
+  proposed_by: idea-generator

@@ -1,0 +1,178 @@
+# EXPERIMENT CONTRACT -- EXP-FNDSA-8c601c (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-FNDSA-8c601c
+  hypothesis_id: H-FNDSA-fd6749
+  derived_from_idea: IDEA-20261018-b12c19
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Leaf-width margin census over accepted keys
+  objective: Measure the per-key minimum leaf margin distribution and argmin position at n
+    = 64..1024.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      C reference keygen (self-built from a public reference implementation) instrumented
+      to dump ffLDL leaves; Python analysis
+    parameters: >-
+      n in {64, 256, 512, 1024}; 10^5 keys per n for reference arm, 10^4 for null and planted
+      arms
+    procedure: >-
+      1. Instrument keygen to emit leaves. 2. Generate keys under each arm. 3. Compute m and
+      argmin. 4. Fit tail (empirical quantiles and GPD). 5. Report per n.
+  controls:
+  - 'null: keygen without the acceptance rejection (shows what rejection removes)'
+  - >-
+    positive: keys with (F, G) left unreduced by adding k(f, g), which must show m near or
+    below 1
+  - 'A/A: two disjoint seed blocks of 5x10^4 keys'
+  independent_variables:
+  - keygen_arm
+  - dimension_n
+  metrics:
+    primary:
+    - fraction m < 1.01, 1.03
+    - argmin position histogram
+    secondary:
+    - GPD tail index
+    - acceptance rate
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: P(m < 1.01) at n=512
+    formula: '>= 1e-4'
+    source: mechanism
+  scale_relevance:
+    tier: medium
+    justification: >-
+      keygen at deployed n on self-generated keys; no signatures and no attack, so no transfer
+      gap for the tracked object itself
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    independent_instances: 2
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 6
+    maximum_memory_gb: 4
+    maximum_runs: 12
+  stopping_rules:
+  - stop when 10^5 keys per n are logged
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - instrumented keygen producing keys that fail sign/verify invalidates that block
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C2 shows P1 at n=512 and P2, with C1 showing rejection shifts the tail beyond the AA1
+    noise floor.
+  falsification_criterion: C2 finds no key within 3% of the floor in 10^5 at n=512, or argmin
+    uniform.
+  decision_impact:
+    on_positive: >-
+      Condition every sampler-divergence experiment on the weakest-key tail rather than the
+      median key.
+    on_negative: Treat the floor as non-binding and use median-key widths in divergence experiments.
+  variable_ledger:
+    independent:
+    - name: keygen_arm
+      levels:
+      - reference_accepting
+      - no_rejection_ideal
+      - degraded_fg_planted
+    - name: dimension_n
+      levels:
+      - '64'
+      - '256'
+      - '512'
+      - '1024'
+    factors:
+    - name: rng_seed_block
+      treatment: randomized
+      value: two blocks
+      how: distinct seeds
+    - name: compiler_build
+      treatment: fixed
+      value: gcc -O2 strict fp
+      how: manifest
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - reference_accepting
+      - no_rejection_ideal
+      differs_in:
+      - keygen_arm
+      design: one_factor
+    - id: C2
+      arms:
+      - reference_accepting n=512 tail
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - reference block A
+      - reference block B
+      differs_in:
+      - rng_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-b12c19.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-b12c19.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml
+  - raw-result.json per-key m and argmin
+  - tail plot
+  - PDF report
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-FNDSA-8c601c/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-b12c19.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

@@ -1,0 +1,233 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-e9789d (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-e9789d
+  hypothesis_id: H-MLKEM-bf2f3c
+  derived_from_idea: IDEA-20261018-9b3937
+  question_id: RQ-MLKEM-003
+  goal_id: null
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Basis-maintenance cost and required precision on full ML-KEM-shaped primal bases
+  objective: >-
+    Replace the zero that core-SVP assigns to non-oracle work with a measured value at the
+    real FIPS dimension.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      fpylll with counters in its GSO and size-reduction loops, MPFR, SageMath for basis construction
+      and exact GSO spot checks, Python
+    parameters: >-
+      d in {400, 600, 800, 1000, 1200, 1500}, including the ML-KEM-512 and ML-KEM-768 shapes
+      (n=256, k in {2,3}, q=3329, CBD(3)/CBD(2)); precision types double, long double, dd,
+      qd and MPFR-128; LLL plus one BKZ-20 tour; 3 bases per d
+    procedure: >-
+      1) Freeze the protocol and the precision cost table. 2) Build the bases. 3) For each
+      precision type, run LLL plus one BKZ-20 tour with counters. 4) Spot-check GSO consistency
+      on 100 sampled indices. 5) Record the minimum sound precision and the counted cost.
+      6) Fit the cost exponent in d.
+  controls:
+  - >-
+    null: a random unimodular-scrambled basis of Z^d at the same d, which is well conditioned.
+    Double must suffice, and maintenance cost must follow the d^3 law with a small constant.
+  - >-
+    positive: a basis with a planted, deliberately extreme log-profile slope (a q-ary block
+    with q=2^30), where double must fail at moderate d
+  - 'A/A: the same ML-KEM-shape basis run twice under two basis-scrambling seed blocks'
+  independent_variables:
+  - precision_type
+  - basis_family
+  - lattice_dim
+  metrics:
+    primary:
+    - log2 bit-operation cost per LLL plus one tour
+    - minimum sound precision type
+    secondary:
+    - fitted exponent in d
+    - wall time
+    - peak memory
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: log2 cost at the ML-KEM-768 shape
+    formula: c * d^3 * precision_factor, with c taken from the d<=600 fit
+    source: tour structure plus the L2 precision analysis, derived before data
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      This runs at the true ML-KEM-512 and ML-KEM-768 lattice dimensions for the maintenance
+      component only. The SVP oracle is not run at scale, so no end-to-end FIPS claim is made.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 200
+    maximum_memory_gb: 64
+    maximum_runs: 300
+  stopping_rules:
+  - >-
+    stop a precision type at a given d after its first GSO-consistency failure and record
+    it as unsound
+  - >-
+    skip MPFR above d=1200 if a single run exceeds the wall-clock cap, and record it as censored
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    if the positive control is sound under double, the consistency check is invalid and so
+    is the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C3 shows log2 cost >= 40 at the ML-KEM-768 shape (P1). C2 shows that double is unsound
+    at d >= 1200 (P2) and gives a fitted exponent in [2.5,3.5] (P3). C1 separates the ML-KEM
+    bases from the null. All of this lies beyond the AA1 noise floor.
+  falsification_criterion: C3 log2 cost < 30, or C2 shows double sound at every tested d.
+  decision_impact:
+    on_positive: >-
+      Add the measured maintenance term (times the tour count) as a numbered additive assumption
+      to the memory-charged ML-KEM estimate, citing its measurement at crypto-tier dimension.
+    on_negative: >-
+      Record that the maintenance term is negligible at FIPS dimension, which confirms this
+      part of the core-SVP convention by measurement.
+  variable_ledger:
+    independent:
+    - name: precision_type
+      levels:
+      - double
+      - long_double
+      - dd
+      - qd
+      - mpfr128
+    - name: basis_family
+      levels:
+      - mlkem_shape
+      - scrambled_Zd_null
+      - steep_profile_positive
+    - name: lattice_dim
+      levels:
+      - '400'
+      - '600'
+      - '800'
+      - '1000'
+      - '1200'
+      - '1500'
+    factors:
+    - name: scramble_seed_block
+      treatment: randomized
+      value: A,B
+      how: seed of the unimodular scrambling applied before LLL
+    - name: threads
+      treatment: fixed
+      value: '1'
+      how: a single-threaded fpylll build so that counts are deterministic
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - mlkem_shape
+      - scrambled_Zd_null
+      differs_in:
+      - basis_family
+      design: one_factor
+    - id: C2
+      arms:
+      - cost by precision_type and lattice_dim
+      differs_in:
+      - precision_type
+      - lattice_dim
+      design: factorial
+    - id: C3
+      arms:
+      - mlkem_shape cost at the ML-KEM-768 dimension
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - mlkem_shape block A
+      - mlkem_shape block B
+      differs_in:
+      - scramble_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-9b3937.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-9b3937.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P3
+    first_recorded_in: ledger/proposals/IDEA-20261018-9b3937.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - precision_table.json with the per-type cost microbenchmarks
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-e9789d/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-9b3937.
+    - >-
+      RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open
+      goal serves this question. The Coordinator must open a successor goal or rebind before
+      dispatch.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.
+  goal_id_note: >-
+    RQ-MLKEM-003's goals GOAL-MLKEM-003 and GOAL-MLKEM-004 are closed_at_budget; no open goal
+    serves this question. The Coordinator must open a successor goal or rebind before dispatch.

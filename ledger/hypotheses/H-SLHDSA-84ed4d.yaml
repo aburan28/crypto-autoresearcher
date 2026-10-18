@@ -1,0 +1,94 @@
+# HYPOTHESIS -- H-SLHDSA-84ed4d, specified from IDEA-20261018-c09848. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-84ed4d
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-c09848
+  added: '2026-10-18'
+  statement: >-
+    For each FIPS 205 parameter set and each hash role (F, H, T_len, H_msg, PRF), the cost
+    of the best generic quantum multi-target attack depends on the number of exposed targets
+    t, the depth cap D and the processor count P as G = sqrt(2^n / t) total iterations split
+    across P machines, giving total gates ~ 2^n / (t * D) per machine-depth product when D
+    binds. A machine-checked table over D in {2^40, 2^64, 2^96} and t from the transcript
+    exposure counts shows at least one parameter set whose depth-capped quantum margin falls
+    below its category floor by >= 4 bits when t is taken as the full exposed target count;
+    or none does, which is the comfortable-margin outcome.
+  mechanism: >-
+    Grover parallelises badly: splitting the search space over P machines saves only sqrt(P)
+    in depth while multiplying width by P. Under a depth cap D the attacker must use P = 2^n/(t
+    D^2) machines, and total cost scales as 2^n/(t D), so multi-target gain t is fully realised
+    in the quantum setting under depth limits. Tweaks and per-key PK.seed limit t to targets
+    sharing one tweak domain; the table must count t per tweak domain, not per transcript,
+    which is exactly where conventions disagree.
+  assumptions:
+  - >-
+    Grover with t marked items in 2^n needs ~ (pi/4) sqrt(2^n/t) iterations, and splitting
+    into P parts costs sqrt(P) depth reduction
+  - Per-call oracle cost is within the interval quoted per role
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: >-
+      Grover with t marked items in 2^n needs ~ (pi/4) sqrt(2^n/t) iterations, and splitting
+      into P parts costs sqrt(P) depth reduction
+    random_model_justification: Boyer-Brassard-Hoyer-Tapp analysis; Zalka optimality
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-bc381e
+    falsification_condition: statevector simulation at n<=20
+  - id: HEUR-002
+    formal_statement: Per-call oracle cost is within the interval quoted per role
+    random_model_justification: resource estimates for SHA-2/SHA-3 circuits in the literature
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-bc381e
+    falsification_condition: sensitivity rows at both interval ends
+  predictions:
+  - metric: minimum over roles of category margin under D=2^64, t = per-domain exposure
+    direction: lower
+    minimum_effect: '>= 4 bits below the category floor for at least one set'
+  - metric: spread of log2 cost across t conventions (per-transcript vs per-tweak-domain)
+    direction: higher
+    minimum_effect: '>= 10 bits for at least one role'
+  - metric: toy statevector success probability vs formula at n<=20
+    direction: different
+    minimum_effect: agreement within 2 SE (validation, not a discovery)
+  test_boundary:
+    instances:
+    - >-
+      Table: 12 FIPS 205 sets x 5 roles x D in {2^40,2^64,2^96} x 2 t conventions. Validation:
+      n in {12,16,20}, t in {1,4,16}, P in {1,4,16}, 200 shots x 50 placements per cell
+    parameters:
+      scale_tier: medium
+      scale_justification: >-
+        table at full FIPS 205 sizes is computation; empirical validation at n<=20; transfer
+        assumption: Grover scaling is exact up to constants
+    implementation: Python 3 with mpmath for interval arithmetic; Qiskit Aer statevector for
+      n<=20 validation
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 6
+      maximum_memory_gb: 16
+      maximum_runs: 40
+  distinguishable_outcomes:
+  - every set within 4 bits of its floor
+  - spread under 10 bits for every role
+  - disagreement beyond 3 SE
+  falsification_conditions:
+  - statevector success curves disagree with the closed form beyond 3 SE
+  - table entries do not reduce to known single-target costs at t=1
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate. Statevector validation is at n<=20; the table
+    itself is a computation at FIPS 205 sizes and is a cost-model statement, not a measured
+    attack.
+  - Depends on the MAXDEPTH convention; reported as a range, never a point.
+  status: specified
+  proposed_by: idea-generator

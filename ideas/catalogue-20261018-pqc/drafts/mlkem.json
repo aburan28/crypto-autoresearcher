@@ -1,0 +1,4071 @@
+[
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Decryption failures as approximate DDGR hints: measured block-size drop per observed failure on reduced ML-KEM",
+  "class": "mechanism",
+  "claim": "Each decryption failure observed for an attacker-generated ML-KEM ciphertext conditions the secret (s,e) to satisfy |<(s,e),c> + known| > q/4 along a public direction c built from (r,e1,e2). Integrated as approximate hints (truncated-Gaussian posterior along c) in the DDGR distorted-BDD framework, F failures lower the measured success block size of progressive BKZ on reduced instances by at least 2 per failure over the first 4 failures, and the DDGR leaky-LWE estimator predicts the measured success beta within +-3. If the measured drop is within the A/A noise floor, or the estimator misses by more than 5, the claim is false.",
+  "mechanism": "Failure-boosting literature (D'Anvers et al.) uses failures to estimate a secret direction and then argues a lattice gain informally. DDGR shows any linear hint with a known posterior can be folded into the BDD ellipsoid, shrinking the volume along c. A failure is a one-sided inequality on a projection, whose posterior has variance reduced and mean shifted away from 0; the variance reduction along c is the information gained. Because the conditioning is along F nearly independent directions, the lattice dimension effectively loses roughly a fraction of a dimension per failure. Measuring this directly closes the gap between the failure-oracle cost (query count) and the lattice cost that follows.",
+  "tracked_object": "Success block size beta* (smallest progressive-BKZ/G6K pump block size at which the planted secret is recovered and verified) on the hint-integrated DBDD instance, as a function of the number F of integrated failures.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "mean beta*(F=0) - beta*(F=4)",
+    "direction": "higher",
+    "minimum_effect": ">= 8 block-size units at n=64,k=2",
+    "falsified_by": "drop below the AA1 noise floor or below 4 units"
+   },
+   {
+    "id": "P2",
+    "metric": "|beta*_measured - beta*_DDGR_predicted| at F in {1,2,4,8}",
+    "direction": "lower",
+    "minimum_effect": "<= 3 units at every F",
+    "falsified_by": "any F with absolute miss > 5 units"
+   },
+   {
+    "id": "P3",
+    "metric": "beta* drop for non-failure hints (null arm)",
+    "direction": "lower",
+    "minimum_effect": "<= 1 unit at matched hint count",
+    "falsified_by": "null arm drop >= 3 units, meaning the pipeline leaks secret information"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate 30 reduced ML-KEM keys (n=64,k=2,q=3329,eta1=eta2=3 to make failures reachable). For each, harvest F in {0,1,2,4,8} failing ciphertexts from honestly generated encapsulations filtered by ||(r,e1)|| (simulated oracle using the self-generated secret key). Integrate the failures as approximate hints with the leaky-LWE-estimator framework, build the reduced embedding, and run G6K progressive pumps until the secret verifies; record beta*.",
+   "controls": [
+    "null: integrate the same number of NON-failing ciphertexts (true but weak conditioning) of matched ||(r,e1)||; predicted drop ~0",
+    "positive: integrate F perfect hints <(s,e),c> = exact value along the same directions; DDGR predicts ~1 dimension per hint and the pipeline must reproduce it",
+    "A/A: the no-hint arm run twice on the same instances with different BKZ randomization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 fails: failure-hint arm beta* within noise of the no-hint arm at F=4",
+   "positive control fails to show >= 0.7 dimension per perfect hint (pipeline broken; the batch is invalid, not negative)",
+   "null arm shows a material drop (leakage in the harness)"
+  ],
+  "confounders": [
+   "eta raised to 3 changes the failure geometry relative to FIPS eta2=2",
+   "the filtered ciphertext population has larger ||(r,e1)||, changing the hint directions' norms",
+   "progressive BKZ success is stochastic; per-instance variance can mask small effects"
+  ],
+  "interpretation_limits": [
+   "Reduced n=64 and raised eta: the result is a calibration of the hint-integration step, not an ML-KEM failure attack cost; at FIPS 203 the dominant cost remains finding the first failure (2^100+ queries by published DFR), which this test does not touch",
+   "Simulated oracle only; no implementation or deployed key is queried"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "The posterior of <(s,e),c> conditioned on failure is well approximated by a truncated Gaussian.",
+    "rigorous_support": "CLT over n*k CBD terms; DDGR use the same approximation for approximate hints.",
+    "validation_plan": "Compare empirical conditioned moments from 10^6 simulated failures at n=64 against the truncated-Gaussian moments (KS test)."
+   },
+   {
+    "id": "H2",
+    "statement": "Failures from different ciphertexts give nearly independent directions.",
+    "rigorous_support": "Random r,e1 directions are nearly orthogonal in dimension 2kn.",
+    "validation_plan": "Report the Gram matrix of the F normalized directions; max off-diagonal |cos| logged."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged 0.292*beta sieve exponent; beta lowered by ~delta(F)",
+   "memory_exponent": "0.2075*beta",
+   "best_known": "failure-boosting attacks (D'Anvers et al.) with heuristic direction estimation",
+   "hidden_overhead": "query cost to find failures dominates at FIPS DFR; filter cost per candidate ciphertext",
+   "tradeoff_note": "constant/linear beta reduction per failure; no exponent change in the lattice step itself"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020",
+    "relation": "generalizes",
+    "delta": "DDGR give the integration framework; this measures it for one-sided failure-conditioned hints, which DDGR did not instantiate, against real reduction"
+   },
+   {
+    "ref": "KN-LIT-119",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Vercauteren, Verbauwhede, On the impact of decryption failures on the security of LWE/LWR based schemes, PKC 2019",
+    "relation": "adjacent",
+    "delta": "replaces their heuristic post-failure lattice gain with a measured beta* curve"
+   },
+   {
+    "ref": "KN-LIT-1974",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Rossi, Virdia, (One) failure is not an option: bootstrapping the search for failures",
+    "relation": "adjacent",
+    "delta": "they estimate direction quality; this measures the downstream lattice block size"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-4854f8",
+   "IDEA-20260828-5b7795"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Measured beta* versus integrated failure count on reduced ML-KEM (n=64, k=2)",
+   "objective": "Reduce the uncertainty in how many block-size units one decryption failure is worth after the lattice step, and whether DDGR's estimator predicts it.",
+   "instrument": "Python 3, SageMath 10, leaky-LWE-estimator (DDGR framework), G6K pump/progressive BKZ via fpylll, NumPy; reduced ML-KEM keygen/encaps written from FIPS 203 pseudocode with n parameterized",
+   "parameters": "n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=4; 30 keys; F in {0,1,2,4,8}; candidate encapsulations up to 2^26 per key filtered to the top 2^-10 by ||(r,e1)||; G6K progressive pumps from beta=30 in steps of 2 up to 110; embedding dimension 2kn+1=257",
+   "procedure": "1) Freeze protocol and seeds. 2) Keygen 30 keys. 3) For each key generate filtered encapsulations and query the simulated oracle until 8 failures and 8 non-failures of matched norm are stored. 4) For each arm and F build the hint-integrated DBDD instance (DDGR isotropize). 5) Run progressive reduction, record beta* and verify s. 6) Run the leaky-LWE estimator for the same hints. 7) Compute paired differences and bootstrap CIs.",
+   "independent_variables": [
+    {
+     "name": "hint_type",
+     "levels": [
+      "none",
+      "failure_approx",
+      "nonfailure_approx_null",
+      "perfect_positive"
+     ]
+    },
+    {
+     "name": "num_hints",
+     "levels": [
+      "1",
+      "2",
+      "4",
+      "8"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "30 keys",
+     "how": "keys drawn from seeded SHAKE; same keys in every arm (paired)"
+    },
+    {
+     "name": "bkz_seed_block",
+     "treatment": "randomized",
+     "value": "blocks A and B",
+     "how": "basis randomization seed block used by G6K before progressive reduction"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "failure_approx",
+      "none"
+     ],
+     "differs_in": [
+      "hint_type"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "failure_approx vs DDGR prediction"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "nonfailure_approx_null",
+      "none"
+     ],
+     "differs_in": [
+      "hint_type"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "none bkz_seed_block A",
+      "none bkz_seed_block B"
+     ],
+     "differs_in": [
+      "bkz_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "beta* per instance",
+    "paired beta* drop with 95% bootstrap CI"
+   ],
+   "secondary_metrics": [
+    "estimator residual",
+    "oracle queries per failure",
+    "max |cos| between hint directions"
+   ],
+   "preregistered_prediction": {
+    "quantity": "beta*(none) - beta*(failure_approx, F=4)",
+    "formula": "DDGR leaky-LWE estimator output for the integrated hints",
+    "source": "KN-LIT-118 framework"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced ML-KEM shape: ring Z_3329[X]/(X^n+1) with n in {32,64}, module rank k=2, CBD(eta) secrets/errors; transfer assumption: the measured ratio (not the absolute cost) carries to n=256 when the governing statistic scales as stated; no FIPS 203 claim is made",
+   "seeds_count": 30,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 48,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 300
+   },
+   "stopping_rules": [
+    "stop an instance at beta=110 without success and record censored",
+    "stop the batch if the positive control fails on 5 consecutive instances"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "positive control below 0.7 dimension per perfect hint invalidates the batch"
+   ],
+   "success_criterion": "C1 shows a paired drop >= 8 at F=4 with CI excluding 0 and above the AA1 noise floor (P1), and C2 residual <= 3 at all F (P2), with C3 drop <= 1 (P3).",
+   "falsification_criterion": "C1 drop at F=4 below 4 units or inside the AA1 noise floor, or C2 residual > 5 at any F.",
+   "decision_impact": {
+    "on_positive": "Adopt DDGR integration as the lattice back end of the failure flank and price ML-KEM failure attacks as (query cost) + (beta* from estimator), feeding RQ-MLKEM-003 target 4.",
+    "on_negative": "Record that failure-conditioned hints are worth less than DDGR predicts; the failure flank is priced by query cost alone and the lattice step gets no discount."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill",
+    "hints/ directory with the serialized hint directions per key"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Rotation-augmented sieve database on negacyclic module lattices: does the 2n-fold rotation orbit survive projection into BKZ blocks?",
+  "class": "algorithm",
+  "claim": "On the full (unprojected) primal lattice of a module-LWE instance over Z[X]/(X^n+1), inserting all 2n signed rotations of each new short vector into a G6K database cuts the number of sieve iterations to saturation by a factor >= 4 at lattice dimension 64-96. Inside BKZ the projected block pi_i(L) is not rotation invariant, so the gain must collapse to <= 1.1x once the block is a proper projection. The falsifiable content is the collapse curve as a function of projection depth.",
+  "mechanism": "The module lattice is invariant under multiplication by X acting coordinatewise on each ring component, so each lattice vector carries an orbit of 2n vectors of equal norm (Schneider; Bos-Naehrig-van de Pol exploited this for ideal Gauss sieving). Projection orthogonal to the first i Gram-Schmidt vectors destroys the invariance because the projection subspace is not X-stable. The fraction of the orbit that stays short after projection decays with i. Measuring that decay tells whether any rotation saving can reach the projected sieves that dominate the real attack.",
+  "tracked_object": "Ratio of sieve iterations (and total pair tests) to reach 90% saturation, rotation-augmented vs plain, as a function of projection depth i into the lattice.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "iteration ratio plain/augmented at i=0 (full lattice)",
+    "direction": "higher",
+    "minimum_effect": ">= 4 at d=80",
+    "falsified_by": "ratio < 2"
+   },
+   {
+    "id": "P2",
+    "metric": "iteration ratio at i >= d/4",
+    "direction": "lower",
+    "minimum_effect": "<= 1.1",
+    "falsified_by": "ratio >= 1.5 at i=d/4, which would mean rotation structure survives projection"
+   }
+  ],
+  "minimal_test": {
+   "design": "Primal embedding lattices of module-LWE with n in {16,32}, k in {2,3} (d=64..96). For each, run G6K sieve on context [i, d] for i in {0, 4, 8, d/8, d/4, d/2} with and without inserting rotated copies (projected) of every newly found vector; count iterations, pair tests and wall time to saturation.",
+   "controls": [
+    "null: unstructured q-ary lattice of the same dimension and determinant with 'rotations' applied as random signed coordinate permutations (orbit is not in the lattice) - augmentation must not help",
+    "positive: ideal lattice (k=1) full sieve, where the orbit is exact and the published gain should reproduce",
+    "A/A: plain arm run twice with different database-initialization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no gain at i=0 on the positive control (implementation broken)",
+   "P2 violated: gain persists at deep projection"
+  ],
+  "confounders": [
+   "inserting rotations inflates the database and saturation definition",
+   "LLL preprocessing quality differs by instance",
+   "thread scheduling noise in G6K"
+  ],
+  "interpretation_limits": [
+   "At FIPS 203 dimensions the final sieve runs at i ~ d - beta >> d/4, so only a negative P2 can matter there; a positive P1 alone is a toy-dimension statement",
+   "d <= 96 only"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Saturation at 90% is a fair stopping point across arms.",
+    "rigorous_support": "G6K default saturation criterion.",
+    "validation_plan": "Repeat at 70% and 95% saturation and report sensitivity."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged; constant factor at most 2n in the full lattice",
+   "memory_exponent": "unchanged",
+   "best_known": "plain G6K pump on projected blocks",
+   "hidden_overhead": "rotation insertion and duplicate detection cost O(n) per vector",
+   "tradeoff_note": "constant only; expected to vanish in projected contexts"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel and New Records in Lattice Reduction, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "G6K is the instrument; it does not exploit ring rotations"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Bos, Naehrig, van de Pol, Sieving for shortest vectors in ideal lattices: a practical perspective, IJACT 2017 (recalled, hedged)",
+    "relation": "special_case",
+    "delta": "they treat ideal lattices and full sieves; this measures module lattices and the decay under BKZ projection"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260906-dfdeee",
+   "IDEA-20260722-001"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Rotation augmentation gain versus projection depth in G6K",
+   "objective": "Decide whether the negacyclic rotation orbit gives any measurable sieve saving inside the projected contexts real attacks use.",
+   "instrument": "G6K (Python/C++) with a small augmentation hook in the insert path, fpylll, SageMath for lattice construction",
+   "parameters": "n in {16,32}, k in {2,3}, q=3329, CBD(2); d in {64,96}; projection depth i in {0,4,8,d/8,d/4,d/2}; 10 instances per (n,k); saturation 0.9",
+   "procedure": "1) Freeze protocol. 2) Build lattices and LLL/BKZ-20 preprocess. 3) For each i run plain and augmented sieves from identical seeds. 4) Record iterations, pair tests, time. 5) Fit ratio(i) and test P1/P2.",
+   "independent_variables": [
+    {
+     "name": "augmentation",
+     "levels": [
+      "off",
+      "rotations_on"
+     ]
+    },
+    {
+     "name": "projection_depth",
+     "levels": [
+      "0",
+      "4",
+      "8",
+      "d/8",
+      "d/4",
+      "d/2"
+     ]
+    },
+    {
+     "name": "lattice_family",
+     "levels": [
+      "module_kyber_shape",
+      "unstructured_null",
+      "ideal_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "db_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed for initial database sampling"
+    },
+    {
+     "name": "threads",
+     "treatment": "fixed",
+     "value": "8",
+     "how": "taskset pinned"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "rotations_on",
+      "off"
+     ],
+     "differs_in": [
+      "augmentation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ratio curve over projection_depth"
+     ],
+     "differs_in": [
+      "projection_depth",
+      "augmentation"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "off db_seed_block A",
+      "off db_seed_block B"
+     ],
+     "differs_in": [
+      "db_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "iterations-to-saturation ratio",
+    "pair-test ratio"
+   ],
+   "secondary_metrics": [
+    "wall-clock ratio",
+    "database size at saturation"
+   ],
+   "preregistered_prediction": {
+    "quantity": "pair-test ratio at i=0 and at i=d/4",
+    "formula": "~2n at i=0 bounded by duplicates; ~1 for i>=d/4",
+    "source": "orbit size argument; Bos-Naehrig-van de Pol (recalled)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "d=64..96; transfer assumption: if the gain is already ~1 at i=d/4 it is ~1 at the i~d-beta used for FIPS 203",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 480
+   },
+   "stopping_rules": [
+    "stop if positive control shows no gain on 5 instances"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 at i=0 shows ratio >= 4 (P1) and C2 shows the ratio falling to <= 1.1 by i=d/4 (P2), both outside the AA1 noise floor.",
+   "falsification_criterion": "C2 shows ratio >= 1.5 at i=d/4 (P2 falsified) or C1 ratio < 2 at i=0 on module lattices (P1 falsified).",
+   "decision_impact": {
+    "on_positive": "Close the rotation-reuse-in-sieving lane for the projected BKZ setting with a measured decay curve; keep it only for full-lattice final sieves in hybrid attacks.",
+    "on_negative": "If gain survives projection, open a lane to price rotation-augmented pumps at FIPS block sizes."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Module-BKZ versus scalar BKZ in total counted operations at equal output profile, rank 2-3 modules over degree 8-32 cyclotomics",
+  "class": "measurement",
+  "claim": "At module rank 2 and 3 over Z[X]/(X^d+1), d in {8,16,32}, module-BKZ (module-LLL plus module-SVP oracles) reaches the same measured log-profile slope as scalar BKZ at a total counted cost (SVP-oracle node or sieve pair counts plus size-reduction ring multiplications) that is either at least 2x lower (structure is a liability) or at least 2x higher (structure is a cost to the attacker). The claim is that the sign is determinable at these sizes with 20 instances per cell and is not inside the A/A noise.",
+  "mechanism": "IDEA-20260829-353361 measures the blocksize offset Delta(d,r) at equal slope. A blocksize offset does not by itself fix cost: module-BKZ operates on d-times smaller matrices over the ring (fast NTT multiplication), uses fewer but larger SVP calls, and the module-SVP oracle can exploit the ring automorphisms inside the block. Those terms can offset a positive Delta, or compound it. Only a total-cost measurement at matched output decides which.",
+  "tracked_object": "Total counted cost (enumeration nodes or sieve pair tests, plus ring/integer multiplications in size reduction) to reach target root-Hermite slope, module-BKZ divided by scalar BKZ.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "cost ratio module/scalar at r=2",
+    "direction": "different",
+    "minimum_effect": "ratio outside [0.5, 2]",
+    "falsified_by": "ratio inside [0.5, 2] with CI also inside, i.e. no material difference"
+   },
+   {
+    "id": "P2",
+    "metric": "cost ratio trend in d at fixed r",
+    "direction": "higher",
+    "minimum_effect": "ratio increases monotonically from d=8 to d=32",
+    "falsified_by": "non-monotone or decreasing trend"
+   }
+  ],
+  "minimal_test": {
+   "design": "For each (d, r) build 20 random module-LWE q-ary lattices (q=3329, CBD(2)). Run scalar progressive BKZ (fpylll) and module-BKZ (a SageMath prototype per Lee-Pellet-Mary-Stehle-Wallet module-LLL with enumeration-based module-SVP) until the measured profile slope reaches the same target; count operations.",
+   "controls": [
+    "null: unstructured lattice of the same dimension where module-BKZ is run on a fake module basis (block-diagonal grouping without ring structure) - the module algorithm's advantage, if any, must vanish",
+    "positive: d=1 (Z-modules) where module-BKZ equals scalar BKZ and the ratio must be 1 within noise",
+    "A/A: scalar BKZ run twice with different basis-randomization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "positive control ratio outside [0.8,1.25] (counting bug)",
+   "P1: CI of the ratio inside [0.5,2]"
+  ],
+  "confounders": [
+   "prototype quality of module-BKZ vs mature fpylll",
+   "different oracles (enumeration vs sieve) inside the two arms",
+   "profile slope is a noisy summary at small dimension"
+  ],
+  "interpretation_limits": [
+   "Dimensions 32-96 only; ML-KEM runs at d=256, r~2-4 - the trend in d is the transferable object, not any absolute number",
+   "operation counts, not wall clock"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Equal profile slope implies equal attack utility.",
+    "rigorous_support": "GSA-based estimators use slope alone.",
+    "validation_plan": "Also report success rate on planted uSVP at the reached profile."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged unless Delta < 0",
+   "memory_exponent": "unchanged",
+   "best_known": "scalar BKZ 2.0 / G6K",
+   "hidden_overhead": "module-SVP oracle cost and ring arithmetic",
+   "tradeoff_note": "a constant or blocksize offset; exponent change only if the ratio trend in d is negative"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Ducas, Engelberts, de Perthuis, module-BKZ blocksize penalty d-1+o(1) for power-of-two cyclotomics, ePrint 2025/1904 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "they give a blocksize law; this measures total cost at matched output"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Lee, Pellet-Mary, Stehle, Wallet, An LLL algorithm for module lattices, ASIACRYPT 2019 (recalled)",
+    "relation": "adjacent",
+    "delta": "algorithmic basis of the prototype; no cost comparison at Kyber shapes"
+   },
+   {
+    "ref": "KN-LIT-101",
+    "provenance": "kb",
+    "citation_text": "Chen, Nguyen, BKZ 2.0: Better Lattice Security Estimates",
+    "relation": "orthogonal",
+    "delta": "the scalar baseline"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260829-353361",
+   "IDEA-20260829-1ebebd"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Total-cost head-to-head of module-BKZ and scalar BKZ at matched profile slope",
+   "objective": "Decide the sign of the module-structure cost difference at the block ranks ML-KEM uses.",
+   "instrument": "SageMath 10 module-LLL/module-BKZ prototype with operation counters, fpylll BKZ 2.0 with node counters",
+   "parameters": "d in {1,8,16,32}, r in {2,3}, q=3329, CBD(2); 20 instances per cell; target slope = that of scalar BKZ-30 output",
+   "procedure": "1) Freeze. 2) Scalar BKZ-30 defines target slope per instance. 3) Run module-BKZ with increasing module block rank until slope reached. 4) Count ops. 5) Ratios with bootstrap CI.",
+   "independent_variables": [
+    {
+     "name": "reduction_algorithm",
+     "levels": [
+      "scalar_bkz",
+      "module_bkz"
+     ]
+    },
+    {
+     "name": "ring_degree",
+     "levels": [
+      "1",
+      "8",
+      "16",
+      "32"
+     ]
+    },
+    {
+     "name": "module_rank",
+     "levels": [
+      "2",
+      "3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "unimodular randomization before reduction"
+    },
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "20",
+     "how": "paired across arms"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "module_bkz",
+      "scalar_bkz"
+     ],
+     "differs_in": [
+      "reduction_algorithm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ratio by ring_degree"
+     ],
+     "differs_in": [
+      "reduction_algorithm",
+      "ring_degree"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "scalar_bkz block A",
+      "scalar_bkz block B"
+     ],
+     "differs_in": [
+      "basis_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "total counted ops ratio"
+   ],
+   "secondary_metrics": [
+    "uSVP success rate at reached profile",
+    "wall clock"
+   ],
+   "preregistered_prediction": {
+    "quantity": "log2 cost ratio at r=2",
+    "formula": "0.292*Delta(d,2)-ish if oracle cost dominates",
+    "source": "DEP 2025/1904 blocksize law (recalled)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "ring degree <= 32; transfer assumption: the fitted trend in d extrapolates to d=256 only as a conditional statement",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 80,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 320
+   },
+   "stopping_rules": [
+    "stop the cell if module-BKZ fails to reach target within 50x scalar cost; record censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "d=1 positive control outside [0.8,1.25] invalidates counters"
+   ],
+   "success_criterion": "C1 ratio CI lies outside [0.5,2] at r=2 (P1) and C2 shows a monotone trend in ring_degree (P2), above AA1 noise floor.",
+   "falsification_criterion": "C1 ratio CI lies within [0.5,2] at every d, or C2 trend is non-monotone.",
+   "decision_impact": {
+    "on_positive": "Feed the measured cost ratio and its d-trend into the module-BKZ lane's go/no-go and into 353361's offset interpretation.",
+    "on_negative": "Record that module and scalar BKZ are cost-indistinguishable at small rank; module structure neither helps nor hurts the attacker at measurable sizes."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Meet-LWE with CBD-shaped representations: do eta-ary representation weights beat the ternary analysis for CBD(2)/CBD(3) secrets at n=32-64?",
+  "class": "algorithm",
+  "claim": "May's Meet-LWE representation technique, generalized to secrets with the exact CBD(eta) symbol distribution on {-eta..eta} (representations split each symbol into two summands drawn from a tuned distribution), achieves a measured time exponent c (log2 time / n) at least 10% below the same algorithm using a ternary-style representation on CBD(2) secrets at n in {32,48,64}, q=3329. It remains far above the primal lattice attack at the same n; the claim concerns the combinatorial exponent, not a break.",
+  "mechanism": "Representation counts grow with the number of ways to write a symbol as a sum; CBD(eta) puts mass 6/16, 4/16, 1/16 on 0, +-1, +-2 (eta=2), so tuned summand distributions can produce more representations per list element than a ternary-weight split. More representations allow stronger filtering modulo partial q-ary constraints, shrinking lists. This changes the exponent coefficient of the combinatorial attack, which is the term hybrid attacks combine with lattice reduction.",
+  "tracked_object": "Measured list sizes per level and total time (counted vector additions) of Meet-LWE on CBD(eta) secrets, tuned-representation vs ternary-representation.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "fitted time exponent c_tuned / c_ternary",
+    "direction": "lower",
+    "minimum_effect": "<= 0.9",
+    "falsified_by": "ratio >= 0.97 with CI"
+   },
+   {
+    "id": "P2",
+    "metric": "measured level-1 list size vs representation-count prediction",
+    "direction": "different",
+    "minimum_effect": "within factor 2 of prediction",
+    "falsified_by": "measured lists exceed prediction by > 4x (representation heuristic fails for CBD)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement depth-2/3 Meet-LWE with both representation schemes; run on LWE instances with n in {32,40,48,56,64}, m=n, q=3329, CBD(2) secret and error; 10 instances per n; fit exponents.",
+   "controls": [
+    "null: uniform secrets on {-2..2} (no CBD skew) where the tuned split should lose its edge",
+    "positive: ternary secrets where the published Meet-LWE analysis applies and must be reproduced within factor 2",
+    "A/A: ternary-representation arm with two hash-seed blocks for the near-collision buckets"
+   ]
+  },
+  "falsification_conditions": [
+   "P1: no exponent improvement",
+   "positive control off by > 4x (implementation invalid)"
+  ],
+  "confounders": [
+   "implementation constants dominate at n <= 64",
+   "error rounding strategy in the near-collision step",
+   "choice of filtering modulus"
+  ],
+  "interpretation_limits": [
+   "n <= 64 combinatorial instances; exponents fitted on 5 points; Meet-LWE is known to lose to lattices at ML-KEM sizes, so this is an input to hybrid cost models only"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Representations behave as independent uniform under the filtering constraint.",
+    "rigorous_support": "Standard in Becker-Coron-Joux and May analyses.",
+    "validation_plan": "Compare measured list sizes to predicted at every level (P2)."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{c n} with c to be measured",
+   "memory_exponent": "lists ~ same order",
+   "best_known": "Meet-LWE ternary analysis (May); primal lattice at small n",
+   "hidden_overhead": "near-collision search and error handling",
+   "tradeoff_note": "exponent-coefficient change in a combinatorial component"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4293",
+    "provenance": "kb",
+    "citation_text": "May, How to Meet Ternary LWE Keys, CRYPTO 2021",
+    "relation": "generalizes",
+    "delta": "extends the representation to CBD(eta) alphabets and measures"
+   },
+   {
+    "ref": "KN-LIT-4893",
+    "provenance": "kb",
+    "citation_text": "Esser et al., Memory-Efficient Attacks on Small LWE Keys",
+    "relation": "adjacent",
+    "delta": "memory-efficient variants for small keys; CBD-specific representation tuning measured here"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-17acdf",
+   "IDEA-20260901-67f498"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "CBD-tuned versus ternary representations in Meet-LWE, n=32..64",
+   "objective": "Measure whether CBD-aware representations lower the combinatorial exponent.",
+   "instrument": "C++/Python Meet-LWE implementation with counters; NumPy",
+   "parameters": "n in {32,40,48,56,64}, m=n, q=3329, CBD(2) and CBD(3), depth 2 and 3; 10 instances per n; memory cap 32 GB",
+   "procedure": "1) Freeze. 2) Generate instances. 3) Run both representation arms. 4) Record list sizes, collisions, time, success, verify secret. 5) Fit log2 time vs n.",
+   "independent_variables": [
+    {
+     "name": "representation",
+     "levels": [
+      "ternary_style",
+      "cbd_tuned"
+     ]
+    },
+    {
+     "name": "secret_law",
+     "levels": [
+      "cbd2",
+      "cbd3",
+      "uniform5_null",
+      "ternary_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "hash_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed of the locality-sensitive bucketing"
+    },
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "10 per n",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "cbd_tuned",
+      "ternary_style"
+     ],
+     "differs_in": [
+      "representation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cbd_tuned on cbd2 vs uniform5_null"
+     ],
+     "differs_in": [
+      "secret_law"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "ternary_style block A",
+      "ternary_style block B"
+     ],
+     "differs_in": [
+      "hash_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "fitted time exponent c"
+   ],
+   "secondary_metrics": [
+    "level list sizes",
+    "success rate",
+    "peak memory"
+   ],
+   "preregistered_prediction": {
+    "quantity": "c_tuned/c_ternary on CBD(2)",
+    "formula": "ratio of representation-count-optimized exponents",
+    "source": "May 2021 analysis extended (derived before data)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n<=64; transfer assumption: the exponent ratio, not absolute time, informs hybrid models at n=256",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 400
+   },
+   "stopping_rules": [
+    "drop n level when memory cap hit; record censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 exponent ratio <= 0.9 with CI below 0.97 (P1), P2 list-size agreement within 2x, and C2 shows the gain shrinks on uniform5_null; all beyond AA1 noise floor.",
+   "falsification_criterion": "C1 exponent ratio CI includes 0.97 or above, or list sizes exceed predictions by > 4x.",
+   "decision_impact": {
+    "on_positive": "Plug the CBD-tuned exponent into the hybrid-attack cost lane and re-run the hybrid estimate at ML-KEM parameters as a conditional.",
+    "on_negative": "Record that CBD skew gives no representation advantage; hybrid models keep the ternary-style combinatorial exponent."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Compression-error-aware failure boosting: include the attacker-known Compress_dv/Compress_du rounding errors in the weak-ciphertext score",
+  "class": "mechanism",
+  "claim": "An attacker who generates ciphertexts knows the exact rounding errors introduced by Compress_du(u) and Compress_dv(v). Scoring candidate encapsulations by the full known part of the failure term, including these rounding errors, rather than by ||(r,e1)|| alone, raises the failure probability of the top 2^-10 filtered fraction by a factor >= 2 at equal precomputation, measured on reduced parameters with elevated base DFR. If the ratio is within the A/A noise, the compression terms add nothing to boosting.",
+  "mechanism": "The decryption noise is e^T r - s^T(e1 + du_err) + e2 + dv_err. The attacker knows r, e1, e2, du_err and dv_err exactly; only s and e are secret. dv_err enters additively with magnitude up to q/2^(dv+1) (about 104 at dv=4), a known shift toward the failure threshold, while du_err enlarges the effective vector multiplying s. Published boosting weights only by the norms of (r,e1); conditioning on the known additive shift dv_err in the coordinate where the failure is tested changes the per-coordinate tail probability directly.",
+  "tracked_object": "Empirical failure probability of the filtered ciphertext set (top fraction 2^-10 by score) under the full-known-term score vs the (r,e1)-norm score.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "failure rate ratio full_score / norm_score at filter 2^-10",
+    "direction": "higher",
+    "minimum_effect": ">= 2",
+    "falsified_by": "ratio < 1.3 with CI"
+   },
+   {
+    "id": "P2",
+    "metric": "analytic per-coordinate tail model vs measured failure rate",
+    "direction": "different",
+    "minimum_effect": "within factor 1.5",
+    "falsified_by": "model off by > 3x"
+   }
+  ],
+  "minimal_test": {
+   "design": "Reduced ML-KEM with n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3 so base DFR is ~2^-14 (calibrated first). Generate 2^30 encapsulations per key for 20 keys, score with both rules, keep the top 2^-10, query the simulated oracle, count failures.",
+   "controls": [
+    "null: score using dv_err from an independent random ciphertext (shuffled), keeping its distribution but breaking the link - ratio must be 1",
+    "positive: planted extra additive known shift of +q/16 on the tested coordinate where the gain is analytically computable and must appear",
+    "A/A: norm_score arm with two encapsulation-RNG seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 ratio < 1.3",
+   "shuffled null shows ratio > 1.2 (harness leak)"
+  ],
+  "confounders": [
+   "raising eta and lowering d_v changes which noise term dominates relative to FIPS 203",
+   "finite failure counts (Poisson noise)",
+   "per-key variability of ||s||"
+  ],
+  "interpretation_limits": [
+   "Elevated-DFR reduced parameters; at FIPS 203 DFR (2^-139..2^-174) the relative gain may differ; any transfer is a statement about the score's relative efficiency under the model P2 validates",
+   "simulated oracle only"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Failure coordinates are nearly independent given the ciphertext.",
+    "rigorous_support": "Standard in Kyber DFR analysis.",
+    "validation_plan": "Measure pairwise coordinate failure correlations in the run."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "failure-search cost lowered by a constant factor",
+   "memory_exponent": "negligible",
+   "best_known": "norm-based boosting (D'Anvers et al.)",
+   "hidden_overhead": "computing the full score requires the full encaps per candidate (already paid)",
+   "tradeoff_note": "query reduction only; precomputation unchanged"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-119",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Vercauteren, Verbauwhede, On the impact of decryption failures..., PKC 2019",
+    "relation": "generalizes",
+    "delta": "adds the exactly known compression terms to the weakness score"
+   },
+   {
+    "ref": "KN-LIT-5045",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Batsleer, Multitarget Decryption Failure Attacks",
+    "relation": "adjacent",
+    "delta": "their scoring; this measures the compression-aware variant"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260807-05e12c",
+   "IDEA-20260813-fbedca",
+   "IDEA-20260808-4854f8"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Failure rate of compression-aware versus norm-based ciphertext filters at elevated DFR",
+   "objective": "Measure how much the attacker-known rounding errors improve weak-ciphertext selection.",
+   "instrument": "C (PQClean-derived reference ML-KEM with n, eta, d_u, d_v parameterized) + Python analysis",
+   "parameters": "n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; 20 keys; 2^30 candidates per key; filter 2^-10 and 2^-14",
+   "procedure": "1) Calibrate base DFR. 2) Freeze. 3) Generate candidates, compute both scores. 4) Query simulated oracle on filtered sets. 5) Compare failure rates with Poisson CIs.",
+   "independent_variables": [
+    {
+     "name": "score_rule",
+     "levels": [
+      "norm_score",
+      "full_known_score",
+      "shuffled_null",
+      "planted_shift_positive"
+     ]
+    },
+    {
+     "name": "filter_fraction",
+     "levels": [
+      "2^-10",
+      "2^-14"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "encaps_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed of encapsulation randomness"
+    },
+    {
+     "name": "key_seed",
+     "treatment": "randomized",
+     "value": "20",
+     "how": "paired across arms"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "full_known_score",
+      "norm_score"
+     ],
+     "differs_in": [
+      "score_rule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "full_known_score vs analytic tail model"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "norm_score block A",
+      "norm_score block B"
+     ],
+     "differs_in": [
+      "encaps_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "failure rate of filtered set"
+   ],
+   "secondary_metrics": [
+    "queries per failure",
+    "coordinate correlation"
+   ],
+   "preregistered_prediction": {
+    "quantity": "failure-rate ratio at 2^-10",
+    "formula": "tail(q/4 - shift)/tail(q/4) averaged over the filtered dv_err distribution",
+    "source": "derived before data from the CBD convolution"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "elevated-DFR reduced params; transfer assumption: score efficiency ratio is governed by the tail model checked in P2",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 200
+   },
+   "stopping_rules": [
+    "stop when each arm has >= 200 failures or 2^34 queries"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "base DFR calibration outside [2^-16, 2^-12] voids the run"
+   ],
+   "success_criterion": "C1 failure-rate ratio >= 2 with CI excluding 1.3 (P1) and C2 model within 1.5x (P2), beyond AA1 noise floor.",
+   "falsification_criterion": "C1 ratio CI includes 1.3 or lies below it, or the shuffled null deviates from 1.",
+   "decision_impact": {
+    "on_positive": "Update the failure-flank cost model with the compression-aware score and re-estimate query counts at FIPS parameters as a conditional.",
+    "on_negative": "Record that the compression rounding terms add no boosting leverage; keep norm-based scoring."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Multi-key failure precomputation is killed by FIPS 203's H(ek) in G: measure the amortization factor with and without key binding",
+  "class": "control",
+  "claim": "In FIPS 203, (K, r) = G(m || H(ek)), so the encryption randomness of a ciphertext depends on the target public key and weak-ciphertext precomputation cannot be shared across keys. A Kyber-round-1-style variant without H(ek) in G lets one precomputed weak set be reused against T keys, with measured cost per first failure falling by a factor >= T/2 for T up to 64. With key binding the amortization factor must be 1 within the A/A noise. This turns an argued property into a measured control for every multi-target failure claim.",
+  "mechanism": "Weak ciphertexts are selected by properties of (r, e1, e2), which in the FO transform are derived from m and, in FIPS 203, from H(ek). Without binding, a filtered m works for any key; with binding, each key needs its own search. D'Anvers-Batsleer multitarget attacks rely on reuse; the binding should remove it exactly, but this has not been measured at the level of the filtering pipeline.",
+  "tracked_object": "Amortization factor A(T) = (cost to first failure on each of T keys, independent searches) / (cost with shared precomputation), for bound and unbound G.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "A(64) unbound",
+    "direction": "higher",
+    "minimum_effect": ">= 32",
+    "falsified_by": "A(64) < 8"
+   },
+   {
+    "id": "P2",
+    "metric": "A(64) bound (FIPS 203)",
+    "direction": "lower",
+    "minimum_effect": "within [0.8,1.25]",
+    "falsified_by": "A(64) > 1.5, meaning binding leaks reuse"
+   }
+  ],
+  "minimal_test": {
+   "design": "Elevated-DFR reduced ML-KEM (as in the compression-boosting test), T in {1,4,16,64} keys. Precompute a filtered set of m values once; for unbound G reuse it on all keys; for bound G regenerate per key. Count total encaps work and oracle queries to the first failure per key.",
+   "controls": [
+    "null: bound G with the shared set (expected: filtered m are random for other keys, failure rate = base DFR)",
+    "positive: unbound G where reuse must work",
+    "A/A: bound arm with two m-RNG seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P2 violated",
+   "P1 violated (pipeline cannot show reuse even when allowed; batch invalid)"
+  ],
+  "confounders": [
+   "key-to-key variance of ||s|| changes per-key failure rates",
+   "finite failure counts"
+  ],
+  "interpretation_limits": [
+   "Reduced, elevated-DFR parameters; a control establishing the property, not a cost at FIPS DFR",
+   "says nothing about implementations that omit or mis-hash H(ek)"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "G and H behave as random oracles.",
+    "rigorous_support": "FO analysis assumption.",
+    "validation_plan": "Use SHA3/SHAKE as in FIPS 203; no structural test needed beyond the null arm."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "multi-target gain log2 T bits without binding; 0 with binding",
+   "memory_exponent": "precomputed set size",
+   "best_known": "D'Anvers-Batsleer multitarget failure attack",
+   "hidden_overhead": "none beyond encaps",
+   "tradeoff_note": "defensive control"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5045",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Batsleer, Multitarget Decryption Failure Attacks",
+    "relation": "special_case",
+    "delta": "measures that FIPS 203 key binding removes their amortization, as a reusable control"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-1d76e9",
+   "IDEA-20260906-e5e51c",
+   "IDEA-20260806-7c1ae4"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Amortization factor of shared weak-ciphertext precomputation, bound versus unbound G",
+   "objective": "Turn the H(ek)-binding argument into a measured control.",
+   "instrument": "C reference ML-KEM (parameterized) with a compile-time switch for H(ek) in G; Python analysis",
+   "parameters": "n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; T in {1,4,16,64}; filter 2^-10; 5 repetitions",
+   "procedure": "1) Freeze. 2) Precompute filtered m set. 3) Run bound and unbound arms for each T. 4) Count work to first failure per key. 5) Compute A(T) with CIs.",
+   "independent_variables": [
+    {
+     "name": "key_binding",
+     "levels": [
+      "bound_fips203",
+      "unbound_round1"
+     ]
+    },
+    {
+     "name": "num_targets",
+     "levels": [
+      "1",
+      "4",
+      "16",
+      "64"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "m_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed of message sampling"
+    },
+    {
+     "name": "key_set_seed",
+     "treatment": "randomized",
+     "value": "5",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "unbound_round1",
+      "bound_fips203"
+     ],
+     "differs_in": [
+      "key_binding"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "A(T) curve"
+     ],
+     "differs_in": [
+      "key_binding",
+      "num_targets"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "bound block A",
+      "bound block B"
+     ],
+     "differs_in": [
+      "m_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "A(T)"
+   ],
+   "secondary_metrics": [
+    "failure rate of shared set on non-source keys"
+   ],
+   "preregistered_prediction": {
+    "quantity": "A(64)",
+    "formula": "~T unbound, 1 bound",
+    "source": "FO randomness derivation in FIPS 203 vs Kyber round 1"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "binding is parameter independent; reduced params only affect failure counts",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 20,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 80
+   },
+   "stopping_rules": [
+    "stop a key after 2^34 queries without failure; record censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1/C2 show A(64) >= 32 unbound (P1) and A(64) in [0.8,1.25] bound (P2), beyond AA1 noise floor.",
+   "falsification_criterion": "C2 shows A(64) > 1.5 under binding, or unbound A(64) < 8.",
+   "decision_impact": {
+    "on_positive": "Register the measured control; every multi-target failure claim against FIPS 203 must cite it and is closed unless it breaks binding.",
+    "on_negative": "If binding leaks reuse, escalate as a potential issue for review before any further claim."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Learned pump-and-jump scheduling for Kyber-shaped primal instances versus G6K default and two-step-mode schedules",
+  "class": "algorithm",
+  "claim": "A policy that picks the next (block size, jump, extra dimensions-for-free) from features of the current Gram-Schmidt log-profile, trained on self-generated Kyber-shaped instances at lattice dimension 140-180, reduces median counted cost to recover the secret by >= 15% versus G6K's lwe_challenge default schedule on held-out instances, and by >= 5% versus the schedule optimized by the two-step-mode estimator. Below those margins the claim is false.",
+  "mechanism": "Fixed schedules assume the profile follows a GSA-like simulator after each tour. Real profiles deviate (head concavity, tail flattening) and the deviation predicts when a larger jump or an earlier final pump pays. A learned policy conditions on the observed deviation instead of a simulator, so it can skip tours that the simulator says are needed but the instance does not. The gain is a constant, but it applies directly to the end-to-end S of the current baseline.",
+  "tracked_object": "End-to-end counted cost (sieve pair tests summed over all pumps, plus LLL ops) to verified secret recovery under each schedule.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "median cost ratio learned/default",
+    "direction": "lower",
+    "minimum_effect": "<= 0.85",
+    "falsified_by": "ratio >= 0.95 with CI"
+   },
+   {
+    "id": "P2",
+    "metric": "median cost ratio learned/two_step_opt",
+    "direction": "lower",
+    "minimum_effect": "<= 0.95",
+    "falsified_by": "ratio >= 1.0"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate 400 training and 100 held-out instances (n_ring=64..80 x k=2, q=3329, CBD(2), embedding dim ~ 2kn - some coordinates dropped to bring dim to 140-180). Train a gradient-boosted policy by imitation of the best schedule found by search on training instances. Evaluate all schedules on held-out instances with paired seeds.",
+   "controls": [
+    "null: a policy trained on shuffled profile features (labels kept) must not beat default",
+    "positive: an oracle schedule with knowledge of the planted secret's projected norm per position (upper bound on achievable gain)",
+    "A/A: default schedule run twice with different basis-randomization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 fails",
+   "shuffled-feature null beats default by > 5% (overfitting/leakage)"
+  ],
+  "confounders": [
+   "training-test leakage through shared RNG",
+   "wall-clock noise (use counted ops)",
+   "schedule search budget unequal across arms"
+  ],
+  "interpretation_limits": [
+   "Lattice dimension <= 180; schedule constants may not transfer to FIPS block sizes ~400-900; this is an engineering result on the current baseline",
+   "no claim about core-SVP exponents"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Profile features at tour t are sufficient statistics for the schedule decision.",
+    "rigorous_support": "Simulators use only the profile.",
+    "validation_plan": "Ablate feature sets; report importance."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged",
+   "memory_exponent": "unchanged",
+   "best_known": "G6K default; two-step estimator schedule",
+   "hidden_overhead": "policy evaluation negligible; training cost reported separately",
+   "tradeoff_note": "constant-factor engineering"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2215",
+    "provenance": "kb",
+    "citation_text": "Xia, Wang, Wang, Gu, A Refined Hardness Estimation of LWE in Two-step Mode",
+    "relation": "adjacent",
+    "delta": "their schedule is simulator-optimized; this learns from observed profiles"
+   },
+   {
+    "ref": "KN-LIT-4429",
+    "provenance": "kb",
+    "citation_text": "Aono, Wang, Hayashi, Takagi, Improved Progressive BKZ Algorithms and their Precise Cost Estimation by Sharp Simulator",
+    "relation": "adjacent",
+    "delta": "simulator-based progressive schedule; this is a data-driven alternative"
+   },
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, EUROCRYPT 2019",
+    "relation": "orthogonal",
+    "delta": "baseline schedule"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-41cd67"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "high"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Held-out counted cost of learned versus fixed pump-and-jump schedules",
+   "objective": "Determine whether profile-conditioned scheduling lowers end-to-end cost of the current primal baseline.",
+   "instrument": "G6K + fpylll with pair-test counters; scikit-learn gradient boosting; Python",
+   "parameters": "embedding dim 140-180, q=3329, CBD(2); 400 train / 100 held-out instances; 3 seed blocks",
+   "procedure": "1) Freeze. 2) Search best schedules on training set. 3) Train policy. 4) Evaluate default, two-step, learned, shuffled-null, oracle on held-out. 5) Paired ratios with bootstrap CI.",
+   "independent_variables": [
+    {
+     "name": "schedule",
+     "levels": [
+      "g6k_default",
+      "two_step_opt",
+      "learned",
+      "shuffled_null",
+      "oracle_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_seed_block",
+     "treatment": "randomized",
+     "value": "A,B,C",
+     "how": "basis randomization"
+    },
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "100 held-out",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "learned",
+      "g6k_default"
+     ],
+     "differs_in": [
+      "schedule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "learned",
+      "two_step_opt"
+     ],
+     "differs_in": [
+      "schedule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "g6k_default block A",
+      "g6k_default block B"
+     ],
+     "differs_in": [
+      "basis_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "median counted cost ratio"
+   ],
+   "secondary_metrics": [
+    "success rate",
+    "wall clock",
+    "peak memory"
+   ],
+   "preregistered_prediction": {
+    "quantity": "learned/default median cost",
+    "formula": "<= 0.85",
+    "source": "pilot-free preregistered threshold"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "dim 140-180 (LWE-challenge-like); transfer assumption: profile deviations persist at larger beta but magnitude unknown",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 400,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 1500
+   },
+   "stopping_rules": [
+    "censor instances exceeding 2x default median cost"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "any training instance appearing in held-out voids the batch"
+   ],
+   "success_criterion": "C1 median ratio <= 0.85 (P1) and C2 <= 0.95 (P2), CIs beyond the AA1 noise floor, with the shuffled_null not beating default.",
+   "falsification_criterion": "C1 median ratio CI includes 0.95 or above.",
+   "decision_impact": {
+    "on_positive": "Adopt the learned schedule as the new primal baseline at medium scale (ratchet) and record the delta.",
+    "on_negative": "Record that simulator schedules are near-optimal at this scale; stop ML scheduling work."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill",
+    "model/ with trained policy and feature spec"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Empirical success model for pruned enumeration in BKZ blocks: the block's shortest vector is not uniform on the sphere",
+  "class": "algorithm",
+  "claim": "Inside BKZ tours on Kyber-shaped q-ary lattices, the projected coordinates of the block's shortest vector are not distributed as a uniform point on the sphere that the GNR pruning optimizer assumes; an empirical success model fitted on observed shortest vectors yields pruning coefficients that cut enumeration nodes per successful SVP call by >= 20% at block size 50-64 at equal success probability. If the empirical distribution passes a uniformity test or the node saving is < 5%, the claim is false.",
+  "mechanism": "Extreme pruning computes success probability as the volume of a cylinder intersection under a uniform-direction assumption. In BKZ the block basis is already reduced, and the found vector's last coordinates are systematically smaller (it is short in the projected tail because the head is concave). If the true target concentrates, the optimal pruning profile tightens where mass is absent, saving nodes. The model is fitted on one set of tours and tested on fresh ones.",
+  "tracked_object": "Enumeration nodes per successful SVP call (and per BKZ tour) under GNR-uniform pruning vs empirically calibrated pruning, and the empirical distribution of normalized projected coordinates of the found shortest vectors.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "nodes per successful SVP (calibrated/uniform) at beta=60",
+    "direction": "lower",
+    "minimum_effect": "<= 0.8",
+    "falsified_by": "ratio >= 0.95"
+   },
+   {
+    "id": "P2",
+    "metric": "KS distance of projected-coordinate law from uniform-sphere law",
+    "direction": "higher",
+    "minimum_effect": "p < 0.001 at n_obs >= 2000",
+    "falsified_by": "p > 0.05"
+   }
+  ],
+  "minimal_test": {
+   "design": "Collect 5000 block SVP solutions from BKZ-50..64 tours on Kyber-shaped lattices (dim 120-160); fit a parametric model of the normalized coordinate-mass profile; derive pruning coefficients by maximizing success/nodes under that model; evaluate on fresh tours.",
+   "controls": [
+    "null: random q-ary lattice blocks preprocessed to the same profile but with targets re-sampled uniformly - calibration must not help",
+    "positive: planted short vector with known biased coordinate law where calibrated pruning gain is computable",
+    "A/A: uniform pruning arm with two enumeration-randomization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P2 not significant",
+   "P1 saving < 5%"
+  ],
+  "confounders": [
+   "success probability of pruned enumeration in BKZ is retried, so per-call vs per-tour metrics differ",
+   "fpylll pruner numerical tolerances"
+  ],
+  "interpretation_limits": [
+   "Block sizes 50-64; real attacks use sieving at beta > 300, so this is an engineering improvement to enumeration-BKZ preprocessing only",
+   "toy lattice dims"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "The coordinate law is stable across tours and instances.",
+    "rigorous_support": "Empirical observations of head concavity.",
+    "validation_plan": "Fit on tours 1-4, test on tours 5-8 and fresh instances."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged (enumeration beta^{beta/8}-ish)",
+   "memory_exponent": "poly",
+   "best_known": "GNR extreme pruning via fpylll Pruner",
+   "hidden_overhead": "model fitting once",
+   "tradeoff_note": "constant"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-102",
+    "provenance": "kb",
+    "citation_text": "Gama, Nguyen, Regev, Lattice Enumeration Using Extreme Pruning, EUROCRYPT 2010",
+    "relation": "generalizes",
+    "delta": "replaces the uniform-sphere success model with a measured one"
+   },
+   {
+    "ref": "KN-LIT-4881",
+    "provenance": "kb",
+    "citation_text": "Bai, Stehle, Wen, Measuring, simulating and exploiting the head concavity phenomenon in BKZ",
+    "relation": "adjacent",
+    "delta": "they exploit profile concavity; this exploits target-position bias in pruning"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Calibrated versus uniform-model pruning inside BKZ-50..64",
+   "objective": "Test whether the target is non-uniform and whether calibration saves nodes.",
+   "instrument": "fpylll (Pruner, BKZ 2.0) with node counters; SciPy for fitting",
+   "parameters": "lattice dim 120-160, Kyber shape, q=3329; beta in {50,56,60,64}; 5000 training solutions; 40 test instances",
+   "procedure": "1) Freeze. 2) Collect training solutions. 3) Fit model, derive pruning. 4) Run test tours both arms. 5) Compare nodes/success.",
+   "independent_variables": [
+    {
+     "name": "pruning_model",
+     "levels": [
+      "uniform_gnr",
+      "empirical_calibrated"
+     ]
+    },
+    {
+     "name": "lattice_family",
+     "levels": [
+      "kyber_shape",
+      "random_qary_null",
+      "planted_bias_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "enum_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "basis rerandomization before each SVP call"
+    },
+    {
+     "name": "block_size",
+     "treatment": "fixed",
+     "value": "60 primary",
+     "how": "secondary sweep reported"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "empirical_calibrated",
+      "uniform_gnr"
+     ],
+     "differs_in": [
+      "pruning_model"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "KS test of coordinate law"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "uniform_gnr block A",
+      "uniform_gnr block B"
+     ],
+     "differs_in": [
+      "enum_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "nodes per successful SVP"
+   ],
+   "secondary_metrics": [
+    "KS statistic",
+    "tour wall time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "node ratio at beta=60",
+    "formula": "<= 0.8",
+    "source": "preregistered threshold"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "beta <= 64; transfer only to enumeration-based preprocessing",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 200
+   },
+   "stopping_rules": [
+    "stop if C2 not significant after 5000 samples"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C2 rejects uniformity (P2) and C1 ratio <= 0.8 (P1), beyond AA1 noise floor.",
+   "falsification_criterion": "C2 p > 0.05 or C1 ratio >= 0.95.",
+   "decision_impact": {
+    "on_positive": "Adopt calibrated pruning in enumeration-preprocessing of the baseline and test the transfer to larger blocks.",
+    "on_negative": "Record that the uniform model is adequate in BKZ blocks; close this lane."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Noisy NTT-domain hints as extra MLWE samples: the hint-noise threshold below which they lower beta (simulated, defensive)",
+  "class": "mechanism",
+  "claim": "A simulated side channel that yields noisy estimates of NTT-domain secret coefficients, s_hat_i + noise mod q with noise std sigma_h, is equivalent to T extra LWE samples on s with public vectors given by NTT rows. Integrating them in the primal embedding lowers the success block size only when sigma_h is below a threshold sigma* that we predict lies between 2 and 20 at n=64,k=2; above sigma* the drop is within A/A noise. The measured threshold and slope are the defensive deliverable: how accurate an NTT-output leakage must be before it matters to a lattice attacker.",
+  "mechanism": "NTT outputs are q-ary linear combinations of all secret coefficients, so a noisy reading is a modular approximate hint that DDGR's framework (which takes approximate hints over Z or exact modular hints) does not directly handle. Rewriting the reading as an LWE sample with error sigma_h makes it integrable: it is a new row in the q-ary embedding with error column scaled by sigma_h/sigma_e. Primal gain depends on the ratio sigma_h/sigma_e and on how many such rows are added, giving a sharp threshold.",
+  "tracked_object": "Measured success block size beta* versus (number of hinted NTT slots T, hint noise sigma_h), and the fitted threshold sigma*.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "beta* drop at T=64 hints, sigma_h=1",
+    "direction": "higher",
+    "minimum_effect": ">= 15 units",
+    "falsified_by": "drop < 5"
+   },
+   {
+    "id": "P2",
+    "metric": "beta* drop at T=64, sigma_h=100",
+    "direction": "lower",
+    "minimum_effect": "within AA1 noise",
+    "falsified_by": "drop >= 3"
+   },
+   {
+    "id": "P3",
+    "metric": "estimator-predicted sigma* vs measured",
+    "direction": "different",
+    "minimum_effect": "within factor 2",
+    "falsified_by": "off by > 4x"
+   }
+  ],
+  "minimal_test": {
+   "design": "Reduced ML-KEM keys (n=64, k=2, q=3329, CBD(2)); simulate hints on T in {16,32,64,128} NTT coefficients with Gaussian noise sigma_h in {0.5,1,2,5,10,20,50,100}; build weighted primal embedding; run G6K progressive reduction to verified recovery.",
+   "controls": [
+    "null: hints computed from an independent random secret (wrong secret) - must not lower beta (and should raise failures)",
+    "positive: sigma_h=0 exact hints where beta* must drop to the analytically predicted dimension reduction",
+    "A/A: no-hint arm with two reduction seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no threshold behavior (monotone flat curve)",
+   "positive control fails",
+   "null arm lowers beta*"
+  ],
+  "confounders": [
+   "weighting of hint rows in the embedding",
+   "reduced n changes the number of NTT slots (32 quadratic slots at n=64)"
+  ],
+  "interpretation_limits": [
+   "Simulated hints only, no device or implementation; reduced n=64; the threshold in sigma_h/sigma_e is the transferable object, with T scaled by n",
+   "defensive calibration, not an attack"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Hint noise is Gaussian and independent across slots.",
+    "rigorous_support": "Simulation choice.",
+    "validation_plan": "Repeat with uniform and Laplace noise of equal variance."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "0.292*beta(T,sigma_h)",
+   "memory_exponent": "0.2075*beta",
+   "best_known": "SASCA belief propagation on NTT; DDGR integration of coefficient-domain hints",
+   "hidden_overhead": "obtaining hints (not modeled)",
+   "tradeoff_note": "defensive threshold measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information, CRYPTO 2020",
+    "relation": "generalizes",
+    "delta": "noisy modular hints recast as LWE rows; measured beta"
+   },
+   {
+    "ref": "KN-LIT-1815",
+    "provenance": "kb",
+    "citation_text": "Wang, Profiling-Device-Free SASCA Framework for ML-KEM, ePrint 2026/981",
+    "relation": "adjacent",
+    "delta": "SASCA recovers coefficients by belief propagation; this asks how much residual NTT noise a lattice step can absorb"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-28cf9c",
+   "IDEA-20260821-019d2f"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "beta* surface over hinted NTT slots and hint noise",
+   "objective": "Measure the hint-noise threshold for NTT-domain leakage to matter to the lattice step.",
+   "instrument": "SageMath (NTT, embedding), G6K/fpylll, leaky-LWE-estimator for predictions",
+   "parameters": "n=64, k=2, q=3329, CBD(2); T in {16,32,64,128}; sigma_h in {0,0.5,1,2,5,10,20,50,100}; 15 keys",
+   "procedure": "1) Freeze. 2) Simulate hints. 3) Build embeddings with weight sigma_e/sigma_h. 4) Progressive reduction to verified recovery. 5) Fit threshold.",
+   "independent_variables": [
+    {
+     "name": "hint_noise",
+     "levels": [
+      "0",
+      "0.5",
+      "1",
+      "2",
+      "5",
+      "10",
+      "20",
+      "50",
+      "100",
+      "none"
+     ]
+    },
+    {
+     "name": "hinted_slots",
+     "levels": [
+      "16",
+      "32",
+      "64",
+      "128"
+     ]
+    },
+    {
+     "name": "hint_source",
+     "levels": [
+      "true_secret",
+      "wrong_secret_null"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "reduction_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "basis randomization"
+    },
+    {
+     "name": "key_seed",
+     "treatment": "randomized",
+     "value": "15",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "hint_noise=1,T=64",
+      "hint_noise=none"
+     ],
+     "differs_in": [
+      "hint_noise"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "beta* surface"
+     ],
+     "differs_in": [
+      "hint_noise",
+      "hinted_slots"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "true_secret",
+      "wrong_secret_null"
+     ],
+     "differs_in": [
+      "hint_source"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "none block A",
+      "none block B"
+     ],
+     "differs_in": [
+      "reduction_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "beta*",
+    "fitted sigma*"
+   ],
+   "secondary_metrics": [
+    "estimator residual"
+   ],
+   "preregistered_prediction": {
+    "quantity": "sigma* at T=64",
+    "formula": "leaky-LWE estimator with hints as LWE rows",
+    "source": "KN-LIT-118 framework"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced ML-KEM shape: ring Z_3329[X]/(X^n+1) with n in {32,64}, module rank k=2, CBD(eta) secrets/errors; transfer assumption: the measured ratio (not the absolute cost) carries to n=256 when the governing statistic scales as stated; no FIPS 203 claim is made",
+   "seeds_count": 15,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 80,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 1200
+   },
+   "stopping_rules": [
+    "censor at beta=110"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 drop >= 15 (P1), C2 shows threshold with sigma_h=100 drop within noise (P2), estimator within 2x (P3), C3 null shows no drop; all beyond AA1 noise floor.",
+   "falsification_criterion": "C1 drop < 5 or C2 surface flat across hint_noise.",
+   "decision_impact": {
+    "on_positive": "Publish the defensive sigma* curve as the accuracy bar for NTT leakage in ML-KEM implementations reviews.",
+    "on_negative": "Record that noisy NTT hints are not absorbable by the lattice step at the tested sizes; SASCA must do all the work."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Implicit rejection leaves only a noisy key-confirmation oracle: a channel-capacity bound on failure-attack query cost, checked by simulation",
+  "class": "control",
+  "claim": "Under FIPS 203 implicit rejection, a decryption failure is visible to a remote attacker only as a protocol-level key mismatch, which is confounded by benign errors at rate epsilon. When epsilon exceeds the per-query failure probability p, the number of queries to collect F true failures grows by a factor at least (1 + epsilon/p) times the repetitions needed to confirm each candidate. Simulation at elevated-DFR parameters with epsilon in {0, 1e-4, 1e-3, 1e-2} matches the bound within a factor 2. Defensive: it prices the oracle realism that 7c1ae4's conjunction leaves unpriced.",
+  "mechanism": "Decapsulation is deterministic, so a candidate failure can be retested; benign errors are independent across retries. Confirmation then requires about log(1/delta)/log(1/epsilon) retries per alarm, and alarms arrive at rate p + epsilon. The binary asymmetric channel with crossover epsilon has capacity that bounds the information per query about the failure set. Comparing simulated query counts with the bound checks whether the confirmation strategy is near-optimal.",
+  "tracked_object": "Queries per confirmed true failure versus benign-error rate epsilon at fixed filtered-ciphertext failure probability p.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "queries per true failure at epsilon=1e-2, p=2^-14",
+    "direction": "higher",
+    "minimum_effect": ">= 100x the epsilon=0 cost",
+    "falsified_by": "< 20x"
+   },
+   {
+    "id": "P2",
+    "metric": "simulated/bound ratio",
+    "direction": "different",
+    "minimum_effect": "within [0.5, 2]",
+    "falsified_by": "outside [0.25, 4]"
+   }
+  ],
+  "minimal_test": {
+   "design": "Elevated-DFR reduced ML-KEM (p ~ 2^-14 for filtered ciphertexts). Simulate a remote handshake oracle that returns mismatch on failure or with independent probability epsilon. Run the confirm-by-retry strategy until 50 true failures; count queries.",
+   "controls": [
+    "null: epsilon=0 (direct oracle) reproduces the plain failure-boosting count",
+    "positive: planted epsilon >> p where the bound predicts a specific large multiplier",
+    "A/A: epsilon=1e-3 arm with two oracle-noise seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P2 violated: simulation far from bound",
+   "null not matching plain boosting count"
+  ],
+  "confounders": [
+   "retry policy choice",
+   "correlated benign errors (bursty networks) are not modeled"
+  ],
+  "interpretation_limits": [
+   "Elevated DFR, simulated oracle; at FIPS DFR p << any realistic epsilon so the multiplier is enormous - the bound is the transferable object",
+   "no protocol implementation is tested"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Benign errors are i.i.d. per query.",
+    "rigorous_support": "Modeling choice.",
+    "validation_plan": "Add a Gilbert-Elliott bursty arm as sensitivity."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "queries x (1+epsilon/p) x O(log 1/delta)",
+   "memory_exponent": "negligible",
+   "best_known": "failure boosting with a perfect oracle",
+   "hidden_overhead": "protocol round trips",
+   "tradeoff_note": "defensive cost multiplier"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-119",
+    "provenance": "kb",
+    "citation_text": "D'Anvers et al., On the impact of decryption failures..., PKC 2019",
+    "relation": "adjacent",
+    "delta": "assumes a clean failure oracle; this prices oracle noise"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260806-7c1ae4",
+   "IDEA-20260828-5b7795"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Queries per confirmed failure under a noisy key-confirmation oracle",
+   "objective": "Measure the query multiplier from oracle noise and validate the capacity bound.",
+   "instrument": "Python + C reference ML-KEM (parameterized)",
+   "parameters": "n=64, k=2, q=3329, eta=3, d_v=3; p ~ 2^-14; epsilon in {0,1e-4,1e-3,1e-2}; 50 true failures per run; 5 keys",
+   "procedure": "1) Freeze. 2) Calibrate p. 3) Run confirm-by-retry per epsilon. 4) Compute bound. 5) Compare.",
+   "independent_variables": [
+    {
+     "name": "oracle_noise",
+     "levels": [
+      "0",
+      "1e-4",
+      "1e-3",
+      "1e-2"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "noise_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed of benign-error RNG"
+    },
+    {
+     "name": "key_seed",
+     "treatment": "randomized",
+     "value": "5",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "oracle_noise=1e-2",
+      "oracle_noise=0"
+     ],
+     "differs_in": [
+      "oracle_noise"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "simulated vs bound"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "1e-3 block A",
+      "1e-3 block B"
+     ],
+     "differs_in": [
+      "noise_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "queries per true failure"
+   ],
+   "secondary_metrics": [
+    "false confirmations",
+    "retries per alarm"
+   ],
+   "preregistered_prediction": {
+    "quantity": "multiplier at epsilon=1e-2",
+    "formula": "(1+epsilon/p) * ceil(log(1/delta)/log(1/epsilon))",
+    "source": "derived before data"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "the multiplier depends only on epsilon/p and delta; reduced params set p",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 10,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 40
+   },
+   "stopping_rules": [
+    "stop a run at 2^36 queries; record censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 multiplier >= 100 (P1) and C2 ratio within [0.5,2] (P2), beyond AA1 noise floor.",
+   "falsification_criterion": "C2 ratio outside [0.25,4] or C1 multiplier < 20.",
+   "decision_impact": {
+    "on_positive": "Attach the validated bound to the failure flank: remote failure attacks on FIPS 203 are priced with the oracle-noise multiplier.",
+    "on_negative": "Revise the confirmation strategy model; the bound is not tight and cannot be used for pricing."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "Known-plaintext ciphertexts as extra, much noisier MLWE samples on s: measure that they do not lower primal beta (control)",
+  "class": "control",
+  "claim": "For a known (m, ciphertext) pair, v - Decompress(m) = s^T u + noise, so each ciphertext yields n extra MLWE-like samples on s with noise std around 40 (from e^T r, s^T e1, e2 and d_v rounding) against sigma ~1 for the public key. Adding up to 16 such ciphertexts to the primal embedding lowers measured beta* by < 1 at n=64, k=2. A drop >= 3 would falsify the claim and reveal an unpriced known-plaintext flank.",
+  "mechanism": "A primal attack benefits from extra samples only if their noise-to-modulus ratio is comparable to existing samples. Ciphertext-derived samples have noise roughly 40x larger, so their rows add volume nearly as fast as they add constraint; the optimal embedding should ignore them. This is a falsifiable sanity bound that every key-recovery-from-traffic claim should cite.",
+  "tracked_object": "beta* of the primal attack with 0, 1, 4, 16 known-plaintext ciphertexts appended (weighted optimally), plus the measured noise std of the derived samples.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "beta*(0) - beta*(16)",
+    "direction": "lower",
+    "minimum_effect": "< 1 unit",
+    "falsified_by": ">= 3 units"
+   },
+   {
+    "id": "P2",
+    "metric": "measured derived-sample noise std / predicted",
+    "direction": "different",
+    "minimum_effect": "within [0.8,1.25]",
+    "falsified_by": "outside [0.6,1.6]"
+   }
+  ],
+  "minimal_test": {
+   "design": "Reduced ML-KEM (n=64,k=2,q=3329,CBD(2),d_u=10,d_v=4). Build embeddings with known-plaintext rows weighted by sigma_pk/sigma_ct; run G6K progressive to verified recovery; 20 keys.",
+   "controls": [
+    "null: rows from ciphertexts with WRONG plaintexts (noise uniform) - beta must not drop",
+    "positive: rows from a variant with d_v=12, no rounding and eta2=1, where noise is small and beta must drop measurably",
+    "A/A: zero-row arm with two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 drop >= 3",
+   "positive control shows no drop (pipeline invalid)"
+  ],
+  "confounders": [
+   "weighting choice",
+   "dimension increase changes reduction time"
+  ],
+  "interpretation_limits": [
+   "Reduced n; the ratio of noise stds is the transferable object; FIPS d_v=4/5 noise is larger still at n=256"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Derived-sample noise is roughly Gaussian.",
+    "rigorous_support": "CLT.",
+    "validation_plan": "Measure empirically (P2)."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged",
+   "memory_exponent": "unchanged",
+   "best_known": "primal attack on ek alone",
+   "hidden_overhead": "none",
+   "tradeoff_note": "control"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-108",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Gopfert, Virdia, Wunderer, Revisiting the Expected Cost of Solving uSVP, ASIACRYPT 2017",
+    "relation": "adjacent",
+    "delta": "primal success model used for prediction; extra noisy samples not considered for Kyber"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260807-05e12c"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Primal beta* with appended known-plaintext ciphertext rows",
+   "objective": "Close (or open) the known-plaintext-sample flank with a measurement.",
+   "instrument": "SageMath, G6K/fpylll, reference ML-KEM (parameterized)",
+   "parameters": "n=64, k=2, q=3329, CBD(2), d_u=10, d_v=4; ciphertext count in {0,1,4,16}; 20 keys",
+   "procedure": "1) Freeze. 2) Generate ciphertexts with known m. 3) Build weighted embeddings. 4) Reduce to verified recovery. 5) Compare beta*.",
+   "independent_variables": [
+    {
+     "name": "ciphertext_rows",
+     "levels": [
+      "0",
+      "1",
+      "4",
+      "16"
+     ]
+    },
+    {
+     "name": "row_source",
+     "levels": [
+      "true_plaintext",
+      "wrong_plaintext_null",
+      "lownoise_variant_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "reduction_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "basis randomization"
+    },
+    {
+     "name": "key_seed",
+     "treatment": "randomized",
+     "value": "20",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "ciphertext_rows=16",
+      "ciphertext_rows=0"
+     ],
+     "differs_in": [
+      "ciphertext_rows"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "true_plaintext",
+      "lownoise_variant_positive"
+     ],
+     "differs_in": [
+      "row_source"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "rows=0 block A",
+      "rows=0 block B"
+     ],
+     "differs_in": [
+      "reduction_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "beta*"
+   ],
+   "secondary_metrics": [
+    "derived-sample noise std"
+   ],
+   "preregistered_prediction": {
+    "quantity": "beta* drop at 16 rows",
+    "formula": "estimator with mixed-noise samples",
+    "source": "derived before data"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced ML-KEM shape: ring Z_3329[X]/(X^n+1) with n in {32,64}, module rank k=2, CBD(eta) secrets/errors; transfer assumption: the measured ratio (not the absolute cost) carries to n=256 when the governing statistic scales as stated; no FIPS 203 claim is made",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 240
+   },
+   "stopping_rules": [
+    "censor at beta=110"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 drop < 1 with CI upper bound < 3 (P1), C2 shows the positive variant dropping, P2 noise within range; beyond AA1 noise floor.",
+   "falsification_criterion": "C1 drop >= 3 with CI excluding 0.",
+   "decision_impact": {
+    "on_positive": "Register as a control: known-plaintext traffic does not help primal key recovery; cite in any traffic-based claim.",
+    "on_negative": "Open a known-plaintext flank lane and price it at FIPS parameters."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-001",
+  "title": "How fast does the failure cone narrow? Measured secret-direction cosine after F failures versus the D'Anvers-Rossi-Virdia model",
+  "class": "measurement",
+  "claim": "After F decryption failures, the averaged failure direction has cosine with the true secret direction growing like sqrt(F)/sqrt(F + c) with c predicted by the D'Anvers-Rossi-Virdia directional model, and the query cost to the (F+1)-th failure, using direction-weighted filtering, falls by >= 4x relative to the first failure by F=4 at reduced parameters. If the cosine or the cost ratio deviates from the model by more than 2x, the model used to price post-first-failure attacks is wrong.",
+  "mechanism": "Failures occur where the ciphertext direction correlates with the secret; averaging failing directions (with ring-rotation alignment) estimates the secret direction, and filtering further candidates by correlation with that estimate boosts the failure rate. The bootstrapping model gives closed forms; they have been checked at Kyber-like sizes mostly by simulation of the noise term rather than by end-to-end encapsulation pipelines with compression.",
+  "tracked_object": "cos(estimate_F, true secret) and queries-to-next-failure as functions of F, end-to-end through real (parameterized) encapsulation.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "query cost ratio first failure / fifth failure",
+    "direction": "higher",
+    "minimum_effect": ">= 4",
+    "falsified_by": "< 2"
+   },
+   {
+    "id": "P2",
+    "metric": "measured cosine vs model at F in {1,2,4,8}",
+    "direction": "different",
+    "minimum_effect": "within 2x",
+    "falsified_by": "outside 2x at any F"
+   }
+  ],
+  "minimal_test": {
+   "design": "Elevated-DFR reduced ML-KEM (n=64,k=2,eta=3,d_v=3). For 20 keys collect up to 8 failures with directional filtering; log cosine and queries per failure.",
+   "controls": [
+    "null: directional filter using an independent random direction - queries per failure must stay flat",
+    "positive: oracle filter using the true secret direction (upper bound)",
+    "A/A: norm-only filter with two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 or P2 violated",
+   "null shows boosting"
+  ],
+  "confounders": [
+   "ring-rotation alignment ambiguity",
+   "Poisson noise on small failure counts"
+  ],
+  "interpretation_limits": [
+   "Elevated-DFR, n=64; the model's functional form, not absolute costs, transfers"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Failing directions are i.i.d. given the secret.",
+    "rigorous_support": "Model assumption.",
+    "validation_plan": "Test correlation between successive failure directions beyond the secret component."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "first-failure cost dominates",
+   "memory_exponent": "negligible",
+   "best_known": "D'Anvers-Rossi-Virdia bootstrapped search",
+   "hidden_overhead": "filter evaluation",
+   "tradeoff_note": "measurement of a model"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1974",
+    "provenance": "kb",
+    "citation_text": "D'Anvers, Rossi, Virdia, (One) failure is not an option: Bootstrapping the search for failures in lattice-based encryption schemes",
+    "relation": "same",
+    "delta": "end-to-end measurement through parameterized ML-KEM with compression instead of simulated noise"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-4854f8"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Cosine and queries-per-failure versus failure count, end-to-end",
+   "objective": "Validate the bootstrapping model that prices failure attacks after the first failure.",
+   "instrument": "C reference ML-KEM (parameterized) + Python/NumPy",
+   "parameters": "n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; F up to 8; 20 keys",
+   "procedure": "1) Freeze. 2) Collect first failure with norm filter. 3) Iterate directional filtering. 4) Log cosines and queries. 5) Compare with model.",
+   "independent_variables": [
+    {
+     "name": "filter_rule",
+     "levels": [
+      "norm_only",
+      "directional",
+      "random_direction_null",
+      "true_direction_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "encaps_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "encaps RNG seed"
+    },
+    {
+     "name": "key_seed",
+     "treatment": "randomized",
+     "value": "20",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "directional",
+      "norm_only"
+     ],
+     "differs_in": [
+      "filter_rule"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cosine vs model"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "norm_only block A",
+      "norm_only block B"
+     ],
+     "differs_in": [
+      "encaps_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "queries per failure",
+    "cosine"
+   ],
+   "secondary_metrics": [
+    "filter cost"
+   ],
+   "preregistered_prediction": {
+    "quantity": "cosine at F=4",
+    "formula": "DRV model closed form",
+    "source": "KN-LIT-1974"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "elevated DFR; transfer assumption: functional form of cone narrowing",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 100
+   },
+   "stopping_rules": [
+    "cap 2^34 queries per failure"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 ratio >= 4 by the fifth failure (P1) and C2 within 2x at all F (P2), beyond AA1 noise floor.",
+   "falsification_criterion": "C1 ratio < 2 or C2 outside 2x at some F.",
+   "decision_impact": {
+    "on_positive": "Use the validated model for the post-first-failure term in failure-flank pricing.",
+    "on_negative": "Replace the model with the measured curve and flag every prior estimate that used it."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Bytes moved per pair test in G6K's bucketed sieves at d=60-90: a measured DRAM-bandwidth floor under the core-SVP time exponent",
+  "class": "measurement",
+  "claim": "In G6K's bgj1 and BDGL (bdgl) sieves at dimensions 60-90, the DRAM traffic per reduction pair test, measured by cache simulation and instrumented database accesses, grows with d such that a bandwidth-charged cost (bytes moved / bandwidth) exceeds the arithmetic cost by a factor that itself grows by at least 2^{0.01 d}. If bytes per pair test are flat in d (cache-resident buckets), a bandwidth charge only shifts core-SVP by a constant and the memory-access objection is falsified at this scale.",
+  "mechanism": "Bucketed sieves stream the database through buckets; once the database exceeds last-level cache, each bucket pass costs DRAM traffic proportional to bucket size times vector size. The ratio of pair tests to bytes depends on bucket size and filtering, which G6K tunes for CPU caches. Core-SVP charges only operations. Measuring bytes per test against d gives the exponent gap between an operation count and a bandwidth-limited cost, the quantity a full-cost model needs.",
+  "tracked_object": "LLC-miss bytes (cachegrind/simulated 32 MB LLC) and instrumented database bytes read per pair test, as a function of sieve dimension and sieve kernel.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of log2(bytes per pair test) vs d",
+    "direction": "higher",
+    "minimum_effect": ">= 0.01 per dimension",
+    "falsified_by": "slope CI includes 0"
+   },
+   {
+    "id": "P2",
+    "metric": "bandwidth-charged / op-charged cost ratio at d=90 (20 GB/s/core, 1 ns/op)",
+    "direction": "higher",
+    "minimum_effect": ">= 2",
+    "falsified_by": "<= 1.2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Run G6K bgj1 and bdgl sieves to saturation on random q-ary (Kyber-shape) lattices of d in {60,65,...,90}, 5 instances each; record instrumented DB reads and, for d <= 75, cachegrind LL misses; fit slopes.",
+   "controls": [
+    "null: same sieves with the database artificially capped below LLC size (forced cache residency) - slope must be ~0",
+    "positive: Gauss sieve (list-based, uniform access) where bytes per test growth is known to be large",
+    "A/A: bgj1 at each d with two database-seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 slope CI includes 0 for bdgl and bgj1",
+   "positive control fails to show growth (instrument broken)"
+  ],
+  "confounders": [
+   "hardware prefetching hides traffic in cachegrind's model",
+   "thread count changes sharing",
+   "simhash prefilter changes access count"
+  ],
+  "interpretation_limits": [
+   "d <= 90 single node; extrapolation to beta~600 is a conditional on the fitted slope; cache simulation is a model of one hierarchy"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Cachegrind LL-miss counts track real DRAM traffic within 2x.",
+    "rigorous_support": "Simulator of an inclusive LLC.",
+    "validation_plan": "Cross-check one dimension with hardware counters on a host with PMU (perf-ipc skill), if available."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "0.292d ops plus measured bandwidth term",
+   "memory_exponent": "0.2075d",
+   "best_known": "core-SVP ops-only",
+   "hidden_overhead": "the measured term itself",
+   "tradeoff_note": "measurement of a constant or small exponent"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "instrument; reports time, not memory traffic"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Ducas, Stevens, van Woerden, Advanced Lattice Sieving on GPUs, with Tensor Cores, EUROCRYPT 2021 (recalled)",
+    "relation": "adjacent",
+    "delta": "discusses memory-bound behavior on GPUs; not a CPU bytes-per-test law"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-7bc28c",
+   "IDEA-20260816-70e41d"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Bytes per pair test versus sieve dimension in G6K",
+   "objective": "Give the memory-access term in RQ-MLKEM-003's full-cost model a measured slope.",
+   "instrument": "G6K with read counters on db/cdb, valgrind cachegrind, Python fits",
+   "parameters": "d in {60,65,70,75,80,85,90}; kernels bgj1, bdgl, gauss (positive, d<=70); 5 instances; 8 threads pinned; saturation 0.9",
+   "procedure": "1) Freeze. 2) Build lattices. 3) Run each kernel with counters. 4) Cachegrind at d<=75. 5) Fit log2 bytes/test vs d.",
+   "independent_variables": [
+    {
+     "name": "sieve_kernel",
+     "levels": [
+      "bgj1",
+      "bdgl",
+      "gauss_positive"
+     ]
+    },
+    {
+     "name": "db_cap",
+     "levels": [
+      "uncapped",
+      "llc_capped_null"
+     ]
+    },
+    {
+     "name": "sieve_dim",
+     "levels": [
+      "60",
+      "65",
+      "70",
+      "75",
+      "80",
+      "85",
+      "90"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "db_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "initial database sampling seed"
+    },
+    {
+     "name": "threads",
+     "treatment": "fixed",
+     "value": "8",
+     "how": "taskset"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "bdgl uncapped",
+      "bdgl llc_capped_null"
+     ],
+     "differs_in": [
+      "db_cap"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "slope over sieve_dim"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "bgj1 block A",
+      "bgj1 block B"
+     ],
+     "differs_in": [
+      "db_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "bytes per pair test",
+    "fitted slope"
+   ],
+   "secondary_metrics": [
+    "LL misses",
+    "wall time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "slope of log2 bytes/test",
+    "formula": "~ (0.2075 - c_bucket) per dim if buckets spill",
+    "source": "derived before data"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "sieve dimensions 60-90 on a single node; transfer assumption: the per-dimension exponent of the measured quantity is extrapolated to beta~400-900 only as a conditional statement with the fit interval; no FIPS 203 security claim",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 120,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 220
+   },
+   "stopping_rules": [
+    "skip cachegrind above d=75"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C2 slope >= 0.01 with CI excluding 0 (P1) and the bandwidth/op ratio >= 2 at d=90 (P2), with C1 showing the capped null flat; beyond AA1 noise floor.",
+   "falsification_criterion": "C2 slope CI includes 0 for both bgj1 and bdgl.",
+   "decision_impact": {
+    "on_positive": "Add the measured bandwidth exponent to the memory-charged ML-KEM cost model as a numbered assumption with its interval.",
+    "on_negative": "Record that bucketed sieves are cache-friendly to d=90; memory access adds only a constant at measurable sizes."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Non-oracle overhead at real FIPS 203 dimension: measured LLL, size-reduction and GSO-precision cost on full ML-KEM primal bases",
+  "class": "measurement",
+  "claim": "Core-SVP charges only the SVP oracle and treats basis maintenance (LLL, size reduction, Gram-Schmidt updates, insertion) as polynomial and free. On full primal embedding bases at the real ML-KEM-512 and ML-KEM-768 shapes (lattice dimension about 1000 to 1500, q=3329), the measured cost of the non-oracle work for one BKZ tour at small block size, with the floating-point precision the run needs to stay numerically sound, is at least 2^40 bit operations. That puts a measured floor under the polynomial factor. If it is below 2^30, the polynomial factor is negligible against any oracle cost and the convention is confirmed for this term.",
+  "mechanism": "fpylll and G6K keep Gram-Schmidt data in floating point. At dimensions above about 600, double precision fails for q-ary bases with large log-profile slopes, which forces long-double, dd, qd or MPFR, and each step up multiplies the cost of every size reduction. A BKZ tour does O(d) insertions, each followed by an O(d^2) update, so per-tour maintenance is O(d^3) multiplications at the required precision. This is the one part of the attack that can be measured at the true FIPS dimension, because it needs no large SVP oracle. Core-SVP sets it to zero.",
+  "tracked_object": "Counted floating-point operations, times the cost of the precision type, for LLL plus one BKZ-20 tour on full ML-KEM-shaped primal bases. Also the minimum precision type at which the run completes without a GSO-consistency failure.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 bit-operation cost of LLL plus one BKZ-20 tour at the ML-KEM-768 shape",
+    "direction": "higher",
+    "minimum_effect": ">= 40",
+    "falsified_by": "< 30"
+   },
+   {
+    "id": "P2",
+    "metric": "minimum sound precision type at d >= 1200",
+    "direction": "different",
+    "minimum_effect": "beyond double (long double, dd or MPFR)",
+    "falsified_by": "double suffices at every tested d"
+   },
+   {
+    "id": "P3",
+    "metric": "fitted exponent of maintenance cost in d",
+    "direction": "different",
+    "minimum_effect": "within [2.5, 3.5]",
+    "falsified_by": "outside [2, 4]"
+   }
+  ],
+  "minimal_test": {
+   "design": "Build primal embedding bases at ML-KEM-512 (k=2) and ML-KEM-768 (k=3) shapes, n=256, q=3329, CBD secrets, with the estimator's optimal number of samples m. Also build bases at intermediate d from 400 to 1500. For each, run fpylll LLL and one BKZ-20 tour under each precision type (double, long double, dd, qd, MPFR-128). Count operations by instrumenting the GSO and size-reduction loops, and check GSO consistency against an exact rational recomputation on sampled indices.",
+   "controls": [
+    "null: a random unimodular-scrambled basis of Z^d at the same d, which is well conditioned. Double must suffice, and maintenance cost must follow the d^3 law with a small constant.",
+    "positive: a basis with a planted, deliberately extreme log-profile slope (a q-ary block with q=2^30), where double must fail at moderate d",
+    "A/A: the same ML-KEM-shape basis run twice under two basis-scrambling seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1: measured cost below 2^30 at the ML-KEM-768 shape",
+   "P2: double is sound at every d, so the precision escalation is absent",
+   "the positive control does not fail under double, which means the consistency check is too weak and the batch is invalid"
+  ],
+  "confounders": [
+   "fpylll's adaptive precision heuristics can change mid-run",
+   "the count of insertions per tour depends on how well reduced the input is",
+   "wall time depends on library builds, so the comparison uses counted operations weighted by a fixed cost table per precision type"
+  ],
+  "interpretation_limits": [
+   "This measures only the non-oracle term, at true FIPS dimension. It says nothing about the SVP oracle's cost and is not a statement of ML-KEM security. The total-attack implication is a conditional sum with the oracle cost taken from the model.",
+   "One library family (fpylll/G6K). Other implementations may use different precision strategies."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "A full attack's maintenance cost is about (number of tours) times the cost of one tour.",
+    "rigorous_support": "Tour structure of BKZ.",
+    "validation_plan": "Measure 3 consecutive tours at d=800 and report the per-tour variation."
+   },
+   {
+    "id": "H2",
+    "statement": "The cost table per precision type (for example, dd at about 10 double flops) reflects relative cost.",
+    "rigorous_support": "Library benchmarks.",
+    "validation_plan": "Microbenchmark each type on the host and record the table in the manifest."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "polynomial, about d^3 per tour times the precision factor",
+   "memory_exponent": "d^2 precision words",
+   "best_known": "core-SVP, which sets this term to 0",
+   "hidden_overhead": "the measured term itself, multiplied by the number of tours",
+   "tradeoff_note": "an additive polynomial term, measured at crypto-tier dimension for this component only"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-101",
+    "provenance": "kb",
+    "citation_text": "Chen, Nguyen, BKZ 2.0: Better Lattice Security Estimates, ASIACRYPT 2011",
+    "relation": "adjacent",
+    "delta": "BKZ 2.0 models enumeration-oracle cost. This measures the maintenance term and the precision it needs at FIPS dimension."
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Nguyen, Stehle, An LLL algorithm with quadratic complexity (L2), SIAM J. Comput. 2009 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "Gives the floating-point precision bounds for LLL. This measures the precision actually needed on ML-KEM-shaped q-ary bases."
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-41cd67",
+   "IDEA-20260816-08eda1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Basis-maintenance cost and required precision on full ML-KEM-shaped primal bases",
+   "objective": "Replace the zero that core-SVP assigns to non-oracle work with a measured value at the real FIPS dimension.",
+   "instrument": "fpylll with counters in its GSO and size-reduction loops, MPFR, SageMath for basis construction and exact GSO spot checks, Python",
+   "parameters": "d in {400, 600, 800, 1000, 1200, 1500}, including the ML-KEM-512 and ML-KEM-768 shapes (n=256, k in {2,3}, q=3329, CBD(3)/CBD(2)); precision types double, long double, dd, qd and MPFR-128; LLL plus one BKZ-20 tour; 3 bases per d",
+   "procedure": "1) Freeze the protocol and the precision cost table. 2) Build the bases. 3) For each precision type, run LLL plus one BKZ-20 tour with counters. 4) Spot-check GSO consistency on 100 sampled indices. 5) Record the minimum sound precision and the counted cost. 6) Fit the cost exponent in d.",
+   "independent_variables": [
+    {
+     "name": "precision_type",
+     "levels": [
+      "double",
+      "long_double",
+      "dd",
+      "qd",
+      "mpfr128"
+     ]
+    },
+    {
+     "name": "basis_family",
+     "levels": [
+      "mlkem_shape",
+      "scrambled_Zd_null",
+      "steep_profile_positive"
+     ]
+    },
+    {
+     "name": "lattice_dim",
+     "levels": [
+      "400",
+      "600",
+      "800",
+      "1000",
+      "1200",
+      "1500"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "scramble_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "seed of the unimodular scrambling applied before LLL"
+    },
+    {
+     "name": "threads",
+     "treatment": "fixed",
+     "value": "1",
+     "how": "a single-threaded fpylll build so that counts are deterministic"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "mlkem_shape",
+      "scrambled_Zd_null"
+     ],
+     "differs_in": [
+      "basis_family"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cost by precision_type and lattice_dim"
+     ],
+     "differs_in": [
+      "precision_type",
+      "lattice_dim"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "mlkem_shape cost at the ML-KEM-768 dimension"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "mlkem_shape block A",
+      "mlkem_shape block B"
+     ],
+     "differs_in": [
+      "scramble_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 bit-operation cost per LLL plus one tour",
+    "minimum sound precision type"
+   ],
+   "secondary_metrics": [
+    "fitted exponent in d",
+    "wall time",
+    "peak memory"
+   ],
+   "preregistered_prediction": {
+    "quantity": "log2 cost at the ML-KEM-768 shape",
+    "formula": "c * d^3 * precision_factor, with c taken from the d<=600 fit",
+    "source": "tour structure plus the L2 precision analysis, derived before data"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "This runs at the true ML-KEM-512 and ML-KEM-768 lattice dimensions for the maintenance component only. The SVP oracle is not run at scale, so no end-to-end FIPS claim is made.",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 14400,
+    "total_cpu_hours": 200,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 300
+   },
+   "stopping_rules": [
+    "stop a precision type at a given d after its first GSO-consistency failure and record it as unsound",
+    "skip MPFR above d=1200 if a single run exceeds the wall-clock cap, and record it as censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "if the positive control is sound under double, the consistency check is invalid and so is the batch"
+   ],
+   "success_criterion": "C3 shows log2 cost >= 40 at the ML-KEM-768 shape (P1). C2 shows that double is unsound at d >= 1200 (P2) and gives a fitted exponent in [2.5,3.5] (P3). C1 separates the ML-KEM bases from the null. All of this lies beyond the AA1 noise floor.",
+   "falsification_criterion": "C3 log2 cost < 30, or C2 shows double sound at every tested d.",
+   "decision_impact": {
+    "on_positive": "Add the measured maintenance term (times the tour count) as a numbered additive assumption to the memory-charged ML-KEM estimate, citing its measurement at crypto-tier dimension.",
+    "on_negative": "Record that the maintenance term is negligible at FIPS dimension, which confirms this part of the core-SVP convention by measurement."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill",
+    "precision_table.json with the per-type cost microbenchmarks"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Quantized sieve database (8/6/4-bit coordinates): how far the bytes-per-vector memory constant shrinks at fixed saturation time",
+  "class": "mechanism",
+  "claim": "Storing the sieve database with b-bit quantized coordinates (plus exact recomputation for accepted reductions) at d=60-80 keeps time-to-saturation within 1.2x of full precision down to b=6 while reducing database bytes by >= 4x. This lowers the memory term of memory-charged cost models by a measured constant (>= 2 bits of memory) that current estimates do not account for. If time blows up by > 2x already at b=8, the memory constant is not compressible this way.",
+  "mechanism": "Sieves need inner products only accurately enough to decide whether a pair reduces; most pairs fail by a wide margin, so low precision suffices for the test, with exact arithmetic only for the rare successes. Memory-charged models price bytes, so the bytes per vector directly scale the memory cost and, under bandwidth charging, the access cost. The constant is implementation choice, not mathematics, and should be measured before being argued.",
+  "tracked_object": "Database bytes and time-to-0.9-saturation as functions of quantization bits b, plus false-negative rate of reduction tests.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "time ratio b=6 / float32",
+    "direction": "lower",
+    "minimum_effect": "<= 1.2",
+    "falsified_by": ">= 2"
+   },
+   {
+    "id": "P2",
+    "metric": "memory ratio float32 / b=6",
+    "direction": "higher",
+    "minimum_effect": ">= 4",
+    "falsified_by": "< 2 (overheads dominate)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Patch G6K (or a standalone bgj1-style sieve in C++) to store quantized coordinates in the GS basis with per-vector scale; run to saturation at d in {60,70,80}, b in {32f,16,8,6,4}, 5 instances.",
+   "controls": [
+    "null: b=32 float through the patched path must equal unpatched time within noise",
+    "positive: b=2 where the false-negative rate must explode and saturation stall",
+    "A/A: float32 arm with two database seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 time ratio >= 2 at b=8",
+   "null control differs (patch overhead)"
+  ],
+  "confounders": [
+   "SIMD efficiency differs by data type",
+   "simhash already filters many pairs"
+  ],
+  "interpretation_limits": [
+   "d <= 80; precision needs may grow with d (fitted and reported); constant-only effect on cost models"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Quantization error behaves as independent noise in inner products.",
+    "rigorous_support": "Rounding analysis.",
+    "validation_plan": "Measure false-negative rates vs prediction."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged",
+   "memory_exponent": "unchanged; constant reduced",
+   "best_known": "G6K float storage",
+   "hidden_overhead": "rescaling and exact recompute",
+   "tradeoff_note": "memory constant engineering"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "uses simhash and floats; does not quantify a bytes-per-vector frontier"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Ducas, Stevens, van Woerden, Advanced Lattice Sieving on GPUs, EUROCRYPT 2021 (recalled: low-precision inner products on tensor cores)",
+    "relation": "adjacent",
+    "delta": "low precision for compute; here measured for memory at CPU scale"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260807-8fbc86"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Saturation time and memory versus database quantization",
+   "objective": "Measure the compressible part of the sieve memory constant.",
+   "instrument": "patched G6K or standalone C++ sieve, Python analysis",
+   "parameters": "d in {60,70,80}; b in {32f,16,8,6,4,2}; 5 instances; 8 threads",
+   "procedure": "1) Freeze. 2) Validate null. 3) Run sweeps. 4) Record bytes, time, false negatives. 5) Fit.",
+   "independent_variables": [
+    {
+     "name": "quant_bits",
+     "levels": [
+      "32f",
+      "16",
+      "8",
+      "6",
+      "4",
+      "2"
+     ]
+    },
+    {
+     "name": "sieve_dim",
+     "levels": [
+      "60",
+      "70",
+      "80"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "db_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "database seed"
+    },
+    {
+     "name": "threads",
+     "treatment": "fixed",
+     "value": "8",
+     "how": "pinned"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "quant_bits=6",
+      "quant_bits=32f"
+     ],
+     "differs_in": [
+      "quant_bits"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "time-memory frontier"
+     ],
+     "differs_in": [
+      "quant_bits",
+      "sieve_dim"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "32f block A",
+      "32f block B"
+     ],
+     "differs_in": [
+      "db_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "time ratio",
+    "memory ratio"
+   ],
+   "secondary_metrics": [
+    "false-negative rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "time ratio at b=6",
+    "formula": "<= 1.2",
+    "source": "preregistered"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "sieve dimensions 60-90 on a single node; transfer assumption: the per-dimension exponent of the measured quantity is extrapolated to beta~400-900 only as a conditional statement with the fit interval; no FIPS 203 security claim",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 200
+   },
+   "stopping_rules": [
+    "stop a run at 3x float32 time; record censored"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 time ratio <= 1.2 (P1) and memory ratio >= 4 (P2), beyond AA1 noise floor; C2 frontier reported.",
+   "falsification_criterion": "C1 time ratio >= 2 at b=8 or memory ratio < 2.",
+   "decision_impact": {
+    "on_positive": "Add the measured bytes-per-vector constant as a numbered assumption lowering memory cost in the ML-KEM memory-charged model.",
+    "on_negative": "Keep float storage as the memory constant; quantization is not a lever."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Parallel efficiency of G6K sieving from 1 to 64 threads at d=70-85: is core-SVP time a sequential fiction under shared bandwidth?",
+  "class": "measurement",
+  "claim": "Core-SVP prices total operations as if they parallelize freely. Measured G6K throughput (pair tests per second) at d=70-85 on one node scales with efficiency E(t) = speedup/t that falls below 0.6 at t=64, and the fall steepens with d (memory-bandwidth saturation). If E(64) >= 0.85 at all d, parallel memory contention is negligible at this scale and the objection is falsified.",
+  "mechanism": "Bucketed sieves share one database; as threads grow, DRAM bandwidth and cache coherence become the bottleneck rather than arithmetic. An attacker's area-time cost then includes idle arithmetic, so a parallel attack's real cost exceeds the operation count by 1/E. The d-dependence of E reveals whether this is a constant or an exponent-level effect.",
+  "tracked_object": "Parallel efficiency E(t,d) of pair-test throughput for bgj1 and BDGL kernels.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "E(64) at d=85",
+    "direction": "lower",
+    "minimum_effect": "<= 0.6",
+    "falsified_by": ">= 0.85"
+   },
+   {
+    "id": "P2",
+    "metric": "dE(64)/dd",
+    "direction": "lower",
+    "minimum_effect": "negative with CI excluding 0",
+    "falsified_by": "CI includes 0"
+   }
+  ],
+  "minimal_test": {
+   "design": "On a 64-core NUMA node, run G6K sieves at d in {70,75,80,85} with t in {1,2,4,8,16,32,64}, NUMA-local placement, 3 instances; measure pair-test throughput.",
+   "controls": [
+    "null: an embarrassingly parallel kernel (independent sieves per thread on separate small lattices) - E must stay >= 0.9",
+    "positive: a bandwidth stress (STREAM triad) concurrent run where E must drop",
+    "A/A: t=16 runs with two run-order blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1: E(64) >= 0.85 at all d",
+   "null control E < 0.9 (host noisy, invalid)"
+  ],
+  "confounders": [
+   "NUMA placement",
+   "turbo frequency changes with active cores",
+   "OS noise"
+  ],
+  "interpretation_limits": [
+   "One host type; d <= 85; area-time interpretation is a model choice stated as an assumption"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Throughput loss is caused by memory contention, not lock contention.",
+    "rigorous_support": "G6K uses lock-free bucketing mostly.",
+    "validation_plan": "Profile with perf where PMU exists; otherwise report as unverified."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "0.292d / E(t,d)",
+   "memory_exponent": "0.2075d",
+   "best_known": "core-SVP sequential",
+   "hidden_overhead": "bandwidth",
+   "tradeoff_note": "constant or small exponent"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "reports multi-thread records but not efficiency vs d"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-7bc28c",
+   "IDEA-20260821-46c09f"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "G6K thread-scaling efficiency versus sieve dimension",
+   "objective": "Measure whether parallel sieving is bandwidth-bound at growing d.",
+   "instrument": "G6K, numactl, isolab independent runner if available, Python",
+   "parameters": "d in {70,75,80,85}; t in {1,2,4,8,16,32,64}; bgj1 and BDGL; 3 instances",
+   "procedure": "1) Freeze. 2) Pin and isolate. 3) Interleave runs by t. 4) Measure throughput. 5) Fit E(t,d).",
+   "independent_variables": [
+    {
+     "name": "threads",
+     "levels": [
+      "1",
+      "2",
+      "4",
+      "8",
+      "16",
+      "32",
+      "64"
+     ]
+    },
+    {
+     "name": "sieve_dim",
+     "levels": [
+      "70",
+      "75",
+      "80",
+      "85"
+     ]
+    },
+    {
+     "name": "workload",
+     "levels": [
+      "g6k_sieve",
+      "independent_null",
+      "with_stream_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "run_order_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "interleaving order of runs"
+    },
+    {
+     "name": "numa_policy",
+     "treatment": "fixed",
+     "value": "local",
+     "how": "numactl --localalloc"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "threads=64",
+      "threads=1"
+     ],
+     "differs_in": [
+      "threads"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "E over threads x sieve_dim"
+     ],
+     "differs_in": [
+      "threads",
+      "sieve_dim"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "t=16 order A",
+      "t=16 order B"
+     ],
+     "differs_in": [
+      "run_order_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "parallel efficiency E"
+   ],
+   "secondary_metrics": [
+    "pair tests per second"
+   ],
+   "preregistered_prediction": {
+    "quantity": "E(64) at d=85",
+    "formula": "<= 0.6",
+    "source": "preregistered"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "sieve dimensions 60-90 on a single node; transfer assumption: the per-dimension exponent of the measured quantity is extrapolated to beta~400-900 only as a conditional statement with the fit interval; no FIPS 203 security claim",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 600,
+    "maximum_memory_gb": 256,
+    "maximum_runs": 260
+   },
+   "stopping_rules": [
+    "stop if host isolation tier cannot be established"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch",
+    "runs on a host with other tenants are invalid"
+   ],
+   "success_criterion": "C1 shows E(64) <= 0.6 at d=85 (P1) and C2 shows E decreasing with d (P2); beyond AA1 noise floor.",
+   "falsification_criterion": "C1 E(64) >= 0.85 at every d.",
+   "decision_impact": {
+    "on_positive": "Add a parallel-efficiency term to the memory-charged cost model.",
+    "on_negative": "Record that parallel sieving is compute-bound to d=85 on one node."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Measured success curve P(beta) of progressive primal attacks on Kyber-shaped instances versus the Postlethwaite-Virdia simulator",
+  "class": "measurement",
+  "claim": "On Kyber-shaped primal instances (module rank 2, ring degree 32-48, q=3329, CBD(2)), the empirical success probability P(beta) of progressive BKZ/G6K rises over a window of width >= 6 block sizes from 10% to 90%, and the Postlethwaite-Virdia probabilistic simulator predicts the median within 2 block sizes while the 2016 estimate is biased by >= 3. If the window is < 3 wide, the step-function convention is empirically adequate at this scale.",
+  "mechanism": "Core-SVP prices a single block size assumed to succeed. The success event depends on the projected norm of the planted vector, a random variable whose spread gives a smooth P(beta). The expected cost under a progressive strategy is a sum over P(beta) increments, which can be cheaper or dearer than the step convention. PV21 model this; the measurement checks it on module-structured, CBD instances rather than LWE with Gaussian error.",
+  "tracked_object": "Empirical CDF of the success block size beta* over 200 instances per parameter set.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "beta(90%) - beta(10%)",
+    "direction": "higher",
+    "minimum_effect": ">= 6",
+    "falsified_by": "< 3"
+   },
+   {
+    "id": "P2",
+    "metric": "|median beta* - PV21 median|",
+    "direction": "lower",
+    "minimum_effect": "<= 2",
+    "falsified_by": "> 4"
+   }
+  ],
+  "minimal_test": {
+   "design": "200 instances each for (n=32,k=2) and (n=40,k=2), q=3329, CBD(2); progressive G6K pumps; record beta* and verify secret; compare with PV21 simulator and 2016 estimate.",
+   "controls": [
+    "null: unstructured LWE with the same dimension, q, and CBD secret - checks module structure has no effect on the CDF",
+    "positive: Gaussian-error instances matching PV21's own experimental setting must reproduce their curve",
+    "A/A: the same instances with two basis-randomization seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 window < 3",
+   "positive control fails to reproduce PV21 (instrument invalid)"
+  ],
+  "confounders": [
+   "progressive step size",
+   "dimensions-for-free settings",
+   "instance generation seed"
+  ],
+  "interpretation_limits": [
+   "Lattice dim <= 160; FIPS beta ~ 400-900; the shape of P(beta) is the transferable object as a conditional"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Success is detected exactly when the planted vector is found.",
+    "rigorous_support": "Verification of A*s+e=t.",
+    "validation_plan": "Built in."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "expected-cost integral over P(beta)",
+   "memory_exponent": "0.2075 beta",
+   "best_known": "core-SVP step convention",
+   "hidden_overhead": "none",
+   "tradeoff_note": "measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5601",
+    "provenance": "kb",
+    "citation_text": "Postlethwaite, Virdia, On the Success Probability of Solving Unique SVP via BKZ",
+    "relation": "same",
+    "delta": "measures their simulator on module/CBD Kyber-shaped instances"
+   },
+   {
+    "ref": "KN-LIT-108",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Gopfert, Virdia, Wunderer, Revisiting the Expected Cost of Solving uSVP, ASIACRYPT 2017",
+    "relation": "adjacent",
+    "delta": "the 2016-estimate success condition being tested"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260829-247e35",
+   "IDEA-20260805-f7c912"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Empirical P(beta) for Kyber-shaped primal attacks",
+   "objective": "Replace the step-function success assumption with a measured CDF and test the PV21 simulator on module/CBD instances.",
+   "instrument": "G6K, fpylll, PV21 simulator code (public), lattice-estimator",
+   "parameters": "(n,k) in {(32,2),(40,2)}; q=3329; CBD(2); 200 instances each; progressive step 1",
+   "procedure": "1) Freeze. 2) Generate instances. 3) Progressive reduction with verification. 4) Empirical CDF. 5) Compare with simulators.",
+   "independent_variables": [
+    {
+     "name": "instance_family",
+     "levels": [
+      "module_cbd",
+      "unstructured_cbd_null",
+      "gaussian_positive"
+     ]
+    },
+    {
+     "name": "ring_degree",
+     "levels": [
+      "32",
+      "40"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "basis_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "basis randomization"
+    },
+    {
+     "name": "instance_seed",
+     "treatment": "randomized",
+     "value": "200",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "module_cbd",
+      "unstructured_cbd_null"
+     ],
+     "differs_in": [
+      "instance_family"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "module_cbd vs PV21 simulator"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "module_cbd block A",
+      "module_cbd block B"
+     ],
+     "differs_in": [
+      "basis_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "empirical CDF of beta*",
+    "window width"
+   ],
+   "secondary_metrics": [
+    "simulator residuals",
+    "expected progressive cost vs step cost"
+   ],
+   "preregistered_prediction": {
+    "quantity": "median beta*",
+    "formula": "PV21 simulator",
+    "source": "KN-LIT-5601"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "lattice dim <= 161; transfer of CDF shape conditional",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 100,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 1600
+   },
+   "stopping_rules": [
+    "censor at beta=dimension"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C2 shows window >= 6 (P1) and median within 2 of PV21 (P2); C1 difference reported; beyond AA1 noise floor.",
+   "falsification_criterion": "C2 window < 3 or PV21 median miss > 4.",
+   "decision_impact": {
+    "on_positive": "Use PV21 with measured spread for expected-cost accounting in RQ-MLKEM-003.",
+    "on_negative": "Keep the step convention as empirically adequate; document the measured window."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Inside one SVP call: measured progressive-sieving overhead C_prog = pump cost / final sieve cost at d=60-90 vs the geometric series",
+  "class": "measurement",
+  "claim": "Core-SVP charges one sieve at the final dimension. A G6K pump sieves progressively from small to full dimension and adds dimensions-for-free; the measured ratio C_prog of total pair tests to the final sieve's pair tests is in [3, 8] at d=60-90 and drifts by less than 1 bit across the range. The geometric-series prediction 1/(1-2^{-c}) with the measured per-dimension exponent c predicts C_prog within 1.5x. A drift > 1 bit or a miss > 2x falsifies the constant-overhead assumption.",
+  "mechanism": "Progressive sieving pays a sum over dimensions of per-dimension sieve costs; if each costs 2^{c d'}, the sum is a geometric series dominated by the last term, so the overhead is a constant determined by c. But the realized c at small d (often near 0.35 not 0.292) and the extra cost of insertion and re-saturation may make the overhead grow or shrink. IDEA-20260821-41cd67 concerns the number of oracle calls R across BKZ; this is the cost inside one call.",
+  "tracked_object": "C_prog per pump, and the fitted per-dimension exponent c, at sieve dimension 60-90.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "C_prog",
+    "direction": "different",
+    "minimum_effect": "in [3,8]",
+    "falsified_by": "outside [2,12]"
+   },
+   {
+    "id": "P2",
+    "metric": "|C_prog measured / geometric prediction - 1|",
+    "direction": "lower",
+    "minimum_effect": "<= 0.5",
+    "falsified_by": "> 1.0"
+   }
+  ],
+  "minimal_test": {
+   "design": "G6K pumps (down_sieve off, f in {0, d4f default}) on q-ary lattices d in {60,65,...,90}, 5 instances; count pair tests per progressive step; separately run a cold final-dimension sieve for the denominator.",
+   "controls": [
+    "null: a pump with step size equal to full dimension (no progression) must give C_prog ~ 1",
+    "positive: progressive step 1 vs step 4 where the series prediction changes in a computable direction",
+    "A/A: default pump with two database seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 or P2 violated",
+   "null not ~1"
+  ],
+  "confounders": [
+   "cold sieve start-up cost in denominator",
+   "saturation targets differ between pump steps and cold sieve"
+  ],
+  "interpretation_limits": [
+   "d <= 90; extrapolation of a constant is conditional on the measured drift"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Pair tests are the dominant cost unit.",
+    "rigorous_support": "G6K profiling.",
+    "validation_plan": "Report wall-time ratio alongside."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "0.292d + log2 C_prog",
+   "memory_exponent": "0.2075d",
+   "best_known": "core-SVP with C_prog=1",
+   "hidden_overhead": "C_prog itself",
+   "tradeoff_note": "constant measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "defines pumps; does not report C_prog vs d"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Ducas, Shortest Vector from Lattice Sieving: a Few Dimensions for Free, EUROCRYPT 2018 (recalled)",
+    "relation": "adjacent",
+    "delta": "progressive sieving and d4f; overhead argued asymptotically"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-41cd67",
+   "IDEA-20260821-374af4"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Progressive overhead constant across sieve dimensions",
+   "objective": "Measure the within-call overhead core-SVP omits.",
+   "instrument": "G6K with per-step counters, Python",
+   "parameters": "d in {60,65,70,75,80,85,90}; f in {0,d4f}; step in {1,4,d}; 5 instances",
+   "procedure": "1) Freeze. 2) Run pumps and cold sieves. 3) Compute C_prog and c. 4) Compare with series.",
+   "independent_variables": [
+    {
+     "name": "progression_step",
+     "levels": [
+      "1",
+      "4",
+      "full_null"
+     ]
+    },
+    {
+     "name": "sieve_dim",
+     "levels": [
+      "60",
+      "65",
+      "70",
+      "75",
+      "80",
+      "85",
+      "90"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "db_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "database seed"
+    },
+    {
+     "name": "threads",
+     "treatment": "fixed",
+     "value": "8",
+     "how": "pinned"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "step 1",
+      "full_null"
+     ],
+     "differs_in": [
+      "progression_step"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "C_prog vs series prediction"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "step 1 block A",
+      "step 1 block B"
+     ],
+     "differs_in": [
+      "db_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "C_prog",
+    "drift in bits across d"
+   ],
+   "secondary_metrics": [
+    "fitted c"
+   ],
+   "preregistered_prediction": {
+    "quantity": "C_prog",
+    "formula": "1/(1-2^{-c})",
+    "source": "geometric series, derived before data"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "sieve dimensions 60-90 on a single node; transfer assumption: the per-dimension exponent of the measured quantity is extrapolated to beta~400-900 only as a conditional statement with the fit interval; no FIPS 203 security claim",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 120,
+    "maximum_memory_gb": 64,
+    "maximum_runs": 220
+   },
+   "stopping_rules": [
+    "none beyond budget"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C2 shows C_prog in [3,8] (P1) and within 1.5x of series (P2) with drift < 1 bit; C1 null ~1; beyond AA1 noise floor.",
+   "falsification_criterion": "C2 C_prog outside [2,12] or prediction miss > 2x.",
+   "decision_impact": {
+    "on_positive": "Add log2 C_prog as a measured additive term to the memory-charged ML-KEM estimate.",
+    "on_negative": "Flag the geometric-series overhead as unreliable and carry the measured curve instead."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Batch-CVP after one sieve: measured per-query cost of Voronoi-slicer CVPP at d=50-70 versus the per-guess Babai cost hybrids assume",
+  "class": "measurement",
+  "claim": "Hybrid attacks pay one CVP (or BDD) per combinatorial guess, usually priced as Babai nearest-plane on a reduced basis. Using a sieve-preprocessed list for CVPP (Doulgerakis-Laarhoven-de Weger style iterative slicing), the measured per-query cost at d=50-70 for BDD targets at the hybrid's distance is 2^{c_q d} with c_q <= 0.1 and success >= 0.9 where Babai succeeds < 0.5. This changes the hybrid optimum when ported to estimator parameters by >= 3 bits. If c_q >= 0.2 or success does not exceed Babai's, the estimator's Babai pricing stands.",
+  "mechanism": "With a list of short lattice vectors from one sieve, iterative slicing reduces a target toward the Voronoi cell; amortized over many targets, the per-query cost is subexponential-ish in the list size and can succeed at distances where Babai fails, allowing smaller preprocessing beta in the hybrid. Estimators fix the BDD step as Babai; the tradeoff curve between preprocessing and per-query success is unmeasured at Kyber shape.",
+  "tracked_object": "Per-query counted cost and success rate of slicer CVPP vs Babai for BDD targets at relative distance r in {0.5,0.7,0.9} of the gh, on Kyber-shaped projected sublattices.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slicer success at r=0.9 minus Babai success",
+    "direction": "higher",
+    "minimum_effect": ">= 0.4",
+    "falsified_by": "< 0.1"
+   },
+   {
+    "id": "P2",
+    "metric": "fitted per-query exponent c_q",
+    "direction": "lower",
+    "minimum_effect": "<= 0.1",
+    "falsified_by": ">= 0.2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Sieve once (G6K, saturation 0.9, list size up to 2^{0.21d}) on Kyber-shaped projected sublattices d in {50,55,60,65,70}; generate 10^4 BDD targets per d at each r; run slicer and Babai; count ops and success.",
+   "controls": [
+    "null: targets uniform in space (no planted close vector) - both methods must 'succeed' only at the base rate",
+    "positive: r=0.3 where both must succeed ~100%",
+    "A/A: slicer with two target-RNG seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1 or P2 violated",
+   "positive control below 0.95 (bug)"
+  ],
+  "confounders": [
+   "list size choice",
+   "reduction quality of the Babai basis",
+   "distance distribution of real hybrid targets"
+  ],
+  "interpretation_limits": [
+   "d <= 70; the hybrid re-optimization is conditional on extrapolating c_q"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "BDD targets from hybrid guesses look like Gaussian perturbations of lattice points.",
+    "rigorous_support": "Hybrid analysis.",
+    "validation_plan": "Also test with CBD-structured perturbations."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "preprocessing 0.292d + per-query 2^{c_q d}",
+   "memory_exponent": "0.2075d list",
+   "best_known": "Babai per guess (estimator hybrid)",
+   "hidden_overhead": "list storage across guesses",
+   "tradeoff_note": "may move the hybrid optimum"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Doulgerakis, Laarhoven, de Weger, Finding closest lattice vectors using approximate Voronoi cells, PQCrypto 2019 (recalled)",
+    "relation": "same",
+    "delta": "measures their slicer at Kyber-shaped hybrid targets and ports to the hybrid estimate"
+   },
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of Learning with Errors",
+    "relation": "adjacent",
+    "delta": "estimator framework whose hybrid uses Babai"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260828-55a0de",
+   "IDEA-20260901-67f498",
+   "IDEA-20260901-7eb9e1"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Slicer CVPP versus Babai per-query cost and success at hybrid distances",
+   "objective": "Measure whether batch CVPP changes the hybrid attack's cost structure.",
+   "instrument": "G6K for lists, C++ slicer, fpylll Babai, Python",
+   "parameters": "d in {50,55,60,65,70}; r in {0.3,0.5,0.7,0.9}; 10^4 targets per cell; 3 lattices per d",
+   "procedure": "1) Freeze. 2) Sieve lists. 3) Generate targets. 4) Run both methods. 5) Fit c_q and success curves.",
+   "independent_variables": [
+    {
+     "name": "cvp_method",
+     "levels": [
+      "babai",
+      "slicer"
+     ]
+    },
+    {
+     "name": "target_distance",
+     "levels": [
+      "0.3",
+      "0.5",
+      "0.7",
+      "0.9",
+      "uniform_null"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "target_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "target RNG"
+    },
+    {
+     "name": "lattice_seed",
+     "treatment": "randomized",
+     "value": "3 per d",
+     "how": "paired"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "slicer",
+      "babai"
+     ],
+     "differs_in": [
+      "cvp_method"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "c_q fit"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "slicer block A",
+      "slicer block B"
+     ],
+     "differs_in": [
+      "target_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "success rate",
+    "per-query ops"
+   ],
+   "secondary_metrics": [
+    "hybrid re-optimized cost"
+   ],
+   "preregistered_prediction": {
+    "quantity": "c_q",
+    "formula": "<= 0.1",
+    "source": "DLW19 analysis (recalled)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "d <= 70; transfer conditional on c_q fit",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 150
+   },
+   "stopping_rules": [
+    "none beyond budget"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 success gap >= 0.4 at r=0.9 (P1) and C2 c_q <= 0.1 (P2), beyond AA1 noise floor.",
+   "falsification_criterion": "C1 gap < 0.1 or C2 c_q >= 0.2.",
+   "decision_impact": {
+    "on_positive": "Re-run the hybrid estimate with measured CVPP costs and report the bit change at ML-KEM parameters as conditional.",
+    "on_negative": "Confirm Babai pricing for hybrid estimates at these shapes."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLKEM-003",
+  "title": "Does the Gaussian surrogate for CBD errors misprice primal success? Matched-variance CBD vs discrete Gaussian vs uniform beta*",
+  "class": "control",
+  "claim": "Estimators replace ML-KEM's CBD(eta) secret and error by Gaussians of equal variance. On primal instances at lattice dimension 120-160, the median success block size for CBD(2) differs from the matched-variance discrete Gaussian by < 1 block size, while uniform {-2..2} of different kurtosis but matched variance also differs by < 1. If any pair differs by >= 2 with CI excluding 0, the variance-only surrogate is not adequate and estimator inputs must carry the shape.",
+  "mechanism": "uSVP success depends on the norm of the projected planted vector, which by concentration depends mostly on the variance; higher moments enter through the spread of the projected norm (excess kurtosis of CBD(2) is -0.25). The effect on the median beta should be small but on the spread could be visible. IDEA-20260808-90632c addresses the projected-norm ratio law; this measures the attack outcome directly.",
+  "tracked_object": "Distribution of beta* for three error laws with identical variance, paired instances (same A).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "|median beta*(CBD) - median beta*(Gaussian)|",
+    "direction": "lower",
+    "minimum_effect": "< 1",
+    "falsified_by": ">= 2 with CI excluding 0"
+   },
+   {
+    "id": "P2",
+    "metric": "IQR ratio CBD/Gaussian",
+    "direction": "different",
+    "minimum_effect": "within [0.8,1.25]",
+    "falsified_by": "outside [0.6,1.6]"
+   }
+  ],
+  "minimal_test": {
+   "design": "Same public matrices A (n=40,k=2,q=3329), 150 instances; for each draw s,e from CBD(2), discrete Gaussian sigma=1, and uniform with variance matched by scaling support/probabilities; progressive G6K to verified recovery.",
+   "controls": [
+    "null: two independent CBD(2) draws on the same A (difference must be ~0)",
+    "positive: Gaussian with variance 1.5x (beta* must increase measurably)",
+    "A/A: CBD arm with two reduction seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "P1: difference >= 2",
+   "positive control shows no increase (instrument too coarse)"
+  ],
+  "confounders": [
+   "matching variance for uniform requires non-integer support weights",
+   "progressive step granularity"
+  ],
+  "interpretation_limits": [
+   "Lattice dim <= 160; a null result is a control at this scale; spreads may differ at FIPS dims"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Variance matching is the right equivalence.",
+    "rigorous_support": "Estimator convention.",
+    "validation_plan": "Positive control quantifies sensitivity to variance."
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "unchanged",
+   "memory_exponent": "unchanged",
+   "best_known": "lattice-estimator Gaussian surrogate",
+   "hidden_overhead": "none",
+   "tradeoff_note": "control"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of Learning with Errors",
+    "relation": "adjacent",
+    "delta": "the estimator convention tested"
+   },
+   {
+    "ref": "KN-LIT-108",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Gopfert, Virdia, Wunderer, Revisiting the Expected Cost of Solving uSVP",
+    "relation": "adjacent",
+    "delta": "success condition based on variance"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-90632c",
+   "IDEA-20260816-08eda1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Primal beta* under matched-variance error laws",
+   "objective": "Test the variance-only surrogate used by every ML-KEM estimate.",
+   "instrument": "G6K, fpylll, SageMath samplers",
+   "parameters": "n=40, k=2, q=3329; laws CBD(2), DGauss(sigma=1), uniform matched; 150 instances; positive DGauss sigma^2=1.5",
+   "procedure": "1) Freeze. 2) Generate paired instances. 3) Progressive reduction with verification. 4) Compare distributions.",
+   "independent_variables": [
+    {
+     "name": "error_law",
+     "levels": [
+      "cbd2",
+      "dgauss_matched",
+      "uniform_matched",
+      "dgauss_1p5var_positive"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "reduction_seed_block",
+     "treatment": "randomized",
+     "value": "A,B",
+     "how": "basis randomization"
+    },
+    {
+     "name": "matrix_seed",
+     "treatment": "randomized",
+     "value": "150",
+     "how": "paired A across laws"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "cbd2",
+      "dgauss_matched"
+     ],
+     "differs_in": [
+      "error_law"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cbd2",
+      "uniform_matched"
+     ],
+     "differs_in": [
+      "error_law"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "cbd2 block A",
+      "cbd2 block B"
+     ],
+     "differs_in": [
+      "reduction_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "median beta*",
+    "IQR"
+   ],
+   "secondary_metrics": [
+    "success at fixed beta"
+   ],
+   "preregistered_prediction": {
+    "quantity": "median difference CBD vs Gaussian",
+    "formula": "~0",
+    "source": "variance-only estimator model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "lattice dim 161; transfer: a null here supports, not proves, the surrogate at FIPS dims",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 1200
+   },
+   "stopping_rules": [
+    "censor at beta=dimension"
+   ],
+   "invalidation_rules": [
+    "timeout/crash/OOM is failed_infrastructure, never negative evidence",
+    "any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD support) is discarded and logged, never counted as a success",
+    "protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first timed run; any change voids the batch"
+   ],
+   "success_criterion": "C1 and C2 median differences < 1 with CI upper < 2 (P1) and IQR ratio within [0.8,1.25] (P2), with the positive control shifting; AA1 noise floor reported.",
+   "falsification_criterion": "C1 or C2 median difference >= 2 with CI excluding 0.",
+   "decision_impact": {
+    "on_positive": "Register the Gaussian surrogate as validated at this scale for primal attacks.",
+    "on_negative": "Require shape-aware error inputs in all ML-KEM estimates and re-run them."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host and seeds",
+    "raw-result.json with one row per (arm, instance, seed) including verification flag",
+    "analysis.json with effect sizes, bootstrap CIs and the AA noise floor",
+    "report.md plus graph (SVG/PNG) and PDF per the research-visuals skill"
+   ]
+  }
+ }
+]

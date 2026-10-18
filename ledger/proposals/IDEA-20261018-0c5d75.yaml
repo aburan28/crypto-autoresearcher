@@ -1,0 +1,133 @@
+# IDEA RECORD -- IDEA-20261018-0c5d75
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-0c5d75
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Learned pump-and-jump scheduling for Kyber-shaped primal instances versus G6K default
+    and two-step-mode schedules
+  class: algorithm
+  claim: >-
+    A policy that picks the next (block size, jump, extra dimensions-for-free) from features
+    of the current Gram-Schmidt log-profile, trained on self-generated Kyber-shaped instances
+    at lattice dimension 140-180, reduces median counted cost to recover the secret by >=
+    15% versus G6K's lwe_challenge default schedule on held-out instances, and by >= 5% versus
+    the schedule optimized by the two-step-mode estimator. Below those margins the claim is
+    false.
+  mechanism: >-
+    Fixed schedules assume the profile follows a GSA-like simulator after each tour. Real
+    profiles deviate (head concavity, tail flattening) and the deviation predicts when a larger
+    jump or an earlier final pump pays. A learned policy conditions on the observed deviation
+    instead of a simulator, so it can skip tours that the simulator says are needed but the
+    instance does not. The gain is a constant, but it applies directly to the end-to-end S
+    of the current baseline.
+  tracked_object: >-
+    End-to-end counted cost (sieve pair tests summed over all pumps, plus LLL ops) to verified
+    secret recovery under each schedule.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-2215
+    provenance: kb
+    claim: their schedule is simulator-optimized; this learns from observed profiles
+    verified_by: knowledge/literature/KN-LIT-2215.md (opened by the drafting session)
+  - ref: KN-LIT-4429
+    provenance: kb
+    claim: simulator-based progressive schedule; this is a data-driven alternative
+    verified_by: knowledge/literature/KN-LIT-4429.md (opened by the drafting session)
+  - ref: KN-LIT-106
+    provenance: kb
+    claim: baseline schedule
+    verified_by: knowledge/literature/KN-LIT-106.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: median cost ratio learned/default
+    direction: lower
+    minimum_effect: <= 0.85
+    falsified_by: ratio >= 0.95 with CI
+  - id: P2
+    metric: median cost ratio learned/two_step_opt
+    direction: lower
+    minimum_effect: <= 0.95
+    falsified_by: ratio >= 1.0
+  minimal_test:
+    design: >-
+      Generate 400 training and 100 held-out instances (n_ring=64..80 x k=2, q=3329, CBD(2),
+      embedding dim ~ 2kn - some coordinates dropped to bring dim to 140-180). Train a gradient-boosted
+      policy by imitation of the best schedule found by search on training instances. Evaluate
+      all schedules on held-out instances with paired seeds.
+    controls:
+    - 'null: a policy trained on shuffled profile features (labels kept) must not beat default'
+    - >-
+      positive: an oracle schedule with knowledge of the planted secret's projected norm per
+      position (upper bound on achievable gain)
+    - 'A/A: default schedule run twice with different basis-randomization seed blocks'
+  falsification_conditions:
+  - P1 fails
+  - shuffled-feature null beats default by > 5% (overfitting/leakage)
+  confounders:
+  - training-test leakage through shared RNG
+  - wall-clock noise (use counted ops)
+  - schedule search budget unequal across arms
+  interpretation_limits:
+  - >-
+    Lattice dimension <= 180; schedule constants may not transfer to FIPS block sizes ~400-900;
+    this is an engineering result on the current baseline
+  - no claim about core-SVP exponents
+  heuristic_assumptions:
+  - id: H1
+    statement: Profile features at tour t are sufficient statistics for the schedule decision.
+    rigorous_support: Simulators use only the profile.
+    validation_plan: Ablate feature sets; report importance.
+  target_complexity:
+    time_exponent: unchanged
+    memory_exponent: unchanged
+    best_known: G6K default; two-step estimator schedule
+    hidden_overhead: policy evaluation negligible; training cost reported separately
+    tradeoff_note: constant-factor engineering
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: high
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-2215
+      provenance: kb
+      relation: adjacent
+      delta: their schedule is simulator-optimized; this learns from observed profiles
+    - ref: KN-LIT-4429
+      provenance: kb
+      relation: adjacent
+      delta: simulator-based progressive schedule; this is a data-driven alternative
+    - ref: KN-LIT-106
+      provenance: kb
+      relation: orthogonal
+      delta: baseline schedule
+    internal_neighbours:
+    - IDEA-20260821-41cd67
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-7592be
+    experiment_id: EXP-MLKEM-36f672

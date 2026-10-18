@@ -1,0 +1,81 @@
+# HYPOTHESIS -- H-SLHDSA-604af3, specified from IDEA-20261018-0e2ae9. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-604af3
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-0e2ae9
+  added: '2026-10-18'
+  statement: >-
+    At reduced n (8 and 12 bytes) with toy h, d, k, a, single-bit and single-field mutations
+    of honest signatures are accepted by a reference-faithful verifier only through hash collisions,
+    with the accepted-mutation rate per field matching 2^{-8n} times the field's collision
+    surface; a strong-unforgeability gap appears only where the verifier ignores bytes (for
+    example trailing bytes or unused auth-path nodes). A census of accepted mutations per
+    field, compared with a planted lax verifier, decides whether any field of an SLH-DSA signature
+    is non-binding.
+  mechanism: >-
+    Every signature byte should enter a hash whose output is compared to the public root.
+    Fields that are recomputed rather than compared (FORS secret values, WOTS chain values,
+    auth-path nodes) can be altered only if a hash collision maps the altered input to the
+    same output; at n of 8 bytes that rate is measurable. A field that is parsed but never
+    hashed would be accepted at rate 1, which is a SUF-CMA break independent of the hash.
+    The census therefore separates hash-limited malleability from parsing-limited malleability.
+  assumptions:
+  - Accepted mutations at n bytes arise only from collisions of a truncated SHAKE256
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Accepted mutations at n bytes arise only from collisions of a truncated
+      SHAKE256
+    random_model_justification: random-oracle model
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-e67a2b
+    falsification_condition: compare per-field rate against collision surface
+  predictions:
+  - metric: accepted fraction per hashed field at n=8 bytes
+    direction: different
+    minimum_effect: within 2x of collision prediction
+  - metric: accepted fraction for length-extended or trailing bytes in reference-faithful
+      verifier
+    direction: lower
+    minimum_effect: 0 of 10^6
+  - metric: accepted fraction under planted lax verifier ignoring last auth node
+    direction: higher
+    minimum_effect: ~1 for that field
+  test_boundary:
+    instances:
+    - >-
+      n in {8,12} bytes; h=8, d=2, k=8, a=4, w=16; 10^4 signatures; all single-bit flips (~
+      sig_len*8 each) subsampled to 10^6 per field; 10^6 trailing-byte variants
+    parameters:
+      scale_tier: toy
+      scale_justification: 'n reduced to make collisions visible; transfer assumption: rate
+        scales as 2^{-8n}'
+    implementation: Python 3 toy signer and two verifiers (reference-faithful, planted lax);
+      multiprocessing
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 10
+      maximum_memory_gb: 4
+      maximum_runs: 12
+  distinguishable_outcomes:
+  - any hashed field above 10x prediction
+  - any acceptance
+  - below 0.5 (instrument cannot see the defect)
+  falsification_conditions:
+  - any hashed field acceptance > 10x prediction
+  - positive control fails to show acceptance near 1
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate. Real implementations need their own census; this
+    measures the reference construction.
+  - Malleability is a SUF property, not a forgery of a new message.
+  status: specified
+  proposed_by: idea-generator

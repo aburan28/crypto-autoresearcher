@@ -1,0 +1,91 @@
+# HYPOTHESIS -- H-HQC-497593, specified from IDEA-20261018-5eddc6. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-HQC-497593
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  derived_from_idea: IDEA-20261018-5eddc6
+  added: '2026-10-18'
+  statement: >-
+    At reduced n where direct Monte Carlo sees failures only at DFR >= 2^-24, an importance-sampling
+    estimator that tilts the weights of r1, r2, e upward and reweights by the exact likelihood
+    ratio of fixed-weight distributions estimates DFRs down to 2^-40 with relative error under
+    20%, and its empirical-Bernstein upper confidence bound covers the true value in at least
+    95% of replicate runs where the truth is known by direct MC. Where direct MC and IS overlap
+    they agree within the A/A band; if they do not, the IS estimator is biased and must not
+    be used for extrapolation.
+  mechanism: >-
+    Failures come from heavy-tailed weight of e' = x r2 - r1 y + e; tilting r1, r2, e weights
+    to larger values makes failures common, and the exact ratio of the two fixed-weight hypergeometric-type
+    distributions restores unbiasedness. Because weight is the dominant failure driver, the
+    tilt captures most variance. A certified bound needs bounded likelihood ratios, which
+    holds since weights range over a finite set; empirical Bernstein gives a finite-sample
+    upper bound.
+  assumptions:
+  - >-
+    Conditional on (w(r1),w(r2),w(e)), failure probability is the same under tilted and nominal
+    distributions
+  - Likelihood ratios are bounded for empirical Bernstein
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: >-
+      Conditional on (w(r1),w(r2),w(e)), failure probability is the same under tilted and
+      nominal distributions
+    random_model_justification: likelihood ratio is exact for weight-level tilting of uniform
+      fixed-weight sampling
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-HQC-f546f2
+    falsification_condition: overlap test P1
+  - id: HEUR-002
+    formal_statement: Likelihood ratios are bounded for empirical Bernstein
+    random_model_justification: finite weight range
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-HQC-f546f2
+    falsification_condition: compute max ratio
+  predictions:
+  - metric: log2 IS/MC ratio in overlap region
+    direction: different
+    minimum_effect: '|log2 ratio| <= 0.25'
+  - metric: coverage of 95% UCB over 40 replicates
+    direction: higher
+    minimum_effect: '>= 0.92'
+  - metric: relative SE at DFR 2^-40 per 10^8 samples
+    direction: lower
+    minimum_effect: <= 20%
+  test_boundary:
+    instances:
+    - >-
+      Reduced sets: n in {2003, 3011, 4001} (primes with 2 primitive), RM(1,6) duplicated
+      x2 inner, RS shortened length 16-24; weights scaled to hit DFR 2^-12..2^-40; 10^8 samples
+      per IS cell, 10^9 for MC cells; 40 replicate runs for coverage
+    parameters:
+      scale_tier: medium
+      scale_justification: 'reduced n; transfer: weight-driven failure law'
+    implementation: >-
+      C decoder (independent of lane's existing decoder where possible) with Python driver;
+      NumPy for statistics
+    budget:
+      wall_clock_seconds_per_run: 7200
+      total_cpu_hours: 40
+      maximum_memory_gb: 8
+      maximum_runs: 60
+  distinguishable_outcomes:
+  - '|log2 ratio| > 0.5'
+  - < 0.85
+  - '> 50%'
+  falsification_conditions:
+  - overlap disagreement beyond 0.5 bit
+  - UCB coverage below 0.85
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5
+    without the stated transfer assumption and a crypto-tier certificate.
+  - IS validated only where MC overlaps; extrapolated region relies on H1.
+  status: specified
+  proposed_by: idea-generator
