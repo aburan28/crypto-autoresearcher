@@ -36,3 +36,17 @@ persistent MV/Bezout < 1 would change the complexity driver of point
 decomposition (KN-OPEN-002) from degree to mixed volume; a saturation theorem
 kills the whole BKK route cheaply. Either outcome tightens the prime-field
 index-calculus picture (KN-OPEN-001) without over-claiming from toy scale.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. The recorded results are toy-scale scoped negatives (m <= 5, p <= 1009); this entry's own text says asymptotic m and curve families remain open, and no saturation theorem is on record.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- EV-BKK-001 (H-BKK-001, `contradicts`, `replicated`): toy primes {101, 431, 1009}, m in {3,4,5}; closes only the tested scope.
+- EV-BKKMV-001, EV-BKKMV-002 (H-BKKMV-001, `neutral`, `replicated`): mixed volume equals the box Bezout bound at the tested m; certification at p ~ 2^20, m <= 4.
+- DEC-20260723-007 (BATCH-008 Newton screen): `revise`; conditional negative proof gate, next action a normalization-locked proof packet before any knowledge promotion. No such packet is committed under this id.
+- DEC-20260804-139a86 (survey) lists this problem as "Addressed - MV = box Bezout (H-BKKMV-001 supported)". That decision's `knowledge_promotion.promoted` names only KN-FIND-e7a3b1 and KN-FIND-f8c290; it closes no KN-OPEN entry. The hypothesis files H-BKK-001 and H-BKKMV-001 were not found under `ledger/hypotheses/` in this checkout.
+- Closure needs a Coordinator decision whose `knowledge_promotion` authorizes it, or a saturation theorem.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.

@@ -49,8 +49,11 @@ Keep resolved and superseded records in the index.
 | [Exact artifact serialization memory](lattice-ic-artifact-serialization-memory.md) | investigating | Historical artifact MemoryError under2GiB; bounded software controls/report8/source3 verified, fresh currentclosure5 native proof awaiting publication; full-grid/checker memory unknown | Publish currentclosure5 proof, then fresh full-science-equal native admission/full-grid/checker and independent review |
 
 | [Lattice IC runbook sparse output admission](lattice-ic-runbook-sparse-output-admission.md) | investigating | Native prelaunch refusal despite READY/LINT; stopped book session6/report5 retained/native verified, no RUN/scientific process | Publish report5 proof, then fresh same-science admission with native selected-experiment materialization before launch |
-
 | [Ten lead formal model bridge and raw artifact access](ten-lead-proof-scope-and-artifact-access.md) | investigating | Applying generic formal statements to concrete curve/domain claims and replaying private raw evidence from a public checkout | Independent semantic review, checked concrete-model bridges, and authorized artifact access |
+| [GOAL-DREG-001 item C1 stopped on its memory cap](dreg-c1-memory-cap-exhausted.md) | open | Any d_reg conclusion from item C1: 0 of 6 runs completed, prepare-phase RSS 11.73-12.22 GiB against an 8 GiB cap | New lane contract with memory above the measured peak and six completed_valid runs |
+| [EXP-ECTD-0cf008 arity-3 panel lost 17 of 20 arms to infrastructure](ectd-arity3-panel-infrastructure-loss.md) | open | Any native/random or transport comparison from the 20-arm panel; only 3 arms validated | Approved additive 17-arm recovery amendment and a passing runtime preflight |
+| [H-STR-002 weakened for missing artifacts](str002-support-verdict-missing-artifacts.md) | open | Citing H-STR-002 as supported or refuted by a measurement | A mechanism-level successor to EXP-STR-004 (which tested only the instrument) with frozen criteria |
+| [EXP-DTREE-001 slope grid was design-infeasible](dtree-slope-grid-design-infeasible.md) | open | Any slope fit for or against HEUR-001 from EXP-DTREE-001 | Seed-policy amendment or successor, plus a matched subgroup-versus-whole-curve factor-base arm |
 
 ## Add or update a problem
 

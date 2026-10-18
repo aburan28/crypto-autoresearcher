@@ -36,3 +36,14 @@ L(S,C) law. It sharpens the boundary of KN-OPEN-001 for spectral/direct-solver
 (no factor base) approaches. A positive-control at C = n (spectrum does recover k)
 and a random-permutation negative control (no localization) are needed to
 separate a real signal from estimator artifacts.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. The transfer-operator result is a toy-scale scoped negative (n <= ~4200); this entry's strong expectation L = O(1) is stated as unproven.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- EV-TRA-001 (TRA-H-001, `weakens`, preliminary): S in {n^1/4, n^3/8}, C = 128, 6 seeds; the evidence record's scope note says C = 128 is not a full-resolution test.
+- H-TRA-4344b7 is `proposed`. DEC-20260804-139a86 records "H-TRA-001 rejected_scoped (L=O(1))"; no separate decision with that disposition was located by hypothesis id.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.

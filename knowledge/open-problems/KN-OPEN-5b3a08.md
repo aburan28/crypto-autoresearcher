@@ -195,3 +195,29 @@ consider whether restricting `build_factor_base` to the target's own
 subgroup (an opt-in parameter, not necessarily a default change, since some
 experiments may deliberately want the whole-curve behavior) would change the
 measured rate materially.
+
+## Audit update, 2026-10-18 (appended; the text above is unchanged)
+
+Full note: [`docs/reports/2026-10-18-semaev-s4-factor-base-audit.md`](../../docs/reports/2026-10-18-semaev-s4-factor-base-audit.md).
+Regression test: `tests/test_semaev_s4_exact.py`.
+
+- **Q1, code.** The repair is in `harness/semaev.py` on `main` (`subs(...,
+  simultaneous=True)`), accepted by CORR-20260813-d9f0fa. The "Current state"
+  paragraph above (`harness/semaev.py` unmodified) is therefore stale.
+- **Q1, correctness.** `s4_expr` now vanishes exactly on the x-tuples with
+  `±P1±P2±P3±P4 = O`: 0 mismatches over all 6561 tuples (`F_13`,
+  `y^2 = x^3+2x+3`) and all 1296 (`F_11`, `y^2 = x^3+x+6`). The legacy
+  construction drops `x3` and fails 2353/6561 and 648/1296; the test fails on
+  it by design (positive control).
+- **Q1, exposure.** The 21 MTIC/FIB runs are confirmed to have recorded
+  commits that lack the repair. One more experiment is affected and was not in
+  this entry or in the CORR record: RUN-ICINV-e0cd8f-m3class (m4 columns,
+  `s4_support` 227/225 archived against 439 recomputed on two sample curves).
+  Their numerical impact is still unmeasured; matched reruns remain required.
+- **Q2.** `build_factor_base(..., scope="target_subgroup")` now exists and
+  the default `full_curve` is unchanged. This is a documented scope choice;
+  the cofactor confound is unaddressed in every default-scope caller listed in
+  the audit note.
+- **Status.** Left `open`. Closing Q1 and splitting Q2 into a successor entry
+  is a Coordinator decision: see
+  `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`.

@@ -38,3 +38,16 @@ GGM-simulable. A simulability proof closes a whole candidate family by theorem
 (cheap, decisive); a measured sub-birthday, k-dependent relation supply would be
 a genuine non-generic signal. It operationalizes the boundary of KN-OPEN-001 for
 representation-based attacks.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. DEC-20260804-4f37d5 records `kn_open_005_disposition: PARTIALLY_ADDRESSED ... technically open (no existence proof one way or another)`. That is a Coordinator disposition of `open`.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- DEC-20260804-4f37d5: no publicly computable non-simulable oracle found among five analysed types; the formal-group route reduces to Smart's attack (anomalous curves only). `official_research_state_changed: false`.
+- DEC-20260723-006 (BATCH-007 GGM-simulability screen): `revise`; scoped no-distinct-unaudited-family disposition, not a classification theorem.
+- H-GGM-001 `analyzed`; EV-JET-001 (`contradicts`, preliminary), EV-JETB-001 (`supports`, preliminary, toy p <= 431), EV-NET-001 (`weakens`, preliminary): jets and elliptic nets screened at toy scale only.
+- The owed promotion `pending_kn_find_oracle_obstruction` in DEC-20260804-4f37d5 was never made as a KN-FIND entry.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.
