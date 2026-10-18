@@ -1,0 +1,129 @@
+idea:
+  id: IDEA-20261018-6507e6
+  question_id: RQ-RELN-61638a
+  added: '2026-10-18'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    Occam-priced lift frontier plus a null-on-null calibration: what the
+    Cauchy-Schwarz envelope leaves open at thin slices, and what two cells that each
+    tripped a different gate are worth
+  class: control
+  claim: >-
+    (A) Design false-halt rate. EXP-RELN-82f487 halts a cell when any null check trips;
+    EV-RELN-99c688 lists >=12 such checks per cell. If checks are independent at
+    two-sided level a, P(cell halts | all nulls true) = 1-(1-a)^k: a=0.05, k=12..30
+    gives 0.46..0.79; a=0.0027 gives 0.03..0.08. Two of two cells halted, on
+    different gates each time, as this predicts. Prediction: replaying the gate
+    arithmetic on simulated nulls gives cell false-halt >= 40 percent, and 20 null
+    worlds through the real tree path give per-gate trip rates within binomial error
+    of nominal. (B) Envelope gap. d1494b INV-3'' bounds |rho-1| by sqrt(Delta(1-s)/(s mu)),
+    which is O(1) at fixed density s and allows rho~N^d at s~N^(-2d) even with
+    Delta=1, so "bounded Delta closes the grammar" holds only for s bounded below.
+    (C) Occam frontier. For a class of 2^S predicates fixed before seeing a random
+    base, max (rho-1) <= sqrt(2 S ln2 (1-s) Delta/(s mu N)); lift N^d at s=c N^(-2d)
+    needs S >= 0.72 c mu N/Delta bits, a table as long as the count vector.
+    Measured class-max lifts of decision lists (S=8..128 bits) on x-interval, QR and
+    small-height bases sit inside the matched-random-base class-max null at z<3.
+  mechanism: >-
+    Object: the class-max lift as a function of description length S, a lossy
+    projection (one number per class), with nothing claimed under any group action;
+    class coordinate-dependent, pair (R1 x features, Sigma = generate-and-filter).
+    Null matched in degrees of freedom by construction: the same class and the same
+    search budget run on 200 random bases of equal size (the lesson of the sbrg-845d35
+    probe, where counting alone manufactured sharing). A trained GNN has S ~ 3e5 bits,
+    so the in-sample bound is 1.7 at N=2^20, s=1/8: only held-out scoring is
+    informative, and each model-selection choice costs ln(Q) in the union bound.
+    Cost of the one open number: a greedy decision-list search per base on
+    exhaustive tables (about 200 features, 2^20 targets). Factor base: x-windows,
+    KN-OPEN-020 none proposed.
+  novelty_status: unverified
+  citations:
+    - ref: EV-RELN-99c688
+      provenance: internal
+      claim: second cell tripped four checks, first cell tripped one different check
+      verified_by: idea-generator this session, file read
+    - ref: EV-RELN-cc045d
+      provenance: internal
+      claim: first cell tripped E-random vs Z/N-random for F1/gnn at 0.079 vs 0.064
+      verified_by: idea-generator this session, file read
+    - ref: IDEA-20260906-d1494b
+      provenance: internal
+      claim: INV-3'' Cauchy-Schwarz envelope and its stated consequence
+      verified_by: idea-generator this session, lines 107-117 read
+    - ref: analysis/sbrg-845d35-design-probe-20261017/README.md
+      provenance: internal
+      claim: dimension-forced sharing read against a null with the same left-kernel dimension
+      verified_by: idea-generator this session, file read
+  assumptions:
+    - The gate count k is taken from the frozen contract by the executor; 12 is the floor visible in EV-RELN-99c688.
+  predictions:
+    - metric: simulated cell false-halt rate of the frozen gates under true nulls
+      direction: higher
+      minimum_effect: at least 0.40; below 0.15 means the trips were implementation variance
+    - metric: per-gate trip frequency over 20 null worlds, tree path only
+      direction: different
+      minimum_effect: within binomial error of nominal a; a gate at 3a or more is a localised defect
+    - metric: class-max z of E arms against matched random bases, S=8..128 bits
+      direction: different
+      minimum_effect: "abs(z) < 3 at every S and rung; Z/N interval reaches half ceiling at S=8 (BLOCKING)"
+  minimal_test:
+    design: >-
+      Stage A: arithmetic replay of the gate set on Gaussian nulls, minutes. Stage B:
+      20 null worlds (E/random and Z/N-random bases, true Poisson-like labels) through
+      the real trees path at N=2^14. Stage C: decision-list class-max at S=8,16,32,64,128
+      on 3 curves x 3 bases x rungs 2^14..2^20 plus 200 matched random bases per cell.
+    controls:
+      - Z/N interval positive control for the search itself
+      - label permutation of targets (class-max returns to the null)
+      - Z/N-random relabelling as the lookup-capacity arm
+    required_metrics: [cell false-halt rate, per-gate trip rate, class-max z per S, frontier slope in log N]
+  falsification_conditions:
+    - Stage A below 0.15 refutes multiplicity as the explanation of the tripped cells.
+    - Z/N control missing at S=8 voids Stage C negatives.
+    - "Any E arm with abs(z) >= 4 at two rungs is a structure candidate, not a result."
+  confounders:
+    - Greedy search is not the exact class maximum; the matched null runs the same search, which cancels it to first order.
+    - Gate checks are correlated, so 1-(1-a)^k overstates; Stage B measures it.
+  interpretation_limits:
+    - Toy scale; random-base union bound is rigorous only for classes fixed independent of D. No ECDLP claim.
+  heuristic_assumptions:
+    - id: H1
+      statement: For a fixed predicate, the cell total of a random base is Poisson-like with variance s M Delta.
+      rigorous_support: Exact mean s M (KN-FIND-007), pairwise covariance -M/N^2 (79ff48, unreviewed); imitates the Bernstein bound for sums of weakly dependent counts.
+      validation_plan: 200 random bases per rung; compare the class-max ECDF with the union-bound curve; largest-S tail check.
+  target_complexity:
+    time_exponent: no ECDLP algorithm; closure statement only. Lift N^d at s=cN^(-2d) needs S >= 0.72 c mu N bits
+    memory_exponent: a table of that length, i.e. Theta(N) advice bits (Corrigan-Gibbs and Kogan style), so no sub-p^(1/2) route from short predicates
+    best_known: p^(1/2) Pollard rho, O(1) memory
+    hidden_overhead: the bound is for classes independent of D; learned classes pay ln(Q) for Q selection choices
+    tradeoff_note: not applicable
+  dominated_by: n/a (no result claimed)
+  sota_delta: zero on every ECDLP axis; replaces an unpriced gate set by priced ones
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-13bf67, KR-IC-5931ee, KR-IC-5a43e5, KR-IC-73db3f, KR-IC-955fd6, KR-IC-f3da82, KR-IC-791cb7, KR-RHO-cd0049, KR-RHO-1c2928, KR-RHO-482ed3, KR-IC-1fcdbc]
+    nearest:
+      - ref: KR-RHO-13bf67
+        provenance: internal
+        relation: adjacent
+        delta: generic bound is the advice floor; this prices short predicates against it
+      - ref: KN-FIND-007
+        provenance: internal
+        relation: adjacent
+        delta: fixes the mean; this bounds the class-max fluctuation around it
+    row_notes:
+      KR-IC-5931ee: "considered, not applicable because naive Semaev no-go, no predicates"
+      KR-IC-5a43e5: "considered, not applicable because Semaev only defines c_D"
+      KR-IC-73db3f: "considered, not applicable because binary subspace bases"
+      KR-IC-955fd6: "considered, not applicable because symmetry constants"
+      KR-IC-f3da82: "considered, not applicable because trace reuse"
+      KR-IC-791cb7: "considered, not applicable because binary GHS weak fields"
+      KR-RHO-cd0049: "considered, not applicable because BSGS constants"
+      KR-RHO-1c2928: "considered, not applicable because binary Koblitz rho"
+      KR-RHO-482ed3: "considered, not applicable because binary Frobenius rho"
+      KR-IC-1fcdbc: "considered, not applicable because char-2 summation"
