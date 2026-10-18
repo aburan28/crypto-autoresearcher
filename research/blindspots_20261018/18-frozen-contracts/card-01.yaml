@@ -1,0 +1,65 @@
+schema: crypto.autoresearch.mechanical-task-card.v1
+card_id: CARD-BLINDSPOT-18-01
+experiment_id: BLINDSPOT-18
+author_role: experiment-director
+executor_role: executor-mechanical
+kind: frozen_command
+
+receipt: research/blindspots_20261018/18-frozen-contracts/raw/receipt-card-01.json
+binds:
+  - {path: research/blindspots_20261018/18-frozen-contracts/instrument/blindspots_18_contracts.rs, sha256: 8d61ac58123604db7d4de2508a2a6025d551444396c210636b356b60b97456e1}
+commands:
+  - id: make-build-dir
+    argv: [mkdir, -p, research/blindspots_20261018/18-frozen-contracts/raw/build]
+    timeout_seconds: 5
+    success_exit_codes: [0]
+  - id: build
+    argv: [prlimit, --as=4294967296, rustc, --edition, "2021", -C, opt-level=3, -o, research/blindspots_20261018/18-frozen-contracts/raw/build/b18, research/blindspots_20261018/18-frozen-contracts/instrument/blindspots_18_contracts.rs]
+    timeout_seconds: 120
+    success_exit_codes: [0]
+    env: {PYTHONHASHSEED: "0", PYTHONDONTWRITEBYTECODE: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1", OPENBLAS_NUM_THREADS: "1", MKL_NUM_THREADS: "1"}
+    stdout: research/blindspots_20261018/18-frozen-contracts/raw/card-01-build.stdout.log
+    stderr: research/blindspots_20261018/18-frozen-contracts/raw/card-01-build.stderr.log
+    outputs: [research/blindspots_20261018/18-frozen-contracts/raw/build/b18]
+  - id: selftest
+    argv: [prlimit, --as=4294967296, research/blindspots_20261018/18-frozen-contracts/raw/build/b18, selftest, --work, /tmp/blindspots18-selftest, --out, research/blindspots_20261018/18-frozen-contracts/raw/selftest.jsonl]
+    timeout_seconds: 90
+    success_exit_codes: [0]
+    env: {PYTHONHASHSEED: "0", PYTHONDONTWRITEBYTECODE: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1", OPENBLAS_NUM_THREADS: "1", MKL_NUM_THREADS: "1"}
+    stdout: research/blindspots_20261018/18-frozen-contracts/raw/card-01-selftest.stdout.log
+    stderr: research/blindspots_20261018/18-frozen-contracts/raw/card-01-selftest.stderr.log
+    outputs: [research/blindspots_20261018/18-frozen-contracts/raw/selftest.jsonl]
+  - id: scan
+    argv: [prlimit, --as=4294967296, research/blindspots_20261018/18-frozen-contracts/raw/build/b18, scan, --repo, ., --out, research/blindspots_20261018/18-frozen-contracts/raw/scan]
+    timeout_seconds: 120
+    success_exit_codes: [0]
+    env: {PYTHONHASHSEED: "0", PYTHONDONTWRITEBYTECODE: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1", OPENBLAS_NUM_THREADS: "1", MKL_NUM_THREADS: "1"}
+    stdout: research/blindspots_20261018/18-frozen-contracts/raw/card-01-scan.stdout.log
+    stderr: research/blindspots_20261018/18-frozen-contracts/raw/card-01-scan.stderr.log
+    outputs: [research/blindspots_20261018/18-frozen-contracts/raw/scan/summary.json, research/blindspots_20261018/18-frozen-contracts/raw/scan/contracts.jsonl, research/blindspots_20261018/18-frozen-contracts/raw/scan/trials.jsonl, research/blindspots_20261018/18-frozen-contracts/raw/scan/table.md]
+  - id: emit-cards
+    argv: [prlimit, --as=4294967296, research/blindspots_20261018/18-frozen-contracts/raw/build/b18, emit-cards, --repo, ., --out, research/blindspots_20261018/18-frozen-contracts/raw/emitted-cards]
+    timeout_seconds: 60
+    success_exit_codes: [0]
+    env: {PYTHONHASHSEED: "0", PYTHONDONTWRITEBYTECODE: "1", OMP_NUM_THREADS: "1", RAYON_NUM_THREADS: "1", OPENBLAS_NUM_THREADS: "1", MKL_NUM_THREADS: "1"}
+    stdout: research/blindspots_20261018/18-frozen-contracts/raw/card-01-emit-cards.stdout.log
+    stderr: research/blindspots_20261018/18-frozen-contracts/raw/card-01-emit-cards.stderr.log
+  - id: remove-bin
+    argv: [rm, -f, research/blindspots_20261018/18-frozen-contracts/raw/build/b18]
+    timeout_seconds: 5
+    success_exit_codes: [0]
+  - id: remove-bin-dir
+    argv: [rmdir, research/blindspots_20261018/18-frozen-contracts/raw/build]
+    timeout_seconds: 5
+    success_exit_codes: [0]
+
+bus_address: executor-mechanical-blindspot-18
+background: false
+write_scope:
+  - research/blindspots_20261018/18-frozen-contracts/raw/
+stop_when:
+  - The tool exits with status 2.
+  - The status line in the printed summary does not read status completed.
+  - Any command line in the printed summary ends with FAILED.
+  - Any output line in the printed summary ends with MISSING.
+notes: "The repository root is /home/user/crypto-autoresearcher. Run the command through the Bash tool with timeout 600000."
