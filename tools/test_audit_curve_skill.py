@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
+TOPIC_RULES = ROOT / "docs" / "agent-contract-topic-rules.md"
 CANONICAL = ROOT / ".claude" / "skills" / "audit-curve" / "SKILL.md"
 ADAPTER = ROOT / ".agents" / "skills" / "audit-curve" / "SKILL.md"
 TRANSFER = ROOT / ".claude" / "skills" / "transfer" / "SKILL.md"
@@ -39,6 +40,7 @@ class AuditCurveSkillTests(unittest.TestCase):
         )
         self.assertTrue(KNOWLEDGE.is_file(), f"missing {KNOWLEDGE}")
         self.assertTrue(REPORT_TEMPLATE.is_file(), f"missing {REPORT_TEMPLATE}")
+        self.assertTrue(TOPIC_RULES.is_file(), f"missing {TOPIC_RULES}")
         self.assertEqual(frontmatter_value(CANONICAL, "name"), "audit-curve")
         body = CANONICAL.read_text(encoding="utf-8")
         self.assertIn("knowledge/techniques/KN-TECH-6a2ef9.md", body)
@@ -47,6 +49,8 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("docs/endomorphism-rules.md", body)
 
         agents = AGENTS.read_text(encoding="utf-8")
+        self.assertIn("docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits", agents)
+        agents += "\n" + TOPIC_RULES.read_text(encoding="utf-8")
         self.assertIn(".claude/skills/audit-curve/SKILL.md", agents)
         self.assertIn(".claude/skills/transfer/SKILL.md", agents)
         self.assertIn("docs/endomorphism-rules.md", agents)
@@ -179,6 +183,8 @@ class AuditCurveSkillTests(unittest.TestCase):
             self.assertIn(required, body)
 
         agents = AGENTS.read_text(encoding="utf-8")
+        self.assertIn("docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits", agents)
+        agents += "\n" + TOPIC_RULES.read_text(encoding="utf-8")
         self.assertIn("formula-compatible", agents)
         self.assertIn("confirmation-only oracle", agents)
         self.assertIn("deep endpoint scan", agents)
