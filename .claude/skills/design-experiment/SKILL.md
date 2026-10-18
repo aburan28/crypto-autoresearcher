@@ -39,10 +39,14 @@ specification, experiment design, approval, and handoff.
      variables, primary/secondary metrics, seeds and replication plan,
      budget, stopping and invalidation rules, success and falsification
      criteria, and required artifacts;
-   - refuse approval while required scientific-contract fields are incomplete
-     (status stays `review_required`). Advisory research estimates and unlimited
-     campaign budgets may be null under the current budget policy; that alone
-     does not prevent approval.
+   - write the blocks of `docs/confound-control.md`: a `variable_ledger`
+     with an A/A comparison, `prediction_provenance`, and, when a claim
+     crosses a map, `transfer_obligations` with the `transfer` skill's
+     assessment;
+   - refuse approval while required scientific-contract fields, including
+     those blocks, are incomplete (status stays `review_required`). Advisory
+     research estimates and unlimited campaign budgets may be null under the
+     current budget policy; that alone does not prevent approval.
 4. Create the experiment directory:
    `experiments/<EXP-ID>/specification.yaml` (plus empty `amendments/` and
    `runs/`).
@@ -186,3 +190,7 @@ of a prediction. The contract must include:
   never silently re-scored against the new one.
 - The success criterion must be decidable from the predefined metrics —
   reject contracts where no possible outcome would count as negative.
+- Only one-factor, factorial or absolute comparisons and out-of-sample
+  predictions carry success or falsification criteria; an A/A comparison
+  sets their noise floor; confounded and in-sample ones are reported, never
+  decisive.
