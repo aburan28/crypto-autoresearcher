@@ -82,3 +82,15 @@ repairs and their independent follow-up belong to the review packet. The old
 receipts are retained; fresh matching receipts do not certify source-claim
 fidelity or authenticate execution by themselves. The exit criteria above
 remain open.
+
+### Sealed workflow review and remaining coverage
+
+The [sealed independent synthesis](https://github.com/aburan28/crypto-autoresearcher/blob/e792163f3b66b72ca7bac849459aa6eeeafc99bb/research/lean_review_evidence_20261018/synthesis.md) retains19 scoped
+mathematical validations and the [independent compact closure](https://github.com/aburan28/crypto-autoresearcher/blob/712435bf2ad76da941291ac960f68c59d17a708f/research/lean_review_evidence_20261018/reports/TASK-20261018-2ea34a/publication/report.md)
+reports44 passing workflow controls. This validates the exercised repair
+boundaries, not all historical claim correspondence. It records the prior
+workflow-attestation read deviation and the two local-only full raw bundles.
+The missing reachability proof, concrete bridges, broader target clauses and
+empirical replays above remain open; no exit criterion is closed by workflow
+tests alone. Versioned status diagrams and semantic-review-v2 metadata point
+to the current narrow review while preserving original frozen artifacts.

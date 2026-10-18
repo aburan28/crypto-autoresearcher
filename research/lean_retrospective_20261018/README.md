@@ -1,10 +1,10 @@
 # Lean retrospective, 2026-10-18
 
-Status: **partial retrospective**. This batch supplies the decomposition
-certificate target, the word-action affine-normal-form target, and the
-commutator-ideal refutation target. It also rechecks existing frozen formal
-targets. Independent semantic-fidelity review and the full historical review
-remain open; no official hypothesis or ledger status is changed.
+Status: **partial retrospective; 10 mapped declarations machine checked and
+independently reviewed within their stated assumptions**. See the current
+[review disposition](semantic-review-v2.json), [status diagram](proof-chain-reviewed.svg)
+and [independent synthesis](https://github.com/aburan28/crypto-autoresearcher/blob/e792163f3b66b72ca7bac849459aa6eeeafc99bb/research/lean_review_evidence_20261018/synthesis.md). Broader historical claims
+and concrete bridges remain open; no official scientific status changes.
 
 ## Request and baseline
 
@@ -155,3 +155,13 @@ verifier override. The original producer PDF predates this review; current
 review PDFs are linked through semantic-review.json.
 
 The final audit-log consistency correction requires an exact theorem-name line and rejects explicit audit failures. Its archived-revision recheck is [verification-summary-v4.json](verification-summary-v4.json) and [summary-v4.log](summary-v4.log): all 65 available receipts remain consistent with verifier `2951f9b77d96606820be80bf61ee0d539cfbb4dd`; this does not attribute later repairs to those runs.
+
+## Sealed review disposition
+
+[semantic-review-v2.json](semantic-review-v2.json) links the sealed19-claim synthesis
+and the independently authored44-control workflow closure. The original proof
+map, receipts, report and status graph remain dated producer snapshots; the new
+[diagram source](proof-chain-reviewed.json), [SVG](proof-chain-reviewed.svg) and
+[PDF](proof-chain-reviewed.pdf) reflect only the scoped review updates. Full raw
+records for two workflow rounds remain local, so public raw reproducibility is
+partial. Current-head GitHub CI remains pending in the linked review snapshot.
