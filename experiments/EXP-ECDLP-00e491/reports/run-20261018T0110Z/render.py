@@ -81,16 +81,19 @@ def main():
     ax.legend(fontsize=8,ncol=2,loc="upper left")
     fig.tight_layout();fig.savefig(OUT/"support.svg");plt.close(fig)
     fig,axes=plt.subplots(2,4,figsize=(9,4.8),sharex=True,sharey=True)
-    for ax,row in zip(axes.flat,variation):
+    for number,(ax,row) in enumerate(zip(axes.flat,variation),1):
         ts=row["trajectories"];xx=[v["work"] for v in ts]
         ax.fill_between(xx,[v["minimum"] for v in ts],[v["maximum"] for v in ts],alpha=.25,color="#3e7db1")
         ax.plot(xx,[v["median"] for v in ts],"o-",ms=3,color="#3e7db1")
-        ax.set(xscale="log",ylim=(-1,23),title=f"d={row['degree']}, A={row['A']}, B={row['B']}")
+        ax.set(xscale="log",ylim=(-1,23),title=f"{number}: d={row['degree']}, A={row['A']}, B={row['B']}")
+        ax.set_title(ax.get_title(),fontsize=9)
+        ax.tick_params(labelsize=8)
         ax.grid(alpha=.18)
     axes.flat[-1].axis("off")
-    axes.flat[-1].text(.0,.8,"12 fresh seeds/input\nMedian and min/max\nBefore-candidate rungs\nRange is not a CI",fontsize=10,va="top")
+    axes.flat[-1].text(.0,.8,"12 fresh seeds/input\nMedian and min/max\nBefore-candidate rungs\nRange is not a CI",fontsize=9,va="top",transform=axes.flat[-1].transAxes)
     fig.supxlabel("Recorded candidate work W (log axis)");fig.supylabel("Distinct residues before candidate W")
-    fig.tight_layout(rect=(.02,.03,1,1));fig.savefig(OUT/"variation.svg");plt.close(fig)
+    fig.subplots_adjust(left=.10,right=.98,bottom=.15,top=.92,wspace=.14,hspace=.30)
+    fig.savefig(OUT/"variation.svg");plt.close(fig)
     fig,ax=plt.subplots(figsize=(8,3.4))
     xx=range(7)
     ax.bar(xx,[r["same_first_eight_pairs"] for r in variation],label="same first eight (or shorter) point keys",color="#a7adb4")
@@ -161,11 +164,11 @@ def make_yaml(summary,paths,receipts,source_commit):
         method=dict(description="Executed the two fixed supervisor trials; built-in checkers replayed records. This report derives descriptive arithmetic from their published outputs.",
                     command="python3 tools/experiment_execution.py run --plan experiments/EXP-ECDLP-00e491/trial-plan.json --owner executor-snfs-sampler-20261018 --epoch 1",
                     parameters=dict(fixed_inputs=7,fresh_jobs=84,legacy_controls=11,identical_seed_replays=7,work_ladder=[300,1000,3000,10000,30000,100000]),
-                    seeds=[r['job']['search_seed'] for r in json.loads((paths[1]/"raw-result.json").read_text())['data']['rows']],sampling_unit="Coefficient pattern or explicitly labeled job within fixed input; legacy/replay roles kept separate.",stopping_rule="All 3232 patterns and all102 declared jobs completed without adaptive extension."),
+                    seeds=[r['job']['search_seed'] for r in json.loads((paths[1]/"raw-result.json").read_text())['data']['rows']],sampling_unit="Coefficient pattern or explicitly labeled job within fixed input; legacy/replay roles kept separate.",stopping_rule="All 3232 patterns and all 102 declared jobs completed without adaptive extension."),
         runs=[dict(experiment_id=EXP,run_id=r['run_id'],native_status=r['status'],evidence=ev(('support' if i==0 else 'panel')+'-execution-receipt-json','/status')) for i,r in enumerate(receipts)],
         observations=observations,
         controls=[dict(id="exact-source-reference",description="Exact QQ factorization and proof-enabled prime decisions alongside the source screen",observation_ids=["complete-support"],matching="Same complete coefficient supports and k/minimum rules.",limitations=["Unresolved source irreducibility screen is not Q-reducible."]),dict(id="fixed-input-references",description="Eleven archived-seed controls and seven same-seed replays",observation_ids=["check-completion"],matching="Fixed g,p,root,A,B,auxiliary lists and ladder; exact source seed strings used for controls.",limitations=["Only seven input cases; no independent scientific review."])],
-        patterns=[dict(id="screen-unresolved",kind="exploratory_pattern",description="Three degree-eight and21 degree-twelve prime-eligible Q-irreducible patterns are unresolved by the source modular screen.",observation_ids=["complete-support"],reference_ids=["exact-source-reference"],uncertainty="Exact finite counts, no significance test or general completeness claim about the source screen.",alternative_explanations=["The source requires an irreducibility witness among a fixed set of finite primes; exact Q factorization is a different criterion."]),dict(id="stable-endpoints",kind="exploratory_pattern",description="All twelve final residue counts agree within each input; intermediate paths and capped-prefix comparisons are separately retained.",observation_ids=["fresh-variation"],reference_ids=["fixed-input-references"],uncertainty="Only twelve fresh seeds per input and seven fixed cases; no wider variance estimate.",alternative_explanations=["Enumeration order can change intermediate discoveries while later counts coincide.","Small reporting prefixes can omit later differences."])],
+        patterns=[dict(id="screen-unresolved",kind="exploratory_pattern",description="Three degree-eight and 21 degree-twelve prime-eligible Q-irreducible patterns are unresolved by the source modular screen.",observation_ids=["complete-support"],reference_ids=["exact-source-reference"],uncertainty="Exact finite counts, no significance test or general completeness claim about the source screen.",alternative_explanations=["The source requires an irreducibility witness among a fixed set of finite primes; exact Q factorization is a different criterion."]),dict(id="stable-endpoints",kind="exploratory_pattern",description="All twelve final residue counts agree within each input; intermediate paths and capped-prefix comparisons are separately retained.",observation_ids=["fresh-variation"],reference_ids=["fixed-input-references"],uncertainty="Only twelve fresh seeds per input and seven fixed cases; no wider variance estimate.",alternative_explanations=["Enumeration order can change intermediate discoveries while later counts coincide.","Small reporting prefixes can omit later differences."])],
         limitations=["Raw certificate kind none; builtin checking is not independent scientific review.","No hypothesis/goal interpretation, relevance or usefulness verdict.","The local coverage publication_verified field is hardcoded false; actual Git/hash publication has a separate receipt.","Same-prefix pair counts reuse the twelve jobs and are not independent samples."],missing=[],
         next_checks=[dict(question="Which coefficient/factorization structures occur among source-screen unresolved cases?",method="Inspect the retained exact factor and coefficient tables under a separately scoped follow-up.",control="Present all unresolved cases alongside witnessed cases of the same degree/weight; do not select only favorable examples.",status="proposed")],artifacts=artifacts)
     write("observation.yaml",yaml.safe_dump(record,sort_keys=False,width=98))
