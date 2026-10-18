@@ -13,3 +13,8 @@ Observations only: all four original drivers/checkers exited 0; all four native 
 ## Actual native-compatible reproductions
 
 Four exact worksheet scopes now have published raw records with native `output_validated`; their raw and legacy-manifest bytes are identical to the original actual outputs. A fifth metadata attempt remains an infrastructure failure before its driver. [Grouped records and limits](final-native-worksheets/README.md), [all nine attempts](final-native-worksheets/all-nine-attempts.json), and [comparison hashes](final-native-worksheets/four-valid-reproductions.json) preserve each status. These are deterministic calibrations with no scientific interpretation promotion. The audit's unnamed original eighteen contracts remain a separate identification/execution obligation.
+
+
+## Two additional original programs actually executed
+
+The additional F31 planted-section instrument and F11 rank-1 net instrument each exited0 with an unchanged checker exit0. Both native supervisors retained invalid_output from their minimal manifests. [F31 report](../../experiments/EXP-ECDLP-f34097/reports/run-20261018T0520Z/report.md) and [F11 report](../../experiments/EXP-ECDLP-903c48/reports/run-20261018T0521Z/report.md) each include an inspected two-page PDF and diagram. Their eleven-file raw packages were published before report generation. These observations make no section-cost, information-leakage or cryptographic transfer claim. Current whole-ledger failures are223, including exactly16 added defects from these two intentionally preserved original manifests. A separate three-output metadata adapter and two fresh review_required packages are prepared; no valid fresh execution of that adapter is claimed yet.

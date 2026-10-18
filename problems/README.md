@@ -52,7 +52,7 @@ Keep resolved and superseded records in the index.
 
 | [Ten lead formal model bridge and raw artifact access](ten-lead-proof-scope-and-artifact-access.md) | investigating | Applying generic formal statements to concrete curve/domain claims and replaying private raw evidence from a public checkout | Independent semantic review, checked concrete-model bridges, and authorized artifact access |
 
-| [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | resolved (four exact worksheet reproduction scopes) | Native validity of four frozen worksheets despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
+| [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | investigating two added scopes; four resolved | Native validity of four frozen worksheets despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
 
 ## Add or update a problem
 
