@@ -93,10 +93,14 @@ section 3 names them; the policy's area set does not contain `IC`, `TLD`,
 `AOM`, `PMA` or `JMV`). The last two already have run directories and appear as
 "has runs" rows, which is the finding about them.
 
-**Frozen.** `specification.yaml` has `status: approved`, `frozen: true`, a
+**Frozen contract** (the review's word; the repository marks it two ways).
+`specification.yaml` has `status: approved` (or `frozen_awaiting_execution`), a
 non-empty `approved_by`, `execution_authorized` not `false`, and no other
-contract's `supersedes` names it. Everything else is a pre-approval row (counted
-by status, listed in `contracts.jsonl`, never run).
+contract's `supersedes` names it. Contracts approved before the `frozen: true`
+flag existed (for example `EXP-IC-002`) are frozen contracts in this sense; the
+flag itself is required by the supervisor's loader and is checked in G6. Everything
+else is a pre-approval row (counted by status, listed in `contracts.jsonl`,
+never run).
 
 **Approval is read, never granted.** A frozen contract has a committed
 approval when a decision under `ledger/decisions/` that is tracked and equal to
@@ -111,7 +115,7 @@ approves nothing.
 
 | gate | reason string | passes when |
 | --- | --- | --- |
-| G1 | `not_frozen:<why>` | the "Frozen" definition holds (`status:<s>`, `approved_not_frozen`, `execution_not_authorized`, `superseded_by:<id>`, `no_specification`) |
+| G1 | `not_frozen:<why>` | the "Frozen contract" definition holds (`<why>` is `status:<s>`, `no_approved_by`, `execution_not_authorized`, `superseded_by:<id>` or `no_specification`) |
 | G2 | `has_runs` / `run_elsewhere:<ref>` | zero-run contract (such a row is a finding, not a candidate) |
 | G3 | `no_committed_approval` | a committed approval exists |
 | G4 | `withheld:<DEC>` | not held by `withheld_contracts` (rule 9 guard honoured exactly as `withheld_state` does: ascending `(decided_at, id)`, later `released_contracts` restore) |
