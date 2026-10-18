@@ -1,12 +1,19 @@
 """Small engineering fixtures only; no campaign point searches."""
 import copy
 import importlib.util
+import json
 from pathlib import Path
+import subprocess
+import tarfile
+import tempfile
 import unittest
+from unittest import mock
 
 HERE=Path(__file__).resolve().parent
 SPEC=importlib.util.spec_from_file_location("sampler_checker",HERE/"check_trial.py")
 CHECK=importlib.util.module_from_spec(SPEC);SPEC.loader.exec_module(CHECK)
+PRODUCER_SPEC=importlib.util.spec_from_file_location("sampler_producer",HERE/"execute_trial.py")
+PRODUCER=importlib.util.module_from_spec(PRODUCER_SPEC);PRODUCER_SPEC.loader.exec_module(PRODUCER)
 
 
 class TraceChecks(unittest.TestCase):
@@ -37,6 +44,22 @@ class TraceChecks(unittest.TestCase):
     def test_duplicate_point(self):
         self.events.insert(1,copy.deepcopy(self.events[0]))
         with self.assertRaises(AssertionError):CHECK.check_stream(self.events,self.inp,self.result)
+
+    def test_child_failure_preserves_partial_trace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run=Path(tmp)/"EXP-FIXTURE-000001/runs/RUN-FIXTURE-000001"
+            run.mkdir(parents=True)
+            (run/"launch.json").write_text(json.dumps({"argv":["engineering-fixture"]}))
+            (run/"environment.json").write_text(json.dumps({"commit":"fixture","source_sha256":{}}))
+            def failed_child(argv,**kwargs):
+                out=Path(argv[-1]);out.mkdir();(out/"partial.jsonl").write_bytes(b'{"event":"fixture"}\n')
+                raise subprocess.CalledProcessError(7,argv)
+            with mock.patch.object(PRODUCER.subprocess,"check_output",return_value=""),mock.patch.object(PRODUCER.subprocess,"run",side_effect=failed_child):
+                with self.assertRaises(subprocess.CalledProcessError):PRODUCER.main("panel",run)
+            with tarfile.open(run/"instrument.tar.gz") as archive:
+                self.assertEqual(archive.extractfile("partial.jsonl").read(),b'{"event":"fixture"}\n')
+            self.assertEqual(json.loads((run/"instrument-index.json").read_text())[0]["name"],"partial.jsonl")
+            self.assertFalse((run/"raw-result.json").exists())
 
 
 if __name__=="__main__":unittest.main()

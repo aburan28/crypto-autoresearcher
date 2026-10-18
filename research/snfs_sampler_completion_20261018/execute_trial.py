@@ -22,6 +22,19 @@ SAGE=Path("/workspace/snfs-toolchains/sage-pixi/.pixi/envs/default/bin/python")
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def bundle(files,directory):
+    index=[]
+    with (directory/"instrument.tar.gz").open("xb") as target:
+        with gzip.GzipFile(fileobj=target,mode="wb",filename="",mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed,mode="w") as archive:
+                for path in files:
+                    content=path.read_bytes()
+                    info=tarfile.TarInfo(path.name);info.size=len(content);info.mode=0o644
+                    archive.addfile(info,io.BytesIO(content))
+                    index.append(dict(name=path.name,bytes=len(content),sha256=hashlib.sha256(content).hexdigest()))
+    return index
+
+
 def main(mode,directory):
     runtime=json.loads((HERE/"runtime-bindings.json").read_text())
     for binding in runtime.values():
@@ -36,24 +49,24 @@ def main(mode,directory):
     started=time.time();wall=time.monotonic()
     with tempfile.TemporaryDirectory(prefix="snfs-sampler-") as scratch:
         scratch=Path(scratch)
-        if mode=="panel":
-            subprocess.run([str(BIN/"fixed_input"),"--panel",str(HERE/"panel.json"),"--out",str(scratch/"instrument")],check=True)
-            result=json.loads((scratch/"instrument/panel-result.json").read_text())
-            files=sorted((scratch/"instrument").iterdir())
-        else:
-            subprocess.run([str(BIN/"screen"),"--coefficients",str(HERE/"coefficients.json"),"--out",str(scratch/"source-screen.jsonl")],check=True)
-            subprocess.run([str(SAGE),str(HERE/"full_catalog.py"),"--screen",str(scratch/"source-screen.jsonl"),"--out",str(scratch/"support-catalog.json")],check=True)
-            result=json.loads((scratch/"support-catalog.json").read_text())
-            files=[scratch/"source-screen.jsonl",scratch/"support-catalog.json"]
-        index=[]
-        with (directory/"instrument.tar.gz").open("xb") as target:
-            with gzip.GzipFile(fileobj=target,mode="wb",filename="",mtime=0) as compressed:
-                with tarfile.open(fileobj=compressed,mode="w") as archive:
-                    for path in files:
-                        content=path.read_bytes()
-                        info=tarfile.TarInfo(path.name);info.size=len(content);info.mode=0o644
-                        archive.addfile(info,io.BytesIO(content))
-                        index.append(dict(name=path.name,bytes=len(content),sha256=hashlib.sha256(content).hexdigest()))
+        print(f"instrument scratch: {scratch}",file=sys.stderr,flush=True)
+        try:
+            if mode=="panel":
+                subprocess.run([str(BIN/"fixed_input"),"--panel",str(HERE/"panel.json"),"--out",str(scratch/"instrument")],check=True)
+                result=json.loads((scratch/"instrument/panel-result.json").read_text())
+                files=sorted((scratch/"instrument").iterdir())
+            else:
+                subprocess.run([str(BIN/"screen"),"--coefficients",str(HERE/"coefficients.json"),"--out",str(scratch/"source-screen.jsonl")],check=True)
+                subprocess.run([str(SAGE),str(HERE/"full_catalog.py"),"--screen",str(scratch/"source-screen.jsonl"),"--out",str(scratch/"support-catalog.json")],check=True)
+                result=json.loads((scratch/"support-catalog.json").read_text())
+                files=[scratch/"source-screen.jsonl",scratch/"support-catalog.json"]
+        except BaseException:
+            partial=bundle(sorted(p for p in scratch.rglob("*") if p.is_file()),directory)
+            with (directory/"instrument-index.json").open("x") as h:
+                json.dump(partial,h,indent=2);h.write("\n")
+            print("Partial instrument files preserved; producer failed and no completed raw result was fabricated.",file=sys.stderr,flush=True)
+            raise
+        index=bundle(files,directory)
     raw=dict(schema="snfs.sampler_completion_trial.v1",experiment_id=experiment,run_id=run_id,mode=mode,data=result)
     with (directory/"raw-result.json").open("x") as h:json.dump(raw,h,indent=2);h.write("\n")
     with (directory/"instrument-index.json").open("x") as h:json.dump(index,h,indent=2);h.write("\n")
