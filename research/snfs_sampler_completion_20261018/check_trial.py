@@ -9,6 +9,8 @@ import os
 import sys
 import tarfile
 os.environ.setdefault("DOT_SAGE", "/workspace/snfs-toolchains/sage-state")
+os.environ["PATH"]="/workspace/snfs-toolchains/sage-pixi/.pixi/envs/default/bin:"+os.environ.get("PATH", "")
+os.environ.setdefault("SINGULARPATH", "/workspace/snfs-toolchains/sage-pixi/.pixi/envs/default/share/singular/LIB")
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]

@@ -5,6 +5,8 @@ import argparse
 import json
 import os
 os.environ.setdefault("DOT_SAGE", "/workspace/snfs-toolchains/sage-state")
+os.environ["PATH"]="/workspace/snfs-toolchains/sage-pixi/.pixi/envs/default/bin:"+os.environ.get("PATH", "")
+os.environ.setdefault("SINGULARPATH", "/workspace/snfs-toolchains/sage-pixi/.pixi/envs/default/share/singular/LIB")
 from sage.all import PolynomialRing, QQ, ZZ
 from sage.env import SAGE_VERSION
 
