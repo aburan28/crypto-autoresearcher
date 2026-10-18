@@ -76,7 +76,7 @@ def test_planned_trial_needs_a_real_dispatch_queue(tmp_path, monkeypatch):
             "trial_plan": "experiments/EXP-ECDLP-a1b2c3/trial-plan-v1.json",
             "trial_plan_sha256": mod.sha256(bound_plan),
             "approved_by": "DEC-20261011-a1b2c3"}}}]}))
-    monkeypatch.setattr(mod, "validate_queue", lambda queue: None)
+    monkeypatch.setattr(mod, "validate_queue", lambda queue, **kwargs: None)
     progress = mod.execution_progress(exp, tmp_path)
     assert progress["execution_state"] == "ready"
     assert progress["trial_plan"] == "experiments/EXP-ECDLP-a1b2c3/trial-plan-v1.json"

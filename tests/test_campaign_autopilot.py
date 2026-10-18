@@ -90,7 +90,8 @@ def test_empty_execution_queue_selects_open_ecc_idea(tmp_path: Path) -> None:
     assert autopilot.select_next(tmp_path, excluded={action.key}).kind == "portfolio"
 
 
-def test_design_to_approved_plan_then_partial_run_needs_reconciliation(tmp_path: Path) -> None:
+def test_design_to_approved_plan_then_partial_run_needs_reconciliation(
+        tmp_path: Path, monkeypatch) -> None:
     _write(tmp_path / "orchestration/research-priority.yaml", "ecc_areas: [ICEX]\n")
     idea = "IDEA-20260926-abcdef"
     exp = "EXP-ICEX-abcdef"
@@ -120,6 +121,11 @@ def test_design_to_approved_plan_then_partial_run_needs_reconciliation(tmp_path:
                         "artifacts": ["manifest.yaml", "raw-result.json"],
                         "memory_mb": 128}]}
     _write(tmp_path / f"experiments/{exp}/trial-plan.json", json.dumps(plan))
+    # Queue admission is tested by newest_experiments; here the selector's
+    # admitted-plan state isolates the autopilot transition under a partial run.
+    from tools import newest_experiments
+    monkeypatch.setattr(newest_experiments, "_dispatch_queue_ready",
+                        lambda *_: (True, "", f"experiments/{exp}/trial-plan.json"))
     assert (autopilot.select_next(tmp_path).kind,
             autopilot.select_next(tmp_path).target) == ("run", exp)
 
