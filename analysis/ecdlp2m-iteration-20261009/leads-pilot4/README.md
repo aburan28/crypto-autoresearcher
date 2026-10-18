@@ -99,7 +99,8 @@ uses monomials of full degree 4 in the u-bits.
 |---|---|---|---|---|
 | m=4 n=7 | 25/25 | 0/4 | last window, first forward pass | 6,196 (9,109) |
 | m=4 n=9 | 10/10 | 0/4 | last window, first forward pass | 20,854 (31,931) |
-| m=5 n=9 k=3 | 5/5 | 0/1 (1 censored at 1,800 s) | last window, first forward pass | 46,938 (124,314) |
+| m=5 n=9 k=3 | 5/5 | 0/1 (2 censored at 1,800 s) | last window, first forward pass | 46,938 (124,314) |
+| m=4 n=11 | 2/2 | — | last window, first forward pass | 36,457 (52,956) |
 
 Every refutation happened on the first forward pass, in the last window. The forward
 messages come only from z-free blocks, so they are the same for every target: the
@@ -186,8 +187,10 @@ does not cover it (AGENTS.md rule 6), but a curator should record the distinctio
 - Products and wall times were measured on a shared host; the precomputation's per-target
   saving in wall time (3x at m=4 n=9 UNSAT, none on SAT) is the figure to quote, not the
   product ratio.
-- At the time of this commit lane A was still running the windowed m=4 n=11 cell and the
-  two-phase m=5 L2 cell; they are absent from `results/`, not censored.
+- Two container restarts (about 06:02 and before 10:56 UTC on 2026-10-18) killed lane A. The
+  windowed m=4 n=11 cell has 2 of its 10 UNSAT instances (both refuted) and no SAT instance;
+  the two-phase m=5 L2 cell never ran. Missing rows are absent, not censored. The second
+  m=5 windowed SAT instance was censored at 1,800 s before the first restart.
 
 ## Regenerate
 
