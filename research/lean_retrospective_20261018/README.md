@@ -126,3 +126,30 @@ original pending-review record. Stronger historical claims and missing bridges
 remain open. The workflow reviewer found source-discovery and receipt-binding
 defects; repairs use new code and evidence paths rather than rewriting those
 findings. Receipt consistency is not authentication of a Lean run.
+
+## Fresh verification after workflow review
+
+The [65 fresh receipts](receipts-v2/) were produced by verifier revision
+`2951f9b77d96606820be80bf61ee0d539cfbb4dd`; the [run log](verify-all-v2.log)
+records 65 verified, zero failed/infrastructure and one missing reachability
+proof. These records bind the local source/configuration and verifier bytes
+actually used. They predate the later hidden-directory repair and do not
+claim to have used that repair. No hidden local source is present in these
+workspaces; the new full local manifest matches their recorded inputs.
+
+The initial strict summary [v2](verification-summary-v2.json) conservatively
+rejected the scoped zero-axiom audit format, accepting 64 records. The corrected
+[v3 summary](verification-summary-v3.json) recognizes both audit formats and
+explicitly checks the archived verifier revision: 65 accepted, one missing.
+Receipt consistency is not run authentication or semantic correspondence.
+
+```sh
+PYTHON=python node research/lean_retrospective_20261018/summarize.mjs \
+  --output /tmp/fresh-summary.json \
+  --verifier-revision 2951f9b77d96606820be80bf61ee0d539cfbb4dd
+```
+
+Use a new output path. To verify with current code instead, run the verifier
+into a new receipt directory, then select that directory without an archived
+verifier override. The original producer PDF predates this review; current
+review PDFs are linked through semantic-review.json.

@@ -139,3 +139,32 @@ def test_receipt_consistency_rejects_tampering_and_stale_helpers(workspace):
         assert receipt_errors(forged, repo=workspace, spec=spec, task=task()), (section, key)
     helper.write_text('theorem anotherHelper : True := by trivial\n')
     assert 'local source inputs' in receipt_errors(data, repo=workspace, spec=spec, task=task())
+
+
+def test_verify_cli_binds_hidden_library_inputs(workspace, monkeypatch):
+    from orchestration.formal import cli
+    helper = workspace / 'formal/.hidden/Helper.lean'
+    helper.parent.mkdir()
+    helper.write_text('def P : Prop := True\n')
+    lakefile = workspace / 'formal/lakefile.toml'
+    lakefile.write_text(lakefile.read_text()+'\n[[lean_lib]]\nname="Helper"\nsrcDir=".hidden"\n')
+    target = workspace / 'formal/CryptoResearch/Smoke.lean'
+    target.write_text('import Helper\nnamespace CryptoResearch.Smoke\ntheorem add_zero : P := by trivial\nend CryptoResearch.Smoke\n')
+    original = cli.LeanWorker.verify
+
+    def verify_then_change(self, task):
+        result = original(self, task)
+        assert result.machine_verified, result.build_log+result.audit_log
+        helper.write_text('def P : Prop := False\n')
+        return result
+
+    monkeypatch.setattr(cli.LeanWorker, 'verify', verify_then_change)
+    spec = workspace / 'task.json'
+    spec.write_text(json.dumps(dict(schema='crypto.autoresearch.formal_task.v1',
+        **task().__dict__, source='formal/CryptoResearch/Smoke.lean')))
+    artifact = workspace / 'receipt.json'
+    assert main(['--repo-root', str(workspace), 'verify', '--task-file', str(spec),
+                 '--artifact-out', str(artifact)]) == 3
+    data = json.loads(artifact.read_text())
+    assert '.hidden/Helper.lean' in data['provenance']['workspace_inputs']
+    assert data['verification'] is None
