@@ -2,6 +2,12 @@
 
 Copy these records into experiment-specific YAML files. IDs are immutable.
 
+For presenting experiment observations, use the companion
+[observation YAML](experiment-observation.yaml) and
+[format protocol](../docs/experiment-observation-format.md). It links these
+records and immutable raw evidence from a new report directory; it does not
+replace a run manifest, mint IDs or change ledger state.
+
 New cryptographic scheme proposals also attach the companion
 [scheme construction contract](scheme-construction-contract.yaml), following
 [the six obligations and security games](../docs/scheme-construction-contract.md).

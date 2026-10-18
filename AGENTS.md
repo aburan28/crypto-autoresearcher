@@ -46,6 +46,26 @@ It guides future work and reporting; frozen protocols and historical records
 remain intact. Existing integrity, ownership, resource and claim-review rules
 still apply.
 
+### Experiment observation format (MVP)
+
+Surface new experiment observations using the versioned
+[YAML shape](templates/experiment-observation.yaml) and
+[presentation protocol](docs/experiment-observation-format.md). Save it as an
+additive report sidecar, outside sealed run directories. Link existing IDs and
+hash-pinned evidence; preserve literal run statuses. The shape covers ordinary
+measurements, unexpected patterns, censored attempts and execution failures.
+Show measured and derived values separately, sampling units/counts, controls and
+their matching limits, uncertainty and missing information. A pattern worth
+inspecting needs its observations, reference, alternative explanations and a
+concrete proposed next check. An empty pattern list is valid. Interpretation,
+relevance and usefulness calls remain with the owner.
+
+This is a reporting convention, not a new launch, admission, review or promotion
+gate. Do not invent measurements to fill the template, rewrite frozen outputs,
+mint replacement experiment/run IDs or add mandatory preflights. The optional
+format checker checks presentation structure and references, not scientific
+validity. Existing run manifests and task-result contracts retain their roles.
+
 ### When a task actually studies performance
 
 Verified improvements are valid findings within an explicitly scoped performance
