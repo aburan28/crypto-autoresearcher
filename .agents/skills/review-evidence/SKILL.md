@@ -1,6 +1,6 @@
 ---
 name: review-evidence
-description: "Coordinator review of a completed experiment: validate run records, write the evidence record, assign evidence strength, and record the official decision (replicate/expand/refine/support/weaken/reject_scoped/ inconclusive/pause). Use after /run completes."
+description: "Review completed experiments, Lean theorem artifacts, or Lean proof workflows. Validate machine evidence and independent claim fidelity, record scoped findings, and preserve Coordinator authority over official scientific decisions."
 ---
 
 # review-evidence
