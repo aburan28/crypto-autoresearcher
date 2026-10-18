@@ -591,7 +591,7 @@ handoff:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | research-synthesis | executor-implementation |
             executor-mechanical | review-adversarial | review-breakthrough |
-            consolidation-routing
+            consolidation-routing | audit-sweep | director-runbook
     reasoning_effort: null          # per-task calibration; null = policy default
     fallback_allowed: false
     degraded_allowed: false
