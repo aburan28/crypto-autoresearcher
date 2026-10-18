@@ -8,3 +8,8 @@ Observations only: all four original drivers/checkers exited 0; all four native 
 - [EXP-ECDLP-20ac31](../../experiments/EXP-ECDLP-20ac31/reports/run-20261018T0423Z/README.md): [inspected PDF](../../experiments/EXP-ECDLP-20ac31/reports/run-20261018T0423Z/report.pdf).
 
 [Fresh successor packets](../../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/README.md) retain all original scientific inputs/readings and native gates.
+
+
+## Actual native-compatible reproductions
+
+Four exact worksheet scopes now have published raw records with native `output_validated`; their raw and legacy-manifest bytes are identical to the original actual outputs. A fifth metadata attempt remains an infrastructure failure before its driver. [Grouped records and limits](final-native-worksheets/README.md), [all nine attempts](final-native-worksheets/all-nine-attempts.json), and [comparison hashes](final-native-worksheets/four-valid-reproductions.json) preserve each status. These are deterministic calibrations with no scientific interpretation promotion. The audit's unnamed original eighteen contracts remain a separate identification/execution obligation.

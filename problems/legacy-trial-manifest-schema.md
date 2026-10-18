@@ -1,9 +1,9 @@
 # Legacy stage-0 ECDLP trial manifests fail native admission
 
-- **Status:** investigating
+- **Status:** resolved for native reproduction of the four named worksheet scopes
 - **Kind:** implementation gap; separate director access/tool limit
 - **Affected work:** [four original/successor mappings](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/mapping.json), [GOAL-ECDLP-001](../ledger/goals/GOAL-ECDLP-001/goal.yaml)
-- **Next action owner:** Coordinator design plus Executor implementation; root owns native scientific launches
+- **Next action owner:** Coordinator archives/publishes the scoped implementation resolution; independent scientific assessment remains separate
 - **Last updated:** 2026-10-18
 
 ## Problem
@@ -20,10 +20,10 @@ The four frozen stage-0 worksheet drivers write `run_id` and metrics but omit th
 
 ## What would unblock it
 
-- [ ] Native prospective preapproval reports approvable:true for the exact four new successor specifications/plans/handoffs/queue after their review_required drafts, source and lane are committed and published.
-- [ ] Exact approved-byte archives verify against Git, are published, and ordinary selection reports each successor ready.
-- [ ] Under fresh native claims, all four new successor trials retain original raw bytes/metrics, pass the unchanged original checker controls and the native canonical-manifest gate, with complete source/provenance/output hashes.
-- [ ] Every original invalid receipt/artifact remains immutable and the new reports label original deterministic readings as in-sample calibration; no scientific interpretation status changes.
+- [x] Native prospective preapproval reports approvable:true for the exact four new successor specifications/plans/handoffs/queue after their review_required drafts, source and lane are committed and published.
+- [x] Exact approved-byte archives verify against Git, are published, and ordinary selection reports each successor ready.
+- [x] Under fresh native claims, all four new successor trials retain original raw bytes/metrics, pass the unchanged original checker controls and the native canonical-manifest gate, with complete source/provenance/output hashes.
+- [x] Every original invalid receipt/artifact remains immutable and the new reports label original deterministic readings as in-sample calibration; no scientific interpretation status changes.
 
 Meeting these conditions establishes a compatible reproduction route for these four exact worksheets. Scientific review, execution-proof integration and broader ECDLP conclusions remain separate obligations.
 
@@ -38,3 +38,14 @@ Meeting these conditions establishes a compatible reproduction route for these f
 ## Resolution and history
 
 2026-10-18: original driver/checker processes exposed the native manifest defect. A role-separated Executor implemented a new adapter and synthetic failure tests; the Coordinator prepared four review_required successor packages. Unresolved: no full successor trial or scientific promotion is claimed.
+
+
+## Scoped implementation resolution (DEC-20261018-6b8340)
+
+All four original worksheet scopes now have a fresh native `output_validated` reproduction: EXP-ECDLP-4bb0ef, EXP-ECDLP-087aea, EXP-ECDLP-11c54d and EXP-ECDLP-5d6ec1. Their exact raw and legacy-manifest bytes match their original actual outputs. [Machine-readable comparisons](../reports/ideas_execution_20261018/final-native-worksheets/four-valid-reproductions.json) name each original/new EXP/RUN, status, return codes and hashes. [All nine actual attempts](../reports/ideas_execution_20261018/final-native-worksheets/all-nine-attempts.json) preserve the four original invalid manifests and the intermediate infrastructure failure. [Raw archives](../reports/ideas_execution_20261018/final-native-worksheets/raw-archives.json) are published before derived reports.
+
+The first metadata attempt failed before its scientific driver because Git threaded lstat could not start under 256 MiB. [The retained diagnostic](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/runtime/git-preload-index-diagnostic.json) found process-local `core.preloadIndex=false` succeeds under that same limit. The three untouched approved sibling slots used that environment setting; the consumed first slot was preserved, and a separate prospectively approved EXP/RUN/TASK encoded the same setting in both exact argv arrays. No source, fixture, count, memory limit or native gate was altered.
+
+The terminal void-source archive proposal encountered an actual native duplicate-ownership refusal. [The refusal](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/first-successor-failure/void-route-refusal.json) remains retained. A distinct zero-run Coordinator preservation producer archived only the eight existing immutable native files through the ordinary full queue/Git verifier; four unproduced adapter outputs remain absent. The failed scientific task is never reclassified completed.
+
+This resolves the metadata-compatible reproduction route for these four exact worksheets only. It does not repair the original immutable manifests, score the slope fixture, provide independent scientific review, resolve the standalone integer-only seed schema discrepancy, or complete the audit's unspecified original eighteen contracts. The local director binding is still unusable; no mechanical runbook, inference compatibility or formal execution proof is claimed. Full-ledger validation remains207 errors with zero-delta admission/approval checks; native scoped gates passing is not global ledger success.
