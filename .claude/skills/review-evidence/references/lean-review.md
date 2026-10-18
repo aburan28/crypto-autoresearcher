@@ -43,8 +43,10 @@ axiom audit for all cited theorems; use `lean4checker --fresh` when available.
 A default `lake build` may omit a source module. Build each cited module
 explicitly (`lake build +Module.Name`), and reconcile the tracked source
 inventory with the gate's source/module list. The shared gate's complete-source
-version requires every tracked project proof source to be a Lake source target;
-undeclared sources fail. Lake configuration, the gate tools and deliberate
+version attempts each tracked project source as a Lake source target.
+Unregistered auxiliary sources compile into a private directory and are audited
+too, without changing frozen Lake configurations. Any source build failure fails
+the gate. Lake configuration, the gate tools and deliberate
 self-test fixtures are explicit exclusions, never silently counted as proofs.
 An older gate that lists only existing `.olean` files cannot establish source
 coverage. A named audit covers its named declarations, not all adjacent files.
