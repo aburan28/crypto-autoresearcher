@@ -66,3 +66,19 @@ claim inventory is committed. No campaign spending limit is introduced.
 
 Unresolved. The 2026-10-18 additions are a verified mathematical batch and a
 coverage record, not closure of the owner's request for all historical claims.
+
+### 2026-10-18 independent review update
+
+[Separate reviewer reports](https://github.com/aburan28/crypto-autoresearcher/blob/aaccd2f5d0a801fd73209e2a51b587efbda3ee5e/research/lean_review_evidence_20261018/) support the 19 explicitly scoped
+new declarations; every original mathematical or empirical claim is still not
+covered. Concrete map/duality, cyclic-group implementation and C refinement
+bridges remain unproved. The NCP target also states companion witnesses and
+a surjectivity description beyond the single kernel-inequality witness.
+The full reachability iff is still absent.
+
+The workflow review identified omitted project modules, inconsistent summary
+acceptance and incomplete imported-source provenance. Versioned gate/CLI/summary
+repairs and their independent follow-up belong to the review packet. The old
+receipts are retained; fresh matching receipts do not certify source-claim
+fidelity or authenticate execution by themselves. The exit criteria above
+remain open.

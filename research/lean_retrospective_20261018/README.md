@@ -116,3 +116,13 @@ keeps the original all-repositories requirement open.
 notes' measured tables and the README's performance descriptions receive no
 new measurements; no performance graph, curve identity, or isogeny-route edge
 is changed by these proof additions. Historical scientific state is preserved.
+
+## Independent review follow-up
+
+The [independent review packet](https://github.com/aburan28/crypto-autoresearcher/blob/aaccd2f5d0a801fd73209e2a51b587efbda3ee5e/research/lean_review_evidence_20261018/review-plan.yaml) supports the narrow
+mapped claims; see [semantic-review.json](semantic-review.json) for per-declaration
+findings and immutable report links. The original maps and receipts retain their
+original pending-review record. Stronger historical claims and missing bridges
+remain open. The workflow reviewer found source-discovery and receipt-binding
+defects; repairs use new code and evidence paths rather than rewriting those
+findings. Receipt consistency is not authentication of a Lean run.
