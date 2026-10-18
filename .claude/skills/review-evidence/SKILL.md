@@ -141,8 +141,11 @@ the research claim. Existing experiment and official-promotion rules remain.
 
 ## Branch and PR hygiene
 
-Evidence review creates official records, so every run of this skill also
-pulls in `main` and surfaces the decision as a PR:
+The experiment route creates official records and uses the rules below.
+The Lean route also starts from current `main` and publishes a PR, titled for
+its actual theorem/workflow scope; it uses a technical packet and TASK IDs
+without inventing EV/DEC/EXP records. Official scientific transitions, when
+requested, still use the experiment route and its record-specific PR title.
 
 - **Before reviewing:** `git fetch origin && git merge origin/main` — merge,
   never rebase. If the merge conflicts, stop and report; never resolve a

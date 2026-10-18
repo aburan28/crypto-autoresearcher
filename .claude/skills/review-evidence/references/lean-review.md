@@ -40,6 +40,31 @@ new evidence paths. Check the exact named declaration, not just a project root
 that might omit its module. Run `#print axioms` and a fail-closed transitive
 axiom audit for all cited theorems; use `lean4checker --fresh` when available.
 
+A default `lake build` may omit a source module. Build each cited module
+explicitly (`lake build +Module.Name`), and reconcile the tracked source
+inventory with the gate's source/module list. The shared gate's complete-source
+version requires every tracked project proof source to be a Lake source target;
+undeclared sources fail. Lake configuration, the gate tools and deliberate
+self-test fixtures are explicit exclusions, never silently counted as proofs.
+An older gate that lists only existing `.olean` files cannot establish source
+coverage. A named audit covers its named declarations, not all adjacent files.
+
+Retain the CLI's complete local `workspace_inputs` and `verifier_inputs` in
+new receipts, and compare them before and after verification and on reuse.
+This binds imported helpers, audit code and Lake configuration, including
+created/deleted files; four hashes for only the target/spec/pins are insufficient.
+Dependency binaries retain Lean/Lake's trust boundary: record exact dependency
+pins and clean installed revisions, and disclose the absence of an independent
+binary/kernel rechecker. Pre/post hashes do not prove absence of a transient
+concurrent edit; use an isolated immutable input tree.
+
+Receipt validation checks consistent task/result identities, forbidden-construct
+flags, versions, source/verifier inputs and nonempty audit evidence. It does
+not authenticate execution: a fully fabricated JSON can contain fabricated
+hashes and logs. Fresh Lean checks are mandatory for this review route, even
+when an archived receipt passes every consistency check. Preserve legacy
+receipts, label their narrower provenance and create new evidence paths.
+
 Reject unapproved axioms, holes, kernel bypasses and unverified native
 evaluation as ordinary theorem proofs. Report deliberate compiler-trust
 exceptions explicitly, never as kernel-only verification. A missing toolchain,

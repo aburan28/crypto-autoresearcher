@@ -70,6 +70,72 @@ def test_verify_cli_needs_no_generator_and_preserves_receipt(workspace):
     assert data['verification']['status'] == 'machine_verified'
     assert data['semantic_review']['status'] == 'pending'
     assert data['provenance']['theorem_sha256']
+    assert 'CryptoResearch/Smoke.lean' in data['provenance']['workspace_inputs']
+    assert 'AxiomAudit.lean' in data['provenance']['workspace_inputs']
     before = artifact.read_bytes()
     assert main(args) == 2
     assert artifact.read_bytes() == before
+
+
+@pytest.mark.parametrize('change', ['mutate', 'create', 'delete'])
+def test_verify_cli_rejects_changed_imported_inputs(workspace, monkeypatch, change):
+    """Even after real Lean succeeds, changed/added/deleted helpers invalidate its receipt."""
+    from orchestration.formal import cli
+    helper = workspace / 'formal/CryptoResearch/Helper.lean'
+    if change != 'create':
+        helper.write_text('theorem helper : True := by trivial\n')
+    original = cli.LeanWorker.verify
+
+    def verify_then_change(self, task):
+        result = original(self, task)
+        assert result.machine_verified, result.build_log + result.audit_log
+        if change == 'delete':
+            helper.unlink()
+        else:
+            helper.write_text('theorem changedHelper : True := by trivial\n')
+        return result
+
+    monkeypatch.setattr(cli.LeanWorker, 'verify', verify_then_change)
+    spec = workspace / 'task.json'
+    spec.write_text(json.dumps(dict(schema='crypto.autoresearch.formal_task.v1',
+        **task().__dict__, source='formal/CryptoResearch/Smoke.lean')))
+    artifact = workspace / 'receipt.json'
+    assert main(['--repo-root', str(workspace), 'verify', '--task-file', str(spec),
+                 '--artifact-out', str(artifact)]) == 3
+    data = json.loads(artifact.read_text())
+    assert data['verification'] is None
+    assert 'inputs changed' in data['infrastructure_failure']
+
+
+def test_receipt_consistency_rejects_tampering_and_stale_helpers(workspace):
+    """An actual successful run is the baseline, then attack its evidence fields."""
+    from copy import deepcopy
+    from orchestration.formal.receipts import receipt_errors
+    helper = workspace / 'formal/CryptoResearch/Helper.lean'
+    helper.write_text('theorem helper : True := by trivial\n')
+    spec = workspace / 'task.json'
+    spec.write_text(json.dumps(dict(schema='crypto.autoresearch.formal_task.v1',
+        **task().__dict__, source='formal/CryptoResearch/Smoke.lean')))
+    artifact = workspace / 'receipt.json'
+    assert main(['--repo-root', str(workspace), 'verify', '--task-file', str(spec),
+                 '--artifact-out', str(artifact)]) == 0
+    data = json.loads(artifact.read_text())
+    assert receipt_errors(data, repo=workspace, spec=spec, task=task()) == []
+    attacks = [
+        ('verification', 'forbidden_constructs', ['sorry:forged']),
+        ('verification', 'theorem_name', 'Wrong.name'),
+        ('verification', 'theorem_file', 'Wrong.lean'),
+        ('verification', 'task_id', 'wrong-task'),
+        ('verification', 'blocking_reason', 'failed'),
+        ('provenance', 'lean_version', 'bogus'),
+        ('provenance', 'workspace_inputs', {}),
+        ('provenance', 'verifier_inputs', {}),
+        (None, 'build_log', ''),
+        (None, 'audit_log', ''),
+    ]
+    for section, key, value in attacks:
+        forged = deepcopy(data)
+        (forged[section] if section else forged)[key] = value
+        assert receipt_errors(forged, repo=workspace, spec=spec, task=task()), (section, key)
+    helper.write_text('theorem anotherHelper : True := by trivial\n')
+    assert 'local source inputs' in receipt_errors(data, repo=workspace, spec=spec, task=task())

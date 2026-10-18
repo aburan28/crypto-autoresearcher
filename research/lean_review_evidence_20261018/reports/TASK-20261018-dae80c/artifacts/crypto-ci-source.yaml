@@ -1,0 +1,98 @@
+name: Lean proof gate
+# Builds every Lean target in the repository and audits each theorem's
+# transitive axioms (tools/lean/proof-gate.sh, tools/lean/AuditAxioms.lean).
+# Fails on `sorry`, unlisted `native_decide`, user axioms, a build failure, or a
+# target with no theorems. Reviewed `native_decide` uses live in
+# tools/lean/trusted-native.txt and are reported as TRUST.
+# AGENTS.md "Mathematical results should include Lean proofs".
+on:
+  pull_request:
+    paths:
+      - '**/*.lean'
+      - '**/lakefile.toml'
+      - '**/lakefile.lean'
+      - '**/lean-toolchain'
+      - '**/lake-manifest.json'
+      - 'tools/lean/**'
+      - '.github/workflows/lean-proof-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.lean'
+      - '**/lakefile.toml'
+      - '**/lakefile.lean'
+      - '**/lean-toolchain'
+      - '**/lake-manifest.json'
+      - 'tools/lean/**'
+      - '.github/workflows/lean-proof-gate.yml'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  selftest:
+    # Known-good and known-bad fixtures: the gate must pass and fail them
+    # exactly as expected, so it is exercised even with no proofs in the repo.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain "$(cat tools/lean/lean-toolchain)"
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - run: tools/lean/selftest/run.sh
+
+  discover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          echo "targets=$(tools/lean/proof-gate.sh --list | jq -R . | jq -sc 'map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+          tools/lean/proof-gate.sh --list | grep . || echo "no Lean targets in this repository yet; only the self-test runs"
+
+  prove:
+    needs: discover
+    if: ${{ needs.discover.outputs.targets != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
+    name: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Pin the toolchain for a standalone file
+        if: ${{ endsWith(matrix.target, '.lean') }}
+        run: |
+          pin="$(dirname '${{ matrix.target }}')/lean-toolchain"
+          if [ -f "$pin" ]; then elan default "$(cat "$pin")"; else elan default "$(cat tools/lean/lean-toolchain)"; fi
+      - name: Build and audit
+        run: |
+          set +e
+          tools/lean/proof-gate.sh --out receipts '${{ matrix.target }}'
+          rc=$?
+          [ $rc -eq 3 ] && echo "::error::infrastructure failure (not evidence about the proof)"
+          exit $rc
+      - name: Keep receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-receipts-${{ strategy.job-index }}
+          path: receipts
+          if-no-files-found: ignore
