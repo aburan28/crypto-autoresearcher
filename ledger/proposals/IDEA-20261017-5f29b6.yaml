@@ -1,0 +1,122 @@
+idea:
+  id: IDEA-20261017-5f29b6
+  question_id: RQ-SBRG-f31cb2
+  added: '2026-10-17'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  title: >-
+    Target-affine pencil: n+1 precomputed reduced direction blocks make per-target
+    reduction against the structural carrier an XOR selection; the measured
+    reduction share is the null the batch-reuse gate lacks
+  class: algorithm
+  claim: >-
+    (A) EXACT. The closing block S_3(u,x,r) = r^2(u+x)^2 + r*u*x + u^2x^2 + b is
+    F_2-affine in the n bits of r, so M_D(r) = M_0 + sum_i r_i M_i with M_i
+    independent of r, and S_struct rows do not involve r (chained and balanced
+    presentations; direct S_{t+1} has bit-degree up to t-1 in r). (B) ALGORITHM.
+    Build the RREF carrier of S_struct once; compute NF(M_0), NF(M_1..M_n) once (NF
+    is linear); reduced target rows for any r are NF(M_0) plus the sum of NF(M_i)
+    over set bits of r. No pivot search, no elimination against S_struct. Break-even
+    batch K* = (n+1)/(1 - C_sel/C_red) >= n+1. (C) LEMMA, zero compute. The pencil
+    has trivial kernel: nonzero delta gives M(delta) = delta^2(u+x)^2 + delta*u*x,
+    which vanishes at a structural solution iff u*x = delta(u+x)^2; so no
+    translation period comes from the rows at any D and the channel is a constant.
+    (D) CLAIM. Online gain G = (C_red+C_res)/(C_sel+C_res) <= 1/(1-s_red), s_red the
+    share of fresh per-target XORs spent reducing target rows against the carrier.
+    Prediction G >= 1.5 on chain_t3 and chain_t4, n in {10,12}, D in {3,4}.
+    s_red < 1/3 makes the row-partition ceiling of IDEA-20260829-fa8235 tight.
+  mechanism: >-
+    PAIR. R1 (F_2 bit coordinates of x after Weil descent), Sigma = additive
+    translations r -> r+delta of the target bit vector (not group translation).
+    Trichotomy: coordinate-dependent. LOSSY-PROJECTION TEST. The object is the
+    pencil modulo the structural row space; it discards structural rows and
+    pivots; the discard commutes with Sigma exactly since NF is linear and
+    M_D(r+delta) = M_D(r) + sum delta_i M_i. BEYOND REPLAY. KR-IC-f3da82 replays a
+    pivot schedule; Lemma 2 of experiments/EXP-CERTBIN-4e92d7/derivation-note-replay-forms.md
+    shows a full-matrix schedule survives only on a coset of dimension n-K_rank
+    (one target at K_rank = n, measured at m = 2 with no structural rows). Here
+    structural pivots are r-independent (retention 1) and the tail is linear.
+    Factor base: explicit F_2-subspace, inside the scoped-out class of KN-OPEN-020,
+    no escape claimed. Stage: relation decomposition. Priced by s_red and K*.
+  novelty_status: unverified
+  citations:
+    - ref: EXP-CERTBIN-4e92d7
+      provenance: internal
+      claim: Derivation note Lemmas 1-2, M(r) exactly affine in r and fixed-schedule survival set of dimension n-K_rank.
+      verified_by: Read derivation-note-replay-forms.md and analysis.md in full 2026-10-17.
+    - ref: IDEA-20260829-fa8235
+      provenance: internal
+      claim: Reuse ceiling t-1 when every target row is reduced online.
+      verified_by: Read lines 1-110 2026-10-17.
+  predictions:
+    - metric: pencil_gain_G (median fresh online XORs / pencil online XORs, 8 targets)
+      direction: higher
+      minimum_effect: ">= 1.5 on chain_t3 and chain_t4, n 10 and 12, D 3 and 4"
+    - metric: identity_mismatch_bits (pencil rows vs direct NF, 200 targets per cell)
+      direction: lower
+      minimum_effect: exactly 0, blocking
+    - metric: G on direct_t3 relative to chain_t3
+      direction: lower
+      minimum_effect: "direct needs about n^2/2 blocks, so K* >= n^2/2 and G_direct < G_chain"
+  minimal_test:
+    design: >-
+      Stage 0 (zero compute) block counts and K* per presentation. Stage 1 n=8
+      identity. Stage 2 n 10 and 12, D 3 and 4, four presentations, 8 targets, 3
+      seeds, reporting C_struct, C_red, C_sel, C_res separately.
+    controls:
+      - A random structural system plus random affine pencil, same degree histogram.
+      - B real structural system plus fresh random non-affine target block.
+      - The fresh and batched arms of EXP-SBRG-60c55e on the same targets.
+    required_metrics: [C_struct, C_red, C_sel, C_res, s_red, G, K_star, NF density, peak RSS]
+  falsification_conditions:
+    - identity_mismatch_bits > 0 in any cell (instrument defect, halt).
+    - G < 1.1 in every valid chain cell (reduction is not the bottleneck).
+    - G_real within 10 percent of control A everywhere (generic bookkeeping, nothing Semaev-specific).
+  confounders:
+    - NF fill-in can make selection costlier than reduction; that is the measurement.
+    - Guard skips are failed_infrastructure; n=12 D=5 is guard-blocked (IDEA-20260829-cb4fd5).
+  interpretation_limits:
+    - Toy binary fields, XOR counts. No exponent; G^{2/(m+1)} through the two-term optimum is a constant.
+  heuristic_assumptions:
+    - id: H1
+      statement: NF rows have target-independent density d_q, so C_sel ~ (n/2)*rows_T*q*d_q/64, and C_res has coefficient of variation below 0.25 across targets.
+      rigorous_support: NF linearity and exact affinity; imitates random sparse fill-in and rank concentration for random affine pencils.
+      validation_plan: Measure d_q and CV on 8 targets x 3 seeds per cell against the model, report the worst target; no transfer past n 12.
+  target_complexity:
+    time_exponent: "Unchanged: n^{O(D)} per attempt divided by G <= 1/(1-s_red); fully charged a constant G^{2/(m+1)}."
+    memory_exponent: "Precompute (n+1)*rows_T*q bits = n^{2D+O(1)}, independent of B (explicit table: B^{t-1})."
+    best_known: Pollard rho 0.886*sqrt(N), O(1) memory (KR-RHO-13bf67); F4 trace replay (KR-IC-f3da82).
+    hidden_overhead: Precompute equals n+1 target-equivalents of reduction.
+  dominated_by: Pollard rho on every axis; no attack claimed.
+  sota_delta: None. Deliverable is s_red, K*, G and the correct null for the 1.25 gate.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-IC-f3da82, KR-IC-e847d1, KR-IC-5765d2, KR-IC-fbdb61, KR-IC-f5c584, KR-IC-5a43e5, KR-IC-73db3f, KR-RHO-13bf67, KR-IC-791cb7, KR-RHO-cd0049, KR-RHO-1c2928, KR-RHO-482ed3]
+    nearest:
+      - ref: KR-IC-f3da82
+        provenance: kb
+        relation: adjacent
+        delta: Replays pivots across systems; here the target tail is a linear selection with a stated break-even and share.
+      - ref: KR-IC-f5c584
+        provenance: kb
+        relation: adjacent
+        delta: Trace-morphism linearity after descent; the same affinity is used here for the target parameter.
+      - ref: KR-IC-73db3f
+        provenance: kb
+        relation: adjacent
+        delta: Affinity in r and the kernel lemma hold for any V; v, rows_T, NF density d_q and so G and s_red scale with dim V and dim V^(2). Run polynomial-basis and random V at equal dim V, report dim V^(2).
+    row_notes:
+      KR-IC-e847d1: considered, not applicable because crossbred is not target batching.
+      KR-IC-5765d2: considered, not applicable because SAT solvers expose no row space.
+      KR-IC-fbdb61: considered, not applicable because it bounds last fall degree only.
+      KR-IC-5a43e5: considered, not applicable because it supplies the polynomials only.
+      KR-RHO-13bf67: considered, not applicable because no generic bound is touched.
+      KR-IC-791cb7: considered, not applicable because lexical hit on GHS, no Macaulay content.
+      KR-RHO-cd0049: considered, not applicable because a BSGS constant on prime curves.
+      KR-RHO-1c2928: considered, not applicable because a Koblitz rho constant.
+      KR-RHO-482ed3: considered, not applicable because Frobenius-class rho on Koblitz curves.

@@ -1,14 +1,14 @@
 # PR merge checks are not enforced on main
 
 - **Status:** `open`
-- **Kind:** repository governance and CI implementation gap; administrator access/authorization may be needed for the settings change.
+- **Kind:** repository governance and CI enforcement verification gap; Actions and a main ruleset were enabled under owner authorization, with a controlled PR gate test still pending.
 - **Affected work:** [AGENTS.md merge rule](../AGENTS.md#concurrency-many-agents-many-worktrees), [mandatory progress-fidelity gate](../AGENTS.md#mandatory-progress-fidelity-gate), [progress-fidelity workflow](../.github/workflows/progress-fidelity.yml), the PRs listed below, and [#2363](https://github.com/aburan28/crypto-autoresearcher/pull/2363), [#2364](https://github.com/aburan28/crypto-autoresearcher/pull/2364), [#2365](https://github.com/aburan28/crypto-autoresearcher/pull/2365), [#2366](https://github.com/aburan28/crypto-autoresearcher/pull/2366), and [#2367](https://github.com/aburan28/crypto-autoresearcher/pull/2367).
-- **Next action owner:** repository administrator for GitHub settings; PR author and reviewer for verifying the restored gate.
+- **Next action owner:** PR author and reviewer for verifying the restored gate on a current-head PR.
 - **Last updated:** 2026-10-17 UTC.
 
 ## Problem
 
-The repository contract requires the current PR head to have all required and applicable checks complete before merge, and requires `progress-fidelity` CI through branch protection. On 2026-10-17 UTC, several PRs merged before checks finished. GitHub reported `main` as unprotected, no active repository rulesets, and Actions disabled. The workflow file exists, but these settings do not enforce or run it. A passing check seen after merge does not satisfy the pre-merge rule.
+The repository contract requires the current PR head to have all required and applicable checks complete before merge, and requires `progress-fidelity` CI through branch protection. Earlier on 2026-10-17 UTC, several PRs merged before checks finished. At that time GitHub reported `main` as unprotected, no active repository rulesets, and Actions disabled. The workflow file existed, but those settings did not enforce or run it. Later the owner authorized and this session enabled Actions and a main ruleset requiring `progress-fidelity`; a controlled PR enforcement test is still needed. A passing check seen after merge does not satisfy the pre-merge rule.
 
 This is a delivery-integrity issue for changes to the ICPERF goal and any other PR on `main`. It does not alter the scientific status of any run or prove an error in the merged content.
 
@@ -35,27 +35,27 @@ This is a delivery-integrity issue for changes to the ICPERF goal and any other 
 - **Observed, approval-tooling delivery:** `gh pr view 2365 --json mergedAt,mergeCommit,mergedBy,statusCheckRollup` reported that `app/cursor` merged PR #2365 at `2026-10-17T13:47:39Z` as two-parent commit `2a62a27da50728f334f7d4497511735c411f35ca`. Approval completed `SUCCESS` at `13:47:32Z`; Automation completed `SUCCESS` at `13:47:53Z` and Security at `13:51:55Z`, both after merge. Bugbot was `NEUTRAL` at `13:47:35Z` and the rollup contained no Actions-run `progress-fidelity`. The later successes do not supply a completed pre-merge check.
 - **Observed, k11 lane delivery:** `gh pr view 2366 --json mergedAt,mergeCommit,mergedBy,statusCheckRollup` reported that `app/cursor` merged PR #2366 at `2026-10-17T14:04:21Z` as two-parent commit `5ce85fdaeffc3ae53e5d797c7ea3d8d48d70ea0c`. Approval completed `SUCCESS` at `14:04:06Z`, while Automation completed at `14:04:45Z` and Security at `14:06:09Z`, both after merge. Bugbot was `NEUTRAL` at `14:03:54Z`; no Actions-run `progress-fidelity` appeared in the rollup. The lane's archived content remains separately checkable, but the pre-merge completion rule was unmet.
 - **Observed, approved k11 contract PR #2367:** `gh pr view 2367 --json number,state,mergedAt,mergeCommit,headRefOid,statusCheckRollup,url` reported head `56be1ed09b6140fbd51aff2602b1006494a91159` merged at `2026-10-17T14:41:50Z` as `86e5c77081bc0fefe08c7b76eca901a584ffa831`. Approval completed `SUCCESS` at `14:37:56Z` and Security at `14:41:05Z`, both before merge; Bugbot completed `NEUTRAL` at `14:38:14Z`. Its rollup contained no Actions-run `progress-fidelity` job. This is a missing mandatory CI-gate recurrence, not an early Security or Approval completion example. A same-day read-only `gh api` query returned `enabled:false` for Actions, HTTP 404 `Branch not protected` for `main`, and `[]` active repository rulesets. The observation does not show whether Bugbot was configured as a required context.
-- **Derived or proved:** the cited check completion timestamps are after their respective merge timestamps. The current branch settings cannot require status checks. The reported Actions setting prevents the repository workflow from running under that setting.
+- **Derived or proved:** the cited check completion timestamps are after their respective merge timestamps. The former settings could not require status checks, and the former Actions setting prevented the repository workflow from running. The current setting must be tested against a PR before claiming the gate works in that path.
 - **Suspected explanation:** the merge automation and absent branch gates together allowed premature merges. Its exact internal trigger and permissions are unverified; inspect its configuration and audit log before assigning a narrower cause.
-- **Missing capability:** authorized repository-setting changes and a controlled PR showing the resulting gate in operation.
+- **Missing capability:** a controlled current-head PR showing that pending and failed required checks block merge and that successful required checks permit it.
 - **What this evidence does not establish:** it does not establish that the late checks would have failed, that `app/cursor` bypassed an enabled rule, or that all historical PRs had the same timing. The cited late checks eventually reported success, but none was complete when its PR merged. PR #2329 had a different timeline: its Security review passed before merge, while the required progress-fidelity workflow remained unavailable and Bugbot's neutral result did not inspect the diff.
 
 ## What would unblock it
 
-- [ ] With repository-administrator authorization, enable Actions for this repository and configure a branch protection rule or ruleset on `main` that requires the exact `progress-fidelity` job context plus every applicable pre-merge check named by the repository contract. Prevent apps and actors that merge PRs from bypassing pending or failed requirements.
+- [ ] Verify the owner-authorized Actions and main ruleset configuration on a controlled PR, including the exact `progress-fidelity` job context and every applicable pre-merge check named by the repository contract. The settings change has been applied, but app behavior and full enforcement remain to be shown.
 - [ ] On a controlled PR, verify the current-head `progress-fidelity` check actually runs, branch protection rejects merge while a required check is pending or failed, and a merge commit succeeds only after all required and applicable checks pass. Record PR URL, head SHA, check-run IDs and timestamps, rule configuration, and merge timestamp.
 
 These conditions would establish enforcement for the tested configuration and PR path. They would not retroactively make earlier merges compliant, validate any scientific claim, or replace review of future changes. Settings may later drift and should be monitored.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** inspect the `app/cursor` merge configuration and GitHub audit log, including the #2339–#2341 late-check timelines, then apply an authorized protection configuration and exercise one controlled PR through pending, failed, and successful required-check states.
+- **Action or proof obligation:** inspect the `app/cursor` merge configuration and GitHub audit log, including the #2339–#2341 late-check timelines, then exercise one controlled PR through pending, failed, and successful required-check states under the newly applied protection configuration.
 - **Inputs and controls:** current `main` rule/Actions settings, the PR timelines above, the workflow's exact job name, and a PR with an identified current head. Include a negative control where a required check is pending or failing.
 - **Execution limits and stop condition:** use a reversible repository-setting change under owner authorization; do not merge the control PR until every applicable check passes. Do not disable or rerun a check to obtain green.
 - **Outcomes and next actions:** if pending/failed checks block merges and all required checks run at current head, close this specific gate after an independently inspected receipt. If an app still merges early, inspect bypass permissions and keep the problem open. If Actions or settings cannot be changed, retain the access limit and avoid claiming compliant pre-merge verification. An unavailable check is an infrastructure result, not a success.
 - **Recheck trigger:** repository-setting authorization, a new PR merge, or a change to the merge app/ruleset.
 
-A planned step is not a completed test. Repository settings are not changed by this record.
+A planned step is not a completed test. The dated settings observation below records the change; this problem record itself changes no repository setting.
 
 ## Resolution and history
 
@@ -92,3 +92,5 @@ Unresolved. This record names an observed delivery-integrity obstruction; mergin
 2026-10-17 UTC: PR #2366's two-parent merge landed the k11 design lane before Automation and Security completed and without an Actions-run `progress-fidelity` check. The delivery gate remains open.
 
 2026-10-17 UTC: PR #2367 waited for its available successful Approval and Security checks, but the required Actions-run `progress-fidelity` job was absent while Actions remained disabled and `main` unprotected. This occurrence narrows the diagnosis: waiting for the external reviewers alone does not satisfy the mandatory progress-fidelity gate. The repository settings remain unchanged and the enforcement exit criteria remain unmet.
+
+2026-10-17 UTC: The owner explicitly authorized enabling the required gate. Repository Actions was enabled, workflow ID `380668102` was activated, and active main ruleset ID `25309459` was created with required `progress-fidelity`, strict status checks, and no bypass actors. The dispatched workflow run [39050561818](https://github.com/aburan28/crypto-autoresearcher/actions/runs/39050561818) completed `SUCCESS` at `17:08:16Z`. This proves the workflow can run on its dispatch path; it does not yet test PR merge blocking or every applicable external check. PR #2364 had already merged before this settings change. The enforcement exit criteria remain open pending a controlled PR.
