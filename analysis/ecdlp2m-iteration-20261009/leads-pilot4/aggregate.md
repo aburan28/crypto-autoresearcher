@@ -39,12 +39,13 @@ scratch = one closure from the generators, stopping when 1 enters. two-phase = t
 
 | cell | label | n inst | refuted [CP95] | sweeps (each) | largest window cols | censored/errors | message witness faults | median wall s |
 |---|---|---|---|---|---|---|---|---|
+| m4-n11 | UNSAT | 2 | 2/2 [0.16, 1.00] | [1, 1] | 36457 | 0 | 0 | 241.7 |
 | m4-n7 | UNSAT | 25 | 25/25 [0.86, 1.00] | [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] | 6196 | 0 | 0 | 1.0 |
 | m4-n7 | SAT | 4 | 0/4 [0.00, 0.60] | [3, 3, 3, 3] | 6196 | 0 | 0 | 3.8 |
 | m4-n9 | UNSAT | 10 | 10/10 [0.69, 1.00] | [1, 1, 1, 1, 1, 1, 1, 1, 1, 1] | 20854 | 0 | 0 | 38.2 |
 | m4-n9 | SAT | 4 | 0/4 [0.00, 0.60] | [3, 3, 3, 3] | 20854 | 0 | 0 | 106.3 |
 | m5-n9k3 | UNSAT | 5 | 5/5 [0.48, 1.00] | [1, 1, 1, 1, 1] | 46938 | 0 | 0 | 102.9 |
-| m5-n9k3 | SAT | 2 | 0/1 [0.00, 0.97] | [3] | 46938 | 1 | 0 | 1800.2 |
+| m5-n9k3 | SAT | 3 | 0/1 [0.00, 0.97] | [3] | 46938 | 2 | 0 | 1800.2 |
 
 ## Inputs
 
@@ -59,9 +60,10 @@ scratch = one closure from the generators, stopping when 1 enters. two-phase = t
 - `results/pre-m4-n9.jsonl` sha256 `1d91ae1106d54ed9`
 - `results/pre-n11-poly.jsonl` sha256 `40a76b2f846b5daa`
 - `results/pre-n9-poly.jsonl` sha256 `97aa7ab3c5bfd5d4`
+- `results/win-m4-n11.jsonl` sha256 `c71c7ce8734bcf6f`
 - `results/win-m4-n7.jsonl` sha256 `acdf5ff977bd1534`
 - `results/win-m4-n9.jsonl` sha256 `933c0445c947559d`
-- `results/win-m5-n9k3.jsonl` sha256 `815bbb220fb34712`
+- `results/win-m5-n9k3.jsonl` sha256 `4097be68438f1909`
 - `instances/m4-n11.json` sha256 `7542fa649d5c68db`
 - `instances/m4-n7.json` sha256 `f6b63d325ed7a7f3`
 - `instances/m4-n9.json` sha256 `14fbb7dde83e3db4`
