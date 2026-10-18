@@ -1,0 +1,15 @@
+# Staged x-rank instrument lacks independent arithmetic verification
+
+- **Status:** open; metadata-compatible execution preparation is separate
+- **Kind:** implementation and measurement-validation gap
+- **Scope:** explicit adjacent19th candidate EXP-ECDLP-daee4d, not authenticated membership of the audit historical18
+- **Owner:** Coordinator arranges a separate independent arithmetic checker/protocol review before any mathematical interpretation
+- **Last updated:** 2026-10-18
+
+The existing [checker](../experiments/EXP-ECDLP-daee4d/implementation/check.py) accepts stage0 from an outcome label plus freeze-file existence and stage1 from a permitted O-* label plus census/control-table presence (with an O-IMPEDIMENT exception). It does not independently recompute point counts, subgroup selection, scalar/ranking sets, overlap arithmetic, null controls or threshold classification. A native envelope and exact output/archive hashes can validate preservation and execution provenance, but cannot supply this missing mathematical check. The new [source-only staged adapter preparation](../coordination/tasks/TASK-20261018-72227c/implementation-receipt.json) retains that boundary explicitly; certificate.kind is none.
+
+The old scientific instrument remains immutable. Its [run source](../experiments/EXP-ECDLP-daee4d/implementation/run.py) sets B_scalar_recover directly to W_aff before calculating its positive-control overlap, so this verifies a set-intersection identity rather than independently reconstructing a scalar-ranking control. It computes excess against len(W)/N while selecting/ranking affine negation classes; the normalization correspondence therefore needs independent review. The original order_E != p+1 filter is preserved; neither this metadata preparation nor the old checker independently verifies the underlying point count or curve classification. These are source-level validation obligations, not measured negative results or a claim that every preserved formula is false.
+
+A separately approved instrument-validation protocol would unblock scientific use: independently enumerate both selected curves/subgroups, reconstruct exact canonical scalar/negation/ranking sets, compare all original overlap/null/excess arithmetic and outcome classification, and explicitly review the scalar positive control and normalization convention. Bind any changed scientific definition prospectively; do not silently alter the old fixed N-window, search order, seed20261007, controls or thresholds. Retain O-CONTROL-FAIL/O-IMPEDIMENT and every partial file without positive/negative hypothesis inference.
+
+The current bounded successor may measure only faithful staged instrument reproduction and metadata/provenance integrity, under real native source/publication/claim gates. It does not close this arithmetic gap, promote a hypothesis/goal, assert an ECDLP result or authorize broader search. Recheck when an independent arithmetic implementation and explicit interpretation review are available.

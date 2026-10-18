@@ -53,6 +53,7 @@ Keep resolved and superseded records in the index.
 | [Ten lead formal model bridge and raw artifact access](ten-lead-proof-scope-and-artifact-access.md) | investigating | Applying generic formal statements to concrete curve/domain claims and replaying private raw evidence from a public checkout | Independent semantic review, checked concrete-model bridges, and authorized artifact access |
 
 | [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | resolved for six native metadata routes | Native validity of four frozen worksheets despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
+| [Staged x-rank independent arithmetic verification](staged-xrank-independent-arithmetic-verification.md) | open | Adjacent19th staged instrument has only legacy label/file-presence checking; metadata preservation supplies no arithmetic certificate | Independent point/group/rank/overlap recomputation and explicit scalar-control/normalization review under a new protocol |
 
 ## Add or update a problem
 
