@@ -1,20 +1,16 @@
-# Original four ECDLP worksheet execution reports
+# ECDLP worksheet execution reports
 
-Observations only: all four original drivers/checkers exited 0; all four native supervisors retained invalid_output from obsolete manifest schema. No scientific interpretation or status promotion. Raw records must be published before these reports.
+Current closeout: **six accepted legacy metadata reproductions, twelve finite scopes with twenty-four separately allocated accepted primary RUNs, and two accepted dependent stages for the explicit adjacent nineteenth instrument**. All 41 actual attempts remain visible: 2 infrastructure_error, 7 invalid_output, 32 output_validated. No scientific interpretation or hypothesis/goal status promotion.
 
-- [EXP-ECDLP-bfbe6f](../../experiments/EXP-ECDLP-bfbe6f/reports/run-20261018T0412Z/README.md): [inspected PDF](../../experiments/EXP-ECDLP-bfbe6f/reports/run-20261018T0412Z/report.pdf).
-- [EXP-ECDLP-5f4f14](../../experiments/EXP-ECDLP-5f4f14/reports/run-20261018T0418Z/README.md): [inspected PDF](../../experiments/EXP-ECDLP-5f4f14/reports/run-20261018T0418Z/report.pdf).
-- [EXP-ECDLP-3c166b](../../experiments/EXP-ECDLP-3c166b/reports/run-20261018T0419Z/README.md): [inspected PDF](../../experiments/EXP-ECDLP-3c166b/reports/run-20261018T0419Z/report.pdf).
-- [EXP-ECDLP-20ac31](../../experiments/EXP-ECDLP-20ac31/reports/run-20261018T0423Z/README.md): [inspected PDF](../../experiments/EXP-ECDLP-20ac31/reports/run-20261018T0423Z/report.pdf).
+[Current exact mapping, actual counts and limitations](native-campaign-closeout/README.md) · [machine-readable actual inventory](native-campaign-closeout/actual-native-inventory.json) · [inspected grouped PDF](native-campaign-closeout/report.pdf).
 
-[Fresh successor packets](../../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/README.md) retain all original scientific inputs/readings and native gates.
+The audit did not name its eighteen IDs. Our eighteen-row mapping is conditional rather than authenticated audit membership. Six metadata replays and twelve finite scopes are distinguished; the adjacent staged instrument is explicitly separate and has no independent arithmetic certificate. Original strict prediction misses, unscored calibration, failed attempts and incomplete attempts are retained.
 
+The final whole-ledger rerun retained 223 errors: 163 historical and 60 from six preserved malformed original manifests; the 615fcf partial attempt added no missing-manifest error. Logs and the exact baseline delta are in the current closeout. Scoped native acceptance does not mean global ledger or CI success.
 
-## Actual native-compatible reproductions
+## Preserved earlier report sets
 
-Four exact worksheet scopes now have published raw records with native `output_validated`; their raw and legacy-manifest bytes are identical to the original actual outputs. A fifth metadata attempt remains an infrastructure failure before its driver. [Grouped records and limits](final-native-worksheets/README.md), [all nine attempts](final-native-worksheets/all-nine-attempts.json), and [comparison hashes](final-native-worksheets/four-valid-reproductions.json) preserve each status. These are deterministic calibrations with no scientific interpretation promotion. The audit's unnamed original eighteen contracts remain a separate identification/execution obligation.
-
-
-## Two additional original programs actually executed
-
-The additional F31 planted-section instrument and F11 rank-1 net instrument each exited0 with an unchanged checker exit0. Both native supervisors retained invalid_output from their minimal manifests. [F31 report](../../experiments/EXP-ECDLP-f34097/reports/run-20261018T0520Z/report.md) and [F11 report](../../experiments/EXP-ECDLP-903c48/reports/run-20261018T0521Z/report.md) each include an inspected two-page PDF and diagram. Their eleven-file raw packages were published before report generation. These observations make no section-cost, information-leakage or cryptographic transfer claim. Current whole-ledger failures are223, including exactly16 added defects from these two intentionally preserved original manifests. A separate three-output metadata adapter and two fresh review_required packages are prepared; no valid fresh execution of that adapter is claimed yet.
+- [Original four plus first metadata successors](final-native-worksheets/README.md).
+- [All six accepted legacy metadata reproductions and original failures](six-native-reproductions/README.md).
+- Individual dated reports under each experiment retain inspected PDFs, editable diagrams, exact commands and raw-data pointers.
+- [Current full mapping and failure/prediction boundaries](native-campaign-closeout/README.md).

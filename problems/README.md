@@ -52,9 +52,9 @@ Keep resolved and superseded records in the index.
 
 | [Ten lead formal model bridge and raw artifact access](ten-lead-proof-scope-and-artifact-access.md) | investigating | Applying generic formal statements to concrete curve/domain claims and replaying private raw evidence from a public checkout | Independent semantic review, checked concrete-model bridges, and authorized artifact access |
 
-| [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | resolved for six native metadata routes | Native validity of four frozen worksheets despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
+| [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | resolved for six native metadata routes | Native validity of six frozen programs despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
 | [Staged x-rank independent arithmetic verification](staged-xrank-independent-arithmetic-verification.md) | open | Adjacent19th staged instrument has only legacy label/file-presence checking; metadata preservation supplies no arithmetic certificate | Independent point/group/rank/overlap recomputation and explicit scalar-control/normalization review under a new protocol |
-| [Finite worksheet direct invocation](finite-worksheet-direct-invocation.md) | first direct successor validated | Coordinator-added env prefix conflicts with the unchanged helper actual-argv check;8real failed files retained | Publish every fixed two-route successor receipt/raw archive/report; keep old failed/unused slots immutable |
+| [Finite worksheet direct invocation](finite-worksheet-direct-invocation.md) | resolved for six named native metadata routes | Direct child argv preserved; outer Git-only control fixes metadata resource refusal; original8file and615partial failures retained | See exact current inventory: twelve accepted primary RUNs across six final scopes; broader proof/schema and adjacent arithmetic obligations remain separate |
 
 ## Add or update a problem
 
