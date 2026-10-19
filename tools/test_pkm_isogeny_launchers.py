@@ -181,6 +181,45 @@ class MsolveInputsAndChecker(unittest.TestCase):
 
 
 @unittest.skipUnless(HAVE_MSOLVE and HAVE_SINGULAR and not SKIP_ALL, "msolve and Singular required")
+class MsolvePrimeCrashCanary(unittest.TestCase):
+    """msolve 0.6.5 segfaults on systems over primes with exactly 17 bits (2^16 < p < 2^17); other sizes read
+    fine (CORR-20261019-e6f65b, EXP-ECDLP-8c41d7 AMD-03). This is an external defect pinned as a canary: if the
+    first assertion starts failing because msolve now succeeds, the defect is fixed and the 17-bit prime
+    workaround (block_order_m4_p19.py) and the 'avoid 17-bit primes' rule can be retired."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pkm = _load("pkm_isogeny_fb", "experiments/EXP-ECDLP-f49f75/pkm_isogeny_fb.py")
+        cls.msg = _load("msolve_grid", "experiments/EXP-ECDLP-502ae2/msolve_grid.py")
+
+    def _rc(self, p):
+        import subprocess
+        seed = int(hashlib.sha256(f"canary|{p}".encode()).hexdigest()[:12], 16)
+        rng = random.Random(seed)
+        a = p - 3
+        while True:
+            b = rng.randrange(1, p)
+            if (4 * a ** 3 + 27 * b * b) % p:
+                break
+        chain = self.pkm.build_chain(p, 3, rng)
+        fb = self.pkm.factor_base(chain["V"], a, b, p)
+        picks = [rng.choice(fb) for _ in range(3)]
+        T = None
+        for P in picks:
+            T = self.pkm.ec_add(T, P, a, p)
+        S = self.msg.summation_poly(p, 3, a, b, T[0])
+        vars_, polys = self.msg.build_system("B", p, 3, S, dict(coeffs=self.pkm.poly_from_roots(chain["V"], p)))
+        path = self.msg.write_input(vars_, p, polys)
+        return subprocess.run(["msolve", "-f", path, "-o", path + ".gb", "-g", "2", "-t", "1"],
+                              capture_output=True, text=True, timeout=120).returncode
+
+    def test_17_bit_prime_crashes_and_other_sizes_do_not(self):
+        self.assertEqual(self._rc(70039), -11, "msolve no longer crashes on a 17-bit prime: retire the workaround")
+        for p in (60103, 300007):                      # 16 and 19 bits
+            self.assertEqual(self._rc(p), 0)
+
+
+@unittest.skipUnless(HAVE_MSOLVE and HAVE_SINGULAR and not SKIP_ALL, "msolve and Singular required")
 class BlockOrderEndToEnd(unittest.TestCase):
     def test_all_arms_finish_plants_found_and_elimination_equals_dense(self):
         bog = _load("block_order_grid", "experiments/EXP-ECDLP-20a588/block_order_grid.py")
