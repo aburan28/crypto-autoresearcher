@@ -23,23 +23,39 @@ class Context:
         self.base = [tuple(v['point']) for v in fixture['factor_base']]
         self.lifts = [tuple(v['lift']) for v in fixture['factor_base']]
         self.by_x = {point[0]:j for j,point in enumerate(self.base)}
+        self.source_cache={}
+        self.aux_cache={}
 
     def pi2(self,point):
+        if point in self.aux_cache:
+            self.f.counts['aux_cache_hits']+=1
+            return self.aux_cache[point]
+        self.f.counts['aux_cache_misses']+=1
         x,y = point
         if not x:
             return None  # both affine C points above x=0 map to infinity.
         inverse = self.f.inv(x)
         square = self.f.mul(inverse,inverse)
-        return (self.f.mul(self.b,square),
+        result=(self.f.mul(self.b,square),
                 self.f.mul(self.f.mul(self.b,y),self.f.mul(square,inverse)))
+        self.aux_cache[point]=result
+        return result
 
     def lift_source(self,scalar,source=None):
         source = self.P if source is None else source
+        key=(scalar,source)
+        if key in self.source_cache:
+            self.f.counts['source_cache_hits']+=1
+            return self.source_cache[key]
+        self.f.counts['source_cache_misses']+=1
         point = self.e.neg(self.e.mul(scalar,source))
         if point is None:
+            self.source_cache[key]=None
             return None
         x = self.f.sqrt(point[0])
-        return None if x is None or not x else (x,point[1])
+        result=None if x is None or not x else (x,point[1])
+        self.source_cache[key]=result
+        return result
 
     def descriptor(self,scalar,triple,options,source=None):
         first = self.lift_source(scalar,source)

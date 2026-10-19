@@ -97,7 +97,8 @@ def verify_row(fixture,row,target=None):
         raise ValueError('false public source label')
     v=vandermonde(p,points)
     if v!=row['v_coefficients']:raise ValueError('independent interpolation mismatch')
-    if len(v)!=4 or (v[3]*v[3]-1)%p==0:raise ValueError('exceptional pole order')
+    leading=v[3] if len(v)==4 else 0
+    if len(v)>4 or (leading*leading-1)%p==0:raise ValueError('exceptional pole order')
     roots=row['residual_roots']
     if len(roots)!=2 or len(set(roots+[x for x,y in points]))!=6:
         raise ValueError('repeated/missing intersection roots')
@@ -107,7 +108,7 @@ def verify_row(fixture,row,target=None):
     for x,y in points:expected=convolution(p,expected,[-x%p,1])
     intersection=convolution(p,v,v)
     F=[b,0,a,0,0,0,1]
-    intersection=[(x-y)%p for x,y in zip(intersection,F)]
+    intersection=[((intersection[j] if j<len(intersection) else 0)-F[j])%p for j in range(7)]
     if convolution(p,expected,residual)!=intersection:raise ValueError('principal-function certificate mismatch')
     all_points=points+[(x,evaluate(p,v,x)) for x in roots]
     for x,y in all_points:
@@ -144,3 +145,68 @@ def verify_row(fixture,row,target=None):
             auxiliary=add(p,a,0,auxiliary,point)
     if auxiliary is not None:raise ValueError('auxiliary norm does not cancel')
     return True
+
+
+def dense_rank(rows,modulus):
+    """Independent column-major full elimination; no producer Rank imports."""
+    matrix=[[x%modulus for x in row] for row in rows]
+    if not matrix:return 0
+    position=0
+    for column in range(len(matrix[0])):
+        pivot=next((j for j in range(position,len(matrix)) if matrix[j][column]),None)
+        if pivot is None:continue
+        matrix[position],matrix[pivot]=matrix[pivot],matrix[position]
+        inverse=pow(matrix[position][column],-1,modulus)
+        matrix[position]=[x*inverse%modulus for x in matrix[position]]
+        for j in range(len(matrix)):
+            if j==position:continue
+            scale=matrix[j][column]
+            matrix[j]=[(x-scale*y)%modulus for x,y in zip(matrix[j],matrix[position])]
+        position+=1
+        if position==len(matrix):break
+    return position
+
+
+def canonical_columns(p,points,known):
+    mapping=[];unknown=[];index={}
+    for point in points:
+        if point is None:mapping.append(None);continue
+        x,y=point;key=(x,min(y,-y%p));sign=1 if tuple(point)==key else -1
+        if key in known:mapping.append(['known',sign*known[key]]);continue
+        if key not in index:index[key]=len(unknown);unknown.append(key)
+        mapping.append([index[key],sign])
+    return {'U':len(unknown),'points':unknown,'column_map':mapping}
+
+
+def verify_rank(fixture,cell):
+    r=fixture['r'];p=fixture['p'];a=fixture['a'];P=tuple(fixture['P'])
+    public={}
+    for record in cell['projection']['public_derivations']:
+        j,value=record['column'],record['scalar']
+        source=record['derived_from_public_source_scalar']
+        if not 1<=source<=min(64,r-1) or value!=record['sign']*source%r:
+            raise ValueError('undeclared public-anchor derivation')
+        if multiply(p,0,a,value,P)!=tuple(fixture['factor_base'][j]['point']):
+            raise ValueError('false public anchor')
+        public[j]=value
+    unknown=[j for j in range(len(fixture['factor_base'])) if j not in public]
+    M=[];aug=[]
+    for row in cell['rows']:
+        verify_row(fixture,row)
+        coefficients=[row['coefficients'][j] for j in unknown]
+        b=(row['source_scalar']-sum(row['coefficients'][j]*value for j,value in public.items()))%r
+        M.append(coefficients);aug.append(coefficients+[b])
+    rank=dense_rank(M,r);aug_rank=dense_rank(aug,r)
+    declared=cell['projection']
+    if (len(unknown),rank,aug_rank)!=(declared['U'],declared['rank'],declared['augmented_rank']):
+        raise ValueError('independent rank mismatch')
+    indices=declared['independent_row_indices']
+    if len(indices)!=rank or dense_rank([M[i] for i in indices],r)!=rank:
+        raise ValueError('invalid pivot-row certificate')
+    solution=declared['solution']
+    if solution is not None:
+        if rank!=len(unknown) or len(solution)!=len(unknown):raise ValueError('invalid solution shape')
+        for j,value in zip(unknown,solution):
+            if multiply(p,0,a,value,P)!=tuple(fixture['factor_base'][j]['point']):
+                raise ValueError('recovered base logarithm fails public verification')
+    return {'U':len(unknown),'rank':rank,'augmented_rank':aug_rank,'rows_verified':len(M)}
