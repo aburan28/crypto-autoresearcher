@@ -347,25 +347,31 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
-    # `immutable=1` is required on macOS hosts that attach com.apple.provenance
-    # to the codex state DB: a plain `mode=ro` open fails with SQLITE_CANTOPEN
-    # there. The probe only ever reads a thread row AFTER the codex exec process
-    # that created it has exited, and codex uses journal_mode=delete, so there
-    # is no un-checkpointed WAL content immutable=1 could miss. query_only=ON is
-    # still asserted per connection; immutable only ever strengthens the
-    # read-only guarantee.
-    uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro&immutable=1"
-    try:
+    # A live Codex database may use WAL. immutable=1 ignores its uncheckpointed
+    # rows, including the session just created by this probe. Use SQLite's
+    # read-only WAL view first. On macOS, com.apple.provenance can make that
+    # connection fail; immutable is safe as a fallback only without a WAL file.
+    base_uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro"
+
+    def query(uri: str) -> list[tuple[Any, ...]]:
         connection = sqlite3.connect(uri, uri=True)
         try:
             connection.execute("PRAGMA query_only=ON")
             if connection.execute("PRAGMA query_only").fetchone() != (1,):
                 raise sqlite3.DatabaseError("query_only was not enabled")
-            rows = connection.execute(STATE_QUERY, (thread_id,)).fetchall()
+            return connection.execute(STATE_QUERY, (thread_id,)).fetchall()
         finally:
             connection.close()
+
+    try:
+        rows = query(base_uri)
     except sqlite3.Error:
-        raise _ProbeFailure("state_db_read_failed") from None
+        if state_db.with_name(state_db.name + "-wal").exists():
+            raise _ProbeFailure("state_db_read_failed") from None
+        try:
+            rows = query(base_uri + "&immutable=1")
+        except sqlite3.Error:
+            raise _ProbeFailure("state_db_read_failed") from None
     if not rows:
         raise _ProbeFailure("state_row_missing")
     if len(rows) != 1:
@@ -767,6 +773,11 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         # values consume no clock reading and are only a preliminary metadata
         # check; the exact persisted final timestamp is checked below using the
         # real binding interval.
+        # The binding backend selects a model; Codex records the underlying
+        # provider. Both GPT-6 bindings use the same native OpenAI provider.
+        expected_provider = (
+            "openai" if resolution.backend in {"openai-gpt6", "openai-gpt61"}
+            else resolution.backend)
         failures = _cross_checks(
             receipt=result, request_model=model, request_effort=effort,
             request_workdir=canonical_workdir, thread_id=thread_id,
@@ -774,7 +785,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=launch_end,
             binding_end=launch_end, recorded_at=launch_end,
-            expected_provider=resolution.backend)
+            expected_provider=expected_provider)
         if failures:
             raise _ProbeFailure(*failures)
         binding_argv = ["python3", "tools/check_runtime_bindings.py"]
@@ -801,7 +812,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=binding_start,
             binding_end=binding_end, recorded_at=recorded_at,
-            expected_provider=resolution.backend)
+            expected_provider=expected_provider)
         if failures:
             raise _ProbeFailure(*failures)
         body["verification"].update({
