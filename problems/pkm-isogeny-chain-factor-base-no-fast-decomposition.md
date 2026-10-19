@@ -75,8 +75,13 @@ set, and is any of that loss fixable or is it intrinsic?**
   the task is to find roughly one grid point of V^m on the hypersurface S, not
   to enumerate a large solution set; and V itself is enumerable in 2^L time, so
   a short description of V is not what limits decomposition. The coset lemma
-  (docs/reports/pkm-p256-structure-check/) shows P-256 offers no kernel-coset
-  structure to couple to.
+  (docs/reports/pkm-p256-structure-check/, qualified by QUALIFICATION-20261019)
+  shows that for subgroups K of order coprime to n - which includes every
+  2-power kernel such as the proposed chain - a coset of K has at most one
+  F_p-rational point in E_P(F_p), so P-256 offers no such kernel-coset structure
+  to couple to. It does not cover kernels with n dividing |K| (for example
+  K = E(F_p), whose coset contains all n rational points); those give no useful
+  decomposition but are not excluded by the lemma.
 - **Conjecture (unproved):** the chain trades degree for variables - m*L
   variables with low degree (DRL) or L-fold lifted equations with degree
   about 2^(L+1) (block order) - and the cost of F4 follows matrix size
