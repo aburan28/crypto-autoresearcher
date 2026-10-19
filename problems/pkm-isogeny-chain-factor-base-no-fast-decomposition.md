@@ -4,7 +4,7 @@
 - **Kind:** empirical bottleneck; missing algorithm (no known solver exploits the chain); proof gap (no degree-of-regularity bound)
 - **Affected work:** [EXP-ECDLP-f49f75](../experiments/EXP-ECDLP-f49f75/specification.yaml), [H-ECDLP-60de36](../ledger/hypotheses/H-ECDLP-60de36.yaml), GOAL-ECDLP-001, RQ-ECDLP-001
 - **Next action owner:** unassigned (Coordinator to rank against GOAL-ECDLP-001 work)
-- **Last updated:** 2026-10-16 (reframed question; P-256 group-order check)
+- **Last updated:** 2026-10-19 (block-order results, m = 3 and m = 4)
 
 ## Problem
 
@@ -124,3 +124,4 @@ linear algebra and S_7 construction remain).
 - 2026-10-15: opened from EXP-ECDLP-f49f75. Unresolved.
 - 2026-10-15: DEC-20261015-a08389 rejects H-ECDLP-60de36 (scoped: toy, m <= 3, Singular). Problem stays open. Unresolved.
 - 2026-10-15: EXP-ECDLP-502ae2 (msolve F4, m = 3) replicates the negative result; DEC-20261015-ab6f23 widens the scoped rejection. Unresolved.
+- 2026-10-19: EXP-ECDLP-20a588 (m = 3) and EXP-ECDLP-8c41d7 (m = 4, preliminary) test the chain-first block order: it removes the growing plain-DRL penalty but leaves a roughly constant factor of about 2 over dense at m = 3 (paired intervals exclude parity; both solvers) and 1.1-1.2x (msolve) at m = 4, L = 2, 3; DEC-20261019-b01514 and DEC-20261019-624f64 widen the scoped rejection. The matrix-size accounting experiment remains the next step. Unresolved.

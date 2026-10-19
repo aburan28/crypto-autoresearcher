@@ -15,11 +15,11 @@ EXP-ECDLP-502ae2 left one route open: the chain's equations are triangular, so a
 == Observation
 #figure(image("block-order-vs-L.svg", width: 100%), caption: [Median basis time per arm vs $L$ (measured); bars min–max over completed instances; × = every instance timed out at 600 s; $n = 6$ per cell. Runs RUN-01 ($L = 3..6$) and RUN-03 ($L = 7$).])
 
-#table(columns: 2, stroke: 0.4pt, [*frozen criterion block*], [*derived from the recorded medians (criteria.json)*],
-[msolve A_elim vs B],[`{"jointly_completed_L": [3, 4, 5, 6], "a_faster": 0, "ratio": {"L3": 1.3, "L4": 1.91, "L5": 2.31, "L6": 1.96}, "largest_L": {"A_elim_ms": 6, "B_ms": 6}, "retired_at": {"A_elim_ms": 7, "B_ms": 7}}`],
-[Singular A_block vs B],[`{"jointly_completed_L": [3, 4], "a_faster": 0, "ratio": {"L3": 1.61, "L4": 1.43}, "largest_L": {"A_block_sg": 4, "B_sg": 5}, "retired_at": {"A_block_sg": 5, "B_sg": 6}}`],
-[dynamic range A_drl vs A_elim (msolve)],[`{"jointly_completed_L": [3, 4], "a_faster": 0, "ratio": {"L3": 4.43, "L4": 16.81}, "largest_L": {"A_drl_ms": 4, "A_elim_ms": 6}, "retired_at": {"A_drl_ms": 5, "A_elim_ms": 7}}`],
-[elim_equals_B],[`{"L3": "6/6", "L4": "6/6", "L5": "6/6", "L6": "6/6"}`]
+#table(columns: 2, stroke: 0.4pt, [*comparison*], [*derived from the recorded medians (criteria.json)*],
+[msolve A_elim vs B],[jointly completed L = [3, 4, 5, 6]; A_elim_ms faster in 0 of 4 cells; median ratio A_elim_ms/B_ms by L: L3: 1.3, L4: 1.91, L5: 2.31, L6: 1.96; largest L completed: A_elim_ms 6, B_ms 6; retired (every non-degenerate instance timed out) at L: A_elim_ms 7, B_ms 7],
+[Singular A_block vs B],[jointly completed L = [3, 4]; A_block_sg faster in 0 of 2 cells; median ratio A_block_sg/B_sg by L: L3: 1.61, L4: 1.43; largest L completed: A_block_sg 4, B_sg 5; retired (every non-degenerate instance timed out) at L: A_block_sg 5, B_sg 6],
+[dynamic range A_drl vs A_elim (msolve)],[jointly completed L = [3, 4]; A_drl_ms faster in 0 of 2 cells; median ratio A_drl_ms/A_elim_ms by L: L3: 4.43, L4: 16.81; largest L completed: A_drl_ms 4, A_elim_ms 6; retired (every non-degenerate instance timed out) at L: A_drl_ms 5, A_elim_ms 7],
+[elim_equals_B],[eliminated chain basis equals the dense basis: L3: 6/6, L4: 6/6, L5: 6/6, L6: 6/6]
 )
 
 _Paired per-instance ratios (supplementary, not a frozen criterion): the two arms run on the same instance; median of the ratios with a 95% percentile bootstrap interval (4000 resamples, deterministic seed). Intervals are wide for n = 4..6 and are reported as such._
@@ -59,7 +59,7 @@ _Paired per-instance ratios (supplementary, not a frozen criterion): the two arm
 )
 
 == Comparison
-- *The order matters a lot, then stops mattering:* plain DRL over the block order, $4.6 times$ at $L = 3$ and $16 times$ at $L = 4$ (dynamic-range control passes). The block-order chain is then about $2 times$ the dense arm, flat in $L$ within the intervals (1.34, 1.86, 2.27, 1.94), not growing like the plain-DRL gap (8× → >79×).
+- *The order matters a lot, then stops mattering:* plain grevlex is $4.6 times$ slower than the block order at $L = 3$ and $16 times$ slower at $L = 4$ (the dynamic-range control passes). The block-order chain is then about $2 times$ the dense arm, flat in $L$ within the intervals (1.34, 1.86, 2.27, 1.94), not growing like the plain-DRL gap (8× → >79×).
 - *Same ideal:* the eliminated chain basis equals the dense basis on all 24 instances where both finished, so the extra cost is the chain rows and the path, not a different problem.
 - *Singular agrees in sign:* block-order chain 1.6× and 1.4× at $L = 3, 4$, retired at $L = 5$ against the dense arm's $L = 6$.
 - *Exploratory (not preregistered):* msolve's maximum F4 degree on the dense arm is $2^L + 8$ on every instance; on the chain arm with block order it is 14, 32, 65, 133 for instances that have a solution (about $2^(L+1)$) and close to the dense value on instances with no solution (7 of 8 of those have the unit ideal as basis, which ends the computation early). Treat as a lead, not a result.
