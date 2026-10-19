@@ -26,6 +26,10 @@ Single-turn completions whose result nobody is waiting on at the keyboard:
   answer, not of the transport);
 * eval suites and any other many-prompt, same-shape workload.
 
+* the experiment director's compile and assess steps: `tools/task_card.py
+  request` builds a single-turn prompt with every fact computed, and
+  `ingest` checks the reply (`docs/model-tiers.md`, "Batch lane").
+
 Not a batch: the `api_direct` tool loop and any other multi-turn agent
 session. Each turn depends on the previous result, so there is nothing to
 submit together; the router refuses `delivery: batch` for multi-turn work and
