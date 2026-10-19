@@ -30,6 +30,8 @@ Practices that worked here:
 For future experiments use `tools/resumable_grid.py`: it appends each finished instance (flush +
 fsync), skips instances already in the output file on restart, drops a half-written last line, and
 rebuilds the stopping rule from the stored rows, so a recycle loses at most the instances in flight
-(`tools/test_resumable_grid.py`). It reads the same plan format and per-instance seeds as
+(`tools/test_resumable_grid.py`). It refuses to resume on a checkpoint that does not match the plan (different
+seed, timeout, arms or grid; duplicate, out-of-grid or schedule-violating rows; a corrupt complete record) and
+raises before modifying the file; only an incomplete final line is recovered. It reads the same plan format and per-instance seeds as
 `block_order_grid.py`. The four EXP-ECDLP launchers above are frozen and still write per cell, as their
 protocols were committed that way.

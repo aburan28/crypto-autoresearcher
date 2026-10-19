@@ -14,6 +14,12 @@ and with its per-instance seed (sha256 of "seed|m|L|inst"), so a grid ported to 
 same instances. `run_instance(job) -> dict` must be a picklable module-level function returning a row
 with "results": {arm: {"status": "ok" | "timeout" | ...}}; the row is stored as given plus the job keys.
 
+Checkpoint trust: before anything is skipped, truncated or appended, every stored row is validated against
+the plan (seed, kind, timeout, scheduled arms, per-arm results; duplicate or out-of-grid identities; rows after
+an incomplete cell or in a retired cell). A mismatch raises CheckpointError and leaves the file untouched; only an
+incomplete final line (no trailing newline) is recovered, while a malformed complete record is corruption and
+raises. Rows returned by the callback are validated against their job before they are appended.
+
 Stopping rule (same as the frozen launchers): an arm whose results are "timeout" on EVERY instance of
 a cell is not run at larger L for that m. The rule is recomputed from the stored rows on resume, so a
 resumed run makes the same decisions an uninterrupted one would.
@@ -37,12 +43,17 @@ def instance_seed(plan_seed: str, m: int, L: int, inst: int) -> int:
     return int(hashlib.sha256(f"{plan_seed}|{m}|{L}|{inst}".encode()).hexdigest()[:12], 16)
 
 
+class CheckpointError(ValueError):
+    """The stored checkpoint (or a returned row) cannot be trusted. Raised before anything is modified."""
+
+
 def load_rows(path: str) -> Tuple[List[dict], int]:
     """(rows already recorded, byte offset just past the last complete row).
 
-    A truncated or corrupt tail (the process was killed mid-write) is not an error: it is excluded from
-    the rows and the caller truncates the file to the returned offset before appending, so a half-written
-    line can never merge with the next row."""
+    Only an INCOMPLETE FINAL LINE (no trailing newline: the process was killed mid-write) is recoverable:
+    it is excluded from the rows and the caller truncates the file to the returned offset before appending,
+    so a half-written line can never merge with the next row. A complete (newline-terminated) record that
+    is not valid JSON is corruption, not a crash tail: raise instead of silently discarding what follows."""
     rows: List[dict] = []
     good_end = 0
     if not os.path.exists(path):
@@ -50,13 +61,81 @@ def load_rows(path: str) -> Tuple[List[dict], int]:
     with open(path, "rb") as fh:
         for raw in fh:
             if not raw.endswith(b"\n"):
-                break                                       # no trailing newline: written incompletely
+                break                                       # incomplete final line
             try:
                 rows.append(json.loads(raw))
-            except json.JSONDecodeError:
-                break
+            except json.JSONDecodeError as e:
+                raise CheckpointError(f"{path}: corrupt complete record at byte {good_end}: {e}") from e
             good_end += len(raw)
     return rows, good_end
+
+
+def _cells(plan: dict) -> List[Tuple[int, List[int]]]:
+    return [(int(m), list(Ls)) for m, Ls in sorted(plan["L_by_m"].items(), key=lambda kv: int(kv[0]))]
+
+
+def _expected_job(plan: dict, m: int, L: int, inst: int, arms: List[str]) -> dict:
+    return dict(m=m, L=L, inst=inst, kind="planted" if inst < plan["planted_per_cell"] else "random",
+                timeout=plan["timeout_s"], arms=list(arms), seed=instance_seed(plan["seed"], m, L, inst))
+
+
+def check_row(row: object, job: dict, where: str) -> None:
+    """Raise CheckpointError unless `row` is what `job` should have produced: every job field equal
+    (identity, seed, kind, timeout, scheduled arms) and a status for exactly the scheduled arms."""
+    if not isinstance(row, dict):
+        raise CheckpointError(f"{where}: record is not an object")
+    for k, want in job.items():
+        if k not in row or type(row[k]) is not type(want) or row[k] != want:
+            raise CheckpointError(f"{where}: {k} is {row.get(k)!r}, expected {want!r}")
+    res = row.get("results")
+    if not isinstance(res, dict) or set(res) != set(job["arms"]):
+        raise CheckpointError(f"{where}: results cover {sorted(res) if isinstance(res, dict) else res!r}, "
+                              f"scheduled arms are {job['arms']}")
+    for arm, v in res.items():
+        if not isinstance(v, dict) or not isinstance(v.get("status"), str):
+            raise CheckpointError(f"{where}: result for arm {arm} has no string status")
+
+
+def validate_checkpoint(plan: dict, rows: List[dict]) -> Dict[Tuple[int, int, int], dict]:
+    """Check every stored row against the plan before anything is skipped or truncated.
+
+    Rejects: non-object or unidentified records, duplicate (m, L, inst), rows outside the grid or in a cell
+    the stopping rule had already retired, rows after an incomplete cell (the runner works cell by cell),
+    and any row whose seed, kind, timeout, scheduled arms or per-arm results differ from what the plan and the
+    stopping rule (replayed from the stored rows) require. Returns the rows keyed by (m, L, inst)."""
+    index: Dict[Tuple[int, int, int], dict] = {}
+    for i, r in enumerate(rows):
+        if not isinstance(r, dict) or not all(isinstance(r.get(k), int) for k in ("m", "L", "inst")):
+            raise CheckpointError(f"record {i} has no integer m, L, inst")
+        key = (r["m"], r["L"], r["inst"])
+        if key in index:
+            raise CheckpointError(f"duplicate record for (m, L, inst) = {key}")
+        index[key] = r
+    n_inst = plan["planted_per_cell"] + plan["random_per_cell"]
+    used = set()
+    incomplete = False
+    for m, Ls in _cells(plan):
+        arms = list(plan["arms"])
+        for L in Ls:
+            stored = [(i, index[(m, L, i)]) for i in range(n_inst) if (m, L, i) in index]
+            if not arms:
+                if stored:
+                    raise CheckpointError(f"rows exist for (m, L) = ({m}, {L}), a cell the stopping rule had retired")
+                break
+            if stored and incomplete:
+                raise CheckpointError(f"rows exist for (m, L) = ({m}, {L}) after an incomplete earlier cell")
+            for i, r in stored:
+                check_row(r, _expected_job(plan, m, L, i, arms), f"record (m, L, inst) = ({m}, {L}, {i})")
+                used.add((m, L, i))
+            if len(stored) < n_inst:
+                incomplete = True
+            else:
+                for arm in _retired([r for _, r in stored], arms):
+                    arms.remove(arm)
+    extra = sorted(set(index) - used)
+    if extra:
+        raise CheckpointError(f"rows outside the grid or its schedule: {extra[:5]}")
+    return index
 
 
 def _retired(rows_in_cell: List[dict], arms: List[str]) -> List[str]:
@@ -77,36 +156,40 @@ def _append(path: str, row: dict) -> None:
 
 def run_grid(plan: dict, run_instance: Callable[[dict], dict], out_path: str, workers: int = 4,
              log: Callable[[str], None] = print) -> Dict[str, int]:
-    """Run (or resume) the grid. Returns counts: {"executed", "skipped"}."""
+    """Run (or resume) the grid. Returns counts: {"executed", "skipped"}.
+
+    Nothing is modified until the stored checkpoint has been validated against the plan
+    (CheckpointError otherwise); each returned row is validated against its job before it is appended."""
+    rows, good_end = load_rows(out_path)                    # raises on a corrupt complete record
+    have = validate_checkpoint(plan, rows)                  # raises on identity / parameter / schedule mismatch
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    done, good_end = load_rows(out_path)
     if os.path.exists(out_path) and os.path.getsize(out_path) > good_end:
-        os.truncate(out_path, good_end)                     # drop a half-written tail before appending
-    have: Dict[Tuple[int, int, int], dict] = {(r["m"], r["L"], r["inst"]): r for r in done}
+        os.truncate(out_path, good_end)                     # drop ONLY an incomplete final line
     n_inst = plan["planted_per_cell"] + plan["random_per_cell"]
     executed = skipped = 0
     t0 = time.time()
     with ProcessPoolExecutor(workers) as ex:
-        for m_key, Ls in sorted(plan["L_by_m"].items(), key=lambda kv: int(kv[0])):
-            m = int(m_key)
+        for m, Ls in _cells(plan):
             arms = list(plan["arms"])
             for L in Ls:
                 if not arms:
                     break
-                jobs = []
+                jobs = {}
                 for inst in range(n_inst):
                     if (m, L, inst) in have:
                         skipped += 1
                         continue
-                    kind = "planted" if inst < plan["planted_per_cell"] else "random"
-                    jobs.append(dict(m=m, L=L, inst=inst, kind=kind, timeout=plan["timeout_s"], arms=list(arms),
-                                     seed=instance_seed(plan["seed"], m, L, inst)))
-                for fut in as_completed([ex.submit(run_instance, j) for j in jobs]):
+                    jobs[inst] = _expected_job(plan, m, L, inst, arms)
+                for fut in as_completed([ex.submit(run_instance, j) for j in jobs.values()]):
                     row = fut.result()
+                    inst = row.get("inst") if isinstance(row, dict) else None
+                    if inst not in jobs:
+                        raise CheckpointError(f"callback returned a row for an unscheduled instance: {inst!r}")
+                    check_row(row, jobs.pop(inst), f"callback row (m, L, inst) = ({m}, {L}, {inst})")
                     _append(out_path, row)                      # checkpoint immediately
-                    have[(row["m"], row["L"], row["inst"])] = row
+                    have[(m, L, inst)] = row
                     executed += 1
-                    log(f"m={m} L={L} inst={row['inst']} " +
+                    log(f"m={m} L={L} inst={inst} " +
                         " ".join(f"{k}:{v.get('status')}" for k, v in row["results"].items()))
                 cell = [have[(m, L, i)] for i in range(n_inst) if (m, L, i) in have]
                 for arm in _retired(cell, arms):
