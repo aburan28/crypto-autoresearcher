@@ -4,7 +4,7 @@ Read **[AGENTS.md](AGENTS.md)**, the one normative contract for every runtime,
 Claude Code included: budgets are advisory, `run` is the only execution skill,
 only the Coordinator changes research state, records are immutable,
 "ECC comes first", "Goals are never paused",
-"Approval is bounded by execution", "Stop at the PR", "Every improvement is
+"Approval is bounded by execution", "Continue through the PR", "Every improvement is
 a success", and `main` takes merge
 commits only. One file, because two copies of a rule become two rules; the
 earlier long form of this file stays unchanged at
@@ -12,9 +12,7 @@ earlier long form of this file stays unchanged at
 
 ## What is Claude Code specific
 
-- **Batch delivery**: `python3 -m orchestration.adapter batch …` for
-  single-turn prompts; records are write-once under
-  `coordination/inference-batches/` (`docs/batch-inference.md`).
+- **Batch delivery**: follow AGENTS.md, "Model policy".
 - **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
   `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
   Code only; `experiment-director` writes Haiku's task cards,
