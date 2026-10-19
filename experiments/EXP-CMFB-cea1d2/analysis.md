@@ -11,6 +11,23 @@ passed) and RT-20261019-520123
 conclusion_requires_narrowing). Review plan, written after both verdicts:
 `experiments/EXP-CMFB-cea1d2/reviews/review_plan.yaml`.
 
+**CORRECTION (owner review P2, CORR-20261019-a89bfa): the 1.582 ratio is
+model-conditional, not a universal theorem.** Wherever this analysis, EV-CMFB-e3d1ec,
+DEC-20261019-f33f3e or the review report call min(1, mu)/(1 - e^-mu) <= 1.582 a
+theorem or a ceiling that holds "for every base", read the following instead.
+(1) Exact identity (proved): sum_r c(r) = binomial(B+2,3). (2) Exact bound
+(proved): coverage <= min(1, mu); the multiplicity distribution is left free,
+so for a specified positive baseline coverage c0 the ratio is bounded by
+min(1, mu)/c0. (3) Conditional model estimate (not proved): taking the random
+base's coverage to be the Poisson value c0 = 1 - exp(-mu), which is heuristic
+H2, gives 1.582 at mu = 1. That substitutes a model for the baseline; it is not
+a finite-instance ratio theorem and says nothing about end-to-end cost. The
+empirical small-x coverage comparison keeps its stated scope. The measured
+random-base coverage (recorded `random_seen`) could replace the Poisson value;
+that computation is not done here. Inference 5 and the closing cost paragraph
+below are to be read with this correction; they are left unedited as the
+archived Coordinator text.
+
 How this analysis was made. No shell was available to the Coordinator subagent.
 Every number below is read from `RUN-CMFB-2010d3/raw-result.json` (t8) by key,
 from the two review reports, or is arithmetic on those values, shown and
