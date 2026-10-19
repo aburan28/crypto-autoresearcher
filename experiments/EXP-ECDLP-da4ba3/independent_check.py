@@ -248,10 +248,10 @@ def render_reports(directory, raw, verification):
               "uncertainty": "exact finite census; no sampling interval", "points": points}
     write_json(directory/"graph-source.json", source)
     drawing = Drawing(520, 220)
-    drawing.add(String(8, 204, f"{directory.name}: recorded overlap counts; n=8 per panel/prime", fontSize=9))
+    drawing.add(String(8, 204, f"{directory.name}: recorded overlap counts; actual n shown", fontSize=9))
     svg = ['<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 520 220">',
            '<rect width="520" height="220" fill="white"/>',
-           f'<text x="8" y="16" font-size="9">{escape(directory.name)}: recorded overlap counts; n=8/panel/prime</text>']
+           f'<text x="8" y="16" font-size="9">{escape(directory.name)}: recorded overlap counts; actual n shown</text>']
     colors = {"primary": "#2456a6", "companion": "#bd5125"}
     for i, point in enumerate(points):
         x, height = 28+(i % 8)*60+(16 if point["panel"] == "companion" else 0), point["shared_count"]*16
@@ -259,9 +259,10 @@ def render_reports(directory, raw, verification):
         from reportlab.lib.colors import HexColor
         drawing.add(Line(x, 40, x, 40+height, strokeColor=HexColor(color), strokeWidth=10))
         drawing.add(String(x-4, 25, str(point["p"]), fontSize=7))
+        drawing.add(String(x-7, 16, f"n={point['n']}", fontSize=6))
         drawing.add(String(x-4, 46+height, str(point["shared_count"]), fontSize=7))
         svg.append(f'<line x1="{x}" y1="180" x2="{x}" y2="{180-height}" stroke="{color}" stroke-width="10"/>')
-        svg.append(f'<text x="{x-4}" y="195" font-size="7">{point["p"]}</text><text x="{x-4}" y="{174-height}" font-size="7">{point["shared_count"]}</text>')
+        svg.append(f'<text x="{x-4}" y="195" font-size="7">{point["p"]}</text><text x="{x-7}" y="204" font-size="6">n={point["n"]}</text><text x="{x-4}" y="{174-height}" font-size="7">{point["shared_count"]}</text>')
     drawing.add(String(8, 8, "p on x axis; overlap count 0..8; blue=primary, orange=companion", fontSize=8))
     svg.append('<text x="8" y="212" font-size="8">p; overlap count 0..8; blue=primary, orange=companion; exact census</text></svg>')
     (directory/"graph.svg").write_text("\n".join(svg)+"\n")

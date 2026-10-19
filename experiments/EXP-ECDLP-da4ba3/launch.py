@@ -12,6 +12,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from hashlib import sha256
 from itertools import combinations
+from importlib.metadata import version
 import json
 import os
 from pathlib import Path
@@ -240,6 +241,9 @@ def native_context(directory):
         for path, expected in plan[kind].items():
             if digest(ROOT/path) != expected:
                 raise ValueError(f"changed {kind}: {path}")
+    for distribution, expected in plan["dependency_versions"].items():
+        if version(distribution) != expected:
+            raise ValueError(f"dependency version mismatch: {distribution}")
     trial = next(t for t in plan["trials"] if t["id"] == launch["trial_id"])
     if directory.resolve() != (ROOT/f"experiments/{EXP}/runs/{trial['run_id']}").resolve():
         raise ValueError("native run-directory mismatch")
