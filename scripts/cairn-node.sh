@@ -59,7 +59,9 @@ mkdir -p "$home" && chmod 700 "$home"
 
 healthy() { curl -fsS --noproxy '*' --max-time 3 "http://$http/health" >/dev/null 2>&1; }
 
-has_reader() { command -v cairn >/dev/null && cairn --version 2>/dev/null | grep -q 'embedded'; }
+# `cairn --version` says "ui       embedded" or "ui       not embedded"; match
+# the first only, or a binary that cannot `run` passes.
+has_reader() { command -v cairn >/dev/null && cairn --version 2>/dev/null | grep -Eq '^ *ui +embedded'; }
 
 running() {
   [ -s "$supervisor_pid" ] && kill -0 "$(cat "$supervisor_pid")" 2>/dev/null
