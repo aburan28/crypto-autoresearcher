@@ -30,8 +30,10 @@ record. A RELEASE ends a claim early and records the outcome
 (`completed | failed | abandoned`). `tools/research_dispatch.py --claims`
 overlays these on the queue: a live claim reads as `running` (scope held,
 counts toward `max_concurrent`), a completed release of a producer reads as
-`completed` for its successors' readiness, and everything else leaves the
-queue exactly as written. The queue's own `state` field stays the Coordinator's
+`completed` for its successors' readiness. A failed scientific run release
+binding a declared execution receipt blocks re-dispatch until the Coordinator
+reconciles its fixed run ID; artifact-free failures remain retryable. The
+queue's own `state` field stays the Coordinator's
 record of what actually happened, written once at archive time -- claims are
 how sessions avoid stepping on each other BEFORE that record exists.
 
@@ -295,6 +297,35 @@ def classify(history: list[dict[str, Any]], now: _dt.datetime) -> dict[str, Any]
     }
 
 
+def failed_run_has_bound_execution_receipt(task: dict[str, Any], claim: dict[str, Any]) -> bool:
+    """A failed fixed-ID scientific run with a sealed receipt needs reconciliation.
+
+    An artifact-free failed attempt remains retryable. A release binding its
+    declared execution receipt must not be reclaimed at another epoch, even
+    with ``force``: doing so would reuse the frozen run ID and its raw path.
+    """
+    release = claim.get("release") or {}
+    if not isinstance(release, dict):
+        return False
+    if claim.get("status") != "released" or release.get("outcome") != "failed":
+        return False
+    handoff = task.get("handoff")
+    execution = handoff.get("execution") if isinstance(handoff, dict) else None
+    if not isinstance(execution, dict) or execution.get("kind") != "run":
+        return False
+    hashes = release.get("artifact_sha256") or {}
+    if not isinstance(hashes, dict):
+        return False
+    artifact_paths = task.get("artifact_paths")
+    if not isinstance(artifact_paths, list):
+        return False
+    return any(
+        path.endswith("/execution-receipt.json") and path in hashes
+        for path in artifact_paths
+        if isinstance(path, str)
+    )
+
+
 def claim_task(
     root: Path,
     queue_path: Path,
@@ -327,6 +358,11 @@ def claim_task(
     now = now or utcnow()
     history = load_claims(root, queue_path, include_refs=include_refs).get(task_id, [])
     current = classify(history, now)
+    if current and failed_run_has_bound_execution_receipt(tasks[task_id], current):
+        raise LaneError(
+            f"{task_id} has a failed release binding its execution receipt; "
+            "reconcile the fixed run ID and use a fresh task before another scientific run"
+        )
     if current and current["status"] == "live" and not force:
         raise LaneError(
             f"{task_id} is held by {current['owner']} (epoch {current['epoch']}, "

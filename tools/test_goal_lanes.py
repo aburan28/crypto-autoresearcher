@@ -255,6 +255,56 @@ class ClaimTests(unittest.TestCase):
             lanes.claim_task(a, Repo.queue(a), "TASK-20260825-ffffff", owner="coord-a", ttl_minutes=5, now=T0)
 
 
+class FailedRunReceiptGuardTests(unittest.TestCase):
+    """A failed fixed-ID run with a sealed receipt must not be offered again."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue_path = Repo.queue(self.root)
+        self.document = json.loads(self.queue_path.read_text())
+        self.receipt_path = f"{BATCH_DIR}/tasks/{PRODUCER}/execution-receipt.json"
+        task = self.document["tasks"][0]
+        task["handoff"]["execution"] = {"kind": "run"}
+        task["artifact_paths"].append(self.receipt_path)
+        self.document["tasks"][2]["read_scope"].append(self.receipt_path)
+        self.queue_path.write_text(json.dumps(self.document))
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _failed_release(self, hashes: dict[str, str]) -> dict:
+        lanes.claim_task(self.root, self.queue_path, PRODUCER,
+                         owner="coord-a", ttl_minutes=30, now=T0)
+        lanes.release_task(self.root, self.queue_path, PRODUCER,
+                           owner="coord-a", outcome="failed",
+                           artifact_sha256=hashes, now=T0 + dt.timedelta(minutes=1))
+        return lanes.claim_summary(self.root, self.queue_path,
+                                   include_refs=False, now=T0 + dt.timedelta(minutes=2))
+
+    def test_bound_execution_receipt_blocks_selector_and_reclaim(self) -> None:
+        claims = self._failed_release({self.receipt_path: "a" * 64})
+        plan = dispatch.select(self.document, claims=claims)
+        self.assertNotIn(PRODUCER, [item["id"] for item in plan["dispatches"]])
+        deferred = next(item for item in plan["deferred"] if item["id"] == PRODUCER)
+        self.assertIn("failed_run_execution_receipt_requires_reconciliation",
+                      deferred["reason"])
+        with self.assertRaisesRegex(lanes.LaneError, "fresh task"):
+            lanes.claim_task(self.root, self.queue_path, PRODUCER,
+                             owner="coord-b", ttl_minutes=30,
+                             now=T0 + dt.timedelta(minutes=2), force=True)
+
+    def test_artifact_free_failed_run_remains_retryable(self) -> None:
+        claims = self._failed_release({})
+        plan = dispatch.select(self.document, claims=claims)
+        self.assertIn(PRODUCER, [item["id"] for item in plan["dispatches"]])
+        path = lanes.claim_task(self.root, self.queue_path, PRODUCER,
+                                owner="coord-b", ttl_minutes=30,
+                                now=T0 + dt.timedelta(minutes=2))
+        self.assertTrue(path.name.endswith(".2.claim.json"))
+
+
 class OverlayTests(unittest.TestCase):
     """The dispatcher reads claims as holds/completions without touching the queue."""
 

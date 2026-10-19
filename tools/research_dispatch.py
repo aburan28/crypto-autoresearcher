@@ -1152,7 +1152,9 @@ def apply_claims(
                                           that binding lives in the queue's own
                                           archive block, written by the
                                           Coordinator at archive time
-      release failed|abandoned         -> left `queued`, scope free, reported
+      failed run release with a bound execution receipt -> blocked pending
+                                          fresh-ID Coordinator reconciliation
+      other failed|abandoned release   -> left `queued`, scope free, reported
       any claim on a non-queued task   -> ignored; the queue already records
                                           more than the claim does
 
@@ -1218,6 +1220,14 @@ def apply_claims(
             entry["applied"] = "running_with_lease"
         elif status == "released" and entry["outcome"] == "completed":
             entry["applied"] = "ignored:archive_completion_requires_queue_record"
+        elif status == "released" and entry["outcome"] == "failed":
+            import goal_lanes  # sibling; the claim path uses the same guard
+
+            if goal_lanes.failed_run_has_bound_execution_receipt(task, claim):
+                task["state"] = "blocked"
+                entry["applied"] = "blocked:failed_run_execution_receipt"
+            else:
+                entry["applied"] = "queued_scope_free"
         else:
             entry["applied"] = "queued_scope_free"
     return overlaid, report
@@ -1336,7 +1346,10 @@ def select(
             if task_blockers:
                 _defer(deferred, task["id"], task_blockers)
         elif task["state"] == "blocked":
-            _defer(deferred, task["id"], ["task_marked_blocked"])
+            reason = ("failed_run_execution_receipt_requires_reconciliation"
+                      if claim_report.get(task["id"], {}).get("applied") ==
+                      "blocked:failed_run_execution_receipt" else "task_marked_blocked")
+            _defer(deferred, task["id"], [reason])
 
     dispatches = [
         {
