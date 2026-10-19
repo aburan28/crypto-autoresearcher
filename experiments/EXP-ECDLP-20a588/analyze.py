@@ -75,6 +75,34 @@ crit = {"msolve A_elim vs B": criteria("A_elim_ms", "B_ms"),
         "elim_equals_B": {f"L{L}": f"{sum(v)}/{len(v)}" for L, v in sorted(elim_eq.items())}}
 json.dump(crit, open(os.path.join(out, "criteria.json"), "w"), indent=1)
 
+
+# ---- supplementary (not a frozen criterion): paired per-instance ratios with a bootstrap interval.
+# The chain and dense arms run on the SAME instance, so the ratio chain/dense is paired; with n = 4..6 per cell the
+# interval is wide and is reported as such. Deterministic seed; 4000 resamples of the paired ratios; percentile 95%.
+import random
+def paired(a, b):
+    by_inst = defaultdict(dict)
+    for r in rows:
+        for arm in (a, b):
+            v = r["results"].get(arm, {})
+            if v.get("status") == "ok":
+                by_inst[(r["L"], r["inst"])][arm] = v["wall_s"]
+    res = defaultdict(list)
+    for (L, inst), d in by_inst.items():
+        if a in d and b in d and d[b] > 0:
+            res[L].append(d[a] / d[b])
+    out_ = {}
+    for L, xs in sorted(res.items()):
+        rng = random.Random(f"{a}-{b}-{L}")
+        meds = sorted(statistics.median(rng.choices(xs, k=len(xs))) for _ in range(4000))
+        out_[f"L{L}"] = dict(n=len(xs), median_ratio=round(statistics.median(xs), 3),
+                             ci95=[round(meds[int(0.025 * len(meds))], 3), round(meds[int(0.975 * len(meds)) - 1], 3)])
+    return out_
+crit["paired_ratio_ms_A_elim_over_B"] = paired("A_elim_ms", "B_ms")
+crit["paired_ratio_sg_A_block_over_B"] = paired("A_block_sg", "B_sg")
+crit["paired_ratio_ms_A_drl_over_A_elim"] = paired("A_drl_ms", "A_elim_ms")
+json.dump(crit, open(os.path.join(out, "criteria.json"), "w"), indent=2)
+
 style = {"A_elim_ms": ("#c0392b", "-", "o", "A chain, block order [msolve -e]"),
          "A_drl_ms": ("#e6a19a", "--", "o", "A chain, plain DRL [msolve]"),
          "B_ms": ("#2471a3", "-", "s", "B dense same set [msolve]"),
