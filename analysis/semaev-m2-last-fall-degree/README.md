@@ -5,6 +5,11 @@ computer-verified results on named instances. It promotes no ledger record and
 closes no open problem; those are Coordinator decisions. Nothing here is a
 cost claim about any ECDLP attack.
 
+**Certificate interpretation correction (2026-10-19):** the certificate checker
+proves dimension bounds; exact closure dimensions remain producer reports.
+Read the [additive correction](results/verification-correction-20261019.md)
+with the original verification record and dimension claims below.
+
 The main object is the Weil descent of Semaev's $S_3(x_1,x_2,z)=0$ with
 $x_1,x_2$ in an $\mathbb F_2$-subspace $V\subset\mathbb F_{2^n}$ of dimension
 $k=\lceil n/2\rceil$, together with field equations. This is Semaev's system
