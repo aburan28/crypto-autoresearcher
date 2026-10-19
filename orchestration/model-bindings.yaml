@@ -31,6 +31,54 @@ defaults:
   # recorded as `fallback_used: true` with the reason.
   backend_fallback_order: [anthropic, zai, openrouter, openai, local]
 
+# Which tier each bound model belongs to (model-policies.yaml `model_tiers`).
+# A policy's `requires.model_tier` is a floor: a model at or above it may
+# serve, one below it is a shortfall the resolver refuses like any other, and
+# an unclassified model meets no floor. Like `capabilities`, these are
+# operator assertions about vendor models, kept here because this is the only
+# file that names them. Tier tracks capability class, not price or version:
+#
+#   frontier    Mythos, Fable 5.1, GPT-6 Sol
+#   core        Opus 5.5, GPT-5.6 Sol and Terra, GLM 5.2/5.3, Qwen 3.8 2.4T
+#   director    Sonnet 5.5
+#   mechanical  Haiku 5.5, GPT-5.6 Luna, Qwen 3.8 27B
+#
+# Classifying a model higher than it is to make a policy resolve is an
+# evidence-integrity failure, exactly like overstating a capability.
+model_tiers:
+  claude-mythos-5: frontier
+  claude-fable-5-1: frontier
+  gpt-6-sol: frontier
+  gpt-6.1-sol: frontier
+  claude-opus-5-5: core
+  gpt-5.6-sol: core
+  gpt-5.6-terra: core
+  glm-5.2: core
+  glm-5.3: core
+  accounts/fireworks/models/glm-5p3: core
+  accounts/fireworks/models/qwen3p8-2p4t-a95b: core
+  claude-sonnet-5-5: director
+  claude-haiku-5-5: mechanical
+  gpt-5.6-luna: mechanical
+  qwen3.8-27b: mechanical
+  abliterated-model-large-v2: core
+  abliterated-model: director
+
+# Backends where one operator-chosen model serves every policy, so the tier
+# floor cannot be met by construction. On these the tier is RECORDED on every
+# resolution (`model_tier`, `below_model_tier`) but not enforced; every other
+# requirement still is. Adding a backend here is a reviewed decision with its
+# reason, never a way to make a refused binding resolve.
+tier_exempt_backends:
+  local: >-
+    A single local model on the operator's own hardware; it is the whole
+    point of the backend that one model serves every role.
+  abliteration: >-
+    Operator-run research models with no tier ladder; every resolution
+    records the tier gap.
+  abliteration-anthropic: >-
+    Same models as `abliteration`, Anthropic wire format.
+
 bindings:
 
   # -------------------------------------------------------------------------
@@ -172,6 +220,26 @@ bindings:
           # tier is low effort rather than no thinking.
           mode: anthropic_adaptive
 
+    # Periodic screening of runbook sessions (audit-runs). Sonnet 5.5 at
+    # `high`: the deterministic audit does the counting, and what remains is
+    # careful reading on every session, where Opus pricing would make the
+    # sweep too expensive to run as often as it is useful. Anything flagged
+    # escalates to review-adversarial on Opus; a sweep is never a validation.
+    audit-sweep:
+      model: claude-sonnet-5-5
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_adaptive
+
     # Claude Fable 5.1, the Mythos-tier model, on the one decision class the
     # program cannot recover from (claimed break, closure, contradiction).
     # Rare by construction, so the per-token premium is bounded, and it puts
@@ -231,6 +299,23 @@ bindings:
           # max); override with `effort_map:` only for a model that lacks a
           # tier. Thinking cannot be disabled on these models, so the `low`
           # tier is low effort rather than no thinking.
+          mode: anthropic_adaptive
+
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: claude-sonnet-5-5
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
           mode: anthropic_adaptive
 
     # Fully specified, deterministic work: the smallest Claude 5 model at
@@ -375,6 +460,23 @@ bindings:
         temperature: 0.0
         reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.0
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+
     executor-mechanical:
       model: glm-5.2
       provenance: operator-supplied
@@ -409,6 +511,7 @@ bindings:
       request:
         max_tokens: 32000
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # Explicit Coordinator selections. Each backend alias points to the same
   # provider as its unsuffixed backend but pins a different model. They are
@@ -417,11 +520,10 @@ bindings:
   # Identifiers and capability ceilings are operator assertions until probed.
   anthropic-fable:
     research-deep: {model: null, provenance: unbound}
-    research-synthesis: {model: null, provenance: unbound}
     review-adversarial: {model: null, provenance: unbound}
-    review-breakthrough: {model: null, provenance: unbound}
     consolidation-routing: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     coordinator-orchestration-code: &anthropic_fable_coordinator
       model: claude-fable-5-1
@@ -438,14 +540,19 @@ bindings:
         reasoning: {mode: anthropic_adaptive}
 
     coordinator-orchestration: *anthropic_fable_coordinator
+    # Frontier tier on this backend too: selecting it routes the decisions
+    # the program cannot recover from, and cross-goal synthesis, to the same
+    # frontier model as coordination.
+    review-breakthrough: *anthropic_fable_coordinator
+    research-synthesis: *anthropic_fable_coordinator
+    audit-sweep: {model: null, provenance: unbound}
 
   anthropic-mythos:
     research-deep: {model: null, provenance: unbound}
-    research-synthesis: {model: null, provenance: unbound}
     review-adversarial: {model: null, provenance: unbound}
-    review-breakthrough: {model: null, provenance: unbound}
     consolidation-routing: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     coordinator-orchestration-code: &anthropic_mythos_coordinator
       model: claude-mythos-5
@@ -462,6 +569,12 @@ bindings:
         reasoning: {mode: anthropic_adaptive}
 
     coordinator-orchestration: *anthropic_mythos_coordinator
+    # Frontier tier on this backend too: selecting it routes the decisions
+    # the program cannot recover from, and cross-goal synthesis, to the same
+    # frontier model as coordination.
+    review-breakthrough: *anthropic_mythos_coordinator
+    research-synthesis: *anthropic_mythos_coordinator
+    audit-sweep: {model: null, provenance: unbound}
 
   zai-glm53:
     research-deep: {model: null, provenance: unbound}
@@ -470,6 +583,7 @@ bindings:
     review-breakthrough: {model: null, provenance: unbound}
     consolidation-routing: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     coordinator-orchestration-code: &zai_glm53_coordinator
       model: glm-5.3
@@ -487,6 +601,7 @@ bindings:
         reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
 
     coordinator-orchestration: *zai_glm53_coordinator
+    audit-sweep: {model: null, provenance: unbound}
 
   openai-gpt6:
     research-deep: {model: null, provenance: unbound}
@@ -495,6 +610,7 @@ bindings:
     review-breakthrough: {model: null, provenance: unbound}
     consolidation-routing: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     coordinator-orchestration-code: &openai_gpt6_coordinator
       model: gpt-6-sol
@@ -511,6 +627,7 @@ bindings:
         reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
 
     coordinator-orchestration: *openai_gpt6_coordinator
+    audit-sweep: {model: null, provenance: unbound}
 
   openai-gpt61:
     research-deep: {model: null, provenance: unbound}
@@ -519,6 +636,7 @@ bindings:
     review-breakthrough: {model: null, provenance: unbound}
     consolidation-routing: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     coordinator-orchestration-code: &openai_gpt61_coordinator
       model: gpt-6.1-sol
@@ -535,6 +653,7 @@ bindings:
         reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
 
     coordinator-orchestration: *openai_gpt61_coordinator
+    audit-sweep: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Same models, Anthropic wire format — this is what an Anthropic-protocol CLI
@@ -624,6 +743,21 @@ bindings:
       request:
         max_tokens: 24000
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
     executor-mechanical:
       model: glm-5.2
       provenance: operator-supplied
@@ -651,6 +785,7 @@ bindings:
       request:
         max_tokens: 32000
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Declared but unbound. The program refuses to guess an identifier: fill
@@ -777,6 +912,17 @@ bindings:
       request:
         max_tokens: 32000
         reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
+
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
     executor-mechanical:
       model: accounts/fireworks/models/qwen3p8-2p4t-a95b
       provenance: operator-supplied
@@ -791,6 +937,7 @@ bindings:
         max_tokens: 16000
         temperature: 0.0
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # Same models over the Anthropic wire. `review-breakthrough` has a `max`
   # floor, so it will refuse here unless a binding genuinely declares that
@@ -806,8 +953,10 @@ bindings:
     review-adversarial: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   openai:
     coordinator-orchestration-code:
@@ -875,6 +1024,17 @@ bindings:
         max_tokens: 32000
         reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: gpt-5.6-terra
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
+
     executor-mechanical:
       model: gpt-5.6-luna
       provenance: operator-supplied
@@ -902,6 +1062,7 @@ bindings:
         max_tokens: 128000
         reasoning: {mode: openai_effort, effort_map: {xhigh: xhigh}}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   openrouter:
     coordinator-orchestration-code: {model: null, provenance: unbound}
@@ -912,9 +1073,11 @@ bindings:
     consolidation-routing: {model: null, provenance: unbound}
     review-adversarial: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
+    director-runbook: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # Self-hosted Qwen3.8-27B-FP8 on vLLM, reached through the lazy-launch proxy
   # (LOCAL_LLM_BASE_URL=http://127.0.0.1:8787/v1 -> ALB -> g6e GPU box). Set
@@ -1014,6 +1177,22 @@ bindings:
         max_tokens: 24000
         temperature: 0.2
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+
     executor-mechanical:
       model: qwen3.8-27b
       provenance: operator-supplied
@@ -1030,6 +1209,7 @@ bindings:
 
     review-breakthrough: {model: null, provenance: unbound}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # Abliteration.ai. Identifiers and capability numbers are the vendor's
   # published model page (retrieved 2026-10-01): three ids, tool use,
@@ -1134,6 +1314,19 @@ bindings:
           mode: openai_effort
           effort_map: {low: low, medium: medium, high: high, xhigh: xhigh, max: max}
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: abliterated-model
+      provenance: operator-supplied
+      last_probed: '2026-10-01'
+      capabilities: *abliteration_base
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: openai_effort
+          effort_map: {low: low, medium: medium, high: high, xhigh: xhigh, max: max}
+
     executor-mechanical:
       model: abliterated-model
       provenance: operator-supplied
@@ -1145,6 +1338,7 @@ bindings:
           mode: openai_effort
           effort_map: {low: low, medium: medium}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}
 
   # Same models, Anthropic Messages wire. Effort is `output_config.effort`.
   abliteration-anthropic:
@@ -1225,6 +1419,19 @@ bindings:
           mode: output_effort
           effort_map: {low: low, medium: medium, high: high, xhigh: xhigh, max: max}
 
+    # Experiment director (docs/model-tiers.md): same model as the
+    # implementation executor on this backend.
+    director-runbook:
+      model: abliterated-model
+      provenance: operator-supplied
+      last_probed: '2026-10-01'
+      capabilities: *abliteration_base
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: output_effort
+          effort_map: {low: low, medium: medium, high: high, xhigh: xhigh, max: max}
+
     executor-mechanical:
       model: abliterated-model
       provenance: operator-supplied
@@ -1236,3 +1443,4 @@ bindings:
           mode: output_effort
           effort_map: {low: low, medium: medium}
     research-synthesis: {model: null, provenance: unbound}
+    audit-sweep: {model: null, provenance: unbound}

@@ -272,3 +272,32 @@ python -m harness.endosweep.fourq
 python -m harness.endosweep.genus2 --bits 9
 python -m harness.endosweep.toyverify --bits 26 --out research/endosweep_20261005/toyverify_26bit.json
 ```
+
+## Lean verification
+
+Added 2026-10-16. Lean checks the arithmetic of the recorded eigenvalues,
+not the isogeny walks. The checks are in
+[`formal/CryptoResearch/Endosweep/ChainEigen.lean`](../../formal/CryptoResearch/Endosweep/ChainEigen.lean)
+(checked by `decide`).
+
+* `cp6_782_chain_certificate` covers CP6-782 `G1` (`D = −339`,
+  `ω² = ω − 85`). The data are the 18 eigenvalues recorded in
+  `research/endosweep_curves_20261006/curves.json`. The derivation:
+  * set `λ = e(4 + ω) − 4`;
+  * then `λ² − λ + 85 ≡ 0 (mod r)`;
+  * every recorded eigenvalue is `±(a + bλ) mod r`;
+  * every recorded norm is `N(a + bω)` and the product of the steps, for
+    example `N(4 + ω) = 105 = 3·5·7` and `N(9 + ω) = 175 = 5·5·7`;
+  * with `λ′ = 1 − λ`, `e(4 + ω) = 5 − λ′` and `e(9 + ω) = λ′ − 10`. These
+    are the forms quoted in [`cp6_782/README.md`](cp6_782/README.md).
+* `cryptopro_b_chain_certificate` also checks the two exported CryptoPro-B
+  chains, both against `λ′ = 1 − λ_ω` with `λ_ω` the chain sweep's
+  `omega_root`:
+  * `cryptopro_b_chain_5_5_7` (matched `−5 + ω`) has eigenvalue `−5 + λ′`,
+    which is the chain sweep's `−(4 + λ_ω)`;
+  * `cryptopro_b_chain_5_31` (matched `−ω`) has eigenvalue `−λ′ = λ_ω − 1`.
+
+Not Lean claims: the walks themselves, their action on points, primality of
+`n` or `r`, and every cost and timing.
+
+Target spec: `formal/targets/endosweep-chain-cp6-782-certificate.yaml`.

@@ -302,3 +302,45 @@ a GLV-2 with each curve's cheapest chain.
   * Tom-256 from J08nY/std-curves `other/curves.json` at commit
     `77fe6e3585ca2c2225b59d7df24b7c775437276f`, copied into `xonly.py`.
   * All three are verified by `targets.verify` before use.
+
+## Lean verification
+
+Added 2026-10-16. The algebra behind the mechanism and behind Finding 7 is
+machine-checked in
+[`formal/CryptoResearch/Endosweep/XOnlyConjugate.lean`](../../formal/CryptoResearch/Endosweep/XOnlyConjugate.lean)
+(core Lean, no Mathlib; namespace `CryptoResearch.Endosweep.XOnlyConjugate`).
+The exact statements:
+
+1. **The trick** (`xonly_difference_eq_conj`). Let `G` be any `ℤ`-module, let
+   `β, β̄ : G → G` satisfy `βP + β̄P = P` (that is, `β + β̄ = 1` evaluated at
+   `P`), and let `x : G → X` be any map with `x(−Q) = x(Q)` for all `Q`. Then
+   `x(βP − P) = x(β̄P)`. The trace `−1` variant (`xonly_sum_eq_conj`): if
+   `βP + β̄P = −P` then `x(βP + P) = x(β̄P)`. The ring form is
+   `sub_one_eq_neg_conj`: `β + β̄ = 1 → β − 1 = −β̄` in any commutative ring.
+2. **The eigenvalue of `ω̄`** (`conj_eigenvalue`). If `ω̄P = P − ωP` and
+   `ωP = [λ]P`, then `ω̄P = [1 − λ]P`. Also `conj_root_of_trace_one`
+   (`ω² = ω + m → (1 − ω)² = (1 − ω) + m`) and `eigen_conj_mod`
+   (`n ∣ λ² − λ − m → n ∣ (1−λ)² − (1−λ) − m`).
+3. **Odd trace is needed** (`QuadOrder.trace_one_exists_iff_D_odd`). In the
+   order of discriminant `D`, written as `a + b·w` with `w = (D + √D)/2`,
+   `β + β̄` is the integer `2a + bD` (`QuadOrder.add_conj`), and an element of
+   trace 1 exists iff `D` is odd. For even `D` (so for `D ≡ 0 mod 4`) every
+   trace is even and no element has `β + β̄ = ±1`
+   (`QuadOrder.no_trace_pm_one_of_D_even`). `β − β̄ = 1` has no solution for
+   any `D` (`QuadOrder.sub_conj_ne_one`).
+   Lean proves only this order-theoretic part. The step before it, that
+   `x((β − 1)P) = x(β̄P)` on generic `P` *requires* `β + β̄ = 1`, uses curve
+   facts that are not formalised: `x(P′) = x(P″)` forces `P′ = ±P″`, and an
+   identity of endomorphisms on points lifts to the ring identity
+   `β − 1 = ±β̄` in `End(E)` (`End(E)` acts faithfully). The necessity is
+   therefore an informal argument whose algebraic consequence is checked
+   (clarified 2026-10-16 after the Lean review, R2).
+4. **The quoted norms** (`QuadOrder.omega_norms`, by `decide`). `ω = (1 + √D)/2`
+   has trace 1 and norm 155, 85 and 1039 for `D = −619, −339, −4155`. On
+   Tom-256, `−5 + 11ω` has trace 1 and norm 125 689.
+
+Not Lean claims: that the x-only maps realise `ω` and `ω̄` on the curves, the
+operation counts, `R`, the survey, and novelty. These are measured or
+literature statements. The `x(−P) = x(P)` property of Weierstrass x-coordinates
+enters as a hypothesis on an abstract `x`. Target specs:
+`formal/targets/endosweep-xonly-*.yaml`.

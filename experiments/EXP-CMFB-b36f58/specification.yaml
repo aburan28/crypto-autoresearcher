@@ -1,0 +1,659 @@
+# EXP-CMFB-b36f58
+# Orbit-arc factor base under the degree-5 CM endomorphism of D = -19 family
+# crater curves: eigenvalue and cycle structure, relations needed (rank),
+# meet-in-the-middle search cost against the BSGS model, coverage heuristic
+# HEUR-001 against a random-set control, and a cycle-class leak null. Toy
+# sizes 2^18 < p <= 2^29, plus primitive checks on the 53-bit pair 46.
+#
+# STATUS: review_required, NOT frozen, NOT approved. The scientific contract
+# is complete; the launcher (driver, checker, trial plan) does not exist and
+# this design session had no shell to implement, test or bind it. See the
+# launcher block at the end for the exact missing pieces.
+#
+# ID minting note: the token was drawn at random without tools/allocate_id.py
+# (no shell) and checked for collisions by a repository-wide search for
+# '[A-Z]-b36f58' (no match). Run `python3 tools/allocate_id.py --check
+# EXP-CMFB-b36f58` before the snapshot archive.
+experiment:
+  id: EXP-CMFB-b36f58
+  hypothesis_id: H-CMFB-7d4e1a
+  source_idea: IDEA-20261015-29fdc8
+  question_id: RQ-CMFB-33610e
+  version: 1
+  title: >-
+    Orbit-arc factor base under the degree-5 CM endomorphism: rank 1, cost in
+    the MITM search, BSGS-equivalence, HEUR-001 coverage and cycle-class leak
+    null, at toy sizes with pair-46 primitive checks
+  status: review_required
+  frozen: false
+  designed_at: '2026-10-16'
+  approved_by: null
+  approval_decision_id: null
+  execution_authorized: false
+  planned_records:
+    run_ids: >-
+      minted at freeze with python3 tools/allocate_id.py --next run --area
+      CMFB, one per trial t1 to t7
+    goal_note: >-
+      goal_id omitted on purpose: RQ-CMFB-33610e carries no goal (same as
+      EXP-CMFB-cea1d2).
+  priority_note: >-
+    The idea is recommended_priority low and claims no result; the expected
+    reading is negative and constant-only. The contract is designed because
+    the workflow asked for every open idea; it is cheap (under 2 hours on 4
+    cores) and closes one RQ-CMFB-33610e channel with a priced cost split.
+    It is not exponent-targeting work and should not displace such work in
+    the dispatch queue.
+  objective: >-
+    For admitted family crater curves in cells C20, C24, C28 and for pair 46,
+    measure: (M1) the eigenvalue of the rational-kernel degree-5
+    endomorphism R and the full R-cycle structure on x(G \ {O}); (M2) the
+    number of relations needed to determine k for the unknown-log arc, the
+    known-log arc and a matched random base; (M3) the meet-in-the-middle
+    search operations per relation divided by the HEUR-002 prediction
+    N/(2L+1), for the CM arc, the known-log arc and a fake-endomorphism arc,
+    at L = c sqrt(N), c in {0.5, 1, 2}; (M4) the exact coverage of the arc
+    sum set against a matched random-set control (HEUR-001); (M5) the mutual
+    information of the cycle class with cheap invariants of x (HEUR-003);
+    (M6) the measured field-multiplication count of one R evaluation against
+    one lift_x at pair 46, and a modeled concrete-cost table against rho.
+    Report the mechanical classification of decision_rule.
+
+  # ---------------------------------------------------------------------------
+  # INPUTS
+  # ---------------------------------------------------------------------------
+  inputs:
+    family: >-
+      t odd, v = t + 2, p = 5t^2 + 19t + 19 = 5v^2 - v + 1,
+      N = 5t^2 + 18t + 20 = 5v^2 - 2v + 4, both prime (deterministic
+      Miller-Rabin). Frobenius pi = v w - 1, w = (1 + sqrt(-19))/2,
+      w^2 - w + 5 = 0, trace t = v - 2, twist order 5 v^2.
+    curve_and_twist: >-
+      E_0: y^2 = x^3 - 152 x + 722 (j = -96^3), with the chart and twist
+      selection rule of EXP-CMFB-cea1d2 inputs.arms.FAM.chart_and_twist_selection
+      (A = -152 d^2, B = 722 d^3, first d giving order N), reused verbatim.
+      The implementation may import or copy
+      experiments/EXP-CMFB-cea1d2/implementation/curves.py (fam_sieve,
+      select_twist, verify_instance, ec_add, ec_mul); a copy is bound by
+      sha256 in the trial plan.
+    pair46: >-
+      p = 5947698030651343, N = 5947697996161643, t = 34489701,
+      v = 34489703, crater curve y^2 = x^3 + 5757116383569871 x +
+      3560173328417442 (RQ-CMFB-33610e scope). Used only in trial t6 for
+      primitive checks.
+    cells: >-
+      C20 = (2^18, 2^22], C24 = (2^22, 2^25], C28 = (2^25, 2^29], bands in
+      p. Exact sieve over odd t with p <= 2^29 (t <= 10362). EXP-CMFB-cea1d2's
+      pre-freeze sieve found 10 members in C20 and 13 in C24; the C28 count
+      is a Bateman-Horn estimate of about 40 to 50 (HEUR-004, unverified).
+    admission: >-
+      A member is admitted iff (i) the instance verification of
+      EXP-CMFB-cea1d2 passes (order N on 3 points, Hasse, j, trace identity,
+      family formulas); (ii) lambda = 2 v^{-1} mod N satisfies
+      lambda^2 - lambda + 5 = 0 mod N; (iii) ell = ord(lambda) in
+      F_N^*/{+-1} satisfies ell >= 4 sqrt(N), so no arc with
+      L <= 2 sqrt(N) wraps; (iv) the same for 1 - lambda is recorded but not
+      required. ell is computed exactly from the factorization of N - 1.
+      Members are taken in a seeded random order (seed 8101) and the first 8
+      admitted per cell are used; rejected members and the reason are
+      recorded. If fewer than 8 are admitted, all admitted members are used
+      and the cell is flagged UNDERPOWERED (see statistics). The rule is a
+      function of N and lambda only, fixed before any measurement.
+    fake_endomorphism_ratio: >-
+      Per instance, a unit c in F_N drawn uniformly (seed 8104) and redrawn
+      until ord(c) in F_N^*/{+-1} >= 4 sqrt(N) and c not in {+-lambda,
+      +-(1 - lambda)}. The fake arc is {[c^a] P0}, generated by scalar
+      multiplication; its generation cost is excluded from every comparison.
+    arcs_and_lengths: >-
+      L = round(c sqrt(N)) for c in {0.5, 1, 2}. Arc points B_a = [mu^a] P0
+      for a < L, mu = the eigenvalue of R (the rational-kernel w map,
+      expected lambda). Generated by iterating the point map of R
+      (x-map and y-map), not by scalar multiplication; every 64th element is
+      checked against [mu^a] P0 computed by scalar multiplication.
+    base_points: >-
+      Known-log arm: P0 = P (the generator, the first point of the chart in
+      x-order, as in EXP-CMFB-cea1d2). Unknown-log and fake arms:
+      P0 = [x0] P with x0 uniform in [1, N-1] (seed 8102); x0 is written to
+      a sealed field read only by check.py and analyze.py, never by the
+      solver. The target logarithm k is uniform in [1, N-1] (seed 8102,
+      separate stream), Q = [k] P, sealed the same way.
+    targets: >-
+      T_i = [alpha_i] P + [beta_i] Q with alpha_i, beta_i uniform in [0, N-1]
+      and beta_i != 0 (seed 8103, stream per arm, instance and c).
+    matched_random_base: >-
+      C20 only, c = 1 only: L points [r_a] P with r_a uniform distinct in
+      [1, N-1] (seed 8105), r_a sealed. Relations collected until k is
+      determined (first cycle of the relation graph with nonzero
+      k-coefficient) or until 4 L relations (cap).
+    rng_streams: >-
+      numpy.random.Generator(PCG64(SeedSequence([seed, cell_code, arm_code,
+      member_index, c_code, stream]))) with cell_code in {20, 24, 28, 46},
+      arm_code CM = 1, KNOWN = 2, FAKE = 3, RANDOM_BASE = 4, PLANTED = 5,
+      H1 = 6, MI = 7, c_code in {5, 10, 20} (10 c), stream 0 = instance and
+      seals, 1 = targets, 2 = auxiliary. Results are independent of worker
+      count and scheduling (parallel.verify_determinism must pass before
+      freeze).
+
+  # ---------------------------------------------------------------------------
+  # DEFINITIONS AND EXACT ALGORITHMS
+  # ---------------------------------------------------------------------------
+  definitions:
+    endomorphism_construction: >-
+      Factor the 5-division polynomial of E over F_p; collect the degree-2
+      factors h(x) that are kernel polynomials of a 5-isogeny (Kohel /
+      Velu; harness/endosweep/explicit.py provides division polynomials,
+      kernel tests and KernelIsogeny) whose codomain has j = j(E); compose
+      with the isomorphism to E (for j != 0, 1728 the isomorphism is unique
+      up to sign). Label R_w the map whose kernel x-roots lie in F_p (twist
+      5-torsion, since pi = -1 on E[w]) and R_wbar the other. Verify each map
+      as an endomorphism: R(P) on E for 256 random P, R(P + P') = R(P) +
+      R(P') for 256 random pairs. Determine the eigenvalue mu of each map on
+      G by testing x(R(P)) = x([u] P) for u in {lambda, 1 - lambda, -lambda,
+      lambda - 1} on 1000 random points; if no candidate matches, compute
+      mu by BSGS (toy) and record CLAIM_A_DEFECT. Field multiplications of
+      one evaluation of the x-map and of the point map are counted by an
+      instrumented field class.
+    cycle_enumeration: >-
+      C20 and C24 instances only (N <= 2^25): evaluate the x-map R on every
+      x in X = x(G \ {O}) (vectorised, batched inversion), index X through a
+      p-sized int32 table, decompose the permutation into cycles, and record
+      every cycle length and the cycle id of every x. C28 and pair 46: no
+      enumeration; the cycle structure is computed from ell by group theory
+      and the identity is checked on random points (stated as derived, not
+      enumerated).
+    cycle_class_identity_check: >-
+      On enumerated instances, for 1000 random pairs (t, t'): x([t]P) and
+      x([t']P) lie in the same cycle iff (t / t')^((N-1)/s) = 1 mod N, where
+      s is the cycle count. Any mismatch is CLAIM_A_DEFECT.
+    mitm_search: >-
+      Table: dict from x(B_a) to (a, y(B_a)) for a < L; inserts counted.
+      For target T_i: for b = 0, 1, ..., L-1 and e2 in (+1, -1) in that
+      order: U = T_i - e2 B_b (one counted search operation); if U = O,
+      record the one-term relation T_i = e2 B_b; else if x(U) is in the
+      table, resolve e1 from y and record T_i = e1 B_a + e2 B_b. Stop the
+      target at the first relation; if none after 2L operations, draw the
+      next target. Every recorded relation is verified on the curve by
+      recomputing e1 B_a + e2 B_b. Counted per arm, instance and c: search
+      operations, table inserts, endomorphism (or scalar-multiplication)
+      evaluations, targets drawn, relations found.
+    relations_and_solve: >-
+      Each relation gives alpha_i + beta_i k = s_i x0 mod N with
+      s_i = e1 mu^a + e2 mu^b (s_i = e2 mu^b for a one-term relation).
+      Known-log arm (x0 = 1): k = (s_1 - alpha_1)/beta_1 from the first
+      relation. Unknown-log and fake arms: the first two relations with
+      det [[beta_1, -s_1], [beta_2, -s_2]] != 0 give (k, x0). Relations
+      needed = index of the relation at which k is first determined. k is
+      verified by [k] P = Q in the solver; check.py verifies k and x0
+      against the seals and verifies that EVERY collected relation satisfies
+      alpha_i + beta_i k = s_i x0 mod N (consistency with the one-unknown
+      model). Collection continues to 256 relations per arm, instance and c
+      for the cost measurement; the solve uses only the first relations.
+    random_base_solve: >-
+      Relations e1 y_a + e2 y_b = alpha_i + beta_i k (y_a unknown logs).
+      Maintain a union-find with potentials over F_N (y_a expressed as
+      +-y_root + affine function of k); the first relation joining two
+      vertices of one component (or a self-loop a = b with e1 = e2) yields
+      a linear equation in k; if its k-coefficient is nonzero, k is
+      determined. Relations needed = that index. Verified as above.
+    rho_metric: >-
+      rho = (search operations summed over the 256 relations / 256) /
+      (N / (2L + 1)) per arm, instance and c.
+    total_cost_metric: >-
+      kappa = (L + search operations up to and including the relation at
+      which k is determined) / sqrt(N) per arm, instance and c, with the
+      HEUR-002 prediction kappa_pred = (L + R_needed N/(2L+1)) / sqrt(N),
+      reported beside it (single-solve values are geometric-noisy; kappa
+      enters no decision).
+    coverage_h1: >-
+      Log domain, no curve. Sum set S_GP = {e1 lambda^a + e2 lambda^b mod N :
+      0 <= a <= b < L, e1, e2 = +-1} reduced to classes of F_N/{+-1}
+      (canonical representative min(s, N - s)), excluding 0. Random-set
+      control S_RS: the same construction with lambda^a replaced by L
+      uniformly random distinct classes (seed 8106; 4 draws per instance and
+      c, averaged). Fake GP control S_FK: ratio c (the fake unit). Planted
+      AP-block control S_AP: the GP with its first floor(0.3 L) elements
+      replaced by u * j (j = 1..floor(0.3 L), u a random unit, seed 8106);
+      its expected coverage is computed by the script from the Poisson law
+      with the AP-internal pairs counted exactly (about 9 percent of the
+      L^2 sums collapse into about 1.2 L classes: predicted coverage deficit
+      about 6.9 percent at c = 0.5 and 2.8 percent at c = 1). Coverage =
+      distinct classes / ((N - 1)/2). Collision statistic = sum over classes
+      of m (m - 1)/2 (additive-energy proxy, sensitive at every c). For C20
+      and C24: exact multiplicity histograms (chunked bincount over the
+      class index). For C28: coverage and collision statistic by a uint8
+      saturating count array of (N - 1)/2 bytes, c in {0.5, 1} only (c = 2
+      costs 2^31 sums per base and is dropped there; stated before any run).
+      Decision-bearing M4 combinations are c in {0.5, 1} in every cell: at
+      c = 2 coverage saturates (1 - exp(-8); d ln cov / d ln M about 0.003)
+      and c = 2 is reported with the collision statistic only.
+    class_leak_mi: >-
+      Toy: on enumerated instances with s >= 2, every x in X gets its cycle
+      id (s classes). Pair 46: 200000 random t (seed 8107), point [t] P,
+      class = t^((N-1)/7) mod N mapped to 0..6. Invariants of x: Legendre
+      (x/p), x mod 3, x mod 5, x mod 7, the top 8 bits and the bottom 8 bits
+      of x (6 invariants). Statistic: plug-in mutual information and the
+      G-test p-value (chi-square with (s-1)(K-1) degrees of freedom);
+      permutation null with 2000 permutations of the class labels (seed
+      8108). Toy instances: one test per invariant pooled over instances by
+      Fisher combination of per-instance G-test p-values.
+    pair46_collision_tail: >-
+      Pair 46: L = 8192; sort the L^2 = 2^26 canonical class values of S_GP
+      and count equal pairs beyond the forced ones; the same for 4 random-set
+      controls. Expected count under HEUR-001: M (M - 1) / 2 / ((N - 1)/2)
+      with M = 2^26, about 0.76. Tail check: flag if the GP count is at
+      least the Poisson(0.76) upper 1e-4 quantile (7). Transfer support only;
+      decides nothing alone.
+    arc_generation_cost: >-
+      Pair 46: field multiplications (counted) and wall-clock per element
+      for 100000 iterations of the x-map R (inversions batched by
+      Montgomery's trick, counted as 3 multiplications per element plus one
+      inversion per batch of 1024) and for 100000 lift_x calls (square root
+      by exponentiation); idea prediction about 12 against about 80.
+    concrete_cost_table: >-
+      Modeled (formula, not measured) at pair 46 and at N = 2^128 and
+      2^256 (names: pair46, curve-128-security-proxy, curve-256): rows
+      (a) unknown-log arc at its optimum L = sqrt(N), cost 2 sqrt(N) group
+      operations plus sqrt(N) table entries; (b) known-log arc / BSGS with
+      negation at L = sqrt(N/2), cost sqrt(2N), memory sqrt(N/2); (c) rho
+      with negation map, 0.886 sqrt(N), O(1) memory (distinguished points:
+      memory theta-dependent, stated). Native work per row: table inserts,
+      table probes, endomorphism evaluations (12 field mults each against
+      about 10 for a point addition: about 1.2 group-operation equivalents),
+      priced at 0, 0.1 and 1 GAE per operation; rows are ranked only where
+      the order holds across the whole band (AGENTS.md section 5a).
+      Optimistic assumptions flagged: one probe per lookup, constant-time
+      hashing, HEUR-001/HEUR-002 transfer to 2^52 and above. Measured toy
+      values of rho and kappa appear in a separate measured column, never
+      mixed with the modeled column.
+  controls:
+    - >-
+      Brute-force search check (instrument): 6 small prime-order curves
+      (fake-endomorphism arcs on random curves with N in [1009, 8191], seed
+      8109), L in {8, 16, 32}: for 64 targets each, the full list of
+      representations from exhaustive enumeration of all (a, e1, b, e2)
+      must contain the relation the MITM search returns, and the MITM must
+      return a relation whenever the exhaustive list is nonempty within the
+      scanned candidates; exact agreement required.
+    - >-
+      Endomorphism verification on every instance and pair 46 (on-curve,
+      homomorphism on 256 pairs, eigenvalue on 1000 points, arc spot checks
+      every 64th element).
+    - >-
+      Known-log arm = BSGS reproduction (baseline embedding): one relation
+      per solve, k verified, rho consistent with 1 (same band as the CM arm).
+    - >-
+      Fake-endomorphism arm (distinct-preimage control): same rank and same
+      rho as the CM arm expected.
+    - >-
+      Planted-target positive control for M3: on every C20 and C24 instance,
+      L = round(0.1 sqrt(N)), 64 targets drawn as T = e1 B_a + e2 B_b with
+      a, b uniform below L (representable by construction). Predicted mean
+      search operations per relation about 2L/3 (the scan reaches the
+      smaller of the two positions a, b; two signs per position), so
+      rho_planted = ops / (N/(2L+1)) is about 1.3 L^2 / N = 0.013. Gate:
+      rho_planted < 0.2 on every instance (the instrument registers
+      sub-BSGS cost when structure exists).
+    - >-
+      Planted AP-block positive control for M4: coverage ratio
+      S_AP / S_RS - 1 must lie within 0.5 percent (absolute) of the script's
+      predicted value, and below -1.5 percent at c = 0.5 and c = 1, on at
+      least 90 percent of C20 and C24 instances (predicted about -6.9 and
+      -2.8 percent, both outside the 1 percent H1 band).
+    - >-
+      Random-set control for M4 (synthetic uniform draw of the same
+      statistic, validating sampler and metric): mean S_RS coverage within
+      0.5 percent of 1 - exp(-2 L^2/(N - 1)) per cell and c.
+    - >-
+      Matched random base (C20, c = 1): relations needed and total cost,
+      the nearby-object control for M2; predicted relations needed / L in
+      [0.05, 1.0] per instance (first-cycle time of the random graph
+      process, median about 0.47 L, Flajolet-Knuth-Pittel, recalled), and
+      total search cost at least 10 times the unknown-log CM-arc total at
+      the same L on every C20 instance.
+    - >-
+      Second scale: three cells (C20, C24, C28) plus pair 46 for the
+      scale-free checks, so no comparison is single-scale.
+  independent_variables:
+    - "arm in {CM arc unknown-log, known-log arc (BSGS), fake-endomorphism arc, matched random base (C20 only), planted controls}"
+    - "cell in {C20, C24, C28}; pair 46 for primitive checks"
+    - "c in {0.5, 1, 2} with L = round(c sqrt(N))"
+  metrics:
+    primary:
+      - "M1: eigenvalue of R_w and R_wbar per instance; cycle count and length set per enumerated instance; cycle-class identity mismatches"
+      - "M2: relations needed to determine k per arm, instance and c; fraction of the 256 relations consistent with the one-unknown model (must be 1)"
+      - "M3: rho per arm, instance and c; cell means with 95 and 99 percent bootstrap intervals; CM minus fake contrast"
+      - "M4: GP coverage over random-set coverage minus 1 per instance and c; cell means with 95 and 99 percent intervals"
+      - "M5: G-test p-values (Holm over 6 invariants) and MI against the permutation null, at pair 46 and pooled toy"
+    secondary:
+      - "kappa and kappa_pred per arm, instance and c; the idea's absolute threshold (search ops per relation below 0.5 sqrt(N)) reported, not decision-bearing (see design_notes)"
+      - "multiplicity histograms against Poisson, maximum multiplicity against its Poisson extreme-value prediction (tail)"
+      - "matched random base relations needed / L and total cost / N"
+      - "pair-46 field multiplications per R evaluation and per lift_x, wall-clock per element"
+      - "pair-46 sum-set collision count against Poisson(0.76)"
+      - "admission table: ell, s, ord(1 - lambda), rejections and reasons; C28 sieve count against Bateman-Horn"
+      - "peak_rss_bytes and wall-clock per trial"
+  heuristic_under_test: >-
+    HEUR-001, HEUR-002, HEUR-003 (HEUR-004 as a power check); see
+    ledger/hypotheses/H-CMFB-7d4e1a.yaml
+
+  # ---------------------------------------------------------------------------
+  # PREREGISTERED PREDICTION, SCALE, RESOLUTION, SAMPLE SIZE
+  # ---------------------------------------------------------------------------
+  preregistered_prediction:
+    quantity: >-
+      mu(R_w) = +-lambda and mu(R_wbar) = +-(1 - lambda) on every instance;
+      cycle structure s cycles of length ell exactly; relations needed 2
+      (unknown log) and 1 (known log); rho = 1 for the CM, known-log and
+      fake arms; GP coverage equal to random-set coverage; zero class MI;
+      at pair 46 ord(lambda) = (N - 1)/7 = 849671142308806.
+    formula: >-
+      lambda = 2 v^{-1} mod N; ell = ord(lambda in F_N^*/{+-1}),
+      s = (N - 1)/(2 ell); E[search ops per relation] = N/(2L + 1);
+      cost per DLP L + R N/(2L + 1), optimum sqrt(2RN) at L = sqrt(RN/2);
+      coverage 1 - exp(-2 L^2/(N - 1)) for both GP and random set.
+    source: >-
+      IDEA-20261015-29fdc8 claims A to D and its notes (sections 1, 2, 4);
+      KN-FIND-b7e091 (endomorphism oracles GGM-simulable); the geometric
+      trial expectation for HEUR-002 and the Poisson occupancy law for
+      HEUR-001. Written before any run and never adjusted.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Cost and coverage statements at 2^18 < p <= 2^29 (log2 p 18 to 29)
+      against 52.4 bits for pair 46: at least 23 bits smaller. Pair 46 is
+      sampled directly for the eigenvalue identity, ord(lambda), the class
+      leak null (target-scale heuristic validation of HEUR-003), the R
+      evaluation cost and a sum-set collision tail check for HEUR-001. The
+      transfer of HEUR-001 and HEUR-002 from toy sizes to 2^52 is an
+      assumption, stated; three toy cells over 11 bits give a growth view
+      of rho.
+    correspondence: null
+  resolution:
+    rho_delta: 0.1
+    coverage_delta: 0.01
+    derivation: >-
+      Search ops to a relation are approximately geometric (sd about the
+      mean), so the mean over 256 relations has relative sd about 1/16 =
+      6.25 percent per instance; a cell mean over 8 instances has sd about
+      2.2 percent and a 95 percent half-width about 4.4 percent, inside
+      rho_delta = 0.1 with margin; the 99 percent half-width (5.7 percent)
+      separates 0.8 from 1 by more than 3 sd. Coverage: the random-set
+      control sd per draw is of order 1/sqrt(N) relative (0.1 percent at
+      2^20), far below coverage_delta = 1 percent; the planted AP control
+      has an effect of about 2 to 3 percent at c <= 1.
+  sample_size_justification: >-
+    8 admitted members per cell (C20 has 10 and C24 13 members by the
+    EXP-CMFB-cea1d2 sieve; C28 is estimated at 40 to 50), 3 values of c,
+    256 relations per arm, instance and c; this gives the rho resolution
+    above. Class leak at pair 46: 200000 samples, 7 classes and 256 bins
+    for the bit invariants: the G-test detects MI of about 2e-4 bits at
+    alpha 1e-4 / 6 (sample size chosen so that the expected count per cell
+    is at least 100, 200000 / (7 * 256) = 112). Toy MI uses every x of each
+    enumerated instance (10^5 to 1.6 * 10^7 per instance).
+  tail_checks:
+    - "Maximum class multiplicity of S_GP per instance and c against the Poisson(2L^2/(N-1)) extreme-value prediction over (N-1)/2 classes; flagged if above the 1e-3 upper quantile."
+    - "Largest single-instance rho deviation (CM arm) per cell, Sidak-adjusted; flagged if below 0.01."
+    - "Pair-46 sum-set collision count against Poisson(0.76), flag at >= 7."
+    - "Smallest per-invariant permutation p-value at pair 46, reported with its rank in the permutation null."
+
+  # ---------------------------------------------------------------------------
+  # STATISTICS AND DECISION RULE
+  # ---------------------------------------------------------------------------
+  statistics:
+    intervals: >-
+      Instances are independent draws (different curves). Cell means of rho
+      and of the M4 coverage ratio use a percentile bootstrap over instances
+      (10000 resamples, seed 8110) at 95 and 99 percent. Contrast CM minus
+      fake per instance (paired), bootstrapped the same way.
+    multiplicity: >-
+      M3: one family of 9 (cell x c) CM-arm intervals read at 99 percent for
+      any LEAD reading and at 95 percent for the null reading. M4: the
+      same for 6 (cell x c) combinations, c in {0.5, 1} (see
+      definitions.coverage_h1). M5: Holm
+      over 6 invariants at pair 46, Holm over 6 invariants for pooled toy.
+    underpowered: >-
+      A cell with fewer than 5 admitted members is UNDERPOWERED: reported
+      descriptively, excluded from every reading.
+  decision_rule:
+    order_of_evaluation: first matching rule fixes the headline; every channel verdict is reported beside it.
+    rules:
+      - "R0 INCOMPLETE: missing trial, manifest field, artifact, seal mismatch, checker failure or infrastructure failure. Not a scientific outcome; back to the Executor with the defect list."
+      - "R1 INSTRUMENT_VOID: any invalidation rule I1 to I8 fires, or a control gate fails (brute-force check, endomorphism verification, planted-target gate, planted AP gate, random-set control, any [k]P != Q)."
+      - "R2 CLAIM_A_DEFECT: a verified endomorphism with eigenvalue outside {+-lambda, +-(1-lambda)}, a cycle structure off the prediction, a cycle-class identity mismatch, or ord(lambda) at pair 46 different from (N-1)/7. Recorded against the idea's derivation; the remaining channels are still reported."
+      - "R3 STRUCTURE_BEYOND_BSGS (lead): in some powered cell and c the CM-arm rho 99 percent interval lies below 0.8, or the CM minus fake contrast 99 percent interval lies below -0.1. A lead needing independent replication with fresh seeds; reported with the fake arm's rho."
+      - "R4 CLASS_LEAK: any Holm-adjusted G-test p below 1e-4 with MI above the 99.9th permutation percentile (pair 46 or pooled toy)."
+      - "R5 H1_VIOLATED: in some powered cell and c in {0.5, 1} the M4 cell-mean 99 percent interval excludes [-0.01, +0.01]; sign reported (deficit: more collisions than random, the arc search is worse; excess: fewer collisions)."
+      - "R6 BSGS_EQUIVALENT_AT_RESOLUTION (the hypothesis' positive reading): relations needed 2 (unknown log) and 1 (known log) on every instance and c, every relation consistent with the one-unknown model, every powered (cell, c) CM-arm and fake-arm rho 95 percent interval inside [0.9, 1.1] and CM minus fake 95 percent interval inside [-0.1, +0.1], every decision-bearing M4 95 percent interval (c in {0.5, 1}) inside [-0.01, +0.01], no class leak."
+      - "R7 INCONCLUSIVE: none of the above (some interval straddles a band edge without a 99 percent exclusion)."
+    official_transition: >-
+      The analysis trial computes the classification as an Executor
+      observation. Every status change is the Coordinator's after the
+      snapshot archive and independent review.
+  success_criterion: >-
+    The run set is complete and valid (R0 and R1 do not fire), at least two
+    cells are powered, and the classification is one of CLAIM_A_DEFECT,
+    STRUCTURE_BEYOND_BSGS, CLASS_LEAK, H1_VIOLATED or
+    BSGS_EQUIVALENT_AT_RESOLUTION. The hypothesis' positive reading is
+    BSGS_EQUIVALENT_AT_RESOLUTION.
+  falsification_criterion: >-
+    On a complete valid set, R2, R3, R4 or R5 falsifies the corresponding
+    scoped part of H-CMFB-7d4e1a (claims A and B; claim C via HEUR-002;
+    HEUR-003; HEUR-001). R3 and R4 are leads requiring independent
+    replication before any wider statement.
+  decision_impact:
+    on_positive: >-
+      Record BSGS-equivalence at resolution (rho within 0.1, coverage within
+      1 percent) for single-arc m = 2 bases on the tested family crater
+      curves and sizes, the 2-relation rank law, the measured R/lift_x
+      constant at pair 46 and the null class leak at pair 46. Candidate for
+      scoped retirement of the arc channel of RQ-CMFB-33610e (weaken or
+      reject_scoped only with the derivation artifact named in the
+      hypothesis' refutation_basis and after independent review). No
+      exponent statement.
+    on_negative: >-
+      R3 or R4: record a lead with its cell, c and size, require an
+      independent replication contract with fresh seeds and a larger cell
+      before any statement; never link to pair 46 cost from toy rho alone.
+      R2: record the defect against the idea's lambda convention and send
+      the derivation back to the idea generator. R5: record HEUR-001 as
+      falsified at the stated scope and re-price claim C.
+    on_void: >-
+      No reading; fix the instrument under a new contract version via a
+      protocol amendment.
+    on_inconclusive: >-
+      No reading; a successor may raise relations per instance or add a
+      cell.
+  replication:
+    seeds: [8101, 8102, 8103, 8104, 8105, 8106, 8107, 8108, 8109, 8110]
+    seed_roles:
+      8101: "member order and admission"
+      8102: "sealed x0 and k per instance and arm"
+      8103: "targets alpha, beta"
+      8104: "fake-endomorphism ratio c"
+      8105: "matched random base logs"
+      8106: "random-set and planted AP controls for M4"
+      8107: "pair-46 class-leak samples t"
+      8108: "permutation null"
+      8109: "brute-force check curves and targets"
+      8110: "bootstrap"
+    independent_instances: 24
+    instance_count_note: "8 admitted family members per cell x 3 cells, plus pair 46 (not counted as a replicate)"
+    replication_note: >-
+      One confirmatory pass with fixed seeds. A lead is replicated by a new
+      contract with new seeds and instances. Retries after infrastructure
+      failure use new run ids with the same seeds and are labelled retries.
+
+  # ---------------------------------------------------------------------------
+  # BUDGET AND COST MODEL (analytic, unmeasured: no shell in this session)
+  # ---------------------------------------------------------------------------
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 4.0
+    maximum_memory_gb: 8
+    maximum_runs: 7
+    maximum_workers: 4
+  cost_model:
+    status: ANALYTIC AND UNMEASURED; the implementer measures a C24 pilot before freeze.
+    point_op_seconds: "4 microseconds per affine point operation in CPython (budgeted; EXP-CMFB-cea1d2 measured 3 to 5)"
+    mitm: >-
+      per arm, instance and c: L + 256 N/(2L+1) search operations; summed
+      over c in {0.5, 1, 2} this is about 3.5 sqrt(N) + 256 * 1.75 sqrt(N)
+      = about 450 sqrt(N); C28 at N = 2^29 (sqrt 23170): about 1.0e7
+      operations, 42 seconds per arm and instance; 3 arms x 8 instances:
+      about 17 minutes of one core, about 5 minutes on 4 workers. C24 and
+      C20: under 2 minutes in all. Matched random base at C20: about 0.25 N
+      operations, under 5 seconds per instance.
+    coverage: >-
+      exact histograms at C24, c = 2: L = 2 sqrt(2^25) = 11585, L^2 = 1.3e8
+      sums per base, 6 bases (GP, fake, AP, 4 random sets averaged count as
+      4): about 1e9 sums per instance-c at 2 to 5 ns each in chunked numpy:
+      2 to 5 seconds plus an O(N) histogram pass per chunk. C28 bitmap,
+      c = 1, N = 2^29: L^2 = 5.4e8 sums per base, 7 bases, about 4e9 sums:
+      about 20 seconds per instance-c, 256 MB bitmap.
+    cycles: >-
+      C24 at N = 2^25: x-map over 1.7e7 values (vectorised inversion about
+      5 seconds), cycle decomposition by an iterative pass over a
+      permutation array (compiled or numpy pointer jumping): under 1 minute
+      per instance; 16 enumerated instances under 15 minutes on 1 core.
+    pair46: >-
+      endomorphism construction (5-division polynomial factoring over a
+      53-bit field): seconds; class leak 200000 scalar multiplications at
+      about 80 point operations each: about 65 seconds; collision tail sort
+      of 2^26 int64: about 10 seconds, 0.5 GB; R/lift_x timing: seconds.
+    totals: >-
+      about 1 to 1.5 core-hours, under 1 hour wall-clock on 4 workers;
+      peak memory about 1.5 GB per worker (C28 bitmap and chunks), declared
+      8 GB in all.
+  trial_plan:
+    status: not_yet_written
+    description: >-
+      Seven trials, one run id each, executed serially by
+      tools/experiment_execution.py through a single entrypoint
+      python3 experiments/EXP-CMFB-b36f58/implementation/driver.py --trial
+      <trial id> --run-dir {run_dir}; independent check
+      python3 experiments/EXP-CMFB-b36f58/implementation/check.py {run_dir}
+      (check.py imports no driver or analysis code).
+    trials:
+      - id: t1-inventory
+        role: inventory_admission_and_seals
+        parameters: "exact sieve to t = 10362; admission per inputs.admission; instance list with sha256; seals x0, k per arm; fake ratios; C28 Bateman-Horn comparison"
+        depends_on: []
+      - id: t2-gate-instrument
+        role: control_gate
+        parameters: "brute-force search check; endomorphism construction and verification on every admitted instance; eigenvalues; arc spot checks; planted-target gate on C20 and C24; random-set and planted AP gates at C20"
+        depends_on: [t1-inventory]
+      - id: t3-cycles-and-toy-leak
+        role: measure_M1_M5_toy
+        parameters: "cycle enumeration and class identity on C20 and C24; toy class-leak tests on instances with s >= 2"
+        depends_on: [t2-gate-instrument]
+      - id: t4-coverage-h1
+        role: measure_M4
+        parameters: "S_GP, S_FK, S_AP and 4 S_RS per admitted instance and c (C28: c in {0.5, 1}, bitmap)"
+        depends_on: [t2-gate-instrument]
+      - id: t5-mitm
+        role: measure_M2_M3
+        parameters: "CM, known-log and fake arms, 256 relations each, all admitted instances and c; matched random base at C20, c = 1"
+        depends_on: [t2-gate-instrument]
+      - id: t6-pair46
+        role: target_scale_primitives
+        parameters: "pair-46 endomorphism, eigenvalue, ord(lambda) from the factorization of N - 1, class-leak test (200000 samples), collision tail (L = 8192), R and lift_x multiplication counts and timings"
+        depends_on: [t2-gate-instrument]
+      - id: t7-analysis
+        role: analysis_and_classification
+        parameters: "re-evaluates all gates, intervals, Holm families, the modeled concrete-cost table with the 0 / 0.1 / 1 GAE band, and the mechanical classification"
+        depends_on: [t3-cycles-and-toy-leak, t4-coverage-h1, t5-mitm, t6-pair46]
+    dependency_semantics: >-
+      A failed t2 stops t3 to t7. A failed t3 to t6 prevents t7. No trial is
+      rerun because its result looks unfavourable; a retry needs a new run
+      id.
+  required_artifacts:
+    - "experiments/EXP-CMFB-b36f58/runs/<RUN-ID>/manifest.yaml for each of the 7 run ids"
+    - "experiments/EXP-CMFB-b36f58/runs/<RUN-ID>/raw-result.json for each of the 7 run ids"
+    - "experiments/EXP-CMFB-b36f58/runs/<t7 RUN-ID>/cost-table.json (modeled and measured columns separate)"
+    - "post-run report, graph and PDF per the research-visuals skill, produced by the run skill after t7 (not trial artifacts)"
+  manifest_fields: >-
+    exact command, git commit, environment (python, numpy, gmpy2 or sympy
+    versions, cpu count, memory), seeds, per-stage timings, measured seconds
+    per point operation, peak_rss_bytes (per-process maximum).
+  stopping_rules:
+    - "Stop after exactly one valid manifest and raw-result.json per trial; no extra cell, instance, c value or relation count is added after any observation."
+    - "A failed gate stops the plan; the recorded fact is instrument failure, not a negative mathematical result."
+    - "A cell with fewer than 5 admitted members is never enlarged by relaxing admission."
+    - "A timeout, crash or implementation failure is infrastructure signal, never a result; a retry uses a new run id with the same seeds and parameters."
+    - "The 1-hour per-run wall clock is advisory: exceeding it is reported, not a stop."
+  invalidation_rules:
+    - "I1 Run count is not 7, a manifest misses a required field, or an artifact is absent or empty."
+    - "I2 Curve or instance validity fails (p or N composite, order, Hasse, j, trace identity, family formulas, admission rule violated)."
+    - "I3 Endomorphism verification fails (off-curve image, homomorphism failure on any pair, arc spot check mismatch)."
+    - "I4 Brute-force search check disagrees on any case."
+    - "I5 Any solved k with [k]P != Q, any k or x0 differing from its seal, or any recorded relation not satisfied on the curve."
+    - "I6 Planted-target gate (rho_planted < 0.2 on every C20/C24 instance), planted AP gate, or random-set control gate fails."
+    - "I7 Seed integrity: duplicated or missing streams, seeds differing from the frozen list, instance-list sha256 differing between trials, or the solver reading a sealed field."
+    - "I8 Raw and summary disagree: check.py recomputes rho, coverage ratios (one instance per cell by a second code path: Python set at C20, sort-unique at C24 and C28), relations needed and the classification from raw records, and any difference voids the set."
+    - "I9 (flag, not void) any admitted member with ell below 4 sqrt(N) found after the fact, or measured point-operation time outside 0.3x to 3x of the budgeted 4 microseconds."
+  claim_ceiling:
+    ceiling: >-
+      Single-arc m = 2 factor bases from the degree-5 CM endomorphism on
+      family crater curves at 2^18 < p <= 2^29: rank law, BSGS-equivalent
+      search cost at resolution 0.1 in rho, coverage at 1 percent, class
+      leak null at pair 46 and toy sizes, and the R-versus-lift_x constant at
+      pair 46.
+    what_does_not_follow:
+      - "No exponent statement and no improvement over rho or BSGS: at best the arc equals BSGS, which rho dominates (about 1.6x to 2.3x in group operations at the optimum, plus sqrt(N) memory)."
+      - "Nothing about m >= 3, several arcs, target-dependent bases, the floor curve, or other CM discriminants."
+      - "No pair-46 cost measurement: pair-46 costs in the cost table are modeled under the stated transfer assumption."
+  confounders:
+    - "lambda versus 1 - lambda (resolved by constructing and labelling both maps)"
+    - "sign convention of the isomorphism to E (x-map is sign-free; the point map fixes the sign and the eigenvalue test absorbs it)"
+    - "small ell (arc wrap), excluded by admission"
+    - "tiny-N artifacts (C20 lower edge), checked by the cell trend"
+    - "within-target dependence of candidates (HEUR-002), measured through rho"
+  design_notes:
+    - >-
+      The idea's threshold "MITM ops per relation at least 0.5 sqrt(N)" is
+      not used as a decision boundary: under the idea's own model the search
+      ops per relation equal N/(2L+1), which is 0.5 sqrt(N) at c = 1, so the
+      threshold sits on the prediction rather than below it. The contract
+      replaces it, before any run, by the ratio rho to the prediction with
+      the 0.8 lead band; the absolute value is reported as a secondary
+      metric.
+    - >-
+      The idea's prediction "7 cycles" applies to pair 46 only; toy members
+      have their own ell and s, predicted exactly from N and lambda.
+    - >-
+      The idea's H1 validation plan named N = 2^30; this contract tops out at
+      p <= 2^29 for cost and drops exact histograms above 2^25 and c = 2 at
+      C28 (stated in definitions.coverage_h1).
+    - >-
+      Matched random base relations needed are predicted only loosely
+      (first cycle of a random multigraph, recalled result); this control is
+      descriptive plus a factor-10 gate, not a precision test.
+  unverified_items:
+    - "Point-operation cost in CPython (4 microseconds budgeted) and every timing above; a C24 pilot must confirm totals before freeze."
+    - "C28 member count (HEUR-004 estimate 40 to 50) and the admission rate under ell >= 4 sqrt(N)."
+    - "That harness/endosweep/explicit.py factors the 5-division polynomial and builds the Velu map at 53 bits in seconds."
+    - "pair-46 ord(lambda) = (N - 1)/7 is the idea author's computation; the run recomputes it from the factorization of N - 1."
+    - "CM-theory recall that pi = -1 on E[w] makes the kernel x-roots of R_w F_p-rational."
+  out_of_scope:
+    - "Any model call, network access, or edit of an existing record."
+    - "Floor curves, other discriminants, m >= 3, multiple arcs."
+  assigned_to: executor
+  launcher:
+    status: not_yet_written
+    missing_pieces:
+      - experiments/EXP-CMFB-b36f58/implementation/driver.py (trials t1 to t7)
+      - experiments/EXP-CMFB-b36f58/implementation/check.py (independent recomputation, I8)
+      - experiments/EXP-CMFB-b36f58/implementation/test_arc.py (brute-force and gate unit tests)
+      - experiments/EXP-CMFB-b36f58/trial-plan.json (argv, sha256 bindings of every implementation file, run ids)
+      - C24 pilot timing and parallel.verify_determinism pass
+      - "python3 tools/newest_experiments.py --experiment EXP-CMFB-b36f58 --json reporting execution_state: ready"
+    reusable_sources:
+      - experiments/EXP-CMFB-cea1d2/implementation/curves.py
+      - harness/endosweep/explicit.py
+      - src/crypto_autoresearcher/parallel.py
+    approval_path: >-
+      After the launcher exists and is ready, the Coordinator freezes this
+      contract (status approved, frozen true, run ids minted), records an
+      approval decision citing the AGENTS.md standing authorization, writes
+      the executor handoff, and runs the snapshot archive.

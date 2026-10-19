@@ -1,0 +1,1 @@
+Input snapshot TASK-20261016-04c765 for TASK-20261016-c2806c. Complete native profile/compact contracts, clean custody and independent source review only; no science executed. Actual Git commit/parent/path hashes will be bound after isolated source commit.

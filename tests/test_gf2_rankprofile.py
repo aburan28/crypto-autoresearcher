@@ -379,6 +379,10 @@ def test_gpu_pass_on_device_matches_blocked_pass():
         B = M.copy()
         ps, cs = rankpass.column_pass(B, C, xp=cp)
         assert np.array_equal(ps, log.ps) and np.array_equal(cs, log.cs) and np.array_equal(A, B)
+        F = M.copy()
+        ps, cs = rankpass.column_pass_fused(F, C)
+        assert np.array_equal(ps, log.ps) and np.array_equal(cs, log.cs), ("fused pivots", t)
+        assert np.array_equal(A, F), ("fused matrix", t)
     old = rankprofile.GPU_MIN_WORDS
     rankprofile.GPU_MIN_WORDS = 0
     try:

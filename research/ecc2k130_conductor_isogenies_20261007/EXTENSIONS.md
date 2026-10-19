@@ -220,7 +220,16 @@ cyclic, 4/4 samples each (`lvl163_c.out`), and its 11-cycle has length **82152**
 
 All six level-2 curves found (b″, b‴ and these four) are in distinct Galois orbits. *Measured; independently verified.*
 
-**Status.** All six curves are on the level of conductor 45641·82153, two steps below the
+**Batch of twenty (`second_level/batch20/`).** `run_batch.sh` → `curve.sh` makes 20 more descents, four at a time.
+Run i starts from 45641-floor representative ((i−1) mod 6)+1 of `analogues/iso163_45641.txt`, so each of the six
+representatives is used three or four times, with PARI seed 100 + i. Each run is resumable step by step, which carried
+it through several container restarts. Every one of the 20 images has a₂ = 1, #E = N and a Galois orbit of 163, and
+passes both level checks: 11-cycle **82152**, and both torsion parts cyclic (ℓ′²). Descents took 839–1323 s each.
+`collect.py` compares each image's Galois-orbit minimum against the six earlier curves and against every other run:
+**20 new verified curves, no failures, no duplicate orbits** (table in `batch20/README.md`). *Measured; independently
+verified.*
+
+**Status.** All 26 curves (the six above and the batch of twenty) are on the level of conductor 45641·82153, two steps below the
 NIST K-163 crater, with h = 45640·82152 ≈ 3.7·10⁹ curves (23,002,560 Galois orbits). The two
 level checks are independent of each other (torsion structure over F_2^3260 and F_2^10269; the
 horizontal 11-cycle over F_2^163) and agree. *Measured; independently verified.*

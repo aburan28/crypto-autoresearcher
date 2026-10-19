@@ -1,17 +1,25 @@
 """Reader-only contracts: real pinned data, conservative gaps and static/local parity."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
+import subprocess
 from types import SimpleNamespace
 
 import pytest
 
-from ui import curves, comparisons, payloads, provenance
+from ui import curves, comparisons, crypto_traits, payloads, provenance
 from ui.build import build
 from ui.index import ResearchIndex, Record
 
 ROOT = Path(__file__).resolve().parents[1]
+CRYPTO_COMMIT = 'd22253655de460de5fbf4774959c97d8a03de682'
+# DiSSECT outputs whose pinned definition is exactly a crypto curve_traits value.
+SAME_QUANTITY_SLOTS = {
+    'dissect.cofactor.order', 'dissect.cofactor.cofactor', 'dissect.embedding.complement_bit_length',
+    'dissect.discriminant.cm_disc', 'dissect.discriminant.factorization', 'dissect.discriminant.max_conductor',
+}
 
 
 def copy_data(repo):
@@ -28,10 +36,10 @@ def pin(path, repo):
 def test_real_curves_have_exact_ids_and_sourced_traits():
     data = curves.payload(ROOT)
     assert not data['errors']
-    assert len(data['curves']) == 2
+    assert len(data['curves']) == 4
     assert {r['field']['degree'] for r in data['curves']} == {13, 19}
     for row in data['curves']:
-        assert len(row['traits']) == 63
+        assert len(row['traits']) == 63 + len(crypto_traits.ROWS)
         assert row['traits']['j_invariant']['value'] is None
         for trait in row['traits'].values():
             assert (trait['value'] is None) == (trait['status'] == 'unknown')
@@ -56,11 +64,16 @@ def test_dissect_registry_covers_all_pinned_families_without_claiming_results():
     assert len(keys) == 51
     for row in data['curves']:
         assert {k for k in row['traits'] if k.startswith('dissect.')} == keys
+        filled = SAME_QUANTITY_SLOTS if 'crypto_traits' in row else set()
         for key in keys:
             trait = row['traits'][key]
+            assert registry['upstream_commit'] in trait['definition']['url']
+            if key in filled:
+                assert trait['status'] == 'source_reported' and trait['evidence_status'] == 'proved'
+                assert trait['source']['path'] == 'docs/curves/traits.json' and trait['mapping']
+                continue
             assert trait['value'] is None and trait['status'] == 'unknown'
             assert trait['source'] is None  # a definition is not result provenance
-            assert registry['upstream_commit'] in trait['definition']['url']
         assert row['traits']['dissect.volcano.depth']['parameters'] == {'l': [2, 3, 5, 7, 11, 13, 17, 19]}
         assert row['traits']['dissect.twist_order.twist_cardinality']['parameters'] == {'deg': [1, 2]}
         # Similar names do not justify mapping binary model coefficients or
@@ -102,13 +115,126 @@ def test_same_uid_deduplicates_but_conflicting_traits_refused(tmp_path):
     catalog = json.loads(catalog_path.read_text())
     catalog['capsules'].append(pin(duplicate, tmp_path))
     catalog_path.write_text(json.dumps(catalog))
-    assert len(curves.payload(tmp_path)['curves']) == 2
+    assert len(curves.payload(tmp_path)['curves']) == 4
     data = json.loads(duplicate.read_text()); data['endomorphism']['cm_discriminant'] = -3
     duplicate.write_text(json.dumps(data)); catalog['capsules'][-1] = pin(duplicate, tmp_path)
     data = json.loads(p.read_text()); data['endomorphism']['cm_discriminant'] = -7
     p.write_text(json.dumps(data)); catalog['capsules'][0] = pin(p, tmp_path)
     catalog_path.write_text(json.dumps(catalog))
     assert curves.payload(tmp_path)['errors']
+
+
+def by_id(data):
+    return {r['curve_id']: r for r in data['curves']}
+
+
+def test_crypto_traits_fill_only_same_quantities_with_status():
+    rows = by_id(curves.payload(ROOT))
+    k13 = rows['EC1N13Ce0h1dfa32cdf623']['traits']
+    assert rows['EC1N13Ce0h1dfa32cdf623']['crypto_traits']['slug'] == 'icv1-f2m13-t181-515ee569'
+    expected = {'dissect.discriminant.cm_disc': -7, 'dissect.discriminant.factorization': [7],
+                'dissect.discriminant.max_conductor': 1, 'dissect.cofactor.order': 2003,
+                'dissect.cofactor.cofactor': 4, 'dissect.embedding.complement_bit_length': 7,
+                'cm_discriminant': -7, 'endomorphism_order_conductor': 1, 'order': 8012, 'trace': 181}
+    for key, value in expected.items():
+        assert k13[key]['value'] == value and k13[key]['evidence_status'] == 'proved', key
+        assert CRYPTO_COMMIT in k13[key]['source']['url']
+    k19 = rows['EC1N19Ce0h1e2a8f558313']['traits']
+    assert k19['dissect.discriminant.factorization']['value'] == [7, 457, 457]
+    assert k19['dissect.discriminant.max_conductor']['value'] == 457
+    # Supplementary rows keep crypto's own names and statuses.
+    assert k13['crypto.frobenius.class_number']['value'] == 1
+    assert k13['crypto.frobenius.class_number']['evidence_status'] == 'proved'
+    assert k13['crypto.twist.order']['value'] == '8374'
+    assert k13['crypto.small_primes']['evidence_status'] is None and k13['crypto.small_primes']['note']
+    assert 'TRAITS.md' in k13['crypto.frobenius.conductor']['definition']['url']
+    # Similar labels stay unknown: class-number bounds, extension conductor
+    # ratios, parameterized families and values that would need arithmetic.
+    for key in ('dissect.class_number.upper', 'dissect.class_number.lower', 'dissect.conductor.ratio_sqrt',
+                'dissect.conductor.factorization', 'dissect.twist_order.twist_cardinality',
+                'dissect.volcano.depth', 'dissect.trace_factorization.trace', 'dissect.weierstrass.a',
+                'dissect.embedding.embedding_degree_complement', 'j_invariant'):
+        assert k13[key]['value'] is None and k13[key]['status'] == 'unknown', key
+
+
+def test_other_representations_of_the_same_curve_get_no_crypto_traits():
+    # binary13 is the degree-13 Koblitz curve under another modulus and generator:
+    # a different record, so nothing joins and nothing is aliased by order or degree.
+    row = by_id(curves.payload(ROOT))['EC1N13Ckb1h0f132ba0b5e2']
+    assert 'crypto_traits' not in row
+    for key, trait in row['traits'].items():
+        if key.startswith('crypto.'):
+            assert trait['value'] is None and trait['evidence_status'] is None and trait['source'] is None
+    assert row['traits']['dissect.discriminant.cm_disc']['value'] is None
+    assert row['traits']['cm_discriminant']['value'] is None
+
+
+def edit_snapshot(repo, change):
+    path = repo / 'ui/curves/crypto-traits.json'
+    snap = json.loads(path.read_text())
+    change(snap)
+    path.write_text(json.dumps(snap))
+    catalog_path = repo / 'ui/curves/catalog.json'
+    catalog = json.loads(catalog_path.read_text())
+    catalog['supplementary_traits'][0] = {'adapter': 'crypto-curve-traits/1', **pin(path, repo)}
+    catalog_path.write_text(json.dumps(catalog))
+
+
+def other_commit(s):
+    s['sources']['definitions']['commit'] = '0' * 40
+
+
+def duplicate_uid(s):
+    s['records'][1]['representations'].append(s['records'][0]['representations'][0])
+
+
+def wrong_alias(s):
+    s['records'][0]['representations'][0]['ec1'] = 'EC1N13Ce0h000000000000'
+
+
+def wrong_field(s):
+    s['records'][0]['representations'][0]['field_sha256'] = '0' * 64
+
+
+def subgroup_conflict(s):
+    s['records'][0]['traits']['subgroup']['order'] = '2011'
+
+
+def bad_status(s):
+    s['records'][0]['traits']['frobenius']['status'] = 'certain'
+
+
+@pytest.mark.parametrize('change', [
+    lambda s: s.update(registry_sha256='0' * 64), other_commit, duplicate_uid,
+    wrong_alias, wrong_field, subgroup_conflict, bad_status, lambda s: s.update(adapter='other/1'),
+])
+def test_crypto_traits_identity_and_pin_conflicts_fail_closed(tmp_path, change):
+    copy_data(tmp_path)
+    edit_snapshot(tmp_path, change)
+    out = curves.payload(tmp_path)
+    assert out['curves'] == [] and out['errors']
+
+
+@pytest.mark.parametrize('field', ['sha256', 'adapter', 'path'])
+def test_crypto_traits_catalog_pin_mismatch_fails_closed(tmp_path, field):
+    copy_data(tmp_path)
+    catalog_path = tmp_path / 'ui/curves/catalog.json'
+    catalog = json.loads(catalog_path.read_text())
+    catalog['supplementary_traits'][0][field] = {
+        'sha256': '0' * 64, 'adapter': 'crypto-curve-traits/2', 'path': '../crypto-traits.json'}[field]
+    catalog_path.write_text(json.dumps(catalog))
+    out = curves.payload(tmp_path)
+    assert out['curves'] == [] and out['errors']
+
+
+def test_crypto_traits_snapshot_re_derives_from_pinned_crypto_commit():
+    crypto = Path(os.environ.get('CRYPTO_CHECKOUT', ROOT.parent / 'crypto'))
+    probe = subprocess.run(['git', '-C', str(crypto), 'cat-file', '-e', f'{CRYPTO_COMMIT}^{{commit}}'],
+                           capture_output=True)
+    if probe.returncode:
+        pytest.skip('no aburan28/crypto checkout containing the pinned commit')
+    from tools import export_crypto_curve_traits
+    assert export_crypto_curve_traits.main(['--crypto', str(crypto), '--commit', CRYPTO_COMMIT, '--check']) == 0
 
 
 def test_real_comparison_package_registers_all_rows():

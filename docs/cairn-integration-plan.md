@@ -16,6 +16,23 @@ solve is re-checked by an independent implementation, every measurement-style
 experiment carries a mechanical Pareto frontier, and several worktrees can
 search one problem without a coordinator dividing the space by hand.
 
+## Required execution-proof chain
+
+Owner requirement, 2026-10-16: proofs of prescribed computation are integral
+to this integration. [execution-proof-chain.md](execution-proof-chain.md)
+defines the required protocol -> executable/inputs -> verified execution and
+raw results -> metric/control checks -> evidence/review/DEC and
+claim/settlement/audit bindings. It is a cross-cutting acceptance condition,
+not an optional verifier attachment or a later replacement for scientific
+review. Missing proof support cannot be silently downgraded to a process
+receipt, certificate, replay or hardware attestation.
+
+The implementation remains open. Current runners and bridge tools do not
+provide this guarantee; the [tracked obstruction](../problems/execution-proof-chain-not-enforced.md)
+names the exact missing enforcement and release evidence. The existing stages
+below retain their actual implemented scope. This design requirement alone
+adopts no scientific transition or historical-record change.
+
 ## 1. Why this is not a new design
 
 `docs/distributed-proof-economy.md` and `docs/global-research-network.md` are
