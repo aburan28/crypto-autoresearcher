@@ -12,8 +12,8 @@ Saturating (satisfiable) m=3 systems, D=5, so the closure runs to its fixpoint:
 
 ## Derived
 - wall = 1.21e-9 * ncols^2.43 s; RSS = 4.5e-5 * ncols^1.59 MB (3-point log-log fit; no uncertainty estimable from 3 points).
-- C19 (N=40, D=5): 760,099 columns, 72.2 GB per dense matrix, fit 98 GB RSS (a floor-ish figure: the engine holds two copies per chunk, so >= 145 GB), 2.7 d single-core by fit (up to ~7 d at 8 iterations).
-- Host to request: >= 256 GB RAM (card: CARD-d5-c19.md). 768 GB is not required for this test.
+- C19a (N=40, D=5): 760,099 columns; the initial Macaulay matrix is 218,918 x 760,099 = 20.8 GB. During chunk rebuilds the old and new matrix are live together: 2*rho*72.2 GB + chunk, i.e. 139 GB at rho = 0.92 and 150 GB at rho = 1, before the mutant-row block Lw and allocator overhead (CONDITIONAL on the unknown final rank rho; it is not a bound). The RSS fit (98 GB) is a 3-point extrapolation, not a bound. 2.7 d single-core by fit (up to ~7 d at 8 iterations).
+- Host: 256 GB RAM is an unvalidated planning choice (card: CARD-d5-c19.md), not a proved requirement. The estimate does not show 768 GB is needed for this test.
 - Fit sanity check, D=4 C19: fit 4.0 GB vs 3.7 GB recorded for crypto's engine; fit time ~1.8e3 s vs 3,964 s measured for lfdclose2 on C19a (the C19a run had 8 iterations, the calibration runs 3), so the fit understates iteration-heavy cases by ~2x.
 
 ## Not done (stated as missing)
