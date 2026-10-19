@@ -3,8 +3,9 @@
 Manuscript draft. **Not submitted, not posted, and not cleared for either.**
 
 - `paper.tex` — the manuscript (LaTeX, `article`, needs only `amsmath/amssymb/amsthm/
-  mathtools/geometry/hyperref/booktabs`).
-- Verification code and artifacts: `../../experiments/EXP-SMON-e5cbe6/`
+  mathtools/geometry/hyperref/booktabs/array`).
+- Verification code and artifacts: `../../experiments/EXP-SMON-e5cbe6/` (cited by path in
+  the paper, §8 "Artifacts", with the `raw-result.json` key behind each number)
 - Ledger: `H-SMON-db677d`, `EV-SMON-9c1c23`, `DEC-20260807-64df6a`,
   `CORR-20260807-652652`, `KN-FIND-a8990a`.
 

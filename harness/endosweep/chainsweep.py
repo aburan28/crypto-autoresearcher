@@ -40,6 +40,17 @@ recoding and the real lattice bases.  The native benchmark measures all of
 them independently with a counting build.
 
     python -m harness.endosweep.chainsweep --out-dir research/endosweep_chainsweep_20261006
+
+Other curves (2026-10-16): ``--target`` may also name a curve of a
+std-curves-format database (``--std-curves`` / ``--extra``, read by
+``corpus.load_std_curves`` exactly as ``curvesweep`` reads them, e.g.
+``other/Tom-384`` or ``arkworks/cp6_782``); it is swept on its short
+Weierstrass model.  ``--catalogue cost`` replaces the norm-bounded catalogue by
+``curvesweep.complete_catalogue`` (every element whose cheapest chain is within
+the export factor of the cheapest, with no norm or step bound), 2-steps are
+admitted (Velu, counted as ``curvesweep`` counts them), and ``model.json`` is
+priced with the curve's own doubling and inversion (``curvesweep.arithmetic``).
+The default target and options reproduce the CryptoPro-B files unchanged.
 """
 from __future__ import annotations
 
@@ -51,7 +62,7 @@ import os
 import random
 import statistics
 import time
-from math import gcd
+from math import gcd, isqrt
 from dataclasses import asdict, dataclass, field
 
 from sympy import factorint, isprime
@@ -92,8 +103,15 @@ def step_ops(ell: int, variant: str, first: bool) -> tuple[int, int]:
     The first step has an affine input (``Z = 1``): plain monic Horner
     (s-1, ell-1, 3s-1 M), ``X' = N, Z' = psi`` free, ``Y' = y*M`` (1 M).
     """
+    if ell == 2:
+        # Velu in Jacobian coordinates (curvesweep's count, the same for both
+        # evaluators): d = X - x0 Z^2, X' = (X d + v Z^4) d,
+        # Y' = Y (d^2 - v Z^4) d, Z' = Z d; 4M + 1S on an affine input.
+        if variant not in VARIANTS:
+            raise ValueError(f"unknown variant {variant!r}")
+        return (4, 1) if first else (7, 3)
     if ell < 3 or ell % 2 == 0:
-        raise ValueError("odd prime steps only")
+        raise ValueError("odd prime steps (or 2) only")
     s = (ell - 1) // 2
     if variant == "generic":
         return (3 * s - 1) + 2 * s + 2 * ell + 6 * s + 1 + 3, 1
@@ -331,6 +349,8 @@ def rational_map_polys(E: Curve, h: list[int], ell: int):
     points, and N, psi, M are asserted monic.
     """
     p, a, b = E.p, E.a, E.b
+    if ell == 2:
+        return _rational_map_polys_2(E, h)
     s = len(h) - 1
     iso = EX.KernelIsogeny(E, h, ell)
     ps = iso.ps
@@ -373,6 +393,38 @@ def rational_map_polys(E: Curve, h: list[int], ell: int):
     return N, h, M
 
 
+def _rational_map_polys_2(E: Curve, h: list[int]):
+    """(N, psi, M) of the 2-isogeny with kernel {O, (x0, 0)}, h = psi = x - x0.
+
+    Velu: x' = x + v/(x - x0), y' = y (1 - v/(x - x0)^2), v = 3 x0^2 + a, so
+    N = x psi^2 + v psi and M = (psi^2 - v) psi (both monic, degree 3) give
+    x' = N/psi^2, y' = y M/psi^3, the same form as the odd steps; homogenised in
+    (X, Z^2) they are the counted X' = (X d + v Z^4) d, Y' = Y (d^2 - v Z^4) d,
+    Z' = Z d with d = psi(X, Z^2).  Checked against ``KernelIsogeny``.
+    """
+    p = E.p
+    if len(h) != 2 or h[1] != 1:
+        raise AssertionError("a 2-isogeny kernel polynomial is monic linear")
+    x0 = (-h[0]) % p
+    v = (3 * x0 * x0 + E.a) % p
+    psi2 = EX.pmul(h, h, p)
+    N = EX.padd(EX.pmul([0, 1], psi2, p), EX.pscale(h, v, p), p)
+    M = EX.pmul(EX.psub(psi2, [v], p), h, p)
+    if len(N) != 4 or len(M) != 4 or (N[-1], M[-1]) != (1, 1):
+        raise AssertionError("unexpected 2-step rational-map polynomials")
+    iso = EX.KernelIsogeny(E, h, 2)
+    rng = random.Random(1)
+    for _ in range(3):
+        P = E.point(rng.randrange(1 << 30))
+        x0_, y0 = P
+        den = pow((x0_ - x0) % p, -1, p)
+        Xn = sum(c * pow(x0_, i, p) for i, c in enumerate(N)) * den * den % p
+        Yn = y0 * sum(c * pow(x0_, i, p) for i, c in enumerate(M)) % p * pow(den, 3, p) % p
+        if iso(P) != (Xn, Yn):
+            raise AssertionError("2-step rational maps disagree with Velu")
+    return N, list(h), M
+
+
 # ---------------------------------------------------------------------------
 # build, verify, export
 # ---------------------------------------------------------------------------
@@ -393,8 +445,22 @@ class ChainRow:
     note: str = ""
 
 
-def _target(name: str):
-    T = next(t for t in deployed_targets() if t.name.lower() == name.lower())
+def load_curve(name: str, roots=()):
+    """A curve of a std-curves-format database (``curvesweep``'s loader), on its
+    short Weierstrass model, with the database entry it came from."""
+    from .corpus import load_std_curves
+    from .targets import weierstrass_target
+    for root in roots:
+        for T, e, raw in load_std_curves(root):
+            if T is not None and e.name.lower() == name.lower():
+                return weierstrass_target(T), raw
+    raise LookupError(f"{name}: not in {list(roots)}")
+
+
+def _target(name: str, roots=()):
+    T = next((t for t in deployed_targets() if t.name.lower() == name.lower()), None)
+    if T is None:
+        T, _ = load_curve(name, roots)
     verify(T)
     if not T.verified:
         raise RuntimeError(f"{name}: {T.verification}")
@@ -420,6 +486,9 @@ def export_chain(T, D: int, res: EX.ChainResult, omega_root: int, *, vectors: in
             "N": [hex(c) for c in N],
             "M": [hex(c) for c in M],
         })
+        if ell == 2:
+            x0 = (-hpoly[0]) % cur.p
+            steps[-1]["velu2"] = {"x0": hex(x0), "v": hex((3 * x0 * x0 + cur.a) % cur.p)}
         maps.append(iso)
         cur = iso.codomain
     if cur.j() != E.j():
@@ -469,12 +538,22 @@ def export_chain(T, D: int, res: EX.ChainResult, omega_root: int, *, vectors: in
 
 def run(target: str = "GOST CryptoPro-B", *, nmax: int = 20000, lmax: int = 61,
         export_factor: float = 2.0, vectors: int = 2, seed: int = 20261006,
-        progress=None) -> dict:
-    T, D = _target(target)
+        progress=None, roots=(), catalogue_mode: str = "norm") -> dict:
+    T, D = _target(target, roots)
     p, a, b, n, h = T.p, T.coeffs["a"] % T.p, T.coeffs["b"] % T.p, T.n, T.h
-    roots = QO.omega_eigenvalues(D, n)
-    omega_root = roots[0]
-    cat = catalogue(D, nmax, lmax)
+    omega_root = QO.omega_eigenvalues(D, n)[0]
+    if catalogue_mode == "norm":
+        cat = catalogue(D, nmax, lmax)
+        cc = None
+    elif catalogue_mode == "cost":
+        from . import curvesweep as CV
+        cc = CV.complete_catalogue(D, export_factor)
+        if not cc["complete"]:
+            raise RuntimeError(f"{T.name}: no complete catalogue")
+        cat = cc["catalogue"]
+        nmax, lmax = cc["nmax"], cc["lmax"]
+    else:
+        raise ValueError(f"unknown catalogue mode {catalogue_mode!r}")
     rows: list[ChainRow] = []
     built: dict[tuple, EX.ChainResult] = {}
     for el in cat:
@@ -518,8 +597,22 @@ def run(target: str = "GOST CryptoPro-B", *, nmax: int = 20000, lmax: int = 61,
             chains.append(export_chain(T, D, res, omega_root, vectors=vectors,
                                        seed=seed + len(chains)))
             r.exported = True
-    bounds = {v: outside_lower_bound(D, nmax, lmax, v) for v in VARIANTS}
-    return {
+    cost_info = None
+    if cc is None:
+        bounds = {v: outside_lower_bound(D, nmax, lmax, v) for v in VARIANTS}
+    else:
+        from . import curvesweep as CV
+        if best != cc["best"]:
+            raise AssertionError("the cost-complete catalogue and the built rows disagree on the cheapest chain")
+        bounds = {v: CV.outside_lower_bound(D, nmax, lmax, v) for v in VARIANTS}
+        cost_info = {
+            "method": "curvesweep.complete_catalogue: every realizable step multiset whose cheapest ordering "
+                      "costs <= export_factor * (cheapest of a norm-bounded seed catalogue) is enumerated and "
+                      "every primitive element of each product norm is included; so every ordering of any "
+                      "element costing <= export_limit_M_eq is in rows",
+            "seed_best_optimised_M_eq": cc["seed_best"], "limit_M_eq": cc["limit"],
+            "multisets": cc["multisets"]}
+    out = {
         "format": FORMAT,
         "generator": GENERATOR,
         "target": T.name,
@@ -527,13 +620,60 @@ def run(target: str = "GOST CryptoPro-B", *, nmax: int = 20000, lmax: int = 61,
         "D_K": D, "class_number": class_number(D),
         "omega_root": hex(omega_root),
         "omega_root_note": "omega = (1 + sqrt(D))/2 acts on the order-n subgroup as this root of "
-                           "x^2 - x + (1 - D)/4 mod n; every element is matched relative to it",
+                           "x^2 - x + (1 - D)/4 mod n; every element is matched relative to it"
+                           if D % 4 == 1 else
+                           f"omega = sqrt({D // 4}) acts on the order-n subgroup as this root of "
+                           f"x^2 + {-D // 4} mod n; every element is matched relative to it",
         "bounds": {"nmax": nmax, "lmax": lmax, "export_factor": export_factor,
                    "best_optimised_M_eq": best, "export_limit_M_eq": limit,
-                   "outside_lower_bound": bounds},
+                   "outside_lower_bound": bounds,
+                   **({"cost_complete": cost_info} if cost_info else {})},
         "eigenvalues_consistent_across_orders": consistent,
         "rows": [asdict(r) for r in rows],
         "chains": chains,
+    }
+    if roots:
+        out["curve"] = curve_record(T, D, target, roots)
+    return out
+
+
+def curve_record(T, D: int, name: str, roots) -> dict:
+    """Curve-level constants of a database curve (only written for those, so the
+    CryptoPro-B file is unchanged): source, trace, CM certificate, the curve's
+    own arithmetic and a generator of the order-n subgroup (checked)."""
+    from . import curvesweep as CV
+    p, a, b, n, h = T.p, T.coeffs["a"] % T.p, T.coeffs["b"] % T.p, T.n, T.h
+    E = Curve(p, a, b)
+    _, raw = load_curve(name, roots)
+    t = p + 1 - h * n
+    f2, rem = divmod(t * t - 4 * p, D)
+    f = isqrt(f2)
+    if rem or f * f != f2:
+        raise AssertionError("t^2 - 4p is not D f^2")
+    G, gsrc = None, ""
+    g = raw.get("generator")
+    if g and raw.get("form") == "Weierstrass":
+        from .corpus import _int
+        G = (_int(g["x"]) % p, _int(g["y"]) % p)
+        gsrc = "the database's generator (Weierstrass form, as published)"
+    elif g:
+        gsrc = f"the database's generator is in {raw.get('form')} form; "
+    if G is None:
+        G = EX.point_of_order(E, n, h, 2)
+        gsrc += "point_of_order(E, n, h, seed=2): the first x >= 2 that lifts, times the cofactor"
+    if not E.on_curve(G) or G is None or E.mul(n, G) is not None:
+        raise AssertionError("G is not a point of order n")
+    ar = CV.arithmetic(p, a)
+    tau, m = QO.omega_trace_norm(D)
+    return {
+        "name": name, "database_name": raw.get("name"), "form_in_database": raw.get("form"),
+        "model": "short Weierstrass y^2 = x^3 + a x + b"
+                 + ("" if raw.get("form") == "Weierstrass" else f" (converted from the {raw.get('form')} model)"),
+        "p_bits": p.bit_length(), "n_bits": n.bit_length(),
+        "trace": str(t), "conductor": str(f), "cm_certificate": "t^2 - 4p = D_K * conductor^2",
+        "omega_trace": tau, "omega_norm": m,
+        "G": [hex(G[0]), hex(G[1])], "G_source": gsrc,
+        "arithmetic": asdict(ar),
     }
 
 
@@ -542,7 +682,7 @@ def run(target: str = "GOST CryptoPro-B", *, nmax: int = 20000, lmax: int = 61,
 # ---------------------------------------------------------------------------
 
 def scalar_mult_model(result: dict, *, widths=(3, 4, 5, 6, 7), samples: int = 400,
-                      seed: int = 7) -> dict:
+                      seed: int = 7, arith=None) -> dict:
     """Expected field-operation counts of every native arm, by simulation.
 
     The same seeded random scalars are recoded exactly as the Rust code does;
@@ -553,6 +693,8 @@ def scalar_mult_model(result: dict, *, widths=(3, 4, 5, 6, 7), samples: int = 40
     rng = random.Random(seed)
     ks = [rng.randrange(1, n) for _ in range(samples)]
     out = {"samples": samples, "seed": seed, "baseline": {}, "glv": {}}
+    if arith is not None:
+        return _scalar_mult_model_arith(result, arith, ks, out, widths)
     for table in ("affine", "jacobian"):
         for w in widths:
             cs = [baseline_ops(k, w, table) for k in ks]
@@ -566,6 +708,37 @@ def scalar_mult_model(result: dict, *, widths=(3, 4, 5, 6, 7), samples: int = 40
             for table in ("affine", "jacobian"):
                 for w in widths:
                     cs = [glv_ops(k1, k2, w, table, cops) for k1, k2 in halves]
+                    per[f"{variant}/{table}/w{w}"] = _mean_ops(cs)
+        out["glv"][ch["id"]] = per
+    return out
+
+
+def _scalar_mult_model_arith(result: dict, ar, ks: list[int], out: dict, widths) -> dict:
+    """``scalar_mult_model`` with a curve's own ``curvesweep.Arith`` (doubling
+    and Fermat inversion); the same recoding, tables and lattice bases."""
+    from . import curvesweep as CV
+    n = int(result["n"], 16)
+    inv_I = {"affine": 1, "jacobian": 0}
+    out["arithmetic"] = asdict(ar)
+    for table in ("affine", "jacobian"):
+        for w in widths:
+            cs = []
+            for k in ks:
+                M, S = CV.baseline_ops(ar, k, w, table)
+                cs.append({"M": M, "S": S, "I": inv_I[table]})
+            out["baseline"][f"{table}/w{w}"] = _mean_ops(cs)
+    for ch in result["chains"]:
+        red = LA.reduce([1, int(ch["eigenvalue"], 16)], n)
+        halves = [red.decompose(k) for k in ks]
+        per = {}
+        for variant in VARIANTS:
+            cops = ch["model_ops"][variant]
+            for table in ("affine", "jacobian"):
+                for w in widths:
+                    cs = []
+                    for k1, k2 in halves:
+                        M, S = CV.glv_ops(ar, k1, k2, w, table, cops)
+                        cs.append({"M": M, "S": S, "I": inv_I[table]})
                     per[f"{variant}/{table}/w{w}"] = _mean_ops(cs)
         out["glv"][ch["id"]] = per
     return out
@@ -602,9 +775,15 @@ def markdown(result: dict, model: dict) -> str:
     L.append("## Catalogue and completeness")
     L.append("")
     nel = len({tuple(r['element']) for r in rows})
-    L.append(f"- Elements: every primitive non-scalar `a + bω` with norm ≤ {B['nmax']} and every prime "
-             f"factor ≤ {B['lmax']}, one per {{±1}} × {{conjugation}} orbit: **{nel}** elements, "
-             f"**{len(rows)}** step orderings.")
+    if "cost_complete" in B:
+        L.append(f"- Elements: every primitive non-scalar `a + bω` whose cheapest chain costs at most "
+                 f"{B['cost_complete']['limit_M_eq']:g} M_eq (`curvesweep.complete_catalogue`, no norm or step "
+                 f"bound; largest norm {B['nmax']}, largest step {B['lmax']}), one per {{units}} × "
+                 f"{{conjugation}} orbit: **{nel}** elements, **{len(rows)}** step orderings.")
+    else:
+        L.append(f"- Elements: every primitive non-scalar `a + bω` with norm ≤ {B['nmax']} and every prime "
+                 f"factor ≤ {B['lmax']}, one per {{±1}} × {{conjugation}} orbit: **{nel}** elements, "
+                 f"**{len(rows)}** step orderings.")
     nf = sum(1 for r in rows if r["found"])
     L.append(f"- Built and verified on points (closed walk, eigenvalue, GLV-2 reconstruction): "
              f"**{nf} of {len(rows)}**.")
@@ -613,6 +792,13 @@ def markdown(result: dict, model: dict) -> str:
     L.append(f"- Cheapest chain (optimised evaluator): **{B['best_optimised_M_eq']} M_eq**.  Exported for "
              f"the native measurement: every ordering within {B['export_factor']}× of it "
              f"(≤ {B['export_limit_M_eq']:.0f} M_eq): **{len(result['chains'])}** orderings.")
+    if "cost_complete" in B:
+        L.append(f"- Completeness: by cost enumeration (`curvesweep.cost_bounded_multisets`, "
+                 f"{B['cost_complete']['multisets']} realizable step multisets of cost ≤ "
+                 f"{B['cost_complete']['limit_M_eq']:g} M_eq), so every ordering of any element within "
+                 f"{B['export_factor']}× of the cheapest is in the catalogue.  The two lines below are the "
+                 f"norm/step-bounded bounds for the catalogue's largest norm and step, given for context; "
+                 f"they do not carry the completeness claim.")
     for v in VARIANTS:
         ob = B["outside_lower_bound"][v]
         L.append(f"- Completeness, `{v}` evaluator: any chain outside the bounds costs at least "
@@ -686,33 +872,50 @@ def main(argv=None) -> int:
     ap.add_argument("--export-factor", type=float, default=2.0)
     ap.add_argument("--vectors", type=int, default=2)
     ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--std-curves", default=None, help="a J08nY/std-curves checkout (curves outside the registry)")
+    ap.add_argument("--extra", default=None, help="a directory of further std-curves-format categories")
+    ap.add_argument("--catalogue", choices=("norm", "cost"), default="norm")
+    ap.add_argument("--prefix", default="", help="file-name prefix (several curves in one directory)")
     args = ap.parse_args(argv)
     os.makedirs(args.out_dir, exist_ok=True)
+    roots = tuple(r for r in (args.std_curves, args.extra) if r)
 
     def progress(row):
         print(f"{row.element[0]:4d} {row.element[1]:3d} N={row.norm:6d} {'·'.join(map(str, row.order)):16s} "
               f"{'ok ' if row.found else 'FAIL'} {row.build_seconds:6.2f}s {row.note}", flush=True)
 
     result = run(args.target, nmax=args.nmax, lmax=args.lmax, export_factor=args.export_factor,
-                 vectors=args.vectors, progress=progress)
-    model = scalar_mult_model(result)
-    chains_path = os.path.join(args.out_dir, "chains.constants.json")
+                 vectors=args.vectors, progress=progress, roots=roots, catalogue_mode=args.catalogue)
+    if roots:
+        from . import curvesweep as CV
+        model = scalar_mult_model(result, arith=CV.arithmetic(int(result["p"], 16), int(result["a"], 16)))
+    else:
+        model = scalar_mult_model(result)
+    pre = args.prefix
+    chains_path = os.path.join(args.out_dir, f"{pre}chains.constants.json")
     with open(chains_path, "w") as f:
         json.dump({k: v for k, v in result.items() if k != "rows"}, f, indent=1)
         f.write("\n")
-    cat_path = os.path.join(args.out_dir, "catalogue.json")
+    cat_path = os.path.join(args.out_dir, f"{pre}catalogue.json")
     with open(cat_path, "w") as f:
         json.dump({k: v for k, v in result.items() if k != "chains"}, f, indent=1)
         f.write("\n")
-    model_path = os.path.join(args.out_dir, "model.json")
+    model_path = os.path.join(args.out_dir, f"{pre}model.json")
     with open(model_path, "w") as f:
         json.dump(model, f, indent=1)
         f.write("\n")
-    with open(os.path.join(args.out_dir, "catalogue.md"), "w") as f:
+    with open(os.path.join(args.out_dir, f"{pre}catalogue.md"), "w") as f:
         f.write(markdown(result, model))
     sums = {os.path.basename(pth): sha256_file(pth) for pth in (chains_path, cat_path, model_path)}
-    with open(os.path.join(args.out_dir, "SHA256SUMS"), "w") as f:
-        for name, digest in sorted(sums.items()):
+    sums_path = os.path.join(args.out_dir, "SHA256SUMS")
+    allsums = {}
+    if pre and os.path.exists(sums_path):         # other curves' entries in a shared directory are kept
+        for line in open(sums_path):
+            digest, name = line.split()
+            allsums[name] = digest
+    allsums.update(sums)
+    with open(sums_path, "w") as f:
+        for name, digest in sorted(allsums.items()):
             f.write(f"{digest}  {name}\n")
     nf = sum(1 for r in result["rows"] if r["found"])
     print(json.dumps({"rows": len(result["rows"]), "verified": nf, "exported": len(result["chains"]),

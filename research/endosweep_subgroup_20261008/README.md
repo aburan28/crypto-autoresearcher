@@ -258,3 +258,44 @@ The tests check every point of three toy curves exhaustively: a toy BLS12
 curve at `u = −5`, a `j = 8000` curve with `√−2`, and a `D = −23`
 class-number-3 curve with `1 + ω` as three 2-isogenies.  They also cover the
 BLS12-381 control and CP6-782 on points.
+
+## Lean verification
+
+Added 2026-10-16. The exact integer computation behind items 1–3 of "The
+algebra", and the recorded numbers of `subgroup.json`, are machine-checked in
+[`formal/CryptoResearch/Endosweep/SubgroupIndex.lean`](../../formal/CryptoResearch/Endosweep/SubgroupIndex.lean)
+(namespace `CryptoResearch.Endosweep.SubgroupIndex`; core Lean plus
+`Mathlib.Tactic.Ring`):
+
+* `index_eq_minorGcd`: for any finite list of vectors in `Z²` whose 2×2
+  minors have nonzero gcd `d`, the quotient of `Z²` by their span has exactly
+  `d` classes (an explicit complete residue system with values `0 … d − 1`).
+  This is the fact `element_index` relies on.
+* `ideal_index_eq_elementIndex`: in `O = Z[ω]` the `Z`-span of
+  `{β, βω, γ, γω}` is the ideal `βO + γO`, so `[O : βO + γO]` is the minor gcd
+  that `element_index` computes.
+* `cp6_782_certificate` (checked by `decide`) covers CP6-782:
+  * the recorded `π` has `N(π) = p`, `Tr π = t` and `N(π − 1) = h·r`;
+  * `λ_ω = e(4 + ω) − 4` is a root of `x² − x + 85 (mod r)`;
+  * the chosen membership element has norm `r`, lies in `𝔯` and has index `r`;
+  * the chosen and shortest clearing elements and `e = h/6` have index `h`;
+  * the module predictions for `ℓ = 2, 3, 7, 29` are `4, 9, 7, 29`.
+* `bls12_381_control` (checked by `decide`) covers BLS12-381:
+  * `r = u⁴ − u² + 1 = N(u² + φ)` and `h = (u − 1)²/3`, with
+    `φ = −1 + ω = ζ₃`;
+  * the recorded `π` has norm `p`, trace `t` and `N(π − 1) = h·r`;
+  * `φ`'s eigenvalue is `−u² mod r`, and `u² + φ ∈ 𝔯`;
+  * `−(u² + φ)` and `−1 + (u² − 1)φ` have index `r`;
+  * `1 − u` has index `h` and is not in `𝔯`;
+  * the module predictions are `ℓ = 3 ↦ 3` and `ℓ = 11 ↦ 121`.
+
+Not Lean claims:
+* Lenstra's theorem, and with it the step from the index to `|ker β|` on
+  `E(F_p)` (the finite-module counting step is not formalized either);
+* everything measured on points: the membership and clearing checks and the
+  torsion counts;
+* that the recorded `π` is the curve's Frobenius, or `End(E) = O_K`;
+* primality of `r`, `p` or the 357-bit factor;
+* every cost and ratio, which are modelled.
+
+Target specs: `formal/targets/endosweep-subgroup-*.yaml`.

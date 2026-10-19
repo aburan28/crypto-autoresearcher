@@ -5,6 +5,20 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
+## Every improvement is a success
+
+Owner's rule, 2026-10-15. The success criterion is a verified, measured
+improvement over the current index-calculus baseline: the best verified
+pipeline for that curve and size, frozen with its protocol and end-to-end
+`S`. Beating Pollard rho is the long-term goal, reached by accumulating
+such improvements, not by one breakthrough. Advance and engineering
+results are successes. Relabelling, accounting and null results are
+recorded but are not improvements. Each landed improvement becomes the new
+baseline, recorded with its delta. Every row reports its gap to the
+matched rho (and to Bernstein–Lange when setup is excluded) as the
+distance remaining, never as a pass/fail gate. A claim to beat rho still
+needs the full reference rules.
+
 ## Name the obstruction
 
 When substantial research, cryptanalysis, or audit work cannot meet a proof,
@@ -66,6 +80,9 @@ independent review and the Bedrock ban still bind.
   launch is reported, never bypassed. Results are observations until
   archive/review says otherwise. `run` may commit and push its run records, then
   its run reports, on its own branch.
+- **Runbooks** (`docs/runbook-execution.md`, owner 2026-10-16) let the
+  mechanical tier execute: `tools/runbook.py` runs, records and reports, so the
+  operator writes no number; `audit-runs` replays a sample it cannot predict.
 - **`coordinate`** (`.claude/skills/coordinate/SKILL.md`; Codex/OpenCode adapter
   `.agents/skills/coordinate/`) ranks, designs, approves, reviews, archives and
   publishes; it never launches scientific trials.
@@ -88,9 +105,10 @@ assessment are not launch prerequisites. This map adds no runtime role or author
 | Coordinator | priorities, decomposition, state transitions, synthesis; alone changes the official status of a hypothesis or direction | `coordinator-orchestration-code` (`coordinator-orchestration` without code) |
 | Idea Generator; research tasks | falsifiable mechanisms and experiments | `research-deep` |
 | Idea Synthesist | cross-goal ideation | `research-synthesis`, `high` |
-| Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs |
+| Experiment Director | writes the mechanical tier's runbook and task card, assesses its runs | `director-runbook` |
+| Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs and approved runbooks |
 | Reviewer | challenges claims, validity and transitions | `review-adversarial`, `xhigh`, independent session |
-| Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer |
+| Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer; `audit-sweep` screens runbook sessions, never a review gate |
 | Red Team | tries to falsify interpretation, cost model and scope | `review-adversarial`, as Reviewer |
 | Consolidator | carries pointers between lanes, weighing relevance, never correctness; adjudicates nothing | `consolidation-routing`, `high`, independent of the lanes it reads |
 
@@ -131,6 +149,10 @@ Permissions: the role contract. Inference requirements:
 `orchestration/model-bindings.yaml`, resolved by `orchestration/adapter/`.
 None names a vendor (`docs/inference-backends.md`). Each role's policy is in
 "Roles".
+
+**Model tiers** (`docs/model-tiers.md`): each policy has a `model_tier`
+floor (mechanical < director < core < frontier); the resolver refuses models
+below it.
 
 Policy ids are permanent; pre-2.0 aliases (`model-policies.yaml`) resolve
 forever; new handoffs use canonical ids. The adapter records requested policy
@@ -327,10 +349,18 @@ The approved-unrun capacity cap from 2026-10-07 is removed by user direction
 neither its count nor `--capacity` blocks design or approval. An open ECC idea
 is ranked and designed when its protocol can be completed. Approval requires:
 
-- **Runnable.** Approve only when `python3 tools/newest_experiments.py
-  --experiment <EXP-ID>` reports `execution_state: ready`. Implementation is
-  the design lane's; a contract not runnable in its designing session stays
-  `review_required` with the reason recorded.
+- **Runnable.** Before approval, require `python3
+  tools/experiment_preapproval.py --packet <PACKET.json>` to report
+  `approvable: true` for the exact prospective frozen specification, trial
+  plan, executor handoff and queue, including committed source/input hashes,
+  complete supervisor and trial archive coverage, an execution route, and a
+  lawful goal lane. The probe is read-only and grants no execution authority.
+  Implementation is the design lane's; a contract that fails this check stays
+  `review_required` with its exact blockers recorded. After the Coordinator's
+  approval decision and archive are committed, `python3
+  tools/newest_experiments.py --experiment <EXP-ID> --json` must report
+  `execution_state: ready` before dispatch. A mismatch stops dispatch and
+  requires an additive correction.
 
 If a complete contract cannot yet be made runnable, keep it `review_required`
 and record the missing launcher in the goal's `next_action`. An approved, unrun
@@ -508,6 +538,17 @@ references. A specification states, before any run, what each outcome changes
 
 ## Artifact policy
 
+**Execution-proof integration is integral to the proof chain** (owner,
+2026-10-16). Work implementing it follows
+[docs/execution-proof-chain.md](docs/execution-proof-chain.md): bind the approved
+protocol, executable, inputs, complete workload and raw output through metric
+checks, evidence, independent review and Cairn settlement/audit. No covered
+claim may be called execution verified merely because its receipt was hashed,
+its witness checks, or its schema passes. This is a required integration and
+release contract, not a claim that today's runners enforce it. Missing proof
+support stays explicit; scientific authority and historical records retain
+their existing rules.
+
 Each run retains: exact command; commit and dirty-tree state; environment and
 dependency versions; parameters and seeds; requested policy, backend and
 resolved model id with provenance and probe status; reasoning effort, fallback
@@ -581,6 +622,14 @@ Deduplicate against the ledger with the generated `ledger/.index/*.jsonl`
 tools and indexes before records, sizes before contents, run outputs by receipt
 (`docs/agent-runtime-core.md`, "Reading discipline"). A path off disk in a
 sparse checkout still exists (`docs/sparse-checkout.md`).
+
+For the ten-lead campaign, the advisory handoff is
+[`research/ten-lead-evidence/README.md`](research/ten-lead-evidence/README.md).
+Retrieve one lead with `python3 tools/scoped_evidence.py lead N --json` and keep
+its scope, assumptions, non-implications and artifact bindings with citations.
+This supplements KB retrieval; it changes no official research state and adds
+no prerequisite to `run`. Missing private artifact access is an access gap,
+never mathematical evidence against a lead.
 
 ## Curve identity and measured bounds
 

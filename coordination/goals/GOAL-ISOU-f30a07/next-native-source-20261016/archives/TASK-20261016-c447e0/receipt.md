@@ -1,0 +1,11 @@
+# Fixed-modulus source-delivery snapshot TASK-20261016-c447e0
+
+This content_at_commit snapshot owns exactly its receipt and captures the two published producer artifacts. Producer commit20be2c53c054eb6e7ec84a833fc19e4707615594; completed, nonexpired epoch1release9fa53fde34a15696d1099da4b20faa65aeef7ba6. source-bindings.json SHA256cb8a4a69d150f9ff337851b212f72c299e8708e703de059030a182adeb9a1cec; implementation-receipt.md SHA2562b27e5c2e82edc057181c1ef0eb6c714d7e537f05491589bea07a554bb7bcf88. Both current and producer Git blob hashes were independently checked.
+
+All118 external paths rehashed from published crypto evidence commitc6fb2a332ad42f0be2b30f1c0b0b6e1ec04221f8 with exact byte counts. Four installed frozen015fa7bb504ef63953e0e04e464bb266f4f207bf executables match their compiled bytes and declared hashes. Eight initial local full-readback content objects rehashed, plus exact published Windows/root supplemental archives;10 distinct content digests in11 logical names. This snapshot asserts those byte checks, not a new remote download; raw transfer/HEAD/full-readback receipts remain inputs for independent review. Transport-client build source is not independently established.
+
+Frozen native source015 and later merged-source3ce remain distinct. The current complete root suite is FAIL4161passed/1failed/117ignored, exit101; one same-executable whole-SQISign-module retake passed14/0/0, with4265filtered. It does not replace the full failure or establish its cause. Earlier frozen-source root failures/passes, all failed builds/report preparation attempts, CRLF fixture failure and narrow-text repair remain preserved. Parent producer completion is delivery to review, not successful source admission.
+
+source_gate_complete=false; scientific_runs=0. No benchmark, sealed50341 replay, next compact target or larger construction is approved or executed. Independent review06cc13 begins only after the unchanged dispatcher verifies all three Git paths at this snapshot content commit and a prospective source/raw-first blindness clarification is committed. Later source-admission decision5cf723 remains unmade.
+
+Commit/parent and every path hash will be recorded in the queue after the content commit; this receipt intentionally omits its own future hash and commit. The goal remains active and all old scientific records remain unchanged.

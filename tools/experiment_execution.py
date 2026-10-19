@@ -197,6 +197,18 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     return plan
 
 
+def manifest_schema_errors(manifest: Path) -> list[str]:
+    """Run-schema defects in a trial's manifest.yaml, as tools/validate_ledger.py
+    reports them. A manifest that fails the schema is a ledger error the day it
+    is committed (RUN-SEMBIN-9ecb77 entered main this way, sheriff case
+    SHF-20261017-e4d7f6 M2-R), so it is invalid output, never a validated run.
+    Schema only: cross-record references are the full validator's job."""
+    import validate_ledger  # noqa: PLC0415 -- heavy; only after a trial succeeds
+    ctx = validate_ledger.Ctx(set())
+    validate_ledger.check_run(str(manifest), ctx)
+    return [error.split(": ", 1)[-1] for error in ctx.errors]
+
+
 def run_root(root: Path, plan: dict[str, Any], trial: dict[str, Any]) -> Path:
     parent = PurePosixPath(plan["specification"]).parent
     return safe_path(root, f"{parent}/runs/{trial['run_id']}")
@@ -443,6 +455,28 @@ def darwin_group_rss_bytes(pgid: int) -> int:
     return total
 
 
+def read_darwin_rss_during_transition(process: subprocess.Popen[Any],
+                                      grace_seconds: float = 1.0) -> int | None:
+    """Retry a short libproc exit/exec race, but fail on persistent monitor loss.
+
+    A group member may still be listed after its task info becomes unreadable.
+    ``None`` means the supervised leader exited during this transition.
+    """
+    deadline = time.monotonic() + grace_seconds
+    first_error = None
+    while True:
+        try:
+            return darwin_group_rss_bytes(process.pid)
+        except ExecutionError as error:
+            if first_error is None:
+                first_error = error
+            if process.poll() is not None:
+                return None
+            if time.monotonic() >= deadline:
+                raise first_error
+            time.sleep(0.02)
+
+
 def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial: dict[str, Any],
                 authority: dict[str, Any], lock_fd: int) -> tuple[str, int | None]:
     import resource
@@ -464,25 +498,9 @@ def run_process(argv: list[str], root: Path, directory: Path, prefix: str, trial
                                        pass_fds=(lock_fd,))
             while process.poll() is None:
                 if darwin:
-                    try:
-                        rss = darwin_group_rss_bytes(process.pid)
-                    except ExecutionError as error:
-                        # libproc can momentarily lose a newly exec'ing or
-                        # just-exiting PID. Retry only this short transition;
-                        # persistent monitor loss remains fail-closed.
-                        for _ in range(3):
-                            if process.poll() is not None:
-                                return "exited", process.returncode
-                            time.sleep(0.01)
-                            try:
-                                rss = darwin_group_rss_bytes(process.pid)
-                                break
-                            except ExecutionError:
-                                pass
-                        else:
-                            if process.poll() is not None:
-                                return "exited", process.returncode
-                            raise error
+                    rss = read_darwin_rss_during_transition(process)
+                    if rss is None:
+                        return "exited", process.returncode
                     if rss > ceiling:
                         return "memory_limit_exceeded", None
                 if datetime.now(timezone.utc) >= expiry:
@@ -533,6 +551,10 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
                 file = safe_path(directory, name)
                 if not file.is_file() or (file.stat().st_size == 0 and name not in allow_empty):
                     raise ExecutionError(f"missing/empty required artifact: {name}")
+            schema = manifest_schema_errors(safe_path(directory, "manifest.yaml"))
+            if schema:
+                raise ExecutionError("manifest.yaml fails the run schema (tools/validate_ledger.py): "
+                                     + "; ".join(schema))
     except KeyboardInterrupt:
         status, interrupted = "interrupted", True
     except (OSError, ValueError, subprocess.SubprocessError) as error:

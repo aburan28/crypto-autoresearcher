@@ -389,6 +389,7 @@ session can dispatch every role at its own depth:
 | `executor-mechanical` | `executor-mechanical` | `low` |
 | `validator-breakthrough` | `review-breakthrough` | `max` |
 | `red-team-breakthrough` | `review-breakthrough` | `max` |
+| `validator-sweep` | `audit-sweep` | `high` |
 
 Those values are **derived, not chosen here**: role → `default_policy` in
 `orchestration/roles.yaml` → `reasoning_effort` in

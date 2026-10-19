@@ -18,6 +18,8 @@ this guide, catalog checks and subject assessment are never launch preflights.
 | Ingest a source or distill validated findings | `curate-knowledge` | Preserve provenance and promotion requirements |
 | Produce explanatory research diagrams/PDF | `research-visuals` | Derived communication, not scientific authority |
 | Cross-lane context | `consolidate-lanes` | Independent pointer consolidation, not findings |
+| Audit finished runbook sessions (periodic) | `audit-runs` | Integrity, nonce-sampled replay and math screen; never a trial or a review gate |
+| Audit whether results are real: claims, papers, proofs, Lean, receipts, numbers | `sheriff` | Write-once audit cases; repairs nothing, never a review gate or a state change |
 | Explicit inter-agent messaging | `agent-bus` | Pointers only; never approvals or work assignments |
 | Improve a skill | `tune-skill` | Existing skill evaluation workflow |
 | Choose a tool or locate a workflow | `route` | Read-only selection, no execution |
@@ -60,6 +62,8 @@ results” uses `review-evidence` with `solver` context.
 | “Make the GPU multiply faster” | `gpu` | `bench`; existing benchmark execution remains `run` |
 | “Check the RunPod job and saved checkpoint” | `ops` | No automatic scientific launch |
 | “Formalize this stated lemma” | `formal` | Frozen formal task execution remains `run` |
+| “Check the math on the Haiku runs” | `audit-runs` | `formal` for a Lean statement the screen flags |
+| “Are these results bullshit?” / “Sheriff this paper before it lands” | `sheriff` | `audit-runs` for runbook sessions; `review-evidence` for the official decision |
 | “Does this recipient-lift construction meet IND-CCA?” | `scheme` | `formal` only for a supplied proof obligation |
 | “Add sourced curve traits to the dashboard” | `ui` | `curve` |
 | “Ingest these papers into KN” | `curate-knowledge` | No new literature-ingestion skill required |

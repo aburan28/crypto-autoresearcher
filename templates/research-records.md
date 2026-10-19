@@ -266,8 +266,25 @@ experiment:
                             # process group's CPU for reporting; ordinary CPU estimates are not caps.
   stopping_rules: []
   invalidation_rules: []
-  success_criterion: null
+  success_criterion: null       # cites decisive comparison and prediction ids
   falsification_criterion: null
+  # docs/confound-control.md. Required from 2026-10-18; checked by
+  # tools/validate_ledger.py whenever present.
+  variable_ledger:
+    independent: []             # - {name, levels}
+    factors: []                 # - {name, treatment: fixed|randomized|crossed|measured,
+                                #    value, how}
+    comparisons: []             # - {id, arms, differs_in,
+                                #    design: one_factor|factorial|absolute|aa|confounded,
+                                #    reason (confounded only)}
+    aa_not_applicable: null     # reason, only when no comparison has design: aa
+    crosses_map: false          # true requires transfer_obligations
+  prediction_provenance: []     # - {prediction, first_recorded_in, written_at,
+                                #    data_seen: [{path, measured}],
+                                #    sample_status: out_of_sample|partially_in_sample|in_sample,
+                                #    overlap, decisive_scope (partially_in_sample only)}
+  transfer_obligations: []      # - {map, kind, source, destination, preserves, changes,
+                                #    controls: [{kind, comparison}], assessment}
   required_artifacts: []
   assigned_to: executor
   approved_by: null
@@ -350,6 +367,9 @@ evidence:
   inference: null
   boundaries: []
   unresolved_confounds: []
+  confound_assessment: []       # required when an experiment has a variable_ledger:
+                                # - {comparison, verdict: isolated|randomized|not_isolated,
+                                #    basis}; any not_isolated caps strength at preliminary
   obstruction:                  # required when direction is weakens|contradicts,
                                 # and on any record closing a lane. A narrative
                                 # obstruction is a fatigue report (AGENTS.md
@@ -643,7 +663,11 @@ handoff:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | research-synthesis | executor-implementation |
             executor-mechanical | review-adversarial | review-breakthrough |
-            consolidation-routing
+            consolidation-routing | audit-sweep | director-runbook
+            # director-runbook only for writing a runbook and mechanical task
+            # card, or assessing a finished runbook session (docs/model-tiers.md).
+            # audit-sweep only for the periodic audit of runbook sessions
+            # (audit-runs); it screens and never satisfies a review gate.
             # review-breakthrough only for a claimed break, a closure result,
             # or a contradiction between validated evidence records. It cannot
             # be degraded and refuses a backend that cannot reach `max`.
