@@ -8,15 +8,15 @@ Written by a non-Coordinator session at the owner's request (branch `claude/ic-i
 2. **Extend CORR-20260813-d9f0fa** (or file a new CORR) to add **RUN-ICINV-e0cd8f-m3class** to the affected archived families. Its m4 invariants (`s4_support` 227/225 archived, 439 recomputed on two sample curves) came from the defective `s4_expr`; the CORR record lists only EXP-MTIC-001 (11 runs) and EXP-FIB-001 (10 runs). The m3 columns are unaffected.
 3. **Authorize matched reruns** (CORR-20260813-d9f0fa already requires a Coordinator-approved contract) of the 21 MTIC/FIB runs and the ICINV m4 stage under the repaired code, with the archived runs kept. Until then no MTIC/FIB/ICINV-m4 number should be compared with a post-repair output.
 
-## R-2. Negatives whose ground was infrastructure or process
+## R-2. Scope and provenance of negative verdicts
 
-Annotated by `problems/` records (the schema has no note field on hypotheses and goals, and those files are Coordinator-owned). Requested: link each record from the affected goal or hypothesis notes so it stops being cited as a result.
+Annotated by `problems/` records (the schema has no note field on hypotheses and goals, and those files are Coordinator-owned). Requested: link each record from the affected goal or hypothesis notes. Preserve infrastructure stops as unmeasured and retain scoped measurements, such as H-STR-002's ablation, with their stated limits.
 
 | Item | Ground | Record | Rerun needed |
 | --- | --- | --- | --- |
 | GOAL-DREG-001 item C1 | 0/6 runs `failed_infrastructure`; prepare RSS 11.73-12.22 GiB vs 8 GiB cap (DEC-20260828-653923) | [dreg-c1-memory-cap-exhausted](../../problems/dreg-c1-memory-cap-exhausted.md) | Execute TASK-20261005-821d86 (16 GiB floor, DEC-20261005-8d23bb); no output on `main` yet |
 | EXP-ECTD-0cf008 | 17 of 20 arms: 11 `psutil` missing, 2 RSS sampling, 4 blocked on them | [ectd-arity3-panel-infrastructure-loss](../../problems/ectd-arity3-panel-infrastructure-loss.md) | Approve the 17-arm additive recovery amendment (draft in the experiment's `amendments/`) |
-| H-STR-002 | `weakened` for absent run records and non-reproducing numbers (DEC-20260727-009); EXP-STR-004 tested the instrument only | [str002-support-verdict-missing-artifacts](../../problems/str002-support-verdict-missing-artifacts.md) | Mechanism-level successor with frozen criteria |
+| H-STR-002 | `weakened` for artifact defects (R1), an independently reproduced scoped ablation (R2), and missing complete-cost evidence (R3), under DEC-20260727-009; general mechanism not rejected | [str002-support-verdict-missing-artifacts](../../problems/str002-support-verdict-missing-artifacts.md) | Mechanism-level successor with frozen criteria; retain the existing scoped measurement |
 | H-DTREE-001 | `inconclusive`, `design_infeasible` stop rule (DEC-20260809-91d4c7) | [dtree-slope-grid-design-infeasible](../../problems/dtree-slope-grid-design-infeasible.md) | Seed-policy amendment or successor, with a `target_subgroup` versus `full_curve` factor-base arm |
 
 ## R-3. Stale registers KN-OPEN-004 to KN-OPEN-010
