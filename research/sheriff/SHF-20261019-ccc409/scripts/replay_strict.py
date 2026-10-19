@@ -5,13 +5,14 @@ the provenance of the historical rows in shards/replay_out*.jsonl).
 Equality is exact on every leaf (no float rounding, no key-name heuristics). A difference is
 excused only when its JSON-pointer path matches an entry of the explicit per-artifact
 allowlist (replay_allowlist.yaml): `*` matches exactly one path segment. Everything else is an
-unexplained difference and the replay does not pass.
+unexplained difference. The launcher emits artifact_comparison_pass only for
+compared artifacts; it cannot certify a complete replay output inventory.
 
     python3 -I replay_strict.py discover WORKTREE EVIDENCE_ID...   all diffs, no allowlist
     python3 -I replay_strict.py run      WORKTREE EVIDENCE_ID...   verdict with the allowlist
 """
 from __future__ import annotations
-import json, os, re, shlex, subprocess, sys
+import json, math, os, re, shlex, subprocess, sys
 from pathlib import Path
 import yaml
 
@@ -28,7 +29,8 @@ def diff(a, b, p=""):
         out.append((p or "/", a, b))
     elif isinstance(a, dict):
         for k in sorted(set(a) | set(b), key=str):
-            q = f"{p}/{k}"
+            escaped = str(k).replace("~", "~0").replace("/", "~1")
+            q = f"{p}/{escaped}"
             if k not in a:
                 out.append((q, "<absent>", b[k]))
             elif k not in b:
@@ -48,17 +50,53 @@ def diff(a, b, p=""):
 
 
 def allowed(pointer: str, patterns) -> bool:
-    segs = pointer.strip("/").split("/")
+    segs = pointer[1:].split("/")
     for pat in patterns:
-        ps = pat.strip("/").split("/")
+        ps = pat[1:].split("/") if pat.startswith("/") else []
         if len(ps) == len(segs) and all(x == "*" or x == y for x, y in zip(ps, segs)):
             return True
     return False
 
 
+def metadata_leaf(value, pointer):
+    """Resolve a JSON pointer only to an existing scalar metadata leaf."""
+    if not pointer or not pointer.startswith("/"):
+        return False
+    for encoded in pointer[1:].split("/"):
+        part = encoded.replace("~1", "/").replace("~0", "~")
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        elif isinstance(value, list) and part.isdecimal() and str(int(part)) == part:
+            if int(part) >= len(value):
+                return False
+            value = value[int(part)]
+        else:
+            return False
+    return not isinstance(value, (dict, list))
+
+
+def validate_values(value):
+    if isinstance(value, dict):
+        if any(type(key) is not str for key in value):
+            raise ValueError("Result object keys must be strings")
+        for child in value.values():
+            validate_values(child)
+    elif isinstance(value, list):
+        for child in value:
+            validate_values(child)
+    elif type(value) is float and not math.isfinite(value):
+        raise ValueError("Nonfinite result number")
+    elif type(value) not in (str, int, float, bool, type(None)):
+        raise ValueError("Unsupported result value")
+
+
 def compare(old, new, patterns):
+    validate_values(old)
+    validate_values(new)
     d = diff(old, new)
-    bad = [x for x in d if not allowed(x[0], patterns)]
+    bad = [x for x in d if not (allowed(x[0], patterns)
+                               and metadata_leaf(old, x[0])
+                               and metadata_leaf(new, x[0]))]
     return d, bad
 
 
@@ -116,6 +154,8 @@ def run_one(wt, eid, rows, allow, discover):
             files[f]["unexplained_sample"] = [(a, str(b)[:60], str(c)[:60]) for a, b, c in bad[:6]]
     head = subprocess.run(["git", "-C", wt, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     res.update(files=files, not_compared=notcmp,
+               comparison_scope="modified JSON/YAML artifacts only; expected output inventory not certified",
+               execution_certified=False,
                receipt={"worktree_commit": head, "argv": argv, "python": sys.version.split()[0],
                         "ran_at_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()})
     if not files:
@@ -125,7 +165,8 @@ def run_one(wt, eid, rows, allow, discover):
     elif any(v["unexplained"] for v in files.values()):
         res["status"] = "fail"
     else:
-        res["status"] = "pass"
+        res["status"] = "artifact_comparison_pass"
+        res["reason"] = "Compared retained artifacts agree; complete replay is not certified"
     return res
 
 

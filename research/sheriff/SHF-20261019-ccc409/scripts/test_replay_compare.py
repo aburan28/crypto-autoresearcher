@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Regression tests for replay_strict.compare, including the counterexample from review of
 PR 2425 (scientific fields whose names contain 'date' / 'dir', and tiny numeric values)."""
-import sys, unittest
+import sys, unittest, tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import replay_strict as R
@@ -43,6 +45,56 @@ class T(unittest.TestCase):
     def test_length_and_absent_keys(self):
         self.assertEqual(len(R.compare({"l": [1, 2]}, {"l": [1]}, [])[1]), 1)
         self.assertEqual(len(R.compare({"a": 1}, {"a": 1, "b": 2}, [])[1]), 1)
+
+    def test_literal_slash_key_does_not_alias_nested_metadata(self):
+        old, new = {"environment/platform": "a"}, {"environment/platform": "b"}
+        self.assertEqual(R.compare(old, new, ["/environment/platform"])[1],
+                         [("/environment~1platform", "a", "b")])
+        self.assertEqual(R.compare(old, new, ["/environment~1platform"])[1], [])
+
+    def test_tilde_and_trailing_slash_keys_are_distinct(self):
+        old, new = {"t~1": 1, "platform/": 1}, {"t~1": 2, "platform/": 2}
+        self.assertEqual(len(R.compare(old, new, ["/t/", "/platform"])[1]), 2)
+        self.assertEqual(R.compare(old, new, ["/t~01", "/platform~1"])[1], [])
+
+    def test_missing_allowlisted_metadata_is_not_excused(self):
+        self.assertEqual(len(R.compare({"elapsed": 1}, {}, ["/elapsed"])[1]), 1)
+
+    def test_allowlisted_container_loss_and_type_change_are_not_excused(self):
+        old = {"timings": {"scientific": 7}}
+        self.assertEqual(len(R.compare(old, {}, ["/timings"])[1]), 1)
+        self.assertEqual(len(R.compare(old, {"timings": 0}, ["/timings"])[1]), 1)
+
+    def test_nonfinite_and_unsupported_values_are_refused(self):
+        for value in (float("inf"), float("-inf"), float("nan"), {1, 2}):
+            with self.assertRaises(ValueError):
+                R.compare({"value": value}, {"value": value}, ["/value"])
+
+    def test_artifact_agreement_does_not_certify_complete_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "command.txt").write_text("python3 fixture.py\n")
+            wt = root / "wt"
+            wt.mkdir()
+            (wt / "output.json").write_text('{"value": 7}\n')
+
+            def completed(argv, **kwargs):
+                out = ""
+                if "status" in argv:
+                    out = " M output.json\n"
+                elif "show" in argv:
+                    out = '{"value": 7}\n'
+                elif "rev-parse" in argv:
+                    out = "fixed-fixture-head\n"
+                return SimpleNamespace(returncode=0, stdout=out, stderr="")
+
+            with patch.object(R, "REPO", root), patch.object(R, "PAIRS", root / "pairs"), \
+                    patch.object(R.subprocess, "run", side_effect=completed):
+                result = R.run_one(str(wt), "FIXTURE", {
+                    "FIXTURE": {"replay_command_file": "command.txt"}}, {}, False)
+            self.assertEqual(result["status"], "artifact_comparison_pass")
+            self.assertFalse(result["execution_certified"])
+            self.assertIn("expected output inventory not certified", result["comparison_scope"])
 
 
 if __name__ == "__main__":
