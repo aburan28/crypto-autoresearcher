@@ -23,7 +23,7 @@ The requested conclusion remains a complete, verified end-to-end index-calculus 
 
 ## What would unblock it
 
-- [ ] An Executor implementation makes the RSS monitor race safe while retaining a fail-closed 8 GiB process-tree cap. Tests cover normal exit, abrupt exit, zombie/NoSuchProcess during sampling, a genuinely live unreadable child, and memory-cap termination. Every path must produce a stable terminal classification and preserve raw stdout, stderr, request, response when present, and exact hashes; an unmonitorable live process must not be silently counted as zero RSS.
+- [x] An Executor implementation makes the RSS monitor race safe while retaining a fail-closed 8 GiB process-tree cap. Tests cover normal exit, abrupt exit, zombie/NoSuchProcess during sampling, a genuinely live unreadable child, and memory-cap termination. Every path must produce a stable terminal classification and preserve raw stdout, stderr, request, response when present, and exact hashes; an unmonitorable live process must not be silently counted as zero RSS.
 - [ ] A separate Coordinator-approved, fresh-ID diagnostic with frozen source, inputs, controls, resource caps, checker, and archive demonstrates where at least one m=2 planted positive spends time and either returns an independently checked full-point certificate or records a justified bounded censor with phase trace. The diagnostic must preserve the six prior 300-second censored outcomes and include a monitor fault-injection control.
 
 The first condition repairs instrument classification. The second distinguishes solver cost from preparation or monitor behavior. Meeting both would permit a rational next solver strategy and a later m=2..8 panel; it would still leave natural yield, rank, full IC costs, Koblitz and ordinary-binary rows, and matched rho open.
@@ -39,3 +39,4 @@ The first condition repairs instrument classification. The second distinguishes 
 ## Resolution and history
 
 - 2026-10-18: Opened from the sealed RUN-ICPERF-7ed866 and additive DEC-20261018-eb6e00. Preserve both the six censored positives and the natural-cell infrastructure fault; neither is rewritten as a base result. Unresolved.
+- 2026-10-18: First unblock condition met. TASK-20261018-3b41b1 passed 10/10 synthetic monitor and phase cases with zero scientific trials. The content-at-commit snapshot TASK-20261018-a2cf7c (commit 1e1df4ea164cb010cdbcbc5c29ba00ac30fdc7b7) was verified by DEC-20261018-1e362f, and BATCH-4379b2 is closed. The second condition (an approved, archived m=2 diagnostic) remains open: a preapproval probe on preview bytes reports approvable false because the diagnostic launcher, request manifest and independent checker are unimplemented. Unresolved.
