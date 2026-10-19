@@ -10,7 +10,7 @@ this guide, catalog checks and subject assessment are never launch preflights.
 | --- | --- | --- |
 | Run an existing experiment, goal, task or command | `run` | Execute existing public synthetic trials; preserve named scope and built-in admission |
 | Turn an idea into a frozen trial | `design-experiment` | Coordinator design/approval; no trial execution |
-| Review results or a scientific conclusion | `review-evidence` | Independent claim-tier review; no automatic promotion |
+| Review results, Lean theorem fidelity, proof workflows or a scientific conclusion | `review-evidence` | Independent claim-tier and formal-artifact review; no automatic promotion |
 | Show progress or unresolved work | `research-status` | Read-only record snapshot |
 | Rank goals or continue coordination | `coordinate` | Existing Coordinator authority |
 | Generate candidate research ideas | `propose-ideas` | Falsifiable proposals, not validated discoveries |
