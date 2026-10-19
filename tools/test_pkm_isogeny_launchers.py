@@ -182,8 +182,8 @@ class MsolveInputsAndChecker(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_MSOLVE and HAVE_SINGULAR and not SKIP_ALL, "msolve and Singular required")
 class MsolvePrimeCrashCanary(unittest.TestCase):
-    """msolve 0.6.5 segfaults on systems over primes with exactly 17 bits (2^16 < p < 2^17); other sizes read
-    fine (CORR-20261019-e6f65b, EXP-ECDLP-8c41d7 AMD-03). This is an external defect pinned as a canary: if the
+    """msolve 0.6.5 segfaults on systems over primes with 17 or 18 bits (2^16 < p < 2^18); other sizes read
+    fine (CORR-20261019-e6f65b, EXP-ECDLP-8c41d7 AMD-03 and NOTE-01). This is an external defect pinned as a canary: if the
     first assertion starts failing because msolve now succeeds, the defect is fixed and the 17-bit prime
     workaround (block_order_m4_p19.py) and the 'avoid 17-bit primes' rule can be retired."""
 
@@ -214,8 +214,9 @@ class MsolvePrimeCrashCanary(unittest.TestCase):
                               capture_output=True, text=True, timeout=120).returncode
 
     def test_17_bit_prime_crashes_and_other_sizes_do_not(self):
-        self.assertEqual(self._rc(70039), -11, "msolve no longer crashes on a 17-bit prime: retire the workaround")
-        for p in (60103, 300007):                      # 16 and 19 bits
+        for p in (70039, 131111, 262127):              # 17 bits, 18 bits, and near the top of the range
+            self.assertEqual(self._rc(p), -11, f"msolve no longer crashes at p = {p}: retire the workaround")
+        for p in (60103, 262271, 300007):              # 16 bits, just above 2^18, 19 bits
             self.assertEqual(self._rc(p), 0)
 
 

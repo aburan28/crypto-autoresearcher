@@ -18,7 +18,7 @@
 [20a588-03],[2026-10-19 16:18],[2026-10-19 16:58],[6],[1b1f8c2d02]
 )
 
-#figure(image("block-order-vs-L.svg", width: 100%), caption: [Median basis time per arm vs $L$ (measured; process wall time), bars min–max over completed instances; × = every instance timed out (600 s). Source runs as in the table.])
+#figure(image("block-order-vs-L.svg", width: 100%), caption: [Median basis time per arm vs $L$ (measured; process wall time), bars min–max over completed instances; × = every instance timed out (600 s). Source runs as in the table. Where a cell mixes two primes (EXP-ECDLP-8c41d7, L = 4: Singular arms at p = 65551, msolve arms at p = 262271) only comparisons within one solver family are on shared instances.])
 
 == Per-cell measurements
 
@@ -52,7 +52,7 @@ Columns: completed / timed out / other failure / degenerate target; median ms [m
 - RUN-01 was stopped by the host's 7200 s background-task limit during L = 7; cells L = 3..6 were complete. RUN-02 (the AMD-01 run for L = 7) was lost to a VM recycle after about ten minutes and wrote no rows; RUN-03 (AMD-02) re-ran L = 7 for the two arms the stopping rule had not retired (A_elim_ms, B_ms).
 - Stopping rule: A_drl_ms and A_block_sg were retired at L = 5, B_sg at L = 6; at L = 7 every instance timed out for both A_elim_ms and B_ms.
 - Cell L = 6: A_elim_ms 411 s and B_ms 210 s median (completed); the Singular dense arm timed out on all six instances.
-- msolve 0.6.5 segfaults on systems over 17-bit primes (CORR-20261019-e6f65b); no cell of this experiment used one (primes 10, 13, 16, 19 and 22 bits).
+- msolve 0.6.5 segfaults on systems over 17- and 18-bit primes (CORR-20261019-e6f65b); no cell of this experiment used one (primes 10, 13, 16, 19 and 22 bits).
 - A unit-test run (tools/test_pkm_isogeny_launchers.py, about 6 s on one core) and a few seconds of exploratory analysis shared the host with RUN-02/RUN-03 (L = 7, where every solve ended at the 600 s cap, so the timings are not affected).
 - Every planted decomposition found lies in the computed basis; the eliminated chain basis equals the dense basis on every instance where both finished.
 

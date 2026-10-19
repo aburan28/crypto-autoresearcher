@@ -68,7 +68,8 @@ def criteria(a, b):
         Ls = [L for (L, k), s in by.items() if k == arm and s["n_ok"] > 0]
         return max(Ls) if Ls else None
     def retired(arm):
-        Ls = [L for (L, k), s in by.items() if k == arm and s["n_ok"] == 0 and s["n_timeout"]]
+        # retired = every non-degenerate instance timed out; a crash/kill (status rc*) is NOT a timeout
+        Ls = [L for (L, k), s in by.items() if k == arm and s["n_ok"] == 0 and s["n_timeout"] and s["n_other"] == 0]
         return min(Ls) if Ls else None
     return dict(jointly_completed_L=joint, a_faster=len(faster),
                 ratio=({f"L{L}": round(by[(L, a)]["median_ms"] / by[(L, b)]["median_ms"], 2) for L in joint}),
@@ -120,7 +121,7 @@ for arm in ARMS:
         med = [s["median_ms"] for s in pts]
         ax.errorbar([s["L"] for s in pts], med, yerr=[[m - s["min_ms"] for m, s in zip(med, pts)], [s["max_ms"] - m for m, s in zip(med, pts)]],
                     color=c, ls=ls, marker=mk, ms=4, capsize=2, label=lab)
-    to = [s["L"] for s in summary if s["arm"] == arm and s["n_ok"] == 0 and s["n_timeout"]]
+    to = [s["L"] for s in summary if s["arm"] == arm and s["n_ok"] == 0 and s["n_timeout"] and s["n_other"] == 0]
     if to:
         ax.scatter(to, [6e5] * len(to), marker="x", color=c, s=60, zorder=5, clip_on=False)
 ax.axhline(6e5, color="black", lw=0.6, ls=":")

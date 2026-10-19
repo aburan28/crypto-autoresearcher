@@ -1,0 +1,243 @@
+# Validator report for EXP-ECDLP-20a588 (agents/validator.md "Required output").
+# A passed report means the receipt is admissible evidence. It does not support an ECDLP claim,
+# demonstrate a speedup, or authorize promotion; it does not interpret the hypothesis.
+validation_report:
+  id: VAL-20261019-e750db          # provisional random suffix; tools/allocate_id.py has no validation type; Coordinator may reassign
+  task_id: null                    # no TASK-* id was given in the task prompt (not fabricated)
+  experiment_id: EXP-ECDLP-20a588
+  hypothesis_id: H-ECDLP-60de36    # from the spec; not evaluated here
+  validator_independence: >-
+    Fresh validator session. Criteria recomputed with the validator's own script before opening analyze.py,
+    the producer report or summary.json. No sibling validator report read.
+  snapshot:
+    task_named: bb3da2694e         # "HEAD includes the run records" at task start
+    validated_at: 9dba3eb2b8baf63f67143522f5466d8c54ca5c67
+    note: >-
+      HEAD advanced twice during validation (ea3b5e9634 analysis only; 9dba3eb2b8 reports + 2-line title change).
+      runs/, amendments/, specification.yaml, trial-plan.json, block_order_grid.py unchanged between bb3da2694e and 9dba3eb2b8.
+      Run directories unchanged since the commits that added them (44c5a059a9, 1b1f8c2d02, fae66f77d0).
+  run_ids:
+    - RUN-ECDLP-20a588-01      # 24 rows, m=3 L=3..6; killed by host 7200 s limit during L=7 (no L=7 rows)
+    - RUN-ECDLP-20a588-02      # lost to VM recycle; 0 rows (intentional empty receipt, no finished_at)
+    - RUN-ECDLP-20a588-03      # 6 rows, m=3 L=7, arms A_elim_ms and B_ms (AMD-01/AMD-02)
+
+  artifact_checks:
+    - id: AC-1
+      name: freeze_and_amendment_discipline
+      result: PASS
+      evidence:
+        - "spec + trial-plan + launcher in one commit b19cbdaf66 (2026-10-15T23:06:30+00:00); RUN-01 started_at 2026-10-15T23:06:50Z (20 s after); manifest launcher_commit = b19cbdaf66, dirty=false"
+        - "AMD-01 + trial-plan-run02.json commit 44c5a059a9 (2026-10-16T01:07:25) before RUN-02 start 2026-10-19T16:08:43Z; launcher run_after_restart_2.sh in d2d3f9ef29 (16:08:25)"
+        - "AMD-02 + trial-plan-run03.json + run_after_restart_3.sh commit 1b1f8c2d02 (2026-10-19T16:18:39) before RUN-03 start 16:18:49Z; manifest launcher_commit = 1b1f8c2d02"
+        - "plan diffs (outputs/amendment_diff.out): run02 differs from plan in L_by_m, arms, command/output path, amendment tag; run03 differs from run02 only in command/output path and tag; seed, timeout_s=600, 4+2 instances, workers, experiment id identical; AMD files: thresholds_changed false, criteria_changed false"
+        - "spec, trial-plan, block_order_grid.py: one commit each, no diff to HEAD; helper files identical at all launcher commits"
+        - "AMD-01/-02 filed before any L=7 data existed; trigger is infrastructure (host limit, VM recycle)"
+      concerns:
+        - "run_after_restart_2.sh (RUN-02 launcher, in EXP-ECDLP-8c41d7/amendments) edited in place in 1b1f8c2d02 to launch RUN-03; history preserves the original"
+        - "analyze.py first committed 22 s after RUN-01 start (a658e4e8a7); criteria function unchanged in all later versions; commit ea3b5e9634 cites AMD-03 which belongs to sibling EXP-ECDLP-8c41d7"
+    - id: AC-2
+      name: manifest_hashes
+      result: PASS
+      evidence: "sha256sum recomputation matches every files_sha256 entry: RUN-01 8/8, RUN-02 7/7, RUN-03 7/7; no unlisted files"
+    - id: AC-3
+      name: records_command_revision_dirty_seed_environment
+      result: PASS
+      evidence:
+        - "command.txt equals plan command; environment.json git_head = launcher_commit; git_dirty false (tracked files); msolve 0.6.5-1build2, Singular 4.3.2, Python 3.13.16, 4 cpus (identical to validator host)"
+        - "per-row seed = sha256('EXP-ECDLP-f49f75/v1|m|L|inst')[:12] on 30/30 rows; kind, prime form (p = k*2^L-1 > 2^(3L), p%4==3, prime) consistent on 30/30"
+        - "instances identical to EXP-ECDLP-502ae2 (seed, p, b, chain constant c on 30/30) and EXP-ECDLP-f49f75 (18/18 rows it covers)"
+        - "stdout.log lines equal raw rows (24/24, 6/6); stderr.log empty; no duplicate (L, inst, arm) keys; arms per cell follow the stopping-rule schedule"
+      concerns:
+        - "no resource records (peak memory, CPU time, concurrent host activity) in any receipt; environment.json has no CPU model or RAM"
+    - id: AC-4
+      name: coverage
+      result: PASS
+      evidence: "L=3..6 complete (6 instances x scheduled arms) in RUN-01; L=7 six instances x {A_elim_ms, B_ms} in RUN-03; RUN-02 empty by design; L=7 cell is all timeouts (right-censored >= 600 s)"
+    - id: AC-5
+      name: no_17_bit_prime_in_completed_msolve_results
+      result: PASS
+      evidence: "m=3 primes 599, 4111, 32831, 262271, 2098559 = 10, 13, 16, 19, 22 bits; msolve ok results at 10/13/16/19 bits only, 22-bit solves all timeouts at 600.08-600.27 s; no rcNN crash status in any row (90 ok, 30 timeout)"
+    - id: AC-6
+      name: unit_tests
+      result: PASS
+      evidence: "python3 -m unittest tools/test_pkm_isogeny_launchers.py: 12 tests OK in 5.4 s (rerun/unittest.out)"
+
+  metric_recomputations:
+    - id: MR-1
+      method: "own script scripts/my_recompute.py on RUN-01 + RUN-03 (written before opening analyze.py)"
+      msolve_pair_A_elim_ms_vs_B_ms:
+        jointly_completed_L: [3, 4, 5, 6]
+        median_wall_s_A: {L3: 0.0329, L4: 0.5907, L5: 16.1831, L6: 411.1591}
+        median_wall_s_B: {L3: 0.0253, L4: 0.3085, L5: 6.9932, L6: 210.2711}
+        median_ratio_A_over_B: {L3: 1.30, L4: 1.91, L5: 2.31, L6: 1.96}
+        cells_A_ge_B: "4/4 (100%)"
+        largest_L_completed: {A_elim_ms: 6, B_ms: 6}
+        retirement_L: {A_elim_ms: 7, B_ms: 7}
+        success_criterion: "NOT met (A below B in 0/4 cells)"
+        falsification_criterion: "MET via clause 1 (A >= B in 100% of jointly completed cells >= 80%); retirement clause not met (same L)"
+      singular_pair_A_block_sg_vs_B_sg:
+        jointly_completed_L: [3, 4]
+        median_wall_s_A: {L3: 0.12095, L4: 7.32865}
+        median_wall_s_B: {L3: 0.07535, L4: 5.11155}
+        median_ratio_A_over_B: {L3: 1.61, L4: 1.43}
+        cells_A_ge_B: "2/2 (100%)"
+        largest_L_completed: {A_block_sg: 4, B_sg: 5}
+        retirement_L: {A_block_sg: 5, B_sg: 6}
+        success_criterion: "NOT met (A below B in 0/2 cells; A completes a smaller L)"
+        falsification_criterion: "MET via both clauses (100% of cells; A_block_sg retired at L=5 < B_sg at L=6)"
+      dynamic_range_control_A_drl_ms_over_A_elim_ms:
+        median_ratio: {L3: 4.43, L4: 16.81}
+        threshold: ">= 2 at L=4 (spec) / at the largest L where both complete (task; also L=4)"
+        result: PASS
+      secondary:
+        singular_std_ms_median_ratio_A_over_B: {L3: 1.652, L4: 1.435}
+        f4_max_deg: {A_elim_ms: {L3: 14, L4: 32, L5: 65, L6: 133}, B_ms: {L3: 16, L4: 24, L5: 40, L6: 72}, A_drl_ms: {L3: 12, L4: 13}}
+    - id: MR-2
+      method: "replay of experiments/EXP-ECDLP-20a588/analyze.py (HEAD version and pre-change version 836893f74c), python3 -I, outputs in replay_analyze_*"
+      result: PASS
+      evidence:
+        - "two analyze.py versions give identical criteria.json and summary.json (apart from added p_bits/runs fields)"
+        - "20 per-(L,arm) medians and all ratios, jointly_completed_L, largest_L, retired_at, elim_equals_B (6/6 per L=3..6) equal the validator's numbers: 0 differences (outputs/compare_with_analyze.out)"
+        - "committed reports/run-20261015T2306Z/summary.json equals the replay as JSON"
+    - id: MR-3
+      method: "supplementary paired per-instance bootstrap: exact enumeration of all 6^6 resamples (no RNG) vs analyze.py's 4000-sample Monte Carlo"
+      result: PASS
+      evidence:
+        A_elim_over_B_ms: {L3: {median: 1.338, ci95: [1.106, 1.576]}, L4: {median: 1.862, ci95: [1.822, 2.040]}, L5: {median: 2.271, ci95: [2.184, 2.351]}, L6: {median: 1.940, ci95: [1.782, 1.987]}}
+        A_block_over_B_sg: {L3: {median: 1.605, ci95: [1.520, 1.637]}, L4: {median: 1.418, ci95: [1.329, 1.726]}}
+        A_drl_over_A_elim: {L3: {median: 4.568, ci95: [3.712, 4.953]}, L4: {median: 16.206, ci95: [15.577, 17.905]}}
+        paired_instances_with_ratio_gt_1: {msolve_A_elim_over_B: "24/24 (exact sign test p = 6e-8)", singular_A_block_over_B: "12/12", A_drl_over_A_elim: "12/12"}
+        agreement_with_analyze_py: "all intervals identical to 3 decimals"
+        caveat: "supplementary, not a frozen criterion; n = 6 per cell makes the percentile interval of a median coarse and bounded by the sample range"
+
+  control_checks:
+    - id: CC-1
+      name: positive_control_planted_in_variety
+      result: PASS
+      counts: {A_elim_ms: "16/16", B_ms: "16/16", A_drl_ms: "8/8", A_block_sg: "8/8", B_sg: "12/12", false: 0}
+      note: "random-target instances (inst 4,5) carry None by design"
+    - id: CC-2
+      name: equivalence_control_elim_equals_B
+      result: PASS
+      counts: {true_on_both_msolve_finished: "24/24", nontrivial_basis_size_gt_1: 17, unit_ideal_trivial: 7, L7_rows_without_key: 6, singular_vdim_equal: "12/12"}
+    - id: CC-3
+      name: validator_variety_confusion_matrix
+      result: PASS
+      method: "scripts/ctrl_checks.py: for every (x1,x2,x3) in V^3 compare eval_gb_at(basis, point) with S_4(x1,x2,x3,xT)=0 mod p, for the A_elim_ms and B_ms bases"
+      evidence: "L=3 inst 0-5 (512 triples each) and L=4 inst 0,1,4 (4096 each): 0 false positives, 0 false negatives for both bases in all 9 instances; off-V points rejected 200/200 per instance (rerun/controls/)"
+    - id: CC-4
+      name: validator_singular_ideal_equality
+      result: PASS
+      evidence: "eliminate(I_A, w) and <S_4, F_V(x1..x3)> reduce to zero in each other on all 9 instances (Singular, independent of msolve)"
+    - id: CC-5
+      name: dynamic_range_control
+      result: PASS
+      evidence: "A_drl_ms / A_elim_ms median 16.81 at L=4 (4.43 at L=3); validator re-run at L=4: 8.8 and 19.5"
+    - id: CC-6
+      name: invalidation_rules
+      result: PASS
+      evidence: "no planted decomposition missing from any ok basis; elim_equals_B false on 0 instances; no cell invalidated"
+    - id: CC-7
+      name: predecessor_reproduction
+      result: PASS
+      evidence: "f4_max_deg of B_ms and A_drl_ms equals EXP-ECDLP-502ae2's B and A arms on 36/36 comparisons"
+
+  rerun_checks:
+    - id: RR-1
+      what: "committed launcher block_order_grid.py at 9dba3eb2b8, taskset cores 0,1, 2 workers; m=3 L=3 inst 0-5 and L=4 inst 0,1, arms A_elim_ms,B_ms,A_block_sg,B_sg; plus A_drl_ms/A_elim_ms at L=4 inst 0,1"
+      deterministic_fields: "144 compared (seed,p,p_bits,b,kind; status,f4_max_deg,gb_size,vdim,gb_maxdeg,planted_in_variety; elim_equals_B), 0 differences"
+      timings_informational: >-
+        shared host, 2 vs 4 concurrent workers. L3 medians A_elim 28 ms (rec 33), B_ms 20 (25), A_block_sg 112 (121), B_sg 77 (75);
+        L4 inst 0,1: A_elim 670 ms (599), B_ms 299 (326), A_block_sg 8.93 s (7.25), B_sg 5.70 (5.46).
+        Per-instance A/B > 1 in all 16 pairs. L5 inst 0 quiet repeats: A_elim 15.8 s, B_ms 7.3 s (rec 16.5/6.9; busier-host probe 25.8 s).
+        L6 inst 0: A_elim 446.9 s, B_ms 232.4 s (ratio 1.92; rec 405.6/213.5 = 1.90), F4 degrees 133/72 as recorded.
+      result: PASS
+    - id: RR-2
+      what: "peak RSS probe, per-child wait4 (informational; scripts/mem_probe.py)"
+      values_MB: {L5_A_elim_ms: 142.3, L5_B_ms: 77.9, L6_A_elim_ms: 2665.7, L6_B_ms: 1320.5}
+      note: "L<=4 values (~51.6 MB) are the fork-inherited floor, not msolve's peak; the earlier probe rerun/memory/mem_L4_L5.out mixes in the Singular child and is superseded"
+
+  heuristic_validation_checks:
+    applicable: false
+    reason: "no Dickman-de Bruijn / Deuring-correspondence sampling in this experiment"
+    items_checked_anyway:
+      preregistered_prediction: "present in the frozen spec before data (A_elim far below A_drl, A_elim at or above B_ms); measured pattern matches; observation only"
+      sample_integrity: "seeds, counts, procedure in plan and per-row records; statistics recomputed from raw rows"
+      scale_binding: "toy: m=3, L=3..7, p 10-22 bits; no transfer to 256-bit p or large |V| supported; L=7 right-censored"
+  cost_model_checks:
+    applicable: partially
+    unit: "seconds of process wall time (time.monotonic around the subprocess), single thread per solve, 4 concurrent solves"
+    memory: "not in the receipts (CONCERN); validator probe above"
+    notes:
+      - "no total-expected-cost or success-probability table is claimed; nothing here is a measured bound (AGENTS.md: wall time is never a bound)"
+      - "dense F_V and chain construction are untimed preprocessing; A_elim output includes w rows (output asymmetry, pre-registered)"
+      - "no null-object statistical signal claimed; closest controls are the dynamic-range and equivalence controls; the A/B ratio (1.30, 1.91, 2.31, 1.96) does not decay with L and its trend beyond L=6 is not measured"
+      - "validation ladder (inventor-protocol section 6): no speedup claimed; this experiment is the step-2 style measured ratio on scaled-down instances; steps 3-4 not applicable"
+  proof_architecture_checks:
+    applicable: false
+
+  fairness_findings:
+    same_flags_and_timeouts: PASS      # msolve -g 2 -v 2 -t 1, A_elim adds -e 3(L-1); Singular option(redSB); std; 600 s for all
+    same_ideal: PASS
+    timing_definition_consistent: PASS # process wall time all arms; Singular std_ms ratio agrees (1.65, 1.44)
+    asymmetries_that_could_bias:
+      - "A_elim returns B's basis plus chain-variable rows (pre-registered); comparison is full block-order basis vs dense DRL basis"
+      - "one variable order and block split per solver; msolve -e is a less-used code path; two independent implementations agree in sign"
+      - "dense F_V and chain construction excluded from timed region (negligible at L<=6)"
+      - "4 concurrent solvers on 4 cores; inst 4,5 run as a second wave with less contention; fixed (not randomized) arm order; contention and random-vs-planted target confounded; ratios keep the same sign in planted-only (1.34,1.95,2.29,1.98) and random-only (1.23,1.85,2.18,1.78) subsets"
+      - "memory not measured by the producer; A_elim uses ~2x B_ms peak RSS at L=5 and 6 (validator probe)"
+
+  verdict: passed
+  verdict_scope: >-
+    The receipt is admissible for: at m=3, L=3..6 (p 10-19 bits) the chain arm under a (w-first) block order was slower than the dense
+    encoding of the same set in every jointly completed cell (msolve 4/4, Singular 2/2), the equivalence/positive controls hold, and both arms are
+    right-censored at L=7. The frozen success criterion is not met and the frozen falsification criterion is met for both solver pairs.
+    This statement is about the receipt, not about H-ECDLP-60de36.
+
+  limitations:
+    - "toy scale only (m=3, L<=7, p<=22 bits); no transfer to 256-bit p or large |V|; nothing here is a measured bound"
+    - "L=7 is right-censored at 600 s for both arms (12/12 timeouts): a timeout is not negative mathematical evidence and says nothing about relative cost at L=7"
+    - "one block-order/variable-order configuration per solver; A's output includes the chain rows by construction"
+    - "timings from 4 concurrent solves on a shared VM, fixed arm order, n=6 per cell (2 random targets, 7 of 8 random instances at L<=6 are unit ideals); percentile bootstrap at n=6 is coarse"
+    - "no memory/CPU resource records in the receipts; validator probe shows A_elim ~2x B_ms peak RSS (L=5: 142 vs 78 MB; L=6: 2666 vs 1321 MB), growth ~17-19x per L, so memory could bind at L=7 (not measured; the 12 L=7 solves ended by timeout)"
+    - "validator re-run timings are informational only (shared host; 2 vs 4 workers; host noise up to ~1.6x observed in one probe)"
+    - "HEAD advanced during validation by producer analysis/report commits; run artifacts unchanged"
+    - "launcher script run_after_restart_2.sh edited in place after RUN-02; one commit message cites a sibling experiment's amendment"
+    - "basis content and quotient dimension are not stored in raw rows (gb_size/vdim/F4 degrees/elim_equals_B are the stored proxies); validator recomputed the bases' meaning independently for 9 instances at L=3,4 only"
+    - "citation provenance: no citations are load-bearing in the receipt; nothing marked recalled/retrieved was checked"
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/validation.md
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/validation_report.yaml
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/scripts/
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/outputs/
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/replay_analyze_HEAD/
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/replay_analyze_pre_AMD03/
+    - experiments/EXP-ECDLP-20a588/reports/validation-20261019/rerun/
+    - experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-01/
+    - experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-02/
+    - experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-03/
+
+review_attestation:
+  task_id: null
+  joints_owned: []                 # no review_plan was attached to the task
+  sources_read:
+    - docs/agent-runtime-core.md
+    - agents/validator.md
+    - AGENTS.md (Review architecture; Curve identity and measured bounds)
+    - docs/inventor-protocol.md (sections 3 and 6)
+    - experiments/EXP-ECDLP-20a588/specification.yaml
+    - experiments/EXP-ECDLP-20a588/trial-plan.json
+    - experiments/EXP-ECDLP-20a588/block_order_grid.py
+    - experiments/EXP-ECDLP-20a588/analyze.py (only after the validator's own recomputation; HEAD, 836893f74c and bb3da2694e versions)
+    - experiments/EXP-ECDLP-20a588/amendments/{AMD-01.yaml,AMD-02.yaml,trial-plan-run02.json,trial-plan-run03.json,run_run02_after_8c41d7.sh}
+    - experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-01/*, RUN-02/*, RUN-03/*
+    - experiments/EXP-ECDLP-20a588/reports/run-20261015T2306Z/{report.typ,summary.json} (producer's run report, after own recomputation)
+    - experiments/EXP-ECDLP-502ae2/msolve_grid.py; experiments/EXP-ECDLP-502ae2/runs/RUN-ECDLP-502ae2-01/raw-result.jsonl
+    - experiments/EXP-ECDLP-f49f75/pkm_isogeny_fb.py (find_prime, build_chain, chain_eval); experiments/EXP-ECDLP-f49f75/runs/*/raw-result.jsonl (seed/p/b comparison only)
+    - experiments/EXP-ECDLP-8c41d7/amendments/run_after_restart_2.sh, run_after_restart_3.sh (launch provenance only)
+    - experiments/EXP-ECDLP-8c41d7/runs/*/{started_at,finished_at} (host-overlap check only)
+    - tools/test_pkm_isogeny_launchers.py (run, header read); tools/allocate_id.py (--help only)
+  read_sibling_reports: false
+  blind_from_respected: null       # not a blind re-derivation task
+  verdict: holds                   # for the receipt-admissibility checks assigned in the task prompt; not a verdict on the hypothesis

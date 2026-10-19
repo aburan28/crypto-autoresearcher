@@ -19,7 +19,7 @@
 [8c41d7-04],[2026-10-19 17:41],[2026-10-19 18:32],[6],[7413b95b6a]
 )
 
-#figure(image("block-order-vs-L.svg", width: 100%), caption: [Median basis time per arm vs $L$ (measured; process wall time), bars min–max over completed instances; × = every instance timed out (600 s). Source runs as in the table.])
+#figure(image("block-order-vs-L.svg", width: 100%), caption: [Median basis time per arm vs $L$ (measured; process wall time), bars min–max over completed instances; × = every instance timed out (600 s). Source runs as in the table. Where a cell mixes two primes (EXP-ECDLP-8c41d7, L = 4: Singular arms at p = 65551, msolve arms at p = 262271) only comparisons within one solver family are on shared instances.])
 
 == Per-cell measurements
 
@@ -46,9 +46,9 @@ Columns: completed / timed out / other failure / degenerate target; median ms [m
 == Operational notes (facts, not findings)
 
 - Three interruptions: RUN-01 (L = 2 complete) lost to a VM restart during L = 3; RUN-02 (L = 3 complete) lost to a second VM restart during L = 4; RUN-03 (L = 4) ran to the end. Amendments AMD-01 and AMD-02 resumed the unexecuted cells with an unchanged launcher, seeds, arms, timeout and stopping rule.
-- RUN-03, cell L = 4 at p = 65551 (17 bits): every msolve arm crashed with a segmentation fault (rc -11) on every instance within a fraction of a second; both Singular arms timed out on all six instances. The crash is an msolve 0.6.5 defect on 17-bit primes (reproduced on standalone systems; CORR-20261019-e6f65b, AMD-03).
+- RUN-03, cell L = 4 at p = 65551 (17 bits): every msolve arm crashed with a segmentation fault (rc -11) on every instance within a fraction of a second; both Singular arms timed out on all six instances. The crash is an msolve 0.6.5 defect on 17- and 18-bit primes (reproduced on standalone systems; CORR-20261019-e6f65b, AMD-03).
 - RUN-04 (AMD-03) re-ran the msolve arms of L = 4 at p = 262271 (19 bits), via block_order_m4_p19.py, which overrides only that prime choice. The Singular arms of L = 4 stay at p = 65551 from RUN-03. RUN-03's msolve rows are instrument failures and are replaced by RUN-04's in the merged table.
-- RUN-04, cell L = 4: B_ms completed on every non-degenerate instance in 518–586 s (cap 600 s); A_elim_ms timed out on every one; A_drl_ms timed out on all but one instance, which was killed with rc -9 after 184 s (signal 9; cause not diagnosed). One of six instances had a degenerate planted target (sum = point at infinity).
+- RUN-04, cell L = 4: B_ms completed on every non-degenerate instance in 518–586 s (cap 600 s); A_elim_ms timed out on every one; A_drl_ms timed out on all but one instance, which was killed with rc -9 after 184 s (signal 9; cause not diagnosed. The validator measured A_drl_ms alone reaching 3.4 GB by 200 s, so four concurrent copies may have exceeded the memory budget; unproven). One of six instances had a degenerate planted target (sum = point at infinity).
 - A unit-test run (about 6 s on one core, including a msolve canary) shared the host with RUN-04 at about 17:44 UTC (recorded in its operational-notes.txt).
 - Every planted decomposition found lies in the computed basis; the eliminated chain basis equals the dense basis on every instance where both finished (L = 2, 3).
 

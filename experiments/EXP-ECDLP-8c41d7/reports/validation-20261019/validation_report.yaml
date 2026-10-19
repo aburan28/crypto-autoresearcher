@@ -1,0 +1,150 @@
+validation_report:
+  id: VAL-20261019-0cb05d
+  task_id: null   # task card supplied by the launching session in-message; no TASK-* id was given
+  experiment_id: EXP-ECDLP-8c41d7
+  hypothesis_id: H-ECDLP-60de36
+  run_ids: [RUN-ECDLP-8c41d7-01, RUN-ECDLP-8c41d7-02, RUN-ECDLP-8c41d7-03, RUN-ECDLP-8c41d7-04]
+  snapshot:
+    branch: claude/p256-ecdlp-factor-base-wq59m1
+    commit: 9dba3eb2b8baf63f67143522f5466d8c54ca5c67
+    note: >-
+      Run records are at or before bb3da2694e; analyze.py at ea3b5e9634/9dba3eb2b8. At my first git status two analyze.py
+      files were uncommitted modifications; they were committed while I read (ea3b5e9634, 9dba3eb2b8) and only committed
+      versions were used. git diff bb3da2694e HEAD -- runs amendments is empty.
+  scope: >-
+    m=4 (S_5), L=2,3,4; p=263, 4111, 65551 (Singular arms, L=4) and 262271 (msolve arms, L=4); msolve 0.6.5-1build2 -t 1;
+    Singular 4.3.2; 600 s per solve; 6 instances per cell (3 degenerate planted targets: L=3 inst 2, L=4 inst 1 at both
+    primes; n=5 at L=3 and L=4); claim_tier toy.
+
+  artifact_checks:
+    - {check: "manifest sha256, 4 runs (7,7,7,8 files); no file outside a manifest", result: pass}
+    - {check: "every run-artifact/amendment file has one commit", result: pass_with_note, note: "amendments/run_after_restart_2.sh was edited once (1b1f8c2d02, before RUN-03 start) and duplicated as run_after_restart_3.sh; which script ran is not recorded"}
+    - {check: "freeze before data: spec+plan 6d6df97b6d (2026-10-15T23:42:03Z) < RUN-01 started 2026-10-16T01:07:14Z; env git_head=6d6df97b6d, dirty=false", result: pass}
+    - {check: "AMD-01 (04a87943e2, 03:14:41Z) < RUN-02 start 03:15:00Z; AMD-02 (d2d3f9ef29, 16:08:25Z) < RUN-03 start 16:58:51Z; AMD-03 + p19 launcher (7413b95b6a, 17:41:47Z) < RUN-04 start 17:41:54Z with env git_head=7413b95b6a", result: pass}
+    - {check: "spec, trial-plan, block_order_m4.py and the three imported launchers byte-identical 6d6df97b6d..HEAD", result: pass}
+    - {check: "amendments change only L list, arms (AMD-03), command paths, and the (4,4) prime via block_order_m4_p19.py", result: pass}
+    - {check: "seed = sha256('EXP-ECDLP-f49f75/v1|4|L|inst')[:12] and frozen-rule prime on every row (RUN-04: 262271)", result: pass, counts: "0 violations over 24 rows"}
+    - {check: "stdout.log equals raw rows; finished_at-started_at equals launcher elapsed_s", result: pass}
+    - {check: "AMD-03 filed after RUN-03 data; re-run scope chosen after seeing RUN-03", result: concern, note: "instrument-failure exclusion reproduced independently; RUN-03 rows retained; amendment committed before RUN-04 data"}
+    - {check: "smoke run (m=4, L=3) that sized the grid and informed the prediction is not archived", result: concern}
+    - {check: "resource records: peak memory per solve", result: concern, note: "not recorded; A_drl_ms rc -9 at 183.5 s (RUN-04 inst 4) undiagnosed; informational probe shows A_drl_ms reaches 3.4 GB alone by 200 s, so 4 concurrent copies (13-14 GB) plausibly exceeded the 12 GB budget"}
+    - {check: "analyze.py operationalisation revised after data (0b0ef6490f, ea3b5e9634); retirement test differs from frozen text for A_drl_ms L=4 (4 timeouts + 1 rc -9)", result: concern, note: "no pair criterion affected; independent derivation agrees"}
+    - {check: "required reports/: run report + graph + PDF present (reports/run-20261016T0107Z); review report not yet present", result: pass_with_note}
+
+  metric_recomputations:
+    script: scripts/derive_criteria.py   # written and run before opening analyze.py; variants in scripts/derive_variants.py
+    output: outputs/derive_criteria.out
+    medians:
+      msolve:
+        A_elim_ms: {L2: "24.95 ms", L3: "12.929 s", L4: "0/5 completed, 5 timeouts >= 600.09 s"}
+        B_ms: {L2: "22.00 ms", L3: "10.7005 s", L4: "5/5 completed, median 582.996 s, range 518.230-586.271 (p=262271)"}
+        A_drl_ms: {L2: "40.05 ms", L3: "61.42 s", L4: "0/5: 4 timeouts + 1 rc -9 at 183.5 s"}
+      singular:
+        A_block_sg: {L2: "113.05 ms", L3: "344.62 s", L4: "0/5, 5 timeouts (p=65551)"}
+        B_sg: {L2: "48.9 ms", L3: "70.36 s", L4: "0/5, 5 timeouts (p=65551)"}
+    ratios_A_over_B_of_medians:
+      msolve: {L2: 1.134, L3: 1.208, L4: ">= 1.02..1.16 per instance (A_elim censored)"}
+      singular: {L2: 2.312, L3: 4.898, L4: "unresolved (all censored)"}
+    jointly_completed_L: {msolve: [2, 3], singular: [2, 3]}
+    largest_completed_L: {A_elim_ms: 3, B_ms: 4, A_block_sg: 3, B_sg: 3}
+    retirement_L: {A_elim_ms: 4, B_ms: "none within L<=4", A_block_sg: 4, B_sg: 4, A_drl_ms: "4 by analyze.py's definition; not retired under the frozen text (one rc -9)"}
+    dynamic_range_control: {L: 3, median_of_paired_ratios_A_drl_over_A_elim: 4.80, range: "4.55-4.94", ratio_of_medians: 4.75, pass_ge_2: true}
+    success_criterion_met: false
+    falsification_criterion_met: true
+    falsification_detail:
+      msolve: {clause_1_A_ge_B_in_every_joint_cell: true, clause_2_A_retired_at_smaller_L: true}
+      singular: {clause_1_A_ge_B_in_every_joint_cell: true, clause_2_A_retired_at_smaller_L: false, note: "tie at L=4"}
+    preregistered_prediction_matched: true
+    producer_analyze_replay_agrees: true   # summary.json byte-identical to committed reports/run-20261016T0107Z/summary.json
+    cap_sensitivity:
+      clause_2_flips_to_tie_below_cap_s: {pooled_instances: 518.23, planted_only: 583.0}
+      clause_1_and_non_success_hold_for_cap_at_least_s: {msolve: 14, singular: 350}
+      note: "B_ms L=4 completions are 2.3-2.8% (planted) and 13.6% (pooled fastest) below the 600 s cap; A_elim_ms L=4 is only bounded below. Knife-edge on the cap; informational."
+    variant_planted_only: {same_verdicts: true, B_ms_L4_median_s: 583.2}
+    status_inconsistencies: 0
+
+  control_checks:
+    - {control: "positive: ok planted results have planted_in_variety true", result: pass, counts: "0 violations; L=2 4x5 arms, L=3 3x5 arms, L=4 B_ms 3 (no other L=4 arm completed)"}
+    - {control: "S_5 vanishes on planted decompositions (own Sylvester-determinant code; sign-enumeration oracle)", result: pass, counts: "13/13 planted non-degenerate instances; 78/78 perturbed points nonzero; producer's expanded S_5 equals own S_5 at 78/78 random points"}
+    - {control: "equivalence: elim_equals_B on every instance with both msolve bases", result: pass, counts: "L=2 6/6, L=3 5/5; L=4 not evaluable (A_elim_ms timed out on all 5); 20a588 m=3 L=6 at the same prime 6/6"}
+    - {control: "dynamic range (A_drl/A_elim >= 2 at largest joint L)", result: pass, value: 4.80}
+    - {control: "degenerate targets are real (sum of picks = infinity)", result: pass, counts: "3/3 recomputed with own EC arithmetic"}
+    - {control: "msolve crash reproduction (AMD-03)", result: pass, detail: "RUN-03 L=4 inst 0 rebuilt with committed code: B_ms, A_drl_ms, A_elim_ms all rc -11 at p=65551; same construction at p=262271 does not crash (90 s probes); 72-prime scan of the dense m=4 L=2 system and a 2-variable system: crash exactly for 2^16 < p < 2^18"}
+    - {control: "no completed msolve result used a defective prime", result: pass, detail: "msolve rows exist at 9,10,13,16,19,22 bits (+15 rc-11 rows at 17 bits); none at 18 bits; 0 ok results at 17/18 bits"}
+    - {control: "defect range stated in AMD-03/CORR-20261019-e6f65b ('exactly 17 bits')", result: concern, note: "crash range is 17 AND 18 bits (131111..262139 crash); remedy p=262271 (>2^18) is sound; canary test pins only 70039, 60103, 300007"}
+    - {control: "regression tests tools/test_pkm_isogeny_launchers.py", result: pass, counts: "12/12 in 5.5 s"}
+    - {control: "reproducibility re-run: L=2 inst 0-5 and L=3 inst 0, arms A_elim_ms, B_ms, A_block_sg, B_sg", result: pass, counts: "174 deterministic fields, 0 mismatches; A>B in 6/6 L=2 pairs and L=3 inst 0; timings informational (A_elim_ms first L=3 re-run 22.1 s was contaminated by my pinning to a core shared with the sibling validator; clean repeats 10.9-12.5 s)"}
+    - {control: "mixed-prime L=4 cell", result: concern, note: "Singular arms p=65551 (RUN-03), msolve arms p=262271 (RUN-04), different instances; claims valid within each solver family only; prime-size probe at m=4 L=3 (13/16/19/22 bits) changes A_elim/B_ms ratio by <= ~7% (1.08-1.14)"}
+    - {control: "null-object / structural tell", result: concern, note: "no random-set arm C in this experiment's frozen contract; matched null is B (dense same set); A_elim/B_ms = 1.13, 1.21, >=1.03 (L=2,3,4): no growing advantage; the report states no expected trend"}
+
+  heuristic_validation_checks:
+    - {check: not_applicable, note: "no Dickman-de Bruijn-type CDF; pre-registered ordinal prediction is in the frozen spec before first data and matched"}
+  cost_model_checks:
+    - {check: not_applicable, note: "no cost table; wall time is not a measured bound and no ECBND record is claimed"}
+  proof_architecture_checks: []
+
+  verdict: passed
+
+  limitations:
+    - "passed means the receipt is admissible for the exact scope above; it does not support an ECDLP claim, demonstrate a speedup, change the status of H-ECDLP-60de36, or authorize promotion"
+    - "Only L=2 and L=3 give uncensored paired comparisons; L=4 is capped at 600 s and its retirement clause is knife-edge on the cap (B_ms completions 2.3-2.8% planted / 13.6% pooled below it; A_elim_ms only bounded below). A timeout is not negative mathematical evidence."
+    - "L=4 mixes primes and instances across solver families (Singular p=65551, msolve p=262271); any cross-family L=4 contrast is confounded"
+    - "n=5 non-degenerate instances at L=3 and L=4 (3 planted + 2 random); random targets give the trivial basis [1] at every L"
+    - "L=2 A/B difference is a ~3 ms difference at process-start scale"
+    - "no peak-memory record; the A_drl_ms rc -9 at L=4 is undiagnosed (plausible OOM, unproven) and is not a timeout"
+    - "the L=4 positive control covers only B_ms (3 planted); no chain arm or Singular arm completed at L=4; elim_equals_B not evaluable at L=4"
+    - "msolve crash range is 2^16 < p < 2^18 (17 and 18 bits), wider than stated in AMD-03 and CORR-20261019-e6f65b; the Coordinator may want a correction record and a canary covering 18 bits"
+    - "smoke run not archived; analyze.py operationalisation not frozen and revised after data; amendments/run_after_restart_2.sh edited once before use"
+    - "re-run timings are informational: shared host with the sibling validator, at most 2 cores, single process vs 4 concurrent workers in the recorded runs; L=4 not re-run"
+    - "scope: toy, m=4, L<=4, one variable order per arm, msolve 0.6.5 and Singular 4.3.2 single-threaded; no transfer to m=6, P-256, other solvers or other block orders"
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/validation.md
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/validation_report.yaml
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/SHA256SUMS
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/scripts/
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/outputs/
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/crash_repro/
+    - experiments/EXP-ECDLP-8c41d7/reports/validation-20261019/rerun/
+
+  review_attestation:
+    task_id: null
+    joints_owned:
+      - "1 freeze/amendment discipline and manifests"
+      - "2 msolve 17-bit crash reproduction and p_bits audit"
+      - "3 positive control, S_5 vanishing, elim_equals_B"
+      - "4 frozen-criteria re-derivation, analyze.py replay, cap sensitivity"
+      - "5 mixed-prime L=4 cell"
+      - "6 sample re-run"
+      - "7 reproducibility records and degenerate targets"
+    sources_read:
+      - docs/agent-runtime-core.md
+      - agents/validator.md
+      - AGENTS.md (sections: headings list, Review architecture, Curve identity and measured bounds)
+      - docs/inventor-protocol.md (sections 3 and 6)
+      - templates/research-records.md (review_attestation block)
+      - experiments/EXP-ECDLP-8c41d7/specification.yaml
+      - experiments/EXP-ECDLP-8c41d7/trial-plan.json
+      - experiments/EXP-ECDLP-8c41d7/block_order_m4.py
+      - experiments/EXP-ECDLP-8c41d7/block_order_m4_p19.py
+      - experiments/EXP-ECDLP-8c41d7/analyze.py   # opened only after scripts/derive_criteria.py had produced its output
+      - experiments/EXP-ECDLP-8c41d7/amendments/ (AMD-01..03, trial-plan-run02..04.json, run_after_restart_2.sh, run_after_restart_3.sh, run_run02_then_20a588_run02.sh, run_run04.sh)
+      - experiments/EXP-ECDLP-8c41d7/runs/RUN-ECDLP-8c41d7-01..04/ (raw-result.jsonl, stdout.log, stderr.log, environment.json, manifest.json, command.txt, started_at, finished_at, termination.txt, operational-notes.txt)
+      - experiments/EXP-ECDLP-8c41d7/reports/run-20261016T0107Z/ (report.typ, summary.json, block-order-vs-L.png, plot_source_analyze.py; read after the independent derivation)
+      - experiments/EXP-ECDLP-20a588/block_order_grid.py
+      - experiments/EXP-ECDLP-502ae2/msolve_grid.py
+      - experiments/EXP-ECDLP-f49f75/pkm_isogeny_fb.py
+      - experiments/EXP-ECDLP-20a588/runs/*/raw-result.jsonl, experiments/EXP-ECDLP-502ae2/runs/*/raw-result.jsonl, experiments/EXP-ECDLP-f49f75/runs/*/raw-result.jsonl (p_bits/status columns and 20a588 medians only)
+      - experiments/EXP-ECDLP-20a588/runs/*/{started_at,finished_at,termination.txt} (timeline only)
+      - ledger/corrections/CORR-20261019-e6f65b.yaml
+      - tools/test_pkm_isogeny_launchers.py
+      - experiments/EXP-ECDLP-502ae2/reports/validation-20261015/validation_report.yaml (first 60 lines; a prior-round validation of a predecessor experiment, read for the record format only)
+    read_sibling_reports: false
+    disclosure: >-
+      The sibling validator for EXP-ECDLP-20a588 shares this host. I saw its untracked directory name
+      (experiments/EXP-ECDLP-20a588/reports/validation-20261019/) in git status and one of its process command lines in ps
+      (a memory-probe script path and a command that writes under that directory); I opened no file in it and read no report
+      or result of it. Because it was using cores 0 and 1, my first L=3 A_elim_ms re-run, pinned to core 0 for its first
+      ~20 s, was contended (disclosed in validation.md check 6) and was repeated on a free core.
+    blind_from_respected: null
+    verdict: holds   # for the joints owned: the receipt is admissible for the stated scope, with the concerns listed
