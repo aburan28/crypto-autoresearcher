@@ -44,7 +44,10 @@ no F_p-isogeny carries E0's group structure to P-256's addition law.
 - **Missing capability:** msolve 0.6.5 (F4) is now tested (EXP-ECDLP-502ae2,
   EV-ECDLP-7e970a): same direction, chain slower (basis step 8x to >79x at
   m = 3, L = 3..5) despite a lower maximum F4 degree. Magma and other F4/F5
-  implementations, and block/elimination orders, remain untested. m >= 4 and the P-256
+  implementations remain untested; block/elimination orders were tested at
+  m = 3 and m = 4 (EXP-ECDLP-20a588, -8c41d7). msolve 0.6.5 segfaults on systems
+  over 17-bit primes (CORR-20261019-e6f65b), which is why m = 2 under msolve was
+  not run; it is possible with a prime outside 2^16..2^17. m >= 4 and the P-256
   parameters (m = 6, L = 44) are far beyond any arm here.
 - **What this evidence does not establish:** that no solver or no different
   modelling of the chain (e.g. Weil-descent-style, SAT, or a hybrid) can
