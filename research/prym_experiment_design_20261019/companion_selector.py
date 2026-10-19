@@ -58,7 +58,12 @@ def public_bucket(p, point):
 
 
 def candidate_digest(identity):
-    """The caller supplies the complete identity required by the protocol."""
+    """Hash a caller-canonicalized identity; this does not quotient aliases.
+
+    The integrating generator must normalize effective source labels, FB
+    permutations and acceptance-preserving involutions before calling this.
+    Different encodings of the same geometric candidate must share a split.
+    """
     expected = {'curve_uid', 'source_scalar', 'lambda', 'signed_fb_lift_ids'}
     if set(identity) != expected:
         raise ValueError('candidate identity fields differ from frozen interface')

@@ -103,3 +103,11 @@ This is an engineering ablation of a fixed generator, not an operation outside
 P1546 and not a new asymptotic attack. The compact source-labelled router
 remains a separate open problem. Historical tiny cells are calibration only;
 fresh independent curves, not tuple counts, are the inferential units.
+
+Known geometric aliases must share a partition. Before hashing, normalize the
+effective source coefficient lambda*a modulo r (lambda=1 representative), FB
+permutations, simultaneous deck involution on C and simultaneous hyperelliptic
+negation. The latter operations preserve the acceptance event and the W-based
+bucket. A caller must implement the canonical orbit representative and audit
+it in W; the digest component does not solve this canonicalization problem.
+Distinct hashes of unnormalized (a,lambda) descriptions are not fresh samples.

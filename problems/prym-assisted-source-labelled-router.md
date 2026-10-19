@@ -7,7 +7,8 @@
   [IDEA-20260909-4c5ee9](../ledger/proposals/IDEA-20260909-4c5ee9.yaml),
   [ECDLP-IDEA-002](../ideas/ECDLP-IDEA-002_split_jacobian_projected_smoothness_hypothesis.md),
   [the follow-up](../research/prym_relation_followup_20261019/README.md),
-  RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (no goal state or lane changed)
+  RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (existing goal states unchanged;
+  design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
 - **Last updated:** 2026-10-19
 
@@ -68,6 +69,13 @@ scientific status without the existing Coordinator decision.
 
 ## Next discriminating step
 
+- **Bounded engineering tests:** the [four-stage experiment programme](../research/prym_experiment_design_20261019/README.md)
+  now specifies geometry checks, public-source/rank controls, a concrete PO003
+  companion-bucket selector and blind complete-cost comparison. Arithmetic and
+  selector components exist; generator/canonicalizer/checker integration,
+  current baseline and native execution admission remain due. This selector
+  tests a fixed generator within its existing scope; it does not resolve the
+  compact-router problem below.
 - **Action or proof obligation:** write the concrete router interface and
   scope comparison described in [the design step](../research/prym_relation_followup_20261019/README.md#next-discriminating-design-step).
 - **Inputs and controls:** the pinned existing proposal/P1546 record, direct
@@ -90,3 +98,8 @@ scientific status without the existing Coordinator decision.
 machine-readable companion. Existing goals, hypotheses, protocols and queues
 remain unchanged. The missing operation is unresolved; filing or merging this
 record does not establish an algorithmic result.
+
+2026-10-19 follow-up: four proposed hypotheses and review_required experiment
+designs added, together with prospective arithmetic/selector components and
+software checks. No scientific trial or measured advantage. Existing
+scientific records were preserved; a separate design queue tracks this work.
