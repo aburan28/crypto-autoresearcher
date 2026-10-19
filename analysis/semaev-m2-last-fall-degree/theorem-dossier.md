@@ -456,10 +456,10 @@ $d_{\tilde F}\ge5$ and every F4 run has $d_{F4}\ge5$.
 
 - R35a *(B, cert)* and R35b *(cert)*: $n=35$, $k=18$, random $V$.
 - U35a and U35b *(cert)*: $n=35$, $k=18$, random $V$, with $z$ uniform in $K^{\times}$ as in Semaev's experiments.
-- R37a and R37b: $n=37$, $k=19$, random $V$.
+- R37a and R37b *(cert)*: $n=37$, $k=19$, random $V$.
 - R39a and R39b: $n=39$, $k=20$, random $V$.
 - T33a and T33b *(cert)*: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
-- P45a *(cert)*: $n=45$, $k=23$, Semaev's default polynomial subspace
+- P45a *(B count, cert)*: $n=45$, $k=23$, Semaev's default polynomial subspace
   $V=\langle1,t,\dots,t^{22}\rangle$. Here $f=t^{45}+t^4+t^3+t+1$
   (`20000000001b`), $a_2=0$, $a_6$=`17cadafccda0` and $z$=`13ffe62d3f4d`.
 
@@ -527,7 +527,7 @@ unsatisfiable, and $1\notin W_4(F)$:
 
 So $d_{\tilde F}\ge5$, and $d_{F4}\ge5$ for every F4 run. Three more
 random-$V$ instances also have $1\notin W_4$: C19b at $n=19$, and C21a and C21b at
-$n=21$ ($k=7$). Those three were computed by implementation A only.
+$n=21$ ($k=7$). C19b has a certificate accepted by `verify/cert_check.py --t3` *(cert)*. C21a and C21b were computed by implementation A only.
 
 **Corollary 3.6.** Assumption 1 is false at $(n,m,t,k)=(19,3,3,7)$ and
 $(21,3,3,7)$, for the chained system it was designed for. This lies inside
