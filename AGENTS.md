@@ -1,5 +1,23 @@
 # Crypto Autoresearcher Agent Contract
 
+## Literature first
+
+Owner instruction (2026-10-19): check relevant literature before doing any work.
+For every task, complete this review before choosing an approach, editing files,
+implementing, running experiments, or making recommendations.
+
+- Start with this repository's references, research notes and prior results, then
+  check relevant papers, standards and official documentation for current methods,
+  limitations and known negative results.
+- Read the primary sources that matter. Verify their assumptions, parameters and
+  conclusions rather than relying on memory, abstracts or search snippets.
+- Briefly record the sources checked, with links or repository paths, and explain
+  how they inform the work in the task notes, report or PR. Check novelty claims
+  against that prior work and reuse established methods where appropriate.
+- If relevant sources are inaccessible or no relevant work is found, state the
+  search scope and evidence gaps before proceeding. Never invent citations or
+  treat an unsuccessful search as proof that no prior work exists.
+
 The normative contract of a multi-agent system for reproducible ECDLP
 experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
@@ -74,8 +92,9 @@ independent review and the Bedrock ban still bind.
 
 - **`run`** (`plugins/crypto-autoresearcher-harness/skills/run/SKILL.md`, same
   name on every host) is the only public execution skill: it runs existing
-  experiment programs and reports outputs, adding no preflight, validation,
-  audit, protocol authoring, mandatory review or state transition. The runner's
+  experiment programs and reports outputs after the literature-first review
+  required above, adding no other preflight, validation, audit, protocol
+  authoring, mandatory review or state transition. The runner's
   own admission, ownership, resource and correctness checks stay; a refused
   launch is reported, never bypassed. Results are observations until
   archive/review says otherwise. `run` may commit and push its run records, then
@@ -95,8 +114,9 @@ Use [the workflow map](docs/skill-routing.md) and [route](.claude/skills/route/S
 when selecting a recurring analysis, implementation, review or maintenance workflow.
 Canonical skills live under `.claude/skills/`; `.agents/skills/` exposes the same
 names to Codex/OpenCode. Choose by action first, then load a relevant subject profile.
-Explicit scientific execution goes directly to `run`: catalog checks and subject
-assessment are not launch prerequisites. This map adds no runtime role or authority.
+After the literature-first review above, explicit scientific execution goes
+directly to `run`: catalog checks and subject assessment are not launch
+prerequisites. This map adds no runtime role or authority.
 
 ## Roles
 
