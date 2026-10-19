@@ -22,6 +22,11 @@ for f in sorted(glob.glob(str(CASE / "shards/replay_out[0-3].jsonl"))):
         d = json.loads(l)
         replay[d["evidence_id"]] = d
 mut = json.load(open(CASE / "mutation_detail.json"))
+strict = {}
+if (CASE / "shards/replay_strict_out.jsonl").exists():
+    for l in open(CASE / "shards/replay_strict_out.jsonl"):
+        d = json.loads(l)
+        strict[d["evidence_id"]] = d
 
 # ---- manual overrides: each one was re-checked by the Sonnet reader (see REPORT.md)
 DIGEST_OVERRIDE = {
@@ -31,7 +36,7 @@ DIGEST_OVERRIDE = {
     "EV-CERTBIN-091c56": (False, "26/28 declared digests match; tools/gf2_replay_rc1.py and tests/test_gf2_kernels.py changed after the run (code inputs drifted; a replay at HEAD runs different code)"),
     "EV-ICPERF-433fa5": (False, "convert.py matches its declared sha256 (harness took frozen_sha256); experiments/EXP-ICPERF-e21835/code/bench.py differs from both its declared and frozen digests (modified by e1728d8a88, 'Fix runner polling latency', after the manifest)"),
 }
-REPLAY_MANUAL_PASS = {  # harness said fail; the Sonnet reader re-ran and diffed: only time/platform/commit fields differ
+REPLAY_MANUAL_PASS_UNUSED = {  # harness said fail; the Sonnet reader re-ran and diffed: only time/platform/commit fields differ
     "EV-FALSIFY-440677": "diff after dropping platform/python/timestamp/git fields is empty",
     "EV-SEMBIN-07960c": "diff after dropping elapsed/platform/python/start fields is empty",
     "EV-MONO-d90e9c": "raw-result.json equal after dropping timings/rss; preregistration.json differs only in preregistered_at, which the replay rewrites to the replay's own clock",
@@ -113,18 +118,22 @@ for eid, r in sorted(rows.items()):
     rp = replay.get(eid)
     rok = None
     if rp:
-        st = rp["status"]
-        if eid in REPLAY_MANUAL_PASS:
-            rok, st = True, "pass (manual re-diff)"
-            notes.append("replay: " + REPLAY_MANUAL_PASS[eid])
-        elif st == "pass":
-            rok = True
-            notes.append("replay: command re-run in scratch worktree at the audited commit; regenerated result file(s) equal the committed ones after dropping time-like keys")
-        elif st == "fail":
-            rok = False
+        v["replay_status"] = rp["status"] + " (historical normaliser, superseded)"
+        sr = strict.get(eid)
+        if sr:
+            v["replay_strict_status"] = sr["status"]
+            if sr["status"] == "pass":
+                rok = True
+                nf = sum(x["diffs"] for x in sr["files"].values())
+                notes.append(f"replay (strict comparator, exact equality, explicit metadata allowlist, retained pairs in shards/replay_strict_pairs/): {len(sr['files'])} regenerated result file(s) equal the committed ones except {nf} allowlisted metadata leaves (commit, timestamps, platform, python, elapsed/timings, preregistered_at). Wall-clock timings were not reproduced and are not covered by this pass")
+            elif sr["status"] == "fail":
+                rok = False
+            else:
+                notes.append(f"replay re-run with strict comparator is unknown: {sr.get('reason')}")
+        elif rp["status"] in ("pass", "fail"):
+            notes.append("historical replay result used a defective normaliser (matched 'date'/'dir' inside field names, rounded floats); not re-established with the strict comparator, so replay_ok is unknown")
         else:
-            notes.append(f"replay sampled but {st}: {(rp.get('reason') or '')[-90:]}")
-        v["replay_status"] = st
+            notes.append(f"replay sampled but {rp['status']}: {(rp.get('reason') or '')[-90:]}")
     v["replay_ok"] = rok
     # ---- recompute / fidelity
     rc = RECOMPUTED.get(eid)

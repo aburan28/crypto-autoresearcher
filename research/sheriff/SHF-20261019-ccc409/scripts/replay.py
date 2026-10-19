@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Nonce-sampled replay in a scratch worktree. Never writes in the repo tree.
+"""SUPERSEDED comparator: the strip()/TIME normaliser below is defective (it matches "date" inside
+candidate_* and "dir" inside direction, and rounds floats) and is kept only as the provenance of the
+historical rows in shards/replay_out*.jsonl. Use replay_strict.py; see REPORT.md finding F8.
+
+Nonce-sampled replay in a scratch worktree. Never writes in the repo tree.
 
     python3 -I replay.py select AUDIT_JSONL K OUT_IDS     (seed from replay_seed.txt)
     python3 -I replay.py run WORKTREE EVIDENCE_ID...      (prints one json line per id)
