@@ -1,0 +1,81 @@
+# Slice C case; verdicts per record are in verdicts.jsonl; check-case passes.
+sheriff_case:
+  schema: sheriff.case/v1
+  id: SHF-20261019-ccc409
+  target: ledger/evidence of crypto-autoresearcher at origin/main d0f70c0a09 (sibling repositories are other slices)
+  prior: see PRIOR.md, written before any record was read
+  readers:
+    - {role: validator-sweep, model: claude-haiku-5-5, joint: "B7 mechanical: run/ref/digest resolution, immutability from git, nonce-sampled replay", report: shards/}
+    - {role: sheriff (session), model: claude-sonnet-5-5, joint: "B1/B6/B8 statement fidelity, independence, strength labels, flagged re-checks, verdicts", report: REPORT.md}
+  claims:
+    - id: C1
+      text: "Evidence records labelled replicated (88 audited) carry that label with supporting runs, digests and independent replication"
+      location: ledger/evidence (replicated)
+      verdict: overclaimed
+      scoped_to: "reproduced on disk for 71 of 88; 17 lack any second run or cited reproduction"
+      beats: {B2: n/a, B3: n/a, B4: not_covered, B5: not_covered, B6: not_covered, B7: fail, B8: not_covered}
+      findings: [F1, F6]
+      evidence: [verdicts.jsonl, census.json]
+    - id: C2
+      text: "Evidence records labelled strong (39 audited) carry that label with supporting runs, digests and independent replication"
+      location: ledger/evidence (strong)
+      verdict: overclaimed
+      scoped_to: "at most replicated/preliminary where recommended (8 records); the rest unconfirmed, not disproved"
+      beats: {B2: n/a, B3: n/a, B4: not_covered, B5: not_covered, B6: not_covered, B7: fail, B8: not_covered}
+      findings: [F1, F3, F4, F7]
+      evidence: [verdicts.jsonl, census.json]
+    - id: C3
+      text: "Evidence records labelled moderate (38 audited) carry that label with supporting runs, digests and independent replication"
+      location: ledger/evidence (moderate)
+      verdict: unsupported
+      beats: {B2: n/a, B3: n/a, B4: not_covered, B5: not_covered, B6: not_covered, B7: fail, B8: not_covered}
+      findings: [F2, F6]
+      evidence: [verdicts.jsonl, census.json]
+    - id: C4
+      text: "Evidence records labelled malformed (179 audited) carry that label with supporting runs, digests and independent replication"
+      location: ledger/evidence (malformed)
+      verdict: unsupported
+      beats: {B2: n/a, B3: n/a, B4: not_covered, B5: not_covered, B6: not_covered, B7: fail, B8: not_covered}
+      findings: [F2, F4, F5]
+      evidence: [verdicts.jsonl, census.json]
+  findings:
+    - id: F1
+      severity: major
+      beat: B7
+      what: "Run records modified in place after first commit. 5 evidence records cite runs whose result or log files (raw-result, stdout, analysis) changed after they were added (EV-ECDLP-284817, EV-ECDLP-fd61e4, EV-IC-002, EV-JMV-05a150, EV-PMA-fbdd4c); 5 more cite runs with manifest-only edits. AGENTS.md says records are immutable and a defect is superseded by a new run. EV-ECDLP-284817 / EV-ECDLP-fd61e4 cite RUN-SEMAEV-f48dd1-grid, whose raw-results.json and analysis.yaml were rewritten by three commits on 2026-08-07 (metric correction, pseudo-replication correction). The EV-IC-002 edits are the declared duplicate-id repair (CORR-20260802-004)."
+      fix: "Supersede the corrected runs under new RUN ids and rebind the evidence records through corrections; do not edit the old runs. The Coordinator decides."
+    - id: F2
+      severity: major
+      beat: B7
+      what: "Strength vocabulary is not the schema's. schemas/evidence.schema.json allows {anecdotal, preliminary, replicated, strong, inconclusive, contradictory}. 38 records say 'moderate', 76 say 'n/a', 91 carry other out-of-vocabulary values (29 of them long prose, 11 of which read as strong, decisive or replicated), 11 have no strength field and 1 does not parse. The brief counted 63 records reading 'n'; the tree has 76 reading 'n/a'."
+      fix: "Coordinator to assign a schema value to each (recommended_strength in verdicts.jsonl gives the ceiling the evidence supports) or amend the enum by decision record."
+    - id: F3
+      severity: major
+      beat: B7
+      what: "Most 'strong' labels have no cited independent reviewer. Of 39 strong records, 3 cite independent reviewer artifacts that resolve on disk, 21 name the Coordinator only or nothing, and 15 assert independence in prose without a cited artifact. 8 strong records are recommended down: EV-ECDLP-284817->preliminary, EV-ECDLP-81f4d4->preliminary, EV-ECDLP-fd61e4->preliminary, EV-FALSIFY-2a5e46->preliminary, EV-FALSIFY-40291d->replicated, EV-FALSIFY-67150b->replicated, EV-JINV-a8c812->preliminary, EV-VOLC-3529e8->preliminary."
+      fix: "Coordinator to apply or reject the recommended downgrades; independent review is required by AGENTS.md before a claim-changing result."
+    - id: F4
+      severity: major
+      beat: B7
+      what: "EV-ECDLP-81f4d4 (strong) cites RUN-ECDLP-8e13c2, which does not exist under experiments/*/runs/ (it appears only as `predecessor_run` in a later task's manifest); EV-SIG-008 cites five RUN-EXP-SIG-008-* ids that do not resolve."
+      fix: "Supply the run records or relabel the evidence as unverified; the audit cannot resolve them."
+    - id: F5
+      severity: minor
+      beat: B7
+      what: "EV-HAWK-af783e does not parse as YAML (line 48); EV-XEDN-005 and EV-XEDN-006 are stubs holding only claim_tier. Tools that load ledger/evidence cannot read them or find no strength."
+      fix: "Re-record under new ids; records are immutable."
+    - id: F6
+      severity: minor
+      beat: B7
+      what: "Digest coverage is thin. Only 22 of 348 audited records have a sha256 declared in a cited run record that could be re-verified; 17 such records verified, 5 did not (EV-CERTBIN-091c56 and EV-ICPERF-433fa5: code inputs changed after the run, bench.py matches neither its declared nor its frozen digest)."
+      fix: "Declare file digests in run manifests; pin code inputs by commit."
+    - id: F7
+      severity: minor
+      beat: B8
+      what: "EV-ECDLP-284817 defines oracle_marginal_ratio as candidates_verified_B / candidates_verified_C. Recomputed from raw-results.json that ratio is 3.108 per group (2.53 pooled); the stated 3.754 +- 3.187 [1.36, 11.237] reproduces only as the mean over groups of per-cell ratios. Direction unchanged."
+      fix: "State the metric as mean of per-cell ratios."
+    - id: F8
+      severity: minor
+      beat: B7
+      what: "Audit instrument limits, disclosed: the digest walker produced 3 false mismatches (spec/snapshot digests beside file digests), found by hand and overridden; the first replay attempt was void (empty sparse checkout, all 40 not_covered, kept as *_attempt1_void_*); the replay normaliser was too narrow and 3 of its fails were re-diffed by hand (timestamps and platform only). Replay covers 6 of 40 sampled records."
+      fix: "None for the ledger; a re-audit is a new SHF case."
