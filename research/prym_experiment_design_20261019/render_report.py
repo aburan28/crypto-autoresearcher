@@ -78,6 +78,8 @@ def main():
     styles = getSampleStyleSheet()
     styles['BodyText'].fontSize = 9
     styles['BodyText'].leading = 12
+    styles['BodyText'].allowWidows = 0
+    styles['BodyText'].allowOrphans = 0
     story = [Paragraph('Prym experiment programme: issue #2414', styles['Title']),
              Paragraph('Prospective designs and software components. No scientific trial or measured gain.', styles['BodyText']),
              Spacer(1, 12), Diagram(), Spacer(1, 12)]
