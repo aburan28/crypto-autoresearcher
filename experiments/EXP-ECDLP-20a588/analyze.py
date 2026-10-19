@@ -22,25 +22,29 @@ for d in run_dirs:
 M = rows[0]["m"]
 EXP = os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(run_dirs[0]))))
 RUNS = ", ".join(sorted({r["run_id"] for r in rows}))
-seen = set()
-for r in rows:  # cells must be disjoint across runs (amendments resume unexecuted cells only)
-    key = (r["L"], r["inst"])
-    assert key not in seen, f"cell {key} appears in two runs"
-    seen.add(key)
+# Several runs may cover the same (L, instance) with DIFFERENT arms (amendments re-run arms after an instrument
+# failure). Merge per arm; a later run's result for an arm replaces an earlier run's (EXP-ECDLP-8c41d7 AMD-03:
+# RUN-03's crashed msolve rows are replaced by RUN-04's). Each result records its source run and prime size.
+merged = {}
+for r in sorted(rows, key=lambda r: r["run_id"]):
+    cell = merged.setdefault((r["L"], r["inst"]), dict(r, results={}))
+    for arm, v in r["results"].items():
+        cell["results"][arm] = dict(v, p_bits=r["p_bits"], p=r["p"], src=r["run_id"])
+rows = [merged[k] for k in sorted(merged)]
 ARMS = ["A_elim_ms", "A_drl_ms", "B_ms", "A_block_sg", "B_sg"]
 
 cells = defaultdict(list)
 elim_eq = defaultdict(list)
 for r in rows:
     for k, v in r["results"].items():
-        cells[(r["L"], k)].append(dict(v, kind=r["kind"], p_bits=r["p_bits"]))
+        cells[(r["L"], k)].append(dict(v, kind=r["kind"]))
     if "elim_equals_B" in r:
         elim_eq[r["L"]].append(r["elim_equals_B"])
 
 summary = []
 for (L, k), vs in sorted(cells.items()):
     ok = [v for v in vs if v["status"] == "ok"]
-    rec = dict(L=L, arm=k, p_bits=vs[0]["p_bits"], n=len(vs), n_ok=len(ok),
+    rec = dict(L=L, arm=k, p_bits=sorted({v["p_bits"] for v in vs}), runs=sorted({v["src"] for v in vs}), n=len(vs), n_ok=len(ok),
                n_timeout=sum(v["status"] == "timeout" for v in vs),
                n_degenerate=sum(v["status"] == "degenerate_target" for v in vs),
                n_other=sum(v["status"] not in ("ok", "timeout", "degenerate_target") for v in vs))
