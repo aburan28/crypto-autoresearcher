@@ -63,10 +63,6 @@ jobs:
       frontier: ${{ steps.scope.outputs.frontier }}
       autolab: ${{ steps.scope.outputs.autolab }}
     steps:
-      - name: Require a complete CI scope decision
-        run: |
-          [ "$SCOPE_RESULT" = success ] || exit 1
-          [ "$RUN_LEDGER" = true ] || exit 1
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -75,6 +71,13 @@ jobs:
         run: python3 -m unittest discover -s .github/scripts -p test_ci_scope.py -v
       - id: scope
         run: python3 .github/scripts/ci_scope.py
+      - name: Require a complete CI scope decision
+        env:
+          SCOPE_RESULT: ${{ steps.scope.outcome }}
+          RUN_LEDGER: ${{ steps.scope.outputs.ledger }}
+        run: |
+          [ "$SCOPE_RESULT" = success ] || exit 1
+          [ "$RUN_LEDGER" = true ] || [ "$RUN_LEDGER" = false ] || exit 1
 
   # Always run the inexpensive PR integrity gate, including documentation-only
   # PRs. Sparse is safe only for paths explicitly classified as documentation;
