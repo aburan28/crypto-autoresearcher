@@ -37,8 +37,9 @@ contract and the scoped P1546 disposition. Design four sequential experiments:
    permuted companion labels and split-product control. Same memory allowance,
    factor base, target and amortization. Charge generation of labels, selector
    training/tuning if any, all rejects, row normalization and independent rank.
-   No selector exists yet: provide a precise API and required implementation
-   task, never invent a supplied algorithm or call a generic interface runnable.
+   The prospective candidate below supplies an explicit selector component;
+   its integration with the generator, baseline and launcher is still needed.
+   Never call a generic interface or isolated component a runnable experiment.
    A fixed-pool census estimates precision/recall only; rerun the full paired
    pipeline for cost, charging the skipped baseline work appropriately.
 
@@ -72,3 +73,33 @@ Coordinator design task writes only the four hypothesis YAMLs, four experiment
 specification YAMLs and `protocol_summary.json` named on its handoff. It may
 read but must not change AGENTS, goals, prior records, intake, renderer or git.
 No nested agents; no scientific trials; no approval or official transition.
+
+## Prospective selector candidate (design addendum)
+
+Use PO003 C:y²=x6+A*x²+B and auxiliary quotient
+E2:V²=W³+A*W²+B², (W,V)=(B/x²,B*y/x³). For the four interpolation points
+(negative public source lift and three signed FB lifts), form their E2 sum S.
+For S at infinity use a dedicated bin; otherwise bin by
+(Legendre(W), floor(16*W/p)), using the canonical integer W. This is a public
+feature, not a theorem that it predicts smoothness. Its cost may exceed the
+residual quadratic check. Reject exceptional x=0, infinite inputs and repeated
+interpolation abscissae by a fixed rule and charge each rejection.
+
+Before looking at acceptance, split full canonical candidate identities by
+SHA-256 parity (last hex nibble even=train, odd=holdout). Identity fields are
+curve_uid, source_scalar, lambda, signed_fb_lift_ids; no unknown logarithms.
+Obtain 2^16 distinct tuples in each partition, with no cross-partition repeats.
+Insufficient finite support is inconclusive, not permission to change the
+sample. Train each nonempty bin's rate (hits+1)/(attempts+2). Hits require both
+residual E1 endpoints in the exact FB and a valid source-labelled row. Retain
+ceil(nonempty bins/4) highest rates; ties by canonical bin string; reject unseen
+bins. Freeze the model before holdout. Label-permutation controls use identical
+counts, training effort and a frozen permutation. Charge training, maps, group
+operations, selection, all rejects and recovery in the full paired test.
+
+The components in companion_selector.py implement the map, addition, bins,
+split and model rule, with software-only tests. Integration is still absent.
+This is an engineering ablation of a fixed generator, not an operation outside
+P1546 and not a new asymptotic attack. The compact source-labelled router
+remains a separate open problem. Historical tiny cells are calibration only;
+fresh independent curves, not tuple counts, are the inferential units.
