@@ -183,8 +183,12 @@ def _terminate(pod_id: str) -> None:
 
 
 def _fetch(url: str, timeout: int = 30):
+    # The RunPod proxy answers 403 to Python's default User-Agent (curl gets
+    # 200), so without one the driver never saw /done and every pod ran to
+    # the --timeout before it was terminated.
+    req = urllib.request.Request(url, headers={"User-Agent": "curl/8.5.0"})
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode(errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, ""

@@ -1,0 +1,173 @@
+# HYPOTHESIS RECORD -- H-CERTBIN-7e3a51 (coordinator, design-experiment, 2026-10-16). WRITE-ONCE.
+# Id minted as a random 6-hex token WITHOUT tools/allocate_id.py (no Bash in this
+# session); the driving session confirms with `python3 tools/allocate_id.py --check
+# H-CERTBIN-7e3a51` before the design archive. A collision is resolved by a
+# superseding record under a new id, never by editing this one.
+hypothesis:
+  id: H-CERTBIN-7e3a51
+  question_id: RQ-CERTBIN-836ce2
+  related_question_ids: [RQ-QSP-f9bbdb, RQ-ICPERF-94c86e, RQ-FROB-7d8dd4]
+  goal_id: GOAL-ECDLP2M-001
+  experiment_id: EXP-CERTBIN-b4d29c
+  derived_from_idea: IDEA-20261015-c6f017
+  status: specified
+  proposed_by: coordinator
+  specified_at: '2026-10-16'
+  claim_tier: measurement
+  title: >-
+    At the ECC2K-130 degree n=131, a three-limb signed-Frobenius rho walk that
+    canonicalizes every step costs at most 2.5x the n=83 tuned walk per step,
+    with canonicalization 20-50% of its step; Bailey's canonicalize-at-DP walk
+    costs at most 0.6x of it per step; Bailey's restricted selector costs at
+    most 1.25x in steps-to-collision at n=83
+  statement: >-
+    INSTRUMENT HYPOTHESIS; NO ATTACK. On one isolated x86-64 host with
+    PCLMULQDQ, take two walk designs over the ECC2K-130 field F_{2^131}
+    (Koblitz curve y^2 + xy = x^3 + 1, prime-order subgroup r, class size
+    A = 2n = 262 under <negation, Frobenius>). Design C (canonicalizing) is an
+    r-adding walk over canonical class representatives, canonicalizing every
+    step with the lift_scan canonicalizer. Design B (Bailey) is
+    P <- P + sigma^j(P), j = 3 + ((HW_nb(x)/2) mod 8), where HW_nb is the
+    normal-basis Hamming weight; it normalizes only at distinguished points.
+    Both use a three-limb polynomial-basis field type, 64 lockstep lanes and
+    batched inversion. The hypothesis makes five predictions, scored
+    separately (P1-P5 below), about (i) the per-step price of design C at
+    n=131 relative to the program's tuned n=83 walk, (ii) design C's
+    canonicalization share, (iii) design B's per-step price relative to C at
+    n=131, (iv) design B's steps-to-collision penalty relative to C, measured
+    where both complete (n=83 a=1 prime subgroup), and (v) the conversion of
+    the n=131 step price into cycles/iteration against KR-RHO-18cc42's
+    530 cycles/iteration (Core 2, 2009). Nothing here asserts a solve of
+    ECC2K-130, a speedup over rho, or an end-to-end cost.
+  mechanism: >-
+    A 131-bit element is three 64-bit limbs (64+64+3). A field multiply is
+    6-9 CLMULs plus reduction by the ECC2K-130 field polynomial, against 3-4
+    CLMULs at 83 bits, so per-step arithmetic scales about 2-2.5x. Design C
+    adds a fixed per-step canonicalization term (lift_scan, reported about
+    68 ns/key unisolated in cryptanalysis canon-n131-loop-20261014; recalled
+    through the idea, not verified here) plus a basis change. Design B
+    replaces canonicalization with a class function. x is invariant under
+    negation and HW_nb is invariant under Frobenius (a rotation in normal
+    basis), so j(P) is constant on the class, and
+    f(sigma^i(+-P)) = +-sigma^i(f(P)) lies in f(P)'s class. Design B pays for
+    this with j sigma-applications (repeated squarings or precomputed linear
+    maps), a normal-basis weight, and a restricted 8-multiplier selector
+    {1 + lambda^j}. The selector's randomness penalty is measurable only
+    where the walk completes, hence n=83.
+  heuristics:
+    - id: HEUR-1
+      statement: >-
+        The ratio steps-to-collision(design B) / steps-to-collision(design C),
+        each normalized by sqrt(pi r / (2A)) with A = 2n, depends on the
+        selector's multiplier set and branch count but not on the field degree
+        n over the tested range, and therefore transfers from n in {41, 53,
+        61, 83} to n = 131.
+      random_model_justification: >-
+        Under the random-mapping model, an r-adding walk's collision constant
+        depends on its branch count k through a factor near
+        sqrt(k/(k-1)) (Teske; recalled, provenance recalled, not support).
+        A walk on classes inherits that factor at any class size. Nothing
+        rigorous covers the Frobenius-adding selector; KN-LIT-661e97's
+        design accepted it at ECC2K-130 scale (recalled magnitude).
+      falsification: >-
+        The fitted slope of log(walk-factor ratio) against n over the admitted
+        degrees has a 95% interval excluding zero, or any admitted degree's
+        ratio interval is disjoint from the n=83 interval.
+      validation_plan: >-
+        EXP-CERTBIN-b4d29c Stage 2b, scheduled in this same contract (pairing
+        rule, agents/coordinator.md "Dispatch bias"): both walks to verified
+        logarithms at n in {41, 53, 61} under a frozen admission rule, with
+        the n=83 Stage 2 points, and the slope test above.
+  predictions:
+    - id: P1
+      metric: ns_per_step(n=131, design C) / ns_per_step(n=83, tuned reference walk), same host, same session
+      statement: The ratio is at most 2.5.
+      falsified_by: >-
+        A valid isolated measurement with ratio above 2.5. Above 5.0 also
+        triggers the idea's consequence: the wide path is not a reference, and
+        a dedicated implementation must precede any n=131 comparison.
+    - id: P2
+      metric: canonicalization share of the design C step at n=131 (cachegrind inclusive Ir of the canonicalize call / total Ir per step)
+      statement: The share lies in [0.20, 0.50].
+      falsified_by: >-
+        A valid measurement outside [0.20, 0.50]. Below 0.10 also triggers the
+        idea's consequence: the canonicalization lane is a <= 10% question at
+        n=131 and is deprioritized.
+    - id: P3
+      metric: ns_per_step(n=131, design B) / ns_per_step(n=131, design C)
+      statement: The ratio is at most 0.60.
+      falsified_by: >-
+        A valid isolated measurement above 0.85. A ratio in (0.60, 0.85] is
+        prediction-not-met (weaken), not a falsification.
+    - id: P4
+      metric: >-
+        R83 = mean(steps_to_collision / floor) for design B divided by the
+        same for design C, over the frozen n=83 target set, with a
+        percentile-bootstrap 95% interval (10,000 resamples, frozen seed)
+      statement: The point estimate lies in [1.00, 1.25] and the 95% interval upper bound is at most 1.40.
+      falsified_by: >-
+        The 95% interval lies entirely above 1.25 or entirely below 1.00. A
+        point estimate above 1.40 also triggers the idea's consequence:
+        design C stays the reference, and IDEA-20261015-2d8e5a's wide
+        selector is the only remaining route to a canonicalization-free walk.
+        Any other outcome not meeting the statement is inconclusive.
+    - id: P5
+      metric: >-
+        cycles_per_step(n=131, design C, one core) / 530, where cycles come
+        from the core cycle counter at a recorded fixed frequency
+      statement: The ratio lies in [1.0, 4.0], so design C is not cheaper per iteration than the 2009 design.
+      falsified_by: A valid measurement with ratio below 1.0 or above 4.0.
+  known_false_control: >-
+    Design B-poly: design B with HW computed in the polynomial basis rather
+    than the normal basis, so j is NOT a class function. Two signatures are
+    required. In Stage 0 the class-invariance test must fail on B-poly. In
+    Stage 2b at n=41, B-poly's steps/floor must exceed design B's by a
+    factor of at least 3 (the random-model expectation is about
+    sqrt(2n) = 9). If the instrument passes B-poly on either test, it cannot
+    discriminate a class walk from a non-class walk, and P4 and HEUR-1 are
+    unevaluable.
+  test_boundary: >-
+    ECC2K-130's field and curve at n=131 (step price only, no solve); the
+    Koblitz a=1 prime-order subgroup at n=83 and the admitted Koblitz
+    subgroups at n in {41, 53, 61} (solves to verified logarithms); one
+    host class with PCLMULQDQ; 64 lockstep lanes; the frozen class-invariant
+    distinguished-point predicate. Tested walks only: the r-adding
+    canonicalizing walk, Bailey's 8-multiplier Frobenius-adding walk, an
+    8-branch canonicalizing control, and the B-poly known-false control.
+    Excluded: bitsliced or normal-basis-native arithmetic, GPUs or FPGAs,
+    other selectors (IDEA-20261015-2d8e5a), any walk at r ~ 2^129 to
+    completion, and any NIST curve.
+  decision_impact:
+    all_predictions_hold: >-
+      The program gains an n=131 step price in its own unit and a measured
+      Bailey-vs-canonicalizing answer. After independent review, the
+      Coordinator may adopt the cheaper validated design as the matched-rho
+      denominator for the n=131 rows of RQ-QSP-f9bbdb, RQ-CERTBIN-836ce2 and
+      RQ-FROB-7d8dd4, and record its gap to KR-RHO-18cc42 as distance
+      remaining. This is not an improvement claim.
+    p3_and_p4_hold: Design B becomes the candidate n=131 reference walk, subject to HEUR-1 validation.
+    p4_falsified_high: Design C stays the reference. A canonicalization-free walk then needs a different selector.
+    p2_below_0_10: Deprioritize the n=131 canonicalization-speed lane in the next ranking.
+    p1_above_5: >-
+      Do not use the wide three-limb path as an n=131 reference. A dedicated
+      implementation contract precedes any n=131 comparison.
+    heur1_falsified: >-
+      The n=83 walk factor does not transfer to n=131. The conversion row's
+      total-cost model is withdrawn, and only the per-iteration cycle ratio
+      remains.
+    infrastructure_or_stage0_failure: >-
+      No prediction is scored. The failure is an implementation defect,
+      returned to the Executor, and is not evidence about either walk
+      (AGENTS.md rule 5).
+  limitations:
+    - A reference price, not an attack; no walk completes at r ~ 2^129.
+    - One host class; cycles and Ir are the portable figures, ns are host-local.
+    - P4 transfers to n=131 only under HEUR-1.
+    - P5 compares a 64-lane batched-inversion polynomial-basis walk with a 2009 bitsliced implementation; it is a unit conversion, not a like-for-like engineering comparison.
+    - The lift_scan 68 ns/key figure and the field polynomial are recalled through the idea; Stage 0 verifies or replaces them before use.
+  evidence_refs:
+    - ledger/proposals/IDEA-20261015-c6f017.yaml
+    - knowledge/frontiers/ecdlp/generic-rho/KR-RHO-18cc42.yaml
+    - KR-RHO-482ed3
+    - KN-LIT-661e97
+    - EV-ICPERF-390707

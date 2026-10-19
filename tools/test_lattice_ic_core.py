@@ -4,11 +4,15 @@ from fractions import Fraction
 import hashlib
 import json
 from pathlib import Path
+import copy
+from enum import IntEnum
+import os
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -17,6 +21,7 @@ sys.path.insert(0, str(ROOT/"tools"))
 from lattice_ic_core import (Counter, Curve, Field, check_artifacts, encode_point,
                              factorize, poly_eval_mod, rank_mod,
                              select_prime_subgroup, write_artifacts)
+import lattice_ic_core as core
 from src.crypto_autoresearcher.index_calculus.curve import Curve as OracleCurve
 
 
@@ -309,6 +314,146 @@ class ArtifactTests(unittest.TestCase):
                 write_artifacts(self.result(), directory, 7, "2026-10-15T12:00:00",
                                 time.monotonic(), time.process_time())
             self.assertFalse((directory/"manifest.yaml").exists())
+
+    def test_stream_exact_canonical_bytes_and_manifest_snapshot(self):
+        class ExactInteger(IntEnum):
+            VALUE = 23
+        result = self.result()
+        result["parameters"].update({"fraction": Fraction(-7, 13), "path": Path("é/x")})
+        result["checks"]["tuple"] = (ExactInteger.VALUE, Fraction(2, 5))
+        result["cases"] = [{10: [None, True, False, -0.0, 1e-90],
+                            2: (2**521, -(2**523), ExactInteger.VALUE),
+                            "unicode": '\"\\\b\n\t é𝄞\ud800'*9000,
+                            "empty": ({}, [], ()), "path": Path("é/x")}]
+        before = copy.deepcopy(result)
+        expected = (json.dumps(core._json_safe(result), sort_keys=True, indent=2,
+                               allow_nan=False)+"\n").encode()
+        with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+            directory = Path(temporary)
+            original = core._json_safe
+            def selected_only(value):
+                self.assertIsNot(value, result, "must not normalize entire raw result")
+                self.assertIsNot(value, result["cases"], "must not move the raw clone")
+                return original(value)
+            with patch.object(core, "_json_bytes", side_effect=AssertionError("whole output")):
+                with patch.object(core, "_json_safe", side_effect=selected_only):
+                    manifest = self.write(directory, result)
+            self.assertEqual((directory/"raw-result.json").read_bytes(), expected)
+            self.assertEqual(manifest, json.loads((directory/"manifest.yaml").read_text()))
+            self.assertEqual((directory/"manifest.yaml").read_bytes(), core._json_bytes(manifest))
+            self.assertEqual(result, before)
+            result["parameters"]["quadratic"] = (99, 99)
+            result["checks"]["tuple"] = ()
+            self.assertEqual(manifest["run"]["inputs"]["parameters"]["quadratic"], [2, 0])
+            self.assertEqual(manifest["run"]["result"]["checks"]["tuple"],
+                             [23, {"numerator": 2, "denominator": 5}])
+            with patch.object(Path, "read_bytes", side_effect=AssertionError("whole hash buffer")):
+                self.assertTrue(check_artifacts(directory)["envelope_valid"])
+
+    def test_deep_late_invalid_values_keys_and_collisions(self):
+        for bad in (object(), {True: 1}, {(1,): 2}, {1: 1, "1": 2},
+                    float("nan"), float("inf"), -float("inf")):
+            with self.subTest(bad=type(bad).__name__):
+                with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+                    result = self.result()
+                    result["zz_late"] = [dict(valid=list(range(200))), {"deep": [bad]}]
+                    with self.assertRaises((TypeError, ValueError)):
+                        self.write(Path(temporary), result)
+                    self.assertFalse((Path(temporary)/"raw-result.json").exists())
+                    self.assertFalse((Path(temporary)/"manifest.yaml").exists())
+
+    def test_symlink_and_existing_manifest_refuse_without_overwrite(self):
+        with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+            root = Path(temporary)
+            target = root/"target"
+            target.mkdir()
+            alias = root/"alias"
+            alias.symlink_to(target, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                self.write(alias)
+            for name in ("raw-result.json", "manifest.yaml"):
+                directory = root/name.replace(".", "-")
+                directory.mkdir()
+                destination = directory/name
+                destination.symlink_to(root/"absent")
+                with self.assertRaises(FileExistsError):
+                    self.write(directory)
+                self.assertTrue(destination.is_symlink())
+                self.assertFalse((root/"absent").exists())
+            directory = root/"existing"
+            directory.mkdir()
+            (directory/"manifest.yaml").write_bytes(b"preserved")
+            with self.assertRaises(FileExistsError):
+                self.write(directory)
+            self.assertEqual((directory/"manifest.yaml").read_bytes(), b"preserved")
+            self.assertFalse((directory/"raw-result.json").exists())
+
+    def test_real_file_size_failure_retains_partial_raw_without_manifest(self):
+        # Kernel-enforced EFBIG, not a mocked write exception. The inherited
+        # address-space guard remains intact in this software-only child.
+        script = '''import resource, signal, sys, time
+from datetime import datetime, timezone
+from pathlib import Path
+from lattice_ic_core import write_artifacts
+resource.setrlimit(resource.RLIMIT_FSIZE, (1024,1024))
+signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+try:
+ write_artifacts({'softwarecheck':True,'parameters':{},'checks':{},'large':'x'*20000},
+                 Path(sys.argv[1]),7,datetime.now(timezone.utc).isoformat(),time.monotonic(),time.process_time())
+except OSError as e:
+ print(type(e).__name__, e.errno)
+ sys.exit(0 if e.errno == 27 else 2)
+sys.exit(3)
+'''
+        with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+            process = subprocess.run([sys.executable, "-c", script, temporary],
+                capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(ROOT/"tools")})
+            self.assertEqual(process.returncode, 0, process.stderr)
+            self.assertIn("27", process.stdout)
+            self.assertGreater((Path(temporary)/"raw-result.json").stat().st_size, 0)
+            self.assertFalse((Path(temporary)/"manifest.yaml").exists())
+
+    def test_invalid_timing_seed_and_provenance_before_success(self):
+        # Model time spent preparing normalized protocol snapshots and writing
+        # artifacts separately: the published preparation timer includes the
+        # former and excludes streaming encoding/hash/I/O.
+        result = self.result()
+        clock = [5.0]
+        normalize, validate, write = core._json_safe, core._validate_json, core._write_json
+        def normalize_snapshot(value):
+            if value is result["parameters"] or value is result["checks"]:
+                clock[0] += 3.0
+            return normalize(value)
+        def validate_payload(value):
+            clock[0] += 2.0 if value is result else 7.0
+            return validate(value)
+        def write_payload(*args):
+            clock[0] += 100.0
+            return write(*args)
+        with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+            with patch.object(core, "_json_safe", side_effect=normalize_snapshot), \
+                 patch.object(core, "_validate_json", side_effect=validate_payload), \
+                 patch.object(core, "_write_json", side_effect=write_payload), \
+                 patch.object(core.time, "monotonic", side_effect=lambda: clock[0]), \
+                 patch.object(core.time, "process_time", side_effect=lambda: clock[0]):
+                manifest = write_artifacts(result, temporary, 7, "2026-10-16T00:00:00Z", 0, 0)
+            self.assertEqual(manifest["run"]["timing"]["wall_seconds"], 13.0)
+            self.assertEqual(manifest["run"]["timing"]["process_cpu_seconds"], 13.0)
+        for seed, started, wall, cpu in ((True, "2026-10-16T00:00:00Z", 0, 0),
+                                       (7, "bad", 0, 0),
+                                       (7, "2026-10-16T00:00:00Z", float("inf"), 0),
+                                       (7, "2026-10-16T00:00:00Z", 0, float("inf"))):
+            with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+                with self.assertRaises(ValueError):
+                    write_artifacts(self.result(), temporary, seed, started, wall, cpu)
+                self.assertFalse((Path(temporary)/"raw-result.json").exists())
+        with tempfile.TemporaryDirectory(prefix="lattice-core-softwarecheck-") as temporary:
+            directory = Path(temporary)
+            (directory/"launch.json").write_text(json.dumps({"argv": ["python"], "authority": {}}))
+            (directory/"environment.json").write_text('{"bad": NaN}')
+            with self.assertRaisesRegex(ValueError, "nonfinite"):
+                self.write(directory)
+            self.assertFalse((directory/"raw-result.json").exists())
 
 
 if __name__ == "__main__":

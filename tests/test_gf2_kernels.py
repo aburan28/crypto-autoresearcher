@@ -116,6 +116,13 @@ def test_column_pass_large_paths_agree(monkeypatch):
     base = (rng.random((200, C)) < 0.4).astype(np.uint8)
     comb = (rng.random((R, 200)) < 0.3).astype(np.uint8)
     cases.append((_pack((comb @ base % 2).astype(np.uint8), C), C))
+    # sparse at word level, like Macaulay pivot rows: whole zero words in the
+    # pivot tails, so the trailing update's run/segment and group skipping is used
+    R, Wd = 1400, 48
+    dense = (rng.random((R, 64 * Wd)) < 0.2).astype(np.uint8).reshape(R, Wd, 64)
+    dense[rng.random((R, Wd)) < 0.8] = 0
+    C = 64 * Wd - 5
+    cases.append((_pack(dense.reshape(R, 64 * Wd)[:, :C], C), C))
     for M, C in cases:
         want_M = M.copy()
         want = kernels.column_pass(want_M, C, True, algorithm="direct")
@@ -272,3 +279,21 @@ def test_reference_backend_fallback_gives_the_same_closure(tmp_path):
         out[mode] = json.loads(p.stdout)
     assert out["reference"][0] == "reference"
     assert out["reference"][1:] == out["auto"][1:]
+
+
+def test_cgroup_cpu_quota_caps_default_threads(tmp_path):
+    """A container quota smaller than the visible CPUs caps the thread count."""
+    (tmp_path / "cpu.max").write_text("800000 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) == 8
+    (tmp_path / "cpu.max").write_text("150000 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) == 2
+    (tmp_path / "cpu.max").write_text("max 100000\n")
+    assert kernels._cgroup_cpus(str(tmp_path)) is None
+    v1 = tmp_path / "v1"
+    (v1 / "cpu").mkdir(parents=True)
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("400000\n")
+    (v1 / "cpu" / "cpu.cfs_period_us").write_text("100000\n")
+    assert kernels._cgroup_cpus(str(v1)) == 4
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("-1\n")
+    assert kernels._cgroup_cpus(str(v1)) is None
+    assert kernels._cgroup_cpus(str(tmp_path / "missing")) is None

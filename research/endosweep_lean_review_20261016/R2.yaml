@@ -1,0 +1,455 @@
+# Semantic-fidelity review, reviewer R2, 2026-10-16
+# Checkout: /home/user/wt/lean (read-only). Lean 4.35.0-rc1, core + built Endosweep .oleans
+# (oleans newer than the sources: XOnlyConjugate 04:15, others 04:16, against sources 04:04-04:13).
+# Scratch evidence (all under /tmp/claude-0/-home-user/6ef12e21-c055-593f-aa44-2a41ea293670/scratchpad/review/R2/):
+#   GF4.lean      : GF(4) = F_2[u]/(u^2+u+1) as a core Lean.Grind.Field with Lean.Grind.IsCharP _ 2 (0 errors)
+#   Witness.lean  : imports the four Endosweep modules plus GF4 and applies each target theorem to concrete
+#                   hypotheses discharged by `decide` (0 errors). The #eval sanity outputs show that both sides agree.
+#   Axioms.lean   : #print axioms for every target: only propext/Classical.choice/Quot.sound (omega_norms: none).
+#   lambda_check.py: an independent Python transcription of every Lean def in LambdaCoordinates.lean/BinaryGLS.lean,
+#                   compared with lambdacoord.py/binary.py/gls.py on random inputs, both off-curve and on-curve
+#                   (F_2^163; a,b in {(1,1),(0,1),(1,rand),(rand,rand)}; 40 trials each), plus the GLS hypotheses on gls.py's m=127 tower.
+#                   Result: definitions are equal 160/160, hypotheses hold 160/160, conclusions hold 160/160; the tower satisfies
+#                   sigma add/mul/invol, sigma u = u+1, u^2+u+1 = 0 and sigma b = b. Lean psi forms equal gls.py's on 100/100.
+#   msm_check.py  : the Lean windows/break-even definitions against all 204 rows of msm.json (0 mismatches, 0 iff disagreements).
+#   twist_check.py: in F_{q^4}, the value of s + s^q for s^2 + s = a + u (m = 1, 3, 5; a = 0, 1).
+#   gf_witness.py : a brute-force search of GF(4) and GF(8) for points satisfying the lambda-theorem hypotheses (b != 0).
+
+- target: endosweep-xonly-conjugate-difference
+  task_id: TASK-20261016-fceddc
+  theorem: CryptoResearch.Endosweep.XOnlyConjugate.xonly_difference_eq_conj
+  verdict: PASS
+  checks:
+    statement: >-
+      XOnlyConjugate.lean:86-90 states that for any Lean.Grind.IntModule G (an abelian group), any maps beta, betabar,
+      any x : G -> X with x(-Q) = x(Q) for all Q, and beta P + betabar P = P, we get x(beta P - P) = x(betabar P).
+      This is the claim word for word. The quantifiers are universal, and the conclusion has the same direction.
+    hypotheses: >-
+      There are two hypotheses (hx: x(-Q) = x(Q); htr: beta P + betabar P = P), and both are stated in the claim.
+      They are satisfiable: Witness.lean:228 uses G = Int, x = natAbs, beta = 3*, betabar = -2*.
+    definitions: >-
+      The theorem defines nothing of its own. x is abstract. The README (l.337) and the spec say explicitly that the
+      Weierstrass x(-P) = x(P) property enters as a hypothesis.
+    data: n/a
+    scope: >-
+      README "Lean verification" item 1 (l.314-319) matches. The spec and README say that the curve realisation
+      (xonly.py point checks) is not formalised.
+  satisfiability_witness: R2/Witness.lean:228 (Int, natAbs, beta = 3x, betabar = -2x, P = 5)
+  notes: Faithful.
+
+- target: endosweep-xonly-conjugate-eigenvalue
+  task_id: TASK-20261016-bf52e1
+  theorem: CryptoResearch.Endosweep.XOnlyConjugate.conj_eigenvalue
+  verdict: PASS
+  checks:
+    statement: >-
+      XOnlyConjugate.lean:72-80: if omegabar P = P - omega P and omega P = l . P, then omegabar P = (1 - l) . P. This
+      holds in any Z-module, which is more general than "on the order-n subgroup" and specialises to it. The claim's
+      "Moreover" sentence is eigen_conj_mod (l.63-66): n | l^2 - l - m -> n | (1-l)^2 - (1-l) - m. That is exactly the
+      claimed congruence, and the spec notes cite it.
+    hypotheses: >-
+      hbar and heig are both in the claim. They are satisfiable (Witness.lean:230, G = Int, l = 3, P = 5).
+      eigen_conj_mod is witnessed at Witness.lean:231 (n = 7, l = 3, m = -1).
+    definitions: n/a (zsmul of Lean.Grind.IntModule is [k]P)
+    data: n/a
+    scope: README l.320-323 matches. The spec says that the conjugate chain being omegabar on the curve is not formalised.
+  satisfiability_witness: R2/Witness.lean:230-231
+  notes: >-
+    Faithful. The second sentence of the claim is proved by the supporting theorem eigen_conj_mod, not by the named
+    theorem. The spec notes disclose this.
+
+- target: endosweep-xonly-odd-trace-needed
+  task_id: TASK-20261016-ebaed4
+  theorem: CryptoResearch.Endosweep.XOnlyConjugate.QuadOrder.trace_one_exists_iff_D_odd
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      XOnlyConjugate.lean:157-166 proves (exists x : QuadOrder D, trace x = 1) <-> D % 2 = 1. Int % is emod, so this
+      means "D odd", including negative D. The claim's other clauses are proved by supporting theorems.
+      "Every even D has only even traces, and no beta has beta + betabar = +-1" is trace_even_of_D_even (l.140) and
+      no_trace_pm_one_of_D_even (l.149-153). "beta - betabar = 1 has no solution" is sub_conj_ne_one (l.170-175).
+    hypotheses: >-
+      The named theorem has no hypotheses. no_trace_pm_one_of_D_even is witnessed at Witness.lean:234 (D = -8), and the
+      existence direction at Witness.lean:232 (D = -619).
+    definitions: >-
+      QuadOrder D = Z^2 in the basis 1, w with w = (D + sqrt D)/2 (l.102-127). I checked by hand:
+      w^2 = D w + (D - D^2)/4.
+      conj: a + bw -> (a + bD) - bw, because wbar = D - w.
+      trace = 2a + bD = beta + betabar (add_conj, l.130, proved).
+      norm = a^2 + abD + b^2 (D^2 - D)/4 = beta*betabar (hand expansion).
+      These are the standard order of discriminant D, Z[(D+sqrt D)/2]. The Lean type also accepts D = 2,3 mod 4, where
+      it is not an order. The trace statements only use the additive structure, so this is harmlessly more general.
+    data: n/a
+    scope: >-
+      The claim's first sentence, "x((beta-1)P) = x(betabar P) NEEDS beta + betabar = 1", is not formalised. The
+      necessity step (an x-coordinate equality on generic P forces beta - 1 = +-betabar in End(E)) is a curve fact: x
+      determines a point up to sign, and End(E) acts faithfully. The Lean only proves the order-theoretic dichotomy that
+      follows. The spec notes do not say that this step is informal. The README Lean section's heading "Odd trace is
+      needed" (README l.324) reads as if the necessity itself were checked.
+  satisfiability_witness: R2/Witness.lean:232-234
+  notes: >-
+    The theorem is faithful for the order-theoretic content. Wording fix: add to the spec notes and the README item 3
+    that "x(P') = x(P'') => P' = +-P''", and the passage from an identity of endomorphisms on points to the ring
+    identity beta - 1 = +-betabar, are informal and not Lean claims. The spec already says that the "odd conductor"
+    step is informal.
+
+- target: endosweep-xonly-omega-norms
+  task_id: TASK-20261016-f183dd
+  theorem: CryptoResearch.Endosweep.XOnlyConjugate.QuadOrder.omega_norms
+  verdict: PASS
+  checks:
+    statement: >-
+      XOnlyConjugate.lean:181-190 states that omega = <(1-D)/2, 1> = (1-D)/2 + w = (1 + sqrt D)/2 has trace 1 and
+      norm 155, 85 and 1039 for D = -619, -339, -4155. beta = <-5 + 11(1-D)/2, 11> = -5 + 11 omega has trace 1 and
+      norm 125689. All of this is checked by decide, with no axioms.
+    hypotheses: none
+    definitions: >-
+      trace and norm as above (correct). By hand: N(omega) = (1 - D)/4 gives 620/4 = 155, 340/4 = 85, 4156/4 = 1039.
+      N(-5 + 11 omega) = 25 - 55 + 121*1039 = 125689. Equivalently (1 + 121*4155)/4 = 125689.
+    data: >-
+      Checked against research/endosweep_xonly_20261008/xonly.json:
+      omega[0] has D_K -619, element [0,1], norm 155, trace 1.
+      omega[1] has D_K -339, norm 85, trace 1.
+      omega[2] has D_K -4155, norm 1039.
+      best_trace_one[0] has D_K -4155, element [-5, 11], m = 11, norm 125689, trace 1, factors 37*43*79.
+      All four Lean entries match. The basis differs: JSON uses (1, omega), Lean uses (1, w), and the two are related by
+      omega = (1-D)/2 + w, as checked.
+    scope: Factorisations and the primality of 1039 are disclosed as not restated (spec notes, README l.335-338).
+  satisfiability_witness: n/a (closed arithmetic)
+  notes: Faithful.
+
+- target: endosweep-lambda-add
+  task_id: TASK-20261016-e6da74
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.add_correct
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:304-311: if P and Q satisfy OnCurveProj with X, Z != 0, X_P Z_Q + X_Q Z_P != 0 and
+      (add P Q).1 != 0, then Z_3 != 0 and toAffine(add P Q) = affineAdd a (toAffine P) (toAffine Q).
+      Under the other hypotheses, Bs != 0 is equivalent to x_P != x_Q.
+      X3 = A^2 * XPZQ * XQZP is nonzero iff lambda_P != lambda_Q. By x3 (x1+x2)^2 = x1 x2 (l1+l2) (affine_add_x),
+      that holds iff x_{P+Q} != 0. So the hypotheses are exactly the claim's.
+    hypotheses: >-
+      All of them are in the claim and the README (l.376-378), and they are the code's branch conditions
+      (lambdacoord.py:327 Bs == 0 branches; :333 raises if X3 == 0). They are satisfiable: Witness.lean:170 over GF(4)
+      with a = 0, b = 1, P = (1,0,1), Q = (1,1,u). They also hold on 160/160 random on-curve pairs over F_2^163
+      (lambda_check.py).
+    definitions: >-
+      Lean `add` (l.114-126) compared operation by operation with lambdacoord.py:314-336:
+        XPZQ, XQZP;
+        A = LP ZQ + LQ ZP;
+        Bs, B = Bs^2;
+        AXQZP;
+        X3 = AXQZP (A XPZQ);
+        ABZQ = (A B) ZQ;
+        L3 = (AXQZP + B)^2 + ABZQ (LP + ZP);
+        Z3 = ABZQ ZP.
+      All identical. toAffine (l.81-83) is lambdacoord.py:258-265. affineAdd (l.64-67) is binary.py:179-189, generic
+      branch. Numerically: the Lean transcription equals LambdaCurve.add on 160/160 random off-curve triples, and the
+      affine law equals GeneralCurve.add.
+    data: n/a
+    scope: >-
+      Spec and README say that the degenerate branches and the operation counts (11M + 2S) are not formalised. The
+      count appears in the claim only as an identifier of the formula.
+  satisfiability_witness: R2/Witness.lean:170-171 (GF(4), b = 1 nonsingular); #eval at :183 shows (v,v) on both sides
+  notes: Faithful. Over any char-2 Lean.Grind.Field, with general a, b; binary.py restricts a to {0,1}.
+
+- target: endosweep-lambda-curve-equation
+  task_id: TASK-20261016-5b226d
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.curve_equation_iff
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:204-205: for Z, X != 0, OnCurveProj a b (X,L,Z) <-> OnCurve a b (toAffine (X,L,Z)).
+      toAffine returns (x, x(lambda + x)) with x = X/Z and lambda = L/Z. When x != 0 this is exactly
+      "lambda = x + y/x", so the iff is the claim's "satisfies ... and conversely".
+    hypotheses: Z != 0 and X != 0 (x != 0) are both in the claim. They are satisfiable (Witness.lean:160).
+    definitions: >-
+      OnCurveProj (l.89-90) is (L^2 + LZ + aZ^2) X^2 = X^4 + bZ^4. That is the lambdacoord.py docstring (l.8) and the
+      README (l.53). OnCurve (l.60-61) is binary.py on_curve (l.166-174), with general a.
+    data: n/a
+    scope: Matches README l.366-368.
+  satisfiability_witness: R2/Witness.lean:160
+  notes: Faithful.
+
+- target: endosweep-lambda-dbl-add
+  task_id: TASK-20261016-31f330
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.dbl_add_correct
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:470-479: Q satisfies OnCurveProj with X_Q, Z_Q != 0; P = (x_P, l_P) has x_P != 0 and
+      OnCurve(fromLambdaAffine P); T != 0, Bs != 0 and A != 0. Then
+      toAffine(dblAdd a Q P) = affineAdd a (affineDbl a (toAffine Q)) (fromLambdaAffine P), which is 2Q + P, and Z != 0.
+    hypotheses: >-
+      These are exactly the code's conditions: lambdacoord.py:378-379 (T == 0 raises), :383 (Bs == 0 falls back),
+      :385-386 (A == 0 raises). Lean's hA expression is A verbatim, and hB is Bs (B = Bs^2). They are satisfiable:
+      Witness.lean:178 over GF(4) with Q = (1,1,u), P = (u,u), a = 0, b = 1. They also hold on 160/160 random cases.
+    definitions: >-
+      dblAdd (l.145-157) compared with lambdacoord.py:362-391:
+        LQ2, ZQ2;
+        T = LQ2 + LQ ZQ + a ZQ2;
+        A = XQ^2 ZQ2 + T (LQ2 + (a+1+lP) ZQ2);
+        xZ = xP ZQ2;
+        Bs = xZ + T, B = Bs^2;
+        X = xZ A^2;
+        Z = (A B) ZQ2;
+        L = T (A+B)^2 + (lP+1) Z.
+      Identical (Python `a ^ 1 ^ lP` is a + 1 + lP). Numerically equal on 160/160.
+    data: n/a
+    scope: Matches README l.381-383. The count 10M + 6S + m_a is a measured count, not a Lean claim.
+  satisfiability_witness: R2/Witness.lean:178-179; #eval at :184
+  notes: Faithful.
+
+- target: endosweep-lambda-dbl-alt
+  task_id: TASK-20261016-e6b20a
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.dbl_alt_eq_dbl_main
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:257-258: OnCurveProj a b (X,L,Z) implies dblAlt a b (X,L,Z) = dblMain a (X,L,Z), equality
+      of the whole triple. That is stronger than "agrees". alt_T_eq (l.253) gives L(L+Z) + aZ^2 = L^2 + LZ + aZ^2.
+      dbl_alt_correct (l.265) gives correctness against the affine law.
+    hypotheses: The curve equation only. It is satisfiable (Witness.lean:166, GF(4) point (1,1,u)).
+    definitions: >-
+      dblAlt (l.104-111) compared with lambdacoord.py:301-311 ("alt"):
+        Z2;
+        T = L(L+Z) + aZ2;
+        X2 = T^2;
+        Z2P = T Z2;
+        LX2 = (L+X)^2;
+        L2P = LX2 (LX2 + T + Z2) + X2 + (a+1) Z2P + (a^2+b) Z2^2.
+      The code skips the last term when a^2 + b = 0, which equals adding 0. Numerically equal for (a,b) = (1,1), where
+      the term is skipped, and in the other cases.
+    data: n/a
+    scope: The spec says explicitly that the README's subtlety is a cost (T as 1M versus 1S + 1M) and that the cost is not formalised.
+  satisfiability_witness: R2/Witness.lean:166-167
+  notes: Faithful. The "needs" in the claim is about cost and is correctly disclosed as not a Lean claim.
+
+- target: endosweep-lambda-dbl-theorem1
+  task_id: TASK-20261016-31d4dc
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.dbl_main_correct
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:229-232: Z, X != 0 and T != 0 give Z_out != 0 and
+      toAffine(dblMain a P) = affineDbl a (toAffine P). There is no curve hypothesis, as claimed.
+    hypotheses: >-
+      T != 0 is the code's raise condition (lambdacoord.py:295-296). It is satisfiable (Witness.lean:163) and holds on
+      160/160 random points.
+    definitions: >-
+      dblMain (l.93-100) is lambdacoord.py:291-300 ("main"):
+        LZ;
+        Z2;
+        T = L^2 + LZ + aZ2;
+        X2 = T^2;
+        Z2P = T Z2;
+        L2P = (XZ)^2 + X2 + T LZ + Z2P.
+      Identical, and equal to the claim's formula. affineDbl (l.70-73) is binary.py:191-197, generic branch.
+    data: n/a
+    scope: Matches README l.369-371.
+  satisfiability_witness: R2/Witness.lean:163; #eval at :182
+  notes: Faithful.
+
+- target: endosweep-lambda-madd
+  task_id: TASK-20261016-845dcd
+  theorem: CryptoResearch.Endosweep.LambdaCoordinates.madd_correct
+  verdict: PASS
+  checks:
+    statement: >-
+      LambdaCoordinates.lean:398-405: Q satisfies OnCurveProj with X_Q, Z_Q != 0; P is lambda-affine on the curve with
+      x_P != 0; x_P Z_Q + X_Q != 0 (x_P != x_Q); (madd Q P).1 != 0 (x_{P+Q} != 0). Then
+      toAffine(madd Q P) = affineAdd (toAffine Q) (fromLambdaAffine P).
+    hypotheses: >-
+      The hypotheses are the claim's and the code's (lambdacoord.py:350 branch, :355-356 raise). They are satisfiable:
+      Witness.lean:174, with Q = (1,1,u) and P = (1,0).
+    definitions: >-
+      madd (l.130-141) compared with lambdacoord.py:338-359:
+        XPZQ;
+        A = lP ZQ + LQ;
+        Bs = XPZQ + XQ;
+        B;
+        AXQ;
+        X3 = AXQ (A XPZQ);
+        ABZQ;
+        L3 = (AXQ + B)^2 + ABZQ (lP + 1);
+        Z3 = ABZQ.
+      Identical. madd_eq_add (l.389) shows that it is add with Z_P = 1. Numerically equal on 160/160.
+    data: n/a
+    scope: Matches README l.379-380.
+  satisfiability_witness: R2/Witness.lean:174-175
+  notes: Faithful.
+
+- target: endosweep-gls-psi-endomorphism
+  task_id: TASK-20261016-4039c7
+  theorem: CryptoResearch.Endosweep.BinaryGLS.psi_add
+  verdict: PASS
+  checks:
+    statement: >-
+      BinaryGLS.lean:146-148: Involution sigma, sigma u = u + 1, u^2 + u + 1 = 0 and P.1 + Q.1 != 0 give
+      psi(affineAdd u P Q) = affineAdd u (psi P) (psi Q), on the curve with a' = u (gls.py:404 E = GeneralCurve(K, K.u, b)).
+      The claim's other clauses are supporting theorems cited in the spec notes:
+        psi_onCurve (l.137, uses sigma b = b);
+        psi_dbl (l.163);
+        psi_lambda_affine (l.177), the form (sigma x, sigma lambda + u).
+    hypotheses: >-
+      Involution (l.77-81) means additive, multiplicative, sigma 1 = 1 and an involution. Together with sigma u = u+1
+      and u^2+u+1 = 0, these are stated in README l.386-388. I checked by hand that hu2 is genuinely needed:
+      x3' - sigma(x3) = u^2 + u + 1. They are satisfiable in GF(4) with sigma = Frobenius
+      (Witness.lean:193-206, 210-211). They hold for gls.py's tower: Fq2.conj (gls.py:151-154) on 200 random pairs at
+      m = 127 satisfies sigma u = u+1, u^2+u+1 = 0 and sigma b = b (lambda_check.py).
+    definitions: >-
+      psi (l.118) is gls.py psi_affine (l.346-351). psiLambdaAffine (l.121) is psi_lambda_affine (l.354-356).
+      psiLambda (l.124) is psi_lambda (l.359-364). All three are numerically equal on 100/100 random inputs.
+      affineAdd is binary.py's generic branch.
+    data: n/a
+    scope: >-
+      The spec and README say that the degenerate branches are not formalised. The file header's "so it is a group
+      endomorphism on the points those branches cover" (l.25-26) is appropriately hedged.
+  satisfiability_witness: R2/Witness.lean:205 (GF(4), sigma = x^2, u); psi_onCurve at :204 on the point (0,1) of E~(GF(4))
+  notes: >-
+    Faithful. The claim bundles four facts; the named theorem proves additivity and the supporting theorems prove the
+    other three, as the spec notes disclose. E~(GF(4)) has only the point (0,1), so the psi_add/psi_dbl witnesses use
+    off-curve inputs. Those theorems do not require curve membership.
+
+- target: endosweep-gls-psi-from-twist
+  task_id: TASK-20261016-3b5763
+  theorem: CryptoResearch.Endosweep.BinaryGLS.psi_eq_conj_by_twist
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      BinaryGLS.lean:226-229: for tau additive and multiplicative (not required to be unital, so more general than
+      "ring endomorphism") and s + tau s = u, twistIso s (tau(twistIso s P)) = psi tau u P. conj_by_twist (l.217-223)
+      gives the general (tau x, tau y + (s + tau s) tau x). twist_iso_onCurve (l.203) shows that phi_s maps
+      coefficient a to a + s^2 + s, and twist_iso_invol (l.210) that phi_s^-1 = phi_s. This matches the claim.
+    hypotheses: >-
+      hadd, hmul and hs are in the claim. They are satisfiable: Witness.lean:209 in GF(4) with tau = Frobenius, s = u,
+      which forces the statement's u := 1. A witness meaningful in context exists: in F_16 with tau = squaring (the
+      q-Frobenius of F_{q^4}, q = 2), s^2 + s = u gives s + tau s = u (twist_check.py, m = 1, a = 0).
+    definitions: twistIso (l.199) is (x, y + s x). psi is gls.py's psi_affine.
+    data: n/a
+    scope: >-
+      The Lean result is conditional and correct. However, twist_check.py shows that for s^2 + s = a + u (a in F_2),
+      s + s^q = a + u + (m-1)/2 (mod 2). For gls.py's m = 127 (m = 3 mod 4) and its base curve
+      Eq = GeneralCurve(F, 0, b) (gls.py:394, a = 0), this gives s + tau s = u + 1. So phi o pi o phi^-1 = -psi there,
+      and the hypothesis s + tau s = u holds only for the base curve with a = 1 (gls.py:400 Eq1, its F_q-twist). This
+      changes no result: -psi is equally an endomorphism with square -1, and #E~ = (q-1)^2 + t^2 is even in t. But the
+      spec note "That such an s exists in F_{q^4} is not formalised" is imprecise. An s with s^2 + s = a + u always
+      exists in F_{q^4}. Whether it also satisfies s + tau s = u depends on Tr(a) and m mod 4. The gls.py docstring
+      (l.8-10) and the README's "psi = phi o pi o phi^-1" hold for a = 1 when m = 127.
+  satisfiability_witness: R2/Witness.lean:209 (GF(4)); R2/twist_check.py (F_16, F_2^12, F_2^20 cases)
+  notes: >-
+    Wording fix: state that s + tau s = u requires choosing E's a with Tr_{F_q/F_2}(a) = (m-1)/2 mod 2 (a = 1 for
+    m = 127). Otherwise the conjugate is -psi.
+
+- target: endosweep-gls-psi-squared
+  task_id: TASK-20261016-0bd65c
+  theorem: CryptoResearch.Endosweep.BinaryGLS.psi_psi
+  verdict: PASS
+  checks:
+    statement: >-
+      BinaryGLS.lean:130-131: for every P, Involution sigma and sigma u = u + 1 give psi(psi P) = (x, x + y) =
+      affineNeg P. By hand: (sigma sigma x, sigma(sigma y + u sigma x) + u x) = (x, y + (u+1)x + ux) = (x, x + y).
+      The theorem drops the curve and u^2+u+1, so it is more general than the claim and specialises to it.
+    hypotheses: >-
+      Both are stated in README l.386-388 and the spec notes. They are satisfiable (Witness.lean:203; #eval at :214
+      shows psi(psi(u,1)) = (u, u+1) = -(u,1)). gls.py's tower satisfies them numerically (lambda_check.py).
+    definitions: affineNeg (l.63) is binary.py neg (l.176-177). psi is gls.py psi_affine (numerically equal).
+    data: n/a
+    scope: Spec and README disclose that the tower's properties are the harness's construction.
+  satisfiability_witness: R2/Witness.lean:203, :214
+  notes: Faithful.
+
+- target: endosweep-msm-bit-conservation
+  task_id: TASK-20261016-f144db
+  theorem: CryptoResearch.Endosweep.Pippenger.bit_conservation
+  verdict: PASS
+  checks:
+    statement: Pippenger.lean:50-52 states (b/c)N = ((b/2)/c)(2N) in Q for all b, c, N, which is exactly the claim's identity.
+    hypotheses: none
+    definitions: n/a
+    data: n/a
+    scope: >-
+      The spec note says correctly that this counts digit slots, not msm.py's acc_adds. In msm.json the glv acc_adds
+      can exceed plain's (secp256k1 mixed N = 64: 2806.8 vs 2411.5), so the disclaimer is warranted.
+  satisfiability_witness: n/a (no hypotheses)
+  notes: Faithful. The identity is trivial, which is what was claimed.
+
+- target: endosweep-msm-break-even
+  task_id: TASK-20261016-fcd183
+  theorem: CryptoResearch.Endosweep.Pippenger.glv_wins_iff
+  verdict: PASS
+  checks:
+    statement: Pippenger.lean:116-117 states that for 0 < N, glv0 + N ce < plain <-> ce < (plain - glv0)/N, the claim verbatim.
+    hypotheses: 0 < N, as in the claim. Satisfiable (Witness.lean:220).
+    definitions: >-
+      This is the quantity the README tabulates. msm.py sweep_curve sets glv_total = glv0.total_M + N ce (l.793) and
+      cstar = (plain.total_M - glv0.total_M)/N (l.794), the C_star_M column. glv_gain_pct =
+      100(plain - glv_total)/plain (l.798) is gain_pos_iff and gain_zero_iff (l.123-142). msm_check.py on all 204 rows
+      of msm.json:
+        C_star_M equals (plain - glv0)/N, with 0 mismatches;
+        glv_gain_pct is recomputed with 0 mismatches;
+        sign(gain) and [glv_total < plain] agree with [ce < C*] in all 204 rows.
+      The README table (l.123-127) equals msm.json C_star_M for secp256k1: batched affine
+      98.7/49.7/33.0/21.4/13.9/11.9/8.2/7.2/6.8; mixed 130.9/.../8.6; hypothesis row 74.2/.../4.3.
+      Small glv_total_M differences (up to about 97 M at N = 4M) come from the stored ce being rounded to 3 decimals.
+      They are not a definitional mismatch.
+    data: Spot-checked secp256k1 rows at logN 6..22 in both modes against README l.125-127. All match.
+    scope: Spec and README say that the tabulated C* values are modelled and not formalised.
+  satisfiability_witness: R2/Witness.lean:220
+  notes: >-
+    Faithful. plain and glv0 are each optimised over their own window c (best_over_c), not a common window. The
+    theorem is pointwise in the two totals, so this is fine.
+
+- target: endosweep-msm-ideal-cstar
+  task_id: TASK-20261016-126156
+  theorem: CryptoResearch.Endosweep.Pippenger.ideal_glv_wins_iff
+  verdict: PASS_WITH_NOTES
+  checks:
+    statement: >-
+      Pippenger.lean:167-169: for c != 0 and 0 < N, idealGLV < idealPlain <-> Calpha < (b/(2c))(twoPowC R + cD + C)/N.
+      twoPowC is a free rational. Setting it to 2^c gives the claimed formula exactly.
+      ideal_saving (l.158-164) proves "accumulation unchanged, the rest halved".
+      ideal_cstar_decomposition (l.180-183) proves break-even = aggregation-only saving + ((b/2)D + (b/(2c))C)/N.
+    hypotheses: c != 0 and 0 < N. Satisfiable (Witness.lean:221).
+    definitions: >-
+      idealPlain = (b/c)(N A + 2^c R + c D + C) and idealGLV = ((b/2)/c)(2N A + 2^c R + c D + C) + N Calpha
+      (l.148-155). This is a coherent saturated common-window Pippenger model. It is disclosed as not msm.py's occupancy
+      model.
+    data: n/a
+    scope: >-
+      "So the break-even exceeds the aggregation-only estimate" is proved only as an exact decomposition. Strict excess
+      needs (b/2)D + (b/(2c))C > 0, which holds for positive b, c, D, C but is not stated. "Aggregation-only estimate"
+      here means the model's (b/(2c)) 2^c R / N. It is NOT the README's hypothesis formula b A/(c(c+1)). The README
+      reports that msm.py's C* falls below that formula at some sizes: mixed 2^16, 12.1 vs 14.3; mixed 2^20, 9.0 vs 9.6;
+      and 2^17. The spec note discloses that b A/(c(c+1)) is not derived.
+  satisfiability_witness: R2/Witness.lean:221
+  notes: >-
+    Wording fix: say "exceeds the model's aggregation-only saving (b/(2c)) 2^c R/N, by ((b/2)D + (b/(2c))C)/N >= 0",
+    so that it is not read as exceeding the hypothesis formula b A/(c(c+1)). msm.py's C* does not always exceed that
+    formula.
+
+- target: endosweep-msm-window-slots
+  task_id: TASK-20261016-216d53
+  theorem: CryptoResearch.Endosweep.Pippenger.window_slots
+  verdict: PASS
+  checks:
+    statement: >-
+      Pippenger.lean:79-82: for 0 < c, N W(2h) <= 2N W(h), 2N W(h) <= N W(2h) + N, and
+      2 W(h) = W(2h) <-> c <= 2(h % c). This is exactly the claim. I checked the math by hand:
+      floor(2h/c) = 2 floor(h/c) + [c <= 2(h mod c)].
+    hypotheses: 0 < c (msm.py searches c in 1..22). Satisfiable (Witness.lean:222). The Lean statement is false for c = 0, so the hypothesis is needed.
+    definitions: >-
+      windows bits c = bits / c + 1 (l.55) equals msm.py's W = shape.bits // c + 1 (l.429; also counted_msm_1d l.1026).
+      All 204 msm.json rows satisfy windows = coeff_bits // c + 1, doublings = (W-1)c and combine = W-1.
+      #eval (Witness.lean:219) gives 20, 10, 17, 9. The msm.json secp256k1 rows at c = 13 (plain 20, glv 10) and
+      c = 16 (plain 17, glv 9) match window_slots_examples.
+    data: window_slots_examples (decide) matches the msm.json windows at c = 13/16 for 256/128 bits.
+    scope: >-
+      The 2h/h form applies exactly to secp256k1 (256/128), CryptoPro-B (256/128) and Tom-384 (384/192). It does not
+      apply to BLS12-381 G1 (255/128), Bandersnatch (253/127) or CP6-782 (377/190) (msm.json coeff_bits). The claim is
+      explicitly scoped to 2h/h, so this is not a fidelity problem.
+  satisfiability_witness: R2/Witness.lean:222
+  notes: >-
+    Faithful. The spec's "the condition is the README's 'b mod c' quantisation" is loose. The README's example
+    (256 = 16*16, plain 17 windows) is covered. Its BLS12-381 counter-example (255 bits) is outside the 2h/h hypothesis.

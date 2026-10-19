@@ -434,8 +434,9 @@ global identities and recorded IC/rho timings. See [the cross-repository contrac
 
 ## Curve catalog, research trails and real comparison receipts
 
-`#/curves` reads `data/curves.json`: two source-reported binary curve records
-(degrees 13 and 19), 63 trait slots (12 core metadata fields plus 51 DiSSECT output fields), full EC1 identity preimages, per-trait
+`#/curves` reads `data/curves.json`: four source-reported binary curve records
+(degrees 13 and 19), 96 trait slots (12 core metadata fields, 51 DiSSECT output
+fields and 33 crypto curve_traits fields), full EC1 identity preimages, per-trait
 source links, search and a shareable two-curve comparison. Unknown traits stay
 unknown. Hash checks establish metadata identity, not mathematical certification.
 Integers larger than JavaScript’s exact range are emitted as decimal display
@@ -466,6 +467,30 @@ computed traits to it. Supplementary traits belong outside that identity.
 Each value is labelled source-reported and linked to its source. Identity,
 pin, path or supplementary-trait conflicts fail closed. Browsing fetches no
 upstream data and performs no mathematical computation.
+
+`ui/curves/crypto-traits.json` (adapter `crypto-curve-traits/1`, pinned under
+`supplementary_traits` in the catalog) snapshots aburan28/crypto's computed
+`docs/curves/traits.json` (`curve-traits/1`) with its `registry.json` and
+`TRAITS.md` pins at one commit; it holds only records whose registry
+representations include a catalogued `curve_uid`. The two `crypto-EC1….json`
+capsules are crypto registry representations whose `curve_uid` the shared
+identity helper reproduces. Joins are by exact `curve_uid` only:
+`binary13.json` is the same Koblitz equation under another modulus and
+generator, so it receives no crypto traits. Each value keeps crypto's status
+(`proved`, `probable`, `bounded`, `unknown`, `not_evaluated`,
+`not_applicable`) in the **crypto curve_traits** section. A DiSSECT or core
+slot is filled only when its definition is the same quantity and the status is
+`proved` or `probable`: `cofactor.order`/`cofactor` (registry generator order
+and cofactor), `embedding.complement_bit_length` (bit length of (r−1)/ord_r(q)),
+`discriminant.cm_disc`, `max_conductor` (v in t²−4q = v²·d_K) and
+`factorization` (primes with multiplicity, as DiSSECT unpacks them), plus core
+order, trace, CM discriminant and End(E) conductor (1 when End(E) = O_K is
+established). Capsule-reported values that disagree fail closed. Exact class
+numbers, Frobenius conductors, twists and volcano depths stay supplementary;
+parameterized DiSSECT families and values that would need arithmetic, such as
+`embedding_degree_complement`, stay Unknown. Refresh with
+`python3 tools/export_crypto_curve_traits.py --crypto ../crypto --commit <sha>`
+(`--check` re-derives the committed files).
 
 `#/provenance` reads `data/provenance.json`. It follows an experiment and its
 run IDs through at most three inbound citation steps to evidence, decisions,

@@ -21,6 +21,56 @@ adapter:
   # Vocabulary is not capability: ultra still requires a supporting binding.
   reasoning_effort_order: [none, low, medium, high, xhigh, max, ultra]
 
+# Model tiers: the capability CLASS a policy needs, ordered weakest first.
+#
+# Effort says how hard a model thinks; a tier says which kind of model is
+# allowed to do the thinking at all. They are separate because a small model
+# at `max` effort is still a small model: a mechanical-class model asked to
+# review a claimed break at its ceiling produces a signed-off answer either
+# way, which is the failure `review-breakthrough` exists to prevent.
+#
+# Each policy states `requires.model_tier`, a FLOOR. Which concrete models sit
+# in which tier is a vendor fact and lives in `model-bindings.yaml`
+# (`model_tiers:`), the only file that names models. A model at or above the
+# floor may serve; one below it is a shortfall, refused like any other unless
+# the handoff sets `degraded_allowed` and the Coordinator signs an amendment.
+#
+# The topology (docs/model-tiers.md): frontier and core models REASON
+# (decide, review, synthesize); the director tier WRITES INSTRUCTIONS for the
+# mechanical tier and assesses what came back; the mechanical tier EXECUTES a
+# linted runbook and relays tool output, computing nothing.
+model_tiers:
+  order: [mechanical, director, core, frontier]
+  definitions:
+    mechanical: >-
+      Executes fully specified instructions and relays tool output verbatim.
+      No interpretation, no repair, no choice. Refuses anything
+      underspecified.
+    director: >-
+      Turns a frozen experiment contract into instructions the mechanical
+      tier can run without judgment (a linted runbook and a task card), and
+      assesses execution afterwards against the tool-written record. Also
+      bounded generation whose output is gated downstream: proposals,
+      pointers, implementation, audit screening.
+    core: >-
+      Judgment the program acts on: coordination, approvals, state
+      transitions, adversarial review of ordinary claims.
+    frontier: >-
+      The decisions the program cannot recover from (a claimed break, a
+      closure, a contradiction between validated evidence) and cross-goal
+      synthesis that needs the whole portfolio in view.
+  # Who may dispatch whom. A dispatch to a tier not listed here is refused by
+  # the skill that would perform it; the main session performs every dispatch
+  # (subagents never nest), so this table is the contract it follows. The
+  # director never launches the mechanical tier itself: it writes the task
+  # card, the main session relays it verbatim, and the director assesses the
+  # result in a fresh dispatch.
+  delegation:
+    frontier: [core, director, mechanical]
+    core: [director, mechanical]
+    director: []
+    mechanical: []
+
 # Two different questions, kept apart because conflating them makes calibration
 # impossible:
 #
@@ -59,6 +109,7 @@ policies:
       - contradiction_resolution
     requires:
       reasoning_effort: high
+      model_tier: core
       tool_use: true
       structured_output: true
       min_context_tokens: 180000
@@ -81,6 +132,7 @@ policies:
       - synthesis
     requires:
       reasoning_effort: high
+      model_tier: core
       tool_use: true
       structured_output: true
       min_context_tokens: 120000
@@ -109,6 +161,7 @@ policies:
       # cap recorded on every receipt. The floor was gating backends, not
       # protecting depth -- the request is what protects depth.
       reasoning_effort: low
+      model_tier: director
       tool_use: true
       structured_output: true
       min_context_tokens: 120000
@@ -136,6 +189,7 @@ policies:
       # A backend below it degrades to research-deep (fallback below) and the
       # receipt records the substitution.
       reasoning_effort: high
+      model_tier: frontier
       tool_use: true
       structured_output: true
       min_context_tokens: 180000
@@ -176,6 +230,7 @@ policies:
       # weaker backend serves at its ceiling with the cap recorded on every
       # receipt, never silently.
       reasoning_effort: low
+      model_tier: core
       tool_use: true
       structured_output: true
       min_context_tokens: 180000
@@ -205,6 +260,7 @@ policies:
       # a model that cannot reach the top tier is worse than not reviewing it,
       # because it produces a signed-off answer either way.
       reasoning_effort: max
+      model_tier: frontier
       tool_use: true
       structured_output: true
       min_context_tokens: 180000
@@ -224,6 +280,42 @@ policies:
     # a review of it.
     degradable: false
 
+  audit-sweep:
+    aliases: []
+    summary: >-
+      Periodic, independent screening of mechanical-tier runbook sessions:
+      chain and digest integrity, nonce-sampled replay, metric and certificate
+      recomputation, and statement fidelity of Lean obligations. Screening
+      only; never a claim-changing validation.
+    purpose:
+      - runbook_audit
+      - integrity_screening
+      - metric_recomputation
+    requires:
+      # Same relaxed floor as review-adversarial: any backend that can reason
+      # may serve it, at its ceiling, recorded on every receipt.
+      reasoning_effort: low
+      model_tier: director
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    # The deterministic half of the audit is `tools/runbook.py audit`, which
+    # needs no model at all. What is left for a model is reading: whether the
+    # runbook implements the specification it binds, whether a Lean statement
+    # says what the claim says, and an independent re-derivation of one
+    # load-bearing metric. That is careful work but not adversarial review of
+    # a claim, and it runs on every session, so it sits at `high` -- the
+    # producer ceiling, never below it (no review tier may think less than the
+    # work it reviews). Anything it flags goes to `review-adversarial`, and a
+    # sweep report never stands in for one: a routing rule that requires
+    # review-adversarial or review-breakthrough is not satisfied by this policy.
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: true
+    # Falling back means a stronger review, never a weaker one.
+    fallback_policy: review-adversarial
+
   consolidation-routing:
     aliases: []
     summary: >-
@@ -236,6 +328,7 @@ policies:
       # at all may SERVE this. The requested effort below stays `high` and the
       # independent-session requirement stays true.
       reasoning_effort: low
+      model_tier: director
       tool_use: true
       structured_output: true
       # A consolidation pass reads every message in a window across every
@@ -263,6 +356,38 @@ policies:
     independent_session_required: true
     fallback_policy: null
 
+  director-runbook:
+    aliases: []
+    summary: >-
+      Experiment director: compiles a Coordinator-approved experiment
+      contract into a runbook that lints clean and a mechanical task card,
+      then assesses the finished session against its tool-written record.
+      Writes instructions and assessments; never approves, executes trials,
+      or interprets the science.
+    purpose:
+      - runbook_authoring
+      - task_card_authoring
+      - execution_assessment
+    requires:
+      reasoning_effort: medium
+      model_tier: director
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    # Writing instructions a weaker model cannot misread is careful work:
+    # every value copied from the specification, every failure mapped to a
+    # class, every word the vagueness lint rejects rephrased. It is the same
+    # ceiling as implementation (`high`), never above the review tiers that
+    # read its output.
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: false
+    # A director that cannot be served falls back to the implementation
+    # executor's contract tier, which can also write a runbook; the
+    # substitution is recorded.
+    fallback_policy: executor-implementation
+
   executor-implementation:
     aliases: [executor-terra]
     summary: >-
@@ -277,6 +402,7 @@ policies:
       # Floor, not the request: the Executor still needs a model competent
       # enough to debug, so a `low`-only backend is rejected.
       reasoning_effort: medium
+      model_tier: director
       tool_use: true
       structured_output: true
       min_context_tokens: 120000
@@ -294,13 +420,16 @@ policies:
     aliases: []
     summary: >-
       Deterministic, fully specified work: re-run a frozen command, collect
-      artifacts, reformat a record, regenerate an index.
+      artifacts, reformat a record, regenerate an index, or execute an
+      experiment from a linted, approved runbook (docs/runbook-execution.md).
     purpose:
       - artifact_collection
       - reproduction_runs
       - record_formatting
+      - runbook_execution
     requires:
       reasoning_effort: low
+      model_tier: mechanical
       tool_use: true
       structured_output: true
       min_context_tokens: 60000
@@ -323,6 +452,7 @@ role_defaults:
   idea_synthesist: research-synthesis
   research: research-deep
   executor: executor-implementation
+  experiment_director: director-runbook
   reviewer: review-adversarial
   validator: review-adversarial
   red_team: review-adversarial
@@ -370,6 +500,29 @@ routing_rules:
         - task_type: experiment_design
     require:
       policy: research-deep
+
+  # Writing the instructions the mechanical tier runs, and reading back what
+  # it did, is the director tier's work: a frontier or core model spent here
+  # re-derives a design that is already frozen.
+  - id: runbook-authoring
+    when:
+      any:
+        - task_type: runbook_authoring
+        - task_type: task_card_authoring
+        - task_type: execution_assessment
+    require:
+      policy: director-runbook
+
+  # A runbook removes every choice from execution, so the mechanical tier may
+  # run it. A runbook task is also experiment execution; where both rules
+  # match, this one applies, because it is the more specific. A runbook that
+  # does not lint clean is not a runbook task, and goes to executor-runtime.
+  - id: runbook-execution
+    when:
+      any:
+        - task_type: runbook_execution
+    require:
+      policy: executor-mechanical
 
   - id: executor-runtime
     when:

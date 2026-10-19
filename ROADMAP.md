@@ -69,6 +69,12 @@ it does not lower the Phase 5 evidence gates.
 
 ## Immediate next engineering tasks
 
+- Complete the required [execution-proof chain](docs/execution-proof-chain.md)
+  across frozen protocols, compiled programs/inputs, real proofs and raw
+  results, metric/control checks, evidence/review, and Cairn settlement/audit.
+  All release milestones remain open; the implementation gap is tracked in
+  [problems/execution-proof-chain-not-enforced.md](problems/execution-proof-chain-not-enforced.md).
+
 - Add YAML/JSON schemas corresponding to `templates/research-records.md`.
 - Add a CLI for creating IDs and validating records.
 - Add a run wrapper that captures environment, command, logs, and metrics.

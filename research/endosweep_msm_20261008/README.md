@@ -372,3 +372,86 @@ still loses to 2-GLV by 1.64×.
 | `alphaadic.json` | item 2 data, including the termination certificates, the reducer bases and the on-points checks |
 | `curves.input.json` | the frozen curve inputs (n, p, ω eigenvalue, chain catalogue with operation counts) for the four chain curves |
 | `SHA256SUMS` | hashes of the JSON files |
+
+## Lean verification
+
+Added 2026-10-16. The closed-form identities that item 1's reasoning rests on
+are machine-checked in
+[`formal/CryptoResearch/Endosweep/Pippenger.lean`](../../formal/CryptoResearch/Endosweep/Pippenger.lean)
+(core Lean, `Nat` and `Rat`; namespace `CryptoResearch.Endosweep.Pippenger`):
+
+* `bit_conservation`: `(b/c)·N = ((b/2)/c)·(2N)` in `ℚ`.
+* `window_slots`: this uses `msm.py`'s exact window count `W(B) = B // c + 1`,
+  with `2h`-bit plain coefficients, `h`-bit GLV coefficients and `c ≥ 1`.
+  Then `N·W(2h) ≤ 2N·W(h) ≤ N·W(2h) + N`. Equality `2W(h) = W(2h)` holds iff
+  `c ≤ 2·(h mod c)`. `window_slots_examples` checks two cases:
+  `h = 128, c = 13` gives 20 = 20, and `c = 16` gives 18 against 17.
+  `doublings_halved`: the split's `(W(h) − 1)·c` doublings are at most half of
+  plain's.
+* `glv_wins_iff` and `gain_pos_iff`: this is `msm.py`'s break-even, and it is
+  exact. For `N > 0`, `glv0 + N·C_α < plain` iff
+  `C_α < C* = (plain − glv0)/N`. For `plain > 0`, the gain is positive iff
+  `C_α < C*` (`gain_zero_iff`: the gain is zero iff `C_α = C*`).
+* `ideal_saving`, `ideal_glv_wins_iff` and `ideal_cstar_decomposition` use a
+  ceiling-free model with saturated buckets and a common window. Each of the
+  `b/c` windows costs `N·A` accumulation, `2^c·R` aggregation, `c` doublings
+  at `D` and one combination addition at `C`. In this model:
+  * the split leaves accumulation unchanged and halves the rest;
+  * GLV wins iff `C_α < (b/(2c))·(2^c R + cD + C)/N`;
+  * this break-even exceeds the aggregation-only saving by exactly
+    `((b/2)·D + (b/(2c))·C)/N`. That is the halved window-combination work of
+    Finding 1. The excess is `≥ 0`, and strictly positive when `D` or `C` is,
+    for positive `b, c, N`. "Aggregation-only saving" here is the model's
+    `(b/(2c))·2^c·R/N`, not the hypothesis's `b·A/(c(c+1))` (clarified
+    2026-10-16 after the Lean review).
+
+Not Lean claims:
+* every tabulated `C*`, gain and window;
+* the validation errors;
+* the hypothesis's approximation `b·A/(c(c+1))`;
+* item 2's costs, lengths and densities (its termination argument is
+  machine-checked; see "Lean verification: α-adic" below).
+
+These come from `msm.py`'s occupancy model and are modelled or measured.
+Target specs: `formal/targets/endosweep-msm-*.yaml`.
+
+### Lean verification: α-adic
+
+Added 2026-10-16. This covers the termination argument of item 2. It is
+machine-checked in
+[`formal/CryptoResearch/Endosweep/AlphaAdic.lean`](../../formal/CryptoResearch/Endosweep/AlphaAdic.lean)
+(namespace `CryptoResearch.Endosweep.AlphaAdic`; core Lean plus
+`Mathlib.Tactic.Ring`). Everything uses integer norms, so `|z|² = N(z)` and
+no square root appears.
+
+* `triangle_sq`: `(N(z − d) − N(z) − N(d))² ≤ 4·N(z)·N(d)`. This is the
+  step bound `|T(z)| ≤ (|z| + |d|)/|α|` written without square roots.
+* `norm_decrease`: let `α·q = z − d` with `N(d) ≤ R`, where `R` is the
+  largest digit norm. If `N(z) + R < N(α)·N(z)` and
+  `4·N(z)·R < (N(α)·N(z) − N(z) − R)²`, then `N(q) < N(z)`. The two
+  conditions say `|z| > √R/(|α| − 1)` without square roots.
+* `terminates_of_disk`: if every element of that disk reaches 0, then every
+  `z ∈ O` does. `expansion_of_iterate` shows that the digits then satisfy
+  `z = Σ dᵢ αⁱ`.
+* `cryptoProB_int_rule_terminates` and `cp6_782_int_rule_terminates` cover
+  the `int` rule for `4 + ω` on CryptoPro-B (`N(α) = 175`, digits up to
+  `|d| ≤ 87`) and on CP6-782 (`N(α) = 105`, `|d| ≤ 52`). Both terminate on
+  every `z`, and the disk is exhausted in Lean:
+  * on CryptoPro-B the disk is `N(z) ≤ 50`, the integers `|x| ≤ 7`
+    (15 elements);
+  * on CP6-782 it is `N(z) ≤ 31`, the integers `|x| ≤ 5` (11 elements);
+  * both counts match `alphaadic.json`.
+* `cp6_782_int_rule_1plus4w_cycle`: this is the refuted side for one rule.
+  For `1 + 4ω` on CP6-782, `z = −2 + 2ω` (the recorded `cycle_example`) has
+  digit 680. Then `T(z) = z`, so its expansion never terminates.
+
+Not Lean claims:
+* the disk exhaustion for the other 82 terminating rules, which the harness
+  computes;
+* the cycles of the other 9 non-terminating rules;
+* the `voronoi` and `naf` digit tables;
+* that the Lean digit and quotient are `alphaadic.py`'s functions;
+* "stays in the disk";
+* every length, density and cost.
+
+Target specs: `formal/targets/endosweep-alphaadic-*.yaml`.

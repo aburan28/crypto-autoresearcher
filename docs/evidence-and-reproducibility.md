@@ -15,6 +15,17 @@ Evidence strength is assigned by the Coordinator.
 
 ## Claim boundaries
 
+For claims of prescribed computation, the required
+[execution-proof chain](execution-proof-chain.md) binds approved protocol,
+program, inputs, complete trials and raw outputs to the metrics used by the
+evidence record. This integration is **not implemented**: current hashed run
+receipts and endpoint certificates retain their narrower scope. A valid
+execution proof will establish execution integrity, not passing controls,
+inferential validity or a scientific state transition. The release contract
+requires checks at every consumer before any covered evidence can be called
+execution verified. Retain unproved observations with their explicit limits;
+do not rewrite historical records or invent a verification receipt.
+
 Every evidence record must state:
 
 - curve family and field type;

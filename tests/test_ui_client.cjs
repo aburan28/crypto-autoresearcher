@@ -311,6 +311,38 @@ test('curve catalog compares sourced traits, filters safely and deep links', asy
   dom.window.close();
 });
 
+test('curve catalog shows crypto curve_traits statuses in their own section', async () => {
+  const {dom} = setup();
+  const src = {repository:'aburan28/crypto',commit:'d'.repeat(40),path:'docs/curves/traits.json',sha256:'e'.repeat(64)};
+  src.url = `https://github.com/${src.repository}/blob/${src.commit}/${src.path}`;
+  const def = {...src, path:'docs/curves/TRAITS.md', url:src.url.replace('traits.json','TRAITS.md')};
+  const crypto = (value, status, extra={}) => ({label:'crypto curve_traits · CM discriminant d_K of Q(π)', value, evidence_status:status,
+    status:value == null ? 'unknown' : 'source_reported', source:value == null ? null : src, section:'crypto curve_traits',
+    description:'Computed by aburan28/crypto', definition:def, definition_label:'crypto TRAITS.md ↗', ...extra});
+  const row = (uid, id, traits, joined) => ({curve_uid:uid, curve_id:id, field:{characteristic:2,degree:13,representation:'polynomial'},
+    curve:{model:'binary Weierstrass'}, sources:[src], traits, ...(joined ? {crypto_traits:{slug:'icv1-f2m13-t181-515ee569', source:src}} : {})});
+  const dissect = value => ({label:'DiSSECT · discriminant · CM discriminant', value, status:value == null ? 'unknown' : 'source_reported',
+    source:value == null ? null : src, evidence_status:value == null ? undefined : 'proved', mapping:value == null ? undefined : 'crypto frobenius.cm_disc (d_K)',
+    definition:{...src, repository:'crocs-muni/DiSSECT'}, description:'t^2-4p', output_type:'int', parameters:{}});
+  const curves = [
+    row('urn:a', 'EC1N13Ce0h1dfa32cdf623', {'dissect.discriminant.cm_disc':dissect(-7), 'crypto.frobenius.cm_disc':crypto('-7','proved'),
+      'crypto.frobenius.class_number':crypto(null,'not_evaluated')}, true),
+    row('urn:b', 'EC1N13Ckb1h0f132ba0b5e2', {'dissect.discriminant.cm_disc':dissect(null), 'crypto.frobenius.cm_disc':crypto(null,null),
+      'crypto.frobenius.class_number':crypto(null,null)}, false)];
+  dom.window.fetch=async()=>({ok:true,json:async()=>({curves,errors:[],coverage:'Selected source records'})});
+  dom.window.ui.state.ready=true;
+  await dom.window.ui.viewCurves(new dom.window.URLSearchParams({a:'urn:a',b:'urn:b'}));
+  const doc=dom.window.document, table=doc.querySelector('.comparison-table').textContent;
+  assert.match(table, /DiSSECT traits/);
+  assert.match(table, /crypto curve_traits/);
+  assert.match(table, /-7Source reported · status: proved/);
+  assert.match(table, /Same quantity as crypto frobenius\.cm_disc/);
+  assert.match(table, /Unknown · status: not_evaluated/);
+  assert.match(doc.body.textContent, /No crypto curve_traits record for this exact curve_uid/);
+  assert.ok([...doc.querySelectorAll('.comparison-table a')].some(a => /TRAITS\.md/.test(a.href)));
+  dom.window.close();
+});
+
 test('benchmark packages block incompatible workloads, unknown accounting and failed runs', () => {
   const {dom}=setup();
   const base={id:'a',adapter:'benchmark-snapshot/1',curve_uid:'curve',workload_sha256:'w',target_count:1,

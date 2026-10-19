@@ -1,0 +1,132 @@
+handoff:
+  id: TASK-20261016-670480
+  from: coordinator
+  to: coordinator
+  goal_ids:
+    - GOAL-SCURVE-be9707
+    - GOAL-SCURVE-cef9f7
+    - GOAL-SCURVE-137bd9
+  opened_by_decision: DEC-20261016-7bcdd6
+  archive_kind: snapshot
+  archive_kind_note: >-
+    This archive snapshots the Validator's artifacts before the Coordinator
+    interprets them, so that the evidence review cites committed artifacts.
+    It writes no EV, no evidence-review DEC and no KN-FIND. Those follow in a
+    separate ledger archive under fresh ids.
+  executed_by: >-
+    The top-level Claude Code session (session_01TPFiTk4kt2VfEauB3PKCbN), or
+    whichever session drives this Coordinator when the Validator returns. It
+    runs the git commands, because the Coordinator subagent has no shell. It
+    must not be the Validator's session.
+  depends_on:
+    - TASK-20261016-9bf74b
+  objective: >-
+    After TASK-20261016-9bf74b returns, archive in one isolated commit the
+    Validator's artifacts under
+    research/nist_seed_provenance_20261016/validation-20261016/. Also bind,
+    content first, the three freeze records first committed in the freeze
+    commit, so that the review plan in force is shown to be the one frozen
+    before dispatch.
+  uncertainty_reduced: >-
+    Whether the validation report the evidence review will rely on is
+    durable, exact and unaltered, and whether the review plan was unchanged
+    between dispatch and return.
+  inputs:
+    - ledger/decisions/DEC-20261016-7bcdd6.yaml
+    - ledger/handoffs/TASK-20261016-9bf74b.yaml
+    - ledger/handoffs/TASK-20261016-670480.yaml
+    - research/nist_seed_provenance_20261016/SOURCE.md
+    - research/nist_seed_provenance_20261016/validation-20261016/
+    - origin/main
+  input_bindings:
+    freeze_records: >-
+      ledger/decisions/DEC-20261016-7bcdd6.yaml,
+      ledger/handoffs/TASK-20261016-9bf74b.yaml and this card. Record their
+      SHA-256 values at the freeze commit and check that they are
+      byte-identical at this archive's commit. Any difference, or any later
+      commit touching them, is an integrity failure: stop and report it.
+    bundle: >-
+      The 14 SHA-256 values in research/nist_seed_provenance_20261016/SOURCE.md,
+      checked at this archive's commit. The bundle is not staged.
+  constraints:
+    - >-
+      Run alone. No other archive or worker commits in this worktree while
+      this one runs. Fetch and inspect origin/main immediately before the
+      commit, and merge it, never rebase. A conflict inside a record is never
+      resolved by editing it: stop and report it.
+    - >-
+      Start only after the Validator has returned and its session has ended.
+      Do not edit any Validator artifact. If a declared deliverable is
+      missing, archive what exists, list the gap in the receipt, and return
+      the task to the Coordinator. Never fill the gap in.
+    - >-
+      Stage only paths under
+      research/nist_seed_provenance_20261016/validation-20261016/ that are
+      listed in validation_report.yaml artifact_paths, plus
+      research/nist_seed_provenance_20261016/archives/TASK-20261016-670480/receipt.yaml.
+      That path is outside the Validator's write_scope, so the two scopes do
+      not overlap. Never `git add -A`. Do not stage the bundle, any ledger record,
+      any knowledge entry or any goal file. Files the Validator wrote but did
+      not list are reported in the receipt and not staged.
+    - >-
+      Before the commit, run python3 tools/check_review_independence.py
+      --plan ledger/handoffs/TASK-20261016-9bf74b.yaml --reports
+      research/nist_seed_provenance_20261016/validation-20261016/validation_report.yaml.
+      Record its full output in the receipt. A failure is recorded, not
+      fixed. The Coordinator decides on it in the evidence review.
+    - >-
+      No status transition, no EV, no KN-FIND, and no claim that the
+      finding is validated. That is the Coordinator's evidence review, under
+      new ids.
+    - >-
+      After the commit, push the branch and open, or refresh, the PR against
+      main, ready for review and not a draft. Name VAL-20261016-cd9156,
+      TASK-20261016-9bf74b and TASK-20261016-670480 in it.
+  deliverables:
+    - research/nist_seed_provenance_20261016/validation-20261016/validation_report.yaml
+    - research/nist_seed_provenance_20261016/validation-20261016/validation.md
+    - research/nist_seed_provenance_20261016/validation-20261016/logs/order.log
+    - research/nist_seed_provenance_20261016/archives/TASK-20261016-670480/receipt.yaml
+  artifact_paths:
+    - research/nist_seed_provenance_20261016/validation-20261016/
+    - research/nist_seed_provenance_20261016/archives/TASK-20261016-670480/receipt.yaml
+  write_scope:
+    - research/nist_seed_provenance_20261016/archives/TASK-20261016-670480/
+  archived_by: TASK-20261016-670480
+  inference:
+    policy: coordinator-orchestration
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    delivery: interactive
+  budget:
+    maximum_runs: 0
+  completion_gate:
+    - >-
+      The commit is reachable from HEAD and has its recorded first parent. It
+      changes exactly the staged validation-20261016/ paths and the receipt.
+      Its message contains TASK-20261016-670480, TASK-20261016-9bf74b and
+      VAL-20261016-cd9156.
+    - >-
+      The receipt (templates/research-records.md, "Coordinator archive
+      receipt", kind snapshot) records: commit SHA; first parent; base
+      origin/main SHA and merge outcome; the freeze-commit SHA; the SHA-256
+      of every staged path; the three freeze-record hashes, at the freeze
+      commit and now, and whether they match; the 14 SOURCE.md checks; the
+      check_review_independence.py output; and any unlisted or missing
+      Validator files.
+    - >-
+      python3 tools/validate_ledger.py reports no new error attributable to
+      the declared paths, and the branch-scoped tools/check_merge_hygiene.py
+      passes.
+    - >-
+      The branch is pushed and a ready-for-review PR against main names the
+      records. A session receipt is written: `python3
+      tools/session_receipt.py write --skill coordinate --role coordinator
+      --outcome archived --created TASK-20261016-670480,VAL-20261016-cd9156`.
+  return_format: >-
+    Commit SHA, first parent, base origin/main SHA and merge outcome; the
+    freeze-commit SHA; the staged path list with SHA-256 values; the
+    freeze-record and bundle hash checks; the review-independence output;
+    push and PR link.

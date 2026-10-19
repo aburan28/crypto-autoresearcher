@@ -47,6 +47,11 @@ def one(args):
         rec.update(status='build_failed', error=b.stderr[-400:]); return rec
     meta = json.load(open(base + '.json'))
     rec.update({x: meta[x] for x in ['nvars', 'neqs', 'maxdeg', 'fb_size_x', 'fb_points', 'witness_checked']})
+    return run_msolve(base, msolve, timeout, rec)
+
+def run_msolve(base, msolve, timeout, rec):
+    """Run msolve on base.ms with a wall-clock limit; record F4 trace, resources and outcome in rec."""
+    status = None
     t0 = time.time()
     with open(base + '.log', 'w') as lf:
         pr = subprocess.Popen([msolve, '-v', '2', '-f', base + '.ms', '-o', base + '.out'],

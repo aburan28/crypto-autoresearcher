@@ -11,7 +11,11 @@
  *
  * Compiled at run time via CuPy/NVRTC (same pattern as harness/gpu/rho_kernel.cu).
  */
-#include <stdint.h>
+/* NVRTC ships no libc headers (no <stdint.h>): fixed-width types by hand */
+typedef unsigned long long uint64_t;
+typedef long long int64_t;
+typedef int int32_t;
+typedef unsigned char uint8_t;
 
 extern "C" __global__ void gf2_tail_chunk(
     uint64_t *M,           /* R * W packed matrix, row-major */
@@ -38,11 +42,11 @@ extern "C" __global__ void gf2_tail_chunk(
         for (int64_t a = tid; a < nr; a += nt) {
             uint64_t *row = M + (int64_t)rows[a] * W + w0 + x0;
             for (int q = 0; q < cw; q++) {
-                uint64_t cf = cfs[(size_t)a * cw + q];
+                uint64_t cf = cfs[(int64_t)a * cw + q];
                 while (cf) {
                     int i = 64 * q + __ffsll((unsigned long long)cf) - 1;
                     cf &= cf - 1;
-                    const uint64_t *bi = Bs + (size_t)i * (size_t)tail + x0;
+                    const uint64_t *bi = Bs + (int64_t)i * (int64_t)tail + x0;
                     for (int64_t x = 0; x < ch; x++)
                         row[x] ^= bi[x];
                 }
@@ -55,15 +59,15 @@ extern "C" __global__ void gf2_tail_chunk(
     for (int g = 0; g < ngroups; g++) {
         int k = npiv - 8 * g < 8 ? npiv - 8 * g : 8;
         int ns = 1 << k;
-        uint64_t *Tg = T + (size_t)g * 256 * (size_t)ch;
+        uint64_t *Tg = T + (int64_t)g * 256 * (int64_t)ch;
         for (int64_t x = tid; x < ch; x += nt)
             Tg[x] = 0;
         __syncthreads();
         for (int s2 = 1; s2 < ns; s2++) {
             int lb = __ffs(s2) - 1;
-            const uint64_t *src = Tg + (size_t)(s2 & (s2 - 1)) * (size_t)ch;
-            const uint64_t *bi = Bs + (size_t)(8 * g + lb) * (size_t)tail + x0;
-            uint64_t *dst = Tg + (size_t)s2 * (size_t)ch;
+            const uint64_t *src = Tg + (int64_t)(s2 & (s2 - 1)) * (int64_t)ch;
+            const uint64_t *bi = Bs + (int64_t)(8 * g + lb) * (int64_t)tail + x0;
+            uint64_t *dst = Tg + (int64_t)s2 * (int64_t)ch;
             for (int64_t x = tid; x < ch; x += nt)
                 dst[x] = src[x] ^ bi[x];
             __syncthreads();
@@ -71,14 +75,14 @@ extern "C" __global__ void gf2_tail_chunk(
     }
 
     for (int64_t a = tid; a < nr; a += nt) {
-        const uint64_t *cf = cfs + (size_t)a * cw;
+        const uint64_t *cf = cfs + (int64_t)a * cw;
         uint64_t *row = M + (int64_t)rows[a] * W + w0 + x0;
         const uint64_t *tptr[64];
         int ntp = 0;
         for (int g = 0; g < ngroups; g++) {
             int s2 = (int)((cf[g >> 3] >> (8 * (g & 7))) & 0xFF);
             if (s2)
-                tptr[ntp++] = T + ((size_t)g * 256 + (size_t)s2) * (size_t)ch;
+                tptr[ntp++] = T + ((int64_t)g * 256 + (int64_t)s2) * (int64_t)ch;
         }
         int j = 0;
         for (; j + 4 <= ntp; j += 4) {

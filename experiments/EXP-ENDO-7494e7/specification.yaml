@@ -1,0 +1,269 @@
+# EXP-ENDO-7494e7
+# Combined-route screen (2-GLV on a cheaper-model isogenous neighbour) for
+# H-ENDO-f58749. Frozen before the official run. Modelled counts only.
+experiment:
+  id: EXP-ENDO-7494e7
+  hypothesis_id: H-ENDO-f58749
+  source_idea: IDEA-20261016-15a6fc
+  question_id: RQ-ENDO-476761
+  goal_id: GOAL-ENDO-001
+  version: 1
+  title: >-
+    Do a model change and the chain 2-GLV compose? GLV on a cheaper-model
+    isogenous neighbour against GLV on E, over the positive-gain curves of
+    RUN-ENDO-d7cb69
+  status: approved
+  frozen: true
+  designed_at: '2026-10-16'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261016-00e9cd
+  approval_basis: >-
+    The standing user authorization in AGENTS.md (2026-09-06, "all is
+    approved. ideas/experiments should be always approved").
+  execution_authorized: true
+  claim_tier: modelled
+  objective: >-
+    Run harness/endosweep/isoglv.py once, with the frozen arguments, over the
+    seven RUN-ENDO-d7cb69 population curves with a positive model-change gain
+    and the two controls. Record for each curve three arms in one cost model
+    (glv_on_E, model_change, combined), every candidate attempt with its
+    build outcome, the route verification of the combined route, and the
+    gains of the combined arm against the GLV on E and against E's best
+    model.
+  motivation: >-
+    RUN-ENDO-d7cb69 found 7 population curves with a positive modelled
+    model-change gain (persistent +8.26 % to +15.49 %). Six of them have a
+    small D_K, and research/endosweep_curves_20261006/curves.md prices their
+    own chain 2-GLV on E at ratio 1.4313 to 1.5252, which dominates the model
+    change. The GOST 2001 test curve is read there as gost/gost256
+    (D_K = -915, a = 7). That identity is assumed from D_K and a, and was
+    not checked by (p, j, n) when this contract was written. The open
+    question is whether the two compose.
+  inputs:
+    population: >-
+      The rows of the source run with role population and
+      best.persistent_gain > 0, selected by isoglv.py. They are other/Tom-384,
+      mnt/mnt5/2, mnt/mnt5/3, other/BADA55-VPR-224, mnt/mnt3/1, mnt/mnt3/3
+      and GOST 2001 test curve. The two controls are added with --include.
+      check.py requires exactly these nine names.
+    source_rows:
+      path: experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+      sha256: 0576225d496168485a8c30d5d460edab1ab969e7cd3a4d7850e43406a65282da
+      note: run.py refuses to launch if the digest differs.
+    no_glv_arm:
+      - name: other/BADA55-VPR-224
+        reason: >-
+          |D_K| > 2e6 (research/endosweep_curves_20261006/curves.md). There
+          is no chain endomorphism to price, so it gets no glv_on_E or
+          combined arm and its model change stands alone. It is not counted
+          for or against arm G.
+    instrument: harness/endosweep/isoglv.py
+    unit_tests: tests/test_isoglv.py
+    frozen_arguments: >-
+      --rows experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+      --ells 2,3,5,7,11,13 --depth 2 --max-nodes 64 --disc-bound 2000000
+      --build-limit 3 --build-seconds 900 --max-candidates 12
+      --verify-scalars 8 --seed 20261016
+      --include "control+ascent: 11-descendant of a j = 0 curve (256-bit),mnt/mnt5/1"
+    named_future_run_slot: RUN-ENDO-795989
+  arms:
+    glv_on_E: curvesweep.sweep_curve on E with D = D_K (re-run here, not copied).
+    model_change: The RUN-ENDO-d7cb69 best route, copied and not recomputed.
+    combined: >-
+      curvesweep.sweep_curve on the first neighbour, in order of increasing
+      conversion cost, whose short-Weierstrass class is cheaper than E's and
+      on which the cheapest chain element builds and passes curvesweep's
+      GLV-2 point check. The route E -> E' -> E is verified on 8 scalars
+      (isomodel.verify_route). The forward chain, the dual chain and the
+      scalar adjustment are charged in the one-shot column.
+    cost_model: curvesweep M_eq = M + S, that is S = 1 M, for all three arms.
+  controls:
+    - id: control+ascent
+      role: positive
+      rule: >-
+        The row "control+ascent: 11-descendant of a j = 0 curve (256-bit)" of
+        RUN-ENDO-d7cb69. This is a 256-bit curve one descending degree-11
+        step below a j = 0 crater.
+      required: >-
+        D_K = -3 is reported. The combined route is non-null and its node is
+        the j = 0 crater, so the walk reached it and the unit GLV is priced.
+        combined.route_verification.ok is true on 8 scalars, and
+        combined_vs_E_model_baseline.oneshot_gain > 0.
+    - id: control-/mnt/mnt5/1
+      role: negative
+      rule: >-
+        mnt/mnt5/1, which is already isomorphic to an a = -3 model (curves.md:
+        "-3/a is a fourth power"). No neighbour can be in a cheaper class.
+      required: >-
+        candidates_cheaper_class = 0 and combined is null. No combined_vs_*
+        figure is emitted for this row.
+    - id: route_verification
+      rule: Every combined route is checked by k*P computed both ways on 8 scalars.
+      required: >-
+        route_verification.ok is true. One mismatch voids that route (see the
+        invalidation rules).
+  independent_variables:
+    - curve (the seven population curves and the two controls)
+    - isogeny path to the neighbour (ell in {2,3,5,7,11,13}, depth <= 2, <= 64 nodes per curve)
+    - candidate order (increasing conversion cost; at most 12 cheaper-class candidates)
+  metrics:
+    primary:
+      - per curve, combined_vs_glv_on_E persistent_gain and oneshot_gain
+      - per curve, model_change_vs_glv_on_E persistent_gain and oneshot_gain
+      - per curve, combined_vs_E_model_baseline persistent_gain and oneshot_gain
+      - route verification pass or fail, on 8 scalars, for every combined route
+      - >-
+        count of population curves with a GLV arm that have a combined route,
+        and with combined_vs_glv_on_E oneshot_gain > 0
+    secondary:
+      - >-
+        per curve, candidates_cheaper_class and every attempt: path, j,
+        arithmetic, conversion_M_eq, glv.ok, built, verified, best_element,
+        note and seconds
+      - >-
+        chain build failures by edge path, recorded as observations of the
+        edge type. They are not negative evidence about End(E') unless a
+        conductor certificate is archived.
+      - D_K and f_pi per curve as isoglv.py reports them
+      - rows_with_error, by name
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      model_change_vs_glv_on_E on the six curves with a GLV arm, and
+      combined_vs_glv_on_E wherever a combined route exists.
+    formula: >-
+      model_change_vs_glv_on_E is predicted <= 0 on all six, near -0.2 to
+      -0.4. This follows from a model-change persistent gain of at most 0.155
+      (RUN-ENDO-d7cb69) and a GLV ratio of at least 1.43 (curves.md).
+      Where a combined route exists, the persistent combined_vs_glv_on_E is
+      predicted in (0, 13 %]. The a = -3 doubling saves about 2 M_eq on each
+      of about log2(n)/2 GLV doublings, and about 1 M_eq on the a = 7 GOST
+      curve. The one-shot gain is predicted lower by the conversion, about 1
+      to 3 % of glv_M_eq. No prediction is made of which edges are
+      horizontal. f_E is unresolved in RUN-ENDO-d7cb69, and 5 divides f_pi
+      for the mnt3, mnt5 and Tom-384 curves per curves.md, so their 5-edges
+      may be vertical. 5 does not divide f_pi for gost/gost256 and ramifies
+      in Q(sqrt(-915)), so a 5-edge there is horizontal. That curve is the
+      most likely to compose, provided its cheapest candidate uses 5-edges.
+    source: >-
+      Coordinator prior, written into this contract before the official run
+      and without reading the outputs of the development smoke run. The
+      inputs were the committed RUN-ENDO-d7cb69 report and
+      research/endosweep_curves_20261006/curves.md.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      The curves are deployed or published curves of 160 to 384 bits plus a
+      256-bit constructed control. The results are modelled counts in
+      curvesweep's M_eq model. Nothing transfers to wall-clock time or to
+      other formula families.
+    correspondence: null
+  tail_checks:
+    - Every combined route is checked by k*P computed both ways. One mismatch voids that route.
+    - Every chain element priced on a neighbour must pass curvesweep's GLV-2 check on points (glv.verified).
+    - >-
+      glv_on_E ratios are compared descriptively with curves.md. A
+      disagreement is recorded and explained in review. It does not void the
+      run.
+  replication:
+    seeds: [20261016]
+    independent_instances: 1
+    named_future_run_slot: RUN-ENDO-795989
+    replication_note: >-
+      This is one deterministic pass. Variation of the seed, the bounds or
+      the candidate cap is not part of this contract.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 10800
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after one manifest for RUN-ENDO-795989.
+    - Do not change an argument, a seed, the source rows, the curve set or the cost model, and do not run a second pass.
+    - Do not drop a row or an attempt. A per-curve exception stays recorded as an error row.
+  invalidation_rules:
+    - >-
+      A failed control makes the combined arm indeterminate. control+ascent
+      guards the positive leg and control-/mnt/mnt5/1 guards against an
+      invented candidate. This is an instrument alert, not evidence. No
+      post-hoc relaxation of a control is allowed.
+    - >-
+      A combined route that fails verification is void and is not counted as
+      a gain. It is reported as an instrument alert.
+    - >-
+      If check.py fails (a missing artifact, a digest mismatch, a row set
+      other than the nine frozen names, rows.jsonl disagreeing with
+      raw-result.json, or a changed frozen parameter), the run is invalid. If
+      run.py refuses to launch because the source rows changed, the run is
+      invalid.
+    - >-
+      A timeout, a crash or a memory abort is failed_infrastructure. It is
+      never a negative result.
+    - >-
+      An error row for a population curve means that curve is unscreened. It
+      is not a zero gain.
+    - >-
+      An attempt that ends in a build-time limit or an error is unresolved
+      for that candidate. A curve with no success and any unresolved attempt
+      is unresolved, not non-composing.
+    - >-
+      A chain build failure on a neighbour is an observation of that edge.
+      It is never negative evidence about End(E') without an archived
+      conductor certificate.
+  success_criterion: >-
+    The run is valid, both controls pass, and at least one population curve
+    with a GLV arm has a verified combined route with combined_vs_glv_on_E
+    oneshot_gain > 0 at S = 1 M.
+  falsification_criterion: >-
+    The run is valid and both controls pass, but every resolved population
+    curve with a GLV arm has either no combined route or
+    combined_vs_glv_on_E oneshot_gain <= 0 at S = 1 M. Arm G is then
+    rejected for one-shot k*P in this scope. For the corollary, any verified
+    model_change_vs_glv_on_E oneshot_gain > 0 falsifies it.
+  decision_impact:
+    on_positive: >-
+      Record each curve with combined_vs_glv_on_E oneshot_gain > 0 as a
+      candidate for a timed comparison against tuned GLV on E (bench skill).
+      Make no speed claim and no ECDLP claim until a measurement exists.
+    on_negative: >-
+      If no neighbour carries the chain, a model change and the GLV do not
+      compose within the bound (ell <= 13, depth 2, 12 candidates). Then the
+      GLV on E remains the best known decomposition for these curves and the
+      model-change gains of RUN-ENDO-d7cb69 are dominated there. If a route
+      exists but loses one-shot, report the persistent rows separately.
+      Widen the bound only if the 12-candidate cap truncated a curve's list,
+      and only by a new contract.
+    on_unresolved: >-
+      Curves left unresolved by build-time limits or error rows are reported
+      as infrastructure outcomes. A rerun at a larger build_seconds needs a
+      new contract.
+  development_disclosure: >-
+    A development smoke run touched mnt/mnt3/1, the ascent control and
+    mnt/mnt5/1 before this contract was frozen. It ran at reduced
+    build-limit and candidate counts. It is not RUN-ENDO-795989, and no
+    criterion or prediction was set from it.
+  instrument_limits:
+    - The model_change arm is copied from RUN-ENDO-d7cb69 (isomodel, 200 sampled scalars). It is not recomputed, and RUN-ENDO-d7cb69 has no evidence review yet.
+    - Only short-Weierstrass classes cheaper than E's are candidates. Edwards and Montgomery neighbour models are not tried for the combined arm.
+    - At most build_limit = 3 chain elements per sweep and build_seconds = 900 per build. Only the first 12 cheaper-class candidates by conversion cost are tried, and the first success stops the search.
+    - Route verification uses affine kernel-polynomial Velu (isomodel.verify_route). Conversion is charged with isomodel.conversion_cost for the Weierstrass target.
+    - D_K is certified up to |D_K| <= 2e6. f_E is not certified, so no edge is classified horizontal or vertical by this run.
+    - The worst case of 9 curves x 13 sweeps x build_seconds can exceed the 3 h watchdog. Expiry is failed_infrastructure.
+  required_artifacts:
+    - experiments/EXP-ENDO-7494e7/runs/RUN-ENDO-795989/manifest.yaml
+    - experiments/EXP-ENDO-7494e7/runs/RUN-ENDO-795989/raw-result.json
+    - experiments/EXP-ENDO-7494e7/runs/RUN-ENDO-795989/rows.jsonl
+    - experiments/EXP-ENDO-7494e7/runs/RUN-ENDO-795989/stdout.log
+    - experiments/EXP-ENDO-7494e7/runs/RUN-ENDO-795989/stderr.log
+  assigned_to: executor
+  launcher:
+    trial_plan: experiments/EXP-ENDO-7494e7/trial-plan.json
+    driver: experiments/EXP-ENDO-7494e7/implementation/run.py
+    checker: experiments/EXP-ENDO-7494e7/implementation/check.py
+  out_of_scope:
+    - Timings, fixed-base k*P, precomputed windows, constant-time complete formulas, and binary or extension fields.
+    - Any ECDLP, rho or exponent statement.
+    - Any statement about End(E') or the conductor of a neighbour.
+    - Validation of the idea's heuristics H1-H3.
