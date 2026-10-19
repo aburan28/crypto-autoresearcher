@@ -27,5 +27,9 @@ Practices that worked here:
 3. Never run two timed experiments on the same cores; chain them.
 4. Keep CPU-light work (tests, analysis, reports, theory notes) for the time a run is going.
 
-Not yet done: a resumable, per-instance-checkpointing grid launcher for future experiments. The
-four launchers above are frozen and write per cell by design of their protocols.
+For future experiments use `tools/resumable_grid.py`: it appends each finished instance (flush +
+fsync), skips instances already in the output file on restart, drops a half-written last line, and
+rebuilds the stopping rule from the stored rows, so a recycle loses at most the instances in flight
+(`tools/test_resumable_grid.py`). It reads the same plan format and per-instance seeds as
+`block_order_grid.py`. The four EXP-ECDLP launchers above are frozen and still write per cell, as their
+protocols were committed that way.
