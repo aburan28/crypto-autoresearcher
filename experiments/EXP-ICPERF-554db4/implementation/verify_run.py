@@ -106,7 +106,14 @@ def check_call(run_dir: Path, row: dict, source: dict, arm: dict, chain: dict,
         raise ValueError("call summary mismatch")
     blocked: list[int] = []
     certified = 0
+    terminal = None
+    elapsed = summary["total_wall_seconds"]
+    if (not math.isfinite(elapsed) or elapsed < 0
+            or len(summary["attempts"]) > summary["limits"]["max_models"]):
+        raise ValueError("invalid call duration or attempt count")
     for index, attempt in enumerate(summary["attempts"], 1):
+        if terminal is not None:
+            raise ValueError("attempt recorded after terminal outcome")
         attempt_dir = call_dir / f"attempt-{index:04d}"
         if json.loads((attempt_dir / "attempt.json").read_bytes()) != attempt:
             raise ValueError("attempt receipt mismatch")
@@ -119,6 +126,7 @@ def check_call(run_dir: Path, row: dict, source: dict, arm: dict, chain: dict,
                 or attempt["command"][-1] != str(attempt_dir / "input.xcnf")):
             raise ValueError("attempt input or command mismatch")
         if attempt["outcome"] == "solver_launch_failure":
+            terminal = "solver_launch_failure"
             continue
         stdout_blob = (attempt_dir / "stdout.txt").read_bytes()
         stderr_blob = (attempt_dir / "stderr.txt").read_bytes()
@@ -171,8 +179,25 @@ def check_call(run_dir: Path, row: dict, source: dict, arm: dict, chain: dict,
                 blocked.append(primary)
         if attempt["outcome"] != expected:
             raise ValueError("attempt outcome differs from raw observation")
+        if expected != "rejected_primary":
+            terminal = expected
     if summary["blocked_primary_count"] != len(blocked):
         raise ValueError("blocked-model count mismatch")
+    if terminal is None:
+        # The collector can also exhaust the wall budget between attempts.
+        # Otherwise only a full sequence of rejected models reaches its cap.
+        if (len(summary["attempts"]) == summary["limits"]["max_models"]
+                and len(blocked) == summary["limits"]["max_models"]):
+            terminal = "model_cap_censored"
+        elif elapsed >= summary["limits"]["wall_seconds"]:
+            terminal = "wall_censored"
+        else:
+            raise ValueError("call ended without a terminal outcome or declared cap")
+    if (terminal in ("wall_censored", "point_relation_certified_after_wall_cap")
+            and elapsed < summary["limits"]["wall_seconds"]):
+        raise ValueError("wall-capped status lacks elapsed wall budget")
+    if summary["status"] != terminal:
+        raise ValueError("call status differs from independently checked outcome")
     return {"name": name, "status": row["status"], "checked_attempts": len(summary["attempts"]),
             "independent_certified_attempts": certified}
 
