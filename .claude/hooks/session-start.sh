@@ -14,6 +14,10 @@
 #      repository corruption; it is a missing object. It once put 26 of 46
 #      active goals in that bucket, leaving the harness nothing to dispatch.
 #
+# In the web container it also starts a cairn node, installs SageMath 10.9, and
+# runs aburan28/crypto's scripts/setup-workstation.sh for the rest of the
+# toolchain (the last block below).
+#
 # Idempotent, non-interactive, and never fatal: a session that starts with a
 # degraded environment is better than one that does not start.
 set -uo pipefail
@@ -122,6 +126,37 @@ SAGESHIM
         chmod +x "$SAGE_PREFIX/bin/sage"
         if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
             echo "export PATH=\"$SAGE_PREFIX/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+        fi
+    fi
+fi
+
+# The rest of the research toolchain: aburan28/crypto's
+# scripts/setup-workstation.sh (system libraries and PARI/GP, Rust/Go/Node/uv,
+# conductor, the codex and opencode CLIs, a cryptanalysis checkout next to this
+# one, per-repo virtualenvs), minus what this hook already did (cairn, SageMath)
+# and crypto's control plane. Fetched at a pinned commit, not main, so a session
+# never runs a script nobody reviewed; bump CRYPTO_SETUP_REF to take a newer
+# one. It skips what is installed, so a cached container only re-checks. Its
+# output goes to a log. CRYPTO_WORKSTATION_SETUP=0 turns it off and
+# CRYPTO_SETUP_CLONE lists the repositories to clone (default cryptanalysis).
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "${CRYPTO_WORKSTATION_SETUP:-1}" != 0 ]; then
+    setup_ref="${CRYPTO_SETUP_REF:-6c6189df9676b047889ab7fd0d4b9c7db84537e9}"
+    setup_dir="$HOME/.cache/workstation-setup/$setup_ref"
+    setup="$setup_dir/setup-workstation.sh"
+    setup_log="$HOME/.local/state/workspace-tools/autoresearcher-setup.log"
+    mkdir -p "$setup_dir" "$(dirname "$setup_log")"
+    if [ ! -s "$setup" ]; then
+        curl -fsSL --max-time 30 \
+            "https://raw.githubusercontent.com/aburan28/crypto/$setup_ref/scripts/setup-workstation.sh" \
+            -o "$setup.tmp" && mv "$setup.tmp" "$setup" \
+            || echo "session-start: could not fetch setup-workstation.sh at $setup_ref; skipping workstation setup" >&2
+    fi
+    if [ -s "$setup" ]; then
+        if CLONE_REPOS="${CRYPTO_SETUP_CLONE-cryptanalysis}" bash "$setup" \
+            --workspace "$(dirname "$PWD")" --skip cairn,sage,control-plane >>"$setup_log" 2>&1; then
+            echo "session-start: workstation setup ran (log: $setup_log)" >&2
+        else
+            echo "session-start: workstation setup failed (log: $setup_log)" >&2
         fi
     fi
 fi
