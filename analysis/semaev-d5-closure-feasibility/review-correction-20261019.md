@@ -1,10 +1,13 @@
 # Review correction: conditional memory sizing and evidence scope
 
-This additive correction qualifies the [original report](report.md),
-[frozen proposed card](CARD-d5-c19.md), and its PDF. Those records, all three
-calibration rows, the estimator output, and the plots are retained unchanged.
-This is an allocation-code and arithmetic review, not another closure run or
-an approval of the proposed experiment.
+This additive correction qualifies the [report](report.md),
+[proposed card](CARD-d5-c19.md), and its PDF. The original packet is preserved
+at `dafc94985507095ca574144af11274dfd74bb51d`. The author's concurrent revision
+`51a801d26eb2e3decb67a55a9db178eae7851ce2` updates the report, card, estimator
+and PDF with conditional phase estimates; those updates are retained here.
+All three calibration rows and both calibration plots remain unchanged.
+This additional allocation-code and arithmetic review is not another closure
+run or an approval of the proposed experiment.
 
 ## The square-matrix number is conditional
 
@@ -40,6 +43,13 @@ holds Lw during their overlap. The certificate map belongs to a later phase.
 For the card's illustrative `nq=100000`, the map alone is approximately
 9.50 decimal GB, conditional on that unmeasured quotient dimension.
 
+The author's revised `phases_gb` function assumes the retained A has exactly
+`rank` rows. Actual A retains its allocated row count until replacement, so
+the displayed P2 and P3 totals are conditional model values and omit that
+possible excess as well as Lw, stride and workspace overhead. The recorded
+degree-four engine ratio `92838/102091` is approximately `0.90936`; the model's
+`rho=0.92` is a nearby illustrative scenario, not the exact recorded ratio.
+
 ## Planning consequence
 
 The fitted 98.1 GB RSS is an extrapolation from three smaller recorded points;
@@ -51,8 +61,9 @@ initial row counts, account for row stride and each allocation phase, and state
 what remains unknown about rank, iteration history and library workspace.
 
 The three-point wall-time and RSS fits in `estimate-output.txt` reproduce
-exactly from `calib.json`. This verifies the recorded arithmetic, not the
-original measurements. The packet does not include the `calibrate.sh` named
+exactly from `calib.json`; the author's additional phase rows reproduce from
+its stated model assumptions. This verifies the recorded arithmetic, not the
+original measurements or those assumptions. The packet does not include the `calibrate.sh` named
 in the estimator docstring, the exact calibration-system artifacts, complete
 argv/environment receipts, or their raw resource logs. Recover and bind those
 records before treating the calibration as independently replayable. Three
@@ -74,8 +85,8 @@ of a future degree-five test is scoped evidence about its exact input; neither
 alone proves a uniform degree bound or its absence. Original certificates
 were not replayed as part of this PR review.
 
-The existing calibration plots and PDF are preserved: their three displayed
-data points and fitted curves have not changed. Their extrapolations acquire
-the qualifications above, rather than becoming new measurements or resource
-guarantees. No hypothesis, decision, frozen protocol or execution authority
-is changed by this correction.
+The existing calibration plots are preserved: their three displayed data
+points and fitted curves have not changed. Their extrapolations acquire the
+qualifications above, rather than becoming new measurements or resource
+guarantees. The author's revised PDF is also retained. This additive note
+changes no hypothesis, decision, frozen protocol or execution authority.
