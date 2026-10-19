@@ -140,7 +140,7 @@ fi
 # output goes to a log. CRYPTO_WORKSTATION_SETUP=0 turns it off and
 # CRYPTO_SETUP_CLONE lists the repositories to clone (default cryptanalysis).
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "${CRYPTO_WORKSTATION_SETUP:-1}" != 0 ]; then
-    setup_ref="${CRYPTO_SETUP_REF:-1599396ef77f53f19addd38b20a7073d6b20f868}"
+    setup_ref="${CRYPTO_SETUP_REF:-b4ba89586d1a2639baf1d0d4d3bb26925781dfc3}"
     setup_dir="$HOME/.cache/workstation-setup/$setup_ref"
     setup="$setup_dir/setup-workstation.sh"
     setup_log="$HOME/.local/state/workspace-tools/autoresearcher-setup.log"
