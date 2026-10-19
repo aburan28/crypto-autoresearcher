@@ -128,7 +128,7 @@ ax.set_yscale("log"); ax.set_xlabel(f"L  (|V| = 2^L; m = {M}; p ~ 2^({M}L))")
 ax.set_ylabel("median basis wall time (ms, log)\nbars = min..max; x = all timed out (600 s)")
 ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
 ax.legend(fontsize=7, loc="upper left"); ax.grid(alpha=.3)
-ax.set_title(f"{EXP} / {RUNS}: chain arm under a block elimination order, m = {M} (n = 6 per cell)", fontsize=8)
+ax.set_title(f"{EXP}: chain arm under a block elimination order, m = {M} (n = 6 per cell)\nruns: {RUNS.replace('RUN-ECDLP-', '')}", fontsize=8)
 fig.tight_layout()
 for ext in ("svg", "png"):
     fig.savefig(os.path.join(out, f"block-order-vs-L.{ext}"), dpi=150)
