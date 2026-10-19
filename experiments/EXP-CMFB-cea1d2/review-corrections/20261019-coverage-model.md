@@ -2,8 +2,13 @@
 
 This additive correction applies to the interpretation of PR #2418 at
 `bfab487f3655603548db77d204bc0ce0cd02360a`. It preserves the archived
-`EV-CMFB-e3d1ec`, `DEC-20261019-f33f3e`, hypothesis, review reports and run
-records. It makes no new scientific decision and supplies no execution approval.
+`EV-CMFB-e3d1ec`, `DEC-20261019-f33f3e`, hypothesis, reviewer records and runs.
+The author's concurrent correction at `2a635d1907894bf84c795949bfc31deeaa65e3f1`
+adds `CORR-20261019-a89bfa` and prominent qualifications to the analysis and
+decision report, including its PDF. Those changes are retained. The companion
+hash bindings identify the earlier review snapshot and the later author update
+separately. This correction makes no new scientific decision and supplies no
+execution approval.
 
 ## Exact identity and conditional ratio
 
