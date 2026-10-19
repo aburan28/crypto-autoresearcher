@@ -7,6 +7,10 @@
 
 *Decision report for the Coordinator's evidence review.* Source written without a shell; the calling session renders `fig_review.svg`, `fig_review.png` and this PDF from `plot.py` and `graph_data.json`. Numbers are read from `RUN-CMFB-2010d3/raw-result.json` by key, from the two review reports, or are arithmetic on those values (marked _derived_). No number here was produced by running code in this review.
 
+#block(fill: rgb("#fff3cd"), inset: 8pt, stroke: 0.6pt)[
+*Correction (owner review P2, CORR-20261019-a89bfa).* Below, the coverage-ratio bound min(1, mu)/(1 - exp(-mu)) <= 1.582 is called a theorem or a ceiling for every base. Read it as follows. The exact identity sum_r c(r) = binomial(B+2,3) and the exact bound coverage <= min(1, mu) are proved; the multiplicity distribution is left free, so the ratio to a specified positive baseline coverage c0 is bounded by min(1, mu)/c0. The value 1.582 comes from substituting the Poisson occupancy c0 = 1 - exp(-mu), which is heuristic H2: a model-conditional estimate, not a universal finite-instance ratio theorem, and no end-to-end cost result. The empirical small-x coverage comparison keeps its stated scope. The archived EV, DEC and hypothesis text are unedited; this box and CORR-20261019-a89bfa supply the corrected reading.
+]
+
 == Decision, strength, tier
 
 #table(columns: (auto, 1fr), stroke: 0.4pt,
