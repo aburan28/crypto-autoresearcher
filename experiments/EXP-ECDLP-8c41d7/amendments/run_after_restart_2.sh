@@ -17,5 +17,5 @@ PY
   echo "exit=$?" >> $R/stdout.log
   date -u +%FT%TZ > $R/finished_at
 }
-run experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-02 experiments/EXP-ECDLP-20a588/amendments/trial-plan-run02.json
+run experiments/EXP-ECDLP-20a588/runs/RUN-ECDLP-20a588-03 experiments/EXP-ECDLP-20a588/amendments/trial-plan-run03.json
 run experiments/EXP-ECDLP-8c41d7/runs/RUN-ECDLP-8c41d7-03 experiments/EXP-ECDLP-8c41d7/amendments/trial-plan-run03.json
