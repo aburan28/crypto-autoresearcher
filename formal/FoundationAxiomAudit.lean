@@ -1,0 +1,15 @@
+import CryptoResearch.NCP.Reachability
+import CryptoResearch.NCP.PointAction
+import CryptoResearch.NCP.CyclicPointAction
+import CryptoResearch.NCP.CommutatorCompanion
+import CryptoResearch.NCP.ReachabilityControls
+
+#print axioms CryptoResearch.NCP.shadow_reachable_iff
+#print axioms CryptoResearch.NCP.shadowWord_length
+#print axioms CryptoResearch.NCP.word_point_affine_normal_form
+#print axioms CryptoResearch.NCP.wordPointAction_append
+#print axioms CryptoResearch.NCP.word_action_encode
+#print axioms CryptoResearch.NCP.word_action_canonical_encode
+#print axioms CryptoResearch.NCP.canonical_word_action_iff
+#print axioms CryptoResearch.NCP.neg_translate_square_not_in_commutators
+#print axioms CryptoResearch.NCP.neg_translate_square_in_action_kernel
