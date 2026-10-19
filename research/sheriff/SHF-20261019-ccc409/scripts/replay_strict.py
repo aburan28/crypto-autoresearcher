@@ -17,7 +17,7 @@ import yaml
 
 CASE = Path(__file__).resolve().parents[1]
 REPO = CASE.parents[2]
-PAIRS = CASE / "shards" / "replay_strict_pairs"
+PAIRS = CASE / "shards" / "replay_strict_pairs_v2"  # v1 (basename paths) collided for EV-MONO-d90e9c; kept as written
 
 
 def diff(a, b, p=""):
@@ -105,13 +105,19 @@ def run_one(wt, eid, rows, allow, discover):
         if discover:
             files[f]["all"] = [(a, str(b)[:60], str(c)[:60]) for a, b, c in d]
         # retain the pair (committed vs regenerated) so the comparison can be redone
-        dst = PAIRS / eid / Path(f).name
+        dst = PAIRS / eid / f  # full repo-relative path: no two artifacts can collide
         dst.parent.mkdir(parents=True, exist_ok=True)
-        (dst.parent / (Path(f).name + ".committed")).write_text(old)
-        (dst.parent / (Path(f).name + ".regenerated")).write_text(newt)
+        c_p, r_p = dst.parent / (dst.name + ".committed"), dst.parent / (dst.name + ".regenerated")
+        if c_p.exists() or r_p.exists():
+            raise SystemExit(f"refusing to overwrite retained pair {dst}")
+        c_p.write_text(old)
+        r_p.write_text(newt)
         if bad and not discover:
             files[f]["unexplained_sample"] = [(a, str(b)[:60], str(c)[:60]) for a, b, c in bad[:6]]
-    res.update(files=files, not_compared=notcmp)
+    head = subprocess.run(["git", "-C", wt, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    res.update(files=files, not_compared=notcmp,
+               receipt={"worktree_commit": head, "argv": argv, "python": sys.version.split()[0],
+                        "ran_at_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()})
     if not files:
         res.update(status="unknown", reason="exit 0 but no comparable committed result file was regenerated")
     elif discover:

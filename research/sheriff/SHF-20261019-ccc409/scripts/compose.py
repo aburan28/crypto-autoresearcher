@@ -23,10 +23,12 @@ for f in sorted(glob.glob(str(CASE / "shards/replay_out[0-3].jsonl"))):
         replay[d["evidence_id"]] = d
 mut = json.load(open(CASE / "mutation_detail.json"))
 strict = {}
-if (CASE / "shards/replay_strict_out.jsonl").exists():
-    for l in open(CASE / "shards/replay_strict_out.jsonl"):
-        d = json.loads(l)
-        strict[d["evidence_id"]] = d
+for fn in ("replay_strict_out.jsonl", "replay_strict_out_mono_v2.jsonl"):  # later file supersedes for the same id
+    if (CASE / "shards" / fn).exists():
+        for l in open(CASE / "shards" / fn):
+            d = json.loads(l)
+            d["_src"] = fn
+            strict[d["evidence_id"]] = d
 
 # ---- manual overrides: each one was re-checked by the Sonnet reader (see REPORT.md)
 DIGEST_OVERRIDE = {
@@ -125,7 +127,10 @@ for eid, r in sorted(rows.items()):
             if sr["status"] == "pass":
                 rok = True
                 nf = sum(x["diffs"] for x in sr["files"].values())
-                notes.append(f"replay (strict comparator, exact equality, explicit metadata allowlist, retained pairs in shards/replay_strict_pairs/): {len(sr['files'])} regenerated result file(s) equal the committed ones except {nf} allowlisted metadata leaves (commit, timestamps, platform, python, elapsed/timings, preregistered_at). Wall-clock timings were not reproduced and are not covered by this pass")
+                where = "shards/replay_strict_pairs_v2/ (full paths; receipt in the row)" if sr["_src"] != "replay_strict_out.jsonl" else "shards/replay_strict_pairs/"
+                if sr["_src"] != "replay_strict_out.jsonl":
+                    notes.append("the first strict run of this record retained only the p211 pair files (basename collision, p101 files lost); that run is partial, this verdict rests on the collision-free re-run")
+                notes.append(f"replay (strict comparator, exact equality, explicit metadata allowlist, retained pairs in {where}: {len(sr['files'])} regenerated result file(s) equal the committed ones except {nf} allowlisted metadata leaves (commit, timestamps, platform, python, elapsed/timings, preregistered_at). Wall-clock timings were not reproduced and are not covered by this pass")
             elif sr["status"] == "fail":
                 rok = False
             else:
