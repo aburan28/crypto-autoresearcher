@@ -3,8 +3,8 @@
 - **Status:** investigating
 - **Kind:** operational authority limit and missing progress observability; not a mathematical obstruction
 - **Affected work:** RQ-IC-a39c7e, EXP-IC-66c447/RUN-IC-0d0c36, original Executor TASK-20261015-ff93a4; [actual terminal receipt](../experiments/EXP-IC-66c447/runs/RUN-IC-0d0c36/execution-receipt.json), [failure custody route](../research/lattice_ic_experiments_20261015/coordinator/polynomial-authority-failure-custody/actual-failure-inputs.json)
-- **Next action owner:** Coordinator/root for custody TASK-20261015-8f73c8 and TASK-20261015-df3e06; root run/control plane for actual EXP-IC-9f9a4b/RUN-IC-fe080b terminal outcome; Coordinator for later actual custody/review gates
-- **Last updated:** 2026-10-15
+- **Next action owner:** Coordinator/root for new serialization-failure custody TASK-20261016-a59f61/TASK-20261016-f4a410; prospective Executor TASK-20261016-282fd3 after native failure9; see [distinct serialization record](lattice-ic-artifact-serialization-memory.md)
+- **Last updated:** 2026-10-16
 
 ## Problem
 
@@ -52,3 +52,6 @@ Unresolved. The source repair and successor admission remain prospective until a
 Root then normally claimed TASK-20261015-61db74 for 1440 minutes and launched the new entire cold grid at 2026-10-15T11:13:56.203333+00:00. Actual authority commit efb08e06a7a18e522c5cbac4f6185ff8a2a175c6, epoch1 owner lattice-ic-polynomial-telemetry-run-20261015 expires 2026-10-16T11:13:19+00:00; cached authority is not renewed or changed. The [read-only continuation snapshot](../research/lattice_ic_experiments_20261015/coordinator/polynomial-telemetry-successor/continuation-20261015-active.json) observed 2960 complete durable JSONL events, with last start boundary exact_integer_row_hnf in reduction/p43/W2/m3/R0/t2/L0/sparse. No raw/manifest/terminal receipt existed at that observation. Events identify an operational boundary in THIS new attempt only; they do not establish completed-cell/root/rank yield, mathematical success/failure or the stage of the old expired attempt.
 
 Next action: root monitors the unchanged native attempt and publishes its actual terminal bytes plus inspected report. Source/spec/plan/queue/focus/equality/amendment/input closure remain untouched while live. Fresh blind and every full/local review remain gated; no outcome or completion is promoted. The fourth exit criterion remains open.
+
+
+2026-10-16 actual terminal update: EXP-IC-9f9a4b/RUN-IC-fe080b ended with infrastructure_error/driver1/checker null. Durable scientific-body return was followed by write_artifacts MemoryError in shared core recursive serialization. No raw/manifest or separately checked observation exists; this is neither a new HNF defect nor a mathematical negative. The distinct [serialization-memory obstruction](lattice-ic-artifact-serialization-memory.md) owns prospective exact core/test-only repair after separate actual8+ownreceipt9 custody. Original scientific archive TASK-20261015-3047d1/local TASK-20261015-9403cb and all dependent independent reviews stay uncompleted. All three retained failures must accompany eventual four-success review inputs; prior source and runtime evidence remain unchanged.

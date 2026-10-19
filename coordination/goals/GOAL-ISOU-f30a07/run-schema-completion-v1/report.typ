@@ -1,0 +1,13 @@
+#set page(paper:"a4", margin:18mm)
+#set text(size:10.5pt)
+= Additive native observation schema completion
+GOAL-ISOU-f30a07 / postprocessing Conductor T3221 / PR2224
+#image("flow.svg", width:100%)
+== Observation and scope
+Three raw adapter manifests lacked the canonical top-level run record and companions. The correction adds canonical-run.v2.yaml, command.txt, retrospective environment.json and byte-identical stdout/stderr copies beside each original. All360 original files remain byte-identical; native archive SHA remains f130a61f313a5b78e9e76aab718ebd1e41125c49547287ba2f42ab24116b63b4. Source records are isolated in snapshot c6266701d7. Exactly three entries append to the existing registry; its prior bytes remain an exact prefix. No checker or baseline changed.
+== Outcome limits preserved
+RUN-ea3515 remains failed control exit101, including successful component checks and failed final leaderboard assertion. RUN-13a6b5 remains completed native control exit0, with no degree50341 claim. RUN-f9546d remains failed observation with native CENSORED/TIMEOUT, score null, alongside the original outer INCOMPLETE fallback. The operational constructor131134ms and censored replay3600019ms remain distinct; total CPU and unrecorded environment/dirty-state fields remain unknown. Native source6547d252 belongs to aburan28/crypto; execution-harness source receipts and shell adapter digest are bound separately. No present-day host probe substitutes for execution-time data.
+== Validation and comparison
+Existing direct identity/schema checks return zero errors for all three replacements. The complete supersession/provenance suite ran92 tests before and after registry mutation:89 passed, the same three repository tests failed. Exact logs and test-comparison.json retain their names and original unrelated record/hash defects. Ready-only dispatch still verifies terminal custody and selects validator TASK-20261016-0a32f1. Full-ledger equality against the immutable315-error log is recorded in ledger-error-comparison.json; no global green check is claimed.
+== Interpretation and remaining work
+This correction completes schema representation of existing observations. It neither upgrades a failed test nor completes timed-out map verification. Missing prescribed-computation proofs stay explicit; hashes and schema checks are not execution proofs. The larger-degree goal, approved tracing implementation and separate compact custody gate remain unchanged. Canonical score and claim graphs do not change. The diagram shows the correction chain because this metadata work produced no new scientific measurements. See report.md for exact validation outcomes and artifact bindings.

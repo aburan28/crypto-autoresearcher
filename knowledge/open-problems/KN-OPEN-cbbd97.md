@@ -70,3 +70,15 @@ It is the only known mechanism by which a prime-field isogeny trapdoor could
 satisfy condition (4) of KN-OPEN-cc1988 (public path search at least
 `sqrt(n)`-hard) *by theorem* rather than by hoping the class is large.
 Whether the room behind the gate is empty is the open question.
+
+## Addendum (2026-10-16): the seed-manipulation analogy and the NIST curves, a disclosure and not a change of status
+
+Added by the Coordinator under DEC-20261016-fb3a6f. The question and its
+status (open) are unchanged. The "What is known" section calls seed
+manipulation (KN-TECH-031027) the delivery component for a weak class of
+random curves. For the historical X9.62 / FIPS 186-2 prime curves, that
+delivery channel is now bounded: the seeds are `drand48` output after
+`srand48(t)` for 1997-98 timestamps, with about 30 bits of generator freedom
+per curve (KN-LIT-d2f917, Valsorda's bound and its stated assumptions). The
+End-ring gate discussed here is a different channel, and nothing about it
+changes. Nothing here changes any ECDLP cost.

@@ -78,7 +78,7 @@ from .linalg import EliminationState
 
 CLASSES = ("TT", "TB", "SS")
 T_BITS, H_BITS, J_BITS = 22, 24, 16  # descriptor fields: attempt, head id, base index
-BYTES_PER_ENCODING = 12  # x (uint32) + packed descriptor (uint64) in the sorted runs
+DESCRIPTOR_BYTES = 8  # packed descriptor (uint64) in the sorted runs
 
 
 class CertificateFailure(Exception):
@@ -189,10 +189,13 @@ class SearchRecorder:
         self._xs: list = []
         self._desc: list = []
         self.np = None
-        if _accel.usable(p):
+        self.vectorized_scan = False
+        if _accel.available() and p < 1 << 64:
             import numpy as np
 
             self.np = np
+        if _accel.usable(p):
+            self.vectorized_scan = True
             self.FX = np.array([Pt[0] for Pt in fb.points], dtype=np.uint64)
             self.FY = np.array([Pt[1] for Pt in fb.points], dtype=np.uint64)
 
@@ -221,7 +224,7 @@ class SearchRecorder:
         if t >= 1 << T_BITS:
             raise OverflowError("attempt index exceeds the descriptor field")
         xR, yR = R
-        if self.np is not None:
+        if self.vectorized_scan:
             self._scan_np(xR, yR, lo, hi, hid, t)
         else:
             self._scan_py(xR, yR, lo, hi, hid, t)
@@ -297,7 +300,10 @@ class SearchRecorder:
             np = self.np
             if not xs:
                 return np.empty(0, dtype=np.uint64), np.empty(0, dtype=np.uint64)
-            return np.concatenate(xs), np.concatenate(ds)
+            if self.vectorized_scan:
+                return np.concatenate(xs), np.concatenate(ds)
+            return (np.concatenate([np.asarray(part, dtype=np.uint64) for part in xs]),
+                    np.concatenate([np.asarray(part, dtype=np.uint64) for part in ds]))
         return [x for part in xs for x in part], [d for part in ds for d in part]
 
 
@@ -794,9 +800,10 @@ class Harvester:
             np = self.recorder.np
             self.store_entries += n
             if np is not None:
-                xs32 = xs.astype(np.uint32)
-                order = np.argsort(xs32, kind="stable")
-                bx, bd = xs32[order], ds[order]
+                key_dtype = np.uint32 if self.p < 1 << 32 else np.uint64
+                keys = xs.astype(key_dtype)
+                order = np.argsort(keys, kind="stable")
+                bx, bd = keys[order], ds[order]
                 coll: dict[int, list[int]] = {}
                 for rx, rd in self.runs:  # EC-1: every run, older runs first
                     L = np.searchsorted(rx, bx, "left")
@@ -811,14 +818,14 @@ class Harvester:
                 same = np.flatnonzero(bx[1:] == bx[:-1])
                 hot = set(coll) | {int(bx[q]) for q in same.tolist()}
                 if hot:
-                    hx = np.array(sorted(hot), dtype=np.uint32)
+                    hx = np.array(sorted(hot), dtype=key_dtype)
                     states: dict = {}
-                    for q in np.flatnonzero(np.isin(xs32, hx)).tolist():  # recording order
-                        x = int(xs32[q])
+                    for q in np.flatnonzero(np.isin(keys, hx)).tolist():  # recording order
+                        x = int(keys[q])
                         seq = X_before + q - (self.ss_dup - dups0)
                         g = states[x] if x in states else self._group_from(coll.get(x, []))
                         states[x] = self._ss_add(g, int(ds[q]), True, rows, seq, x)
-                del order, xs32
+                del order, keys
                 self._merge_run(bx, bd)
             else:
                 if not self.runs:
@@ -957,7 +964,8 @@ class Harvester:
             "encodings_recorded": rec.encodings_recorded, "search_s3_charged": search,
             "degenerate_roots": rec.degenerate_roots,
             "identity_ok": rec.encodings_recorded == 2 * search - rec.degenerate_roots,
-            "peak_entries": peak, "peak_bytes": peak * BYTES_PER_ENCODING}
+            "peak_entries": peak,
+            "peak_bytes": peak * (DESCRIPTOR_BYTES + (4 if self.p < 1 << 32 else 8))}
         if on_block is not None:
             block["on"] = on_block
         if self.sink is not None and hasattr(self.sink, "staircase"):

@@ -52,7 +52,7 @@ reasoning effort `orchestration/model-policies.yaml` calibrates for that policy:
 
 | `role` | `inference.policy` | agent | effort |
 |---|---|---|---|
-| `executor` | `executor-mechanical` | `executor-mechanical` | low |
+| `executor` | `executor-mechanical` (re-runs, approved runbooks) | `executor-mechanical` | low |
 | `executor` | `executor-implementation` | `executor` | medium |
 | `coordinator` | `coordinator-orchestration-code` / `-orchestration` | `coordinator` | high |
 | `idea-generator` | `research-deep` | `idea-generator` | high |
@@ -60,8 +60,9 @@ reasoning effort `orchestration/model-policies.yaml` calibrates for that policy:
 | `red-team` | `review-adversarial` | `red-team` | xhigh |
 | `validator` / `reviewer` | `review-breakthrough` | `validator-breakthrough` | max |
 | `red-team` | `review-breakthrough` | `red-team-breakthrough` | max |
+| `validator` | `audit-sweep` (runbook-session screening, `audit-runs`) | `validator-sweep` | high |
 
-The `-breakthrough` and `-mechanical` agents are **policy-tier variants**
+The `-breakthrough`, `-mechanical` and `-sweep` agents are **policy-tier variants**
 declared in `orchestration/roles.yaml` with `variant_of`: same contract, same
 authority, same tools, different depth. `tools/check_runtime_bindings.py`
 enforces that — a variant that changed authority, or a binding whose `effort`

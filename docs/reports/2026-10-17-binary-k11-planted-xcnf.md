@@ -1,0 +1,22 @@
+# Planted satisfiable XCNF controls for the k11 binary bases
+
+**Status, 2026-10-17 UTC:** exact input and complete constructed-model preparation. The [manifest](../../research/icperf_binary_k11_planted_xcnf_20261017/complete/manifest.json), SHA-256 `922c1c727fe8635355042f726ef5bf5335a26bd00d930b17fe23c528812c11b3`, binds a separate satisfiable XCNF formula and full Boolean assignment for each 316-column ordinary-binary k11 base. The [replay](../../research/icperf_binary_k11_planted_xcnf_20261017/complete/replay.json), SHA-256 `e3e8d1280253c708ee414ac373013d04b9ae0865f2a315a9bb6d429d7ca12f48`, checks every serialized clause and native XOR row. **No SAT solver was run**. No natural relation, solver time, degree of regularity, useful rank, target logarithm or end-to-end speed was measured.
+
+## Construction and verification
+
+The [generator](../../tools/icperf_binary_k11_planted_xcnf.py) takes the first eight selected representatives from each frozen [weighted base](2026-10-17-binary-torsion-k11-weighted.md) and [same-width local random control](2026-10-17-binary-torsion-k11-local-control.md). The two known-point sums are **different synthetic targets**; they are positive instrument controls and cannot compare base yield on a common target. Each sum sets the seven chained three-point equations and exact coordinate-membership clauses. The generator evaluates the circuit gates on the planted primary assignment, constructs values for every CNF variable, checks all clauses and XOR rows, and writes the full model as signed DIMACS literals. Formula and model hashes, complete point witness, raw/gzip sizes, source hashes and counts are in the manifest. The [checker](../../tools/icperf_binary_k11_planted_xcnf_verify.py) re-parses each frozen XCNF and signed model, checks every constraint directly, and binds the previously [independent Sage point replay](../../research/icperf_binary_k11_root_certificate_20261017/sage_replay.json) of the same two synthetic sums, seven field identities, 256 sign choices per base and projected subgroup rows.
+
+| Base | CNF variables | CNF clauses | Native XOR rows | Exact-membership exclusion clauses | XCNF gzip bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Weighted k11 | 88,930 | 89,122 | 62,687 | 11,328 | 695,310 |
+| Local random k11 | 88,842 | 89,122 | 62,599 | 11,328 | 693,814 |
+
+Both complete constructed models satisfy their frozen formulas. The counts are representation inputs, not a performance comparison. The [editable chart source](2026-10-17-binary-k11-planted-xcnf-chart.py), [SVG](2026-10-17-binary-k11-planted-xcnf.svg) and [inspected PDF](2026-10-17-binary-k11-planted-xcnf.pdf) show CNF and XOR counts.
+
+The first generator attempt wrote only the weighted formula and model, then failed while taking a repository-relative path from a relative output directory. Its exact two output files and source hash are retained in the [preparation failure record](../../research/icperf_binary_k11_planted_xcnf_20261017/preparation_failures.md); the corrected generator wrote to a new `complete/` directory. That failure says nothing about satisfiability or the factor bases.
+
+## Next gate
+
+These positive fixtures let a frozen protocol ask whether the installed CryptoMiniSat binary can return a full satisfying model for **both** bases, followed by the existing exact full-point checker. A Coordinator must specify binary hash and options, process wall/RSS/model limits, total stop, raw-output paths, response classification and independent replay before scientific execution. The archived four-channel target was made from the earlier k10 base, so it is an instrument pilot target, not an unbiased base-yield comparison. A subsequent common target schedule needs fresh formulas for both bases, then certified natural relation yield, marginal rank, linear algebra, separate unseen same-point target work, all setup costs and matched rho. Solver-reported UNSAT remains unvalidated without an independent proof. CryptoMiniSat does not measure algebraic degree of regularity; that metric needs a separate bounded instrument. The [full-width obstruction](../../problems/full-width-ic-arity-grid-unmeasured.md) remains open.
+
+**Graph custody:** the [canonical ECDLP frontier](../../knowledge/frontiers/ecdlp/README.md) was checked. Neither an observed solve nor a complete-cost finding changed, so its source and rendering remain unchanged. Numerical provenance is `internal`: the linked immutable formulas, constructed full models and independent replay.

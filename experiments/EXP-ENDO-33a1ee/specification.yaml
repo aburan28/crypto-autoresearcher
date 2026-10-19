@@ -1,0 +1,286 @@
+# EXP-ENDO-33a1ee
+# Timed isogenous-model scalar multiplication (wall-clock) for H-ENDO-c9f324.
+# Frozen before the official run. Measured tier, one host, known-scalar only.
+experiment:
+  id: EXP-ENDO-33a1ee
+  hypothesis_id: H-ENDO-c9f324
+  source_idea: IDEA-20261016-15a6fc
+  question_id: RQ-ENDO-476761
+  goal_id: GOAL-ENDO-001
+  version: 1
+  title: >-
+    Is the modelled model-change gain of other/BADA55-VPR-224 visible in
+    wall-clock? Timed k*P on E against k*P on the a = -3 model of its
+    5*5-isogenous neighbour, persistent and one-shot, with an A/A arm and a
+    P-256 positive control
+  status: approved
+  frozen: true
+  designed_at: '2026-10-16'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261016-cc8e56
+  approval_basis: >-
+    The standing user authorization in AGENTS.md (2026-09-06, "all is
+    approved. ideas/experiments should be always approved").
+  execution_authorized: true
+  claim_tier: >-
+    measured wall-clock on one shared cloud host; known-scalar
+    multiplication only, no ECDLP claim
+  objective: >-
+    Run harness/endosweep/isobench once per curve, with the frozen
+    arguments, on other/BADA55-VPR-224 (target) and on "control+:
+    3-isogenous neighbour of NIST P-256" (positive control). For each curve,
+    time four arms (A0 E, A1 persistent, A2 one-shot, A3 A/A) on the same 64
+    (P, k) pairs over 41 interleaved, rotated repetitions. Check every arm's
+    output against a Python reference, and report the median paired ratios
+    A1/A0, A2/A0 and A3/A0 with 95 % percentile-bootstrap intervals, and the
+    ns/op medians.
+  motivation: >-
+    RUN-ENDO-d7cb69 (EXP-ENDO-25ad84) gave modelled operation-count gains
+    only. other/BADA55-VPR-224 is the only population curve with a positive
+    model-change gain and no small D_K (|D_K| > 2e6,
+    research/endosweep_curves_20261006/curves.md), so no 2-GLV on E competes
+    with the model change there. Its modelled gains over the 5*5 route to an
+    a = -3-equivalent neighbour are persistent +15.205 % and one-shot
+    +11.441 % (M_eq 2922.8 on E, 2478.4 on the neighbour, conversion 110.0;
+    source row best block). Every figure so far is modelled. This experiment
+    measures wall-clock, which IDEA-20261016-15a6fc requires before any
+    speed statement.
+  inputs:
+    curves:
+      target:
+        name: other/BADA55-VPR-224
+        p: '0xffffffffffffffffffffffffffffffff000000000000000000000001'
+        modelled_route: path [5, 5], degree 25, a = -3-equivalent neighbour
+        modelled_gain: {persistent: 0.15205, oneshot: 0.11441, persistent_s08: 0.12328}
+      control:
+        name: "control+: 3-isogenous neighbour of NIST P-256"
+        role: positive control (role control+model in the source rows)
+        modelled_route: path [3], back to P-256's a = -3 model
+        modelled_gain: {persistent: 0.15276, oneshot: 0.14465}
+    source_rows:
+      path: experiments/EXP-ENDO-25ad84/runs/RUN-ENDO-d7cb69/raw-result.json
+      sha256: 0576225d496168485a8c30d5d460edab1ab969e7cd3a4d7850e43406a65282da
+      note: run.py refuses to launch if the digest differs.
+    instrument:
+      - harness/endosweep/isobench/isobench.py (route construction, input generation, reference check, bootstrap)
+      - harness/endosweep/isobench/bench.c (timed C kernel)
+      - harness/endosweep/isobench/maps.py (homogenised isogeny-step polynomials)
+      - harness/endosweep/isobench/__init__.py
+    frozen_arguments: >-
+      --points 64 --reps 41 --bootstrap 4000 --seed 20261016
+      --cflags "-O2 -march=native", with isobench's defaults for the route
+      search (--ells 2,3,5,7,11,13 --depth 2 --max-nodes 64) and --cc from
+      $CC or cc. run.py passes --rows <source rows> --curve <name>
+      --out-dir <run dir>/<role> for role in (target, control).
+    named_future_run_slot: RUN-ENDO-bc1b14
+  arms:
+    A0_E: >-
+      k P on E with E's own arithmetic: Jacobian dbl-2007-bl with one
+      multiplication by a, add-2007-bl, signed width-5 NAF with an 8-entry
+      Jacobian table, affine output by one Fermat inversion.
+    A1_persistent: >-
+      k' P' on the a = -3 model of the neighbour, with P' precomputed outside
+      the timed region. The arithmetic is the same except dbl-2001-b.
+    A2_oneshot: >-
+      Inside the timed region: the forward route (homogenised steps
+      X' = N_h, Y' = Y M_h, Z' = Z psi_h, then an isomorphism as Z-scaling),
+      k' = k c mod n by one Montgomery multiplication mod n, k' P' as in A1,
+      the dual route back to E, and the affine output.
+    A3_AA: A0 again, timed as a separate arm. This is the instrument-noise control.
+    schedule: >-
+      Per repetition each arm runs the 64 pairs back to back, and the arm
+      order rotates as arm = (rep + slot) mod 4. The per-repetition figure is
+      the mean ns per scalar multiplication over the 64 pairs. A ratio is
+      formed per repetition, and its median over the 41 repetitions is
+      bootstrapped (4000 resamples, rng seed 20261017).
+    cost_convention: bench.c squares by multiplication (S = M), the curvesweep convention.
+  controls:
+    - id: correctness
+      rule: >-
+        Each arm's affine output from repetition 0 is compared with the
+        Python reference (E.mul(k, P) for A0, A2 and A3; Cm3.mul(k', P') for
+        A1) on all 64 points of both curves.
+      required: >-
+        summary.json correct is true on both curves. Any mismatch makes the
+        run invalid. isobench then exits 1, run.py stops without a manifest,
+        and the defect goes back to the implementation.
+    - id: AA
+      role: noise
+      rule: The A3/A0 median ratio and its 95 % CI, on each curve.
+      required: >-
+        On each curve the A3/A0 95 % CI contains 1 and lies within
+        [0.95, 1.05].
+    - id: control+
+      role: positive
+      rule: >-
+        The A1/A0 ratio on "control+: 3-isogenous neighbour of NIST P-256",
+        where the a = -3 model is P-256 itself and the saving is known to
+        exist.
+      required: The control A1/A0 upper 95 % CI bound is < 1, with the control A/A gate passing.
+  gate_resolution: >-
+    Resolved before data by the Coordinator. The target A/A gate releases
+    the target's ratios. The control A/A gate and the positive-control gate
+    together release the instrument. The target's A1/A0 and A2/A0
+    inferences are labelled only if the correctness gate, both A/A gates
+    and the positive-control gate pass. If any of these fails, the target's
+    ratios are reported descriptively and every label is withheld (AGENTS.md:
+    a failed A/A or control gate makes the dependent lane indeterminate).
+    There is no post-hoc relaxation of [0.95, 1.05] and no rerun inside this
+    experiment. A follow-up is a newly frozen independent replication, which
+    can release only its own inference.
+  independent_variables:
+    - arm (A0, A1, A2, A3)
+    - curve (target, positive control)
+  metrics:
+    primary:
+      - target ratio_A2_over_A0 median and 95 % CI (one-shot)
+      - target ratio_A1_over_A0 median and 95 % CI (persistent)
+      - target and control ns_per_op_median for A0, A1, A2 and A3
+      - derived_saving persistent = 1 - median A1/A0 and oneshot = 1 - median A2/A0, per curve
+    gates:
+      - correct, per curve
+      - ratio_A3_over_A0_AA median and 95 % CI, per curve
+      - control ratio_A1_over_A0 upper CI bound
+    secondary:
+      - control ratio_A2_over_A0 median and CI
+      - route path, degree and dual sign per curve, as summary.json reports them
+      - compiler version, host, CPU (lscpu), Python, commit, seconds
+      - the measured savings set beside the modelled ones (target 15.205 % and 11.441 %, control 15.276 % and 14.465 %), descriptively
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: target derived_saving persistent and oneshot, and their ordering
+    formula: >-
+      The measured savings are predicted to be positive and smaller than the
+      modelled ones: persistent in (0, 15.205 %) and one-shot in
+      (0, 11.441 %), with one-shot < persistent. The doubling saving is
+      2 M of 10 M per doubling at S = M. It is diluted in wall-clock by the
+      additions and the table (unchanged between arms), by the fadd/fsub,
+      control and memory overhead that the M_eq model does not count, and by
+      the final Fermat inversion inside every timed arm (256 squarings and
+      the multiplications for the set bits of p - 2), which the modelled
+      M_eq omits. The one-shot arm also pays two 5-isogeny evaluations each
+      way and the scalar adjustment. The same ordering and dilution are
+      predicted for the control.
+    source: >-
+      Coordinator prior written into this contract before the official run.
+      It is not independent of the development smoke run: its ratios
+      (A1/A0 about 0.90, A2/A0 about 0.93 and A3/A0 0.98 to 1.00 on both
+      curves) were seen when this contract was written. The success and
+      falsification criteria are interval-sign criteria and do not use the
+      smoke values. The A/A margin [0.95, 1.05] was fixed with the smoke
+      A3/A0 values in view, and this is disclosed.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      A published 224-bit curve and a 256-bit control on P-256's field, at
+      full size. The result is a measured wall-clock ratio for known-scalar
+      multiplication in one implementation on one host.
+    correspondence: null
+  tail_checks:
+    - Every arm's output is checked against the Python reference on every point before any timing is accepted.
+    - The A3/A0 A/A arm bounds the instrument noise on each curve.
+    - The per-repetition timings of all four arms are preserved in timings.json for a reviewer to inspect drift, outliers and order effects.
+  replication:
+    seeds: [20261016]
+    independent_instances: 1
+    named_future_run_slot: RUN-ENDO-bc1b14
+    replication_note: >-
+      This is one run on one host. The stronger follow-up is a replication
+      on the ecbench independent runner, with core pinning and isolation,
+      frozen as a new contract.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: null
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after one manifest for RUN-ENDO-bc1b14.
+    - Do not change an argument, a seed, the source rows, the curve set, the compiler flags or the arms, and do not run a second pass.
+    - A failed gate is reported. It is never a reason to rerun inside this experiment.
+  invalidation_rules:
+    - >-
+      Any mismatch against the reference on either curve makes the run
+      invalid. That is an implementation defect, not a negative result.
+    - >-
+      If check.py fails (a missing artifact, a digest mismatch, points or
+      repetitions other than 64 and 41, a timing series shorter than 41, or
+      correct false), the run is invalid. If run.py refuses to launch
+      because the source rows changed, the run is invalid.
+    - >-
+      A failed A/A gate or a failed positive control is an instrument
+      alert. The dependent inferences are withheld and the run stays
+      preserved. No margin is relaxed post hoc.
+    - >-
+      A timeout, a crash, a compiler failure or a memory abort is
+      failed_infrastructure. It is never a negative result.
+  success_criterion: >-
+    The run is valid, correctness, both A/A gates and the positive control
+    pass, and the target ratio_A2_over_A0 95 % CI upper bound is < 1. The
+    one-shot model-change saving is then measured on
+    other/BADA55-VPR-224 on this host and implementation.
+  falsification_criterion: >-
+    The run is valid, every gate passes, and the target ratio_A2_over_A0
+    95 % CI lower bound is >= 1. The one-shot route is then not faster on
+    this host and implementation. As one unreplicated empirical-only run
+    this supports weaken and replication, never reject_scoped.
+  inconclusive_criterion: >-
+    Every gate passes and the target A2/A0 CI contains 1, or any gate fails.
+    The A1/A0 row is reported either way.
+  decision_impact:
+    on_positive: >-
+      Record that the model-change arm is supported at the measured tier for
+      other/BADA55-VPR-224, this host, bench.c and cc -O2 -march=native
+      only. The next step is the ecbench independent-runner replication. No
+      ECDLP, rho or library-speed claim follows.
+    on_negative: >-
+      Weaken the measured-tier claim for one-shot use on this curve and host.
+      Report the persistent row separately, and schedule the independent
+      replication before any scoped rejection.
+    on_inconclusive: >-
+      Report the measured ratios descriptively, with labels withheld where a
+      gate failed. A rerun needs a new contract, preferably the independent
+      runner.
+  development_disclosure: >-
+    Development smoke runs on both curves, with 8 points and 5 to 6
+    repetitions, found and fixed an inversion bug in bench.c (the exponent
+    p - 2 underflowed). After the fix they gave A1/A0 about 0.90, A2/A0
+    about 0.93 and A3/A0 0.98 to 1.00 on both curves. They are not
+    RUN-ENDO-bc1b14, and they are not evidence. Their influence on the
+    prediction and the A/A margin is disclosed under
+    preregistered_prediction.
+  instrument_limits:
+    - One shared cloud host with no core pinning, frequency control, turbo control or isolation. CLOCK_MONOTONIC wall-clock.
+    - Generic 4-limb Montgomery CIOS with squaring as multiplication. This is not an optimised library, and A0 is not a tuned reference implementation.
+    - Variable-time code. Nothing here applies to constant-time or complete-formula stacks.
+    - Every timed arm includes one Fermat inversion for the affine output, which dilutes the ratios relative to the M_eq model.
+    - Correctness is checked on the repetition-0 outputs. Later repetitions repeat the same deterministic computation and are not compared.
+    - 41 repetitions over 4 rotation offsets is not a balanced Latin square. Offset 0 occurs 11 times, the others 10.
+    - The bench.c header states p < 2^255, while the control's field (P-256) exceeds 2^255. The CIOS keeps a sixth accumulator word and fadd handles the carry; correctness on that field rests on the reference check.
+    - No unit-test file exists for isobench. Correctness rests on the in-run reference check.
+    - run.py records repository_dirty from harness/ only.
+    - The modelled comparison figures come from RUN-ENDO-d7cb69, which has had no evidence review yet.
+  required_artifacts:
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/manifest.yaml
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/raw-result.json
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/target/summary.json
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/target/timings.json
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/target/bench-input.txt
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/target/bench-output.txt
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/control/summary.json
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/control/timings.json
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/control/bench-input.txt
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/control/bench-output.txt
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/stdout.log
+    - experiments/EXP-ENDO-33a1ee/runs/RUN-ENDO-bc1b14/stderr.log
+  assigned_to: executor
+  launcher:
+    trial_plan: experiments/EXP-ENDO-33a1ee/trial-plan.json
+    driver: experiments/EXP-ENDO-33a1ee/implementation/run.py
+    checker: experiments/EXP-ENDO-33a1ee/implementation/check.py
+  out_of_scope:
+    - Fixed-base k*P, precomputed windows, constant-time complete formulas, other curves, the GLV curves of EXP-ENDO-7494e7, and binary or extension fields.
+    - Any ECDLP, rho, exponent or measured-bound statement. Wall time is never a bound (AGENTS.md).
+    - The cross-method GAE pricing band (AGENTS.md section 5a). This is not an ECDLP comparison.
+    - Validation of the idea's heuristics H1-H3.

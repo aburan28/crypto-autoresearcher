@@ -76,6 +76,18 @@ class Config:
         return list(self.policies.get("adapter", {}).get(
             "reasoning_effort_order", DEFAULT_EFFORT_ORDER))
 
+    @property
+    def model_tier_order(self) -> list[str]:
+        """Tier ids weakest first; empty when no tiers are declared."""
+        return list((self.policies.get("model_tiers") or {}).get("order") or [])
+
+    def model_tier(self, model: str | None) -> str | None:
+        """The tier `model-bindings.yaml` assigns this model id, or None."""
+        return (self.bindings.get("model_tiers") or {}).get(model) if model else None
+
+    def tier_exempt(self, backend_name: str) -> bool:
+        return backend_name in (self.bindings.get("tier_exempt_backends") or {})
+
     def canonical_policy(self, name: str) -> str:
         """Map a policy id or a legacy alias to its canonical id.
 
@@ -262,11 +274,26 @@ def merge_bindings(base: dict[str, Any], overlay: dict[str, Any],
     if not isinstance(tables, dict):
         raise ConfigError(f"{source}: overlay must contain a `bindings` mapping")
     for key in overlay:
-        if key not in ("bindings", "schema_version", "notes"):
+        if key not in ("bindings", "model_tiers", "schema_version", "notes"):
             raise ConfigError(f"{source}: overlay may set only `bindings` "
-                              f"(and `notes`), not {key!r}")
+                              f"(`model_tiers` for new models, and `notes`), "
+                              f"not {key!r}")
     merged = json.loads(json.dumps(base))
     merged.setdefault("bindings", {})
+    # An overlay may classify a model the repository has never seen, so a
+    # locally bound model can meet a tier floor. It may not reclassify one the
+    # repository already placed: that would be a local file raising a model's
+    # standing to make a policy resolve.
+    tiers = overlay.get("model_tiers") or {}
+    if not isinstance(tiers, dict):
+        raise ConfigError(f"{source}: model_tiers must be a mapping")
+    committed = merged.setdefault("model_tiers", {})
+    for model, tier in tiers.items():
+        if model in committed and committed[model] != tier:
+            raise ConfigError(
+                f"{source}: model_tiers may not reclassify {model!r} "
+                f"(committed tier {committed[model]!r})")
+        committed[model] = tier
     for backend_name, table in tables.items():
         if not isinstance(table, dict):
             raise ConfigError(f"{source}: bindings.{backend_name} must be a mapping")
@@ -398,6 +425,19 @@ def validate(config: Config) -> None:
                     f"and {pid}; aliases are permanent and single-owner")
             seen_aliases[alias] = pid
 
+    tier_order = config.model_tier_order
+    if len(set(tier_order)) != len(tier_order):
+        raise ConfigError("model_tiers.order repeats a tier")
+    for tier in (config.policies.get("model_tiers") or {}).get("delegation") or {}:
+        if tier not in tier_order:
+            raise ConfigError(f"model_tiers.delegation names unknown tier {tier!r}")
+    for pid, policy in policies.items():
+        floor = (policy.get("requires") or {}).get("model_tier")
+        if floor is not None and floor not in tier_order:
+            raise ConfigError(
+                f"policy {pid} requires unknown model tier {floor!r}; "
+                f"tiers are {tier_order}")
+
     for role, policy_id in (config.policies.get("role_defaults") or {}).items():
         config.canonical_policy(policy_id)  # raises on typo
 
@@ -506,6 +546,19 @@ def validate(config: Config) -> None:
                 raise ConfigError(
                     f"binding {backend_name}.{policy_id} declares unknown "
                     f"max_reasoning_effort {ceiling!r}")
+
+    model_tiers = config.bindings.get("model_tiers") or {}
+    if not isinstance(model_tiers, dict):
+        raise ConfigError("model-bindings.yaml model_tiers must be a mapping")
+    for model, tier in model_tiers.items():
+        if tier not in tier_order:
+            raise ConfigError(
+                f"model_tiers assigns {model!r} unknown tier {tier!r}; tiers "
+                f"are {tier_order}")
+    for backend_name in config.bindings.get("tier_exempt_backends") or {}:
+        if backend_name not in backends:
+            raise ConfigError(
+                f"tier_exempt_backends names unknown backend {backend_name!r}")
 
     for backend_name in config.backend_fallback_order():
         if backend_name not in backends:

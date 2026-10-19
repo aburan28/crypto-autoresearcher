@@ -7,6 +7,9 @@ import json
 import subprocess
 from pathlib import Path
 
+import yaml
+from scientific_contract import digest as scientific_digest
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 
@@ -49,11 +52,31 @@ def require_committed_clean(paths):
 def reveal(plan, commitment_path, index_path, private_dir, output_path):
     commitment = json.loads(commitment_path.read_text())
     index = json.loads(index_path.read_text())
-    if commitment["schema"] != "arity3-seed-commitment/v1":
+    if commitment["schema"] not in ("arity3-seed-commitment/v1", "arity3-seed-commitment/v2"):
         raise ValueError("invalid seed commitment schema")
     specification_path = (REPO / commitment["specification_path"]).resolve()
-    if sha256(specification_path) != commitment["specification_sha256"]:
-        raise ValueError("approved specification digest changed")
+    if commitment["schema"] == "arity3-seed-commitment/v1":
+        if sha256(specification_path) != commitment["specification_sha256"]:
+            raise ValueError("approved specification digest changed")
+        preparation_decision_path = None
+    else:
+        historical = subprocess.run(
+            ["git", "show", f"{commitment['freeze_commit']}:{commitment['specification_path']}"],
+            cwd=REPO, capture_output=True, check=True).stdout
+        if hashlib.sha256(historical).hexdigest() != commitment["specification_sha256"]:
+            raise ValueError("historical preparation specification digest mismatch")
+        historical_spec = yaml.safe_load(historical)["experiment"]
+        live_spec = yaml.safe_load(specification_path.read_bytes())["experiment"]
+        if (scientific_digest(historical_spec) != commitment["scientific_contract_sha256"]
+                or scientific_digest(live_spec) != commitment["scientific_contract_sha256"]
+                or live_spec.get("status") != "approved"
+                or live_spec.get("approved_by") != "coordinator"
+                or live_spec.get("frozen") is not True
+                or live_spec.get("execution_authorized") is not True):
+            raise ValueError("approved scientific contract differs from preparation snapshot")
+        preparation_decision_path = (REPO / commitment["preparation_decision_path"]).resolve()
+        if sha256(preparation_decision_path) != commitment["preparation_decision_sha256"]:
+            raise ValueError("preparation decision digest changed")
     if index["schema"] != "arity3-sealed-output-index/v1":
         raise ValueError("invalid sealed index schema")
     entries = index["entries"]
@@ -69,6 +92,8 @@ def reveal(plan, commitment_path, index_path, private_dir, output_path):
     if hashlib.sha256(k_seed).hexdigest() != commitment["k_seed_sha256"]:
         raise ValueError("k seed commitment mismatch")
     archived_paths = [commitment_path, index_path, specification_path]
+    if preparation_decision_path is not None:
+        archived_paths.append(preparation_decision_path)
     validated = []
     for entry in entries:
         run_dir = Path(entry["run_dir"]).resolve()

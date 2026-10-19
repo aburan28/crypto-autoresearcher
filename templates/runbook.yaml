@@ -1,0 +1,143 @@
+# Runbook template: crypto.autoresearch.runbook.v1. docs/runbook-execution.md
+# is the design; examples/runbooks/toy-ecdlp-bsgs/runbook.yaml is a complete
+# instance. A runbook is written by design-experiment (Coordinator authority),
+# must print `LINT OK` from `python3 tools/runbook.py lint`, and runs only
+# after a committed approval decision names its sha256 (`runbook_sha256`).
+#
+# Write it so that the operator has nothing to decide. Every <...> below is
+# replaced with an exact value; lint refuses text that hands back a choice.
+
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-<AREA>-<6hex>            # the experiment this runbook executes
+session_id: RBS-<AREA>-<6hex>               # fixed now; the executor task's write_scope names
+                                            # experiments/<EXP>/runbook-sessions/<this id>/
+title: "<one sentence saying what this run does>"   # operator-facing: no "as needed", "e.g.", "?"
+purpose: >-
+  <What the run measures and why, for the report. Observations only; no
+  predicted outcome.>
+executor_tier: mechanical                   # mechanical (Haiku may run it) | implementation
+approval:
+  mode: decision_record                     # EXP-*: a committed DEC naming runbook_sha256
+
+# Every file whose bytes this run depends on. Every repository file an argv
+# names must be here. Never the runbook itself.
+binds:
+  - path: experiments/<EXP>/specification.yaml
+    sha256: <sha256>
+  - path: experiments/<EXP>/trial-plan.json
+    sha256: <sha256>
+  - path: "<every source the plan's source_sha256 lists, and every checker>"
+    sha256: <sha256>
+  - path: formal/targets/<target>.yaml       # when there is a lean step
+    sha256: <sha256>
+  - path: formal/CryptoResearch/<Module>.lean  # its theorem file
+    sha256: <sha256>
+
+# Values the runbook relies on, checked against the specification so a copy
+# error is a lint finding rather than a wrong run.
+spec_bindings:
+  - file: experiments/<EXP>/specification.yaml
+    pointer: /experiment/<path>/<to>/<value>
+    equals: <the value>
+
+environment:
+  python: "3.11"                            # optional: exact major.minor of python3
+  programs: [python3, git]                  # every argv[0]; checked on PATH before step one
+  env:                                      # applied to every step; no credentials,
+    PYTHONHASHSEED: "0"                     # LD_* or RISC0_DEV_MODE
+
+steps:
+  # A probe records the environment. Commands are probe | coordination |
+  # verification; science runs only in a trials step.
+  - id: S01-probe
+    kind: command
+    purpose: probe
+    title: "<exact action>"
+    explain: "<one sentence for the report>"
+    argv: [python3, <bound script>, "{out}/environment.json"]   # {out}: this attempt's directory
+    timeout_seconds: 60
+    validity:
+      exit_code: 0
+      outputs:
+        - path: "{out}/environment.json"
+          json: true
+          assertions:
+            - {pointer: /<field>, equals: <value>}
+    on_failure:                             # first match wins; default: stop
+      - {when: {exit_code: <n>}, class: infrastructure_error, action: retry, max_attempts: 2}
+    tell_on_failure: "<what the operator reports, verbatim, when this step stops the session>"
+
+  # The frozen trial plan, run by tools/experiment_execution.py: the tool
+  # claims the plan's task, runs the supervisor with the claim's owner and
+  # epoch, and releases completed or failed.
+  - id: S02-trials
+    kind: trials
+    title: "<exact action>"
+    explain: "<one sentence>"
+    plan: experiments/<EXP>/trial-plan.json
+    engine: supervisor                      # local is for EXAMPLE-* runbooks only
+    claim: {ttl_minutes: "<minutes covering timeout_seconds>"}
+    timeout_seconds: <the plan's budget>
+    validity:                               # admissibility of every unit's outputs, never a prediction
+      files:
+        - path: raw-result.json
+          json: true
+          assertions:
+            - {pointer: /trial_id, equals: "{trial_id}"}  # ties the output to its unit
+            - {pointer: /<field>, type: integer}
+    by_trial:                               # each trial's prescribed parameters, echoed
+      <trial id>:
+        files:
+          - path: raw-result.json
+            json: true
+            assertions:
+              - {pointer: /seed, equals: <seed in the plan's argv>}
+    controls: [<control trial ids>]         # control_validity in the summary
+    replay:
+      mode: fields                          # fields | bytes | exempt (with exempt_reason)
+      sample: 4                             # default units an audit replays
+      compare:
+        - file: raw-result.json
+          pointers: [/<deterministic field>, /<another>]   # never timings
+    on_invalid: stop                        # stop | continue (metrics then exclude invalid units)
+
+  # A premise of the experiment, kernel-checked. required: true stops the
+  # session where Lean is not installed; false records `unavailable`.
+  - id: S03-lean
+    kind: lean
+    title: "<exact action>"
+    explain: "<one sentence>"
+    task_file: formal/targets/<target>.yaml
+    required: <true|false>
+    timeout_seconds: 1800
+
+  # zkVM receipts for the trials, checked by a verifier pinned by digest. The
+  # verifier writes {out} with: verified, dev_mode, image_id, receipt_sha256,
+  # journal. Absent verifier: unavailable (required: false) or a stop (true).
+  - id: S04-proofs
+    kind: execution_proof
+    title: "<exact action>"
+    explain: "<one sentence>"
+    of_step: S02-trials
+    trials: all
+    receipt_file: <receipt artifact declared in each trial>
+    backend: risc0
+    image_id: <pinned guest image id, hex>
+    verifier: {program: "<path or name>", sha256: "<sha256 of the verifier binary>"}
+    verifier_args: ["{receipt}", "{image_id}", "{out}"]
+    required: <true|false>
+    timeout_seconds: 600
+    journal:                                # what the proof's public journal must commit to
+      - {pointer: /trial_id, equals: "{trial_id}"}
+      - {pointer: /result_sha256, equals_artifact_sha256: raw-result.json}
+
+metrics:                                    # computed by the tool; the operator types none
+  - name: <snake_case>
+    unit: <unit>
+    label: measured                         # measured | derived
+    step: S02-trials
+    file: raw-result.json
+    pointer: /<field>
+    aggregate: [count, mean, median, min, max]   # also: sum, fraction_true
+report:
+  graph_metric: <a metric name>             # plotted per trial in the generated report

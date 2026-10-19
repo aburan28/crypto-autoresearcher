@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 
 from tools.curve_identity import inspect_manifest, canonical
 from .comparisons import _read, SHA
+from . import crypto_traits
 
 TRAITS = (
     ('characteristic', 'Field characteristic', 'field', 'characteristic'),
@@ -110,6 +111,14 @@ def payload(repo: Path):
                     previous['sources'].append(source)
             else:
                 by_uid[uid] = row
+        # Supplementary computed traits join on exact curve_uid, outside the capsule preimage.
+        supplements = catalog.get('supplementary_traits', [])
+        if not isinstance(supplements, list) or len(supplements) > 1:
+            raise ValueError('Unsupported supplementary traits')
+        joined = crypto_traits.load(repo, supplements[0], source_pin) if supplements else {}
+        for row in by_uid.values():
+            if supplements:
+                crypto_traits.apply(row, joined, row)
         result['curves'] = sorted(by_uid.values(), key=lambda r: r['curve_id'])
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError, OverflowError):
         result['curves'] = []
