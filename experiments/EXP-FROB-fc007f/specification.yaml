@@ -17,6 +17,9 @@ experiment:
   approval_decision: null
   execution_authorized: false
   status_note: >-
+    Confound-control blocks (variable_ledger, prediction_provenance, transfer_obligations;
+    docs/confound-control.md) and two transfer assessments added 2026-10-17 before approval; the criteria are
+    unchanged and cite only out-of-sample predictions.
     review_required, not approved (AGENTS.md "Approval is bounded by execution"): no launcher could be bound and
     smoke-tested in the design session. Missing before approval: (1) implementation/run.py and check.py binding the
     tau_fb_pilot.py builders (analysis/ecdlp2m-iteration-20261009/tau-factor-base-pilot/), the m4-sat-cost pilot
@@ -392,3 +395,102 @@ experiment:
   - SAT-arm cost, cost per relation, linear algebra and any pipeline comparison against rho
   - the H2 field-only sampling at n up to 163
   - any n > 23, any m > 3, any statement about ECC2K-130 or the security of any deployed curve
+  variable_ledger:
+    independent:
+    - {name: factor_base, levels: [poly, nb, rand], note: n0 is the A/A arm, not a level under test}
+    - {name: wdsat_mode, levels: [b, xg]}
+    - {name: closure_degree, levels: [3, 4, 5]}
+    - {name: relation_accounting, levels: [identity_only, with_tau_conjugates]}
+    factors:
+    - {name: cell, treatment: fixed, value: one (n, m, k), how: every comparison is paired inside one cell; the 20 cells are
+        replicates and are never compared with each other}
+    - {name: curve, treatment: fixed, value: one Koblitz curve per n by the frozen a-selection rule, how: shared by every arm}
+    - name: coordinate_basis
+      treatment: fixed
+      value: polynomial basis
+      how: >-
+        every arm's Boolean system is written in polynomial-basis coordinates, with V given by spanning vectors
+        in that basis; only the N0 arm re-encodes, in a fresh random basis per cell (C-aa-basis)
+    - {name: normal_element, treatment: randomized, how: three normal elements per cell by the frozen rule; the optimal
+        normal basis stratum at n = 11 and 23 is reported apart}
+    - {name: random_subspace, treatment: randomized, how: one size-matched k-dimensional draw per cell by the frozen rule}
+    - {name: targets, treatment: fixed, how: drawn once per cell before any arm runs and shared by every arm; R uses only
+        targets UNSAT in both arms of a pair}
+    - name: exporter
+      treatment: fixed
+      how: >-
+        one ANF exporter for every arm, chosen and sha256-bound at approval (emit_anf.py or wdsat_io.py, never
+        both); an exporter that differs between arms would confound every comparison
+    - {name: solver_build, treatment: fixed, value: vendored WDSat 987b7f5ef9, how: one build, sha256-bound at approval}
+    - {name: eliminator, treatment: fixed, value: independent eliminator from EXP-SEMBIN-d9767f, how: one build}
+    - {name: labels, treatment: fixed, value: two enumerators (C-ENUM), how: a disagreement voids the instance}
+    - {name: variable_order, treatment: fixed, value: exporter order, how: one order per instance in every arm}
+    - {name: censor_limits, treatment: fixed, how: the frozen per-instance limits, identical in every arm}
+    - {name: host_load, treatment: measured, how: recorded per row; affects wall time only, never a primary metric}
+    comparisons:
+    - {id: C-nb-poly, arms: [nb, poly], differs_in: [factor_base], design: one_factor, role: P1 and P2}
+    - {id: C-nb-rand, arms: [nb, rand], differs_in: [factor_base], design: one_factor, role: P3; matched-random control for
+        the Frobenius map}
+    - {id: C-rand-poly, arms: [rand, poly], differs_in: [factor_base], design: one_factor, role: the E1 against E2 reading}
+    - {id: C-aa-basis, arms: [n0, poly], differs_in: [coordinate_basis], design: aa, role: N0 noise floor and the
+        coordinate-isomorphism control}
+    - {id: C-tau-yield, arms: [nb with tau conjugates, nb identity only], differs_in: [relation_accounting], design: one_factor,
+        role: identity-map control for the Frobenius map; the yield factor of P4}
+    - {id: C-yield-g, arms: [nb], differs_in: [], design: absolute, role: 'C-G instrument check of g_nb against the band 1.6 to 2.4
+        (in-sample)'}
+    crosses_map: true
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261017-fd3924.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/tau-factor-base-pilot/, measured: 'relation yield and usable conjugates per factor base; no solve cost'}
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'WDSat cost on chained S_3 with V_poly, a
+        different object'}
+    sample_status: out_of_sample
+    overlap: none on the solve cost of V_nb
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261017-fd3924.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m3-closure-pilot/, measured: 'D_W = 4 for V_poly chained systems at m=3,
+        never for V_nb'}
+    sample_status: out_of_sample
+    overlap: the V_poly side of a different presentation only; the nb against poly comparison is unmeasured
+  - prediction: P3
+    first_recorded_in: ledger/proposals/IDEA-20261017-fd3924.yaml
+    written_at: '2026-10-17'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: none
+  - prediction: P4
+    first_recorded_in: ledger/proposals/IDEA-20261017-fd3924.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/tau-factor-base-pilot/, measured: 'g_nb and the net 0.6-0.8 bit yield gain, the same accounting this contract recomputes'}
+    sample_status: partially_in_sample
+    overlap: the yield factor g
+    decisive_scope: the solve-cost factor R only; the yield factor is calibration (C-yield-g)
+  transfer_obligations:
+  - map: Frobenius endomorphism tau of the Koblitz curve, (x, y) -> (x^2, y^2)
+    kind: isogeny
+    source: E(F_(2^n)) with factor base V_nb
+    destination: E(F_(2^n)) with factor base tau(V_nb), the window shifted by one position
+    preserves: [the curve, the group order, the order-r subgroup (tau acts as multiplication by mu), relations up to
+        conjugation of the target]
+    changes: [factor-base membership (only conjugates landing back in V_nb are usable relations), the target]
+    controls:
+    - {kind: identity_map, comparison: C-tau-yield}
+    - {kind: matched_random, comparison: C-nb-rand}
+    - {kind: source_baseline, comparison: C-nb-poly}
+    assessment: experiments/EXP-FROB-fc007f/transfer-assessment-frobenius.json
+  - map: change of coordinates of F_(2^n), polynomial basis to a random or normal basis
+    kind: coordinate_change
+    source: the descended system for a subspace V in polynomial-basis coordinates
+    destination: the same subspace and solution set in other coordinates
+    preserves: [the field, the curve, the group, the subspace V as a set, the solution set]
+    changes: [the monomial support of the Boolean system, the form tau takes (a cyclic shift in a normal basis)]
+    controls:
+    - {kind: coordinate_isomorphism, comparison: C-aa-basis}
+    - {kind: matched_random, comparison: C-rand-poly}
+    assessment: experiments/EXP-FROB-fc007f/transfer-assessment-basis.json

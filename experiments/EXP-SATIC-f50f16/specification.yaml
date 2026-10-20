@@ -17,6 +17,9 @@ experiment:
   approval_decision: null
   execution_authorized: false
   status_note: >-
+    Confound-control blocks (variable_ledger, prediction_provenance; docs/confound-control.md) added 2026-10-17
+    before approval, with the success, falsification and inconclusive criteria re-scoped to the out-of-sample
+    comparisons they name; the cell list gains n = 17 at m=5 l=2, n = 19 at m=3 l=4 and l=5 (fixed-n fits) and the A/A arm.
     review_required, not approved (AGENTS.md "Approval is bounded by execution"): no launcher could be bound and
     smoke-tested in the design session. Missing before approval: (1) implementation/run.py and check.py binding the
     m4-sat-cost pilot exporter (analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/: wdsat_io.py, label.py,
@@ -79,15 +82,17 @@ experiment:
       - {family: trimoska_S4, m: 3, n: 17, l: 6, config: b}
       - {family: trimoska_S4, m: 3, n: 19, l: 6, config: b}
       chained_S3:
-      - {m: 3, l: 4, n: 13}
-      - {m: 3, l: 5, n: 17}
+      - {m: 3, l: 4, n: [13, 19], note: n = 19 added 2026-10-17 for the fixed-n calibration ladder C-alpha-m3}
+      - {m: 3, l: 5, n: [17, 19], note: n = 19 added 2026-10-17 for C-alpha-m3}
       - {m: 3, l: 6, n: 19}
       - {m: 4, l: 3, n: [13, 17]}
       - {m: 4, l: 4, n: [15, 17, 19]}
       - {m: 4, l: 5, n: [17, 19]}
-      - {m: 5, l: 2, n: [11, 13]}
+      - {m: 5, l: 2, n: [11, 13, 17], note: n = 17 added 2026-10-17 so that the m=5 exponent is fitted at one fixed n (variable_ledger C-alpha-m5)}
       - {m: 5, l: 3, n: [13, 17]}
       - {m: 5, l: 4, n: 17, note: only if the per-instance limit allows; censored otherwise}
+      aa_order:
+      - {m: 4, l: 4, n: 17, configs: [xg, xg_symfull], instances: first 20 UNSAT instances of the cell, permutation: 'variables and clauses permuted by a permutation seeded from sha256("aa|" + instance_id)', role: A/A arm of variable_ledger C-aa-order}
       direct_S5:
       - {m: 4, l: 3, n: [13, 17], condition: s5_builder passes its E3 check}
       - {m: 4, l: 4, n: [15, 17], condition: s5_builder passes its E3 check}
@@ -311,18 +316,25 @@ experiment:
   - check.py exits 3 (fit re-derivation mismatch, re-labelling disagreement on its sample of >= 5 instances per
     cell, gate mismatch); the run is invalid
   success_criterion: >-
-    SUPPORT (scoped to the tested cells, configurations, presentations and the vendored solver build): G0 passes;
-    P1, P2 and P3 hold on every complete cell with >= 20 UNSAT instances; no such cell shows an alpha CI upper bound
-    below m-1; C1 and C2 pass on every fitted row; check.py exits 0 on all four runs.
+    SUPPORT (scoped to the tested cells, configurations, presentations and the vendored solver build), on
+    checker-valid runs (the invalidation rules include the instrument gate and the completeness and label
+    controls): P2 holds in comparison C-alpha-m5; P3 holds in its decisive scope, comparisons C-law-m5 and
+    C-law-direct; no cell of C-alpha-m5, C-alpha-direct, C-law-m5 or C-law-direct with >= 20 complete UNSAT
+    instances shows an alpha CI upper bound below m-1; and the C-aa-order spread is below 0.5 bit in log2
+    conflicts. The m=4 chained exponent band and the m=3 law are in-sample and read as calibration only
+    (docs/confound-control.md).
   falsification_criterion: >-
-    FALSIFY: any complete (uncensored) cell with >= 20 UNSAT instances at two or more l values shows an alpha CI
-    upper bound below m-1 on a checker-valid run with G0, C1 and C2 passing; this refutes H_enum and H_ideal there
-    and routes to replication at larger n, never to a claim. An alpha CI upper bound below m/2-1 anywhere is in
-    addition an escalation to RQ-RELN-001 (IDEA falsification condition 2), with no claim in this record.
+    FALSIFY: on checker-valid runs with the C-aa-order spread below 0.5 bit, any cell of C-alpha-m5 or
+    C-alpha-direct with >= 20 complete UNSAT instances at two or more l values shows an alpha CI upper bound below
+    m-1; this refutes H_enum and H_ideal there and routes to replication at larger n, never to a claim. An alpha
+    CI upper bound below m/2-1 anywhere is in addition an escalation to RQ-RELN-001 (IDEA falsification
+    condition 2), with no claim in this record. In-sample cells (m=3, and m=4 chained) cannot falsify; a
+    departure there is an instrument finding.
   inconclusive_criterion: >-
-    INCONCLUSIVE: fewer than two l values completed per m at m >= 4; or the local slope falls by more than 0.5
-    across the ladder (the power law is a small-l artefact, IDEA falsification condition 3). A checker-invalid run
-    is not evidence; timeouts and memory kills are censoring or failed_infrastructure.
+    INCONCLUSIVE: fewer than two l values completed in C-alpha-m5 or C-alpha-direct; the local slope falls by
+    more than 0.5 across a fixed-n ladder (the power law is a small-l artefact, IDEA falsification condition 3);
+    or the C-aa-order spread is 0.5 bit or more (the noise floor is too high to read any comparison). A
+    checker-invalid run is not evidence; timeouts and memory kills are censoring or failed_infrastructure.
   heuristic_criterion: >-
     P3 pass on every complete pruned cell leaves H1 validated at toy scale (ratio in [0.5, 2], max/median <= 1.5);
     a complete pruned cell outside [0.5, 2] weakens H1 at that cell only. P4 pass leaves H2 validated for the
@@ -416,3 +428,117 @@ experiment:
     presentations; torsion symmetrisation; large primes
   - any end-to-end exponent, cost table, crossover or comparison against rho
   - any statement about ECC2K-130 or the security of any deployed curve
+  variable_ledger:
+    independent:
+    - {name: m, levels: [3, 4, 5]}
+    - {name: l, levels: per cell list}
+    - {name: presentation, levels: [chained_S3, direct_S5, trimoska_S4 (gate only)]}
+    - {name: configuration, levels: [xg, xg_symfull, b, cms]}
+    - {name: system_family, levels: [curve system, support-matched null]}
+    factors:
+    - name: n
+      treatment: fixed
+      value: n = 17 inside C-alpha-m4, C-alpha-m5 and C-alpha-direct; n = 19 inside C-alpha-m3
+      how: >-
+        each decisive exponent fit uses one n; the other n values of the cell list enter only C-ladder, which is
+        declared confounded because n co-varies with l there
+    - name: curve_family
+      treatment: crossed
+      how: both families at every cell; fits are per family and pooled only when the two alphas agree within the
+        C-aa-order spread
+    - {name: factor_base, treatment: fixed, value: 'V = {deg < l}', how: same construction in every arm}
+    - {name: field_basis, treatment: fixed, value: polynomial basis, how: one modulus per n, shared by every arm}
+    - {name: solver_build, treatment: fixed, value: vendored WDSat 987b7f5ef9 with the pilot counters, how: one build per
+        size class, sha256-bound at approval}
+    - name: pruning_implementation
+      treatment: fixed
+      value: per configuration
+      how: >-
+        xg_symfull exists only for chained systems and stock -b is complete only on direct ones, so the pruned
+        presentation comparison is confounded (C-presentation-pruned); the unpruned xg configuration is the same
+        code on both presentations (C-presentation-xg)
+    - {name: labels, treatment: fixed, value: E1 and E2 enumerators (E3 for direct S_5), how: a disagreement voids the instance}
+    - {name: targets, treatment: randomized, how: seeded stream per (curve, cell), drawn before any configuration runs and
+        shared by every configuration}
+    - {name: variable_order, treatment: fixed, value: exporter order, how: one order per instance; the A/A arm permutes it}
+    - {name: censor_limits, treatment: fixed, value: 600 s and 2 GB per instance, how: identical in every arm; censored rows
+        are excluded from fits and counted}
+    - {name: host_load, treatment: measured, how: recorded per row; affects wall time only, never a primary metric}
+    comparisons:
+    - {id: C-gate, arms: [trimoska_S4 m=3 cells under -b], differs_in: [], design: absolute, role: instrument gate against
+        3.0 +- 0.05 and the ratio band}
+    - {id: C-alpha-m3, arms: [chained m=3 at n=19, l in 4..6], differs_in: [l], design: one_factor, role: calibration
+        (in-sample)}
+    - {id: C-alpha-m4, arms: [chained m=4 at n=17, l in 3..5], differs_in: [l], design: one_factor, role: calibration
+        (in-sample)}
+    - {id: C-alpha-m5, arms: [chained m=5 at n=17, l in 2..4], differs_in: [l], design: one_factor, role: P2}
+    - {id: C-alpha-direct, arms: [direct m=4 at n=17, l in 3..4], differs_in: [l], design: one_factor, role: out-of-sample
+        exponent on the direct presentation}
+    - {id: C-law-m5, arms: [chained m=5 cells], differs_in: [], design: absolute, role: P3 decisive scope}
+    - {id: C-law-direct, arms: [direct m=4 cells], differs_in: [], design: absolute, role: P3 decisive scope}
+    - {id: C-ladder, arms: [all chained cells pooled per m], differs_in: [l, n], design: confounded, reason: n co-varies with
+        l in the pooled ladder; reported as an observation only}
+    - {id: C-presentation-xg, arms: [chained m=4, direct m=4 at matched (n, l)], differs_in: [presentation], design: one_factor,
+        role: presentation effect with identical solver code; reported (no prediction rests on it)}
+    - {id: C-presentation-pruned, arms: [chained m=4 xg_symfull, direct m=4 b], differs_in: [presentation], design: confounded,
+        reason: the pruning implementation differs with the presentation; P4 is read here as an observation}
+    - {id: C-null, arms: [curve system, support-matched null at matched cells, config xg], differs_in: [system_family],
+        design: one_factor, role: P5}
+    - {id: C-aa-order, arms: [m=4 l=4 n=17 in exporter order, the same instances permuted], differs_in: [variable_order],
+        design: aa, role: noise floor in log2 conflicts}
+    crosses_map: false
+    crosses_map_note: >-
+      chained S_3 and direct S_5 are two algebraic encodings of the same decomposition problem on the same curve
+      and field; the encoding is an independent variable (presentation), not a map between curves, fields or
+      Jacobians
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'alpha at m=4, l in 3..5, chained S_3, xg and xg_symfull, same build (3.82 then 4.09)'}
+    sample_status: in_sample
+    overlap: same quantity, same cells, same instrument
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'alpha at m=3 and m=4 only; informs the extrapolation, no m=5 row'}
+    - {path: analysis/ecdlp2m-iteration-20261009/block-local-closure-pilot/, measured: 'closure degree at m=5, a different
+        quantity'}
+    sample_status: out_of_sample
+    overlap: none on SAT conflicts at m=5
+  - prediction: P3
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'median/(2^(ml)/m!) at m=3 on the paper instances (1.006-1.023) and at m=4 chained
+        (0.87-1.04)'}
+    sample_status: partially_in_sample
+    overlap: m=3 and m=4 chained cells
+    decisive_scope: m=5 chained cells and direct S_5 cells (C-law-m5, C-law-direct)
+  - prediction: P4
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'at m=3 chained xg_b 2.26 against direct -b 2.98, a difference of about 0.7 already
+        observed'}
+    sample_status: partially_in_sample
+    overlap: m=3
+    decisive_scope: m=4 only; and not decisive while C-presentation-pruned is confounded
+  - prediction: P5
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.yaml
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m45-closure-pilot/, measured: 'support-matched nulls under the closure, a
+        different quantity'}
+    sample_status: out_of_sample
+    overlap: none on SAT conflicts
+  - prediction: G0
+    first_recorded_in: ledger/proposals/IDEA-20261017-4b1672.notes.md
+    written_at: '2026-10-17'
+    data_seen:
+    - {path: analysis/ecdlp2m-iteration-20261009/m4-sat-cost-pilot/, measured: 'alpha 2.981 on the same paper instances under -b'}
+    - {path: analysis/ecdlp2m-iteration-20261009/ctrial-harvest/, measured: 'slope 2.9985 from the program harvest'}
+    sample_status: in_sample
+    overlap: same instances and instrument; it is an instrument gate, never support

@@ -1,0 +1,273 @@
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-PFDR-ca5e01
+session_id: RBS-PFDR-ca5e01
+title: Run the six frozen pair-sum coincidence census trials of EXP-PFDR-ca5e01 through the supervisor, in plan order
+purpose: >-
+  Measures, per cell (bits in 16, 18, 20, 22; theta in 0.30..0.65; d in 1, 2, 3; 90 cells), the
+  exact count of nontrivial pair-sum coincidences of one structured symmetric base (window for
+  d = 1, rank-d label GAP for d = 2, 3) against 20 matched uniformly random symmetric null bases
+  and one planted known-log base on prime-order curves, with the kernel self-test, the pilot sizing
+  of curves per cell, the main census, the analysis of the main block, the replication census of
+  flagged cells on fresh curves and the final analysis, each trial validated by check.py. Observations
+  only; check.py re-derives sizing, completeness, replayed jobs, per-cell statistics and the outcome
+  from the recorded jobs. No speedup, no cost against rho and no statement beyond the toy scope is claimed.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+- path: experiments/EXP-PFDR-ca5e01/specification.yaml
+  sha256: 1dfde44576e69e8280f85b2e6d39ef2aecbff0ffe230b1bcde831e7e85bc5866
+- path: experiments/EXP-PFDR-ca5e01/trial-plan.json
+  sha256: 3c078377928f03de864ee5b94ce5835ae39cabec60badfe9b0cc5846a52275ad
+- path: experiments/EXP-PFDR-ca5e01/implementation/check.py
+  sha256: 831aca4a2e71567ce5c8b998064e534c598da20233fe358717bba28e6d35d60e
+- path: experiments/EXP-PFDR-ca5e01/implementation/paircount.c
+  sha256: 151d2fa22e45a6fff7a1219b0a0d4d0b3c0bdf725a3ea853bcb11758116c3169
+- path: experiments/EXP-PFDR-ca5e01/implementation/run.py
+  sha256: 5e39cf0c33a7e4789c47adc9409dacf14a8d7314e9e0b192343a34feebb79650
+- path: experiments/EXP-PFDR-ca5e01/implementation/vendor/curve.py
+  sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+spec_bindings:
+- file: experiments/EXP-PFDR-ca5e01/specification.yaml
+  pointer: /experiment/replication/seeds
+  equals: [7000000, 7100000, 7200000]
+- file: experiments/EXP-PFDR-ca5e01/specification.yaml
+  pointer: /experiment/budget/maximum_memory_gb
+  equals: 4
+- file: experiments/EXP-PFDR-ca5e01/specification.yaml
+  pointer: /experiment/budget/maximum_runs
+  equals: 6
+- file: experiments/EXP-PFDR-ca5e01/specification.yaml
+  pointer: /experiment/budget/maximum_workers
+  equals: 4
+- file: experiments/EXP-PFDR-ca5e01/specification.yaml
+  pointer: /experiment/inputs/cells/count
+  equals: 90
+environment:
+  programs: [python3, git, gcc]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+- id: S01-trials
+  kind: trials
+  title: Execute the six frozen trials once each, in plan order, under the supervisor claim
+  explain: Runs run.py then check.py for every trial of trial-plan.json under the supervisor claim and keeps every output file.
+  plan: experiments/EXP-PFDR-ca5e01/trial-plan.json
+  engine: supervisor
+  claim:
+    ttl_minutes: 1830
+  timeout_seconds: 109800
+  validity:
+    files:
+    - path: manifest.yaml
+    - path: raw-result.json
+      json: true
+      assertions:
+      - {pointer: /experiment, equals: EXP-PFDR-ca5e01}
+      - {pointer: /trial_id, equals: "{trial_id}"}
+      - {pointer: /run_id, equals: "{run_id}"}
+      - {pointer: /summary, type: object}
+  by_trial:
+    selftest:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-936605}
+        - {pointer: /trial_id, equals: selftest}
+        - {pointer: /summary/selftest_pass, equals: true}
+      - path: selftest.json
+    pilot:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-93c865}
+        - {pointer: /trial_id, equals: pilot}
+        - {pointer: /summary/cells, equals: 90}
+        - {pointer: /summary/cells_ok, type: integer}
+        - {pointer: /summary/curves_planned, type: integer}
+      - path: design.json
+        json: true
+        assertions:
+        - {pointer: /experiment, equals: EXP-PFDR-ca5e01}
+        - {pointer: /cells, type: array}
+        - {pointer: /cells, length: 90}
+      - path: pilot-jobs.jsonl
+    census-main:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-eb4733}
+        - {pointer: /trial_id, equals: census-main}
+        - {pointer: /summary/jobs, type: integer}
+        - {pointer: /summary/failed_infrastructure, type: integer}
+      - path: main-jobs.jsonl
+    analyze-main:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-c08b70}
+        - {pointer: /trial_id, equals: analyze-main}
+        - {pointer: /summary/outcome, in: [O-INVALID, O-STRUCT, O-PENDING-REPLICATION, O-NULL, O-MIXED]}
+        - {pointer: /summary/flagged_cells, type: array}
+        - {pointer: /summary/calibration, type: object}
+        - {pointer: /summary/fraction_valid, type: number}
+      - path: analysis-main.json
+        json: true
+        assertions:
+        - {pointer: /experiment, equals: EXP-PFDR-ca5e01}
+        - {pointer: /outcome, in: [O-INVALID, O-STRUCT, O-PENDING-REPLICATION, O-NULL, O-MIXED]}
+        - {pointer: /cells, type: array}
+        - {pointer: /cells, length: 90}
+      - path: flags.json
+        json: true
+        assertions:
+        - {pointer: /flagged_cells, type: array}
+    census-rep:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-e15482}
+        - {pointer: /trial_id, equals: census-rep}
+        - {pointer: /summary/jobs, type: integer}
+        - {pointer: /summary/failed_infrastructure, type: integer}
+      - path: rep-jobs.jsonl
+    analyze-final:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /run_id, equals: RUN-PFDR-b7c582}
+        - {pointer: /trial_id, equals: analyze-final}
+        - {pointer: /summary/outcome, in: [O-INVALID, O-STRUCT, O-PENDING-REPLICATION, O-NULL, O-MIXED]}
+        - {pointer: /summary/flagged_cells, type: array}
+        - {pointer: /summary/calibration, type: object}
+        - {pointer: /summary/fraction_valid, type: number}
+      - path: analysis.json
+        json: true
+        assertions:
+        - {pointer: /experiment, equals: EXP-PFDR-ca5e01}
+        - {pointer: /outcome, in: [O-INVALID, O-STRUCT, O-PENDING-REPLICATION, O-NULL, O-MIXED]}
+        - {pointer: /cells, type: array}
+        - {pointer: /cells, length: 90}
+      - path: flags.json
+        json: true
+        assertions:
+        - {pointer: /flagged_cells, type: array}
+  controls: [selftest]
+  replay:
+    mode: fields
+    sample: 4
+    compare:
+    - file: raw-result.json
+      pointers: [/summary]
+  on_invalid: stop
+  on_failure:
+  - when: {timed_out: true}
+    class: resource_exhaustion
+    action: stop
+  - when: {exit_code: 1}
+    class: infrastructure_error
+    action: stop
+  - when: {exit_code: 3}
+    class: implementation_error
+    action: stop
+  - when: {validity: false}
+    class: invalid_measurement
+    action: stop
+  tell_on_failure: Report the tool-recorded terminal class and this step's log paths, preserve all files, and stop this session without retry.
+metrics:
+- name: pilot_cells
+  unit: cells
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/cells
+  aggregate: [count, min, max]
+  trials: ["pilot"]
+- name: pilot_cells_ok
+  unit: cells
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/cells_ok
+  aggregate: [count, min, max]
+  trials: ["pilot"]
+- name: pilot_curves_planned
+  unit: curves
+  label: derived
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/curves_planned
+  aggregate: [count, min, max]
+  trials: ["pilot"]
+- name: census_main_jobs
+  unit: jobs
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/jobs
+  aggregate: [count, sum, max]
+  trials: ["census-main"]
+- name: census_main_failed_infrastructure
+  unit: jobs
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/failed_infrastructure
+  aggregate: [count, sum, max]
+  trials: ["census-main"]
+- name: census_rep_jobs
+  unit: jobs
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/jobs
+  aggregate: [count, sum, max]
+  trials: ["census-rep"]
+- name: census_rep_failed_infrastructure
+  unit: jobs
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/failed_infrastructure
+  aggregate: [count, sum, max]
+  trials: ["census-rep"]
+- name: fraction_valid_final
+  unit: fraction
+  label: derived
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/fraction_valid
+  aggregate: [count, min, max]
+  trials: ["analyze-final"]
+- name: calibration_n_final
+  unit: cells
+  label: derived
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/calibration/n
+  aggregate: [count, min, max]
+  trials: ["analyze-final"]
+- name: calibration_mean_final
+  unit: z-score
+  label: derived
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/calibration/mean
+  aggregate: [count, min, max]
+  trials: ["analyze-final"]
+- name: calibration_sd_final
+  unit: z-score
+  label: derived
+  step: S01-trials
+  file: raw-result.json
+  pointer: /summary/calibration/sd
+  aggregate: [count, min, max]
+  trials: ["analyze-final"]
+report:
+  graph_metric: census_main_jobs
