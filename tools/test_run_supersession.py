@@ -1047,8 +1047,26 @@ class CommittedRegistryTests(unittest.TestCase):
                                 or declared.get("supersedes_sha256")
                                 or declared.get("sha256"))
                 self.assertIsNotNone(prior_path, str(current))
+                # The immutable SEMBIN record names the registry's exact
+                # original-hash slot instead of duplicating its digest.
+                # Admit that spelling only for a direct, hash-checked binding.
+                pinned_in = declared.get("prior_manifest_sha256_pinned_in")
+                if prior_sha256 is None and pinned_in is not None:
+                    self.assertEqual(
+                        pinned_in,
+                        "tools/run_supersession_registry.yaml "
+                        f"(superseded_sha256 of the {entry['run_id']} entry)")
+                    self.assertEqual((repo_root / str(prior_path)).resolve(),
+                                     registry_original)
+                    self.assertEqual(current, Path(entry["superseding_path"]).resolve())
+                    self.assertEqual(sha256_of(current), entry["superseding_sha256"])
+                    prior_sha256 = entry["superseded_sha256"]
                 self.assertIsNotNone(prior_sha256, str(current))
-                prior = (repo_root / str(prior_path)).resolve()
+                # Four ENDO records use a filename relative to their run
+                # directory. The checks below still forbid crossing that
+                # directory or escaping the repository.
+                base = current.parent if "/" not in str(prior_path) else repo_root
+                prior = (base / str(prior_path)).resolve()
                 self.assertTrue(prior.is_relative_to(repo_root), str(prior))
                 self.assertEqual(prior.parent, run_dir, str(prior))
                 self.assertTrue(prior.is_file(), str(prior))
