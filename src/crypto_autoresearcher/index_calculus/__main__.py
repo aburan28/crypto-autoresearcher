@@ -71,8 +71,8 @@ def cmd_solve(args: argparse.Namespace) -> int:
                               table_arity=args.table_arity, la_pivot=args.la_pivot)
     out["index_calculus"] = ic.to_dict() | {"correct": ic.k == k}
     if args.rho:
-        rr = pollard_rho(E, P, Q, seed=args.seed)
-        out["rho"] = {"k": rr.k, "verified": rr.verified, "walk_ops": rr.walk_ops,
+        rr = pollard_rho(E, P, Q, seed=args.seed, negation=args.rho_walk == "negation")
+        out["rho"] = {"k": rr.k, "verified": rr.verified, "walk": rr.walk, "walk_ops": rr.walk_ops,
                       "setup_ops": rr.setup_ops, "group_ops": rr.group_ops,
                       "walks": rr.walks, "seconds": rr.seconds}
     json.dump(out, sys.stdout, indent=2, default=list)
@@ -110,9 +110,9 @@ def _sweep_core(job: dict) -> tuple[list[dict], list[dict]]:
     base = _curve_fields(E, bits, c, label)
     rows = []
     if job["rho"]:
-        rr = pollard_rho(E, P, Q, seed=c)
+        rr = pollard_rho(E, P, Q, seed=c, negation=job.get("rho_walk", "negation") == "negation")
         rows.append(base | {"method": "rho", "fb": "-", "ok": rr.verified and rr.k == k,
-                            "walk_ops": rr.walk_ops, "setup_ops": rr.setup_ops,
+                            "rho_walk": rr.walk, "walk_ops": rr.walk_ops, "setup_ops": rr.setup_ops,
                             "group_ops": rr.group_ops, "walks": rr.walks,
                             "dp_bits": rr.dp_bits, "seconds": rr.seconds})
         if rr.verified and rr.k is not None:
@@ -182,6 +182,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             ic_ms = [m for m in args.m if c < args.curves and bits <= caps.get(m, 10**9)]
             jobs.append({"bits": bits, "curve": c, "ms": args.m, "ic_ms": ic_ms,
                          "fbs": args.fb, "rho": c < args.rho_curves, "subgroup": subgroup,
+                         "rho_walk": args.rho_walk,
                          "tolerance": args.tolerance, "engines": args.engine,
                          "la_pivot": args.la_pivot,
                          "engine_caps": engine_caps,
@@ -805,11 +806,11 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
     return row, False
 
 
-def _census_rho(E, P, Q, k, base, c, panel, watchdog) -> dict:
+def _census_rho(E, P, Q, k, base, c, panel, watchdog, walk="negation") -> dict:
     t0 = time.perf_counter()
     try:
         _alarm(watchdog)
-        rr = pollard_rho(E, P, Q, seed=c)
+        rr = pollard_rho(E, P, Q, seed=c, negation=walk == "negation")
     except (_InstanceTimeout, MemoryError) as exc:
         _alarm_off()
         return base | {"method": "rho", "fb": "-", "ok": False, "panel": panel,
@@ -818,7 +819,7 @@ def _census_rho(E, P, Q, k, base, c, panel, watchdog) -> dict:
                        "seconds": time.perf_counter() - t0}
     _alarm_off()
     ok = rr.verified and rr.k == k
-    return base | {"method": "rho", "fb": "-", "ok": ok, "walk_ops": rr.walk_ops,
+    return base | {"method": "rho", "fb": "-", "ok": ok, "rho_walk": rr.walk, "walk_ops": rr.walk_ops,
                    "setup_ops": rr.setup_ops, "group_ops": rr.group_ops, "walks": rr.walks,
                    "dp_bits": rr.dp_bits, "seconds": rr.seconds, "panel": panel,
                    "status": "completed_valid" if ok else "invalid",
@@ -845,7 +846,7 @@ def _census_job(job: dict) -> dict:
         # AMD-20260929-1de84f C-1: every j0-panel row carries the generation log
         base = base | {"j0_generation": gen_log}
     if panel == "rho":
-        rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd))
+        rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd, job.get("rho_walk", "negation")))
         return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": False}
     m = job["m"]
     modes = tuple(job.get("modes") or CENSUS_MODES)
@@ -958,7 +959,7 @@ def _census_job(job: dict) -> dict:
                 stop = True
                 break
     if panel == "j0" and not stop and c < job.get("rho_curves", 0):
-        rows.append(_census_rho(E, P, Q, k, base, c, "j0", wd))
+        rows.append(_census_rho(E, P, Q, k, base, c, "j0", wd, job.get("rho_walk", "negation")))
     out = {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": stop}
     if "certs" in extra:
         out["certs"] = extra["certs"]
@@ -1016,13 +1017,13 @@ def cmd_census(args: argparse.Namespace) -> int:
         if args.panel == "rho":
             for c in range(args.curve_offset, args.curve_offset + args.rho_curves):
                 jobs.append({"panel": "rho", "bits": bits, "curve": c,
-                             "watchdog": args.instance_watchdog})
+                             "rho_walk": args.rho_walk, "watchdog": args.instance_watchdog})
             continue
         for m in (args.m if args.panel == "main" else [3]):
             for c in range(args.curve_offset, args.curve_offset + args.curves):
                 job = {"panel": args.panel, "bits": bits, "curve": c, "m": m,
                        "arms": list(arms), "known_log_max_bits": args.known_log_max_bits,
-                       "rho_curves": args.rho_curves,
+                       "rho_curves": args.rho_curves, "rho_walk": args.rho_walk,
                        "watchdog": args.instance_watchdog}
                 if modes != list(CENSUS_MODES):
                     job["modes"] = modes
@@ -1141,6 +1142,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="mitm engine: points per precomputed tail (default (m+1)//2)")
     s.add_argument("--no-accel", action="store_true", help="disable the numpy scan")
     s.add_argument("--rho", action="store_true", help="also run Pollard rho")
+    s.add_argument("--rho-walk", choices=("negation", "plain"), default="negation",
+                   help="Pollard rho walk: on {X, -X} (negation map, A = 2, default) or on points (plain, A = 1, the walk before 2026-10-20)")
     s.set_defaults(func=cmd_solve)
 
     w = sub.add_parser("sweep", help="IC vs rho across field sizes")
@@ -1148,6 +1151,8 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--m", type=int, nargs="+", default=[2])
     w.add_argument("--fb", choices=FACTOR_BASES, nargs="+", default=["small_x"])
     w.add_argument("--curves", type=int, default=3, help="curves per size for IC")
+    w.add_argument("--rho-walk", choices=("negation", "plain"), default="negation",
+                   help="Pollard rho walk: on {X, -X} (negation map, A = 2, default) or on points (plain, A = 1, the walk before 2026-10-20)")
     w.add_argument("--rho-curves", type=int, default=0,
                    help="curves per size for rho (default: same as --curves)")
     w.add_argument("--engine", choices=[e for e in ENGINES if e != "msolve"], nargs="+",
@@ -1209,6 +1214,8 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--curves", type=int, default=5)
     c.add_argument("--curve-offset", type=int, default=0)
     c.add_argument("--rho-curves", type=int, default=0)
+    c.add_argument("--rho-walk", choices=("negation", "plain"), default="negation",
+                   help="Pollard rho walk: on {X, -X} (negation map, A = 2, default) or on points (plain, A = 1, the walk before 2026-10-20)")
     c.add_argument("--arms", nargs="+", default=None,
                    help="default: every arm of the panel, in the fixed arm order")
     c.add_argument("--known-log-max-bits", type=int, default=0,
