@@ -207,6 +207,7 @@ def test_legacy_policy_aliases_still_resolve(cfg):
               "review-xhigh", "executor-terra"]
     for alias in legacy:
         assert cfg.canonical_policy(alias) in cfg.policy_table
+    assert cfg.canonical_policy("coordinator") == "coordinator-orchestration-code"
 
 
 def test_every_committed_handoff_names_a_resolvable_policy(cfg):
