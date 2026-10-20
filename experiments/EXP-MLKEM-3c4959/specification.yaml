@@ -1,0 +1,189 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-3c4959 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-3c4959
+  hypothesis_id: H-MLKEM-591bf6
+  derived_from_idea: IDEA-20261018-234080
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Cosine and queries-per-failure versus failure count, end-to-end
+  objective: Validate the bootstrapping model that prices failure attacks after the first
+    failure.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: C reference ML-KEM (parameterized) + Python/NumPy
+    parameters: n=64, k=2, q=3329, eta1=eta2=3, d_u=10, d_v=3; F up to 8; 20 keys
+    procedure: >-
+      1) Freeze. 2) Collect first failure with norm filter. 3) Iterate directional filtering.
+      4) Log cosines and queries. 5) Compare with model.
+  controls:
+  - >-
+    null: directional filter using an independent random direction - queries per failure must
+    stay flat
+  - 'positive: oracle filter using the true secret direction (upper bound)'
+  - 'A/A: norm-only filter with two seed blocks'
+  independent_variables:
+  - filter_rule
+  metrics:
+    primary:
+    - queries per failure
+    - cosine
+    secondary:
+    - filter cost
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: cosine at F=4
+    formula: DRV model closed form
+    source: KN-LIT-1974
+  scale_relevance:
+    tier: toy
+    justification: 'elevated DFR; transfer assumption: functional form of cone narrowing'
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    - 2026101803
+    - 2026101804
+    - 2026101805
+    - 2026101806
+    - 2026101807
+    - 2026101808
+    - 2026101809
+    - 2026101810
+    - 2026101811
+    - 2026101812
+    - 2026101813
+    - 2026101814
+    - 2026101815
+    - 2026101816
+    - 2026101817
+    - 2026101818
+    - 2026101819
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 60
+    maximum_memory_gb: 8
+    maximum_runs: 100
+  stopping_rules:
+  - cap 2^34 queries per failure
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C1 ratio >= 4 by the fifth failure (P1) and C2 within 2x at all F (P2), beyond AA1 noise
+    floor.
+  falsification_criterion: C1 ratio < 2 or C2 outside 2x at some F.
+  decision_impact:
+    on_positive: Use the validated model for the post-first-failure term in failure-flank
+      pricing.
+    on_negative: Replace the model with the measured curve and flag every prior estimate that
+      used it.
+  variable_ledger:
+    independent:
+    - name: filter_rule
+      levels:
+      - norm_only
+      - directional
+      - random_direction_null
+      - true_direction_positive
+    factors:
+    - name: encaps_seed_block
+      treatment: randomized
+      value: A,B
+      how: encaps RNG seed
+    - name: key_seed
+      treatment: randomized
+      value: '20'
+      how: paired
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - directional
+      - norm_only
+      differs_in:
+      - filter_rule
+      design: one_factor
+    - id: C2
+      arms:
+      - cosine vs model
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - norm_only block A
+      - norm_only block B
+      differs_in:
+      - encaps_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-234080.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-234080.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-3c4959/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-234080.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

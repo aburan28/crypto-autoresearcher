@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [PQC catalogue protocol contradictions](pqc-catalogue-protocol-contradictions.md) | open | Approval of 35 draft contracts with invalid formulas, controls or parameter comparisons | Corrected prospective protocols, independent review and existing preapproval/runbook gates |
 | [Rotation factor-base controls do not match actual density](rotation-factor-base-controls-not-density-matched.md) | open | Equal-density interpretation of EXP-ECDLP-ad27ad; m=1 rotation membership accepts every affine point | Independent design review and a prospective version with actual density matching, common sampling domain and valid uncertainty accounting |
 | [Harness CI failures block the prime63 integration PR](ci-harness-failures-block-icperf-integration.md) | open | PR #2395 cannot merge under its all-applicable-check rule: four harness shards failed after the scope preflight was repaired | Diagnose each full/sparse fixture and dependency failure, preserve frozen runs, then require every applicable check to pass on the final head before a guarded merge |
 | [GitHub Actions jobs remain queued without runner assignment](github-actions-jobs-queued-without-runners.md) | open | Current-head CI for IC PRs #2395 and #2396 cannot execute; 11 repository runs were queued with zero in progress on 2026-10-18 | Establish runner eligibility and the actual queue cause, then complete every required and applicable current-head check |

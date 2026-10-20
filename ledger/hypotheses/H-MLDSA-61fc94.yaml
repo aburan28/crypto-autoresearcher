@@ -1,0 +1,82 @@
+# HYPOTHESIS -- H-MLDSA-61fc94, specified from IDEA-20261018-f27cb2. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-61fc94
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-f27cb2
+  added: '2026-10-18'
+  statement: >-
+    If an implementation exposes rejected attempts (z_rej, c_rej) (debug logs, a retry API,
+    or an unprotected loop), each coordinate with |z_j| >= gamma1 - beta gives an inequality
+    on (c s1)_j with threshold uniform in [-beta, beta]. An inequality-constrained solver
+    (linear programming plus BKZ finish) recovers s1 at toyDSA(64,2,2) from at least 30 times
+    fewer rejected attempts than least-squares ILWE regression on the same leaked z, whose
+    requirement is about 16 gamma1^2 / (3 tau).
+  mechanism: >-
+    A rejected z is y + c s1 with uniform y and no truncation, so its mean carries s1 only
+    with noise variance gamma1^2/3, which is ILWE with huge noise. But z_j lies in [-gamma1
+    + 1 + u_j, gamma1 + u_j], so coordinates near the edge pin u_j = (c s1)_j from one side
+    with resolution about gamma1 - |z_j|; extreme values give inequalities of width O(beta),
+    roughly 2^10 times tighter information per useful coordinate than the mean. Accumulating
+    thousands of such half-space constraints over the s1 box shrinks the feasible set to one
+    point; the inequality-hint integration of LWE side-information work then finishes.
+  assumptions:
+  - edge inequalities are approximately independent half-spaces
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: edge inequalities are approximately independent half-spaces
+    random_model_justification: heuristic; rotations of c share structure
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-76fd1a
+    falsification_condition: measure feasible-set volume decay per inequality vs independent
+      model
+  predictions:
+  - metric: ratio N_ILWE / N_ineq
+    direction: higher
+    minimum_effect: '>= 30 at toyDSA(64,2,2) gamma1 = 2^12'
+  - metric: N_ineq scaling with n*l
+    direction: different
+    minimum_effect: N_ineq grows at most linearly in n*l over n in {32, 64, 96}
+  - metric: accepted-only stream
+    direction: different
+    minimum_effect: zero recoveries from 10^6 accepted signatures (rejection hides s1)
+  test_boundary:
+    instances:
+    - >-
+      toyDSA(n,2,2) n in {32,64,96}, gamma1 = 2^12, eta = 2, tau = 16; up to 2^22 rejected
+      attempts per key; 5 keys per seed block
+    parameters:
+      scale_tier: toy
+      scale_justification: n <= 96, gamma1 = 2^12; transfer by the stated per-attempt information
+        model
+    implementation: >-
+      Python/NumPy, SciPy HiGHS LP, fpylll/G6K; toyDSA(n,k,l): a NumPy re-implementation of
+      FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13,
+      eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked
+      against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced
+      run
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - ratio below 10
+  - superlinear growth with exponent > 1.5
+  - any recovery from accepted signatures alone
+  falsification_conditions:
+  - solver B needs as many attempts as solver A
+  - accepted-only stream recovers s1
+  interpretation_limits:
+  - >-
+    toy n <= 96 and gamma1 = 2^12; the ratio transfer to ML-DSA-44 assumes the edge information
+    per attempt scales as beta/gamma1
+  - the leak is simulated, not a physical channel
+  status: specified
+  proposed_by: idea-generator
