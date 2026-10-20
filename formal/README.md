@@ -5,6 +5,11 @@ The lane treats a theorem prover as an experimental instrument: models may
 propose statements and proofs, but only tool-produced build/audit evidence is
 accepted as machine-verification evidence.
 
+The [2026-10-18 retrospective](../research/lean_retrospective_20261018/README.md)
+adds the certificate, affine-normal-form and commutator-refutation targets,
+retains per-target recheck receipts, and records outstanding proof and semantic
+coverage. Its summary concerns frozen formal targets, not every historical claim.
+
 Candidate sources are written here by `MathCodeFormalizer`
 (`docs/mathcode-integration.md`), which runs the MathCode engine in a
 throwaway directory under `.formal-attempts/` and copies in only a file that
@@ -19,6 +24,11 @@ build must still receive an independent semantic-fidelity review confirming
 that the formal proposition matches the human claim and is not vacuous or
 weakened by hidden assumptions. Only the canonical Coordinator may promote a
 reviewed artifact into official claim/ledger state.
+
+The [2026-10-19 foundation retrofit](../research/lean_foundations_20261019/README.md)
+adds full constructive reachability, point-action bridges and a pinned shared
+cyclic-group library. CI requires all 66 frozen target proofs to remain present
+and machine-verified. Independent fidelity evidence is linked from that study.
 
 ## Expected workspace contract
 

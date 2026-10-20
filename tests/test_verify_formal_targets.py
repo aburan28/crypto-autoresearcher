@@ -61,16 +61,18 @@ def test_infrastructure_failure_is_not_a_failed_proof(monkeypatch, tmp_path):
 def test_floor_rejects_a_run_that_verifies_nothing(monkeypatch, tmp_path):
     """A gate that machine-checks no proof must not report success.
 
-    Every committed target here is undischarged, so nothing is verified -- the
-    exact shape of the workflow this script replaced.
+    Use an empty fixture workspace so this stays undischarged when new
+    proofs land in the repository.
     """
 
     targets = tmp_path / "targets"
     targets.mkdir()
-    undischarged = REPO_ROOT / "formal/targets/ncp-reachability.yaml"
-    shutil.copy2(undischarged, targets / undischarged.name)
+    template = REPO_ROOT / "formal/targets/ncp-reachability.yaml"
+    shutil.copy2(template, targets / template.name)
+    (tmp_path / "formal").mkdir()
 
     module = gate()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(module, "formal_main",
                         lambda argv: pytest.fail("verifier ran for an absent theorem file"))
     assert module.main(["--artifact-dir", str(tmp_path / "receipts"),
