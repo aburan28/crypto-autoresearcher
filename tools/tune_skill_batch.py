@@ -41,7 +41,7 @@ import secrets
 import subprocess
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -155,6 +155,31 @@ def item_date(kind: str, row: dict[str, Any]) -> str | None:
     return row.get("date")
 
 
+EV_DATE_KEYS = ("recorded_at", "reviewed_at", "date", "created_at", "added", "decided_at")
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
+def ev_date(ev: dict[str, Any]) -> str | None:
+    """First ISO date among the evidence record's date fields, else None.
+
+    The corpus uses all of these names; an undated record cannot be placed
+    on a horizon and is excluded from any horizon-limited score rather than
+    guessed (`self_improve.py` reports how many).
+    """
+    for key in EV_DATE_KEYS:
+        value = ev.get(key)
+        if value is not None and DATE_RE.match(str(value)):
+            return str(value)[:10]
+    return None
+
+
+def within_horizon(ev: dict[str, Any], start: str | None, days: int) -> bool:
+    end = ev_date(ev)
+    if end is None or start is None:
+        return False
+    return date.fromisoformat(end) <= date.fromisoformat(start) + timedelta(days=days)
+
+
 # --------------------------------------------------------------------------- chain walk
 
 class Chain:
@@ -266,10 +291,14 @@ def decision_flags(decs: Iterable[dict]) -> list[dict[str, Any]]:
 
 # --------------------------------------------------------------------------- batch
 
-def collect(skill: str, repo_root: Path, since: str | None, until: str | None) -> dict[str, Any]:
+def collect(skill: str, repo_root: Path, since: str | None, until: str | None, *,
+            chain: Chain | None = None, evidence_horizon_days: int | None = None) -> dict[str, Any]:
+    """Score the batch. With `evidence_horizon_days`, an item is scored only
+    on evidence dated within that many days of the item's own date, so two
+    cohorts of different age can be compared at the same horizon."""
     spec = SKILLS[skill]
     kind = spec["item_kind"]
-    chain = Chain(repo_root)
+    chain = chain or Chain(repo_root)
     items = [r for r in load_index(repo_root, kind) if in_window(item_date(kind, r), since, until)]
 
     rows: list[dict[str, Any]] = []
@@ -283,10 +312,15 @@ def collect(skill: str, repo_root: Path, since: str | None, until: str | None) -
         s = chain.structured(skill, iid)
         method, evs, decs = "structured", s["_ev"], s["_dec"]
         reached = bool(s["H"] or s["EXP"]) if skill == "propose-ideas" else True
+        idate = item_date(kind, it)
+        horizon = (lambda ev, d=idate: within_horizon(ev, d, evidence_horizon_days)) \
+            if evidence_horizon_days is not None else (lambda ev: True)
+        evs = [ev for ev in evs if horizon(ev)]
         if not evs:
             ft = chain.free_text(iid)
-            if ft["_ev"] or ft["_dec"]:
-                method, evs, decs = "free_text", ft["_ev"], ft["_dec"]
+            ft_evs = [ev for ev in ft["_ev"] if horizon(ev)]
+            if ft_evs or ft["_dec"]:
+                method, evs, decs = "free_text", ft_evs, ft["_dec"]
         row: dict[str, Any] = {
             "id": iid, "area": it.get("area"), "date": item_date(kind, it),
             "excerpt": it.get("claim") or it.get("title") or it.get("success_criterion"),
@@ -454,6 +488,9 @@ def round_record(batch: dict[str, Any], receipts: dict[str, Any], *, repo_root: 
         "reward_summary": rs,
         "receipts": receipts,
         "diff_summary": None,
+        # Which tuner instructions produced this round: the meta level of
+        # tools/self_improve.py scores rounds by the tune-skill version behind them.
+        "tuner_blob": _git(repo_root, "hash-object", ".claude/skills/tune-skill/SKILL.md"),
         "decision": decision,
         "rationale": rationale,
         "caveats": all_caveats,
@@ -471,7 +508,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="print the full batch as JSON")
     parser.add_argument("--write-round", type=Path, metavar="DIR",
                         help="write coordination/skill-tuning/<skill>/round-<tok>.yaml under DIR")
-    parser.add_argument("--decision", choices=("applied", "rejected", "deferred"), default="deferred")
+    parser.add_argument("--decision", choices=("proposed", "applied", "rejected", "deferred"), default="deferred",
+                        help="proposed: the diff is in an open PR; the round is applied when this record reaches main")
     parser.add_argument("--decided-by", default="user")
     parser.add_argument("--caveat", action="append", default=[])
     parser.add_argument("--rationale", action="append", default=[])
