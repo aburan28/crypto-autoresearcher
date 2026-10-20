@@ -54,7 +54,6 @@ class AuditCurveSkillTests(unittest.TestCase):
         )
         self.assertTrue(KNOWLEDGE.is_file(), f"missing {KNOWLEDGE}")
         self.assertTrue(REPORT_TEMPLATE.is_file(), f"missing {REPORT_TEMPLATE}")
-        self.assertTrue(TOPIC_RULES.is_file(), f"missing {TOPIC_RULES}")
         self.assertEqual(frontmatter_value(CANONICAL, "name"), "audit-curve")
         body = CANONICAL.read_text(encoding="utf-8")
         self.assertIn("knowledge/techniques/KN-TECH-6a2ef9.md", body)

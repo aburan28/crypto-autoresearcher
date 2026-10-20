@@ -90,8 +90,7 @@ def test_empty_execution_queue_selects_open_ecc_idea(tmp_path: Path) -> None:
     assert autopilot.select_next(tmp_path, excluded={action.key}).kind == "portfolio"
 
 
-def test_design_to_approved_plan_then_partial_run_needs_reconciliation(
-        tmp_path: Path, monkeypatch) -> None:
+def test_design_to_approved_plan_then_partial_run_needs_reconciliation(tmp_path: Path) -> None:
     _write(tmp_path / "orchestration/research-priority.yaml", "ecc_areas: [ICEX]\n")
     idea = "IDEA-20260926-abcdef"
     exp = "EXP-ICEX-abcdef"

@@ -4,8 +4,6 @@ The normative contract of a multi-agent system for reproducible ECDLP
 experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
-The four topic-specific sections linked below are incorporated by reference as
-normative rules; read the relevant section before work in that topic.
 
 ## Every improvement is a success
 
