@@ -1,0 +1,648 @@
+# Hypothesis ledger: special-structure attacks on prime-field ECDLP
+# Origin: chat session 2026-10-09 (pseudo-Mersenne primes -> "SNFS for ECDLP" -> three routes).
+# Intake notes:
+#   - IDs are provisional (SNFS-*). Let the harness assign immutable IDs; on collision merge lineage, do not rename.
+#   - Seeds are NOT assigned here; assign campaign-unique seeds at intake.
+#   - Field names follow the harness vocabulary (mechanism / hypothesis / controls / costs / stopping rule / sources /
+#     provisional novelty). Map to the schema if names differ; do not drop fields.
+#   - Standing approval applies ("ideas/experiments are always approved"); execution/evidence protections still apply.
+
+batch:
+  provisional_id: SNFS-ECDLP-LEDGER-2026-10-09
+  title: Special-structure attacks on prime-field ECDLP - hypothesis ledger and measurement plan
+  lanes: [ecdlp, jinv]
+  goal_coverage: ECDLP primary; j-invariant lane via C1 (CM/canonical lift) and E1 (fibre-j realization)
+  record_count: 23
+  claim_boundary: >-
+    Every experiment is a bounded mathematical measurement on synthetic or known-answer instances at small p.
+    No private-key recovery, no attack on deployed curves or keys. A working toy-p prototype is "finite control",
+    never "subexponential ECDLP". Theorem-closed items can produce receipts, never results.
+  status_vocabulary:
+    theorem-closed-control: a proved obstruction; the experiment is a finite sanity check and cannot be promoted
+    negative-control: expected negative with a quantitative output worth archiving (tables, exponents, thresholds)
+    open: no counting obstruction known; either outcome is scientific evidence
+  priority_order: [SNFS-E3, SNFS-E1, SNFS-D4, SNFS-A3, SNFS-A2, SNFS-E4, SNFS-D1, SNFS-B4, SNFS-D2, SNFS-F1, SNFS-B7]
+  dependency_notes:
+    - E4 feeds instance sizes for E3; E1 supplies surfaces for E2/E3; A1 is the control for A2/A3/A4
+    - D1 reuses the rank-campaign point and independence certificates for the rank-30/31 baseline curves
+    - A3/E3 reuse WDSat, Boolean F5B/M4RI, the Macaulay cache, and ic relation/matrix stages
+
+records:
+
+  # ---------------------------------------------------------------------------
+  # Route A: size-based factor bases on p = 2^n - c (the "fake subfield")
+  # ---------------------------------------------------------------------------
+
+  - provisional_id: SNFS-A1
+    title: Summation polynomials are insensitive to the form of p
+    lane: [ecdlp]
+    status: theorem-closed-control
+    mechanism: >-
+      S_m is a polynomial in x_1..x_m with coefficients in Z[a,b]; p enters only through reduction.
+      A pseudo-Mersenne p can change arithmetic cost, not the algebraic structure of the decomposition problem.
+    hypothesis: >-
+      For fixed (a,b), S_3 and S_4 over F_p have identical monomial support and coefficient identities whether
+      p = 2^n - c or a random n-bit prime; decomposition-solver throughput differs by a constant factor <= 3x.
+    experiment:
+      - Build S_3, S_4 symbolically over Z[a,b] (Sage); reduce modulo p in {2^n - c, random n-bit} for n in {31, 61, 127, 255} with matched (a,b).
+      - Compare support, degree profile, factorization pattern.
+      - Time one fixed decomposition workload (the A3 harness) under both prime types.
+    measurements:
+      - "monomial support diff (expect 0)"
+      - "solver wall-time ratio pseudo-Mersenne / random"
+      - "share of total time spent in modular reduction"
+    controls: same (a,b), same seeds, same solver build
+    stopping_rule: 4 sizes x 2 prime types x 10 (a,b) samples
+    cost_estimate_cpu_hours: 2
+    assumptions: char != 2,3; Semaev summation polynomials as defined
+    sources: [Semaev 2004 summation polynomials]
+    novelty: none (control for A2-A4)
+
+  - provisional_id: SNFS-A2
+    title: Small-root threshold for size-constrained decomposition (Coppersmith on S_3, S_4)
+    lane: [ecdlp]
+    status: negative-control (live only if the threshold reaches beta >= 1/2)
+    mechanism: >-
+      Factor base F_beta = {P : x(P) < p^beta}. A relation R = P_1 + P_2 is a root (x_1, x_2) of
+      S_3(x_1, x_2, x_R) = 0 mod p with |x_i| < p^beta. Bivariate Coppersmith / Howgrave-Graham lattices
+      find such roots only when X*Y is small relative to p and the per-variable degree; S_4 is worse
+      (degree 4 per variable, three variables, needs beta = 1/3).
+    hypothesis: >-
+      The empirical 50%-recovery threshold beta* for S_3 is well below 1/2 and degrades further for S_4.
+      Falsified if beta* >= 1/2 for S_3 or >= 1/3 for S_4 at any tested size.
+    experiment:
+      - For p of 40, 60, 80 bits and random curves, plant known roots (P_1, P_2 in F_beta, R = P_1 + P_2).
+      - Run Coppersmith lattices (dimension sweep to ~200, LLL then BKZ-20) for beta in {0.10, 0.15, ..., 0.50}; record recovery rate.
+      - Repeat for S_4 with beta in {0.10, ..., 0.34}.
+    measurements:
+      - "recovery rate vs beta"
+      - "lattice dimension at first success"
+      - "time per attempt"
+      - "beta* (50% recovery) per polynomial and p-size"
+    controls: >-
+      planted roots (known answer); chance-level baseline with random roots; the same lattice code must first
+      reproduce the known bound for a linear bivariate modular polynomial before S_3 numbers are trusted.
+    stopping_rule: ">= 30 instances per (p-size, beta); end a beta sweep after two consecutive beta with recovery < 5%"
+    cost_estimate_cpu_hours: 50-200
+    assumptions: Coppersmith heuristics (algebraic independence of short lattice vectors)
+    sources: [Coppersmith 1996, Howgrave-Graham 1997, Jochemsz-May 2006]
+    novelty: low; quantifies a known obstruction for this specific polynomial family
+    claim_boundary: a low beta* is a negative result on this method, not a statement about prime-field ECDLP
+
+  - provisional_id: SNFS-A3
+    title: Point-decomposition cost scaling vs factor-base size for size-based factor bases (SAT / Groebner / enumeration)
+    lane: [ecdlp]
+    status: open-but-expected-negative
+    mechanism: >-
+      Index calculus with F_beta beats rho only if one decomposition costs o(|F_beta|) while |F_beta| stays
+      sub-sqrt(p). Petit-Kosters-Messeng (2016) found Groebner cost proportional to |F| for the Semaev-2015
+      prime-field proposal because the first-fall-degree assumption fails.
+    hypothesis: >-
+      T_decomp(p, beta, m) is proportional to |F_beta|^(1 +/- 0.05) for m in {2, 3} across all solvers,
+      i.e. nothing beats brute force. Falsified if any solver sustains a fitted exponent <= 0.9 over >= 3 sizes.
+    experiment:
+      - p in 2^20 .. 2^44 step 4; beta in {0.3, 0.4, 0.5}; m in {2, 3}; both pseudo-Mersenne and random p.
+      - "Solvers: (i) enumeration baseline; (ii) CryptoMiniSat / WDSat on a bit-level encoding of S_{m+1} with x_i < p^beta as bit constraints; (iii) F4/F5 (Magma, msolve) with the bound encoded via auxiliary digit variables; (iv) Coppersmith from A2 where applicable."
+      - Record first-fall degree and degree of regularity for every Groebner run; archive the gap (the PKM observation).
+    measurements:
+      - "median T_decomp per (p, beta, m, solver)"
+      - "fitted exponent vs |F_beta|"
+      - "first-fall degree vs degree of regularity"
+      - "peak memory"
+      - "fraction of targets R that decompose (expect about p^(m*beta - 1) / m!)"
+    controls: >-
+      planted decompositions (known answer); random p vs 2^n - c (ties to A1); solver-stage-only numbers are not
+      reported without the full decomposition cost (research-standards: completed-operation measurements).
+    stopping_rule: ">= 7 p-sizes with >= 20 instances per (beta, m, solver); abort a solver line when median time > 6 h at a size"
+    cost_estimate_cpu_hours: 300-1000
+    assumptions: bit-level encodings are comparable across solvers; exponent fits use >= 3 sizes
+    sources: [Semaev ePrint 2015/310, Petit-Kosters-Messeng PKC 2016, Galbraith-Gebregiyorgis 2014]
+    novelty: low-medium; the SAT line and the digit-encoded F4 line over pseudo-Mersenne p are not in the literature
+    reuse: WDSat, Boolean F5B/M4RI, Macaulay cache; the prime-field encodings are new
+
+  - provisional_id: SNFS-A4
+    title: Digit-grading factor base under Z[x]/(x^d - c) -> F_p
+    lane: [ecdlp]
+    status: negative-control
+    mechanism: >-
+      p = 2^n - c with n = d*k gives the ring map Z[x]/(x^d - c) -> F_p, x -> 2^k. In the lifted ring
+      "top digit = 0" is algebraic; the question is whether the addition law or S_3 respects that grading
+      after reduction. Expected answer no, because 2^k generates no subring of F_p.
+    hypothesis: >-
+      D = {P : x(P) < 2^(n-k)} has no closure: Pr[P + Q in D | P, Q in D] equals |D|/p within sampling error,
+      and the lift of S_3 to the digit ring with top-digit variables set to 0 neither factors nor drops degree.
+    experiment:
+      - p = 2^n - c for n in {31, 61, 89, 127}, d in {2, 3, 5}; sample 10^6 pairs in D; count sums landing in D.
+      - Lift S_3 to the digit ring, zero the top-digit variables, compute factorization / Groebner basis; compare degree with the unlifted polynomial.
+    measurements:
+      - "closure ratio (observed / expected, expect 1.00 +/- 0.01)"
+      - "lifted-polynomial degree and factor count"
+    controls: random subset of the same size (same ratio expected); random prime of the same bit-length
+    stopping_rule: 4 n x 3 d, one run each
+    cost_estimate_cpu_hours: 5
+    sources: [this session]
+    novelty: medium as a question; expected answer negative
+
+  # ---------------------------------------------------------------------------
+  # Route B/C: homomorphic transfers, p-adic and canonical lifts, pairings, covers
+  # ---------------------------------------------------------------------------
+
+  - provisional_id: SNFS-B1
+    title: The computable canonical point lift to E(Q_p) carries no DLP information
+    lane: [ecdlp]
+    status: theorem-closed-control
+    mechanism: >-
+      For p not dividing N = #E(F_p), 0 -> Ehat(pZ_p) -> E(Q_p) -> E(F_p) -> 0 splits because
+      Ext(Z/N, Z_p) = Z_p / N Z_p = 0. The torsion section is P -> Ptilde - exp(log([N]Ptilde) / N).
+      It is a homomorphism onto an isomorphic copy, so it linearizes nothing. Every p-adic kernel
+      (formal group over any finite extension of Q_p) is pro-p, so only the p-part could ever transfer (Smart).
+    hypothesis: >-
+      The section is independent of the chosen lift, is a homomorphism, satisfies [N] section(P) = O to precision
+      p^k, and log([N] Qtilde)/N mod p for Q = [k]P is uniform over random lifts with zero mutual information about k.
+    experiment:
+      - Sage p-adic arithmetic; p near 2^20, 2^40, 2^64; precision k in {5, 20, 50}; random lifts of the curve and of points.
+      - Verify lift-independence and homomorphism on 10^4 pairs; verify [N] section = O.
+      - Repeat over ramified Z_p[pi] with ramification e in {2, p-1}; confirm Ehat(m_K) acquires no l-torsion for l != p.
+      - Information test: chi-squared uniformity of the statistic over lifts and mutual information with k.
+    measurements:
+      - "precision loss (digits)"
+      - "chi-squared p-value"
+      - "mutual information (bits, expect 0)"
+      - "cost per lift (ms)"
+    controls: an anomalous curve (p | N) as positive control, where the extension is non-split and the same statistic becomes deterministic (Smart)
+    stopping_rule: 3 p-sizes x 3 precisions, 10^4 samples each
+    cost_estimate_cpu_hours: 10
+    sources: [Silverman AEC ch. IV and VII, Smart J. Cryptology 1999]
+    novelty: none; closes the "canonical point lift" route by finite confirmation
+
+  - provisional_id: SNFS-B2
+    title: Smart's attack succeeds on random lifts and fails on the Serre-Tate canonical lift
+    lane: [ecdlp, jinv]
+    status: theorem-closed-control
+    mechanism: >-
+      For anomalous E (N = p) the extension is non-split for a random lift and log([p]Ptilde)/p mod p is a
+      homomorphism E(F_p) -> F_p. On the canonical lift Frobenius lifts and the map degenerates (Smart's remark).
+      Canonicity is anti-correlated with usefulness.
+    hypothesis: success rate >= 1 - 2/p on random lifts; 0 on the canonical lift.
+    experiment:
+      - Generate anomalous curves by CM with D = 1 - 4p, p <= 2^22 so that h(D) <= about 10^3.
+      - Random-lift attack, 10^3 instances per p.
+      - Canonical lift: root of the Hilbert class polynomial H_D mod p, Hensel-lifted to Z_p (this is the canonical lift for a CM curve); run the same attack.
+    measurements:
+      - "success rate on random lifts"
+      - "success rate on the canonical lift"
+      - "deg H_D and time to compute it"
+    controls: a non-anomalous curve of the same size (attack must fail on both lifts)
+    stopping_rule: 5 primes, 10^3 random lifts each
+    cost_estimate_cpu_hours: 10-40
+    sources: [Smart 1999, Satoh-Araki 1998, Semaev 1998]
+    novelty: none; puts numbers on the canonicity remark
+
+  - provisional_id: SNFS-B3
+    title: Generalized-Jacobian extension class equals the Tate pairing
+    lane: [ecdlp]
+    status: theorem-closed-control
+    mechanism: >-
+      Ext^1(E, G_m) is identified with E (dual). The generalized Jacobian J_m with modulus m = (A) + (B) is an
+      extension 0 -> G_m -> J_m -> E -> 0 with class A - B. On F_p-points the sequence stays exact (Hilbert 90).
+      Lifting P in E(F_p)[N] to J_m, multiplying by N and reading the F_p^* coordinate is the Tate pairing;
+      it is non-trivial on the l-part iff l | p - 1 (embedding degree 1), and over F_{p^k} iff l | p^k - 1.
+    hypothesis: >-
+      The connecting homomorphism agrees with Miller's algorithm up to a fixed convention on 100% of instances,
+      is trivial on l-parts with l not dividing p^k - 1, and costs a DLP in F_{p^k}^* otherwise.
+    experiment:
+      - p <= 2^30 with l | p - 1 and l | N by CM construction (k = 1), plus k in {2, 3} cases.
+      - Implement J_m arithmetic (divisor + function representatives); compare 10^3 values with Miller's Tate pairing.
+    measurements:
+      - "agreement rate"
+      - "non-degeneracy on the l-part vs k"
+    controls: l not dividing p^k - 1 (expect trivial image)
+    stopping_rule: 3 k-values x 3 primes x 10^3 pairs
+    cost_estimate_cpu_hours: 10
+    sources: [Frey-Rueck 1994, Dechene 2005 generalized Jacobians, Serre Algebraic Groups and Class Fields]
+    novelty: none; records the extension-class viewpoint used in B5
+
+  - provisional_id: SNFS-B4
+    title: The only existing SNFS for ECDLP is pairing transfer; special p helps only the multiplicative side
+    lane: [ecdlp]
+    status: negative-control with a quantified multiplicative-side advantage
+    mechanism: >-
+      MOV / Frey-Rueck maps E(F_p)[l] into F_{p^k}^*. If p = P(u) with small u, Joux-Pierrot / Kim-Barbulescu
+      special polynomial selection applies (what cut BN254 to about 100 bits). p = 2^255 - 19 is P(u) = u^5 - 19
+      at u = 2^51, so F_p^* is SNFS-friendly; the curve is unaffected because its embedding degree is huge.
+    hypothesis: >-
+      (a) the embedding-degree distribution of random curves over pseudo-Mersenne p is indistinguishable from
+      random p (k about l); (b) for p = 2^255 - 19 the special pair (x^5 - 19, x - 2^51) beats the best GNFS
+      polynomial CADO-NFS finds in a fixed budget by a large factor in Murphy-E and norm size; (c) ord_l(p) for
+      Curve25519's l exceeds l/4.
+    experiment:
+      - (a) 10^4 random curves over each of 2^255 - 19, 2^256 - 2^32 - 977, and five random 256-bit primes; compute k for the large prime factor of N; compare distributions (KS test).
+      - (b) CADO-NFS polyselect with a fixed 24 CPU-h budget vs the special pair; report Murphy-E, log-norm sizes over the sieving region, and the L_p(1/3) constants 32/9 vs 64/9. No sieving.
+      - (c) one exact computation of ord_l(p).
+    measurements:
+      - "KS statistic for k distributions"
+      - "Murphy-E ratio special / GNFS"
+      - "norm size ratio"
+      - "ord_l(p) for Curve25519"
+    controls: BN254 (known special form, k = 12) as the positive case for (b)-type gains
+    stopping_rule: as listed; no sieving under any circumstances
+    cost_estimate_cpu_hours: 30-60
+    sources: [Menezes-Okamoto-Vanstone 1993, Frey-Rueck 1994, Joux-Pierrot 2013, Kim-Barbulescu 2016, Barbulescu-Duquesne 2019]
+    novelty: none for the curve; the (b) number is a reusable fact about F_p^* use of 2^255 - 19
+    claim_boundary: (b) concerns Diffie-Hellman in F_p^*, never the curve or any key
+
+  - provisional_id: SNFS-B5
+    title: Chevalley classification of homomorphic transfers over F_p (finite control)
+    lane: [ecdlp]
+    status: theorem-closed-control
+    mechanism: >-
+      A commutative algebraic group surjecting onto E has kernel K = torus x unipotent (Chevalley / Rosenlicht).
+      Ext(Z/l, K) != 0 needs l-torsion in K: unipotent gives l = p (Smart); torus gives l | p^k - 1 (pairings);
+      abelian kernels reduce to isogeny by Poincare reducibility (Weil descent only). There is no fourth kind.
+    hypothesis: >-
+      No generalized Jacobian of E over F_p with modulus of degree <= 4 (reduced gives tori, non-reduced gives
+      unipotent parts) transfers an l-part with l not dividing p * (p^k - 1).
+    experiment:
+      - p <= 2^16; enumerate moduli m of degree <= 4 with all reduced / non-reduced combinations; compute the extension class of J_m(F_p) on each l | N; tabulate which l transfer.
+    measurements:
+      - "transfer table (l, kernel type, k)"
+    controls: positive cases from B2 (unipotent, l = p) and B3 (torus, l | p - 1)
+    stopping_rule: full enumeration at 3 primes
+    cost_estimate_cpu_hours: 5
+    sources: [Chevalley 1960, Rosenlicht 1956, Conrad - A modern proof of Chevalley's theorem]
+    novelty: none; closes the route in the ledger with a receipt rather than by assertion
+
+  - provisional_id: SNFS-B6
+    title: Algebraic factor bases over F_p have about p points (dimension obstruction)
+    lane: [ecdlp]
+    status: theorem-closed-control
+    mechanism: >-
+      Index calculus needs |F| <= p^(1/2). Any algebraic condition on the 1-dimensional E cuts out a finite set
+      or a curve, and a curve over F_p has p + O(g sqrt p) points. Over F_{p^n} Weil restriction supplies
+      dimension n and x in F_p is a legitimate half-dimensional condition; over F_p nothing is.
+    hypothesis: >-
+      For every tested algebraic factor base (x in the image of a degree-d map P^1 -> P^1; curves in E x E such
+      as graphs of endomorphisms or Frobenius twists; pullbacks from covers), |F| >= p / (d * O(1)); pushing
+      |F| below p^0.9 requires genus about p^0.4, where the defining equations are themselves exponential-size.
+    experiment:
+      - p in {2^16, 2^20, 2^24}; d in 2..8; enumerate F; fit |F| against p and d.
+    measurements:
+      - "|F|/p vs d"
+      - "genus of the defining curve"
+      - "defining-equation size"
+    controls: x in F_q over F_{q^2} (expect |F| = q = p^(1/2)) as the positive analogue
+    stopping_rule: 3 primes x 7 degrees
+    cost_estimate_cpu_hours: 5
+    sources: [Hasse-Weil, Diem 2011 Weil-restriction index calculus]
+    novelty: none
+
+  - provisional_id: SNFS-B7
+    title: Genus-g covers of E over F_p cost p^(2 - 2/g) >= p (worse than rho)
+    lane: [ecdlp]
+    status: theorem-closed-control (complexity), with measurement
+    mechanism: >-
+      Weil descent gains only because the base field shrinks. A cover C -> E over F_p itself places E(F_p)
+      inside Jac(C)(F_p) of size p^g, where index calculus costs about p^(2 - 2/g).
+    hypothesis: >-
+      Measured index-calculus cost for recovering logs in the E-part of Jac(C)(F_p), g in {2, 3}, fits an exponent
+      >= 1 in p; rho on E(F_p) fits 0.5; no crossover exists.
+    experiment:
+      - Build genus-2 covers (Jac(C) isogenous to E x E' by gluing along 2-torsion, Frey-Kani) and genus-3 covers over p in 2^16 .. 2^32.
+      - Run Gaudry (g = 2) and double-large-prime (g = 3) index calculus restricted to the E-part; time vs p; compare with rho on E.
+      - Descent-direction control: the same code on Jac(C)/F_q with E/F_{q^g}, where the gain is expected.
+    measurements:
+      - "fitted exponent per g"
+      - "relation yield per unit time"
+      - "crossover (none expected)"
+    controls: rho on E(F_p); descent-direction run
+    stopping_rule: 5 p-sizes per g
+    cost_estimate_cpu_hours: 50-150
+    sources: [Gaudry 2000, Theriault 2003, Diem 2006 plane curves of small degree, Frey-Kani, Gaudry-Hess-Smart 2002]
+    novelty: none; the descent-direction control is the reusable artefact
+    reuse: ic factor-base / relation / matrix stages
+
+  - provisional_id: SNFS-C1
+    title: The Serre-Tate canonical lift is a CM curve over a class field of degree about sqrt(p)
+    lane: [ecdlp, jinv]
+    status: theorem-closed-control
+    mechanism: >-
+      Ordinary E/F_p has End = order O of discriminant D = (t^2 - 4p)/f^2; the canonical lift has CM by O and its
+      j lies in the ring class field of degree h(D), about sqrt(p). It cannot be written globally at cryptographic
+      size, and p-adic approximation (Satoh-style Newton on Phi_p) is only available for small p because
+      deg Phi_p = p + 1.
+    hypothesis: >-
+      For random ordinary curves at p in 2^20 .. 2^48, h(D) fits c * sqrt(p) times a slowly varying factor; at small
+      p the Newton-iterated canonical j satisfies H_D(j) = 0 mod p^k; the p-adic j admits no rational
+      approximation of height below p^(k/2).
+    experiment:
+      - Small p (<= 200, Phi_p available): compute the canonical lift j in Z_p by Newton on Phi_p(j, j^sigma); confirm H_D(j) = 0 mod p^k; record cost vs precision.
+      - p in 2^20 .. 2^48, 200 random ordinary curves per size: compute D, h(D); fit; record the global degree [H:Q] the lift would need.
+      - Rational-approximation test on the p-adic j via lattice reduction.
+    measurements:
+      - "h(D) vs p fit"
+      - "Newton cost vs precision at small p"
+      - "deg H_D"
+      - "best rational approximation height"
+    controls: supersingular curves excluded and counted
+    stopping_rule: as listed
+    cost_estimate_cpu_hours: 10
+    sources: [Serre-Tate, Satoh 2000, Vercauteren thesis 2003, Sutherland 2011 H_D]
+    novelty: none
+
+  - provisional_id: SNFS-C3
+    title: Teichmueller lifts are useless for index calculus in F_p^* - size, not canonicity, is what NFS exploits
+    lane: [ecdlp]
+    status: theorem-closed-control (illustrative)
+    mechanism: >-
+      NFS uses the non-homomorphic representative lift to [0, p) because smoothness is a size property.
+      The Teichmueller lift omega is homomorphic and sizeless; truncated to Z/p^k it is a pseudo-random integer
+      of size p^k. This is the reframing that sends the lifting question to routes D and E.
+    hypothesis: >-
+      Pr[omega(a) mod p^k is B-smooth] is about rho(k log p / log B), far below Pr[a in [0, p) is B-smooth]
+      = rho(log p / log B), with no bias at any k >= 2.
+    experiment:
+      - p about 2^40, B = 2^12, k in {2, 3, 4}; 10^5 samples; Dickman comparison.
+    measurements:
+      - "smooth fraction vs k"
+      - "ratio to the Dickman prediction"
+    controls: naive lift at k = 1
+    stopping_rule: one run
+    cost_estimate_cpu_hours: 1
+    sources: [Dickman-de Bruijn, Lenstra-Lenstra NFS development]
+    novelty: none
+
+  # ---------------------------------------------------------------------------
+  # Route D: lifts to Q with many small points (rank), elliptic nets, sieves
+  # ---------------------------------------------------------------------------
+
+  - provisional_id: SNFS-D1
+    title: Rank required for a Q-lift index calculus - measured N(H) vs the coverage requirement
+    lane: [ecdlp]
+    status: negative-control (quantitative)
+    mechanism: >-
+      Factor base = reductions of points of canonical height <= H_F, so |F| about N(H_F) about
+      V_r H_F^(r/2) / sqrt(Reg). m-fold sums have height at most about m^2 H_F, so at most N(m^2 H_F) about
+      m^r |F| points of E(F_p) decompose. Coverage about p forces r >= log p / log m.
+    hypothesis: >-
+      On every available curve with certified generators (rank 5-29 from the literature plus the rank-30/31
+      baseline curves in the rank campaign) the fitted N(H) matches the lattice-count model within 2x; coverage of
+      E(F_p) at 128- and 256-bit p is below 2^-60 for r <= 31; the rank needed for coverage >= 1/L_p(1/2) is
+      >= 60 at 128 bits and >= 100 at 256 bits.
+    experiment:
+      - Per curve, enumerate MW-lattice points of height <= H from the Gram matrix of certified generators; count N(H) for H up to 50 * lambda_1^2; fit against V_r H^(r/2) / sqrt(Reg).
+      - Toy p in 2^20 .. 2^28, reduce all points of height <= H mod p; measure coverage and the distribution of m needed to hit random targets; compare with m^r |F| / p.
+      - Tabulate required r vs log p for m in {4, 6, 8}.
+    measurements:
+      - "N(H) fit error"
+      - "coverage(p, H)"
+      - "required r(log p, m) table"
+    controls: lattice model on a random lattice of the same rank and determinant; Lang-bound check lambda_1 vs log |Delta|
+    stopping_rule: all available rank >= 5 curves with certified generators; 5 toy p each
+    cost_estimate_cpu_hours: 20-60
+    sources: [Silverman-Suzuki ASIACRYPT 1998, Silverman SAC 2008 Lifting and elliptic curve discrete logarithms, Huang-Kueh-Tan ANTS 2000, Park-Poonen-Voight-Wood 2019, Elkies-Klagsbrun 2024]
+    novelty: low; the table over real high-rank curves is a reusable artefact
+    reuse: rank-campaign point and independence certificates
+
+  - provisional_id: SNFS-D2
+    title: Lifting a fixed E/F_p to Q - rank and generator heights across the (s, t) lift family
+    lane: [ecdlp]
+    status: negative-control
+    mechanism: >-
+      Every lift is y^2 = x^3 + (a + p s) x + (b + p t). Over Q(s) with t fixed this is a rational elliptic surface
+      (chi = 1, geometric MW rank <= 8), so lifts cannot be steered to high rank, and Lang's bound makes every
+      generator's height >= c log p.
+    hypothesis: >-
+      Over 10^4 lifts with |s|, |t| <= 100 of a fixed E/F_p (p about 2^20 and 2^30), the rank distribution matches
+      random curves of the same conductor range (mean <= 1, max <= 4); minimal generator height >= c log p with
+      c stable across p; the union over all lifts of reductions of points of height <= 20 log p covers < 1% of E(F_p).
+    experiment:
+      - 2-descent (mwrank / Magma) plus analytic rank for small conductor; generator heights; reduce small points mod p; measure coverage.
+      - Record the Q(s)-surface rank bound as a one-line receipt.
+    measurements:
+      - "rank histogram and maximum"
+      - "min height / log p"
+      - "coverage of E(F_p)"
+    controls: random curves of matched conductor; targets E with small vs large N (no dependence expected)
+    stopping_rule: 2 primes x 10^4 lifts
+    cost_estimate_cpu_hours: 100-300
+    sources: [Hindry-Silverman 1988 (Lang height conjecture), Shioda 1990, Jacobson-Koblitz-Silverman-Stein-Teske 2000]
+    novelty: low
+
+  - provisional_id: SNFS-D3
+    title: Xedni control - dependence probability of fitted lifts
+    lane: [ecdlp]
+    status: negative-control (replication)
+    mechanism: >-
+      Choose k lifted points of small height, fit a curve through them, hope they are dependent in E(Q).
+      JKSSTT 2000 showed the probability vanishes and any dependence found is trivial.
+    hypothesis: >-
+      At p about 2^20 and k in {2, 3, 4}, the fraction of dependent k-tuples is <= 10^-3 and every dependence has
+      coefficients |c_i| <= 2.
+    experiment:
+      - 10^4 trials per k; fit the curve (exact for k <= 2, parametrized families for k >= 3); rank bound and dependence via the height-pairing determinant; classify relations.
+    measurements:
+      - "dependence rate"
+      - "relation coefficient sizes"
+      - "rank distribution of fitted curves"
+    controls: unfitted random lifts (same statistic)
+    stopping_rule: 3 k-values x 10^4 trials
+    cost_estimate_cpu_hours: 50-150
+    sources: [Silverman 2000 xedni calculus, JKSSTT 2000]
+    novelty: none
+
+  - provisional_id: SNFS-D4
+    title: Hidden kernel lattice via elliptic nets, and the elliptic-sieve null test
+    lane: [ecdlp]
+    status: open-but-expected-negative
+    mechanism: >-
+      With lifted generators Ptilde_1..Ptilde_r, v is in Lambda = ker(Z^r -> E(F_p)) iff the rank-r elliptic
+      net value W(v) = 0 mod p. For a small prime q, W(v) = 0 mod q is periodic with lattice Lambda_q (computable
+      by small DLPs), so smooth-denominator points can be sieved. The question is whether sieveable small-q
+      structure carries any information about Lambda_p. In NFS the big prime never needs sieving because the two
+      sides are linked by a ring map; here there is one side and Lambda_p is the unknown.
+    hypothesis: >-
+      (i) the zero set of W mod p in a box is exactly a lattice of index |<P_1..P_r>| (Lauter-Stange);
+      (ii) the yield of B-smooth W(v) matches a Dickman-type prediction from height growth;
+      (iii) membership in Lambda_p is statistically independent of B-smoothness of W(v) and of membership in
+      every Lambda_q (mutual information about 0). Alive only if (iii) fails.
+    experiment:
+      - Implement rank-r elliptic nets (Stange's recurrences) over Q for r in {2, 3, 4} with generators of height <= 10; p in 2^20 .. 2^32; q <= 2^10.
+      - Enumerate v with |v_i| <= 30; compute W(v) exactly and mod p, mod q.
+      - (i) reconstruct Lambda_p by HNF of the zero set and check its index; (ii) compare sieve yield with prediction; (iii) chi-squared and mutual-information tests on (Lambda_p membership, smoothness, Lambda_q membership for 20 primes q).
+    measurements:
+      - "index of reconstructed Lambda_p vs subgroup order"
+      - "sieve yield ratio observed / predicted"
+      - "mutual information (bits)"
+      - "net evaluation cost vs box size"
+    controls: random lattice of the same index (same statistics expected); rank-1 case reduces to the EDS rank of apparition (known)
+    stopping_rule: 3 ranks x 4 p-sizes x 3 curves
+    cost_estimate_cpu_hours: 40-120
+    sources: [Ward 1948, Stange 2007 elliptic nets, Lauter-Stange SAC 2008]
+    novelty: medium; the sieve null test is not in the literature
+    claim_boundary: a non-zero mutual information at toy p is a finite control until reproduced across sizes
+
+  - provisional_id: SNFS-D5
+    title: Period-finding on elliptic divisibility sequences mod p has no linear-recurrence shortcut
+    lane: [ecdlp]
+    status: negative-control
+    mechanism: >-
+      LFSR period-finding mod p is Berlekamp-Massey plus a DLP in F_{p^k}^*. EDS satisfy a nonlinear recurrence
+      and their period (rank of apparition) is ord(P) mod p; Lauter-Stange show this is ECDLP-equivalent.
+    hypothesis: >-
+      The linear-complexity profile of (W_n mod p) for n <= L grows as L/2 (random profile) for L up to
+      10 * ord(P); no algebraic recurrence of degree <= 3 and span <= 8 exists beyond the defining one.
+    experiment:
+      - p in 2^20 .. 2^40, random P; compute W_n mod p (Shipsey / Stange); Berlekamp-Massey profile; search low-degree recurrences by linear algebra on monomials.
+    measurements:
+      - "linear complexity vs L"
+      - "best algebraic-recurrence residual"
+    controls: an LFSR of the same period (profile saturates at its order)
+    stopping_rule: 5 primes
+    cost_estimate_cpu_hours: 5
+    sources: [Ward 1948, Shipsey thesis 2000, Lauter-Stange 2008]
+    novelty: none
+
+  # ---------------------------------------------------------------------------
+  # Route E: function-field lifts (elliptic surfaces over F_p(t))
+  # ---------------------------------------------------------------------------
+
+  - provisional_id: SNFS-E1
+    title: Can a prescribed ordinary E/F_p be a fibre of a high-rank elliptic surface over F_p(t)?
+    lane: [ecdlp, jinv]
+    status: open
+    mechanism: >-
+      MW rank over F_p(t) is unbounded (Shioda, Ulmer) and bounded above by 12 chi - 4 (Shioda-Tate with
+      b_2 = 12 chi - 2). The known high-rank surfaces are isotrivial or j-special. A function-field lift of E
+      needs S -> P^1 with S_{t_0} isomorphic to E and rank r about log p / log m.
+    hypothesis: >-
+      (a) random A, B of degrees <= 4 chi, 6 chi constrained through E at t_0 have rank 0 or 1 with probability
+      > 0.99 for chi <= 3; (b) for Shioda / Ulmer-type surfaces the j-invariants of F_p-rational fibres have
+      density <= 12 chi / p, and matching a random target j with the correct twist class fails for all but O(1)
+      targets; (c) no tested construction reaches r >= (12 chi - 4)/2 through a prescribed generic ordinary fibre.
+      Alive if some family reaches r >= 12 chi - 4 - O(1) through a prescribed generic ordinary fibre.
+    experiment:
+      - p in {2^8, 2^12, 2^16}; chi in {1, 2, 3}. Rank via the zeta function of S (point counts over F_{p^k}, k <= 10) and Shioda-Tate, with Tate's conjecture known for elliptic surfaces; exact generators by section search where feasible.
+      - (a) 10^3 random constrained surfaces per (p, chi).
+      - (b) enumerate fibres of Ulmer y^2 + xy = x^3 - t^d, Shioda Fermat-quotient surfaces, and their quadratic twists by polynomials f(t); record realized (j, twist class) pairs.
+      - (c) targeted search: twist by (t - t_0) g(t), vary g to hit the target twist class, measure the rank change.
+    measurements:
+      - "rank histogram vs chi"
+      - "fraction of j in F_p realized at rank >= r"
+      - "max rank through a prescribed fibre"
+      - "cost per surface"
+    controls: Shioda-supersingular surfaces (rank attains the bound over the algebraic closure); constant-j surfaces
+    stopping_rule: as listed; extend chi only if (c) reaches rank >= 8 at chi = 1 through prescribed fibres
+    cost_estimate_cpu_hours: 200-800
+    sources: [Shioda 1986 and 1990 Mordell-Weil lattices, Ulmer Annals 2002, Shioda-Tate formula, Artin-Swinnerton-Dyer 1973 Tate conjecture for elliptic surfaces]
+    novelty: medium-high; prescribed-fibre realization is not addressed in the literature
+
+  - provisional_id: SNFS-E2
+    title: Function-field generator heights are O(chi), independent of p
+    lane: [ecdlp]
+    status: theorem-closed-control (Shioda height formula)
+    mechanism: >-
+      h(P) = 2 chi + 2 (P.O) - sum of local contributions, so minimal sections have height <= 2 chi regardless of p,
+      unlike Q where Lang gives >= c log p. This is the single ingredient the function-field route has that the
+      Q route lacks.
+    hypothesis: >-
+      On E1 surfaces across p in {2^8, 2^12, 2^16, 2^20}, lambda_1 of the MW lattice lies in [chi/2, 2 chi] and is
+      uncorrelated with p; on D2 Q-lifts lambda_1 grows proportionally to log p.
+    experiment:
+      - Reuse E1 lattices; compute lambda_1 and the full Gram matrix; regress lambda_1 on p and chi.
+    measurements:
+      - "slope of lambda_1 vs log p (expect 0)"
+      - "lambda_1 / chi"
+    controls: D2 heights as the Q-side comparison
+    stopping_rule: all E1 surfaces
+    cost_estimate_cpu_hours: 5
+    sources: [Shioda 1990]
+    novelty: none
+
+  - provisional_id: SNFS-E3
+    title: Bounded-height section through a prescribed fibre point - the decomposition step of a function-field index calculus
+    lane: [ecdlp]
+    status: open (flagship)
+    mechanism: >-
+      Given S/F_p(t) with fibre E at t_0, the whole ECDLP reduces to r + 1 instances of one problem - find a section
+      sigma = (x(t), y(t)) of height <= H (degree <= d) with sigma(t_0) = R for the target, or sigma(t_0) = O for
+      each relation. As a polynomial system in the about 1.5 d coefficients it is overdetermined with about one
+      solution by design, and the union of solution sets over all R is the MW lattice, structure a generic
+      system lacks. Nobody has analyzed its complexity.
+    hypothesis: >-
+      T_section(d, chi, p) at the Gaussian-heuristic d from E4 exceeds p^(1/2) poly(log p) for every solver, and
+      the Groebner degree of regularity matches a random system of the same shape (no structural gain).
+      Alive if any solver shows T <= p^0.45 at matched d across >= 3 p, or d_reg systematically below the
+      random-system value.
+    experiment:
+      - Surfaces from E1 with known MW generators (oracle answers available) for p in 2^12 .. 2^28, chi in {1, 2, 3}, r as achieved.
+      - Oracle baseline: lattice enumeration over small v with known generators, i.e. a small-coefficient knapsack in E(F_p); records the cost when generators are known.
+      - "Blind solvers: (i) F4/F5 (Magma, msolve) on the coefficient system; (ii) SAT (CryptoMiniSat / WDSat) with bit-level F_p arithmetic; (iii) hybrid guess-the-leading-k-coefficients then solve; (iv) interpolation - sample t-values, impose point constraints, Newton over F_p[t]."
+      - Planted instances: a random known section of height <= H through R.
+      - Random-system control: dense system with identical variable count and degrees and one planted solution.
+      - End-to-end known-answer prototype at toy p: r relations (sections through O) + one target, verify recovered logs.
+    measurements:
+      - "T_section vs (d, chi, p) per solver"
+      - "d_reg and first-fall degree, structured vs random"
+      - "success rate"
+      - "peak memory"
+      - "end-to-end toy-p wall time vs rho"
+    controls: oracle baseline; random-system control; rho on E(F_p) at every p
+    stopping_rule: ">= 5 p-sizes per (chi, solver); abort a solver line at median > 12 h"
+    cost_estimate_cpu_hours: 500-2000
+    assumptions: >-
+      E1 provides surfaces with r >= 4 through prescribed fibres at the small p used; if not, use unconstrained
+      high-rank surfaces and treat their own fibres as targets (this still measures the solver, not realization).
+    sources: [Shioda 1990, Bardet-Faugere-Salvy 2004 Groebner complexity, this session]
+    novelty: high; no published analysis of this problem
+    claim_boundary: a working toy-p prototype is finite control, never subexponential ECDLP
+    reuse: Boolean F5B/M4RI, WDSat, Macaulay cache, ic relation / matrix stages
+
+  - provisional_id: SNFS-E4
+    title: Required section height H(p, r) from the lattice-count heuristic
+    lane: [ecdlp]
+    status: negative-control (parameter table)
+    mechanism: >-
+      N(H) about V_r H^(r/2) / sqrt(det MW). Coverage of E(F_p) needs N(H) >= p, giving
+      H about p^(2/r) * det^(1/r) * r/(2 pi e); for r = 100, 256-bit p and lambda_1^2 about 18 this is H about 650,
+      i.e. sections of degree in the hundreds and a system with about 10^3 unknowns.
+    hypothesis: >-
+      Measured N(H) on E1 lattices matches the heuristic within 2x for H >= 3 lambda_1^2; the required degree d for
+      p in {2^64, 2^128, 2^256} and r in {20, 50, 100, 300} exceeds 100 for every r <= 100 at 256 bits.
+    experiment:
+      - Enumerate N(H) on explicit MW lattices (Fincke-Pohst); fit; tabulate (p, r) -> (H, d, number of unknowns).
+    measurements:
+      - "fit ratio"
+      - "(p, r) -> (H, d, unknowns) table"
+    controls: random lattice of the same rank and determinant
+    stopping_rule: all E1 lattices plus synthetic lattices for r in {50, 100, 300}
+    cost_estimate_cpu_hours: 5
+    sources: [Gaussian heuristic, Shioda 1990]
+    novelty: none; feeds E3 instance sizes
+
+  # ---------------------------------------------------------------------------
+  # Route F: the SNFS number field itself
+  # ---------------------------------------------------------------------------
+
+  - provisional_id: SNFS-F1
+    title: Lifting to the SNFS number field K = Q(c^(1/d)) leaves the rank/height obstruction unchanged
+    lane: [ecdlp]
+    status: negative-control
+    mechanism: >-
+      For p = 2^n - c, SNFS uses K = Q(alpha) with alpha^d = c and alpha -> 2^(n/d). E/K reduces to E/F_p at a
+      degree-1 prime. The obstruction (bounded rank, heights >= c log p, polynomially many small points) lives in
+      the group E(K), not in the field.
+    hypothesis: >-
+      For small analogues p = 2^n - c (n <= 40, d in {2, 3}; d = 5 only for n <= 24), rank E(K) - rank E(Q) <= 2
+      on average, the minimal height of new K-points is >= c log p, and coverage of E(F_p) by K-points of height
+      <= 20 log p is < 1%.
+    experiment:
+      - Descent over K (Sage / Magma); heights; reduction at the degree-1 prime; coverage.
+    measurements:
+      - "rank gain over Q"
+      - "min height / log p"
+      - "coverage of E(F_p)"
+    controls: random quadratic and cubic fields of similar discriminant
+    stopping_rule: 3 field degrees x 5 primes
+    cost_estimate_cpu_hours: 50-200
+    sources: [Silverman AEC, Huang-Kueh-Tan 2000]
+    novelty: none

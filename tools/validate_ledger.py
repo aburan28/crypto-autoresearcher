@@ -973,6 +973,7 @@ def check_experiment(path: str, ctx: Ctx):
             if not field_is_satisfied(body, field):
                 ctx.err(path, f"approved experiment has null '{field}'")
     check_outcome_not_prewritten(path, body, ctx)
+    check_confound_control(path, body, ctx)
     ctx.register(str(rec_id), path, body, "experiment")
 
 
@@ -2942,6 +2943,270 @@ def check_outcome_not_prewritten(path: str, body: dict, ctx: Ctx) -> None:
                       "experiment then changes nothing either way")
 
 
+# ---- confound control (docs/confound-control.md) ---------------------------
+# A contract says how each factor that could move a primary metric is
+# controlled (variable_ledger), what data each prediction was written after
+# (prediction_provenance) and, when a claim crosses a map, what the map
+# preserves and which controls isolate it (transfer_obligations). Shape is
+# checked on any contract that carries a block, whatever its date; the blocks
+# are required from CONFOUND_RULE_ENFORCED_FROM on (an error on an approved
+# contract, an advisory on a draft), so no frozen record can fail.
+CONFOUND_RULE_ENFORCED_FROM = "2026-10-18"
+LEDGER_TREATMENTS = {"fixed", "randomized", "crossed", "measured"}
+COMPARISON_DESIGNS = {"one_factor", "factorial", "confounded", "aa", "absolute"}
+SAMPLE_STATUSES = {"out_of_sample", "partially_in_sample", "in_sample"}
+TRANSFER_KINDS = {"isogeny", "cover", "descent", "lift", "field_extension",
+                  "restriction_of_scalars", "isomorphism", "coordinate_change",
+                  "other"}
+TRANSFER_CONTROL_KINDS = {"source_baseline", "coordinate_isomorphism",
+                          "matched_random", "reselected_data", "identity_map",
+                          "null"}
+CONFOUND_VERDICTS = {"isolated", "randomized", "not_isolated"}
+CAPPED_STRENGTHS = {"replicated", "strong"}
+
+
+def _mentions(text: str, ident: str) -> bool:
+    return bool(re.search(rf"(?<![\w-]){re.escape(ident)}(?![\w-])", text))
+
+
+def _names(items) -> list[str]:
+    return [str(i.get("name")) for i in items
+            if isinstance(i, dict) and i.get("name")]
+
+
+def check_confound_control(path: str, body: dict, ctx: Ctx) -> None:
+    """Variable ledger, prediction provenance and transfer obligations."""
+    keys = ("variable_ledger", "prediction_provenance", "transfer_obligations")
+    present = [k for k in keys if body.get(k) is not None]
+    designed = str(body.get("designed_at") or "")[:10]
+    if designed and designed >= CONFOUND_RULE_ENFORCED_FROM:
+        for key in keys[:2]:
+            if body.get(key) is not None:
+                continue
+            msg = (f"missing '{key}' (docs/confound-control.md); required for "
+                   f"contracts designed from {CONFOUND_RULE_ENFORCED_FROM} on")
+            if body.get("status") == "approved":
+                ctx.err(path, msg)
+            else:
+                ctx.advise(path, msg)
+    if not present:
+        return
+    decisive_text = " ".join(str(body.get(k) or "") for k in
+                             ("success_criterion", "falsification_criterion"))
+    comparisons: dict[str, dict] = {}
+    ledger = body.get("variable_ledger")
+    if ledger is not None:
+        if not isinstance(ledger, dict):
+            ctx.err(path, "variable_ledger must be a mapping")
+            ledger = {}
+        indep = ledger.get("independent")
+        factors = ledger.get("factors")
+        if not isinstance(indep, list) or not _names(indep):
+            ctx.err(path, "variable_ledger.independent must list the variables "
+                          "under test by name")
+            indep = []
+        if not isinstance(factors, list) or not _names(factors):
+            ctx.err(path, "variable_ledger.factors must list every factor that "
+                          "could move a primary metric")
+            factors = []
+        treatment = {}
+        for i, f in enumerate(factors):
+            if not isinstance(f, dict):
+                ctx.err(path, f"variable_ledger.factors[{i}] must be a mapping")
+                continue
+            t = f.get("treatment")
+            if t not in LEDGER_TREATMENTS:
+                ctx.err(path, f"variable_ledger.factors[{i}] ({f.get('name')}) "
+                              f"treatment must be one of {sorted(LEDGER_TREATMENTS)}")
+            if not str(f.get("how") or "").strip():
+                ctx.err(path, f"variable_ledger.factors[{i}] ({f.get('name')}) "
+                              "needs 'how': the mechanism that holds or draws it")
+            treatment[str(f.get("name"))] = t
+        known = set(_names(indep)) | set(treatment)
+        comps = ledger.get("comparisons")
+        if not isinstance(comps, list) or not comps:
+            ctx.err(path, "variable_ledger.comparisons must list each comparison "
+                          "a criterion or a prediction rests on")
+            comps = []
+        for i, c in enumerate(comps):
+            where = f"variable_ledger.comparisons[{i}]"
+            if not isinstance(c, dict) or not c.get("id"):
+                ctx.err(path, f"{where} must be a mapping with an 'id'")
+                continue
+            cid, design = str(c["id"]), c.get("design")
+            comparisons[cid] = c
+            differs = c.get("differs_in")
+            if not isinstance(c.get("arms"), list) or not c.get("arms"):
+                ctx.err(path, f"{where} ({cid}) must name its arms")
+            if not isinstance(differs, list):
+                ctx.err(path, f"{where} ({cid}) differs_in must be a list")
+                differs = []
+            for name in differs:
+                if str(name) not in known:
+                    ctx.err(path, f"{where} ({cid}) differs_in '{name}' is "
+                                  "neither an independent variable nor a "
+                                  "listed factor")
+            if design not in COMPARISON_DESIGNS:
+                ctx.err(path, f"{where} ({cid}) design must be one of "
+                              f"{sorted(COMPARISON_DESIGNS)}")
+            elif design == "one_factor" and len(differs) != 1:
+                ctx.err(path, f"{where} ({cid}) is one_factor but differs in "
+                              f"{len(differs)} factors")
+            elif design == "absolute" and differs:
+                ctx.err(path, f"{where} ({cid}) is absolute (one arm against a "
+                              "stated threshold) but lists differs_in")
+            elif design == "factorial":
+                bad = [n for n in differs if str(n) in treatment
+                       and treatment[str(n)] != "crossed"]
+                if len(differs) < 2 or bad:
+                    ctx.err(path, f"{where} ({cid}) is factorial: it must vary "
+                                  "two or more factors, each independent or "
+                                  "'crossed'")
+            elif design == "aa":
+                bad = [n for n in differs if str(n) in set(_names(indep))]
+                if bad or len(differs) != 1:
+                    ctx.err(path, f"{where} ({cid}) is an A/A comparison: it "
+                                  "must differ in exactly one nuisance factor, "
+                                  "never in a variable under test")
+            elif design == "confounded" and not str(c.get("reason") or "").strip():
+                ctx.err(path, f"{where} ({cid}) is confounded and needs 'reason'")
+            if design == "confounded" and _mentions(decisive_text, cid):
+                ctx.err(path, f"comparison {cid} is confounded but a success or "
+                              "falsification criterion cites it; criteria rest "
+                              "on one_factor, factorial and absolute comparisons "
+                              "and may cite an aa comparison only as the noise "
+                              "floor")
+        if not any(c.get("design") == "aa" for c in comparisons.values()) \
+                and not str(ledger.get("aa_not_applicable") or "").strip():
+            ctx.err(path, "variable_ledger needs an A/A comparison (design: aa) "
+                          "or an 'aa_not_applicable' reason")
+        crosses = ledger.get("crosses_map")
+        if not isinstance(crosses, bool):
+            ctx.err(path, "variable_ledger.crosses_map must be true or false: "
+                          "does any claim move the problem across a map?")
+        elif crosses and body.get("transfer_obligations") is None:
+            ctx.err(path, "variable_ledger.crosses_map is true; "
+                          "transfer_obligations is required")
+    prov = body.get("prediction_provenance")
+    if prov is not None:
+        if not isinstance(prov, list) or not prov:
+            ctx.err(path, "prediction_provenance must be a nonempty list")
+            prov = []
+        covered = set()
+        for i, p in enumerate(prov):
+            where = f"prediction_provenance[{i}]"
+            if not isinstance(p, dict) or not p.get("prediction"):
+                ctx.err(path, f"{where} must be a mapping naming its prediction")
+                continue
+            pid = str(p["prediction"])
+            covered.add(pid)
+            src = str(p.get("first_recorded_in") or "")
+            if not src or not os.path.exists(os.path.join(REPO, src)):
+                ctx.err(path, f"{where} ({pid}) first_recorded_in must be an "
+                              "existing repository path")
+            if not str(p.get("written_at") or "").strip():
+                ctx.err(path, f"{where} ({pid}) needs written_at")
+            if not isinstance(p.get("data_seen"), list):
+                ctx.err(path, f"{where} ({pid}) data_seen must be a list "
+                              "([] when nothing was consulted)")
+            status = p.get("sample_status")
+            if status not in SAMPLE_STATUSES:
+                ctx.err(path, f"{where} ({pid}) sample_status must be one of "
+                              f"{sorted(SAMPLE_STATUSES)}")
+            elif status == "in_sample" and _mentions(decisive_text, pid):
+                ctx.err(path, f"prediction {pid} is in_sample but a success or "
+                              "falsification criterion cites it; it can only "
+                              "calibrate an instrument")
+            elif status == "partially_in_sample" and \
+                    not str(p.get("decisive_scope") or "").strip():
+                ctx.err(path, f"{where} ({pid}) is partially_in_sample and needs "
+                              "'decisive_scope': the cells that do not overlap")
+        listed = body.get("preregistered_predictions")
+        if isinstance(listed, list):
+            for item in listed:
+                pid = item.get("id") if isinstance(item, dict) else None
+                if pid and str(pid) not in covered:
+                    ctx.err(path, f"preregistered prediction {pid} has no "
+                                  "prediction_provenance entry")
+    transfers = body.get("transfer_obligations")
+    if transfers is not None:
+        if not isinstance(transfers, list) or not transfers:
+            ctx.err(path, "transfer_obligations must be a nonempty list of maps")
+            transfers = []
+        for i, t in enumerate(transfers):
+            where = f"transfer_obligations[{i}]"
+            if not isinstance(t, dict):
+                ctx.err(path, f"{where} must be a mapping")
+                continue
+            if t.get("kind") not in TRANSFER_KINDS:
+                ctx.err(path, f"{where} kind must be one of {sorted(TRANSFER_KINDS)}")
+            for key in ("map", "source", "destination"):
+                if not str(t.get(key) or "").strip():
+                    ctx.err(path, f"{where} needs '{key}'")
+            for key in ("preserves", "changes"):
+                if not isinstance(t.get(key), list) or not t.get(key):
+                    ctx.err(path, f"{where} '{key}' must list what the map "
+                                  f"{key[:-1]}s")
+            kinds = set()
+            for j, c in enumerate(t.get("controls") or []):
+                if not isinstance(c, dict) or c.get("kind") not in TRANSFER_CONTROL_KINDS:
+                    ctx.err(path, f"{where}.controls[{j}] kind must be one of "
+                                  f"{sorted(TRANSFER_CONTROL_KINDS)}")
+                    continue
+                kinds.add(c["kind"])
+                if comparisons and str(c.get("comparison")) not in comparisons:
+                    ctx.err(path, f"{where}.controls[{j}] comparison "
+                                  f"'{c.get('comparison')}' is not in the "
+                                  "variable ledger")
+            if not kinds & {"coordinate_isomorphism", "identity_map"}:
+                ctx.err(path, f"{where} needs a coordinate_isomorphism or "
+                              "identity_map control (transfer methodology, "
+                              "controls item 3)")
+            if "matched_random" not in kinds:
+                ctx.err(path, f"{where} needs a matched_random control "
+                              "(transfer methodology, controls item 4)")
+            assessment = str(t.get("assessment") or "")
+            if not assessment or not os.path.exists(os.path.join(REPO, assessment)):
+                ctx.err(path, f"{where} assessment must be an existing transfer "
+                              "assessment file (.claude/skills/transfer)")
+
+
+def check_confound_assessments(ctx: Ctx) -> None:
+    """Review gate: evidence on a ledgered experiment grades each comparison."""
+    for rec_id, kind in ctx.record_types.items():
+        if kind != "evidence":
+            continue
+        body, path = ctx.records[rec_id], ctx.ids[rec_id]
+        ledgered = []
+        for exp_id in body.get("experiment_ids") or []:
+            exp = ctx.records.get(str(exp_id)) or {}
+            ledger = exp.get("variable_ledger")
+            if isinstance(ledger, dict):
+                ledgered += [str(c.get("id")) for c in ledger.get("comparisons") or []
+                             if isinstance(c, dict) and c.get("id")]
+        if not ledgered:
+            continue
+        rows = body.get("confound_assessment")
+        if not isinstance(rows, list):
+            ctx.err(path, "confound_assessment is required: grade each "
+                          f"comparison of the variable ledger ({', '.join(ledgered)})")
+            continue
+        graded = {}
+        for i, r in enumerate(rows):
+            if not isinstance(r, dict) or r.get("verdict") not in CONFOUND_VERDICTS \
+                    or not str(r.get("basis") or "").strip():
+                ctx.err(path, f"confound_assessment[{i}] needs a comparison, a "
+                              f"verdict in {sorted(CONFOUND_VERDICTS)} and a basis")
+                continue
+            graded[str(r.get("comparison"))] = r["verdict"]
+        for cid in ledgered:
+            if cid not in graded:
+                ctx.err(path, f"confound_assessment does not grade comparison {cid}")
+        if "not_isolated" in graded.values() and body.get("strength") in CAPPED_STRENGTHS:
+            ctx.err(path, "a comparison is graded not_isolated, so strength is "
+                          "capped at preliminary (docs/confound-control.md)")
+
+
 def check_record_sizes(ctx: Ctx) -> None:
     """P1.7 / P1.10 advisories: oversized goal heads, next_action, new ideas."""
     for rec_id, kind in ctx.record_types.items():
@@ -3217,6 +3482,7 @@ def main() -> int:
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
     check_record_sizes(ctx)
+    check_confound_assessments(ctx)
     check_ceremony(ctx)
     check_aged_handoffs(ctx)
 
