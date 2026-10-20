@@ -28,3 +28,9 @@ def _no_bindings_overlay():
             os.environ.pop(config_module.BINDINGS_OVERLAY_ENV, None)
         else:
             os.environ[config_module.BINDINGS_OVERLAY_ENV] = previous
+
+
+def pytest_collection_modifyitems(items):
+    # Execute reviewed, hash-bound successors without modifying frozen tests.
+    from tools.ci_test_supersession import apply_supersession
+    apply_supersession(items)
