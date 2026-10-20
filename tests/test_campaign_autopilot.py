@@ -107,7 +107,7 @@ def test_design_to_approved_plan_then_partial_run_needs_reconciliation(
     _write(spec, f"experiment:\n  id: {exp}\n  status: approved\n"
                  "  approved_by: coordinator\n  frozen: true\n")
     source = tmp_path / "driver.py"
-    _write(source, "print('toy')\n")
+    _write(source, "print('fixture')\n")
     _write(tmp_path / "queue.json", "{}\n")
     sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
     plan = {"schema": "crypto.autoresearch.trial_plan.v1", "frozen": True,
@@ -120,12 +120,24 @@ def test_design_to_approved_plan_then_partial_run_needs_reconciliation(
                         "check_argv": ["python3", "driver.py"],
                         "artifacts": ["manifest.yaml", "raw-result.json"],
                         "memory_mb": 128}]}
-    _write(tmp_path / f"experiments/{exp}/trial-plan.json", json.dumps(plan))
-    # Queue admission is tested by newest_experiments; here the selector's
-    # admitted-plan state isolates the autopilot transition under a partial run.
-    from tools import newest_experiments
-    monkeypatch.setattr(newest_experiments, "_dispatch_queue_ready",
-                        lambda *_: (True, "", f"experiments/{exp}/trial-plan.json"))
+    plan_path = tmp_path / f"experiments/{exp}/trial-plan.json"
+    _write(plan_path, json.dumps(plan))
+    # A frozen plan alone is not admitted: exercise the real queue validator
+    # with an executor, its required snapshot owner, and the exact plan hash.
+    from tools.test_research_dispatch import archive_task, queue, task
+
+    executor = task(plan["task_id"], 50, read_scope=[spec_rel, "driver.py"],
+                    write_scope=[f"experiments/{exp}/runs/"],
+                    artifact_paths=[f"experiments/{exp}/runs/RUN-ICEX-abcdef/manifest.yaml",
+                                    f"experiments/{exp}/runs/RUN-ICEX-abcdef/raw-result.json"])
+    executor["handoff"]["execution"] = {
+        "mode": "experiments", "kind": "run", "experiment_id": exp,
+        "trial_plan": str(plan_path.relative_to(tmp_path)),
+        "trial_plan_sha256": sha(plan_path), "approved_by": plan["approved_by"],
+    }
+    assert autopilot.select_next(tmp_path).kind == "portfolio"
+    _write(tmp_path / "queue.json", json.dumps(queue(
+        executor, archive_task("TASK-20260926-fedcba", [executor]), maximum=1)))
     assert (autopilot.select_next(tmp_path).kind,
             autopilot.select_next(tmp_path).target) == ("run", exp)
 
