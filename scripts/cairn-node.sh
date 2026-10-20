@@ -61,11 +61,7 @@ healthy() { curl -fsS --noproxy '*' --max-time 3 "http://$http/health" >/dev/nul
 
 # Without the reader `cairn --version` says "ui not embedded", which a bare
 # grep for "embedded" also matched, so the old binary was never rebuilt.
-has_reader() {
-  local v
-  v="$(cairn --version 2>/dev/null)" || return 1
-  grep -q 'embedded' <<<"$v" && ! grep -q 'not embedded' <<<"$v"
-}
+has_reader() { command -v cairn >/dev/null && cairn --version 2>/dev/null | grep -Eq '^ *ui +embedded'; }
 
 running() {
   [ -s "$supervisor_pid" ] && kill -0 "$(cat "$supervisor_pid")" 2>/dev/null
