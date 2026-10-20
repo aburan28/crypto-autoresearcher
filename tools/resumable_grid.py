@@ -64,7 +64,7 @@ def load_rows(path: str) -> Tuple[List[dict], int]:
                 break                                       # incomplete final line
             try:
                 rows.append(json.loads(raw))
-            except json.JSONDecodeError as e:
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
                 raise CheckpointError(f"{path}: corrupt complete record at byte {good_end}: {e}") from e
             good_end += len(raw)
     return rows, good_end
@@ -92,8 +92,8 @@ def check_row(row: object, job: dict, where: str) -> None:
         raise CheckpointError(f"{where}: results cover {sorted(res) if isinstance(res, dict) else res!r}, "
                               f"scheduled arms are {job['arms']}")
     for arm, v in res.items():
-        if not isinstance(v, dict) or not isinstance(v.get("status"), str):
-            raise CheckpointError(f"{where}: result for arm {arm} has no string status")
+        if not isinstance(v, dict) or not isinstance(v.get("status"), str) or not v["status"]:
+            raise CheckpointError(f"{where}: result for arm {arm} has no nonempty string status")
 
 
 def validate_checkpoint(plan: dict, rows: List[dict]) -> Dict[Tuple[int, int, int], dict]:
@@ -105,7 +105,7 @@ def validate_checkpoint(plan: dict, rows: List[dict]) -> Dict[Tuple[int, int, in
     stopping rule (replayed from the stored rows) require. Returns the rows keyed by (m, L, inst)."""
     index: Dict[Tuple[int, int, int], dict] = {}
     for i, r in enumerate(rows):
-        if not isinstance(r, dict) or not all(isinstance(r.get(k), int) for k in ("m", "L", "inst")):
+        if not isinstance(r, dict) or not all(type(r.get(k)) is int for k in ("m", "L", "inst")):
             raise CheckpointError(f"record {i} has no integer m, L, inst")
         key = (r["m"], r["L"], r["inst"])
         if key in index:
@@ -180,12 +180,15 @@ def run_grid(plan: dict, run_instance: Callable[[dict], dict], out_path: str, wo
                         skipped += 1
                         continue
                     jobs[inst] = _expected_job(plan, m, L, inst, arms)
-                for fut in as_completed([ex.submit(run_instance, j) for j in jobs.values()]):
-                    row = fut.result()
-                    inst = row.get("inst") if isinstance(row, dict) else None
-                    if inst not in jobs:
-                        raise CheckpointError(f"callback returned a row for an unscheduled instance: {inst!r}")
-                    check_row(row, jobs.pop(inst), f"callback row (m, L, inst) = ({m}, {L}, {inst})")
+                futures = {ex.submit(run_instance, job): job for job in jobs.values()}
+                for fut in as_completed(futures):
+                    job = futures[fut]
+                    result = fut.result()
+                    if not isinstance(result, dict):
+                        raise CheckpointError("callback result is not an object")
+                    row = {**job, **result}
+                    inst = job["inst"]
+                    check_row(row, job, f"callback row (m, L, inst) = ({m}, {L}, {inst})")
                     _append(out_path, row)                      # checkpoint immediately
                     have[(m, L, inst)] = row
                     executed += 1

@@ -63,18 +63,22 @@ set, and is any of that loss fixable or is it intrinsic?**
 - **Observed** (recorded values; EXP-ECDLP-502ae2 and EXP-ECDLP-20a588 run
   records; the m = 3 block-order cells L = 3..6 are complete): under plain DRL
   the chain/dense basis-time ratio grows (8x, 30x, >79x at L = 3, 4, 5); under
-  the block order it stays near 2x (1.3, 1.9, 2.3, 2.0 at L = 3..6) - a constant
-  factor, not a growing one - and the eliminated chain basis equals the dense
-  basis on every instance.
+  the block order has measured ratios 1.3, 1.9, 2.3, 2.0 at L = 3..6.
+  These finite observations do not establish a constant ratio or a trend
+  beyond those cells. The eliminated chain basis equals the dense basis on
+  every instance where both bases finished. See the
+  [evidence-scope qualification](../docs/reports/pkm-p256-structure-check/review-correction/pr2424-evidence-scope.md).
 - **Observed, exploratory** (not preregistered; msolve max F4 degree, 4 planted
   instances per L): dense 2^L + 8 on every instance (16, 24, 40, 72); chain
   with block order on instances that have a solution 14, 32, 65, 133, i.e.
   about 2^(L+1) for L >= 4; on no-solution instances close to the dense value.
   Chain under plain DRL keeps a low degree (12, 13) but pays in cost.
-- **Derived:** with |V|^m ~ p the system has only O(2^m) rational solutions, so
-  the task is to find roughly one grid point of V^m on the hypersurface S, not
-  to enumerate a large solution set; and V itself is enumerable in 2^L time, so
-  a short description of V is not what limits decomposition. The coset lemma
+- **Heuristic, unresolved:** |V|^m ~ p alone does not bound the number of
+  rational solutions of the restricted summation-polynomial system. An
+  O(2^m) estimate needs a distribution model or an independent counting
+  argument for the structured set V. V itself is enumerable in 2^L time.
+  The [review qualification](../docs/reports/pkm-p256-structure-check/review-correction/README.md)
+  supplies the conditional proof and its source. The coset lemma
   (docs/reports/pkm-p256-structure-check/, qualified by QUALIFICATION-20261019)
   shows that for subgroups K of order coprime to n - which includes every
   2-power kernel such as the proposed chain - a coset of K has at most one
@@ -130,3 +134,5 @@ linear algebra and S_7 construction remain).
 - 2026-10-15: DEC-20261015-a08389 rejects H-ECDLP-60de36 (scoped: toy, m <= 3, Singular). Problem stays open. Unresolved.
 - 2026-10-15: EXP-ECDLP-502ae2 (msolve F4, m = 3) replicates the negative result; DEC-20261015-ab6f23 widens the scoped rejection. Unresolved.
 - 2026-10-19: EXP-ECDLP-20a588 (m = 3) and EXP-ECDLP-8c41d7 (m = 4, preliminary) test the chain-first block order: it removes the growing plain-DRL penalty but leaves a roughly constant factor of about 2 over dense at m = 3 (paired intervals exclude parity; both solvers) and 1.1-1.2x (msolve) at m = 4, L = 2, 3; DEC-20261019-b01514 and DEC-20261019-624f64 widen the scoped rejection. The matrix-size accounting experiment remains the next step. Unresolved.
+
+- 2026-10-19 PR review: retain the coprimality condition in the coset conclusion and classify the solution-count estimate as unresolved. Original report and research records preserved; no status transition or execution authorization.

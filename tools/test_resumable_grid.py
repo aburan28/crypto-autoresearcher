@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import hashlib
+from copy import deepcopy
+from unittest.mock import patch
 import json
 import sys
 import tempfile
@@ -39,6 +41,20 @@ def wrong_inst_instance(job: dict) -> dict:
 
 def _never_called(job: dict) -> dict:
     raise AssertionError("the callback must not run on a rejected checkpoint")
+
+
+def results_only_instance(job: dict) -> dict:
+    return {"results": {arm: {"status": "ok"} for arm in job["arms"]}}
+
+
+def wrong_identity_instance(job: dict) -> dict:
+    return dict(job, inst=job["inst"] + 100, results={arm: {"status": "ok"} for arm in job["arms"]})
+
+
+def swapped_scheduled_instance(job: dict) -> dict:
+    other = 1 - job["inst"]
+    return dict(job, inst=other, seed=rg.instance_seed("s", job["m"], job["L"], other),
+                results={arm: {"status": "ok"} for arm in job["arms"]})
 
 
 PLAN = {"seed": "s", "timeout_s": 5, "planted_per_cell": 2, "random_per_cell": 1,
@@ -214,6 +230,89 @@ class CheckpointValidation(unittest.TestCase):
             out = self._make(d)
             with self.assertRaises(rg.CheckpointError):
                 rg.run_grid(dict(self.OLD, seed="other"), _never_called, str(out), workers=2, log=lambda s: None)
+
+
+class ReviewRegressions(unittest.TestCase):
+    def test_complete_corrupt_record_is_rejected_without_discarding_later_data(self):
+        row = dict(m=3, L=3, inst=0, kind="planted", timeout=5, arms=["A", "B"],
+                   seed=rg.instance_seed("s", 3, 3, 0),
+                   results={"A": {"status": "ok"}, "B": {"status": "ok"}})
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "corrupt.jsonl"
+            before = (json.dumps(row) + "\n{broken}\n" + json.dumps(row) + "\n").encode()
+            out.write_bytes(before)
+            with patch.object(rg, "ProcessPoolExecutor", side_effect=AssertionError("must not launch")):
+                with self.assertRaisesRegex(ValueError, "corrupt complete"):
+                    rg.run_grid(PLAN, fake_instance, str(out))
+            self.assertEqual(out.read_bytes(), before)
+
+    def test_checkpoint_validation_precedes_tail_truncation_or_launch(self):
+        row = dict(m=3, L=3, inst=0, kind="planted", timeout=5, arms=["A", "B"],
+                   seed=rg.instance_seed("s", 3, 3, 0),
+                   results={"A": {"status": "ok"}, "B": {"status": "ok"}})
+        cases = [
+            (dict(PLAN, seed="different"), [row]),
+            (dict(PLAN, timeout_s=99), [row]),
+            (PLAN, [row, row]),
+            (PLAN, [dict(row, inst=True)]),
+            (PLAN, [dict(row, kind="random")]),
+            (PLAN, [dict(row, results={"A": {"status": "ok"}})]),
+            (PLAN, [dict(row, L=99)]),
+            (PLAN, [dict(row, L=4, seed=rg.instance_seed("s", 3, 4, 0))]),
+        ]
+        for index, (plan, rows) in enumerate(cases):
+            with self.subTest(case=index), tempfile.TemporaryDirectory() as d:
+                out = Path(d) / "rows.jsonl"
+                before = ("".join(json.dumps(r) + "\n" for r in rows) + '{"incomplete":').encode()
+                out.write_bytes(before)
+                with patch.object(rg, "ProcessPoolExecutor", side_effect=AssertionError("must not launch")):
+                    with self.assertRaises(ValueError):
+                        rg.run_grid(deepcopy(plan), fake_instance, str(out))
+                self.assertEqual(out.read_bytes(), before)
+
+    def test_results_only_callback_receives_bound_job_metadata(self):
+        plan = dict(PLAN, planted_per_cell=1, random_per_cell=0, L_by_m={"3": [3]})
+        with tempfile.TemporaryDirectory() as d:
+            out = str(Path(d) / "rows.jsonl")
+            self.assertEqual(rg.run_grid(plan, results_only_instance, out, workers=1, log=lambda s: None),
+                             {"executed": 1, "skipped": 0})
+            row = _rows(out)[0]
+            self.assertEqual((row["m"], row["L"], row["inst"], row["kind"], row["timeout"]),
+                             (3, 3, 0, "planted", 5))
+            self.assertEqual(row["seed"], rg.instance_seed("s", 3, 3, 0))
+            self.assertEqual(rg.run_grid(plan, results_only_instance, out, workers=1, log=lambda s: None),
+                             {"executed": 0, "skipped": 1})
+
+    def test_wrong_callback_identity_is_rejected_before_append(self):
+        plan = dict(PLAN, planted_per_cell=1, random_per_cell=0, L_by_m={"3": [3]})
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "rows.jsonl"
+            with self.assertRaises(ValueError):
+                rg.run_grid(plan, wrong_identity_instance, str(out), workers=1, log=lambda s: None)
+            self.assertFalse(out.exists())
+
+    def test_callback_cannot_claim_another_scheduled_job(self):
+        plan = dict(PLAN, planted_per_cell=2, random_per_cell=0, L_by_m={"3": [3]})
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "swapped.jsonl"
+            with self.assertRaises(rg.CheckpointError):
+                rg.run_grid(plan, swapped_scheduled_instance, str(out), workers=2, log=lambda s: None)
+            self.assertFalse(out.exists())
+
+    def test_complete_non_utf8_record_is_rejected_before_modification(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "invalid.jsonl"
+            before = b"\xff\n"
+            out.write_bytes(before)
+            with self.assertRaises(rg.CheckpointError):
+                rg.run_grid(PLAN, fake_instance, str(out), workers=1, log=lambda s: None)
+            self.assertEqual(out.read_bytes(), before)
+
+    def test_empty_result_status_is_rejected(self):
+        job = rg._expected_job(PLAN, 3, 3, 0, ["A", "B"])
+        row = dict(job, results={"A": {"status": ""}, "B": {"status": "ok"}})
+        with self.assertRaises(rg.CheckpointError):
+            rg.validate_checkpoint(PLAN, [row])
 
 
 if __name__ == "__main__":
