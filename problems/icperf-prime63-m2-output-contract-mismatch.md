@@ -3,7 +3,7 @@
 - **Status:** `open`
 - **Kind:** implementation gap in the trial output contract; not a mathematical obstruction.
 - **Affected work:** [EXP-ICPERF-515ae3](../experiments/EXP-ICPERF-515ae3/specification.yaml), [RUN-ICPERF-eb0d88](../experiments/EXP-ICPERF-515ae3/runs/RUN-ICPERF-eb0d88/execution-receipt.json), [run report](../experiments/EXP-ICPERF-515ae3/reports/run-20261019T2113Z/report.md), [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), and the separate [solver-feasibility problem](icperf-prime63-monitor-and-positive-controls.md).
-- **Next action owner:** Coordinator to allocate and freeze a fresh-ID prospective output-contract correction; Executor to implement no-science standard-supervisor fixtures; independent reviewer to test both terminal classes and negative controls.
+- **Next action owner:** [TASK-20261019-b91246](../ledger/handoffs/TASK-20261019-b91246.yaml) implements a fresh-source no-science standard-supervisor fixture; [TASK-20261019-9fb460](../ledger/handoffs/TASK-20261019-9fb460.yaml) snapshots its source and fixture bytes. The Coordinator must freeze a separate independent review plan after that snapshot.
 - **Last updated:** 2026-10-19
 
 ## Problem
@@ -46,3 +46,4 @@ A planned step is not a completed experiment. Apply the existing execution, revi
 - 2026-10-19: Opened from published RUN-ICPERF-eb0d88. The checker and supervisor results are preserved together; the frozen run is not repaired in place. Unresolved.
 - 2026-10-19: Added the failed-release versus ready-selector mismatch and the missing-file snapshot obstruction from the published batch records. No queue, run, research status, or scientific evidence was changed by this problem update.
 - 2026-10-19: Independent P1-P4 postrun review and corrected pinned composition gate verified historical custody and the invalid-output boundary. DEC-20261019-cf7e51 records execution start retrospectively; DEC-20261019-471fe2 classifies this attempt invalid for absent frozen run-root outputs. The implementation mismatch remains open until a fresh-ID plan/launcher/checker and standard-supervisor fixtures satisfy the remaining exit criteria. Three positive calls remain timeout-censored.
+- 2026-10-19: DEC-20261019-5112b2 opens BATCH-ac3c38 for prospective output-contract source and fixture work under TASK-20261019-b91246, followed by source snapshot TASK-20261019-9fb460. This is an engineering handoff; the exit criteria above remain open pending implementation, independent review and a fresh approvable protocol.
