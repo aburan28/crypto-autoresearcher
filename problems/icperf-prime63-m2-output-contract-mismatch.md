@@ -3,8 +3,8 @@
 - **Status:** `open`
 - **Kind:** implementation gap in the trial output contract; not a mathematical obstruction.
 - **Affected work:** [EXP-ICPERF-515ae3](../experiments/EXP-ICPERF-515ae3/specification.yaml), [RUN-ICPERF-eb0d88](../experiments/EXP-ICPERF-515ae3/runs/RUN-ICPERF-eb0d88/execution-receipt.json), [run report](../experiments/EXP-ICPERF-515ae3/reports/run-20261019T2113Z/report.md), [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), and the separate [solver-feasibility problem](icperf-prime63-monitor-and-positive-controls.md).
-- **Next action owner:** [TASK-20261019-b91246](../ledger/handoffs/TASK-20261019-b91246.yaml) implements a fresh-source no-science standard-supervisor fixture; [TASK-20261019-9fb460](../ledger/handoffs/TASK-20261019-9fb460.yaml) snapshots its source and fixture bytes. The Coordinator must freeze a separate independent review plan after that snapshot.
-- **Last updated:** 2026-10-19
+- **Next action owner:** [TASK-20261020-f237a2](../ledger/handoffs/TASK-20261020-f237a2.yaml) implements the disjoint v2 no-science fixture after a verified executor route and additive admission; [TASK-20261020-fa096d](../ledger/handoffs/TASK-20261020-fa096d.yaml) snapshots its source and fixtures. The old pair is blocked by [CORR-20261020-f018c9](../ledger/corrections/CORR-20261020-f018c9.yaml). Independent review remains a later gate.
+- **Last updated:** 2026-10-20
 
 ## Problem
 
@@ -39,9 +39,11 @@ These conditions repair the output contract for prospective trials. They do not 
 - **Outcomes and next actions:** If both terminal fixtures validate and all negative controls reject, the Coordinator can complete a prospective runnable protocol. A false acceptance or missing artifact requires another correction. A fixture crash is an infrastructure result. A future solver censor still redirects solver/formulation work and cannot rank bases.
 - **Recheck trigger:** A committed successor source/plan/checker bundle with a passing standard-supervisor fixture and a matching preapproval packet.
 
-A planned step is not a completed experiment. Apply the existing execution, review, budget, and archival rules before acting on it. The administrative queue correction is a prerequisite to safe dispatch; it does not validate this attempt or approve a successor.
+A planned step is not a completed experiment. Apply the existing execution, review, budget, and archival rules before acting on it. The additive v2 queue correction protects source ownership; its producer is held by the executor route impediment and it does not validate this attempt or approve a successor.
 
 ## Resolution and history
+
+- 2026-10-20: The BATCH-ac3c38 producer handoff called an already tracked bridge directory fresh. Dispatch stopped before lane claim or write. DEC-20261020-cddbe2 and CORR-20261020-f018c9 block the old pair and declare disjoint v2 tasks in a successor queue. Existing bridge bytes are read-only pinned inputs; no prior archive receipt was found in a narrow search. The new producer remains blocked until a policy-compliant executor route is verified and separately admitted. This implementation gap remains open.
 
 - 2026-10-19: Opened from published RUN-ICPERF-eb0d88. The checker and supervisor results are preserved together; the frozen run is not repaired in place. Unresolved.
 - 2026-10-19: Added the failed-release versus ready-selector mismatch and the missing-file snapshot obstruction from the published batch records. No queue, run, research status, or scientific evidence was changed by this problem update.
