@@ -1,5 +1,6 @@
 """Small engineering fixtures only; no campaign point searches."""
 import copy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -47,6 +48,12 @@ class TraceChecks(unittest.TestCase):
 
     def test_child_failure_preserves_partial_trace(self):
         with tempfile.TemporaryDirectory() as tmp:
+            fixture=Path(tmp)
+            binary=fixture/"runtime-fixture"
+            binary.write_bytes(b"isolated unit-test runtime; never executed\n")
+            (fixture/"runtime-bindings.json").write_text(json.dumps({
+                "fixture": {"path":str(binary),"sha256":hashlib.sha256(binary.read_bytes()).hexdigest()}
+            }))
             run=Path(tmp)/"EXP-FIXTURE-000001/runs/RUN-FIXTURE-000001"
             run.mkdir(parents=True)
             (run/"launch.json").write_text(json.dumps({"argv":["engineering-fixture"]}))
@@ -54,8 +61,11 @@ class TraceChecks(unittest.TestCase):
             def failed_child(argv,**kwargs):
                 out=Path(argv[-1]);out.mkdir();(out/"partial.jsonl").write_bytes(b'{"event":"fixture"}\n')
                 raise subprocess.CalledProcessError(7,argv)
-            with mock.patch.object(PRODUCER.subprocess,"check_output",return_value=""),mock.patch.object(PRODUCER.subprocess,"run",side_effect=failed_child):
+            # Exercise real binding validation against isolated fixture bytes;
+            # historical host-specific bindings and production source stay intact.
+            with mock.patch.object(PRODUCER,"HERE",fixture),mock.patch.object(PRODUCER.subprocess,"check_output",return_value=""),mock.patch.object(PRODUCER.subprocess,"run",side_effect=failed_child) as child:
                 with self.assertRaises(subprocess.CalledProcessError):PRODUCER.main("panel",run)
+            child.assert_called_once()
             with tarfile.open(run/"instrument.tar.gz") as archive:
                 self.assertEqual(archive.extractfile("partial.jsonl").read(),b'{"event":"fixture"}\n')
             self.assertEqual(json.loads((run/"instrument-index.json").read_text())[0]["name"],"partial.jsonl")
