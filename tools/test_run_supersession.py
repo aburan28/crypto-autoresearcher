@@ -1007,6 +1007,25 @@ class CommittedRegistryTests(unittest.TestCase):
                 self.assertEqual(declared.get("supersedes_sha256"),
                                  entry["superseded_sha256"], str(current))
                 continue
+            # SNFS schema completions were archived under coordination/design
+            # and bind their flat producer manifests from run.supersedes.
+            if current.relative_to(repo_root).parts[:2] == ("coordination", "design"):
+                self.assertEqual(current.name,
+                                 f"{entry['run_id']}.manifest.schema-v2.yaml")
+                doc = yaml.safe_load(current.read_text(encoding="utf-8"))
+                self.assertEqual(doc["run"].get("id"), entry["run_id"])
+                declared = doc["run"].get("supersedes") or {}
+                self.assertEqual(
+                    (repo_root / declared.get("original_manifest", "")).resolve(),
+                    registry_original, str(current))
+                self.assertEqual(declared.get("original_manifest_sha256"),
+                                 entry["superseded_sha256"], str(current))
+                self.assertEqual(sha256_of(current),
+                                 entry["superseding_sha256"], str(current))
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"],
+                                 str(registry_original))
+                continue
             self.assertEqual(current.parent, run_dir, str(current))
             if entry["run_id"] in PROSE_SUPERSESSION_SHA256:
                 self.assertEqual(sha256_of(current),
@@ -1046,27 +1065,26 @@ class CommittedRegistryTests(unittest.TestCase):
                                 or declared.get("prior_sha256")
                                 or declared.get("supersedes_sha256")
                                 or declared.get("sha256"))
-                self.assertIsNotNone(prior_path, str(current))
-                # The immutable SEMBIN record names the registry's exact
-                # original-hash slot instead of duplicating its digest.
-                # Admit that spelling only for a direct, hash-checked binding.
-                pinned_in = declared.get("prior_manifest_sha256_pinned_in")
-                if prior_sha256 is None and pinned_in is not None:
+                # One archived SEMBIN record names the registry field that
+                # pins its original hash. Require that exact pointer before
+                # resolving it; the original bytes are checked below.
+                if prior_sha256 is None and "prior_manifest_sha256_pinned_in" in declared:
                     self.assertEqual(
-                        pinned_in,
+                        declared["prior_manifest_sha256_pinned_in"],
                         "tools/run_supersession_registry.yaml "
-                        f"(superseded_sha256 of the {entry['run_id']} entry)")
+                        f"(superseded_sha256 of the {entry['run_id']} entry)",
+                        str(current))
                     self.assertEqual((repo_root / str(prior_path)).resolve(),
-                                     registry_original)
-                    self.assertEqual(current, Path(entry["superseding_path"]).resolve())
-                    self.assertEqual(sha256_of(current), entry["superseding_sha256"])
+                                     registry_original, str(current))
                     prior_sha256 = entry["superseded_sha256"]
+                self.assertIsNotNone(prior_path, str(current))
                 self.assertIsNotNone(prior_sha256, str(current))
-                # Four ENDO records use a filename relative to their run
-                # directory. The checks below still forbid crossing that
-                # directory or escaping the repository.
-                base = current.parent if "/" not in str(prior_path) else repo_root
-                prior = (base / str(prior_path)).resolve()
+                # The ENDO record uses a same-directory `path: manifest.yaml`;
+                # all other path spellings in this registry are repo-relative.
+                local_basename = (declared.get("path") == prior_path
+                                  and str(prior_path) == registry_original.name)
+                prior = ((run_dir if local_basename else repo_root)
+                         / str(prior_path)).resolve()
                 self.assertTrue(prior.is_relative_to(repo_root), str(prior))
                 self.assertEqual(prior.parent, run_dir, str(prior))
                 self.assertTrue(prior.is_file(), str(prior))
