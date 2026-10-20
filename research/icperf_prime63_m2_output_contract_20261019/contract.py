@@ -76,13 +76,25 @@ def derive(run_dir: Path) -> tuple[dict, dict]:
     if not command:
         raise ContractError("empty command.txt")
     authority = launch.get("authority")
-    if not isinstance(authority, dict):
-        raise ContractError("missing launch authority")
+    if (not isinstance(authority, dict)
+            or not isinstance(authority.get("owner"), str)
+            or not authority["owner"].strip()
+            or type(authority.get("epoch")) is not int
+            or authority["epoch"] <= 0
+            or not isinstance(receipt.get("claim_owner"), str)
+            or not receipt["claim_owner"].strip()
+            or type(receipt.get("claim_epoch")) is not int
+            or receipt["claim_epoch"] <= 0):
+        raise ContractError("missing or invalid diagnostic authority")
     if receipt.get("schema") != DIAGNOSTIC_SCHEMA:
         raise ContractError("diagnostic schema mismatch")
     for field in ("run_id", "trial_id", "plan_sha256"):
-        if not isinstance(launch.get(field), str) or receipt.get(field) != launch[field]:
+        if (not isinstance(launch.get(field), str) or not launch[field].strip()
+                or receipt.get(field) != launch[field]):
             raise ContractError(f"diagnostic/launch {field} mismatch")
+    plan_sha256 = launch["plan_sha256"]
+    if len(plan_sha256) != 64 or any(c not in "0123456789abcdef" for c in plan_sha256):
+        raise ContractError("diagnostic/launch plan_sha256 malformed")
     if (receipt.get("launch_sha256") != digest(launch_bytes)
             or receipt.get("claim_owner") != authority.get("owner")
             or receipt.get("claim_epoch") != authority.get("epoch")):

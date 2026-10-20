@@ -96,6 +96,57 @@ class ContractTests(unittest.TestCase):
             contract.write_outputs(self.run_dir)
         self.assertFalse((self.run_dir / "manifest.yaml").exists())
 
+    def rewrite_launch(self, launch):
+        launch_bytes = contract.canonical(launch)
+        (self.run_dir / "launch.json").write_bytes(launch_bytes)
+        self.receipt["launch_sha256"] = contract.digest(launch_bytes)
+        self.write_receipt()
+
+    def assert_rejected_before_outputs(self, pattern):
+        with self.assertRaisesRegex(contract.ContractError, pattern):
+            contract.write_outputs(self.run_dir)
+        self.assertFalse((self.run_dir / "raw-result.json").exists())
+        self.assertFalse((self.run_dir / "manifest.yaml").exists())
+
+    def test_absent_authority_cannot_match_absent_claim(self):
+        launch = json.loads((self.run_dir / "launch.json").read_text())
+        launch["authority"] = {}
+        self.receipt.pop("claim_owner")
+        self.receipt.pop("claim_epoch")
+        self.rewrite_launch(launch)
+        self.assert_rejected_before_outputs("authority")
+
+    def test_authority_owner_must_be_nonempty_on_both_records(self):
+        launch = json.loads((self.run_dir / "launch.json").read_text())
+        for invalid in (None, "", "  ", 1):
+            with self.subTest(owner=invalid):
+                launch["authority"]["owner"] = invalid
+                self.receipt["claim_owner"] = invalid
+                self.rewrite_launch(launch)
+                self.assert_rejected_before_outputs("authority")
+
+    def test_authority_epoch_must_be_positive_integer_on_both_records(self):
+        launch = json.loads((self.run_dir / "launch.json").read_text())
+        for invalid in (None, True, False, 0, -1, 1.0, "1"):
+            for side in ("launch", "receipt", "both"):
+                with self.subTest(epoch=invalid, side=side):
+                    launch["authority"]["epoch"] = invalid if side != "receipt" else 1
+                    self.receipt["claim_epoch"] = invalid if side != "launch" else 1
+                    self.rewrite_launch(launch)
+                    self.assert_rejected_before_outputs("authority")
+
+    def test_empty_identities_and_malformed_plan_digest_are_rejected(self):
+        launch = json.loads((self.run_dir / "launch.json").read_text())
+        for field in ("run_id", "trial_id", "plan_sha256"):
+            original = launch[field]
+            values = ("", "  ") if field != "plan_sha256" else ("", "  ", "a" * 63, "g" * 64)
+            for invalid in values:
+                with self.subTest(field=field, value=invalid):
+                    launch[field] = self.receipt[field] = invalid
+                    self.rewrite_launch(launch)
+                    self.assert_rejected_before_outputs(field)
+            launch[field] = self.receipt[field] = original
+
     def test_integer_attempted_flag_is_rejected(self):
         self.receipt["cells"][1]["attempted"] = 1
         self.write_receipt()
