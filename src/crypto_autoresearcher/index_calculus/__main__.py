@@ -8,6 +8,8 @@
              enumeration on a ladder of factor-base sizes, with the check that
              both engines find exactly the same decompositions
     analyze  refit and tabulate from sweep / engines JSONL files
+    representation-controls  bounded lift/circularity, equivalent-model,
+             residual-correction and CM-filter software diagnostics
     census   the EXP-PFDR-1b78f7 collision-harvest panels (main, rho, j0):
              every arm in both harvest modes, one JSONL row per instance,
              plus the harvested rows and the census-rank staircases;
@@ -1116,6 +1118,30 @@ def cmd_census(args: argparse.Namespace) -> int:
 
 # -- entry point ------------------------------------------------------------------
 
+def cmd_representation_controls(args: argparse.Namespace) -> int:
+    from pathlib import Path
+    from .representation_controls import build_report
+
+    path = Path(args.out) if args.out else None
+    if path is not None and path.exists():
+        print(f"Refusing to overwrite existing report: {path}", file=sys.stderr)
+        return 2
+    report = build_report(args.experiment, args.seed)
+    content = json.dumps(report, indent=2) + "\n"
+    if path is None:
+        sys.stdout.write(content)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with path.open("x", encoding="utf-8") as output:
+                output.write(content)
+        except FileExistsError:
+            print(f"Refusing to overwrite existing report: {path}", file=sys.stderr)
+            return 2
+        print(f"Software-control report: {path}", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m crypto_autoresearcher.index_calculus",
                                  description=__doc__,
@@ -1249,6 +1275,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="engines: fit msolve only on cells at least this slow")
     z.add_argument("--json", action="store_true")
     z.set_defaults(func=cmd_analyze)
+
+    rc = sub.add_parser("representation-controls", help="bounded representation software controls")
+    rc.add_argument("--experiment", choices=("all", "controls", "models", "residuals", "filters"), default="all")
+    rc.add_argument("--seed", type=int, default=20261021)
+    rc.add_argument("--out", default=None, metavar="PATH", help="new JSON report; refuses overwrite; default stdout")
+    rc.set_defaults(func=cmd_representation_controls)
 
     args = ap.parse_args(argv)
     if getattr(args, "rho_curves", None) == 0:
