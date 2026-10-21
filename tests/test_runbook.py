@@ -1030,6 +1030,119 @@ def test_a_supervisor_refusal_stops_the_session_and_releases_as_failed(tmp_path,
     assert calls[-1][0] == "release" and calls[-1][calls[-1].index("--outcome") + 1] == "failed"
 
 
+# Native release regression: fixture schedulers observe real subprocess outcomes
+# and inject real native claim publications at deterministic race boundaries.
+# They never replace the release implementation or a Git return code.
+@pytest.mark.parametrize("reused", [False, True], ids=["new-claim", "reused-claim"])
+@pytest.mark.parametrize("phase", ["proof-cleanup", "terminal-release"])
+@pytest.mark.parametrize("newer", [False, True], ids=["matching-epoch", "newer-same-owner"])
+def test_native_release_keeps_captured_epoch(tmp_path, monkeypatch, claim_transcript, reused, phase, newer) -> None:
+    root = tmp_path / "local"
+    root.mkdir()
+    path = supervised_repo(root)
+    (root / "tools/goal_lanes.py").write_bytes((REPO / "tools/goal_lanes.py").read_bytes())
+    # Supply every required supervisor artifact using synthetic bytes, so a
+    # normal completed release reaches the native epoch fence/artifact binder.
+    stub = (root / "tools/experiment_execution.py").read_text()
+    stub = stub.replace("sys.exit(code)", """
+if code == 0:
+    queue = json.loads(pathlib.Path(plan["queue"]).read_text())
+    for relative in queue["tasks"][0]["artifact_paths"]:
+        target = pathlib.Path(relative)
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("synthetic supervisor artifact")
+sys.exit(code)
+""")
+    (root / "tools/experiment_execution.py").write_text(stub)
+    git(root, "add", "tools")
+    git(root, "commit", "-qm", "native release fixture source")
+    approve(root, path)
+    git(root, "push", "origin", "fixture")
+    book = rb.load_runbook(root, path)
+    step = book.doc["steps"][0]
+    plan = json.loads((root / step["plan"]).read_text())
+    queue, task = plan["queue"], plan["task_id"]
+    base = fixture_command(["git", "rev-parse", "HEAD"], cwd=root).stdout.strip()
+    peer = tmp_path / "peer"
+    fixture_command(["git", "clone", "--single-branch", "--branch", "fixture",
+                     str(root / ".git/synthetic-origin.git"), str(peer)]).check_returncode()
+    git(peer, "config", "user.name", "native synthetic peer")
+    git(peer, "config", "user.email", "peer@example.invalid")
+
+    def claim(where, *extra):
+        fixture_command(["python3", "tools/goal_lanes.py", "claim", queue, task, "--as", "mech-test",
+                         "--ttl-minutes", "60", "--publish", *extra], cwd=where).check_returncode()
+
+    def proof_race():
+        if newer:
+            claim(peer, "--no-push", "--session", "divergent-peer-epoch1")
+            claim(peer, "--no-push", "--force", "--session", "divergent-peer-epoch2")
+            git(peer, "push", "--force", "origin", "fixture")
+        else:
+            # True unpublished current epoch after a successful native push:
+            # remote rewinds to the approved synthetic base, without epoch2.
+            git(peer, "push", "--force", "origin", f"{base}:refs/heads/fixture")
+
+    if reused:
+        claim(root, *(["--no-push"] if phase == "proof-cleanup" else []),
+              "--session", "captured-local-epoch1")
+        if phase == "proof-cleanup":
+            proof_race()
+    original = rb.run_process
+    before_release = {}
+
+    def git_state():
+        return {"head": fixture_command(["git", "rev-parse", "HEAD"], cwd=root).stdout.strip(),
+                "remote_head": fixture_command(["git", "--git-dir=.git/synthetic-origin.git",
+                                                 "rev-parse", "refs/heads/fixture"], cwd=root).stdout.strip(),
+                "index_diff": fixture_command(["git", "diff", "--cached", "--binary"], cwd=root).stdout}
+
+    def scheduled(argv, **kwargs):
+        if argv[:3] == ["python3", "tools/goal_lanes.py", "release"]:
+            before_release.update(git_state())
+        result = original(argv, **kwargs)
+        if result == (0, False):
+            if not reused and phase == "proof-cleanup" and argv[:3] == ["python3", "tools/goal_lanes.py", "claim"]:
+                proof_race()
+            if newer and phase == "terminal-release" and argv[:2] == ["python3", "tools/experiment_execution.py"]:
+                claim(root, "--force", "--session", "newer-after-supervisor")
+        return result
+
+    monkeypatch.setattr(rb, "run_process", scheduled)
+    monkeypatch.setenv("FAKE_SUPERVISOR_EXIT", "0")
+    result = run(root, path, owner="mech-test")
+    finished = next(e for e in entries(root / book.session_dir) if e["type"] == "step_finished")
+    data = finished["data"]
+    release_paths = sorted((root / Path(queue).parent / "claims").glob("*.release.json"))
+    supervisor_log = root / "supervisor-calls.jsonl"
+    calls = len(supervisor_log.read_text().splitlines()) if supervisor_log.exists() else 0
+    after_release = git_state()
+    releases = {p.name: json.loads(p.read_text()) for p in release_paths}
+    print(json.dumps({"native_epoch_control": {"reused": reused, "phase": phase, "newer": newer},
+                      "data": data, "result": result, "before_release": before_release,
+                      "after_release": after_release, "releases": releases,
+                      "supervisor_calls": calls}), flush=True)
+    assert calls == (0 if phase == "proof-cleanup" else 1)
+    assert data["epoch"] == 1
+    if newer:
+        # This assertion reproduces F1 on the old source: its native release
+        # writes epoch2 and commits before the non-fast-forward push fails.
+        assert release_paths == [], releases
+        assert before_release == after_release
+        assert data["release_exit_code"] == 2
+        assert "expected epoch 1" in (root / book.session_dir / "steps/S01-trials.attempt-1.release.stderr").read_text()
+        assert result["status"] == "stopped"
+    else:
+        assert len(release_paths) == 1 and next(iter(releases.values()))["epoch"] == 1
+        assert data["release_exit_code"] == 0
+        assert result["status"] == ("stopped" if phase == "proof-cleanup" else "completed")
+    assert data["release_argv"][data["release_argv"].index("--expected-epoch") + 1] == "1"
+    if phase == "proof-cleanup":
+        assert "not contained" in result["failure"]["detail"]
+    assert rb.verify(root, root / book.session_dir) == []
+
+
 # ---------------------------------------------------------------------------
 # Reports, publication, and the assertion engine
 # ---------------------------------------------------------------------------

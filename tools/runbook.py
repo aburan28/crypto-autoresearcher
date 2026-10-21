@@ -1354,7 +1354,7 @@ class Runner:
             # Only release an identity checked against its committed native
             # record. A malformed/foreign claim is never ours to clean up.
             if data.get("claim_identity_verified"):
-                self._release_claim(step, attempt, queue, task, "failed", env, data)
+                self._release_claim(step, attempt, queue, task, epoch, "failed", env, data)
             return proof
         stdout, stderr = self._logs(step["id"], attempt, ".supervisor")
         argv = ["python3", "tools/experiment_execution.py", "run", "--plan", plan_rel,
@@ -1363,7 +1363,7 @@ class Runner:
         code, timed_out = run_process(argv, cwd=self.repo, env=env, timeout=step["timeout_seconds"],
                                       stdout=stdout, stderr=stderr)
         outcome = "completed" if code == 0 else "failed"
-        release_code, stderr_r = self._release_claim(step, attempt, queue, task, outcome, env, data)
+        release_code, stderr_r = self._release_claim(step, attempt, queue, task, epoch, outcome, env, data)
         if timed_out:
             return StepResult("failed", "resource_exhaustion", "supervisor timed out", None, True, data=data)
         if code != 0:
@@ -1379,14 +1379,17 @@ class Runner:
         return StepResult("passed", exit_code=code, data=data)
 
     def _release_claim(self, step: dict[str, Any], attempt: int, queue: str, task: str,
-                       outcome: str, env: dict[str, str], data: dict[str, Any]) -> tuple[int | None, Path]:
+                       epoch: int, outcome: str, env: dict[str, str], data: dict[str, Any]) -> tuple[int | None, Path]:
         stdout, stderr = self._logs(step["id"], attempt, ".release")
         argv = ["python3", "tools/goal_lanes.py", "release", queue, task, "--as", self.owner,
+                "--expected-epoch", str(epoch),
                 "--outcome", outcome, "--note", f"runbook session {self.runbook.doc['session_id']}",
                 "--publish"]
         code, timed_out = run_process(argv, cwd=self.repo, env=env, timeout=600,
                                       stdout=stdout, stderr=stderr)
-        data.update(release_argv=argv, release_exit_code=code, release_timed_out=timed_out)
+        data.update(release_argv=argv, release_expected_epoch=epoch, release_exit_code=code,
+                    release_timed_out=timed_out, release_stdout=rel(self.repo, stdout),
+                    release_stderr=rel(self.repo, stderr))
         return code, stderr
 
     def _sync_claim(self, step: dict[str, Any], attempt: int, queue: str, task: str, epoch: int,
