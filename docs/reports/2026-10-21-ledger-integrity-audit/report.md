@@ -75,6 +75,11 @@ must not be made green by invented files.
   records the exact paths and acceptance conditions. The integrity payload also
   displays other reference and ID warnings; those individual warnings were not
   adjudicated here. A successful reader build does not clear the red ledger gate.
+- The separate [progress dashboard output](evidence/progress-dashboard.json)
+  has zero claims and zero frontiers because this checkout's `claims/` contains
+  no claim JSON files. Its fidelity/dashboard unit suite passed **12 tests**.
+  An empty progress dashboard is a faithful rendering of that source directory;
+  it is not evidence that the historical prose contains no performance claims.
 - The [public Pages status check](evidence/live-pages-status.json) found the
   workflow **manually disabled** and the live dashboard still showing commit
   `bb9e9f01f3f9fcdf6e456acd7e01cd9af6c05bc3`, built on 2026-10-11.
@@ -125,6 +130,7 @@ python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_primary_snapshot
   /path/to/cryptanalysis-primary.jsonl
 python3 docs/reports/2026-10-21-ledger-integrity-audit/check_unparseable.py \
   . /var/tmp/current-site/data/integrity.json
+python3 -m tools.progress_dashboard claims --json /var/tmp/progress-dashboard.json
 ```
 
 The validator's nonzero exit is the recorded result, not a reproduction
