@@ -506,6 +506,11 @@ static exports reflect the chosen source tree, including any uncommitted edits.
 The Compare selectors now include all nine rows of the existing pinned primary
 benchmark snapshot, registered in `ui/receipts.json` with
 `adapter: benchmark-snapshot/1`. This is a new reader adapter, not a new run.
+The 2026-10-20 snapshot pins `cryptanalysis` main commit
+`5ab7d5bc5a16ff4d87a5ef8bed45cf9543f47c14`. It refreshes candidate IDs
+and recorded timings from the committed primary archive, while its coverage
+remains exactly those nine N13 toy rows; see the
+[validation report](../docs/reports/2026-10-20-formal-validation/report.md).
 Its normalized `comparison-package/1` projection preserves curve/candidate/workload
 IDs, source pins, target counts, verification/status, online and total times,
 operation units, calibration/resource IDs and failures. No arbitrary package
