@@ -59,7 +59,9 @@ mkdir -p "$home" && chmod 700 "$home"
 
 healthy() { curl -fsS --noproxy '*' --max-time 3 "http://$http/health" >/dev/null 2>&1; }
 
-has_reader() { command -v cairn >/dev/null && cairn --version 2>/dev/null | grep -q 'embedded'; }
+# `cairn --version` says "ui       embedded" or "ui       not embedded"; match
+# the first only, or a binary that cannot `run` passes.
+has_reader() { command -v cairn >/dev/null && cairn --version 2>/dev/null | grep -Eq '^ *ui +embedded'; }
 
 running() {
   [ -s "$supervisor_pid" ] && kill -0 "$(cat "$supervisor_pid")" 2>/dev/null
@@ -97,7 +99,9 @@ start() {
   [ -d "$src/examples" ] && root=$src
   # A supervisor so the node stays up for the whole session, as the published
   # seed does under systemd's Restart=always. setsid detaches it from the hook,
-  # which the harness waits on and then reaps.
+  # which the harness waits on and then reaps. 9>&- keeps `ensure`'s lock out of
+  # it: inherited, the lock lived as long as the node and every later `ensure`
+  # in the container hung in flock.
   CAIRN_DATA="$home" CAIRN_BEACON_PORT=off CAIRN_PORTMAP=off CAIRN_ROLES=relay \
   CAIRN_MCP_MAX_SPEND=0 \
     setsid nohup bash -c '
@@ -111,7 +115,7 @@ start() {
         echo "== $(date -u +%FT%TZ) exited $?; restarting in 5s"
         sleep 5
       done' cairn-node "$supervisor_pid" "$root" "$p2p" "$http" \
-      >>"$log" 2>&1 </dev/null &
+      >>"$log" 2>&1 </dev/null 9>&- &
   disown 2>/dev/null || true
   local wait=${CAIRN_NODE_WAIT:-30}
   for _ in $(seq "$wait"); do
