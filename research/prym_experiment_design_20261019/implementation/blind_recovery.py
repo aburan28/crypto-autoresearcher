@@ -149,6 +149,7 @@ def worker(public):
         if 'ec1' in fixture:
             identity=fixture['ec1'];identity['curve']['generator']=fixture['P']
             identity.update(curve_identity(identity['field'],identity['curve'],'prymtoy'))
+            identity['curve']['curve_id']=identity['curve_id']
     if arm in ['permuted','split_product'] and not public['algorithm'].get('use_selector'):
         raise ValueError('null arm requires the same declared selector treatment')
     result=(baseline if arm.startswith('ic') else rho if arm=='rho' else candidate)(public)

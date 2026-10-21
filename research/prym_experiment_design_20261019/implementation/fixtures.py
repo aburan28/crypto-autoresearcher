@@ -24,7 +24,8 @@ def attach_ec1(fixture):
     curve={'model':'short_weierstrass','a4':fixture['a'],'a6':fixture['b'],
            'subgroup_order':fixture['r'],'cofactor':1,'generator':fixture['P'],
            'target_group':'E(Fp)'}
-    fixture['ec1']={'field':field,'curve':curve,**curve_identity(field,curve,'prymtoy')}
+    identity=curve_identity(field,curve,'prymtoy');curve['curve_id']=identity['curve_id']
+    fixture['ec1']={'field':field,'curve':curve,**identity}
     return fixture
 
 
