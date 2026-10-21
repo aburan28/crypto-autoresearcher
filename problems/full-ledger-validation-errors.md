@@ -98,3 +98,8 @@ historical archives need their own scoped checks before an all-corpus claim.
 - 2026-10-21: Opened after two byte-identical full-checkout validator runs.
   No baseline entry, archived record, hypothesis, or numerical result was
   changed. Unresolved.
+- 2026-10-21: [PR #2454](https://github.com/aburan28/crypto-autoresearcher/pull/2454)
+  proposes a hash-bound validator correction for five references to frozen
+  refused drafts. Its complete-tree run reports 157 remaining unsuppressed
+  lines; the historical 162-line audit above remains bound to the named main
+  commit. The broader problem remains open.

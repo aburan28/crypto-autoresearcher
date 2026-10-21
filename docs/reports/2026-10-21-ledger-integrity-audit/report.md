@@ -66,9 +66,15 @@ must not be made green by invented files.
   [negative controls](evidence/negative-controls.json) confirmed that a
   changed source hash and an injected dashboard payload error are rejected.
 - The generated reader's integrity payload reports **24 unparseable historical
-  records**. It also displays other reference and ID warnings; those individual
-  warnings were not adjudicated here. A successful reader build does not clear
-  the red ledger gate.
+  source files**. A [source-bound classification](evidence/unparseable-classification.json)
+  found **nine** with parseable replacement records already present in the
+  schema-supersession registry; both original and replacement SHA-256 values
+  match the registry. **Fifteen** have no registered replacement. The reader's
+  deep scan still reports the nine originals as unparseable, and its canonical
+  detail lookup still reads the original path. The [reader coverage problem](../../../problems/dashboard-unparseable-archive.md)
+  records the exact paths and acceptance conditions. The integrity payload also
+  displays other reference and ID warnings; those individual warnings were not
+  adjudicated here. A successful reader build does not clear the red ledger gate.
 - The [public Pages status check](evidence/live-pages-status.json) found the
   workflow **manually disabled** and the live dashboard still showing commit
   `bb9e9f01f3f9fcdf6e456acd7e01cd9af6c05bc3`, built on 2026-10-11.
@@ -95,6 +101,10 @@ belong in the existing supersession routes or a prospective schema change
 with controls. Unknown references and missing criteria need real source
 evidence, not guessed values. Re-run the full gate after each repair and
 require **zero unsuppressed errors without growing the baseline**.
+The separate [draft-reference correction PR #2454](https://github.com/aburan28/crypto-autoresearcher/pull/2454)
+proposes a source-bound repair for five of the seven broken-reference lines;
+its full-tree comparison leaves 157 errors and the gate red. The chart above
+remains the exact count for the audited main commit.
 
 The separate [four-target Lean PR #2450](https://github.com/aburan28/crypto-autoresearcher/pull/2450)
 closed the frozen file-presence queue and machine-verified all 66 targets.
@@ -113,6 +123,8 @@ python3.12 tools/sparse_checkout.py disable
   --report /var/tmp/current-site-report.json
 python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_primary_snapshot.py \
   /path/to/cryptanalysis-primary.jsonl
+python3 docs/reports/2026-10-21-ledger-integrity-audit/check_unparseable.py \
+  . /var/tmp/current-site/data/integrity.json
 ```
 
 The validator's nonzero exit is the recorded result, not a reproduction
