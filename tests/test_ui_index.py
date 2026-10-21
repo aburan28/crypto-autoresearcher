@@ -20,6 +20,7 @@ from __future__ import annotations
 import random
 import re
 import sys
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -460,6 +461,44 @@ def test_a_correction_only_record_is_still_reachable(tiny_repo):
         "evidence:\n  id: EV-ONLY-001\n  strength: moderate\n")
     index = ResearchIndex(tiny_repo).build()
     assert index.records["EV-ONLY-001"].path.startswith("ledger/corrections/")
+
+
+def test_malformed_original_exposes_only_a_hash_bound_parsed_copy(tiny_repo):
+    original = tiny_repo / "ledger/evidence/EV-ECDLP-001.yaml"
+    original.write_text("evidence:\n  id: EV-ECDLP-001\n  scope_statement: [unclosed\n")
+    replacement_rel = ("ledger/corrections/schema-supersessions/20260808/"
+                       "ledger__evidence__EV-ECDLP-001.v2.yaml")
+    replacement = tiny_repo / replacement_rel
+    replacement.parent.mkdir(parents=True)
+    replacement.write_text("evidence:\n  id: EV-ECDLP-001\n  scope_statement: parsed copy\n")
+    registry = tiny_repo / "tools/schema_supersession_registry.yaml"
+    registry.parent.mkdir(exist_ok=True)
+    registry.write_text(yaml.safe_dump({
+        "schema": "schema-supersession-registry-v1",
+        "records": [{
+            "superseded_path": "ledger/evidence/EV-ECDLP-001.yaml",
+            "superseded_sha256": hashlib.sha256(original.read_bytes()).hexdigest(),
+            "superseding_path": replacement_rel,
+            "superseding_sha256": hashlib.sha256(replacement.read_bytes()).hexdigest(),
+        }],
+    }))
+    index = ResearchIndex(tiny_repo).build()
+    index._deep_scan()
+    payload = payloads.record_payload(index, "EV-ECDLP-001")
+    assert payload["summary"]["path"] == "ledger/evidence/EV-ECDLP-001.yaml"
+    assert payload["verified"] is False and payload["parse_error"]
+    assert payload["body"] is None
+    assert payload["supersession"]["path"] == replacement_rel
+    assert payload["supersession"]["body"]["evidence"]["scope_statement"] == "parsed copy"
+    assert "[unclosed" in payloads.source_payload(index, "EV-ECDLP-001")["raw"]
+
+    original.write_text(original.read_text() + "# changed\n")
+    assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None
+    original.write_text(original.read_text().replace("# changed\n", ""))
+    replacement.write_text(replacement.read_text() + "# changed\n")
+    assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None
+    replacement.unlink()
+    assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None
 
 
 def test_record_corrections_require_explicit_targets_and_preserve_source(tiny_repo, tmp_path):

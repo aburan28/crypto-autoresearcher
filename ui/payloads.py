@@ -706,6 +706,10 @@ def record_payload(index: ResearchIndex, record_id: str,
         "verified": error is None and parsed is not None,
         "parse_error": error,
         "body": jsonable(body),
+        # A hash-bound schema copy is separate from the malformed canonical
+        # source. Its parseability never turns this record's verified flag on.
+        "supersession": jsonable(index.parsed_supersession(record_id))
+        if error is not None and parsed is None else None,
         "corrections": record_corrections(index, record_id),
         "links": {
             "out": sorted(r for r in record.refs if r in index.records),

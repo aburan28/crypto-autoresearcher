@@ -2292,6 +2292,7 @@ async function viewRecord(id, params = new URLSearchParams()) {
   const isEntry = s.kind === 'KN';
   const front = isEntry && body.body && typeof body.body === 'object' ? body.body : null;
   const corrections = Array.isArray(body.corrections) ? body.corrections : [];
+  const supersession = body.supersession;
 
   const panes = {};
   const paneHost = h('div', { class: 'panel-body record-pane', role: 'tabpanel', id: 'record-pane', tabindex: '0' });
@@ -2312,6 +2313,7 @@ async function viewRecord(id, params = new URLSearchParams()) {
   const tabList = isEntry
     ? [['entry', 'entry'], ['structured', 'front matter']]
     : [['structured', 'record']];
+  if (supersession) tabList.push(['supersession', 'parsed correction']);
   tabList.push(['source', 'source'],
     ['links', `links (${body.links.out.length}↗ ${body.links.in.length}↙)`]);
   for (const [key, label] of tabList) {
@@ -2380,6 +2382,10 @@ async function viewRecord(id, params = new URLSearchParams()) {
             h('div', { class: 'faint', style: 'margin-top:4px' },
               'Reported, not repaired: records are immutable and a correction supersedes them.')))
       : null,
+    supersession ? h('div', { class: 'banner warn' },
+      h('b', {}, 'A registered, hash-matched schema copy is available. '),
+      'Read it in the parsed correction tab. The original remains unparseable; '
+        + 'hash matching does not establish that the correction preserves its scientific meaning.') : null,
     h('section', { class: 'panel' },
       h('div', { class: 'panel-body stack', style: 'gap:9px' },
         h('div', { class: 'spread' },
@@ -2473,6 +2479,16 @@ function buildPane(key, body, src) {
   }
   if (key === 'source') {
     return sourceReader(body, src);
+  }
+  if (key === 'supersession' && body.supersession) {
+    const copy = body.supersession;
+    return h('div', { class: 'stack', style: 'gap:12px' },
+      h('div', { class: 'banner warn' },
+        'This is a separately registered schema copy. The original source and its parse error remain on this page.'),
+      h('div', { class: 'row mono' }, pathLink(copy.path)),
+      h('div', { class: 'faint mono', style: 'font-size:11px' },
+        `Original SHA-256 ${copy.source_sha256} · copy SHA-256 ${copy.replacement_sha256}`),
+      yamlTree(copy.body));
   }
   if (key === 'links') {
     return h('div', { class: 'stack' },

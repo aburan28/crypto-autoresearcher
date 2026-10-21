@@ -16,6 +16,7 @@ record payload means the caller is looking at tier 2.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import re
 import sys
 import threading
@@ -1089,6 +1090,55 @@ class ResearchIndex:
         with self._lock:
             self._full_cache[record_id] = parsed
         return parsed
+
+    def parsed_supersession(self, record_id: str) -> dict[str, Any] | None:
+        """Show a registered, hash-bound parseable copy beside a bad original.
+
+        This does not replace the canonical record or certify that the
+        correction preserves its scientific meaning. Any missing file, path
+        escape, changed hash, or parse failure leaves the original failure
+        visible without a replacement body.
+        """
+        record = self.records.get(record_id)
+        if record is None or not record.path.endswith(".yaml"):
+            return None
+        try:
+            registry = fast_yaml.safe_load(
+                (self.repo / "tools/schema_supersession_registry.yaml").read_text())
+            if not isinstance(registry, dict) or registry.get("schema") != "schema-supersession-registry-v1":
+                return None
+            matches = [row for row in registry.get("records", [])
+                       if isinstance(row, dict) and row.get("superseded_path") == record.path]
+            if len(matches) != 1:
+                return None
+            row = matches[0]
+            original = (self.repo / record.path).resolve()
+            replacement_path = row.get("superseding_path")
+            if not isinstance(replacement_path, str):
+                return None
+            replacement = (self.repo / replacement_path).resolve()
+            if not original.is_relative_to(self.repo) or not replacement.is_relative_to(self.repo):
+                return None
+            source_hash = hashlib.sha256(original.read_bytes()).hexdigest()
+            replacement_bytes = replacement.read_bytes()
+            replacement_hash = hashlib.sha256(replacement_bytes).hexdigest()
+            if (source_hash != row.get("superseded_sha256") or
+                    replacement_hash != row.get("superseding_sha256")):
+                return None
+            parsed = fast_yaml.safe_load(replacement_bytes.decode("utf-8"))
+            if not isinstance(parsed, dict):
+                return None
+            bodies = [parsed] + [value for value in parsed.values() if isinstance(value, dict)]
+            if not any(body.get("id") == record_id for body in bodies):
+                return None
+            return {
+                "path": replacement_path,
+                "source_sha256": source_hash,
+                "replacement_sha256": replacement_hash,
+                "body": parsed,
+            }
+        except Exception:  # noqa: BLE001 - fail closed on a bad registry or copy
+            return None
 
     def raw_text(self, record_id: str) -> str:
         record = self.records.get(record_id)

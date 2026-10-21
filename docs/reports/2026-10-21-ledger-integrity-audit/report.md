@@ -1,9 +1,9 @@
 # Full corpus ledger and dashboard integrity audit — 2026-10-21
 
-**Scope.** This is a read-only validation of `crypto-autoresearcher` main
-`e20013ae20d2c09019d8ea1b2fed7556c61ad4ba`, followed by a local static
-dashboard build on proof branch `46d5a90bcdf1e13f449604eed118b69e9b7071ef`.
-The branch has no changes to ledger, experiment, knowledge, validator, or UI
+**Scope.** The initial audit is a read-only validation of `crypto-autoresearcher`
+main `e20013ae20d2c09019d8ea1b2fed7556c61ad4ba`, followed by a local
+static dashboard build at audit commit `46d5a90bcdf1e13f449604eed118b69e9b7071ef`.
+That commit has no changes to ledger, experiment, knowledge, validator, or UI
 inputs relative to that main revision. A full checkout held **138,890 tracked
 files**. No scientific trial, benchmark, claim promotion, or performance
 measurement was run. [The chart](error-categories.svg) counts validation
@@ -96,6 +96,27 @@ primary archive bytes are unchanged, and this pass generated no new timing.
 Other historical archives, graphics, and performance claims were not
 independently replayed by this dashboard check.
 
+## Follow-on reader correction on this audit branch
+
+The later reader change displays a registered, parseable schema copy in a
+**separate tab** when the canonical YAML does not parse and both original and
+copy bytes match the supersession registry hashes. The canonical path, raw
+source, parse error, and integrity warning remain visible. A hash match does
+not establish semantic fidelity or the truth of the scientific conclusion.
+Changed-source, changed-copy, and missing-copy controls show no parsed copy.
+
+The updated reader suite passed **146 tests**. A second complete local build
+[emitted 55,218 files, 521.2 MB](evidence/supersession-site-build-report.json)
+and still counted **24** unparseable originals. The
+[generated-detail checker](check_supersession_readback.py) verified the
+[nine detail payloads](evidence/supersession-readback.json): nine separate
+copies, nine retained parse warnings, and nine exact canonical source texts.
+The existing benchmark payload still carried all nine primary rows with no
+error. The [reader coverage problem](../../../problems/dashboard-unparseable-archive.md)
+now tracks the **15** files without registered copies and the pending
+semantic review of the nine. This is a local build; public Pages remains
+disabled and unchanged. No measured result or numerical graph changed.
+
 ## Consequence and next step
 
 The repository is **not yet clear for an end-to-end integrity claim or a
@@ -126,6 +147,9 @@ python3.12 tools/sparse_checkout.py disable
   tests/test_ui_index.py tests/test_ui_research_views.py tests/test_ui_benchmarks.py
 /path/to/python-with-pyyaml -m ui.build --out /var/tmp/current-site \
   --report /var/tmp/current-site-report.json
+python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_supersession_readback.py \
+  . /var/tmp/current-site \
+  docs/reports/2026-10-21-ledger-integrity-audit/evidence/unparseable-classification.json
 python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_primary_snapshot.py \
   /path/to/cryptanalysis-primary.jsonl
 python3 docs/reports/2026-10-21-ledger-integrity-audit/check_unparseable.py \
