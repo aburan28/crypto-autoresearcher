@@ -1,6 +1,6 @@
 # Published runbook claims can lack local origin-tracking visibility
 
-- **Status:** `open`
+- **Status:** `investigating`
 - **Kind:** implementation gap in orchestration metadata; no mathematical obstruction
 - **Affected work:** `EXP-ICPERF-e467a5`, stopped session `RBS-ICPERF-b7e41c`; [prospective software task](../ledger/handoffs/TASK-20261021-b8030c.yaml)
 - **Next action owner:** Executor `TASK-20261021-b8030c`, after published prospective authority and exclusive software ownership
@@ -37,3 +37,14 @@ This establishes only the scoped software custody correction. Scientific ready/o
 ## Resolution and history
 
 2026-10-21: Named the current source gap and froze prospective task `TASK-20261021-b8030c` under `DEC-20261021-55cd89`. This record is unresolved. It is distinct from [prime63 pilot self-attested approval](icperf-prime63-launcher-self-attested-approval.md) and [missing supervisor archive coverage](ready-plans-lack-supervisor-archive-coverage.md), neither of which this repair resolves.
+
+
+2026-10-21 independent software review: source102d71b590 passed97 focused tests and26 synthetic controls, but [review36](../coordination/tasks/TASK-20261021-36e54c/review.md) and its immutable findings establish one blocking F1/P2. After fetching a divergent newer same-owner epoch2, cleanup of verified local epoch1 called unqualified native release, wrote/committed2.release.json and then failed its push; supervisor calls were0. This is durable incorrect ownership metadata, not scientific evidence or an admission bypass. [DEC195c49](../ledger/decisions/DEC-20261021-195c49.yaml) records scoped breaks and keeps this problem investigating.
+
+Additional required exit conditions:
+
+- [ ] Native API/CLI expected-epoch fencing validates a positive integer and checks the single selected current epoch before payload/path/write_once, with no reselection or wrong-epoch mutation.
+- [ ] Both cleanup and ordinary runbook release always pass captured epoch; actual native divergent-remotes regression, normal-release advancement and owner/write-once/legacy controls pass without wrong release-file/commit/push mutations.
+- [ ] A fresh published corrective source snapshot and [independent review plan](../coordination/tasks/TASK-20261021-751951/protocol/review-plan.yaml) support a later scoped disposition. Prior passed tests, failed attempts and review evidence remain unchanged.
+
+The prospective [corrective queue](../coordination/tasks/TASK-20261021-751951/protocol/dispatch_queue.json) is the next action. No new scientific trial, old-session resume or goal/hypothesis status change is authorized by this software review.
