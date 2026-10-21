@@ -1349,6 +1349,13 @@ class Runner:
             if epoch is None:
                 return StepResult("failed", "infrastructure_error", "claim reported success but is not live", data=data)
         data["epoch"] = epoch
+        proof = self._sync_claim(step, attempt, queue, task, epoch, env, data)
+        if proof is not None:
+            # Only release an identity checked against its committed native
+            # record. A malformed/foreign claim is never ours to clean up.
+            if data.get("claim_identity_verified"):
+                self._release_claim(step, attempt, queue, task, "failed", env, data)
+            return proof
         stdout, stderr = self._logs(step["id"], attempt, ".supervisor")
         argv = ["python3", "tools/experiment_execution.py", "run", "--plan", plan_rel,
                 "--owner", self.owner, "--epoch", str(epoch)]
@@ -1356,13 +1363,7 @@ class Runner:
         code, timed_out = run_process(argv, cwd=self.repo, env=env, timeout=step["timeout_seconds"],
                                       stdout=stdout, stderr=stderr)
         outcome = "completed" if code == 0 else "failed"
-        stdout_r, stderr_r = self._logs(step["id"], attempt, ".release")
-        release = ["python3", "tools/goal_lanes.py", "release", queue, task, "--as", self.owner,
-                   "--outcome", outcome, "--note", f"runbook session {self.runbook.doc['session_id']}",
-                   "--publish"]
-        release_code, _ = run_process(release, cwd=self.repo, env=env, timeout=600,
-                                      stdout=stdout_r, stderr=stderr_r)
-        data.update(release_argv=release, release_exit_code=release_code)
+        release_code, stderr_r = self._release_claim(step, attempt, queue, task, outcome, env, data)
         if timed_out:
             return StepResult("failed", "resource_exhaustion", "supervisor timed out", None, True, data=data)
         if code != 0:
@@ -1377,6 +1378,76 @@ class Runner:
                               f"see {rel(self.repo, stderr_r)}", code, data=data)
         return StepResult("passed", exit_code=code, data=data)
 
+    def _release_claim(self, step: dict[str, Any], attempt: int, queue: str, task: str,
+                       outcome: str, env: dict[str, str], data: dict[str, Any]) -> tuple[int | None, Path]:
+        stdout, stderr = self._logs(step["id"], attempt, ".release")
+        argv = ["python3", "tools/goal_lanes.py", "release", queue, task, "--as", self.owner,
+                "--outcome", outcome, "--note", f"runbook session {self.runbook.doc['session_id']}",
+                "--publish"]
+        code, timed_out = run_process(argv, cwd=self.repo, env=env, timeout=600,
+                                      stdout=stdout, stderr=stderr)
+        data.update(release_argv=argv, release_exit_code=code, release_timed_out=timed_out)
+        return code, stderr
+
+    def _sync_claim(self, step: dict[str, Any], attempt: int, queue: str, task: str, epoch: int,
+                    env: dict[str, str], data: dict[str, Any]) -> StepResult | None:
+        """Fetch remote proof for the exact committed native claim, never HEAD.
+
+        Every Git command has exclusive per-attempt logs and a journal-bound
+        status. The supervisor's own authorize() remains the final authority.
+        """
+        commands = data.setdefault("claim_proof", [])
+
+        def command(name: str, *args: str) -> tuple[int | None, bool, bytes]:
+            stdout, stderr = self._logs(step["id"], attempt, f".claim-{name}")
+            argv = ["git", *args]
+            code, timed_out = run_process(argv, cwd=self.repo, env=env, timeout=600,
+                                          stdout=stdout, stderr=stderr)
+            commands.append({"argv": argv, "exit_code": code, "timed_out": timed_out,
+                             "stdout": rel(self.repo, stdout), "stderr": rel(self.repo, stderr)})
+            return code, timed_out, stdout.read_bytes()
+
+        def refused(detail: str) -> StepResult:
+            return StepResult("failed", "infrastructure_error", detail, data=data)
+
+        code, _, output = command("branch", "symbolic-ref", "--quiet", "--short", "HEAD")
+        branch = output.decode("utf-8", errors="replace").strip()
+        if code != 0 or not branch or branch == "HEAD":
+            return refused("claim proof requires a known current branch; detached HEAD cannot launch")
+        code, _, _ = command("branch-format", "check-ref-format", f"refs/heads/{branch}")
+        if code != 0:
+            return refused("claim proof requires a valid current branch")
+        claim_relative = (PurePosixPath(queue).parent / "claims" / f"{task}.{epoch}.claim.json").as_posix()
+        try:
+            claim_path = resolve(self.repo, claim_relative)
+            claim = read_json_file(claim_path)
+        except (OSError, ValueError, RunbookError) as exc:
+            return refused(f"cannot read exact live claim: {exc}")
+        if not isinstance(claim, dict) or any(claim.get(key) != value for key, value in {
+                "schema": "crypto.autoresearch.task_claim.v1", "task_id": task, "epoch": epoch,
+                "owner": self.owner, "branch": branch}.items()) or type(claim.get("epoch")) is not int:
+            return refused("exact live claim identity does not match task/owner/epoch/current branch")
+        code, _, output = command("committed", "show", f"HEAD:{claim_relative}")
+        if code != 0 or output != claim_path.read_bytes():
+            return refused("exact live claim is not committed as-is")
+        code, _, output = command("commit", "log", "-1", "--format=%H", "--", claim_relative)
+        commit = output.decode("ascii", errors="replace").strip()
+        if code != 0 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit):
+            return refused("exact live claim has no native commit")
+        data.update(claim_path=claim_relative, claim_commit=commit, claim_branch=branch,
+                    claim_identity_verified=True)
+        tracking = f"refs/remotes/origin/{branch}"
+        code, timed_out, _ = command("fetch", "fetch", "--no-tags", "origin",
+                                     f"refs/heads/{branch}:{tracking}")
+        if code != 0:
+            return refused(f"own-branch claim fetch failed (exit {code}, timed_out={timed_out}); "
+                           f"see {commands[-1]['stderr']}")
+        code, _, _ = command("contains", "merge-base", "--is-ancestor", commit, tracking)
+        if code != 0:
+            return refused(f"exact claim commit is not contained in fetched own branch; "
+                           f"see {commands[-1]['stderr']}")
+        return None
+
     def _live_claim_epoch(self, queue: str, task: str) -> int | None:
         done = subprocess.run(["python3", "tools/goal_lanes.py", "claims", queue, "--json"],
                               cwd=self.repo, capture_output=True, text=True, timeout=600, check=False)
@@ -1387,7 +1458,10 @@ class Runner:
         except ValueError:
             return None
         if item.get("status") == "live" and item.get("owner") == self.owner:
-            return int(item["epoch"])
+            epoch = item.get("epoch")
+            if type(epoch) is not int or epoch <= 0:
+                raise RunbookError("live claim has an invalid epoch")
+            return epoch
         return None
 
     def _local(self, step: dict[str, Any], attempt: int, plan: dict[str, Any], plan_sha: str) -> StepResult:

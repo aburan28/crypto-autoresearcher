@@ -689,7 +689,14 @@ def test_a_missing_optional_verifier_is_unavailable_not_verified(tmp_path, monke
 # The supervisor engine: claim, supervised execution, release
 # ---------------------------------------------------------------------------
 
-FAKE_LANES = '''import json, pathlib, sys
+FAKE_LANES = '''import json, os, pathlib, subprocess, sys
+def command(argv):
+    done = subprocess.run(argv, capture_output=True, text=True)
+    print(json.dumps({"fixture_git": argv, "exit_code": done.returncode,
+                      "stdout": done.stdout, "stderr": done.stderr}), flush=True)
+    if done.returncode:
+        sys.exit(done.returncode)
+    return done.stdout
 args = sys.argv[1:]
 state, log = pathlib.Path("lanes-state.json"), pathlib.Path("lanes-log.jsonl")
 with log.open("a") as handle:
@@ -699,18 +706,64 @@ if args[0] == "claims":
     print(json.dumps(data))
 elif args[0] == "claim":
     owner = args[args.index("--as") + 1]
-    data[args[2]] = {"status": "live", "owner": owner, "epoch": 1}
+    branch = command(["git", "symbolic-ref", "--short", "HEAD"]).strip()
+    claim = {"schema": "crypto.autoresearch.task_claim.v1", "task_id": args[2],
+             "epoch": 1, "owner": owner, "branch": branch,
+             "acquired_at": "2026-01-01T00:00:00Z", "expires_at": "2099-01-01T00:00:00Z"}
+    path = pathlib.Path(args[1]).parent / "claims" / f"{args[2]}.1.claim.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(claim))
+    command(["git", "add", "--", str(path)])
+    command(["git", "commit", "-qm", "synthetic claim", "--", str(path)])
+    data[args[2]] = dict(claim, status="live")
     state.write_text(json.dumps(data))
-    print(f"claimed {args[2]} -> claims/{args[2]}.1.claim.json")
+    mode = os.environ.get("FAKE_CLAIM_MODE", "published")
+    if mode != "unpublished":
+        command(["git", "push", "-u", "origin", branch])
+    if mode == "tampered":
+        claim["owner"] = "another-owner"
+        path.write_text(json.dumps(claim))
+    elif mode == "dirty-claim":
+        claim["write_scope"] = ["tampered-scope"]
+        path.write_text(json.dumps(claim))
+    elif mode in ("wrong-branch", "wrong-owner", "wrong-task", "wrong-epoch"):
+        field, value = {"wrong-branch": ("branch", "some-other-branch"),
+                        "wrong-owner": ("owner", "another-owner"),
+                        "wrong-task": ("task_id", "TASK-20261016-000000"),
+                        "wrong-epoch": ("epoch", 2)}[mode]
+        claim[field] = value
+        path.write_text(json.dumps(claim))
+        command(["git", "add", "--", str(path)])
+        command(["git", "commit", "-qm", "synthetic wrong identity", "--", str(path)])
+        command(["git", "push", "origin", branch])
+    elif mode in ("failed-fetch", "absent-branch"):
+        command(["git", "fetch", "--no-tags", "origin",
+                 f"refs/heads/{branch}:refs/remotes/origin/{branch}"])
+        if mode == "failed-fetch":
+            command(["git", "remote", "set-url", "origin", str(pathlib.Path(".git/missing-origin.git").resolve())])
+        else:
+            command(["git", "--git-dir=.git/synthetic-origin.git", "update-ref", "-d", f"refs/heads/{branch}"])
+    print(f"claimed {args[2]} -> {path}")
 elif args[0] == "release":
     data[args[2]]["status"] = "released"
     state.write_text(json.dumps(data))
 '''
 FAKE_SUPERVISOR = '''import hashlib, json, os, pathlib, sys
 args = sys.argv[1:]
+with pathlib.Path("supervisor-calls.jsonl").open("a") as handle:
+    handle.write(json.dumps(args) + "\\n")
 plan_path = pathlib.Path(args[args.index("--plan") + 1])
 plan = json.loads(plan_path.read_text())
 plan_sha = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+# Mirror only the supervisor's unchanged native remote-containment refusal.
+import subprocess
+claim_path = pathlib.Path(plan["queue"]).parent / "claims" / f"{plan['task_id']}.1.claim.json"
+commit = subprocess.check_output(["git", "log", "-1", "--format=%H", "--", str(claim_path)], text=True).strip()
+proof = subprocess.check_output(["git", "for-each-ref", f"--contains={commit}",
+                                 "--format=%(refname)", "refs/remotes/origin/"], text=True).strip()
+if not proof:
+    print("claim is not visible in origin tracking refs; publish/fetch before launch", file=sys.stderr)
+    sys.exit(2)
 code = int(os.environ.get("FAKE_SUPERVISOR_EXIT", "0"))
 if code == 0:
     parent = pathlib.Path(plan["specification"]).parent
@@ -729,8 +782,32 @@ sys.exit(code)
 '''
 
 
+def fixture_command(argv: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    done = subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
+    print(json.dumps({"fixture_argv": argv, "cwd": str(cwd), "exit_code": done.returncode,
+                      "stdout": done.stdout, "stderr": done.stderr}), flush=True)
+    return done
+
+
 def git(root: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+    fixture_command(["git", "-C", str(root), *args]).check_returncode()
+
+
+@pytest.fixture
+def claim_transcript(monkeypatch):
+    """Observe actual fixture subprocesses; never replace a Git outcome."""
+    original = rb.run_process
+
+    def traced(argv, **kwargs):
+        code, timed_out = original(argv, **kwargs)
+        print(json.dumps({"runbook_argv": argv, "cwd": str(kwargs["cwd"]),
+                          "exit_code": code, "timed_out": timed_out,
+                          "stdout": kwargs["stdout"].read_text(errors="replace"),
+                          "stderr": kwargs["stderr"].read_text(errors="replace")}), flush=True)
+        return code, timed_out
+
+    monkeypatch.setattr(rb, "run_process", traced)
+
 
 
 def supervised_repo(root: Path) -> str:
@@ -766,11 +843,16 @@ def supervised_repo(root: Path) -> str:
                                               "assertions": [{"pointer": "/trial_id", "equals": "{trial_id}"}]}]},
                       "replay": {"mode": "exempt", "exempt_reason": "the fake supervisor has no replayable driver"}}]}
     (root / f"{exp}/runbook.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
-    git(root, "init", "-q")
+    git(root, "init", "-q", "-b", "fixture")
     git(root, "config", "user.email", "test@example.invalid")
     git(root, "config", "user.name", "runbook tests")
     git(root, "add", ".")
     git(root, "commit", "-qm", "fixture")
+    origin = root / ".git/synthetic-origin.git"
+    fixture_command(["git", "init", "--bare", "-q", str(origin)]).check_returncode()
+    git(root, "remote", "add", "origin", str(origin))
+    git(root, "config", "remote.origin.fetch", "+refs/heads/main:refs/remotes/origin/main")
+    git(root, "push", "origin", "HEAD:refs/heads/main", "HEAD:refs/heads/fixture")
     return f"{exp}/runbook.yaml"
 
 
@@ -814,6 +896,126 @@ def test_the_supervisor_engine_claims_runs_and_releases(tmp_path, monkeypatch) -
     assert summary["units"]["valid"] == 2
     paths = rb.publish_paths(tmp_path, rb.load_runbook(tmp_path, path).session_dir)["paths"]
     assert "experiments/EXP-TEST-abcdef/runs/RUN-TEST-000001" in paths
+
+
+@pytest.mark.parametrize("reused", [False, True, "unpublished-descendant"],
+                         ids=["new-claim", "reused-claim", "reused-claim-with-unpublished-head"])
+def test_main_only_fetchspec_synchronizes_exact_published_claim(tmp_path, monkeypatch, reused, claim_transcript) -> None:
+    monkeypatch.setenv("FAKE_SUPERVISOR_EXIT", "0")
+    path = supervised_repo(tmp_path)
+    approve(tmp_path, path)
+    book = rb.load_runbook(tmp_path, path)
+    step = book.doc["steps"][0]
+    plan = json.loads((tmp_path / step["plan"]).read_text())
+    if reused:
+        fixture_command(["python3", "tools/goal_lanes.py", "claim", plan["queue"], plan["task_id"],
+                         "--as", "mech-test", "--ttl-minutes", "60", "--publish"],
+                        cwd=tmp_path).check_returncode()
+        if reused == "unpublished-descendant":
+            git(tmp_path, "commit", "--allow-empty", "-qm", "unpublished unrelated descendant")
+    assert subprocess.check_output(["git", "config", "--get-all", "remote.origin.fetch"],
+                                   cwd=tmp_path, text=True).strip() == "+refs/heads/main:refs/remotes/origin/main"
+    assert not subprocess.check_output(["git", "for-each-ref", "--format=%(refname)",
+                                        "refs/remotes/origin/fixture"], cwd=tmp_path)
+    result = run(tmp_path, path, owner="mech-test")
+    assert result["status"] == "completed", result
+    assert len((tmp_path / "supervisor-calls.jsonl").read_text().splitlines()) == 1
+    finished = next(e for e in entries(tmp_path / book.session_dir) if e["type"] == "step_finished")
+    data = finished["data"]
+    assert data["claim_proof"][-1]["argv"] == ["git", "merge-base", "--is-ancestor",
+                                                data["claim_commit"], "refs/remotes/origin/fixture"]
+    assert all(c["exit_code"] == 0 for c in data["claim_proof"])
+    assert rb.verify(tmp_path, tmp_path / book.session_dir) == []
+    if reused == "unpublished-descendant":
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True).strip()
+        assert data["claim_commit"] != head
+        assert fixture_command(["git", "merge-base", "--is-ancestor", head,
+                                "refs/remotes/origin/fixture"], cwd=tmp_path).returncode == 1
+    print(json.dumps({"positive_result": reused, "data": data, "supervisor_calls": 1}), flush=True)
+    assert subprocess.check_output(["git", "config", "--get-all", "remote.origin.fetch"],
+                                   cwd=tmp_path, text=True).strip() == "+refs/heads/main:refs/remotes/origin/main"
+
+
+@pytest.mark.parametrize("reused", [False, True], ids=["new-claim", "reused-claim"])
+@pytest.mark.parametrize("control", ["unpublished", "tampered", "dirty-claim", "wrong-branch",
+                                     "wrong-owner", "wrong-task", "wrong-epoch", "failed-fetch",
+                                     "absent-branch", "failed-push", "detached"])
+def test_claim_remote_proof_refuses_before_supervisor(tmp_path, monkeypatch, claim_transcript, reused, control) -> None:
+    path = supervised_repo(tmp_path)
+    approve(tmp_path, path)
+    book = rb.load_runbook(tmp_path, path)
+    step = book.doc["steps"][0]
+    plan = json.loads((tmp_path / step["plan"]).read_text())
+    mode = "unpublished" if control == "failed-push" and reused else control
+    monkeypatch.setenv("FAKE_CLAIM_MODE", mode)
+    if control == "failed-push":
+        # A real receive hook refuses publication; a pre-existing tracking ref
+        # must not turn that refusal into admission.
+        git(tmp_path, "fetch", "--no-tags", "origin", "refs/heads/fixture:refs/remotes/origin/fixture")
+        hook = tmp_path / ".git/synthetic-origin.git/hooks/pre-receive"
+        hook.write_text("#!/bin/sh\necho 'synthetic publication refusal' >&2\nexit 1\n")
+        hook.chmod(0o755)
+    if reused:
+        fixture_command(["python3", "tools/goal_lanes.py", "claim", plan["queue"], plan["task_id"],
+                         "--as", "mech-test", "--ttl-minutes", "60", "--publish"],
+                        cwd=tmp_path).check_returncode()
+        if control == "failed-push":
+            failed = fixture_command(["git", "push", "-u", "origin", "fixture"], cwd=tmp_path)
+            assert failed.returncode != 0 and "synthetic publication refusal" in failed.stderr
+    if control == "detached":
+        git(tmp_path, "checkout", "--detach", "-q")
+    result = run(tmp_path, path, owner="mech-test")
+    session = tmp_path / book.session_dir
+    history = entries(session)
+    finished = next(e for e in history if e["type"] == "step_finished")
+    data = finished["data"]
+    supervisor_calls = (tmp_path / "supervisor-calls.jsonl")
+    count = len(supervisor_calls.read_text().splitlines()) if supervisor_calls.exists() else 0
+    print(json.dumps({"control_result": control, "reused": reused, "supervisor_calls": count,
+                      "result": result, "data": data}), flush=True)
+    assert result["status"] == "stopped" and count == 0
+    assert "supervisor_argv" not in data
+    lane_calls = [json.loads(line) for line in (tmp_path / "lanes-log.jsonl").read_text().splitlines()]
+    assert sum(c[0] == "claim" for c in lane_calls) == 1
+    if control in ("unpublished", "failed-fetch", "absent-branch") or (control == "failed-push" and reused):
+        fetch = next(c for c in data["claim_proof"] if c["argv"][1] == "fetch")
+        assert fetch["argv"] == ["git", "fetch", "--no-tags", "origin",
+                                 "refs/heads/fixture:refs/remotes/origin/fixture"]
+        if control in ("unpublished", "failed-push"):
+            assert fetch["exit_code"] == 0
+            contains = data["claim_proof"][-1]
+            assert contains["argv"][1:3] == ["merge-base", "--is-ancestor"]
+            assert contains["exit_code"] == 1
+        else:
+            assert fetch["exit_code"] != 0
+            assert (tmp_path / fetch["stderr"]).read_bytes()
+        assert data["release_exit_code"] == 0
+        assert lane_calls[-1][0] == "release" and "failed" in lane_calls[-1]
+    elif control != "detached":
+        assert not any(c[0] == "release" for c in lane_calls), "unverified identity must not be released"
+    for item in finished["logs"]:
+        assert sha(tmp_path / item["path"]) == item["sha256"]
+    assert rb.verify(tmp_path, session) == []
+
+
+def test_claim_proof_attempt_logs_are_exclusive_and_preserved(tmp_path, monkeypatch, claim_transcript) -> None:
+    path = supervised_repo(tmp_path)
+    approve(tmp_path, path)
+    book = rb.load_runbook(tmp_path, path)
+    step = book.doc["steps"][0]
+    plan = json.loads((tmp_path / step["plan"]).read_text())
+    fixture_command(["python3", "tools/goal_lanes.py", "claim", plan["queue"], plan["task_id"],
+                     "--as", "mech-test", "--ttl-minutes", "60", "--publish"],
+                    cwd=tmp_path).check_returncode()
+    runner = rb.Runner(book, owner="mech-test")
+    data = {}
+    assert runner._sync_claim(step, 1, plan["queue"], plan["task_id"], 1, dict(os.environ), data) is None
+    original = {p: p.read_bytes() for p in (runner.session / "steps").iterdir()}
+    with pytest.raises(FileExistsError):
+        runner._sync_claim(step, 1, plan["queue"], plan["task_id"], 1, dict(os.environ), {})
+    assert runner._sync_claim(step, 2, plan["queue"], plan["task_id"], 1, dict(os.environ), {}) is None
+    assert all(p.read_bytes() == content for p, content in original.items())
+    assert not (tmp_path / "supervisor-calls.jsonl").exists()
 
 
 def test_a_supervisor_refusal_stops_the_session_and_releases_as_failed(tmp_path, monkeypatch) -> None:
