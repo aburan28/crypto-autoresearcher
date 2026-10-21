@@ -1,5 +1,5 @@
 #set page(paper: "a4", margin: 18mm)
-#set text(font: "DejaVu Sans", size: 9pt)
+#set text(font: "Libertinus Serif", size: 9pt)
 #set heading(numbering: none)
 
 = Formal and evidence validation slice
@@ -9,7 +9,7 @@ This is a review of historical evidence and source code. No scientific trial or 
 
 == Inventory and exact scope
 
-The main trees contain 326 and 2,750 tracked experiment directories respectively. In the autoresearcher, 66 formal target specifications name 61 present theorem files and five undischarged files. Presence is not a successful proof build. The cryptanalysis main tree has 91 tracked Lean files. This audit checked selected high-impact links, not every experiment or theorem.
+The main trees contain 326 and 2,750 tracked experiment directories respectively. In the autoresearcher, 66 formal target specifications name 62 present theorem files and four undischarged files. The corrected count includes a target in the separate scoped-obstructions workspace. Presence alone is not a successful proof build. The cryptanalysis main tree at the inspected revision has 91 tracked Lean files. This audit checked selected high-impact links, not every experiment or theorem.
 
 == Semaev first-fall discrepancy
 
@@ -35,6 +35,12 @@ No canonical scientific graph data changed: no new experiment result was produce
 
 == Reproduction limits
 
-The cryptanalysis candidate analyzer accepted all nine archive rows; four orbit tests and the new Lean module passed. The autoresearcher Lean smoke project built, six benchmark reader tests passed on the new main-based branch, and 145 focused UI tests passed on the complete `8b77d405...` checkout after the snapshot update. A complete static UI build emitted 55,152 files (519.9 MB), with all nine refreshed rows in `data/comparisons.json`. Node/npm were absent, so DOM tests did not run. The smoke build does not build the Semaev Mathlib theorem. A complete formal-workspace build and independent semantic review of all 66 targets remain outstanding.
+The cryptanalysis candidate analyzer accepted all nine archive rows; four orbit tests and the new Lean module passed. The autoresearcher Lean smoke project built, six benchmark reader tests passed on the new main-based branch, and 145 focused UI tests passed on the complete `8b77d405...` checkout after the snapshot update. A complete static UI build emitted 55,152 files (519.9 MB), with all nine refreshed rows in `data/comparisons.json`. Node/npm were absent, so DOM tests did not run. The smoke build checks verifier plumbing. The subsequent full workspace result follows; independent semantic review of all 66 targets remains open.
+
+== 2026-10-21 formal-workspace addendum
+
+At branch source commit `dafec9de90b2f48a1e95856b1bdb4150833b4da1`, the committed main formal workspace used Lean 4.35.0-rc1 and Mathlib commit `7fa22735254ddf7e11f119250a9f2d0352bc7c3a`. Its `lake build` completed 2,011 jobs. `lake env lean AxiomAudit.lean` audited 462 theorem declarations with only the allowed standard axioms. A first cache extraction ran out of space on `/tmp`; the successful retry used `/var/tmp` with the same dependency pins.
+
+The repository target verifier then reported *62 machine verified, zero failed, zero infrastructure failures, and four without theorem files*. The separate scoped-obstructions target used its Lean 4.22.0 pin. All 62 receipts bind source and task hashes to the toolchain and lockfile; all mark semantic review as pending. This supersedes the earlier 61/5 presence count. Kernel acceptance does not prove that each scientific claim matches its theorem, close the Semaev nonzero-residue gap, replay experiments, or establish performance. The dashboard still covers nine archived N13 rows; no new numeric graph was produced.
 
 Sources and exact commands: `report.md` beside this PDF. Visual source: `render.py`.
