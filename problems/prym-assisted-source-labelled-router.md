@@ -10,7 +10,7 @@
   RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (existing goal states unchanged;
   design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
-- **Last updated:** 2026-10-19
+- **Last updated:** 2026-10-21
 
 ## Problem
 
@@ -26,6 +26,10 @@ and nonzero-image gates, while the natural anti-invariant projector kills the
 conorm image. That fact does not reject auxiliary relation search.
 
 ## Evidence and uncertainty
+
+**2026-10-21 execution update:** [implementation and recorded results](../research/prym_experiment_design_20261019/implementation/README.md) now supersede the original design-only status statements below. Native G (RUN-ECDLP-dad803) and schema-only W2 (RUN-ECDLP-d25f6a, EXP-ECDLP-cded08) completed with passed independent checkers. W2 verified public source/principal-divisor witnesses but reached nontrivial full rank in only six of 24 cells; six cells were already fully public, and twelve had insufficient rank. The fixed source/tuple stream, not the entire Prym direction, is bounded by this result. No current-IC or complete-cost gain was measured.
+
+Conditional S/E prototypes, independent census/final checkers, eight fresh S inputs and forty public E inputs now exist. Remaining impediments include the unmet rank/S-benefit gates, unavailable worker isolation (Landlock ENOSYS; bubblewrap UID map read-only), complete orbit/cost and native-package audits, current-best matched IC/complete S and reference bindings. Workers refuse without isolation; no S/E scientific trial ran. A distinct prospectively frozen constructor/repair and enforceable runtime isolation, followed by matched independent checks, are the next discriminating steps. Native approval applies only to the two completed finite audits.
 
 - **Observed:** the existing proposal already includes residual/nonlinear
   Prym companion cancellation. The [P1546 record](../ideas/artifacts/ECDLP-IDEA-002/p1546_projected_smoothness_counting_gate.md)

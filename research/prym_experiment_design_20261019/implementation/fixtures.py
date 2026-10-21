@@ -12,8 +12,20 @@ from crypto_autoresearcher.index_calculus.curve import is_probable_prime, next_p
 
 from arithmetic import Elliptic,Field
 from relations import uid
+sys.path.insert(0,str(ROOT/'tools'))
+from curve_identity import curve_identity
 
 HISTORICAL={101:(42,60),211:(127,142),431:(62,120),4099:(4041,4067)}
+
+
+def attach_ec1(fixture):
+    field={'characteristic':fixture['p'],'degree':1,'representation':'Z/pZ',
+           'element_encoding':'canonical integers 0..p-1'}
+    curve={'model':'short_weierstrass','a4':fixture['a'],'a6':fixture['b'],
+           'subgroup_order':fixture['r'],'cofactor':1,'generator':fixture['P'],
+           'target_group':'E(Fp)'}
+    fixture['ec1']={'field':field,'curve':curve,**curve_identity(field,curve,'prymtoy')}
+    return fixture
 
 
 def describe(p,a,b,base_size):
@@ -97,7 +109,7 @@ def recovery_fixtures(config):
                 if fixture['r'].bit_length()!=bits or fixture['r']==p:
                     search[-1]['reason']='subgroup_out_of_band_or_anomalous';continue
                 fixture.update(subgroup_bits=bits,instance_index=index,family=family)
-                fixtures.append(fixture);used.add(p);break
+                fixtures.append(attach_ec1(fixture));used.add(p);break
             else:
                 raise RuntimeError(f'finite instance search exhausted at bits={bits}, index={index}')
     return {'schema':'prym-public-fixtures/v1','purpose':'E prospective synthetic instance panel',
@@ -106,13 +118,34 @@ def recovery_fixtures(config):
             'scope':'small analogues of j=0 and a=-3 prime-field families; no deployed-curve inference'}
 
 
+def selector_fixtures(config):
+    fixtures=[];search=[]
+    excluded={(v['p'],v['a'],v['b']) for v in json.loads((ROOT/config['exclude_fixture_file']).read_text())['fixtures']}
+    for p in config['primes']:
+        found=0;a=config['fixed_A']
+        for b in range(1,p):
+            if (p,a,b) in excluded:
+                search.append({'p':p,'a':a,'b':b,'reason':'prior_W_fixture_excluded'});continue
+            fixture,trace=describe(p,a,b,config['factor_base_size'])
+            search.append({'p':p,'a':a,'b':b,**trace})
+            if fixture is None or fixture['r']==p:continue
+            fixtures.append(attach_ec1(fixture));found+=1
+            if found==config['fixtures_per_prime']:break
+        if found!=config['fixtures_per_prime']:raise RuntimeError(f'finite S fixture search exhausted at p={p}')
+    return {'schema':'prym-public-fixtures/v1','purpose':'S v2 prospective finite-support design, not acceptance observations',
+            'fixtures':fixtures,'search_trace':search,'secret_labels_present':False,'source_generation':config}
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--panel',choices=['witness','recovery'],required=True)
+    parser.add_argument('--panel',choices=['witness','selector','recovery'],required=True)
     parser.add_argument('--config',type=Path)
     parser.add_argument('--output',required=True,type=Path)
     args=parser.parse_args()
-    data=witness_fixtures() if args.panel=='witness' else recovery_fixtures(json.loads(args.config.read_text()))
+    if args.panel=='witness':data=witness_fixtures()
+    else:
+        config=json.loads(args.config.read_text())
+        data=(selector_fixtures if args.panel=='selector' else recovery_fixtures)(config)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     with args.output.open('x') as stream:json.dump(data,stream,indent=2);stream.write('\n')
     print(json.dumps({'public_fixtures':len(data['fixtures']),'search_attempts':len(data['search_trace']),

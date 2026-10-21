@@ -1,5 +1,7 @@
 # Prym experiments: geometry, source information, and cost
 
+**2026-10-21 update:** [implemented code, recorded runs and current gates](implementation/README.md) supersede the execution-status statements in this original design report. G and the schema-only W2 successor completed admitted trials with passed independent checkers; S/E have conditional implementations and remain unrun. The prospective narrative and diagram/PDF below are retained as design history, with no measured gain claim.
+
 Designed for [issue #2414](https://github.com/aburan28/crypto-autoresearcher/issues/2414)
 and [PR #2415](https://github.com/aburan28/crypto-autoresearcher/pull/2415).
 **Prospective designs; no scientific trials or measured advantage.**
