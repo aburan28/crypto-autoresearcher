@@ -105,8 +105,11 @@ source, parse error, and integrity warning remain visible. A hash match does
 not establish semantic fidelity or the truth of the scientific conclusion.
 Changed-source, changed-copy, and missing-copy controls show no parsed copy.
 
-The updated reader suite passed **146 tests**. A second complete local build
+The updated reader suite [passed **146 tests**](evidence/supersession-ui-tests.log).
+A second complete local build from reader-code commit
+`ce762d1b97b5110957fceaebfea9c2586bbb988d`
 [emitted 55,218 files, 521.2 MB](evidence/supersession-site-build-report.json)
+([build log](evidence/supersession-site-build.log))
 and still counted **24** unparseable originals. The
 [generated-detail checker](check_supersession_readback.py) verified the
 [nine detail payloads](evidence/supersession-readback.json): nine separate
