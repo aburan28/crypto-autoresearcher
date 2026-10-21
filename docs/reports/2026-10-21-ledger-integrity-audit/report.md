@@ -118,7 +118,9 @@ The existing benchmark payload still carried all nine primary rows with no
 error. The [reader coverage problem](../../../problems/dashboard-unparseable-archive.md)
 now tracks the **15** files without registered copies and the pending
 semantic review of the nine. This is a local build; public Pages remains
-disabled and unchanged. No measured result or numerical graph changed.
+disabled and unchanged. The generated `app.js` exactly matches the reader
+source, but this host has no Node or browser runtime to exercise the new tab
+interactively. No measured result or numerical graph changed.
 
 ## Consequence and next step
 
