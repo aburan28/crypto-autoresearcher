@@ -706,16 +706,18 @@ def record_payload(index: ResearchIndex, record_id: str,
         "verified": error is None and parsed is not None,
         "parse_error": error,
         "body": jsonable(body),
-        # A hash-bound schema copy is separate from the malformed canonical
-        # source. Its parseability never turns this record's verified flag on.
-        "supersession": jsonable(index.parsed_supersession(record_id))
-        if error is not None and parsed is None else None,
         "corrections": record_corrections(index, record_id),
         "links": {
             "out": sorted(r for r in record.refs if r in index.records),
             "in": sorted(index.backlinks.get(record_id, ())),
         },
     }
+    if error is not None and parsed is None and record.path.endswith(".yaml"):
+        # A registered copy never turns the canonical source's verified flag
+        # on. Unregistered failures are explicitly raw-only for the reader.
+        copy = index.parsed_supersession(record_id)
+        payload["readback_state"] = "registered_copy" if copy else "raw_only"
+        payload["supersession"] = jsonable(copy)
     if markdown is not None:
         payload["markdown"] = markdown
     if include_raw:

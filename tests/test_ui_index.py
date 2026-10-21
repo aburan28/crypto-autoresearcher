@@ -381,6 +381,14 @@ def test_unparseable_record_is_reported_by_the_deep_scan(tiny_index):
     paths = {u["path"] for u in tiny_index.integrity["unparseable"]}
     assert "ledger/evidence/broken.yaml" in paths
     assert tiny_index.integrity["unparseable_state"] == "complete"
+    record_id = next(rid for rid, record in tiny_index.records.items()
+                     if record.path == "ledger/evidence/broken.yaml")
+    detail = payloads.record_payload(tiny_index, record_id)
+    assert detail["verified"] is False and detail["parse_error"]
+    assert detail["readback_state"] == "raw_only"
+    assert detail["supersession"] is None
+    assert payloads.source_payload(tiny_index, record_id)["raw"] == (
+        tiny_index.repo / "ledger/evidence/broken.yaml").read_text()
 
 
 def test_evidence_status_column_uses_strength(tiny_index):
@@ -488,12 +496,14 @@ def test_malformed_original_exposes_only_a_hash_bound_parsed_copy(tiny_repo):
     assert payload["summary"]["path"] == "ledger/evidence/EV-ECDLP-001.yaml"
     assert payload["verified"] is False and payload["parse_error"]
     assert payload["body"] is None
+    assert payload["readback_state"] == "registered_copy"
     assert payload["supersession"]["path"] == replacement_rel
     assert payload["supersession"]["body"]["evidence"]["scope_statement"] == "parsed copy"
     assert "[unclosed" in payloads.source_payload(index, "EV-ECDLP-001")["raw"]
 
     original.write_text(original.read_text() + "# changed\n")
-    assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None
+    changed = payloads.record_payload(index, "EV-ECDLP-001")
+    assert changed["readback_state"] == "raw_only" and changed["supersession"] is None
     original.write_text(original.read_text().replace("# changed\n", ""))
     replacement.write_text(replacement.read_text() + "# changed\n")
     assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None

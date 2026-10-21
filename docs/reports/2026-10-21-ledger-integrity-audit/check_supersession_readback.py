@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check generated detail payloads for the nine archived parse failures."""
+"""Check generated detail payloads for all 24 archived parse failures."""
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +20,9 @@ def digest(path: Path) -> str:
 def main(repo: Path, site: Path, classification: Path) -> dict:
     classified = json.loads(classification.read_text())
     covered = classified["covered"]
+    uncovered = classified["uncovered"]
     require(len(covered) == 9, "unexpected registered parse-failure count")
+    require(len(uncovered) == 15, "unexpected raw-only parse-failure count")
     checked = []
     for row in covered:
         source_path = row["source"]
@@ -33,6 +35,8 @@ def main(repo: Path, site: Path, classification: Path) -> dict:
                 f"canonical path changed: {record_id}")
         require(detail["verified"] is False and bool(detail["parse_error"])
                 and detail["body"] is None, f"original parse warning hidden: {record_id}")
+        require(detail.get("readback_state") == "registered_copy",
+                f"registered copy not labelled separately: {record_id}")
         require(original["path"] == source_path and
                 original["raw"] == (repo / source_path).read_text(encoding="utf-8", errors="replace"),
                 f"original source changed in payload: {record_id}")
@@ -47,9 +51,26 @@ def main(repo: Path, site: Path, classification: Path) -> dict:
             for value in body.values()), f"replacement record ID mismatch: {record_id}")
         checked.append({"id": record_id, "source": source_path,
                         "replacement": replacement_path})
+    raw_only = []
+    for source_path in uncovered:
+        record_id = Path(source_path).stem
+        detail = json.loads((site / "data/records" / f"{record_id}.json").read_text())
+        original = json.loads((site / "data/sources" / f"{record_id}.json").read_text())
+        require(detail["summary"]["path"] == source_path and
+                detail["verified"] is False and bool(detail["parse_error"])
+                and detail["body"] is None, f"raw-only original hidden: {record_id}")
+        require(detail.get("readback_state") == "raw_only" and
+                detail.get("supersession") is None,
+                f"unregistered record shown as corrected: {record_id}")
+        require(original["path"] == source_path and
+                original["raw"] == (repo / source_path).read_text(encoding="utf-8", errors="replace"),
+                f"raw-only source changed in payload: {record_id}")
+        raw_only.append({"id": record_id, "source": source_path})
     return {"status": "pass", "registered_copies_shown": len(checked),
-            "original_parse_warnings_preserved": len(checked),
-            "source_payloads_exact": len(checked), "records": checked}
+            "raw_only_records": len(raw_only),
+            "original_parse_warnings_preserved": len(checked) + len(raw_only),
+            "source_payloads_exact": len(checked) + len(raw_only),
+            "registered_records": checked, "unregistered_records": raw_only}
 
 
 if __name__ == "__main__":

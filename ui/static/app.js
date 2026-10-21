@@ -2380,7 +2380,9 @@ async function viewRecord(id, params = new URLSearchParams()) {
       ? h('div', { class: 'banner bad' },
           h('div', {}, h('b', {}, 'this record does not parse. '), body.parse_error,
             h('div', { class: 'faint', style: 'margin-top:4px' },
-              'Reported, not repaired: records are immutable and a correction supersedes them.')))
+              body.readback_state === 'raw_only'
+                ? 'Raw source only: no hash-matched schema copy is registered. Structured fields are unverified.'
+                : 'The original is preserved; any registered copy appears separately.')))
       : null,
     supersession ? h('div', { class: 'banner warn' },
       h('b', {}, 'A registered, hash-matched schema copy is available. '),
