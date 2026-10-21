@@ -1,0 +1,1078 @@
+validation_report:
+  id: VAL-20261016-cd9156
+  task_id: TASK-20261016-9bf74b
+  run_ids: []
+  run_ids_note: >-
+    No experiment run, EXP or EV record was written. These are verification
+    computations (card constraint 8).
+  written_at: '2026-10-16'
+  subject:
+    bundle: research/nist_seed_provenance_20261016/
+    freeze_commit: dbd1b8d15845579aaaa3af47b827955e2b625e77
+    freeze_commit_parent: 6c775b6634f710dbf61c5d5c2547781eae3e2604
+    freeze_commit_time: '2026-10-16T22:33:43+00:00'
+    how_identified: >-
+      git log --diff-filter=A --format=%H -- ledger/handoffs/TASK-20261016-9bf74b.yaml
+    binding: >-
+      All 14 SHA-256 values in SOURCE.md match the working tree and
+      `git show dbd1b8d1:<path>`. They also match the crypto source of truth,
+      origin/claude/nist-seed-provenance at
+      bc6b8f292ccb868433b435caaf08d0ec85854810 (2026-10-16T21:16:28Z). The
+      local branch claude/nist-seed-provenance has the same tip.
+    dirty_tree: >-
+      HEAD was dbd1b8d1 throughout, except for one interval. The Coordinator
+      made a WIP checkpoint (3d1b3b7e, 22:37:23Z) that captured this
+      directory, then reset the branch to dbd1b8d1 and force-pushed. The
+      bundle's files were never modified. This directory is untracked, and is
+      listed in .git/info/exclude.
+  environment:
+    python: /usr/bin/python3 3.13.16 (gmpy2 2.3.2, fpylll 0.6.4, PyYAML 6.0.1)
+    pari_gp: /usr/bin/gp 2.15.4 with seadata (/usr/share/pari/seadata)
+    openssl: /usr/bin/openssl 3.0.13
+    libc: glibc 2.39 (used only as an independent drand48 cross-check through ctypes)
+    host: Linux 6.18.44, 4 cores, 16 GB RAM, about 2.3 GB free disk; no cargo builds
+    invocation: >-
+      python3 -I -B scripts/<script>.py from validation-20261016/, and
+      scripts/run_recensus.sh / scripts/run_j3.sh for GP (parisize 200 MB,
+      parisizemax 3 GB, nbthreads 1).
+  nonce:
+    freeze_commit_sha: dbd1b8d15845579aaaa3af47b827955e2b625e77
+    nonce: 702c36f2b6afb1a50f1b561a7e6583df966d4a3e02dc4b0d90618421f8176f92
+    rule: SHA-256 of the 40 ASCII hex characters of the freeze commit SHA (computed with printf '%s' | sha256sum)
+    other_nonce_derivations:
+      - 'random 160-bit null strings: SHA-256(nonce_hex + ":random160:" + j)[:20], j = 0..9'
+      - 'synthetic positive-control drand48 states: SHA-256(nonce_hex + ":poscontrol:" + j)[:6], j = 0..9'
+  resources:
+    - 'J3 full counts: attempt 1, 22:48:46Z to 22:51:19Z. 111 rows written, then a PARI stack overflow (parisize 400 MB) at the first P-521 row. Log: logs/j3_fullcount_gp_attempt1_stackoverflow.log.'
+    - 'J3 attempt 2, 22:51:49Z: 0 rows. Setting parisizemax inside the same input line reset the stack and discarded the rest of the line. Log: logs/j3_fullcount_gp_attempt2.log.'
+    - 'J3 attempt 3, 22:53:03Z to 23:31:56Z: the remaining 178 rows (2,333 s of GP wall time, one core). Log: logs/j3_fullcount_gp_attempt3.log.'
+    - 'Re-census attempt 1, 22:46:40Z to about 22:52:17Z: 146 complete rows kept. Shard 1 hit a PARI stack overflow (parisize 200 MB); the Validator then stopped all shards with pkill, which also killed its own launching shell. Logs: logs/recensus_gp_*_attempt1.log.'
+    - 'Re-census attempt 2 (resume, same mathematics, per-row iferr): 22:53:03Z to 23:33:55Z, 10,896 rows on 3 cores, 0 ERR rows. Shard wall times: 1,662 s, 2,452 s and 2,033 s. Total re-census cost: about 2.0 CPU-hours.'
+    - 'J4 demonstration counts: 22:53:33Z to 22:56:00Z.'
+    - 'The GP input files (tmp/) were derivable from out/q4_candidates_*.txt. They were deleted after use; their SHA-256 values are in logs/recensus_inputs.sha256 and logs/j3_inputs.sha256.'
+
+  joint_verdicts:
+    J1: holds
+    J2: holds
+    J3: holds
+    J4: holds
+    J5: holds
+    J6: holds
+    J7: inconclusive
+
+  metric_recomputations:
+    - id: J1-1
+      claim: C1
+      joint: J1
+      status: pass
+      check: (int)(drand48()*256) equals the top 8 bits of the 48-bit state.
+      evidence: out/q1_seeds.json (double_check, libc); scripts/common.py; scripts/j1_q1_seeds.py
+      compared: >-
+        435,300 calls over the six runs, the README block count + 2 blocks each.
+        int((X/2^48)*256) == X>>40 had 0 mismatches. My stream against glibc
+        2.39 srand48/drand48 had 0 mismatches. X/2^48 is exact because 48 bits
+        fit the 53-bit mantissa, and multiplying by 256 is exact.
+    - id: J1-2
+      claim: C1
+      joint: J1
+      status: pass
+      check: >-
+        Each published prime seed was found by a full byte-offset search, with
+        no stated index, in the streams of all six t values and of t-1 and t+1.
+      evidence: out/q1_seeds.json; logs/j1_q1_seeds.log
+      compared: >-
+        Each seed occurs exactly once, block-aligned, in its own run only, as
+        (0-based / 1-based block):
+        P-192 138/139, prime192v3 5227/5228, prime192v2 6012/6013 (t=863966734);
+        prime239v1 2184/2185, prime239v2 2319/2320, prime239v3 3047/3048 (t=863711343);
+        P-521 1135/1136 (t=871002724); P-256 1841/1842 (t=871696354);
+        P-384 2687/2688 (t=872952608); P-224 7025/7026 (t=891607927).
+        The first generated byte is the first seed byte.
+    - id: J1-3
+      claim: C1
+      joint: J1
+      status: pass
+      check: Index base. The README block count equals the last published index, and summary.json uses the same base.
+      evidence: out/q1_seeds.json; out/summary_comparison.json; out/ptm_adjacent.json (index_base)
+      compared: >-
+        README counts 3048 / 6013 / 1136 / 1842 / 2688 / 7026 equal the
+        1-based index of each run's last published seed. In the four
+        single-curve runs, summary.json's last accepted index equals the
+        1-based block, never the 0-based one. The recorded orders i column
+        equals my 1-based candidate set exactly. The 0-based reading overlaps
+        only by chance (770 of 1555, ..., 1783 of 3545).
+    - id: J1-4
+      claim: C1
+      joint: J1
+      status: pass
+      check: Every t is a UNIX time between May 1997 and April 1998, and the README's UTC dates are correct.
+      evidence: out/q1_seeds.json (runs.*.utc)
+      compared: >-
+        1997-05-15 15:49:03, 1997-05-18 14:45:34, 1997-08-08 01:12:04,
+        1997-08-16 01:52:34, 1997-08-30 14:50:08 and 1998-04-03 12:52:07. All
+        equal the README table.
+    - id: Q2-1
+      claim: C1
+      joint: J1
+      status: pass
+      check: >-
+        B-233/283/409/571 seeds are five lrand48() words after srand48(s), with
+        s recovered by my own method, and the UTC date of 2s.
+      evidence: out/q2_binary.json; logs/q2_binary.log; scripts/q2_binary.py
+      compared: >-
+        I declared a reading family of 8 members (word order x byte order in
+        each 32-bit word x stride 1 or 2). Exactly one member matches for all
+        four seeds: forward word order, big-endian words, consecutive calls.
+        The state is recovered by exhaustive search over the 2^17 hidden low
+        bits. The walk back to the nearest srand48-form state gives
+        s = 446413329 / 446413432 / 446413509 / 446413564.
+        2s = 1998-04-17 15:24:18 / 15:27:44 / 15:30:18 / 15:32:08 UTC.
+        The first word is lrand48 call d = 771 / 156 / 296 / 361, that is
+        5-word block 155 / 32 / 60 / 73 after srand48(s) ((d-1)/5 is an
+        integer each time). Regenerating forward from srand48(s) reproduces
+        all 160 bits for all four. Chance bound: a 48-bit state regenerating
+        5 x 31 bits is 2^-107, widened by log2(8) = 3 to about 2^-104 per
+        seed. B-163 (top bit set) matches no member.
+    - id: J2-1
+      claim: C1
+      joint: J2
+      status: pass
+      check: X9.62 seed-to-c map, from FIPS 186-2 App. 6.4/6.5 and SP 800-186 C.3.1/C.3.2 (the two agree), and c*b^2 + 27 == 0 (mod p) for the 10 published curves.
+      evidence: out/q3_x962.json; logs/j2_q3_q4_x962.log; specs/fips186-2_excerpt.txt; specs/sp800186_C3_excerpt.txt
+      compared: >-
+        The residue is 0 for all 10 (v, w) = P-192 (1,31), P-224 (1,63),
+        prime239v* (1,78), P-256 (1,95), P-384 (2,63), P-521 (3,40),
+        prime192v2/v3 (1,31). My c equals the c printed in FIPS 186-2
+        (P-192..P-521) and in SP 800-186 (P-224..P-521): 9 of 9 comparisons.
+    - id: J2-2
+      claim: C3
+      joint: J2
+      status: pass
+      check: Candidate index set (c != 0, 4c+27 != 0, -27/c a nonzero square mod p) for all 21,753 blocks, compared with the orders files' i column.
+      evidence: out/q4_candidates_<t>.txt; out/q4_summary.json; logs/compare_classify.log
+      compared: >-
+        Mine: 1,555 / 3,061 / 584 / 960 / 1,337 / 3,545 = 11,042. Recorded:
+        identical as sets and as sorted lists, with no duplicates. No block had
+        c == 0 or 4c+27 == 0.
+    - id: J3-1
+      claim: C3
+      joint: J3
+      status: pass
+      check: >-
+        Full ellcard (no early abort) on 289 rows: the 85 named rows (21
+        accepted, 17 bitlen, 47 twist-only) and the 204-row nonce sample.
+      evidence: out/j3_fullcounts.txt; out/j3_analysis.json; logs/j3_analyse.log
+      compared: >-
+        0 mismatches. Recorded nonzero N0 == N in 59 of 59 rows. Recorded
+        nonzero Nt == 2(p+1) - N in 103 of 103 rows. Every recorded N0 = 0 row
+        (230) has a composite N, with smallest prime factor at most 137. Every
+        recorded Nt = 0 row (186) has a composite twist order, with smallest
+        prime factor at most 127. No row reaches the >1000 concern threshold.
+        All 38 prime N and all 48 prime twist orders pass the Hasse bound and
+        N*P = O for 3 random points (on the twist model for Nt), so their
+        orders are certified without SEA. Row 872952608/2688 (P-384) has both
+        N and Nt prime.
+    - id: J3-2
+      claim: C3
+      joint: J3
+      status: pass
+      check: >-
+        Independent early-abort re-census of all 11,042 rows with my own
+        driver, compared row by row. Curve: ellsea(E,1). Twist: ellsea on the
+        model y^2 = x^3 - 3d^2 x + d^3 b0 (d = smallest non-residue), counted
+        independently.
+      evidence: out/recensus_orders_<t>.txt; out/recensus_raw_*.txt; out/recensus_compare.json; logs/recensus_compare.log; scripts/recensus.gp
+      compared: >-
+        11,042 of 11,042 rows were compared, with 0 mismatches. 10,576 rows are
+        identical in both columns. In 466 rows the recorded Nt is a nonzero
+        composite where my independent twist count aborted (0). In every one
+        the recorded value equals 2(p+1) - N0 (all 466 consistent), and its
+        smallest prime factor is at most 199. This shows that the recorded Nt
+        is filled from N0 whenever N0 was counted. It is not a disagreement.
+        Classification on my own counts gives the same accepted, bitlen and
+        twist-only lists as on the recorded files.
+    - id: J4-1
+      claim: C3
+      joint: J4
+      status: pass
+      check: Twist-only count per run, recomputed from the full counts (the recorded orders elsewhere) and from the re-census.
+      evidence: out/j3_analysis.json (twist_only_recount); out/recensus_compare.json
+      compared: >-
+        9 / 14 / 0 / 4 / 4 / 16 = 47 from both routes, equal to the claim.
+        31 = 9+14+0+4+4 in the p = 3 (mod 4) runs = 47 - 16.
+    - id: J4-2
+      claim: C3
+      joint: J4
+      status: pass
+      check: For p = 3 (mod 4), y^2 = x^3 - 3x - b0 has order 2(p+1) - N. For P-224, -1 is a square, so -b gives an isomorphic curve, and no a = -3 model of the twist exists.
+      evidence: out/j4_demo_fullcounts.txt; out/j3_analysis.json (j4_minus_b_demo); out/j5_classification.json (legendre_minus1_p224)
+      compared: >-
+        Numerically, on 11 rows (two per run, one at p521), the -b0 curve's full
+        order equals 2(p+1) - N in all 9 p = 3 (mod 4) rows, and equals N in
+        both P-224 rows. kronecker(-1, p224) = 1. Algebraically, E(-3,b) and
+        E(-3,-b) are isomorphic via u = sqrt(-1) when p = 1 (mod 4) (u^4 = 1,
+        u^6 = -1). The twist E^d is (-3d^2, d^3 b), and an a = -3 model would
+        need u^4 d^2 = 1, which makes d = +-u^-2 a square. That is impossible
+        for a non-residue d. When p = 3 (mod 4), d = -1 gives (-3, -b), the
+        twist.
+    - id: J4-3
+      claim: C3
+      joint: J4
+      status: concern
+      check: The wording "In the four p = 3 (mod 4) runs, 31 seeds were lost".
+      evidence: out/j5_classification.json (n_runs_p3mod4, n_runs_p3mod4_with_twist_only); out/j4_lost_criteria.json
+      compared: >-
+        Five runs have p = 3 (mod 4) (p239, p192, p521, p256, p384). Four of
+        them contain twist-only rows; p521 has none. So "four" miscounts the
+        runs, unless it means the runs with twist-only rows. Separately, of the
+        31 twist-only-prime candidates, only 26 would pass the bundle's own
+        criteria on the twist. Five twist orders have more bits than p (p192
+        rows 774, 1477, 3506, 4492; p384 row 1432), so trying -b would have
+        been rejected by the bitlen rule anyway. "31 seeds were lost" therefore
+        overstates the loss by 5 under the stated criteria. The count 31 of
+        twist-only-prime candidates is correct, and no record presents P-224's
+        16 rows as lost.
+    - id: J4-4
+      claim: C3
+      joint: J4
+      status: pass
+      check: No record in this repository presents P-224's 16 twist-only rows as seeds lost to the -b choice.
+      evidence: >-
+        rg over knowledge/ ledger/ problems/ research/ (blind_from excluded):
+        README.md:87-88, problems/nist-seed-selection-rule-unexplained.md:48,
+        ledger/decisions/DEC-20261016-264eed.yaml:62-67
+      compared: >-
+        Every "lost / never tried" statement is scoped to p = 3 (mod 4) fields
+        and uses 31. None counts the P-224 rows.
+    - id: J5-1
+      claim: C3
+      joint: J5
+      status: pass
+      check: My classifier from the stated criteria, applied to the six recorded files. Its output was written and hashed before summary.json was opened, then compared list by list.
+      evidence: out/j5_classification.json; logs/order.log (22:47:42Z; summary.json opened 23:39:32Z); out/summary_comparison.json
+      compared: >-
+        Accepted 8/5/1/2/1/4 = 21. Bitlen 0/7/0/0/2/8 = 17. Twist-only
+        9/14/0/4/4/16 = 47. Blocks 21,753; with b 11,042. Every accepted,
+        n_longer_than_p and only_twist_prime list, and every candidates count,
+        equals summary.json exactly in all six runs. No row is rejected by
+        n == p or by MOV.
+    - id: J5-2
+      claim: C3
+      joint: J5
+      status: pass
+      check: Published seeds are a subset of accepted, with 10 published / 11 skipped. Comparison with the posts.
+      evidence: out/j5_classification.json; logs/posts_compare.log; specs/posts_accepted_excerpt.txt
+      compared: >-
+        Per run, published / skipped is 3/5, 3/2, 1/0, 1/1, 1/0 and 1/3, which
+        is 10/11. Valsorda's post, read after the logged comparison, lists the
+        same 21 accepted indices, and the first two seed bytes of all 21 equal
+        my blocks. The published index table in the Anthropic post gives the
+        same 10 published indices and names P-256 candidate 876 as skipped.
+        Result: 21 of 21.
+    - id: J5-3
+      claim: C3
+      joint: J5
+      status: pass
+      check: Sensitivity (b). MOV bound B = 20 (X9.62-1998 as stated in SEC 1 v2), B < 100 (SEC 1 v2 / X9.62a), k <= 100, and k < 2^10 (SP 800-186 C.1, embedding degree >= 2^10).
+      evidence: out/j5_classification.json (variants, min_embedding_degree_over_prime_N0); specs/sec1_mov_excerpt.txt; specs/sp800186_C1_excerpt.txt
+      compared: >-
+        No row changes class under any bound. No prime N0 has an embedding
+        degree <= 10^5.
+    - id: J5-4
+      claim: C3
+      joint: J5
+      status: pass
+      check: (c) The bitlen rule cannot fire at p239 or p256.
+      evidence: out/j5_classification.json (max_order_bits_by_hasse, bitlen_rule_can_fire)
+      compared: >-
+        Bit length of p + 1 + 2 sqrt(p): 239 at p239 and 256 at p256, so the
+        rule cannot fire there. It can fire at p192, p224, p384 and p521.
+    - id: C2-1
+      claim: C2
+      joint: J1
+      status: pass
+      check: >-
+        Q7: 48-bit state recovered from each seed alone, by lattice CVP
+        (fpylll, dimension 20, no t and no index used), for all ten prime
+        seeds. Walk back 8,000 blocks (160,000 steps) to every srand48-form
+        state.
+      evidence: out/q7_state_recovery.json; logs/q7_state_recovery.log; scripts/q7_state_recovery.py
+      compared: >-
+        For all 10 seeds, the CVP state regenerates all 20 bytes. The window
+        holds 2 or 3 srand48-form states and exactly 1 block-aligned one
+        (d == 1 mod 20). Its t equals the README t and its block equals J1's
+        block in all 10. The two triples give identical t (863966734 for
+        P-192/prime192v2/v3, 863711343 for prime239v1-v3). Non-aligned
+        srand48-form states in the windows include one in 1998 (P-192 walk,
+        t = 905479852, d = 133833, not aligned), which shows that the
+        alignment condition carries weight.
+    - id: C2-2
+      claim: C2
+      joint: J1
+      status: pass
+      check: Arithmetic behind 2^-112, 0.0147, 10^-11, and "at most one block-aligned state within 8,000 blocks".
+      evidence: out/q7_state_recovery.json (arithmetic)
+      compared: >-
+        2^48 / 2^160 = 2^-112. 1997-98 is 63,072,000 s, and 63,072,000 / 2^32
+        = 0.014685. 0.014685^6 = 1.003e-11. srand48-form states recur every
+        65,536 steps. 65,536 mod 20 = 16, so two block-aligned ones are at
+        least lcm(65536, 20) = 327,680 steps (16,384 blocks) apart. "At most
+        one in 8,000 blocks" holds deterministically. The 10^-11 figure leaves
+        out the probability (about 0.12 per seed) that an aligned state exists
+        in the window at all. That omission only makes chance less likely.
+    - id: C4-1
+      claim: C4
+      joint: J5
+      status: pass
+      check: On every published p = 3 (mod 4) curve, b is the (p+1)/4 root.
+      evidence: out/c4_roots.json; out/j5_classification.json (published_mod4_and_b_root)
+      compared: >-
+        9 of 9 hold (P-192, prime192v2/v3, prime239v1-v3, P-256, P-384, P-521),
+        and -b is the root in none. Chance is 2^-9.
+    - id: C4-2
+      claim: C4
+      joint: J5
+      status: pass
+      check: P-224's b is the negative of the Tonelli-Shanks root with the smallest non-residue (11).
+      evidence: out/c4_roots.json; specs/tonelli_shanks_excerpt.txt; scripts/c4_roots.py
+      compared: >-
+        The smallest non-residue mod p224 is 11. Tonelli-Shanks, implemented
+        from the retrieved description and passing the worked example
+        (5 mod 41 -> 28), gives R, and b = p - R. The sign depends on z: z = 19,
+        23 and 33 also give -R, while z = 22 and 31 give +R. The claim is
+        specific to z = 11 and holds.
+
+  artifact_checks:
+    - id: J6-1
+      claim: C1-C5
+      joint: J6
+      status: pass
+      check: The 14 SOURCE.md SHA-256 values, at the working tree (HEAD = freeze commit) and at the freeze commit via git show.
+      evidence: commands recorded in validation.md (J6)
+      compared: 14 of 14 match at both.
+    - id: J6-2
+      claim: C1-C5
+      joint: J6
+      status: pass
+      check: Byte identity with the crypto source of truth (opaque hashing only).
+      evidence: >-
+        git -C /home/user/crypto show
+        origin/claude/nist-seed-provenance:research/nist_seed_provenance_20261016/<f> | sha256sum
+      compared: >-
+        14 of 14 match. The ref used is origin/claude/nist-seed-provenance =
+        bc6b8f292ccb868433b435caaf08d0ec85854810. The local branch has the
+        same tip.
+    - id: J6-3
+      claim: C1-C5
+      joint: J6
+      status: pass
+      check: Files in the bundle that SOURCE.md does not list (excluding SOURCE.md, validation-20261016/ and archives/).
+      evidence: git ls-tree -r --name-only dbd1b8d1 research/nist_seed_provenance_20261016/
+      compared: None. The freeze tree holds exactly the 14 listed files plus SOURCE.md.
+    - id: J6-4
+      claim: C1, C3
+      joint: J6
+      status: not_run
+      check: README path references that do not exist in this repository.
+      evidence: git cat-file -e at dbd1b8d1; git -C /home/user/crypto ls-tree (names only)
+      compared: >-
+        Absent here: research/nist_seed_provenance_20261016/census.sh,
+        research/nist_seed_provenance_20261016/plot_streams.py,
+        examples/nist_seed_candidates.rs (README "../../examples/..."), and
+        src/cryptanalysis/nist_seed_provenance.rs. SOURCE.md says these four
+        were not copied. All four exist on the crypto branch (ls-tree), and
+        crypto/research/... also holds census.sh and plot_streams.py, so the
+        README is consistent with SOURCE.md. They are reported not_run as the
+        plan directs: /home/user/crypto is in blind_from, so the native Rust
+        tests and census.sh were neither read nor run.
+
+  control_checks:
+    - id: PTM-1
+      claim: C1
+      joint: J1
+      status: pass
+      object: Adjacent blocks (block i-1 and i+1 of srand48(t), and block i of srand48(t-1) and srand48(t+1)), for each of the 10 published seeds.
+      evidence: out/ptm_adjacent.json; out/q1_seeds.json (controls)
+      compared: >-
+        40 of 40 objects fail as required. None equals the seed, and none
+        satisfies c*b_pub^2 == -27. Shifting by one byte either way also fails
+        for all 10.
+    - id: PTM-2
+      claim: C1
+      joint: J1
+      status: pass
+      object: Each published seed with its 20 bytes reversed, searched in all 18 streams (t-1, t, t+1 for six runs).
+      evidence: out/q1_seeds.json (reversed_hits)
+      compared: 0 hits for all 10.
+    - id: PTM-3
+      claim: C1
+      joint: J2
+      status: pass
+      object: Wrong X9.62 variants on the 10 published curves.
+      evidence: out/q3_x962.json (variant_summary)
+      compared: >-
+        (a) Top bit not cleared: holds on 6 of 10 and fails on P-192,
+        prime192v2, P-256 and P-384, so it is identifying (P-521 and P-224
+        alone could not identify it). (b) Leftmost bits: 0 of 10.
+        (d) Little-endian seed + i: 0 of 10. (e) i from 0: 0 of 10.
+        (c) No mod-2^160 wrap: holds on 10 of 10. It is NON-IDENTIFYING,
+        because no published seed is within v of 2^160, so the wrap never
+        triggers. Reported as non-identifying, not as a failure.
+    - id: PTM-4
+      claim: C2
+      joint: J1
+      status: pass
+      object: >-
+        10 random 160-bit strings from the nonce (state recovery), plus a
+        walk back from each one's non-regenerating CVP pseudo-state as a
+        stress test. Positive control: 10 synthetic drand48 blocks from
+        nonce-derived states. B-163 and the same 10 random strings under the
+        binary reading family.
+      evidence: out/q7_state_recovery.json (null, positive); out/q2_binary.json (null)
+      compared: >-
+        No random string yields a regenerating state; all 10 CVP outputs fall
+        outside [0, 2^40). The stress walk finds a block-aligned srand48-form
+        state for 2 of the 10 pseudo-states (2048-01-30 and 2078-08-22), near
+        the expected rate of about 0.12, and 0 of 10 in 1997-98. The positive
+        control recovers 10 of 10 true states. Under the binary family, the
+        10 random strings and B-163 match no member. The method does not find
+        1997-98 timestamps in noise. Without regeneration, the walk-back alone
+        does produce aligned states at the chance rate, which is why
+        regeneration plus the date carries the inference.
+    - id: PTM-5
+      claim: C3
+      joint: J5
+      status: pass
+      object: The n < p criterion in place of bitlen(n) <= bitlen(p).
+      evidence: out/j5_classification.json (published_p_lt_n, variants.n_lt_p, rows_where_bitlen_and_n_lt_p_differ)
+      compared: >-
+        The object is not void. The published prime239v2 has n > p, verified
+        from the published n and p, and is the only published curve with
+        n > p. The n < p classifier rejects it. The rules differ on exactly
+        four rows, all in the p239 run (1562, 2320, 2491 and 2682, each with a
+        239-bit n > p), and nowhere else.
+
+  heuristic_validation_checks:
+    - status: not_applicable
+      note: >-
+        The rows in scope carry no heuristic prediction or sampled
+        distribution. The 0.0147 and 10^-11 chance figures are exact
+        arithmetic (C2-2).
+  cost_model_checks:
+    - status: not_applicable
+      note: The security-consequences table and the 30-bit freedom figure are out of scope. No cost table is in scope.
+  proof_architecture_checks: []
+
+  c5_labelling_and_provenance:
+    joint: J7
+    verdict: inconclusive
+    labelling: >-
+      Holds. README "External analyses" is headed "outside the repository ...
+      not repository measurements". KN-LIT-d2f917 says "(both run outside the
+      repository)". The problem record says "ran outside the repository ...
+      reported in the bundle as observations rather than repository
+      measurements, and have not been independently validated here".
+      DEC-20261016-fb3a6f labels them in its limitations. No sentence presents
+      a C5 result as a repository measurement or as validated. One weaker
+      spot: DEC-20261016-fb3a6f synthesis_statement says "(10 published, 11
+      skipped; a preregistered screen found no rule)", and carries the
+      external label only at record level (limitations), not in that sentence.
+    preregistration_timing: >-
+      Not supported by any immutable record. PREREGISTRATION.md and all six
+      orders files plus summary.json were first committed in the same commit,
+      in crypto (bc6b8f29, 2026-10-16T21:16:28Z) and in this repository
+      (64a46b4c, 21:16:40Z). The bundle cites no third-party timestamp. The
+      file's own "Written 2026-10-16 ~19:27 UTC" is self-asserted. No record
+      shows that it was written after the census orders were inspected
+      either, so the joint's breaking artifact is absent.
+    internal_consistency: >-
+      README "frozen before any curve order was seen" is broader than the file
+      supports in two ways. (i) The file says that "the published seeds' own
+      parameters (b, n, G)" had already been looked at, and n is a curve order.
+      (ii) Its amendment adds the POSTHOC normalized-trace feature "after the
+      P-192 run reproduced". The amended protocol therefore postdates census
+      orders for P-192, although the POSTHOC feature is labelled post hoc in
+      the README table. These are wording concerns.
+    sentences_asserting_preregistration_as_fact:
+      - 'research/nist_seed_provenance_20261016/README.md: "The skip-filter protocol was frozen before any curve order was seen: `PREREGISTRATION.md`, verbatim."'
+      - 'research/nist_seed_provenance_20261016/README.md (Files): "skip-filter protocol, frozen before the census was read"'
+      - 'ledger/decisions/DEC-20261016-fb3a6f.yaml (synthesis_statement): "a preregistered screen found no rule"'
+      - 'ledger/decisions/DEC-20261016-fb3a6f.yaml (problem_history ruling): "the preregistered screen in the bundle was a predeclared attempt at the second exit condition and was negative."'
+      - 'knowledge/literature/KN-LIT-d2f917.md: "A preregistered skip-filter screen and a seed-agnostic generator scan of the unexplained values (both run outside the repository) were negative."'
+      - 'problems/nist-seed-selection-rule-unexplained.md (2026-10-16 later entry): "contains a skip-filter protocol, [PREREGISTRATION.md](...), frozen before any census curve order was read." (link target elided)'
+
+  mismatches_verbatim:
+    numeric_mismatches_against_claim: []
+    numeric_mismatches_against_recorded_data: []
+    differences_explained_not_mismatches:
+      - >-
+        466 rows (recensus_compare.json zero_vs_composite): recorded Nt is
+        nonzero and composite, and my independent twist early-abort gives 0.
+        Every recorded value equals 2(p+1) - N0. Its smallest prime factor is
+        at most 199. Count by run: p239 38, p192 99, p521 27, p256 56, p384 25,
+        p224 221.
+    wording_and_derivation_concerns:
+      - 'README: "In the four `p ≡ 3 mod 4` runs, 31 seeds were lost this way." Measured: five runs have p = 3 (mod 4), four of them have twist-only rows, and only 26 of the 31 twists pass the stated criteria (5 fail bitlen: p192 774, 1477, 3506, 4492; p384 1432).'
+      - 'README: "The skip-filter protocol was frozen before any curve order was seen". PREREGISTRATION.md itself: published n had been looked at, and the amendment was added "after the P-192 run reproduced". No immutable record dates the file before the census data.'
+    infrastructure_events:
+      - J3 attempt 1 PARI stack overflow (logs/j3_fullcount_gp_attempt1_stackoverflow.log). Not negative evidence. Rows recomputed in attempt 3.
+      - J3 attempt 2 wrote no rows (parisizemax set inside the command line). Rows recomputed in attempt 3.
+      - Re-census attempt 1 shard 1 PARI stack overflow (logs/recensus_gp_1_attempt1.log). Resumed in attempt 2; complete rows were kept.
+      - The Validator's pkill -f "recensus.gp" also killed its own launching shell (exit 144) after the gp processes had stopped. No data was lost.
+
+  recommended_evidence_strength:
+    scale: docs/evidence-and-reproducibility.md
+    C1:
+      strength: replicated
+      rationale: >-
+        Every generator fact was re-derived independently from public
+        specifications, with known-false controls that all fail as required.
+        This covers all 10 prime seeds at the stated blocks (J1), X9.62 for all
+        10 (J2), and the four binary seeds (Q2). J1 and J2 hold. Two reasons
+        keep it short of strong. (i) The sentence "the native tests listed in
+        the README check ..." could not be verified, because the Rust receipt
+        is in blind_from (J6-4, not_run by plan design). (ii) The binary-seed
+        word layout needed a declared 8-member reading family, of which
+        exactly one member matched. Under pre-committed reading (4), a not_run
+        check caps the affected claim at preliminary. J6-4 is a
+        reference-availability check that the plan itself put out of reach,
+        and the substance it refers to was re-derived. I recommend the
+        Coordinator rule explicitly on whether (4) applies to it.
+    C2:
+      strength: strong
+      rationale: >-
+        State recovery from the seed alone and the walk-back were done for all
+        ten prime seeds, as pre-committed reading (2) requires for strong. In
+        every case the window holds exactly one block-aligned srand48-form
+        state, and it equals the claimed t and block. The arithmetic
+        recomputes, and "at most one" holds deterministically up to 16,384
+        blocks. Null strings and positive controls behave as required. One
+        nuance, not a defect: the 10^-11 figure is conditional on an aligned
+        state existing, which errs toward overstating chance.
+    C3:
+      strength: strong
+      scope: >-
+        The census table, the candidate rule, the early-abort semantics, the
+        classifier lists, the 21-of-21 match, the bitlen-rule statement, and
+        the count of 31 twist-only-prime candidates in p = 3 (mod 4) runs.
+      rationale: >-
+        The independent early-abort re-census of all 11,042 rows agrees row by
+        row (pre-committed reading (2)). The full counts and the SEA-free N*P
+        certificates on 289 rows find no error. Every list equals summary.json
+        and the posts. Excluded from the strength: the derived phrase "31
+        seeds were lost", which should read "31 candidates have a prime-order
+        twist; 26 of those twists pass the stated criteria", and "four" should
+        read "five" (or "the four runs with twist-only rows"). Both are J4-3
+        concerns. If the Coordinator classes the 26-versus-31 point as more
+        than wording, that sentence alone falls to contradictory and the rest
+        of C3 is unaffected. Coverage limit: PARI SEA is common to producer and
+        Validator. Only the N*P certificates (covering every prime value that
+        the classification uses) are SEA-free.
+    C4:
+      strength: replicated
+      rationale: >-
+        9 of 9 (p+1)/4 roots and the P-224 Tonelli-Shanks sign (z = 11) were
+        verified exactly by independent code. These are exact algebraic facts
+        with no further protocol; the pre-committed reading defines no strong
+        path for C4.
+    C5:
+      strength: none (external analysis; labelling and provenance only)
+      labelling_verdict: holds
+      provenance_verdict: >-
+        The preregistration's timing is unverifiable: it was first committed
+        with the census data, and no third-party timestamp exists. Per
+        DEC-20261016-7bcdd6 (5), this does not lower C1-C4.
+
+  verdict: passed
+  verdict_note: >-
+    The bundle is admissible evidence for C1-C4 at the strengths above. J1-J6
+    hold and J7 is inconclusive (C5 timing). This verdict does not support an
+    ECDLP claim, demonstrate a speedup, or authorize promotion. KN-FIND-cee88d
+    is the Coordinator's decision under DEC-20261016-7bcdd6.
+
+  limitations:
+    - >-
+      PARI/GP SEA (ellsea, ellcard) is common to producer and Validator. The
+      re-census used my own driver and a different twist model (d =
+      smallest non-residue), but the same SEA library. Only the N*P = O
+      certificates are SEA-independent, and they cover all 38 prime curve
+      orders and 48 prime twist orders, which includes every prime value the
+      classification uses. A recorded 0 hiding a prime would require SEA to
+      return 0 for a prime-order curve in both runs.
+    - >-
+      Published parameters for prime192v2/v3 and prime239v1-v3 come only from
+      OpenSSL 3.0.13. ANSI X9.62 itself could not be retrieved. The NIST
+      curves agree across OpenSSL, FIPS 186-2 and SP 800-186 (0
+      disagreements).
+    - >-
+      The X9.62-1998 MOV bound B = 20 is taken from SEC 1 v2's commentary
+      ("A bound B >= 20 was updated to B >= 100 in [X9.62a]"). It is not from
+      the X9.62 text. It changes nothing (J5-3).
+    - >-
+      The native Rust receipt, enumerator and census.sh in aburan28/crypto
+      were neither read nor run (blind_from). The README's statements about
+      what those tests check, and that census.sh re-ran byte for byte, are
+      unverified. Their substance was re-derived independently.
+    - >-
+      Constraint 4 ordering is attested, not enforced (logs/order.log). I
+      printed the first 3 lines of census/orders_871696354.txt at about
+      22:44Z, before the 22:46:47Z EVENT entry. That was after my candidate
+      sets were logged at 22:42Z.
+    - >-
+      out/q7_state_recovery.json was logged twice. The second run (22:44:08Z)
+      added the null-stress walk; the prime-seed results are identical.
+    - >-
+      A single reviewer covered all seven joints, so mutual blindness is
+      vacuous (plan note). There was no red-team pass.
+
+  j3_sample:
+    freeze_commit: dbd1b8d15845579aaaa3af47b827955e2b625e77
+    nonce: 702c36f2b6afb1a50f1b561a7e6583df966d4a3e02dc4b0d90618421f8176f92
+    key_rule: 'key(row) = SHA-256(nonce_hex + ":" + t + ":" + i), t and i decimal, i the recorded 1-based block index; keys compared as 256-bit integers; 34 smallest per run among rows outside the 85 named rows'
+    rows_outside_named: 10957
+    named_rows_counted: 85
+    sampled_rows_counted: 204
+    augmentation_added: none (every run already had >= 5 N0 = 0 and >= 5 Nt = 0 rows in its 34)
+    per_run:
+      - run: 863711343
+        field: p239
+        named_rows: 17
+        sampled_rows: [499, 2271, 2804, 111, 86, 1387, 2263, 2635, 2430, 1730, 216, 1101, 2504, 1854, 2450, 2433, 2951, 1800, 1705, 2307, 600, 1549, 1835, 1009, 2273, 672, 2795, 1, 2055, 1147, 1905, 2846, 562, 26]
+        sampled_N0_zero: 33
+        sampled_N0_nonzero: 1
+        sampled_Nt_zero: 33
+        sampled_Nt_nonzero: 1
+      - run: 863966734
+        field: p192
+        named_rows: 26
+        sampled_rows: [1386, 4182, 4783, 435, 2647, 3538, 5315, 194, 5170, 2079, 4050, 202, 5473, 5649, 3267, 4794, 5697, 20, 334, 780, 3973, 4659, 448, 1061, 2058, 1961, 2860, 3452, 5764, 1320, 5129, 3106, 3730, 5528]
+        sampled_N0_zero: 31
+        sampled_N0_nonzero: 3
+        sampled_Nt_zero: 29
+        sampled_Nt_nonzero: 5
+      - run: 871002724
+        field: p521
+        named_rows: 1
+        sampled_rows: [497, 291, 15, 1128, 820, 989, 864, 441, 73, 1001, 270, 602, 403, 1100, 974, 895, 654, 1119, 385, 683, 1120, 996, 95, 612, 845, 914, 694, 1002, 1048, 749, 764, 569, 553, 303]
+        sampled_N0_zero: 33
+        sampled_N0_nonzero: 1
+        sampled_Nt_zero: 29
+        sampled_Nt_nonzero: 5
+      - run: 871696354
+        field: p256
+        named_rows: 6
+        sampled_rows: [1638, 1628, 950, 1806, 348, 1479, 689, 1397, 1074, 114, 90, 1303, 1439, 322, 418, 796, 1574, 1760, 1341, 911, 1018, 73, 37, 760, 1785, 1789, 1584, 1339, 1175, 1646, 151, 554, 180, 1577]
+        sampled_N0_zero: 34
+        sampled_N0_nonzero: 0
+        sampled_Nt_zero: 32
+        sampled_Nt_nonzero: 2
+      - run: 872952608
+        field: p384
+        named_rows: 7
+        sampled_rows: [1867, 2518, 1685, 736, 671, 358, 1989, 715, 1745, 1868, 1879, 2388, 361, 1776, 407, 256, 625, 1640, 639, 2134, 87, 1588, 1888, 2278, 2464, 1625, 15, 331, 1421, 49, 2157, 1296, 831, 1947]
+        sampled_N0_zero: 34
+        sampled_N0_nonzero: 0
+        sampled_Nt_zero: 33
+        sampled_Nt_nonzero: 1
+      - run: 891607927
+        field: p224
+        named_rows: 28
+        sampled_rows: [2754, 1983, 3003, 4032, 4719, 4544, 5778, 5579, 3013, 5829, 2534, 1008, 5487, 5100, 4038, 5779, 3791, 5722, 6205, 870, 6803, 3678, 1732, 5511, 2767, 5298, 5370, 4343, 4533, 295, 560, 5452, 334, 5566]
+        sampled_N0_zero: 33
+        sampled_N0_nonzero: 1
+        sampled_Nt_zero: 30
+        sampled_Nt_nonzero: 4
+
+  independence_check:
+    command: python3 tools/check_review_independence.py --plan ledger/handoffs/TASK-20261016-9bf74b.yaml --reports research/nist_seed_provenance_20261016/validation-20261016/validation_report.yaml
+    result: >-
+      1 problem: "re-deriver TASK-20261016-9bf74b read 1 blind_from path(s) --
+      /home/user/crypto/". This is the truthfully listed, harness-injected
+      /home/user/crypto/CLAUDE.md (see review_attestation.blind_from_respected_note).
+      No other problem is reported: joint ownership, per-joint verdicts,
+      sibling reads and the proves-too-much declaration all pass.
+
+  review_attestation:
+    task_id: TASK-20261016-9bf74b
+    joints_owned: [J1, J2, J3, J4, J5, J6, J7]
+    verdicts:
+      J1: holds
+      J2: holds
+      J3: holds
+      J4: holds
+      J5: holds
+      J6: holds
+      J7: inconclusive
+    read_sibling_reports: false
+    blind_from_respected: false
+    blind_from_respected_note: >-
+      No tool call of mine opened, printed or ran any blind_from path. The
+      only operations on blind_from paths were the opaque operations listed
+      below. The field is false for one reason. At session start, before I
+      read the card, the Claude Code harness injected the contents of
+      /home/user/crypto/CLAUDE.md into my context (a project-instructions
+      reminder that also included /home/user/crypto-autoresearcher/CLAUDE.md).
+      That file is under /home/user/crypto/, which is in blind_from. Its
+      content is generic workflow policy: PRs ready for review, the
+      success-criterion paragraph, research-visuals and benchmarks rules,
+      Conductor, PR check-in cadence and GAE pricing. It contains nothing
+      about drand48, X9.62, the census, the classifier, the orders or the
+      seeds. The Coordinator should judge materiality. I did not touch
+      research/nist_seed_provenance_20261016/classify.gp,
+      sea_census.gp (other than hashing), research/nist_seed_skipped_curves_20261016/,
+      /home/user/nist-seeds/ or /tmp/claude-0/ (the harness wrote my own
+      background-task status files under /tmp/claude-0/<this
+      session>/tasks/; I never read them, and my scratchpad was not used).
+    encountered_not_read: >-
+      An `rg -l` over the repository (blind_from excluded by glob) listed file
+      names under research/nist_seed_selection_20261016/, including
+      crosscheck_full_census.py and certify_full_prime_census.py. I did not
+      open them. A J4 `rg -n -o` search printed single matching lines from
+      unrelated records (for example EV-MLKEM-ef0261:309,
+      KN-FIND-f54a82:154 and several TASK handoffs), none about this bundle's
+      implementation.
+    sources_read:
+      - ledger/handoffs/TASK-20261016-9bf74b.yaml
+      - ledger/decisions/DEC-20261016-7bcdd6.yaml
+      - agents/validator.md
+      - docs/agent-runtime-core.md
+      - AGENTS.md (section headings; "Review architecture", lines 405-418)
+      - templates/research-records.md (lines 730-781, review_attestation)
+      - docs/evidence-and-reproducibility.md (strength table, grep lines 9-14)
+      - tools/check_review_independence.py (lines 1-80, 284-370, 1005-1045)
+      - research/nist_seed_provenance_20261016/README.md
+      - research/nist_seed_provenance_20261016/SOURCE.md
+      - research/nist_seed_provenance_20261016/census/orders_863711343.txt
+      - research/nist_seed_provenance_20261016/census/orders_863966734.txt
+      - research/nist_seed_provenance_20261016/census/orders_871002724.txt
+      - research/nist_seed_provenance_20261016/census/orders_871696354.txt
+      - research/nist_seed_provenance_20261016/census/orders_872952608.txt
+      - research/nist_seed_provenance_20261016/census/orders_891607927.txt
+      - research/nist_seed_provenance_20261016/census/summary.json (opened 23:39:32Z, after constraint 4)
+      - research/nist_seed_provenance_20261016/PREREGISTRATION.md (opened 23:39:58Z, after the blind re-derivation, for J7)
+      - ledger/decisions/DEC-20261016-fb3a6f.yaml (J7)
+      - knowledge/literature/KN-LIT-d2f917.md (J7)
+      - problems/nist-seed-selection-rule-unexplained.md (J7)
+      - ledger/decisions/DEC-20261016-264eed.yaml (lines 44-70, J4)
+      - /home/user/crypto-autoresearcher/CLAUDE.md (harness-injected at session start)
+      - /home/user/crypto/CLAUDE.md (harness-injected at session start, not opened by any tool call; see blind_from_respected_note)
+      - 'https://pubs.opengroup.org/onlinepubs/9699919799/functions/drand48.html (POSIX drand48/lrand48/srand48; excerpt specs/posix_drand48_excerpt.txt)'
+      - 'https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-186.pdf (C.1, C.3.1, C.3.2, curve parameters; excerpts in specs/)'
+      - 'https://csrc.nist.gov/files/pubs/fips/186-2/upd1/final/docs/fips186-2-change1.pdf (App. 6.4/6.5, curve parameters; excerpt specs/fips186-2_excerpt.txt)'
+      - 'https://www.secg.org/sec1-v2.pdf (MOV threshold text; excerpt specs/sec1_mov_excerpt.txt)'
+      - 'https://en.wikipedia.org/w/index.php?title=Tonelli%E2%80%93Shanks_algorithm&action=raw (excerpt specs/tonelli_shanks_excerpt.txt)'
+      - 'openssl ecparam -name <curve> -param_enc explicit -text -noout for prime192v1-v3, secp224r1, prime239v1-v3, prime256v1, secp384r1, secp521r1, sect233r1, sect283r1, sect409r1, sect571r1'
+      - 'PARI/GP online help for ellsea and ellcard (?ellsea, ??ellsea, ?ellcard)'
+      - 'https://words.filippo.io/seeds-solved/ (read after the logged summary.json comparison; accepted list only; specs/posts_accepted_excerpt.txt)'
+      - 'https://www.anthropic.com/research/ecdsa-curve-origins (read after the logged comparison; published-index table and the P-256 skip sentence. My grep output also showed 5 lines of its code listing: a function signature, two table comments and two print lines. None was copied or used, and all my outputs were logged before.)'
+    opaque_operations:
+      - 'sha256sum research/nist_seed_provenance_20261016/{classify.gp,sea_census.gp} (working tree) and git show dbd1b8d1:research/nist_seed_provenance_20261016/{classify.gp,sea_census.gp} | sha256sum'
+      - 'git -C /home/user/crypto show origin/claude/nist-seed-provenance:research/nist_seed_provenance_20261016/<f> | sha256sum for the 14 SOURCE.md files'
+      - 'git -C /home/user/crypto rev-parse --verify -q origin/claude/nist-seed-provenance and claude/nist-seed-provenance (exit status only, output discarded)'
+      - "git -C /home/user/crypto log -1 --format='%H %cI %s' origin/claude/nist-seed-provenance -- research/nist_seed_provenance_20261016/"
+      - "git -C /home/user/crypto log -1 --format='%H %cI' origin/claude/nist-seed-provenance and claude/nist-seed-provenance"
+      - 'git -C /home/user/crypto ls-tree -r --name-only origin/claude/nist-seed-provenance research/nist_seed_provenance_20261016/'
+      - 'git -C /home/user/crypto ls-tree --name-only origin/claude/nist-seed-provenance examples/nist_seed_candidates.rs src/cryptanalysis/nist_seed_provenance.rs'
+      - "git -C /home/user/crypto log --all --format='%H %cI %s' -- research/nist_seed_provenance_20261016/<f> for PREREGISTRATION.md, the six orders files, summary.json, sea_census.gp, classify.gp and README.md"
+    verdict_summary: holds on J1-J6; inconclusive on J7 (labelling holds, preregistration timing unverifiable)
+
+  artifact_paths:
+    note: >-
+      Every file under validation-20261016/ except this report, which cannot
+      carry its own hash. tmp/ (derivable GP inputs) was deleted; its hashes
+      are in logs/*inputs.sha256.
+    files:
+    - path: research/nist_seed_provenance_20261016/validation-20261016/validation.md
+      sha256: 2148449b9b15d2125562ac010e8e22cc22c4e254302e09f6408bb00b1e3f8da9
+      bytes: 14622
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/c4_roots.log
+      sha256: a749176264ce381e03f1164d0e24e03a3afc9329111f8bfdbeda17297412279f
+      bytes: 1747
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/compare_classify.log
+      sha256: a59d21da87113e5d7b66d7d25edf54f7180586e0bce4717eb1b0cb59131d7972
+      bytes: 4451
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/compare_summary.log
+      sha256: 7aa78c247a7244979d255dc337636a655e303f99bcb681ad018e75374df5975d
+      bytes: 1995
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j1_q1_seeds.log
+      sha256: a9d85c34d946b808d4770006a4d7e6b55866ee19043be14efcbf689137f73928
+      bytes: 5223
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j2_q3_q4_x962.log
+      sha256: 7e7fa6e8b853a2e959141a18af4e571626704848cb018039111ce3a73db2dbf7
+      bytes: 2258
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_analyse.log
+      sha256: 41b73af807e12528f6085a3cf5fe4fb0320e41a977bd70a1e7f4949192583681
+      bytes: 3151
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_gp_attempt1_stackoverflow.log
+      sha256: 2e341cd6ee57b9f3fe9ccc10eb4b54952fb97a4c3120336bd2f14542a83acd70
+      bytes: 505
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_gp_attempt2.log
+      sha256: 5a3fe69774fbb0976d144c94460c5e567073436fb7cecf4e503b8a4a798bc62e
+      bytes: 83
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_gp_attempt3.log
+      sha256: 5bb69653cd25d47ad09c8adfb11810c06186ddeb542b88ae2adfc297d91f0ce5
+      bytes: 158
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_gp_j4demo.log
+      sha256: 1508d88df2f4fe3389c8458a4a94e492d58bf1e86c94a339048e1fb60b1be517
+      bytes: 15
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_time_attempt1.txt
+      sha256: 94246dee6190db490ab247b00a319937cb49182cfbec800729592f1673523fed
+      bytes: 42
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_time_attempt2.txt
+      sha256: a9cd82e0569677119af8723996772971850e33997dc5f18edadb17a4a01312bf
+      bytes: 42
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_time_attempt3.txt
+      sha256: 29ea778e5c33ee1cd0912cd6f742232ce96d859f715efa79c5a77062c15794a0
+      bytes: 67
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_fullcount_time_j4demo.txt
+      sha256: 3d6ad84e520978bd839be9e8a444a7d888f84838aeeda1f10555fdc98d03b770
+      bytes: 66
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_inputs.sha256
+      sha256: 1233ef2cdd896f86feab22235072d4453811e11a35d5a5b71f965a89aaca5c2c
+      bytes: 334
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j3_select.log
+      sha256: 93dc893a89486afd0a9fd42b80a3f0cd9f242c0fc53106e44ab94d4588dd769e
+      bytes: 2182
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/j4_lost_criteria.log
+      sha256: 41efd0d18f56c3178462493be94abf96aa2700cc53964145ee5b9bd55c2fc5e2
+      bytes: 563
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/order.log
+      sha256: 90ca12c6b6b7e0e06f9ff0cd3d13e8a2062061dc56f88bc5c747e6163f4065cc
+      bytes: 5242
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/params.log
+      sha256: a89a472f1ea86d11234b0095a541f9da2dfcabcf1ab2919303f58677e91c5add
+      bytes: 1845
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/posts_compare.log
+      sha256: e0ce331f31421909993e5cf71fc7621b1a8fc783574f7c6b7ed9411944ba2203
+      bytes: 802
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/ptm_adjacent.log
+      sha256: f9c6816f389b3712ae85a5a7c38aaba4eb1d2ed2fb64711c44f8c84a1807c9b1
+      bytes: 669
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/q2_binary.log
+      sha256: 9a4df5e13f70e4917316fd8a3ecaaea6b78596041c810c9b9c2f951c88e11573
+      bytes: 2606
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/q7_state_recovery.log
+      sha256: 9a0404093826c163990a0c8b8d1390c1a87590a134ce485513ebbcfc91a24079
+      bytes: 5774
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_compare.log
+      sha256: 4b1b0d54bab9e369049520e3c95a30fce6015484c887635e8164cd1db69d4bc1
+      bytes: 1075
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_0_attempt1.log
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      bytes: 0
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_1_attempt1.log
+      sha256: 6a6c61e519181f0d81e9cb98b032caaa1704b5503e951741cbf5c35bf54c1d4e
+      bytes: 533
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_2_attempt1.log
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      bytes: 0
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_r2_0.log
+      sha256: edb3d2e086f8d240808f37a5a49deb76247fb290ad9f04be3cdb936dd9454730
+      bytes: 159
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_r2_1.log
+      sha256: f229dad743d8f552197d61e34eede28e25550888b4c3c6779a8d9e0c0f86d738
+      bytes: 89
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_gp_r2_2.log
+      sha256: 563698222fb8592a9bf3d43a988d516c301088465e7cdf97cecdb22b18bafcb2
+      bytes: 159
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_inputs.sha256
+      sha256: d99dc15839c86170059ea4ffd9403c99f279dc1a20a8726388318e71b50c1d34
+      bytes: 480
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_time_attempt1.txt
+      sha256: 5ae234e0b24e4c9200846c6d447208a088e247a0f62674abc4fa72af6e7fccd4
+      bytes: 218
+    - path: research/nist_seed_provenance_20261016/validation-20261016/logs/recensus_time_attempt2.txt
+      sha256: 4859525cd6a0336863c14a3d4bbe9cfa5382a64691510b9036067db8e4d1539c
+      bytes: 63
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/c4_roots.json
+      sha256: fb4c89add8be510c9656763126919ef65a490c907e4e7285b5460a9ce80ddaf0
+      bytes: 1746
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j3_analysis.json
+      sha256: 8a40b6552158540cc55928faee188a903e5d17558921ace092ee62cb022aa438
+      bytes: 53660
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j3_fullcounts.txt
+      sha256: 0396aca77e3da2c1bda4d1896a1990dbb328e23360f1cfc32472635da15913da
+      bytes: 57665
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j3_sample.json
+      sha256: 417ee7937726f44d76d7daeda3696e0ae480c2a85f3d2434789b435f38cf605f
+      bytes: 21041
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j4_demo_fullcounts.txt
+      sha256: ea1c851cb8a7c79d04790f7b6f179cb2df22eee122bf4e7beda826e0028f54f1
+      bytes: 3151
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j4_lost_criteria.json
+      sha256: e8ed12c0daca06355526aca450d738f2f6b103e1795e53daee9cb3c15a777993
+      bytes: 7394
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/j5_classification.json
+      sha256: e1c7b674ded11dfb6e3cc67f32916ebae5d1e2c24dfd6e9e2c8016ef41d42b72
+      bytes: 11011
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/params.json
+      sha256: 71142b24f502dcf95baa26f9d24c29a0d1c3057bca31091d966c3824a470bbaf
+      bytes: 7881
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/ptm_adjacent.json
+      sha256: 0559bbbff35ab8e08069a0a5cc53ad90284894629381582bd15ecd943e1ebccc
+      bytes: 5686
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q1_seeds.json
+      sha256: 61df0edcfe7650afe9e46228b3902c113928cde401229288981fa9e95915b523
+      bytes: 9371
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q2_binary.json
+      sha256: 3816283a06f532cde7ce17e3a17cd3d4733ab1664d24bc11c653d01146a18562
+      bytes: 20013
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q3_x962.json
+      sha256: b53dcd492a25782d8f5426292af0a68d55ea34a01bc6d3a47bdee0bdb8ad32b5
+      bytes: 13906
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_863711343.txt
+      sha256: 3c78859dd9eef940b0192c055d05d4c6f72d9bc17b47a11d6df198ef7dd88182
+      bytes: 7214
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_863966734.txt
+      sha256: 027b4c09f566c239fd42a5ffdac35bd55936dbf9394b89dc1d609adcbfa87d66
+      bytes: 14736
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_871002724.txt
+      sha256: de2d7e0bdcf0cb8b64c3ff3c344f64ddfb6ed787241708b2ee5fd4af668f6431
+      bytes: 2355
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_871696354.txt
+      sha256: 5bd55b8a63fc881b149b18ec87f1c3a91006b18f2c504a3b14e12a2fe370547d
+      bytes: 4223
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_872952608.txt
+      sha256: 2cd4276a35035f662297912335a38d508972971e14e24e85e95a72cb4abb945b
+      bytes: 6126
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_candidates_891607927.txt
+      sha256: 1cf269884f71e231af0656119d04c9ae9cb00e37ec449ae28220f9416fcf3b82
+      bytes: 17124
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q4_summary.json
+      sha256: 66ea8bd10182e1522bb2931c00ebe3895d44470c3dd5313b39b0504d36c3bd93
+      bytes: 1212
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/q7_state_recovery.json
+      sha256: abbc2a3faecaf18225637ef7ddf3bc1e4ab1274f43ad98ba6fbccb52ac54df27
+      bytes: 13863
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_compare.json
+      sha256: 665faba55c1b46ad9310bc0a8ac55f0ef94c509ebfb4345d0c6a9c9c38b4e032
+      bytes: 67359
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_863711343.txt
+      sha256: c7ac6e7297e4af21be73ef47224c497901cb68dc0a0f94d15bbf840898ef0bb3
+      bytes: 26072
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_863966734.txt
+      sha256: 4a8f0b5835ab8f46b60f75c47650017252308fa35c7c6ad5141e0d1699b9eb2f
+      bytes: 46987
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_871002724.txt
+      sha256: 607c8d3418f9ce89e73045a582ba6c9a4b99b1abe2d5d1db440094173e936f08
+      bytes: 14519
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_871696354.txt
+      sha256: b449f5735644428e34370106a40208b606bc939fcdf312c1431965a0cd76a162
+      bytes: 20229
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_872952608.txt
+      sha256: cc19cab69ab9a9774c131ff478cd10b65c83a7cf3629b2911a0461e57151189d
+      bytes: 25619
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_orders_891607927.txt
+      sha256: b51e0afe29cb10455f372a34f038a0067a9a123df240ec1e5d642def6fd8bc14
+      bytes: 65809
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_0.txt
+      sha256: ced959977e1216733fa27b71222cb9d2d7f99017bd60ed4053285ebaeae6a4fd
+      bytes: 2147
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_1.txt
+      sha256: 6ce420b26d542e6832f18643eb017d0c874425fb034c2b8ace6ddd9ea0aeb680
+      bytes: 1380
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_2.txt
+      sha256: aaf975946bed35355836161ec83547047e639e2081696f024996ecf3b8a0c277
+      bytes: 1231
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_r2_0.txt
+      sha256: 333905b63bad15876675bcbc4adc5f6235d77d86854ef7e4cce4af5ab0f92a86
+      bytes: 99557
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_r2_1.txt
+      sha256: 979896f3734f51ba58ec11510c9dec3bdddd09d982702cbb144156df9208574c
+      bytes: 103601
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/recensus_raw_r2_2.txt
+      sha256: d6874fe9c66ec8b49634703613ccc34649caed524900a78b2901f1e4fa0a74ae
+      bytes: 101739
+    - path: research/nist_seed_provenance_20261016/validation-20261016/out/summary_comparison.json
+      sha256: 6c039c02e0561fac65dbfe57997cad1a80792166fab7079ac5c686cc77b733c8
+      bytes: 2256
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/c4_roots.py
+      sha256: 05678dd031cc5bf05236b419c665f54deb8e72bc9a8b33ef6f186a0c34e6e126
+      bytes: 2369
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/common.py
+      sha256: 16dd62e0d13fd2c64565eb87cd1c242d4079a0b2e67c5da7b096d0108531d62c
+      bytes: 5495
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/compare_classify.py
+      sha256: dc6746c47486e831fc00a230ff4cd20a0024d96c3705a1b3187b73e21f027634
+      bytes: 8373
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/compare_summary.py
+      sha256: b6e0c25f8671684cc81beb8c4fcab5b97db5a84fe0f51bc4c3f1925c7250f7d3
+      bytes: 2468
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j1_q1_seeds.py
+      sha256: 55faedced0d28c81196b867d36a27922c0022a671efa978746b6cbdbc3c134bd
+      bytes: 4830
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j2_q3_q4_x962.py
+      sha256: 051954e64ed4f26426721db8605c1a4074573365541ae2be464fac02dadbc428
+      bytes: 3280
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j3_analyse.py
+      sha256: 5626cf57f8cdaad195c2c3f1606104d1cda03867bac4223759dcf9d5e6e03c76
+      bytes: 6506
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j3_fullcount.gp
+      sha256: bcef40d0c54ad17ee9c57ee4d136c24f53e84bf97c330e2ba951b86301bda5a5
+      bytes: 1593
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j3_select.py
+      sha256: 6de26f60f2a2445c3f7924f66c330ba9b839662af8458dd6198d4158f1cf7655
+      bytes: 3341
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/j4_lost_criteria.py
+      sha256: 13ecbfcca68d392b6f4aeb2e4fe3847a58536dfb33c10192bbd588cb808272a9
+      bytes: 1903
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/list_artifacts.py
+      sha256: b25d568d78a75e1e0235829a39521bb34e0c8ae14e6a2a685b092dae5c20c8b0
+      bytes: 714
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/params.py
+      sha256: 10abce046cd3453750d7deab26ca9a6d26d41651abf42ac97b8a1e5a36e89d42
+      bytes: 6978
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/ptm_adjacent.py
+      sha256: 8b8982fa898efbd52cd606feb601c0563a7fc5db95512e71577e1bbe8a5f25ee
+      bytes: 1977
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/q2_binary.py
+      sha256: 0b4c878ccc443815011ef758e8d6bb1e22a4a0798da33d61a842e0f0890aee5e
+      bytes: 5042
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/q7_state_recovery.py
+      sha256: 24292252b6943b650d7010307b2e8fb3f51419b1c0ee2257986328eaeeb822be
+      bytes: 6532
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/recensus.gp
+      sha256: 5b0c27966736419ba2e0f502f3124140c5576163211a8f3e902e390339b2400f
+      bytes: 1280
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/recensus_attempt1.gp
+      sha256: 573e7aaaf246c9143d276e23ec37aceadc467cec2d4ea0465437abcaa791b3bb
+      bytes: 1337
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/recensus_compare.py
+      sha256: 3012d892fd5956901adfaac4c9b3609fdde3dde92ee5adfa1cadf0a5ff10875f
+      bytes: 5311
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/recensus_prep.py
+      sha256: 635d8c49ddc8d5954bbfa43a3945a1ffaf3aca011a8abfe3902287837fe706e8
+      bytes: 3517
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/run_j3.sh
+      sha256: 53b2b333c6000ccc6a83f71cd090873b006153d5ec3177960a185fd7113b20dd
+      bytes: 603
+    - path: research/nist_seed_provenance_20261016/validation-20261016/scripts/run_recensus.sh
+      sha256: 96dfec87b86d4c11522396eef6558839a286a9291d5837cde232b26824659138
+      bytes: 769
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/SOURCES.txt
+      sha256: d56f6e761fb8733249b6c77b4676c5ba2c2ce026cdc15586585c20dd9c601044
+      bytes: 2147
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/fips186-2_excerpt.txt
+      sha256: 1f6e5b7bafe943e97756626ec9550957a25d767417b44612638b0c4db03cdee0
+      bytes: 8025
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/posix_drand48_excerpt.txt
+      sha256: bab1c76143821f442c411b5c98897320328ed62fac060b24b7b028f8a640f6dd
+      bytes: 3237
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/posts_accepted_excerpt.txt
+      sha256: 03e2be9bf534d638b92095b244c5f9c97fd71697611040850acbcde495dd34c2
+      bytes: 2785
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/sec1_mov_excerpt.txt
+      sha256: 9b8943030dc4fdfa97e07e7e5446e90e2716c124405c7582879877b4432db440
+      bytes: 987
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/sp800186_C1_excerpt.txt
+      sha256: 6fc33796ae6d78ee3e2751204428d0f3aa85c3c809b569366cb75695d274a9ed
+      bytes: 1641
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/sp800186_C3_excerpt.txt
+      sha256: 761adc40cc038e4e268e460732cbd75eb10f90c44b6b8b20810e722888446573
+      bytes: 5495
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/sp800186_params_excerpt.txt
+      sha256: 5615cbbbd5e22db675779c9d3d98a44bb753fe9700b35e2e625091725d89b98a
+      bytes: 12165
+    - path: research/nist_seed_provenance_20261016/validation-20261016/specs/tonelli_shanks_excerpt.txt
+      sha256: 3cd92fe545da5ab10bfdf48bfb8dd7d1ea5a1ccfb5f0b4da9c92c59697eb3d0b
+      bytes: 3900

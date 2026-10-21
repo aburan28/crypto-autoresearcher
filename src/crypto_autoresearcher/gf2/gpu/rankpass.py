@@ -18,11 +18,18 @@ device).
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import numpy as np
 
 from .. import _native
 
 XP = None   # array module override (tests set numpy to run this path without a device)
+# "fused": rankpass.cu, one host sync per word block (default on a device);
+# "cupy": the array-op form below (the reference the fused kernels mirror)
+IMPL = os.environ.get("CRYPTO_AR_GF2_GPU_PASS", "fused")
+_mod = None
 
 
 def block_elim(val, nbits):
@@ -72,6 +79,62 @@ def _lead_words(xp, Md):
     return xp.where(has, nz.argmax(axis=1), -1).astype(xp.int64)
 
 
+def _kernels():
+    global _mod
+    if _mod is None:
+        import cupy as cp
+        src = (Path(__file__).resolve().parent / "rankpass.cu").read_text()
+        _mod = cp.RawModule(code=src, backend="nvrtc", options=("-std=c++14",))
+        _mod.get_function("rp_update").max_dynamic_shared_size_bytes = 4 * 8 * 256 * 8
+    return _mod
+
+
+def column_pass_fused(M, C):
+    """column_pass on the device with the kernels of rankpass.cu: the same
+    (ps, cs) and final matrix, one host sync (the active-row count) per word
+    block."""
+    import cupy as cp
+    R, W = M.shape
+    mod = _kernels()
+    k_elim, k_gather = mod.get_function("rp_block_elim"), mod.get_function("rp_gather")
+    k_union, k_update = mod.get_function("rp_union"), mod.get_function("rp_update")
+    k_leads = mod.get_function("rp_leads")
+    i64 = np.int64
+    Md = cp.asarray(np.ascontiguousarray(M))
+    lw = cp.empty(R, dtype=cp.int32)
+    mod.get_function("rp_init_leads")(((R + 255) // 256,), (256,), (Md, i64(R), i64(W), i64(C), lw))
+    kmax = min(R, C) + 64
+    ps = cp.zeros(kmax, dtype=cp.int32)
+    cs = cp.zeros(kmax, dtype=cp.int32)
+    state = cp.zeros(2, dtype=cp.int64)
+    val = cp.empty(max(R, 1), dtype=cp.uint64)
+    coef = cp.empty(max(R, 1), dtype=cp.uint64)
+    isp = cp.empty(max(R, 1), dtype=cp.uint8)
+    piv_a = cp.zeros(64, dtype=cp.int32)
+    Bs = cp.empty(64 * max(W, 1), dtype=cp.uint64)
+    uni = cp.empty(max(W, 1), dtype=cp.uint8)
+    for w in range(W):
+        act = cp.flatnonzero(lw == w).astype(cp.int32)
+        na = int(act.size)                              # the one host sync of the step
+        if not na:
+            continue
+        nbits = min(64, C - 64 * w)
+        k_elim((1,), (1024,), (Md, i64(W), i64(w), np.int32(nbits), act, i64(na), val, coef,
+                               isp, piv_a, ps, cs, state))
+        tail = W - w - 1
+        if tail > 0:
+            k_gather(((tail + 255) // 256, 64), (256,),
+                     (Md, i64(W), i64(w + 1), i64(tail), act, piv_a, state, Bs))
+            k_union(((tail + 255) // 256,), (256,), (Bs, i64(tail), state, uni))
+            k_update(((tail + 3) // 4,), (256,),
+                     (Md, i64(W), i64(w + 1), i64(tail), act, i64(na), coef, Bs, uni, state),
+                     shared_mem=4 * 8 * 256 * 8)
+        k_leads(((na + 255) // 256,), (256,), (Md, i64(W), i64(C), i64(w), act, i64(na), val, isp, lw))
+    K = int(state[0].get())
+    M[...] = Md.get()
+    return ps[:K].get().astype(np.int64), cs[:K].get().astype(np.int64)
+
+
 def column_pass(M, C, xp=None):
     """Eliminate M (R x W uint64, host array, modified in place) column by
     column. Returns (ps, cs) as int64 arrays: pivot rows and pivot columns in
@@ -79,6 +142,8 @@ def column_pass(M, C, xp=None):
     if xp is None:
         xp = XP
     if xp is None:
+        if IMPL == "fused":
+            return column_pass_fused(M, C)
         import cupy as xp  # noqa: N813
     R, W = M.shape
     on_host = xp is np

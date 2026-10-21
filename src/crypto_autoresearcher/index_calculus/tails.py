@@ -69,6 +69,17 @@ def default_table_arity(m: int) -> int:
     return max(1, min(m - 1, (m + 1) // 2))
 
 
+def wide_packed_table(E: Curve, fb: FactorBase, arity: int, work_dir, **limits):
+    """Build an exact file-backed wide table under explicit resource limits.
+
+    This opt-in storage path leaves the default TailTable and the narrow-field
+    vectorized decomposition scan unchanged. The caller owns table custody.
+    """
+    from .wide_tails import WidePackedTailTable
+
+    return WidePackedTailTable(E, fb, arity, work_dir, **limits)
+
+
 class _SortedTails:
     """The numpy-built table: tails sorted by x, largest first index first."""
 

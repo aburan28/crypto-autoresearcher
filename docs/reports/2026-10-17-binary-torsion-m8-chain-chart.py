@@ -1,0 +1,47 @@
+"""Draw the verified m=8 chain and duplicate-row count from its record."""
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+RECORD = ROOT / "research/icperf_binary_torsion_m8_chain_20261017/chain.json"
+OUT = Path(__file__).with_name("2026-10-17-binary-torsion-m8-chain.svg")
+d = json.loads(RECORD.read_text())
+shape = d["chain_shape"]
+orbit = d["torsion_duplicate_orbit"]
+assert shape["summands"] == 8 and shape["three_point_equations"] == 7
+assert shape["target_channels"] == 4 and len(orbit["even_masks"]) == 128
+svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="590" viewBox="0 0 1000 590">
+<rect width="1000" height="590" fill="white"/>
+<style>text{{font-family:Arial,sans-serif;fill:#183040}} .title{{font-size:26px;font-weight:bold}} .head{{font-size:19px;font-weight:bold}} .body{{font-size:16px}} .small{{font-size:14px}}</style>
+<text x="500" y="42" text-anchor="middle" class="title">Planted eight-summand chain on GF(2^61)</text>
+<text x="500" y="72" text-anchor="middle" class="body">Verified equations and duplicate accounting; no relation collector was run</text>
+<rect x="50" y="115" width="220" height="105" rx="12" fill="#dceef3" stroke="#457b94"/>
+<text x="160" y="151" text-anchor="middle" class="head">8 raw points</text>
+<text x="160" y="181" text-anchor="middle" class="body">affine φ base</text>
+<text x="160" y="204" text-anchor="middle" class="small">one planted sum</text>
+<path d="M270 167 H335" stroke="#537287" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="335" y="115" width="330" height="105" rx="12" fill="#e7f4e9" stroke="#32825a"/>
+<text x="500" y="151" text-anchor="middle" class="head">7 Pφ,3 equations</text>
+<text x="500" y="181" text-anchor="middle" class="body">6 full-field intermediates</text>
+<text x="500" y="204" text-anchor="middle" class="small">446 variables / 427 equations per channel</text>
+<path d="M665 167 H730" stroke="#537287" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="730" y="115" width="220" height="105" rx="12" fill="#f4ebdb" stroke="#a67a37"/>
+<text x="840" y="151" text-anchor="middle" class="head">4 target channels</text>
+<text x="840" y="181" text-anchor="middle" class="body">channel {d['selected_channel']} matches</text>
+<text x="840" y="204" text-anchor="middle" class="small">all project to one subgroup target</text>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#537287"/></marker></defs>
+<text x="500" y="274" text-anchor="middle" class="head">Torsion symmetry of this planted relation</text>
+<rect x="90" y="305" width="270" height="95" rx="12" fill="#e1ecf4" stroke="#457b94"/>
+<text x="225" y="342" text-anchor="middle" class="head">{orbit['distinct_ordered_phi_tuples_checked']} checked tuples</text>
+<text x="225" y="373" text-anchor="middle" class="body">even T₂ shifts of 8 points</text>
+<path d="M360 351 H640" stroke="#537287" stroke-width="3" marker-end="url(#arrow)"/>
+<text x="500" y="338" text-anchor="middle" class="small">[4] projection and row deduplication</text>
+<rect x="640" y="305" width="270" height="95" rx="12" fill="#dff2e8" stroke="#32825a"/>
+<text x="775" y="342" text-anchor="middle" class="head">{orbit['unique_projected_coefficient_rows_checked']} coefficient row</text>
+<text x="775" y="373" text-anchor="middle" class="body">rank contribution at most 1</text>
+<text x="500" y="461" text-anchor="middle" class="body">8! permutations × 128 even shifts = {orbit['ordered_group_tuples_from_permutations_and_even_shifts']:,} group-level ordered tuples</text>
+<text x="500" y="493" text-anchor="middle" class="small">Some orderings may encounter a pole in the finite-coordinate chain; this is not a solver-root count.</text>
+<text x="500" y="548" text-anchor="middle" class="small">Source: chain.json and independent Sage replay. One planted relation, no measured search yield.</text>
+</svg>'''
+OUT.write_text(svg + "\n")

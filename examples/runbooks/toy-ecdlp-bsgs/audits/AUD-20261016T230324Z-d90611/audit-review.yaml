@@ -1,0 +1,62 @@
+# Reader half of audit-runs (.claude/skills/audit-runs/SKILL.md step 3), written once.
+# A screen: never a validation_report, never evidence about a hypothesis, never an
+# execution proof. Performed by the auditing session itself (validator, Opus): this
+# runtime could not dispatch the validator-sweep subagent, so the reading was done
+# directly under the same five-check contract (.claude/agents/validator-sweep.md).
+audit_review:
+  audit_id: AUD-20261016T230324Z-d90611
+  session_dir: examples/runbooks/toy-ecdlp-bsgs/runbook-sessions/RBS-EXAMPLE-b301f5
+  journal_tip: 5b9ad17ddb428ea6f4c7fbcfe177889dba0357b2d7669887174fa7fda571962b
+  auditor_model: claude-opus-5-5
+  requested_by: sheriff finding X1 (SHF-20261016-3caa6f)
+  specification_fidelity:
+    specification: >-
+      None as a ledger record (approval mode `example`); the README is the
+      specification: twelve seeded search trials, positive control c-known-k
+      (k = 123456), negative control c-off-curve, group_ops recorded, and the
+      Lean coverage obligation.
+    items:
+      - {item: twelve seeded BSGS search trials, runbook: "S02-solve, trial-plan.json (14 trials = 12 + 2 controls), by_trial s01..s12 seeds"}
+      - {item: positive control c-known-k, runbook: "S02-solve controls, by_trial c-known-k asserts k_found = k_input = 123456"}
+      - {item: negative control c-off-curve, runbook: "S02-solve controls, by_trial c-off-curve asserts status rejected_input, k_found null"}
+      - {item: group operations recorded, runbook: "metrics group_ops, giant_steps (measured), solved_fraction (derived)"}
+      - {item: "solved is a validity condition (n <= m*m)", runbook: "by_trial status solved / verified true; S03-lean-coverage for the counting identity"}
+    findings: []
+  blind_rederivation:
+    metric: group_ops (with giant_steps and solved_fraction)
+    script: examples/runbooks/toy-ecdlp-bsgs/audits/AUD-20261016T230324Z-d90611/reader/rederive.py
+    output: examples/runbooks/toy-ecdlp-bsgs/audits/AUD-20261016T230324Z-d90611/reader/rederive.out
+    rederived: {group_ops: {count: 12, mean: 1482.5, median: 1446.0, min: 1073, max: 1939}, giant_steps: {mean: 458.5, min: 49, max: 915}, solved_fraction: {count: 12, fraction_true: 1.0}}
+    session_summary: {group_ops: {count: 12, mean: 1482.5, median: 1446.0, min: 1073, max: 1939}, giant_steps: {mean: 458.5, min: 49, max: 915}, solved_fraction: {count: 12, fraction_true: 1.0}}
+    agrees: true
+  certificate_checks:
+    method: >-
+      Affine double-and-add written in reader/rederive.py; shares no code with
+      solve.py or check.py. Also checked n * G = O, G on the curve, n = 1047689
+      prime and n <= 1024^2.
+    replayed:
+      - {trial: s10, run: RUN-RBEX-d74e15, k_times_G_equals_Q: true, giant_steps_equals_k_div_m_plus_1: true}
+      - {trial: s12, run: RUN-RBEX-a60fc7, k_times_G_equals_Q: true, giant_steps_equals_k_div_m_plus_1: true}
+    not_replayed:
+      - {trial: s01, run: RUN-RBEX-f60f05, k_times_G_equals_Q: true, giant_steps_equals_k_div_m_plus_1: true}
+      - {trial: s07, run: RUN-RBEX-272bcc, k_times_G_equals_Q: true, giant_steps_equals_k_div_m_plus_1: true}
+    controls:
+      - {trial: c-known-k, run: RUN-RBEX-52eede, k_times_G_equals_Q: true}
+      - {trial: c-off-curve, run: RUN-RBEX-84edaa, Q_on_curve: false, status: rejected_input}
+  lean_statement_fidelity:
+    - obligation: CryptoResearch.Runbook.BsgsCoverage.coverage (formal/targets/runbook-example-bsgs-coverage.yaml)
+      claim: every exponent k < m*m is reached by m baby and m giant steps
+      faithful: true
+      note: >-
+        Statement: 0 < m and k < m*m imply k/m < m, k%m < m and k = (k/m)*m + k%m,
+        which is the counting identity the README cites and nothing more. It does not
+        cover n <= m*m for the chosen m (checked numerically by check.py, and here:
+        1047689 <= 1048576) nor the solver's code; the file says so. No hypothesis
+        weakens it. The step did not run (no Lean on the producing host or here), so
+        this is a reading only; semantic_review stays pending in the formal lane.
+  not_covered:
+    - "S03-lean-coverage: lake is not on PATH: install Lean with formal/setup.sh on this host (from audit.json)"
+    - "The derivation of each Q from its seed was not re-done blind (check.py does it; this reading checked k*G = Q only)."
+    - "No execution proof: docs/execution-proof-chain.md milestones are open."
+  verdict: clean
+  escalate: false

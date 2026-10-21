@@ -69,3 +69,10 @@ G2 in particular — the worst-case chord constant, proved between 3/4 and 1 and
 undetermined in between — is the shape `find_proof_gap` exists for. They are
 not specced here because faithfully stating them needs §3–§5's definitions
 read in full, and a paraphrase would be a different claim.
+
+## Scoped torsion obstruction
+
+`scoped-odd-torsion-translation.yaml` targets the odd-scalar kernel exclusion
+in the dependency-free `formal/scoped-obstructions` workspace. Its source note
+is `research/ten-lead-evidence/torsion-proof-note.md`. A successful check concerns
+explicit additive laws and does not instantiate an elliptic curve or close lead6.

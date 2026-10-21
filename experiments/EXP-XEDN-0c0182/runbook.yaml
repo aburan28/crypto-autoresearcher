@@ -1,0 +1,139 @@
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-XEDN-0c0182
+session_id: RBS-XEDN-a7cd25
+title: Run the two frozen eligibility-census trials of EXP-XEDN-0c0182 through the supervisor
+purpose: >-
+  Records, for the source curve y^2 = x(x^2 - x + 16) over F_p at p in 31, 43, 59, 83 and
+  353, the quadratic character of x on odd-order points, the sign eligibility of odd-order
+  points and of faithful frozen target pairs, three Legendre symbols, and the exact
+  accepted-cell counts of the frozen proposal grid beside the H1 uniform-residue count, for
+  H-XEDN-5befd8. Two seeds; every census field is deterministic and the second trial is a
+  determinism replicate. Observations only; the checker re-derives every field with
+  disjoint code. No Lean premise and no execution proof is claimed.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+- path: experiments/EXP-XEDN-0c0182/specification.yaml
+  sha256: c708b93631abc6b4ffcf27295c457796f979be6393de455e4476c00184c0f6e8
+- path: experiments/EXP-XEDN-0c0182/trial-plan.json
+  sha256: 7d2bc17337904ae1f67eca85d684f370ed3f3abd3cf41203a6edf99b2b8c8a7e
+- path: experiments/EXP-XEDN-0c0182/implementation/run.py
+  sha256: 5955ab7e497835d8e369c5d6f5cc4564057a9c9aa2f1aa321a7866d7b7da2c13
+- path: experiments/EXP-XEDN-0c0182/implementation/check.py
+  sha256: 02fa2788ad1fcb1ce5ac63c6afd1bec5d97066e734c6c3648bdab254cb80958c
+- path: analysis/xedni-cheon/20261007-certificates/targets.json
+  sha256: 55cfa8826a8c3eedcb599a5a6a0871e74ea49f68a41c806b7284230b627b5452
+spec_bindings:
+- file: experiments/EXP-XEDN-0c0182/specification.yaml
+  pointer: /experiment/replication/seeds
+  equals: [20261016, 20261017]
+- file: experiments/EXP-XEDN-0c0182/specification.yaml
+  pointer: /experiment/budget/maximum_memory_gb
+  equals: 1
+environment:
+  programs: [python3, git]
+  env:
+    PYTHONHASHSEED: "0"
+steps:
+- id: S01-trials
+  kind: trials
+  title: Execute both frozen census trials once, in plan order
+  explain: Runs run.py then check.py for each trial of trial-plan.json under the supervisor claim and keeps every output.
+  plan: experiments/EXP-XEDN-0c0182/trial-plan.json
+  engine: supervisor
+  claim:
+    ttl_minutes: 60
+  timeout_seconds: 1800
+  validity:
+    files:
+    - path: manifest.yaml
+    - path: raw-result.json
+      json: true
+      assertions:
+      - {pointer: /schema, equals: xedni.faithful_eligibility.result.v1}
+      - {pointer: /trial_id, equals: "{trial_id}"}
+      - {pointer: /experiment_id, equals: EXP-XEDN-0c0182}
+      - {pointer: /hypothesis_id, equals: H-XEDN-5befd8}
+      - {pointer: /primes, equals: [31, 43, 59, 83, 353]}
+      - {pointer: /source_curve, equals: {A: -1, B: 16}}
+      - {pointer: /targets_sha256, equals: 55cfa8826a8c3eedcb599a5a6a0871e74ea49f68a41c806b7284230b627b5452}
+      - {pointer: /frozen_pairs, equals: 32}
+      - {pointer: /f1_violations_total, type: integer}
+      - {pointer: /faithful_pairs, type: integer}
+      - {pointer: /faithful_nonplus_eligible_arms_at_3mod4, type: integer}
+      - {pointer: /odd_order_minus_eligible_at_3mod4, type: integer}
+  by_trial:
+    primary-seed-20261016:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /seed, equals: 20261016}
+        - {pointer: /run_id, equals: RUN-XEDN-132272}
+        - {pointer: /trial_id, equals: primary-seed-20261016}
+    replicate-seed-20261017:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - {pointer: /seed, equals: 20261017}
+        - {pointer: /run_id, equals: RUN-XEDN-f4d646}
+        - {pointer: /trial_id, equals: replicate-seed-20261017}
+  controls: []
+  replay:
+    mode: fields
+    sample: 2
+    compare:
+    - file: raw-result.json
+      pointers: [/per_prime, /pairs, /accepted_by_arm, /historical_control, /f1_violations_total, /faithful_pairs, /faithful_pair_ids, /faithful_nonplus_eligible_arms_at_3mod4, /odd_order_minus_eligible_at_3mod4, /supplementary_manifest_proposal]
+  on_invalid: stop
+  on_failure:
+  - when: {timed_out: true}
+    class: resource_exhaustion
+    action: stop
+  - when: {exit_code: 3}
+    class: implementation_error
+    action: stop
+  - when: {validity: false}
+    class: invalid_measurement
+    action: stop
+  tell_on_failure: Report the tool-recorded terminal class and this step's log paths, preserve all files, and stop this session without retry.
+metrics:
+- name: f1_violations_total
+  unit: points
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /f1_violations_total
+  aggregate: [count, min, max]
+- name: faithful_nonplus_eligible_arms_at_3mod4
+  unit: arms
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /faithful_nonplus_eligible_arms_at_3mod4
+  aggregate: [count, min, max]
+- name: odd_order_minus_eligible_at_3mod4
+  unit: points
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /odd_order_minus_eligible_at_3mod4
+  aggregate: [count, min, max]
+- name: faithful_pairs
+  unit: pairs
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /faithful_pairs
+  aggregate: [count, min, max]
+- name: elapsed_seconds
+  unit: seconds
+  label: measured
+  step: S01-trials
+  file: raw-result.json
+  pointer: /elapsed_seconds
+  aggregate: [count, mean, max]
+report:
+  graph_metric: elapsed_seconds

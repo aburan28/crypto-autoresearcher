@@ -1,0 +1,264 @@
+experiment:
+  id: EXP-XEDN-0c0182
+  hypothesis_id: H-XEDN-5befd8
+  source_idea: IDEA-20261016-633cb1
+  question_id: RQ-XEDN-3bfe2e
+  version: 1
+  title: 'Faithful-target eligibility census on y^2=x(x^2-x+16) at p in {31,43,59,83,353}: F1 odd-order
+    square x, F2 sign-arm emptiness at p = 3 mod 4, F4 Legendre table, H1 accepted-cell validation'
+  status: approved
+  frozen: true
+  designed_at: '2026-10-16'
+  designed_under_task: TASK-20261016-69a6eb
+  approved_by: coordinator
+  approval_decision: DEC-20261016-6a041f
+  execution_authorized: true
+  status_note: Frozen at version 1 and approved 2026-10-16 by DEC-20261016-6a041f under AGENTS.md 'Standing
+    user authorization'. Approval asserts nothing about H-XEDN-5befd8. Any change after approval is a
+    versioned protocol_amendment under experiments/EXP-XEDN-0c0182/amendments/.
+  objective: For the frozen source curve over F_p, p in {31,43,59,83} and the historical p=353, enumerate
+    E^(F_p), classify every point by order parity and quadratic character of x, verify F1 on every odd-order
+    point, classify the 32 frozen pairs as faithful or not and record their eligible sign arms, tabulate the
+    F4 Legendre symbols, and count accepted (integral A) proposal cells per eligible arm beside the H1
+    uniform-residue prediction. Deterministic and stdlib only; the seed drives only a non-frozen
+    supplementary faithful-manifest proposal.
+  inputs:
+    targets:
+      path: analysis/xedni-cheon/20261007-certificates/targets.json
+      sha256: 55cfa8826a8c3eedcb599a5a6a0871e74ea49f68a41c806b7284230b627b5452
+      pairs: 32
+      pairs_per_prime: 8
+      read_only: true
+    parameters:
+      path: analysis/xedni-cheon/20261007-certificates/parameters.json
+      role: frozen t-rule and ordinate-shift rule the runner recomputes and checks against targets.json
+    source_curve:
+      equation: y^2=x(x^2-x+16)
+      A: -1
+      B: 16
+    primes: [31, 43, 59, 83, 353]
+    frozen_primes: [31, 43, 59, 83]
+    historical:
+      p: 353
+      points: [[9, 63], [17, 183]]
+    t_rule:
+      t_max: 64
+      t_representatives_per_point: 4
+    ordinate_shift: [-8, 8]
+    sign_arms: [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+  controls:
+  - id: C1
+    name: historical p=353 pair (9,63),(17,183)
+    check: historical_control.on_curve == [true]; historical_control.x_residue == [1, 1];
+      historical_control.minus_x_residue == [1, 1]
+    role: baseline embedding; both residues and both signs open at p = 1 mod 4
+  - id: C2
+    name: unfaithful nearby object p31-pair00
+    check: pairs[id=p31-pair00].faithful == false and its arm signs [1, -1] has eligible == true
+    role: an opposite-sign eligible pair exists among unfaithful targets, so the arm classifier can report
+      opposite-sign eligibility
+  - id: C3
+    name: separating power of the chi test
+    check: per_prime[].even_order_points_with_nonresidue_x > 0 at at least one prime
+    role: chi(x^) = -1 occurs on even-order points, so F1 is not a test that cannot fail
+  - id: C4
+    name: determinism replicate
+    check: every field of raw-result.json except run_id, trial_id, seed, supplementary_manifest_proposal and
+      elapsed_seconds is identical between RUN-XEDN-132272 and RUN-XEDN-f4d646
+    role: the census is deterministic; the replicate checks the implementation, not sampling noise
+  - id: C5
+    name: independent checker
+    check: check.py RUN_DIR targets.json exits 0 (VALID) on each run
+    role: re-derives group orders by character sum, Legendre symbols, odd-order counts, eligibility from the
+      frozen t-representatives, accepted cells by exact rational arithmetic, and the targets sha256
+  independent_variables:
+  - p in {31, 43, 59, 83, 353}
+  - sign arm (s_P, s_Q) in {(+,+), (+,-), (-,+), (-,-)}
+  - frozen pair (32, eight per frozen prime)
+  metrics:
+    primary:
+    - name: f1_violations_total
+      pointer: /f1_violations_total
+      prediction: P1
+    - name: odd_order_minus_eligible_at_3mod4
+      pointer: /odd_order_minus_eligible_at_3mod4
+      prediction: P2
+    - name: faithful_nonplus_eligible_arms_at_3mod4
+      pointer: /faithful_nonplus_eligible_arms_at_3mod4
+      prediction: P2
+    - name: p353 minus-sign eligibility of odd-order points
+      pointer: /per_prime[p=353]/odd_order_points_with_minus_sign_eligible vs
+        /per_prime[p=353]/odd_order_affine_points
+      prediction: P2
+    - name: Legendre table
+      pointer: /per_prime[]/legendre/D_minus_63 and /per_prime[]/legendre/minus_16
+      prediction: P3
+    secondary:
+    - name: faithful_pairs
+      pointer: /faithful_pairs (with /faithful_pair_ids)
+      prediction: P4 (descriptive)
+    - name: group order and odd part
+      pointer: /per_prime[]/group_order, /per_prime[]/odd_part, /per_prime[]/two_part,
+        /per_prime[]/odd_order_affine_points
+      prediction: P4 (descriptive)
+    - name: accepted cells vs H1
+      pointer: /accepted_by_arm/<p{p}:{s_P:+d}{s_Q:+d}>/accepted and /h1_predicted and /eligible_pairs
+      prediction: P5
+    - name: per-pair arm detail
+      pointer: /pairs[]/arms[] (eligible, cells, accepted, accepted_reducing_to_source,
+        rejected_zero_discriminant, h1_predicted, h1_predicted_exact)
+      prediction: none (descriptive)
+    - name: control fields
+      pointer: /historical_control, /per_prime[]/even_order_points_with_nonresidue_x,
+        /per_prime[]/odd_order_points_with_plus_sign_eligible
+      prediction: C1, C3
+  preregistered_predictions:
+  - id: P1
+    claim: F1
+    test: f1_violations_total == 0 on both trials
+  - id: P2
+    claim: F2
+    test: odd_order_minus_eligible_at_3mod4 == 0 and faithful_nonplus_eligible_arms_at_3mod4 == 0 and, at
+      p=353, odd_order_points_with_minus_sign_eligible == odd_order_affine_points, on both trials
+    vacuity_note: All four frozen primes are 3 mod 4. If faithful_pairs == 0 the faithful-arm clause holds
+      vacuously and is reported as vacuous; the point-level clause (odd_order_minus_eligible_at_3mod4) is
+      not vacuous unless every frozen prime has odd part 1.
+  - id: P3
+    claim: F4
+    test: 'per_prime[].legendre.D_minus_63: p31 -1, p43 +1, p59 -1, p83 -1, p353 -1; per_prime[].legendre.minus_16:
+      +1 at p353 and -1 at 31, 43, 59, 83; on both trials'
+  - id: P4
+    claim: descriptive, no pass/fail
+    test: report faithful_pairs of 32, group_order and odd_part per prime. Reading from the IDEA - below 4
+      faithful pairs means the manifest mostly tests unfaithful targets. Confounder (not a prediction) - the
+      IDEA's hand count gives N=32 at p=31, hence no odd-order point there.
+  - id: P5
+    claim: H1 (heuristic validation, secondary)
+    test: among (prime, arm) keys of accepted_by_arm with h1_predicted >= 1, at least half have
+      accepted / h1_predicted in [1/3, 3]
+    not_evaluable_when: no key has h1_predicted >= 1; then P5 is reported not_evaluable and H1 is unchanged
+    scope: failure weakens H1 only and never touches P1-P3
+  preregistered_prediction:
+    quantity: P1-P3 exact census values; P5 observed accepted cells per (prime, arm) against the H1 expected
+      count
+    formula: 'P1 0; P2 0, 0, equal; P3 table above; P5 h1_predicted = sum over (s,t) reps of 289 *
+      #{(w,z) mod |n|: s_P*w^2 == s_Q*z^2}/|n|^2, n = s_P*s^2 - s_Q*t^2'
+    source: IDEA-20261016-633cb1 (claims F1, F2, F4, predictions, heuristic H1) and its notes
+  heuristic_under_test: H1
+  heuristic_validation:
+    heuristic: 'H1 (verbatim from IDEA-20261016-633cb1): over the 17x17 ordinate progression (w,z) is uniform
+      mod n=|s^2-t^2| (same-sign) or m=s^2+t^2 (opposite), so P[A integral]=rho(n)/n,
+      rho(n)=#{(w,z) mod n: w^2=z^2}/n (2^omega(n), n odd squarefree)'
+    source: IDEA-20261016-633cb1
+    rigorous_support: CRT count of w^2=z^2 mod n; exact for uniform (w,z)
+    operationalization: run.py evaluates the uniform-model probability by full enumeration mod |n| with the
+      arm's sign product (opposite-sign arms test w^2 == -z^2 mod m), so no squarefree assumption enters the
+      predicted value. The acceptance filter is exactly s_P*w^2 == s_Q*z^2 mod |n| because s^4 - t^4 is
+      divisible by n on every arm.
+    what_is_uniform: w = w0 + p*j, z = z0 + p*k for j, k in [-8, 8] - a short progression of 17 values
+      against moduli |n| up to about 2*64^2; p never divides n (n == x_P - x_Q mod p, distinct x), so the
+      progression is not degenerate mod n, but 17 values are far fewer than |n|. H1 is an equidistribution
+      assumption on that progression, which is what P5 tests.
+    scale_access: toy scale only (moduli |n| <= 8192, four primes); no transfer to larger p is claimed.
+    sample_size_limits: 32 pairs; at most 16 (prime, arm) keys and fewer eligible; per eligible (pair, arm)
+      at most 16 (s,t) reps x 289 cells. The IDEA's hand estimate is order 10 accepted cells per arm. Counts
+      are small. For a Poisson count with mean 1 the probability of landing in [1/3, 3] is about 0.6, so P5
+      has low power to reject H1 and a pass is weak support; the result is reported per key, not pooled.
+    comparison_metric: per-key ratio accepted / h1_predicted; fraction of keys with h1_predicted >= 1 inside
+      [1/3, 3]
+    tail_checks_available: The IDEA's tail split ((s,t) sharing a factor with 2 or p) is not emitted by
+      run.py, which aggregates per (pair, arm) only; it is not computed in this experiment and is recorded as
+      an open validation item.
+    controls_for_heuristic: No synthetic uniform-sampler control is run; the prediction is an exact
+      enumeration, not a sampled value. The four frozen primes serve as separate parameter sets.
+  scale_relevance:
+    tier: toy
+    justification: p in {31, 43, 59, 83, 353}; the 32 frozen synthetic pairs; no cryptographic-scale
+      statement. F1 and F2 are general derivations, but this experiment checks them only at these primes.
+    correspondence: null
+  tail_checks:
+  - every per-run primary metric is recorded so a mismatch on one trial is compared field by field with the
+    other
+  - per-key P5 ratios are reported individually, including keys with h1_predicted < 1 (outside the criterion)
+  replication:
+    seeds: [20261016, 20261017]
+    independent_instances: 2
+    trials:
+    - trial_id: primary-seed-20261016
+      run_id: RUN-XEDN-132272
+      seed: 20261016
+    - trial_id: replicate-seed-20261017
+      run_id: RUN-XEDN-f4d646
+      seed: 20261017
+    replication_note: Every census field is deterministic, so the replicate is a determinism check (C4). A
+      prediction counts only if it holds on both trials.
+    determinism_excluded_fields: [run_id, trial_id, seed, supplementary_manifest_proposal, elapsed_seconds]
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 900
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+  stopping_rules:
+  - Stop after the two planned trials have checker-validated outputs.
+  - A crash, timeout or memory kill is failed_infrastructure; never a metric value.
+  - No third run without a protocol amendment and a new approval.
+  invalidation_rules:
+  - check.py exits non-zero on a run directory; that run is invalid.
+  - run.py exits 3 (t-representative recomputation disagrees with the frozen targets, or n == 0); the run is
+    an implementation failure, not evidence.
+  - raw-result.json targets_sha256 differs from 55cfa8826a8c3eedcb599a5a6a0871e74ea49f68a41c806b7284230b627b5452.
+  - Any deterministic field differs between the two trials (C4); the pair of runs is inconclusive.
+  success_criterion: 'SUPPORT (scoped to the five primes and the frozen manifest): on both trials
+    f1_violations_total == 0; odd_order_minus_eligible_at_3mod4 == 0; faithful_nonplus_eligible_arms_at_3mod4
+    == 0; at p=353 odd_order_points_with_minus_sign_eligible == odd_order_affine_points; the Legendre table
+    of P3 matches exactly; controls C1-C4 pass and check.py exits 0 on both runs.'
+  falsification_criterion: 'FALSIFY: on a checker-valid trial, f1_violations_total > 0, or
+    odd_order_minus_eligible_at_3mod4 > 0, or faithful_nonplus_eligible_arms_at_3mod4 > 0, or at p=353
+    odd_order_points_with_minus_sign_eligible != odd_order_affine_points, or any Legendre symbol differs from
+    the P3 table. A falsifying value with a failed control goes to independent review before the decision.'
+  inconclusive_criterion: checker-invalid output on either trial, a determinism mismatch (C4), or a failed
+    control C1-C3 with P1-P3 holding. A timeout or crash is failed_infrastructure, never evidence.
+  heuristic_criterion: P5 pass leaves H1 as validated at toy scale with low power; P5 fail weakens H1 only;
+    not_evaluable leaves H1 unchanged.
+  decision_impact:
+    on_positive: H-XEDN-5befd8 may move to analyzed and, after independent review including a blind
+      re-derivation of the odd-order classification and the faithful flags, to supported at the tested scope.
+      The frozen manifest is then read as testing faithful targets only in the (+,+) arm at p = 3 mod 4, and
+      the opposite-sign lemma of H-XEDN-0ea2b6 is recorded as inapplicable to faithful targets there, which
+      routes faithful work to the (+,+) question of IDEA-20261016-a16fa4.
+    on_negative: A falsifying census value contradicts a descent-homomorphism derivation; the runner and the
+      F1/F2 derivation go to independent review first (instrument before theory), and H-XEDN-5befd8 is
+      weakened at most until a counterexample point is certified on the curve with its order.
+  interpretation_limits:
+  - eligibility only; nothing about (+,+) dependence
+  - frozen targets.json untouched; the seeded supplementary manifest proposal is not frozen and not a target
+  - no route closure; independent review is required before any status move
+  - F3 (no faithful torsion-term or T-shift lift) is a derivation this experiment does not test; it is routed
+    to independent review. F5 is a corollary of F1, F2 and F4, scoped to the four frozen p = 3 mod 4 primes.
+  - check.py re-derives every census field with disjoint code (group orders by character sum, point orders
+    by repeated addition, Legendre symbols, F1 and sign-eligibility counts, faithful flags, accepted cells by
+    exact rationals, H1 predictions, the historical control); it is still producer-written, so the review
+    re-derives P1-P3 blind before any status move
+  - toy scale; no transfer assumption to cryptographic p is made
+  required_artifacts:
+  - experiments/EXP-XEDN-0c0182/runs/RUN-XEDN-132272/manifest.yaml
+  - experiments/EXP-XEDN-0c0182/runs/RUN-XEDN-132272/raw-result.json
+  - experiments/EXP-XEDN-0c0182/runs/RUN-XEDN-f4d646/manifest.yaml
+  - experiments/EXP-XEDN-0c0182/runs/RUN-XEDN-f4d646/raw-result.json
+  launcher:
+    trial_plan: experiments/EXP-XEDN-0c0182/trial-plan.json
+    driver: experiments/EXP-XEDN-0c0182/implementation/run.py
+    checker: experiments/EXP-XEDN-0c0182/implementation/check.py
+    command: python3 experiments/EXP-XEDN-0c0182/implementation/run.py --run-dir {run_dir} --run-id <RUN>
+      --trial-id <trial> --seed <seed> --targets analysis/xedni-cheon/20261007-certificates/targets.json
+    checker_command: python3 experiments/EXP-XEDN-0c0182/implementation/check.py {run_dir}
+      analysis/xedni-cheon/20261007-certificates/targets.json
+    runbook: experiments/EXP-XEDN-0c0182/runbook.yaml
+    runbook_session: RBS-XEDN-a7cd25
+    library: []
+  assigned_to: executor
+  out_of_scope:
+  - Any (+,+) dependence search or lift fitting.
+  - Any edit of targets.json or parameters.json.
+  - Any claim about a deployed curve or cryptographic-scale p.

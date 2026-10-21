@@ -298,6 +298,54 @@ What was evaluated and not built:
   annihilator with 49 syndrome words (0.83 s at nv = 22) is bounded by
   random reads of K rows; nibble tables would halve the reads but move them
   to a 56 MB table, so it was left as is.
+- **After the segment skip** (2026-10-16, M_5 nv=24 captured matrix, 4
+  threads): the pass is 93% of a warm solve (1.33 of 1.43 s), spread evenly
+  over the degree-5 columns. Updated rows absorb on average 28.6 of a
+  block's ~60 pivots and use 7.2 of its 8 table groups, and a single group's
+  tails cover 18% of the tail words against 24% for the union. So per-row or
+  per-group word skipping has little left to remove; the update is real
+  arithmetic. Two more variants left the pivot columns unchanged and moved
+  time only within noise: choosing as pivot the candidate row with the
+  fewest earlier tail updates (fill went from 10.1% to 10.4% of words), and
+  prefetching rows in the serial load and lead-scan loops. Keeping the op log
+  costs about 15% here (51M X entries, 205 MB); callers that need no
+  certificate already pass `want_cert=False`.
+- **Other elimination algorithms** (same matrix). All of these give the same
+  record, and none is faster:
+  - **Faugère–Lachartre split.** Fixed sparse pivot rows, one per distinct
+    initial lead, with the other rows reduced bit-sliced, 64 at a time. Only
+    8686 of the 46575 rows have distinct leads, which would leave a
+    37889 x 46769 remainder, so it was not built.
+  - **Echelonizing the equations first.** The row space is unchanged and the
+    leads become more distinct, but the solve takes the same time (about 1.3
+    to 1.4 s both ways).
+  - **Degree split.** Handling the top-degree block first and the low words
+    later would remove about 30% of the update work (that much lands on the
+    deg <= 4 words). It is not exact here: the 46552 top rows exceed the
+    42504 degree-5 columns, so 6624 rows fall in degree, and their low parts
+    depend on every pivot's low part.
+  - **Column order inside a degree block.** The record only needs
+    degree-prefix ranks, so this order is free for `macaulay_profile` (not for
+    `w_profile`, which reads the M_{D-1} pivot columns). Colex is by far the
+    best order tried: fill 10.1%, 1.3 s. The others were sparse-columns-last
+    22% and 5.2 s; lex 18% and 3.8 s; colex with variables relabeled 16% and
+    2.8 s; dense-last 36% and 9.6 s; reversed 39% and 9.1 s; random 50% and
+    12.5 s.
+  - **Block Wiedemann.** Only its Krylov phase was built and timed: native
+    CSR and CSC products with 64-bit block vectors, one 64 x 64 sequence term
+    per step, on the unreduced matrix (5.54M nonzeros). Each iteration is a
+    product with A^T, a product with A and one block dot: 6.4 ms with 4
+    threads, 10.7 ms with one. The sequence needs about 2R/64 = 1455
+    iterations, so this phase alone takes at least 9.4 s (4 threads) and
+    15.6 s (1 thread), against 1.3 s and 3.4 s for the whole column pass.
+    That bound leaves out the matrix Berlekamp–Massey step and the
+    preconditioning that rank over GF(2) needs. It also counts one rank only:
+    the record needs a rank per degree prefix, and Block Wiedemann gives
+    them only probabilistically. The gathers run at about 1.7G/s, close to
+    memory latency, so even a 2x faster product would stay 3 to 4x behind.
+    Both costs grow roughly with the number of rows times the nonzeros at
+    these shapes (M_5 nv=26: about 18 s estimated against 2.8 s), so the
+    gap does not close at nearby sizes.
 
 ## Not covered yet
 

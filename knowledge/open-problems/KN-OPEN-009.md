@@ -7,7 +7,7 @@ confidence: reported
 status: open
 source_refs: [KN-LIT-039, KN-LIT-001]
 added: 2026-07-22
-superseded_by: null
+superseded_by: KN-OPEN-8a7432
 ---
 
 ## Statement

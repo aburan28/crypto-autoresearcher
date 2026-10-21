@@ -25,6 +25,16 @@ how the classical prime-field index calculus scales.
 | `solver.py` | the end-to-end solver and its cost columns |
 | `stats.py` | exponent fits with a stratified bootstrap confidence interval |
 
+For prime fields below `2^64`, the collision harvester uses sorted NumPy
+`(x, descriptor)` runs when NumPy is installed. Coordinates below `2^32`
+occupy four bytes each; wider coordinates occupy eight. The arithmetic scan
+is vectorized only below `2^32`, where its `uint64` products are exact. At
+wider primes, point arithmetic remains scalar while the collision keys retain
+all coordinate bits. The reported `ss_store.peak_bytes` counts the payload of
+the sorted runs (12 or 16 bytes per entry); it excludes temporary arrays and
+Python object overhead. This storage path does not establish a complete solve
+or a performance improvement at wider sizes.
+
 ## Running it
 
 ```sh

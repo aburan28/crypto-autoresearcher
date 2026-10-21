@@ -69,9 +69,15 @@ A second audit of the same target is a new case. Both stay.
 
 - Fetch `origin/main` in every repository the target touches. Audit the
   published state unless the target is a branch or PR, and then audit its head.
-  `sweep.json` records each repository's HEAD, branch, distance from
-  `origin/main` and dirty paths. A dirty tree is audited only when the dirty
-  state is itself the target.
+  `sweep.json` records each repository's HEAD, its tree (`head_tree`,
+  `HEAD^{tree}`), branch, distance from `origin/main`, dirty paths, a
+  `worktree_digest` (the tree id with `git status` and `git diff HEAD`, so it
+  differs between any two trees and changes if a checker writes) and `sparse`
+  (the sparse-checkout patterns and how many tracked files lie outside them).
+  Cases written before SHF-20261017-e4d7f6 carry `tree_digest` instead, a hash
+  of status and diff alone that is the same for every clean tree; it does not
+  identify a tree. A dirty tree is audited only when the dirty state is itself
+  the target.
 - Never audit a result in the session that produced it. Independence is the
   point, as in `audit-runs`.
 - Write down the target in one line, and the prior you hold before reading
@@ -173,7 +179,10 @@ Contracts:
      `tools/rebuild_formal_root.py --workspace formal`, `lake build`, then
      `tools/verify_formal_targets.py`.
    - No Lean in the container makes the beat `not_covered`, with the setup
-     command as the way to enable it.
+     command as the way to enable it. The sweep looks for `lean` and `lake`
+     on `PATH`, then in `$ELAN_HOME/bin` and `~/.elan/bin` (elan installs
+     there and only edits shell profiles), and puts the directory it found
+     on the checker's `PATH`.
 2. **Holes and trusted-base escapes** (sweep rules `lean.*`, comment-, string-
    and name-literal-aware):
    - `sorry`, `admit` and custom `axiom` are blockers. `skipKernelTC` is a
@@ -509,9 +518,27 @@ The sweep is a lead generator and a floor, not the audit. Its known limits:
   quoting a paper's claim is not making it.
 - **Checkers:** each inherits its own limits. For example `validate_ledger` is
   relative to a baseline of legacy errors.
-- **Sparse checkouts:** a checker that reads a file left out of a sparse
-  checkout fails for that reason alone, so the sweep annotates such a failure.
-  Confirm it on a full checkout before reporting it.
+- **Sparse checkouts:** a sparse checkout never yields a full pass.
+  - A checker that reads a file left out of the sparse set can fail for that
+    reason alone, so the sweep annotates such a failure. Confirm it on a full
+    checkout before reporting it.
+  - A checker that passes on a sparse checkout is recorded `partial`, with
+    `coverage: partial` and the count of files outside the sparse set; the
+    sweep lists it as `not_covered`, never as a pass.
+  - In-scope tracked files outside the sparse set are not scanned. Each root
+    (first two path components) gets one `sheriff.outside_sparse` row of kind
+    `not_covered`, so a lead there is reported as uncovered, not dropped.
+  - A paper whose cited artifacts lie outside the sparse set gets one
+    `paper.trace_partial` row (`not_covered`) instead of untraced-number
+    leads.
+- **ecbench sessions:** `ecbench-sessions-integrity` finds sessions as
+  crypto's `ecbench.yml` does: every `session.json` at HEAD whose schema is
+  `ecbench.session/v1`, wherever it lives. It enumerates from HEAD
+  (`git ls-tree` and `git cat-file`), not the worktree, and runs
+  `ecbench verify --replay 0 --allow-interrupted` on each session the
+  checkout holds. It records total, materialised, passed, failed and
+  not-materialised counts. Any session not materialised makes the result
+  `partial`.
 
 The canary (`tools/sheriff.py canary`) is the sweep's positive control. It
 plants each defect class above in a scratch repository, with look-alikes that

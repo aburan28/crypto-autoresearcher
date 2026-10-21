@@ -6,7 +6,7 @@
   (`tools/newest_experiments.py`); mechanical-tier execution
   ([runbook execution](../docs/runbook-execution.md))
 - **Next action owner:** Coordinator (the dispatch queues are its records)
-- **Last updated:** 2026-10-16
+- **Last updated:** 2026-10-17
 
 ## Problem
 
@@ -74,3 +74,13 @@ runbook.
 ## Resolution and history
 
 Unresolved.
+
+## 2026-10-17 SNFS execution update
+
+PR #2382 attempted EXP-ECDLP-f34097 and EXP-ECDLP-903c48 through the ordinary supervisor. Both were refused before a trial directory was created because their executor handoffs omit launch.json (and the other supervisor artifacts). The additive [repair packet](../coordination/design/SNFS-INSTRUMENT-REPAIR-20261017/README.txt) retains exact loader/coverage checks and approvable:false receipts; it grants no execution authority.
+
+Static inspection also found that these two producers omit the current run-manifest provenance fields. Archive coverage alone is insufficient: a versioned implementation must supply the run schema while retaining the original scientific output and source identity.
+
+A related live transport defect was observed in [RUN-ECDLP-2ac930](../experiments/EXP-ECDLP-8cc60d/runs/RUN-ECDLP-2ac930/execution-receipt.json): the complete frozen G2 workload and independent checker both exited 0, but the supervisor recorded invalid_output because manifest.yaml has no top-level run key. The raw data and all logs are retained, and validated coverage remains zero. This is an output-contract failure, not evidence against the mathematical hypothesis.
+
+Exit criteria now explicitly include a supported additive repair/retry route, complete supervisor archive coverage, schema-valid provenance from a versioned implementation, unchanged scientific parameters, and a newly admitted immutable record. No historical failed receipt may be overwritten or retrospectively relabeled output_validated.

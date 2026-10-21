@@ -52,6 +52,15 @@ not an authoritative ledger record or mathematical certificate.
    obligation. Recommend official status changes only through the authorized
    Coordinator and independent review process.
 
+## Feed an experiment contract
+
+When `design-experiment` drafts a contract whose claim crosses a map, build
+the assessment from the template, save it beside the specification, and write
+the contract's `transfer_obligations` entry from it (`docs/confound-control.md`,
+section 4): the typed map, what it preserves and what it changes, and the
+coordinate-isomorphism and matched-random controls named as variable-ledger
+comparisons. The weakest open obligation bounds what the experiment may claim.
+
 ## Preserve host authority
 
 In Crypto Autoresearcher follow `AGENTS.md`, `docs/curve-identities.md`, citation
