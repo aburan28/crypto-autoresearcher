@@ -88,9 +88,12 @@ remain separate obligations; neither target alone certifies C5 for the run.
 `frob-c5-quotient-matrices.yaml` certifies the exact 5×5 q-power Frobenius
 matrices for the three frozen quotient moduli in Lean. Its generated polynomial
 division identities are checked by Lean and bound to the source-bound replay
-receipt. The historical Sage driver and original source custody still need
-independent code-to-model review; this target does not promote the frozen C5
-run verdict or performance metrics.
+receipt. `frob-c5-quotient-matrix-kernels.yaml` applies the exact q=11, q=13
+and q=19 factor polynomials to those matrices. Lean proves their factor-kernel
+direct sums equal the five-term trace kernels of dimension four. The historical
+Sage driver and original source custody still need independent code-to-model
+review; these targets do not promote the frozen C5 run verdict or performance
+metrics.
 
 ## BINSTD toy yield ceiling
 
