@@ -132,8 +132,17 @@ dimensions **53** and **41**. With the proved degree-two rank 11, its
 `53−41−11=1` for this sample. The [generator](../../../research/verification/generate_semaev_degree_three_rank_certificate_20261022.py)
 rebuilds the Lean source from the archived equations, and the
 [target](../../../formal/targets/semaev-s3-semantic-rank-degree3-20261022.yaml)
-states this finite result. Generic `rankOn` correctness and the filtration
-intersection identity remain open.
+states this finite result. The [filtration certificate](../../../formal/CryptoResearch/Semaev/BooleanParityFiltrationCertificate.lean)
+then proves the missing rank-nullity link for this exact sample. A generic
+row-space theorem identifies the kernel of a linear projection with the
+full-rank minus projected-rank dimension. Lean checks that these 80 rows
+have no support above degree three, so the degree-three projection kernel
+is precisely `V₃ ∩ R≤2`, of dimension **12**. It also checks `V₂ ≤ V₃ ∩ R≤2`
+and `dim V₂=11`. Its `existsNewLowDegreeVector` theorem proves that a vector
+in the intersection lies outside `V₂`; this is an existential witness to a
+new low-degree class. The [target](../../../formal/targets/semaev-s3-finite-filtration-20261022.yaml)
+and [proof receipt](evidence/filtration-proof.json) bind this finite theorem.
+Generic `rankOn` correctness and a symbolic descent remain open.
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
@@ -209,12 +218,24 @@ the [failure log](evidence/degree-three-rank-target-validation-host-python-failu
 is retained, and the final [validation](evidence/degree-three-rank-target-validation.log)
 used an isolated Python 3.12 environment. Hosted current-head CI and
 independent semantic review remain pending.
+The filtration module added a 29th project import. Its pinned
+[build](evidence/filtration-full-build.log) completed **8,961 jobs**, and
+its [axiom audit](evidence/filtration-full-axiom-audit.log) checked
+**500 theorems** with standard axioms only. The four
+[requested declarations](evidence/filtration-theorem-axioms.log) use only
+`propext`, `Classical.choice`, and `Quot.sound`. The repository
+[target verifier](evidence/filtration-target-verification.json) returned
+`machine_verified`. The [source-bound receipt](evidence/filtration-proof.json)
+records the frozen draw, dependency certificate, theorem, target, toolchain,
+manifest, root and verifier hashes. Its scratch-root `source_commit` is
+`null`; the receipt records the branch head and exact source hashes. Hosted
+current-head CI and independent semantic review remain pending.
 
 ## Proof and performance boundary
 
 [`DegreeTwoFall.lean`](../../../formal/CryptoResearch/Semaev/DegreeTwoFall.lean)
-proves field and trace cancellation under `x_R≠0`; its scope comment says the
-nonzero quotient class is unproved. The new finite Lean file proves exact
+proves field and trace cancellation under `x_R≠0`; its scope comment says a
+general nonzero quotient class is unproved. The new finite Lean file proves exact
 values of an executable Boolean row-elimination function for one transcribed
 equation system. The additional finite equation-semantics theorem proves
 that the four literal polynomials agree with direct `S₃` evaluation on all
@@ -222,16 +243,17 @@ that the four literal polynomials agree with direct `S₃` evaluation on all
 vector-space dimension in general or derive a generic symbolic descent from
 abstract `S₃`. The semantic-rank certificates now prove that the executable
 ranks agree with actual F₂ row-space dimensions at degrees one through three
-and the degree-two and degree-three projections for this instance. They do not
-formalize the filtration's intersection/rank-nullity identity in Lean. These links
-require independent review. The
+and the degree-two and degree-three projections for this instance. The new
+filtration certificate formalizes the intersection/rank-nullity identity,
+inclusion of `V₂`, and existence of a new low-degree class for this one sample.
+These links require independent review. The
 [frozen target](../../../formal/targets/semaev-s3-degree2-fall-witness.yaml)
 and [historical note](../../../research/FFD_SEMAEV_MEASUREMENT1.md) use broader
 wording. The corrected finite example contradicts a **uniform degree-two
 first-fall interpretation in this Boolean model**. It does not invalidate the
 narrower Lean identity or establish a general statement about solving degree,
-other field sizes, or attack cost. A generic rank-semantics theorem,
-filtration identity, and reviewed additive correction remain open in the [problem
+other field sizes, or attack cost. A generic rank-semantics theorem and
+reviewed additive correction remain open in the [problem
 record](../../../problems/semaev-degree-two-fall-nonzero-bridge.md).
 
 No numerical performance dashboard changed because this replay measured no
@@ -271,6 +293,6 @@ Semaev equation builder, but checks their field arithmetic and direct S₃ truth
 tables independently. Its corrected Boolean multiplier uses XOR cancellation
 and independently computed ranks. This is stronger than replaying the archive
 alone and weaker than an independent Sage implementation or a Lean proof of
-the whole filtration. The Lean equation and matrix certificates cover one exact
-instance, with the generic filtration identity still open. The [PDF](report.pdf) embeds the chart and the same
+the whole filtration. The Lean equation, matrix and filtration certificates cover one exact
+instance, with generic rank semantics still open. The [PDF](report.pdf) embeds the chart and the same
 claim boundary.
