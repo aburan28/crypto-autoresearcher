@@ -36,3 +36,6 @@ archived invariant-subspace dimension table. The prior
 checks separate empirical runs; no Lean theorem here proves their
 hit counts, performance or security significance. No numerical
 dashboard value changes.
+The [open formal bridge problem](../../../problems/binstd-frobenius-invariant-dimension-lean-bridge.md)
+lists the exact lemmas and review evidence needed before the full
+dimension table can be called Lean certified.
