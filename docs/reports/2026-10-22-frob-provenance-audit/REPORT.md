@@ -129,9 +129,16 @@ those orders. A wrong-order mutation is rejected in each cell. The replay
 enumerates **143,568** nonidentity null-subgroup points and checks six
 aggregate rows and **26,620** singleton sums on valid generated samples.
 The frozen C4 sampled residue lists were **not** retained, so these sums
-cannot be attributed to the historical run. The Hasse bound is a mathematical
-premise of the order certificate; this script does not formalize Hasse in Lean.
-Full C8 remains open.
+cannot be attributed to the historical run. The
+[Lean target](../../../formal/targets/frob-c4-null-curve-order.yaml) proves
+that each of the five recorded Hasse intervals and point-order divisors
+forces exactly its archived order. The [exact verification receipt](c4-order-lean-verification.json)
+binds source commit `6b31a306c2854b15439ac3f8ef8fd925300dd9c3`, Lean
+`4.35.0-rc1`, the target and theorem hashes; its full build and target axiom
+audit passed with no forbidden constructs. Independent semantic review is
+pending. The Lean theorem assumes the intervals and divisors; it does not
+formalize Hasse's bound, the elliptic-curve arithmetic, or the historical
+sample identities. Full C8 remains open.
 
 ## Provenance finding and boundary
 

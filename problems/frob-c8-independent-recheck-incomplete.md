@@ -80,7 +80,12 @@ it does not falsify the mathematical hypothesis.
   points and checks six aggregate rows and 26,620 singleton sums on valid
   generated samples. The historical C4 sampled residue lists are absent, so
   those generated tuple identities cannot be attributed to the frozen run.
-  The Hasse bound is used as a mathematical premise, not proved in Lean here.
+  The [Lean target](../formal/targets/frob-c4-null-curve-order.yaml) and its
+  [verification receipt](../docs/reports/2026-10-22-frob-provenance-audit/c4-order-lean-verification.json)
+  prove the five order-uniqueness calculations conditional on their recorded
+  Hasse intervals and point-order divisors. The full build and target axiom
+  audit passed; semantic review is pending. Hasse's bound and the concrete
+  elliptic-curve point calculations are not proved by that Lean theorem.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -163,3 +168,6 @@ budget, and archival rules still govern the follow-up.
   rejected C4 curve orders using point orders plus Hasse, with exact prime
   subgroup witnesses and six aggregate rows. Frozen C4 sample lists remain
   absent; the C8 success gate is still open.
+- 2026-10-22: Lean verified the five conditional integer uniqueness lemmas
+  from the replay's Hasse intervals and point-order divisors. The theorem
+  does not discharge those premises or the missing historical C4 samples.
