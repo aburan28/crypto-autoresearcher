@@ -98,6 +98,10 @@ proves their kernel sums, directness and trace-kernel dimension four.
 
 ## Boundary and next check
 
+The separate [characteristic-five control](../2026-10-22-frob-c5-characteristic-five-control/REPORT.md)
+proves `X^5−1=(X−1)^5` and non-squarefreeness over `ZMod 5`. This checks
+the coprimality boundary; it is not a fourth archived core cell.
+
 The factor-kernel theorem uses canonical `GaloisField q 5` values. The quotient
 certificate proves q-power images of the frozen basis monomials, and the
 matrix-kernel certificate proves C5 for the resulting exact matrices. A
