@@ -110,6 +110,19 @@ The [Lean evaluator](evidence/finite-equation-lean-eval.lean) exported its
 [Python checker](../../../research/verification/check_semaev_finite_lean_semantics_20261022.py)
 compared them with the independently implemented field reference; all 512
 values matched ([log](evidence/finite-equation-cross-check.log)).
+The [semantic rank certificate](../../../formal/CryptoResearch/Semaev/BooleanParitySemanticRankCertificate.lean)
+then checks this instance's degree-one and degree-two Boolean rows against
+explicit F₂ matrices. Lean verifies invertible row transformations and
+echelon pivots, and Mathlib proves the **actual row-space dimensions** are
+`1` for degree one, `11` for degree two, and `10` for the degree-two
+projection. Its `semanticNoFallTwo` theorem therefore proves the rank
+difference `11−10−1=0`. A companion theorem proves that the earlier
+executable `rankOn` values equal these three matrix ranks for this sample.
+The [generator](../../../research/verification/generate_semaev_semantic_rank_certificate_20261022.py)
+regenerates the Lean source byte for byte from the frozen equation record;
+the [proof receipt](evidence/semantic-rank-proof.json) binds every input and
+result. This is a finite degree-two bridge, not generic `rankOn` correctness
+or a degree-three matrix-rank proof.
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
@@ -157,6 +170,18 @@ head and exact input hashes. The initial invocation used a nonexistent local
 CLI path; its [failure log](evidence/finite-equation-target-verification-command-missing.log)
 is retained. The corrected invocation used the repository's formal CLI with
 the isolated pinned workspace.
+The semantic-rank module added a 27th project import. Its pinned
+[build](evidence/semantic-rank-full-build.log) completed **8,959 jobs**
+including dependency work, and its [axiom audit](evidence/semantic-rank-full-axiom-audit.log)
+checked **488 theorems** with standard axioms only. The three
+[requested declarations](evidence/semantic-rank-theorem-axioms.log) use only
+`propext`, `Classical.choice`, and `Quot.sound`; the repository
+[target verifier](evidence/semantic-rank-target-verification.json) returned
+`machine_verified`. The [regeneration log](evidence/semantic-rank-regeneration.log)
+and [source-bound receipt](evidence/semantic-rank-proof.json) record the
+exact bytes. This verifier also used a scratch root, so `source_commit` in
+its generated receipt is `null`. Independent semantic review and hosted
+current-head CI remain pending.
 
 ## Proof and performance boundary
 
@@ -168,19 +193,25 @@ equation system. The additional finite equation-semantics theorem proves
 that the four literal polynomials agree with direct `S₃` evaluation on all
 256 assignments of this instance. It does **not** prove that `rankOn` equals
 vector-space dimension in general or derive a generic symbolic descent from
-abstract `S₃`. These links require independent review. The
+abstract `S₃`. The semantic-rank certificate now proves that `rankOn` agrees
+with actual F₂ row-space dimensions at degree one and degree two for this
+instance. It does not yet prove the degree-three matrix rank or formalize
+the filtration's intersection/rank-nullity identity in Lean. These links
+require independent review. The
 [frozen target](../../../formal/targets/semaev-s3-degree2-fall-witness.yaml)
 and [historical note](../../../research/FFD_SEMAEV_MEASUREMENT1.md) use broader
 wording. The corrected finite example contradicts a **uniform degree-two
 first-fall interpretation in this Boolean model**. It does not invalidate the
 narrower Lean identity or establish a general statement about solving degree,
-other field sizes, or attack cost. A general rank-semantics bridge, equation
-derivation, and reviewed additive correction remain open in the [problem
+other field sizes, or attack cost. A generic rank-semantics theorem,
+degree-three row-space bridge, and reviewed additive correction remain open in the [problem
 record](../../../problems/semaev-degree-two-fall-nonzero-bridge.md).
 
 No numerical performance dashboard changed because this replay measured no
 time or attack cost. The new chart corrects a first-fall classification, not
-an end-to-end performance metric. A committed-tree search of `ui/` for
+an end-to-end performance metric. The new semantic rank proof changes no
+per-draw grade, so the existing corrected chart and renderer remain current.
+A committed-tree search of `ui/` for
 `semaev`, `first.fall`, and `ffd_semaev` found no dashboard consumer of these
 toy counts (`git grep -ni -E 'semaev|first.fall|ffd_semaev' HEAD -- ui`).
 
@@ -195,16 +226,20 @@ python3.12 /path/to/repo/research/verification/ffd_semaev_measure.py
 python3.12 research/verification/replay_ffd_semaev_20261022.py \
   --output docs/reports/2026-10-22-semaev-first-fall-replay/evidence/draws.json
 python3.12 docs/reports/2026-10-22-semaev-first-fall-replay/render.py
+python3.12 research/verification/generate_semaev_semantic_rank_certificate_20261022.py \
+  --output /tmp/BooleanParitySemanticRankCertificate.lean
+cmp /tmp/BooleanParitySemanticRankCertificate.lean \
+  formal/CryptoResearch/Semaev/BooleanParitySemanticRankCertificate.lean
 # From the repository root, with the pinned Lean toolchain installed:
 cd formal && lean CryptoResearch/Semaev/BooleanParityFiniteCertificate.lean
 ```
 
 Source hashes, exact working directories and invocation arguments are bound in
-the two evidence JSON files. The checker reuses the original sampler and
+the evidence receipts. The checker reuses the original sampler and
 Semaev equation builder, but checks their field arithmetic and direct S₃ truth
 tables independently. Its corrected Boolean multiplier uses XOR cancellation
 and independently computed ranks. This is stronger than replaying the archive
 alone and weaker than an independent Sage implementation or a Lean proof of
-the whole filtration. The finite Lean certificate covers one exact instance
-under its executable definitions. The [PDF](report.pdf) embeds the chart and the same
+the whole filtration. The Lean equation and matrix certificates cover one exact
+instance, with degree-three matrix semantics still open. The [PDF](report.pdf) embeds the chart and the same
 claim boundary.
