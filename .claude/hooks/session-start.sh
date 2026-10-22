@@ -28,6 +28,8 @@ cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}" || exit 0
 # 7 GB of it run archives and reference bundles an execution session never
 # reads, and it leaves too little disk for SageMath below. Opt in per
 # environment with CRYPTO_AR_SPARSE_PROFILE=harness; `disable` undoes it.
+# Opt-in, not default: the ledger sweeps the Coordinator skills run refuse a
+# sparse checkout (docs/sparse-checkout.md, "Not the default").
 if [ -n "${CRYPTO_AR_SPARSE_PROFILE:-}" ]; then
     python3 tools/sparse_checkout.py apply "$CRYPTO_AR_SPARSE_PROFILE" >&2 \
         || echo "session-start: sparse profile '$CRYPTO_AR_SPARSE_PROFILE' not applied; checkout stays full" >&2
