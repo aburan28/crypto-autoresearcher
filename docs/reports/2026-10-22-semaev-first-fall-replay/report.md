@@ -83,7 +83,15 @@ and corrected degree-two calculations, `dim V₁=1` and
 `dim V₂=11`, `dim V₃=53`, and `dim(V₃∩R_{≤2})=12`; therefore
 `new_falls(3)=1` and first fall is degree three. The archived set rule gave
 `dim V₃=59` and `new_falls(3)=7`, a different numeric result but the same
-grade. The exact four component equations are in the record.
+grade. The exact four component equations are in the record. The new
+[Lean finite certificate](../../../formal/CryptoResearch/Semaev/BooleanParityFiniteCertificate.lean)
+checks these parity-row ranks and the three canceled monomial masks by kernel
+reduction under the pinned Lean 4.35.0-rc1 toolchain. The [Lean
+receipt](evidence/lean-certificate.json) binds the source hash and
+[axiom output](evidence/lean-certificate.log); the three audited theorems use
+only `propext`. A separate [literal check](../../../research/verification/check_ffd_semaev_lean_literal_20261022.py)
+confirmed that all four Lean equation lists equal the exact source-bound
+per-draw record; its [log](evidence/lean-literal-check.log) records the hashes.
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
@@ -97,14 +105,19 @@ ECDLP-cost results.
 
 [`DegreeTwoFall.lean`](../../../formal/CryptoResearch/Semaev/DegreeTwoFall.lean)
 proves field and trace cancellation under `x_R≠0`; its scope comment says the
-nonzero quotient class is unproved. The
+nonzero quotient class is unproved. The new finite Lean file proves exact
+values of an executable Boolean row-elimination function for one transcribed
+equation system. It does **not** prove that this `rankOn` function equals
+vector-space dimension in general, nor does it derive the four component
+equations from abstract `S₃` inside Lean. Those semantic links require
+independent review. The
 [frozen target](../../../formal/targets/semaev-s3-degree2-fall-witness.yaml)
 and [historical note](../../../research/FFD_SEMAEV_MEASUREMENT1.md) use broader
 wording. The corrected finite example contradicts a **uniform degree-two
 first-fall interpretation in this Boolean model**. It does not invalidate the
 narrower Lean identity or establish a general statement about solving degree,
-other field sizes, or attack cost. A faithful Lean filtration/rank certificate
-and reviewed additive correction remain open in the [problem
+other field sizes, or attack cost. A general rank-semantics bridge, equation
+derivation, and reviewed additive correction remain open in the [problem
 record](../../../problems/semaev-degree-two-fall-nonzero-bridge.md).
 
 No numerical performance dashboard changed because this replay measured no
@@ -122,6 +135,8 @@ python3.12 /path/to/repo/research/verification/ffd_semaev_measure.py
 python3.12 research/verification/replay_ffd_semaev_20261022.py \
   --output docs/reports/2026-10-22-semaev-first-fall-replay/evidence/draws.json
 python3.12 docs/reports/2026-10-22-semaev-first-fall-replay/render.py
+# From the repository root, with the pinned Lean toolchain installed:
+cd formal && lean CryptoResearch/Semaev/BooleanParityFiniteCertificate.lean
 ```
 
 Source hashes, exact working directories and invocation arguments are bound in
@@ -130,5 +145,6 @@ Semaev equation builder, but checks their field arithmetic and direct S₃ truth
 tables independently. Its corrected Boolean multiplier uses XOR cancellation
 and independently computed ranks. This is stronger than replaying the archive
 alone and weaker than an independent Sage implementation or a Lean proof of
-the whole filtration. The [PDF](report.pdf) embeds the chart and the same
+the whole filtration. The finite Lean certificate covers one exact instance
+under its executable definitions. The [PDF](report.pdf) embeds the chart and the same
 claim boundary.
