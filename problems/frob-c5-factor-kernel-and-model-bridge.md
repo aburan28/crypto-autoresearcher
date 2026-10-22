@@ -1,58 +1,51 @@
 # FROB C5 factor-kernel and archived-field bridge
 
 - **Status:** `open`
-- **Kind:** mathematical proof and code-to-model bridge gaps
-- **Affected work:** [EXP-FROB-91ee9c C5 specification](../experiments/EXP-FROB-91ee9c/specification.yaml), [historical analysis](../experiments/EXP-FROB-91ee9c/analysis.md), [finite-field Lean target](../formal/targets/frob-c5-finite-field-trace.yaml), [characteristic-five control](../formal/targets/frob-c5-characteristic-five-control.yaml)
-- **Next action owner:** Coordinator to assign an independent formal semantic review and a source-bound checker task
+- **Kind:** historical code-to-model bridge and independent semantic review
+- **Affected work:** [EXP-FROB-91ee9c C5 specification](../experiments/EXP-FROB-91ee9c/specification.yaml), [frozen run](../experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/manifest.yaml), [factor-kernel formal targets](../formal/targets/frob-c5-factors-q11.yaml), [characteristic-five control](../formal/targets/frob-c5-characteristic-five-control.yaml)
+- **Next action owner:** Coordinator to assign an independent formal semantic review and a source-bound quotient-field checker task
 - **Last updated:** 2026-10-22
 
 ## Problem
 
-The frozen C5 control requires the kernel of the field trace on each degree-five
-extension to equal the direct sum of the kernels of the nontrivial irreducible
-factors of `X^5-1` under Frobenius. The current Lean theorems establish the
-finite-field trace polynomial, its four-dimensional kernel and the
-Frobenius-difference range, but do not prove this factor-kernel direct sum or
-identify the archived `F_q[z]/(g)` code representation with the formal field.
-The q=11, 13 and 19 recorded cells therefore cannot receive a full
-proof-backed C5 verdict from these theorems alone.
+The mathematical C5 factor-kernel statement has now been proved in Lean for
+the three canonical degree-five finite fields. The historical run used a
+specific `F_q[z]/(g)` representation and executable Frobenius matrix. No
+checked isomorphism or verified matrix certificate yet binds those exact
+archived bytes to the Lean field model. The frozen C5 control cannot be
+promoted to a proof-backed historical run verdict on the finite-field theorem
+alone. C8 and the experiment success gate remain separate.
 
 ## Evidence and uncertainty
 
-- **Observed:** The frozen [run](../experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/manifest.yaml) reports C5 dimensions in all three core cells. The independent [object replay](../docs/reports/2026-10-22-frob-provenance-audit/core-object-replay.json) reconstructs the relevant Frobenius factor-kernel dimensions and point classifications using the archived pure-Python checker primitives. That replay does not formally verify the checker implementation or the original Sage source custody.
-- **Derived or proved:** [OrderFive.lean](../formal/CryptoResearch/FrobTrace/OrderFive.lean) proves the abstract order-five trace kernel is the range of `F-1` when `F^5=1` and five is invertible. [FiniteFieldTrace.lean](../formal/CryptoResearch/FrobTrace/FiniteFieldTrace.lean) has a passed exact-source verifier receipt for a stronger finite-field specialization: the five-term Frobenius sum is the embedded field trace, the kernel has dimension four, and in characteristic other than five it is the range of `F-1`. The latter source has explicit `GaloisField q 5` instances for q=11, 13 and 19. The [proof report](../docs/reports/2026-10-22-frob-c5-finite-field-trace/REPORT.md) records an 8,970-job full build and target axiom audit passing at source commit `0600270bcf4a49edfb65d0fe838ab5fa4442216c`; independent semantic review remains required.
-- **Proved negative control:** [CharacteristicFive.lean](../formal/CryptoResearch/FrobTrace/CharacteristicFive.lean) proves `X^5 - 1 = (X - 1)^5` and non-squarefreeness over `ZMod 5`; the [source-bound report](../docs/reports/2026-10-22-frob-c5-characteristic-five-control/REPORT.md) records the 8,971-job build and passing axiom audit at source commit `203cff284eff59a81e8a98a4ff5fac0459d63790`. It checks the characteristic boundary of the coprime-factor argument. It does not validate any archived q=11/13/19 implementation or result. Independent semantic review is pending.
-- **Suspected explanation:** None is asserted. The missing steps are formalization and implementation-refinement obligations, not evidence that C5 is false.
-- **Missing capability:** Formal factorization and pairwise-coprimality certificates for the three `X^5-1` cases, the corresponding kernel direct-sum theorem, and a checked map from the archived polynomial quotient and Frobenius matrix to the Lean field model.
-- **What this evidence does not establish:** It does not certify the historical driver, the exact archived field encoding, C8, the experiment success gate, or a performance claim.
+- **Observed:** The frozen [run](../experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/manifest.yaml) reports C5 equality and dimension four in all three core cells. The independent [object replay](../docs/reports/2026-10-22-frob-provenance-audit/core-object-replay.json) reconstructs the factor-kernel dimensions and point classifications using archived plain-Python checker primitives. The newer [source-bound matrix replay](../docs/reports/2026-10-22-frob-c5-factor-kernels/c5-matrix-replay.json) independently reconstructs the exact 5×5 Frobenius matrices from the three frozen moduli, checks factor kernels, directness, trace equality, fixed-line exclusion and a matrix mutation, and compares every archived C5 flag. It is executable evidence, not a Lean refinement proof of the historical code.
+- **Proved:** [OrderFive.lean](../formal/CryptoResearch/FrobTrace/OrderFive.lean) gives the abstract trace-kernel identity. [FiniteFieldTrace.lean](../formal/CryptoResearch/FrobTrace/FiniteFieldTrace.lean) identifies the five-term q-power Frobenius sum with finite-field trace and proves its kernel has dimension four. [FactorKernel.lean](../formal/CryptoResearch/FrobTrace/FactorKernel.lean) proves the exact q=11 four-linear, q=13 one-quartic and q=19 two-quadratic nontrivial factorizations of `X^5−1`, irreducibility, coprimality where needed, and direct-sum equality with the trace kernel of dimension four. The [proof report](../docs/reports/2026-10-22-frob-c5-factor-kernels/REPORT.md) records the exact source commit and verifier receipts. Independent semantic review remains pending.
+- **Proved negative control:** [CharacteristicFive.lean](../formal/CryptoResearch/FrobTrace/CharacteristicFive.lean) proves `X^5−1 = (X−1)^5`, the repeated quartic factor, and non-squarefreeness over `ZMod 5`. Its [source-bound report](../docs/reports/2026-10-22-frob-c5-characteristic-five-control/REPORT.md) records the Lean build and axiom audit at source commit `203cff284eff59a81e8a98a4ff5fac0459d63790`. This controls the characteristic boundary, not an archived q=5 experiment. Independent semantic review remains pending.
+- **Missing capability:** A checked map from each archived lexicographically first irreducible `g` and quotient basis to the corresponding Lean field, or a Lean-verified Frobenius matrix certificate bound to the original run bytes, plus independent code/semantic review and original source custody.
+- **What this evidence does not establish:** It does not certify all operations in the historical driver, the run's C8 control, the experiment success gate, a performance advantage or deployed-size ECDLP behavior.
 
 ## What would unblock it
 
-- [ ] In Lean, prove the exact q=11 split-four-linear, q=13 single-quartic, and q=19 two-quadratic factorizations of the nontrivial part of `X^5-1`, their pairwise coprimality, and that the direct sum of their Frobenius kernels equals the field-trace kernel in each cell, with the recorded dimensions.
-- [ ] Bind the archived lexicographically first irreducible `g` and its quotient-field basis to the formal finite field by a checked isomorphism or a verified Frobenius matrix certificate. Replay all C5 input bytes and obtain independent semantic and code review before interpreting the run control as proved.
-- [x] Verify the characteristic-five negative control in Lean: `X^5 - 1` is not squarefree over `ZMod 5`. This discharges only the proof-boundary control, not the factor-kernel or archived-code obligations.
+- [x] In Lean, prove the exact three core-cell cyclotomic factorizations, irreducibility, kernel direct sums and trace-kernel dimension four. The checked source is `FactorKernel.lean` at commit `2143dda2b698cf6e3fb4bafbe853af7262e3ffba`; exact-source receipts and semantic review status are in the linked report.
+- [x] Verify the characteristic-five negative control in Lean: `X^5−1` is not squarefree over `ZMod 5`. This discharges only the proof-boundary control.
+- [ ] Bind each archived `g` and its quotient-field basis to the formal finite field by a checked isomorphism, or prove a source-bound Frobenius matrix certificate in Lean on the exact archived bytes. Check the historical implementation's field and matrix operations against that model and original source custody.
+- [ ] Obtain independent formal semantic and code review before promoting the frozen C5 verdict.
 
-The first condition would close the abstract C5 factor decomposition for the
-three finite fields. The second would link it to the tested implementation.
-Even then, C8 and the other frozen success gates require their own evidence.
+The first completed item closes the mathematical factor-kernel obligation for
+the three canonical fields. The remaining items bind that result to the
+historical implementation. Even after they pass, C8 and the other frozen
+success gates require their own evidence.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Formalize the polynomial factorization and CRT/kernel direct-sum lemma for the three primes, then check it against the existing finite-field trace theorem.
-- **Inputs and controls:** Use the frozen `q,n,g` and factor strings in the run, plus an explicit characteristic-five control where squarefreeness fails. Do not infer an archived field representation from the cardinality alone.
-- **Execution limits and stop condition:** Proof work may continue without a scientific trial. Preserve the frozen run and stop any proposed C5 promotion if the factor or model bridge cannot be checked on the exact bytes.
-- **Outcomes and next actions:** A proof and source-bound bridge advance C5 to independent semantic review; a counterexample requires a scoped run correction; an unproved bridge leaves the control unestablished.
-- **Recheck trigger:** A committed Lean factor-kernel theorem or a source-bound quotient-field certificate.
-
-A planned proof is not a completed experiment. Existing proof, validation,
-review, and archival rules still govern the follow-up.
+- **Action or proof obligation:** Formalize the three archived quotient moduli `z^5+2z^4+1` over `F_11`, `z^5+8z^4+1` over `F_13`, and `z^5+3z^4+1` over `F_19`, and prove a basis-preserving map or matrix certificate for q-power Frobenius and the factor polynomials. The source-bound replay provides the expected 5×5 matrices and mutation control.
+- **Inputs and controls:** Use the frozen `q,n,g` strings and raw output hashes, the committed factor targets, and an explicit characteristic-five countercontrol where squarefreeness fails. Reject any byte mismatch or unproved quotient-field assumption.
+- **Execution limits and stop condition:** Proof/checker work may continue without a scientific trial. Preserve the frozen run. Stop any proposed C5 promotion if the model bridge, custody or independent review cannot be checked.
+- **Outcomes and next actions:** A checked model bridge and review advance C5 to historical-control adjudication; a counterexample requires a scoped run correction; an unproved bridge leaves the control unestablished.
+- **Recheck trigger:** A committed Lean quotient-field isomorphism or source-bound matrix certificate and independent review.
 
 ## Resolution and history
 
-- 2026-10-22: Opened after the finite-field trace core was formalized. The
-  factor-kernel direct sum and archived-field implementation bridge remain
-  unproved. Unresolved.
-- 2026-10-22: The source-bound characteristic-five negative control passed its
-  Lean build and axiom audit. It confirms failure of squarefreeness at q=5;
-  the archived q=11/13/19 C5 verdict remains subject to the factor proof,
-  code bridge, source custody and independent review.
+- 2026-10-22: Opened after the finite-field trace core. At that point the factor-kernel direct sum and archived-field representation were both unproved.
+- 2026-10-22: The canonical-field factor-kernel proof and an independent source-bound matrix replay closed the mathematical decomposition gap and strengthened executable C5 validation. The historical code-to-model bridge and independent review remain open.
+- 2026-10-22: The characteristic-five negative control passed a source-bound Lean verifier. It confirms the coprime-factor argument's boundary; the archived q=11/13/19 C5 verdict remains subject to the model bridge, source custody and independent review.

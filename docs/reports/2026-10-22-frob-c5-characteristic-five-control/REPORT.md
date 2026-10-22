@@ -42,7 +42,7 @@ The [archived specification](../../../experiments/EXP-FROB-91ee9c/specification.
 contains no q=5 core cell. The theorem does not identify the archived
 `F_q[z]/(g)` basis or executable Frobenius matrix with a Lean field, recover
 historical C3/C4 sample identities, finish C8, or establish an ECDLP
-performance improvement. The separate [factor-kernel PR
+performance improvement. The merged [factor-kernel proof
 #2475](https://github.com/aburan28/crypto-autoresearcher/pull/2475) carries
 the q=11/13/19 mathematical proof and source-bound matrix replay; its
 historical model bridge and independent review remain open.
@@ -51,7 +51,7 @@ historical model bridge and independent review remain open.
 
 The editable [DOT](proof.dot), [SVG](proof.svg), [PNG](proof.png),
 [figure PDF](proof-figure.pdf), and [report PDF](report.pdf) render the new
-boundary. The C5 factor-proof diagram is checked separately in PR #2475.
+boundary. The C5 factor-proof diagram is checked separately in merged PR #2475.
 No run value, performance graph, or dashboard row changed because this task
 made no measurement. The next proof obligation is a checked link from each
 archived quotient modulus and Frobenius matrix to the Lean field model, with
