@@ -56,6 +56,7 @@ of the latter at nonzero `x_R`. Thus the trace identity does not certify the
 historical uniform first-fall wording. The new finite target checks one
 transcribed counterexample's executable ranks; its semantic limits are stated
 in that target and the [open problem](../../problems/semaev-degree-two-fall-nonzero-bridge.md).
+
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
 is the deeper result and is deliberately not specced: it needs reduced Gröbner
@@ -63,6 +64,15 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
+
+## BINSTD toy yield ceiling
+
+`binstd-yield-ceiling.yaml` targets the conditional arithmetic in
+`KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
+arm cannot exceed the target count, its tau/open ratio is strictly below the
+frozen 1.25 band. The proof also instantiates the four archived hit-count
+pairs. It does not prove the counts, runner correctness, or any large-field
+transfer; those remain empirical and require separate review.
 
 All three NCP targets come from one note that was read end to end. Do not add targets by
 skimming a note for a quotable sentence — the surrounding definitions are the
