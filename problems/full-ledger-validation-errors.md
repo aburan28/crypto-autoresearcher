@@ -4,7 +4,7 @@
 - **Kind:** archived-record integrity gap, review-provenance gap, and a zero-compute classification gap; the cause of each individual error needs separate adjudication
 - **Affected work:** [full corpus audit](../docs/reports/2026-10-21-ledger-integrity-audit/report.md), [`validate_ledger.py`](../tools/validate_ledger.py), and repository-wide claims that the archived experiment and decision corpus has a clean integrity gate
 - **Next action owner:** Coordinator for scoped record corrections and source-reader assignments; validator maintainers for any schema change
-- **Last updated:** 2026-10-21
+- **Last updated:** 2026-10-22
 
 ## Problem
 
@@ -72,12 +72,12 @@ historical archives need their own scoped checks before an all-corpus claim.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Triage one exact source record from each
-  high-impact class first: the QSP zero-compute stage, the approved
-  `EXP-ECDLP-daee4d` specification, a dangling run/experiment reference,
-  and an `internal` citation without `verified_by`. For each, determine
-  whether the correct route is an additive supersession, a verified source
-  reader assignment, or a prospective schema change with negative controls.
+- **Action or proof obligation:** For QSP Stage 0, specify a non-execution
+  category with hash-bound admission and negative controls that reject
+  ordinary terminal runs missing output. For `IDEA-20260920-b9f0c5`, correct
+  the citation to `IDEA-20260906-a77711` so its no-solving-degree-drop claim
+  is identified as a prediction, then assign actual readers to its five
+  cited sources. Continue source-by-source triage of the other error classes.
 - **Inputs and controls:** Use the raw 162-line log, committed original and
   supersession registry bytes, and the full-checkout validator. Compare the
   old and corrected source hashes; reject placeholder provenance and files
@@ -103,3 +103,28 @@ historical archives need their own scoped checks before an all-corpus claim.
   refused drafts. Its complete-tree run reports 157 remaining unsuppressed
   lines; the historical 162-line audit above remains bound to the named main
   commit. The broader problem remains open.
+- 2026-10-22: The QSP Stage 0 frozen specification says `compute: ZERO` and
+  that no program is run. Its registered supersession identifies a
+  misclassification and explicitly preserves the five missing-artifact
+  errors. A prospective validator representation needs an exact non-execution
+  scope and negative controls; no command, environment, stdout, stderr, or
+  raw-result file was created.
+- 2026-10-22: This audit branch adds two complete, hash-pinned schema
+  replacements. `EXP-ECDLP-daee4d` adds only the singular success/falsification
+  fields and decision impact already fixed by its original objective,
+  hypothesis, and approval decision. The frozen specification and its trial
+  plan hash stay intact. `EV-QSP-2c78d3` removes `RUN-QSP-715b58` from
+  structured `run_ids`: that expired attempt has an execution receipt but no
+  manifest or raw result. The replacement still cites its receipt and states
+  that no scientific result was produced. The
+  [source-bound triage report](../docs/reports/2026-10-22-ledger-triage/report.md)
+  checks both hashes and changed fields. A complete-tree validator rerun
+  removed exactly those five errors, added none, and still failed with 157
+  unsuppressed lines in 47 paths. Its log SHA-256 is
+  `c4aa4214b060c9628e15221ea1373ed3899e811437c276b1c8d6ddafb6c97e66`.
+- 2026-10-22: Source reading of `IDEA-20260920-b9f0c5` found that its citation
+  describes `IDEA-20260906-a77711` as establishing no solving-degree drop,
+  while the cited proposal labels this a prediction. The missing `verified_by`
+  fields remain errors until that attribution is corrected and the source
+  readings are recorded. This is a semantic gap, not an excuse to stamp
+  provenance fields mechanically.
