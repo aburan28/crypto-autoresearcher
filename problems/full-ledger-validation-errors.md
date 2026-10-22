@@ -74,10 +74,8 @@ historical archives need their own scoped checks before an all-corpus claim.
 
 - **Action or proof obligation:** For QSP Stage 0, specify a non-execution
   category with hash-bound admission and negative controls that reject
-  ordinary terminal runs missing output. For `IDEA-20260920-b9f0c5`, correct
-  the citation to `IDEA-20260906-a77711` so its no-solving-degree-drop claim
-  is identified as a prediction, then assign actual readers to its five
-  cited sources. Continue source-by-source triage of the other error classes.
+  ordinary terminal runs missing output. Continue source-by-source triage of
+  the remaining citation, review, provenance, and reference errors.
 - **Inputs and controls:** Use the raw 162-line log, committed original and
   supersession registry bytes, and the full-checkout validator. Compare the
   old and corrected source hashes; reject placeholder provenance and files
@@ -135,3 +133,12 @@ historical archives need their own scoped checks before an all-corpus claim.
   `0db4c3a97c3a1058aba90275764545f9cdf075347ce890362ba35bef22f53dad`;
   the [triage report](../docs/reports/2026-10-22-ledger-triage/report.md)
   verifies both five-line deltas and zero added errors.
+- 2026-10-22: A third hash-pinned supersession of `IDEA-20260920-b9f0c5`
+  records five actual source readings and corrects the citation to
+  `IDEA-20260906-a77711`: its no-solving-degree-drop statement is a prediction,
+  not a theorem or measurement. The complete-tree gate still exits 1 with
+  **147 unsuppressed lines in 41 paths**; the final log SHA-256 is
+  `dbc8b77fa464ed139e6b7857cefe3f7312545168786764825d3abb2a72dd9036`.
+  The [triage report](../docs/reports/2026-10-22-ledger-triage/report.md)
+  verifies this third five-line deletion and zero added errors. The other 23
+  citation-provenance errors and all unrelated ledger errors remain open.

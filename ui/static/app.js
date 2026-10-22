@@ -2386,7 +2386,7 @@ async function viewRecord(id, params = new URLSearchParams()) {
       : null,
     supersession ? h('div', { class: 'banner warn' },
       h('b', {}, 'A registered, hash-matched schema copy is available. '),
-      'Read it in the parsed correction tab. The original remains unparseable; '
+      'Read it in the parsed correction tab. The original stays visible; '
         + 'hash matching does not establish that the correction preserves its scientific meaning.') : null,
     h('section', { class: 'panel' },
       h('div', { class: 'panel-body stack', style: 'gap:9px' },
@@ -2486,7 +2486,7 @@ function buildPane(key, body, src) {
     const copy = body.supersession;
     return h('div', { class: 'stack', style: 'gap:12px' },
       h('div', { class: 'banner warn' },
-        'This is a separately registered schema copy. The original source and its parse error remain on this page.'),
+        'This is a separately registered schema copy. The original source and its validation state remain on this page.'),
       h('div', { class: 'row mono' }, pathLink(copy.path)),
       h('div', { class: 'faint mono', style: 'font-size:11px' },
         `Original SHA-256 ${copy.source_sha256} · copy SHA-256 ${copy.replacement_sha256}`),

@@ -515,6 +515,7 @@ class ResearchIndex:
         self.build_seconds: float = 0.0
         self.duplicate_paths: dict[str, list[str]] = {}
         self._full_cache: dict[str, Any] = {}
+        self._schema_supersessions: dict[str, list[dict[str, Any]]] | None = None
         self._lock = threading.Lock()
         # The exact-parse sweep is slow (~55 s on the reference corpus) and
         # runs behind the served index rather than in front of it. See
@@ -1092,23 +1093,33 @@ class ResearchIndex:
         return parsed
 
     def parsed_supersession(self, record_id: str) -> dict[str, Any] | None:
-        """Show a registered, hash-bound parseable copy beside a bad original.
+        """Show a registered, hash-bound copy beside its archived original.
 
         This does not replace the canonical record or certify that the
         correction preserves its scientific meaning. Any missing file, path
-        escape, changed hash, or parse failure leaves the original failure
+        escape, changed hash, or copy parse failure leaves the original
         visible without a replacement body.
         """
         record = self.records.get(record_id)
         if record is None or not record.path.endswith(".yaml"):
             return None
         try:
-            registry = fast_yaml.safe_load(
-                (self.repo / "tools/schema_supersession_registry.yaml").read_text())
-            if not isinstance(registry, dict) or registry.get("schema") != "schema-supersession-registry-v1":
-                return None
-            matches = [row for row in registry.get("records", [])
-                       if isinstance(row, dict) and row.get("superseded_path") == record.path]
+            with self._lock:
+                if self._schema_supersessions is None:
+                    try:
+                        registry = fast_yaml.safe_load(
+                            (self.repo / "tools/schema_supersession_registry.yaml").read_text())
+                    except Exception:  # noqa: BLE001 - fail closed on an invalid registry
+                        registry = None
+                    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+                    if (isinstance(registry, dict) and
+                            registry.get("schema") == "schema-supersession-registry-v1" and
+                            isinstance(registry.get("records"), list)):
+                        for row in registry["records"]:
+                            if isinstance(row, dict) and isinstance(row.get("superseded_path"), str):
+                                grouped[row["superseded_path"]].append(row)
+                    self._schema_supersessions = dict(grouped)
+                matches = self._schema_supersessions.get(record.path, [])
             if len(matches) != 1:
                 return None
             row = matches[0]

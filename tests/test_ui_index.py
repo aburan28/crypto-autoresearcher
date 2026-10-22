@@ -511,6 +511,36 @@ def test_malformed_original_exposes_only_a_hash_bound_parsed_copy(tiny_repo):
     assert payloads.record_payload(index, "EV-ECDLP-001")["supersession"] is None
 
 
+def test_parseable_original_exposes_hash_bound_schema_copy(tiny_repo):
+    original = tiny_repo / "ledger/evidence/EV-ECDLP-001.yaml"
+    replacement_rel = ("ledger/corrections/schema-supersessions/20260808/"
+                       "ledger__evidence__EV-ECDLP-001.v2.yaml")
+    replacement = tiny_repo / replacement_rel
+    replacement.parent.mkdir(parents=True)
+    replacement.write_text("evidence:\n  id: EV-ECDLP-001\n  scope_statement: schema copy\n")
+    registry = tiny_repo / "tools/schema_supersession_registry.yaml"
+    registry.parent.mkdir(exist_ok=True)
+    registry.write_text(yaml.safe_dump({
+        "schema": "schema-supersession-registry-v1",
+        "records": [{
+            "superseded_path": "ledger/evidence/EV-ECDLP-001.yaml",
+            "superseded_sha256": hashlib.sha256(original.read_bytes()).hexdigest(),
+            "superseding_path": replacement_rel,
+            "superseding_sha256": hashlib.sha256(replacement.read_bytes()).hexdigest(),
+        }],
+    }))
+    index = ResearchIndex(tiny_repo).build()
+    payload = payloads.record_payload(index, "EV-ECDLP-001")
+    assert payload["verified"] is True and payload["parse_error"] is None
+    assert payload["summary"]["path"] == "ledger/evidence/EV-ECDLP-001.yaml"
+    assert payload["supersession"]["path"] == replacement_rel
+    assert payload["supersession"]["body"]["evidence"]["scope_statement"] == "schema copy"
+    assert payloads.source_payload(index, "EV-ECDLP-001")["raw"] == original.read_text()
+
+    replacement.write_text(replacement.read_text() + "# changed\n")
+    assert payloads.record_payload(index, "EV-ECDLP-001").get("supersession") is None
+
+
 def test_record_corrections_require_explicit_targets_and_preserve_source(tiny_repo, tmp_path):
     corrections = tiny_repo / "ledger" / "corrections"
     corrections.mkdir(parents=True)

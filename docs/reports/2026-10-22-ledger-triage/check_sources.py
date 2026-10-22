@@ -53,11 +53,25 @@ def main():
     assert receipt["scientific_conclusion"] is None
     assert not (run_dir / "manifest.yaml").exists()
     assert not (run_dir / "raw-result.json").exists()
-    assert "execution-receipt.json" in str(after["proof_refs"])
-    assert "claim_expired" in str(after["observations"])
+    assert any(ref.endswith("/RUN-QSP-715b58/execution-receipt.json")
+               for ref in after["proof_refs"])
+    assert any("claim_expired" in note for note in after["observations"])
+
+    idea = ROOT / "ledger/proposals/IDEA-20260920-b9f0c5.yaml"
+    idea_new = CORRECTIONS / "ledger__proposals__IDEA-20260920-b9f0c5.v2.yaml"
+    idea_check = check_pair(idea, idea_new, "idea", {"mechanism", "citations"})
+    old_idea, new_idea = body(idea, "idea"), body(idea_new, "idea")
+    assert len(old_idea["citations"]) == len(new_idea["citations"]) == 5
+    for original, revised in zip(old_idea["citations"], new_idea["citations"]):
+        assert original["ref"] == revised["ref"]
+        assert original["provenance"] == revised["provenance"] == "internal"
+        assert "Codex ledger audit, 2026-10-22" in revised["verified_by"]
+    assert "predicts no solving-degree drop" in new_idea["citations"][1]["claim"]
+    assert "does not prove or measure" in new_idea["citations"][1]["claim"]
+    assert "proposes an equivariance" in new_idea["mechanism"]
 
     entries = yaml.safe_load((ROOT / "tools/schema_supersession_registry.yaml").read_bytes())["records"]
-    for check in (spec_check, ev_check):
+    for check in (spec_check, ev_check, idea_check):
         matches = [e for e in entries if e["superseded_path"] == check["source"]]
         assert len(matches) == 1, check["source"]
         entry = matches[0]
@@ -65,8 +79,10 @@ def main():
         assert entry["superseding_path"] == check["replacement"]
         assert entry["superseding_sha256"] == check["replacement_sha256"]
 
-    print(json.dumps({"status": "pass", "pairs": [spec_check, ev_check],
+    print(json.dumps({"status": "pass", "pairs": [spec_check, ev_check, idea_check],
                       "trial_plan_original_spec_hash_matches": True,
+                      "citation_source_refs_preserved": True,
+                      "citation_named_readers": 5,
                       "expired_attempt_receipt_sha256": digest(run_dir / "execution-receipt.json"),
                       "expired_attempt_has_run_manifest": False,
                       "expired_attempt_has_raw_result": False}, indent=2))
