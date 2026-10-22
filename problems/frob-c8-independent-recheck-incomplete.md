@@ -14,8 +14,9 @@ Frobenius order, or rational identity required by the specification. Thus the
 frozen success criterion for the three core cells
 `FROB-SPLIT-q11n5`, `FROB-NOLATTICE-q13n5`, and `FROB-EQDEG-q19n5` is not
 established, even though the original cells are recorded as completed.
-Subsequent independent replays now cover all three core object arms, while
-C2/C3/C4 control arms and complete C8 review remain open.
+Subsequent independent replays cover all three core object arms and the
+archived first-curve C2 residue lists. C3 sample identities, C4 null curves,
+and complete C8 review remain open.
 
 The claimed scope is a toy combinatorial design axis under a frozen cost
 model, with C1–C8 controls; it is not an ECDLP solve or performance claim.
@@ -59,6 +60,16 @@ it does not falsify the mathematical hypothesis.
   including 400 nontrivial multi-slot sums. It imports only the archived
   checker's field/curve primitives and the local q11 helper, not the Sage
   driver. It has no separate q13/q19 mutation battery or C2/C3/C4 replay.
+- **Observed, first-curve controls:** The [C2/C3 replay receipt](../docs/reports/2026-10-22-frob-provenance-audit/c2-c3-control-replay.json)
+  reconstructs 238,350 nonidentity points on the three first eligible curves.
+  It verifies the first nonstable dimension-four coordinate subspace, matches
+  all three archived C2 residue lists exactly, and checks 13,242 C2 singleton
+  tuple identities with signed point addition, exact counts and ratios. A
+  changed archived residue is rejected. All six populated C3 records have one
+  slot; a valid seeded sample reproduces their aggregate cardinalities and
+  ratios and checks 26,620 generated singleton sums. The historical C3 sample
+  lists are absent, so those generated sums cannot be attributed to the
+  archived run. No C4 null-curve record is re-enumerated here.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -68,9 +79,10 @@ it does not falsify the mathematical hypothesis.
   re-enumeration than its code implements. Why that gap remained in the
   archived run is unknown; the present finding rests on the code path, not
   an inferred intent.
-- **Missing capability:** Extend the source-bound independent replay to
-  C2/C3/C4 controls on all three core cells, complete mutation controls and
-  independent Validator review, and settle the separate source-custody gap.
+- **Missing capability:** Bind the historical C3 samples or run a fresh
+  source-bound seeded control, independently re-enumerate C4 null curves,
+  complete mutation controls and independent Validator review, and settle the
+  separate source-custody gap.
 - **What this evidence does not establish:** It does not show that the
   recorded sumsets or ratios are wrong, that C8 would fail on a complete
   implementation, or that the mathematical hypothesis is false. The
@@ -95,9 +107,10 @@ own evidence.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Extend the all-core object-arm checker to
-  C2/C3/C4 controls, starting with q11n5, using independently reconstructed
-  slot memberships, matched random subsets, null curves and exact ratios.
+- **Action or proof obligation:** Recover C3 sample identities or perform a
+  source-bound fresh seeded C3 replay, then re-enumerate C4 null curves with
+  independently reconstructed generators, subgroup membership and exact
+  ratios. Audit the remaining C8 items and the checker itself.
 - **Inputs and controls:** Use the frozen specification and hash-pinned run
   artifacts. Include deliberately altered point, slot, `N`, Frobenius
   eigenvalue, and rational fields as negative controls, plus the existing
@@ -132,3 +145,7 @@ budget, and archival rules still govern the follow-up.
   and 20,960 tuple identities (400 multi-slot sums). The C2/C3/C4 control
   arms and independent review remain open, so C8 and the success gate remain
   unestablished.
+- 2026-10-22: A first-curve control replay matched all three archived C2
+  residue lists and 13,242 singleton tuple identities. Six C3 aggregate rows
+  match valid seeded samples, but the frozen sample lists were not retained;
+  C4 and the C8 success gate remain open.
