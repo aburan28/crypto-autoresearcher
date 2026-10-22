@@ -15,8 +15,8 @@ frozen success criterion for the three core cells
 `FROB-SPLIT-q11n5`, `FROB-NOLATTICE-q13n5`, and `FROB-EQDEG-q19n5` is not
 established, even though the original cells are recorded as completed.
 Subsequent independent replays cover all three core object arms and the
-archived first-curve C2 residue lists. C3 sample identities, C4 null curves,
-and complete C8 review remain open.
+archived first-curve C2 residue lists and C4 null-curve geometry. C3/C4
+historical sample identities and complete C8 review remain open.
 
 The claimed scope is a toy combinatorial design axis under a frozen cost
 model, with C1–C8 controls; it is not an ECDLP solve or performance claim.
@@ -70,6 +70,22 @@ it does not falsify the mathematical hypothesis.
   ratios and checks 26,620 generated singleton sums. The historical C3 sample
   lists are absent, so those generated sums cannot be attributed to the
   archived run. No C4 null-curve record is re-enumerated here.
+- **Observed, C4 null geometry:** The [C4 replay receipt](../docs/reports/2026-10-22-frob-provenance-audit/c4-null-geometry-replay.json)
+  verifies nonsingularity, the non-basefield `j` value, and the accepted
+  lexicographic candidate in all three core cells. Exact point-order witnesses
+  plus Hasse's interval certify the three accepted curve orders and both
+  earlier rejected candidates' orders; the rejected orders have no eligible
+  prime factor. All three accepted subgroup orders are exactly prime, and
+  wrong-order mutations fail. The replay enumerates 143,568 null-subgroup
+  points and checks six aggregate rows and 26,620 singleton sums on valid
+  generated samples. The historical C4 sampled residue lists are absent, so
+  those generated tuple identities cannot be attributed to the frozen run.
+  The [Lean target](../formal/targets/frob-c4-null-curve-order.yaml) and its
+  [verification receipt](../docs/reports/2026-10-22-frob-provenance-audit/c4-order-lean-verification.json)
+  prove the five order-uniqueness calculations conditional on their recorded
+  Hasse intervals and point-order divisors. The full build and target axiom
+  audit passed; semantic review is pending. Hasse's bound and the concrete
+  elliptic-curve point calculations are not proved by that Lean theorem.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -79,10 +95,9 @@ it does not falsify the mathematical hypothesis.
   re-enumeration than its code implements. Why that gap remained in the
   archived run is unknown; the present finding rests on the code path, not
   an inferred intent.
-- **Missing capability:** Bind the historical C3 samples or run a fresh
-  source-bound seeded control, independently re-enumerate C4 null curves,
-  complete mutation controls and independent Validator review, and settle the
-  separate source-custody gap.
+- **Missing capability:** Bind the historical C3/C4 samples or run a fresh
+  source-bound seeded control, complete remaining mutation controls and
+  independent Validator review, and settle the separate source-custody gap.
 - **What this evidence does not establish:** It does not show that the
   recorded sumsets or ratios are wrong, that C8 would fail on a complete
   implementation, or that the mathematical hypothesis is false. The
@@ -107,10 +122,10 @@ own evidence.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Recover C3 sample identities or perform a
-  source-bound fresh seeded C3 replay, then re-enumerate C4 null curves with
-  independently reconstructed generators, subgroup membership and exact
-  ratios. Audit the remaining C8 items and the checker itself.
+- **Action or proof obligation:** Recover C3/C4 sample identities or perform
+  a source-bound fresh seeded replay, then audit the remaining C8 items and
+  the checker itself. Independently review the Hasse and point-order
+  certificate logic before using it as an order verdict.
 - **Inputs and controls:** Use the frozen specification and hash-pinned run
   artifacts. Include deliberately altered point, slot, `N`, Frobenius
   eigenvalue, and rational fields as negative controls, plus the existing
@@ -149,3 +164,10 @@ budget, and archival rules still govern the follow-up.
   residue lists and 13,242 singleton tuple identities. Six C3 aggregate rows
   match valid seeded samples, but the frozen sample lists were not retained;
   C4 and the C8 success gate remain open.
+- 2026-10-22: The null-geometry replay certified three accepted and two
+  rejected C4 curve orders using point orders plus Hasse, with exact prime
+  subgroup witnesses and six aggregate rows. Frozen C4 sample lists remain
+  absent; the C8 success gate is still open.
+- 2026-10-22: Lean verified the five conditional integer uniqueness lemmas
+  from the replay's Hasse intervals and point-order divisors. The theorem
+  does not discharge those premises or the missing historical C4 samples.

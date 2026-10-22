@@ -65,6 +65,15 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
 
+## FROB C4 conditional order arithmetic
+
+`frob-c4-null-curve-order.yaml` targets five conditional integer uniqueness
+statements from the [C4 replay](../../docs/reports/2026-10-22-frob-provenance-audit/REPORT.md).
+The Lean proof takes the Hasse intervals and point-order LCM divisors as
+hypotheses; executable replay checks those inputs, but the curve arithmetic
+and Hasse application are not formalized here. Historical C4 sampled residues
+are missing, so this target does not complete C8.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
