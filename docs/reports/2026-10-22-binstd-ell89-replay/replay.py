@@ -7,6 +7,7 @@ roots to verify already completed isolated replays. Requires local Git history.
 import argparse
 import hashlib
 import importlib.util
+import itertools
 import json
 import os
 import pathlib
@@ -146,15 +147,34 @@ def ordered_triple_control(replay, tag):
         point = module.random_curve_point(curve, rng)
         factor_base.extend((point, curve.neg(point)))
     require(len(set(factor_base)) == 8, "ordered-triple control has duplicate points")
-    for _ in range(12):
-        target = module.random_curve_point(curve, rng)
-        shortcut = module.m3_decomposes(curve, factor_base, target)
-        direct = any(
+    def direct_hit(target):
+        return any(
             curve.add(curve.add(a, b), c) == target
-            for a in factor_base for b in factor_base for c in factor_base
+            for a, b, c in itertools.product(factor_base, repeat=3)
         )
-        require(shortcut == direct, "pair shortcut disagrees with direct ordered triples")
-    return {"factor_base_points": 8, "targets": 12, "shortcut_matches_direct": True}
+
+    positive_targets = list(dict.fromkeys(
+        target
+        for a, b, c in itertools.product(factor_base, repeat=3)
+        if (target := curve.add(curve.add(a, b), c)) is not None
+    ))[:12]
+    require(len(positive_targets) == 12, "ordered-triple control lacks positive targets")
+    negative_targets = []
+    for _ in range(1000):
+        if len(negative_targets) == 12:
+            break
+        target = module.random_curve_point(curve, rng)
+        if target not in negative_targets and not direct_hit(target):
+            negative_targets.append(target)
+    require(len(negative_targets) == 12, "ordered-triple control lacks negative targets")
+    for expected, targets in ((True, positive_targets), (False, negative_targets)):
+        for target in targets:
+            shortcut = module.m3_decomposes(curve, factor_base, target)
+            direct = direct_hit(target)
+            require(direct == expected, "ordered-triple target has unexpected hit status")
+            require(shortcut == direct, "pair shortcut disagrees with direct ordered triples")
+    return {"factor_base_points": 8, "positive_targets": 12,
+            "negative_targets": 12, "shortcut_matches_direct": True}
 
 
 def prepare(tag, commit, env, trial_plan):
