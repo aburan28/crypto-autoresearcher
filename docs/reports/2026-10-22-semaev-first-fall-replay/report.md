@@ -103,6 +103,25 @@ zero-target degree-three draws remain outside the Lean theorem premise. These
 are finite results for the stated toy Boolean model, not solving-degree or
 ECDLP-cost results.
 
+## Pinned full-workspace proof replay
+
+The [full-workspace receipt](evidence/full-workspace-replay.json) binds the
+unchanged `formal/lake-manifest.json` (SHA-256
+`3adfcdc058cb9fe8556812d1b6cb76b75d3e1295f705f8e08296e2a28dc3a4dc`),
+Lean 4.35.0-rc1, Mathlib commit
+`7fa22735254ddf7e11f119250a9f2d0352bc7c3a`, and the new theorem source
+hash. From an isolated local scratch copy, the generated root imported all
+25 project modules. The [Mathlib cache fetch](evidence/full-cache-local.log)
+downloaded and decompressed 8,915 pinned files; [the build](evidence/full-build.log)
+completed **2,012 jobs**, including the new Semaev module; and the
+[project axiom audit](evidence/full-axiom-audit.log) checked **475 theorems**
+with only the allowed standard axioms. An initial cache extraction from the
+migrated home filesystem stalled and was interrupted; the
+[attempt log](evidence/full-cache-home-interrupted.log) is preserved. Moving
+only the cache directory to `/var/tmp` resolved the infrastructure delay.
+Neither attempt changed a source file or dependency pin. The official CI
+target-verifier receipt and independent semantic review are still pending.
+
 ## Proof and performance boundary
 
 [`DegreeTwoFall.lean`](../../../formal/CryptoResearch/Semaev/DegreeTwoFall.lean)
