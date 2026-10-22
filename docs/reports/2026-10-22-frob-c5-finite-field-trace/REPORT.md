@@ -33,9 +33,10 @@ The frozen [specification](../../../experiments/EXP-FROB-91ee9c/specification.ya
 and [analysis](../../../experiments/EXP-FROB-91ee9c/analysis.md) ask whether
 the nontrivial Frobenius factor kernels form the trace-zero space of dimension
 four. This proof establishes the trace polynomial and dimension on the
-mathematical finite fields. It does **not** prove the factor-kernel direct-sum
-decomposition or bind the archived `F_q[z]/(g)` basis and executable Frobenius
-to the Lean model. Those exact obligations are in the
+mathematical finite fields. The later [factor-kernel proof](../2026-10-22-frob-c5-factor-kernels/REPORT.md)
+now establishes the q11/q13/q19 irreducible-factor direct sums on those
+canonical fields. Neither proof binds the archived `F_q[z]/(g)` basis and
+executable Frobenius to the Lean model. That remaining obligation is in the
 [open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md).
 
 ## Verification and provenance
@@ -65,12 +66,12 @@ to the Lean model. Those exact obligations are in the
 The archived checker and all-core object replay report dimension four in the
 three core cells, but that is executable evidence about recorded inputs. A
 general finite-field theorem cannot certify the historical quotient-field
-implementation or the missing factor CRT step. C5 as a frozen run control,
-C8, the experiment success gate, and any ECDLP performance conclusion remain
-unestablished by this proof alone.
+implementation. The follow-up factor-kernel proof and source-bound matrix
+replay advance C5, but the run's code-to-model bridge remains open. C5 as a
+frozen run control, C8, the experiment success gate, and any ECDLP performance
+conclusion remain unestablished by this proof alone.
 
-Next, formalize the exact q11 split-four-linear, q13 single-quartic, and q19
-two-quadratic factorizations of the nontrivial part of `X^5−1` and prove their
-kernel direct sum. Then bind the archived quotient-field bytes and Frobenius
-matrix to that formal field, with a characteristic-five countercontrol and
-independent semantic and code review.
+Next, bind the archived quotient-field bytes and Frobenius matrix to the
+formal field, with a characteristic-five countercontrol and independent
+semantic and code review. The factorization and kernel direct sum now have
+separate machine-checked Lean evidence.
