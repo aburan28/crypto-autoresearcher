@@ -1,0 +1,49 @@
+PYTHONPATH=src:. python3 - <<'PY'
+import hashlib, json, platform, subprocess, sys, time, traceback
+from pathlib import Path
+import numba, numpy
+from crypto_autoresearcher.index_calculus.curve import Curve
+from crypto_autoresearcher.index_calculus.factor_base import FactorBase
+from crypto_autoresearcher.index_calculus.tails import wide_packed_table
+
+root = Path('research/icperf_prime50_packed_tails_20261017')
+scratch = Path('/Volumes/SSD990-2/crypto/.scratch/icperf_prime50_m8_20261017')
+fixture_path = Path('research/icperf_prime_fixtures_20261017/n50_seed20261017.json')
+assert hashlib.sha256(fixture_path.read_bytes()).hexdigest() == '849ded0bc55a0c38ce7663151bb737e75a4c27945c1a706b6cfe043b9c801c91'
+fixture = json.loads(fixture_path.read_text())['curve']
+E = Curve(**fixture)
+t0 = time.monotonic()
+fb = FactorBase.small_x(E, 132)
+base_seconds = time.monotonic() - t0
+assert len(fb) == 132
+point_bytes = json.dumps(fb.points, separators=(',', ':')).encode()
+manifest = {'fixture_sha256': '849ded0bc55a0c38ce7663151bb737e75a4c27945c1a706b6cfe043b9c801c91',
+            'curve': fixture, 'factor_base': 'small_x', 'size': len(fb),
+            'point_order': 'increasing x, smaller y',
+            'point_serialization': 'JSON compact list of x,y pairs',
+            'points_sha256': hashlib.sha256(point_bytes).hexdigest(),
+            'base_construction_seconds': base_seconds,
+            'arity': 4, 'target_blind': True}
+(root/'input-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+(root/'environment.json').write_text(json.dumps({
+    'platform': platform.platform(), 'machine': platform.machine(),
+    'python': sys.version, 'numpy': numpy.__version__, 'numba': numba.__version__,
+    'git_head': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
+    'git_status_short': subprocess.check_output(['git','status','--short'], text=True),
+    'scratch': str(scratch), 'max_rss_bytes': 8 << 30,
+    'max_scratch_bytes': 12 << 30, 'max_wall_seconds': 14400}, indent=2) + '\n')
+try:
+    table = wide_packed_table(E, fb, 4, scratch/'full', backend='numba',
+                              timeout_seconds=14400, rss_limit_bytes=8<<30,
+                              scratch_limit_bytes=12<<30, min_free_bytes=12<<30)
+    outcome = {'status': 'built', 'metrics': table.metrics,
+               'input_manifest': manifest, 'scratch_table': str(table.binary_path)}
+    table.close()
+except Exception as exc:
+    outcome = {'status': 'failed', 'error': repr(exc), 'traceback': traceback.format_exc(),
+               'input_manifest': manifest}
+    (scratch/'builder-result.json').write_text(json.dumps(outcome, indent=2) + '\n')
+    raise
+(scratch/'builder-result.json').write_text(json.dumps(outcome, indent=2) + '\n')
+print(json.dumps(outcome, indent=2))
+PY

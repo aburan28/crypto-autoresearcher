@@ -124,6 +124,28 @@ SCHEMA_SUPERSESSION_KINDS = {
 SCHEMA_SUPERSESSION_ROOT = "ledger/corrections/schema-supersessions/"
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
+# These decisions name design-stage contracts, not approved experiment records.
+# Keep the exception bound to both the decision and the exact frozen draft:
+# an arbitrary missing EXP id, a changed draft, or an approved draft must still
+# fail the reference check. The same bafa2e draft is cited by two decisions.
+DRAFT_DECISION_TARGETS = {
+    ("DEC-20260929-21bb51", "EXP-AUXIN-bafa2e"):
+        ("BATCH-9b2090", "TASK-20260928-4d6266",
+         "667cf21e1a0680eaa5eb862164835a0074c109f2254f5ac6f52428327ba27bbd"),
+    ("DEC-20260929-7efa82", "EXP-AUXIN-bafa2e"):
+        ("BATCH-9b2090", "TASK-20260928-4d6266",
+         "667cf21e1a0680eaa5eb862164835a0074c109f2254f5ac6f52428327ba27bbd"),
+    ("DEC-20260929-4eade7", "EXP-AUXIN-369078"):
+        ("BATCH-36b01a", "TASK-20260929-6d01d7",
+         "b147966a5798bab10183ac56a9daa703ff41c54936f832fb8d0e28f2becd1589"),
+    ("DEC-20260929-93fc4d", "EXP-AUXIN-55c6c0"):
+        ("BATCH-14b284", "TASK-20260929-1abb8c",
+         "608c46c02a59c8f4ba5871e6d32643c58e2b351302b98fd54f866d2bac679b8c"),
+    ("DEC-20260929-cfb294", "EXP-AUXIN-92dccc"):
+        ("BATCH-1907cf", "TASK-20260929-ef0945",
+         "894c4855b64fdd2ec63915f88d6c668dcb95f40a108eba4f07a701b12bf6ccb6"),
+}
+
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
 #
 #   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
@@ -1245,6 +1267,44 @@ def tier_of_run(params: dict) -> int | None:
     return TIER_ORDER["crypto"]
 
 
+def decision_names_frozen_draft(decision_id: str, target_id: str,
+                                decision: dict) -> bool:
+    """Resolve only the five documented references to refused AUXIN drafts.
+
+    A design draft does not enter ctx.ids: doing so would also let evidence
+    records cite it as if it were an approved experiment. Verify its bytes and
+    draft state here, where only decision targets receive the exception.
+    """
+    entry = DRAFT_DECISION_TARGETS.get((decision_id, target_id))
+    if entry is None:
+        return False
+    batch_id, producer_task, expected_sha256 = entry
+    if (decision.get("batch_id") != batch_id
+            or decision.get("goal_id") != "GOAL-AUXIN-a93442"):
+        return False
+    path = os.path.join(
+        REPO, "coordination", "goals", "GOAL-AUXIN-a93442", "batches",
+        batch_id, "design", producer_task, "draft-contract.yaml")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+        if hashlib.sha256(data).hexdigest() != expected_sha256:
+            return False
+        doc = _safe_load(data)
+        fresh = doc["successor_contract"]["fresh"]
+    except (OSError, KeyError, TypeError, AttributeError, yaml.YAMLError):
+        return False
+    if not isinstance(fresh, dict):
+        return False
+    return (fresh.get("id") == target_id
+            and fresh.get("batch_id") == batch_id
+            and fresh.get("goal_id") == "GOAL-AUXIN-a93442"
+            and fresh.get("producer_task") == producer_task
+            and fresh.get("status") == "draft"
+            and fresh.get("approved_by") is None
+            and fresh.get("approval_decision") is None)
+
+
 def check_cross_refs(ctx: Ctx):
     for rec_id, body in list(ctx.records.items()):
         rec_type = ctx.record_types[rec_id]
@@ -1315,7 +1375,9 @@ def check_cross_refs(ctx: Ctx):
             for target_id in body.get("target_ids") or []:
                 if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))
                         and target_id not in ctx.ids
-                        and target_id not in ctx.legacy_aliases):
+                        and target_id not in ctx.legacy_aliases
+                        and not decision_names_frozen_draft(rec_id, target_id,
+                                                            body)):
                     ctx.err(ctx.ids[rec_id], f"decision references unknown "
                                              f"target '{target_id}'")
 
