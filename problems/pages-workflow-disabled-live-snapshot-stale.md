@@ -68,7 +68,7 @@ hash-bound schema copies beside parseable originals. The public recheck at
   scope. Do not call a successful deployment a scientific validation.
 
 These conditions would make the hosted reader current and honest. They would
-not clear the [147 unsuppressed ledger errors after citation correction](full-ledger-validation-errors.md),
+not clear the [142 unsuppressed ledger errors after the source-bound non-execution category](full-ledger-validation-errors.md),
 complete Lean semantic reviews, or replay historical performance.
 
 ## Next discriminating step
