@@ -16,9 +16,11 @@ The frozen n=17 BINSTD runs use the factorization of `x^17-1` over
 dimensions 8 and 9 admissible. The
 [Lean product theorem](../formal/CryptoResearch/Binstd/Factorization.lean)
 proves the archived bitmask polynomials 3, 313 and 471 multiply to
-`X^17+1`. That product alone does not prove the two degree-eight
-factors irreducible or connect polynomial factors to every
-Frobenius-invariant subspace of the archived field.
+`X^17+1`. The
+[Lean irreducibility theorem](../formal/CryptoResearch/Binstd/Irreducibility.lean)
+proves both degree-eight factors irreducible. These theorems do not
+connect the factors to every Frobenius-invariant subspace of the
+archived field.
 
 ## Evidence and uncertainty
 
@@ -29,16 +31,18 @@ Frobenius-invariant subspace of the archived field.
 - **Machine proved:** The
   [formal receipt](../docs/reports/2026-10-22-binstd-factor17-lean/proof-verification.json)
   reports `machine_verified` for the exact product identity under
-  Lean 4.35.0-rc1, with a passing full build and target axiom audit.
-  Independent semantic review remains pending.
+  Lean 4.35.0-rc1. The
+  [irreducibility receipt](../docs/reports/2026-10-22-binstd-irred-lean/proof-verification.json)
+  reports `machine_verified` for both degree-eight factors, a passing
+  full build, standard axioms only across 625 audited theorems, and a
+  passing target audit. Independent semantic review remains pending.
 - **Separate finite check:** The
   [source-pinned toy replay](../docs/reports/2026-10-22-binstd-ell89-replay/report.md)
   performed independent Rabin and polynomial-product calculations
   and reproduced both archived yield matrices. It is not a Lean
   invariant-subspace theorem.
-- **Missing capability:** Lean proofs that the two degree-eight
-  factors are irreducible, that the archived field modulus defines
-  the claimed 17-dimensional field, and that its `x↦x²` map has
+- **Missing capability:** Lean proofs that the archived field modulus
+  defines the claimed 17-dimensional field, and that its `x↦x²` map has
   exactly the invariant-subspace dimensions given by the subset
   sums of the three simple factors.
 - **What this does not establish:** The gap is not evidence that the
@@ -48,7 +52,7 @@ Frobenius-invariant subspace of the archived field.
 
 ## What would unblock it
 
-- [ ] Prove the two degree-eight factors irreducible over `ZMod 2`
+- [x] Prove the two degree-eight factors irreducible over `ZMod 2`
   and bind their coefficients to frozen bitmasks 313 and 471.
 - [ ] Prove the archived modulus `t^17+t^3+1` gives the intended
   finite field and identify the actual field Frobenius as a cyclic
@@ -66,9 +70,9 @@ performance claim.
 
 ## Next discriminating step
 
-Use Mathlib's finite-field cyclotomic factor-degree theorem for the
-two degree-eight factors, with explicit divisibility and order
-certificates at 17. Then formalize the normal-basis module bridge.
+Formalize the archived field modulus and the normal-basis module
+bridge, then show that the runner's subspace constructor realizes the
+factor-kernel classification.
 Preserve the frozen runs and their existing review decisions; this
 problem authorizes no new experiment.
 
@@ -76,5 +80,8 @@ problem authorizes no new experiment.
 
 2026-10-22: Named after the exact factor product was machine verified.
 The [factorization graph](../docs/reports/2026-10-22-binstd-factor17-lean/factorization.dot)
-marks the remaining steps as open. No canonical performance graph
-changes because this is a structural proof obligation.
+marks the then remaining steps as open. Later the
+[irreducibility graph](../docs/reports/2026-10-22-binstd-irred-lean/irreducibility.dot)
+records the two degree-eight factors as proved and the module bridge
+as open. No canonical performance graph changes because this is a
+structural proof obligation.
