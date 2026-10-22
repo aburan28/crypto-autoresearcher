@@ -91,15 +91,18 @@ A separate [source-bound Lean certificate](../2026-10-22-frob-c5-quotient-matric
 now proves all 75 entries of the three recorded q-power matrices in the
 archived quotient bases. Its exact-source verifier passed, but it does not
 prove the historical Sage implementation refines the quotient algebra or
-connect this matrix action to the canonical-field factor-kernel theorem.
+connect this matrix action to the canonical-field factor-kernel theorem. A
+[second Lean certificate](../2026-10-22-frob-c5-quotient-matrix-kernels/REPORT.md)
+applies the factor polynomials directly to the exact recorded matrices and
+proves their kernel sums, directness and trace-kernel dimension four.
 
 ## Boundary and next check
 
-The factor-kernel theorem uses canonical `GaloisField q 5` values. The new
-quotient certificate identifies the recorded matrices with q-power on the
-three frozen polynomial quotient bases, but no checked map yet connects those
-matrix kernels to this canonical-field theorem or every historical Sage code
-path and C5 input byte. Source custody and independent review are required
+The factor-kernel theorem uses canonical `GaloisField q 5` values. The quotient
+certificate proves q-power images of the frozen basis monomials, and the
+matrix-kernel certificate proves C5 for the resulting exact matrices. A
+full-map q-power linearity/representation lemma and checked historical Sage
+refinement remain open. Source custody and independent review are required
 before the historical C5 control can be called proof-backed. The
 [open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
 tracks those checks. C8 and the full experiment success gate remain open.

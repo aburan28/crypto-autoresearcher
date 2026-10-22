@@ -69,8 +69,11 @@ independent semantic review pending.
 The theorem binds the frozen quotient moduli and recorded matrix entries to
 mathematical q-power on the quotient basis. It does not prove that every path
 through the historical Sage driver implements that operation, recover original
-source custody, or identify every run input byte with this model. The
-[canonical finite-field factor-kernel proof](../2026-10-22-frob-c5-factor-kernels/REPORT.md)
+source custody, or identify every run input byte with this model. A separate
+[exact matrix-kernel certificate](../2026-10-22-frob-c5-quotient-matrix-kernels/REPORT.md)
+proves the factor-kernel sums and trace dimensions of these recorded matrices;
+the full-map q-power linearity/representation and Sage refinement remain open.
+The [canonical finite-field factor-kernel proof](../2026-10-22-frob-c5-factor-kernels/REPORT.md)
 and characteristic-five boundary control have separate scopes. The
 [open bridge problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
 tracks independent semantic/code review and historical C5 adjudication. C8
