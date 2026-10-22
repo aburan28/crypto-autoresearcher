@@ -83,6 +83,15 @@ and instantiates the three archived base primes. The direct sum of nontrivial
 factor kernels and the bridge to the archived quotient-field implementation
 remain separate obligations; neither target alone certifies C5 for the run.
 
+## FROB C5 archived quotient matrices
+
+`frob-c5-quotient-matrices.yaml` certifies the exact 5×5 q-power Frobenius
+matrices for the three frozen quotient moduli in Lean. Its generated polynomial
+division identities are checked by Lean and bound to the source-bound replay
+receipt. The historical Sage driver and original source custody still need
+independent code-to-model review; this target does not promote the frozen C5
+run verdict or performance metrics.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
