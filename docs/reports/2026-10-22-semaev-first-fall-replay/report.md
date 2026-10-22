@@ -121,8 +121,19 @@ executable `rankOn` values equal these three matrix ranks for this sample.
 The [generator](../../../research/verification/generate_semaev_semantic_rank_certificate_20261022.py)
 regenerates the Lean source byte for byte from the frozen equation record;
 the [proof receipt](evidence/semantic-rank-proof.json) binds every input and
-result. This is a finite degree-two bridge, not generic `rankOn` correctness
-or a degree-three matrix-rank proof.
+result. This is a finite degree-two bridge, not generic `rankOn` correctness.
+The separate [degree-three rank certificate](../../../formal/CryptoResearch/Semaev/BooleanParityDegreeThreeRankCertificate.lean)
+checks the same frozen system's full 80-row degree-three matrix and its
+degree-three projection. A generic Lean lemma identifies XOR of packed
+Boolean rows with addition in F₂; Lean then checks explicit elimination
+transforms, inverses, and echelon pivots. Mathlib gives actual row-space
+dimensions **53** and **41**. With the proved degree-two rank 11, its
+`semanticOneNewFallThree` theorem establishes the rank increment
+`53−41−11=1` for this sample. The [generator](../../../research/verification/generate_semaev_degree_three_rank_certificate_20261022.py)
+rebuilds the Lean source from the archived equations, and the
+[target](../../../formal/targets/semaev-s3-semantic-rank-degree3-20261022.yaml)
+states this finite result. Generic `rankOn` correctness and the filtration
+intersection identity remain open.
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
@@ -182,6 +193,22 @@ and [source-bound receipt](evidence/semantic-rank-proof.json) record the
 exact bytes. This verifier also used a scratch root, so `source_commit` in
 its generated receipt is `null`. Independent semantic review and hosted
 current-head CI remain pending.
+The degree-three rank module added a 28th project import. Its pinned
+[build](evidence/degree-three-rank-full-build.log) completed **8,960 jobs**,
+and its [axiom audit](evidence/degree-three-rank-full-axiom-audit.log)
+checked **496 theorems** with standard axioms only. The four
+[requested declarations](evidence/degree-three-rank-theorem-axioms.log)
+use only `propext`, `Classical.choice`, and `Quot.sound`. The
+[target verifier](evidence/degree-three-rank-target-verification.json)
+returned `machine_verified`. The [regeneration log](evidence/degree-three-rank-regeneration.log)
+and [source-bound receipt](evidence/degree-three-rank-proof.json) bind exact
+inputs and outputs. The verifier's scratch-root `source_commit` is `null`;
+the receipt records the branch head and exact source hashes. Host Python 3.9
+and a bare Python 3.12 without PyYAML failed target-spec validation;
+the [failure log](evidence/degree-three-rank-target-validation-host-python-failures.log)
+is retained, and the final [validation](evidence/degree-three-rank-target-validation.log)
+used an isolated Python 3.12 environment. Hosted current-head CI and
+independent semantic review remain pending.
 
 ## Proof and performance boundary
 
@@ -193,10 +220,10 @@ equation system. The additional finite equation-semantics theorem proves
 that the four literal polynomials agree with direct `S₃` evaluation on all
 256 assignments of this instance. It does **not** prove that `rankOn` equals
 vector-space dimension in general or derive a generic symbolic descent from
-abstract `S₃`. The semantic-rank certificate now proves that `rankOn` agrees
-with actual F₂ row-space dimensions at degree one and degree two for this
-instance. It does not yet prove the degree-three matrix rank or formalize
-the filtration's intersection/rank-nullity identity in Lean. These links
+abstract `S₃`. The semantic-rank certificates now prove that the executable
+ranks agree with actual F₂ row-space dimensions at degrees one through three
+and the degree-two and degree-three projections for this instance. They do not
+formalize the filtration's intersection/rank-nullity identity in Lean. These links
 require independent review. The
 [frozen target](../../../formal/targets/semaev-s3-degree2-fall-witness.yaml)
 and [historical note](../../../research/FFD_SEMAEV_MEASUREMENT1.md) use broader
@@ -204,7 +231,7 @@ wording. The corrected finite example contradicts a **uniform degree-two
 first-fall interpretation in this Boolean model**. It does not invalidate the
 narrower Lean identity or establish a general statement about solving degree,
 other field sizes, or attack cost. A generic rank-semantics theorem,
-degree-three row-space bridge, and reviewed additive correction remain open in the [problem
+filtration identity, and reviewed additive correction remain open in the [problem
 record](../../../problems/semaev-degree-two-fall-nonzero-bridge.md).
 
 No numerical performance dashboard changed because this replay measured no
@@ -230,6 +257,10 @@ python3.12 research/verification/generate_semaev_semantic_rank_certificate_20261
   --output /tmp/BooleanParitySemanticRankCertificate.lean
 cmp /tmp/BooleanParitySemanticRankCertificate.lean \
   formal/CryptoResearch/Semaev/BooleanParitySemanticRankCertificate.lean
+python3.12 research/verification/generate_semaev_degree_three_rank_certificate_20261022.py \
+  --output /tmp/BooleanParityDegreeThreeRankCertificate.lean
+cmp /tmp/BooleanParityDegreeThreeRankCertificate.lean \
+  formal/CryptoResearch/Semaev/BooleanParityDegreeThreeRankCertificate.lean
 # From the repository root, with the pinned Lean toolchain installed:
 cd formal && lean CryptoResearch/Semaev/BooleanParityFiniteCertificate.lean
 ```
@@ -241,5 +272,5 @@ tables independently. Its corrected Boolean multiplier uses XOR cancellation
 and independently computed ranks. This is stronger than replaying the archive
 alone and weaker than an independent Sage implementation or a Lean proof of
 the whole filtration. The Lean equation and matrix certificates cover one exact
-instance, with degree-three matrix semantics still open. The [PDF](report.pdf) embeds the chart and the same
+instance, with the generic filtration identity still open. The [PDF](report.pdf) embeds the chart and the same
 claim boundary.
