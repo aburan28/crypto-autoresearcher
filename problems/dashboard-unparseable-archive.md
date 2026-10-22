@@ -32,8 +32,11 @@ structured fields as verified.
 - **Reader prototype:** The [generated-detail check](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/supersession-readback.json)
   and its [source](../docs/reports/2026-10-21-ledger-integrity-audit/check_supersession_readback.py)
   cover all 24 malformed originals, including nine separate registered copies
-  and 15 explicit raw-only states. The exact-code full build and 146 reader
-  tests are recorded alongside that check.
+  and 15 explicit raw-only states, with 24 preserved parse warnings and exact
+  source texts. The merged-commit full build emitted 55,248 files and 27,550
+  record payloads; all 146 reader tests passed. The
+  [current classification](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/supersession-unparseable-classification.json)
+  still reports 24 parse failures.
 - **Unregistered inventory:** The [source-bound parser inventory](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/unregistered-parse-errors.json)
   and its [checker](../docs/reports/2026-10-21-ledger-integrity-audit/classify_unregistered.py)
   record each of the 15 source hashes, byte counts, parser locations and absent
@@ -63,7 +66,7 @@ structured fields as verified.
   reader state, preserving each original path, parse error, and source text.
 - [ ] Design an additive correction route for these path classes and review
   each proposed replacement against its original source intent.
-- [ ] Rebuild the complete local static site and verify all 24 detail payloads,
+- [x] Rebuild the complete local static site and verify all 24 detail payloads,
   24 parse failures, original source readback, and nine benchmark rows with
   no numerical performance change. Public deployment remains open separately.
 
@@ -89,6 +92,6 @@ structured fields as verified.
   registered copies. Local full build, readback checker, and 146 reader tests
   pass. Fifteen uncovered files, semantic review, and deployment remain open.
 - 2026-10-22: The 15 uncovered files received explicit raw-only labels and a
-  source-bound parser inventory. Their replacement schema route and semantic
-  review remain open; the exact-code full build is being repeated after host
-  migration.
+  source-bound parser inventory. The merged-commit full build, 24-detail
+  readback, and 146 reader tests passed. Their replacement schema route and
+  semantic review remain open.

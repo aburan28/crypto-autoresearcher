@@ -1,5 +1,6 @@
 """Read public Pages metadata and the repository workflow state, without writes."""
 
+import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -17,11 +18,15 @@ def output(*command: str) -> bytes:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--build-report", type=Path,
+                        default=ROOT / "evidence/site-build-report.json")
+    args = parser.parse_args()
     workflow = json.loads(output("gh", "api", f"repos/{REPO}/actions/workflows/pages.yml"))
     meta_bytes = output("curl", "--fail", "--location", "--silent", "--show-error",
                         "--max-time", "20", META_URL)
     live = json.loads(meta_bytes)
-    local = json.loads((ROOT / "evidence/site-build-report.json").read_text())
+    local = json.loads(args.build_report.read_text())
     print(json.dumps({
         "observed_at_utc": datetime.now(timezone.utc).isoformat(),
         "workflow_state": workflow["state"],

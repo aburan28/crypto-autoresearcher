@@ -100,27 +100,48 @@ independently replayed by this dashboard check.
 
 The later reader change displays a registered, parseable schema copy in a
 **separate tab** when the canonical YAML does not parse and both original and
-copy bytes match the supersession registry hashes. The canonical path, raw
-source, parse error, and integrity warning remain visible. A hash match does
-not establish semantic fidelity or the truth of the scientific conclusion.
-Changed-source, changed-copy, and missing-copy controls show no parsed copy.
+copy bytes match the supersession registry hashes. For the 15 malformed
+originals without a registered copy, the detail payload explicitly says
+`raw_only`: structured fields remain unverified. The canonical path, raw
+source, parse error, and integrity warning remain visible in either case.
+A hash match does not establish semantic fidelity or the truth of the
+scientific conclusion. Changed-source, changed-copy, and missing-copy
+controls show no parsed copy.
 
-The updated reader suite [passed **146 tests**](evidence/supersession-ui-tests.log).
-A second complete local build from reader-code commit
-`ce762d1b97b5110957fceaebfea9c2586bbb988d`
-[emitted 55,218 files, 521.2 MB](evidence/supersession-site-build-report.json)
-([build log](evidence/supersession-site-build.log))
-and still counted **24** unparseable originals. The
-[generated-detail checker](check_supersession_readback.py) verified the
-[nine detail payloads](evidence/supersession-readback.json): nine separate
-copies, nine retained parse warnings, and nine exact canonical source texts.
-The existing benchmark payload still carried all nine primary rows with no
-error. The [reader coverage problem](../../../problems/dashboard-unparseable-archive.md)
-now tracks the **15** files without registered copies and the pending
-semantic review of the nine. This is a local build; public Pages remains
-disabled and unchanged. The generated `app.js` exactly matches the reader
-source, but this host has no Node or browser runtime to exercise the new tab
-interactively. No measured result or numerical graph changed.
+After merging main `cf9c9ee46c2afa99213024f6744f9a14a05d8e3b`, the
+reader suite [passed **146 tests**](evidence/supersession-ui-tests.log). The
+complete local build from reader-code commit
+`b5b0b52b7cd13d52ef7840ff6023205427b5073d`
+[emitted **55,248 files, 520.9 MB** and **27,550 records**](evidence/supersession-site-build-report.json)
+([build log](evidence/supersession-site-build.log)). Its deep scan still counted
+**24** unparseable originals. The [generated-detail checker](check_supersession_readback.py)
+verified [all 24 detail payloads](evidence/supersession-readback.json): nine
+separate copies, 15 raw-only states, 24 retained parse warnings, and 24 exact
+canonical source texts. The [current classification](evidence/supersession-unparseable-classification.json)
+still has nine hash-verified replacements and 15 without a registered
+replacement. The [generated comparison check](evidence/supersession-site-payload-check.json)
+found all nine primary benchmark rows with no payload error. The generated
+`app.js` exactly matches the reader source. This host has no Node or browser
+runtime to exercise the tab interactively. No measured result or numerical
+graph changed.
+
+The [source-bound parser inventory](evidence/unregistered-parse-errors.json)
+records the 15 original hashes, byte counts, parser locations, and lack of
+current schema-supersession route. Fourteen are root-level `ledger/` records;
+one is a malformed correction record. Those path classes are outside the
+current registry kind policy. A prospective route and independent semantic
+review are still needed; the raw-only label is an honest unsupported state,
+not a correction.
+
+The full ledger gate was repeated at merged commit `b5b0b52b7c`. The
+[new log](evidence/validate-ledger-merged-20261022.log) and
+[delta checker](check_gate_delta.py) show the **same 162 unsuppressed error
+lines in 49 paths**, with no baseline growth; non-failing advisories rose
+from 543 to **545** because two more handoff advisories appeared. The
+[machine comparison](evidence/merged-gate-delta.json) records both log hashes.
+The [October 22 public-site recheck](evidence/live-pages-status-20261022.json)
+still found the Pages workflow manually disabled and the live metadata at
+the October 11 commit. This build is local and has not been deployed.
 
 ## Consequence and next step
 
@@ -155,10 +176,19 @@ python3.12 tools/sparse_checkout.py disable
 python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_supersession_readback.py \
   . /var/tmp/current-site \
   docs/reports/2026-10-21-ledger-integrity-audit/evidence/unparseable-classification.json
+python3.12 docs/reports/2026-10-21-ledger-integrity-audit/classify_unregistered.py \
+  . docs/reports/2026-10-21-ledger-integrity-audit/evidence/unparseable-classification.json
 python3.12 docs/reports/2026-10-21-ledger-integrity-audit/check_primary_snapshot.py \
   /path/to/cryptanalysis-primary.jsonl
 python3 docs/reports/2026-10-21-ledger-integrity-audit/check_unparseable.py \
   . /var/tmp/current-site/data/integrity.json
+python3 docs/reports/2026-10-21-ledger-integrity-audit/check_gate_delta.py \
+  docs/reports/2026-10-21-ledger-integrity-audit/evidence/validate-ledger.log \
+  docs/reports/2026-10-21-ledger-integrity-audit/evidence/validate-ledger-merged-20261022.log \
+  e20013ae20d2c09019d8ea1b2fed7556c61ad4ba \
+  b5b0b52b7cd13d52ef7840ff6023205427b5073d
+python3 docs/reports/2026-10-21-ledger-integrity-audit/check_live_pages.py \
+  --build-report docs/reports/2026-10-21-ledger-integrity-audit/evidence/supersession-site-build-report.json
 python3 -m tools.progress_dashboard claims --json /var/tmp/progress-dashboard.json
 ```
 
