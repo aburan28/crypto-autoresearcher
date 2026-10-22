@@ -128,3 +128,10 @@ historical archives need their own scoped checks before an all-corpus claim.
   fields remain errors until that attribution is corrected and the source
   readings are recorded. This is a semantic gap, not an excuse to stamp
   provenance fields mechanically.
+- 2026-10-22: After merging main `53c4975c34f5bd5cd278e63b2cce6cd098245d16`,
+  whose separate refused-draft validator correction removes five more
+  decision-reference errors, the complete-tree gate still exits 1 with
+  **152 unsuppressed lines in 42 paths**. The merged log has SHA-256
+  `0db4c3a97c3a1058aba90275764545f9cdf075347ce890362ba35bef22f53dad`;
+  the [triage report](../docs/reports/2026-10-22-ledger-triage/report.md)
+  verifies both five-line deltas and zero added errors.

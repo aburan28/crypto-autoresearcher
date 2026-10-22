@@ -18,7 +18,12 @@ the nine-row comparison payload. The October 22 recheck found the same
 workflow state and public metadata, while the merged local reader build at
 `b5b0b52b7cd13d52ef7840ff6023205427b5073d` produced 55,248 files and
 the same nine-row benchmark payload. The reason the workflow was disabled is
-unknown. A local build does not update the public dashboard.
+unknown. A second October 22 build on the current merged audit head
+`89e2d4808caca4e7b9d6cc9d4ffba9a76d057f8a` again produced 55,248 files,
+27,550 records, and nine benchmark rows without a comparison error. At
+10:05:44 UTC the workflow was still manually disabled and the live metadata
+still named the October 11 commit. A local build does not update the public
+dashboard.
 
 ## Evidence and uncertainty
 
@@ -32,7 +37,10 @@ unknown. A local build does not update the public dashboard.
   record successful local generation, nine benchmark rows, and 24 reader
   parse warnings. The [merged build report](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/supersession-site-build-report.json)
   and [comparison check](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/supersession-site-payload-check.json)
-  confirm the newer local snapshot.
+  confirm the earlier merged local snapshot. The [current-head build](../docs/reports/2026-10-22-ledger-triage/evidence/site-build-report.json),
+  [payload check](../docs/reports/2026-10-22-ledger-triage/evidence/site-payload-check.json),
+  and [public status recheck](../docs/reports/2026-10-22-ledger-triage/evidence/live-pages-status.json)
+  bind the latest local and public observations.
 - **Derived or proved:** The live metadata commit differs from the locally
   validated commit. This is a snapshot-freshness fact, not a statement that
   any archived benchmark number is wrong.
@@ -56,7 +64,7 @@ unknown. A local build does not update the public dashboard.
   scope. Do not call a successful deployment a scientific validation.
 
 These conditions would make the hosted reader current and honest. They would
-not clear the [162 unsuppressed ledger errors](full-ledger-validation-errors.md),
+not clear the [152 unsuppressed ledger errors on the merged audit head](full-ledger-validation-errors.md),
 complete Lean semantic reviews, or replay historical performance.
 
 ## Next discriminating step
@@ -85,3 +93,7 @@ complete Lean semantic reviews, or replay historical performance.
 - 2026-10-22: Rechecked the disabled workflow and identical public metadata
   against the merged local build. The public site remains stale; no deploy or
   workflow setting changed.
+- 2026-10-22: Rebuilt the reader on merged audit head `89e2d4808caca4e7b9d6cc9d4ffba9a76d057f8a`
+  and checked its nine-row payload and 24 parse warnings. The read-only public
+  recheck at 10:05:44 UTC again found `disabled_manually` and the October 11
+  live commit. No workflow setting or hosted content changed.
