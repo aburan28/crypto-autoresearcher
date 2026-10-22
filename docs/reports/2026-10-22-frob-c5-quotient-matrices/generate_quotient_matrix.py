@@ -201,6 +201,8 @@ theorem quotient_frobenius_matrix{prime} (i j : Fin 5) :
 
 
 def main() -> None:
+    if not __debug__:
+        raise RuntimeError("quotient matrix generation requires Python assertions")
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="Require byte-identical generated Lean source")
     args = parser.parse_args()
