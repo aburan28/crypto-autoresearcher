@@ -103,6 +103,12 @@ Sage driver and original source custody still need independent code-to-model
 review; these targets do not promote the frozen C5 run verdict or performance
 metrics.
 
+`frob-c5-quotient-frobenius-map.yaml` identifies the full base-field-linear
+q-power endomorphism of each polynomial quotient with the certified matrix
+using Mathlib's Frobenius algebra homomorphism and the quotient power basis.
+It closes the mathematical full-map representation obligation; historical
+Sage refinement, source custody and independent semantic review remain open.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
