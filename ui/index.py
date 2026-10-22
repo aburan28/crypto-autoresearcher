@@ -16,6 +16,7 @@ record payload means the caller is looking at tier 2.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import re
 import sys
 import threading
@@ -514,6 +515,7 @@ class ResearchIndex:
         self.build_seconds: float = 0.0
         self.duplicate_paths: dict[str, list[str]] = {}
         self._full_cache: dict[str, Any] = {}
+        self._schema_supersessions: dict[str, list[dict[str, Any]]] | None = None
         self._lock = threading.Lock()
         # The exact-parse sweep is slow (~55 s on the reference corpus) and
         # runs behind the served index rather than in front of it. See
@@ -1089,6 +1091,65 @@ class ResearchIndex:
         with self._lock:
             self._full_cache[record_id] = parsed
         return parsed
+
+    def parsed_supersession(self, record_id: str) -> dict[str, Any] | None:
+        """Show a registered, hash-bound copy beside its archived original.
+
+        This does not replace the canonical record or certify that the
+        correction preserves its scientific meaning. Any missing file, path
+        escape, changed hash, or copy parse failure leaves the original
+        visible without a replacement body.
+        """
+        record = self.records.get(record_id)
+        if record is None or not record.path.endswith(".yaml"):
+            return None
+        try:
+            with self._lock:
+                if self._schema_supersessions is None:
+                    try:
+                        registry = fast_yaml.safe_load(
+                            (self.repo / "tools/schema_supersession_registry.yaml").read_text())
+                    except Exception:  # noqa: BLE001 - fail closed on an invalid registry
+                        registry = None
+                    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+                    if (isinstance(registry, dict) and
+                            registry.get("schema") == "schema-supersession-registry-v1" and
+                            isinstance(registry.get("records"), list)):
+                        for row in registry["records"]:
+                            if isinstance(row, dict) and isinstance(row.get("superseded_path"), str):
+                                grouped[row["superseded_path"]].append(row)
+                    self._schema_supersessions = dict(grouped)
+                matches = self._schema_supersessions.get(record.path, [])
+            if len(matches) != 1:
+                return None
+            row = matches[0]
+            original = (self.repo / record.path).resolve()
+            replacement_path = row.get("superseding_path")
+            if not isinstance(replacement_path, str):
+                return None
+            replacement = (self.repo / replacement_path).resolve()
+            if not original.is_relative_to(self.repo) or not replacement.is_relative_to(self.repo):
+                return None
+            source_hash = hashlib.sha256(original.read_bytes()).hexdigest()
+            replacement_bytes = replacement.read_bytes()
+            replacement_hash = hashlib.sha256(replacement_bytes).hexdigest()
+            if (source_hash != row.get("superseded_sha256") or
+                    replacement_hash != row.get("superseding_sha256")):
+                return None
+            parsed = fast_yaml.safe_load(replacement_bytes.decode("utf-8"))
+            if not isinstance(parsed, dict):
+                return None
+            bodies = [parsed] + [value for value in parsed.values() if isinstance(value, dict)]
+            if not any(body.get("id") == record_id for body in bodies):
+                return None
+            return {
+                "path": replacement_path,
+                "source_sha256": source_hash,
+                "replacement_sha256": replacement_hash,
+                "body": parsed,
+            }
+        except Exception:  # noqa: BLE001 - fail closed on a bad registry or copy
+            return None
 
     def raw_text(self, record_id: str) -> str:
         record = self.records.get(record_id)
