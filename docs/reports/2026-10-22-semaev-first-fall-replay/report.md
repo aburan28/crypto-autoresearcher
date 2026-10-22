@@ -119,8 +119,17 @@ with only the allowed standard axioms. An initial cache extraction from the
 migrated home filesystem stalled and was interrupted; the
 [attempt log](evidence/full-cache-home-interrupted.log) is preserved. Moving
 only the cache directory to `/var/tmp` resolved the infrastructure delay.
-Neither attempt changed a source file or dependency pin. The official CI
-target-verifier receipt and independent semantic review are still pending.
+Neither attempt changed a source file or dependency pin.
+The repository's own single-target verifier also ran locally against this
+pinned scratch workspace and emitted a [machine-verified
+receipt](evidence/local-target-verification.json): its project audit covered
+475 theorems and its requested-theorem audit explicitly passed
+`exact_first_fall_at_three`. The verifier's scratch repository root has no Git
+commit, so its `source_commit` field is `null`; the separate
+[binding](evidence/local-target-binding.json) records the PR head and checks
+the theorem, target, toolchain, manifest, and receipt hashes. The
+[stdout log](evidence/local-target-verification.log) and receipt retain the
+exact result. Hosted CI and independent semantic review remain pending.
 
 ## Proof and performance boundary
 
