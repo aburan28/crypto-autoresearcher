@@ -1,41 +1,43 @@
 # Semaev degree-two cancellation lacks a nonzero fall bridge
 
 - **Status:** `open`
-- **Kind:** proof gap and interpretation gap
-- **Affected work:** [FFD_SEMAEV_MEASUREMENT1](../research/FFD_SEMAEV_MEASUREMENT1.md), [frozen formal target](../formal/targets/semaev-s3-degree2-fall-witness.yaml), [Lean proof](../formal/CryptoResearch/Semaev/DegreeTwoFall.lean), [2026-10-20 validation report](../docs/reports/2026-10-20-formal-validation/report.md), [2026-10-22 per-draw replay](../docs/reports/2026-10-22-semaev-first-fall-replay/report.md)
+- **Kind:** proof gap, source-code defect, and interpretation gap
+- **Affected work:** [historical measurement](../research/FFD_SEMAEV_MEASUREMENT1.md), [frozen formal target](../formal/targets/semaev-s3-degree2-fall-witness.yaml), [Lean trace theorem](../formal/CryptoResearch/Semaev/DegreeTwoFall.lean), [2026-10-20 validation report](../docs/reports/2026-10-20-formal-validation/report.md), [2026-10-22 corrected replay](../docs/reports/2026-10-22-semaev-first-fall-replay/report.md)
 - **Next action owner:** formal research lane and Coordinator for claim wording
 - **Last updated:** 2026-10-22
 
 ## Problem
 
-The uniform claim that the Weil-descended Semaev `S_3` system has a nontrivial first fall at degree two is not established by its Lean theorem. The theorem cancels the degree-two coefficients when the target abscissa is nonzero, but does not prove that the resulting degree-at-most-one polynomial is nonzero or outside the lower-degree span. The frozen target and historical report describe the stronger conclusion. A checked finite example now contradicts the uniform wording **within the archived Boolean first-fall model**; this does not refute the narrower Lean identity.
+The uniform claim that the descended Semaev `S₃` system has a nontrivial first fall at degree two is not proved by its Lean theorem. That theorem cancels degree-two coefficients for nonzero target abscissa `x_R`; it does not show that the residual gives a new nonzero class. A checked finite example contradicts the uniform conclusion in the stated toy Boolean model without refuting the narrower trace identity.
 
-The archived toy table covers `n=4..7`, factor-base dimension `n'=3,4`, ten Semaev draws per cell, and matched null draws. It records `d_ff=2` in 70 of 80 Semaev draws and `d_ff=3` in 10. The October 22 replay reconstructs all 80 inputs: five degree-three draws have `x_R=0`, outside the theorem premise, and **five have `x_R≠0`**. The latter show that the premise alone cannot make the stronger archived first-fall statement true.
+The historical first-fall implementation has a separate defect: `fall_profile` represents a monomial multiple as `{mm | m for mm in f}`. Boolean polynomial multiplication over F₂ requires duplicate monomials to cancel. The frozen summary is exactly reproducible as written, but its ranks and grades are not generally the ranks and grades of the Boolean F₂ polynomial system.
 
 ## Evidence and uncertainty
 
-- **Observed:** The eight rows in [`ffd_semaev_results.json`](../research/verification/ffd_semaev_results.json) sum to 70 `d_ff=2` and 10 `d_ff=3` Semaev outcomes. The [report](../research/FFD_SEMAEV_MEASUREMENT1.md) nevertheless says the degree is pinned at two in every cell. The original summary script reproduced that JSON byte for byte on October 22. The [per-draw record](../docs/reports/2026-10-22-semaev-first-fall-replay/evidence/draws.json) retains all 80 Semaev seeds, targets, bases, equation vectors, ranks and trace residuals, plus 200 null-control seeds and grades. Its independent checker compared 21,760 field products, 12,800 direct `S_3` assignments, and separate row-space ranks for all 280 draws; every archived cell matched.
-- **Derived or proved:** [`DegreeTwoFall.lean`](../formal/CryptoResearch/Semaev/DegreeTwoFall.lean) proves the Artin–Schreier normalization and trace annihilation of the quadratic coefficients. Its own scope comment explicitly states that a nonzero surviving residue and hence a degree-two fall are unproved.
-- **Concrete finite explanation:** For `n=4,n'=4,s=1`, `x_R=1` and basis `[9,3,2,12]`, trace cancels the quadratic part but its residual `u₀+u₃+w₀+w₃` is already the fourth degree-one generator. The independent checker gives `dim V₁=1` and `dim(V₂∩R_{≤1})=1`, hence `new_falls(2)=0`; degree three is the first fall. Four nonzero-target degree-three draws have a nonzero trace residual already in `V₁`, and one has a zero trace residual. Five zero-target draws are outside the theorem premise.
-- **Missing capability:** An exact Lean model of the descended Boolean polynomial system and the quotient defining `new_falls(2)`, a kernel-checked finite counterexample or qualified positive theorem, and an additive correction to the broader frozen claim through the repository's review process.
-- **What this evidence does not establish:** It does not refute a correctly qualified degree-two fall theorem for another scope or prove one; it supplies no solving-degree or ECDLP cost conclusion.
+- **Archived observable:** The eight frozen cells report 70 of 80 Semaev draws at degree two and ten at degree three. The original script reproduced its JSON byte for byte on October 22. Its 200 support-matched null grades reproduced as well. The [archive receipt](../docs/reports/2026-10-22-semaev-first-fall-replay/evidence/archive-replay.json) binds the command, work directory and output hash.
+- **Source defect witness:** In `n=4,n'=4,s=1`, the first equation multiplied by `u₀` has masks `1`, `17`, `129` in the archived set product; all three cancel in F₂. The archived product disagrees with direct product evaluation on 64 of 256 Boolean assignments; the corrected product agrees on all 256. The [checker](../research/verification/replay_ffd_semaev_20261022.py) asserts this and records it in [draws.json](../docs/reports/2026-10-22-semaev-first-fall-replay/evidence/draws.json).
+- **Corrected exact data:** With XOR cancellation and independent binary ranks on the same 80 systems, 68 draws first fall at degree two and 12 at degree three. Two originally degree-two draws become degree three: `(n,n',s,x_R)=(5,3,4,8)` and `(5,3,8,8)`. Twelve of 200 null grades change. Seven corrected Semaev degree-three draws have `x_R≠0`; five have `x_R=0`. All 280 systems and both rank profiles are retained per draw.
+- **Finite explanation:** At `n=4,n'=4,s=1,x_R=1`, the trace residual `u₀+u₃+w₀+w₃` is already the fourth linear generator. Correct Boolean ranks give `dim V₁=1`, `dim(V₂∩R_{≤1})=1`, so `new_falls(2)=0`; `dim V₂=11`, `dim V₃=53`, and `dim(V₃∩R_{≤2})=12`, so `new_falls(3)=1`. The trace theorem's nonzero-target premise holds, yet the stronger first-fall claim fails in this finite model.
+- **Proved scope:** [`DegreeTwoFall.lean`](../formal/CryptoResearch/Semaev/DegreeTwoFall.lean) proves Artin–Schreier normalization and trace annihilation of quadratic coefficients. It does not prove a nonzero quotient class or universal first fall.
+- **Unresolved:** The Boolean filtration and rank certificate need kernel-checked Lean formalization and independent semantic review. The frozen claim needs an additive correction through normal review; official hypothesis status is unchanged. The finite data do not establish solving degree or ECDLP cost.
 
 ## What would unblock it
 
-- [ ] Formalize the descended `S_3` equations, the degree filtration, and a nonzero class in `V_{F,2} / V_{F,1}`. State any exact restrictions on `n`, `V`, and `x_R` and prove that the premises hold for the claimed family, or supply a checked counterexample and narrow the claim.
-- [x] Replay the eight frozen cells with per-draw target abscissa, basis, equation coefficient masks, trace residual (or explicit inapplicability at `x_R=0`), `new_falls(2)`, seed, source revision, and independent checker output. All ten recorded `d_ff=3` cases are classified. The 200 null-control grades and support profiles were also replayed; no new timing was measured.
+- [ ] Formalize exact Boolean F₂ multiplication, the degree-compatible filtration, and the finite `n=4,n'=4,s=1` rank certificate in Lean. Prove the link from executable rank to vector-space dimension; state a qualified positive theorem only with hypotheses that exclude the checked exceptions, or publish the checked counterexample.
+- [x] Replay every frozen seed, target, basis and equation; reproduce the archived table; compute the corrected parity ranks for all 80 Semaev and 200 null systems; classify all exceptional grades; retain exact equation hashes and source revision.
+- [ ] Add a reviewed, additive correction to the frozen target and historical uniform wording. Keep the original record immutable and distinguish archived counts from corrected Boolean counts in every graph and dashboard.
 
-Satisfying both conditions would support a semantically faithful theorem for the resulting qualified scope. Performance and solving-degree claims would remain separate obligations.
+Meeting these conditions would settle the toy Boolean claim. General solving-degree and cryptanalytic cost claims are separate obligations.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Formalize the archived Boolean filtration and the `n=4,n'=4,s=1,x_R=1` rank certificate in Lean. State the finite counterexample with the same monomial equations and exact `V₁,V₂` dimensions; then propose an additive correction to the frozen target's uniform interpretation.
-- **Inputs and controls:** Use the source-hash-bound per-draw equation masks and independent projection-rank receipt. Preserve the existing trace lemma and support-matched null replay as controls. Any positive theorem must state restrictions on `n`, `V` and `x_R` that exclude the checked exceptions.
-- **Execution limits and stop condition:** Do not edit the frozen target or fabricate a universal repair. A finite Lean certificate would settle this toy counterexample, not general solving degree or ECDLP cost.
-- **Outcomes and next actions:** A kernel-checked finite counterexample supports correction of the uniform claim; a failed Lean model requires the precise definition mismatch to be recorded; a qualified positive theorem needs independent semantic review against the archived observable.
-- **Recheck trigger:** Kernel-checked finite rank model or a reviewed additive correction.
+- **Action:** Formalize the finite Boolean multiplication witness and the degree-two rank certificate in Lean, then compare the formal row construction with the Python checker on the exact equation masks.
+- **Inputs and controls:** Use the source-hash-bound per-draw equations, 256-assignment multiplication witness, archived set result as a negative control, and corrected projection ranks. Preserve the existing trace lemma.
+- **Execution limits and stop condition:** Do not edit the frozen target or infer a universal repair. A finite Lean certificate settles this toy counterexample only. If the rank model differs, record the precise definition mismatch before promoting any theorem.
+- **Outcomes:** A kernel-checked exact model supports the additive correction; a mismatch requires resolving semantics; any qualified positive theorem needs independent review against these seven nonzero-target exceptions.
+- **Recheck trigger:** Kernel-checked rank model or reviewed additive claim correction.
 
 ## Resolution and history
 
-- 2026-10-20: Opened after comparing the frozen target, Lean scope comment, and raw summary. No research-state transition was made. Unresolved.
-- 2026-10-22: Replayed all eight summary cells byte for byte and independently checked the 80 Semaev draws and 200 null controls. Five nonzero-target degree-three cases make the archived uniform first-fall wording false in its own Boolean model. The Lean filtration bridge and additive claim correction remain open; no official state transition was made.
+- 2026-10-20: Opened after comparing the frozen target, Lean scope, and raw summary; per-draw replay missing.
+- 2026-10-22: Reproduced archived 70/10 counts. Independent Boolean F₂ multiplication exposed a source-code defect and corrected the same seeds to 68/12. The proof bridge and claim correction remain open; no official state transition was made.
