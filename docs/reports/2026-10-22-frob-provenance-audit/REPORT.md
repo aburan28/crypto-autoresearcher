@@ -65,6 +65,22 @@ cost ratios for extras 0, 8, and 32. All match. An in-memory changed-ratio
 control is rejected. These are aggregate identities; they do not validate
 the counts from points, tuple sums, or slot membership.
 
+The separate [FROB-SPLIT object replay](split-object-replay.json), generated
+by [`recheck_split.py`](recheck_split.py), reconstructs the q11n5 Frobenius
+eigenspace coordinates and both eligible order-`N` subgroups without importing
+the Sage driver or its enumeration code. It reclassifies **11,110** nonidentity
+subgroup points, reproduces every object-arm partition status, base size,
+distinct target count, `p_m`, `U_neg`, and cost ratio, and checks **1,030**
+accepted tuple combinations by actual point addition. Exact primality,
+`[N]G=O`, and Frobenius action are checked for both stored generators. Three
+in-memory mutations (target count, slot size, generator x-coordinate) are
+rejected. The replay uses the archived checker's independent finite-field and
+elliptic-curve primitives and the stored generator coordinates; it does not
+independently establish their original execution custody.
+Its deterministic receipt is regenerated with `python3 recheck_split.py --write`
+and compared byte for byte with `python3 recheck_split.py --check` from this
+report directory.
+
 ## Provenance finding and boundary
 
 The manifest records `code.head_commit=cb06b8c20c2d6559041c45c4a4b29dd7f132fdf5`
@@ -78,10 +94,11 @@ but they do not turn the pre-run HEAD into a commit containing the executed
 driver. The extension-cell command file also distinguishes its illustrative
 shell line from the command it says was used in practice.
 
-The replay validates those stored checks and hashes. It does not rerun the
-Sage generator, independently recompute the tuple sumsets or control arms,
-establish original execution-source custody, or certify a performance or
-discrete-log claim. Later FROB reviews and run directories are separate
+The archived checker replay validates its stored checks and hashes. The new
+q11n5 replay covers only its object arm: C2/C3/C4 controls and the other two
+core cells still lack the specified independent C8 recheck. Neither replay
+reruns the Sage generator, establishes original execution-source custody,
+or certifies a performance or discrete-log claim. Later FROB reviews and run directories are separate
 evidence and are not adjudicated by this audit. No frozen run bytes or
 historical result were changed.
 
@@ -91,8 +108,7 @@ Resolve the source gap with a contemporaneous, hash-bound execution snapshot
 and exact command/environment capture, if one exists. Otherwise perform a
 fresh, independently bound replay under the frozen specification and compare
 the core cells and controls, including the complete C8 obligations. A
-Coordinator must decide how the original
-record remains classified; adding `code.commit=cb06b8c...` alone would claim
+Coordinator must decide how the original record remains classified; adding `code.commit=cb06b8c...` alone would claim
 source custody that the commit does not provide. The existing
 [ledger-integrity problem](../../../problems/full-ledger-validation-errors.md)
 tracks this gap with the other unsuppressed archive errors.

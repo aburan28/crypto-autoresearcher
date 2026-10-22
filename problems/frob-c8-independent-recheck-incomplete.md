@@ -42,6 +42,13 @@ it does not falsify the mathematical hypothesis.
   ratios for extras 0, 8, and 32 in all 23 stored `ok` partition entries.
   A changed-ratio mutation is rejected. This checks arithmetic from aggregate
   counts, not the point-derived counts or C8's tuple and membership duties.
+- **Observed, q11n5 object replay:** The [bounded independent receipt](../docs/reports/2026-10-22-frob-provenance-audit/split-object-replay.json)
+  reclassifies all 11,110 nonidentity subgroup points on both eligible
+  `FROB-SPLIT-q11n5` curves, matches every object-arm partition, and checks
+  1,030 signed tuple combinations by point addition. It rejects changed
+  target counts, slot sizes, and generator coordinates. The verifier reuses
+  the frozen checker's field/curve primitives, not the Sage driver. No
+  C2/C3/C4 arm or q13/q19 object arm is covered by this receipt.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -51,9 +58,10 @@ it does not falsify the mathematical hypothesis.
   re-enumeration than its code implements. Why that gap remained in the
   archived run is unknown; the present finding rests on the code path, not
   an inferred intent.
-- **Missing capability:** A checker independent of the driver that can
-  reconstruct and verify every required C8 item for each accepted core-cell
-  tuple, including the larger subgroups and all exact rational arithmetic.
+- **Missing capability:** Extend the source-bound independent replay to
+  C2/C3/C4 controls on q11n5 and to every required C8 item on the q13n5 and
+  q19n5 core cells, including the larger subgroups and every reported
+  rational identity.
 - **What this evidence does not establish:** It does not show that the
   recorded sumsets or ratios are wrong, that C8 would fail on a complete
   implementation, or that the mathematical hypothesis is false. The
@@ -78,10 +86,10 @@ own evidence.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Inventory the exact per-tuple and per-arm
-  data needed by C8 against the frozen raw files (the initial inventory is
-  above), then implement the smallest independent checker that covers one
-  complete core cell before scaling to all three.
+- **Action or proof obligation:** Extend the q11n5 object-arm checker to its
+  C2/C3/C4 controls with independently reconstructed slot memberships,
+  matched random subsets, null curve, and exact ratios; then scale the
+  reviewed checker to q13n5 and q19n5.
 - **Inputs and controls:** Use the frozen specification and hash-pinned run
   artifacts. Include deliberately altered point, slot, `N`, Frobenius
   eigenvalue, and rational fields as negative controls, plus the existing
@@ -106,3 +114,8 @@ budget, and archival rules still govern the follow-up.
   byte-for-byte replay. The archived code verifies three curve witnesses,
   skips three, and recomputes no tuple sumsets or C2/C3/C4 arms. The original
   run, metrics, cost model and numerical graphs remain unchanged. Unresolved.
+- 2026-10-22: A prospective, source-pinned q11n5 object-arm replay matched
+  both eligible curves, 11,110 subgroup point classifications, all 30 object
+  partition statuses, and 1,030 signed tuple combinations. Three mutation
+  controls were rejected. This closes only that object-arm slice; C8 and the
+  experiment success gate remain open.
