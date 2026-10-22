@@ -45,9 +45,11 @@ keeps that distinction explicit.
   branch and on main; the proof branch changed no validator or ledger inputs.
 - **Observed, scoped FROB replay:** The [machine-readable audit](../docs/reports/2026-10-22-frob-provenance-audit/audit.json)
   verifies all 14 frozen artifact hashes and reproduces the archived checker
-  report byte for byte. The checker verifies three field-dimension cells, six
-  orbit-divisibility cells, and three complete tuple cells; the other three
-  tuple cells are explicitly skipped for size. The source-commit and
+  report byte for byte. The checker matches three trace-kernel dimensions and
+  checks six orbit-divisibility values. Its three `ok` entries under
+  `tuple_sum_reverifications` check curve point, order, primality, and
+  Frobenius witnesses; they do not recompute tuple sumsets or control arms.
+  The other three curve entries are skipped for size. The source-commit and
   environment fields remain unbound in the archived manifest.
 - **Derived or proved:** The validator's exit code and counted messages are
   reproducible facts about this source tree. No mathematical or performance
@@ -175,7 +177,9 @@ historical archives need their own scoped checks before an all-corpus claim.
   validator rule. The broader ledger gate still exits 1.
 - 2026-10-22: The [FROB provenance audit](../docs/reports/2026-10-22-frob-provenance-audit/REPORT.md)
   matched all 14 frozen artifact hashes and reproduced the archived checker
-  report byte for byte. Three tuple cells were originally skipped for size.
+  report byte for byte. Source review found that three `ok` entries check
+  curve witnesses, not tuple sumsets or control arms; three more entries were
+  skipped for size.
   The pre-run HEAD lacks the archived driver, so execution-source custody
   remains unresolved. This review changes no frozen bytes, ledger count,
   numerical result, or canonical performance graph.

@@ -7,6 +7,7 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+from math import isqrt
 from pathlib import Path
 import shutil
 import subprocess
@@ -26,6 +27,12 @@ OUTPUT = HERE / "audit.json"
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def is_prime_by_trial_division(n: int) -> bool:
+    if n < 2:
+        return False
+    return all(n % d for d in range(2, isqrt(n) + 1))
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
@@ -102,8 +109,8 @@ def audit() -> dict:
             "archived_report_sha256": digest(archived_bytes),
             "replay_report_sha256": digest(replay_bytes),
             "byte_identical": replay_bytes == archived_bytes,
-            "field_dimension_checks": len(checker_report["field_and_c5_checks"]),
-            "field_dimensions_all_match": all(
+            "trace_kernel_dimension_checks": len(checker_report["field_and_c5_checks"]),
+            "trace_kernel_dimensions_all_match": all(
                 item["dim_ker_T_matches"] for item in checker_report["field_and_c5_checks"]
             ),
             "orbit_divisibility_checks": len(checker_report["orbit_divisibility_checks"]),
@@ -111,12 +118,18 @@ def audit() -> dict:
                 item["divisible"] for item in checker_report["orbit_divisibility_checks"]
             ),
             "tuple_status_counts": dict(sorted(tuple_statuses.items())),
-            "confirmed_tuple_order_prime_frobenius_all_true": all(
+            "curve_witness_checks": len(confirmed_tuples),
+            "curve_witness_order_probable_prime_frobenius_all_true": all(
                 item["independent_order_N_confirmed"]
                 and item["independent_N_prime"]
                 and item["independent_frobenius_eigenvalue_confirmed"]
                 for item in confirmed_tuples
             ),
+            "curve_witness_N_prime_by_trial_division_all_true": all(
+                is_prime_by_trial_division(item["N"]) for item in confirmed_tuples
+            ),
+            "tuple_sumsets_recomputed": 0,
+            "control_arms_recomputed": 0,
         },
         "historical_cell_statuses": {
             cell: item["status"] for cell, item in sorted(raw_result["cells"].items())
@@ -135,9 +148,10 @@ def audit() -> dict:
             "generator_execution_source_bound": False,
         },
         "scope_note": (
-            "This replays the archived pure-Python checker and hash pins. It does not "
-            "rerun the Sage generator, certify three skipped tuple re-enumerations, "
-            "or bind the original untracked driver to the recorded pre-run HEAD."
+            "This replays the archived pure-Python checker and hash pins. The "
+            "checker's tuple_sum_reverifications entries check curve witnesses, "
+            "not tuple sumsets or control arms. It does not rerun the Sage "
+            "generator or bind the original untracked driver to the pre-run HEAD."
         ),
     }
     assert result["artifact_summary"] == {
@@ -148,6 +162,8 @@ def audit() -> dict:
         "stored_bytes_match_manifest": True,
     }
     assert result["checker_replay"]["byte_identical"]
+    assert result["checker_replay"]["curve_witness_checks"] == 3
+    assert result["checker_replay"]["curve_witness_N_prime_by_trial_division_all_true"]
     assert result["checker_replay"]["tuple_status_counts"] == {
         "ok": 3,
         "skipped_too_large_for_pure_python_full_reenumeration_this_session": 3,

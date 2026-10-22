@@ -29,11 +29,16 @@ was run against a temporary copy of the frozen run directory. Its regenerated
 [`work/checker-report.json`](../../../experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/work/checker-report.json)
 is byte identical to the archive (SHA-256
 `89b4466afba599877aca7733cb39b17d332c97cdedb78a1f19205f4154a3df05`).
-The checker confirms all three reported field/trace-kernel dimensions and six
-orbit-divisibility checks. It fully re-enumerates three of six tuple entries,
-confirming prime `N`, `[N]G=O`, and Frobenius action for those three. It
-explicitly skips full pure-Python re-enumeration for the other three. The
-three core cells are recorded as completed; the extension cell is recorded
+The checker independently matches all three reported trace-kernel dimensions
+and checks six orbit-divisibility values. Its output calls six entries
+`tuple_sum_reverifications`, but [source review of the checker](../../../experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/checker.py)
+shows that its three `ok` entries reconstruct a curve point and check
+`[N]G=O`, a probable-prime test for `N`, and the Frobenius action. This audit
+also confirms those three `N` values prime by exact trial division. The
+checker skips the other three entries for size. It does **not** recompute
+tuple sumsets, `p_m`, or any C2/C3/C4 control arm, despite comments in its
+source suggesting a broader re-enumeration. The three core cells are recorded
+as completed; the extension cell is recorded
 as `not_run_resource` after its 540-second checkpoint.
 
 ## Provenance finding and boundary
@@ -50,7 +55,7 @@ driver. The extension-cell command file also distinguishes its illustrative
 shell line from the command it says was used in practice.
 
 The replay validates those stored checks and hashes. It does not rerun the
-Sage generator, independently enumerate the three skipped tuple entries,
+Sage generator, independently recompute the tuple sumsets or control arms,
 establish original execution-source custody, or certify a performance or
 discrete-log claim. Later FROB reviews and run directories are separate
 evidence and are not adjudicated by this audit. No frozen run bytes or
