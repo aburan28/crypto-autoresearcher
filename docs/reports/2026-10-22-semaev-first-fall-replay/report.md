@@ -92,6 +92,8 @@ receipt](evidence/lean-certificate.json) binds the source hash and
 only `propext`. A separate [literal check](../../../research/verification/check_ffd_semaev_lean_literal_20261022.py)
 confirmed that all four Lean equation lists equal the exact source-bound
 per-draw record; its [log](evidence/lean-literal-check.log) records the hashes.
+The additive [formal target](../../../formal/targets/semaev-s3-boolean-parity-finite-20261022.yaml)
+passed the repository's [target-spec validator](evidence/target-validation.log).
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
