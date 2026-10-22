@@ -52,11 +52,15 @@ proof_refs:
   - experiments/EXP-BINSTD-8bdf86/analysis-ell89r1.md
   - ledger/evidence/EV-BINSTD-0db227.yaml
   - ledger/evidence/EV-BINSTD-9ac9c5.yaml
+  - formal/CryptoResearch/Binstd/YieldCeiling.lean
+  - formal/targets/binstd-yield-ceiling.yaml
+  - research/binstd_yield_ceiling_20261022/verification.json
 proof_status_note: >-
-  The band failure is based on empirical hit counts under the frozen
-  exhaustive m=3 toy pin. The ceiling statement follows from those counts:
-  each open arm hit 40/40 targets, while a tau success rate cannot exceed 1.
-  Neither fact is a Lean proof or an ECDLP attack certificate.
+  The band failure remains based on empirical hit counts under the frozen
+  exhaustive m=3 toy pin. Lean machine-verifies only the conditional ceiling
+  arithmetic: if the open arm hit all targets and tau hits are bounded by the
+  target count, 4*tauHits < 5*openHits. The verifier does not certify the
+  archived counts or runner; independent semantic review is pending.
 added: '2026-10-22'
 superseded_by: null
 ---
@@ -98,6 +102,18 @@ This limits causal interpretation of the toy comparison: the cells record a
 failed pre-registered band, but do not by themselves show that tau geometry
 would underperform under a non-saturated open arm or another pin. The ell=9
 arms tied at 40/40; the ell=8 tau arms had fewer hits.
+
+## Lean arithmetic boundary
+
+`CryptoResearch.Binstd.YieldCeiling.saturated_open_below_band` proves the
+conditional inequality `4*tauHits < 5*openHits` for any positive target count
+when `openHits = targets` and `tauHits <= targets`. This is the exact
+cross-multiplied form of the failed 1.25 band on matched targets. A second
+theorem instantiates the four recorded hit-count pairs. The pinned Lean
+4.35.0-rc1 verification receipt reports a successful build, a project axiom
+audit of 480 theorems with standard axioms only, and a passed exact-target
+audit. Its independent semantic review remains pending. The hit counts are
+inputs to these theorems, not Lean-certified outputs of the runner.
 
 ## Limits
 
