@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Replay the frozen FROB checker without editing its run directory."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+import yaml
+
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+RUN_REL = Path("experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2")
+RUN = ROOT / RUN_REL
+SOURCE_COMMIT = "e83bb2f14414c9669360816aeee5876dfcfd4384"
+OUTPUT = HERE / "audit.json"
+
+
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", *args], cwd=ROOT, check=check, capture_output=True
+    )
+
+
+def audit() -> dict:
+    manifest_path = RUN / "manifest.yaml"
+    manifest_bytes = manifest_path.read_bytes()
+    run = yaml.safe_load(manifest_bytes)["run"]
+    assert run["id"] == "RUN-FROB-91ee9c-7119f2"
+    assert git("show", f"{SOURCE_COMMIT}:{RUN_REL}/manifest.yaml").stdout == manifest_bytes
+
+    artifacts = []
+    for name, record in sorted(run["artifacts"].items()):
+        artifact_path = (ROOT / record["path"]).resolve()
+        assert artifact_path.is_relative_to(RUN.resolve()), name
+        contents = artifact_path.read_bytes()
+        artifacts.append(
+            {
+                "name": name,
+                "path": record["path"],
+                "bytes": len(contents),
+                "sha256": digest(contents),
+                "bytes_match": len(contents) == record["bytes"],
+                "sha256_match": digest(contents) == record["sha256"],
+            }
+        )
+
+    code = run["code"]
+    recorded_head = code["head_commit"]
+    assert git("cat-file", "-t", recorded_head).stdout.strip() == b"commit"
+    driver_at_head = git(
+        "cat-file", "-e", f"{recorded_head}:{code['driver_path']}", check=False
+    ).returncode == 0
+
+    with tempfile.TemporaryDirectory(prefix="frob-checker-replay-") as scratch:
+        copied = Path(scratch) / "run"
+        shutil.copytree(RUN, copied)
+        checker = subprocess.run(
+            [sys.executable, str(copied / "checker.py"), str(copied)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        replay_bytes = (copied / "work/checker-report.json").read_bytes()
+        assert json.loads(checker.stdout) == json.loads(replay_bytes)
+
+    archived_bytes = (RUN / "work/checker-report.json").read_bytes()
+    checker_report = json.loads(replay_bytes)
+    tuples = checker_report["tuple_sum_reverifications"]
+    tuple_statuses = Counter(item["status"] for item in tuples)
+    confirmed_tuples = [item for item in tuples if item["status"] == "ok"]
+    raw_result = json.loads((RUN / "raw-result.json").read_text())
+
+    result = {
+        "schema": "frob-historical-provenance-audit/v1",
+        "source_commit": SOURCE_COMMIT,
+        "run_id": run["id"],
+        "manifest_sha256": digest(manifest_bytes),
+        "artifacts": artifacts,
+        "artifact_summary": {
+            "count": len(artifacts),
+            "stored_bytes": sum(item["bytes"] for item in artifacts),
+            "all_bytes_match": all(item["bytes_match"] for item in artifacts),
+            "all_sha256_match": all(item["sha256_match"] for item in artifacts),
+            "stored_bytes_match_manifest": sum(item["bytes"] for item in artifacts)
+            == run["artifact_stored_bytes_excluding_manifest"],
+        },
+        "checker_replay": {
+            "checker_sha256": digest((RUN / "checker.py").read_bytes()),
+            "archived_report_sha256": digest(archived_bytes),
+            "replay_report_sha256": digest(replay_bytes),
+            "byte_identical": replay_bytes == archived_bytes,
+            "field_dimension_checks": len(checker_report["field_and_c5_checks"]),
+            "field_dimensions_all_match": all(
+                item["dim_ker_T_matches"] for item in checker_report["field_and_c5_checks"]
+            ),
+            "orbit_divisibility_checks": len(checker_report["orbit_divisibility_checks"]),
+            "orbit_divisibility_all_true": all(
+                item["divisible"] for item in checker_report["orbit_divisibility_checks"]
+            ),
+            "tuple_status_counts": dict(sorted(tuple_statuses.items())),
+            "confirmed_tuple_order_prime_frobenius_all_true": all(
+                item["independent_order_N_confirmed"]
+                and item["independent_N_prime"]
+                and item["independent_frobenius_eigenvalue_confirmed"]
+                for item in confirmed_tuples
+            ),
+        },
+        "historical_cell_statuses": {
+            cell: item["status"] for cell, item in sorted(raw_result["cells"].items())
+        },
+        "execution_provenance": {
+            "recorded_head_commit": recorded_head,
+            "recorded_driver_path": code["driver_path"],
+            "driver_present_in_recorded_head": driver_at_head,
+            "run_directory_recorded_untracked_at_execution_start":
+                "untracked" in code["dirty_note"],
+            "schema_code_commit_present": bool(code.get("commit")),
+            "schema_code_command_present": bool(code.get("command")),
+            "schema_environment_present": bool(run.get("environment")),
+            "separate_command_and_environment_artifacts_present":
+                (RUN / "command.txt").is_file() and (RUN / "environment.json").is_file(),
+            "generator_execution_source_bound": False,
+        },
+        "scope_note": (
+            "This replays the archived pure-Python checker and hash pins. It does not "
+            "rerun the Sage generator, certify three skipped tuple re-enumerations, "
+            "or bind the original untracked driver to the recorded pre-run HEAD."
+        ),
+    }
+    assert result["artifact_summary"] == {
+        "count": 14,
+        "stored_bytes": 566042,
+        "all_bytes_match": True,
+        "all_sha256_match": True,
+        "stored_bytes_match_manifest": True,
+    }
+    assert result["checker_replay"]["byte_identical"]
+    assert result["checker_replay"]["tuple_status_counts"] == {
+        "ok": 3,
+        "skipped_too_large_for_pure_python_full_reenumeration_this_session": 3,
+    }
+    assert not driver_at_head
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--write", action="store_true")
+    mode.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    serialized = json.dumps(audit(), indent=2, sort_keys=True) + "\n"
+    if args.write:
+        OUTPUT.write_text(serialized)
+        print(f"wrote {OUTPUT.relative_to(ROOT)}")
+    elif OUTPUT.read_text() != serialized:
+        print("audit.json is stale", file=sys.stderr)
+        return 1
+    else:
+        print("FROB audit is byte-exact and current")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

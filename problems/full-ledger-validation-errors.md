@@ -26,6 +26,14 @@ manifest already discloses the five errors and names the classification
 problem. Supplying invented companion files to clear the errors would
 misrepresent execution.
 
+The frozen `RUN-FROB-91ee9c-7119f2` has a separate execution-source custody
+gap. Its pre-run `code.head_commit` does not contain the archived
+`implementation.py`; the run directory was untracked when execution began.
+Hash-matched artifacts and an exact checker replay establish what the archived
+checker reports, but cannot identify the implementation bytes that produced
+the original outputs. The [scoped provenance audit](../docs/reports/2026-10-22-frob-provenance-audit/REPORT.md)
+keeps that distinction explicit.
+
 ## Evidence and uncertainty
 
 - **Observed:** The [full-checkout log](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/validate-ledger.log)
@@ -35,6 +43,12 @@ misrepresent execution.
   19 run-manifest schema, 7 broken references, 5 zero-compute-stage artifacts,
   and 5 experiment-spec fields. The exact same log was obtained on the proof
   branch and on main; the proof branch changed no validator or ledger inputs.
+- **Observed, scoped FROB replay:** The [machine-readable audit](../docs/reports/2026-10-22-frob-provenance-audit/audit.json)
+  verifies all 14 frozen artifact hashes and reproduces the archived checker
+  report byte for byte. The checker verifies three field-dimension cells, six
+  orbit-divisibility cells, and three complete tuple cells; the other three
+  tuple cells are explicitly skipped for size. The source-commit and
+  environment fields remain unbound in the archived manifest.
 - **Derived or proved:** The validator's exit code and counted messages are
   reproducible facts about this source tree. No mathematical or performance
   conclusion follows from the count alone.
@@ -60,6 +74,10 @@ misrepresent execution.
 - [ ] Resolve every broken reference to a real, reviewed record or an
   explicit truthful correction; fill criteria, provenance, and review-plan
   fields only from actual source reading or assigned review work.
+- [ ] Resolve FROB execution-source custody from a contemporaneous source
+  snapshot, or run a new source-bound replay of its frozen core cells and
+  controls with a separately recorded Coordinator decision. Do not relabel
+  the pre-run HEAD as the execution-source commit.
 - [x] Settle the QSP Stage 0 zero-compute hand-derivation category with a
   source-bound, tested non-execution admission. Preserve the historical
   directory and all five absent capture artifacts; keep ordinary runs under
@@ -76,6 +94,8 @@ historical archives need their own scoped checks before an all-corpus claim.
   errors through actual source reading, and resolve the one dangling knowledge
   reference to an unfiled review task without inventing a dispatch. Continue
   source-by-source review of prior-art, review-plan, and run-schema errors.
+  For FROB, look for a contemporaneous driver snapshot before considering a
+  new prospective, source-bound replay.
 - **Inputs and controls:** Use the raw 162-line log, committed original and
   supersession registry bytes, and the full-checkout validator. Compare the
   old and corrected source hashes; reject placeholder provenance and files
@@ -153,3 +173,9 @@ historical archives need their own scoped checks before an all-corpus claim.
   and one new non-failing classification advisory. The historical
   correction's five-error statement remains a true description of the old
   validator rule. The broader ledger gate still exits 1.
+- 2026-10-22: The [FROB provenance audit](../docs/reports/2026-10-22-frob-provenance-audit/REPORT.md)
+  matched all 14 frozen artifact hashes and reproduced the archived checker
+  report byte for byte. Three tuple cells were originally skipped for size.
+  The pre-run HEAD lacks the archived driver, so execution-source custody
+  remains unresolved. This review changes no frozen bytes, ledger count,
+  numerical result, or canonical performance graph.
