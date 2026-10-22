@@ -109,6 +109,14 @@ using Mathlib's Frobenius algebra homomorphism and the quotient power basis.
 It closes the mathematical full-map representation obligation; historical
 Sage refinement, source custody and independent semantic review remain open.
 
+`frob-c5-quotient-kernel-transport.yaml` proves the actual q-power quotient
+endomorphisms satisfy the frozen C5 factor-kernel sums and trace-kernel
+dimension four, have fifth power one, and have one-dimensional fixed kernels
+disjoint from trace. Matrix rank and fifth-power certificates are transported
+through the checked power basis; the factor identities apply directly to
+the endomorphisms. The moduli are not proved irreducible in Lean, and historical
+Sage refinement, execution-source custody and independent review remain open.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
