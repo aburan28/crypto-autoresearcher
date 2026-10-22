@@ -37,6 +37,11 @@ it does not falsify the mathematical hypothesis.
   ratios, not the residue lists needed for a direct tuple-by-tuple comparison.
   C2/C3 records exist only for curve index 0. An independent checker must
   reconstruct subgroup points and slot membership from the bound parameters.
+- **Observed, partial arithmetic recheck:** The [audit receipt](../docs/reports/2026-10-22-frob-provenance-audit/audit.json)
+  independently matches `p_m`, `U_neg`, tuple-count products, and exact cost
+  ratios for extras 0, 8, and 32 in all 23 stored `ok` partition entries.
+  A changed-ratio mutation is rejected. This checks arithmetic from aggregate
+  counts, not the point-derived counts or C8's tuple and membership duties.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent

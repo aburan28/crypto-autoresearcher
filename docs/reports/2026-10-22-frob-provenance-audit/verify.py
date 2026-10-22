@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from copy import deepcopy
+from fractions import Fraction
 import hashlib
 import json
-from math import isqrt
+from math import isqrt, prod
 from pathlib import Path
 import shutil
 import subprocess
@@ -33,6 +35,39 @@ def is_prime_by_trial_division(n: int) -> bool:
     if n < 2:
         return False
     return all(n % d for d in range(2, isqrt(n) + 1))
+
+
+def rational_partition_valid(partition: dict, n_order: int) -> bool:
+    """Independently recompute stored arithmetic from aggregate counts only."""
+    if partition["status"] != "ok" or n_order < 2:
+        return False
+    distinct = partition["distinct_targets"]
+    union_size = partition["B_union_size"]
+    block_sizes = partition["block_sizes"]
+    if (
+        distinct < 0 or distinct > n_order - 1
+        or union_size < 0 or union_size > n_order - 1
+        or any(size < 0 or size % 2 for size in block_sizes)
+        or partition["p_m"] != [distinct, n_order - 1]
+        or partition["U_neg"] != [union_size, 2]
+        or partition["prod_tuple_count"] != prod(block_sizes)
+    ):
+        return False
+    for extra in (0, 8, 32):
+        recorded = partition["cost_ratio_neg"][str(extra)]
+        if distinct == 0:
+            if recorded != {"denominator_zero": True, "numerator": [union_size, 2]}:
+                return False
+        else:
+            value = (Fraction(union_size, 2) + 1 + extra) / Fraction(
+                distinct, n_order - 1
+            )
+            if recorded != {
+                "denominator_zero": False,
+                "value": [value.numerator, value.denominator],
+            }:
+                return False
+    return True
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
@@ -107,6 +142,39 @@ def audit() -> dict:
                 ),
             } for curve in cell.get("curves", [])],
         })
+    rational_arms = {arm: [] for arm in ("object", "C2", "C3", "C4")}
+    for record in raw_cells:
+        cell = record["data"]
+        for curve in cell.get("curves", []):
+            n_order = curve["N"]
+            rational_arms["object"].extend(
+                (partition, n_order) for partition in curve.get("object_arm_partitions", [])
+                if partition["status"] == "ok"
+            )
+            rational_arms["C2"].extend(
+                (partition, n_order) for partition in curve.get("C2_arm_partitions", [])
+                if partition["status"] == "ok"
+            )
+            for partitions in curve.get("C3_arm_by_seed", {}).values():
+                rational_arms["C3"].extend(
+                    (partition, n_order) for partition in partitions
+                    if partition["status"] == "ok"
+                )
+        c4 = cell.get("C4", {})
+        for partitions in c4.get("partitions_by_seed", {}).values():
+            rational_arms["C4"].extend(
+                (partition, c4["N"]) for partition in partitions
+                if partition["status"] == "ok"
+            )
+    rational_counts = {arm: len(rows) for arm, rows in rational_arms.items()}
+    rational_all_match = all(
+        rational_partition_valid(partition, n_order)
+        for rows in rational_arms.values() for partition, n_order in rows
+    )
+    sample, sample_order = rational_arms["object"][0]
+    mutant = deepcopy(sample)
+    mutant["cost_ratio_neg"]["0"]["value"][0] += 1
+    rational_mutant_rejected = not rational_partition_valid(mutant, sample_order)
 
     result = {
         "schema": "frob-historical-provenance-audit/v1",
@@ -153,6 +221,12 @@ def audit() -> dict:
             cell: item["status"] for cell, item in sorted(raw_result["cells"].items())
         },
         "raw_curve_inventory": curve_inventory,
+        "aggregate_rational_recheck": {
+            "partition_counts": rational_counts,
+            "all_stored_identities_match": rational_all_match,
+            "mutated_ratio_rejected": rational_mutant_rejected,
+            "scope": "aggregate arithmetic only; no tuple sumsets or slot membership reconstructed",
+        },
         "execution_provenance": {
             "recorded_head_commit": recorded_head,
             "recorded_driver_path": code["driver_path"],
@@ -184,6 +258,8 @@ def audit() -> dict:
     assert result["checker_replay"]["curve_witness_checks"] == 3
     assert result["checker_replay"]["curve_witness_N_prime_by_trial_division_all_true"]
     assert len(curve_inventory) == 4
+    assert rational_counts == {"object": 8, "C2": 3, "C3": 6, "C4": 6}
+    assert rational_all_match and rational_mutant_rejected
     assert [len(row["curves"]) for row in curve_inventory] == [2, 2, 2, 0]
     assert all(
         not curve["object_partition_residue_lists_stored"]

@@ -58,6 +58,13 @@ curve index 0 in each cell, as the original run report discloses. A full
 independent C8 recheck must reconstruct the underlying subgroup and slot
 membership rather than merely compare stored aggregate fields.
 
+The audit independently recomputes the stored arithmetic on all **23**
+`status: ok` partition records: eight object, three C2, six C3, and six C4.
+For each it checks `p_m`, `U_neg`, tuple-count products, and the exact reduced
+cost ratios for extras 0, 8, and 32. All match. An in-memory changed-ratio
+control is rejected. These are aggregate identities; they do not validate
+the counts from points, tuple sums, or slot membership.
+
 ## Provenance finding and boundary
 
 The manifest records `code.head_commit=cb06b8c20c2d6559041c45c4a4b29dd7f132fdf5`
