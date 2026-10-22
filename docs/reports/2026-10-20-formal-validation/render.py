@@ -29,9 +29,9 @@ def counts_chart():
     ax.set_ylim(0, 11.2)
     ax.set_yticks(range(0, 11, 2))
     ax.set_ylabel("Semaev draws (count)")
-    ax.set_title("Toy first-fall outcomes: 70 of 80 at degree 2, 10 at degree 3")
+    ax.set_title("Archived set-rule first falls: 70 at degree 2, 10 at degree 3")
     ax.legend(loc="upper center", ncol=2, frameon=False)
-    ax.text(0, -0.25, "Source: research/verification/ffd_semaev_results.json; 10 draws per cell; no per-draw intervals recorded.",
+    ax.text(0, -0.25, "Archived JSON only. Boolean F₂ parity replay: 68 at degree 2, 12 at degree 3 (2026-10-22 report).",
             transform=ax.transAxes, fontsize=8, color="#475569")
     fig.savefig(HERE / "fall_counts.svg", format="svg")
     plt.close(fig)

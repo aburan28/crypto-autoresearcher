@@ -41,14 +41,22 @@ a failing check never certifies that a degree fall is unexplained.
 | target | kind | from | expectation |
 | --- | --- | --- | --- |
 | `lastfall-is-max-degree-fall` | `formalize_claim` | THM_FALLDEG_INVARIANTS1 Thm 2.8 (= Caminata–Gorla Thm 2.8) | moderate; the first statement in this lane about the invariants themselves rather than one identity in one system |
-| `semaev-s3-degree2-fall-witness` | `formalize_claim` | FFD_SEMAEV_MEASUREMENT1 §3a | **tractable** — a two-line field identity explaining why `d_ff` is pinned at 2 uniformly in `n`, `n'` and `V` |
+| `semaev-s3-degree2-fall-witness` | `formalize_claim` | FFD_SEMAEV_MEASUREMENT1 §3a | Historical frozen target; its Lean theorem proves trace cancellation for nonzero `x_R`, not a uniform nontrivial first fall |
+| `semaev-s3-boolean-parity-finite-20261022` | `formalize_claim` | 2026-10-22 corrected replay | Exact executable Boolean-rank certificate for one `n=4,n'=4,s=1,x_R=1` draw; semantic bridge to general vector-space dimension remains open |
 
 `lastfall-is-max-degree-fall` was chosen because its proof needs **no Gröbner
 machinery** — Definition 1.5 is a closure condition on vector subspaces and the
-proof is two inclusions plus finiteness. `semaev-s3-degree2-fall-witness` is
-easier still and mentions no polynomial system at all: it is a char-2 field
-identity explaining the *measured* `d_ff = 2` pinning of
-`FFD_SEMAEV_MEASUREMENT1`.
+proof is two inclusions plus finiteness. The frozen
+`semaev-s3-degree2-fall-witness` target mentions no polynomial system at all:
+its checked theorem is a char-2 trace identity. The 2026-10-22
+[corrected replay](../../docs/reports/2026-10-22-semaev-first-fall-replay/report.md)
+found that the archived multiplier failed F₂ cancellation. The same 80 seeds
+give 68 degree-two and 12 degree-three first falls with proper parity, seven
+of the latter at nonzero `x_R`. Thus the trace identity does not certify the
+historical uniform first-fall wording. The new finite target checks one
+transcribed counterexample's executable ranks; its semantic limits are stated
+in that target and the [open problem](../../problems/semaev-degree-two-fall-nonzero-bridge.md).
+
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
 is the deeper result and is deliberately not specced: it needs reduced Gröbner
