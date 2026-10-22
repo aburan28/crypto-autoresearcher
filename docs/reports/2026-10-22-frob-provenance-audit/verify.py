@@ -255,8 +255,19 @@ def audit() -> dict:
         "stored_bytes_match_manifest": True,
     }
     assert result["checker_replay"]["byte_identical"]
+    assert result["checker_replay"]["trace_kernel_dimension_checks"] == 3
+    assert result["checker_replay"]["trace_kernel_dimensions_all_match"]
+    assert result["checker_replay"]["orbit_divisibility_checks"] == 6
+    assert result["checker_replay"]["orbit_divisibility_all_true"]
     assert result["checker_replay"]["curve_witness_checks"] == 3
+    assert result["checker_replay"]["curve_witness_order_probable_prime_frobenius_all_true"]
     assert result["checker_replay"]["curve_witness_N_prime_by_trial_division_all_true"]
+    assert result["historical_cell_statuses"] == {
+        "FROB-SPLIT-q11n5": "completed",
+        "FROB-NOLATTICE-q13n5": "completed",
+        "FROB-EQDEG-q19n5": "completed",
+        "FROB-EXT-q13n7": "not_run_resource",
+    }
     assert len(curve_inventory) == 4
     assert rational_counts == {"object": 8, "C2": 3, "C3": 6, "C4": 6}
     assert rational_all_match and rational_mutant_rejected
