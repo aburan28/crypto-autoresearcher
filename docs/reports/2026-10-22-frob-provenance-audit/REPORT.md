@@ -50,6 +50,14 @@ instrument-validation gap, not a falsification of the mathematical hypothesis.
 The [specific obstruction](../../../problems/frob-c8-independent-recheck-incomplete.md)
 records the exit conditions.
 
+The [raw-curve inventory](audit.json) records two eligible curves per core
+cell, with subgroup orders `1051/10061`, `30841/3701`, and
+`206461/117991` in cell order. Object-arm records retain aggregate partition
+counts and ratios, not per-residue lists. C2 and C3 records exist only for
+curve index 0 in each cell, as the original run report discloses. A full
+independent C8 recheck must reconstruct the underlying subgroup and slot
+membership rather than merely compare stored aggregate fields.
+
 ## Provenance finding and boundary
 
 The manifest records `code.head_commit=cb06b8c20c2d6559041c45c4a4b29dd7f132fdf5`

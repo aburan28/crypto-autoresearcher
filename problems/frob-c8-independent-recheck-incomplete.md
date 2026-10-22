@@ -31,6 +31,12 @@ it does not falsify the mathematical hypothesis.
   The [audit receipt](../docs/reports/2026-10-22-frob-provenance-audit/audit.json)
   reproduces the checker output byte for byte and verifies the three checked
   `N` values prime by exact trial division.
+- **Observed, input inventory:** The [raw-curve inventory](../docs/reports/2026-10-22-frob-provenance-audit/audit.json)
+  records two curves in each core cell (`N=1051/10061`, `30841/3701`,
+  `206461/117991`). Object-arm partition entries store aggregate counts and
+  ratios, not the residue lists needed for a direct tuple-by-tuple comparison.
+  C2/C3 records exist only for curve index 0. An independent checker must
+  reconstruct subgroup points and slot membership from the bound parameters.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -68,9 +74,9 @@ own evidence.
 ## Next discriminating step
 
 - **Action or proof obligation:** Inventory the exact per-tuple and per-arm
-  data needed by C8 against the frozen raw files, then implement the smallest
-  independent checker that covers one complete core cell before scaling to
-  all three.
+  data needed by C8 against the frozen raw files (the initial inventory is
+  above), then implement the smallest independent checker that covers one
+  complete core cell before scaling to all three.
 - **Inputs and controls:** Use the frozen specification and hash-pinned run
   artifacts. Include deliberately altered point, slot, `N`, Frobenius
   eigenvalue, and rational fields as negative controls, plus the existing

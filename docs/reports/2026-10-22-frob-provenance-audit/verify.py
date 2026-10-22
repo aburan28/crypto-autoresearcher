@@ -89,6 +89,24 @@ def audit() -> dict:
     tuple_statuses = Counter(item["status"] for item in tuples)
     confirmed_tuples = [item for item in tuples if item["status"] == "ok"]
     raw_result = json.loads((RUN / "raw-result.json").read_text())
+    raw_cells = [json.loads(line) for line in (RUN / "raw.jsonl").read_text().splitlines()]
+    curve_inventory = []
+    for record in raw_cells:
+        cell = record["data"]
+        curve_inventory.append({
+            "cell": record["cell"],
+            "status": cell.get("cell_status"),
+            "curves": [{
+                "N": curve["N"],
+                "object_partition_count": len(curve.get("object_arm_partitions", [])),
+                "C2_partition_count": len(curve.get("C2_arm_partitions", [])),
+                "C3_seed_count": len(curve.get("C3_arm_by_seed", {})),
+                "object_partition_residue_lists_stored": any(
+                    "_ks" in partition
+                    for partition in curve.get("object_arm_partitions", [])
+                ),
+            } for curve in cell.get("curves", [])],
+        })
 
     result = {
         "schema": "frob-historical-provenance-audit/v1",
@@ -134,6 +152,7 @@ def audit() -> dict:
         "historical_cell_statuses": {
             cell: item["status"] for cell, item in sorted(raw_result["cells"].items())
         },
+        "raw_curve_inventory": curve_inventory,
         "execution_provenance": {
             "recorded_head_commit": recorded_head,
             "recorded_driver_path": code["driver_path"],
@@ -164,6 +183,12 @@ def audit() -> dict:
     assert result["checker_replay"]["byte_identical"]
     assert result["checker_replay"]["curve_witness_checks"] == 3
     assert result["checker_replay"]["curve_witness_N_prime_by_trial_division_all_true"]
+    assert len(curve_inventory) == 4
+    assert [len(row["curves"]) for row in curve_inventory] == [2, 2, 2, 0]
+    assert all(
+        not curve["object_partition_residue_lists_stored"]
+        for row in curve_inventory for curve in row["curves"]
+    )
     assert result["checker_replay"]["tuple_status_counts"] == {
         "ok": 3,
         "skipped_too_large_for_pure_python_full_reenumeration_this_session": 3,
