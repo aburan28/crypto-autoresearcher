@@ -95,3 +95,10 @@ structured fields as verified.
   source-bound parser inventory. The merged-commit full build, 24-detail
   readback, and 146 reader tests passed. Their replacement schema route and
   semantic review remain open.
+- 2026-10-22: A pinned reader rebuild on `11c9ae1b880ce4c57ae7a6efe1ca7e90203161c8`
+  also displays three hash-bound schema copies for originals that parse but
+  fail the ledger schema. The [generated-page check](../docs/reports/2026-10-22-ledger-triage/evidence/schema-copy-readback.json)
+  confirms those originals and copies are separate. The 24 malformed-original
+  readback still passes (nine registered, 15 raw-only); 157 Python reader
+  tests and 19 JavaScript client tests pass. This does not review the copies'
+  scientific meaning or refresh the public site.

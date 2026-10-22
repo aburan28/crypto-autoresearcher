@@ -76,9 +76,13 @@ this check does not certify its UNSAT conclusions.
 
 These corrections introduce no new timing or benchmark value. The nine
 archived primary benchmark rows have no numeric change to render; their
-pinned source and UI snapshot hashes remain unchanged. A fresh
-[local build](evidence/site-build-report.json) on merged head `89e2d4808caca4e7b9d6cc9d4ffba9a76d057f8a`
-emitted **55,248 files, 520.9 MB, and 27,550 records**. Its
+pinned source and UI snapshot hashes remain unchanged. The generated
+[`comparisons.json` payload](evidence/comparison-payload-identity.json) is
+byte-identical to the earlier merged-head build (SHA-256
+`c03a242b79197f0603bbf6657766a90e030f6d419c907c3e5ac68e07021d043b`). A full
+[local build](evidence/site-build-report.json) from code commit
+`11c9ae1b880ce4c57ae7a6efe1ca7e90203161c8` emitted **55,248 files,
+522.0 MB, and 27,550 records**. Its
 [payload check](evidence/site-payload-check.json) found nine benchmark rows,
 no comparison error, and 24 parse warnings. The
 [24-record detail check](evidence/supersession-readback.json) found nine
@@ -94,7 +98,7 @@ prose claims. This report does not replay the separate run graphs newly
 merged on main.
 
 The [read-only public check](evidence/live-pages-status.json) at
-2026-10-22T10:05:44Z found `.github/workflows/pages.yml` still
+2026-10-22T10:35:27Z found `.github/workflows/pages.yml` still
 `disabled_manually`. The live site still identifies October 11 commit
 `bb9e9f01f3f9fcdf6e456acd7e01cd9af6c05bc3`; no hosted deployment is
 claimed here. The [ledger problem](../../../problems/full-ledger-validation-errors.md),

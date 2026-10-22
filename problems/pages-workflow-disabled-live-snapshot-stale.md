@@ -23,7 +23,11 @@ unknown. A second October 22 build on the current merged audit head
 27,550 records, and nine benchmark rows without a comparison error. At
 10:05:44 UTC the workflow was still manually disabled and the live metadata
 still named the October 11 commit. A local build does not update the public
-dashboard.
+dashboard. A pinned build on audit code commit
+`11c9ae1b880ce4c57ae7a6efe1ca7e90203161c8` emitted 55,248 files,
+522.0 MB, and the same nine benchmark rows; it also exposes three
+hash-bound schema copies beside parseable originals. The public recheck at
+10:35:27 UTC still found `disabled_manually` and the October 11 live commit.
 
 ## Evidence and uncertainty
 
@@ -97,3 +101,8 @@ complete Lean semantic reviews, or replay historical performance.
   and checked its nine-row payload and 24 parse warnings. The read-only public
   recheck at 10:05:44 UTC again found `disabled_manually` and the October 11
   live commit. No workflow setting or hosted content changed.
+- 2026-10-22: Rebuilt on pinned audit code commit `11c9ae1b880ce4c57ae7a6efe1ca7e90203161c8`.
+  The local reader now shows three parseable schema copies separately while
+  preserving the nine benchmark rows and 24 historical parse warnings. The
+  [10:35:27 UTC public recheck](../docs/reports/2026-10-22-ledger-triage/evidence/live-pages-status.json)
+  still found the workflow manually disabled and the live October 11 commit.
