@@ -45,7 +45,8 @@ it does not falsify the mathematical hypothesis.
 - **Observed, q11n5 object replay:** The [bounded independent receipt](../docs/reports/2026-10-22-frob-provenance-audit/split-object-replay.json)
   reclassifies all 11,110 nonidentity subgroup points on both eligible
   `FROB-SPLIT-q11n5` curves, matches every object-arm partition, and checks
-  1,030 signed tuple combinations by point addition. It rejects changed
+  1,030 tuple identities, of which 100 are nontrivial two-slot point sums
+  and 930 are singleton checks. It rejects changed
   target counts, slot sizes, and generator coordinates. The verifier reuses
   the frozen checker's field/curve primitives, not the Sage driver. No
   C2/C3/C4 arm or q13/q19 object arm is covered by this receipt.
@@ -116,6 +117,6 @@ budget, and archival rules still govern the follow-up.
   run, metrics, cost model and numerical graphs remain unchanged. Unresolved.
 - 2026-10-22: A prospective, source-pinned q11n5 object-arm replay matched
   both eligible curves, 11,110 subgroup point classifications, all 30 object
-  partition statuses, and 1,030 signed tuple combinations. Three mutation
+  partition statuses, and 1,030 tuple identities (100 two-slot sums). Three mutation
   controls were rejected. This closes only that object-arm slice; C8 and the
   experiment success gate remain open.

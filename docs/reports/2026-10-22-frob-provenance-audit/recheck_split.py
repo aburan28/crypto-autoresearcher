@@ -155,6 +155,7 @@ def replay_curve(curve: dict, field, checker, cinv: list[list[int]]) -> dict:
 
     outcome_counts = {"ok": 0, "empty_base": 0}
     tuple_checks = 0
+    multi_slot_sum_checks = 0
     for partition in curve["object_arm_partitions"]:
         block_masks = [sum(1 << i for i in block) for block in partition["partition_blocks"]]
         bases = [[k for mask, values in by_mask.items() if mask & ~block_mask == 0
@@ -178,6 +179,8 @@ def replay_curve(curve: dict, field, checker, cinv: list[list[int]]) -> dict:
             if target:
                 targets.add(target)
             tuple_checks += 1
+            if len(tup) > 1:
+                multi_slot_sum_checks += 1
         assert partition["prod_tuple_count"] == prod(len(base) for base in bases)
         assert partition["B_union_size"] == len(union)
         assert partition["distinct_targets"] == len(targets)
@@ -193,7 +196,8 @@ def replay_curve(curve: dict, field, checker, cinv: list[list[int]]) -> dict:
         "A": A,
         "B": B,
         "object_partition_status_counts": outcome_counts,
-        "signed_point_tuple_checks": tuple_checks,
+        "tuple_identity_checks": tuple_checks,
+        "multi_slot_point_sum_checks": multi_slot_sum_checks,
         "classified_subgroup_points": n_order - 1,
     }
 
@@ -215,6 +219,10 @@ def main() -> int:
     field = checker.FQN(Q, DEGREE, g)
     cinv = coordinate_matrix(field)
     curves = [replay_curve(curve, field, checker, cinv) for curve in raw["curves"]]
+    assert [curve["N"] for curve in curves] == [1051, 10061]
+    assert sum(curve["classified_subgroup_points"] for curve in curves) == 11110
+    assert sum(curve["tuple_identity_checks"] for curve in curves) == 1030
+    assert sum(curve["multi_slot_point_sum_checks"] for curve in curves) == 100
     mutants = {}
     for name, mutate in (
         ("wrong_distinct_target_count", lambda c: first_ok(c).__setitem__(

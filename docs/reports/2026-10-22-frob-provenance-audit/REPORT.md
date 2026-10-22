@@ -71,7 +71,8 @@ eigenspace coordinates and both eligible order-`N` subgroups without importing
 the Sage driver or its enumeration code. It reclassifies **11,110** nonidentity
 subgroup points, reproduces every object-arm partition status, base size,
 distinct target count, `p_m`, `U_neg`, and cost ratio, and checks **1,030**
-accepted tuple combinations by actual point addition. Exact primality,
+tuple identities. Of these, **100** are nontrivial two-slot point sums; the
+other 930 are singleton membership and lookup checks. Exact primality,
 `[N]G=O`, and Frobenius action are checked for both stored generators. Three
 in-memory mutations (target count, slot size, generator x-coordinate) are
 rejected. The replay uses the archived checker's independent finite-field and
