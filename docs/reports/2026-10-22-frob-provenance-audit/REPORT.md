@@ -82,6 +82,18 @@ Its deterministic receipt is regenerated with `python3 recheck_split.py --write`
 and compared byte for byte with `python3 recheck_split.py --check` from this
 report directory.
 
+The generalized [core object-arm replay](core-object-replay.json), generated
+by [`recheck_core.py`](recheck_core.py), independently constructs the kernels
+of the frozen Frobenius factors for all three core fields. Across all six
+eligible curves it classifies **370,100** nonidentity subgroup points and
+matches all **36** object partition records (eight populated and 28 empty).
+It checks **20,960** tuple identities, including **400** nontrivial multi-slot
+point sums; the others are singleton checks. Every recorded object-arm count
+and exact ratio matches. The q11n5 mutations above test the related
+single-cell implementation; the generalized q13/q19 paths have no separate
+mutation battery yet. Run `python3 recheck_core.py --write` or `--check` from
+this directory to regenerate or compare the deterministic receipt.
+
 ## Provenance finding and boundary
 
 The manifest records `code.head_commit=cb06b8c20c2d6559041c45c4a4b29dd7f132fdf5`
@@ -96,8 +108,8 @@ driver. The extension-cell command file also distinguishes its illustrative
 shell line from the command it says was used in practice.
 
 The archived checker replay validates its stored checks and hashes. The new
-q11n5 replay covers only its object arm: C2/C3/C4 controls and the other two
-core cells still lack the specified independent C8 recheck. Neither replay
+object-arm replays cover all three core cells; C2/C3/C4 controls still lack
+the specified independent C8 recheck. None of these replays
 reruns the Sage generator, establishes original execution-source custody,
 or certifies a performance or discrete-log claim. Later FROB reviews and run directories are separate
 evidence and are not adjudicated by this audit. No frozen run bytes or
@@ -106,9 +118,9 @@ historical result were changed.
 ## Next check
 
 Resolve the source gap with a contemporaneous, hash-bound execution snapshot
-and exact command/environment capture, if one exists. Otherwise perform a
-fresh, independently bound replay under the frozen specification and compare
-the core cells and controls, including the complete C8 obligations. A
+and exact command/environment capture, if one exists. Complete the
+independent C2/C3/C4 control replay under the frozen specification, then
+review all C8 obligations and the original execution custody. A
 Coordinator must decide how the original record remains classified; adding `code.commit=cb06b8c...` alone would claim
 source custody that the commit does not provide. The existing
 [ledger-integrity problem](../../../problems/full-ledger-validation-errors.md)

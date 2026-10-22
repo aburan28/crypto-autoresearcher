@@ -14,6 +14,8 @@ Frobenius order, or rational identity required by the specification. Thus the
 frozen success criterion for the three core cells
 `FROB-SPLIT-q11n5`, `FROB-NOLATTICE-q13n5`, and `FROB-EQDEG-q19n5` is not
 established, even though the original cells are recorded as completed.
+Subsequent independent replays now cover all three core object arms, while
+C2/C3/C4 control arms and complete C8 review remain open.
 
 The claimed scope is a toy combinatorial design axis under a frozen cost
 model, with C1–C8 controls; it is not an ECDLP solve or performance claim.
@@ -50,6 +52,13 @@ it does not falsify the mathematical hypothesis.
   target counts, slot sizes, and generator coordinates. The verifier reuses
   the frozen checker's field/curve primitives, not the Sage driver. No
   C2/C3/C4 arm or q13/q19 object arm is covered by this receipt.
+- **Observed, all-core object replay:** The [generalized receipt](../docs/reports/2026-10-22-frob-provenance-audit/core-object-replay.json)
+  constructs the frozen Frobenius-factor kernels for q11n5, q13n5 and q19n5,
+  reclassifies all 370,100 nonidentity points on six eligible curves, and
+  matches all 36 object partition records. It checks 20,960 tuple identities,
+  including 400 nontrivial multi-slot sums. It imports only the archived
+  checker's field/curve primitives and the local q11 helper, not the Sage
+  driver. It has no separate q13/q19 mutation battery or C2/C3/C4 replay.
 - **Derived or proved:** Reading the checker's executable path against the
   [C8 design](../experiments/EXP-FROB-91ee9c/specification.yaml) shows that
   the archived checker covers a strict subset of the required independent
@@ -60,9 +69,8 @@ it does not falsify the mathematical hypothesis.
   archived run is unknown; the present finding rests on the code path, not
   an inferred intent.
 - **Missing capability:** Extend the source-bound independent replay to
-  C2/C3/C4 controls on q11n5 and to every required C8 item on the q13n5 and
-  q19n5 core cells, including the larger subgroups and every reported
-  rational identity.
+  C2/C3/C4 controls on all three core cells, complete mutation controls and
+  independent Validator review, and settle the separate source-custody gap.
 - **What this evidence does not establish:** It does not show that the
   recorded sumsets or ratios are wrong, that C8 would fail on a complete
   implementation, or that the mathematical hypothesis is false. The
@@ -87,10 +95,9 @@ own evidence.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Extend the q11n5 object-arm checker to its
-  C2/C3/C4 controls with independently reconstructed slot memberships,
-  matched random subsets, null curve, and exact ratios; then scale the
-  reviewed checker to q13n5 and q19n5.
+- **Action or proof obligation:** Extend the all-core object-arm checker to
+  C2/C3/C4 controls, starting with q11n5, using independently reconstructed
+  slot memberships, matched random subsets, null curves and exact ratios.
 - **Inputs and controls:** Use the frozen specification and hash-pinned run
   artifacts. Include deliberately altered point, slot, `N`, Frobenius
   eigenvalue, and rational fields as negative controls, plus the existing
@@ -120,3 +127,8 @@ budget, and archival rules still govern the follow-up.
   partition statuses, and 1,030 tuple identities (100 two-slot sums). Three mutation
   controls were rejected. This closes only that object-arm slice; C8 and the
   experiment success gate remain open.
+- 2026-10-22: A generalized object-arm replay matched all three core cells:
+  six eligible curves, 370,100 point classifications, 36 partition records,
+  and 20,960 tuple identities (400 multi-slot sums). The C2/C3/C4 control
+  arms and independent review remain open, so C8 and the success gate remain
+  unestablished.
