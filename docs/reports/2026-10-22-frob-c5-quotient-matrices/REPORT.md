@@ -72,7 +72,9 @@ through the historical Sage driver implements that operation, recover original
 source custody, or identify every run input byte with this model. A separate
 [exact matrix-kernel certificate](../2026-10-22-frob-c5-quotient-matrix-kernels/REPORT.md)
 proves the factor-kernel sums and trace dimensions of these recorded matrices;
-the full-map q-power linearity/representation and Sage refinement remain open.
+a [full-map certificate](../2026-10-22-frob-c5-full-map/REPORT.md) identifies
+the q-power endomorphism's matrix in each quotient power basis. Explicit
+kernel transport and Sage refinement remain open.
 The [canonical finite-field factor-kernel proof](../2026-10-22-frob-c5-factor-kernels/REPORT.md)
 and characteristic-five boundary control have separate scopes. The
 [open bridge problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
