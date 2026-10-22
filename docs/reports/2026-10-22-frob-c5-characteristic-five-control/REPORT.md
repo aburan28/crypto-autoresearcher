@@ -53,6 +53,7 @@ The editable [DOT](proof.dot), [SVG](proof.svg), [PNG](proof.png),
 [figure PDF](proof-figure.pdf), and [report PDF](report.pdf) render the new
 boundary. The C5 factor-proof diagram is checked separately in merged PR #2475.
 No run value, performance graph, or dashboard row changed because this task
-made no measurement. The next proof obligation is a checked link from each
-archived quotient modulus and Frobenius matrix to the Lean field model, with
-source custody and independent semantic/code review.
+made no measurement. Separate Lean certificates now check the archived
+quotient-basis matrix entries and exact matrix factor kernels. The next proof
+obligation is a full-map q-power representation lemma and historical Sage
+refinement, with source custody and independent semantic/code review.
