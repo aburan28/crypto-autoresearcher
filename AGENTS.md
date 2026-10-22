@@ -129,6 +129,20 @@ rendering in the same change; if none changes, record what was checked and
 why. Label conjectural edges and extrapolations; cite immutable evidence for
 verified ones.
 
+## Experiment protocol, export and review
+
+Owner, 2026-10-22. Every experiment, benchmark, sweep or training run in this
+repository and its siblings is designed from a frozen `experiment.protocol/v1`
+record (`docs/experiment-protocol.md`; skill `experiment-protocol`), leaves
+its data as one `experiment.export/v1` bundle beside the raw records, and may
+be reviewed by any other runner through a write-once `experiment.review/v1`
+record (skill `review-run`). `tools/experiment_protocol.py` checks all three.
+A protocol names its controls (A/A, positive, negative) or excuses each, its
+variable ledger, randomization and blinding, power, counted metrics with
+their resolution, the isolation a clock needs, and the checkpoint policy
+under which a restored row keeps its counts and loses its clock. A review is
+an input to `review-evidence`, never the decision.
+
 ## Standing user authorization
 
 "All is approved. Ideas/experiments should be always approved" (user,

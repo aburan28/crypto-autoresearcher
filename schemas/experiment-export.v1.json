@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experiment.export/v1",
+  "title": "Experiment export v1",
+  "description": "The unified, runner-independent export of one experiment's data: every run as a row, every file by hash, the flow of planned/attempted/completed/excluded runs, and nothing interpreted. Produced beside the raw records by whichever backend ran the protocol (taskq, isolab, ecbench, runbook, spotlab, csd.lab, a terminal). Judgments live in experiment.review/v1 records, never here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "export_id", "created", "protocol", "producer", "source", "backend", "host", "arms", "runs", "flow", "files", "analysis", "notes", "reviews_dir"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$"},
+    "file": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "kind": {"enum": ["raw", "log", "summary", "host", "checkpoint_manifest", "analysis", "protocol", "report", "receipt", "other"]}
+      }
+    },
+    "number_or_string": {"type": ["number", "string"], "description": "Integers beyond 2^53 are written as decimal strings."}
+  },
+  "properties": {
+    "schema": {"const": "experiment.export/v1"},
+    "export_id": {"$ref": "#/$defs/id"},
+    "created": {"type": "string", "minLength": 10},
+    "protocol": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "protocol_id", "version"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256", "description": "The frozen protocol's freeze.protocol_sha256."},
+        "protocol_id": {"$ref": "#/$defs/id"},
+        "version": {"type": "integer", "minimum": 1}
+      }
+    },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime", "model", "session", "role"],
+      "properties": {
+        "runtime": {"type": ["string", "null"], "description": "claude_code | codex_cli | opencode | api_direct | human | ci | taskq-worker | ..."},
+        "model": {"type": ["string", "null"]},
+        "session": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"]}
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repo", "commit", "dirty"],
+      "properties": {
+        "repo": {"type": "string", "minLength": 1},
+        "commit": {"oneOf": [{"$ref": "#/$defs/commit"}, {"type": "null"}]},
+        "dirty": {"type": ["boolean", "null"]}
+      }
+    },
+    "backend": {"enum": ["local", "taskq", "isolab", "isolab-k8s", "spotlab", "spot-system", "ephemeral", "modal", "runpod", "cairn", "slurm", "manual", "ecbench", "runbook", "csd-lab", "mixed"]},
+    "host": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "class_id", "summary"],
+      "properties": {
+        "path": {"type": ["string", "null"], "description": "The host manifest file (host.json, host.txt, environment.json)."},
+        "sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "class_id": {"type": ["string", "null"], "description": "ecbench env_class_id or an equivalent stable host-class identifier."},
+        "summary": {
+          "type": "object", "additionalProperties": false,
+          "required": ["cpu_model", "logical_cpus", "memory_bytes", "kernel", "hypervisor", "isolation_tier_max"],
+          "properties": {
+            "cpu_model": {"type": ["string", "null"]},
+            "logical_cpus": {"type": ["integer", "null"]},
+            "memory_bytes": {"type": ["integer", "null"]},
+            "kernel": {"type": ["string", "null"]},
+            "hypervisor": {"type": ["string", "null"]},
+            "isolation_tier_max": {"type": ["string", "null"], "description": "The best isolation level any row earned."},
+            "gpu": {"type": ["string", "null"]},
+            "instance_type": {"type": ["string", "null"]},
+            "spot": {"type": ["boolean", "null"]}
+          }
+        }
+      }
+    },
+    "arms": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "role", "binary_sha256", "commit"],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "role": {"enum": ["reference", "baseline", "candidate", "control_aa", "control_positive", "control_negative"]},
+          "binary_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+          "commit": {"oneOf": [{"$ref": "#/$defs/commit"}, {"type": "null"}]},
+          "image_digest": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["run_id", "arm", "instance_id", "seed", "replicate", "warmup", "status", "outcome_class", "attempts", "resumed", "checkpoint", "measurements", "isolation", "verification", "exclusion", "artifacts", "started_at", "finished_at", "worker"],
+        "properties": {
+          "run_id": {"type": "string", "minLength": 1},
+          "arm": {"$ref": "#/$defs/id"},
+          "instance_id": {"type": "string", "minLength": 1},
+          "seed": {"oneOf": [{"type": "integer"}, {"type": "string"}, {"type": "null"}]},
+          "replicate": {"type": "integer", "minimum": 0},
+          "warmup": {"type": "boolean"},
+          "status": {"enum": ["succeeded", "failed", "timeout", "cancelled", "infra_error", "interrupted"]},
+          "outcome_class": {"enum": ["completed", "not_completed"]},
+          "attempts": {"type": "integer", "minimum": 1},
+          "resumed": {"type": "integer", "minimum": 0, "description": "How many times this row's process was restored from a checkpoint before it finished."},
+          "checkpoint": {
+            "oneOf": [
+              {"type": "null"},
+              {"type": "object", "additionalProperties": false,
+               "required": ["policy", "generations_written", "restored_from_generation"],
+               "properties": {
+                 "policy": {"enum": ["none", "application", "criu"]},
+                 "generations_written": {"type": "integer", "minimum": 0},
+                 "restored_from_generation": {"type": ["integer", "null"], "minimum": 0},
+                 "manifest_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+               }}
+            ]
+          },
+          "measurements": {
+            "type": "object", "additionalProperties": false,
+            "required": ["counted", "wall_seconds", "wall_valid", "cpu_user_seconds", "cpu_sys_seconds", "max_rss_bytes", "counters"],
+            "properties": {
+              "counted": {"type": "object", "additionalProperties": {"$ref": "#/$defs/number_or_string"}, "description": "The counted metrics by metric id, in the protocol's unit."},
+              "wall_seconds": {"type": ["number", "null"]},
+              "wall_valid": {"type": "boolean", "description": "False when the row was interrupted, resumed, contended, or earned less than the protocol's isolation_required."},
+              "cpu_user_seconds": {"type": ["number", "null"]},
+              "cpu_sys_seconds": {"type": ["number", "null"]},
+              "max_rss_bytes": {"type": ["integer", "null"]},
+              "counters": {"type": "object", "additionalProperties": {"$ref": "#/$defs/number_or_string"}, "description": "Every native counter the instrument emitted, uncharged ones included, by name."},
+              "perf": {"type": ["object", "null"], "additionalProperties": {"type": ["number", "string", "null"]}}
+            }
+          },
+          "isolation": {
+            "type": "object", "additionalProperties": false,
+            "required": ["tier", "contended", "blockers"],
+            "properties": {
+              "tier": {"type": ["string", "null"]},
+              "contended": {"type": ["boolean", "null"]},
+              "blockers": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "verification": {
+            "type": "object", "additionalProperties": false,
+            "required": ["status", "verifier"],
+            "properties": {
+              "status": {"enum": ["verified", "refuted", "no_claim", "error", "not_run"]},
+              "verifier": {"type": ["string", "null"]}
+            }
+          },
+          "exclusion": {
+            "type": "object", "additionalProperties": false,
+            "required": ["excluded", "rule"],
+            "properties": {
+              "excluded": {"type": "boolean"},
+              "rule": {"type": ["string", "null"], "description": "The protocol invalidation or stopping rule that excludes the row from the decisive analysis. Required when excluded."}
+            }
+          },
+          "artifacts": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+          "started_at": {"type": ["string", "null"]},
+          "finished_at": {"type": ["string", "null"]},
+          "worker": {"type": ["string", "null"]},
+          "backend_ref": {"type": ["string", "null"], "description": "The backend's own id for this row (taskq task id, ecbench record_id, runbook unit, spotlab job)."}
+        }
+      }
+    },
+    "flow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["planned", "attempted", "completed", "not_completed", "interrupted", "resumed", "excluded"],
+      "properties": {
+        "planned": {"type": "integer", "minimum": 0},
+        "attempted": {"type": "integer", "minimum": 0},
+        "completed": {"type": "integer", "minimum": 0},
+        "not_completed": {"type": "integer", "minimum": 0},
+        "interrupted": {"type": "integer", "minimum": 0},
+        "resumed": {"type": "integer", "minimum": 0},
+        "excluded": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["rule", "run_ids"],
+                     "properties": {"rule": {"type": "string", "minLength": 1}, "run_ids": {"type": "array", "items": {"type": "string"}}}}}
+      }
+    },
+    "files": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+    "analysis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["script", "blinded", "blinding_key_sha256", "outputs", "unmasked_at"],
+      "properties": {
+        "script": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/file"}]},
+        "blinded": {"type": "boolean"},
+        "blinding_key_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+        "unmasked_at": {"type": ["string", "null"]}
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["kind", "text", "by"],
+                "properties": {"kind": {"const": "observation"}, "text": {"type": "string", "minLength": 1}, "by": {"type": "string", "minLength": 1}}},
+      "description": "Observations only: what was seen, never what it means."
+    },
+    "reviews_dir": {"type": "string", "minLength": 1, "description": "Where experiment.review/v1 records about this export are filed, relative to the export."},
+    "backend_record": {"type": "object", "description": "The backend's own result document or a pointer to it, verbatim."}
+  }
+}
