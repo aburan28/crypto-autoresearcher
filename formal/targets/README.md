@@ -41,14 +41,14 @@ a failing check never certifies that a degree fall is unexplained.
 | target | kind | from | expectation |
 | --- | --- | --- | --- |
 | `lastfall-is-max-degree-fall` | `formalize_claim` | THM_FALLDEG_INVARIANTS1 Thm 2.8 (= Caminata–Gorla Thm 2.8) | moderate; the first statement in this lane about the invariants themselves rather than one identity in one system |
-| `semaev-s3-degree2-fall-witness` | `formalize_claim` | FFD_SEMAEV_MEASUREMENT1 §3a | **tractable, and the one that proves a measured behaviour** — a two-line field identity explaining why `d_ff` is pinned at 2 uniformly in `n`, `n'` and `V` |
+| `semaev-s3-degree2-fall-witness` | `formalize_claim` | FFD_SEMAEV_MEASUREMENT1 §3a | **tractable** — a two-line field identity explaining why `d_ff` is pinned at 2 uniformly in `n`, `n'` and `V` |
 
 `lastfall-is-max-degree-fall` was chosen because its proof needs **no Gröbner
 machinery** — Definition 1.5 is a closure condition on vector subspaces and the
 proof is two inclusions plus finiteness. `semaev-s3-degree2-fall-witness` is
 easier still and mentions no polynomial system at all: it is a char-2 field
-identity, and it is the only target in this repository that explains a
-*measured* behaviour (the `d_ff = 2` pinning of `FFD_SEMAEV_MEASUREMENT1`).
+identity explaining the *measured* `d_ff = 2` pinning of
+`FFD_SEMAEV_MEASUREMENT1`.
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
 is the deeper result and is deliberately not specced: it needs reduced Gröbner
@@ -56,6 +56,15 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
+
+## BINSTD toy yield ceiling
+
+`binstd-yield-ceiling.yaml` targets the conditional arithmetic in
+`KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
+arm cannot exceed the target count, its tau/open ratio is strictly below the
+frozen 1.25 band. The proof also instantiates the four archived hit-count
+pairs. It does not prove the counts, runner correctness, or any large-field
+transfer; those remain empirical and require separate review.
 
 All three NCP targets come from one note that was read end to end. Do not add targets by
 skimming a note for a quotable sentence — the surrounding definitions are the
