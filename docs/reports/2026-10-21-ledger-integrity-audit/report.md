@@ -121,9 +121,10 @@ canonical source texts. The [current classification](evidence/supersession-unpar
 still has nine hash-verified replacements and 15 without a registered
 replacement. The [generated comparison check](evidence/supersession-site-payload-check.json)
 found all nine primary benchmark rows with no payload error. The generated
-`app.js` exactly matches the reader source. This host has no Node or browser
-runtime to exercise the tab interactively. No measured result or numerical
-graph changed.
+`app.js` exactly matches the reader source. A
+[Node syntax check](evidence/supersession-node-check.log) passed with Node
+v22.23.3. Browser interaction remains untested because this host has no browser
+runtime. No measured result or numerical graph changed.
 
 The [source-bound parser inventory](evidence/unregistered-parse-errors.json)
 records the 15 original hashes, byte counts, parser locations, and lack of
