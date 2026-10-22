@@ -78,9 +78,11 @@ matrix from quotient arithmetic, checks `F^5=I`, multiplies all factors to
 `X^5−1`, computes every factor kernel, checks directness by rank, checks that the
 factor basis is killed by the trace matrix, and uses the trace matrix rank to
 establish equality. It also checks the fixed line lies outside the trace
-kernel, compares every archived C5 flag, and rejects a changed matrix entry.
+kernel, compares every archived C5 flag, and re-runs the same order,
+factor-kernel, trace, and fixed-line checks after changing one matrix entry.
+The mutation fails the factor-kernel dimension check in all three cells.
 The byte-exact [matrix receipt](c5-matrix-replay.json) has SHA-256
-`0858ffe9dac864c8eb47d186fd72cc9d8f43399c989d2d9016e18e19aa7e7517`.
+`22bcbdbdc6dd8c020456549cb1aa2edf887422cb10912105d9fa0508a6ee1005`.
 This executable replay strengthens the archived C5 check; it is not a Lean
 refinement of the quotient implementation or a substitute for independent
 semantic code review. Those obligations remain open.

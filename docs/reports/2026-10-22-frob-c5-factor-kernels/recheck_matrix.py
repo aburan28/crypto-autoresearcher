@@ -202,6 +202,38 @@ def read_archived(cell: str) -> tuple[dict, str]:
     return json.loads(payload), digest(path)
 
 
+def matrix_checks(frob: list[list[int]], q: int, factors: list[list[int]],
+                  expected_dimensions: list[int]) -> tuple[dict, dict]:
+    """Apply the C5 order, factor-kernel, trace, and fixed-line gates to a matrix."""
+    n = len(frob)
+    trace = matpoly([1] * n, frob, q)
+    power = identity(n)
+    for _ in range(n):
+        power = matmul(power, frob, q)
+    kernels = [kernel_basis(matpoly(f, frob, q), q) for f in factors]
+    dimensions = [len(k) for k in kernels]
+    vectors = [v for kernel in kernels for v in kernel]
+    sum_dimension = rank_vectors(vectors, q)
+    trace_dimension = len(kernel_basis(trace, q))
+    fixed = kernel_basis(matpoly([q - 1, 1], frob, q), q)
+    checks = {
+        "fifth_power_identity": power == identity(n),
+        "factor_kernel_dimensions": dimensions == expected_dimensions,
+        "direct_sum": sum_dimension == sum(dimensions),
+        "trace_kernel_dimension": trace_dimension == n - 1,
+        "factor_sum_equals_trace_kernel": (
+            sum_dimension == trace_dimension
+            and all(matvec(trace, v, q) == [0] * n for v in vectors)
+        ),
+        "fixed_kernel_dimension": len(fixed) == 1,
+        "fixed_line_exclusion": any(matvec(trace, v, q) != [0] * n for v in fixed),
+    }
+    return checks, {
+        "dimensions": dimensions, "sum_dimension": sum_dimension,
+        "trace_dimension": trace_dimension, "fixed_dimension": len(fixed),
+    }
+
+
 def check_cell(cell: str, config: dict) -> dict:
     q, g, factors = config["q"], config["g"], config["factors"]
     n = len(g) - 1
@@ -224,22 +256,11 @@ def check_cell(cell: str, config: dict) -> dict:
     assert product == [q - 1, 0, 0, 0, 0, 1]
     cols = [quotient_power([0] * i + [1], q, g, q) for i in range(n)]
     frob = [[cols[j][i] for j in range(n)] for i in range(n)]
-    trace = matpoly([1] * n, frob, q)
-    power = identity(n)
-    for _ in range(n):
-        power = matmul(power, frob, q)
-    assert power == identity(n)
-    kernels = [kernel_basis(matpoly(f, frob, q), q) for f in factors]
-    dimensions = [len(k) for k in kernels]
-    assert dimensions == config["expected_dimensions"]
-    vectors = [v for kernel in kernels for v in kernel]
-    sum_dimension = rank_vectors(vectors, q)
-    trace_dimension = len(kernel_basis(trace, q))
-    assert sum_dimension == sum(dimensions) == trace_dimension == n - 1
-    assert all(matvec(trace, v, q) == [0] * n for v in vectors)
-    fixed = kernel_basis(matpoly([q - 1, 1], frob, q), q)
-    assert len(fixed) == 1
-    assert any(matvec(trace, v, q) != [0] * n for v in fixed)
+    checks, measurements = matrix_checks(frob, q, factors, config["expected_dimensions"])
+    assert all(checks.values()), checks
+    dimensions = measurements["dimensions"]
+    sum_dimension = measurements["sum_dimension"]
+    trace_dimension = measurements["trace_dimension"]
     flags = archived["C5"]
     expected = {
         "T_equals_hM": True,
@@ -256,20 +277,27 @@ def check_cell(cell: str, config: dict) -> dict:
     }
     assert flags == expected
     changed = [row[:] for row in frob]
-    changed[0][0] = (changed[0][0] + 1) % q
-    mutation_rejected = changed != frob and matpoly([1] * n, changed, q) != trace
+    changed[1][0] = (changed[1][0] + 1) % q
+    changed_checks, _ = matrix_checks(changed, q, factors, config["expected_dimensions"])
+    failed_checks = sorted(name for name, passed in changed_checks.items() if not passed)
+    mutation_rejected = changed != frob and bool(failed_checks)
     assert mutation_rejected
+    assert any(name in failed_checks for name in (
+        "factor_kernel_dimensions", "direct_sum", "factor_sum_equals_trace_kernel"
+    )), failed_checks
     return {
         "cell": cell, "q": q, "n": n, "field_modulus": config["g_string"],
         "archived_output_sha256": archived_hash, "frobenius_matrix": frob,
         "factor_kernel_dimensions": dimensions, "sum_dimension": sum_dimension,
-        "trace_kernel_dimension": trace_dimension, "fixed_kernel_dimension": len(fixed),
+        "trace_kernel_dimension": trace_dimension,
+        "fixed_kernel_dimension": measurements["fixed_dimension"],
         "field_modulus_irreducible": True,
         "lexicographically_first_irreducible": True,
         "factors_irreducible": True,
         "factor_product_exact": True, "frobenius_order_divides_five": True,
         "factor_sum_equals_trace_kernel": True, "direct_sum": True,
         "matrix_mutation_rejected": mutation_rejected,
+        "matrix_mutation_failed_checks": failed_checks,
     }
 
 
@@ -303,11 +331,11 @@ def main() -> None:
     }
     encoded = json.dumps(receipt, sort_keys=True, indent=2) + "\n"
     if args.check:
-        assert OUTPUT.read_text() == encoded, "matrix replay receipt differs"
+        assert OUTPUT.read_bytes() == encoded.encode("utf-8"), "matrix replay receipt differs"
         print("byte-exact C5 matrix receipt match")
     else:
         assert not OUTPUT.exists(), "refusing to overwrite an existing receipt"
-        OUTPUT.write_text(encoded)
+        OUTPUT.write_bytes(encoded.encode("utf-8"))
         print(OUTPUT)
 
 
