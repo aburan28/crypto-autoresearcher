@@ -41,6 +41,15 @@ source suggesting a broader re-enumeration. The three core cells are recorded
 as completed; the extension cell is recorded
 as `not_run_resource` after its 540-second checkpoint.
 
+The [frozen specification's C8 control](../../../experiments/EXP-FROB-91ee9c/specification.yaml)
+requires independent rechecking of every accepted tuple sum, slot membership,
+subgroup order, Frobenius order, and rational identity. This checker covers
+only a subset, so **C8 has not passed the specified gate** on this evidence.
+The experiment's success criterion is therefore unestablished; this is an
+instrument-validation gap, not a falsification of the mathematical hypothesis.
+The [specific obstruction](../../../problems/frob-c8-independent-recheck-incomplete.md)
+records the exit conditions.
+
 ## Provenance finding and boundary
 
 The manifest records `code.head_commit=cb06b8c20c2d6559041c45c4a4b29dd7f132fdf5`
@@ -66,7 +75,8 @@ historical result were changed.
 Resolve the source gap with a contemporaneous, hash-bound execution snapshot
 and exact command/environment capture, if one exists. Otherwise perform a
 fresh, independently bound replay under the frozen specification and compare
-the core cells and controls. A Coordinator must decide how the original
+the core cells and controls, including the complete C8 obligations. A
+Coordinator must decide how the original
 record remains classified; adding `code.commit=cb06b8c...` alone would claim
 source custody that the commit does not provide. The existing
 [ledger-integrity problem](../../../problems/full-ledger-validation-errors.md)
