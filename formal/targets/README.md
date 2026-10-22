@@ -74,6 +74,15 @@ hypotheses; executable replay checks those inputs, but the curve arithmetic
 and Hasse application are not formalized here. Historical C4 sampled residues
 are missing, so this target does not complete C8.
 
+## FROB C5 finite-field trace
+
+`frob-c5-order-five-trace-kernel.yaml` proves the abstract order-five
+linear-map identity. `frob-c5-finite-field-trace.yaml` connects that polynomial
+to Mathlib's finite-field Frobenius and trace, proves kernel dimension four,
+and instantiates the three archived base primes. The direct sum of nontrivial
+factor kernels and the bridge to the archived quotient-field implementation
+remain separate obligations; neither target alone certifies C5 for the run.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
