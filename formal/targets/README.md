@@ -79,9 +79,17 @@ are missing, so this target does not complete C8.
 `frob-c5-order-five-trace-kernel.yaml` proves the abstract order-five
 linear-map identity. `frob-c5-finite-field-trace.yaml` connects that polynomial
 to Mathlib's finite-field Frobenius and trace, proves kernel dimension four,
-and instantiates the three archived base primes. The direct sum of nontrivial
-factor kernels and the bridge to the archived quotient-field implementation
-remain separate obligations; neither target alone certifies C5 for the run.
+and instantiates the three archived base primes. The
+`frob-c5-factors-q11.yaml`, `frob-c5-factors-q13.yaml`, and
+`frob-c5-factors-q19.yaml` targets prove the nontrivial factor-kernel sums
+and trace dimension four in those canonical fields. The bridge to the
+archived quotient-field implementation remains open; these targets do not
+certify the historical C5 run verdict.
+
+`frob-c5-characteristic-five-control.yaml` is a negative control requested by
+the C5 bridge problem: over `ZMod 5`, `X^5 - 1 = (X - 1)^5` is not squarefree.
+It marks the characteristic boundary of the coprime-factor argument, not a
+verdict about the archived q=11, 13, or 19 run cells.
 
 ## BINSTD toy yield ceiling
 

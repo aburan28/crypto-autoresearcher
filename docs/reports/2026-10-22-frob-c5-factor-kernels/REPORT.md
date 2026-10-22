@@ -89,6 +89,10 @@ semantic code review. Those obligations remain open.
 
 ## Boundary and next check
 
+The separate [characteristic-five control](../2026-10-22-frob-c5-characteristic-five-control/REPORT.md)
+proves `X^5−1 = (X−1)^5` and non-squarefreeness over `ZMod 5`. This checks
+the coprimality boundary; it is not a fourth archived core cell.
+
 The theorem uses canonical `GaloisField q 5` values. It does not identify the
 archived `F_q[z]/(g)` quotient basis or its executable Frobenius matrix with
 that field, or replay the exact frozen C5 input bytes. This model-to-code
