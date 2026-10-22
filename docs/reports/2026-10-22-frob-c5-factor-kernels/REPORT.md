@@ -87,13 +87,21 @@ This executable replay strengthens the archived C5 check; it is not a Lean
 refinement of the quotient implementation or a substitute for independent
 semantic code review. Those obligations remain open.
 
+A separate [source-bound Lean certificate](../2026-10-22-frob-c5-quotient-matrices/REPORT.md)
+now proves all 75 entries of the three recorded q-power matrices in the
+archived quotient bases. Its exact-source verifier passed, but it does not
+prove the historical Sage implementation refines the quotient algebra or
+connect this matrix action to the canonical-field factor-kernel theorem.
+
 ## Boundary and next check
 
-The theorem uses canonical `GaloisField q 5` values. It does not identify the
-archived `F_q[z]/(g)` quotient basis or its executable Frobenius matrix with
-that field, or replay the exact frozen C5 input bytes. This model-to-code
-bridge and independent review are required before the historical C5 control
-can be called proof-backed. The [open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
+The factor-kernel theorem uses canonical `GaloisField q 5` values. The new
+quotient certificate identifies the recorded matrices with q-power on the
+three frozen polynomial quotient bases, but no checked map yet connects those
+matrix kernels to this canonical-field theorem or every historical Sage code
+path and C5 input byte. Source custody and independent review are required
+before the historical C5 control can be called proof-backed. The
+[open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
 tracks those checks. C8 and the full experiment success gate remain open.
 
 No experiment was rerun, no new timing or attack-cost measurement was made,
