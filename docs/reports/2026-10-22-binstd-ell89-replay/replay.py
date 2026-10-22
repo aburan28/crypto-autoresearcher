@@ -128,7 +128,7 @@ def independent_polynomial_controls():
 
 
 def ordered_triple_control(replay, tag):
-    """Compare the pair-membership shortcut with direct triples on curve points."""
+    """Compare the shortcut with direct triples using separate field arithmetic."""
     path = replay / "implementation/run.py"
     sys.path.insert(0, str(path.parent))
     try:
@@ -141,22 +141,75 @@ def ordered_triple_control(replay, tag):
     require(field.mod == ((1 << 17) | (1 << 3) | 1),
             "runner uses an unexpected degree-17 modulus")
     curve = module.Curve(field, A=0, B=1)
+    modulus = field.mod
+
+    def multiply(a, b):
+        return poly_remainder(poly_multiply(a, b), modulus)
+
+    def inverse(a):
+        require(a != 0, "independent field inverse of zero")
+        u, v, left, right = a, modulus, 1, 0
+        while u != 1:
+            require(u != 0, "independent field inverse failed")
+            shift = u.bit_length() - v.bit_length()
+            if shift < 0:
+                u, v = v, u
+                left, right = right, left
+                shift = -shift
+            u ^= v << shift
+            left ^= right << shift
+        result = poly_remainder(left, modulus)
+        require(multiply(a, result) == 1, "independent field inverse is wrong")
+        return result
+
+    def on_curve(point):
+        if point is None:
+            return True
+        x, y = point
+        return (multiply(y, y) ^ multiply(x, y)) == (multiply(multiply(x, x), x) ^ 1)
+
+    def add(p, q):
+        if p is None:
+            return q
+        if q is None:
+            return p
+        x1, y1 = p
+        x2, y2 = q
+        if x1 == x2:
+            if y2 == (x1 ^ y1) or x1 == 0:
+                return None
+            require(y2 == y1, "independent curve addition got invalid equal-x points")
+            slope = x1 ^ multiply(y1, inverse(x1))
+            x3 = multiply(slope, slope) ^ slope
+            y3 = multiply(x1, x1) ^ multiply(slope ^ 1, x3)
+        else:
+            slope = multiply(y1 ^ y2, inverse(x1 ^ x2))
+            x3 = multiply(slope, slope) ^ slope ^ x1 ^ x2
+            y3 = multiply(slope, x1 ^ x3) ^ x3 ^ y1
+        return x3, y3
+
     rng = random.Random(20261022)
     factor_base = []
     for _ in range(4):
         point = module.random_curve_point(curve, rng)
         factor_base.extend((point, curve.neg(point)))
     require(len(set(factor_base)) == 8, "ordered-triple control has duplicate points")
-    def direct_hit(target):
-        return any(
-            curve.add(curve.add(a, b), c) == target
-            for a, b, c in itertools.product(factor_base, repeat=3)
-        )
+    require(all(on_curve(point) for point in factor_base),
+            "ordered-triple factor base has an off-curve point")
+
+    direct_sums = []
+    for a, b, c in itertools.product(factor_base, repeat=3):
+        pair = add(a, b)
+        require(curve.add(a, b) == pair, "runner pair sum differs from independent curve arithmetic")
+        target = add(pair, c)
+        require(on_curve(target), "independent triple sum is off curve")
+        require(curve.add(curve.add(a, b), c) == target,
+                "runner triple sum differs from independent curve arithmetic")
+        direct_sums.append(target)
+    direct_targets = set(direct_sums)
 
     positive_targets = list(dict.fromkeys(
-        target
-        for a, b, c in itertools.product(factor_base, repeat=3)
-        if (target := curve.add(curve.add(a, b), c)) is not None
+        target for target in direct_sums if target is not None
     ))[:12]
     require(len(positive_targets) == 12, "ordered-triple control lacks positive targets")
     negative_targets = []
@@ -164,17 +217,20 @@ def ordered_triple_control(replay, tag):
         if len(negative_targets) == 12:
             break
         target = module.random_curve_point(curve, rng)
-        if target not in negative_targets and not direct_hit(target):
+        require(on_curve(target), "sampled negative target is off curve")
+        if target not in negative_targets and target not in direct_targets:
             negative_targets.append(target)
     require(len(negative_targets) == 12, "ordered-triple control lacks negative targets")
     for expected, targets in ((True, positive_targets), (False, negative_targets)):
         for target in targets:
             shortcut = module.m3_decomposes(curve, factor_base, target)
-            direct = direct_hit(target)
+            direct = target in direct_targets
             require(direct == expected, "ordered-triple target has unexpected hit status")
             require(shortcut == direct, "pair shortcut disagrees with direct ordered triples")
     return {"factor_base_points": 8, "positive_targets": 12,
-            "negative_targets": 12, "shortcut_matches_direct": True}
+            "negative_targets": 12, "independent_triples": 512,
+            "runner_arithmetic_matches_independent": True,
+            "shortcut_matches_direct": True}
 
 
 def prepare(tag, commit, env, trial_plan):
@@ -294,7 +350,7 @@ def main():
     ]
     receipt = {
         "schema": "binstd-ell89-isolated-replay-v1",
-        "status": "pass", "boundary": "same-source deterministic toy replay; no independent EC oracle or attack claim",
+        "status": "pass", "boundary": "same-source toy replay with bounded independent EC controls; no full-panel oracle or attack claim",
         "python": sys.version.split()[0], "cases": cases,
     }
     rendered = json.dumps(receipt, indent=2, sort_keys=True) + "\n"
