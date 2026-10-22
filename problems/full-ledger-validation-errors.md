@@ -60,10 +60,10 @@ misrepresent execution.
 - [ ] Resolve every broken reference to a real, reviewed record or an
   explicit truthful correction; fill criteria, provenance, and review-plan
   fields only from actual source reading or assigned review work.
-- [ ] Settle the zero-compute hand-derivation category without inventing
-  command/output artifacts: either a narrowly specified, tested validator
-  representation for no execution or a prospective non-run artifact path,
-  preserving the historical directory and its hash bindings.
+- [x] Settle the QSP Stage 0 zero-compute hand-derivation category with a
+  source-bound, tested non-execution admission. Preserve the historical
+  directory and all five absent capture artifacts; keep ordinary runs under
+  the five-artifact rule.
 
 These conditions would clear this ledger gate. They would not independently
 replay historical scientific runs, establish semantic fidelity of the 66 Lean
@@ -72,10 +72,10 @@ historical archives need their own scoped checks before an all-corpus claim.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** For QSP Stage 0, specify a non-execution
-  category with hash-bound admission and negative controls that reject
-  ordinary terminal runs missing output. Continue source-by-source triage of
-  the remaining citation, review, provenance, and reference errors.
+- **Action or proof obligation:** Triage the remaining 23 citation-provenance
+  errors through actual source reading, and resolve the one dangling knowledge
+  reference to an unfiled review task without inventing a dispatch. Continue
+  source-by-source review of prior-art, review-plan, and run-schema errors.
 - **Inputs and controls:** Use the raw 162-line log, committed original and
   supersession registry bytes, and the full-checkout validator. Compare the
   old and corrected source hashes; reject placeholder provenance and files
@@ -142,3 +142,14 @@ historical archives need their own scoped checks before an all-corpus claim.
   The [triage report](../docs/reports/2026-10-22-ledger-triage/report.md)
   verifies this third five-line deletion and zero added errors. The other 23
   citation-provenance errors and all unrelated ledger errors remain open.
+- 2026-10-22: A repository-level non-execution category admits only the
+  hash-bound `RUN-QSP-33b442-S0` hand derivation under the frozen spec and
+  derivation note. No process output, command, environment, raw result, or
+  measurement was created. The [category report](../docs/reports/2026-10-22-zero-compute-category/report.md)
+  records negative controls and the full-tree delta: five exact QSP
+  missing-artifact errors removed, zero added, **142 unsuppressed lines in 40
+  paths** (log SHA-256
+  `cab54654ca535678d86c955d0ebe2575a85dfc73d8f0216d8dc7597586bf271d`),
+  and one new non-failing classification advisory. The historical
+  correction's five-error statement remains a true description of the old
+  validator rule. The broader ledger gate still exits 1.
