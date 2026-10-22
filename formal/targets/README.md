@@ -83,6 +83,11 @@ and instantiates the three archived base primes. The direct sum of nontrivial
 factor kernels and the bridge to the archived quotient-field implementation
 remain separate obligations; neither target alone certifies C5 for the run.
 
+`frob-c5-characteristic-five-control.yaml` is a negative control requested by
+the C5 bridge problem: over `ZMod 5`, `X^5 - 1 = (X - 1)^5` is not squarefree.
+It marks the characteristic boundary of the coprime-factor argument, not a
+verdict about the archived q=11, 13, or 19 run cells.
+
 ## BINSTD toy yield ceiling
 
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
