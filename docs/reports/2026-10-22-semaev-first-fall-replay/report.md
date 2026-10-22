@@ -94,6 +94,22 @@ confirmed that all four Lean equation lists equal the exact source-bound
 per-draw record; its [log](evidence/lean-literal-check.log) records the hashes.
 The additive [formal target](../../../formal/targets/semaev-s3-boolean-parity-finite-20261022.yaml)
 passed the repository's [target-spec validator](evidence/target-validation.log).
+An additional [finite equation-semantics theorem](../../../formal/CryptoResearch/Semaev/FiniteEquationSemantics.lean)
+evaluates the direct `S₃=e₂²+e₃+1` expression in
+`F₂[X]/(X⁴+X+1)` and the four transcribed Boolean components on **all 256
+assignments**. It proves their values coincide for the exact `x_R=1`, basis
+`[9,3,2,12]` sample. Its separate
+[target](../../../formal/targets/semaev-s3-finite-equation-semantics-20261022.yaml)
+and [local verifier receipt](evidence/finite-equation-target-verification.json)
+are machine verified; the [proof receipt](evidence/finite-equation-proof.json)
+binds source hashes, the 2,013-job workspace build, 477-theorem axiom audit,
+and exact theorem axiom output. This finite extensional bridge does not prove
+a generic symbolic `S₃` descent or the row-rank semantics.
+The [Lean evaluator](evidence/finite-equation-lean-eval.lean) exported its
+16×16 field product table and all 256 direct `S₃` values. A separate
+[Python checker](../../../research/verification/check_semaev_finite_lean_semantics_20261022.py)
+compared them with the independently implemented field reference; all 512
+values matched ([log](evidence/finite-equation-cross-check.log)).
 
 Among 75 nonzero-target draws, the trace residual is a new class modulo
 `V₁` in 67 corrected degree-two draws. One other degree-two draw has an old
@@ -130,6 +146,17 @@ commit, so its `source_commit` field is `null`; the separate
 the theorem, target, toolchain, manifest, and receipt hashes. The
 [stdout log](evidence/local-target-verification.log) and receipt retain the
 exact result. Hosted CI and independent semantic review remain pending.
+The equation-semantics module was then included in the same pinned workspace:
+the [expanded build](evidence/finite-equation-full-build.log) completed 2,013
+jobs, the [expanded audit](evidence/finite-equation-full-axiom-audit.log)
+checked 477 theorems with standard axioms only, and the
+[target verifier](evidence/finite-equation-target-verification.log) returned
+`machine_verified`. Its scratch-root `source_commit` is also `null`; the
+[source-bound receipt](evidence/finite-equation-proof.json) records the branch
+head and exact input hashes. The initial invocation used a nonexistent local
+CLI path; its [failure log](evidence/finite-equation-target-verification-command-missing.log)
+is retained. The corrected invocation used the repository's formal CLI with
+the isolated pinned workspace.
 
 ## Proof and performance boundary
 
@@ -137,10 +164,11 @@ exact result. Hosted CI and independent semantic review remain pending.
 proves field and trace cancellation under `x_R≠0`; its scope comment says the
 nonzero quotient class is unproved. The new finite Lean file proves exact
 values of an executable Boolean row-elimination function for one transcribed
-equation system. It does **not** prove that this `rankOn` function equals
-vector-space dimension in general, nor does it derive the four component
-equations from abstract `S₃` inside Lean. Those semantic links require
-independent review. The
+equation system. The additional finite equation-semantics theorem proves
+that the four literal polynomials agree with direct `S₃` evaluation on all
+256 assignments of this instance. It does **not** prove that `rankOn` equals
+vector-space dimension in general or derive a generic symbolic descent from
+abstract `S₃`. These links require independent review. The
 [frozen target](../../../formal/targets/semaev-s3-degree2-fall-witness.yaml)
 and [historical note](../../../research/FFD_SEMAEV_MEASUREMENT1.md) use broader
 wording. The corrected finite example contradicts a **uniform degree-two
