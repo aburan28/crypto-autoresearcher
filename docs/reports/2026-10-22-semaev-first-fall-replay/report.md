@@ -122,7 +122,9 @@ record](../../../problems/semaev-degree-two-fall-nonzero-bridge.md).
 
 No numerical performance dashboard changed because this replay measured no
 time or attack cost. The new chart corrects a first-fall classification, not
-an end-to-end performance metric.
+an end-to-end performance metric. A committed-tree search of `ui/` for
+`semaev`, `first.fall`, and `ffd_semaev` found no dashboard consumer of these
+toy counts (`git grep -ni -E 'semaev|first.fall|ffd_semaev' HEAD -- ui`).
 
 ## Reproduction and limits
 
