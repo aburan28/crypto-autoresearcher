@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -11,10 +12,59 @@ ARMS = (
     ("P29-E2-native", "RUN-ECTD-c769f1"),
     ("P29-E3-native", "RUN-ECTD-f395a9"),
 )
+PREPARED = Path("experiments/EXP-ECTD-0cf008/preparation/prepared")
+COEFFICIENT_STREAMS = {
+    "P29-floor": "64cd3756f380960a5a574e78f3d4a274f45dd70e841d31691a03bbbe588c51ca",
+    "P29-E2": "80d447c67d0d403e58614bdcef54cd260cab2ea3500be509c1982bf0cd3cb3c5",
+    "P29-E3": "2917b209cce21d597c9b1ecded06a4c9d484ca28d979a0efb65bf37bbe0fc7a3",
+}
+CURVE_IDENTITIES = {
+    "P29-floor": (320092037, 101186781, 57596093, 320091991, [0, 112219098]),
+    "P29-E2": (320092037, 64570613, 54195252, 320091991, [0, 5368294]),
+    "P29-E3": (320092037, 234001141, 79995391, 320091991, [5, 53527325]),
+}
 
 
 def esc(value: str) -> str:
     return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def coefficient_stream(endpoint: str) -> tuple[str, list[tuple[int, int]]]:
+    path = ROOT / PREPARED / endpoint / "native/prepared.txt"
+    manifest = json.loads(path.with_name("manifest.json").read_text())
+    input_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    expected_identity = CURVE_IDENTITIES[endpoint]
+    if (input_digest != manifest.get("input_sha256") or
+            manifest.get("target_count") != 32768 or
+            manifest.get("generator") != expected_identity[4]):
+        raise ValueError(f"{endpoint}: prepared manifest does not bind the input and identity")
+    digest = hashlib.sha256()
+    first: list[tuple[int, int]] = []
+    with path.open(encoding="utf-8") as stream:
+        header = stream.readline().split()
+        if len(header) != 7 or header[0] != "curve":
+            raise ValueError(f"{endpoint}: invalid prepared-input header")
+        identity = tuple(int(value) for value in header[1:5])
+        if identity != expected_identity[:4]:
+            raise ValueError(f"{endpoint}: prepared curve identity differs")
+        base_count, target_count = int(header[5]), int(header[6])
+        for _ in range(base_count):
+            if not stream.readline().startswith("base "):
+                raise ValueError(f"{endpoint}: missing prepared base row")
+        for index in range(target_count):
+            fields = stream.readline().split()
+            if len(fields) != 6 or fields[:2] != ["target", str(index)]:
+                raise ValueError(f"{endpoint}: malformed target coefficient row {index}")
+            alpha, beta = int(fields[2]), int(fields[3])
+            digest.update(f"{alpha} {beta}\n".encode())
+            if index < 3:
+                first.append((alpha, beta))
+        if stream.readline():
+            raise ValueError(f"{endpoint}: prepared input has trailing rows")
+    value = digest.hexdigest()
+    if value != COEFFICIENT_STREAMS[endpoint]:
+        raise ValueError(f"{endpoint}: coefficient-stream digest differs")
+    return value, first
 
 
 def main() -> None:
@@ -35,6 +85,13 @@ def main() -> None:
                      "fraction": interval["observed"] / interval["draws"],
                      "lower": interval["lower_fraction"],
                      "upper": interval["upper_fraction"]})
+
+    coefficient_audit = {}
+    for endpoint in COEFFICIENT_STREAMS:
+        digest, first = coefficient_stream(endpoint)
+        coefficient_audit[endpoint] = {"sha256": digest, "first_three": first}
+    if len({row["sha256"] for row in coefficient_audit.values()}) != 3:
+        raise ValueError("archived E1/E2/E3 coefficient streams unexpectedly match")
 
     width, height = 960, 500
     left, right, top, bottom = 100, 900, 48, 345
@@ -66,6 +123,7 @@ def main() -> None:
     OUT.write_text("\n".join(parts) + "\n")
     print(json.dumps({"schema": "ectd.prior-same-conductor-plot.v1",
                       "source_runs": [row["run_id"] for row in rows],
+                      "coefficient_streams": coefficient_audit,
                       "output": str(OUT), "status": "rendered"}, sort_keys=True))
 
 
