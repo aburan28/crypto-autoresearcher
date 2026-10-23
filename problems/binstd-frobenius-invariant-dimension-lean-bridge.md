@@ -1,0 +1,80 @@
+# BINSTD n=17 invariant-dimension table lacks a Lean module bridge
+
+- **Status:** open
+- **Kind:** formalization and semantic-fidelity gap
+- **Affected work:** `EXP-BINSTD-8bdf86` Stage-1 admissible-dimension
+  files, `H-BINSTD-5a212b`, and any claim that the table
+  `{0,1,8,9,16,17}` is completely certified in Lean
+- **Next action owner:** formal proof lane for the factor and module
+  lemmas; independent Reviewer for semantic fidelity
+- **Last updated:** 2026-10-22
+
+## Problem
+
+The frozen n=17 BINSTD runs use the factorization of `x^17-1` over
+`F₂` to label dimensions 3 and 4 structurally inadmissible and
+dimensions 8 and 9 admissible. The
+[Lean product theorem](../formal/CryptoResearch/Binstd/Factorization.lean)
+proves the archived bitmask polynomials 3, 313 and 471 multiply to
+`X^17+1`. That product alone does not prove the two degree-eight
+factors irreducible or connect polynomial factors to every
+Frobenius-invariant subspace of the archived field.
+
+## Evidence and uncertainty
+
+- **Observed:** Both frozen Stage-1 dimension files have SHA-256
+  `6f09e6c620fc3765a8ef97951d5c6f84f9b1290a908f487c998bdef51bc60e74`.
+  The [source-binding receipt](../docs/reports/2026-10-22-binstd-factor17-lean/source-binding.json)
+  decodes the Lean definitions back to bitmasks 3, 313 and 471.
+- **Machine proved:** The
+  [formal receipt](../docs/reports/2026-10-22-binstd-factor17-lean/proof-verification.json)
+  reports `machine_verified` for the exact product identity under
+  Lean 4.35.0-rc1, with a passing full build and target axiom audit.
+  Independent semantic review remains pending.
+- **Separate finite check:** The
+  [source-pinned toy replay](../docs/reports/2026-10-22-binstd-ell89-replay/report.md)
+  performed independent Rabin and polynomial-product calculations
+  and reproduced both archived yield matrices. It is not a Lean
+  invariant-subspace theorem.
+- **Missing capability:** Lean proofs that the two degree-eight
+  factors are irreducible, that the archived field modulus defines
+  the claimed 17-dimensional field, and that its `x↦x²` map has
+  exactly the invariant-subspace dimensions given by the subset
+  sums of the three simple factors.
+- **What this does not establish:** The gap is not evidence that the
+  archived toy table is false. It does not change any hit count,
+  empirical yield decision, attack cost, security status or
+  performance dashboard value.
+
+## What would unblock it
+
+- [ ] Prove the two degree-eight factors irreducible over `ZMod 2`
+  and bind their coefficients to frozen bitmasks 313 and 471.
+- [ ] Prove the archived modulus `t^17+t^3+1` gives the intended
+  finite field and identify the actual field Frobenius as a cyclic
+  `F₂[X]`-module with characteristic/minimal polynomial `X^17+1`.
+- [ ] Prove that invariant subspaces correspond to ideals or
+  direct sums of the three simple factors, yielding exactly
+  `{0,1,8,9,16,17}`; bind the construction used by the runner
+  to those kernels.
+- [ ] Obtain independent semantic review of the exact Lean
+  statements against the frozen experiment and source.
+
+These steps would certify the structural dimension table in Lean.
+They would not prove the empirical relation-yield counts or any
+performance claim.
+
+## Next discriminating step
+
+Use Mathlib's finite-field cyclotomic factor-degree theorem for the
+two degree-eight factors, with explicit divisibility and order
+certificates at 17. Then formalize the normal-basis module bridge.
+Preserve the frozen runs and their existing review decisions; this
+problem authorizes no new experiment.
+
+## Resolution and history
+
+2026-10-22: Named after the exact factor product was machine verified.
+The [factorization graph](../docs/reports/2026-10-22-binstd-factor17-lean/factorization.dot)
+marks the remaining steps as open. No canonical performance graph
+changes because this is a structural proof obligation.
