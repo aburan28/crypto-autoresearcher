@@ -1,0 +1,1 @@
+P=883423532389192164791648750360308885314476597252960362792450860609699839; CAND="research/nist_seed_exhaustive_20261016/runs/run-20261016T2320Z/candidates_863711343.txt"; read("/Volumes/SSD990-2/.codex/worktrees/6e01/crypto-autoresearcher/research/nist_seed_provenance_20261016/sea_census.gp");
