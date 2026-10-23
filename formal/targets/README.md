@@ -105,6 +105,13 @@ metrics.
 
 ## BINSTD toy yield ceiling
 
+`binstd-x17-factorization.yaml` checks the exact product of the three
+polynomials recorded as bitmasks 3, 313 and 471 in the n=17 Stage-1
+admissible-dimension files. It proves their product is `X^17+1` over
+`ZMod 2`. It does not prove that the degree-eight factors are irreducible,
+that the field Frobenius has the asserted normal-basis module structure,
+or that the listed dimensions exhaust all invariant subspaces.
+
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
 `KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
 arm cannot exceed the target count, its tau/open ratio is strictly below the
