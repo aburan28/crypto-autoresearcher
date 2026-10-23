@@ -17,7 +17,9 @@ Transported-base rows also check their checkpoint, chain manifest and terminal
 checkpoint hashes.
 
 Controls rejected candidate status, a non-Coordinator approver, an unknown
-schema, and malformed or unauthorized execution stages. The trial adapter
+schema, and malformed or unauthorized execution stages. A valid stage-1
+approval is also refused at the discovery admission boundary; this launcher
+requires stage 0 until dedicated later-stage launchers exist. The trial adapter
 passes the prepared-arm binding to study-admitted arms, and its checker
 independently recomputes the admission identity and materializer binding.
 Three full-quota P37 vertex-zero prepared inputs continue to pass group-law

@@ -115,7 +115,12 @@ def execution_progress(exp_dir: Path, repo: Path, *, preapproval_candidate: bool
                              f"`{sparse_checkout.materialize_hint(exp_dir.name)}` first"}
     if plan.exists() or plan.is_symlink():
         try:
-            report = coverage(repo, plan, allow_preapproval_candidate=preapproval_candidate)
+            if preapproval_candidate:
+                report = coverage(repo, plan, allow_preapproval_candidate=True)
+            else:
+                # Keep the approved-plan call compatible with existing
+                # coverage adapters that accept only (repo, plan).
+                report = coverage(repo, plan)
             plan_name = str(plan.relative_to(repo))
             if preapproval_candidate:
                 states = set(report.get("trials", {}).values())
@@ -284,7 +289,10 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
             continue
         if experiment_ids is not None and exp_id not in experiment_ids:
             continue
-        progress = execution_progress(spec.parent, repo, preapproval_candidate=candidate)
+        if candidate:
+            progress = execution_progress(spec.parent, repo, preapproval_candidate=True)
+        else:
+            progress = execution_progress(spec.parent, repo)
         if progress["execution_state"] == "measurement_complete":
             continue
         if not include_blocked and progress["execution_state"] not in _SELECTABLE:
