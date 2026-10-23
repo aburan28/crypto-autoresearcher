@@ -1079,12 +1079,11 @@ class CommittedRegistryTests(unittest.TestCase):
                     prior_sha256 = entry["superseded_sha256"]
                 self.assertIsNotNone(prior_path, str(current))
                 self.assertIsNotNone(prior_sha256, str(current))
-                # The ENDO record uses a same-directory `path: manifest.yaml`;
-                # all other path spellings in this registry are repo-relative.
-                local_basename = (declared.get("path") == prior_path
-                                  and str(prior_path) == registry_original.name)
-                prior = ((run_dir if local_basename else repo_root)
-                         / str(prior_path)).resolve()
+                # Four ENDO records use a filename relative to their run
+                # directory. The checks below still forbid crossing that
+                # directory or escaping the repository.
+                base = current.parent if "/" not in str(prior_path) else repo_root
+                prior = (base / str(prior_path)).resolve()
                 self.assertTrue(prior.is_relative_to(repo_root), str(prior))
                 self.assertEqual(prior.parent, run_dir, str(prior))
                 self.assertTrue(prior.is_file(), str(prior))

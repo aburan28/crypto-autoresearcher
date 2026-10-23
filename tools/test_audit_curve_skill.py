@@ -31,6 +31,20 @@ def frontmatter_value(path: Path, key: str) -> str:
     return match.group(1)
 
 
+def agent_contract() -> str:
+    """Read the entry contract and its explicitly delegated audit rules."""
+    agents = AGENTS.read_text(encoding="utf-8")
+    pointer = "docs/agent-contract-extended.md#weak-curve-and-isogenous-representative-audits"
+    if pointer not in agents:
+        raise AssertionError("AGENTS.md must delegate the audit rules explicitly")
+    extended = (ROOT / "docs" / "agent-contract-extended.md").read_text(encoding="utf-8")
+    heading = "## Weak-curve and isogenous-representative audits"
+    if heading not in extended:
+        raise AssertionError("missing delegated audit rules")
+    audit = extended.split(heading, 1)[1].split("\n## ", 1)[0]
+    return agents + "\n" + audit
+
+
 class AuditCurveSkillTests(unittest.TestCase):
     def test_canonical_skill_and_report_contract_exist(self) -> None:
         self.assertTrue(CANONICAL.is_file(), f"missing {CANONICAL}")
@@ -40,7 +54,6 @@ class AuditCurveSkillTests(unittest.TestCase):
         )
         self.assertTrue(KNOWLEDGE.is_file(), f"missing {KNOWLEDGE}")
         self.assertTrue(REPORT_TEMPLATE.is_file(), f"missing {REPORT_TEMPLATE}")
-        self.assertTrue(TOPIC_RULES.is_file(), f"missing {TOPIC_RULES}")
         self.assertEqual(frontmatter_value(CANONICAL, "name"), "audit-curve")
         body = CANONICAL.read_text(encoding="utf-8")
         self.assertIn("knowledge/techniques/KN-TECH-6a2ef9.md", body)
@@ -48,7 +61,7 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn(".claude/skills/transfer/SKILL.md", body)
         self.assertIn("docs/endomorphism-rules.md", body)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = agent_contract()
         self.assertIn("docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits", agents)
         agents += "\n" + TOPIC_RULES.read_text(encoding="utf-8")
         self.assertIn(".claude/skills/audit-curve/SKILL.md", agents)
@@ -182,7 +195,7 @@ class AuditCurveSkillTests(unittest.TestCase):
         ):
             self.assertIn(required, body)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = agent_contract()
         self.assertIn("docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits", agents)
         agents += "\n" + TOPIC_RULES.read_text(encoding="utf-8")
         self.assertIn("formula-compatible", agents)

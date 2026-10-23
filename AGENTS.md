@@ -4,8 +4,6 @@ The normative contract of a multi-agent system for reproducible ECDLP
 experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
-The four topic-specific sections linked below are incorporated by reference as
-normative rules; read the relevant section before work in that topic.
 
 ## Every improvement is a success
 
@@ -179,7 +177,7 @@ Every new quantitative speedup, performance advantage, or ECDLP attack-cost clai
 
 ## Intermediate-cost and asymmetric-access hypotheses
 
-Assess intermediate-cost and asymmetric-access claims under [the topic rules](docs/agent-contract-topic-rules.md#intermediate-cost-and-asymmetric-access-hypotheses).
+For assessments of hidden mathematical advantage, follow [the full rule](docs/agent-contract-extended.md#intermediate-cost-and-asymmetric-access-hypotheses). Its scope, cost, secrecy, portfolio, and uncertainty obligations are binding.
 
 ## Core rules
 
@@ -516,11 +514,11 @@ rerun gets a distinct record.
 
 ## Papers
 
-Prepare papers under [the paper rules](docs/agent-contract-topic-rules.md#papers).
+For manuscripts, follow [the paper contract](docs/agent-contract-extended.md#papers). Its layout, evidence, anonymity, submission, and build requirements are binding.
 
 ## Knowledge retrieval
 
-Retrieve and cite knowledge under [the knowledge rules](docs/agent-contract-topic-rules.md#knowledge-retrieval).
+Before claims about prior work or literature, follow [the retrieval policy](docs/agent-contract-extended.md#knowledge-retrieval). Its provenance, scope, and contradiction checks are binding.
 
 ## Curve identity and measured bounds
 
@@ -540,7 +538,7 @@ verdict, changes state. Wall time is never a bound.
 
 ## Weak-curve and isogenous-representative audits
 
-Before a weak-curve claim, read [`audit-curve`](.claude/skills/audit-curve/SKILL.md) and [the curve-audit rules](docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits). A singular or invalid formula-compatible companion supports only an implementation-weak label.
+Before weak-curve, CM, endomorphism, or isogeny claims, read [`audit-curve`](.claude/skills/audit-curve/SKILL.md) and follow [the full audit rule](docs/agent-contract-extended.md#weak-curve-and-isogenous-representative-audits). Its scope, controls, transfer, cost, and inference requirements are binding. The [curve-audit topic index](docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits) specifies the applicable labels. A singular or invalid formula-compatible companion supports only an implementation-weak label.
 
 ## Cursor Cloud specific instructions
 
