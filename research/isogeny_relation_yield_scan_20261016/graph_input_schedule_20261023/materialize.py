@@ -19,9 +19,14 @@ ROOT = STUDY.parents[1]
 SCHEDULE_DIR = STUDY / "graph_schedule_20261023"
 PREPARER = STUDY / "preparation/prepare_graph_input.py"
 SOLVE_PREPARER = STUDY / "preparation/prepare_graph_solve_input.py"
+SECONDARY_SCHEDULE = SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl"
+SECONDARY_MANIFEST = SCHEDULE_DIR / "p29-secondary-floor-manifest.json"
 SOLVE_TARGETS = {"P29": 32768, "P37": 32768}
 sys.path.insert(0, str(STUDY / "preparation"))
-from prepare_graph_input import SCHEDULE, target_coefficients  # noqa: E402
+from prepare_graph_input import (  # noqa: E402
+    SCHEDULE, Curve, base_points, certify_group, multiply, on_curve,
+    target_coefficients,
+)
 
 WALKS = {"P29": STUDY / "walk-p29-2048-attempt2.jsonl",
          "P37": STUDY / "walk-p37-256.jsonl"}
@@ -48,6 +53,40 @@ def load_schedule(arm_key: str, stage: str = "discovery") -> tuple[dict, dict]:
             receipt.get("schedule_sha256") != schedule_sha or
             receipt.get("counts") != manifest.get("counts")):
         raise ValueError("candidate schedule or independent verification differs")
+    if arm_key.startswith("P29-E"):
+        side = json.loads(SECONDARY_MANIFEST.read_text())
+        side_receipt = json.loads((SCHEDULE_DIR / "p29-secondary-floor-verification.json").read_text())
+        side_rows = [json.loads(line) for line in SECONDARY_SCHEDULE.read_text().splitlines()]
+        source_spec = ROOT / side.get("source_specification", "")
+        if (stage != "discovery" or side.get("schema") != "ectd-p29-secondary-floor-schedule/v1" or
+                side.get("status") != "candidate_unapproved" or
+                side.get("schedule_sha256") != sha(SECONDARY_SCHEDULE) or
+                side.get("arms") != 4 or len(side_rows) != 4 or
+                side.get("primary_graph_schedule_sha256") != sha(SCHEDULE_DIR / "discovery-arms.jsonl") or
+                side.get("conductor_factor") != 8209 or side.get("p") != 320092037 or
+                side.get("r") != 320091991 or side.get("same_target_coefficient_stream") is not True or
+                not source_spec.is_file() or sha(source_spec) != side.get("source_specification_sha256") or
+                side_receipt.get("status") != "pass" or side_receipt.get("arms_checked") != 4 or
+                side_receipt.get("target_probes") != 32768 or
+                side_receipt.get("schedule_sha256") != sha(SECONDARY_SCHEDULE) or
+                side_receipt.get("manifest_sha256") != sha(SECONDARY_MANIFEST)):
+            raise ValueError("secondary floor schedule is not the frozen four-arm discovery control")
+        matches = [item for item in side_rows if item.get("arm_key") == arm_key]
+        if len(matches) != 1:
+            raise ValueError("secondary floor arm absent or duplicated")
+        found = matches[0]
+        if (found.get("endpoint_id") not in ("P29-E2", "P29-E3") or
+                found.get("stratum") != "P29" or
+                found.get("base_rule") not in ("low_x", "random_x") or
+                found.get("discovery_targets") != 8192 or found.get("base_x_orbits") != 256 or
+                found.get("finalist_selection_eligible") is not False or
+                found.get("target_domain") != ["P29", "discovery"]):
+            raise ValueError("secondary floor arm differs from its fixed endpoint contract")
+        result = dict(found)
+        result.update(stage=stage, target_count=8192, side_schedule_sha256=sha(SECONDARY_SCHEDULE),
+                      side_manifest_sha256=sha(SECONDARY_MANIFEST))
+        return side, result
+
     found = None
     seen = set()
     rows = 0
@@ -153,13 +192,16 @@ def expected_binding(row: dict, roots: dict[str, bytes],
     header, base, targets = parse_prepared(input_path)
     output_model = row.get("output_model", row["model"])
     output_generator = row.get("output_generator", row["generator"])
-    expected = {"stratum": row["stratum"], "index": row["path_index"],
+    endpoint = bool(row.get("endpoint_id"))
+    expected = {"stratum": row["stratum"], "index": None if endpoint else row["path_index"],
                 "arm": row["base_rule"], "stage": stage,
                 "j": row["model"]["j"], "target_count": row["target_count"],
                 "base_abscissae": row["base_x_orbits"], "generator": output_generator,
                 "graph_sha256": sha(WALKS[row["stratum"]]),
                 "commitment_sha256": sha(commitment_path),
                 "input_sha256": sha(input_path)}
+    if endpoint:
+        expected["endpoint_id"] = row["endpoint_id"]
     if any(prepared.get(key) != value for key, value in expected.items()):
         raise ValueError("prepared input metadata differs from scheduled arm")
     commitment = json.loads(commitment_path.read_text())
@@ -205,8 +247,8 @@ def expected_binding(row: dict, roots: dict[str, bytes],
     coefficient_sha = hashlib.sha256(canonical(actual_coefficients)).hexdigest()
     return {"schema": "ectd.graph-prepared-arm-binding.v1",
             "mode": "preparation_only", "arm_key": row["arm_key"],
-            "schedule_sha256": sha(SCHEDULE_DIR / "discovery-arms.jsonl"),
-            "schedule_manifest_sha256": sha(SCHEDULE_DIR / "manifest.json"),
+            "schedule_sha256": row.get("side_schedule_sha256", sha(SCHEDULE_DIR / "discovery-arms.jsonl")),
+            "schedule_manifest_sha256": row.get("side_manifest_sha256", sha(SCHEDULE_DIR / "manifest.json")),
             "commitment_sha256": sha(commitment_path),
             "prepared_input_sha256": sha(input_path),
             "prepared_manifest_sha256": sha(input_manifest_path),
@@ -214,7 +256,59 @@ def expected_binding(row: dict, roots: dict[str, bytes],
             "q_scalar_commitment_sha256": hashlib.sha256(str(k).encode()).hexdigest(),
             **({"stage": stage} if stage != "discovery" else {}),
             "target_count": row["target_count"],
-            "control_reference": row.get("control_reference")}
+            "control_reference": row.get("control_reference"),
+            **({"endpoint_id": row["endpoint_id"]} if endpoint else {})}
+
+
+def prepare_secondary(row: dict, roots: dict[str, bytes], commitment_path: Path,
+                      output_dir: Path) -> None:
+    """Materialize one E2/E3 endpoint with the common P29 discovery stream."""
+    model = row["model"]
+    curve = Curve(row["p"], model["a"], model["b"], row["r"])
+    generator = tuple(row["generator"])
+    certify_group(curve, generator)
+    k, coefficients, target_rejections = target_coefficients(
+        roots["target"], "P29", "discovery", curve.r, 8192, roots["verifier"])
+    q = multiply(k, generator, curve)
+    if q is None:
+        raise ValueError("secondary endpoint selected identity Q")
+    targets = [(a, b, multiply(s, generator, curve)) for a, b, s in coefficients]
+    if any(point is None for _, _, point in targets):
+        raise ValueError("secondary target construction failed")
+    base, base_rejections = base_points(curve, 256, row["base_rule"], roots["base"],
+                                        "P29", model["j"])
+    if len({point[0] for point in base}) != 256 or not all(on_curve(point, curve) for point in base):
+        raise ValueError("secondary endpoint factor base is invalid")
+    data = [f"curve {curve.p} {curve.a} {curve.b} {curve.r} {len(base)} {len(targets)}"]
+    data.extend(f"base {i} {x} {y}" for i, (x, y) in enumerate(base))
+    data.extend(f"target {i} {a} {b} {point[0]} {point[1]}" for i, (a, b, point) in enumerate(targets))
+    payload = ("\n".join(data) + "\n").encode()
+    output_dir.mkdir(mode=0o700, parents=False, exist_ok=False)
+    input_path = output_dir / "prepared.txt"
+    input_path.write_bytes(payload)
+    manifest = {
+        "schema": "isogeny-relation-input/v1", "stratum": "P29", "index": None,
+        "p": row["p"], "r": row["r"],
+        "endpoint_id": row["endpoint_id"], "j": model["j"], "arm": row["base_rule"],
+        "stage": "discovery", "target_count": len(targets), "schedule_conformant": True,
+        "base_abscissae": 256, "generator": list(generator), "Q": list(q),
+        "base_rejections": base_rejections, "target_rejections": target_rejections,
+        "base_root_sha256": hashlib.sha256(roots["base"]).hexdigest(),
+        "target_root_sha256": hashlib.sha256(roots["target"]).hexdigest(),
+        "verifier_root_sha256": hashlib.sha256(roots["verifier"]).hexdigest(),
+        "seed_mode": "independent_verifier_root", "graph_sha256": sha(WALKS["P29"]),
+        "commitment_sha256": sha(commitment_path),
+        "source_sha256": {str(path.relative_to(ROOT)): sha(path) for path in
+                          (PREPARER, ROOT / "research/conductor_relation_yield_20261014/prepare_input.py",
+                           ROOT / "research/conductor_relation_yield_20261014/verify_collector.py")},
+        "input_sha256": hashlib.sha256(payload).hexdigest(),
+        "base_sha256": hashlib.sha256(json.dumps(base, separators=(",", ":")).encode()).hexdigest(),
+        "target_vector_sha256": hashlib.sha256(json.dumps(targets, separators=(",", ":")).encode()).hexdigest(),
+        "limits": "prepared input only; no relation yield or ECDLP cost claim",
+    }
+    with (output_dir / "manifest.json").open("x", encoding="utf-8") as stream:
+        json.dump(manifest, stream, indent=2, sort_keys=True)
+        stream.write("\n")
 
 
 def main() -> None:
@@ -235,16 +329,19 @@ def main() -> None:
     if args.action == "prepare":
         if args.output_dir.exists():
             raise ValueError("prepared output exists; never overwrite an attempt")
-        preparer = SOLVE_PREPARER if args.stage == "solve" else PREPARER
-        command = [sys.executable, str(preparer), "--walk", str(WALKS[row["stratum"]]),
-                   "--index", str(row["path_index"]), "--arm", row["base_rule"]]
-        if args.stage != "solve":
-            command += ["--stage", args.stage]
-        command += ["--base-root-file", str(args.base_root_file),
-                   "--target-root-file", str(args.target_root_file),
-                   "--verifier-root-file", str(args.verifier_root_file),
-                   "--commitment", str(args.commitment), "--output-dir", str(args.output_dir)]
-        subprocess.run(command, check=True)
+        if row.get("endpoint_id"):
+            prepare_secondary(row, roots, args.commitment, args.output_dir)
+        else:
+            preparer = SOLVE_PREPARER if args.stage == "solve" else PREPARER
+            command = [sys.executable, str(preparer), "--walk", str(WALKS[row["stratum"]]),
+                       "--index", str(row["path_index"]), "--arm", row["base_rule"]]
+            if args.stage != "solve":
+                command += ["--stage", args.stage]
+            command += ["--base-root-file", str(args.base_root_file),
+                       "--target-root-file", str(args.target_root_file),
+                       "--verifier-root-file", str(args.verifier_root_file),
+                       "--commitment", str(args.commitment), "--output-dir", str(args.output_dir)]
+            subprocess.run(command, check=True)
     binding = expected_binding(row, roots, args.commitment, args.output_dir, args.stage)
     binding_path = args.output_dir / "binding.json"
     if args.action == "prepare":

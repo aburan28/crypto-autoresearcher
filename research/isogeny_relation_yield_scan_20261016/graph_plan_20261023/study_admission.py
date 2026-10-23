@@ -207,6 +207,11 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
             "graph_manifest_sha256": sha(STUDY / "manifest-v2.json"),
             "arm_count": 8206,
             "target_probes": 60889088,
+            "secondary_controls": {
+                "arms_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl"),
+                "manifest_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-manifest.json"),
+                "verification_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-verification.json"),
+                "arm_count": 4, "target_probes": 32768},
     }:
         raise ValueError("study admission schedule or graph digest differs")
 
@@ -263,7 +268,9 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
 
     selected = strata[stratum]
     commitment_path = checked_commitments[stratum]
-    arm_key = f"{stratum}-v{manifest.get('index', -1):04d}-{manifest.get('arm', '')}"
+    endpoint_id = manifest.get("endpoint_id")
+    arm_key = (f"{endpoint_id}-{manifest.get('arm', '')}" if endpoint_id else
+               f"{stratum}-v{manifest.get('index', -1):04d}-{manifest.get('arm', '')}")
     schedule_stage = {0: "discovery", 1: "confirmation", 2: "solve"}[execution_stage]
     _, row = load_schedule(arm_key, schedule_stage)
     if selection is not None:
@@ -304,6 +311,7 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
             row.get("target_count") != quota or
             row.get("base_rule") != manifest.get("arm") or
             row.get("path_index") != manifest.get("index") or
+            row.get("endpoint_id") != endpoint_id or
             row.get("p") != manifest.get("p") or
             row.get("r") != manifest.get("r") or
             row.get("model", {}).get("j") != manifest.get("j") or

@@ -26,9 +26,10 @@ class DiscoveryPlanTests(unittest.TestCase):
                          "P37": "roots/p37-commitment.json"},
             admission_path="experiments/EXP-ECTD-abcdef/admission.json",
             collector="build/collector", count_verifier="build/count_verify")
-        self.assertEqual(len(trials), 8206)
-        self.assertEqual(len({trial["id"] for trial in trials}), 8206)
-        self.assertEqual(len({trial["run_id"] for trial in trials}), 8206)
+        self.assertEqual(len(trials), 8210)
+        self.assertEqual(len({trial["id"] for trial in trials}), 8210)
+        self.assertEqual(len({trial["run_id"] for trial in trials}), 8210)
+        self.assertEqual(sum(trial["id"].startswith("P29-E") for trial in trials), 4)
         self.assertTrue(all(trial["memory_mb"] == (4096 if trial["id"].startswith("P29") else 8192)
                             for trial in trials))
         self.assertTrue(all("--arm-key" in trial["argv"] for trial in trials))
@@ -43,7 +44,7 @@ class DiscoveryPlanTests(unittest.TestCase):
 
     def test_run_id_file_refuses_wrong_count_and_collisions(self) -> None:
         with self.assertRaises(ValueError):
-            plan.read_run_ids(Path(__file__), 8206)
+            plan.read_run_ids(Path(__file__), 8210)
         with self.assertRaises(ValueError):
             plan.read_run_ids(Path(__file__), 1)
 
@@ -89,7 +90,7 @@ class DiscoveryPlanTests(unittest.TestCase):
             trial_plan = exp_dir / "trial-plan.json"
             trial_plan.write_text(json.dumps(plan_doc))
             loaded = experiment_execution.load_plan(ROOT, trial_plan)
-            self.assertEqual(len(loaded["trials"]), 8206)
+            self.assertEqual(len(loaded["trials"]), 8210)
             self.assertIs(loaded["stop_on_invalid_output"], True)
 
     def test_full_candidate_plan_is_ready_but_non_executable(self) -> None:
@@ -135,7 +136,7 @@ class DiscoveryPlanTests(unittest.TestCase):
             candidate_path.write_text(json.dumps(candidate))
             loaded = experiment_execution.load_plan(
                 ROOT, candidate_path, allow_preapproval_candidate=True)
-            self.assertEqual(len(loaded["trials"]), 8206)
+            self.assertEqual(len(loaded["trials"]), 8210)
             self.assertIs(loaded["stop_on_invalid_output"], True)
             with self.assertRaises(experiment_execution.ExecutionError):
                 experiment_execution.load_plan(ROOT, candidate_path)

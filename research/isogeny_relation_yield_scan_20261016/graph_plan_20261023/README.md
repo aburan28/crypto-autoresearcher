@@ -2,7 +2,8 @@
 
 `study_admission.py` defines the executor-side check for one Coordinator
 admission covering the full P29/P37 discovery study. The admission binds the
-complete 8,206-arm discovery schedule, graph manifest and verification, both
+complete 8,206-arm graph discovery schedule plus four P29 E2/E3 same-conductor
+controls, graph manifest and verification, both
 stratum-specific commitment files, the base/target/verifier roots, source
 commit and hashes, collector binaries, and experiment output tree. For each
 run it replays the selected schedule row and materializer's prepared-arm
@@ -24,13 +25,16 @@ entry names its commitment file and binds graph and root digests. A
 `candidate_unapproved` record is rejected. This module does not create or
 approve an admission.
 
-`build_discovery_plan.py` now emits one supervisor trial for every scheduled
-arm, with unique RUN IDs, fixed P29/P37 memory and watchdog limits, and explicit
-dependencies for the graph-transport and `u=2` conservation checks. A shape
-test checks all 8,206 rows; an integration test passes the complete plan through
+`build_discovery_plan.py` emits one supervisor trial for each of the 8,206 graph
+arms and four separately identified P29 E2/E3 controls, with unique RUN IDs,
+fixed P29/P37 memory and watchdog limits, and explicit dependencies for the
+graph-transport and `u=2` conservation checks. The E2/E3 arms use the exact
+P29 discovery target coefficient stream and are reported separately; they can
+never enter graph finalist selection. A shape test checks all 8,210 trials; an
+integration test passes the complete plan through
 the repository's `experiment_execution.load_plan` validator. These establish
 plan-schema compatibility, not scientific readiness.
-The full 8,206-row candidate fixture also passes in explicit readiness mode
+The full 8,210-trial candidate fixture also passes in explicit readiness mode
 and is rejected by the default execution loader.
 
 The compiler also has a candidate-only path for a frozen `review_required`
