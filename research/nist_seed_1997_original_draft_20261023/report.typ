@@ -46,14 +46,15 @@ Section F.3.2, PDF page 63 (printed page 55), specifies: choose a seed
 and derive a curve, count its order, check nonsingularity, test
 near-primality of the order, check MOV and anomalous conditions, find a
 prime-order point, and output the curve. The note on PDF page 64
-requires the order lower bound to exceed `2^160` and says the
-trial-division limit is typically 255. Section F.2.2, PDF page 62,
-defines near-primality through a smooth cofactor and a probably prime
-large factor. Section F.3.3, PDF page 64, starts by choosing an
-arbitrary seed bit string at least 160 bits long. The visible text gives
-#strong[no schedule for the next seed after a candidate is rejected or
-passed] and no rule for selecting one of several passing curves for the
-published examples.
+requires the order lower bound `r_min` to exceed `2^160`, advises
+`r_min <= p+1−2√p` for a prime field, and says the trial-division limit
+is typically 255. Section F.2.2, PDF page 62, defines near-primality
+through a smooth cofactor and a probably prime large factor. The
+#strong[prime-field] seed instruction is §F.3.3.b on PDF page 65: choose
+an arbitrary seed bit string at least 160 bits long. The visible text
+gives #strong[no schedule for the next seed after a candidate is
+rejected or passed] and no rule for selecting one of several passing
+curves for the published examples.
 
 The existing
 #link("../nist_seed_selection_workflow_20261023/check.json")[exact 21-row workflow comparison]
@@ -62,12 +63,16 @@ cofactor-one, `n>2^160`, nonanomalous, and stronger-than-required
 `MOV B=100` checks. #link("verify_source.py") hashes and checks that
 prior matrix; it does not rerun its arithmetic. Since every omitted
 curve has prime full order, its cofactor is 1 and its near-primality
-check succeeds for any ordinary trial-division bound. Thus the
-#strong[stated November 1997 procedure] does not explain passing over
-the eleven. A local software error, unpublished policy, different input
-or state, or later review remains possible. The stipulation that the
-historical program actually evaluated and rejected all eleven remains a
-hypothesis.
+check succeeds for any ordinary trial-division bound. The verifier also
+checks each omitted curve's `p,n` against the Hasse interval. If the
+draft's advised `r_min` ceiling was followed, `r_min` cannot exclude any
+correctly counted prime-order curve over that field. An operator could
+choose a higher threshold, but the draft supplies no such value or
+candidate decision. Thus the #strong[stated November 1997 procedure]
+does not explain passing over the eleven. A local software error,
+unpublished policy, different input or state, or later review remains
+possible. The stipulation that the historical program actually evaluated
+and rejected all eleven remains a hypothesis.
 
 #figure(image("selection_gap.svg", alt: "Draft procedure and unresolved decision"),
   caption: [

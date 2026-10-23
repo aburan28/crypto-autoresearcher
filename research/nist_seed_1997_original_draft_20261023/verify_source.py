@@ -34,6 +34,7 @@ def main() -> None:
     assert "November 17, 1997" in pages[0]
     assert "F.3.2. Selecting an Appropriate Curve and Point" in pages[62]
     assert "H.5. Sample Elliptic Curves over the Field" in pages[96]
+    assert "F.3.3.b. Elliptic curves over Fp" in pages[64]
     section = "\n".join(pages[96:101])
     found = {"".join(bits) for bits in re.findall(
         r"seed\s*=\s*((?:[0-9A-F]{8}\s+){4}[0-9A-F]{8})", section
@@ -50,6 +51,14 @@ def main() -> None:
     assert sum(row["class"] == "published" for row in rows) == 10
     required = ("cofactor_one", "mov_B100", "n_gt_2pow160", "nonanomalous")
     assert all(all(row["gates"][gate] for gate in required) for row in rows)
+    omissions = json.loads((repo / "research/nist_seed_skipped_curves_20261016/assessed.json").read_text())["candidate_rows"]
+    assert len(omissions) == 11
+    hasse_checks = {}
+    for row in omissions:
+        p, n = int(row["p_hex"], 16), int(row["n_hex"], 16)
+        ok = (p + 1 - n) ** 2 <= 4 * p
+        hasse_checks[str(row["seed_ordinal_one_based"])] = ok
+    assert all(hasse_checks.values()), hasse_checks
     result = {
         "source_pdf_url": "https://archive.org/download/x962-11-17-97/x962-11-17-97.pdf",
         "source_pdf_sha256": pdf_hash,
@@ -58,12 +67,14 @@ def main() -> None:
         "dated_cover": "1997-11-17",
         "sample_table_pdf_pages_one_based": [97, 98, 99, 100, 101],
         "procedure_pdf_page_one_based": 63,
+        "prime_seed_procedure_pdf_page_one_based": 65,
         "sample_seed_checks": seed_checks,
         "sample_seed_count": len(found),
         "prior_gate_record": str(prior.relative_to(repo)),
         "prior_gate_record_sha256": prior_hash,
         "prior_rows": {"omitted": 11, "published": 10},
         "prior_gates_all_true": list(required),
+        "omitted_hasse_interval_checks": hasse_checks,
         "qualification": "Prior gate matrix reused; this check does not prove the historical program used those gates.",
     }
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
