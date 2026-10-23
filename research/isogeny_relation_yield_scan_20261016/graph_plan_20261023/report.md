@@ -16,8 +16,10 @@ manifest, and terminal checkpoint digests to match the prepared input.
 
 The [saved guard checks](control/) show refusals at the study boundary for
 candidate status, a non-Coordinator approver, and an unknown admission schema;
-they also verify the authorized execution stage is present in both the
-Coordinator decision and frozen specification. The materializer replay still
+they verify that the authorized execution stage appears in both the
+Coordinator decision and frozen specification, and now reject a valid stage-1
+approval when it is presented to the discovery launcher. The discovery entry
+point is pinned to stage 0 until dedicated later-stage launchers exist. The materializer replay still
 passes all three full-quota P37 vertex-zero inputs and rejects swapped roots,
 an unscheduled arm, a changed target, and a changed graph checkpoint. The
 trial adapter now passes the materializer binding to each study-admitted arm,
