@@ -91,14 +91,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tarball", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--compat-malloc-shim", action="store_true")
     args = ap.parse_args()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     start = time.monotonic()
     record = {
-        "schema": "nist-seed-freelip-primality-replay/v1", "started_at_utc": now(),
+        "schema": "nist-seed-freelip-primality-replay/v2" if args.compat_malloc_shim else "nist-seed-freelip-primality-replay/v1", "started_at_utc": now(),
         "host": platform.platform(), "machine": platform.machine(), "python": sys.version,
         "cwd": str(Path.cwd()), "protocol_sha256": digest((HERE / "PROTOCOL.md").read_bytes()),
+        "compat_malloc_shim": args.compat_malloc_shim,
+        "protocol_2_sha256": digest((HERE / "PROTOCOL_2.md").read_bytes()) if args.compat_malloc_shim else None,
         "wrapper_sha256": digest((HERE / "replay.c").read_bytes()),
         "source_tarball_path": str(args.tarball.resolve()),
         "source_tarball_sha256_expected": TARBALL_SHA,
@@ -122,6 +125,10 @@ def main() -> int:
                         raise ValueError("FreeLIP lip.c digest mismatch")
                     (build / name).write_bytes(content)
             (build / "lippar.h").write_text("#define PLAIN 1\n")
+            if args.compat_malloc_shim:
+                shim_bytes = b"#include <stdlib.h>\n"
+                (build / "malloc.h").write_bytes(shim_bytes)
+                record["malloc_shim"] = {"content": shim_bytes.decode(), "sha256": digest(shim_bytes)}
             wrapper = build / "replay.c"
             wrapper.write_bytes((HERE / "replay.c").read_bytes())
             executable = build / "replay"
