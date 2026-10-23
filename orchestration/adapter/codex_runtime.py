@@ -347,25 +347,38 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
-    # `immutable=1` is required on macOS hosts that attach com.apple.provenance
-    # to the codex state DB: a plain `mode=ro` open fails with SQLITE_CANTOPEN
-    # there. The probe only ever reads a thread row AFTER the codex exec process
-    # that created it has exited, and codex uses journal_mode=delete, so there
-    # is no un-checkpointed WAL content immutable=1 could miss. query_only=ON is
-    # still asserted per connection; immutable only ever strengthens the
-    # read-only guarantee.
-    uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro&immutable=1"
-    try:
+    # Codex can use WAL mode. `immutable=1` skips its uncheckpointed WAL and
+    # falsely reports a just-completed session as missing. First open the live
+    # database read-only, including WAL. On macOS hosts where provenance makes
+    # that fail with SQLITE_CANTOPEN, immutable fallback is safe only when no
+    # nonempty WAL exists. Never turn an unreadable live WAL into a missing row.
+    base_uri = "file:" + quote(str(state_db), safe="/")
+
+    def fetch(uri: str) -> list[tuple[Any, ...]]:
         connection = sqlite3.connect(uri, uri=True)
         try:
             connection.execute("PRAGMA query_only=ON")
             if connection.execute("PRAGMA query_only").fetchone() != (1,):
                 raise sqlite3.DatabaseError("query_only was not enabled")
-            rows = connection.execute(STATE_QUERY, (thread_id,)).fetchall()
+            return connection.execute(STATE_QUERY, (thread_id,)).fetchall()
         finally:
             connection.close()
+
+    try:
+        rows = fetch(base_uri + "?mode=ro")
     except sqlite3.Error:
-        raise _ProbeFailure("state_db_read_failed") from None
+        try:
+            wal_has_content = Path(str(state_db) + "-wal").stat().st_size > 0
+        except FileNotFoundError:
+            wal_has_content = False
+        except OSError:
+            raise _ProbeFailure("state_db_read_failed") from None
+        if wal_has_content:
+            raise _ProbeFailure("state_db_read_failed") from None
+        try:
+            rows = fetch(base_uri + "?mode=ro&immutable=1")
+        except sqlite3.Error:
+            raise _ProbeFailure("state_db_read_failed") from None
     if not rows:
         raise _ProbeFailure("state_row_missing")
     if len(rows) != 1:

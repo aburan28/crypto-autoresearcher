@@ -203,6 +203,30 @@ def test_happy_path_writes_exact_session_receipt(tmp_path):
         "sandbox_matches", "session_id_matches", "timestamp_order_valid"))
 
 
+def test_state_lookup_reads_new_session_from_uncheckpointed_wal(tmp_path):
+    state_db = tmp_path / "state.sqlite"
+    writer = sqlite3.connect(state_db)
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("""CREATE TABLE threads (
+            id TEXT, rollout_path TEXT, cwd TEXT, source TEXT, model TEXT,
+            reasoning_effort TEXT, model_provider TEXT, cli_version TEXT,
+            created_at TEXT, updated_at TEXT)""")
+        writer.execute("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (THREAD_ID, "sessions/probe.jsonl", str(tmp_path), "exec",
+                        "gpt-5.6-sol", "high", "openai", "0.155.1",
+                        _iso(2.1), _iso(2.6)))
+        writer.commit()
+        assert Path(str(state_db) + "-wal").stat().st_size > 0
+        row = codex_runtime._query_state_row(state_db, THREAD_ID)
+        assert row["id"] == THREAD_ID
+        assert row["model"] == "gpt-5.6-sol"
+        assert row["reasoning_effort"] == "high"
+    finally:
+        writer.close()
+
+
 @pytest.mark.parametrize(("events", "code"), [
     (_events(thread_ids=()), "thread_id_missing"),
     (_events(thread_ids=(THREAD_ID, OTHER_ID)), "thread_id_ambiguous"),
@@ -498,7 +522,8 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     monkeypatch.setattr(codex_runtime.sqlite3, "connect", traced_connect)
     codex_runtime.probe_codex_session(**arguments)
     assert connect_calls[0][0][0].startswith("file:")
-    assert connect_calls[0][0][0].endswith("?mode=ro&immutable=1")
+    assert connect_calls[0][0][0].endswith("?mode=ro")
+    assert len(connect_calls) == 1
     assert connect_calls[0][1]["uri"] is True
     normalized = [" ".join(item.split()) for item in statements]
     selects = [item for item in normalized if item.upper().startswith("SELECT")]
@@ -507,6 +532,42 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     assert any(item.upper().startswith("PRAGMA QUERY_ONLY=ON") for item in normalized)
     assert not any(word in " ".join(normalized).upper()
                    for word in ("INSERT ", "UPDATE ", "DELETE ", "VACUUM"))
+
+
+def test_immutable_fallback_requires_no_live_wal(tmp_path, monkeypatch):
+    arguments, _, *_ = _case(tmp_path)
+    real_connect = sqlite3.connect
+    calls = []
+
+    def fail_live_open(path_uri, **kwargs):
+        calls.append(path_uri)
+        if path_uri.endswith("?mode=ro"):
+            raise sqlite3.OperationalError("provenance blocked live read")
+        return real_connect(path_uri, **kwargs)
+
+    monkeypatch.setattr(codex_runtime.sqlite3, "connect", fail_live_open)
+    row = codex_runtime._query_state_row(Path(arguments["state_db"]), THREAD_ID)
+    assert row["id"] == THREAD_ID
+    assert calls[0].endswith("?mode=ro")
+    assert calls[1].endswith("?mode=ro&immutable=1")
+
+    writer = real_connect(arguments["state_db"])
+    try:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (OTHER_ID, "sessions/other.jsonl", "repo", "exec",
+                        "gpt-5.6-sol", "high", "openai", "0.155.1",
+                        _iso(3.1), _iso(3.2)))
+        writer.commit()
+        assert Path(arguments["state_db"] + "-wal").stat().st_size > 0
+        calls.clear()
+        with pytest.raises(codex_runtime._ProbeFailure) as excinfo:
+            codex_runtime._query_state_row(Path(arguments["state_db"]), OTHER_ID)
+        assert excinfo.value.codes == ("state_db_read_failed",)
+        assert len(calls) == 1
+    finally:
+        writer.close()
 
 
 def test_argv_is_a_list_with_shell_false_for_metacharacter_paths(tmp_path):
