@@ -55,6 +55,8 @@ The source specification says endpoint arms share a target vector. I independent
 
 The archived E2/E3 observations are marginal, not paired with E1 or each other. The graph protocol must bind and independently verify identical ordered coefficient pairs across P29 endpoints within each stage before reporting paired contrasts. Full digests and the first three pairs are in the editable report source.
 
+Both archived E2/E3 runs bind preparer SHA-256 `7bec20e2147641539d8dfdcc0ae0009581e485462396897f0751c879e4b32fef`. That source includes `endpoint_id` in the SHA-256 draw domain for `alpha` and `beta`, which explains the separate streams and the specification mismatch. The graph preparer uses endpoint-independent `(stratum, stage)` domains, and its selector checks coefficient equality across each stratum.
+
 == Incomplete panel and graph-study scope
 
 The E1 primary P29-floor-native run (RUN-ECTD-8231ef) failed with an

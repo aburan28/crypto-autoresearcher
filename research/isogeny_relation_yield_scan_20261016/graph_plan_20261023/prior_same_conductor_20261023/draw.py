@@ -18,6 +18,8 @@ COEFFICIENT_STREAMS = {
     "P29-E2": "80d447c67d0d403e58614bdcef54cd260cab2ea3500be509c1982bf0cd3cb3c5",
     "P29-E3": "2917b209cce21d597c9b1ecded06a4c9d484ca28d979a0efb65bf37bbe0fc7a3",
 }
+LEGACY_PREPARER = ROOT / "research/conductor_relation_yield_20261014/prepare_input.py"
+LEGACY_PREPARER_SHA256 = "7bec20e2147641539d8dfdcc0ae0009581e485462396897f0751c879e4b32fef"
 CURVE_IDENTITIES = {
     "P29-floor": (320092037, 101186781, 57596093, 320091991, [0, 112219098]),
     "P29-E2": (320092037, 64570613, 54195252, 320091991, [0, 5368294]),
@@ -68,17 +70,22 @@ def coefficient_stream(endpoint: str) -> tuple[str, list[tuple[int, int]]]:
 
 
 def main() -> None:
+    if hashlib.sha256(LEGACY_PREPARER.read_bytes()).hexdigest() != LEGACY_PREPARER_SHA256:
+        raise ValueError("archived legacy preparer source differs from the recorded run version")
     rows = []
     for label, run_id in ARMS:
         result = json.loads((RUNS / run_id / "raw-result.json").read_text())
         verified = result["verified"]
         interval = result["interval"]
         receipt = json.loads((RUNS / run_id / "execution-receipt.json").read_text())
+        environment = json.loads((RUNS / run_id / "environment.json").read_text())
         if (receipt.get("status") != "output_validated" or
                 result.get("status") != "completed_unreviewed" or
                 verified.get("status") != "valid" or
                 verified.get("targets") != 32768 or
-                verified.get("independent_ordered_count_match") is not True):
+                verified.get("independent_ordered_count_match") is not True or
+                environment.get("source_sha256", {}).get(
+                    "research/conductor_relation_yield_20261014/prepare_input.py") != LEGACY_PREPARER_SHA256):
             raise ValueError(f"{run_id}: source run is not an output-validated native arm")
         rows.append({"label": label, "run_id": run_id,
                      "n": verified["targets"], "successes": verified["useful_targets"],
@@ -123,6 +130,7 @@ def main() -> None:
     OUT.write_text("\n".join(parts) + "\n")
     print(json.dumps({"schema": "ectd.prior-same-conductor-plot.v1",
                       "source_runs": [row["run_id"] for row in rows],
+                      "legacy_preparer_sha256": LEGACY_PREPARER_SHA256,
                       "coefficient_streams": coefficient_audit,
                       "output": str(OUT), "status": "rendered"}, sort_keys=True))
 

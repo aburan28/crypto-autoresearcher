@@ -50,9 +50,7 @@ These are three distinct coefficient streams, so the archived E2/E3 native
 fractions are unpaired with E1 and with each other. They remain valid marginal
 observations on their exact prepared inputs; they cannot be treated as
 same-target secondary checks. The [frozen source specification](../../../../experiments/EXP-ECTD-0cf008/specification.yaml)
-contains the common-target-vector requirement. The graph protocol must require
-byte-identical ordered coefficient pairs across endpoints within each stage,
-and verify that identity independently before interpreting paired contrasts.
+contains the common-target-vector requirement. Both E2/E3 execution environments bind the exact same legacy preparer SHA-256, `7bec20e2147641539d8dfdcc0ae0009581e485462396897f0751c879e4b32fef`. In the archived [preparer](../../../../research/conductor_relation_yield_20261014/prepare_input.py), `draw()` includes `endpoint_id` in the hash domain, and the `alpha` and `beta` calls pass the endpoint identifier. This explains the three observed streams and shows the shared-vector requirement was not met by those prepared inputs. The graph [preparer](../../preparation/prepare_graph_input.py) instead domain-separates target coefficients by `(stratum, stage, coefficient kind, index, retry)`; the [discovery selector](../../graph_selection_candidate_20261023/discovery_select.py) requires one coefficient digest across all arms in a stratum. Any new E2/E3 arms must use that same P29 stage stream or an explicitly endpoint-independent equivalent, and verify equality independently before interpreting paired contrasts.
 
 ## Incomplete primary panel
 
