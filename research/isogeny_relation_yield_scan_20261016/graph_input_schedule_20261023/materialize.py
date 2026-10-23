@@ -151,14 +151,25 @@ def expected_binding(row: dict, roots: dict[str, bytes],
                 "input_sha256": sha(input_path)}
     if any(prepared.get(key) != value for key, value in expected.items()):
         raise ValueError("prepared input metadata differs from scheduled arm")
-    if prepared.get("source_sha256") != json.loads(commitment_path.read_text()).get("source_sha256"):
+    commitment = json.loads(commitment_path.read_text())
+    if prepared.get("source_sha256") != commitment.get("source_sha256"):
         raise ValueError("prepared source bindings differ from commitment")
     if row["base_rule"] == "graph_transport":
+        schedule_manifest = json.loads((SCHEDULE_DIR / "manifest.json").read_text())
+        checkpoint_path = STUDY / row["checkpoint_path"]
+        checkpoint_bindings = schedule_manifest["checkpoint_bindings"][row["stratum"]]
+        expected_checkpoints = {
+            "checkpoint_sha256": row["checkpoint_sha256"],
+            "checkpoint_manifest_sha256": checkpoint_bindings["manifest_sha256"],
+            "checkpoint_terminal_sha256": checkpoint_bindings["terminal_sha256"],
+        }
+        if (expected_checkpoints["checkpoint_sha256"] != sha(checkpoint_path) or
+                commitment.get("checkpoint_manifest_sha256") != expected_checkpoints["checkpoint_manifest_sha256"] or
+                commitment.get("checkpoint_terminal_sha256") != expected_checkpoints["checkpoint_terminal_sha256"]):
+            raise ValueError("scheduled graph-transport checkpoint differs from commitment")
         for key in ("checkpoint_sha256", "checkpoint_manifest_sha256",
                     "checkpoint_terminal_sha256"):
-            if prepared.get(key) != (
-                    row["checkpoint_sha256"] if key == "checkpoint_sha256" else
-                    json.loads(commitment_path.read_text()).get(key)):
+            if prepared.get(key) != expected_checkpoints[key]:
                 raise ValueError("prepared graph-transport checkpoint differs")
     if (prepared.get("schema") != "isogeny-relation-input/v1" or
             prepared.get("seed_mode") != "independent_verifier_root" or
