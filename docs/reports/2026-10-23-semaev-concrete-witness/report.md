@@ -14,6 +14,8 @@ The linear functional `c₈₀ + c₁₉₂`, where `cₘ` is the coefficient of
 
 The independent [source-binding checker](check_source_binding.py) compares the archived equations with Lean's literal list, regenerates the Boolean rows in source order, recomputes the XOR and separator, and checks that adding the witness raises the degree-two rank from 11 to 12. Its [machine-readable receipt](evidence/source-binding.json) lists every selected row and source hash. The archived set-product error remains a negative control: multiplication of the first equation by mask `1` retains three masks that cancel under F₂ parity.
 
+The checker refuses optimized Python, where its validation assertions would be disabled. The ordinary run reproduced the committed receipt; `python3 -O` exited nonzero before reading source evidence.
+
 ![Finite row-space dimension chart](row-space.svg)
 
 The [editable chart source](render.py) reads the binding receipt. These are exact finite dimensions, with no sampling uncertainty. The canonical archived-versus-corrected first-fall [draw chart](../2026-10-22-semaev-first-fall-replay/draws.svg) and performance dashboards need no data change: this certificate adds a witness for one already charted draw and measures no performance. The archived 70/10 and corrected 68/12 counts remain distinct.

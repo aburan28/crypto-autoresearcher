@@ -66,6 +66,8 @@ def rank(vectors: list[int]) -> int:
 
 
 def main() -> None:
+    if not __debug__:
+        raise RuntimeError("source binding requires enabled Python assertions")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
