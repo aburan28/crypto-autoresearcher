@@ -6,6 +6,8 @@
 == Fixed inventory and open quota
 The prospective P29/P37 schedule has 2,049 and 257 vertices. Three native bases on every vertex give *6,918 mandatory discovery arms* and *51,935,232 target probes*: P29 has 6,147 arms at 8,192 targets each; P37 has 771 arms at 2,048 each. Check indices add 257 P29 and 65 P37 vertices. If `power_x`, transported, and `u=2` arms each receive the full discovery quota, the conditional inventory is *7,884 arms* and *58,650,624 probes*. The draft does not explicitly fix those check-arm quotas; the Coordinator must do so before admission.
 
+A machine-readable plan now binds the 6,918 main rows to exact archived models and generators, base rules and quotas. Independent point arithmetic checked all 2,306 generator identities and group-order multiplications. Main-arm SHA-256: `bf436f6a3df707b799cb738ed0522aa2a0fa68e921afd6d8099bf929d94105ef`. This plan has no seed or target points and is unapproved.
+
 == Three archived 32,768-target observations
 P29 E2 native (`RUN-ECTD-c769f1`) recorded 68.37 s wall; P29 E3 native (`RUN-ECTD-f395a9`) 77.68 s; P37 floor `u=2` native (`RUN-ECTD-26d06d`) 952.04 s. These are different curves and bases in a separate 20-arm study. The graph shows their measured collector, count, replay, and interval phase times in seconds. Pair-table setup and target probing were not separated, so no full-scan runtime is inferred.
 
