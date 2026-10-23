@@ -3,44 +3,65 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
-import resource
 import subprocess
 import sys
+import threading
 import time
+
+import psutil
 
 HERE = Path(__file__).resolve().parent
 WALL_SECONDS = 120
-ADDRESS_SPACE_BYTES = 1024**3
+RSS_WATCHDOG_BYTES = 1024**3
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def cap_address_space():
-    resource.setrlimit(resource.RLIMIT_AS, (ADDRESS_SPACE_BYTES, ADDRESS_SPACE_BYTES))
-
-
 def one(root, name, mode):
     output = root / name
     command = [sys.executable, str(HERE / "compute.py"), "--out", str(output), "--mode", mode]
     before = time.monotonic()
+    proc = subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    monitor = psutil.Process(proc.pid)
+    stop = threading.Event()
+    sampled_peak = 0
+    exceeded = False
+
+    def watch():
+        nonlocal sampled_peak, exceeded
+        while not stop.wait(0.01):
+            try:
+                resident = monitor.memory_info().rss
+            except psutil.NoSuchProcess:
+                return
+            sampled_peak = max(sampled_peak, resident)
+            if resident > RSS_WATCHDOG_BYTES:
+                exceeded = True
+                proc.kill()
+                return
+
+    watcher = threading.Thread(target=watch, daemon=True)
+    watcher.start()
     try:
-        result = subprocess.run(command, text=True, capture_output=True,
-                                timeout=WALL_SECONDS, preexec_fn=cap_address_space,
-                                check=False)
-        returncode, stdout, stderr, timed_out = result.returncode, result.stdout, result.stderr, False
+        stdout, stderr = proc.communicate(timeout=WALL_SECONDS)
+        timed_out = False
     except subprocess.TimeoutExpired as exc:
-        returncode = None
-        stdout = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        proc.kill()
+        stdout, stderr = proc.communicate()
         timed_out = True
+    finally:
+        stop.set()
+        watcher.join(timeout=1)
+    returncode = proc.returncode
     (root / f"{name}.stdout").write_text(stdout)
     (root / f"{name}.stderr").write_text(stderr)
     marker = (output / "complete.ok").exists()
     receipt = {"command": command, "returncode": returncode, "timed_out": timed_out,
+               "rss_watchdog_exceeded": exceeded, "peak_rss_sampled_bytes": sampled_peak,
                "elapsed_seconds": time.monotonic()-before, "completion_marker": marker,
-               "accepted": returncode == 0 and marker and not timed_out,
+               "accepted": returncode == 0 and marker and not timed_out and not exceeded,
                "stdout_sha256": sha(root / f"{name}.stdout"),
                "stderr_sha256": sha(root / f"{name}.stderr")}
     return receipt
@@ -58,7 +79,8 @@ def main(root):
                "worker_sha256": sha(HERE / "compute.py"),
                "python": sys.version,
                "wall_limit_seconds_per_case": WALL_SECONDS,
-               "address_space_limit_bytes_per_case": ADDRESS_SPACE_BYTES}
+               "rss_watchdog_bytes_per_case": RSS_WATCHDOG_BYTES,
+               "rss_sample_interval_seconds": 0.01}
     (root / "started.json").write_text(json.dumps(started, indent=2) + "\n")
     receipts = {}
     for name, mode in (("injected_exception", "exception"),
