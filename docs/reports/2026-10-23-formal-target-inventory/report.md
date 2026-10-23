@@ -12,7 +12,7 @@ The main workspace, pinned to Lean 4.35.0-rc1 and the committed Mathlib manifest
 
 The [editable diagram](target-gates.dot) shows the two toolchains and the validation boundary. The checker rejected a changed target audit source, an injected `sorryAx`, and optimized Python that would disable assertions; the [negative-control receipt](evidence/negative-controls.json) records those exits. The same source tree was checked before any new Semaev witness module was added, so these counts describe the named main commit only.
 
-At the later main commit `969e051e204ab8c5668157ebeeb00734a1f074b1`, the formal tree has 84 target specs and 150 tracked files. `DkExactBatch5.exact_discriminants` is the additional target; its spec states explicit primality and model assumptions. Its merged PR #2492 passed hosted checks, while this batch source and receipt remain bound to the earlier 83-target tree. The [open problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) records the current-head audit and semantic-review obligations.
+At the later main commit `969e051e204ab8c5668157ebeeb00734a1f074b1`, the formal tree has 84 target specs and 150 tracked files. `DkExactBatch5.exact_discriminants` is the additional target; its spec states explicit primality and model assumptions. Its merged PR #2492 passed applicable hosted checks, but GitHub reports `lean-verification` as `disabled_manually`, so those checks did not build this new Lean module. This batch source and receipt remain bound to the earlier 83-target tree. The [open problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) records the current-head build, batch-audit and semantic-review obligations.
 
 ## What remains
 
