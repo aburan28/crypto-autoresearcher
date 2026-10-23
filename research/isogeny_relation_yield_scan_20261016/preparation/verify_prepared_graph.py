@@ -62,10 +62,15 @@ def expected_xs(p, a, b, count, rule):
     raise ValueError("insufficient liftable x-values")
 
 
-def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=None):
+def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=None,
+           verifier_root_path=None):
     manifest = json.loads(Path(manifest_path).read_text())
     if manifest.get("schema") != "isogeny-relation-input/v1" or sha(prepared_path) != manifest["input_sha256"]:
         raise ValueError("manifest or prepared digest mismatch")
+    if (manifest.get("seed_mode") not in (None, "independent_verifier_root") or
+            (manifest.get("seed_mode") == "independent_verifier_root") !=
+            ("verifier_root_sha256" in manifest)):
+        raise ValueError("manifest seed mode differs")
     (p, a, b, r), base, targets = read_prepared(prepared_path)
     E = EllipticCurve(p, a, b)
     G, Q = tuple(manifest["generator"]), tuple(manifest["Q"])
@@ -137,14 +142,29 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
     if base_digest != manifest["base_sha256"] or target_digest != manifest["target_vector_sha256"]:
         raise ValueError("base or target-vector digest mismatch")
     replay = False
-    if base_root_path is not None and target_root_path is not None:
+    if (base_root_path is None) != (target_root_path is None):
+        raise ValueError("base and target roots must be supplied together")
+    if verifier_root_path is not None and base_root_path is None:
+        raise ValueError("verifier root requires base and target roots")
+    if base_root_path is not None:
         roots = [bytes.fromhex(Path(path).read_text().strip()) for path in (base_root_path, target_root_path)]
-        if [hashlib.sha256(root).hexdigest() for root in roots] != [manifest["base_root_sha256"], manifest["target_root_sha256"]]:
+        independent = manifest.get("seed_mode") == "independent_verifier_root"
+        if independent != (verifier_root_path is not None):
+            raise ValueError("verifier root replay mode differs from manifest")
+        if independent:
+            roots.append(bytes.fromhex(Path(verifier_root_path).read_text().strip()))
+        expected_hashes = [manifest["base_root_sha256"], manifest["target_root_sha256"]]
+        if independent:
+            expected_hashes.append(manifest["verifier_root_sha256"])
+        if (any(len(root) != 32 for root in roots) or len(set(roots)) != len(roots) or
+                [hashlib.sha256(root).hexdigest() for root in roots] != expected_hashes):
             raise ValueError("root digest mismatch")
         from prepare_graph_input import prepare
         study = Path(__file__).resolve().parents[1]
         walk = study / ("walk-p29-2048-attempt2.jsonl" if manifest["stratum"] == "P29" else "walk-p37-256.jsonl")
-        regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"], roots[0], roots[1], len(targets))
+        regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
+                                 roots[0], roots[1], len(targets),
+                                 roots[2] if independent else None)
         if regenerated != Path(prepared_path).read_bytes():
             raise ValueError("seed replay differs")
         replay = True
@@ -159,5 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--base-root", type=Path)
     parser.add_argument("--target-root", type=Path)
+    parser.add_argument("--verifier-root", type=Path)
     args = parser.parse_args()
-    print(json.dumps(verify(args.prepared, args.manifest, args.base_root, args.target_root), sort_keys=True))
+    print(json.dumps(verify(args.prepared, args.manifest, args.base_root,
+                            args.target_root, args.verifier_root), sort_keys=True))

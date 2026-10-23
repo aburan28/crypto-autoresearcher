@@ -16,6 +16,7 @@ WALKS = {"P29": STUDY / "walk-p29-2048-attempt2.jsonl",
          "P37": STUDY / "walk-p37-256.jsonl"}
 BASE_ROOT = b"B" * 32
 TARGET_ROOT = b"T" * 32
+VERIFIER_ROOT = b"V" * 32
 
 
 def parse_payload(payload):
@@ -34,6 +35,13 @@ def main():
         header1, model1, curve1, generator1 = load_vertex(walk, 1)
         assert header0 == header1 and model0["j"] != model1["j"]
         k, coeffs, _ = target_coefficients(TARGET_ROOT, stratum, "discovery", curve0.r, 8)
+        independent_k, independent_coeffs, _ = target_coefficients(
+            TARGET_ROOT, stratum, "discovery", curve0.r, 8, VERIFIER_ROOT)
+        other_target_k, _, _ = target_coefficients(
+            b"U" * 32, stratum, "discovery", curve0.r, 8, VERIFIER_ROOT)
+        assert independent_k == other_target_k
+        assert independent_k != k
+        assert len(independent_coeffs) == 8
         assert len(coeffs) == 8 and len({scalar for _, _, scalar in coeffs}) == 8
         assert all(scalar for _, _, scalar in coeffs)
         assert draw(BASE_ROOT, ["domain-a"], 1000) == draw(BASE_ROOT, ["domain-a"], 1000)
@@ -110,6 +118,29 @@ def main():
                 pass
             else:
                 raise AssertionError("changed checkpoint digest accepted")
+            scientific, scientific_meta = prepare(
+                walk, check_index, "graph_transport", "discovery",
+                BASE_ROOT, TARGET_ROOT, 8, VERIFIER_ROOT)
+            assert scientific_meta["seed_mode"] == "independent_verifier_root"
+            assert scientific_meta["verifier_root_sha256"] == hashlib.sha256(VERIFIER_ROOT).hexdigest()
+            assert [(a, b) for a, b, _, _ in parse_payload(scientific)[1]] == [
+                (a, b) for a, b, _ in independent_coeffs]
+            prepared_path.write_bytes(scientific)
+            manifest_path.write_text(json.dumps(scientific_meta))
+            base_path, target_path, verifier_path = [Path(temp) / name for name in
+                                                     ("base-root", "target-root", "verifier-root")]
+            for path, root in ((base_path, BASE_ROOT), (target_path, TARGET_ROOT),
+                               (verifier_path, VERIFIER_ROOT)):
+                path.write_text(root.hex())
+            replayed = verify(prepared_path, manifest_path, base_path, target_path, verifier_path)
+            assert replayed["status"] == "pass" and replayed["deterministic_seed_replay"]
+            for wrong in (None, target_path):
+                try:
+                    verify(prepared_path, manifest_path, base_path, target_path, wrong)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("missing or nonindependent verifier root accepted")
         cases += 1
     print({"status": "pass", "small_fixture_cases": cases,
            "scope": "base/target preparation correctness only; no relation collection"})
