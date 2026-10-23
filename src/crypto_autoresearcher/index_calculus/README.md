@@ -610,3 +610,5 @@ do. The benchmark is launched through its approved experiment trial plan,
 not by running the driver directly. These are toy prime-field engineering
 measurements; they do not imply a production-curve attack or a change in
 asymptotic complexity.
+
+The held-out balanced experiment [EXP-ICPERF-6c546e](../../../experiments/EXP-ICPERF-6c546e/reports/review-DEC-20261023-122e32/report.md) independently verified a **1.1606×** geometric complete-solve speedup (clustered95% interval approximately1.1268–1.1977×) on nine12/14/16-bit public curves, with two solver seeds and three repetitions. All162 executions include per-solve setup and final verification; arms cross every execution slot. This is one CPython/scalar-mitm host/session, with five slower candidate pairs, not a universal or vectorized result. The [structured claim](../../../claims/ic-target-balanced-6c546e.json) retains raw paired evidence, timing boundaries and uncertainty. Matched rho and Bernstein–Lange gaps were not measured.
