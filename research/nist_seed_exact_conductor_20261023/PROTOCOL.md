@@ -12,6 +12,7 @@ Inputs are the exact archived `p,n` and EC1 identities for those two rows from `
 
 - One PARI/GP `factor` call per fixed real row, with a 180-second wall watchdog and 2 GiB address-space cap. Preserve each stdout, stderr, exact command, tool version, exit status and elapsed time. A timeout or failure is `INDETERMINATE`.
 - Synthetic arithmetic positives: `Delta=-75` must yield `D_K=-3, f_pi=5`; `Delta=-7` must yield `D_K=-7, f_pi=1`. A deliberately nonfundamental candidate `D=-12` must not be reported as fundamental when `Delta=-12` (canonical answer `D_K=-3, f_pi=2`).
+- Before the real rows, run the launcher's `--inject-exception` and `--inject-early-return` controls in separate write-once directories. Both must exit nonzero without `complete.ok`; retain their logs. A pass marker is written only after independent verification succeeds.
 - Independently verify product, proof-enabled primality of every factor, fundamental-discriminant criterion, and the square identity with Sage. Check all four target/synthetic rows. Preserve raw and verification output. No result is inferred from a probable-prime factor or from a partial factorization.
 - Stop the first stage after the two fixed real rows and three controls. Do not retune the test after reading the omitted result. Memory and watchdog protect the host, not the research budget.
 
