@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from sage.all import EllipticCurve, GF, ZZ, is_prime
+from sage.all import EllipticCurve, GF, ZZ
 from sage.version import version as sage_version
 
 HERE = Path(__file__).resolve().parent
@@ -46,6 +46,7 @@ def main():
         "host": platform.platform(), "python": sys.version, "sage": sage_version,
         "source_sha256_expected": SOURCE_SHA,
         "verification_protocol_sha256": sha((HERE / "VERIFICATION_PROTOCOL.md").read_bytes()),
+        "verification_protocol_2_sha256": sha((HERE / "VERIFICATION_PROTOCOL_2.md").read_bytes()),
         "verifier_sha256": sha(Path(__file__).read_bytes()), "rows": [],
     }
     save(out / "started.json", record)
@@ -57,7 +58,7 @@ def main():
             raise ValueError("primary result cardinality mismatch")
         for row in source:
             p, a, b, n = (ZZ(row[k]) for k in ("p_decimal", "a_decimal", "b_decimal", "n_decimal"))
-            if not is_prime(p, proof=True):
+            if not p.is_prime(proof=True):
                 raise ValueError(f"nonprime field: {row['name']}")
             E = EllipticCurve(GF(p), [a, b])
             j = E.j_invariant()
