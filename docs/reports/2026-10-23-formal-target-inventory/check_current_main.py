@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the additive 84-target audit against the named main formal tree."""
+"""Check the additive 84-target audit against named main formal and source files."""
 
 from __future__ import annotations
 
@@ -54,8 +54,29 @@ def main() -> None:
     )
 
     specs: list[tuple[str, str, str]] = []
+    sources: set[str] = set()
+    task_ids: set[str] = set()
+    claim_ids: set[str] = set()
+    theorem_names: set[str] = set()
+    source_status_counts: dict[str, int] = {}
     for path in sorted((repo / "formal/targets").glob("*.yaml")):
         spec = yaml.safe_load(path.read_text())
+        source = spec["source"]
+        source_path = Path(source)
+        require(not source_path.is_absolute() and ".." not in source_path.parts,
+                f"invalid source path: {path}")
+        require((repo / source_path).is_file(), f"missing source file: {path}")
+        sources.add(source)
+        require(isinstance(spec.get("claim"), str) and bool(spec["claim"].strip()),
+                f"missing claim text: {path}")
+        for field, seen in (("task_id", task_ids), ("claim_id", claim_ids),
+                            ("theorem_name", theorem_names)):
+            value = spec[field]
+            require(isinstance(value, str) and bool(value), f"invalid {field}: {path}")
+            require(value not in seen, f"duplicate {field}: {value}")
+            seen.add(value)
+        status = spec["source_status"]
+        source_status_counts[status] = source_status_counts.get(status, 0) + 1
         workspace = spec.get("workspace", "formal")
         theorem_file = repo / workspace / spec["theorem_file"]
         require(theorem_file.is_file(), f"missing theorem file: {path}")
@@ -65,6 +86,10 @@ def main() -> None:
     main_specs = [(path, name) for path, workspace, name in specs if workspace == "formal"]
     scoped_specs = [(path, name) for path, workspace, name in specs if workspace == "formal/scoped-obstructions"]
     require(len(specs) == 84 and len(main_specs) == 83 and len(scoped_specs) == 1, "unexpected target inventory")
+    for source in sorted(sources):
+        source_blob = subprocess.check_output(["git", "-C", str(repo), "show", f"{MAIN}:{source}"])
+        require(sha256(repo / source) == hashlib.sha256(source_blob).hexdigest(),
+                f"source file differs from named main: {source}")
     require(
         any(path.endswith("endosweep-dk-exact-batch5-discriminants.yaml") and
             name == "CryptoResearch.Endosweep.DkExactBatch5.exact_discriminants"
@@ -235,6 +260,12 @@ def main() -> None:
         "formal_file_manifest_sha256": manifest_hash(repo, tracked_formal),
         "target_specs": len(specs),
         "target_spec_manifest_sha256": manifest_hash(repo, spec_paths),
+        "source_paths_checked_against_named_main": len(sources),
+        "source_manifest_sha256": manifest_hash(repo, sorted(sources)),
+        "unique_task_ids": len(task_ids),
+        "unique_claim_ids": len(claim_ids),
+        "unique_theorem_names": len(theorem_names),
+        "source_status_counts": dict(sorted(source_status_counts.items())),
         "target_theorem_files_present": len(specs),
         "main_target_names_resolved": len(main_specs),
         "main_target_theorems_confirmed": len(type_names),
