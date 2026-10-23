@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
 
 from study_admission import (require_discovery_stage, validate_approval_fields,
-                             verify_study_admission)
+                             verify_study_admission, ROOT)
 
 
 def rejects_before_execution(value: dict) -> None:
@@ -74,6 +75,42 @@ class AdmissionBoundaryTests(unittest.TestCase):
                               specification=bad_spec):
                 with self.assertRaises((ValueError, TypeError, AttributeError)):
                     validate_approval_fields(bad_admission, bad_decision, bad_spec)
+
+    def test_discovery_admission_rejects_valid_later_stage_approval(self):
+        experiment_id = "EXP-ECTD-abcdef"
+        decision_id = "DEC-20261023-a1b2c3"
+        decision = {"coordinator_decision": {
+            "id": decision_id, "decided_by": "coordinator", "decision": "approve",
+            "mode": "design_experiment_approval", "approved_by": decision_id,
+            "target_ids": [experiment_id],
+            "official_transitions": {"execution_authorized_stages": [1]}}}
+        specification = {"experiment": {
+            "id": experiment_id, "status": "approved", "approved_by": decision_id,
+            "frozen": True, "execution_authorized": True,
+            "execution_authorized_stages": [1]}}
+        with tempfile.TemporaryDirectory(prefix="ectd-stage-boundary-",
+                                         dir=ROOT / "experiments") as tmp:
+            directory = Path(tmp)
+            decision_path = directory / "decision.yaml"
+            specification_path = directory / "specification.yaml"
+            decision_path.write_text(json.dumps(decision))
+            specification_path.write_text(json.dumps(specification))
+            admission = {
+                "schema": "ectd.graph-study-admission.v1", "status": "approved",
+                "approved_by": "coordinator", "experiment_id": experiment_id,
+                "decision_id": decision_id, "execution_stage": 1,
+                "decision_path": decision_path.relative_to(ROOT).as_posix(),
+                "decision_sha256": hashlib.sha256(decision_path.read_bytes()).hexdigest(),
+                "specification_path": specification_path.relative_to(ROOT).as_posix(),
+                "specification_sha256": hashlib.sha256(
+                    specification_path.read_bytes()).hexdigest(),
+            }
+            admission_path = directory / "admission.json"
+            admission_path.write_text(json.dumps(admission))
+            with self.assertRaisesRegex(ValueError, "requires execution_stage 0"):
+                verify_study_admission(
+                    admission_path, directory / "binding.json", SimpleNamespace(),
+                    {}, {}, lambda *_: self.fail("source check must follow stage gate"))
 
 
 def main() -> None:
