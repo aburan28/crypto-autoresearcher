@@ -14,6 +14,10 @@ If the 1997–98 program reached all eleven qualifying candidates, could the sta
 
 *Figure. Solid boxes summarize the standard's point-generation path and its implication for recorded prime-order, cofactor-one curves. The dashed branch marks the missing historical execution trace. Editable source: [workflow.dot](workflow.dot).*
 
+![Counts by field size](field_counts.svg)
+
+*Figure. Exact counts in the named archived set, grouped by field size. The streams end at published blocks, so these are not estimates of any historical rejection rate. Data: [check.json](check.json); editable rendering source: [chart.py](chart.py).*
+
 ## Why this matters to the hidden-weakness premise
 
 The eleven omissions are five 239-bit, two 192-bit, one 256-bit, and three 224-bit seed classes. The two singleton 384/521-bit published fields provide no within-field omitted comparison. Under the user's working premise that all eleven were actually evaluated and rejected for a weakness, the standard point-finding step cannot be that weakness **if** implemented correctly. A hidden arithmetic filter remains possible, but it needs a named property, an attack-relevant mechanism, and a test against same-field published controls. A software failure or editorial choice remains possible too; neither can be distinguished from arithmetic alone.
@@ -24,4 +28,4 @@ The exact 1998 standard was published after the May and August 1997 runs. It des
 
 ## Reproduction and provenance
 
-Run `python3 research/nist_seed_selection_workflow_20261023/check.py`, then `dot -Tsvg research/nist_seed_selection_workflow_20261023/workflow.dot -o research/nist_seed_selection_workflow_20261023/workflow.svg`. The numeric inputs and SHA-256 hashes are in `check.json`. Primary sources: `retrieved` ANSI 1998 and Anthropic 2026; exact archived curve identities: `internal`; logical group-order implication and numeric gate results: `derived`. No historical rejection reason is observed.
+Run `python3 research/nist_seed_selection_workflow_20261023/check.py`, `python3 research/nist_seed_selection_workflow_20261023/chart.py`, then `dot -Tsvg research/nist_seed_selection_workflow_20261023/workflow.dot -o research/nist_seed_selection_workflow_20261023/workflow.svg`. The numeric inputs and SHA-256 hashes are in `check.json`. Primary sources: `retrieved` ANSI 1998 and Anthropic 2026; exact archived curve identities: `internal`; logical group-order implication and numeric gate results: `derived`. No historical rejection reason is observed.
