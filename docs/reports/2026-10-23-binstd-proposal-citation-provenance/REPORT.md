@@ -26,8 +26,15 @@ original and replacement by SHA-256.
 
 The focused structured comparison passed on both records. It also checked
 the card's `heuristic` status, all four `abstract_read` source states, and
-both registry hash pairs. The complete-tree ledger validator remains a
-separate CI gate; no clean-ledger claim follows from this focused check.
+both registry hash pairs. A complete-tree `python3 tools/validate_ledger.py`
+run on parent `f7408a231b` reported 120 unsuppressed errors in 36 paths.
+The same command on PR head `6c08b90468` reported 118 in the same 36 paths.
+An exact error-line comparison found only the two targeted citation errors
+removed and no new error. Both validator invocations still exited 1;
+neither the 1,210-entry legacy baseline nor frozen records changed. The
+[delta receipt](validation.json), [parent log](validator-parent.log) and
+[PR log](validator.log) preserve the full result. Repository CI is still
+required on the final head; this local result is not a clean-ledger claim.
 
 ## Limits and graph state
 

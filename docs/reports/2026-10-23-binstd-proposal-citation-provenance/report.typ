@@ -16,6 +16,11 @@ internal source, name Codex as reader, and restrict the claim to the card's
 heuristic scope. The archived originals, experiments, measurements and
 decisions are unchanged. A focused parsed-field and SHA-256 comparison passed.
 
+A complete-tree validator comparison on parent f7408a231b and corrected head
+6c08b90468 reported 120 to 118 unsuppressed errors in the same 36 paths.
+Only the two cited proposal errors disappeared; none was added. Both runs
+exited 1 and the 1,210-entry legacy baseline was unchanged.
+
 The full ledger gate is still open. This correction does not establish a
 published theorem or any solver performance gain. No prior canonical graph
 mentioned either proposal or the card; the diagram above is the new derived
