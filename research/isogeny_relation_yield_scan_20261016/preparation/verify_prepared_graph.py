@@ -159,12 +159,17 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         if (any(len(root) != 32 for root in roots) or len(set(roots)) != len(roots) or
                 [hashlib.sha256(root).hexdigest() for root in roots] != expected_hashes):
             raise ValueError("root digest mismatch")
-        from prepare_graph_input import prepare
         study = Path(__file__).resolve().parents[1]
         walk = study / ("walk-p29-2048-attempt2.jsonl" if manifest["stratum"] == "P29" else "walk-p37-256.jsonl")
-        regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
-                                 roots[0], roots[1], len(targets),
-                                 roots[2] if independent else None)
+        if manifest["stage"] == "solve":
+            from prepare_graph_solve_input import prepare as prepare_solve
+            regenerated, _ = prepare_solve(walk, manifest["index"], arm,
+                                           roots[0], roots[1], roots[2], len(targets))
+        else:
+            from prepare_graph_input import prepare
+            regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
+                                     roots[0], roots[1], len(targets),
+                                     roots[2] if independent else None)
         if regenerated != Path(prepared_path).read_bytes():
             raise ValueError("seed replay differs")
         replay = True

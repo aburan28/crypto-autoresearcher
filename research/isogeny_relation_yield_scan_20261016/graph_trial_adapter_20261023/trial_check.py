@@ -14,6 +14,8 @@ ROOT = STUDY.parents[1]
 PREPARED_CHECKER = STUDY / "preparation/verify_prepared_graph.py"
 RANK_CHECKER = ROOT / "research/conductor_relation_yield_20261014/verify_collector.py"
 WRAPPER = STUDY / "preparation/execute_graph_prepared.py"
+SOLVER = STUDY / "graph_solve_candidate_20261023/solve.py"
+SOLVE_CHECKER = STUDY / "graph_solve_candidate_20261023/check.py"
 
 
 def sha(path: Path) -> str:
@@ -162,6 +164,32 @@ def check(run_dir: Path, input_path: Path | None = None,
     if result.get("prepared") != {key: prepared[key] for key in
                                   ("stratum", "index", "arm", "stage", "target_count")}:
         raise ValueError("prepared arm identity differs")
+    complete_solve = result.get("complete_solve")
+    solve_verdict = None
+    if prepared.get("stage") == "solve":
+        if not isinstance(complete_solve, dict):
+            raise ValueError("solve-stage trial lacks complete-solve receipt")
+        solve_dir = run_dir / "solve"
+        artifacts = complete_solve.get("artifacts_sha256", {})
+        for name in ("solve.json", "solver.stdout", "solver.stderr",
+                     "checker.stdout", "checker.stderr"):
+            path = solve_dir / name
+            if path.is_file() != (name in artifacts):
+                raise ValueError(f"solve-stage artifact presence differs: {name}")
+            if path.is_file() and sha(path) != artifacts[name]:
+                raise ValueError(f"solve-stage artifact digest differs: {name}")
+        if (complete_solve.get("solver_sha256") != sha(SOLVER) or
+                complete_solve.get("checker_sha256") != sha(SOLVE_CHECKER) or
+                complete_solve.get("status") not in ("valid_censored", "valid_verified_scalar")):
+            raise ValueError("solve-stage implementation or result status differs")
+        commands = complete_solve.get("commands", [])
+        if len(commands) != 2 or commands[1][2] != str(SOLVE_CHECKER):
+            raise ValueError("solve-stage checker invocation differs")
+        solve_verdict = replay(commands[1])
+        if solve_verdict != complete_solve.get("checker"):
+            raise ValueError("independent solve replay differs from saved checker result")
+    elif complete_solve is not None:
+        raise ValueError("non-solve trial carries complete-solve receipt")
     phases = receipt.get("phases", [])
     if [phase.get("phase") for phase in phases] != ["input_verify", "collector", "count", "rank_verify"]:
         raise ValueError("phase sequence differs")
@@ -217,7 +245,8 @@ def check(run_dir: Path, input_path: Path | None = None,
                 raise ValueError(f"transported {key} differs")
     return {"status": "valid", "arm": prepared["arm"], "targets": rank["targets"],
             "useful_targets": rank["useful_targets"], "rank_increments": rank["rank_increments"],
-            "transport_pair_checked": reference_run_dir is not None}
+            "transport_pair_checked": reference_run_dir is not None,
+            "complete_solve": solve_verdict}
 
 
 def main() -> int:

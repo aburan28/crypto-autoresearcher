@@ -9,6 +9,7 @@ import yaml
 
 STUDY = Path(__file__).resolve().parents[1]
 ROOT = STUDY.parents[1]
+PLAN_DIR = STUDY / "graph_plan_20261023"
 MATERIALIZER_DIR = STUDY / "graph_input_schedule_20261023"
 sys.path.insert(0, str(MATERIALIZER_DIR))
 from materialize import (  # noqa: E402
@@ -95,6 +96,8 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
         admission, decision_doc, specification_doc)
     selection = None
     prior_admission = None
+    finalist_analysis = None
+    stage1_admission = None
     if execution_stage == 0:
         require_discovery_stage(admission)
     elif execution_stage == 1:
@@ -122,6 +125,56 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
                 prior_admission.get("execution_stage") != 0 or
                 prior_admission.get("experiment_id") != admission.get("experiment_id")):
             raise ValueError("confirmation admission does not descend from this study's discovery admission")
+    elif execution_stage == 2:
+        analysis_value = admission.get("finalist_analysis_path")
+        if not isinstance(analysis_value, str) or not analysis_value:
+            raise ValueError("solve admission requires a bound finalist analysis")
+        analysis_path = repo_path(analysis_value)
+        if sha(analysis_path) != admission.get("finalist_analysis_sha256"):
+            raise ValueError("solve admission finalist analysis digest differs")
+        finalist_analysis = json.loads(analysis_path.read_text())
+        prior_value = admission.get("prior_admission_path")
+        if not isinstance(prior_value, str) or not prior_value:
+            raise ValueError("solve admission requires the approved confirmation admission")
+        prior_path = repo_path(prior_value)
+        if sha(prior_path) != admission.get("prior_admission_sha256"):
+            raise ValueError("solve admission prior-stage digest differs")
+        stage1_admission = json.loads(prior_path.read_text())
+        if (stage1_admission.get("schema") != "ectd.graph-study-admission.v1" or
+                stage1_admission.get("status") != "approved" or
+                stage1_admission.get("execution_stage") != 1 or
+                stage1_admission.get("experiment_id") != admission.get("experiment_id")):
+            raise ValueError("solve admission does not descend from approved confirmation")
+        if (finalist_analysis.get("schema") != "ectd.graph-confirmation-analysis-candidate/v1" or
+                finalist_analysis.get("status") != "confirmed_receipts_analyzed" or
+                finalist_analysis.get("experiment_id") != admission.get("experiment_id") or
+                finalist_analysis.get("selection_sha256") != stage1_admission.get("selection_sha256") or
+                finalist_analysis.get("schedule_sha256") != sha(SCHEDULE_DIR / "discovery-arms.jsonl")):
+            raise ValueError("solve admission lacks the exact validated confirmation finalist report")
+        selection_value = stage1_admission.get("selection_path")
+        if not isinstance(selection_value, str) or not selection_value:
+            raise ValueError("prior confirmation admission has no discovery selection")
+        selection_path = repo_path(selection_value)
+        if sha(selection_path) != stage1_admission.get("selection_sha256"):
+            raise ValueError("prior discovery selection digest differs")
+        selection = json.loads(selection_path.read_text())
+        if (selection.get("schema") != "ectd.graph-discovery-selection-candidate/v1" or
+                selection.get("status") != "selected_from_validated_discovery" or
+                selection.get("discovery_arms_checked") != 8206 or
+                selection.get("schedule_sha256") != sha(SCHEDULE_DIR / "discovery-arms.jsonl")):
+            raise ValueError("solve admission prior discovery selection is invalid")
+        discovery_value = stage1_admission.get("prior_admission_path")
+        if not isinstance(discovery_value, str) or not discovery_value:
+            raise ValueError("prior confirmation admission lacks discovery ancestry")
+        discovery_path = repo_path(discovery_value)
+        if sha(discovery_path) != stage1_admission.get("prior_admission_sha256"):
+            raise ValueError("prior discovery admission digest differs")
+        prior_admission = json.loads(discovery_path.read_text())
+        if (prior_admission.get("schema") != "ectd.graph-study-admission.v1" or
+                prior_admission.get("status") != "approved" or
+                prior_admission.get("execution_stage") != 0 or
+                prior_admission.get("experiment_id") != admission.get("experiment_id")):
+            raise ValueError("solve admission discovery ancestry differs")
     else:
         raise ValueError("unsupported graph study execution stage")
 
@@ -131,6 +184,12 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from build_confirmation_plan import SOURCE_PATHS as confirmation_sources
         frozen_paths = list(dict.fromkeys([*frozen_paths, *confirmation_sources]))
+    elif execution_stage == 2:
+        sys.path.insert(0, str(PLAN_DIR))
+        from build_confirmation_plan import SOURCE_PATHS as confirmation_sources
+        from build_solve_plan import SOURCE_PATHS as solve_sources
+        frozen_paths = list(dict.fromkeys([*frozen_paths, *confirmation_sources,
+                                           *solve_sources]))
     check_frozen_sources(ROOT, frozen_paths, source_commit)
     expected_sources = {relpath(path): sha(path) for path in frozen_paths}
     if admission.get("source_sha256") != expected_sources:
@@ -169,13 +228,25 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
         if (root_paths["base"].read_bytes() != old_roots["base"].read_bytes() or
                 root_paths["verifier"].read_bytes() != old_roots["verifier"].read_bytes() or
                 root_paths["target"].read_bytes() == old_roots["target"].read_bytes()):
-            raise ValueError("confirmation must reuse base/verifier roots and commit a fresh target root")
+            raise ValueError("later stage must reuse base/verifier roots and use a fresh target root")
+    if execution_stage == 2:
+        confirmation_roots = stage1_admission.get("root_files", {})
+        if set(confirmation_roots) != {"base", "target", "verifier"}:
+            raise ValueError("prior confirmation admission root set differs")
+        confirmation_root_paths = {name: repo_path(path)
+                                   for name, path in confirmation_roots.items()}
+        if (root_paths["base"].read_bytes() != confirmation_root_paths["base"].read_bytes() or
+                root_paths["verifier"].read_bytes() != confirmation_root_paths["verifier"].read_bytes() or
+                root_paths["target"].read_bytes() == confirmation_root_paths["target"].read_bytes() or
+                root_paths["target"].read_bytes() == repo_path(prior_admission["root_files"]["target"]).read_bytes()):
+            raise ValueError("solve must reuse base/verifier roots and use a third, fresh target root")
     root_digests = None
     checked_commitments = {}
     for family in ("P29", "P37"):
         identity = strata[family]
         commitment_path = repo_path(identity.get("commitment_path", ""))
-        _, source_row = load_schedule(f"{family}-v0000-graph_transport")
+        schedule_stage = "solve" if execution_stage == 2 else "discovery"
+        _, source_row = load_schedule(f"{family}-v0000-low_x", schedule_stage)
         roots, _ = check_commitment(source_row, root_paths, commitment_path)
         current_root_digests = {
             name + "_root_sha256": hashlib.sha256(root).hexdigest()
@@ -193,17 +264,27 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
     selected = strata[stratum]
     commitment_path = checked_commitments[stratum]
     arm_key = f"{stratum}-v{manifest.get('index', -1):04d}-{manifest.get('arm', '')}"
-    _, row = load_schedule(arm_key, "discovery" if execution_stage == 0 else "confirmation")
+    schedule_stage = {0: "discovery", 1: "confirmation", 2: "solve"}[execution_stage]
+    _, row = load_schedule(arm_key, schedule_stage)
     if selection is not None:
         selected = selection.get("strata", {}).get(stratum, {})
-        if (arm_key not in selected.get("confirmation_arm_keys", []) or
-                selected.get("commitment_sha256") !=
-                prior_admission.get("strata", {}).get(stratum, {}).get("commitment_sha256")):
-            raise ValueError("confirmation arm or discovery graph commitment differs from selection")
+        if arm_key not in selected.get("confirmation_arm_keys", []):
+            raise ValueError("later-stage arm is outside the frozen discovery selection")
+        expected_commitment = prior_admission["strata"][stratum]["commitment_sha256"]
+        if selected.get("commitment_sha256") != expected_commitment:
+            raise ValueError("later-stage arm or graph commitment differs from frozen selection")
+    if execution_stage == 2:
+        finalists = finalist_analysis.get("finalists", {}).get(stratum, [])
+        if not any(item.get("index") == manifest.get("index") and
+                   item.get("j") == manifest.get("j") for item in finalists):
+            raise ValueError("solve arm is not an exact analyzed confirmation finalist")
 
     binaries = admission.get("binaries")
-    if not isinstance(binaries, dict) or set(binaries) != {
-            "collector_path", "collector_sha256", "count_verifier_path", "count_verifier_sha256"}:
+    binary_fields = {"collector_path", "collector_sha256",
+                     "count_verifier_path", "count_verifier_sha256"}
+    if execution_stage == 2:
+        binary_fields |= {"sage_path", "sage_sha256"}
+    if not isinstance(binaries, dict) or set(binaries) != binary_fields:
         raise ValueError("study admission binary bindings are incomplete")
     collector = repo_path(binaries["collector_path"])
     count_verifier = repo_path(binaries["count_verifier_path"])
@@ -212,6 +293,10 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
             sha(collector) != sha(args.collector) or
             sha(count_verifier) != sha(args.count_verifier)):
         raise ValueError("study admission binary digest differs")
+    if execution_stage == 2:
+        sage = Path(binaries["sage_path"]).resolve()
+        if (not sage.is_file() or sha(sage) != binaries["sage_sha256"]):
+            raise ValueError("stage-2 Sage executable digest differs")
 
     quota = row["target_count"]
     if (manifest.get("stage") != row["stage"] or

@@ -28,6 +28,8 @@ sys.path.insert(0, str(LEGACY))
 from execute_prepared import GIB, run_phase
 from prepare_graph_input import ARMS, SCHEDULE
 
+SOLVE_TARGETS = {"P29": 32768, "P37": 32768}
+
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -101,6 +103,9 @@ def bindings(args, manifest, source_commit):
         "target_count": manifest["target_count"],
     }
     values.update({name: sha(path) for name, path in source_paths().items()})
+    if manifest["stage"] == "solve":
+        values["solve_preparer_sha256"] = sha(
+            STUDY / "preparation/prepare_graph_solve_input.py")
     if manifest["arm"] == "graph_transport":
         values.update({key: manifest[key] for key in
                        ("checkpoint_sha256", "checkpoint_manifest_sha256", "checkpoint_terminal_sha256")})
@@ -122,7 +127,7 @@ def execute(args):
     if manifest.get("schema") != "isogeny-relation-input/v1" or sha(args.input) != manifest.get("input_sha256"):
         raise ValueError("prepared graph input identity differs")
     stratum, stage, arm = manifest["stratum"], manifest["stage"], manifest["arm"]
-    if stratum not in SCHEDULE or stage not in ("discovery", "confirmation") or arm not in ARMS:
+    if stratum not in SCHEDULE or stage not in ("discovery", "confirmation", "solve") or arm not in ARMS:
         raise ValueError("unsupported graph arm schedule")
     if (arm in ("power_x", "graph_transport") and
             manifest["index"] % SCHEDULE[stratum]["power_stride"]):
@@ -138,7 +143,8 @@ def execute(args):
         require_scientific_seed_mode(manifest)
         if (not manifest.get("schedule_conformant") or
                 not manifest.get("commitment_sha256") or
-                manifest["target_count"] != SCHEDULE[stratum][stage]):
+                manifest["target_count"] != (SOLVE_TARGETS[stratum] if stage == "solve"
+                                               else SCHEDULE[stratum][stage])):
             raise ValueError("scientific graph input requires a frozen commitment and exact quota")
         admission = json.loads(args.admission.read_text())
         if admission.get("schema") == "ectd.graph-study-admission.v1":

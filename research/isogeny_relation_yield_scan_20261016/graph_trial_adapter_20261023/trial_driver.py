@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,8 @@ from pathlib import Path
 STUDY = Path(__file__).resolve().parents[1]
 WRAPPER = STUDY / "preparation/execute_graph_prepared.py"
 MATERIALIZER = STUDY / "graph_input_schedule_20261023/materialize.py"
+SOLVER = STUDY / "graph_solve_candidate_20261023/solve.py"
+SOLVE_CHECKER = STUDY / "graph_solve_candidate_20261023/check.py"
 
 
 def sha(path: Path) -> str:
@@ -37,7 +40,7 @@ def main() -> int:
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--admission", type=Path)
     parser.add_argument("--binding", type=Path)
-    parser.add_argument("--stage", choices=("discovery", "confirmation"), default="discovery")
+    parser.add_argument("--stage", choices=("discovery", "confirmation", "solve"), default="discovery")
     parser.add_argument("--base-root-file", type=Path)
     parser.add_argument("--target-root-file", type=Path)
     parser.add_argument("--verifier-root-file", type=Path)
@@ -45,6 +48,7 @@ def main() -> int:
     parser.add_argument("--control", action="store_true")
     parser.add_argument("--watchdog-seconds", type=int, default=1800)
     parser.add_argument("--memory-gib", type=int, default=4)
+    parser.add_argument("--sage", type=Path)
     args = parser.parse_args()
     if args.control == (args.admission is not None):
         parser.error("use --control alone or provide --admission for scientific mode")
@@ -63,6 +67,8 @@ def main() -> int:
             parser.error("scheduled-arm mode requires three roots and a commitment, without a supplied binding")
     if args.watchdog_seconds < 1 or args.memory_gib < 1:
         parser.error("resource guards must be positive")
+    if args.stage == "solve" and (args.sage is None or not args.sage.is_file()):
+        parser.error("solve stage requires the bound Sage executable")
     out = args.out.resolve()
     if not out.is_dir() or any(out.iterdir()):
         parser.error("trial supervisor must provide an empty, existing --out directory")
@@ -101,8 +107,14 @@ def main() -> int:
         admission_doc = json.loads(paths["admission"].read_text())
         if args.arm_key is not None and admission_doc.get("schema") != "ectd.graph-study-admission.v1":
             parser.error("scheduled-arm materialization requires study-level admission")
-        if args.arm_key is not None and admission_doc.get("execution_stage") != (0 if args.stage == "discovery" else 1):
+        expected_stage = {"discovery": 0, "confirmation": 1, "solve": 2}[args.stage]
+        if args.arm_key is not None and admission_doc.get("execution_stage") != expected_stage:
             parser.error("trial stage differs from the admitted execution stage")
+        if args.stage == "solve":
+            binary = admission_doc.get("binaries", {})
+            if (args.sage.resolve() != Path(binary.get("sage_path", "")).resolve() or
+                    not args.sage.is_file() or sha(args.sage.resolve()) != binary.get("sage_sha256")):
+                parser.error("Sage executable differs from the stage-2 admission")
         if admission_doc.get("schema") == "ectd.graph-study-admission.v1":
             if "binding" not in paths and args.binding is None:
                 parser.error("study admission requires the materializer --binding")
@@ -132,6 +144,62 @@ def main() -> int:
     attempt = out / "attempt"
     receipt_path = attempt / "receipt.json"
     receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else None
+    solve_dir = out / "solve"
+    solve_result = None
+    solve_check = None
+    solve_commands = []
+    solver_status = "not_started"
+    checker_status = "not_started"
+    solver_wall_seconds = 0.0
+    checker_wall_seconds = 0.0
+    if args.stage == "solve" and process.returncode == 0 and receipt is not None:
+        solve_dir.mkdir(mode=0o700)
+        prepared = json.loads(paths["prepared-manifest"].read_text())
+        gx, gy = map(str, prepared["generator"])
+        qx, qy = map(str, prepared["Q"])
+        solve_path = solve_dir / "solve.json"
+        solver_command = [str(args.sage.resolve()), "-python", str(SOLVER),
+                          "--input", str(paths["input"]),
+                          "--collector", str(attempt / "collector.stdout"),
+                          "--count", str(attempt / "count.stdout"),
+                          "--gx", gx, "--gy", gy, "--qx", qx, "--qy", qy,
+                          "--out", str(solve_path)]
+        solve_commands.append(solver_command)
+        solver_started = time.monotonic()
+        with (solve_dir / "solver.stdout").open("xb") as stdout, (solve_dir / "solver.stderr").open("xb") as stderr:
+            try:
+                solver_process = subprocess.run(solver_command, stdin=subprocess.DEVNULL,
+                                                stdout=stdout, stderr=stderr, check=False,
+                                                timeout=args.watchdog_seconds)
+                solver_status = "completed" if solver_process.returncode == 0 else "failed"
+            except subprocess.TimeoutExpired:
+                solver_process = None
+                solver_status = "timeout"
+        solver_wall_seconds = time.monotonic() - solver_started
+        if solver_process is not None and solver_process.returncode == 0 and solve_path.is_file():
+            solve_result = json.loads(solve_path.read_text())
+            checker_command = [str(args.sage.resolve()), "-python", str(SOLVE_CHECKER),
+                               "--input", str(paths["input"]),
+                               "--collector", str(attempt / "collector.stdout"),
+                               "--count", str(attempt / "count.stdout"),
+                               "--solve", str(solve_path)]
+            solve_commands.append(checker_command)
+            checker_started = time.monotonic()
+            with (solve_dir / "checker.stdout").open("xb") as stdout, (solve_dir / "checker.stderr").open("xb") as stderr:
+                try:
+                    checker_process = subprocess.run(checker_command, stdin=subprocess.DEVNULL,
+                                                     stdout=stdout, stderr=stderr, check=False,
+                                                     timeout=args.watchdog_seconds)
+                    checker_status = "completed" if checker_process.returncode == 0 else "failed"
+                except subprocess.TimeoutExpired:
+                    checker_process = None
+                    checker_status = "timeout"
+            checker_wall_seconds = time.monotonic() - checker_started
+            if checker_process is not None and checker_process.returncode == 0:
+                solve_check = json.loads((solve_dir / "checker.stdout").read_text())
+        else:
+            checker_status = "not_started"
+            checker_wall_seconds = 0.0
     def phase_json(name: str) -> object | None:
         path = attempt / f"{name}.stdout"
         if not path.is_file() or not path.stat().st_size:
@@ -151,6 +219,23 @@ def main() -> int:
         "input_check": phase_json("input_verify"),
         "rank_check": phase_json("rank_verify"),
     }
+    if args.stage == "solve":
+        solve_artifacts = {name: sha(solve_dir / name) for name in
+                           ("solve.json", "solver.stdout", "solver.stderr",
+                            "checker.stdout", "checker.stderr")
+                           if (solve_dir / name).is_file()}
+        result["complete_solve"] = {
+            "status": solve_check.get("status") if solve_check else "solve_or_replay_failed",
+            "solver_status": solve_result.get("status") if solve_result else None,
+            "solver_process_status": solver_status,
+            "solver_wall_seconds": solver_wall_seconds,
+            "checker_process_status": checker_status,
+            "checker_wall_seconds": checker_wall_seconds,
+            "checker": solve_check, "commands": solve_commands,
+            "artifacts_sha256": solve_artifacts,
+            "solver_sha256": sha(SOLVER), "checker_sha256": sha(SOLVE_CHECKER),
+            "sage_sha256": sha(args.sage.resolve()),
+        }
     if materializer_receipt is not None:
         result["materializer"] = materializer_receipt
     write_once(out / "raw-result.json", result)
@@ -163,9 +248,13 @@ def main() -> int:
         "driver_stdout_sha256": sha(out / "driver.stdout"),
         "driver_stderr_sha256": sha(out / "driver.stderr"),
         "materializer": materializer_receipt,
+        "complete_solve": result.get("complete_solve"),
     })
     expected = "completed_control" if args.control else "completed_unreviewed"
-    return 0 if process.returncode == 0 and result["status"] == expected else 1
+    solve_ok = (args.stage != "solve" or
+                (solve_check is not None and solve_check.get("status") in
+                 ("valid_censored", "valid_verified_scalar")))
+    return 0 if process.returncode == 0 and result["status"] == expected and solve_ok else 1
 
 
 if __name__ == "__main__":

@@ -18,6 +18,8 @@ STUDY = HERE.parent
 ROOT = STUDY.parents[1]
 SCHEDULE_DIR = STUDY / "graph_schedule_20261023"
 PREPARER = STUDY / "preparation/prepare_graph_input.py"
+SOLVE_PREPARER = STUDY / "preparation/prepare_graph_solve_input.py"
+SOLVE_TARGETS = {"P29": 32768, "P37": 32768}
 sys.path.insert(0, str(STUDY / "preparation"))
 from prepare_graph_input import SCHEDULE, target_coefficients  # noqa: E402
 
@@ -32,7 +34,7 @@ def canonical(value: object) -> bytes:
 
 
 def load_schedule(arm_key: str, stage: str = "discovery") -> tuple[dict, dict]:
-    if stage not in ("discovery", "confirmation"):
+    if stage not in ("discovery", "confirmation", "solve"):
         raise ValueError("unsupported graph schedule stage")
     manifest = json.loads((SCHEDULE_DIR / "manifest.json").read_text())
     receipt = json.loads((SCHEDULE_DIR / "verification.json").read_text())
@@ -71,7 +73,7 @@ def load_schedule(arm_key: str, stage: str = "discovery") -> tuple[dict, dict]:
         raise ValueError("arm parameters differ from fixed discovery schedule")
     found = dict(found)
     found["stage"] = stage
-    found["target_count"] = config[stage]
+    found["target_count"] = SOLVE_TARGETS[stratum] if stage == "solve" else config[stage]
     return manifest, found
 
 
@@ -99,8 +101,11 @@ def check_commitment(row: dict, root_paths: dict[str, Path], commitment_path: Pa
     for name, root in roots.items():
         if commitment.get(name + "_root_sha256") != hashlib.sha256(root).hexdigest():
             raise ValueError("root differs from commitment: " + name)
-    for source in (PREPARER, ROOT / "research/conductor_relation_yield_20261014/prepare_input.py",
-                   ROOT / "research/conductor_relation_yield_20261014/verify_collector.py"):
+    sources = [PREPARER, ROOT / "research/conductor_relation_yield_20261014/prepare_input.py",
+               ROOT / "research/conductor_relation_yield_20261014/verify_collector.py"]
+    if row["stage"] == "solve":
+        sources.append(SOLVE_PREPARER)
+    for source in sources:
         relative = source.relative_to(ROOT).as_posix()
         if commitment.get("source_sha256", {}).get(relative) != sha(source):
             raise ValueError("preparation source differs from commitment: " + relative)
@@ -216,7 +221,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "check"))
     parser.add_argument("--arm-key", required=True)
-    parser.add_argument("--stage", choices=("discovery", "confirmation"), default="discovery")
+    parser.add_argument("--stage", choices=("discovery", "confirmation", "solve"), default="discovery")
     parser.add_argument("--base-root-file", type=Path, required=True)
     parser.add_argument("--target-root-file", type=Path, required=True)
     parser.add_argument("--verifier-root-file", type=Path, required=True)
@@ -230,9 +235,12 @@ def main() -> None:
     if args.action == "prepare":
         if args.output_dir.exists():
             raise ValueError("prepared output exists; never overwrite an attempt")
-        command = [sys.executable, str(PREPARER), "--walk", str(WALKS[row["stratum"]]),
-                   "--index", str(row["path_index"]), "--arm", row["base_rule"],
-                   "--stage", args.stage, "--base-root-file", str(args.base_root_file),
+        preparer = SOLVE_PREPARER if args.stage == "solve" else PREPARER
+        command = [sys.executable, str(preparer), "--walk", str(WALKS[row["stratum"]]),
+                   "--index", str(row["path_index"]), "--arm", row["base_rule"]]
+        if args.stage != "solve":
+            command += ["--stage", args.stage]
+        command += ["--base-root-file", str(args.base_root_file),
                    "--target-root-file", str(args.target_root_file),
                    "--verifier-root-file", str(args.verifier_root_file),
                    "--commitment", str(args.commitment), "--output-dir", str(args.output_dir)]
