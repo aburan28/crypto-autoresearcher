@@ -16,6 +16,8 @@ The independent [source-binding checker](check_source_binding.py) compares the a
 
 The checker refuses optimized Python, where its validation assertions would be disabled. The ordinary run reproduced the committed receipt; `python3 -O` exited nonzero before reading source evidence.
 
+A separate [finite replay](verify_independent.py) derives the four Boolean component equations anew from all 256 evaluations of `S₃(x₁,x₂,1)` in `F₂[X]/(X⁴+X+1)`, using a shift-and-reduce field multiplier and a Möbius transform. Its elimination starts at the lowest column, unlike the source-binding checker's highest-column pivots. It reproduces the degree-one, -two and -three ranks `1, 11, 53`, the low-degree intersection dimensions `1, 12`, and the same 23-row witness and two-coordinate separator. The [receipt](evidence/independent-replay.json) binds the archived draw and Lean source hashes. This is an independent implementation replay of one finite model, not an independent human review of the historical claim or a generic theorem.
+
 ![Finite row-space dimension chart](row-space.svg)
 
 The [editable chart source](render.py) reads the binding receipt. These are exact finite dimensions, with no sampling uncertainty. The canonical archived-versus-corrected first-fall [draw chart](../2026-10-22-semaev-first-fall-replay/draws.svg) and performance dashboards need no data change: this certificate adds a witness for one already charted draw and measures no performance. The archived 70/10 and corrected 68/12 counts remain distinct.
