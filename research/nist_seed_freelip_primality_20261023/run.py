@@ -92,16 +92,23 @@ def main() -> int:
     ap.add_argument("--tarball", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--compat-malloc-shim", action="store_true")
+    ap.add_argument("--compat-string-include", action="store_true")
     args = ap.parse_args()
+    if args.compat_string_include and not args.compat_malloc_shim:
+        ap.error("--compat-string-include requires --compat-malloc-shim")
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     start = time.monotonic()
     record = {
-        "schema": "nist-seed-freelip-primality-replay/v2" if args.compat_malloc_shim else "nist-seed-freelip-primality-replay/v1", "started_at_utc": now(),
+        "schema": ("nist-seed-freelip-primality-replay/v3" if args.compat_string_include else
+                   "nist-seed-freelip-primality-replay/v2" if args.compat_malloc_shim else
+                   "nist-seed-freelip-primality-replay/v1"), "started_at_utc": now(),
         "host": platform.platform(), "machine": platform.machine(), "python": sys.version,
         "cwd": str(Path.cwd()), "protocol_sha256": digest((HERE / "PROTOCOL.md").read_bytes()),
         "compat_malloc_shim": args.compat_malloc_shim,
+        "compat_string_include": args.compat_string_include,
         "protocol_2_sha256": digest((HERE / "PROTOCOL_2.md").read_bytes()) if args.compat_malloc_shim else None,
+        "protocol_3_sha256": digest((HERE / "PROTOCOL_3.md").read_bytes()) if args.compat_string_include else None,
         "wrapper_sha256": digest((HERE / "replay.c").read_bytes()),
         "source_tarball_path": str(args.tarball.resolve()),
         "source_tarball_sha256_expected": TARBALL_SHA,
@@ -134,8 +141,10 @@ def main() -> int:
             executable = build / "replay"
             compile_cmd = [
                 "clang", "-std=gnu89", "-O0", "-DSIZEOFLONG=8", "-I", str(build),
-                str(build / "lip.c"), str(wrapper), "-lm", "-o", str(executable),
             ]
+            if args.compat_string_include:
+                compile_cmd += ["-include", "string.h"]
+            compile_cmd += [str(build / "lip.c"), str(wrapper), "-lm", "-o", str(executable)]
             record["build"] = command(compile_cmd, min(10.0, LIMIT_SECONDS - (time.monotonic() - start)))
             write_json(out / "build.json", record["build"])
             if record["build"]["exit_code"] != 0:
