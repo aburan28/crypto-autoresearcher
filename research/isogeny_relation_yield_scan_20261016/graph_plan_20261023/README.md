@@ -10,8 +10,12 @@ binding before the collector starts.
 
 The checked decision and frozen specification must both authorize the exact
 integer `execution_stage`; a Boolean value cannot stand in for stage zero. The
-graph trial adapter forwards the arm's `binding.json`, and its independent
-checker recomputes the admission and binding before accepting the receipt.
+current compiler and launcher additionally require `execution_stage: 0`, so an
+approval for confirmation or finalist solving cannot pass through the
+discovery entry point. Dedicated launchers for those later stages remain to be
+implemented. The graph trial adapter forwards the arm's `binding.json`, and
+its independent checker recomputes the admission and binding before accepting
+the receipt.
 
 The required admission schema is `ectd.graph-study-admission.v1` with
 `status: approved`, `approved_by: coordinator`, `experiment_id`,

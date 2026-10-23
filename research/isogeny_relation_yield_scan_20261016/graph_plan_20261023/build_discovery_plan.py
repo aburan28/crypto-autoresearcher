@@ -273,8 +273,9 @@ def build(specification_path: Path, admission_path: Path, decision_path: Path,
             admission.get("decision_sha256") != sha(decision_path) or
             spec.get("execution_authorized") is not True or spec.get("frozen") is not True):
         raise ValueError("frozen approved specification and matching study admission required")
-    from study_admission import validate_approval_fields
+    from study_admission import validate_approval_fields, require_discovery_stage
     decision, _checked_spec, stage = validate_approval_fields(admission, decision_doc, spec_doc)
+    require_discovery_stage(admission)
     if (stage not in spec.get("execution_authorized_stages", []) or
             admission.get("experiment_id") != spec.get("id") or
             decision.get("id") != spec.get("approved_by") or

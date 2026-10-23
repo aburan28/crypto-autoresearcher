@@ -57,6 +57,14 @@ def validate_approval_fields(admission: dict, decision_doc: dict,
     return decision, specification, stage
 
 
+def require_discovery_stage(admission: dict) -> int:
+    """This package implements discovery only; never borrow later-stage approval."""
+    stage = admission.get("execution_stage")
+    if isinstance(stage, bool) or stage != 0:
+        raise ValueError("graph discovery launcher requires execution_stage 0; later-stage launchers are not implemented")
+    return stage
+
+
 def verify_study_admission(admission_path: Path, binding_path: Path, args,
                            manifest: dict, source_paths: dict[str, Path],
                            check_frozen_sources) -> tuple[str, dict]:
@@ -85,6 +93,7 @@ def verify_study_admission(admission_path: Path, binding_path: Path, args,
     specification_doc = yaml.safe_load(specification_path.read_text())
     decision, specification, execution_stage = validate_approval_fields(
         admission, decision_doc, specification_doc)
+    require_discovery_stage(admission)
 
     source_commit = admission.get("source_commit")
     check_frozen_sources(ROOT, source_paths.values(), source_commit)

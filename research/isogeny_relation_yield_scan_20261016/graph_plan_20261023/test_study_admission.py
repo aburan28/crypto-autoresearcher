@@ -7,7 +7,8 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
-from study_admission import validate_approval_fields, verify_study_admission
+from study_admission import (require_discovery_stage, validate_approval_fields,
+                             verify_study_admission)
 
 
 def rejects_before_execution(value: dict) -> None:
@@ -49,6 +50,17 @@ class AdmissionBoundaryTests(unittest.TestCase):
             "approved_by": "DEC-20261023-a1b2c3", "frozen": True,
             "execution_authorized": True, "execution_authorized_stages": [0]}}
         self.assertEqual(validate_approval_fields(admission, decision, specification)[2], 0)
+        self.assertEqual(require_discovery_stage(admission), 0)
+        later_admission = {**admission, "execution_stage": 1}
+        later_decision = {"coordinator_decision": {
+            **decision["coordinator_decision"],
+            "official_transitions": {"execution_authorized_stages": [1]}}}
+        later_specification = {"experiment": {
+            **specification["experiment"], "execution_authorized_stages": [1]}}
+        self.assertEqual(validate_approval_fields(
+            later_admission, later_decision, later_specification)[2], 1)
+        with self.assertRaisesRegex(ValueError, "requires execution_stage 0"):
+            require_discovery_stage(later_admission)
         for bad_admission, bad_decision, bad_spec in (
             ({**admission, "execution_stage": True}, decision, specification),
             (admission, {"coordinator_decision": {**decision["coordinator_decision"],
