@@ -78,6 +78,20 @@ def main() -> None:
     )
     lean_source = HERE / "CurrentMainTargetBatchAudit.lean"
     require(lean_source.read_text() == generated, "batch source differs from named target specs")
+    theorem_type_lines = ["import CryptoResearch", "import Lean", "open Lean Elab Command", ""]
+    for path, name in main_specs:
+        theorem_type_lines.extend([
+            f"-- {path.rsplit('/', 1)[-1]}",
+            "run_cmd do",
+            f"  let target := `{name}",
+            "  match (← getEnv).find? target with",
+            '  | some (.thmInfo _) => logInfo m!"theorem type passed: {target}"',
+            '  | _ => throwError "requested declaration is not a theorem: {target}"',
+            "",
+        ])
+    theorem_type_source = HERE / "CurrentMainTheoremTypeAudit.lean"
+    require(theorem_type_source.read_text() == "\n".join(theorem_type_lines),
+            "theorem-type audit source differs from specs")
 
     evidence = HERE / "evidence"
     build_log = evidence / "current-main-build.log"
@@ -130,6 +144,26 @@ def main() -> None:
     unexpected = {name: sorted(axioms - ALLOWED_AXIOMS)
                   for name, axioms in axiom_sets.items() if not axioms <= ALLOWED_AXIOMS}
     require(not unexpected, f"nonstandard axioms: {unexpected}")
+    theorem_type_log = evidence / "current-main-theorem-type.log"
+    type_names = re.findall(r"^theorem type passed: ([A-Za-z_][A-Za-z0-9_'.]*)$",
+                            theorem_type_log.read_text(), flags=re.MULTILINE)
+    require(len(type_names) == len(main_specs) and set(type_names) == set(axiom_sets),
+            "one or more target declarations are not audited as theorems")
+    type_negative_source = HERE / "CurrentMainTheoremTypeNegative.lean"
+    type_negative_log = evidence / "current-main-theorem-type-negative.log"
+    require(type_negative_source.read_text() ==
+            "import CryptoResearch.Endosweep.DkExactBatch5\n"
+            "import Lean\n"
+            "open Lean Elab Command\n"
+            "run_cmd do\n"
+            "  let target := `CryptoResearch.Endosweep.DkExactBatch5.gost_gost512\n"
+            "  match (← getEnv).find? target with\n"
+            '  | some (.thmInfo _) => logInfo m!"theorem type passed: {target}"\n'
+            '  | _ => throwError "requested declaration is not a theorem: {target}"\n',
+            "theorem-type negative control source changed")
+    require("error: requested declaration is not a theorem: "
+            "CryptoResearch.Endosweep.DkExactBatch5.gost_gost512"
+            in type_negative_log.read_text(), "known definition was not rejected")
 
     tracked_formal = git(repo, "ls-files", "formal").splitlines()
     require(len(tracked_formal) == 150, "unexpected tracked formal file count")
@@ -203,6 +237,7 @@ def main() -> None:
         "target_spec_manifest_sha256": manifest_hash(repo, spec_paths),
         "target_theorem_files_present": len(specs),
         "main_target_names_resolved": len(main_specs),
+        "main_target_theorems_confirmed": len(type_names),
         "main_targets_with_standard_axioms": len(dependent),
         "main_targets_with_no_axioms": len(independent),
         "main_workspace_build_jobs": 8976,
@@ -214,10 +249,13 @@ def main() -> None:
         "batch_five_per_target_verification": "machine_verified; semantic review pending",
         "checker_sha256": sha256(Path(__file__)),
         "batch_lean_source_sha256": sha256(lean_source),
+        "theorem_type_lean_source_sha256": sha256(theorem_type_source),
+        "theorem_type_negative_lean_source_sha256": sha256(type_negative_source),
         "batch_five_direct_lean_source_sha256": sha256(direct_source),
         "batch_five_negative_lean_source_sha256": sha256(negative_source),
         "evidence_sha256": {p.name: sha256(p) for p in
-                            (build_log, batch_log, axiom_log, direct_log, negative_log,
+                            (build_log, batch_log, axiom_log, theorem_type_log, type_negative_log,
+                             direct_log, negative_log,
                              source_sha_log, source_tests_log, target_receipt_path)},
         "scope": "named-main formal tree build and target axiom sweep; no independent semantic review or experiment replay",
     }
