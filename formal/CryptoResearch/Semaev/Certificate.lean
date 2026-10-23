@@ -1,0 +1,179 @@
+/-
+Source: research/THM_SEMAEV_FALL1.md, Lemma 3.
+Target: formal/targets/semaev-decomposition-certificate.yaml.
+
+The finite coefficient search below checks membership in the declared
+F-linear span. The points are Mathlib's affine Weierstrass points, whose
+addition is the curve group law. The checker works for every tuple length,
+curve, target, and declared finite family. It makes no existence or
+decomposition-probability assertion.
+-/
+import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
+import Mathlib.LinearAlgebra.Finsupp.LinearCombination
+
+namespace CryptoResearch.Semaev
+
+variable {F K : Type*} [Field F] [Fintype F] [DecidableEq F]
+  [Field K] [DecidableEq K] [Algebra F K]
+  {b m : Nat}
+
+/-- A finite coefficient search for membership in the declared F-span. -/
+def inDeclaredSpan (basis : Fin b → K) (x : K) : Prop :=
+  ∃ c : Fin b → F, ∑ i, c i • basis i = x
+
+instance decidable_inDeclaredSpan (basis : Fin b → K) (x : K) :
+    Decidable (inDeclaredSpan (F := F) basis x) := by
+  unfold inDeclaredSpan
+  infer_instance
+
+omit [Fintype F] [DecidableEq F] [DecidableEq K] in
+theorem inDeclaredSpan_iff_mem_span (basis : Fin b → K) (x : K) :
+    inDeclaredSpan (F := F) basis x ↔ x ∈ Submodule.span F (Set.range basis) := by
+  exact (Submodule.mem_span_range_iff_exists_fun (R := F) (v := basis) (x := x)).symm
+
+/-- The explicit Weierstrass equation is computable over a finite field.
+Mathlib's general polynomial evaluation is noncomputable, so the checker
+uses this equivalent coordinate formula. -/
+def equationCheck (W : WeierstrassCurve.Affine K) (x y : K) : Prop :=
+  y ^ 2 + W.a₁ * x * y + W.a₃ * y -
+    (x ^ 3 + W.a₂ * x ^ 2 + W.a₄ * x + W.a₆) = 0
+
+instance decidable_equationCheck (W : WeierstrassCurve.Affine K) (x y : K) :
+    Decidable (equationCheck W x y) := by
+  unfold equationCheck
+  infer_instance
+
+omit [DecidableEq K] in
+theorem equationCheck_iff_equation (W : WeierstrassCurve.Affine K) (x y : K) :
+    equationCheck W x y ↔ W.Equation x y := by
+  exact (W.equation_iff' x y).symm
+
+/-- The point at infinity is excluded: certificates contain affine points.
+For a finite point, check both the curve equation and the declared span. -/
+def validAtPoint (W : WeierstrassCurve.Affine K) (basis : Fin b → K)
+    (P : W.Point) : Prop :=
+  match P with
+  | .zero => False
+  | .some x y _ => equationCheck W x y ∧ inDeclaredSpan (F := F) basis x
+
+instance decidable_validAtPoint (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : W.Point) : Decidable (validAtPoint (F := F) W basis P) := by
+  cases P with
+  | zero =>
+      change Decidable False
+      infer_instance
+  | some x y h =>
+      change Decidable (equationCheck W x y ∧ inDeclaredSpan (F := F) basis x)
+      infer_instance
+
+/-- Every member must be an affine curve point with x-coordinate in the
+declared span, and the group sum must equal the supplied target. -/
+def validDecomposition (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : Fin m → W.Point) (R : W.Point) : Prop :=
+  (∀ i, validAtPoint (F := F) W basis (P i)) ∧ (∑ i, P i) = R
+
+/-- Total decision procedure, uniformly in the certificate and target. -/
+instance instDecidableValidDecomposition (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : Fin m → W.Point) (R : W.Point) :
+    Decidable (validDecomposition (F := F) W basis P R) := by
+  unfold validDecomposition
+  infer_instance
+
+omit [Fintype F] [DecidableEq F] [DecidableEq K] in
+theorem validAtPoint_iff_curve_span (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : W.Point) :
+    validAtPoint (F := F) W basis P ↔
+      match P with
+      | .zero => False
+      | .some x y _ => W.Equation x y ∧ x ∈ Submodule.span F (Set.range basis) := by
+  cases P with
+  | zero => simp [validAtPoint]
+  | some x y h =>
+      simp only [validAtPoint]
+      exact and_congr (equationCheck_iff_equation W x y)
+        (inDeclaredSpan_iff_mem_span (F := F) basis x)
+
+omit [Fintype F] [DecidableEq F] in
+/-- Soundness and completeness against the curve equation, the actual
+subspace span, and Mathlib's elliptic-curve group law. -/
+theorem validDecomposition_iff_curve_span_sum (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : Fin m → W.Point) (R : W.Point) :
+    validDecomposition (F := F) W basis P R ↔
+      (∀ i, match P i with
+        | .zero => False
+        | .some x y _ => W.Equation x y ∧ x ∈ Submodule.span F (Set.range basis)) ∧
+      (∑ i, P i) = R := by
+  unfold validDecomposition
+  constructor
+  · rintro ⟨h, hs⟩
+    exact ⟨fun i => (validAtPoint_iff_curve_span (F := F) W basis (P i)).mp (h i), hs⟩
+  · rintro ⟨h, hs⟩
+    exact ⟨fun i => (validAtPoint_iff_curve_span (F := F) W basis (P i)).mpr (h i), hs⟩
+
+omit [DecidableEq F] in
+/-- The executable decision result is true exactly for a valid group-law
+decomposition with every x-coordinate in the declared subspace. This named
+theorem accompanies `instDecidableValidDecomposition`, which supplies the
+actual total decision procedure. -/
+theorem decidable_validDecomposition (W : WeierstrassCurve.Affine K)
+    (basis : Fin b → K) (P : Fin m → W.Point) (R : W.Point) :
+    decide (validDecomposition (F := F) W basis P R) = true ↔
+      (∀ i, match P i with
+        | .zero => False
+        | .some x y _ => W.Equation x y ∧ x ∈ Submodule.span F (Set.range basis)) ∧
+      (∑ i, P i) = R := by
+  rw [decide_eq_true_eq]
+  exact validDecomposition_iff_curve_span_sum (F := F) W basis P R
+
+/-- Reify raw coordinates into the actual elliptic-curve group. Invalid
+coordinates map to the neutral point; the raw certificate predicate below
+rejects them before accepting a decomposition. -/
+def pointOfRaw (W : WeierstrassCurve.Affine K) [W.IsElliptic]
+    (xy : K × K) : W.Point :=
+  if h : equationCheck W xy.1 xy.2 then
+    WeierstrassCurve.Affine.Point.mk ((equationCheck_iff_equation W xy.1 xy.2).mp h)
+  else
+    .zero
+
+theorem pointOfRaw_eq_mk (W : WeierstrassCurve.Affine K) [W.IsElliptic]
+    (xy : K × K) (h : equationCheck W xy.1 xy.2) :
+    pointOfRaw W xy = WeierstrassCurve.Affine.Point.mk
+      ((equationCheck_iff_equation W xy.1 xy.2).mp h) := by
+  simp [pointOfRaw, h]
+
+/-- An executable checker for producer output given as raw coordinates.
+The first conjunct verifies each curve equation and span membership; the
+second checks the elliptic-curve group sum after reification. -/
+def validRawDecomposition (W : WeierstrassCurve.Affine K) [W.IsElliptic]
+    (basis : Fin b → K) (xy : Fin m → K × K) (R : W.Point) : Prop :=
+  (∀ i, equationCheck W (xy i).1 (xy i).2 ∧
+    inDeclaredSpan (F := F) basis (xy i).1) ∧
+  (∑ i, pointOfRaw W (xy i)) = R
+
+instance decidable_validRawDecomposition (W : WeierstrassCurve.Affine K)
+    [W.IsElliptic] (basis : Fin b → K) (xy : Fin m → K × K) (R : W.Point) :
+    Decidable (validRawDecomposition (F := F) W basis xy R) := by
+  unfold validRawDecomposition
+  infer_instance
+
+omit [Fintype F] [DecidableEq F] in
+theorem validRawDecomposition_iff_curve_span_sum (W : WeierstrassCurve.Affine K)
+    [W.IsElliptic] (basis : Fin b → K) (xy : Fin m → K × K) (R : W.Point) :
+    validRawDecomposition (F := F) W basis xy R ↔
+      (∀ i, W.Equation (xy i).1 (xy i).2 ∧
+        (xy i).1 ∈ Submodule.span F (Set.range basis)) ∧
+      (∑ i, pointOfRaw W (xy i)) = R := by
+  unfold validRawDecomposition
+  constructor
+  · rintro ⟨h, hs⟩
+    refine ⟨?_, hs⟩
+    intro i
+    exact ((equationCheck_iff_equation W _ _).and
+      (inDeclaredSpan_iff_mem_span (F := F) basis _)).mp (h i)
+  · rintro ⟨h, hs⟩
+    refine ⟨?_, hs⟩
+    intro i
+    exact ((equationCheck_iff_equation W _ _).and
+      (inDeclaredSpan_iff_mem_span (F := F) basis _)).mpr (h i)
+
+end CryptoResearch.Semaev
