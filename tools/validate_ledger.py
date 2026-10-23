@@ -875,6 +875,16 @@ def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
                       f"alpha.scaling_claim: true")
 
 
+# A declared run artifact may be stored compressed or as a blob-store pointer
+# (tools/artifact_store.py, docs/artifact-storage.md); any one form satisfies it.
+ARTIFACT_STORED_FORMS = ("", ".gz", ".blob.json", ".gz.blob.json")
+
+
+def _artifact_stored(run_dir: str, name: str) -> bool:
+    return any(os.path.isfile(os.path.join(run_dir, name + suffix))
+               for suffix in ARTIFACT_STORED_FORMS)
+
+
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     supersession = ctx.schema_supersession(path)
     if supersession and supersession.get("redirect_id"):
@@ -1273,7 +1283,7 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
         if artifact == "raw-result.json" and (
                 raw_result_pending or raw_result_explicitly_unwritten):
             continue
-        if not os.path.exists(os.path.join(run_dir, artifact)):
+        if not _artifact_stored(run_dir, artifact):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
     # Certificate discipline (docs/claims-and-verification.md).
     result = body.get("result") or {}
