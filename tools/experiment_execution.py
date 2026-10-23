@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from contextlib import contextmanager
+import copy
 from datetime import datetime, timezone
 from functools import lru_cache
 import hashlib
@@ -208,6 +209,166 @@ def manifest_schema_errors(manifest: Path) -> list[str]:
     ctx = validate_ledger.Ctx(set())
     validate_ledger.check_run(str(manifest), ctx)
     return [error.split(": ", 1)[-1] for error in ctx.errors]
+
+
+COMPLETION_SCHEMA = "crypto.autoresearch.run_envelope_completion.v1"
+
+
+class EnvelopeRefused(ExecutionError):
+    """A driver manifest the supervisor may not complete or publish."""
+
+
+def _agree(body: dict[str, Any], field: str, value: Any, where: str) -> None:
+    if field in body and body[field] != value:
+        raise EnvelopeRefused(f"driver manifest {where}{field}={body[field]!r} contradicts "
+                              f"the frozen plan's {value!r}")
+
+
+def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
+                      plan_hash: str, trial: dict[str, Any], authority: dict[str, Any],
+                      argv: list[str], checker: list[str], started: str,
+                      driver_finished: str) -> dict[str, Any]:
+    """Give a driver's manifest.yaml the run envelope tools/validate_ledger.py
+    requires, from facts the supervisor holds at publish time, then gate it.
+
+    Frozen drivers write partial envelopes: RUN-SEMBIN-9ecb77, -a818df,
+    RUN-ECDLP-3d61b8 and -06bb83 were published with only run_id, experiment_id,
+    attack_claimed and metrics (11 validate_ledger errors each, DEC-20261017-0fab25),
+    and older ones were flat. The driver's own values are never changed: a key
+    the driver wrote is kept as written, and one that contradicts the plan is a
+    refusal. Only missing keys are added, each from the plan, the launch
+    authority, environment.json, command.txt or the supervisor's clock. The one
+    derived value is certificate.kind none, and only where the driver itself
+    recorded attack_claimed false. Nothing else is inferred, so a manifest that
+    still fails check_run after completion is refused (EnvelopeRefused), never
+    published. The driver's exact bytes are kept in the completion record.
+    """
+    path = safe_path(directory, "manifest.yaml")
+    original = path.read_bytes()
+    try:
+        document = fast_yaml.safe_load(original.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError) as error:
+        raise EnvelopeRefused(f"driver manifest.yaml is not YAML: {error}") from error
+    if not isinstance(document, dict):
+        raise EnvelopeRefused("driver manifest.yaml is not a mapping")
+    if "run" in document:
+        if set(document) != {"run"} or not isinstance(document["run"], dict):
+            raise EnvelopeRefused("driver manifest.yaml mixes a run: envelope with top-level keys")
+        body, shape = dict(document["run"]), "nested"
+    else:
+        body, shape = dict(document), "flat"  # legacy flat shape: wrap, never rename
+    # Schema validity does not bind an envelope to the frozen trial. Check
+    # identity and claims even when no completion would otherwise be needed.
+    for alias in ("id", "run_id"):
+        _agree(body, alias, trial["run_id"], "run.")
+    _agree(body, "experiment_id", plan["experiment_id"], "run.")
+    for block in ("code", "result", "inputs", "environment", "timing"):
+        if block in body and not isinstance(body[block], dict):
+            raise EnvelopeRefused(f"driver manifest run.{block} is not a mapping")
+    certificate = body.get("result", {}).get("certificate")
+    if certificate is not None and not isinstance(certificate, dict):
+        raise EnvelopeRefused("driver manifest run.result.certificate is not a mapping")
+    raw_path = safe_path(directory, "raw-result.json")
+    raw = None
+    if raw_path.is_file():
+        try:
+            raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raw = None
+    claims = {where: value["attack_claimed"] for where, value in
+              (("manifest.yaml", body), ("raw-result.json", raw))
+              if isinstance(value, dict) and "attack_claimed" in value}
+    if any(type(value) is not bool for value in claims.values()):
+        raise EnvelopeRefused("driver attack_claimed must be a boolean")
+    if any(claims.values()) and (not certificate or certificate.get("kind") == "none"):
+        raise EnvelopeRefused(f"driver attack_claimed is {claims}; a claim needs the "
+                              "driver's own verified certificate, which the supervisor "
+                              "cannot supply")
+    if not manifest_schema_errors(path):
+        return {"schema": COMPLETION_SCHEMA, "action": "unchanged",
+                "driver_manifest_sha256": hashlib.sha256(original).hexdigest()}
+    added: list[str] = []
+
+    def put(target: dict[str, Any], key: str, value: Any, name: str) -> None:
+        if key not in target:
+            target[key] = value
+            added.append(name)
+
+    environment = read_json(safe_path(directory, "environment.json"))
+    started_at = datetime.fromisoformat(started)
+    finished_at = datetime.fromisoformat(driver_finished)
+    wall_seconds = (finished_at - started_at).total_seconds()
+    if wall_seconds < 0:
+        raise EnvelopeRefused("supervisor clock moved backwards; duration cannot be completed")
+    put(body, "id", trial["run_id"], "run.id")
+    put(body, "experiment_id", plan["experiment_id"], "run.experiment_id")
+    if isinstance(plan.get("hypothesis_id"), str) and plan["hypothesis_id"].strip():
+        put(body, "hypothesis_id", plan["hypothesis_id"], "run.hypothesis_id")
+    put(body, "task_id", plan["task_id"], "run.task_id")
+    put(body, "trial_id", trial["id"], "run.trial_id")
+    put(body, "approved_by", plan["approved_by"], "run.approved_by")
+    put(body, "status", "completed", "run.status")
+    if "run.status" in added:
+        put(body, "status_note", "Written by tools/experiment_execution.py: the driver exited 0. "
+            "Completed is not a validity ruling.", "run.status_note")
+    for block in ("code", "result"):
+        if not isinstance(body.setdefault(block, {}), dict):
+            raise EnvelopeRefused(f"driver manifest run.{block} is not a mapping")
+    code, result = body["code"], body["result"]
+    put(code, "commit", authority["commit"], "run.code.commit")
+    put(code, "commit_meaning", "launch authority commit (launch.json, environment.json)",
+        "run.code.commit_meaning")
+    put(code, "command_file", "command.txt", "run.code.command_file")
+    put(code, "command", json.dumps(argv), "run.code.command")
+    put(code, "check_command", json.dumps(checker), "run.code.check_command")
+    put(body, "environment", {"file": "environment.json", **environment}, "run.environment")
+    inputs: dict[str, Any] = {"trial_plan": plan_relative, "plan_sha256": plan_hash,
+                              "trial_id": trial["id"]}
+    for key in ("parameters", "seed", "curve_id"):
+        if key in trial:  # only what the frozen plan declares; never a default
+            inputs[key] = trial[key]
+    put(body, "inputs", inputs, "run.inputs")
+    put(body, "timing", {"started_at": started, "finished_at": driver_finished,
+                         "wall_seconds": wall_seconds,
+                         "source": "supervisor clock around the driver process"}, "run.timing")
+    if raw_path.is_file():
+        put(result, "raw_result", "raw-result.json", "run.result.raw_result")
+    if isinstance(body.get("metrics"), dict):
+        put(result, "metrics", copy.deepcopy(body["metrics"]), "run.result.metrics")
+    if "certificate" not in result and claims:
+        if set(map(repr, claims.values())) != {"False"}:
+            raise EnvelopeRefused(f"driver attack_claimed is {claims}; a claim needs the "
+                                  "driver's own verified certificate, which the supervisor "
+                                  "cannot supply")
+        put(result, "certificate", {
+            "kind": "none", "verified": None,
+            "note": "attack_claimed false in " + " and ".join(sorted(claims))
+                    + "; no discrete_log, decomposition or key_recovery claim"},
+            "run.result.certificate")
+    put(result, "executor_receipt", "execution-receipt.json", "run.result.executor_receipt")
+    put(body, "artifacts", {"stdout": "stdout.log", "stderr": "stderr.log",
+                            "check_stdout": "check.stdout.log",
+                            "check_stderr": "check.stderr.log"}, "run.artifacts")
+    record = {"schema": COMPLETION_SCHEMA, "action": "completed", "driver_shape": shape,
+              "driver_manifest_sha256": hashlib.sha256(original).hexdigest(),
+              "completed_by": "tools/experiment_execution.py", "added": added}
+    body["envelope_completion"] = record
+    completed = yaml.safe_dump({"run": body}, sort_keys=False, allow_unicode=True)
+    # Gate the candidate before replacing the driver's bytes, beside the run's
+    # capture artifacts: a refusal leaves the driver's manifest as written.
+    candidate = safe_path(directory, ".manifest.candidate.yaml")
+    try:
+        candidate.write_text(completed, encoding="utf-8")
+        errors = manifest_schema_errors(candidate)
+        if not errors:
+            os.replace(candidate, path)
+    finally:
+        candidate.unlink(missing_ok=True)
+    if errors:
+        raise EnvelopeRefused("manifest.yaml fails the run schema (tools/validate_ledger.py) "
+                              "and cannot be completed from publish-time facts: "
+                              + "; ".join(errors))
+    return {**record, "driver_manifest_text": original.decode("utf-8")}
 
 
 def run_root(root: Path, plan: dict[str, Any], trial: dict[str, Any]) -> Path:
@@ -544,14 +705,22 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
                "runtime_lock_sha256": plan.get("runtime_lock_sha256")})  # never dump credential-bearing environment variables
     status, returncode, check_returncode = "infrastructure_error", None, None
     detail = None
+    completion = None
     interrupted = False
     try:
         state, returncode = run_process(argv, root, directory, "", trial, authority, lock_fd)
+        driver_finished = datetime.now(timezone.utc).isoformat()
         if state != "exited":
             status = state
         elif returncode != 0:
             status = "infrastructure_error"
         else:
+            # Before the checker, so it validates the bytes that get published.
+            manifest = safe_path(directory, "manifest.yaml")
+            if manifest.is_file() and manifest.stat().st_size:
+                completion = complete_manifest(
+                    directory, plan, path.relative_to(root).as_posix(), digest, trial,
+                    authority, argv, checker, started, driver_finished)
             state, check_returncode = run_process(checker, root, directory, "check.", trial, authority, lock_fd)
             status = (state if state != "exited" else
                       "output_validated" if check_returncode == 0 else "invalid_output")
@@ -569,6 +738,9 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         status, interrupted = "interrupted", True
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         status, detail = "invalid_output" if returncode == 0 else "infrastructure_error", str(error)
+        if isinstance(error, EnvelopeRefused) or "fails the run schema" in detail:
+            # Loud, not only in the receipt: this run must not be published.
+            print(f"experiment_execution: {trial['run_id']}: refused: {detail}", file=sys.stderr)
     # Failed launches/checks still get all declared log paths, never invented output.
     for name in ("stdout.log", "stderr.log", "check.stdout.log", "check.stderr.log"):
         target = safe_path(directory, name)
@@ -607,6 +779,7 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         "check_returncode": check_returncode, "started_at": started,
         "finished_at": datetime.now(timezone.utc).isoformat(), "detail": detail,
         "artifact_sha256": artifacts, "artifact_storage": storage, "authority": authority,
+        "manifest_completion": completion,
         "scientific_conclusion": None, "published": False})
     if interrupted:
         raise KeyboardInterrupt
