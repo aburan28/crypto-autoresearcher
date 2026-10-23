@@ -40,7 +40,7 @@ The omitted-pair discriminant-gcd counts are `40` at gcd `1`, `6` at `3`, `5` at
 
 ![Pairwise omitted-curve discriminant gcds](pair_gcd.svg)
 
-For pairs over the **same** `F_p`, equal group order is equivalent to being `F_p`-isogenous by Tate's theorem. The 45 named same-field pairs all have different orders, so no two named curves are linked by an `F_p`-rational isogeny. Opposite traces are necessary for a quadratic-twist pair, and equal `j` is necessary for geometric isomorphism; neither occurs for the named pairs. [Tate, *Endomorphisms of Abelian Varieties over Finite Fields*][tate] (`retrieved`). These tests compare **the named curves only**. They do not enumerate their isogeny classes, compute kernels or maps, or exclude transfers to unlisted representatives.
+For pairs over the **same** `F_p`, equal group order is equivalent to being `F_p`-isogenous by Tate's theorem. The 45 named same-field pairs all have different orders, so no two named curves are linked by an `F_p`-rational isogeny. Opposite traces are necessary for a quadratic-twist pair, and equal `j` is necessary for geometric isomorphism; neither occurs for the named pairs. [Tate, *Endomorphisms of Abelian Varieties over Finite Fields*][tate] (`retrieved`). An unlisted `F_p`-isogenous endpoint would have the **same trace and CM field** as its source, and a quadratic twist has the opposite trace but the **same `Δ`**. The small-CM bound therefore applies to those endpoints and twists too. These tests do **not** enumerate isogeny classes, compute kernels or maps, or exclude representative-specific transfers to unlisted curves.
 
 ## Interpretation for the hypothetical 1997 selector
 

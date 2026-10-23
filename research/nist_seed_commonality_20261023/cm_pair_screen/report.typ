@@ -130,9 +130,12 @@ pairs all have different orders, so no two named curves are linked by an
 quadratic-twist pair, and equal `j` is necessary for geometric
 isomorphism; neither occurs for the named pairs.
 #link("https://pazuki.perso.math.cnrs.fr/index_fichiers/Tate66.pdf")[Tate, #emph[Endomorphisms of Abelian Varieties over Finite Fields]]
-(`retrieved`). These tests compare #strong[the named curves only]. They
-do not enumerate their isogeny classes, compute kernels or maps, or
-exclude transfers to unlisted representatives.
+(`retrieved`). An unlisted `F_p`-isogenous endpoint would have the
+#strong[same trace and CM field] as its source, and a quadratic twist
+has the opposite trace but the #strong[same `Δ`]. The small-CM bound
+therefore applies to those endpoints and twists too. These tests do
+#strong[not] enumerate isogeny classes, compute kernels or maps, or
+exclude representative-specific transfers to unlisted curves.
 
 == Interpretation for the hypothetical 1997 selector
 <interpretation-for-the-hypothetical-1997-selector>
