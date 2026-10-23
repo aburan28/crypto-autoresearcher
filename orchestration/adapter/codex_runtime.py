@@ -347,14 +347,15 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
-    # Codex can use WAL mode. `immutable=1` skips its uncheckpointed WAL and
-    # falsely reports a just-completed session as missing. First open the live
-    # database read-only, including WAL. On macOS hosts where provenance makes
-    # that fail with SQLITE_CANTOPEN, immutable fallback is safe only when no
-    # nonempty WAL exists. Never turn an unreadable live WAL into a missing row.
-    base_uri = "file:" + quote(str(state_db), safe="/")
+    # A live Codex database may use WAL. immutable=1 ignores its uncheckpointed
+    # rows, including the session just created by this probe. Use SQLite's
+    # read-only WAL view. A missing WAL file does not establish immutability:
+    # a writer can create one immediately after the check. Ordinary read errors
+    # (including macOS provenance restrictions) must fail verification; do not
+    # bypass SQLite locking or change detection with an immutable fallback.
+    base_uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro"
 
-    def fetch(uri: str) -> list[tuple[Any, ...]]:
+    def query(uri: str) -> list[tuple[Any, ...]]:
         connection = sqlite3.connect(uri, uri=True)
         try:
             connection.execute("PRAGMA query_only=ON")
@@ -365,20 +366,9 @@ def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
             connection.close()
 
     try:
-        rows = fetch(base_uri + "?mode=ro")
+        rows = query(base_uri)
     except sqlite3.Error:
-        try:
-            wal_has_content = Path(str(state_db) + "-wal").stat().st_size > 0
-        except FileNotFoundError:
-            wal_has_content = False
-        except OSError:
-            raise _ProbeFailure("state_db_read_failed") from None
-        if wal_has_content:
-            raise _ProbeFailure("state_db_read_failed") from None
-        try:
-            rows = fetch(base_uri + "?mode=ro&immutable=1")
-        except sqlite3.Error:
-            raise _ProbeFailure("state_db_read_failed") from None
+        raise _ProbeFailure("state_db_read_failed") from None
     if not rows:
         raise _ProbeFailure("state_row_missing")
     if len(rows) != 1:
