@@ -31,7 +31,8 @@ earlier long form of this file stays unchanged at
   `design-experiment`, `review-evidence`, `research-status`, `deep-research`,
   `curate-knowledge`, `agent-bus`, `consolidate-lanes`, `tune-skill`,
   `research-visuals`, `audit-curve`, `transfer`, `audit-runs` (periodic
-  runbook-session audit). Each ends by writing its session receipt.
+  runbook-session audit), `experiment-protocol` (preregister and freeze;
+  unified export), `review-run` (another runner's review of an export). Each ends by writing its session receipt.
 - **Retrieval**: `.mcp.json` starts the read-only `kb/` server (relative
   `--directory`; machine settings in `kb/.env`). The derived index starts
   empty: `make -C kb qdrant-up`, `crypto-kb stage-repo .`, `crypto-kb ingest`.

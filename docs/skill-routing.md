@@ -18,6 +18,8 @@ this guide, catalog checks and subject assessment are never launch preflights.
 | Ingest a source or distill validated findings | `curate-knowledge` | Preserve provenance and promotion requirements |
 | Produce explanatory research diagrams/PDF | `research-visuals` | Derived communication, not scientific authority |
 | Cross-lane context | `consolidate-lanes` | Independent pointer consolidation, not findings |
+| Preregister and freeze an experiment; export its data in one shape | `experiment-protocol` | Protocol, controls, confounders, seeds, blinding, power, checkpoint policy; `tools/experiment_protocol.py` |
+| Review another runner's export; file observations and judgments | `review-run` | Write-once `experiment.review/v1`; never a state change |
 | Audit finished runbook sessions (periodic) | `audit-runs` | Integrity, nonce-sampled replay and math screen; never a trial or a review gate |
 | Audit whether results are real: claims, papers, proofs, Lean, receipts, numbers | `sheriff` | Write-once audit cases; repairs nothing, never a review gate or a state change |
 | Explicit inter-agent messaging | `agent-bus` | Pointers only; never approvals or work assignments |
@@ -63,6 +65,8 @@ results” uses `review-evidence` with `solver` context.
 | “Check the RunPod job and saved checkpoint” | `ops` | No automatic scientific launch |
 | “Formalize this stated lemma” | `formal` | Frozen formal task execution remains `run` |
 | “Check the math on the Haiku runs” | `audit-runs` | `formal` for a Lean statement the screen flags |
+| “Write the protocol before we run this sweep” / “is this experiment controlled?” | `experiment-protocol` | `design-experiment` for the ledgered contract |
+| “Review the export from the crypto session” / “second opinion on this benchmark” | `review-run` | `bench` for the cost table; `review-evidence` for the decision |
 | “Are these results bullshit?” / “Sheriff this paper before it lands” | `sheriff` | `audit-runs` for runbook sessions; `review-evidence` for the official decision |
 | “Does this recipient-lift construction meet IND-CCA?” | `scheme` | `formal` only for a supplied proof obligation |
 | “Add sourced curve traits to the dashboard” | `ui` | `curve` |
