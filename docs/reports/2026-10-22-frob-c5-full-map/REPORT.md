@@ -42,9 +42,9 @@ not affect this source.
 
 The separate [exact matrix-kernel certificate](../2026-10-22-frob-c5-quotient-matrix-kernels/REPORT.md)
 proves the C5 factor-kernel sums and trace dimensions for the matrices. An
-explicit Lean theorem transporting those kernel statements through this
-power-basis map to the quotient endomorphism is the next formal step. The
-historical Sage field and kernel paths are not proved to refine the mathematical
+additional [quotient-kernel certificate](../2026-10-22-frob-c5-quotient-kernel-transport/REPORT.md)
+proves the corresponding C5 controls for the actual q-power endomorphisms.
+The historical Sage field and kernel paths are not proved to refine the mathematical
 map; original execution-source custody and independent code/semantic review
 remain open. The three moduli are not proved irreducible in Lean, although the
 [source-bound replay](../2026-10-22-frob-c5-factor-kernels/c5-matrix-replay.json)

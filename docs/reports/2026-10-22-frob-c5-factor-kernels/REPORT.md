@@ -97,7 +97,9 @@ applies the factor polynomials directly to the exact recorded matrices and
 proves their kernel sums, directness and trace-kernel dimension four.
 A [full-map certificate](../2026-10-22-frob-c5-full-map/REPORT.md) now proves
 that the complete q-power endomorphism of each quotient has that frozen
-matrix in its power basis.
+matrix in its power basis. A [quotient-kernel certificate](../2026-10-22-frob-c5-quotient-kernel-transport/REPORT.md)
+then proves the factor-kernel, trace, fifth-power and fixed-line controls for
+those actual endomorphisms.
 
 ## Boundary and next check
 
@@ -107,10 +109,10 @@ the coprimality boundary; it is not a fourth archived core cell.
 
 The factor-kernel theorem uses canonical `GaloisField q 5` values. The quotient
 certificate proves q-power basis images, the full-map certificate identifies
-the q-power linear map's matrix, and the matrix-kernel certificate proves C5
-for that exact matrix. An explicit Lean transport of the kernel theorem to
-the quotient endomorphism and checked historical Sage refinement remain open.
-Source custody and independent review are required before the historical C5
+the q-power linear map's matrix, the matrix-kernel certificate proves C5
+for that exact matrix, and the quotient-kernel certificate establishes C5 for
+the actual q-power maps. Historical Sage refinement, original execution-source
+custody and independent review are required before the historical C5
 control can be called proof-backed. The
 [open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)
 tracks those checks. C8 and the full experiment success gate remain open.
