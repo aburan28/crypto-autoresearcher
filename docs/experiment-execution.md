@@ -168,6 +168,11 @@ driver's manifest stays as written, and the refusal is printed to stderr and
 kept in the receipt's `detail`. A completed manifest carries
 `run.envelope_completion` (the driver bytes' SHA-256 and the added keys), and
 the receipt's `manifest_completion` keeps the driver's exact text.
+Run and experiment identity checks apply to already complete envelopes too.
+A claimed attack cannot use `certificate.kind: none`; malformed envelope
+blocks are refused with a retained receipt. If the supervisor clock moves
+backwards, completion refuses to invent a zero duration and preserves the
+driver's original manifest.
 
 ## Launch and progress
 

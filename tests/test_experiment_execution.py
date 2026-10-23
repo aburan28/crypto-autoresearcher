@@ -57,6 +57,16 @@ if kind in ("partial", "claimed", "wrong_id"):  # RUN-SEMBIN-9ecb77's partial en
 if kind == "flat":  # the older flat shape: no run: envelope at all
     manifest = {"experiment_id": p.parent.parent.name, "attack_claimed": False,
                 "status": "completed", "metrics": {"planted_ok": True}}
+if kind == "complete_wrong_id":
+    manifest["run"]["id"] = "RUN-ECDLP-ffffff"
+if kind == "complete_wrong_alias":
+    manifest["run"]["run_id"] = "RUN-ECDLP-ffffff"
+if kind == "complete_wrong_experiment":
+    manifest["run"]["experiment_id"] = "EXP-ECDLP-ffffff"
+if kind == "claimed_none":
+    manifest["run"]["attack_claimed"] = True
+if kind == "bad_code":
+    manifest["run"]["code"] = "invalid mapping"
 (p / "manifest.yaml").write_text(json.dumps(manifest))  # JSON is valid YAML
 if kind == "empty_manifest":
     (p / "manifest.yaml").write_text("")
@@ -284,6 +294,37 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(json.loads((self.directory() / "manifest.yaml").read_text())["run"]["code"]["command"],
                          "driver.py measure")
 
+    def test_complete_shape_cannot_bypass_identity_or_claim_checks(self):
+        for index, mode in enumerate(("complete_wrong_id", "complete_wrong_alias",
+                                      "complete_wrong_experiment", "claimed_none",
+                                      "bad_code"), 50):
+            with self.subTest(mode=mode):
+                report, receipt = self.run_single(index, mode)
+                self.assertEqual(report["output_validated"], 0)
+                self.assertEqual(receipt["status"], "invalid_output")
+                self.assertIsNone(receipt["check_returncode"])
+                self.assertIsNone(receipt["manifest_completion"])
+                self.assertTrue(receipt["detail"])
+                manifest = self.directory() / "manifest.yaml"
+                self.assertNotIn("envelope_completion", manifest.read_text())
+                self.assertEqual(receipt["artifact_sha256"]["manifest.yaml"],
+                                 execution.sha256(manifest))
+
+    def test_backwards_supervisor_clock_is_not_zero_duration(self):
+        _, receipt = self.run_single(61, "partial")
+        directory = self.directory()
+        original = receipt["manifest_completion"]["driver_manifest_text"].encode()
+        manifest = directory / "manifest.yaml"
+        manifest.write_bytes(original)
+        launch = execution.read_json(directory / "launch.json")
+        earlier = (datetime.fromisoformat(launch["started_at"]) - timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(execution.EnvelopeRefused, "clock"):
+            execution.complete_manifest(
+                directory, self.plan, self.path.relative_to(self.root).as_posix(),
+                execution.sha256(self.path), self.plan["trials"][0], launch["authority"],
+                launch["argv"], launch["check_argv"], launch["started_at"], earlier)
+        self.assertEqual(manifest.read_bytes(), original)
+
     def test_envelope_that_cannot_be_completed_is_refused_loudly(self):
         cases = {"bare_manifest": "certificate.kind",  # no claim recorded: nothing to derive
                  "claimed": "attack_claimed",          # a claim needs the driver's certificate
@@ -477,9 +518,12 @@ class ExecutionTests(unittest.TestCase):
             self.assertGreater(calls, 1)
             with patch.object(execution, "darwin_group_rss_bytes",
                               side_effect=execution.ExecutionError("monitor unavailable")):
+                # Stay alive past the one-second libproc transition grace.
+                # A child exiting in that grace legitimately returns "exited".
+                persistent = [sys.executable, "-c", "import time; time.sleep(30)"]
                 with self.assertRaisesRegex(execution.ExecutionError, "monitor unavailable"):
                     execution.run_process(
-                        argv, self.root, self.directory(), "unavailable.", trial,
+                        persistent, self.root, self.directory(), "unavailable.", trial,
                         authority, lock.fileno())
 
     def test_watchdog_preserves_failure_not_scientific_conclusion(self):

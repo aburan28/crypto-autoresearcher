@@ -256,12 +256,17 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
         body, shape = dict(document["run"]), "nested"
     else:
         body, shape = dict(document), "flat"  # legacy flat shape: wrap, never rename
-    if not manifest_schema_errors(path):
-        return {"schema": COMPLETION_SCHEMA, "action": "unchanged",
-                "driver_manifest_sha256": hashlib.sha256(original).hexdigest()}
+    # Schema validity does not bind an envelope to the frozen trial. Check
+    # identity and claims even when no completion would otherwise be needed.
     for alias in ("id", "run_id"):
         _agree(body, alias, trial["run_id"], "run.")
     _agree(body, "experiment_id", plan["experiment_id"], "run.")
+    for block in ("code", "result", "inputs", "environment", "timing"):
+        if block in body and not isinstance(body[block], dict):
+            raise EnvelopeRefused(f"driver manifest run.{block} is not a mapping")
+    certificate = body.get("result", {}).get("certificate")
+    if certificate is not None and not isinstance(certificate, dict):
+        raise EnvelopeRefused("driver manifest run.result.certificate is not a mapping")
     raw_path = safe_path(directory, "raw-result.json")
     raw = None
     if raw_path.is_file():
@@ -269,6 +274,18 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
             raw = json.loads(raw_path.read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             raw = None
+    claims = {where: value["attack_claimed"] for where, value in
+              (("manifest.yaml", body), ("raw-result.json", raw))
+              if isinstance(value, dict) and "attack_claimed" in value}
+    if any(type(value) is not bool for value in claims.values()):
+        raise EnvelopeRefused("driver attack_claimed must be a boolean")
+    if any(claims.values()) and (not certificate or certificate.get("kind") == "none"):
+        raise EnvelopeRefused(f"driver attack_claimed is {claims}; a claim needs the "
+                              "driver's own verified certificate, which the supervisor "
+                              "cannot supply")
+    if not manifest_schema_errors(path):
+        return {"schema": COMPLETION_SCHEMA, "action": "unchanged",
+                "driver_manifest_sha256": hashlib.sha256(original).hexdigest()}
     added: list[str] = []
 
     def put(target: dict[str, Any], key: str, value: Any, name: str) -> None:
@@ -279,6 +296,9 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
     environment = read_json(safe_path(directory, "environment.json"))
     started_at = datetime.fromisoformat(started)
     finished_at = datetime.fromisoformat(driver_finished)
+    wall_seconds = (finished_at - started_at).total_seconds()
+    if wall_seconds < 0:
+        raise EnvelopeRefused("supervisor clock moved backwards; duration cannot be completed")
     put(body, "id", trial["run_id"], "run.id")
     put(body, "experiment_id", plan["experiment_id"], "run.experiment_id")
     if isinstance(plan.get("hypothesis_id"), str) and plan["hypothesis_id"].strip():
@@ -308,15 +328,12 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
             inputs[key] = trial[key]
     put(body, "inputs", inputs, "run.inputs")
     put(body, "timing", {"started_at": started, "finished_at": driver_finished,
-                         "wall_seconds": max(0.0, (finished_at - started_at).total_seconds()),
+                         "wall_seconds": wall_seconds,
                          "source": "supervisor clock around the driver process"}, "run.timing")
     if raw_path.is_file():
         put(result, "raw_result", "raw-result.json", "run.result.raw_result")
     if isinstance(body.get("metrics"), dict):
         put(result, "metrics", copy.deepcopy(body["metrics"]), "run.result.metrics")
-    claims = {where: value["attack_claimed"] for where, value in
-              (("manifest.yaml", body), ("raw-result.json", raw))
-              if isinstance(value, dict) and "attack_claimed" in value}
     if "certificate" not in result and claims:
         if set(map(repr, claims.values())) != {"False"}:
             raise EnvelopeRefused(f"driver attack_claimed is {claims}; a claim needs the "
