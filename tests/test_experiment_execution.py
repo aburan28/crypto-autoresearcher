@@ -6,14 +6,16 @@ exercise the adapter's contract with its emitted plan, not a live campaign.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import json
+import gzip
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
@@ -532,6 +534,42 @@ class ExecutionTests(unittest.TestCase):
         self.write_plan_queue(); self.commit()
         self.assertFalse(self.run_plan()["measurement_complete"])
         self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "watchdog_expired")
+
+    def test_large_artifacts_are_stored_compressed_and_bound_by_content(self):
+        store = execution.artifact_store
+        with mock.patch.object(store, "COMPRESS_MIN", 1):
+            self.assertTrue(self.run_plan()["measurement_complete"])
+        directory = self.directory()
+        self.assertFalse((directory / "raw-result.json").exists())
+        self.assertTrue((directory / "raw-result.json.gz").is_file())
+        self.assertTrue((directory / "manifest.yaml").is_file())          # read first; kept as written
+        receipt = json.loads((directory / "execution-receipt.json").read_text())
+        entry = receipt["artifact_storage"]["raw-result.json"]
+        content = store.read_bytes(directory / "raw-result.json")
+        self.assertEqual(receipt["artifact_sha256"]["raw-result.json"], entry["content_sha256"])
+        self.assertEqual(entry["content_sha256"], hashlib.sha256(content).hexdigest())
+        self.assertNotIn("manifest.yaml", receipt["artifact_storage"])
+        self.assertTrue(self.run_plan()["measurement_complete"])           # verifies, never relaunches
+        (directory / "raw-result.json.gz").chmod(0o644)
+        (directory / "raw-result.json.gz").write_bytes(gzip.compress(b'{"effect": 100}', mtime=0))
+        self.assertEqual(self.run_plan()["needs_reconciliation"], 1)
+
+    def test_largest_artifacts_offload_to_the_blob_store_as_pointers(self):
+        store = execution.artifact_store
+        blobs = self.root.parent / (self.root.name + "-blobs")
+        env = {"CRYPTO_AR_BLOBSTORE": blobs.as_uri(),
+               "CRYPTO_AR_BLOB_CACHE": str(self.root.parent / (self.root.name + "-cache"))}
+        with mock.patch.dict(os.environ, env), mock.patch.object(store, "COMPRESS_MIN", 1), \
+                mock.patch.object(store, "OFFLOAD_MIN", 1):
+            self.assertTrue(self.run_plan()["measurement_complete"])
+            directory = self.directory()
+            pointer = directory / "raw-result.json.gz.blob.json"
+            self.assertTrue(pointer.is_file())
+            receipt = json.loads((directory / "execution-receipt.json").read_text())
+            self.assertEqual(receipt["artifact_storage"]["raw-result.json"]["path"], pointer.name)
+            self.assertEqual(hashlib.sha256(store.read_bytes(directory / "raw-result.json")).hexdigest(),
+                             receipt["artifact_sha256"]["raw-result.json"])
+            self.assertTrue(self.run_plan()["measurement_complete"])
 
     def test_artifact_tampering_requires_reconciliation(self):
         self.run_plan()
