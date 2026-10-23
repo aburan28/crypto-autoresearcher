@@ -267,6 +267,11 @@ automorphism) on {', '.join(m3)} (the pairing-friendly curves with `j = 0`)"""
             + ", ".join(c["name"] for c in small if c["DK"] == d) for d in dks)
     eqs = ' ∧ '.join(f'{c["name"]}.DK = {c["DK"]}' for c in small)
     hyps = "".join(f"c.DK ≠ {d} → " for d in dks)
+    # A batch with no small D_K has no equalities to state: the size bound then covers every curve.
+    others = (f"Moreover {moreover},\nand on the other {len(big)} curves" if small else
+              f"Moreover, on all {len(big)} curves")
+    eqs_conj = f"\n    ({eqs}) ∧" if small else ""
+    eqs_proof = " by decide +kernel," if small else ""
     L.append(f"""/-- **Exact CM discriminants** (README "Results").  For every curve in
 `dkCerts`, `DkCert.Statement` holds: `q + 1 − t = h·n`; `t² − 4q = D_K·f²`;
 `4q − t²` is the product of the certificate's prime powers; the odd-exponent
@@ -274,16 +279,14 @@ primes multiply to the squarefree part `s`, and `D_K = −s` (`D_K ≡ 1 mod 4`)
 `D_K = −4s` (`−s ≡ 2, 3 mod 4`); `D_K` is a discriminant; the recorded degree is
 `min_nonscalar_degree(D_K)`, with `2^L ≤ |D_K| < 2^(L+1)` and degree `≥ 2^(L−2)`;
 and IF the listed factors above 10^8 are prime (PARI `isprime`, not proved
-here), `D_K` is fundamental.  Moreover {moreover},
-and on the other {len(big)} curves `|D_K| ≥ 2^{lo}` and every non-scalar element
+here), `D_K` is fundamental.  {others} `|D_K| ≥ 2^{lo}` and every non-scalar element
 of the order of discriminant `D_K` has norm `≥ 2^{lo - 2}`
 (`Discriminant.minNonscalarDegree_isLeast`). -/
 theorem exact_discriminants :
     dkCerts.length = {len(cs)} ∧
-    (∀ c ∈ dkCerts, c.Statement) ∧
-    ({eqs}) ∧
+    (∀ c ∈ dkCerts, c.Statement) ∧{eqs_conj}
     (∀ c ∈ dkCerts, {hyps}2 ^ {lo} ≤ c.DK.natAbs ∧ (2 : Int) ^ {lo - 2} ≤ c.deg) := by
-  refine ⟨rfl, ?_, by decide +kernel, by decide +kernel⟩
+  refine ⟨rfl, ?_,{eqs_proof} by decide +kernel⟩
   intro c hc
   simp only [dkCerts, List.mem_cons, List.not_mem_nil, or_false] at hc
   rcases hc with {' | '.join(['rfl'] * len(cs))}
