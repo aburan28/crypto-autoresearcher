@@ -18,7 +18,7 @@ TARGET_ROOT = b"T" * 32
 VERIFIER_ROOT = b"V" * 32
 
 
-def main():
+def check_source_binding_control():
     with TemporaryDirectory() as scratch:
         checkout = Path(scratch)
         source = checkout / "source.py"
@@ -27,16 +27,52 @@ def main():
         subprocess.run(["git", "add", "source.py"], cwd=checkout, check=True)
         subprocess.run(["git", "-c", "user.name=Control", "-c", "user.email=control@example.invalid",
                         "commit", "-q", "-m", "freeze"], cwd=checkout, check=True)
+        frozen = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout,
+                                         text=True).strip()
         (checkout / "runs").mkdir()
         (checkout / "runs" / "output.json").write_text("{}\n")
-        check_frozen_sources(checkout, [source])
+        check_frozen_sources(checkout, [source], frozen)
+        subprocess.run(["git", "add", "runs/output.json"], cwd=checkout, check=True)
+        subprocess.run(["git", "-c", "user.name=Control", "-c", "user.email=control@example.invalid",
+                        "commit", "-q", "-m", "publish run"], cwd=checkout, check=True)
+        current = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout,
+                                          text=True).strip()
+        if current == frozen:
+            raise AssertionError("run commit did not advance HEAD")
+        check_frozen_sources(checkout, [source], frozen)
         source.write_text("value = 2\n")
         try:
-            check_frozen_sources(checkout, [source])
+            check_frozen_sources(checkout, [source], frozen)
         except ValueError:
             pass
         else:
             raise AssertionError("modified source passed the commit binding")
+        subprocess.run(["git", "restore", "source.py"], cwd=checkout, check=True)
+        for invalid in ("0" * 40, "not-a-commit"):
+            try:
+                check_frozen_sources(checkout, [source], invalid)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("invalid source commit passed the binding")
+        subprocess.run(["git", "switch", "--orphan", "unrelated"], cwd=checkout,
+                       check=True, stdout=subprocess.DEVNULL)
+        source.write_text("value = 1\n")
+        subprocess.run(["git", "add", "source.py"], cwd=checkout, check=True)
+        subprocess.run(["git", "-c", "user.name=Control", "-c", "user.email=control@example.invalid",
+                        "commit", "-q", "-m", "unrelated identical source"], cwd=checkout, check=True)
+        try:
+            check_frozen_sources(checkout, [source], frozen)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("nonancestor source commit passed the binding")
+    return {"frozen_source_commit": frozen, "later_run_commit": current,
+            "ancestor_and_mutation_checks": "pass"}
+
+
+def main():
+    check_source_binding_control()
     parser = argparse.ArgumentParser()
     parser.add_argument("--collector", type=Path, required=True)
     parser.add_argument("--count-verifier", type=Path, required=True)

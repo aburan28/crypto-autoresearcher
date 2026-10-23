@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import resource
 import shutil
 import subprocess
@@ -59,13 +60,21 @@ def source_paths():
     }
 
 
-def check_frozen_sources(root, paths):
-    """Check committed source blobs, while allowing new run-output directories."""
+def check_frozen_sources(root, paths, source_commit):
+    """Bind source bytes to a frozen ancestor, allowing later run commits."""
+    if not isinstance(source_commit, str) or re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+        raise ValueError("scientific source commit must be a full SHA-1 commit id")
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source_commit, "HEAD"],
+        cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        check=False)
+    if ancestor.returncode != 0:
+        raise ValueError("scientific source commit is not an ancestor of execution HEAD")
     for path in paths:
         relative = Path(path).resolve().relative_to(Path(root).resolve()).as_posix()
         try:
             committed = subprocess.check_output(
-                ["git", "show", f"HEAD:{relative}"], cwd=root,
+                ["git", "show", f"{source_commit}:{relative}"], cwd=root,
                 stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError as error:
             raise ValueError(f"scientific source is not committed: {relative}") from error
@@ -73,9 +82,9 @@ def check_frozen_sources(root, paths):
             raise ValueError(f"scientific source differs from HEAD: {relative}")
 
 
-def bindings(args, manifest, head):
+def bindings(args, manifest, source_commit):
     values = {
-        "source_commit": head,
+        "source_commit": source_commit,
         "input_sha256": sha(args.input),
         "manifest_sha256": sha(args.manifest),
         "collector_binary_sha256": sha(args.collector),
@@ -111,12 +120,12 @@ def execute(args):
         raise ValueError("arm outside check-vertex schedule")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).splitlines()
+    source_commit = head
     if args.control:
         if manifest["target_count"] > 128:
             raise ValueError("implementation controls are capped at 128 targets")
     else:
         require_scientific_seed_mode(manifest)
-        check_frozen_sources(ROOT, source_paths().values())
         if (not manifest.get("schedule_conformant") or
                 not manifest.get("commitment_sha256") or
                 manifest["target_count"] != SCHEDULE[stratum][stage]):
@@ -126,7 +135,9 @@ def execute(args):
                 admission.get("status") != "approved" or not admission.get("experiment_id") or
                 not admission.get("approved_by")):
             raise ValueError("missing Coordinator-approved graph admission")
-        if any(admission.get(key) != value for key, value in bindings(args, manifest, head).items()):
+        source_commit = admission.get("source_commit")
+        check_frozen_sources(ROOT, source_paths().values(), source_commit)
+        if any(admission.get(key) != value for key, value in bindings(args, manifest, source_commit).items()):
             raise ValueError("graph admission digest or schedule binding differs")
     if shutil.disk_usage(args.output.parent).free < GIB:
         raise OSError("less than 1 GiB free at output filesystem")
@@ -144,11 +155,12 @@ def execute(args):
     receipt = {
         "schema": "ectd.graph-arm-execution-attempt.v1",
         "mode": "implementation_control" if args.control else "scientific_trial",
-        "status": "running", "started_utc": started, "source_commit": head,
+        "status": "running", "started_utc": started, "source_commit": source_commit,
+        "execution_head": head,
         "git_status_porcelain": dirty, "input_sha256": sha(args.input),
         "manifest_sha256": sha(args.manifest),
         "admission_sha256": None if args.control else sha(args.admission),
-        "bindings": bindings(args, manifest, head),
+        "bindings": bindings(args, manifest, source_commit),
         "platform": platform.platform(), "python_version": platform.python_version(),
         "limits": {"wall_seconds_total": args.watchdog_seconds,
                    "sampled_rss_bytes": args.memory_gib * GIB}, "phases": [],
