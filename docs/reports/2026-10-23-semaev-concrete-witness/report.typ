@@ -15,4 +15,6 @@ XOR 23 of 80 degree-three rows using selector `1321682796735964`. The result has
 == Checks and scope
 `ConcreteFirstFallWitness.concreteNewFall` is compiled with pinned Lean 4.35.0-rc1. A source-binding checker replays the literal archived equations, row order, XOR, separator and rank extension. Full build, axiom audit and formal target verification are recorded in `evidence/concrete-proof.json`; row and source hashes are in `evidence/source-binding.json`.
 
+The current-main integration check copied all 148 tracked formal files from commit `d513b75233`, built 8,975 jobs and audited 652 theorems. With this witness added, it built 8,976 jobs and audited 661 theorems with standard axioms only. `evidence/current-main-integration.json` binds the sources and logs.
+
 This proves one finite Boolean-model witness. Independent semantic review, generic rank semantics and symbolic descent, additive correction of historical wording, and any ECDLP cost inference remain open. The existing archived-versus-corrected draw chart and performance dashboards have no changed data.
