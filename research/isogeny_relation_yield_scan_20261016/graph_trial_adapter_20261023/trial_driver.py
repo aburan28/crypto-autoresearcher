@@ -37,6 +37,7 @@ def main() -> int:
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--admission", type=Path)
     parser.add_argument("--binding", type=Path)
+    parser.add_argument("--stage", choices=("discovery", "confirmation"), default="discovery")
     parser.add_argument("--base-root-file", type=Path)
     parser.add_argument("--target-root-file", type=Path)
     parser.add_argument("--verifier-root-file", type=Path)
@@ -73,6 +74,7 @@ def main() -> int:
                       ("base-root-file", "target-root-file", "verifier-root-file", "commitment")})
         prepared_dir = out / "prepared"
         command = [sys.executable, str(MATERIALIZER), "prepare", "--arm-key", args.arm_key,
+                   "--stage", args.stage,
                    "--base-root-file", str(paths["base-root-file"]),
                    "--target-root-file", str(paths["target-root-file"]),
                    "--verifier-root-file", str(paths["verifier-root-file"]),
@@ -99,6 +101,8 @@ def main() -> int:
         admission_doc = json.loads(paths["admission"].read_text())
         if args.arm_key is not None and admission_doc.get("schema") != "ectd.graph-study-admission.v1":
             parser.error("scheduled-arm materialization requires study-level admission")
+        if args.arm_key is not None and admission_doc.get("execution_stage") != (0 if args.stage == "discovery" else 1):
+            parser.error("trial stage differs from the admitted execution stage")
         if admission_doc.get("schema") == "ectd.graph-study-admission.v1":
             if "binding" not in paths and args.binding is None:
                 parser.error("study admission requires the materializer --binding")

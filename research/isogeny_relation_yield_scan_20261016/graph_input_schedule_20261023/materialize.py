@@ -31,7 +31,9 @@ def canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
-def load_schedule(arm_key: str) -> tuple[dict, dict]:
+def load_schedule(arm_key: str, stage: str = "discovery") -> tuple[dict, dict]:
+    if stage not in ("discovery", "confirmation"):
+        raise ValueError("unsupported graph schedule stage")
     manifest = json.loads((SCHEDULE_DIR / "manifest.json").read_text())
     receipt = json.loads((SCHEDULE_DIR / "verification.json").read_text())
     schedule_path = SCHEDULE_DIR / "discovery-arms.jsonl"
@@ -67,6 +69,9 @@ def load_schedule(arm_key: str) -> tuple[dict, dict]:
             found["base_x_orbits"] != config["B"] or
             not 0 <= found["path_index"] <= (2048 if stratum == "P29" else 256)):
         raise ValueError("arm parameters differ from fixed discovery schedule")
+    found = dict(found)
+    found["stage"] = stage
+    found["target_count"] = config[stage]
     return manifest, found
 
 
@@ -135,7 +140,8 @@ def parse_prepared(path: Path) -> tuple[list[int], list[list[int]], list[list[in
 
 
 def expected_binding(row: dict, roots: dict[str, bytes],
-                     commitment_path: Path, prepared_dir: Path) -> dict:
+                     commitment_path: Path, prepared_dir: Path,
+                     stage: str = "discovery") -> dict:
     input_path = prepared_dir / "prepared.txt"
     input_manifest_path = prepared_dir / "manifest.json"
     prepared = json.loads(input_manifest_path.read_text())
@@ -143,8 +149,8 @@ def expected_binding(row: dict, roots: dict[str, bytes],
     output_model = row.get("output_model", row["model"])
     output_generator = row.get("output_generator", row["generator"])
     expected = {"stratum": row["stratum"], "index": row["path_index"],
-                "arm": row["base_rule"], "stage": "discovery",
-                "j": row["model"]["j"], "target_count": row["discovery_targets"],
+                "arm": row["base_rule"], "stage": stage,
+                "j": row["model"]["j"], "target_count": row["target_count"],
                 "base_abscissae": row["base_x_orbits"], "generator": output_generator,
                 "graph_sha256": sha(WALKS[row["stratum"]]),
                 "commitment_sha256": sha(commitment_path),
@@ -175,9 +181,9 @@ def expected_binding(row: dict, roots: dict[str, bytes],
             prepared.get("seed_mode") != "independent_verifier_root" or
             prepared.get("schedule_conformant") is not True or
             header != [row["p"], output_model["a"], output_model["b"], row["r"],
-                       2 * row["base_x_orbits"], row["discovery_targets"]] or
+                       2 * row["base_x_orbits"], row["target_count"]] or
             len(base) != 2 * row["base_x_orbits"] or
-            len(targets) != row["discovery_targets"] or
+            len(targets) != row["target_count"] or
             prepared.get("base_sha256") != hashlib.sha256(json.dumps(base, separators=(",", ":")).encode()).hexdigest() or
             prepared.get("target_vector_sha256") != hashlib.sha256(json.dumps(
                 [[a, b, [x, y]] for a, b, x, y in targets], separators=(",", ":")).encode()).hexdigest()):
@@ -186,8 +192,8 @@ def expected_binding(row: dict, roots: dict[str, bytes],
         if prepared.get(name + "_root_sha256") != hashlib.sha256(root).hexdigest():
             raise ValueError("prepared root differs: " + name)
     k, coefficients, _ = target_coefficients(
-        roots["target"], row["stratum"], "discovery", row["r"],
-        row["discovery_targets"], roots["verifier"])
+        roots["target"], row["stratum"], stage, row["r"],
+        row["target_count"], roots["verifier"])
     actual_coefficients = [[a, b] for a, b, _, _ in targets]
     if actual_coefficients != [[a, b] for a, b, _ in coefficients]:
         raise ValueError("prepared target coefficients differ from fixed stream")
@@ -201,7 +207,8 @@ def expected_binding(row: dict, roots: dict[str, bytes],
             "prepared_manifest_sha256": sha(input_manifest_path),
             "coefficient_vector_sha256": coefficient_sha,
             "q_scalar_commitment_sha256": hashlib.sha256(str(k).encode()).hexdigest(),
-            "target_count": row["discovery_targets"],
+            **({"stage": stage} if stage != "discovery" else {}),
+            "target_count": row["target_count"],
             "control_reference": row.get("control_reference")}
 
 
@@ -209,13 +216,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "check"))
     parser.add_argument("--arm-key", required=True)
+    parser.add_argument("--stage", choices=("discovery", "confirmation"), default="discovery")
     parser.add_argument("--base-root-file", type=Path, required=True)
     parser.add_argument("--target-root-file", type=Path, required=True)
     parser.add_argument("--verifier-root-file", type=Path, required=True)
     parser.add_argument("--commitment", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    _, row = load_schedule(args.arm_key)
+    _, row = load_schedule(args.arm_key, args.stage)
     root_paths = {"base": args.base_root_file, "target": args.target_root_file,
                   "verifier": args.verifier_root_file}
     roots, _ = check_commitment(row, root_paths, args.commitment)
@@ -224,12 +232,12 @@ def main() -> None:
             raise ValueError("prepared output exists; never overwrite an attempt")
         command = [sys.executable, str(PREPARER), "--walk", str(WALKS[row["stratum"]]),
                    "--index", str(row["path_index"]), "--arm", row["base_rule"],
-                   "--stage", "discovery", "--base-root-file", str(args.base_root_file),
+                   "--stage", args.stage, "--base-root-file", str(args.base_root_file),
                    "--target-root-file", str(args.target_root_file),
                    "--verifier-root-file", str(args.verifier_root_file),
                    "--commitment", str(args.commitment), "--output-dir", str(args.output_dir)]
         subprocess.run(command, check=True)
-    binding = expected_binding(row, roots, args.commitment, args.output_dir)
+    binding = expected_binding(row, roots, args.commitment, args.output_dir, args.stage)
     binding_path = args.output_dir / "binding.json"
     if args.action == "prepare":
         with binding_path.open("x", encoding="utf-8") as stream:

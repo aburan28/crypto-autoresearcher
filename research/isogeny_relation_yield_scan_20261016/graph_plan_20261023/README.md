@@ -10,12 +10,11 @@ binding before the collector starts.
 
 The checked decision and frozen specification must both authorize the exact
 integer `execution_stage`; a Boolean value cannot stand in for stage zero. The
-current compiler and launcher additionally require `execution_stage: 0`, so an
-approval for confirmation or finalist solving cannot pass through the
-discovery entry point. Dedicated launchers for those later stages remain to be
-implemented. The graph trial adapter forwards the arm's `binding.json`, and
-its independent checker recomputes the admission and binding before accepting
-the receipt.
+discovery compiler remains restricted to `execution_stage: 0`. The admission
+validator also supports stage 1, requiring the selected discovery arms, a
+bound stage-0 admission, reused base/verifier roots, and a fresh target root.
+The graph trial adapter forwards the arm's `binding.json`, and its independent
+checker recomputes the admission and binding before accepting the receipt.
 
 The required admission schema is `ectd.graph-study-admission.v1` with
 `status: approved`, `approved_by: coordinator`, `experiment_id`,
@@ -47,11 +46,26 @@ The supervisor halts at the first invalid arm certificate, including map,
 group, count, row, or rank replay failures, and preserves that receipt.
 Resource and infrastructure failures remain recorded under their own statuses.
 
-The remaining design gap is staged custody: the compiler covers discovery
-only and does not yet bind fresh confirmation and finalist solve streams, each
-with their own committed roots. Scientific roots, a canonical frozen experiment
-contract, approval decision, and complete handoff are absent. No collector was
-launched by these controls.
+`build_confirmation_plan.py` now compiles the post-discovery selection into
+one confirmation trial for every selected `low_x`, `mid_x`, and `random_x`
+arm, with 32,768 targets each. Its candidate path binds the selection, prior
+discovery admission, new target root, reused base/verifier roots, graph-specific
+commitments, sources, binaries, RUN IDs, output tree and supervisor stop/resource
+rules. Candidate output is rejected by the execution loader. The approved path
+copies that exact workload only when a Coordinator decision and stage-1
+admission bind the same selection, roots, prior admission, and binaries.
+`study_admission.py`, the materializer, and the trial adapter now verify the
+confirmation stage and selected-arm boundary. The control suite verifies the
+32,768-target preparation and candidate-plan schema; it does not create an
+approved study plan or launch collectors.
+
+The remaining implementation gap is the finalist solver stage: it needs its
+own complete trial-plan compiler and admission checks for the selected
+confirmation finalists, including end-to-end setup, relation collection,
+linear algebra, individual logs, independent verification, and matched rho
+accounting. Scientific roots, a canonical frozen experiment contract, a valid
+Coordinator decision, and a complete handoff remain absent. No scientific
+collector has been launched by these controls.
 
 The [report](report.md) records the test scope and next action. The admission
 code does not create or approve an admission and this package contains no

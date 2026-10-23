@@ -13,7 +13,7 @@ STUDY = HERE.parent
 ROOTS = STUDY / "seed_custody_20261022/control"
 CONTROL = HERE / "control"
 sys.path.insert(0, str(HERE))
-from materialize import parse_prepared  # noqa: E402
+from materialize import load_schedule, parse_prepared  # noqa: E402
 
 ARMS = ("P37-v0000-low_x", "P37-v0000-u2_transport", "P37-v0000-graph_transport")
 
@@ -37,6 +37,23 @@ def require_rejection(name: str, result: subprocess.CompletedProcess, phrase: st
 
 
 def main() -> None:
+    # The same fixed vertex/arm universe carries a stage-specific target quota.
+    # This is a schedule binding check only; no confirmation stream is drawn.
+    _, p29_discovery = load_schedule("P29-v0000-low_x", "discovery")
+    _, p29_confirmation = load_schedule("P29-v0000-low_x", "confirmation")
+    _, p37_confirmation = load_schedule("P37-v0000-low_x", "confirmation")
+    if (p29_discovery["target_count"] != 8192 or
+            p29_confirmation["target_count"] != 32768 or
+            p37_confirmation["target_count"] != 32768 or
+            p29_confirmation["stage"] != "confirmation" or
+            p37_confirmation["stage"] != "confirmation"):
+        raise AssertionError("stage-specific fixed target quotas differ")
+    try:
+        load_schedule("P29-v0000-low_x", "finalist")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unsupported stage was accepted")
     bindings = {}
     group_replay = {}
     for arm in ARMS:
@@ -101,6 +118,8 @@ def main() -> None:
     print(json.dumps({"schema": "ectd.graph-materializer-control.v1", "status": "pass",
                       "scope": "P37 vertex 0, three public-root full-quota prepared arms",
                       "target_count_per_arm": 2048, "base_signed_points": 3200,
+                      "confirmation_quota_binding": {"P29": p29_confirmation["target_count"],
+                                                      "P37": p37_confirmation["target_count"]},
                       "coefficient_vector_sha256": next(iter(coefficients)),
                       "source_graph_input_equal": True, "u2_pointwise_map_equal": True,
                       "independent_group_replay": group_replay,
