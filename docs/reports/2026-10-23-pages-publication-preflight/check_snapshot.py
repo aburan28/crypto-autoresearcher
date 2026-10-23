@@ -40,8 +40,8 @@ def main():
     comparisons = json.loads(comparisons_path.read_text())
     integrity = json.loads(integrity_path.read_text())
     report = json.loads(args.build_report.read_text())
-    bundle_path = repo / "ui/benchmarks/cryptanalysis-primary.json"
-    bundle = json.loads(bundle_path.read_text())
+    bundle_bytes = git(repo, "show", f"{head}:ui/benchmarks/cryptanalysis-primary.json")
+    bundle = json.loads(bundle_bytes)
 
     assert meta["commit"] == report["commit"] == head
     assert meta["git"]["available"] is True and meta["git"]["paths"] > 0
@@ -100,6 +100,7 @@ def main():
         "status": "pass",
         "scope": "local snapshot and pinned archive consistency; no live deployment or scientific replay",
         "repo_commit": head,
+        "bundle_sha256": digest(bundle_bytes),
         "source_repository": bundle["source_repository"],
         "source_commit": source_commit,
         "source_files_sha256_checked": len(bundle["sources"]),
