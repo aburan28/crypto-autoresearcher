@@ -35,6 +35,7 @@ except ImportError:  # imported as tools.<name>, the repository root importable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sparse_checkout  # noqa: E402
+import artifact_store  # noqa: E402
 
 PLAN_SCHEMA = "crypto.autoresearch.trial_plan.v1"
 RECEIPT_SCHEMA = "crypto.autoresearch.trial_receipt.v1"
@@ -394,8 +395,17 @@ def trial_state(root: Path, plan: dict[str, Any], trial: dict[str, Any], plan_ha
         hashes = receipt.get("artifact_sha256")
         if not isinstance(hashes, dict) or set(hashes) != expected:
             return "needs_reconciliation"
-        if any(sha256(safe_path(directory, name)) != digest for name, digest in hashes.items()):
+        # artifact_sha256 binds content; a large artifact may be stored compressed or
+        # as a blob-store pointer (tools/artifact_store.py), checked by its own digest.
+        storage = receipt.get("artifact_storage") or {}
+        if not isinstance(storage, dict) or not set(storage) <= set(hashes):
             return "needs_reconciliation"
+        for name, digest in hashes.items():
+            if name in storage:
+                if not artifact_store.stored_matches(directory, name, storage[name], digest):
+                    return "needs_reconciliation"
+            elif sha256(safe_path(directory, name)) != digest:
+                return "needs_reconciliation"
         return "output_validated"
     except (OSError, ValueError, TypeError):
         return "needs_reconciliation"
@@ -736,9 +746,28 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         target = safe_path(directory, name)
         if not target.exists():
             target.touch(exist_ok=False)
-    artifacts = {}
-    for name in (*trial["artifacts"], *(n for n in GENERATED if n != "execution-receipt.json")):
+    names = (*trial["artifacts"], *(n for n in GENERATED if n != "execution-receipt.json"))
+    # After the checker has read every output as written: store large ones compressed,
+    # and offload the largest when CRYPTO_AR_BLOBSTORE names a store
+    # (docs/artifact-storage.md). Receipts still bind each artifact's content digest.
+    storage: dict[str, dict[str, Any]] = {}
+    store = None
+    try:
+        store = artifact_store.store_from_env()
+    except artifact_store.StoreError as error:
+        detail = "; ".join(filter(None, (detail, f"artifact storage: {error}")))
+    for name in names:
         try:
+            safe_path(directory, name)
+            storage.update(artifact_store.compact(directory, [name], store))
+        except (OSError, ValueError) as error:
+            detail = "; ".join(filter(None, (detail, f"artifact storage: {name}: {error}")))
+    artifacts = {}
+    for name in names:
+        try:
+            if name in storage:
+                artifacts[name] = storage[name]["content_sha256"]
+                continue
             file = safe_path(directory, name)
             if file.is_file():
                 artifacts[name] = sha256(file)
@@ -749,7 +778,7 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         "run_id": trial["run_id"], "status": status, "returncode": returncode,
         "check_returncode": check_returncode, "started_at": started,
         "finished_at": datetime.now(timezone.utc).isoformat(), "detail": detail,
-        "artifact_sha256": artifacts, "authority": authority,
+        "artifact_sha256": artifacts, "artifact_storage": storage, "authority": authority,
         "manifest_completion": completion,
         "scientific_conclusion": None, "published": False})
     if interrupted:
