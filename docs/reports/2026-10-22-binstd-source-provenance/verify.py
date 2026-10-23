@@ -7,6 +7,9 @@ from pathlib import Path
 
 import yaml
 
+if not __debug__:
+    raise RuntimeError("BINSTD source verifier requires Python assertions; omit -O")
+
 
 def verify(repo: Path) -> dict:
     old_rel = Path("ledger/evidence/EV-BINSTD-030b4e.yaml")

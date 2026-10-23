@@ -7,6 +7,9 @@ from pathlib import Path
 
 import yaml
 
+if not __debug__:
+    raise RuntimeError("BINSTD yield verifier requires Python assertions; omit -O")
+
 SOURCES = (
     "EV-BINSTD-0db227",
     "EV-BINSTD-9ac9c5",
