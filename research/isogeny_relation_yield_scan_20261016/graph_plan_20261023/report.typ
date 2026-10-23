@@ -32,6 +32,9 @@ specification. An explicit newest-experiment query reports it ready only when
 all rows validate; default selection omits candidates. The execution loader
 and public runner refuse candidate plans, and approval requires a fresh
 approved plan and dispatch queue. Focused tests exercise readiness and refusal.
+Both plan paths bind `stop_on_invalid_output: true`: the supervisor stops on
+the first invalid arm certificate while preserving its receipt. Timeouts and
+infrastructure failures retain their separate statuses.
 
 Confirmation and finalist solve streams still need independent roots. No
 scientific roots, canonical frozen experiment, or relation outputs are present.

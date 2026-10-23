@@ -82,6 +82,7 @@ class DiscoveryPlanTests(unittest.TestCase):
                 "specification_sha256": plan.sha(specification),
                 "queue": queue.relative_to(ROOT).as_posix(),
                 "frozen": True,
+                "stop_on_invalid_output": True,
                 "source_sha256": {plan.rel(path): plan.sha(path) for path in plan.SOURCE_PATHS},
                 "trials": trials,
             }
@@ -89,6 +90,7 @@ class DiscoveryPlanTests(unittest.TestCase):
             trial_plan.write_text(json.dumps(plan_doc))
             loaded = experiment_execution.load_plan(ROOT, trial_plan)
             self.assertEqual(len(loaded["trials"]), 8206)
+            self.assertIs(loaded["stop_on_invalid_output"], True)
 
     def test_full_candidate_plan_is_ready_but_non_executable(self) -> None:
         rows = plan.load_rows()
@@ -121,6 +123,7 @@ class DiscoveryPlanTests(unittest.TestCase):
                 "task_id": "TASK-20261023-a1b2c3",
                 "candidate_only": True,
                 "approval_required": True,
+                "stop_on_invalid_output": True,
                 "specification": specification.relative_to(ROOT).as_posix(),
                 "specification_sha256": plan.sha(specification),
                 "queue": queue.relative_to(ROOT).as_posix(),
@@ -133,6 +136,7 @@ class DiscoveryPlanTests(unittest.TestCase):
             loaded = experiment_execution.load_plan(
                 ROOT, candidate_path, allow_preapproval_candidate=True)
             self.assertEqual(len(loaded["trials"]), 8206)
+            self.assertIs(loaded["stop_on_invalid_output"], True)
             with self.assertRaises(experiment_execution.ExecutionError):
                 experiment_execution.load_plan(ROOT, candidate_path)
 

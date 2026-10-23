@@ -38,6 +38,11 @@ execution loader and public run path reject candidate-only plans, so approval
 still requires a newly built approved plan and dispatch queue. Tests exercise
 the explicit readiness path and refusal to execute.
 
+Candidate and approved graph plans also set `stop_on_invalid_output: true`.
+The supervisor halts at the first invalid arm certificate, including map,
+group, count, row, or rank replay failures, and preserves that receipt.
+Resource and infrastructure failures remain recorded under their own statuses.
+
 The remaining design gap is staged custody: the compiler covers discovery
 only and does not yet bind fresh confirmation and finalist solve streams, each
 with their own committed roots. Scientific roots, a canonical frozen experiment

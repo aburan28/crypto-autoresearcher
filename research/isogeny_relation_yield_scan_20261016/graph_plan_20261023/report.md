@@ -40,7 +40,10 @@ for a frozen, unapproved `review_required` specification. The explicit
 only when every row is valid and planned; default discovery omits candidates.
 The run loader and public runner refuse the candidate plan, and approval still
 requires a fresh approved plan and dispatch queue. The focused readiness tests
-cover both sides of that boundary.
+cover both sides of that boundary. Both plan paths bind
+`stop_on_invalid_output: true`; the supervisor stops on the first invalid
+certificate while preserving its receipt. Timeout and infrastructure failures
+remain recorded under their separate statuses.
 
 The plan is still discovery-only. The full protocol also requires independently
 committed fresh confirmation and solve streams. No scientific roots or

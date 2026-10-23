@@ -100,6 +100,9 @@ def load_plan(root: Path, path: Path, *, allow_preapproval_candidate: bool = Fal
     plan = read_json(path)
     if plan.get("schema") != PLAN_SCHEMA or plan.get("frozen") is not True:
         raise ExecutionError("trial plan must use the supported schema and be frozen")
+    if ("stop_on_invalid_output" in plan and
+            not isinstance(plan["stop_on_invalid_output"], bool)):
+        raise ExecutionError("stop_on_invalid_output must be Boolean when present")
     for field in ("experiment_id", "task_id", "specification", "queue"):
         if not isinstance(plan.get(field), str) or not plan[field].strip():
             raise ExecutionError(f"missing {field}")
@@ -616,7 +619,9 @@ def run_plan(root: Path, path: Path, owner: str, epoch: int, *,
             authority = gate(root, path, plan, owner, epoch)
             if sha256(path) != digest:
                 raise ExecutionError("trial plan changed during execution")
-            execute_trial(root, path, plan, trial, authority, fd)
+            status = execute_trial(root, path, plan, trial, authority, fd)
+            if plan.get("stop_on_invalid_output") is True and status == "invalid_output":
+                break
     return coverage(root, path)
 
 
