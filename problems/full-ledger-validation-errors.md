@@ -217,3 +217,14 @@ historical archives need their own scoped checks before an all-corpus claim.
   30 targeted lines removed and none added. Both runs still exit 1. The
   1,210-entry legacy baseline, experiment results, and performance charts are
   unchanged; the broader integrity problem remains open.
+- 2026-10-23: After merging main `73a77f2def370f621f1b4c1aaf3cb1734738f853`
+  into this correction branch at `b82d5180f6f033370c9d2224fdf2da24bcd2e1a6`,
+  a full-tree validator run reports **90 unsuppressed errors in 33 paths**.
+  Compared with the archived 88-error correction checkpoint, no error
+  disappeared and exactly two appeared. Both concern the new archived
+  `TASK-20261023-e485d9` handoff, which lacks required `from` and `to`
+  fields. Its task source does not identify both endpoints, so this branch
+  leaves them unresolved rather than inventing an assignment. The full log
+  SHA-256 is `fcfd4769d535c68be0a84d74dfb9a3f775d9cd9c740491cbf463b2ad30f06590`;
+  this is a new current-tree check, not a revision of the frozen 118-to-88
+  source correction receipt.
