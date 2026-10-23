@@ -28,7 +28,7 @@ written once, in a form a tool can check and another runner can read.
 | `arms` and `controls` | reference, baseline and candidate arms; an **A/A** control (two arms differing only in a nuisance factor), a **positive** control (an input where the effect is known to be present, through the same code path) and a **negative** control (a sample from the stated null population), or a reason each is not applicable | a difference inside the noise; a "nothing found" from a blind detector; a target compared with nothing |
 | `variable_ledger` | every factor that could move a primary metric, with its treatment (`fixed`, `randomized`, `crossed`, `measured`), and every comparison with its `design` (`one_factor`, `factorial`, `absolute`, `aa`, `confounded`) | a comparison that differs in two things and credits one |
 | `randomization` | arm order (interleaved or randomized; `fixed` needs a reason), seed derivation (from the protocol hash, an explicit list, an external nonce, or the harness's own frozen rule), instance sampling independent of arm, and whether arm labels are masked during analysis | one-time costs landing on the arm that ran first; seeds chosen after a look; an analyst steering toward the labelled candidate |
-| `sample_size` | instances, replicates, warmups, the power check (`2/(N+1) < alpha/m` for a rank test, with the correction named) and the pre-flight runtime estimate (fixed and per-sample cost) | a null that could never reject; a protocol that cannot be finished |
+| `sample_size` | instances, replicates, warmups, the empirical-null resolution check (`2/(N+1) < alpha/m` under the convention below, with the correction named) and the pre-flight runtime estimate (fixed and per-sample cost) | a null that could never reject; a protocol that cannot be finished |
 | `metrics` | each metric's unit, kind (`counted`, `timed`, `derived`, `exact`, `rate`), definition (from which event to which), source field, aggregation, resolution and uncertainty method | a stage count read as a method cost; a clock quoted where a count was available |
 | `measurement` | the isolation level a clock needs (ecbench L0-L3 or isolab tiers A-D), warmups, order, and the host and run facts every row must record | wall time from a noisy host; a result without its host |
 | `execution` | backend, queue, placement, timeout, the checkpoint policy (`none`, `application`, `criu`) with interval, grace and restore validation, and infrastructure-only retries | a resumed row's clock counted as a measurement; a non-zero exit retried until it passes |
@@ -39,10 +39,19 @@ written once, in a form a tool can check and another runner can read.
 `python3 tools/experiment_protocol.py validate protocol.json` checks the
 schema and the cross-references (a comparative claim decided by a decisive
 comparison, an A/A arm or a reason, a positive control or a reason, a timed
-primary metric only with its justification and at least L2, the power
+primary metric only with its justification and at least L2, the p-value resolution
 arithmetic, a frozen analysis before a frozen protocol). `freeze` writes the
 hash; a frozen protocol that no longer hashes to its `freeze.protocol_sha256`
 fails validation, which is the point.
+
+The legacy `power` command and `sample_size.power.rank_test_n` field check
+p-value resolution only. Here `N` counts null resamples: an add-one empirical
+estimate with a doubled smaller tail has minimum `2/(N+1)`, as in
+[SciPy's randomized permutation-test convention](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html).
+This bound is not universal for rank tests, exact tests, or other two-sided
+conventions. Passing it does not establish statistical power for an effect
+size; record the test-specific power justification separately in the
+sample-size rationale, including the intended effect and assumptions.
 
 ## 2. Confounders this program isolates, and how
 

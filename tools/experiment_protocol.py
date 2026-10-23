@@ -158,9 +158,12 @@ def detect_kind(obj: Any) -> str:
 # ---------------------------------------------------------------------------
 
 def power_check(n: int | None, alpha: float, m: int) -> dict[str, Any]:
-    """An empirical rank test cannot reject below its resolution: the smallest
-    attainable two-sided p with the add-one estimate is 2/(N+1), which must
-    be below alpha/m for m corrected tests."""
+    """Check add-one empirical-null p-value resolution, not statistical power.
+
+    N counts null resamples. With a doubled smaller-tail convention, the
+    minimum p is 2/(N+1); other tests and two-sided conventions can differ.
+    The legacy command and field names remain for schema compatibility.
+    """
     if not math.isfinite(alpha) or not 0 < alpha < 1 or m < 1 or (n is not None and n < 1):
         raise Refused("power requires N >= 1, 0 < alpha < 1, and m >= 1")
     if n is None:

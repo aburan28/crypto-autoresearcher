@@ -61,11 +61,14 @@ Start from the example and fill every block. The ones that remove bias:
   original export, protocol and raw artifacts from that analysis; validate
   and review the original after unmasking. The masked copy does not pass
   protocol identity checks, and numerical signatures can still reveal methods.
-- **Sample size and power.** Instances, replicates, warmups. For a rank test
-  the smallest attainable two-sided p is `2/(N+1)`, which must beat
-  `alpha/m` over the family of `m` tests; `power --n N --alpha a --m m` does
-  the arithmetic and `validate` refuses a `passes` that disagrees. Time one
-  call per arm first and record the fixed and per-sample cost.
+- **Sample size and power.** Instances, replicates, warmups. The legacy
+  `power --n N --alpha a --m m` checks p-value resolution: for `N` null
+  resamples, an add-one estimate with a doubled smaller tail has minimum
+  `2/(N+1)`, which must beat `alpha/m`. Other tests and tail conventions
+  differ. `validate` checks this arithmetic; passing it does not establish
+  power to detect the intended effect. Record a test-specific power
+  justification in the sample-size rationale. Time one call per arm first
+  and record the fixed and per-sample cost.
 - **Metrics with precision.** Counted metrics first (operations, field
   multiplications, instructions): they survive hardware. Each metric states
   unit, kind, definition from event to event, source field, aggregation,
@@ -134,7 +137,7 @@ PR (crypto) decide.
 - [ ] A/A, positive and negative controls present or each excused in writing
 - [ ] variable ledger lists every confounder with its treatment; no decisive comparison is confounded
 - [ ] arm order interleaved; seeds derived before data; instance sampling independent of arm; blinding stated
-- [ ] power arithmetic passes; pre-flight runtime recorded
+- [ ] applicable p-value resolution arithmetic passes; test-specific power justified; pre-flight runtime recorded
 - [ ] primary metrics counted; a timed one justified with L2 or better
 - [ ] checkpoint policy and after-restore semantics declared
 - [ ] stopping and decision rules and the analysis script frozen; inadmissible moves listed
