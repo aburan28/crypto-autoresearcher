@@ -15,6 +15,32 @@ spec.loader.exec_module(confirm)
 
 
 class ConfirmationControls(unittest.TestCase):
+    def test_graph_commitments_are_stage_and_stratum_specific(self):
+        def row(stratum, target, commitment):
+            return {"stratum": stratum, "base_root_sha256": "b" * 64,
+                    "target_root_sha256": target * 64,
+                    "verifier_root_sha256": "v" * 64,
+                    "commitment_sha256": commitment * 64}
+        discovery = [row("P29", "d", "1"), row("P29", "d", "1"),
+                     row("P37", "d", "2")]
+        confirmation = [row("P29", "c", "3"), row("P29", "c", "3"),
+                        row("P37", "c", "4")]
+        selection = {"strata": {"P29": {"commitment_sha256": "1" * 64},
+                                 "P37": {"commitment_sha256": "2" * 64}}}
+        confirm.check_stage_roots(confirmation, discovery, selection)
+        changed = [dict(item) for item in confirmation]
+        changed[1]["commitment_sha256"] = "5" * 64
+        with self.assertRaisesRegex(ValueError, "graph commitment"):
+            confirm.check_stage_roots(changed, discovery, selection)
+        changed = [dict(item) for item in confirmation]
+        changed[-1]["commitment_sha256"] = "3" * 64
+        with self.assertRaisesRegex(ValueError, "distinct confirmation graph"):
+            confirm.check_stage_roots(changed, discovery, selection)
+        changed = [dict(item) for item in confirmation]
+        changed[0]["target_root_sha256"] = "d" * 64
+        with self.assertRaisesRegex(ValueError, "target_root_sha256"):
+            confirm.check_stage_roots(changed, discovery, selection)
+
     def test_exact_interval_boundaries(self):
         for population in range(5, 21):
             for draws in range(1, min(population, 6) + 1):

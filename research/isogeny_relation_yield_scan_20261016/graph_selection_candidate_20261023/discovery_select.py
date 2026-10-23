@@ -176,11 +176,13 @@ def nominate(schedule: list[dict], results: list[dict], control_root: bytes) -> 
             len({row["arm_key"] for row in results}) == len(results),
             "discovery arm identities differ")
     by_key = {row["arm_key"]: row for row in results}
-    for field in ("base_root_sha256", "target_root_sha256", "verifier_root_sha256",
-                  "commitment_sha256"):
+    for field in ("base_root_sha256", "target_root_sha256", "verifier_root_sha256"):
         require(len({row[field] for row in results}) == 1, f"{field} differs across discovery arms")
     strata = {}
     for stratum, config in EXPECTED.items():
+        commitments = {row["commitment_sha256"] for row in results
+                       if row["stratum"] == stratum}
+        require(len(commitments) == 1, f"graph commitment differs within discovery stratum: {stratum}")
         require(len({row["coefficient_sha256"] for row in results if row["stratum"] == stratum}) == 1,
                 f"paired target coefficient stream differs: {stratum}")
         native = {arm: [] for arm in MAIN}
@@ -219,13 +221,16 @@ def nominate(schedule: list[dict], results: list[dict], control_root: bytes) -> 
         selected = sorted(reasons)
         limit = 65 if stratum == "P29" else 33
         require(len(selected) <= limit, "confirmation vertex cap exceeded")
-        strata[stratum] = {"coefficient_sha256": next(row["coefficient_sha256"] for row in results
+        strata[stratum] = {"commitment_sha256": next(iter(commitments)),
+                           "coefficient_sha256": next(row["coefficient_sha256"] for row in results
                                                         if row["stratum"] == stratum),
                            "extremes": extremes, "control_indices_draw_order": controls,
                            "selected_vertices": [{"index": index, "reasons": reasons[index]}
                                                  for index in selected],
                            "confirmation_arm_keys": [f"{stratum}-v{index:04d}-{arm}"
                                                      for index in selected for arm in MAIN]}
+    require(strata["P29"]["commitment_sha256"] != strata["P37"]["commitment_sha256"],
+            "distinct graph strata reuse one commitment digest")
     return strata
 
 

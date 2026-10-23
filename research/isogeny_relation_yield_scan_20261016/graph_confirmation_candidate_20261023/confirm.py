@@ -249,6 +249,34 @@ def finalist_selection(selection: dict, rows: list[dict], intervals: dict[str, d
     return ratios, finalists
 
 
+def check_stage_roots(rows: list[dict], discovery: list[dict], selection: dict) -> None:
+    """Roots are shared across strata; graph-specific commitments are not."""
+    require(rows and discovery, "empty discovery or confirmation stage")
+    for field in ("base_root_sha256", "target_root_sha256", "verifier_root_sha256"):
+        require(len({row[field] for row in rows}) == 1,
+                f"confirmation {field} differs between arms")
+    for field in ("base_root_sha256", "verifier_root_sha256"):
+        require(len({row[field] for row in discovery}) == 1 and
+                rows[0][field] == discovery[0][field],
+                f"confirmation {field} differs from discovery")
+    require(len({row["target_root_sha256"] for row in discovery}) == 1 and
+            rows[0]["target_root_sha256"] != discovery[0]["target_root_sha256"],
+            "confirmation reuses or disagrees with discovery target root")
+    confirmation_commitments = {}
+    for stratum in ("P29", "P37"):
+        current = {row["commitment_sha256"] for row in rows
+                   if row["stratum"] == stratum}
+        previous = {row["commitment_sha256"] for row in discovery
+                    if row["stratum"] == stratum}
+        require(len(current) == len(previous) == 1 and
+                next(iter(previous)) == selection["strata"][stratum]["commitment_sha256"] and
+                current != previous,
+                f"confirmation graph commitment or fresh stage differs: {stratum}")
+        confirmation_commitments[stratum] = next(iter(current))
+    require(confirmation_commitments["P29"] != confirmation_commitments["P37"],
+            "distinct confirmation graph strata reuse one commitment digest")
+
+
 def analyze(repo: Path, selection_path: Path, schedule_path: Path,
             plan_path: Path, cache_dir: Path) -> dict:
     repo = repo.resolve()
@@ -285,13 +313,7 @@ def analyze(repo: Path, selection_path: Path, schedule_path: Path,
     rows = [read_validated_arm(repo, plan, plan_hash, schedule[key], trials[key]) for key in keys]
     discovery = selection["discovery_summary"]
     require(len(discovery) == 8206, "discovery summary extent differs")
-    for field in ("base_root_sha256", "target_root_sha256", "verifier_root_sha256",
-                  "commitment_sha256"):
-        require(len({row[field] for row in rows}) == 1, f"confirmation {field} differs between arms")
-    for field in ("base_root_sha256", "verifier_root_sha256"):
-        require(rows[0][field] == discovery[0][field], f"confirmation {field} differs from discovery")
-    require(rows[0]["target_root_sha256"] != discovery[0]["target_root_sha256"],
-            "confirmation reuses discovery target root")
+    check_stage_roots(rows, discovery, selection)
     for stratum in ("P29", "P37"):
         hashes = {row["coefficient_sha256"] for row in rows if row["stratum"] == stratum}
         require(len(hashes) == 1 and next(iter(hashes)) != selection["strata"][stratum]["coefficient_sha256"],

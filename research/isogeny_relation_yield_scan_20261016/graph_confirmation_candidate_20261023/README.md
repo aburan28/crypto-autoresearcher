@@ -10,9 +10,11 @@ are collected. The plan must enumerate every selected `low_x`, `mid_x`, and
 
 The analyzer refuses any missing, failed, or censored arm. It binds each
 supervisor receipt to the graph-attempt receipt, prepared input, independent
-checker output, curve identity, target coefficient stream, target-root
+checker output, curve identity, target coefficient stream, graph-specific
 commitment, and fixed rank prefixes. It requires the same coefficient stream
-within each stratum and a fresh target root distinct from discovery. Exact
+within each stratum and a fresh target root distinct from discovery. The base,
+target, and verifier root hashes are shared across strata within a stage; the
+commitment-file hashes differ across strata and between stages. Exact
 hypergeometric intervals invert integer tails over the `r-1` nonidentity
 points. With at most 294 arms and two tails per arm, the per-tail threshold
 `1/(200 M)` gives at least 99% simultaneous coverage by Bonferroni. Interval

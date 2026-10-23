@@ -15,7 +15,9 @@ artifact hashes. It also reads the graph attempt and prepared input, checks
 curve/model/generator identity against the schedule, verifies the fixed target
 quota and rank prefixes, and hashes every `(alpha,beta)` pair. All arms in a
 stratum must share the same coefficient sequence; all arms must share the
-committed base, target, verifier and commitment roots. A graph or coordinate
+committed base, target, and verifier roots. Commitment-file digests must be
+constant within each stratum and distinct between P29 and P37 because each
+file binds that stratum's different archived graph hash. A graph or coordinate
 transport arm must have a dependency on its scheduled reference and a checker
 receipt confirming targetwise transport comparison. Missing, censored, failed,
 or mismatched arms stop selection; none is scored as zero or replaced.
