@@ -35,6 +35,16 @@ def now():
     return dt.datetime.now(dt.timezone.utc).isoformat()
 
 
+def require_scientific_seed_mode(manifest):
+    digests = [manifest.get(key) for key in
+               ("base_root_sha256", "target_root_sha256", "verifier_root_sha256")]
+    if (manifest.get("seed_mode") != "independent_verifier_root" or
+            any(not isinstance(value, str) or len(value) != 64 or
+                any(char not in "0123456789abcdef" for char in value)
+                for value in digests) or len(set(digests)) != 3):
+        raise ValueError("scientific graph input requires three distinct committed roots")
+
+
 def bindings(args, manifest, head):
     values = {
         "source_commit": head,
@@ -58,6 +68,8 @@ def bindings(args, manifest, head):
     if manifest["arm"] == "graph_transport":
         values.update({key: manifest[key] for key in
                        ("checkpoint_sha256", "checkpoint_manifest_sha256", "checkpoint_terminal_sha256")})
+    if manifest.get("seed_mode") == "independent_verifier_root":
+        values["verifier_root_sha256"] = manifest["verifier_root_sha256"]
     return values
 
 
@@ -81,6 +93,7 @@ def execute(args):
         if manifest["target_count"] > 128:
             raise ValueError("implementation controls are capped at 128 targets")
     else:
+        require_scientific_seed_mode(manifest)
         if (dirty or not manifest.get("schedule_conformant") or
                 not manifest.get("commitment_sha256") or
                 manifest["target_count"] != SCHEDULE[stratum][stage]):

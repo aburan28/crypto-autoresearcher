@@ -9,10 +9,12 @@ import subprocess
 import sys
 
 from prepare_graph_input import prepare
+from execute_graph_prepared import require_scientific_seed_mode
 
 STUDY = Path(__file__).resolve().parents[1]
 BASE_ROOT = b"B" * 32
 TARGET_ROOT = b"T" * 32
+VERIFIER_ROOT = b"V" * 32
 
 
 def main():
@@ -28,10 +30,44 @@ def main():
     arm = "low_x" if args.index == 0 else "graph_transport"
     payload, meta = prepare(STUDY / "walk-p29-2048-attempt2.jsonl", args.index,
                             arm, "discovery", BASE_ROOT, TARGET_ROOT, args.target_count)
+    scientific_payload, scientific_meta = prepare(
+        STUDY / "walk-p29-2048-attempt2.jsonl", args.index, arm, "discovery",
+        BASE_ROOT, TARGET_ROOT, args.target_count, VERIFIER_ROOT)
+    require_scientific_seed_mode(scientific_meta)
+    if scientific_payload == payload:
+        raise AssertionError("independent verifier root did not change target points")
+    for key, value in (("seed_mode", None),
+                       ("verifier_root_sha256", meta["target_root_sha256"])):
+        altered = dict(scientific_meta)
+        altered[key] = value
+        try:
+            require_scientific_seed_mode(altered)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("scientific executor accepted an invalid seed mode")
+    try:
+        require_scientific_seed_mode(meta)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("historical two-root control passed scientific gate")
     prepared = root / "prepared.txt"
     manifest = root / "manifest.json"
     prepared.write_bytes(payload)
     manifest.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    refusal_command = [sys.executable, str(STUDY / "preparation/execute_graph_prepared.py"),
+                       "--input", str(prepared), "--manifest", str(manifest),
+                       "--collector", str(args.collector), "--count-verifier", str(args.count_verifier),
+                       "--output", str(root / "scientific-rejected"),
+                       "--admission", str(root / "unused-admission.json")]
+    refusal = subprocess.run(refusal_command, capture_output=True, text=True)
+    (root / "scientific-refusal.stdout").write_text(refusal.stdout)
+    (root / "scientific-refusal.stderr").write_text(refusal.stderr)
+    if (refusal.returncode == 0 or
+            "scientific graph input requires three distinct committed roots" not in refusal.stderr or
+            (root / "scientific-rejected").exists()):
+        raise AssertionError("old two-root input passed scientific runner gate")
     command = [sys.executable, str(STUDY / "preparation/execute_graph_prepared.py"),
                "--input", str(prepared), "--manifest", str(manifest),
                "--collector", str(args.collector), "--count-verifier", str(args.count_verifier),
