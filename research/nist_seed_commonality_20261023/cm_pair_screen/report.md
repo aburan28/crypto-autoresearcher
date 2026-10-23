@@ -47,7 +47,7 @@ For pairs over the **same** `F_p`, equal group order is equivalent to being `F_p
 
 ## Interpretation for the hypothetical 1997 selector
 
-The premise that a program reached all eleven omissions and screened them for a weakness remains **stipulated**. [Valsorda][valsorda] and [Anthropic][anthropic] report skipped viable seeds but do not supply the historical acceptance code or logs (`retrieved`). The exact pair result rules out a fixed shared CM field or a direct relationship among these named curves as the hidden common feature. Because the same CM-field uniqueness occurs among the published controls, it supplies no keep/skip predicate.
+The program's evaluation and rejection of all eleven omissions for weakness remains **stipulated**. [Valsorda][valsorda] and [Anthropic][anthropic] provide no acceptance code or logs (`retrieved`). A [2013 President's Review Group appendix][review-group], based on NSA-supplied information, says an unspecified potentially weak parameter class was excluded from a NIST standard. It names **no class, curve, date, or seed block**, so it cannot connect these eleven omissions to a weakness (`retrieved`, limited). The exact CM-field and named-pair exclusions apply to published controls too and supply no keep/skip rule.
 
 The open mathematical space includes **different weak representatives reached from each curve**, CM fields beyond the explicit cutoff, a common algorithm whose precondition varies with each curve's parameters, or a defect tied to another property such as an implementation's point-counting or validation behavior. The preceding [small-conductor screen][commonality] excludes small squared discriminant factors through 10,000 as a universal omission feature; the [degree screen][splitting] excludes a single rational-isogeny availability bit through degree 10,000 as a perfect selector. None of these screens constructs endpoint maps or measures ECDLP costs. To promote any hidden-weakness proposal, specify a reproducible property and unknown-scalar advantage, prove subgroup transport where used, account for construction and evaluation, and compare it against published same-field controls. A perfect retrospective label split alone would not establish either an attack or historical use (`derived`, bounded).
 
@@ -63,6 +63,7 @@ The earlier [seed-stream graph][stream-graph] and canonical graphs in `knowledge
 [tate]: https://pazuki.perso.math.cnrs.fr/index_fichiers/Tate66.pdf
 [valsorda]: https://words.filippo.io/seeds-solved/
 [anthropic]: https://www.anthropic.com/research/ecdsa-curve-origins
+[review-group]: https://www.nsa.gov/portals/75/documents/about/civil-liberties/resources/liberty_security_prgfinalreport.pdf
 [commonality]: ../report.md
 [splitting]: ../isogeny_screen/report.md
 [stream-graph]: ../../nist_seed_selection_deep_20261016/seed_slots.svg

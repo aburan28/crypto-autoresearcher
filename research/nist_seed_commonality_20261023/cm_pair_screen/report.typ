@@ -156,15 +156,18 @@ exclude representative-specific transfers to unlisted curves.
 
 == Interpretation for the hypothetical 1997 selector
 <interpretation-for-the-hypothetical-1997-selector>
-The premise that a program reached all eleven omissions and screened
-them for a weakness remains #strong[stipulated].
+The program\'s evaluation and rejection of all eleven omissions for
+weakness remains #strong[stipulated].
 #link("https://words.filippo.io/seeds-solved/")[Valsorda] and
 #link("https://www.anthropic.com/research/ecdsa-curve-origins")[Anthropic]
-report skipped viable seeds but do not supply the historical acceptance
-code or logs (`retrieved`). The exact pair result rules out a fixed
-shared CM field or a direct relationship among these named curves as the
-hidden common feature. Because the same CM-field uniqueness occurs among
-the published controls, it supplies no keep/skip predicate.
+provide no acceptance code or logs (`retrieved`). A
+#link("https://www.nsa.gov/portals/75/documents/about/civil-liberties/resources/liberty_security_prgfinalreport.pdf")[2013 President\'s Review Group appendix],
+based on NSA-supplied information, says an unspecified potentially weak
+parameter class was excluded from a NIST standard. It names #strong[no
+class, curve, date, or seed block], so it cannot connect these eleven
+omissions to a weakness (`retrieved`, limited). The exact CM-field and
+named-pair exclusions apply to published controls too and supply no
+keep/skip rule.
 
 The open mathematical space includes #strong[different weak
 representatives reached from each curve], CM fields beyond the explicit
