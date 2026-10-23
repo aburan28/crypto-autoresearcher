@@ -5,11 +5,13 @@ import json
 import math
 from pathlib import Path
 import platform
-import resource
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
+
+import psutil
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -43,24 +45,48 @@ def gp_factor(delta, prefix):
               "for(i=1,matsize(F)[1],print(F[i,1],\",\",F[i,2])); print(\"DONE\")\n")
     (prefix.with_suffix(".gp")).write_text(script)
     started = time.monotonic()
-    def limit():
-        resource.setrlimit(resource.RLIMIT_AS, (2 * 1024**3, 2 * 1024**3))
+    command = ["gp", "-q", "-s", str(1024**3)]
+    stopped = threading.Event()
+    peak_rss = 0
+    memory_limit_hit = False
+    p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True)
+    monitored = psutil.Process(p.pid)
+    def watch_memory():
+        nonlocal peak_rss, memory_limit_hit
+        while not stopped.wait(0.1):
+            try:
+                rss = monitored.memory_info().rss
+            except psutil.NoSuchProcess:
+                return
+            peak_rss = max(peak_rss, rss)
+            if rss > 2 * 1024**3:
+                memory_limit_hit = True
+                p.kill()
+                return
+    watcher = threading.Thread(target=watch_memory, daemon=True)
+    watcher.start()
     try:
-        p = subprocess.run(["gp", "-q"], input=script, text=True,
-                           capture_output=True, timeout=180, preexec_fn=limit)
-        stdout, stderr, code, status = p.stdout, p.stderr, p.returncode, "completed"
+        stdout, stderr = p.communicate(input=script, timeout=180)
+        code, status = p.returncode, "completed"
     except subprocess.TimeoutExpired as e:
-        stdout = (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
-        stderr = (e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
-        code, status = None, "timeout"
+        p.kill()
+        stdout, stderr = p.communicate()
+        code, status = p.returncode, "timeout"
+    finally:
+        stopped.set()
+        watcher.join(timeout=1)
+    if memory_limit_hit:
+        status = "memory_limit"
     (prefix.with_suffix(".stdout")).write_text(stdout)
     (prefix.with_suffix(".stderr")).write_text(stderr)
     receipt = {"status": status, "exit_code": code,
                "elapsed_seconds": time.monotonic() - started,
-               "command": ["gp", "-q"], "script_sha256": sha(prefix.with_suffix(".gp")),
+               "command": command, "script_sha256": sha(prefix.with_suffix(".gp")),
                "stdout_sha256": sha(prefix.with_suffix(".stdout")),
                "stderr_sha256": sha(prefix.with_suffix(".stderr")),
-               "wall_limit_seconds": 180, "address_space_limit_bytes": 2 * 1024**3}
+               "wall_limit_seconds": 180, "gp_stack_limit_bytes": 1024**3,
+               "rss_watchdog_bytes": 2 * 1024**3, "peak_rss_sampled_bytes": peak_rss}
     if status != "completed" or code != 0:
         return receipt, None
     lines = [x.strip() for x in stdout.splitlines() if x.strip()]
