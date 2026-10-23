@@ -1,5 +1,5 @@
-#set page(paper: "a4", margin: 14mm)
-#set text(size: 9.5pt)
+#set page(paper: "a4", margin: 13mm)
+#set text(size: 9.3pt)
 
 = Could the eleven omitted curves share one CM field or a named isogeny relation?
 <could-the-eleven-omitted-curves-share-one-cm-field-or-a-named-isogeny-relation>
@@ -19,15 +19,17 @@ relationship among the named curves?
 Each ordinary elliptic curve has an imaginary quadratic field attached
 to its Frobenius endomorphism. The eleven omitted curves have
 #strong[eleven different fields]. In fact, all #strong[21] named omitted
-and published seed classes have different fields. None of the named
-same-field curve pairs has the same group order, the opposite Frobenius
-trace, or the same `j`-invariant. Thus a #strong[single shared CM field,
-a direct rational isogeny between two named curves, or a named
-quadratic-twist pairing] cannot be the missing common weakness. The
-finding applies equally to the published curves, so it does #strong[not]
-explain which seeds were kept. #link("analysis.json")[Exact matrix]
-(`internal`); #link("sage_verification.json")[independent Sage check]
-(`internal`).
+and published seed classes have different fields, and none has a field
+with fundamental discriminant of absolute value at most
+#strong[1,000,000]. None of the named same-field curve pairs has the
+same group order, the opposite Frobenius trace, or the same
+`j`-invariant. Thus a #strong[single shared CM field, a small CM field
+in this explicit range, a direct rational isogeny between two named
+curves, or a named quadratic-twist pairing] cannot be the missing common
+weakness. The findings apply equally to the published curves, so they do
+#strong[not] explain which seeds were kept.
+#link("analysis.json")[Exact matrix] (`internal`);
+#link("sage_verification.json")[independent Sage check] (`internal`).
 
 #box(image("inference.svg", alt: "Exact pairwise structural screen"))
 
@@ -66,14 +68,14 @@ conjectural conductor value.
 (`retrieved`).
 
 The #link("analyze.py")[Python program] evaluates all `C(21,2)=210`
-pairs. #link("verify.sage")[Sage] reloads the original sources
-separately, recomputes every discriminant and square test, checks every
-row and pair against the matrix, verifies a Bézout witness, and checks
-three raw P-224 model pairs as positive controls. The controls have
-different `b` values but equal `p,n,Δ,j`, and the square-product
-predicate returns true for each. The
-#link("sage_verification.json")[Sage receipt] reports `PASS` on SageMath
-10.10.rc0 (`independently verified`).
+pairs. It separately enumerates every #strong[negative fundamental
+discriminant] `D` with `|D| ≤ 1,000,000`, then tests whether `Δ/D` is a
+perfect integer square for each curve. This detects every CM field
+within that cutoff, even if the Frobenius-order conductor has large
+factors. There are exactly #strong[303,968] discriminants and
+#strong[6,383,328] curve/discriminant comparisons, with zero matches.
+The cutoff is an exploratory test range, not a documented 1997 threshold
+(`derived`).
 
 #figure(
   align(center)[#table(
@@ -84,6 +86,9 @@ predicate returns true for each. The
     [Omitted--omitted pairs], [55],
     [All omitted/published pairs], [210],
     [Pairs sharing a CM field], [#strong[0 / 210]],
+    [Curves with CM-field discriminant magnitude at most
+    1,000,000], [#strong[0 / 21]],
+    [Fundamental discriminants in that range], [303,968],
     [Maximum pairwise discriminant gcd among omissions], [55],
     [Pairs over the same prime field `p`], [45],
     [Same-field pairs with equal group order], [#strong[0 / 45]],
@@ -93,6 +98,18 @@ predicate returns true for each. The
   )]
   , kind: table
   )
+
+#link("verify.sage")[Sage] reloads the original sources separately,
+recomputes every discriminant and pairwise square test, and
+independently enumerates the small fundamental discriminants with
+Sage\'s `fundamental_discriminant` function. It checks every row and
+pair against the matrix, verifies a Bézout witness, and checks three raw
+P-224 model pairs as positive controls. The P-224 controls have
+different `b` values but equal `p,n,Δ,j`, and the square-product
+predicate returns true for each. Eight synthetic
+fundamental-discriminant positives and a nonfundamental negative check
+the range enumeration. The #link("sage_verification.json")[Sage receipt]
+reports `PASS` on SageMath 10.10.rc0 (`independently verified`).
 
 The omitted-pair discriminant-gcd counts are `40` at gcd `1`, `6` at
 `3`, `5` at `5`, `3` at `13`, and `1` at `55`. Even the nontrivial gcds
@@ -104,7 +121,7 @@ witness for an omitted same-field pair. This is an auxiliary integer
 check; the product-square test is the actual CM-field certificate
 (`derived`).
 
-#box(image("pair_gcd.svg", width: 85%, alt: "Pairwise omitted-curve discriminant gcds"))
+#box(image("pair_gcd.svg", width: 70%, alt: "Pairwise omitted-curve discriminant gcds"))
 
 For pairs over the #strong[same] `F_p`, equal group order is equivalent
 to being `F_p`-isogenous by Tate\'s theorem. The 45 named same-field
@@ -130,21 +147,21 @@ hidden common feature. Because the same CM-field uniqueness occurs among
 the published controls, it supplies no keep/skip predicate.
 
 The open mathematical space includes #strong[different weak
-representatives reached from each curve], a common algorithm whose
-precondition varies with each curve\'s parameters, or a defect tied to
-another property such as an implementation\'s point-counting or
-validation behavior. The preceding
+representatives reached from each curve], CM fields beyond the explicit
+cutoff, a common algorithm whose precondition varies with each curve\'s
+parameters, or a defect tied to another property such as an
+implementation\'s point-counting or validation behavior. The preceding
 #link("../report.md")[small-conductor screen] excludes small squared
 discriminant factors through 10,000 as a universal omission feature; the
 #link("../isogeny_screen/report.md")[degree screen] excludes a single
 rational-isogeny availability bit through degree 10,000 as a perfect
-selector. Neither screen constructs endpoint maps or measures ECDLP
-costs. To promote any hidden-weakness proposal, specify a reproducible
-property and unknown-scalar advantage, prove subgroup transport where
-used, account for construction and evaluation, and compare it against
-published same-field controls. A perfect retrospective label split alone
-would not establish either an attack or historical use (`derived`,
-bounded).
+selector. None of these screens constructs endpoint maps or measures
+ECDLP costs. To promote any hidden-weakness proposal, specify a
+reproducible property and unknown-scalar advantage, prove subgroup
+transport where used, account for construction and evaluation, and
+compare it against published same-field controls. A perfect
+retrospective label split alone would not establish either an attack or
+historical use (`derived`, bounded).
 
 The next discriminating historical evidence is the original source, run
 log, or review sheet identifying which candidates were evaluated and why

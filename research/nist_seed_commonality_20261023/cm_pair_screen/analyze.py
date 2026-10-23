@@ -20,6 +20,7 @@ HERE = Path(__file__).resolve().parent
 SOURCE = HERE.parent.parent / "nist_seed_skipped_curves_20261016"
 ASSESSED = SOURCE / "assessed.json"
 TRAITS = SOURCE / "traits.json"
+SMALL_CM_BOUND = 1_000_000
 
 
 def sha256(path: Path) -> str:
@@ -124,6 +125,45 @@ def control_pairs(raw: list[dict]) -> list[dict]:
     return controls
 
 
+def fundamental_discriminants_through(bound: int) -> list[int]:
+    """All negative fundamental discriminants with |D| <= bound."""
+    squarefree = bytearray(b"\x01") * (bound + 1)
+    for k in range(2, isqrt(bound) + 1):
+        q = k * k
+        for multiple in range(q, bound + 1, q):
+            squarefree[multiple] = 0
+    result = []
+    for magnitude in range(3, bound + 1):
+        d = -magnitude
+        if (d % 4 == 1 and squarefree[magnitude]) or (
+            d % 4 == 0 and (d // 4) % 4 in (2, 3) and squarefree[magnitude // 4]
+        ):
+            result.append(d)
+    return result
+
+
+def small_cm_screen(rows: list[dict]) -> dict:
+    ds = fundamental_discriminants_through(SMALL_CM_BOUND)
+    assert len(ds) == 303_968
+    assert fundamental_discriminants_through(20) == [-3, -4, -7, -8, -11, -15, -19, -20]
+    hits = []
+    for row in rows:
+        delta = int(row["delta_hex_signed"], 0)
+        for d in ds:
+            if delta % d == 0:
+                quotient = delta // d
+                if isqrt(quotient) ** 2 == quotient:
+                    hits.append({"curve_uid": row["curve_uid"], "fundamental_discriminant": d})
+    assert not hits
+    return {
+        "maximum_absolute_fundamental_discriminant_tested": SMALL_CM_BOUND,
+        "fundamental_discriminants_tested": len(ds),
+        "curve_comparisons": len(rows) * len(ds),
+        "matches": hits,
+        "synthetic_positive_controls": [-3, -4, -7, -8, -11, -15, -19, -20],
+    }
+
+
 def render_gcd_histogram(hist: dict[int, int]) -> str:
     width, height = 920, 430
     out = [
@@ -176,6 +216,7 @@ def main() -> None:
         "rows": rows,
         "pairs": pairs,
         "positive_controls": control_pairs(raw),
+        "small_cm_screen": small_cm_screen(rows),
         "summary": {
             "total_rows": 21,
             "omitted_rows": 11,
@@ -191,6 +232,9 @@ def main() -> None:
             "opposite_trace_same_field_pairs": 0,
             "same_j_same_field_pairs": 0,
             "raw_p224_sign_model_positive_controls": 3,
+            "cm_fundamental_discriminants_tested_to": SMALL_CM_BOUND,
+            "cm_fundamental_discriminants_in_range": 303_968,
+            "small_cm_field_matches": 0,
         },
         "bezout_witness": {
             "a_uid": a["curve_uid"],

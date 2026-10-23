@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from sage.all import ZZ, gcd
+from sage.all import ZZ, fundamental_discriminant, gcd
 from sage.version import version as sage_version
 
 
@@ -126,6 +126,22 @@ def main():
     assert u * wa + v * wb == 1 and gcd(wa, wb) == 1
     assert {witness["a_uid"], witness["b_uid"]} <= {r["uid"] for r in rows if r["label"] == "omitted"}
 
+    small_cm = analysis["small_cm_screen"]
+    bound = small_cm["maximum_absolute_fundamental_discriminant_tested"]
+    assert bound == 1_000_000
+    ds = [d for d in range(-3, -bound - 1, -1)
+          if int(fundamental_discriminant(d)) == d]
+    assert len(ds) == small_cm["fundamental_discriminants_tested"] == 303_968
+    assert all(int(fundamental_discriminant(d)) == d for d in (-3, -4, -7, -8, -11, -15, -19, -20))
+    assert int(fundamental_discriminant(-12)) == -3
+    small_cm_hits = []
+    for source in rows:
+        for d in ds:
+            if source["delta"] % d == 0 and (source["delta"] // d).is_square():
+                small_cm_hits.append((source["uid"], d))
+    assert small_cm_hits == small_cm["matches"] == []
+    assert small_cm["curve_comparisons"] == len(rows) * len(ds)
+
     receipt = {
         "schema": "nist-seed-cm-pair-sage-verification/v1",
         "status": "PASS",
@@ -144,6 +160,11 @@ def main():
         "omitted_pair_gcd_histogram": dict(sorted(hist.items())),
         "positive_controls_checked": positive,
         "bezout_witness_verified": True,
+        "small_cm_discriminants_checked_to": bound,
+        "small_cm_discriminants_count": len(ds),
+        "small_cm_curve_comparisons": len(rows) * len(ds),
+        "small_cm_matches": len(small_cm_hits),
+        "small_cm_synthetic_controls_checked": 9,
     }
     (HERE / "sage_verification.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
     print(json.dumps(receipt, sort_keys=True))
