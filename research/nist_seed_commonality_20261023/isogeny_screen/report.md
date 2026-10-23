@@ -10,6 +10,8 @@
 
 For each of the 21 exact curves, we checked all **1,228 odd prime degrees from 3 through 10,000**. No one degree makes the eleven omitted curves all land on one side and the ten published curves all land on the other. Two degrees, 2,099 and 9,013, do make all eleven omitted curves lack a rational isogeny of that degree, but **three** and **six** published curves, respectively, lack one too. The apparent two-degree coincidence has a conditional within-field allocation tail of **853/4,480 = 19.0%** after searching all 1,228 degrees, so it is weak as a label association. This allocation diagnostic is **not** a probability of what the 1997 program did.
 
+There is a partial trend in the *total count* of these degrees: an omitted curve has a higher count than a published curve in **20 of 25 same-field pairs**, with one tie and four reversals. The fixed-10,000-cutoff one-sided allocation rank is **100/4,480 = 2.23%**. This is exploratory and related to the earlier Elkies-coverage screen; it is not a fresh significance test. In particular, omitted P-256 block 876 has **597** such degrees versus **603** for published P-256 block 1842, so the trend cannot be the universal keep/skip rule.
+
 ![Exact rational-isogeny availability counts](availability.svg)
 
 The calculation extends a previously recorded, predeclared Elkies-coverage test at degrees up to 300 and a four-prime character screen. It is a broader **null result for this particular one-degree predicate**, not a new attack or a replay of the original program. [Earlier preregistration][prior] (`internal`); [Anthropic][anthropic] and [Valsorda][valsorda] (`retrieved`).
@@ -31,10 +33,14 @@ The generation code is [make_screen.py](make_screen.py). It asserts 11 omitted a
 | Degrees where all 11 omissions lack one | 2: 2,099 and 9,013 |
 | Published controls also lacking it at 2,099 / 9,013 | 3 / 6 |
 | Per-curve availability counts, omissions / controls | 597–638 / 562–633 of 1,228 |
+| Omission count higher / equal / lower in same-field pairs | 20 / 1 / 4 of 25 |
+| Exact within-field allocations with pair score ≥ observed | 100 / 4,480 |
 | Exact within-field allocations with ≥2 all-omission-inert primes | 853 / 4,480 |
 | Exact within-field allocations with no perfect degree separator | 4,475 / 4,480 |
 
 The allocation diagnostic enumerates `C(5,2) × C(4,3) × C(8,5) × C(2,1) = 4,480` ways to assign the **observed number** of omitted labels within the 192-, 224-, 239-, and 256-bit fields, leaving the 384- and 521-bit published controls fixed. For each allocation it searches all 1,228 degrees again. It preserves the same-field comparison, but those allocations are an analytical reference set, not random historical outcomes. The two inert primes are therefore an observed mathematical commonality with no demonstrated selection or attack meaning.
+
+The pair score counts two for each omitted-greater comparison and one for each tie, so the observed score is `2×20 + 1 = 41`. The 100/4,480 tail is conditional on these 21 records and on this degree cutoff, which was examined **after** the earlier smaller-bound feature search. Counts through 10,000 also include degrees that a 1997 point-counting program may never have used. More available small isogenies would not, by itself, make a curve weak; nor does this count measure actual SEA runtime, which depends on modular-polynomial and continuation costs.
 
 ![What the screen establishes and leaves open](inference.svg)
 
@@ -43,6 +49,8 @@ The allocation diagnostic enumerates `C(5,2) × C(4,3) × C(8,5) × C(2,1) = 4,4
 Valsorda reports that the extra bit-length rule explains one undocumented filter and that the remaining keep/skip decisions are unresolved; he explicitly raises RNG consumption and point-counting error as possibilities. Anthropic also says viable seeds were skipped and leaves the criterion or accidental cause open. The [NIST retrospective][nist] describes a generic seed → curve → known-attack-screen cycle, but gives no 1997 acceptance trace. These are reports about provenance, not evidence that every reconstructed window was actually evaluated. (`retrieved`)
 
 The public [MIRACL SEA source][miracl], whose visible revision notes begin in **September 1999**, says its first version used Schoof for 3, 5, 7 and then Elkies primes, and that modular-polynomial needs varied by curve. This illustrates how point-counting cost can depend on the Elkies pattern; it is **later and not established as the original NSA program**. Its `-s` search increments `B`, unlike the reported SHA-derived seed windows. The specific 1997 point-counting behavior remains unknown. (`retrieved`, contextual)
+
+The partial count trend also runs **opposite** to a simple story that omitted curves were rejected because too *few* Elkies degrees made point counting slow. That observation does not reject a real runtime or software-error explanation, because count is not runtime and the period implementation is unknown. (`derived`, bounded)
 
 A rational isogeny of a tested degree is not by itself a weak-curve witness. Every tested degree is coprime to the large prime subgroup order, so a defined isogeny transports that subgroup to an equal-order subgroup; a speedup would require a concrete endpoint or other structure, a map, and full costs. None was constructed here. A weakness common to the omitted curves could use combinations of traits, larger degrees, a different representation, extra information, or an undiscovered algorithm. This screen excludes only the simple **single small-prime-degree availability/absence rule** as a complete classifier of these 21 labels.
 

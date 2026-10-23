@@ -94,12 +94,35 @@ def conditional_allocation_diagnostic(rows: list[dict], prime_count: int) -> dic
     ]
     observed_mask = sum(1 << i for i, row in enumerate(rows) if row["label"] == "omitted")
     observed_all_inert = sum((mask & observed_mask) == observed_mask for mask in inert_masks)
+
+    def pairwise(mask: int) -> tuple[int, int, int]:
+        wins = ties = losses = 0
+        for bits in (192, 224, 239, 256):
+            group = [i for i, row in enumerate(rows) if row["field_bits"] == bits]
+            for omitted_i in group:
+                if not (mask >> omitted_i) & 1:
+                    continue
+                for published_i in group:
+                    if (mask >> published_i) & 1:
+                        continue
+                    a = rows[omitted_i]["isogeny_count"]
+                    b = rows[published_i]["isogeny_count"]
+                    wins += a > b
+                    ties += a == b
+                    losses += a < b
+        return wins, ties, losses
+
+    observed_wins, observed_ties, observed_losses = pairwise(observed_mask)
+    observed_pair_score = 2 * observed_wins + observed_ties
     all_inert_histogram = Counter()
     perfect_histogram = Counter()
+    pair_score_histogram = Counter()
     for choice in itertools.product(*groups):
         omitted_mask = choice[0] | choice[1] | choice[2] | choice[3]
         all_inert_histogram[sum((mask & omitted_mask) == omitted_mask for mask in inert_masks)] += 1
         perfect_histogram[sum(mask in (omitted_mask, full ^ omitted_mask) for mask in inert_masks)] += 1
+        wins, ties, _ = pairwise(omitted_mask)
+        pair_score_histogram[2 * wins + ties] += 1
     allocations = sum(all_inert_histogram.values())
     assert allocations == 4480
     return {
@@ -111,6 +134,18 @@ def conditional_allocation_diagnostic(rows: list[dict], prime_count: int) -> dic
         ),
         "tail_denominator": allocations,
         "perfect_separator_count_histogram": dict(sorted(perfect_histogram.items())),
+        "availability_pairwise": {
+            "omitted_higher_pairs": observed_wins,
+            "equal_pairs": observed_ties,
+            "omitted_lower_pairs": observed_losses,
+            "score_twice_wins_plus_ties": observed_pair_score,
+            "score_histogram": dict(sorted(pair_score_histogram.items())),
+            "one_sided_tail_numerator": sum(
+                count for score, count in pair_score_histogram.items() if score >= observed_pair_score
+            ),
+            "tail_denominator": allocations,
+            "scope": "Exploratory fixed-cutoff 10,000 small-isogeny count; not a historical selection probability",
+        },
         "interpretation": "Conditional label-allocation diagnostic only; not a historical probability",
     }
 

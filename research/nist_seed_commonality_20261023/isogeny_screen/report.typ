@@ -1,14 +1,17 @@
 #set page(paper: "a4", margin: 16mm)
+#set text(size: 10pt)
 
 = A larger Frobenius splitting screen of the eleven omitted seed classes
 <a-larger-frobenius-splitting-screen-of-the-eleven-omitted-seed-classes>
-#strong[Date:] 2026-10-23 \ #strong[Status:] Exploratory, independently
-checked arithmetic; no historical selection rule or ECDLP advantage
-identified. \ #strong[Question:] Under the conditional premise that the
-1997--98 program evaluated all eleven otherwise qualifying but
-unpublished prime-field seed classes, do they share a simple
-small-degree rational-isogeny property absent from the ten published
-classes?
+#strong[Date:] 2026-10-23
+
+#strong[Status:] Exploratory, independently checked arithmetic; no
+historical selection rule or ECDLP advantage identified.
+
+#strong[Question:] Under the conditional premise that the 1997--98
+program evaluated all eleven otherwise qualifying but unpublished
+prime-field seed classes, do they share a simple small-degree
+rational-isogeny property absent from the ten published classes?
 
 == Plain-language result
 <plain-language-result>
@@ -22,6 +25,16 @@ two-degree coincidence has a conditional within-field allocation tail of
 #strong[853/4,480 = 19.0%] after searching all 1,228 degrees, so it is
 weak as a label association. This allocation diagnostic is #strong[not]
 a probability of what the 1997 program did.
+
+There is a partial trend in the #emph[total count] of these degrees: an
+omitted curve has a higher count than a published curve in #strong[20 of
+25 same-field pairs], with one tie and four reversals. The
+fixed-10,000-cutoff one-sided allocation rank is #strong[100/4,480 =
+2.23%]. This is exploratory and related to the earlier Elkies-coverage
+screen; it is not a fresh significance test. In particular, omitted
+P-256 block 876 has #strong[597] such degrees versus #strong[603] for
+published P-256 block 1842, so the trend cannot be the universal
+keep/skip rule.
 
 #figure(image("availability.svg", alt: "Exact rational-isogeny availability counts"),
   caption: [
@@ -82,8 +95,8 @@ recorded in those JSON files. Both programs are deterministic and have
 no random seed.
 
 #strong[Correction log:] An unarchived first scratch calculation used
-`2p + 2 - n` for the trace. I caught this before making the durable
-matrix, replaced it with `p + 1 - n`, and checked every final entry
+`2p + 2 − n` for the trace. I caught this before making the durable
+matrix, replaced it with `p + 1 − n`, and checked every final entry
 independently with Sage. Only corrected values appear in the attached
 data and chart.
 
@@ -101,6 +114,10 @@ data and chart.
     [Published controls also lacking it at 2,099 / 9,013], [3 / 6],
     [Per-curve availability counts, omissions / controls], [597--638 /
     562--633 of 1,228],
+    [Omission count higher / equal / lower in same-field pairs], [20 / 1
+    \/ 4 of 25],
+    [Exact within-field allocations with pair score ≥ observed], [100 /
+    4,480],
     [Exact within-field allocations with ≥2 all-omission-inert
     primes], [853 / 4,480],
     [Exact within-field allocations with no perfect degree
@@ -118,6 +135,15 @@ preserves the same-field comparison, but those allocations are an
 analytical reference set, not random historical outcomes. The two inert
 primes are therefore an observed mathematical commonality with no
 demonstrated selection or attack meaning.
+
+The pair score counts two for each omitted-greater comparison and one
+for each tie, so the observed score is `2×20 + 1 = 41`. The 100/4,480
+tail is conditional on these 21 records and on this degree cutoff, which
+was examined #strong[after] the earlier smaller-bound feature search.
+Counts through 10,000 also include degrees that a 1997 point-counting
+program may never have used. More available small isogenies would not,
+by itself, make a curve weak; nor does this count measure actual SEA
+runtime, which depends on modular-polynomial and continuation costs.
 
 #figure(image("inference.svg", width: 55%, alt: "What the screen establishes and leaves open"),
   caption: [
@@ -148,6 +174,12 @@ point-counting cost can depend on the Elkies pattern; it is
 search increments `B`, unlike the reported SHA-derived seed windows. The
 specific 1997 point-counting behavior remains unknown. (`retrieved`,
 contextual)
+
+The partial count trend also runs #strong[opposite] to a simple story
+that omitted curves were rejected because too #emph[few] Elkies degrees
+made point counting slow. That observation does not reject a real
+runtime or software-error explanation, because count is not runtime and
+the period implementation is unknown. (`derived`, bounded)
 
 A rational isogeny of a tested degree is not by itself a weak-curve
 witness. Every tested degree is coprime to the large prime subgroup
