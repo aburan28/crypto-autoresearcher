@@ -1,11 +1,14 @@
 """Small fixed implementation controls; never part of a scientific target stream."""
 import hashlib
+import json
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prepare_graph_input import SCHEDULE, base_points, draw, load_vertex, prepare, target_coefficients
 from verify_collector import add, multiply, parse_input, on_curve
+from verify_prepared_graph import verify
 
 
 STUDY = Path(__file__).resolve().parents[1]
@@ -35,11 +38,11 @@ def main():
         assert all(scalar for _, _, scalar in coeffs)
         assert draw(BASE_ROOT, ["domain-a"], 1000) == draw(BASE_ROOT, ["domain-a"], 1000)
         assert draw(BASE_ROOT, ["domain-a"], 1000) != draw(BASE_ROOT, ["domain-b"], 1000)
-        arms = ("low_x", "mid_x", "random_x", "power_x", "u2_native", "u2_transport")
+        arms = ("low_x", "mid_x", "random_x", "power_x", "graph_transport", "u2_native", "u2_transport")
         for index in (0, 1):
             expected_coeffs = None
             for arm in arms:
-                if arm == "power_x" and index != 0:
+                if arm in ("power_x", "graph_transport") and index != 0:
                     continue
                 payload, meta = prepare(walk, index, arm, "discovery", BASE_ROOT, TARGET_ROOT, 8)
                 again, same_meta = prepare(walk, index, arm, "discovery", BASE_ROOT, TARGET_ROOT, 8)
@@ -76,6 +79,38 @@ def main():
             pass
         else:
             raise AssertionError("power_x index restriction missing")
+        try:
+            prepare(walk, 1, "graph_transport", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("graph_transport index restriction missing")
+        check_index = SCHEDULE[stratum]["power_stride"]
+        payload, meta = prepare(walk, check_index, "graph_transport", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        native, native_meta = prepare(walk, check_index, "low_x", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        graph_base, graph_targets = parse_payload(payload)
+        native_base, native_targets = parse_payload(native)
+        assert graph_targets == native_targets and graph_base != native_base
+        assert meta["generator"] == native_meta["generator"] and meta["Q"] == native_meta["Q"]
+        checkpoint = Path(__file__).resolve().parents[3] / meta["checkpoint_path"]
+        assert graph_base == [tuple(point) for point in json.loads(checkpoint.read_text())["base"]]
+        with TemporaryDirectory() as temp:
+            prepared_path = Path(temp) / "prepared.txt"
+            manifest_path = Path(temp) / "manifest.json"
+            prepared_path.write_bytes(payload)
+            manifest_path.write_text(json.dumps(meta))
+            result = verify(prepared_path, manifest_path)
+            assert result["status"] == "pass" and result["base_points_checked"] == len(graph_base)
+            altered = dict(meta)
+            altered["checkpoint_sha256"] = "0" * 64
+            manifest_path.write_text(json.dumps(altered))
+            try:
+                verify(prepared_path, manifest_path)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("changed checkpoint digest accepted")
+        cases += 1
     print({"status": "pass", "small_fixture_cases": cases,
            "scope": "base/target preparation correctness only; no relation collection"})
 

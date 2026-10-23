@@ -14,8 +14,10 @@ triple collector. It does **not** launch that collector or estimate a DLP cost.
   isomorphism; use each edge's saved transported generator thereafter.
 - Build `low_x`, `mid_x`, and `random_x` on every vertex; build `power_x`
   only when the path index is divisible by eight (P29) or four (P37),
-  including index zero. Build native and transported bases on the `u=2`
-  coordinate model as controls.
+  including index zero. At those same indices, `graph_transport` reads the
+  archived image of the source `low_x` base and binds the chosen checkpoint,
+  manifest, and terminal chain hashes. Build native and transported bases on
+  the `u=2` coordinate model as separate controls.
 - Use one domain-separated 256-bit target root per stratum and stage.
   Derive a nonzero hidden Q scalar and draw `(alpha,beta)` with exact
   modulo rejection. Reject identity and repeated targets by their scalar
@@ -24,7 +26,9 @@ triple collector. It does **not** launch that collector or estimate a DLP cost.
   confirmation must differ.
 - Require a post-freeze commitment to the base root, target root, archived
   graph manifest, and preparer/dependency source hashes. CLI quotas are fixed
-  to the draft discovery/confirmation counts. Output directories are
+  to the draft discovery/confirmation counts. The graph-transport arm also
+  requires the checkpoint manifest and terminal hashes in the commitment.
+  Output directories are
   exclusive; an interrupted write remains visible and is never overwritten.
 
 `prepare_graph_input.py` exposes a small-count `prepare` function for
@@ -48,12 +52,20 @@ They do not validate relation completeness, useful rank, a solver, or speed.
 The verifier's optional root replay invokes the preparer and is a
 reproducibility check; the point-equation replay uses separate arithmetic.
 
+The later [graph-transport arm control](../graph_arm_20261022/report.md) ran
+26 small arm/vertex cases across the same two strata. It independently
+checked checkpoint bindings and rejected noncheck indices and an altered
+checkpoint digest. At the first scheduled check vertices, the graph and
+native bases have zero shared x-orbits in these fixed inputs; this is not a
+relation-yield comparison. The original 22-case receipt remains historical.
+
 ## Remaining executable obligations
 
 1. The source `low_x` base transport now covers the complete fixed paths:
    [P29 through edge 2,048](../path_transport/full_path_20261016/report.md)
    and [P37 through edge 256](../path_transport/p37_full_20261021/report.md),
-   with independent saved-map and signed-base replay. The [P37 endpoint
+   with independent saved-map and signed-base replay. The preparer now has a
+   checkpoint-bound graph-transport arm at each scheduled check vertex. The [P37 endpoint
    control](../path_transport/p37_count256_20261022/report.md) also matches
    exact ordered counts on the same 128 fixed public targets used at its
    earlier check vertices. The original two-edge implementation control and
