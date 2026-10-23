@@ -45,26 +45,48 @@ def require_scientific_seed_mode(manifest):
         raise ValueError("scientific graph input requires three distinct committed roots")
 
 
+def source_paths():
+    return {
+        "wrapper_sha256": Path(__file__),
+        "graph_preparer_sha256": STUDY / "preparation/prepare_graph_input.py",
+        "graph_verifier_sha256": STUDY / "preparation/verify_prepared_graph.py",
+        "preparation_lift_sha256": LEGACY / "prepare_input.py",
+        "collector_source_sha256": LEGACY / "collector.rs",
+        "count_source_sha256": LEGACY / "count_verify.cpp",
+        "rank_verifier_sha256": LEGACY / "verify_collector.py",
+        "phase_runner_sha256": LEGACY / "execute_prepared.py",
+        "group_replay_sha256": ROOT / "harness/toycurve.py",
+    }
+
+
+def check_frozen_sources(root, paths):
+    """Check committed source blobs, while allowing new run-output directories."""
+    for path in paths:
+        relative = Path(path).resolve().relative_to(Path(root).resolve()).as_posix()
+        try:
+            committed = subprocess.check_output(
+                ["git", "show", f"HEAD:{relative}"], cwd=root,
+                stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as error:
+            raise ValueError(f"scientific source is not committed: {relative}") from error
+        if hashlib.sha256(committed).hexdigest() != sha(path):
+            raise ValueError(f"scientific source differs from HEAD: {relative}")
+
+
 def bindings(args, manifest, head):
     values = {
         "source_commit": head,
         "input_sha256": sha(args.input),
         "manifest_sha256": sha(args.manifest),
-        "wrapper_sha256": sha(__file__),
-        "graph_preparer_sha256": sha(STUDY / "preparation/prepare_graph_input.py"),
-        "graph_verifier_sha256": sha(STUDY / "preparation/verify_prepared_graph.py"),
         "collector_binary_sha256": sha(args.collector),
         "count_binary_sha256": sha(args.count_verifier),
-        "collector_source_sha256": sha(LEGACY / "collector.rs"),
-        "count_source_sha256": sha(LEGACY / "count_verify.cpp"),
-        "rank_verifier_sha256": sha(LEGACY / "verify_collector.py"),
-        "phase_runner_sha256": sha(LEGACY / "execute_prepared.py"),
         "graph_sha256": manifest["graph_sha256"],
         "commitment_sha256": manifest.get("commitment_sha256"),
         "stratum": manifest["stratum"], "index": manifest["index"],
         "arm": manifest["arm"], "stage": manifest["stage"],
         "target_count": manifest["target_count"],
     }
+    values.update({name: sha(path) for name, path in source_paths().items()})
     if manifest["arm"] == "graph_transport":
         values.update({key: manifest[key] for key in
                        ("checkpoint_sha256", "checkpoint_manifest_sha256", "checkpoint_terminal_sha256")})
@@ -94,10 +116,11 @@ def execute(args):
             raise ValueError("implementation controls are capped at 128 targets")
     else:
         require_scientific_seed_mode(manifest)
-        if (dirty or not manifest.get("schedule_conformant") or
+        check_frozen_sources(ROOT, source_paths().values())
+        if (not manifest.get("schedule_conformant") or
                 not manifest.get("commitment_sha256") or
                 manifest["target_count"] != SCHEDULE[stratum][stage]):
-            raise ValueError("scientific graph input requires clean frozen source and exact quota")
+            raise ValueError("scientific graph input requires a frozen commitment and exact quota")
         admission = json.loads(args.admission.read_text())
         if (admission.get("schema") != "ectd.graph-arm-admission.v1" or
                 admission.get("status") != "approved" or not admission.get("experiment_id") or

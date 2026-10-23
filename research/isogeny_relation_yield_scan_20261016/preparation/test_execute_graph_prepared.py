@@ -7,9 +7,10 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 
 from prepare_graph_input import prepare
-from execute_graph_prepared import require_scientific_seed_mode
+from execute_graph_prepared import check_frozen_sources, require_scientific_seed_mode
 
 STUDY = Path(__file__).resolve().parents[1]
 BASE_ROOT = b"B" * 32
@@ -18,6 +19,24 @@ VERIFIER_ROOT = b"V" * 32
 
 
 def main():
+    with TemporaryDirectory() as scratch:
+        checkout = Path(scratch)
+        source = checkout / "source.py"
+        source.write_text("value = 1\n")
+        subprocess.run(["git", "init", "-q"], cwd=checkout, check=True)
+        subprocess.run(["git", "add", "source.py"], cwd=checkout, check=True)
+        subprocess.run(["git", "-c", "user.name=Control", "-c", "user.email=control@example.invalid",
+                        "commit", "-q", "-m", "freeze"], cwd=checkout, check=True)
+        (checkout / "runs").mkdir()
+        (checkout / "runs" / "output.json").write_text("{}\n")
+        check_frozen_sources(checkout, [source])
+        source.write_text("value = 2\n")
+        try:
+            check_frozen_sources(checkout, [source])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("modified source passed the commit binding")
     parser = argparse.ArgumentParser()
     parser.add_argument("--collector", type=Path, required=True)
     parser.add_argument("--count-verifier", type=Path, required=True)
