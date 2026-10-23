@@ -1,4 +1,5 @@
 """Render the exact 19-curve conductor comparison from sealed verifications."""
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -17,6 +18,22 @@ for x in first:
     if x["name"] == "published_p256_1842":
         rows.append({**x, "label": "published"})
 assert len(rows) == 19
+discriminants = [(x["name"], abs(int(x["D_K"]))) for x in rows]
+assert all(int(x["D_K"]) % 4 == 1 for x in rows)
+minimum_name, minimum_abs = min(discriminants, key=lambda pair: pair[1])
+assert minimum_name == "omitted_192_2198"
+assert minimum_abs == 8414124017300985115354808730810798330685690037040240202027
+assert (minimum_abs + 1) // 4 > 2**190
+(HERE / "summary.json").write_text(json.dumps({
+    "new_verification_sha256": hashlib.sha256((RUN / "verification.json").read_bytes()).hexdigest(),
+    "first_verification_sha256": hashlib.sha256((FIRST / "verification.json").read_bytes()).hexdigest(),
+    "comparable_curve_count": 19,
+    "omitted_f_pi_counts": {str(f): sum(x["label"] == "omitted" and x["f_pi"] == str(f) for x in rows) for f in (1, 3, 5)},
+    "published_f_pi_counts": {str(f): sum(x["label"] == "published" and x["f_pi"] == str(f) for x in rows) for f in (1, 3, 5)},
+    "minimum_abs_D_K": str(minimum_abs),
+    "minimum_abs_D_K_curve": minimum_name,
+    "noninteger_endomorphism_degree_lower_bound_exceeds_2_pow_190": True,
+}, indent=2, sort_keys=True) + "\n")
 
 def key(x):
     name = x["name"]
