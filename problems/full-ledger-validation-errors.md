@@ -4,7 +4,7 @@
 - **Kind:** archived-record integrity gap, review-provenance gap, and a zero-compute classification gap; the cause of each individual error needs separate adjudication
 - **Affected work:** [full corpus audit](../docs/reports/2026-10-21-ledger-integrity-audit/report.md), [`validate_ledger.py`](../tools/validate_ledger.py), and repository-wide claims that the archived experiment and decision corpus has a clean integrity gate
 - **Next action owner:** Coordinator for scoped record corrections and source-reader assignments; validator maintainers for any schema change
-- **Last updated:** 2026-10-22
+- **Last updated:** 2026-10-23
 
 ## Problem
 
@@ -92,10 +92,10 @@ historical archives need their own scoped checks before an all-corpus claim.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Triage the remaining 18 citation-provenance
-  errors through actual source reading, and resolve the one dangling knowledge
-  reference to an unfiled review task without inventing a dispatch. Continue
-  source-by-source review of prior-art, review-plan, and run-schema errors.
+- **Action or proof obligation:** Triage the remaining prior-art, review-plan,
+  and run-schema errors through actual source reading and record review.
+  The current stacked citation corrections removed the specific citation
+  errors they targeted; that does not establish complete source review.
   For FROB, look for a contemporaneous driver snapshot before considering a
   new prospective, source-bound replay.
 - **Inputs and controls:** Use the raw 162-line log, committed original and
@@ -201,3 +201,11 @@ historical archives need their own scoped checks before an all-corpus claim.
   36 paths, with exactly those 16 citation errors removed and none added.
   Both validator runs exit 1. The audit does not replay per-target solver
   work or change either toy-scope yield decision.
+- 2026-10-23: The [BINSTD proposal citation correction](../docs/reports/2026-10-23-binstd-proposal-citation-provenance/REPORT.md)
+  names the internal heuristic source and reader for two archived proposals.
+  Its [full-tree receipt](../docs/reports/2026-10-23-binstd-proposal-citation-provenance/validation.json)
+  compares parent `f7408a231b` with corrected tree `6c08b90468`: 120 to
+  **118 unsuppressed errors in the same 36 paths**, exactly the two targeted
+  citation errors removed and none added. Both runs exit 1; the 1,210-entry
+  legacy baseline is unchanged. The remaining 118 include 66 prior-art
+  metadata errors. Original proposal bytes and numerical results are unchanged.
