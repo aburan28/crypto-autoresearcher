@@ -57,7 +57,10 @@ Start from the example and fill every block. The ones that remove bias:
   before any data, a nonce drawn after the freeze, or the harness's frozen
   rule (`harness_drawn`, with the rule named). Instances are sampled
   independently of arm. Say whether arm labels are masked during analysis
-  (`blind` writes a masked export and a closed key).
+  (`blind` writes a masked analysis copy and a closed key). Withhold the
+  original export, protocol and raw artifacts from that analysis; validate
+  and review the original after unmasking. The masked copy does not pass
+  protocol identity checks, and numerical signatures can still reveal methods.
 - **Sample size and power.** Instances, replicates, warmups. For a rank test
   the smallest attainable two-sided p is `2/(N+1)`, which must beat
   `alpha/m` over the family of `m` tests; `power --n N --alpha a --m m` does

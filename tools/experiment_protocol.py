@@ -31,6 +31,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 import secrets
 import subprocess
@@ -91,21 +92,30 @@ def read_json(path: Path) -> Any:
                 raise ValueError(f"duplicate key {k!r} in {path}")
             out[k] = v
         return out
+    def finite_float(value):
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError(f"non-finite number {value} in {path}")
+        return number
     try:
-        return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=pairs,
+        return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=pairs, parse_float=finite_float,
                           parse_constant=lambda v: (_ for _ in ()).throw(ValueError(f"non-finite number {v} in {path}")))
     except (OSError, ValueError) as exc:
         raise Refused(f"cannot read {path}: {exc}") from exc
 
 
 def write_once(path: Path, obj: Any) -> None:
+    try:
+        serialized = json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False, allow_nan=False) + "\n"
+    except (TypeError, ValueError) as exc:
+        raise Refused(f"cannot serialize {path}: {exc}") from exc
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     except FileExistsError as exc:
         raise Refused(f"{path} exists; records are write-once (file a new one that names it)") from exc
     with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False) + "\n")
+        f.write(serialized)
 
 
 def now_iso() -> str:
@@ -151,16 +161,26 @@ def power_check(n: int | None, alpha: float, m: int) -> dict[str, Any]:
     """An empirical rank test cannot reject below its resolution: the smallest
     attainable two-sided p with the add-one estimate is 2/(N+1), which must
     be below alpha/m for m corrected tests."""
+    if not math.isfinite(alpha) or not 0 < alpha < 1 or m < 1 or (n is not None and n < 1):
+        raise Refused("power requires N >= 1, 0 < alpha < 1, and m >= 1")
     if n is None:
         return {"rank_test_n": None, "min_attainable_two_sided_p": None, "threshold": alpha / m, "passes": False,
                 "reason": "rank_test_n is null"}
     min_p = 2.0 / (n + 1)
     return {"rank_test_n": n, "min_attainable_two_sided_p": min_p, "threshold": alpha / m,
-            "passes": min_p < alpha / m, "n_needed": int(2 * m / alpha) + 1}
+            "passes": min_p < alpha / m, "n_needed": int(2 * m / alpha)}
 
 
 def lint_protocol(p: dict[str, Any], base: Path | None = None) -> list[str]:
     f: list[str] = []
+    for label, items, key in (
+        ("arms", p["arms"], "id"), ("claims", p["claims"], "id"),
+        ("comparisons", p["variable_ledger"]["comparisons"], "id"),
+        ("metrics", p["metrics"]["primary"] + p["metrics"]["secondary"], "id"),
+    ):
+        ids = [item[key] for item in items]
+        if len(ids) != len(set(ids)):
+            f.append(f"{label} contains duplicate identities")
     arms = {a["id"]: a for a in p.get("arms", [])}
     roles = {a["id"]: a["role"] for a in p.get("arms", [])}
     ledger = p.get("variable_ledger", {})
@@ -251,8 +271,8 @@ def lint_protocol(p: dict[str, Any], base: Path | None = None) -> list[str]:
         f.append("seed_derivation.method explicit_list needs a non-empty 'seeds' list")
     if sd["method"] == "harness_drawn" and not (sd.get("note") or "").strip():
         f.append("seed_derivation.method harness_drawn: 'note' must name the backend's seed rule and the spec seed it starts from")
-    if sd["method"] == "external_nonce" and not sd.get("nonce") and p["freeze"]["status"] == "frozen":
-        f.append("seed_derivation.method external_nonce: record the nonce once drawn (after the freeze)")
+    if sd["method"] == "external_nonce" and sd.get("nonce"):
+        f.append("external_nonce belongs in export.protocol.seed_nonce after the freeze, not in the frozen protocol")
 
     pw = p["sample_size"]["power"]
     if pw["method"] == "rank_test":
@@ -324,9 +344,11 @@ def derive_seed(protocol_sha: str, arm: str, instance: str, replicate: int) -> i
     return int.from_bytes(hashlib.sha256(msg).digest()[:8], "big")
 
 
-def seeds_table(p: dict[str, Any]) -> list[dict[str, Any]]:
+def seeds_table(p: dict[str, Any], nonce: str | None = None) -> list[dict[str, Any]]:
     sd = p["randomization"]["seed_derivation"]
     sha = p["freeze"]["protocol_sha256"] or protocol_hash(p)
+    if sd["method"] == "external_nonce" and not nonce:
+        raise Refused("external_nonce seeds require the post-freeze nonce")
     rows = []
     n_inst, n_rep = p["sample_size"]["instances"], p["sample_size"]["replicates"]
     explicit = sd.get("seeds") or []
@@ -342,7 +364,7 @@ def seeds_table(p: dict[str, Any]) -> list[dict[str, Any]]:
                 elif sd["method"] == "harness_drawn":
                     seed = ""
                 else:
-                    seed = derive_seed(sha + ":" + str(sd.get("nonce") or ""), arm["id"], str(i), r)
+                    seed = derive_seed(sha + ":" + str(nonce), arm["id"], str(i), r)
                 rows.append({"arm": arm["id"], "instance": str(i), "replicate": r, "seed": seed})
     return rows
 
@@ -351,16 +373,19 @@ def freeze(path: Path, commit: str | None, filed_before: bool) -> dict[str, Any]
     p = read_json(path)
     if detect_kind(p) != "experiment.protocol/v1":
         raise Refused("freeze takes a protocol")
-    if p["freeze"]["status"] == "frozen":
-        raise Refused(f"{path} is already frozen ({p['freeze']['protocol_sha256']}); bump version and amend instead")
     errors = schema_errors(p, "experiment.protocol/v1")
     if errors:
         raise Refused("protocol does not validate; fix before freezing:\n  " + "\n  ".join(errors))
+    if p["freeze"]["status"] == "frozen":
+        raise Refused(f"{path} is already frozen ({p['freeze']['protocol_sha256']}); bump version and amend instead")
     if commit == "auto":
         commit = git_head(path.parent)
     p["freeze"] = {"status": "frozen", "protocol_sha256": protocol_hash(p), "commit": commit,
                    "frozen_at": now_iso(), "filed_before_affected_data": filed_before}
-    path.write_text(json.dumps(p, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    errors = schema_errors(p, "experiment.protocol/v1") or lint_protocol(p, path.parent)
+    if errors:
+        raise Refused("protocol does not validate; not frozen:\n  " + "\n  ".join(errors))
+    path.write_text(json.dumps(p, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
     return p["freeze"]
 
 
@@ -385,7 +410,17 @@ def compute_flow(runs: list[dict[str, Any]]) -> dict[str, Any]:
 def lint_export(e: dict[str, Any], protocol: dict[str, Any] | None, base: Path | None, verify_files: bool) -> list[str]:
     f: list[str] = []
     arm_roles = {a["id"]: a["role"] for a in e["arms"]}
+    if len(arm_roles) != len(e["arms"]):
+        f.append("export.arms contains duplicate identities")
+    seen_runs, seen_cells = set(), set()
     for r in e["runs"]:
+        if r["run_id"] in seen_runs:
+            f.append(f"duplicate run_id: {r['run_id']}")
+        seen_runs.add(r["run_id"])
+        cell = (r["arm"], r["instance_id"], r["replicate"], r["warmup"])
+        if cell in seen_cells:
+            f.append(f"duplicate execution cell: {cell}")
+        seen_cells.add(cell)
         rid = r["run_id"]
         if r["arm"] not in arm_roles:
             f.append(f"run {rid}: arm {r['arm']!r} is not in export.arms")
@@ -394,6 +429,8 @@ def lint_export(e: dict[str, Any], protocol: dict[str, Any] | None, base: Path |
             f.append(f"run {rid}: status {r['status']} is outcome_class {want}, not {r['outcome_class']}")
         if (r["status"] == "interrupted" or r["resumed"] > 0) and r["measurements"]["wall_valid"]:
             f.append(f"run {rid}: interrupted or resumed, so wall_valid must be false (counted units stay valid)")
+        if r["measurements"]["wall_valid"] and (r["status"] != "succeeded" or r["warmup"] or r["measurements"]["wall_seconds"] is None):
+            f.append(f"run {rid}: wall_valid requires a successful measured row with wall_seconds")
         if r["isolation"].get("contended") and r["measurements"]["wall_valid"]:
             f.append(f"run {rid}: contended, so wall_valid must be false")
         if r["verification"]["status"] == "refuted" and not r["exclusion"]["excluded"]:
@@ -409,6 +446,9 @@ def lint_export(e: dict[str, Any], protocol: dict[str, Any] | None, base: Path |
         if n["kind"] != "observation":
             f.append("notes carry observations only")
     if protocol is not None:
+        errors = schema_errors(protocol, "experiment.protocol/v1") or lint_protocol(protocol)
+        if errors:
+            return ["protocol: " + error for error in errors] + lint_export(e, None, base, verify_files)
         psha = protocol["freeze"]["protocol_sha256"]
         if protocol["freeze"]["status"] != "frozen":
             f.append("protocol is not frozen: an export may only bind a frozen protocol")
@@ -422,9 +462,11 @@ def lint_export(e: dict[str, Any], protocol: dict[str, Any] | None, base: Path |
                 f.append(f"export arm {a['id']} is not in the protocol")
             elif a["role"] != parms[a["id"]]["role"]:
                 f.append(f"export arm {a['id']} has role {a['role']}, protocol says {parms[a['id']]['role']}")
-            elif parms[a["id"]]["instrument"]["binary_sha256"] and a["binary_sha256"] \
-                    and a["binary_sha256"] != parms[a["id"]]["instrument"]["binary_sha256"]:
-                f.append(f"export arm {a['id']} ran binary {a['binary_sha256'][:12]}, protocol pinned {parms[a['id']]['instrument']['binary_sha256'][:12]}")
+            else:
+                for field in ("binary_sha256", "commit"):
+                    pinned = parms[a["id"]]["instrument"][field]
+                    if pinned and a[field] != pinned:
+                        f.append(f"export arm {a['id']} {field} is {a[field]!r}, protocol pinned {pinned}")
         missing = sorted(set(parms) - {r["arm"] for r in e["runs"]})
         if missing:
             f.append(f"protocol arms with no run in the export: {missing}")
@@ -434,46 +476,99 @@ def lint_export(e: dict[str, Any], protocol: dict[str, Any] | None, base: Path |
         if len(measured) != expected_measured:
             f.append(f"export has {len(measured)} measured rows; the protocol plans {expected_measured} "
                      f"(arms x instances x replicates); {planned} with warmups. A shortfall must be an infrastructure stop, never a choice")
+        expected_instances = protocol["sample_size"]["instances"]
+        expected_replicates = protocol["sample_size"]["replicates"]
+        instance_sets = []
+        for arm in parms:
+            instances = {r["instance_id"] for r in measured if r["arm"] == arm}
+            instance_sets.append(instances)
+            if len(instances) != expected_instances:
+                f.append(f"arm {arm}: measured {len(instances)} instances, expected {expected_instances}")
+            for instance in instances:
+                cells = [r for r in measured if r["arm"] == arm and r["instance_id"] == instance]
+                if len(cells) != expected_replicates:
+                    f.append(f"arm {arm} instance {instance}: measured {len(cells)} replicates, expected {expected_replicates}")
+        if instance_sets and any(ids != instance_sets[0] for ids in instance_sets[1:]):
+            f.append("measured instance identities differ across arms")
         iso_req = protocol["measurement"]["isolation_required"]
         for r in measured:
             tier = r["isolation"]["tier"]
-            if r["measurements"]["wall_valid"] and iso_req != "none" and tier is not None \
+            if r["measurements"]["wall_valid"] and iso_req != "none" \
                     and ISOLATION_RANK.get(tier, -1) < ISOLATION_RANK[iso_req]:
                 f.append(f"run {r['run_id']}: wall_valid but earned {tier} below the protocol's {iso_req}")
-        if protocol["analysis_plan"]["script"] and e["analysis"]["script"] \
-                and protocol["analysis_plan"]["script"]["sha256"] \
-                and e["analysis"]["script"]["sha256"] != protocol["analysis_plan"]["script"]["sha256"]:
-            f.append("analysis.script.sha256 differs from the frozen analysis_plan.script.sha256")
+        script = protocol["analysis_plan"]["script"]
+        if script and script["sha256"] and (not e["analysis"]["script"] or
+                e["analysis"]["script"]["sha256"] != script["sha256"]):
+            f.append("analysis.script.sha256 is missing or differs from the frozen analysis_plan.script.sha256")
         if protocol["randomization"]["blinding"]["analysis_labels_masked"] and not e["analysis"]["blinded"]:
             f.append("protocol requires masked arm labels during analysis but export.analysis.blinded is false")
-        if protocol["randomization"]["seed_derivation"]["method"] == "protocol_hash_sha256":
-            table = {(s["arm"], s["instance"], s["replicate"]): s["seed"] for s in seeds_table(protocol)}
+        seed_method = protocol["randomization"]["seed_derivation"]["method"]
+        nonce = e["protocol"].get("seed_nonce")
+        if seed_method == "external_nonce" and not nonce:
+            f.append("external_nonce export is missing protocol.seed_nonce")
+        elif seed_method != "harness_drawn":
+            table = {(s["arm"], s["instance"], s["replicate"]): s["seed"] for s in seeds_table(protocol, nonce)}
             for r in measured:
                 key = (r["arm"], r["instance_id"], r["replicate"])
-                if key in table and r["seed"] is not None and str(r["seed"]) != str(table[key]):
+                if key not in table:
+                    f.append(f"run {r['run_id']}: execution cell is outside the protocol-derived seed table")
+                elif r["seed"] is None or str(r["seed"]) != str(table[key]):
                     f.append(f"run {r['run_id']}: seed {r['seed']} is not the protocol-derived seed {table[key]}")
     if verify_files and base is not None:
-        for fl in e["files"] + [a for r in e["runs"] for a in r["artifacts"]]:
+        files = e["files"] + [a for r in e["runs"] for a in r["artifacts"]] + e["analysis"]["outputs"]
+        if e["analysis"]["script"]:
+            files.append(e["analysis"]["script"])
+        if e["host"]["path"] and e["host"]["sha256"]:
+            files.append({"path": e["host"]["path"], "sha256": e["host"]["sha256"]})
+        for fl in files:
             path = base / fl["path"]
             if not path.is_file():
                 f.append(f"file missing: {fl['path']}")
                 continue
-            if path.stat().st_size != fl["bytes"] or sha256_file(path) != fl["sha256"]:
+            if ("bytes" in fl and path.stat().st_size != fl["bytes"]) or sha256_file(path) != fl["sha256"]:
                 f.append(f"file changed since export: {fl['path']}")
     return f
 
 
 def blind(e: dict[str, Any], nonce: str) -> tuple[dict[str, Any], dict[str, str]]:
-    """Replace arm ids by labels that depend only on the nonce, keeping roles
-    hidden too: an analyst who sees 'reference' has not been blinded."""
+    """Create a masked analysis copy; raw artifacts and the key stay withheld.
+
+    Numerical patterns can still reveal a method. This removes explicit labels
+    and join keys, not the analyst's prior knowledge or access to the raw data.
+    """
     ranked = sorted(e["arms"], key=lambda a: sha256_bytes(BLIND_DOMAIN + f"{nonce}\n{a['id']}".encode()))
     mapping = {a["id"]: f"arm-{k:02d}" for k, a in enumerate(ranked)}
+    def masked(kind, value):
+        return kind + "-" + sha256_bytes(BLIND_DOMAIN + f"{nonce}\n{kind}\n{value}".encode())[:20]
     out = json.loads(json.dumps(e))
-    out["arms"] = [{"id": mapping[a["id"]], "role": "candidate" if a["role"] in ("reference", "baseline", "candidate") else a["role"],
+    out["export_id"] = masked("export", e["export_id"])
+    out["protocol"]["path"] = "withheld"
+    out["protocol"].pop("seed_nonce", None)
+    out["protocol"]["protocol_id"] = masked("protocol", e["protocol"]["protocol_id"])
+    out["source"] = {"repo": "withheld", "commit": None, "dirty": None}
+    out["producer"] = {"runtime": None, "model": None, "session": None, "role": None}
+    out["files"] = []
+    out["notes"] = []
+    out.pop("backend_record", None)
+    out["host"]["path"] = None
+    out["host"]["sha256"] = None
+    out["host"]["class_id"] = None
+    out["arms"] = [{"id": mapping[a["id"]], "role": "candidate",
                     "binary_sha256": None, "commit": None} for a in sorted(e["arms"], key=lambda a: mapping[a["id"]])]
     for r in out["runs"]:
         r["arm"] = mapping[r["arm"]]
-    out["analysis"]["blinded"] = True
+        r["run_id"] = masked("run", r["run_id"])
+        r["instance_id"] = masked("instance", r["instance_id"])
+        r["seed"] = None
+        for field in ("backend_ref", "worker", "started_at", "finished_at"):
+            r[field] = None
+        r["artifacts"] = []
+        r["checkpoint"] = None
+        r["verification"]["verifier"] = None
+        r["exclusion"]["rule"] = "withheld" if r["exclusion"]["excluded"] else None
+        r["isolation"]["blockers"] = ["withheld"] if r["isolation"]["blockers"] else []
+    out["flow"] = compute_flow(out["runs"])
+    out["analysis"].update(script=None, outputs=[], blinded=True, unmasked_at=None)
     out["analysis"]["blinding_key_sha256"] = sha256_bytes(canonical({"nonce": nonce, "mapping": mapping}))
     return out, mapping
 
@@ -527,8 +622,8 @@ def export_skeleton(protocol: dict[str, Any], protocol_path: str, backend: str, 
             "host": {"path": None, "sha256": None, "class_id": None,
                      "summary": {"cpu_model": None, "logical_cpus": None, "memory_bytes": None, "kernel": None,
                                  "hypervisor": None, "isolation_tier_max": None}},
-            "arms": [{"id": a["id"], "role": a["role"], "binary_sha256": a["instrument"]["binary_sha256"],
-                      "commit": a["instrument"]["commit"]} for a in protocol["arms"]],
+            "arms": [{"id": a["id"], "role": a["role"], "binary_sha256": None,
+                      "commit": None} for a in protocol["arms"]],
             "runs": [], "flow": compute_flow([]), "files": [],
             "analysis": {"script": None, "blinded": False, "blinding_key_sha256": None, "outputs": [], "unmasked_at": None},
             "notes": [], "reviews_dir": "reviews"}
@@ -551,21 +646,24 @@ def from_taskq(result: dict[str, Any], protocol: dict[str, Any], protocol_path: 
                                  "kernel": env.get("kernel")})
     e["host"]["class_id"] = env.get("pod") or env.get("node")
     status = result["status"]
-    seeds = {(s["arm"], s["instance"], s["replicate"]): s["seed"] for s in seeds_table(protocol)}
+    for exported_arm in e["arms"]:
+        if exported_arm["id"] == arm:
+            exported_arm["commit"] = src.get("resolved_commit")
+            exported_arm["binary_sha256"] = result.get("binary_sha256")
     for i, run in enumerate(result.get("runs", [])):
         run_status = "succeeded" if run.get("exit_code") == 0 and not run.get("timed_out") else ("timeout" if run.get("timed_out") else "failed")
-        if status in ("cancelled", "infra_error"):
-            run_status = status
+        if run.get("exit_code") is None and not run.get("timed_out"):
+            run_status = status if status in NOT_COMPLETED else "infra_error"
         ver = run.get("verification") or {}
         metrics = run.get("metrics") or {}
         counted = {k: v for k, v in metrics.items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
         rep = sum(1 for r in result["runs"][:i] if not r.get("warmup"))
         e["runs"].append(run_row(
             run_id=f"{result['task_id']}/run-{run['index']}", arm=arm, instance_id=instance,
-            seed=seeds.get((arm, instance, rep)), replicate=rep, warmup=bool(run.get("warmup")), status=run_status,
-            attempts=result.get("attempt", 1),
+            seed=run.get("seed"), replicate=rep, warmup=bool(run.get("warmup")), status=run_status,
+            attempts=result.get("attempt", 1), resumed=run.get("resumed", 0), checkpoint=run.get("checkpoint"),
             measurements={"counted": counted, "wall_seconds": run.get("wall_seconds"),
-                          "wall_valid": run_status == "succeeded" and not run.get("warmup"),
+                          "wall_valid": False,
                           "cpu_user_seconds": run.get("user_cpu_seconds"), "cpu_sys_seconds": run.get("sys_cpu_seconds"),
                           "max_rss_bytes": (run.get("max_rss_kb") or 0) * 1024 if run.get("max_rss_kb") is not None else None,
                           "counters": {}},
@@ -608,12 +706,14 @@ def from_ecbench(session_dir: Path, protocol: dict[str, Any], protocol_path: str
             "hypervisor": str(virt) if virt else None})
     arm_roles = {a["id"]: a["role"] for a in protocol["arms"]}
     best = -1
+    binaries: dict[str, set[str | None]] = {}
     with (session_dir / "records.jsonl").open(encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
                 continue
             r = json.loads(line)
             arm = r["arm"]
+            binaries.setdefault(arm, set()).add(r.get("binary_sha256"))
             if arm not in arm_roles:
                 arm_roles[arm] = ECBENCH_ROLES.get(r.get("role"), "candidate")
                 e["arms"].append({"id": arm, "role": arm_roles[arm], "binary_sha256": r.get("binary_sha256"), "commit": session.get("git_commit")})
@@ -647,6 +747,10 @@ def from_ecbench(session_dir: Path, protocol: dict[str, Any], protocol_path: str
                 exclusion={"excluded": outcome.get("status") not in ("verified",) and not r.get("warmup") and outcome.get("recovered") is not None,
                            "rule": "invalid_measurement: wrong answer" if outcome.get("recovered") is not None and not outcome.get("matches_target") else None},
                 backend_ref=r.get("run_id")))
+    for arm in e["arms"]:
+        observed = binaries.get(arm["id"], set())
+        arm["binary_sha256"] = next(iter(observed)) if len(observed) == 1 else None
+        arm["commit"] = session.get("git_commit")
     e["host"]["summary"]["isolation_tier_max"] = next((k for k, v in ISOLATION_RANK.items() if v == best and k.startswith("L")), None)
     for name in ("spec.json", "plan.json", "records.jsonl", "session.json", "host.json"):
         if (session_dir / name).is_file():
@@ -740,7 +844,13 @@ def lint_review(r: dict[str, Any], base: Path | None) -> list[str]:
                 f.append(f"judgment on {j['claim_id']} is positive although hashes or protocol adherence failed")
     if base is not None:
         path = base / r["export"]["path"]
-        if path.is_file() and sha256_file(path) != r["export"]["sha256"]:
+        # The initial worked review used an export-root-relative path. Keep
+        # that immutable record readable; new reviews use their own directory.
+        if not path.is_file() and base.name == "reviews" and Path(r["export"]["path"]).name == r["export"]["path"]:
+            path = base.parent / r["export"]["path"]
+        if not path.is_file():
+            f.append("review export file is missing")
+        elif sha256_file(path) != r["export"]["sha256"]:
             f.append("export.sha256 does not match the export on disk")
     return f
 
@@ -822,13 +932,16 @@ def cmd_freeze(args) -> int:
 def cmd_seeds(args) -> int:
     p = read_json(Path(args.file))
     if args.all:
-        for row in seeds_table(p):
+        for row in seeds_table(p, args.nonce):
             print(json.dumps(row))
         return 0
     if args.arm is None or args.instance is None:
         raise Refused("seeds needs --all or --arm, --instance and --replicate")
-    sha = p["freeze"]["protocol_sha256"] or protocol_hash(p)
-    print(derive_seed(sha, args.arm, args.instance, args.replicate))
+    row = next((r for r in seeds_table(p, args.nonce) if (r["arm"], r["instance"], r["replicate"]) ==
+                (args.arm, args.instance, args.replicate)), None)
+    if row is None or row["seed"] == "":
+        raise Refused("no specified seed for this execution cell; harness-drawn seeds must be recorded by the harness")
+    print(row["seed"])
     return 0
 
 
@@ -891,6 +1004,7 @@ def cmd_review(args) -> int:
     r = review_scaffold(export_path, export, protocol, args.role, args.runtime, args.model, args.session)
     out_dir = Path(args.out_dir) if args.out_dir else export_path.parent / export["reviews_dir"]
     out = out_dir / f"{r['review_id']}.json"
+    r["export"]["path"] = os.path.relpath(export_path.resolve(), out.parent.resolve())
     write_once(out, r)
     print(f"review scaffold: {out}\nfill every not_covered check, the observations, judgments and recommendation; never edit the export")
     return 0
@@ -906,6 +1020,9 @@ def _common_export_args(args) -> tuple[dict[str, Any], str]:
     protocol = read_json(Path(args.protocol))
     if detect_kind(protocol) != "experiment.protocol/v1":
         raise Refused("--protocol must be an experiment.protocol/v1 file")
+    errors = schema_errors(protocol, "experiment.protocol/v1") or lint_protocol(protocol, Path(args.protocol).parent)
+    if errors:
+        raise Refused("protocol does not validate:\n  " + "\n  ".join(errors))
     if protocol["freeze"]["status"] != "frozen":
         raise Refused("the protocol is not frozen; an export binds a frozen protocol only")
     out = Path(args.out)
@@ -919,6 +1036,8 @@ def _common_export_args(args) -> tuple[dict[str, Any], str]:
 def cmd_from_taskq(args) -> int:
     protocol, rel = _common_export_args(args)
     e = from_taskq(read_json(Path(args.file)), protocol, rel, args.arm, args.instance, args.export_id)
+    if args.seed_nonce:
+        e["protocol"]["seed_nonce"] = args.seed_nonce
     write_once(Path(args.out), e)
     print(f"export: {args.out}")
     return _report(schema_errors(e, "experiment.export/v1") or lint_export(e, protocol, None, False), "export")
@@ -927,6 +1046,8 @@ def cmd_from_taskq(args) -> int:
 def cmd_from_ecbench(args) -> int:
     protocol, rel = _common_export_args(args)
     e = from_ecbench(Path(args.session_dir), protocol, rel, args.export_id, _prefix(Path(args.session_dir), Path(args.out)))
+    if args.seed_nonce:
+        e["protocol"]["seed_nonce"] = args.seed_nonce
     write_once(Path(args.out), e)
     print(f"export: {args.out}")
     return _report(schema_errors(e, "experiment.export/v1") or lint_export(e, protocol, None, False), "export")
@@ -936,6 +1057,8 @@ def cmd_from_rows(args) -> int:
     protocol, rel = _common_export_args(args)
     mapping = dict(kv.split("=", 1) for kv in args.map)
     e = from_rows(Path(args.file), protocol, rel, args.export_id, mapping, _prefix(Path(args.file).parent, Path(args.out)))
+    if args.seed_nonce:
+        e["protocol"]["seed_nonce"] = args.seed_nonce
     write_once(Path(args.out), e)
     print(f"export: {args.out}")
     return _report(schema_errors(e, "experiment.export/v1") or lint_export(e, protocol, None, False), "export")
@@ -950,7 +1073,7 @@ def main(argv: list[str] | None = None) -> int:
     fz = sub.add_parser("freeze"); fz.add_argument("file"); fz.add_argument("--commit", default="auto")
     fz.add_argument("--filed-before-affected-data", action="store_true"); fz.set_defaults(fn=cmd_freeze)
     s = sub.add_parser("seeds"); s.add_argument("file"); s.add_argument("--all", action="store_true"); s.add_argument("--arm")
-    s.add_argument("--instance"); s.add_argument("--replicate", type=int, default=0); s.set_defaults(fn=cmd_seeds)
+    s.add_argument("--instance"); s.add_argument("--replicate", type=int, default=0); s.add_argument("--nonce"); s.set_defaults(fn=cmd_seeds)
     pw = sub.add_parser("power"); pw.add_argument("--n", type=int, required=True); pw.add_argument("--alpha", type=float, default=0.05)
     pw.add_argument("--m", type=int, default=1); pw.set_defaults(fn=cmd_power)
     b = sub.add_parser("blind"); b.add_argument("file"); b.add_argument("--out", required=True); b.add_argument("--nonce"); b.set_defaults(fn=cmd_blind)
@@ -965,14 +1088,14 @@ def main(argv: list[str] | None = None) -> int:
     rv.set_defaults(fn=cmd_review)
     for name, fn in (("from-taskq", cmd_from_taskq), ("from-rows", cmd_from_rows)):
         c = sub.add_parser(name); c.add_argument("file"); c.add_argument("--protocol", required=True); c.add_argument("--out", required=True)
-        c.add_argument("--export-id", required=True)
+        c.add_argument("--export-id", required=True); c.add_argument("--seed-nonce")
         if name == "from-taskq":
             c.add_argument("--arm", required=True); c.add_argument("--instance", default="0")
         else:
             c.add_argument("--map", action="append", default=[])
         c.set_defaults(fn=fn)
     fe = sub.add_parser("from-ecbench"); fe.add_argument("session_dir"); fe.add_argument("--protocol", required=True)
-    fe.add_argument("--out", required=True); fe.add_argument("--export-id", required=True); fe.set_defaults(fn=cmd_from_ecbench)
+    fe.add_argument("--out", required=True); fe.add_argument("--export-id", required=True); fe.add_argument("--seed-nonce"); fe.set_defaults(fn=cmd_from_ecbench)
 
     args = ap.parse_args(argv)
     try:

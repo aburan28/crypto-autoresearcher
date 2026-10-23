@@ -141,6 +141,28 @@ column map). Other backends write the shape directly; `check-export
 experiment writes `experiments/<EXP>/export.json` from its run packages and
 binds `protocol.json` in `execution_plan.protocol_hashes`.
 
+For `external_nonce`, freeze the seed rule without a nonce, draw and record
+the nonce before executing the affected rows, use `seeds --nonce <value>`,
+and pass `--seed-nonce <value>` to the export adapter. The export stores it
+in `protocol.seed_nonce`; the frozen protocol remains unchanged. Retain the
+nonce's draw/timestamp provenance for review. Explicit-list, hash-derived and
+external-nonce seeds are checked against every measured execution cell.
+
+The checker recomputes the frozen protocol hash before checking exports. It
+rejects duplicate run IDs or execution cells, incomplete instance/replicate
+coverage, missing pinned binaries or analysis scripts, and a valid clock with
+unknown isolation. Adapters record observed identities and seeds; they never
+copy planned values into missing observations. Taskq rows without an isolation
+receipt retain their clock values with `wall_valid: false`.
+
+`blind` produces a masked analysis copy. It withholds raw-file links, notes,
+backend identifiers, seeds, binary identities and control-role labels as well
+as arm names. Keep the original export, protocol and key away from the masked
+analysis; retain them for the subsequent unmasked adherence/replay review.
+The masked copy deliberately cannot pass protocol identity checks and is not
+a replacement evidence export. Numerical signatures or prior knowledge can
+still reveal a method; label masking does not prove analyst independence.
+
 ## 6. Review by another runner
 
 Any runner (Claude Code, Codex, OpenCode, a human, CI) can review an export

@@ -254,7 +254,192 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(len(list((dst / "r2").glob("REV-*.json"))), 1)
             self.assertEqual(ep.main(["blind", str(dst / "export.json"), "--out", str(dst / "blinded.json"), "--nonce", "00"]), 0)
             self.assertEqual(oct(os.stat(dst / "blinded.key.json").st_mode & 0o777), "0o600")
-            self.assertEqual(ep.main(["seeds", str(dst / "protocol.json"), "--arm", "rho-neg", "--instance", "0"]), 0)
+            self.assertEqual(ep.main(["seeds", str(dst / "protocol.json"), "--arm", "rho-neg", "--instance", "0"]), 2)
+
+
+class AdmissionRegressionTests(unittest.TestCase):
+    def test_export_recomputes_the_frozen_protocol_hash(self):
+        e, p = load("export.json"), load("protocol.json")
+        p["execution"]["timeout_seconds"] += 1
+        self.assertTrue(any("changed after it was frozen" in f for f in ep.lint_export(e, p, EXAMPLE, True)))
+
+    def test_duplicate_rows_and_execution_cells_are_rejected(self):
+        e, p = load("export.json"), load("protocol.json")
+        e["runs"][7] = copy.deepcopy(e["runs"][6])
+        e["flow"] = ep.compute_flow(e["runs"])
+        self.assertTrue(any("duplicate run_id" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+        e["runs"][7]["run_id"] = "independently-named-duplicate"
+        self.assertTrue(any("duplicate execution cell" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_measured_cells_cannot_replace_a_missing_instance(self):
+        e, p = load("export.json"), load("protocol.json")
+        for r in e["runs"]:
+            if not r["warmup"]:
+                r["instance_id"] = "one-instance"
+        self.assertTrue(any("instances, expected" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_missing_isolation_cannot_admit_a_clock(self):
+        e, p = load("export.json"), load("protocol.json")
+        row = next(r for r in e["runs"] if not r["warmup"])
+        row["isolation"].update(tier=None, contended=None)
+        row["measurements"]["wall_valid"] = True
+        self.assertTrue(any("below the protocol" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_absent_pinned_binary_is_not_a_match(self):
+        e, p = load("export.json"), load("protocol.json")
+        e["arms"][0]["binary_sha256"] = None
+        self.assertTrue(any("binary_sha256" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_schema_valid_but_semantically_invalid_protocol_is_not_frozen(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "protocol.json"
+            p = load("protocol.json")
+            p["freeze"].update(status="draft", protocol_sha256=None)
+            p["claims"][1]["decided_by"] = ["C-aa"]
+            path.write_text(json.dumps(p)); original = path.read_bytes()
+            with self.assertRaises(ep.Refused):
+                ep.freeze(path, None, True)
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_duplicate_protocol_identities_are_rejected(self):
+        p = load("protocol.json")
+        p["arms"].append(copy.deepcopy(p["arms"][0]))
+        p["freeze"]["protocol_sha256"] = ep.protocol_hash(p)
+        self.assertTrue(any("duplicate identities" in f for f in ep.lint_protocol(p)))
+
+    def test_missing_derived_seed_is_not_a_match(self):
+        e, p = load("export.json"), load("protocol.json")
+        p["randomization"]["seed_derivation"] = {"method": "protocol_hash_sha256"}
+        p["freeze"]["protocol_sha256"] = ep.protocol_hash(p)
+        e["protocol"]["sha256"] = p["freeze"]["protocol_sha256"]
+        row = next(r for r in e["runs"] if not r["warmup"])
+        row.update(instance_id="0", replicate=0, seed=None)
+        self.assertTrue(any("seed None" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_adapter_records_observed_binary_and_does_not_copy_the_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            session = Path(tmp) / "session"
+            shutil.copytree(EXAMPLE / "session", session)
+            records = [json.loads(line) for line in (session / "records.jsonl").read_text().splitlines()]
+            for r in records:
+                r["binary_sha256"] = "f" * 64
+            (session / "records.jsonl").write_text("\n".join(json.dumps(r) for r in records) + "\n")
+            p = load("protocol.json")
+            e = ep.from_ecbench(session, p, "protocol.json", "changed-instrument")
+            self.assertEqual({a["binary_sha256"] for a in e["arms"]}, {"f" * 64})
+            self.assertTrue(any("binary_sha256" in f for f in ep.lint_export(e, p, None, False)))
+
+    def test_taskq_does_not_invent_seeds_or_isolation(self):
+        p = load("protocol.json")
+        p["randomization"]["seed_derivation"] = {"method": "protocol_hash_sha256"}
+        result = {"schema": "taskq.task-result/v1", "task_id": "T-1", "status": "succeeded",
+                  "runs": [{"index": 0, "exit_code": 0, "wall_seconds": 1.0, "seed": 7}]}
+        e = ep.from_taskq(result, p, "protocol.json", "rho-neg", "0", "observations")
+        self.assertEqual(e["runs"][0]["seed"], 7)
+        self.assertFalse(e["runs"][0]["measurements"]["wall_valid"])
+        self.assertIsNone(e["arms"][0]["binary_sha256"])
+        del result["runs"][0]["seed"]
+        self.assertIsNone(ep.from_taskq(result, p, "protocol.json", "rho-neg", "0", "missing")["runs"][0]["seed"])
+
+    def test_review_cli_checks_its_export_from_the_review_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = Path(tmp) / "example"
+            shutil.copytree(EXAMPLE, dst)
+            review = next((dst / "reviews").glob("REV-*.json"))
+            (dst / "export.json").write_text("{}")
+            self.assertEqual(ep.main(["review", "validate", str(review)]), 1)
+
+    def test_nonfinite_input_and_output_leave_no_partial_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "record.json"
+            path.write_text('{"value":1e999}')
+            with self.assertRaises(ep.Refused):
+                ep.read_json(path)
+            path.unlink()
+            with self.assertRaises(ep.Refused):
+                ep.write_once(path, {"value": float("inf")})
+            self.assertFalse(path.exists())
+
+    def test_blinded_view_withholds_explicit_identity_and_raw_artifact_links(self):
+        e = load("export.json")
+        e["runs"][0]["backend_ref"] = "rho-neg-original"
+        e["runs"][0]["verification"]["verifier"] = "rho-neg-verifier"
+        e["notes"] = [{"kind": "observation", "text": "rho-neg source identity"}]
+        out, _ = ep.blind(e, "test-nonce")
+        rendered = json.dumps(out)
+        for a in e["arms"]:
+            self.assertNotIn(a["id"], rendered)
+        self.assertNotIn(e["runs"][0]["run_id"], rendered)
+        self.assertEqual(out["files"], [])
+        self.assertEqual(out["flow"], ep.compute_flow(out["runs"]))
+        self.assertEqual(ep.schema_errors(out, "experiment.export/v1"), [])
+
+    def test_single_seed_uses_the_declared_explicit_rule(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            p = load("protocol.json")
+            p["randomization"]["seed_derivation"] = {"method": "explicit_list", "seeds": [7, 11]}
+            path = Path(tmp) / "protocol.json"; path.write_text(json.dumps(p))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(ep.main(["seeds", str(path), "--arm", "rho-neg", "--instance", "0", "--replicate", "1"]), 0)
+            self.assertEqual(output.getvalue().strip(), "11")
+
+    def test_power_boundary_reports_the_first_admissible_n(self):
+        result = ep.power_check(40, 0.05, 1)
+        self.assertEqual(result["n_needed"], 40)
+        self.assertTrue(result["passes"])
+
+
+class ProvenanceRegressionTests(unittest.TestCase):
+    def test_missing_pinned_analysis_is_rejected(self):
+        e, p = load("export.json"), load("protocol.json")
+        p["analysis_plan"]["script"] = {"path": "analysis.py", "sha256": "f" * 64}
+        p["freeze"]["protocol_sha256"] = ep.protocol_hash(p)
+        e["protocol"]["sha256"] = p["freeze"]["protocol_sha256"]
+        self.assertTrue(any("analysis.script.sha256" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+
+    def test_analysis_artifact_hashes_are_verified_even_outside_files_list(self):
+        e, p = load("export.json"), load("protocol.json")
+        e["analysis"]["outputs"] = [{"path": "unavailable-analysis.json", "sha256": "f" * 64, "bytes": 0}]
+        self.assertTrue(any("file missing: unavailable-analysis.json" in f for f in ep.lint_export(e, p, EXAMPLE, True)))
+
+    def test_cancelled_task_keeps_its_completed_prefix(self):
+        p = load("protocol.json")
+        result = {"schema": "taskq.task-result/v1", "task_id": "T-1", "status": "cancelled",
+                  "runs": [{"index": 0, "exit_code": 0, "wall_seconds": 1},
+                           {"index": 1, "exit_code": None, "wall_seconds": None}]}
+        e = ep.from_taskq(result, p, "protocol.json", "rho-neg", "0", "partial")
+        self.assertEqual([r["status"] for r in e["runs"]], ["succeeded", "cancelled"])
+        self.assertEqual(e["flow"]["completed"], 1)
+        self.assertEqual(e["flow"]["not_completed"], 1)
+
+
+class ExternalNonceRegressionTests(unittest.TestCase):
+    def test_external_nonce_is_bound_in_export_without_editing_frozen_protocol(self):
+        e, p = load("export.json"), load("protocol.json")
+        p["randomization"]["seed_derivation"] = {"method": "external_nonce"}
+        p["freeze"].update(status="draft", protocol_sha256=None)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "protocol.json"; path.write_text(json.dumps(p))
+            ep.freeze(path, None, True)
+            frozen_bytes = path.read_bytes(); p = ep.read_json(path)
+            table = {(r["arm"], r["instance"], r["replicate"]): r["seed"] for r in ep.seeds_table(p, "public-nonce")}
+            e["protocol"].update(sha256=p["freeze"]["protocol_sha256"], seed_nonce="public-nonce")
+            instances = {value: str(i) for i, value in enumerate(sorted({r["instance_id"] for r in e["runs"]}))}
+            for row in e["runs"]:
+                if not row["warmup"]:
+                    row["instance_id"] = instances[row["instance_id"]]
+                    row["replicate"] -= 1
+                    row["seed"] = table[(row["arm"], row["instance_id"], row["replicate"])]
+            self.assertEqual(ep.schema_errors(e, "experiment.export/v1"), [])
+            self.assertEqual(ep.lint_export(e, p, EXAMPLE, True), [])
+            e["protocol"]["seed_nonce"] = "different-nonce"
+            self.assertTrue(any("not the protocol-derived seed" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+            del e["protocol"]["seed_nonce"]
+            self.assertTrue(any("missing protocol.seed_nonce" in f for f in ep.lint_export(e, p, EXAMPLE, False)))
+            self.assertEqual(path.read_bytes(), frozen_bytes)
 
 
 if __name__ == "__main__":
