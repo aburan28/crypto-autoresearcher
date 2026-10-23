@@ -494,7 +494,10 @@ Each run retains: exact command; commit and dirty-tree state; environment and
 dependency versions; parameters and seeds; requested policy, backend and
 resolved model id with provenance and probe status; reasoning effort, fallback
 and degraded requirements; stdout and stderr; raw machine-readable results;
-validity status and reason; timestamps and resource measurements. Claim tiers
+validity status and reason; timestamps and resource measurements. An artifact of
+1 MiB or more is stored gzipped (`x.gz`), and one still 10 MiB or more is a
+`x.gz.blob.json` pointer into S3; receipts bind content digests and readers go
+through `tools/artifact_store.py` (`docs/artifact-storage.md`). Claim tiers
 and solution certificates: `docs/claims-and-verification.md`. Session receipts
 (`tools/session_receipt.py`, `docs/session-receipts.md`) record what a session
 cost; they are never evidence.
