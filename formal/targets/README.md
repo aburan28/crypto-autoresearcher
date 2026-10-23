@@ -114,6 +114,12 @@ prove both archived degree-eight factors irreducible. These targets do
 not prove that the field Frobenius has the asserted normal-basis module
 structure or that the listed dimensions exhaust all invariant subspaces.
 
+`binstd-canonical-frobenius-minpoly.yaml` proves that the Frobenius on
+Mathlib's canonical `GaloisField 2 17` has order 17 and minimal polynomial
+equal to the source-bound three-factor product. It does not identify the
+archived runner's polynomial-basis field or subspace constructor with
+this canonical model; the exhaustive dimension classification is still open.
+
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
 `KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
 arm cannot exceed the target count, its tau/open ratio is strictly below the
