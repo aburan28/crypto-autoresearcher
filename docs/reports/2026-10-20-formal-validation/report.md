@@ -42,3 +42,18 @@ After generating the root module with `tools/rebuild_formal_root.py`, `lake exe 
 The repository's [`verify_formal_targets.py`](../../../tools/verify_formal_targets.py) then checked every frozen target. Its [complete summary](evidence/2026-10-21-formal/target-verification.log) reports **62 machine verified, 0 not verified, 0 infrastructure failures, and 4 undischarged**. The [62 individual receipts](evidence/2026-10-21-formal/receipts/) bind each task spec and theorem source hash to the source commit, toolchain and manifest; every receipt marks independent semantic review as pending. The corrected 62/4 count supersedes the earlier 61/5 file-presence tally.
 
 These checks establish kernel acceptance and the gate's allowed-axiom condition for the named declarations. They do not close the Semaev nonzero-residue bridge, prove that the scientific claims faithfully match each theorem's hypotheses, independently replay historical experiments, or certify cryptographic performance. The archived dashboard snapshot remains the same nine-row reader refresh; no numerical graph changed as a result of this formal build.
+
+## 2026-10-22 Semaev archive correction
+
+The [later exact replay](../2026-10-22-semaev-first-fall-replay/report.md) found
+that the archived `fall_profile` uses set union where Boolean F₂ polynomial
+multiplication requires duplicate monomial cancellation. Its 70/10 split and
+the [relabeled chart](fall_counts.svg) remain the reproducible **archived**
+result. Correct parity multiplication on the same 80 systems gives 68
+degree-two and 12 degree-three first falls; seven of the latter have nonzero
+target abscissa. Twelve of 200 null grades also change. The new report carries
+the corrected per-draw chart, equations, source-bound checker, pinned Lean
+finite certificate, and exact proof boundary. No timing or performance
+dashboard value changed. A search of the committed `ui/` tree found no Semaev
+first-fall data consumer. The original October 20 PDF remains the dated audit
+snapshot; the October 22 PDF contains the corrected graphic and finding.
