@@ -81,12 +81,17 @@ def main():
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
+    gp_version_call = subprocess.run(["gp", "--version"], capture_output=True, text=True, check=True)
+    gp_version_lines = (gp_version_call.stdout + gp_version_call.stderr).splitlines()
+    gp_version = next((line.strip() for line in gp_version_lines if "GP/PARI CALCULATOR" in line), None)
+    if gp_version is None:
+        raise ValueError("GP version banner absent")
     (out / "started.json").write_text(json.dumps({
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "host": platform.platform(), "python": sys.version,
         "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "git_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
-        "gp_version": subprocess.check_output(["gp", "--version"], text=True).splitlines()[0].strip(),
+        "gp_version": gp_version,
         "source_sha256": {name: sha(ARCH / name) for name in EXPECTED},
     }, indent=2) + "\n")
     for name, digest in EXPECTED.items():
