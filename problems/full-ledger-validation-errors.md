@@ -209,3 +209,11 @@ historical archives need their own scoped checks before an all-corpus claim.
   citation errors removed and none added. Both runs exit 1; the 1,210-entry
   legacy baseline is unchanged. The remaining 118 include 66 prior-art
   metadata errors. Original proposal bytes and numerical results are unchanged.
+- 2026-10-23: The [four-proposal prior-art correction](../docs/reports/2026-10-23-odd-characteristic-prior-art-correction/REPORT.md)
+  reads six committed nearest-prior-work cards, preserves the four archived
+  proposal files, and registers hash-bound metadata replacements. On exact PR
+  parent `9fc0685a5fd51e5fe66a80d42124f1d522f7c8f5`, the full-tree
+  validator moves from 118 errors in 36 paths to **88 in 32 paths**: exactly
+  30 targeted lines removed and none added. Both runs still exit 1. The
+  1,210-entry legacy baseline, experiment results, and performance charts are
+  unchanged; the broader integrity problem remains open.
