@@ -155,6 +155,39 @@ def main() -> None:
     source_tests_log = evidence / "batch5-source-tests.log"
     require(source_sha_log.read_text().count(": OK") == 13, "source hash check log incomplete")
     require("17 passed, 1 skipped" in source_tests_log.read_text(), "source test result differs")
+    target_receipt_path = evidence / "batch5-target-verification.json"
+    target_receipt = json.loads(target_receipt_path.read_text())
+    verification = target_receipt.get("verification") or {}
+    provenance = target_receipt.get("provenance") or {}
+    require(target_receipt.get("schema") == "crypto.autoresearch.formal_verification.v1",
+            "unexpected per-target verifier schema")
+    require(verification.get("status") == "machine_verified" and
+            verification.get("build_passed") is True and
+            verification.get("axiom_audit_passed") is True and
+            verification.get("forbidden_constructs") == [],
+            "batch-five per-target verifier did not pass")
+    require(verification.get("theorem_name") ==
+            "CryptoResearch.Endosweep.DkExactBatch5.exact_discriminants",
+            "per-target verifier checked a different theorem")
+    require(target_receipt.get("semantic_review") == {"required": True, "status": "pending"},
+            "per-target semantic review status changed")
+    require(target_receipt.get("infrastructure_failure") is None,
+            "per-target verifier had an infrastructure failure")
+    require("target axiom audit passed: CryptoResearch.Endosweep.DkExactBatch5.exact_discriminants"
+            in target_receipt.get("audit_log", ""), "requested-theorem audit missing")
+    require(git(repo, "rev-parse", f"{provenance['source_commit']}:formal") == formal_tree,
+            "per-target verifier's formal tree differs from named main")
+    require(git(repo, "rev-parse", f"{provenance['source_commit']}:research/endosweep_dk_exact_batch5_20261023")
+            == source_tree, "per-target verifier's source tree differs from named main")
+    require(provenance.get("task_spec_sha256") == sha256(
+        repo / "formal/targets/endosweep-dk-exact-batch5-discriminants.yaml"),
+        "per-target task spec hash differs")
+    require(provenance.get("theorem_sha256") == sha256(
+        repo / "formal/CryptoResearch/Endosweep/DkExactBatch5.lean"),
+        "per-target theorem hash differs")
+    require(provenance.get("lean_toolchain_sha256") == sha256(repo / "formal/lean-toolchain")
+            and provenance.get("lake_manifest_sha256") == sha256(repo / "formal/lake-manifest.json"),
+            "per-target toolchain or dependency manifest hash differs")
     receipt = {
         "schema": "formal-target-declaration-audit-v1",
         "status": "pass",
@@ -178,13 +211,14 @@ def main() -> None:
         "batch_five_source_files_hashed": len(source_entries),
         "batch_five_source_manifest_sha256": sha256(source_manifest),
         "batch_five_source_tests": "17 passed, 1 skipped (cypari2/PARI primality replay unavailable)",
+        "batch_five_per_target_verification": "machine_verified; semantic review pending",
         "checker_sha256": sha256(Path(__file__)),
         "batch_lean_source_sha256": sha256(lean_source),
         "batch_five_direct_lean_source_sha256": sha256(direct_source),
         "batch_five_negative_lean_source_sha256": sha256(negative_source),
         "evidence_sha256": {p.name: sha256(p) for p in
                             (build_log, batch_log, axiom_log, direct_log, negative_log,
-                             source_sha_log, source_tests_log)},
+                             source_sha_log, source_tests_log, target_receipt_path)},
         "scope": "named-main formal tree build and target axiom sweep; no independent semantic review or experiment replay",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
