@@ -141,6 +141,8 @@ def main():
                 small_cm_hits.append((source["uid"], d))
     assert small_cm_hits == small_cm["matches"] == []
     assert small_cm["curve_comparisons"] == len(rows) * len(ds)
+    assert small_cm["nonscalar_endomorphism_degree_strict_lower_bound"] == 250_000
+    assert analysis["summary"]["nonscalar_endomorphism_degree_exceeds"] == 250_000
 
     receipt = {
         "schema": "nist-seed-cm-pair-sage-verification/v1",
@@ -165,6 +167,7 @@ def main():
         "small_cm_curve_comparisons": len(rows) * len(ds),
         "small_cm_matches": len(small_cm_hits),
         "small_cm_synthetic_controls_checked": 9,
+        "nonscalar_endomorphism_degree_exceeds": 250_000,
     }
     (HERE / "sage_verification.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
     print(json.dumps(receipt, sort_keys=True))

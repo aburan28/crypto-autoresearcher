@@ -6,7 +6,7 @@
 
 ## Result in plain language
 
-Each ordinary elliptic curve has an imaginary quadratic field attached to its Frobenius endomorphism. The eleven omitted curves have **eleven different fields**. In fact, all **21** named omitted and published seed classes have different fields, and none has a field with fundamental discriminant of absolute value at most **1,000,000**. None of the named same-field curve pairs has the same group order, the opposite Frobenius trace, or the same `j`-invariant. Thus a **single shared CM field, a small CM field in this explicit range, a direct rational isogeny between two named curves, or a named quadratic-twist pairing** cannot be the missing common weakness. The findings apply equally to the published curves, so they do **not** explain which seeds were kept. [Exact matrix](analysis.json) (`internal`); [independent Sage check](sage_verification.json) (`internal`).
+Each ordinary elliptic curve has an imaginary quadratic field attached to its Frobenius endomorphism. The eleven omitted curves have **eleven different fields**. In fact, all **21** named omitted and published seed classes have different fields, and none has a field with fundamental discriminant of absolute value at most **1,000,000**. This also proves that every non-scalar endomorphism of any of these curves has degree **greater than 250,000**. None of the named same-field curve pairs has the same group order, the opposite Frobenius trace, or the same `j`-invariant. Thus a **single shared CM field, a low-degree CM endomorphism, a direct rational isogeny between two named curves, or a named quadratic-twist pairing** cannot be the missing common weakness. The findings apply equally to the published curves, so they do **not** explain which seeds were kept. [Exact matrix](analysis.json) (`internal`); [independent Sage check](sage_verification.json) (`internal`).
 
 ![Exact pairwise structural screen](inference.svg)
 
@@ -26,6 +26,7 @@ The [Python program](analyze.py) evaluates all `C(21,2)=210` pairs. It separatel
 | All omitted/published pairs | 210 |
 | Pairs sharing a CM field | **0 / 210** |
 | Curves with CM-field discriminant magnitude at most 1,000,000 | **0 / 21** |
+| Lower bound on every non-scalar endomorphism degree | **greater than 250,000** |
 | Fundamental discriminants in that range | 303,968 |
 | Maximum pairwise discriminant gcd among omissions | 55 |
 | Pairs over the same prime field `p` | 45 |
@@ -33,6 +34,8 @@ The [Python program](analyze.py) evaluates all `C(21,2)=210` pairs. It separatel
 | Same-field pairs with opposite trace | **0 / 45** |
 | Same-field pairs with equal `j` | **0 / 45** |
 | Raw P-224 same-invariant positive controls | 3 / 3 |
+
+For any non-scalar endomorphism `α`, its characteristic polynomial gives `disc(Z[α]) = Tr(α)² − 4 deg(α) = c² D_K`, for an integer `c ≥ 1`. Hence `4 deg(α) = Tr(α)² + c²|D_K| ≥ |D_K| > 1,000,000`. The degree bound applies to each ordinary curve, its quadratic twist, and every `F_p`-isogenous representative because they have the same CM field. It rules out a **small-degree integral CM endomorphism**; it is **not** a lower bound on the time needed to evaluate a high-degree endomorphism, an isogeny to another curve, or an ECDLP algorithm. [Sutherland's endomorphism-algebra notes][endo-notes] give the degree/trace characteristic equation; [Bisson and Sutherland][bisson] give the ordinary order/discriminant relation (`retrieved`). The inequality is `derived` from those facts.
 
 [Sage](verify.sage) reloads the original sources separately, recomputes every discriminant and pairwise square test, and independently enumerates the small fundamental discriminants with Sage's `fundamental_discriminant` function. It checks every row and pair against the matrix, verifies a Bézout witness, and checks three raw P-224 model pairs as positive controls. The P-224 controls have different `b` values but equal `p,n,Δ,j`, and the square-product predicate returns true for each. Eight synthetic fundamental-discriminant positives and a nonfundamental negative check the range enumeration. The [Sage receipt](sage_verification.json) reports `PASS` on SageMath 10.10.rc0 (`independently verified`).
 
@@ -55,6 +58,8 @@ The earlier [seed-stream graph][stream-graph] and canonical graphs in `knowledge
 [assessed]: ../../nist_seed_skipped_curves_20261016/assessed.json
 [traits]: ../../nist_seed_skipped_curves_20261016/traits.json
 [volcano]: https://msp.org/obs/2013/1-1/obs-v1-n1-p25-s.pdf
+[bisson]: https://gaati.org/bisson/res/endomorphism.pdf
+[endo-notes]: https://math.mit.edu/classes/18.783/2017/LectureNotes13.pdf
 [tate]: https://pazuki.perso.math.cnrs.fr/index_fichiers/Tate66.pdf
 [valsorda]: https://words.filippo.io/seeds-solved/
 [anthropic]: https://www.anthropic.com/research/ecdsa-curve-origins

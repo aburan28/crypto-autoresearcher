@@ -160,6 +160,8 @@ def small_cm_screen(rows: list[dict]) -> dict:
         "fundamental_discriminants_tested": len(ds),
         "curve_comparisons": len(rows) * len(ds),
         "matches": hits,
+        "nonscalar_endomorphism_degree_strict_lower_bound": SMALL_CM_BOUND // 4,
+        "bound_reason": "4*deg(alpha)=Tr(alpha)^2+c^2*abs(D_K)>1000000 for non-scalar alpha and integer c>=1",
         "synthetic_positive_controls": [-3, -4, -7, -8, -11, -15, -19, -20],
     }
 
@@ -235,6 +237,7 @@ def main() -> None:
             "cm_fundamental_discriminants_tested_to": SMALL_CM_BOUND,
             "cm_fundamental_discriminants_in_range": 303_968,
             "small_cm_field_matches": 0,
+            "nonscalar_endomorphism_degree_exceeds": 250_000,
         },
         "bezout_witness": {
             "a_uid": a["curve_uid"],

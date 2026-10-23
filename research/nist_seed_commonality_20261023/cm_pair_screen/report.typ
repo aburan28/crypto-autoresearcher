@@ -21,13 +21,14 @@ to its Frobenius endomorphism. The eleven omitted curves have
 #strong[eleven different fields]. In fact, all #strong[21] named omitted
 and published seed classes have different fields, and none has a field
 with fundamental discriminant of absolute value at most
-#strong[1,000,000]. None of the named same-field curve pairs has the
-same group order, the opposite Frobenius trace, or the same
-`j`-invariant. Thus a #strong[single shared CM field, a small CM field
-in this explicit range, a direct rational isogeny between two named
-curves, or a named quadratic-twist pairing] cannot be the missing common
-weakness. The findings apply equally to the published curves, so they do
-#strong[not] explain which seeds were kept.
+#strong[1,000,000]. This also proves that every non-scalar endomorphism
+of any of these curves has degree #strong[greater than 250,000]. None of
+the named same-field curve pairs has the same group order, the opposite
+Frobenius trace, or the same `j`-invariant. Thus a #strong[single shared
+CM field, a low-degree CM endomorphism, a direct rational isogeny
+between two named curves, or a named quadratic-twist pairing] cannot be
+the missing common weakness. The findings apply equally to the published
+curves, so they do #strong[not] explain which seeds were kept.
 #link("analysis.json")[Exact matrix] (`internal`);
 #link("sage_verification.json")[independent Sage check] (`internal`).
 
@@ -88,6 +89,8 @@ The cutoff is an exploratory test range, not a documented 1997 threshold
     [Pairs sharing a CM field], [#strong[0 / 210]],
     [Curves with CM-field discriminant magnitude at most
     1,000,000], [#strong[0 / 21]],
+    [Lower bound on every non-scalar endomorphism
+    degree], [#strong[greater than 250,000]],
     [Fundamental discriminants in that range], [303,968],
     [Maximum pairwise discriminant gcd among omissions], [55],
     [Pairs over the same prime field `p`], [45],
@@ -98,6 +101,20 @@ The cutoff is an exploratory test range, not a documented 1997 threshold
   )]
   , kind: table
   )
+
+For any non-scalar endomorphism `α`, its characteristic polynomial gives
+`disc(Z[α]) = Tr(α)² − 4 deg(α) = c² D_K`, for an integer `c ≥ 1`. Hence
+`4 deg(α) = Tr(α)² + c²|D_K| ≥ |D_K| > 1,000,000`. The degree bound
+applies to each ordinary curve, its quadratic twist, and every
+`F_p`-isogenous representative because they have the same CM field. It
+rules out a #strong[small-degree integral CM endomorphism]\; it is
+#strong[not] a lower bound on the time needed to evaluate a high-degree
+endomorphism, an isogeny to another curve, or an ECDLP algorithm.
+#link("https://math.mit.edu/classes/18.783/2017/LectureNotes13.pdf")[Sutherland\'s endomorphism-algebra notes]
+give the degree/trace characteristic equation;
+#link("https://gaati.org/bisson/res/endomorphism.pdf")[Bisson and Sutherland]
+give the ordinary order/discriminant relation (`retrieved`). The
+inequality is `derived` from those facts.
 
 #link("verify.sage")[Sage] reloads the original sources separately,
 recomputes every discriminant and pairwise square test, and
