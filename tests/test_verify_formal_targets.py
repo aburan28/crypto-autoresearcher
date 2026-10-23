@@ -61,14 +61,25 @@ def test_infrastructure_failure_is_not_a_failed_proof(monkeypatch, tmp_path):
 def test_floor_rejects_a_run_that_verifies_nothing(monkeypatch, tmp_path):
     """A gate that machine-checks no proof must not report success.
 
-    Every committed target here is undischarged, so nothing is verified -- the
-    exact shape of the workflow this script replaced.
+    Use a deliberately absent theorem file so this regression control remains
+    valid as the committed targets are discharged.
     """
 
     targets = tmp_path / "targets"
     targets.mkdir()
-    undischarged = REPO_ROOT / "formal/targets/ncp-reachability.yaml"
-    shutil.copy2(undischarged, targets / undischarged.name)
+    assert not (REPO_ROOT / "formal/CryptoResearch/NCP/AbsentFloorFixture.lean").exists()
+    (targets / "absent-floor-fixture.yaml").write_text(
+        "schema: crypto.autoresearch.formal_task.v1\n"
+        "task_id: TASK-20261021-0abcde\n"
+        "claim_id: TEST-EMPTY-FLOOR\n"
+        "kind: formalize_claim\n"
+        "source: research/THM_COMMUTATOR_KERNEL1.md\n"
+        "claim: A deliberately absent theorem file.\n"
+        "theorem_name: CryptoResearch.NCP.absentFloorFixture\n"
+        "theorem_file: CryptoResearch/NCP/AbsentFloorFixture.lean\n"
+        "workspace: formal\n",
+        encoding="utf-8",
+    )
 
     module = gate()
     monkeypatch.setattr(module, "formal_main",
