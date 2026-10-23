@@ -712,6 +712,15 @@ def record_payload(index: ResearchIndex, record_id: str,
             "in": sorted(index.backlinks.get(record_id, ())),
         },
     }
+    if record.path.endswith(".yaml"):
+        # A registered copy is visible beside any archived original, including
+        # one that parses but fails the current ledger schema. It never changes
+        # the canonical source's verified flag or body.
+        copy = index.parsed_supersession(record_id)
+        if copy is not None or (error is not None and parsed is None):
+            payload["supersession"] = jsonable(copy)
+        if error is not None and parsed is None:
+            payload["readback_state"] = "registered_copy" if copy else "raw_only"
     if markdown is not None:
         payload["markdown"] = markdown
     if include_raw:

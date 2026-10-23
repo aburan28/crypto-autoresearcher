@@ -187,6 +187,13 @@ struct CellOut {
     max_r: f64,
     total_new: u64,
     trace_fail: u64,
+    samples: Vec<Value>,
+}
+
+const SAMPLE_POINTS_PER_CELL: usize = 8;
+
+fn elt_json(a: &nfield::Elt) -> Value {
+    json!(a.iter().map(nfield::field::rat_to_string).collect::<Vec<_>>())
 }
 
 /// One enumeration up to max(ladder) candidates; each rung is a snapshot of the cumulative state
@@ -203,6 +210,7 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: u64, ladder: &[u64], aux: &[u64], s
     let mut rung_i = 0usize;
     let (mut last_tried, mut last_shells) = (0u64, 0u64);
     let logp = (p as f64).ln();
+    let mut samples: Vec<Value> = Vec::new();
     let snapshot = |rungs: &mut Vec<Rung>, cum: &Rung, residues: &HashSet<(u64, u64)>, all: &HashSet<String>, tried: u64, shells: u64, mh: Option<f64>| {
         let mut r = cum.clone();
         r.work = tried;
@@ -234,23 +242,37 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: u64, ladder: &[u64], aux: &[u64], s
                 return;
             }
             let res = ecnf::residues_at_p(e, &point, p);
+            let rational = k.is_rational(&point.0) && k.is_rational(&point.1);
+            let want_sample = samples.len() < SAMPLE_POINTS_PER_CELL;
             if res.iter().any(|r| r.is_none()) {
                 cum.points_without_residue += 1;
+                if want_sample {
+                    samples.push(json!({"x": elt_json(&point.0), "y": elt_json(&point.1), "residues": Value::Null,
+                                        "rational": rational, "trace_ok": Value::Null, "nontorsion_witness": Value::Null}));
+                }
                 return;
             }
             let uniq: HashSet<(u64, u64)> = res.iter().map(|r| r.unwrap()).collect();
             cum.residue_coincidences += (res.len() - uniq.len()) as u64;
             residues.extend(uniq.iter().cloned());
-            match ecnf::trace_relation_holds(e, &res, p, t) {
+            let tr = ecnf::trace_relation_holds(e, &res, p, t);
+            match tr {
                 Some(true) => cum.trace_relation_ok += 1,
                 Some(false) => cum.trace_relation_fail += 1,
                 None => {}
             }
-            if k.is_rational(&point.0) && k.is_rational(&point.1) {
+            let witness = if rational { None } else { ecnf::nontorsion_witness(e, &point, split_for_t, t) };
+            if want_sample {
+                samples.push(json!({"x": elt_json(&point.0), "y": elt_json(&point.1),
+                                    "residues": res.iter().map(|r| json!([r.unwrap().0, r.unwrap().1])).collect::<Vec<_>>(),
+                                    "rational": rational, "trace_ok": tr,
+                                    "nontorsion_witness": witness.map(|(q, root)| json!({"q": q, "root": root}))}));
+            }
+            if rational {
                 cum.rational_points_seen += 1;
                 return;
             }
-            if !ecnf::is_torsion_candidate(e, &point, split_for_t, t) {
+            if witness.is_some() {
                 cum.new_nontorsion_points += 1;
                 let h = k.height(&point.0);
                 min_height = Some(min_height.map_or(h, |m: f64| m.min(h)));
@@ -263,7 +285,7 @@ fn run_cell(k: &NumberField, e: &CurveNF, p: u64, ladder: &[u64], aux: &[u64], s
     }
     let gamma = fit_gamma(&rungs);
     let max_r = rungs.iter().filter_map(|r| r.relation_yield_ratio()).fold(0.0, f64::max);
-    CellOut { gamma, max_r, total_new: cum.new_nontorsion_points, trace_fail: cum.trace_relation_fail, rungs }
+    CellOut { gamma, max_r, total_new: cum.new_nontorsion_points, trace_fail: cum.trace_relation_fail, rungs, samples }
 }
 
 struct Args {
@@ -399,6 +421,8 @@ fn main() {
                     eprintln!("seed={} c={} {} {}: D={} N={} Rmax={:.3} gamma={:?} trace_fail={}", seed, c, fld.label, label, last.distinct_residues, cell.total_new, cell.max_r, cell.gamma, cell.trace_fail);
                     cells.push(json!({
                         "seed": seed, "c": c, "p": p, "field": frec, "curve": label, "torsion_bound_T": t,
+                        "torsion_bound_primes": split_for_t, "aux_primes": aux, "roots_mod_p": k.roots_mod(p),
+                        "sample_points": cell.samples,
                         "rungs": cell.rungs.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
                         "gamma": cell.gamma, "max_relation_yield_ratio": cell.max_r,
                         "total_new_nontorsion_points": cell.total_new, "trace_relation_failures": cell.trace_fail,

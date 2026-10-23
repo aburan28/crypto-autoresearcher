@@ -377,6 +377,9 @@ DEPLOYED = [
 ]
 
 
+PART_C_SECONDS = {}
+
+
 def part_c(cap):
     rows = []
     for cv in DEPLOYED:
@@ -399,7 +402,7 @@ def part_c(cap):
             row["k_is_3"] = (pow(2, 2 * c, l) - pow(2, c, l) + 1) % l == 0
             row["k_is_4"] = (pow(2, 2 * c - 1, l) - pow(2, c, l) + 1) % l == 0
             row["k_in_1_to_4"] = row["k_is_1"] or row["k_is_3"] or row["k_is_4"]
-        row["seconds"] = time.time() - t0
+        PART_C_SECONDS[cv["name"]] = round(time.time() - t0, 3)
         rows.append(row)
         print(f"part C {cv['name']} done", file=sys.stderr, flush=True)
     return rows
@@ -420,6 +423,7 @@ def part_d(boxes_log2, samples, seed):
     for lb in boxes_log2:
         B = 1 << lb
         s_sp, s_bm = [], []
+        replay = []
         for _ in range(samples):
             a = rng.randrange(-B, B + 1)
             b = rng.randrange(1, B + 1)
@@ -431,10 +435,13 @@ def part_d(boxes_log2, samples, seed):
                 continue
             s_sp.append(math.log2(fs))
             s_bm.append(math.log2(fb))
+            if len(replay) < 32:
+                replay.append({"a": a, "b": b, "log2_special": s_sp[-1], "log2_basem": s_bm[-1]})
         gap = statistics.fmean(s_sp) - statistics.fmean(s_bm)
         out["boxes"].append({"log2_B": lb, "n": len(s_sp), "mean_log2_norm_special": statistics.fmean(s_sp),
                              "mean_log2_norm_basem": statistics.fmean(s_bm), "gap_bits_special_minus_basem": gap,
-                             "derived_prediction": -(97 - lb), "within_3_bits": abs(gap + (97 - lb)) <= 3})
+                             "derived_prediction": -(97 - lb), "within_3_bits": abs(gap + (97 - lb)) <= 3,
+                             "sum_log2_special": sum(s_sp), "sum_log2_basem": sum(s_bm), "replay_sample": replay})
     return out
 
 
@@ -455,7 +462,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     started = time.time()
-    raw = {"experiment_id": EXP, "hypothesis_id": HYP, "argv": sys.argv}
+    raw = {"experiment_id": EXP, "hypothesis_id": HYP}
     if "A" in args.part or "B" in args.part:
         cells = []
         for seed in args.seeds:
@@ -479,7 +486,6 @@ def main():
         raw["part_c"] = {"cap": args.cap, "rows": part_c(args.cap)}
     if "D" in args.part:
         raw["part_d"] = part_d(args.boxes, args.norm_samples, args.seeds[0])
-    raw["wall_clock_seconds"] = time.time() - started
     raw_path = os.path.join(args.out, "raw-result.json")
     with open(raw_path, "w", encoding="utf-8") as fh:
         json.dump(raw, fh, indent=1, sort_keys=True, default=str)
@@ -490,7 +496,9 @@ def main():
                 "source_sha256": {"run.py": hashlib.sha256(open(src, "rb").read()).hexdigest(),
                                   "primeset.py": hashlib.sha256(open(os.path.join(here, "primeset.py"), "rb").read()).hexdigest()},
                 "raw_result_sha256": hashlib.sha256(open(raw_path, "rb").read()).hexdigest(),
-                "started_unix": started, "finished_unix": time.time(),
+                "started_unix": started, "finished_unix": time.time(), "wall_clock_seconds": round(time.time() - started, 3),
+                "part_c_seconds": PART_C_SECONDS,
+                "raw_result_is_replay_deterministic": "raw-result.json carries no timing or argv; CTRL-REPLAY compares it byte for byte",
                 "asserts_nothing_about": "the hypothesis; observations only"}
     try:
         manifest["git_commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()

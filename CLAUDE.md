@@ -4,7 +4,7 @@ Read **[AGENTS.md](AGENTS.md)**, the one normative contract for every runtime,
 Claude Code included: budgets are advisory, `run` is the only execution skill,
 only the Coordinator changes research state, records are immutable,
 "ECC comes first", "Goals are never paused",
-"Approval is bounded by execution", "Stop at the PR", "Every improvement is
+"Approval is bounded by execution", "Continue through the PR", "Every improvement is
 a success", and `main` takes merge
 commits only. One file, because two copies of a rule become two rules; the
 earlier long form of this file stays unchanged at
@@ -12,25 +12,11 @@ earlier long form of this file stays unchanged at
 
 ## What is Claude Code specific
 
-- **Subagents** live in `.claude/agents/`: seven roles plus four policy-tier
-  variants. Their tools, model pins and `effort:` come from
-  `orchestration/roles.yaml` and `orchestration/model-policies.yaml`, never
-  hand edits; `tools/check_runtime_bindings.py` fails the build on drift and
-  `--list` shows each role's source. The session default is `claude-opus-5-5`
-  (`.claude/settings.json`).
-- **Skills** are in `.claude/skills/`; `run` is the only execution skill and
-  `coordinate` never runs trials. Every skill ends by writing a session
-  receipt (`docs/session-receipts.md`).
-- **Retrieval**: `.mcp.json` starts the read-only `kb/` server with a
-  relative `--directory`; machine settings go in `kb/.env`. The index is
-  derived and starts empty (`make -C kb qdrant-up`, `crypto-kb stage-repo .`,
-  `crypto-kb ingest`).
-- **Batch delivery**: `python3 -m orchestration.adapter batch …` for
-  single-turn prompts; records are write-once under
-  `coordination/inference-batches/` (`docs/batch-inference.md`).
+- **Batch delivery**: follow AGENTS.md, "Model policy".
 - **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
-  `tools/generate_runtime_agents.py`: seven roles (`idea-synthesist` is Claude
-  Code only) plus the policy-tier variants `executor-mechanical` (Haiku;
+  `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
+  Code only; `experiment-director` writes Haiku's task cards,
+  `docs/model-tiers.md`) plus the policy-tier variants `executor-mechanical` (Haiku;
   runbooks), `validator-sweep` (Sonnet; `audit-runs`), `validator-breakthrough`
   and `red-team-breakthrough`. They keep
   `model: inherit` except the `runtime_model_pins` roles

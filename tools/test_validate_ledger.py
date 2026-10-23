@@ -177,3 +177,142 @@ class ExternalVerificationTests(unittest.TestCase):
         self.assertTrue(any("missing 'objective_id'" in e for e in errors), errors)
         self.assertTrue(any("verdict must be one of" in e for e in errors), errors)
         self.assertTrue(any("must be a mapping" in e for e in errors), errors)
+
+
+class ConfoundControlTests(unittest.TestCase):
+    """docs/confound-control.md: variable ledger, prediction provenance,
+    transfer obligations, and the review gate on evidence."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(REPO / "tools"))
+        import validate_ledger  # noqa: WPS433
+        self.module = validate_ledger
+
+    class _Ctx:
+        def __init__(self) -> None:
+            self.errors: list[str] = []
+            self.advisories: list[str] = []
+            self.legacy_paths: set[str] = set()
+            self.records: dict = {}
+            self.record_types: dict = {}
+            self.ids: dict = {}
+
+        def err(self, path: str, msg: str, *, force: bool = False) -> None:
+            self.errors.append(msg)
+
+        def advise(self, path: str, msg: str) -> None:
+            self.advisories.append(msg)
+
+    @staticmethod
+    def _body(**over) -> dict:
+        body = {
+            "designed_at": "2026-10-18", "status": "approved",
+            "success_criterion": "C-main holds and P2 holds",
+            "falsification_criterion": "C-main fails",
+            "preregistered_predictions": [{"id": "P1"}, {"id": "P2"}],
+            "variable_ledger": {
+                "independent": [{"name": "m", "levels": [3, 4]}],
+                "factors": [
+                    {"name": "solver", "treatment": "fixed", "how": "one build"},
+                    {"name": "seed", "treatment": "randomized", "how": "frozen rule"},
+                    {"name": "basis", "treatment": "fixed", "how": "polynomial"},
+                ],
+                "comparisons": [
+                    {"id": "C-main", "arms": ["m3", "m4"], "differs_in": ["m"],
+                     "design": "one_factor"},
+                    {"id": "C-aa", "arms": ["s1", "s2"], "differs_in": ["seed"],
+                     "design": "aa"},
+                    {"id": "C-mix", "arms": ["a", "b"], "differs_in": ["m", "solver"],
+                     "design": "confounded", "reason": "solver exists for one arm"},
+                ],
+                "crosses_map": False,
+            },
+            "prediction_provenance": [
+                {"prediction": "P1", "first_recorded_in": "AGENTS.md",
+                 "written_at": "2026-10-17", "data_seen": [{"path": "x"}],
+                 "sample_status": "in_sample"},
+                {"prediction": "P2", "first_recorded_in": "AGENTS.md",
+                 "written_at": "2026-10-17", "data_seen": [],
+                 "sample_status": "out_of_sample"},
+            ],
+        }
+        body.update(over)
+        return body
+
+    def _check(self, body: dict) -> "ConfoundControlTests._Ctx":
+        ctx = self._Ctx()
+        self.module.check_confound_control("experiments/EXP-X-000001/specification.yaml",
+                                           body, ctx)
+        return ctx
+
+    def test_a_complete_contract_is_clean(self) -> None:
+        ctx = self._check(self._body())
+        self.assertEqual(ctx.errors, [])
+
+    def test_criteria_may_not_rest_on_in_sample_predictions_or_confounded_comparisons(self) -> None:
+        errors = self._check(self._body(success_criterion="P1 and C-mix hold")).errors
+        self.assertTrue(any("P1 is in_sample" in e for e in errors), errors)
+        self.assertTrue(any("C-mix is confounded" in e for e in errors), errors)
+
+    def test_comparison_designs_are_enforced(self) -> None:
+        body = self._body()
+        comps = body["variable_ledger"]["comparisons"]
+        comps[0]["differs_in"] = ["m", "solver"]
+        comps[1]["differs_in"] = ["m"]
+        errors = self._check(body).errors
+        self.assertTrue(any("one_factor but differs in 2" in e for e in errors), errors)
+        self.assertTrue(any("A/A comparison" in e for e in errors), errors)
+
+    def test_an_aa_arm_or_a_reason_is_required(self) -> None:
+        body = self._body()
+        body["variable_ledger"]["comparisons"] = body["variable_ledger"]["comparisons"][:1]
+        self.assertTrue(any("needs an A/A comparison" in e for e in self._check(body).errors))
+        body["variable_ledger"]["aa_not_applicable"] = "exact census, no noise"
+        self.assertEqual(self._check(body).errors, [])
+
+    def test_every_preregistered_prediction_needs_provenance(self) -> None:
+        body = self._body(preregistered_predictions=[{"id": "P1"}, {"id": "P2"}, {"id": "P3"}])
+        self.assertTrue(any("P3 has no prediction_provenance" in e
+                            for e in self._check(body).errors))
+
+    def test_crossing_a_map_requires_transfer_obligations_with_controls(self) -> None:
+        body = self._body()
+        body["variable_ledger"]["crosses_map"] = True
+        self.assertTrue(any("transfer_obligations is required" in e
+                            for e in self._check(body).errors))
+        body["transfer_obligations"] = [{
+            "map": "polynomial to normal basis", "kind": "coordinate_change",
+            "source": "F_2^n, polynomial basis", "destination": "F_2^n, normal basis",
+            "preserves": ["field", "curve"], "changes": ["system support"],
+            "controls": [{"kind": "coordinate_isomorphism", "comparison": "C-aa"}],
+            "assessment": ".claude/skills/transfer/assets/assessment-template.json",
+        }]
+        errors = self._check(body).errors
+        self.assertEqual([e for e in errors if "matched_random" in e] != [], True, errors)
+        body["transfer_obligations"][0]["controls"].append(
+            {"kind": "matched_random", "comparison": "C-main"})
+        self.assertEqual(self._check(body).errors, [])
+
+    def test_the_rule_is_date_gated_and_drafts_only_advise(self) -> None:
+        bare = {"designed_at": "2026-10-18", "status": "approved"}
+        self.assertEqual(len(self._check(bare).errors), 2)
+        draft = {"designed_at": "2026-10-18", "status": "review_required"}
+        ctx = self._check(draft)
+        self.assertEqual((ctx.errors, len(ctx.advisories)), ([], 2))
+        old = {"designed_at": "2026-10-16", "status": "approved"}
+        ctx = self._check(old)
+        self.assertEqual((ctx.errors, ctx.advisories), ([], []))
+
+    def test_evidence_on_a_ledgered_experiment_grades_every_comparison(self) -> None:
+        ctx = self._Ctx()
+        ctx.records = {"EXP-X-000001": self._body(),
+                       "EV-X-000001": {"experiment_ids": ["EXP-X-000001"],
+                                       "strength": "replicated",
+                                       "confound_assessment": [
+                                           {"comparison": "C-main", "verdict": "not_isolated",
+                                            "basis": "solver differed in practice"}]}}
+        ctx.record_types = {"EXP-X-000001": "experiment", "EV-X-000001": "evidence"}
+        ctx.ids = {k: k for k in ctx.records}
+        self.module.check_confound_assessments(ctx)
+        self.assertTrue(any("does not grade comparison C-aa" in e for e in ctx.errors), ctx.errors)
+        self.assertTrue(any("capped at preliminary" in e for e in ctx.errors), ctx.errors)

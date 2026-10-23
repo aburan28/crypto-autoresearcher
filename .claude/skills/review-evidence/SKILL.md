@@ -77,6 +77,11 @@ review, and synthesis.
      object is still loaded and the scope is already written down;
      `examined: true` recording that no theory takes it up is a complete
      answer, and a null check blocks the decision;
+   - when the experiment has a variable ledger, fill the evidence record's
+     `confound_assessment` (`docs/confound-control.md`, section 5): one row
+     per comparison, graded on what the runs did, not on what the contract
+     planned. A `not_isolated` row caps strength at `preliminary` and
+     decides nothing; in-sample predictions count as calibration only;
    - record the `coordinator_decision` in `ledger/decisions/` choosing one
      transition: replicate | expand | refine | support | weaken |
      reject_scoped | inconclusive | pause, with rationale, evidence refs,

@@ -38,6 +38,14 @@ link to existing goal impediments and decisions; they do not change goal or
 hypothesis status. Follow the [agent rule](AGENTS.md#name-the-obstruction) and
 [problem template](problems/TEMPLATE.md).
 
+## Scoped evidence handoffs
+
+[The ten-lead evidence register](research/ten-lead-evidence/README.md) exposes
+19 advisory records, ten open questions, and explicit proof obligations. Use
+`python3 tools/scoped_evidence.py lead N --json` for a focused handoff. Structural
+validation, artifact replay, native certificates and Lean kernel verification
+remain separate; the register changes no official hypothesis status.
+
 ## Research direction
 
 What counts as a target result is defined in

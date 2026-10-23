@@ -136,6 +136,26 @@ session summary.
    complete source and report the precise blocker; never reuse an older PDF
    as though it includes the latest finding.
 
+## Isogeny volcanoes: the standard diagram
+
+Lay out every ℓ-isogeny volcano with the shared renderer in aburan28/crypto,
+`tools/volcano-diagram/volcano_diagram.py` (`volcano-diagram/v1` input,
+documented in its README). Don't hand-roll a new layout. It draws strata
+from crater (0) to floor, descending trees under each crater vertex in
+cycle order, measured vertices on one labelled colour scale with unmeasured
+ones small and grey, unverified edges dashed, the root circled, and the run
+id in the subtitle. Save the input as `<name>.diagram.json` beside the SVG
+and PNG.
+
+The labelling rule in "Deliverables for each search round" still applies:
+- **Vertices:** put `(D_K, f_pi, f_E)` in each vertex's `label`.
+- **Uniform edge facts:** when degree, separability, field of definition or
+  direction are the same for every edge (one ℓ, all separable, all over
+  `F_p`, direction given by the strata), state them in the title or
+  caption.
+- **Per-edge facts:** when they vary, extend the renderer and its schema
+  version in aburan28/crypto rather than forking it here.
+
 ## Keep graphs current without changing the evidence
 
 - Before editing, find all affected graph sources and rendered forms in the

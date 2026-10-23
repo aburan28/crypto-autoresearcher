@@ -36,7 +36,7 @@ proof_refs:
 - coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-e2702a/validation_report.md
 - coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-1b4130/red_team_report.md
 added: 2026-08-02
-superseded_by: null
+superseded_by: KN-FIND-4f0d84
 ---
 
 ## The identity

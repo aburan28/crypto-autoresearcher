@@ -43,7 +43,13 @@ if kind == "symlink":
     (p / "counterexamples.jsonl").symlink_to(p / "raw-result.json")
 if kind != "missing":
     (p / "raw-result.json").write_text(json.dumps({"effect": -1, "bad": kind in ("bad", "empty_bad")}))
-(p / "manifest.yaml").write_text("status: observed\\n")
+manifest = {"run": {"id": p.name, "experiment_id": p.parent.parent.name, "status": "completed",
+                    "code": {"commit": "0" * 40, "command": "driver.py measure"},
+                    "environment": {"python": "fixture"}, "inputs": {"parameters": {}},
+                    "timing": {"wall_seconds": 0}, "result": {"certificate": {"kind": "none"}}}}
+if kind == "bare_manifest":  # RUN-SEMBIN-9ecb77's shape: metrics, no run schema
+    manifest = {"run": {"experiment_id": p.parent.parent.name, "metrics": {"planted_ok": True}}}
+(p / "manifest.yaml").write_text(json.dumps(manifest))  # JSON is valid YAML
 if kind == "empty_manifest":
     (p / "manifest.yaml").write_text("")
 print("measured negative observation")
@@ -193,14 +199,19 @@ class ExecutionTests(unittest.TestCase):
         self.assertFalse(self.directory(1).exists())
 
     def test_invalid_output_is_not_completion(self):
-        for mode in ("bad", "missing"):
+        for index, mode in enumerate(("bad", "missing", "bare_manifest"), 10):
             with self.subTest(mode=mode):
-                trial = self.trial(10 if mode == "bad" else 11, mode)
+                trial = self.trial(index, mode)
                 self.plan["trials"] = [trial]
                 self.write_plan_queue(); self.commit()
                 report = self.run_plan()
                 self.assertEqual(report["output_validated"], 0)
-                self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "invalid_output")
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+                self.assertEqual(receipt["status"], "invalid_output")
+                if mode == "bare_manifest":
+                    self.assertEqual(receipt["check_returncode"], 0)
+                    self.assertIn("manifest.yaml fails the run schema", receipt["detail"])
+                    self.assertIn("run missing required field 'code'", receipt["detail"])
 
     def empty_trial(self, index, mode, allowed=True):
         trial = self.trial(index, mode)

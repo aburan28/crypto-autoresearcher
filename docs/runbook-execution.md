@@ -43,7 +43,8 @@ Layers 1 to 6 work today. Layer 7 refuses to report anything stronger than
 
 | Actor | Model (anthropic backend) | Does |
 | --- | --- | --- |
-| `design-experiment` (Coordinator) | Opus 5.5 | Writes the runbook, lints it, approves its sha256 in the `DEC-*`. |
+| `design-experiment` (Coordinator) | Opus 5.5 | Dispatches the director, checks its lint output, approves the runbook sha256 in the `DEC-*`. |
+| `experiment-director` | Sonnet 5.5, `high` | Writes the runbook and the task card (`tools/task_card.py`, `docs/model-tiers.md`); assesses the finished session with `check-relay`. |
 | `executor-mechanical` | Haiku 5.5, `low` | Runs the eight-command procedure in `.claude/agents/executor-mechanical.md` and relays output verbatim. |
 | `tools/runbook.py` | none | Preflight, execution, retries, failure classes, journal, metrics, report, audit. |
 | `validator-sweep` | Sonnet 5.5, `high` | The reading half of every audit (`audit-runs`). |

@@ -1,0 +1,381 @@
+# Sheriff re-audit reader report: case SHF-20261016-3caa6f, beat B2.
+# Staging path; the Coordinator / sheriff case owner moves it into the case.
+reader_report:
+  case: SHF-20261016-3caa6f
+  beat: B2
+  joint: "STARK verifier soundness and mutation controls (B2.3 verifier line-by-line, B2.4 mutation controls, S2 stated bound)"
+  date: 2026-10-17
+  reader:
+    role: validator
+    model: claude-opus-5-5
+    independence: >-
+      Independent sheriff reader. I produced none of the audited code, the original case, or
+      PR #2014. I worked only from the code on disk at crypto 42b9ca8 (clean tree, git status
+      empty). I did not read the PR #2014 description or comments, any commit message, the
+      original case REPORT.md/report.typ/sweep outputs, other readers' reports, or
+      case-staging/prior.md. Read-only on producer trees: nothing under /home/user/aburan28/crypto
+      was edited. Build artifacts went to the shared CARGO_TARGET_DIR
+      /home/user/aburan28/crypto/target as instructed.
+  subject:
+    repo: crypto (sparse checkout /home/user/aburan28/crypto)
+    revision: 42b9ca8a5aff5743c42c337f52ddd8bc8612cb59
+    dirty: false
+    toolchain: "rustc 1.97.0 (2d8144b78 2026-07-07), cargo 1.97.0, --release"
+    autoresearcher_revision: ea8a9f6f1db306f4d5d73a16ce4477f71c0e4278
+  sources_read:
+    - {path: "crypto:src/zk/stark.rs", lines: "1-716 (full)", sha256: 41528b863d5498f27e282a1a687ba3c0e68c3233d145fe25c0c8ffcd94367cc1}
+    - {path: "crypto:src/zk/stark_v2.rs", lines: "1-526 (full)", sha256: 347ca4c1c1f10a619eaff31add4b323dcd2458d717fd34a3c4b288cde7fadca3}
+    - {path: "crypto:src/zk/merkle.rs", lines: "1-228", sha256: f6d709b42309c1570beb6760de288ec4c69e03bb389ad1ad61ce54a2c0dfc95b}
+    - {path: "crypto:src/zk/polynomial.rs", lines: "1-40 plus rg for pub fns", sha256: 3965018c262857d69b62272c7487191a37819573a096c3b8e51a5a43cfee38d2}
+    - {path: "crypto:README.md", lines: "470-500 plus rg stark/soundness", sha256: b9ba1f3b424947decc6eb105d965dde73df76aea7278ef14f782808c9c1b688a}
+    - {path: "crypto:src/zk/plonk.rs", lines: "74-95 (primitive_nth_root)"}
+    - {path: "crypto:Cargo.toml / src/lib.rs / src/zk/mod.rs / src/bls12_381/mod.rs / src/bls12_381/fq.rs / src/hash/*", lines: "rg only, for module visibility, profile, scalar_modulus"}
+    - {path: "research/sheriff/SHF-20261016-3caa6f/findings.yaml", lines: "200-249 (S1, S2)", sha256: 032d4bae8d6d2d55e1b55c3d3422d3e9e16cee153cf922f352ec279625f6827c}
+    - {path: "research/sheriff/SHF-20261016-3caa6f/scripts/stark-mutation/{Cargo.toml,src/main.rs}", sha256_main_rs: 4a48260e526919c25046557b0807d7fd561e60aaa461a435e48388125d491733}
+    - {path: "research/sheriff/SHF-20261016-3caa6f/checks/stark-mutation.jsonl", sha256: 11fc630adbdbd7b03b16d99f14c2a990a35550c108b95ab6f9a253e392de2292}
+    - {path: "docs/sheriff.md", lines: "97-152 (B2)"}
+    - {path: "docs/agent-runtime-core.md", lines: full}
+    - {path: "agents/validator.md", lines: full}
+  blind_from:
+    - "crypto PR #2014 description and comments"
+    - "all commit messages (crypto and crypto-autoresearcher)"
+    - "case-staging/prior.md and other readers' reports (not opened)"
+  blind_from_respected: true
+
+  checks:
+    - id: C1_original_harness
+      what: "Original SHF-20261016-3caa6f harness re-run against 42b9ca8"
+      command: >-
+        cp -r research/sheriff/SHF-20261016-3caa6f/scripts/stark-mutation/. $S/scripts/readers/stark/original-harness/;
+        Cargo.toml crypto path -> /home/user/aburan28/crypto;
+        CARGO_TARGET_DIR=/home/user/aburan28/crypto/target cargo build --release;
+        target/release/sheriff-stark-mutation > $S/scripts/readers/stark/original-harness.jsonl
+      adaptations:
+        - id: A0
+          what: "Cargo.toml dependency path ../../../../../../crypto -> /home/user/aburan28/crypto (as instructed)"
+        - id: A1
+          what: "M2 StarkProof literal gains `trace_next: vec![], boundary_openings: vec![]`"
+          why: "StarkProof has new pub fields trace_next and boundary_openings (stark.rs:418,421). A literal without them is a compile error (E0063). The unmodified build died on ENOSPC from a concurrent build before reaching the harness (original-harness.build-unmodified.log), so E0063 is inferred from the struct definition, not observed."
+        - id: A2
+          what: "M4 StarkProofV2 literal gains `trace_next_openings: vec![]`"
+          why: "new pub field trace_next_openings (stark_v2.rs:252); same E0063 reasoning"
+        - "No logic, control, or expected value changed; Cargo.lock unchanged (diff against copy Cargo.lock.orig is empty)."
+      output: $S/scripts/readers/stark/original-harness.jsonl
+      output_sha256: aa740c5933c927557619a1817237aaf663537e4afa5c1c3ff1a9f9e50401a70f
+      result: "0 of 4 mutants accepted (2026-10-16: 4 of 4); honest v1 and v2 accepted; exit 0"
+      rows:
+        - {control: v1.honest, accepted: true, ok: true}
+        - {control: v1.M1_false_output_broken_transition, accepted: false, ok: true}
+        - {control: v1.M2_empty_proof, accepted: false, ok: true}
+        - {control: v2.honest, accepted: true, ok: true}
+        - {control: v2.M3_proof_reused_for_other_boundary, accepted: false, ok: true}
+        - {control: v2.M4_empty_proof, accepted: false, ok: true}
+      v1_determinism: >-
+        v1.M1 is rejected on every run because verify is a deterministic function of the proof:
+        Fiat-Shamir positions are SHA-256 of the transcript, with no RNG. But the rejection
+        depends on this particular commitment. Its 20 positions are
+        [3,1,2,6,2,...], and the bad row 6 is first hit at query index 3. Over the
+        random-oracle model a one-bad-row forgery escapes 20 queries with probability
+        (7/8)^20 = 0.0692, not (6/7)^20. Positions are uniform on [0,n) and position n-1 = 7
+        checks no transition (stark.rs:545), so the miss rate is 7/8 per query. Measured
+        escape rate: 137/2000 = 0.0685 (R1_escape_k1_q20). The rejection is also not robust
+        to the prover. The verifier takes q from the proof, so the same forgery made with q=1
+        (position 3) is accepted, and the rejected 20-query M1 forgery truncated to its first
+        3 queries is accepted (N7a, N7b below).
+      note_on_original_labels: "Original v2.M3 labels doubling(8,5) statement_true=false. That statement is TRUE (a valid trace from 5 exists); the mutant is a valid proof of a different statement, which must still be rejected. This is a label issue in the original harness, not a producer finding."
+
+    - id: C2_new_mutants
+      what: "Fresh B2.4 mutation controls plus attacks suggested by code reading (v1 and v2)"
+      command: >-
+        cd $S/scripts/readers/stark/new-mutants && CARGO_TARGET_DIR=/home/user/aburan28/crypto/target cargo build --release &&
+        /home/user/aburan28/crypto/target/release/sheriff-stark-reader-mutants > ../new-mutants.jsonl 2> ../new-mutants.stderr.log
+      script: $S/scripts/readers/stark/new-mutants/src/main.rs
+      script_sha256: 181df19fa251809bc742c06904a68333d342b1e7815f24a748760d11236c8a31
+      output: $S/scripts/readers/stark/new-mutants.jsonl
+      output_sha256: 907a573ce8a9aea3c310588399c5922275904b7806aad80d5e8599b894b5f797
+      runtime: "13.3 s wall"
+      seeds: "deterministic: sha256('sheriff-SHF-20261016-3caa6f/reader-stark/v1-grind-2row/' || i) and '.../v1-rate-2row/' || i; one-row rates use end = 20000+i; null uses start = 1000+i"
+      positive_controls:
+        - "v2.H1: my replica v2 prover reproduces stark_v2::prove exactly (trace commit, composition commit, FRI roots, final constant, positions) and is accepted, which validates the alpha derivation the frozen-heart attack uses"
+        - "v1.H1: my forging v1 prover reproduces stark::prove exactly (roots, FRI roots, positions) and is accepted"
+        - "v2.H0a/H0b/H0c and v1.H0 honest proofs accepted (fast, default, two-boundary AIR)"
+        - "v1.R0 null (k=0 bad rows, honest statements s -> 128 s): 500/500 accepted"
+      attack_control: "v2.N8c: the frozen-heart forgery with v+1 instead of v is rejected, so N8a's acceptance comes from the pole cancellation and not from a general bug"
+      result: "9 of 31 mutant/malleation rows accepted (3 false statements under v2, 3 false statements under v1, 3 malleated or truncated proofs); 2 verifier panics; 0 honest rejected"
+      mutant_table:
+        # kind: false_statement | invalid_proof (true statement, bad witness/proof) | malleated_proof | attack_control
+        - {control: v2.N1a_tampered_value_recommitted, kind: invalid_proof, accepted: false}
+        - {control: v2.N1b_false_output_one_broken_row, kind: false_statement, accepted: false}
+        - {control: v2.N2a_wrong_public_output, kind: false_statement, accepted: false}
+        - {control: v2.N2b_wrong_public_input, kind: false_statement, accepted: false}
+        - {control: v2.N3a_wrong_air_tripling, kind: false_statement, accepted: false}
+        - {control: v2.N3b_wrong_air_length, kind: invalid_proof, accepted: false}
+        - {control: v2.N4_valid_proof_of_other_statement, kind: invalid_proof, accepted: false}
+        - {control: v2.N5a_fri_drop_last_root, kind: invalid_proof, accepted: false}
+        - {control: v2.N5b_fri_drop_last_openings, kind: invalid_proof, accepted: false}
+        - {control: v2.N5c_fri_one_fold_fewer_rederived, kind: false_statement, accepted: false}
+        - {control: v2.N5d_final_constant_tampered, kind: invalid_proof, accepted: false}
+        - {control: v2.N6a_reordered_queries, kind: invalid_proof, accepted: false}
+        - {control: v2.N6b_duplicated_query, kind: invalid_proof, accepted: false}
+        - {control: v2.N7a_prover_q10_verifier_q20, kind: invalid_proof, accepted: false}
+        - {control: v2.N7b_truncated_to_10_queries, kind: invalid_proof, accepted: false}
+        - {control: v2.N7c_blowup_mismatch, kind: invalid_proof, accepted: false}
+        - {control: v2.N8a_frozen_heart_forged_input_fast, kind: false_statement, accepted: TRUE}
+        - {control: v2.N8a_frozen_heart_forged_input_default, kind: false_statement, accepted: TRUE}
+        - {control: v2.N8b_frozen_heart_forged_row6, kind: false_statement, accepted: TRUE}
+        - {control: v2.N8c_frozen_heart_control_v_plus_1, kind: attack_control, accepted: false}
+        - {control: v2.N9_composition_zero_not_bound, kind: false_statement, accepted: false}
+        - {control: v2.N10_composition_with_alpha1_zero, kind: false_statement, accepted: false}
+        - {control: v2.M1_last_fri_root_garbage, kind: malleated_proof, accepted: TRUE}
+        - {control: v2.M2_noncanonical_trace_encoding, kind: malleated_proof, accepted: TRUE}
+        - {control: v2.M3_oversize_opened_value, kind: invalid_proof, accepted: false, panicked: true}
+        - {control: v1.N1a_tampered_value_recommitted, kind: invalid_proof, accepted: false, note: "bad rows 2,3 hit by the FS positions of this commitment; escape prob (6/8)^20"}
+        - {control: v1.N1b_false_output_one_broken_row_q20, kind: false_statement, accepted: false, note: "same shape as original M1, row 6 first hit at query index 3"}
+        - {control: v1.N2a_wrong_public_output, kind: false_statement, accepted: false}
+        - {control: v1.N2b_wrong_public_input_start, kind: false_statement, accepted: false}
+        - {control: v1.N3a_wrong_air_tripling, kind: false_statement, accepted: false}
+        - {control: v1.N3b_wrong_air_length, kind: invalid_proof, accepted: false}
+        - {control: v1.N4_valid_proof_of_other_statement, kind: invalid_proof, accepted: false}
+        - {control: v1.N5a_fri_drop_last_root, kind: invalid_proof, accepted: false}
+        - {control: v1.N5b_fri_drop_last_openings, kind: invalid_proof, accepted: false}
+        - {control: v1.N5c_fri_zero_folds_rederived, kind: invalid_proof, accepted: TRUE, note: "true statement, FRI truncated to the trace root with the transcript re-derived; v1 docs say its FRI adds no soundness, so the effect is a free grinding knob"}
+        - {control: v1.N6a_reordered_queries, kind: invalid_proof, accepted: false}
+        - {control: v1.N6b_duplicated_query, kind: invalid_proof, accepted: false}
+        - {control: v1.N7a_false_output_q1_producer_prover, kind: false_statement, accepted: TRUE, note: "stark::prove(cheat, 1); one query at position 3"}
+        - {control: v1.N7b_truncate_rejected_forgery_to_prefix, kind: false_statement, accepted: TRUE, note: "N1b forgery cut to its first 3 queries"}
+        - {control: v1.N8a_grind_one_broken_row_q20, kind: false_statement, accepted: false, note: "only 28 single-bad-row variants exist (break row, row encoding v/v+r/v+2r, FRI depth); none escaped; P(any) predicted 0.866, so this miss is unlucky but plausible (p=0.134)"}
+        - {control: v1.N8b_grind_two_broken_rows_q20, kind: false_statement, accepted: TRUE, note: "two bad rows give a field-sized family; first accepted forgery of 1 -> 12345 at attempt 107 (predicted mean 315), q = 20 fixed"}
+        - {control: v1.M1_oversize_opened_value, kind: invalid_proof, accepted: false, panicked: true}
+      rates_v1_spot_check_bound:
+        # documented bound stark.rs:54-55: escape probability ~ (1 - k/n)^q, n = 8
+        - {control: v1.R0_null_honest_k0_q20, k: 0, q: 20, trials: 500, accepted: 500, rate: 1.0, predicted: 1.0}
+        - {control: v1.R1_escape_k1_q1, k: 1, q: 1, trials: 2000, accepted: 1756, rate: 0.878, predicted: 0.875, z: 0.41}
+        - {control: v1.R1_escape_k1_q5, k: 1, q: 5, trials: 2000, accepted: 1056, rate: 0.528, predicted: 0.513, z: 1.35}
+        - {control: v1.R1_escape_k1_q10, k: 1, q: 10, trials: 2000, accepted: 550, rate: 0.275, predicted: 0.263, z: 1.21}
+        - {control: v1.R1_escape_k1_q20, k: 1, q: 20, trials: 2000, accepted: 137, rate: 0.0685, predicted: 0.0692, z: -0.12}
+        - {control: v1.R1_escape_k1_q40, k: 1, q: 40, trials: 2000, accepted: 6, rate: 0.003, predicted: 0.0048, z: -1.16}
+        - {control: v1.R2_escape_k2_q20, k: 2, q: 20, trials: 20000, accepted: 56, rate: 0.0028, predicted: 0.00317, z: -0.93}
+      rates_reading: >-
+        For a verifier-fixed q, the per-commitment escape rate matches (1-k/n)^q within |z| <= 1.35.
+        It decays in q as it should (0.878 -> 0.003 as q goes 1 -> 40), and the k=0 null accepts
+        500/500. So the formula is right as a property of a fixed q. But v1 lets the prover choose
+        q (finding F2), so the verifier's actual soundness error for one bad row is 7/8 with
+        q = 1, and near 1 with grinding.
+
+    - id: C3_cargo_test
+      what: "cargo test --release --lib zk::stark in the crypto checkout"
+      command: "cd /home/user/aburan28/crypto && CARGO_TARGET_DIR=/home/user/aburan28/crypto/target cargo test --release --lib zk::stark"
+      output: $S/scripts/readers/stark/cargo-test-zk-stark.retry.log
+      output_sha256: ed49f183c990ecb8c220f2acc0a4bdae9aa2e9e69c296dcbf15b094598e46096
+      result: "PASS: 18 passed, 0 failed, 0 ignored, 4332 filtered out (exit 0), at 42b9ca8 with a clean tree"
+      first_attempt:
+        output: $S/scripts/readers/stark/cargo-test-zk-stark.log
+        output_sha256: 3c2ae599645b2ac748cd3b3ca6aee36d4d74b2044235a9571ad192d5ca19cc7b
+        result: >-
+          Sparse-only compile failure (exit 101), not a test failure. Four git-tracked
+          include_str!/include_bytes! inputs were not materialized:
+          research/notes/ecc2k130/disjoint_cold_v2_20261001/{FROZEN.json,fixtures/n37_L1024_b00.points.jsonl},
+          research/koblitz_isogeny_descent_37_results_20260925/raw.json.gz, and
+          research/notes/ecc2k130/n37_native_basis_bridge_20261002/NATIVE42.json.
+          I reported them to main; the coordinator added them to the sparse checkout and the
+          retry above compiled. I did not touch the producer tree.
+      tests_in_source: "18 (stark.rs 8, stark_v2.rs 10; filter zk::stark matches both modules)"
+      negative_tests_now_exist: true
+      negative_tests:
+        stark_v1: [rejects_false_output_with_broken_transition, rejects_empty_proof, rejects_proof_for_another_output, rejects_moved_query_position, "air_check_rejects_bad_trace (AIR-level, not the verifier)"]
+        stark_v2: [rejects_proof_reused_for_another_boundary, rejects_empty_proof, rejects_trace_with_broken_transition, rejects_truncated_fri, rejects_swapped_queries, "air_transition_nonzero_on_invalid_pair (AIR-level)"]
+      fallback_replay:
+        what: "The 18 test bodies transcribed through the public API into a staging crate and run against the same lib build. This is NOT cargo test."
+        script: $S/scripts/readers/stark/module-tests-replay/src/main.rs
+        script_sha256: 19df03876304618e3f03a6a69af6521a43b5141ebd80f13d8a71c7544f3bf84d
+        output: $S/scripts/readers/stark/module-tests-replay.jsonl
+        output_sha256: d7d5833c51d3ed15dcbcc0fa3181b8c304209430060dbcfdbfc40ed1ae93b002
+        result: "18/18 pass (written before the sparse fix; agrees with the real cargo test run)"
+      coverage_gaps: >-
+        No test covers a public input chosen after the challenges (frozen heart), a wrong AIR for
+        either module, a duplicated query, a truncated FRI for v1, or the v1 query count. The
+        v1 forgery test (rejects_false_output_with_broken_transition) lets the forger use q=64.
+        A real forger picks q=1, which N7a shows is accepted.
+
+    - id: C4_verify_line_by_line
+      what: "B2.3 checklist against verify() in both modules"
+      v2_stark_v2_rs_verify_337_402:
+        boundary_constraints: "PASS: inside the composition at each query (composition_at 213-220, checked at 384)"
+        transition_constraints: "PASS: inside the composition via f(x), f(omega x) opened at p and p+beta (377-384); the wrap row n-1 is excluded by Z (203-206)"
+        composition_vs_trace_each_query: "PASS: comp == composition_at(opened f values) at 384; FRI layer 0 opening == comp (389) and layer_roots[0] == composition_commit (393). N9 and N10 rejected."
+        out_of_domain_sample: "ABSENT, documented at 38-39 ('no out-of-domain (DEEP) sample'). Fails the B2.3 item. I found no exploit from it (the boundary quotients pin f to low degree), see F5."
+        fri_layers_and_final_degree: "PASS: layer count fixed at log2 n + 1 (355); fri_verify checks every layer's main and sibling Merkle paths at the positions the folding dictates (stark.rs:349-364), fold consistency (383-388), and every query's last fold against one final constant (389-394). N5a-d rejected. The last layer root is never absorbed or used, and final_constant is not absorbed before the positions (F6)."
+        merkle_paths_bound_to_positions: "PASS: pos == at && leaf_index == at && merkle_verify (367-370); merkle_verify ties the direction bits to leaf_index bits (merkle.rs:193-198); RFC 6962 0x00/0x01 leaf/node tags (merkle.rs:43-61). Leaf bytes are not checked canonical (< r), which allows malleable encodings (F7)."
+        fiat_shamir: "FAIL: the transcript is FS_TAG || trace_commit -> alpha1 -> alpha2 || composition_commit || FRI roots[..last] -> positions (226-240, 362-365; stark.rs:279-290). The statement (n, boundary positions and values, transition), beta and q are never absorbed. This is exploited in N8 (F1)."
+        lde_applied: "PASS: coset 7*H_{n*beta} LDE in the prover (280-283); the verifier works on the same coset (359)"
+        query_count_enforced: "PASS: q comes from the verifier's config and all four opening vectors must have length q (340-353); N7a, N7b rejected"
+        duplicated_or_reordered_queries: "PASS: positions re-derived and openings must follow them in order (371-391); N6a, N6b rejected"
+        robustness: "verify panics instead of returning false on an opened value >= 2^256 (scalar_to_bytes 257-262: 32 - len underflows), see F8"
+      v1_stark_rs_verify_499_564:
+        boundary_constraints: "PASS: rows 0 and n-1 opened and compared (530-537)"
+        transition_constraints: "SPOT-CHECK ONLY: checked at each queried row and its successor (540-548). Position n-1 is a no-op (545)."
+        composition: "ABSENT by design (doc 43-46)"
+        out_of_domain_sample: "ABSENT by design"
+        fri: "No LDE, no degree bound (doc 43-46). The verifier accepts any FRI depth that folds consistently, including zero folds (N5c), which gives the prover a free re-roll of the query positions."
+        merkle_paths_bound_to_positions: "PASS (516-520, 542)"
+        fiat_shamir: "Positions are re-derived from FS_TAG || trace root || FRI roots (523-527). The statement and q are not absorbed. Positions are a prefix-stable function of the transcript (stark.rs:294-307), so any prefix of a proof is itself a well-formed proof (N7b)."
+        query_count_enforced: "FAIL: q = proof.trace_queries.len() (504). The only floor is q >= 1, and verify() takes no query-count parameter (F2)."
+        duplicated_or_reordered_queries: "PASS: N6a, N6b rejected"
+        lde_applied: "NO, by design and documented"
+
+  findings:
+    - id: F1
+      severity: blocker
+      what: >-
+        Frozen heart in stark_v2: the Fiat-Shamir transcript never absorbs the statement (the
+        AIR's boundary positions and values, n, the transition, beta, q). alpha1 and alpha2
+        depend only on the trace commitment. A prover can commit to a trace that breaks one
+        transition at row p, read off alpha1 and alpha2, and then choose the public boundary
+        value at row p that cancels the composition's pole at omega^p:
+        v = t_p + alpha1 * C(t_p, t_{p+1}) / (alpha2^k * Z'(omega^p)).
+        The composition is then a genuine polynomial of degree < n, and the producer's own
+        stark_v2::prove emits a proof that stark_v2::verify accepts. The proved statement is
+        false: for example "doubling over 8 rows with t0 = v and t7 = 128", true only for
+        v = 1. This is deterministic, not probabilistic. It was accepted under
+        StarkConfig::fast and StarkConfig::default, and for a forged row-6 boundary. The v+1
+        control is rejected.
+      evidence:
+        - "crypto:src/zk/stark_v2.rs:226-240 (transcript_to_fri absorbs only trace_commit, then composition_commit)"
+        - "crypto:src/zk/stark_v2.rs:362-365 (verifier derives alphas and positions from the same transcript)"
+        - "$S/scripts/readers/stark/new-mutants.jsonl rows v2.N8a_frozen_heart_forged_input_fast, v2.N8a_frozen_heart_forged_input_default, v2.N8b_frozen_heart_forged_row6 (accepted), v2.N8c_frozen_heart_control_v_plus_1 (rejected)"
+        - "$S/scripts/readers/stark/new-mutants/src/main.rs fn frozen_heart"
+      fix: >-
+        Absorb a canonical encoding of the full statement before the first challenge: tag, n,
+        beta, q, every (position, value) boundary pair, and an AIR identifier. Also absorb the
+        final FRI constant before the query positions. Add N8a and N8b as negative tests.
+    - id: F2
+      severity: major
+      what: >-
+        The stark v1 verifier takes the query count from the proof (q = trace_queries.len(),
+        floor 1), and Fiat-Shamir positions are prefix-stable. So a forger chooses q. The
+        producer's prover with q=1 yields an accepted proof that 1 doubled seven times is
+        12345 (escape probability 7/8). The rejected 20-query M1 forgery, cut to its first 3
+        queries, is accepted. Even with q held at 20, grinding a two-bad-row trace produced an
+        accepted forgery in 107 attempts. The module docs describe a (1-k/n)^q spot-check bound
+        and say "the prover cannot choose" positions. That bound is measured correct for a
+        fixed q (rates table), but the verifier does not fix q. The docs disclaim v1 as "not a
+        STARK" that "may not back a research claim", which is why this is major rather than
+        blocker. By B2.4 the v1 verifier is still broken: it accepts mutants of false statements.
+      evidence:
+        - "crypto:src/zk/stark.rs:504-511 (q from the proof)"
+        - "crypto:src/zk/stark.rs:294-307 (positions prefix-stable; q not absorbed)"
+        - "crypto:src/zk/stark.rs:54-58 (documented bound)"
+        - "$S/scripts/readers/stark/new-mutants.jsonl rows v1.N7a_false_output_q1_producer_prover, v1.N7b_truncate_rejected_forgery_to_prefix, v1.N8b_grind_two_broken_rows_q20 (accepted), v1.R1_*, v1.R2_*"
+      fix: "Make the query count a verifier parameter (or a constant), require trace_queries.len() == q, and absorb q and the statement. Add a q=1 forgery as a negative test. Otherwise delete verify() from v1 or rename it so it cannot be mistaken for a verifier."
+    - id: F3
+      severity: major
+      what: >-
+        S2 remainder. The stark_v2 soundness text states "about 240 bits" (default) and "40 bits"
+        (fast) as q*log2(beta) under the Reed-Solomon proximity conjecture. The formula and
+        arithmetic are the standard conjectured query-phase term, but three things are wrong.
+        (a) The bound does not hold for the implemented verifier: under F1 the soundness error
+        is 1 for prover-chosen public inputs, and the text lists the absent grinding, DEEP and
+        zero-knowledge but not the unabsorbed statement. (b) "240 bits" exceeds the roughly
+        128-bit collision-resistance cap of the SHA-256 Merkle commitments. The text says only
+        "SHA-256 and the 255-bit field cap everything", with no number, and StarkConfig::default
+        (72-73) repeats "about 240 bits" with no cap. (c) "Proven bounds are weaker (about half
+        that)" gives no formula and no source.
+      evidence:
+        - "crypto:src/zk/stark_v2.rs:34-41 — \"Under the Reed–Solomon proximity conjecture each query catches a cheating prover with probability about `1 − 1/β`, so `q` queries give about `q · log₂ β` bits (240 for the default `β = 8, q = 80`; 40 for [`StarkConfig::fast`]).  Proven bounds are weaker (about half that), there is no grinding, no out-of-domain (DEEP) sample and no zero-knowledge masking, the transition must be of degree 1, and SHA-256 and the 255-bit field cap everything.\""
+        - "crypto:src/zk/stark_v2.rs:72-73 — \"Default: `blow_up = 8`, `query_count = 80`: about 240 bits under the proximity conjecture\""
+        - "crypto:src/zk/stark_v2.rs:81-82 — \"Faster: `blow_up = 4`, `query_count = 20`, about 40 bits conjectured.\""
+      fix: "Until F1 is fixed, say the verifier is not sound for prover-chosen public inputs. After that, state the bound as min(q*log2(beta) [conjectured] or the Johnson-regime proven term with its formula and source, FRI commit-phase and ALI field terms ~ log2(|F_r|/(n*beta)^2), and 128 for SHA-256 collisions), and drop the bare '240 bits'."
+    - id: F4
+      severity: minor
+      what: >-
+        stark v1's catch-probability text is wrong at the module's own sizes. It says "a single
+        bad row is caught only with probability about q/n per attempt". The correct value is
+        1 - (1 - 1/n)^q, and q/n exceeds 1 for the q=20 and q=64 used with n=8. The
+        (1 - k/n)^q survival formula is correct (measured) only for a verifier-fixed q (F2).
+      evidence:
+        - "crypto:src/zk/stark.rs:54-58 — \"A trace with `k` broken transitions survives `q` queries with probability about `(1 − k/n)^q`, and a prover can grind its commitment to re-roll the positions, so a single bad row is caught only with probability about `q/n` per attempt.\""
+        - "$S/scripts/readers/stark/new-mutants.jsonl v1.R1_escape_k1_q20 (0.0685 vs (7/8)^20 = 0.0692)"
+      fix: "Write 1 - (1 - k/n)^q, and say q is prover-chosen until F2 is fixed."
+    - id: F5
+      severity: minor
+      what: "stark_v2 has no out-of-domain (DEEP) sample, which B2.3 requires. It is documented (34-41). The non-DEEP construction relies on the boundary quotients to force the committed trace LDE to low degree. I found no exploit, but the soundness argument then needs the weaker non-DEEP analysis, which the text does not give."
+      evidence: ["crypto:src/zk/stark_v2.rs:38-39", "crypto:src/zk/stark_v2.rs:337-402 (no OOD point)"]
+      fix: "Add a DEEP out-of-domain sample (absorbed, then checked against both trace and composition), or state the non-DEEP soundness analysis the bound relies on."
+    - id: F6
+      severity: minor
+      what: "FRI transcript incompleteness and malleability. fri_transcript_after absorbs layer_roots[..last] only. The last layer root is neither absorbed nor checked by anything (replacing it with zeros leaves the proof accepted, v2.M1), and final_constant is not absorbed before the query positions are drawn."
+      evidence: ["crypto:src/zk/stark.rs:279-290", "crypto:src/zk/stark.rs:198-203", "$S/scripts/readers/stark/new-mutants.jsonl v2.M1_last_fri_root_garbage (accepted)"]
+      fix: "Absorb the final layer (constant or root) before the positions, and drop or check the unused last root."
+    - id: F7
+      severity: minor
+      what: "Non-canonical field encodings are accepted. Leaves are 32-byte big-endian BigUints with no < r check, so the same trace can be committed as v or v + r. That yields a different commitment, different alphas and different positions with the same field values (v2.M2 accepted), and gives a forger free re-rolls (used in the v1.N8a variant family)."
+      evidence: ["crypto:src/zk/stark_v2.rs:257-262, 367-370", "crypto:src/zk/stark.rs:154-159, 516-520", "$S/scripts/readers/stark/new-mutants.jsonl v2.M2_noncanonical_trace_encoding (accepted)"]
+      fix: "Reject any opened value >= r before hashing (and in the prover, reduce before committing)."
+    - id: F8
+      severity: minor
+      what: "Both verifiers panic instead of returning false when an opened value is >= 2^256 (scalar_to_bytes computes 32 - len, which underflows and then indexes out of range). A malicious proof aborts the verifying process."
+      evidence: ["crypto:src/zk/stark.rs:154-159", "crypto:src/zk/stark_v2.rs:257-262", "$S/scripts/readers/stark/new-mutants.jsonl v1.M1_oversize_opened_value, v2.M3_oversize_opened_value (panicked)", "$S/scripts/readers/stark/new-mutants.stderr.log"]
+      fix: "Return false for values with more than 32 bytes (or >= r) before encoding."
+    - id: F9
+      severity: minor
+      what: "stark v1 accepts a FRI truncated to zero folds with the transcript re-derived (v1.N5c), so FRI depth is prover-chosen. The docs already say v1's FRI adds no soundness, so the effect is an extra position re-roll for a grinding forger."
+      evidence: ["crypto:src/zk/stark.rs:513-515, 558-563", "$S/scripts/readers/stark/new-mutants.jsonl v1.N5c_fri_zero_folds_rederived (accepted)"]
+      fix: "Fix the number of folds in the verifier (as stark_v2 does at 355), or drop FRI from v1."
+    - id: F10
+      severity: minor
+      what: "The README still lists `zk::stark` / `stark_v2` as a 'STARK proof system skeleton' with no 'unsound / must not back a claim' marker (original S1 fix option 1). It states no bound."
+      evidence: ["crypto:README.md:484 — \"| `zk::stark` / `stark_v2` | STARK proof system skeleton                   |\""]
+      fix: "Add the same 'educational, not sound, must not back a research claim' marker the module docs carry."
+    - id: F11
+      severity: minor
+      what: "The new negative tests do not cover the B2.4 classes wrong AIR and duplicated query for either module, nor the frozen heart (F1) or prover-chosen q (F2). The v1 forgery test lets the forger use q=64."
+      evidence: ["crypto:src/zk/stark.rs:650-715", "crypto:src/zk/stark_v2.rs:457-525"]
+      fix: "Port N3a, N6b, N7a and N8a from new-mutants/src/main.rs into the module tests."
+
+  suggested_verdicts:
+    S1:
+      verdict: partially_fixed
+      reason: >-
+        All four original mutants are now rejected and negative tests exist (cargo test 18/18). But
+        both verifiers still accept proofs of false statements: stark_v2 deterministically via
+        the unabsorbed public input (F1, blocker), and stark v1 via its prover-chosen query
+        count, prefix truncation and grinding (F2).
+    S2:
+      verdict: partially_fixed
+      reason: >-
+        The wrong (query_count/blow_up)^query_count formula is gone and replaced by the standard
+        conjectured q*log2(beta) term, with field, grinding, DEEP and proven-vs-conjectured
+        caveats. But the stated 240/40 bits do not hold for the implemented verifier (F1), the
+        headline ignores the 128-bit SHA-256 cap (F3), and v1's q/n catch probability is wrong
+        while its (1-k/n)^q presumes a q the verifier does not fix (F2, F4).
+
+  limitations:
+    - "cargo test needed a coordinator sparse-checkout fix (C3 first_attempt). The final run is the real cargo test: 18/18."
+    - "F5 (no DEEP) is a checklist failure without a demonstrated exploit. My argument that the boundary quotients force the trace to low degree is a reading, not a proof."
+    - "The frozen-heart forgeries prove statements with random-looking public values chosen by the prover. They break soundness for any use where the prover supplies a public input or output, which is the normal case. A verifier whose statement is fixed in advance by someone else is not attacked by F1."
+    - "v1.N8a (single-bad-row grinding, 28 variants) found no forgery. The predicted probability of finding one was 0.866. This is luck, not evidence that the variant family is safe; N7a and N8b show the bound is defeated."
+    - "No timing or resource claims are made. The run took 13.3 s on a shared machine with a concurrent build."
+    - "Disk: the shared target dir is /home/user/aburan28/crypto/target. The first harness build hit ENOSPC during a concurrent build, and the retry succeeded."
+
+  artifact_paths:
+    - $S/readers/stark.yaml
+    - $S/scripts/readers/stark/original-harness/ (Cargo.toml sha256 1ede0df10a037b10838a2904653982e596f28282e4217a2693c442f47a7edd90, src/main.rs sha256 fde6574cd14533cb2408cf6eeb9e198b37dc12f49ee3b63e48aea1c126093a19, Cargo.lock.orig = unchanged copy)
+    - $S/scripts/readers/stark/original-harness.jsonl
+    - $S/scripts/readers/stark/original-harness.build.log
+    - $S/scripts/readers/stark/original-harness.build-unmodified.log
+    - $S/scripts/readers/stark/new-mutants/ (src/main.rs sha256 181df19fa251809bc742c06904a68333d342b1e7815f24a748760d11236c8a31)
+    - $S/scripts/readers/stark/new-mutants.jsonl
+    - $S/scripts/readers/stark/new-mutants.stderr.log
+    - $S/scripts/readers/stark/module-tests-replay/ (src/main.rs sha256 19df03876304618e3f03a6a69af6521a43b5141ebd80f13d8a71c7544f3bf84d)
+    - $S/scripts/readers/stark/module-tests-replay.jsonl
+    - $S/scripts/readers/stark/cargo-test-zk-stark.log
+    - $S/scripts/readers/stark/cargo-test-zk-stark.retry.log
+  staging_root: "S=/tmp/claude-0/-home-user-crypto-autoresearcher/68f0a115-6224-56c1-b4ad-506008dfed54/scratchpad/case-staging"
+
+  review_attestation:
+    joints_owned: ["B2: STARK verifier soundness and mutation controls"]
+    joint_verdict: breaks
+    sources_read: "as listed in sources_read above; nothing else"
+    read_sibling_reports: false
+    blind_from_respected: true
+    note: "A sheriff reader report, not a validation_report on a run receipt. It does not change any hypothesis, ledger record or case verdict; the case owner composes those."

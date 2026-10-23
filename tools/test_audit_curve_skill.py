@@ -30,6 +30,20 @@ def frontmatter_value(path: Path, key: str) -> str:
     return match.group(1)
 
 
+def agent_contract() -> str:
+    """Read the entry contract and its explicitly delegated audit rules."""
+    agents = AGENTS.read_text(encoding="utf-8")
+    pointer = "docs/agent-contract-extended.md#weak-curve-and-isogenous-representative-audits"
+    if pointer not in agents:
+        raise AssertionError("AGENTS.md must delegate the audit rules explicitly")
+    extended = (ROOT / "docs" / "agent-contract-extended.md").read_text(encoding="utf-8")
+    heading = "## Weak-curve and isogenous-representative audits"
+    if heading not in extended:
+        raise AssertionError("missing delegated audit rules")
+    audit = extended.split(heading, 1)[1].split("\n## ", 1)[0]
+    return agents + "\n" + audit
+
+
 class AuditCurveSkillTests(unittest.TestCase):
     def test_canonical_skill_and_report_contract_exist(self) -> None:
         self.assertTrue(CANONICAL.is_file(), f"missing {CANONICAL}")
@@ -46,7 +60,7 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn(".claude/skills/transfer/SKILL.md", body)
         self.assertIn("docs/endomorphism-rules.md", body)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = agent_contract()
         self.assertIn(".claude/skills/audit-curve/SKILL.md", agents)
         self.assertIn(".claude/skills/transfer/SKILL.md", agents)
         self.assertIn("docs/endomorphism-rules.md", agents)
@@ -178,7 +192,7 @@ class AuditCurveSkillTests(unittest.TestCase):
         ):
             self.assertIn(required, body)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = agent_contract()
         self.assertIn("formula-compatible", agents)
         self.assertIn("confirmation-only oracle", agents)
         self.assertIn("deep endpoint scan", agents)

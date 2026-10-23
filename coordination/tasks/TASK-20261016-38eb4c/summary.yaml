@@ -1,0 +1,36 @@
+# Return of TASK-20261016-38eb4c: GPU end-to-end timing of the gf2
+# rank-profile solver. Engineering benchmark; observations only, no status
+# change. Files beside this one are the pod's own outputs, unedited.
+task_id: TASK-20261016-38eb4c
+recorded_at: '2026-10-17'
+commit_run: a3ff756bd8befaad6fb39a4e7143812db708adbb   # merged to main in PR #2301
+command: python3 tools/gf2_runpod.py run --ref claude/macaulay-matrix-gpu-vu82ew --reps 3
+gpu: NVIDIA GeForce RTX 4090
+pod_id: s7ibjagln5nxin
+machine: {cpus_visible: 64, affinity_cpus: 64, cgroup_cpus: 11, threads_used: 11, backend: native}
+pytest: 6 passed (tests -k "gpu or cupy"), including the fused-kernel device check
+records_equal: true            # every workload, cpu == gpu (fused) == gpu (cupy)
+best_of_3_seconds:
+  - {workload: M_5 nv=24, cpu: 1.086, gpu_fused: 0.468, gpu_cupy: 3.105, speedup_fused_vs_cpu: 2.32}
+  - {workload: M_6 nv=20, cpu: 2.195, gpu_fused: 1.005, gpu_cupy: 4.414, speedup_fused_vs_cpu: 2.18}
+  - {workload: M_5 nv=26, cpu: 1.805, gpu_fused: 0.885, gpu_cupy: 4.544, speedup_fused_vs_cpu: 2.04}
+  - {workload: W_5 nv=20, cpu: 0.587, gpu_fused: 0.527, gpu_cupy: 0.527, speedup_fused_vs_cpu: 1.11}
+  - {workload: W_5 nv=22, cpu: 2.143, gpu_fused: 1.408, gpu_cupy: 4.731, speedup_fused_vs_cpu: 1.52}
+pod_terminated: true
+termination_reason: completed
+notes:
+  - >-
+    The pod finished its work, but the driver never saw /done: the RunPod
+    proxy answers 403 to Python's default User-Agent (curl gets 200). The
+    outputs were fetched with curl and the driver was interrupted, which
+    terminated the pod in its finally block. tools/gf2_runpod.py now sends
+    a User-Agent header. driver-stdout.txt therefore ends in KeyboardInterrupt.
+  - >-
+    Two earlier pods on the same day, kept out of this table: one on main
+    (pod duczw38dnhz8nn, before the fused pass and the cgroup cap; its
+    tail_update.cu test failed to compile under NVRTC, since fixed) measured
+    M_5 nv=24 at 24-30 s CPU and 3.4 s GPU on a 128-CPU host. The other, on
+    657187433b (dkcqf3fet5k5wx, fused pass, no cgroup cap; 48-CPU host),
+    measured M_5 nv=24 at 2.6 s CPU and 0.53 s fused GPU. The CPU spread
+    across the three hosts is the OpenMP oversubscription that the cgroup
+    cap removes.

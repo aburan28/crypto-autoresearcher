@@ -549,11 +549,37 @@ def products(rows, colmap, maps, nv, C, W):
 # ---------------------------------------------------------------------------
 # batching
 # ---------------------------------------------------------------------------
+def _cgroup_cpus(root="/sys/fs/cgroup"):
+    """CPUs the container's cgroup CPU quota allows (None when unlimited or
+    unknown). A container on a large host can see every host CPU in its
+    affinity mask while its quota is a few CPUs; OpenMP teams sized to the
+    host then oversubscribe the quota and the threads spin-wait (on an
+    8-vCPU RunPod container the M_5 nv=24 solve took 25 s against 1.8 s)."""
+    for path, parse in ((root + "/cpu.max", lambda t: t.split()),
+                        (root + "/cpu/cpu.cfs_quota_us", None)):
+        try:
+            if parse:
+                quota, period = parse(open(path).read())
+                if quota == "max":
+                    return None
+            else:
+                quota = open(path).read().strip()
+                period = open(root + "/cpu/cpu.cfs_period_us").read().strip()
+                if int(quota) <= 0:
+                    return None
+            return max(1, -(-int(quota) // int(period)))
+        except (OSError, ValueError):
+            continue
+    return None
+
+
 def default_threads() -> int:
     env = os.environ.get("CRYPTO_AR_GF2_THREADS")
     if env:
         return max(1, int(env))
-    return max(1, len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1)
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    q = _cgroup_cpus()
+    return max(1, min(n, q) if q else n)
 
 
 _tls = threading.local()

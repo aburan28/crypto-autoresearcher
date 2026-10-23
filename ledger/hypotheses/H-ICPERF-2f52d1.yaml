@@ -1,0 +1,173 @@
+# H-ICPERF-2f52d1 — stage-0 instrument for IDEA-20261015-7a3c9e.
+# Specified under DEC-20261017-95d677. No run exists in this design packet.
+# Host prices, the slope in r, and the ordinary-curve control stay proposed.
+hypothesis:
+  id: H-ICPERF-2f52d1
+  question_id: RQ-ICPERF-94c86e
+  source_idea: IDEA-20261015-7a3c9e
+  derived_from_idea: IDEA-20261015-7a3c9e
+  experiment_id: EXP-ICPERF-e467a5
+  goal_id: GOAL-ICPERF-e6b6a4
+  specified_at: '2026-10-17'
+  proposed_by: coordinator
+  status: specified
+  title: >-
+    Stage-0 instrument for the Bernstein-Lange price ratio: 925/4 at three
+    toy (r, A) cells with a 10-state table
+  statement: >-
+    With c_probe = 370 ns, c_state = 2100 ns, c_step = 40 ns, and the
+    constant 21/10, the reduced ratio c_probe * c_state / ((21/10) * c_step^2)
+    equals 925/4. The same reduced ratio is obtained from online times at
+    (r, A, states) = (1000, 2, 10), (4000, 2, 10), and (1000, 4, 10).
+    At each cell the probe count equals (r/A)/states. This stage does not
+    read a host receipt and does not test a slope against r.
+  mechanism: >-
+    Equating precomputation time P = states * c_state and dividing the
+    index-calculus online time by the Bernstein-Lange online time cancels
+    r and A, leaving c_probe * c_state / ((21/10) * c_step^2). Stage 0
+    evaluates that cancellation in integers on three cells. Agreement is
+    an instrument check of the algebra in IDEA-20261015-7a3c9e. It is not
+    a test that measured host prices reproduce a published speedup.
+  assumptions:
+    - >-
+      Every division in the three cells is exact in the integers. An
+      inexact division is an instrument failure, not evidence about a
+      measured deficit.
+    - >-
+      The constant 21/10 stands for 1.77 * 1.2 as named by the parent
+      idea. This stage does not refit 1.77 or 1.2.
+  proof_search_map:
+    bottleneck: >-
+      Whether the integer online ratio equals the price formula at three
+      cells, including one change of r and one change of A.
+    baseline_embedding:
+      parameter_slice: >-
+        Price formula (370 * 2100 * 10) / (21 * 40 * 40), and baby-step
+        giant-step probe count (r/A)/states on the same table.
+      reproduction_check: >-
+        The reduced price ratio is 925/4, the three online ratios match it,
+        and the probe counts are 50, 200, and 25.
+    observation_collision:
+      observable: >-
+        price_ratio_num, price_ratio_den, ratios_agree, and all_match_bsgs.
+      distinct_preimage_search: >-
+        The price formula and the online-time formula are separate
+        integer expressions. Matching them checks cancellation. They do
+        not read c_probe from a machine.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The reduced ratio at the three cells.
+        predicted_gain: none; this stage records whether that ratio equals 925/4
+    quantifier_order: >-
+      For these three cells only, the online ratio equals the price
+      ratio and does not change when r goes from 1000 to 4000 or A goes
+      from 2 to 4. No claim is made for every size or every host.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The stage-0 instrument accepts or rejects this integer identity.
+        No measured speedup and no slope in r follow.
+      nearby_object_control: >-
+        The A = 4 cell and the r = 4000 cell are the nearby controls.
+        A random host trace is not drawn.
+    proof_obligations:
+      - claim: the price formula is computed separately from the online times
+        responsibility: baseline
+      - claim: the run writes the counts; this record is not a result
+        responsibility: runtime
+      - claim: host receipts and the n=83 arm are not inputs
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: price_ratio_equals_925_over_4
+      direction: different
+      minimum_effect: price_ratio_num is 925 and price_ratio_den is 4
+    - metric: three_online_ratios_match_the_price_ratio
+      direction: different
+      minimum_effect: ratios_agree is true
+    - metric: probe_counts_match_bsgs
+      direction: different
+      minimum_effect: all_match_bsgs is true and the counts are 50, 200, and 25
+  test_boundary:
+    instances:
+      - prices c_probe 370 ns, c_state 2100 ns, c_step 40 ns
+      - BL constant 21/10
+      - cells (1000, 2), (4000, 2), (1000, 4) with 10 states
+    parameters:
+      c_probe_ns: 370
+      c_state_ns: 2100
+      c_step_ns: 40
+      bl_num: 21
+      bl_den: 10
+      states: 10
+    implementation: >-
+      experiments/EXP-ICPERF-e467a5/implementation/run.py, pure Python,
+      no external algebra system
+    budget:
+      enforcement: advisory
+      note: one deterministic cell; machine protection is on the handoff
+  falsification_conditions:
+    - >-
+      Instrument invalid if the reduced price ratio is not 925/4, if any
+      cell's online ratio differs from it, or if any probe count differs
+      from (r/A)/states. That outcome does not decide the measured-price
+      claim of IDEA-20261015-7a3c9e.
+    - >-
+      The alive conditions of IDEA-20261015-7a3c9e (host ratios within a
+      factor 3 at seven sizes, a slope inside [-0.15, 0.15], and an
+      ordinary-curve control) are outside this test boundary. They stay open.
+  interpretation_limits:
+    - >-
+      A pass checks integer cancellation on three toy cells. It is not
+      evidence that a measured n=83 deficit equals 235.
+    - >-
+      A fail invalidates this instrument cell only. It is not negative
+      evidence about the section-23 table.
+    - Negative evidence closes only the exact tested scope.
+    - No deployed curve and no private-key recovery is in scope.
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        Not under test in EXP-ICPERF-e467a5. The parent idea's geometric
+        probe model is about uniform classes on a quotient at cryptographic
+        sizes. This cell does not sample that model.
+      random_model_justification: >-
+        No walk is drawn. The only comparison is two integer formulas and
+        a baby-step giant-step count on the same table size.
+      supporting_results: []
+      validation_experiment_ids: []
+      falsification_condition: >-
+        Not applicable to this experiment. No probe-time observation from
+        a machine is produced.
+  structural_ingredients:
+    - description: >-
+        Cancellation of r and A in the ratio of two online times when
+        precomputation time is states times c_state. The arithmetic is
+        the instrument.
+      citation: IDEA-20261015-7a3c9e
+      provenance: internal
+      verified_by: >-
+        design session 2026-10-17 read ledger/proposals/IDEA-20261015-7a3c9e.yaml
+      role: names the price ratio; the integers evaluated are in the runner
+  asymptotic_claim: null
+  dominated_by: >-
+    Bernstein-Lange on the quotient, as named by the parent idea. An
+    identity that matches that constant is the known tradeoff, not a
+    faster index calculus. This hypothesis claims no exponent delta.
+  sota_delta: >-
+    None in exponent. The counted delta is a frozen integer identity.
+    The parent idea's host-price table is not produced.
+  citations:
+    - ref: IDEA-20261015-7a3c9e
+      provenance: internal
+      claim: parent proposal, write-once, not modified by this hypothesis
+      verified_by: >-
+        design session 2026-10-17 read ledger/proposals/IDEA-20261015-7a3c9e.yaml
+    - ref: KR-RHO-ea34b8
+      provenance: internal
+      claim: >-
+        cited by the parent idea for the 1.77 and 1.2 factors; not
+        re-opened and not evaluated beyond the product 21/10 in this stage
+      verified_by: >-
+        idea-synthesist-20261015 opened the row, as recorded on
+        IDEA-20261015-7a3c9e

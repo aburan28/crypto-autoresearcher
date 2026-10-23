@@ -34,7 +34,7 @@ def test_executor_pins_follow_the_anthropic_bindings():
     roles, bindings = _docs()
     for role in ("executor", "executor-mechanical", "idea-generator", "consolidator",
                  "idea-synthesist", "validator-breakthrough", "red-team-breakthrough",
-                 "validator-sweep"):
+                 "validator-sweep", "experiment-director"):
         policy = roles["roles"][role]["default_policy"]
         assert role_registry.expected_model(roles, bindings, role, "claude_code") == \
             bindings["bindings"]["anthropic"][policy]["model"]
