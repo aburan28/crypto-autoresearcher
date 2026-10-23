@@ -26,7 +26,10 @@ An archived run manifest that is repaired by a NEW record rather than an
 edit (AGENTS.md core rule 4) is routed via tools/run_supersession_registry.yaml:
 the run-schema check reads the superseding record, while both files stay
 pinned by sha256 and the superseded file must remain present at its
-original path. Supersession redirects the check; it never suppresses it.
+original path. Supersession redirects the schema check; it never suppresses it.
+A separately declared and source-bound non-execution hand derivation has no
+process capture to require. Ordinary run directories retain the five-artifact
+contract.
 
 The same rule applies to archived ledger, experiment, knowledge, and goal
 checkpoint records through tools/schema_supersession_registry.yaml.  The
@@ -123,6 +126,28 @@ SCHEMA_SUPERSESSION_KINDS = {
 }
 SCHEMA_SUPERSESSION_ROOT = "ledger/corrections/schema-supersessions/"
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+# These decisions name design-stage contracts, not approved experiment records.
+# Keep the exception bound to both the decision and the exact frozen draft:
+# an arbitrary missing EXP id, a changed draft, or an approved draft must still
+# fail the reference check. The same bafa2e draft is cited by two decisions.
+DRAFT_DECISION_TARGETS = {
+    ("DEC-20260929-21bb51", "EXP-AUXIN-bafa2e"):
+        ("BATCH-9b2090", "TASK-20260928-4d6266",
+         "667cf21e1a0680eaa5eb862164835a0074c109f2254f5ac6f52428327ba27bbd"),
+    ("DEC-20260929-7efa82", "EXP-AUXIN-bafa2e"):
+        ("BATCH-9b2090", "TASK-20260928-4d6266",
+         "667cf21e1a0680eaa5eb862164835a0074c109f2254f5ac6f52428327ba27bbd"),
+    ("DEC-20260929-4eade7", "EXP-AUXIN-369078"):
+        ("BATCH-36b01a", "TASK-20260929-6d01d7",
+         "b147966a5798bab10183ac56a9daa703ff41c54936f832fb8d0e28f2becd1589"),
+    ("DEC-20260929-93fc4d", "EXP-AUXIN-55c6c0"):
+        ("BATCH-14b284", "TASK-20260929-1abb8c",
+         "608c46c02a59c8f4ba5871e6d32643c58e2b351302b98fd54f866d2bac679b8c"),
+    ("DEC-20260929-cfb294", "EXP-AUXIN-92dccc"):
+        ("BATCH-1907cf", "TASK-20260929-ef0945",
+         "894c4855b64fdd2ec63915f88d6c668dcb95f40a108eba4f07a701b12bf6ccb6"),
+}
 
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
 #
@@ -1059,6 +1084,68 @@ def check_provenance_quarantine(path: str, body: dict, entry: dict | None,
     return not errors
 
 
+RUN_CAPTURE_ARTIFACTS = ("command.txt", "environment.json", "stdout.log",
+                         "stderr.log", "raw-result.json")
+
+
+def _registered_non_execution_derivation(
+        original_path: str, run_dir: str, body: dict, entry: dict) -> bool:
+    """Admit one source-bound non-execution category, never a missing-output run.
+
+    The opt-in registry binds both manifest versions, the frozen experiment
+    contract, and the derivation note. A changed byte or a captured execution
+    artifact rejects the category; an ordinary terminal run is unaffected.
+    """
+    declaration = entry.get("non_execution")
+    if not isinstance(declaration, dict) or declaration.get("kind") != "hand_derivation":
+        return False
+    if (entry.get("supersession_kind") != "zero_compute_misclassification"
+            or entry.get("superseded_path") != os.path.abspath(original_path)
+            or entry.get("run_id") != body.get("id")
+            or body.get("stage") != "stage_0"
+            or body.get("status") != "completed_valid"
+            or body.get("compute") != "zero"
+            or body.get("execution") != "none_occurred"
+            or body.get("code", {}).get("command")
+               != "none: zero compute. This note was written by hand by the Executor."
+            or body.get("artifacts", {}).get("derivation_note") != "derivation-note.md"
+            or body.get("result", {}).get("certificate", {}).get("kind") != "none"):
+        return False
+    absent = body.get("companion_artifacts_absent_permanently", {}).get("artifacts")
+    if not isinstance(absent, list) or set(absent) != set(RUN_CAPTURE_ARTIFACTS) or len(absent) != 5:
+        return False
+    if any(os.path.lexists(os.path.join(run_dir, name)) for name in RUN_CAPTURE_ARTIFACTS):
+        return False
+    def hash_matches(path: str, expected: str) -> bool:
+        try:
+            return hashlib.sha256(Path(path).read_bytes()).hexdigest() == expected
+        except OSError:
+            return False
+    for role in ("superseded", "superseding"):
+        path = entry[f"{role}_path"]
+        if (not os.path.isfile(path) or
+                not hash_matches(path, entry[f"{role}_sha256"])):
+            return False
+    for role in ("specification", "derivation"):
+        path = declaration[f"{role}_path"]
+        if (not os.path.isfile(path) or
+                not hash_matches(path, declaration[f"{role}_sha256"])):
+            return False
+    if declaration["derivation_path"] != os.path.join(run_dir, "derivation-note.md"):
+        return False
+    try:
+        with open(declaration["specification_path"], encoding="utf-8") as handle:
+            spec = _safe_load(handle)
+        experiment = spec["experiment"]
+        return (
+            experiment["id"] == body.get("experiment_id")
+            and experiment["inputs"]["stage_0"]["compute"]
+            == "ZERO. No program is run in this stage."
+        )
+    except (OSError, TypeError, KeyError, ValueError, yaml.YAMLError):
+        return False
+
+
 def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None):
     """Validate the run manifest discovered at `path`.
 
@@ -1069,11 +1156,12 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
 
     Routing is decided by exact registered path only. The superseded file must
     still exist and still hash to its registered value — that is checked by
-    check_run_supersessions(), not softened here. Companion artifacts are
-    always looked for in the discovered run directory, since they belong to the
-    run package regardless of where the superseding record is filed.
+    check_run_supersessions(), not softened here. Capture artifacts are looked
+    for in the discovered run directory except for an independently admitted,
+    hash-bound non-execution hand derivation.
     """
     run_dir = os.path.dirname(path)
+    original_path = path
     entry = (supersessions or {}).get(os.path.abspath(path))
     if entry is not None:
         superseding = entry["superseding_path"]
@@ -1166,9 +1254,22 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
         and "did not write raw-result.json"
         in str(pending_body.get("outcome_note") or "")
     )
+    # A source-bound hand derivation has no execution to capture. The
+    # registration is an affirmative non-execution category, not a generic
+    # exemption for missing files in terminal runs.
+    non_execution = bool(entry and entry.get("non_execution"))
+    admitted_non_execution = (
+        non_execution and _registered_non_execution_derivation(
+            original_path, run_dir, body, entry))
+    if non_execution and not admitted_non_execution:
+        ctx.err(path, "registered non-execution declaration fails source or artifact controls",
+                force=True)
+    if admitted_non_execution:
+        ctx.advise(path, "registered zero-compute hand derivation; no program output or measurement credited")
     # All other companion artifacts remain required even while a run is open.
-    for artifact in ("command.txt", "environment.json", "stdout.log",
-                     "stderr.log", "raw-result.json"):
+    for artifact in RUN_CAPTURE_ARTIFACTS:
+        if admitted_non_execution:
+            continue
         if artifact == "raw-result.json" and (
                 raw_result_pending or raw_result_explicitly_unwritten):
             continue
@@ -1245,6 +1346,44 @@ def tier_of_run(params: dict) -> int | None:
     return TIER_ORDER["crypto"]
 
 
+def decision_names_frozen_draft(decision_id: str, target_id: str,
+                                decision: dict) -> bool:
+    """Resolve only the five documented references to refused AUXIN drafts.
+
+    A design draft does not enter ctx.ids: doing so would also let evidence
+    records cite it as if it were an approved experiment. Verify its bytes and
+    draft state here, where only decision targets receive the exception.
+    """
+    entry = DRAFT_DECISION_TARGETS.get((decision_id, target_id))
+    if entry is None:
+        return False
+    batch_id, producer_task, expected_sha256 = entry
+    if (decision.get("batch_id") != batch_id
+            or decision.get("goal_id") != "GOAL-AUXIN-a93442"):
+        return False
+    path = os.path.join(
+        REPO, "coordination", "goals", "GOAL-AUXIN-a93442", "batches",
+        batch_id, "design", producer_task, "draft-contract.yaml")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+        if hashlib.sha256(data).hexdigest() != expected_sha256:
+            return False
+        doc = _safe_load(data)
+        fresh = doc["successor_contract"]["fresh"]
+    except (OSError, KeyError, TypeError, AttributeError, yaml.YAMLError):
+        return False
+    if not isinstance(fresh, dict):
+        return False
+    return (fresh.get("id") == target_id
+            and fresh.get("batch_id") == batch_id
+            and fresh.get("goal_id") == "GOAL-AUXIN-a93442"
+            and fresh.get("producer_task") == producer_task
+            and fresh.get("status") == "draft"
+            and fresh.get("approved_by") is None
+            and fresh.get("approval_decision") is None)
+
+
 def check_cross_refs(ctx: Ctx):
     for rec_id, body in list(ctx.records.items()):
         rec_type = ctx.record_types[rec_id]
@@ -1315,7 +1454,9 @@ def check_cross_refs(ctx: Ctx):
             for target_id in body.get("target_ids") or []:
                 if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))
                         and target_id not in ctx.ids
-                        and target_id not in ctx.legacy_aliases):
+                        and target_id not in ctx.legacy_aliases
+                        and not decision_names_frozen_draft(rec_id, target_id,
+                                                            body)):
                     ctx.err(ctx.ids[rec_id], f"decision references unknown "
                                              f"target '{target_id}'")
 
@@ -1398,6 +1539,29 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
                 raise ValueError(f"run supersession {label} must be 64 hex "
                                  f"characters: {raw[label]!r}")
             digests[label] = digest
+        non_execution = raw.get("non_execution")
+        if non_execution is not None:
+            required = {"kind", "specification_path", "specification_sha256",
+                        "derivation_path", "derivation_sha256"}
+            if (raw.get("supersession_kind") != "zero_compute_misclassification"
+                    or not isinstance(non_execution, dict)
+                    or set(non_execution) != required
+                    or non_execution.get("kind") != "hand_derivation"):
+                raise ValueError("run non_execution requires the exact hand-derivation contract")
+            parts = superseded.split("/")
+            expected_paths = {
+                "specification_path": f"experiments/{parts[1]}/specification.yaml",
+                "derivation_path": f"experiments/{parts[1]}/runs/{parts[3]}/derivation-note.md",
+            }
+            for label, expected in expected_paths.items():
+                if non_execution[label] != expected:
+                    raise ValueError(f"run non_execution {label} must be {expected}")
+            for label in ("specification_sha256", "derivation_sha256"):
+                if (not isinstance(non_execution[label], str)
+                        or not SHA256_HEX.fullmatch(non_execution[label])):
+                    raise ValueError(f"run non_execution {label} must be 64 hex characters")
+        elif raw.get("supersession_kind") == "zero_compute_misclassification":
+            raise ValueError("zero_compute_misclassification requires non_execution")
         # A malformed historical YAML file can still have an unambiguous
         # root run_id header. The opt-in locator is checked only after the
         # archived bytes pass their hash, never on the replacement record.
@@ -1439,6 +1603,16 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
             "supersession_kind": raw.get("supersession_kind"),
             "decision_id": raw.get("decision_id"),
         }
+        if non_execution is not None:
+            entries[key]["non_execution"] = {
+                "kind": "hand_derivation",
+                "specification_path": os.path.abspath(
+                    os.path.join(REPO, non_execution["specification_path"])),
+                "specification_sha256": non_execution["specification_sha256"],
+                "derivation_path": os.path.abspath(
+                    os.path.join(REPO, non_execution["derivation_path"])),
+                "derivation_sha256": non_execution["derivation_sha256"],
+            }
         if extraction is not None:
             entries[key]["superseded_id_extraction"] = dict(extraction)
     return entries
