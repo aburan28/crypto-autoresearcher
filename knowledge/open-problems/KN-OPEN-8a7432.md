@@ -7,7 +7,7 @@ confidence: reported
 status: open
 source_refs: [KN-OPEN-009, KN-FIND-4f0d84, KN-LIT-039, KN-LIT-001]
 added: 2026-10-17
-superseded_by: null
+superseded_by: KN-OPEN-62c870
 ---
 
 Written from DEC-20261017-435b01 knowledge_promotion.entry_specs. Every quoted
