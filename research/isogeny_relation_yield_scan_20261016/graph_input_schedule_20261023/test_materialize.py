@@ -89,6 +89,15 @@ def main() -> None:
         rejected.append(require_rejection(
             "changed-target", check(ARMS[0], changed),
             "prepared input metadata differs"))
+        changed_checkpoint = Path(tmp) / "graph"
+        shutil.copytree(CONTROL / ARMS[2], changed_checkpoint)
+        manifest_path = changed_checkpoint / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["checkpoint_sha256"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        rejected.append(require_rejection(
+            "changed-graph-checkpoint", check(ARMS[2], changed_checkpoint),
+            "prepared graph-transport checkpoint differs"))
     print(json.dumps({"schema": "ectd.graph-materializer-control.v1", "status": "pass",
                       "scope": "P37 vertex 0, three public-root full-quota prepared arms",
                       "target_count_per_arm": 2048, "base_signed_points": 3200,
