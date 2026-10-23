@@ -8,13 +8,14 @@
 
 ## Problem
 
-We cannot conclude that every tested cryptanalytic claim is proved merely because the current 83 target files compile. A Lean theorem can be true while encoding a narrower predicate, a different finite model, or assumptions absent from the experiment. No complete, independently reviewed map from every historical experiment and claimed inference to a semantically faithful theorem and source-bound execution record is established here.
+We cannot conclude that every tested cryptanalytic claim is proved merely because the 83 target files at the pinned audit commit compile. A Lean theorem can be true while encoding a narrower predicate, a different finite model, or assumptions absent from the experiment. No complete, independently reviewed map from every historical experiment and claimed inference to a semantically faithful theorem and source-bound execution record is established here.
 
 The target corpus is heterogeneous. Some files prove generic algebraic facts, some prove exact finite instances, and some experiments report measurements rather than a theorem. The required obligation for each claim depends on its actual statement, input model, and inference tier; counting files or axioms cannot supply that interpretation.
 
 ## Evidence and uncertainty
 
 - **Observed:** At main `d513b75233e1eb58b24c753ff51675b83b284b44`, all 83 target specs have theorem files; all 82 main-workspace names resolve, the main workspace builds, and its 652 theorem declarations use only standard axioms. The separate scoped target builds and passes a zero-axiom audit. The [receipt](../docs/reports/2026-10-23-formal-target-inventory/evidence/audit.json) binds sources and logs.
+- **Observed after that audit:** Main `969e051e204ab8c5668157ebeeb00734a1f074b1` has 84 target specs and 150 tracked formal files. The two added files are the `DkExactBatch5` theorem and its target spec. Its named theorem is conditional on three large factors being prime; its spec explicitly does not prove curve trace identity, the endomorphism-ring identification, or primality of the curve field/order. PR #2492 passed its hosted checks, but this 83-target batch receipt does not include the new name. A fresh whole-workspace batch audit is still required for a current-main declaration count.
 - **Derived or proved:** These checks establish kernel acceptance and the declared theorem names' existence. They do not entail scientific claim fidelity.
 - **Known counterexample to a shortcut:** The [Semaev problem](semaev-degree-two-fall-nonzero-bridge.md) documents a true trace-cancellation theorem whose historical uniform first-fall interpretation fails for checked nonzero-target toy draws. This shows why independent statement-to-claim review is necessary.
 - **Suspected explanation:** Unknown for the remaining targets. The current audit did not classify each target's semantic fit or experiment coverage.
@@ -40,3 +41,4 @@ These conditions are needed for claim-level acceptance. A broader statement abou
 ## Resolution and history
 
 - 2026-10-23: Opened after the 83-target declaration audit. The build and axiom gates passed, but no all-target semantic or experiment-to-proof coverage conclusion was drawn. Unresolved.
+- 2026-10-23: Rechecked the exact 83-target receipt after syncing the inventory PR with main `969e051e204ab8c5668157ebeeb00734a1f074b1`. The archived receipt still passes on its pinned commit. Current main adds one conditional `DkExactBatch5` target, so the historical count is not promoted to a current-head all-target claim.
