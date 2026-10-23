@@ -4,7 +4,7 @@
 #text(size: 8pt)[Planning assessment, 2026-10-22. Derived inventory and archived observations only; no new scientific trial.]
 
 == Fixed inventory and open quota
-The prospective P29/P37 schedule has 2,049 and 257 vertices. Three native bases on every vertex give *6,918 mandatory discovery arms* and *51,935,232 target probes*: P29 has 6,147 arms at 8,192 targets each; P37 has 771 arms at 2,048 each. Check indices add 257 P29 and 65 P37 vertices. If `power_x`, transported, and `u=2` arms each receive the full discovery quota, the conditional inventory is *7,884 arms* and *58,650,624 probes*. The draft does not explicitly fix those check-arm quotas; the Coordinator must do so before admission.
+The prospective P29/P37 schedule has 2,049 and 257 vertices. Three native bases on every vertex give *6,918 mandatory discovery arms* and *51,935,232 target probes*: P29 has 6,147 arms at 8,192 targets each; P37 has 771 arms at 2,048 each. Check indices add 257 P29 and 65 P37 vertices. Three full-quota controls per check vertex give a conditional *7,884 arms* and *58,650,624 probes*. A separate full-quota `u=2` transported-base oracle would raise that to *8,206 arms* and *60,889,088 probes*. The additive v2 inventory distinguishes the graph-transport control from that coordinate oracle. The Coordinator must fix its execution mode and all check-arm quotas before admission.
 
 A machine-readable plan now binds the 6,918 main rows to exact archived models and generators, base rules and quotas. Independent point arithmetic checked all 2,306 generator identities and group-order multiplications. Main-arm SHA-256: `bf436f6a3df707b799cb738ed0522aa2a0fa68e921afd6d8099bf929d94105ef`. This plan has no seed or target points and is unapproved.
 
