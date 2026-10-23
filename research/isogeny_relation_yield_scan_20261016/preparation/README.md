@@ -50,13 +50,18 @@ reproducibility check; the point-equation replay uses separate arithmetic.
 
 ## Remaining executable obligations
 
-1. Extend the source `low_x` base transport from the first two checked
-   degree-7 edges to the complete paths and prespecified check vertices,
-   with independent map/dual replay and targetwise equality on the fixed
-   discovery targets. The two-edge implementation control and its censored
-   predecessor are recorded in `controls/attempt-2/` and `controls/attempt-3/`.
-   They use four planted three-point sums per stratum and therefore establish
-   map/base arithmetic only, not the fixed discovery-stream equality.
+1. The source `low_x` base transport now covers the complete fixed paths:
+   [P29 through edge 2,048](../path_transport/full_path_20261016/report.md)
+   and [P37 through edge 256](../path_transport/p37_full_20261021/report.md),
+   with independent saved-map and signed-base replay. The [P37 endpoint
+   control](../path_transport/p37_count256_20261022/report.md) also matches
+   exact ordered counts on the same 128 fixed public targets used at its
+   earlier check vertices. The original two-edge implementation control and
+   censored predecessor remain in `controls/attempt-2/` and
+   `controls/attempt-3/`. These public and planted controls do not establish
+   targetwise equality on the post-freeze discovery stream. Bind that stream
+   after implementation freeze and check its targetwise counts at the
+   prespecified vertices before graph-wide inference.
 2. Bind the collector, independent ordered-count oracle, rank verifier,
    fixed target roots and all output paths in a runnable versioned contract.
    Coordinator approval under the standing user authorization follows only
