@@ -3,8 +3,8 @@
 - **Status:** `open`
 - **Kind:** deployment configuration and publication-state gap; reason for manual disable is unknown
 - **Affected work:** [public dashboard](https://aburan28.github.io/crypto-autoresearcher/), [Pages workflow](../.github/workflows/pages.yml), and [2026-10-21 local dashboard audit](../docs/reports/2026-10-21-ledger-integrity-audit/report.md)
-- **Next action owner:** repository owner or Pages maintainer for workflow state and deployment approval
-- **Last updated:** 2026-10-22
+- **Next action owner:** Pages maintainer for exact-head checks, hosted deployment, and public readback
+- **Last updated:** 2026-10-23
 
 ## Problem
 
@@ -29,6 +29,17 @@ dashboard. A pinned build on audit code commit
 hash-bound schema copies beside parseable originals. The public recheck at
 10:35:27 UTC still found `disabled_manually` and the October 11 live commit.
 
+On 2026-10-23 the owner answered the publication question: **"Re-enable and
+publish after all checks pass."** This authorizes the workflow-state change
+and deployment once that condition holds. The historical reason for the
+manual disable remains unknown; approval does not make the local snapshot
+live. A new [full-history preflight](../docs/reports/2026-10-23-pages-publication-preflight/report.md)
+on main `e9b91d62a9b81a3e33a62f9f3e5036e8f7707907` built 27,585 records
+and 55,318 files with commit dates available; its Python and Node tests pass.
+The 01:48:39 UTC public readback still reports `disabled_manually` and the
+October 11 public commit. Current PR/CI checks remained queued, so Pages was
+not re-enabled or dispatched.
+
 ## Evidence and uncertainty
 
 - **Observed:** The [read-only state check](../docs/reports/2026-10-21-ledger-integrity-audit/evidence/live-pages-status.json)
@@ -50,7 +61,7 @@ hash-bound schema copies beside parseable originals. The public recheck at
   any archived benchmark number is wrong.
 - **Suspected explanation:** Unknown. Manual disable could be intentional;
   this audit found no documented reason to treat it as accidental.
-- **Missing capability:** A reviewed decision about re-enabling publication,
+- **Missing capability:** Successful checks on the exact publication head,
   followed by a successful hosted Pages build/deploy and live readback.
 - **What this evidence does not establish:** It does not show that Pages
   hosting is unavailable, that a new deployment will pass, or that all
@@ -58,8 +69,12 @@ hash-bound schema copies beside parseable originals. The public recheck at
 
 ## What would unblock it
 
-- [ ] Confirm the repository owner's intended Pages publication state and
-  resolve the reason for `disabled_manually` before changing workflow state.
+- [x] Confirm the repository owner's intended Pages publication state: on
+  2026-10-23 the owner authorized re-enabling and publishing after all checks
+  pass. The earlier disable's reason is still unknown and is not described as
+  accidental.
+- [ ] Require the current exact head's checks to pass, and validate a fresh
+  full-history local build and its nine-row payload on that head.
 - [ ] After authorization and a reviewed current-head change, run the Pages
   workflow to a successful build and deploy, then read back public
   `data/meta.json` and require its commit to match the published main commit.
@@ -68,21 +83,21 @@ hash-bound schema copies beside parseable originals. The public recheck at
   scope. Do not call a successful deployment a scientific validation.
 
 These conditions would make the hosted reader current and honest. They would
-not clear the [142 unsuppressed ledger errors after the source-bound non-execution category](full-ledger-validation-errors.md),
+not clear the [unsuppressed full-ledger errors](full-ledger-validation-errors.md),
 complete Lean semantic reviews, or replay historical performance.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Inspect the intended workflow state with
-  the owner; prepare the exact re-enable and hosted build/deploy action for
-  review once the audit and branch checks are available.
+- **Action or proof obligation:** After the exact-head checks pass, refresh
+  the full-history preflight if main has moved; enable and dispatch Pages,
+  then verify the hosted deploy and public payload.
 - **Inputs and controls:** The current Pages settings, disabled workflow
   state, source commit, successful local build, and live metadata readback;
   compare the hosted payload against the pinned nine-row source and retain
   any failed build log.
-- **Execution limits and stop condition:** Do not infer approval from a local
-  build. Stop before external publication if approval or required checks are
-  missing; keep the current site state explicit.
+- **Execution limits and stop condition:** Owner authorization is recorded,
+  but external publication waits for passing checks and the fresh exact-head
+  build. Keep the current site state explicit until live readback passes.
 - **Outcomes and next actions:** A successful current-head deploy closes the
   freshness gap; a failed hosted build yields a specific CI problem; an
   intentional disable remains open until the owner changes direction.
@@ -106,3 +121,8 @@ complete Lean semantic reviews, or replay historical performance.
   preserving the nine benchmark rows and 24 historical parse warnings. The
   [10:35:27 UTC public recheck](../docs/reports/2026-10-22-ledger-triage/evidence/live-pages-status.json)
   still found the workflow manually disabled and the live October 11 commit.
+- 2026-10-23: Owner authorized re-enabling and publishing after all checks
+  pass. Full-history local preflight on `e9b91d62a9b81a3e33a62f9f3e5036e8f7707907`
+  passed its reader tests and nine-row source binding, with 24 parse warnings
+  visible. The workflow remained manually disabled and public data remained
+  on October 11 at 01:48:39 UTC; publication awaits exact-head checks.
