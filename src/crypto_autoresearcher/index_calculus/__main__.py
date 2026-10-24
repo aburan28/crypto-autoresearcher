@@ -41,6 +41,7 @@ from .factor_base import (FACTOR_BASES, FactorBase, build_factor_base,
                           default_fb_size, subgroup_prime_filter)
 from .rho import pollard_rho
 from .solver import ENGINES, HARVEST_MODES, PIVOT_RULES, solve_index_calculus
+from .targets import TARGET_ENGINES
 from .stats import bootstrap_slope, fit_exponent
 
 
@@ -68,7 +69,8 @@ def cmd_solve(args: argparse.Namespace) -> int:
     ic = solve_index_calculus(E, P, Q, m=args.m, fb_kind=args.fb, fb_size=args.fb_size,
                               seed=args.seed, engine=args.engine,
                               accelerate=False if args.no_accel else None,
-                              table_arity=args.table_arity, la_pivot=args.la_pivot)
+                              table_arity=args.table_arity, la_pivot=args.la_pivot,
+                              target_engine=args.target_engine, target_window=args.target_window)
     out["index_calculus"] = ic.to_dict() | {"correct": ic.k == k}
     if args.rho:
         rr = pollard_rho(E, P, Q, seed=args.seed)
@@ -1128,6 +1130,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--fb", choices=FACTOR_BASES, default="small_x")
     s.add_argument("--fb-size", type=int, default=None)
     s.add_argument("--engine", choices=ENGINES, default="enumerate")
+    s.add_argument("--target-engine", choices=TARGET_ENGINES, default="reference",
+                   help="repeated-base target multiplication (table setup is charged)")
+    s.add_argument("--target-window", type=int, choices=range(1, 9), default=4)
     s.add_argument("--curve-seed", type=int, default=0)
     s.add_argument("--target-seed", type=int, default=0)
     s.add_argument("--seed", type=int, default=0)
