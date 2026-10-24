@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Small-root reach vs. index-calculus demand for windowed prime-field decomposition.
 
+HISTORICAL INSTRUMENT: retained for reproducibility. The modulus-budget
+accounting is under audit in research/joint_smallroot_reach_20261024/.
+Use tools/joint_smallroot_reach.py for explicitly scoped finite determinant
+accounting. The hard-coded reaches and closure text below are historical
+outputs, not a validated baseline for new improvement claims.
+
 The question this decides
 -------------------------
 `IDEA-20260808-486ae2` classifies the factor bases available for prime-field
