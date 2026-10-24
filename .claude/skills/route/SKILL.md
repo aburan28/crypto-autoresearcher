@@ -1,6 +1,10 @@
 ---
 name: route
-description: "Choose skills and tools in crypto-autoresearcher when asked what to use, where a technique lives, which binary implements it, or how to perform a recurring workflow. Use for repo orientation and skill selection. Explicit experiment execution goes directly to run."
+description: >-
+  Choose skills and tools when asked what to use, where a technique lives, or
+  which binary implements it. Use for repo orientation and skill selection.
+  Explicit experiment execution goes directly to run.
+
 ---
 
 # Choose a workflow
