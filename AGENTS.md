@@ -422,8 +422,9 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   merge or closure, or an instruction to stop. New activity resets the count.
 - **Merge** the PR for the current user task when its final diff is complete,
   the current head has all required and applicable checks successful (or
-  legitimately skipped), no check pending or failed, no conflict, no open
-  blocking thread, and Claude Approvals passing where it runs. Review failure
+  legitimately skipped), no check pending (except as below) or failed, no
+  conflict, no open blocking thread, and Claude Approvals passing where it
+  runs. Review failure
   logs and fix failures caused by the change; report unrelated failures with
   evidence on the PR. A new commit resets the current-head checks. Never skip,
   disable, or rerun a check merely to get green, and never bypass branch
@@ -432,6 +433,14 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   state and merge commit before reporting success. A merge is a git operation,
   not a research-state transition. If a concrete gate prevents merging, name
   it on the PR and continue the check-in flow; do not treat a ready PR as done.
+- **Checks that never start do not block** (owner, 2026-10-23). A check that
+  no branch-protection rule or ruleset requires, and that has been queued for
+  24 hours or more without starting (no runner picked it up), does not hold
+  the merge, provided every check that did run on the current head passed.
+  Name each such job and how long it waited in the merge commit message. A
+  required check never falls under this: if one has not run, the PR waits and
+  the session says so on the PR. A check that started and is still running is
+  pending, not stuck.
 - **Archive receipts bind to content first**: `path_sha256` verified, commit
   reachability advisory, a content mismatch fatal.
 - **Goal checkpoints are one write-once file per batch**
@@ -497,7 +506,10 @@ Each run retains: exact command; commit and dirty-tree state; environment and
 dependency versions; parameters and seeds; requested policy, backend and
 resolved model id with provenance and probe status; reasoning effort, fallback
 and degraded requirements; stdout and stderr; raw machine-readable results;
-validity status and reason; timestamps and resource measurements. Claim tiers
+validity status and reason; timestamps and resource measurements. An artifact of
+1 MiB or more is stored gzipped (`x.gz`), and one still 10 MiB or more is a
+`x.gz.blob.json` pointer into S3; receipts bind content digests and readers go
+through `tools/artifact_store.py` (`docs/artifact-storage.md`). Claim tiers
 and solution certificates: `docs/claims-and-verification.md`. Session receipts
 (`tools/session_receipt.py`, `docs/session-receipts.md`) record what a session
 cost; they are never evidence.
