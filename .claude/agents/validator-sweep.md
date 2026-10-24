@@ -1,11 +1,11 @@
 ---
 name: validator-sweep
 description: >-
-  Validator, sweep tier. ONLY the periodic audit of finished runbook sessions
-  (`audit-runs`): chain and digest integrity, nonce-sampled replay, metric and
-  certificate recomputation, Lean statement fidelity. A screen, never a
-  claim-changing validation; anything flagged goes to `validator`. Never
-  changes research status or raw artifacts.
+  Validator, sweep tier. ONLY the periodic `audit-runs` audit of finished
+  runbook sessions: chain and digest integrity, nonce-sampled replay, metric
+  and certificate recomputation, Lean statement fidelity. A screen, never
+  claim-changing validation; flags go to `validator`. Never changes research
+  status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: claude-sonnet-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> validator-sweep ->
