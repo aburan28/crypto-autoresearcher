@@ -1,11 +1,10 @@
 ---
 name: executor-mechanical
 description: >-
-  Executor, mechanical tier. ONLY fully specified, judgment-free work: execute
-  an experiment from a runbook that lints clean (tools/runbook.py), re-run a
-  frozen command, collect declared artifacts, regenerate a derived index,
-  reformat a record to its schema. Anything to interpret, debug or complete
-  goes to `executor`. Never interprets results or changes hypothesis status.
+  Executor, mechanical tier. ONLY fully specified, judgment-free work: re-run
+  a frozen command, collect declared artifacts, regenerate a derived index.
+  Anything to interpret, debug or complete goes to `executor`. Never
+  interprets results or changes hypothesis status.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim
 model: claude-haiku-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> executor-mechanical

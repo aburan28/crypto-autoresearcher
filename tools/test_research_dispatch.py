@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import gzip
 import hashlib
 import json
 import os
@@ -580,6 +581,52 @@ class DispatchPlannerTests(unittest.TestCase):
             dispatch.validate_queue(
                 queue(worker, archive), repository_verifier=dispatch.GitRepositoryVerifier(root)
             )
+
+    def test_archive_accepts_a_declared_artifact_stored_compressed(self) -> None:
+        """A run artifact compacted by tools/artifact_store.py archives under its declared path."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                ).stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            (root / "README.md").write_text("base\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+            parent = git("rev-parse", "HEAD")
+
+            worker = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+            expected = [*worker["artifact_paths"], *archive["artifact_paths"]]
+            stored = {expected[0] + ".gz": gzip.compress(b"worker\n", mtime=0),
+                      expected[1]: b"archive\n"}
+            for path, content in stored.items():
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+            git("add", *stored)
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE exact archival receipt")
+            archive["archive"].update({
+                "commit_sha": git("rev-parse", "HEAD"),
+                "parent_sha": parent,
+                "path_sha256": {expected[0]: hashlib.sha256(stored[expected[0] + ".gz"]).hexdigest(),
+                                expected[1]: hashlib.sha256(stored[expected[1]]).hexdigest()},
+            })
+            verifier = dispatch.GitRepositoryVerifier(root)
+            dispatch.validate_queue(queue(worker, archive), repository_verifier=verifier)
+            # the binding is to the stored bytes: a hash of the uncompressed content does not verify
+            archive["archive"]["path_sha256"][expected[0]] = hashlib.sha256(b"worker\n").hexdigest()
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(queue(worker, archive), repository_verifier=verifier)
 
     def test_declared_content_first_binds_faithful_split_superset_package(self) -> None:
         """Reproduce BATCH-33b207: 17 sources across two ancestors, 55-path superset."""
