@@ -92,7 +92,7 @@ historical archives need their own scoped checks before an all-corpus claim.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Triage the remaining 23 citation-provenance
+- **Action or proof obligation:** Triage the remaining 18 citation-provenance
   errors through actual source reading, and resolve the one dangling knowledge
   reference to an unfiled review task without inventing a dispatch. Continue
   source-by-source review of prior-art, review-plan, and run-schema errors.
@@ -183,3 +183,21 @@ historical archives need their own scoped checks before an all-corpus claim.
   The pre-run HEAD lacks the archived driver, so execution-source custody
   remains unresolved. This review changes no frozen bytes, ledger count,
   numerical result, or canonical performance graph.
+- 2026-10-22: A source-reading [BINSTD citation correction](../docs/reports/2026-10-22-binstd-source-provenance/REPORT.md)
+  named readers for the five internal citations of `EV-BINSTD-030b4e` and
+  corrected its `AGENTS.md` attribution from core rule 3 to core rule 5.
+  On exact main archive `13eb217678653267553dcbfa9601f2564f63706b`, the
+  complete-tree validator moved from 141 unsuppressed errors in 39 paths to
+  136 in 38: exactly those five citation errors disappeared and none was
+  added. The original evidence and run bytes remain unchanged, and the
+  whole-ledger gate still fails.
+- 2026-10-22: The [BINSTD toy-yield citation audit](../docs/reports/2026-10-22-binstd-yield-provenance/REPORT.md)
+  read the source chain for two more frozen evidence records and added
+  16 named source readings through hash-bound replacements. Its focused
+  checker confirms all other evidence fields are equal and recomputes
+  the four published aggregate ratios from hash-matched Stage-1 matrices.
+  On parent commit `5e499ba86dfa5fde589c353d446433ad0cdcab3e`,
+  complete-tree validation moves from 136 errors in 38 paths to 120 in
+  36 paths, with exactly those 16 citation errors removed and none added.
+  Both validator runs exit 1. The audit does not replay per-target solver
+  work or change either toy-scope yield decision.
