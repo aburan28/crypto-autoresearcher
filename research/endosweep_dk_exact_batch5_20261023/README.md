@@ -384,6 +384,13 @@ The theorems:
 **The primality hypothesis.**  All three factors (19870558523, p71 and p74) are
 above 10^8, so all three are in `largePrimes`.  Fundamentality of `D_K` is
 conditional on their primality.  PARI `isprime` proved them; Lean did not.
+An [independent 2026-10-24 replay](validation/pari-isprime-20261024.json) built
+PARI/GP 2.19.0 from the release archive matching the upstream SHA-256 and
+returned `isprime = 1` for each exact archived factor; their product also
+matches the archived integer. The [script](validation/pari-isprime-20261024.gp)
+and [raw output](validation/pari-isprime-20261024.log) are retained. This
+replays the factor-primality premise externally; it does not change the Lean
+theorem's conditional type or establish the named-curve model bridge.
 
 **Not certified:**
 
