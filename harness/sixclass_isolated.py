@@ -62,6 +62,13 @@ def _write_new(path: Path, document: dict, *, mode: int = 0o644) -> None:
     with os.fdopen(descriptor, "w") as stream:
         json.dump(document, stream, sort_keys=True, indent=2)
         stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    parent = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(parent)
+    finally:
+        os.close(parent)
 
 
 def generate(template: Path, custody_binary: Path, public_dir: Path,

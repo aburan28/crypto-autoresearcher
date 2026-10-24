@@ -83,6 +83,22 @@ def _admit(attempt: Path, binary: Path, base_job: Path) -> dict:
     return manifest
 
 
+def _checked_receipt(directory: Path, binary: Path, selection: dict) -> dict:
+    job_path, receipt_path = directory / "job.json", directory / "receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    expected = sixclass_native.receipt_for_result(
+        job_path, binary, selection["walkers"], receipt["elapsed_ns"], receipt["result"])
+    if any(receipt.get(key) != value for key, value in expected.items()):
+        raise ValueError("native receipt fields failed independent replay")
+    container = receipt.get("container", {})
+    if (container.get("image") != sixclass_isolated.IMAGE
+            or container.get("private_audit_mounted") is not False
+            or container.get("network") != "none"
+            or container.get("read_only") is not True):
+        raise ValueError("isolation receipt fields are missing")
+    return receipt
+
+
 def _execute(attempt: Path, phase: str, binary: Path, base_job: Path,
              selection: dict, *, sudo: bool, timeout: int) -> dict:
     phase_dir = attempt / phase
@@ -121,14 +137,12 @@ def followup(attempt: Path, binary: Path, base_job: Path, selection: dict,
     first = attempt / "initial/receipt.json"
     if not first.is_file():
         raise ValueError("an independently checked initial receipt is required")
-    first_receipt = json.loads(first.read_text())
-    first_job = attempt / "initial/job.json"
-    if (json.loads((attempt / "initial/input.json").read_text()) != manifest["initial_input"]
-            or first_receipt["job_sha256"] != sixclass_native.digest(first_job)
-            or first_receipt["worker_sha256"] != manifest["binary_sha256"]
-            or not sixclass_native.verify_first_dp(json.loads(first_job.read_text()),
-                                                   first_receipt["result"])):
+    if json.loads((attempt / "initial/input.json").read_text()) != manifest["initial_input"]:
         raise ValueError("initial receipt chain failed verification")
+    if json.loads((attempt / "initial/job.json").read_text()) != derive_job(
+            json.loads(base_job.read_text()), manifest["initial_input"]):
+        raise ValueError("initial job differs from frozen derivation")
+    _checked_receipt(attempt / "initial", binary, manifest["initial_input"])
     phase_dir = attempt / "followup"
     phase_dir.mkdir(exist_ok=False)
     _write(phase_dir / "selection.json", {"reviewer": reviewer,
@@ -163,15 +177,7 @@ def finalize(attempt: Path, binary: Path, base_job: Path) -> dict:
             raise ValueError("initial input differs from the frozen manifest")
         if json.loads(job_path.read_text()) != derive_job(json.loads(base_job.read_text()), selection):
             raise ValueError(f"{phase} job differs from frozen input derivation")
-        receipt = json.loads(receipt_path.read_text())
-        if (receipt["job_sha256"] != sixclass_native.digest(job_path)
-                or receipt["worker_sha256"] != manifest["binary_sha256"]
-                or not sixclass_native.verify_first_dp(json.loads(job_path.read_text()),
-                                                       receipt["result"])):
-            raise ValueError(f"{phase} receipt failed independent check")
-        if receipt["result"]["log"] is not None and not sixclass_native.verify_log(
-                json.loads(job_path.read_text()), receipt["result"]["log"]):
-            raise ValueError(f"{phase} log failed independent check")
+        receipt = _checked_receipt(directory, binary, selection)
         chain.append({"phase": phase, "input_sha256": sixclass_native.digest(directory / "input.json"),
                       "job_sha256": receipt["job_sha256"],
                       "receipt_sha256": sixclass_native.digest(receipt_path),

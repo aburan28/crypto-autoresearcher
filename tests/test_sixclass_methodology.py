@@ -38,6 +38,9 @@ def test_followup_is_write_once_and_frozen(tmp_path, monkeypatch):
 
     def sealed_run(job, worker, walkers, out, **_kwargs):
         receipt = sixclass_native.receipt_for_result(job, worker, walkers, 1, raw)
+        receipt["container"] = {"image": sixclass_followup.sixclass_isolated.IMAGE,
+                                "private_audit_mounted": False,
+                                "network": "none", "read_only": True}
         out.write_text(json.dumps(receipt))
         return receipt
 
@@ -54,6 +57,29 @@ def test_followup_is_write_once_and_frozen(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="finalized"):
         sixclass_followup.followup(attempt, binary, JOB, dict(initial, seed=8),
                                   "local-test", "after final")
+
+
+def test_followup_replays_requested_bound_before_selection(tmp_path, monkeypatch):
+    binary = tmp_path / "worker"
+    binary.write_bytes(b"test binary pin")
+    initial = {"walkers": 1000, "num_branches": 32, "dp_bits": 4,
+               "max_steps_per_walker": 320, "seed": 7}
+    attempt = tmp_path / "attempt"
+    sixclass_followup.freeze(binary, JOB, attempt, initial)
+    raw = json.loads((ROOT / "harness/evidence/sixclass-p25-20261024.json").read_text())["result"]
+    def sealed_run(job, worker, walkers, out, **_kwargs):
+        receipt = sixclass_native.receipt_for_result(job, worker, walkers, 1, raw)
+        receipt["container"] = {"image": sixclass_followup.sixclass_isolated.IMAGE,
+                                "private_audit_mounted": False,
+                                "network": "none", "read_only": True}
+        receipt["requested_walkers"] += 1
+        out.write_text(json.dumps(receipt))
+        return receipt
+    monkeypatch.setattr(sixclass_followup.sixclass_isolated, "run", sealed_run)
+    sixclass_followup.initial(attempt, binary, JOB)
+    with pytest.raises(ValueError, match="independent replay"):
+        sixclass_followup.followup(attempt, binary, JOB, dict(initial, walkers=1001),
+                                  "local-test", "reject tamper")
 
 
 def test_followup_rejects_tampered_binary_and_out_of_bounds(tmp_path):
