@@ -210,6 +210,10 @@ audit; its disposition remains open_next_step. This report adds its own graph.
     fig.suptitle("Finite determinant statistics; LLL and root extraction excluded",fontsize=11)
     fig.tight_layout()
     fig.savefig(report_root/"reach-cost.svg")
+    svg=report_root/"reach-cost.svg"
+    # Matplotlib emits trailing spaces inside multiline path attributes.
+    # Canonicalize only formatting; retain the same SVG path tokens.
+    svg.write_text("\n".join(line.rstrip() for line in svg.read_text().splitlines())+"\n")
     plt.close(fig)
     typst_source="""#set page(paper: "a4", margin: 19mm)
 #set text(size: 10pt)
