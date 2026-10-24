@@ -347,23 +347,26 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
-    # `immutable=1` is required on macOS hosts that attach com.apple.provenance
-    # to the codex state DB: a plain `mode=ro` open fails with SQLITE_CANTOPEN
-    # there. The probe only ever reads a thread row AFTER the codex exec process
-    # that created it has exited, and codex uses journal_mode=delete, so there
-    # is no un-checkpointed WAL content immutable=1 could miss. query_only=ON is
-    # still asserted per connection; immutable only ever strengthens the
-    # read-only guarantee.
-    uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro&immutable=1"
-    try:
+    # A live Codex database may use WAL. immutable=1 ignores its uncheckpointed
+    # rows, including the session just created by this probe. Use SQLite's
+    # read-only WAL view. A missing WAL file does not establish immutability:
+    # a writer can create one immediately after the check. Ordinary read errors
+    # (including macOS provenance restrictions) must fail verification; do not
+    # bypass SQLite locking or change detection with an immutable fallback.
+    base_uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro"
+
+    def query(uri: str) -> list[tuple[Any, ...]]:
         connection = sqlite3.connect(uri, uri=True)
         try:
             connection.execute("PRAGMA query_only=ON")
             if connection.execute("PRAGMA query_only").fetchone() != (1,):
                 raise sqlite3.DatabaseError("query_only was not enabled")
-            rows = connection.execute(STATE_QUERY, (thread_id,)).fetchall()
+            return connection.execute(STATE_QUERY, (thread_id,)).fetchall()
         finally:
             connection.close()
+
+    try:
+        rows = query(base_uri)
     except sqlite3.Error:
         raise _ProbeFailure("state_db_read_failed") from None
     if not rows:
