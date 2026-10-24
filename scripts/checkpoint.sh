@@ -31,6 +31,7 @@
 #   CHECKPOINT_AWS_REGION   default us-east-2
 #   CHECKPOINT_UPLOAD_TOKEN upload token from presign-upload (used when no AWS creds)
 #   CHECKPOINT_TOKEN_FILE   default ~/.config/checkpoint/upload-token
+#                           (then Conductor vault secret CHECKPOINT_UPLOAD_TOKEN)
 #   CHECKPOINT_MAX_FILE_MB  untracked files above this are listed, not uploaded (default 25)
 #   CHECKPOINT_MAX_TOTAL_MB cap on the untracked tarball input (default 300)
 #
@@ -75,6 +76,10 @@ have_profile() { aws configure list-profiles 2>/dev/null | grep -qx "$PROFILE"; 
 upload_token() {
   if [ -n "${CHECKPOINT_UPLOAD_TOKEN:-}" ]; then printf '%s' "$CHECKPOINT_UPLOAD_TOKEN"
   elif [ -s "$TOKEN_FILE" ]; then tr -d '[:space:]' < "$TOKEN_FILE"
+  elif command -v conductor >/dev/null; then
+    # Refreshed daily into the Conductor vault by the owner's token job.
+    perl -e 'alarm 10; exec @ARGV' conductor secrets get CHECKPOINT_UPLOAD_TOKEN </dev/null 2>/dev/null \
+      | tr -d '[:space:]' || true
   fi
 }
 
@@ -93,7 +98,7 @@ transport() {
     echo token; return
   fi
   command -v aws >/dev/null && [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] && { echo aws; return; }
-  echo "checkpoint: no way to upload: no AWS profile '$PROFILE', no CHECKPOINT_UPLOAD_TOKEN, no $TOKEN_FILE" >&2
+  echo "checkpoint: no way to upload: no AWS profile '$PROFILE', no CHECKPOINT_UPLOAD_TOKEN, no $TOKEN_FILE, no Conductor vault secret" >&2
   return 1
 }
 
