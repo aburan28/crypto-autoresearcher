@@ -8,8 +8,10 @@
 
 ## Problem
 
-A cold formal-workspace CI job cannot finish the complete required build and
-target audit within its configured 25-minute envelope.
+The original cold formal-workspace CI job ended before its complete target
+audit within the configured 25-minute envelope. The revised 60-minute envelope
+has completed successfully on the named revision below; final integration
+with current main remains a separate merge requirement.
 
 The gate must retain its workspace build, forbidden-construct and axiom checks,
 every discharged target, and the existing minimum verification floor. An
@@ -30,9 +32,11 @@ interrupted run supplies no complete current-head result for merging.
 - **Suspected explanation:** The cancellation aligns with the job timeout.
   The log reports cancellation rather than a failed theorem or axiom check;
   it does not independently identify a cancellation actor.
-- **Missing capability:** A complete gate result under a sufficient bounded
-  execution envelope. There are 85 registered target specifications in the
-  checked source tree; not all necessarily have a discharged theorem file.
+- **Missing capability:** The original run lacked a complete gate result. The
+  revised gate has now completed all 84 YAML target specifications on head
+  `ccee4e161768a983d3d7079cb16ba9772c5ca8f1`. The directory has 85 files
+  including its README; the earlier draft incorrectly called all 85 target
+  specifications. Final current-main integration checks are still needed.
 - **What this evidence does not establish:** The partial receipts do not
   establish completion of the full gate or semantic fidelity of any research
   claim. No theorem, scientific result, ledger baseline, or frozen artifact is
@@ -40,7 +44,7 @@ interrupted run supplies no complete current-head result for merging.
 
 ## What would unblock it
 
-- [ ] A new current-head formal-workspace job completes every existing build
+- [x] A new current-head formal-workspace job completes every existing build
   and target audit step successfully, with its receipts retained.
 - [ ] The other required and applicable current-head checks and review gates
   pass before merging PR #2536.
@@ -50,8 +54,9 @@ the existing unrelated full-corpus ledger obligations remain separate.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Raise only this job's bounded envelope to
-  60 minutes and validate the revision together with merged current main.
+- **Action or proof obligation:** Complete current-main integration and obtain
+  all final-head CI and review gates before merging. Retain the validated
+  60-minute envelope and all existing build/audit commands.
 - **Inputs and controls:** Preserve all target specifications, proof sources,
   scope decisions, audit commands and the minimum verification floor. Retain
   the cancelled run and its partial receipts as incomplete evidence.
@@ -68,3 +73,22 @@ the existing unrelated full-corpus ledger obligations remain separate.
 2026-10-24: Opened after reading the cancelled job's logs and timestamps.
 The build succeeded, but the full gate remains incomplete. Unresolved until
 the acceptance conditions above have linked evidence.
+
+2026-10-24: [Formal job 120830553418](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40074315064/job/120830553418)
+on head `ccee4e161768a983d3d7079cb16ba9772c5ca8f1` succeeded with
+`BUILD_WORKSPACE: true`. It ran from 10:25:16 to 11:02:59 UTC (37m43s),
+completed the 8,976-job workspace build, and reported **84 verified, zero
+not verified, zero infrastructure failures and zero undischarged targets**.
+The receipt explicitly retains the requirement for independent semantic
+review. This establishes completion of the software gate, not a new research
+claim. The same head's [validate workflow](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40074315130)
+and [progress-fidelity workflow](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40074315093)
+also passed. The static count is corrected above: 84 YAML specifications plus
+a README, rather than 85 specifications.
+
+The runtime obstruction has passing evidence. This record remains investigating
+until the final merged-main revision also satisfies the remaining merge gates:
+the active progress-fidelity ruleset requires an up-to-date branch, and main
+advanced to `6d4bfcda57fc0e9c9531404b8fb268bd0f04ec06` after the cited
+revision. Earlier passing results are retained rather than reused as final-head
+results. No proof, frozen scientific record, baseline or gate was weakened.
