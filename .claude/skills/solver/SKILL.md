@@ -1,6 +1,11 @@
 ---
 name: solver
-description: "Diagnose existing Groebner, SAT, Macaulay, GF(2), rank, certificate and solver-worker artifacts; plan solver integration or check correctness and accounting. Use for solver-stage questions and supplied synthetic systems. Use ic for relation semantics, review-evidence for official conclusions, and run for trials."
+description: >-
+  Diagnose existing Groebner, SAT, Macaulay, GF(2), rank, certificate and
+  solver-worker artifacts; check correctness and accounting. Use for
+  solver-stage questions. Use ic for relation semantics, review-evidence for
+  official conclusions, and run for trials.
+
 ---
 
 # Solver diagnostics
