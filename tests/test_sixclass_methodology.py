@@ -44,6 +44,9 @@ def test_paired_aa_control_and_cost_claim_gate(tmp_path):
     assert all(row["status"] == "open" for row in coverage["clauses"])
     answer = ROOT / "harness/evidence/sixclass-isolated-secp256k1-20261024/answer-receipt.json"
     assert sixclass_assumptions.report([answer])["observations"][0]["informs"] == []
+    trail = ROOT / "harness/evidence/sixclass-isolated-secp256k1-20261024/trail-audit-receipt.json"
+    assert sixclass_assumptions.report([trail])["observations"][0]["informs"] == [
+        "nonfruitless-return"]
 
 
 def test_followup_is_write_once_and_frozen(tmp_path, monkeypatch):
@@ -113,3 +116,17 @@ def test_followup_rejects_tampered_binary_and_out_of_bounds(tmp_path):
         sixclass_followup.initial(attempt, binary, JOB)
     with pytest.raises(ValueError, match="bounded schema"):
         sixclass_followup.validate_input(dict(initial, walkers=10001))
+
+
+def test_native_trail_audit_binds_exact_job_and_record(tmp_path):
+    record = tmp_path / "dp.json"
+    dp = {"walker": 3, "steps": 17}
+    record.write_text(json.dumps(dp))
+    audit = {"schema": "crypto.sixclass.trail-audit.v1",
+             "job_sha256": sixclass_native.digest(JOB),
+             "record_sha256": sixclass_native.digest(record),
+             "verified": True, **dp}
+    sixclass_native.validate_trail_audit(JOB, record, dp, audit)
+    audit["steps"] += 1
+    with pytest.raises(ValueError, match="not bound"):
+        sixclass_native.validate_trail_audit(JOB, record, dp, audit)

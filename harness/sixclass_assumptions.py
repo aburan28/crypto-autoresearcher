@@ -47,13 +47,18 @@ def report(receipts: list[Path], matrix: Path = MATRIX) -> dict:
             elif data.get("phase") == "answer-check" and data.get("result", {}).get("schema") == "crypto.sixclass.answer-check.v1":
                 informs = []
                 limitation = "answer correctness only; no H1 sampling"
+            elif data.get("phase") == "trail-audit" and data.get("result", {}).get("schema") == "crypto.sixclass.trail-audit.v1" and data["result"].get("verified") is True:
+                informs = ["nonfruitless-return"]
+                limitation = "one deterministic trail replay; no return-rate distribution"
             else:
                 raise ValueError("malformed isolated receipt")
         elif schema == "crypto.autoresearch.sixclass-native.v1":
             if "result" not in data or "job_sha256" not in data:
                 raise ValueError("malformed native worker receipt")
             informs = ["partition-dp-routing-bits", "nonfruitless-return"]
-            limitation = "one endpoint; no held-out distribution"
+            limitation = ("one native-replayed endpoint; no held-out distribution"
+                          if data.get("native_trail_audit", {}).get("verified") is True
+                          else "one endpoint; no held-out distribution")
         else:
             raise ValueError(f"unsupported receipt schema: {schema}")
         observations.append({"path": str(path), "sha256": sixclass_native.digest(path),

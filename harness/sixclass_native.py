@@ -120,6 +120,16 @@ def receipt_for_result(job_path: Path, worker: Path, walkers: int,
             "scope": "native BigUint toy/research worker; no secp256k1 throughput claim"}
 
 
+def validate_trail_audit(job: Path, record: Path, result: dict, audit: dict) -> None:
+    if (audit.get("schema") != "crypto.sixclass.trail-audit.v1"
+            or audit.get("job_sha256") != digest(job)
+            or audit.get("record_sha256") != digest(record)
+            or audit.get("verified") is not True
+            or audit.get("walker") != result["walker"]
+            or audit.get("steps") != result["steps"]):
+        raise ValueError("native trail audit is not bound to the record and job")
+
+
 def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
     if walkers < 1 or timeout < 1:
         raise ValueError("walkers and timeout must be positive")
@@ -128,8 +138,20 @@ def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
                                check=True, capture_output=True, text=True,
                                timeout=timeout)
     elapsed = time.monotonic_ns() - start
-    return receipt_for_result(job_path, worker, walkers, elapsed,
-                              json.loads(completed.stdout))
+    receipt = receipt_for_result(job_path, worker, walkers, elapsed,
+                                 json.loads(completed.stdout))
+    dp = receipt["result"].get("first_dp")
+    if dp is not None:
+        with tempfile.TemporaryDirectory(prefix="sixclass-audit-") as directory:
+            record = Path(directory) / "dp.json"
+            record.write_text(json.dumps(dp, sort_keys=True))
+            audit = subprocess.run([str(worker), "audit", str(job_path), str(record)],
+                                   check=True, capture_output=True, text=True,
+                                   timeout=timeout)
+            native = json.loads(audit.stdout)
+            validate_trail_audit(job_path, record, dp, native)
+            receipt["native_trail_audit"] = native
+    return receipt
 
 
 def main() -> None:

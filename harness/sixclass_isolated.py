@@ -14,7 +14,7 @@ import subprocess
 import time
 import uuid
 
-from harness.sixclass_native import digest, receipt_for_result
+from harness.sixclass_native import digest, receipt_for_result, validate_trail_audit
 
 IMAGE = "debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8"
 SCHEMA = "crypto.autoresearch.sixclass-isolated.v1"
@@ -107,8 +107,39 @@ def run(job: Path, worker_binary: Path, walkers: int, out: Path,
         worker_binary, [(job, "/input/job.json", True)],
         ["/input/job.json", str(walkers)], sudo=sudo, timeout=timeout)
     receipt = receipt_for_result(job, worker_binary, walkers, elapsed_ns, result)
+    dp = result.get("first_dp")
+    if dp is not None:
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="sixclass-audit-") as directory:
+            record = Path(directory) / "dp.json"
+            record.write_text(json.dumps(dp, sort_keys=True))
+            audit, audit_elapsed_ns = _run_container(
+                worker_binary, [(job, "/input/job.json", True),
+                                (record, "/input/dp.json", True)],
+                ["audit", "/input/job.json", "/input/dp.json"],
+                sudo=sudo, timeout=timeout)
+            validate_trail_audit(job, record, dp, audit)
+            receipt["native_trail_audit"] = audit
+            receipt["native_trail_audit_elapsed_ns"] = audit_elapsed_ns
     receipt["container"] = {"image": IMAGE, "network": "none", "read_only": True,
                             "private_audit_mounted": False, "caps": "none"}
+    _write_new(out, receipt)
+    return receipt
+
+
+def audit(job: Path, record: Path, worker_binary: Path, out: Path,
+          *, sudo: bool = False, timeout: int = 120) -> dict:
+    dp = json.loads(record.read_text())
+    native, elapsed_ns = _run_container(
+        worker_binary, [(job, "/input/job.json", True),
+                        (record, "/input/dp.json", True)],
+        ["audit", "/input/job.json", "/input/dp.json"],
+        sudo=sudo, timeout=timeout)
+    validate_trail_audit(job, record, dp, native)
+    receipt = {"schema": SCHEMA, "phase": "trail-audit", "result": native,
+               "job_sha256": digest(job), "record_sha256": digest(record),
+               "worker_sha256": digest(worker_binary), "image": IMAGE,
+               "elapsed_ns": elapsed_ns, "private_audit_mounted": False}
     _write_new(out, receipt)
     return receipt
 
@@ -146,6 +177,12 @@ def main() -> None:
     solver.add_argument("--walkers", type=int, required=True)
     solver.add_argument("--out", type=Path, required=True)
     solver.add_argument("--timeout", type=int, default=120)
+    trail = sub.add_parser("audit")
+    trail.add_argument("--job", type=Path, required=True)
+    trail.add_argument("--record", type=Path, required=True)
+    trail.add_argument("--binary", type=Path, required=True)
+    trail.add_argument("--out", type=Path, required=True)
+    trail.add_argument("--timeout", type=int, default=120)
     answer = sub.add_parser("verify")
     answer.add_argument("--job", type=Path, required=True)
     answer.add_argument("--answer", type=Path, required=True)
@@ -159,6 +196,9 @@ def main() -> None:
     elif args.command == "run":
         result = run(args.job, args.binary, args.walkers, args.out,
                      sudo=args.sudo, timeout=args.timeout)
+    elif args.command == "audit":
+        result = audit(args.job, args.record, args.binary, args.out,
+                       sudo=args.sudo, timeout=args.timeout)
     else:
         result = verify(args.job, args.answer, args.binary, args.out,
                         sudo=args.sudo, timeout=args.timeout)

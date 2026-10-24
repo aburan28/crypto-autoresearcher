@@ -8,10 +8,10 @@ and evidence scope needed to interpret results at the scale actually tested.
 |---|---|
 | `toycurve.py` | F_p short-Weierstrass arithmetic, exact point counting, deterministic ECDLP instance generation. Also the **independent verifier** for certificates. |
 | `rho.py` | Pollard rho (Teske r-adding walk) — the matched generic baseline (KN-TECH-001). Recovers k using public data only. |
-| `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, and independently checks the first distinguished point and any recovered logarithm. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
+| `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, independently checks the first distinguished point and any recovered logarithm, and invokes native deterministic trail replay when a DP is present. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
 | `sixclass_challenge.py` | Original local conformance generator. The preferred challenge custody and answer check now run in native Rust through `sixclass_isolated.py`. |
-| `sixclass_isolated.py` | Launches native Rust custody, worker, and answer-check binaries in separate pinned, networkless, read-only containers; the worker receives no private audit mount. Docker's host daemon and the orchestrator remain trusted. |
-| `sixclass_paired.py` | Audits native baseline / candidate / baseline trial rows, A/A work equality, recovered logs, binary and job hashes, and unpriced full-work categories. |
+| `sixclass_isolated.py` | Launches native Rust custody, worker, trail-audit, and answer-check binaries in separate pinned, networkless, read-only containers; the worker and trail auditor receive no private audit mount. Docker's host daemon and the orchestrator remain trusted. |
+| `sixclass_paired.py` | Audits native baseline / candidate / baseline trial rows, A/A work equality, recovered logs, six-by-branch routing counts, binary and job hashes, and unpriced full-work categories. |
 | `sixclass_assumptions.py` | Emits a five-clause H1 coverage ledger from the pinned falsifiable matrix. Current diagnostic receipts leave all clauses open and block a production claim. |
 | `sixclass_followup.py` | Freezes the job, native binary and bounded inputs, runs one initial observation, records one reviewer-selected follow-up before execution, then seals the receipt chain. |
 | `walk.py` | The rho walk as a first-class object: Teske r-adding steps with coefficient bookkeeping, orbit tracing (tail/cycle), distinguished-point walks, and the van Oorschot--Wiener DP collision search. |
@@ -77,18 +77,28 @@ python -m harness.sixclass_isolated run \
   --job /tmp/sixclass-public/job.json \
   --binary /path/to/crypto/target/debug/six_class_rho \
   --walkers 1 --out /tmp/sixclass-public/worker-receipt.json
+python -m harness.sixclass_isolated audit \
+  --job /tmp/sixclass-public/job.json \
+  --record /path/to/public-dp.json \
+  --binary /path/to/crypto/target/debug/six_class_rho \
+  --out /tmp/sixclass-public/trail-audit-receipt.json
 ```
 
 Use `--sudo` before the subcommand only on hosts where the Docker socket
 requires it. The custody container sees the private audit directory; the
 separate worker container mounts only the public job and native binary. A
-third native container verifies a proposed `{"x":"<64 lowercase hex>"}`
+DP from `run` triggers a separate native trail replay automatically; `audit`
+also replays a previously published DP. The answer-check container verifies
+a proposed `{"x":"<64 lowercase hex>"}`
 answer with `sixclass_isolated verify`; it does not mount the audit directory.
 The checked [isolated public job and receipts](evidence/sixclass-isolated-secp256k1-20261024/)
 are a full-curve arithmetic and boundary smoke test. The answer and audit
 files are deliberately absent from the repository. A host Docker administrator
 can still access the private directory, so this is process isolation on one
 host, not independent remote custody or attestation.
+The [sample DP trail audit](evidence/sixclass-isolated-secp256k1-20261024/trail-audit-receipt.json)
+replays the published walker-0, step-9 endpoint against the public job without
+mounting the private audit file. It proves provenance for that one trail only.
 
 ### H1, paired work, and one follow-up
 
@@ -98,6 +108,9 @@ ledger with `python -m harness.sixclass_assumptions --receipt RECEIPT --out
 REPORT`. The [current ledger](evidence/sixclass-h1-coverage-20261024.json)
 keeps every clause open. Algebraic correctness and one-worker DPs cannot
 establish a collision-arrival CDF, bit independence, or a production cost.
+The [routing and trail coverage receipt](evidence/sixclass-h1-routing-and-trail-20261024.json)
+maps the new counts and one native replay to the clauses they inform; it leaves
+all clauses open because walk visits are correlated and the sample is bounded.
 
 Run `python -m harness.sixclass_paired --job JOB --binary COMPARE_BINARY
 --walkers 100 --trials 2 --out RECEIPT` for native A/B/A rows. The
@@ -107,6 +120,10 @@ coordinator categories. Its deterministic repeats check timing drift and
 work-count consistency; they are not independent success trials. The current
 BigUint six-class path was slower on this toy job and is not a production
 throughput result.
+The [new routing receipt](evidence/sixclass-paired-routing-p25-20261024.json)
+includes every candidate twist/branch cell, checked to sum to class visits.
+Its two deterministic A/B/A trials are described in the
+[insight report](evidence/sixclass-routing-p25-20261024.md).
 
 For a bounded follow-up, write a JSON input with exactly `walkers`,
 `num_branches`, `dp_bits`, `max_steps_per_walker`, and `seed`, then call
