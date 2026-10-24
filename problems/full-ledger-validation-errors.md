@@ -183,3 +183,15 @@ historical archives need their own scoped checks before an all-corpus claim.
   The pre-run HEAD lacks the archived driver, so execution-source custody
   remains unresolved. This review changes no frozen bytes, ledger count,
   numerical result, or canonical performance graph.
+
+- 2026-10-24: Post-merge CI for index-calculus PR#2520 (merge73a77f2)
+  reports143 unsuppressed errors, including two new missing `from`/`to`
+  fields in TASK-20261023-e485d9. CORR-20261024-7c17bf supplies an
+  additive, hash-bound routing-only replacement and records the actual
+  issuing/assigned Coordinator roles. The original handoff and all prior
+  values remain unchanged; a targeted run of the actual validator reproduces
+  those two errors before routing and accepts the replacement afterward.
+  The [diagnosis](../coordination/tasks/TASK-20261024-f195f6/diagnosis.json)
+  retains every observed CI error and provenance. This is a scoped repair,
+  not a clean-current-corpus result or retrospective admission claim; the
+  broader problem and unrelated historical errors remain open.
