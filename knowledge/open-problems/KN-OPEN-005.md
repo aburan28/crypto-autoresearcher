@@ -6,7 +6,7 @@ tags: [generic-group-model, birthday, jets, elliptic-nets, incidence, representa
 confidence: reported
 status: closed_scoped
 closed_scoped_at: '2026-10-24'
-closed_scoped_by: [DEC-20260722-004, DEC-20260722-006]
+closed_scoped_by: [ledger/DEC-20260722-004.yaml, DEC-20260722-006]
 closed_scoped_as: >-
   CLOSED FOR TWO BRANCHES ONLY. (1) Jet / dual-number representations: DEC-20260722-004
   records the simulation theorem T4 (THM_JETBARRIER1), so the Omega(sqrt(l)) bound lifts
@@ -56,7 +56,7 @@ a genuine non-generic signal. It operationalizes the boundary of KN-OPEN-001 for
 representation-based attacks.
 
 ## Status 2026-10-24
-Scoped closure of the jet branch (DEC-20260722-004) and the chord/incidence branch
+Scoped closure of the jet branch (ledger/DEC-20260722-004.yaml; the id is duplicated by an unrelated record in ledger/decisions/) and the chord/incidence branch
 (DEC-20260722-006) only, each with the limitations those decisions record.
 Still open: the elliptic-net branch. Status field changed from `open` by the
 2026-10-24 refutation-propagation audit; nothing above this section was rewritten.

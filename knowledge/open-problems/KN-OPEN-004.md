@@ -6,9 +6,9 @@ tags: [bkk, mixed-volume, newton-polytope, semaev, sparse-elimination, prime-fie
 confidence: reported
 status: closed_scoped
 closed_scoped_at: '2026-10-24'
-closed_scoped_by: [DEC-20260722-003]
+closed_scoped_by: [ledger/DEC-20260722-003.yaml]
 closed_scoped_as: >-
-  CLOSED AT m <= 5 ONLY. DEC-20260722-003 records the box-saturation theorem
+  CLOSED AT m <= 5 ONLY. ledger/DEC-20260722-003.yaml records the box-saturation theorem
   (MV = box Bezout) as PROVED at m <= 5 (THM_BKKMV1) and the m = 6 mixed-volume
   certified on 6/6 instances (EXP-BKKMV-002). The sparse-elimination barrier is
   theorem-backed at those m.
@@ -52,7 +52,7 @@ kills the whole BKK route cheaply. Either outcome tightens the prime-field
 index-calculus picture (KN-OPEN-001) without over-claiming from toy scale.
 
 ## Status 2026-10-24
-Scoped closure only, per DEC-20260722-003 (evidence EV-BKKMV-002; research/THM_BKKMV1.md).
+Scoped closure only, per ledger/DEC-20260722-003.yaml (the id is also used by a record in ledger/decisions/) (evidence EV-BKKMV-002; research/THM_BKKMV1.md).
 Closed: the question at m <= 5, with m = 6 certified. Still open: the all-m
 saturation law (interior-fiber non-cancellation lemma). Status field changed
 from `open` by the 2026-10-24 refutation-propagation audit; nothing above this

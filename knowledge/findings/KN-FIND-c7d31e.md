@@ -58,12 +58,26 @@ for the empirical improvements in KN-FIND-2a8b7e.
 
 ## Correction 2026-10-24 (CORR-20261024-851c82)
 
-Scoped to one claim only. The final sentence above, that the theorem "provides
-the combinatorial foundation for the empirical improvements in KN-FIND-2a8b7e",
-is refuted: EV-FALSIFY-67150b (2026-08-08) found the geometric growth law of
-KN-FIND-2a8b7e confounded with shrinking B, and the geometric and linear laws
-cannot both hold. KN-FIND-2a8b7e is superseded by KN-FIND-921fbf under CORR-20261024-851c82. The
-theorem itself is unaffected: EV-FALSIFY-67150b reproduces the (m+1)/2
-per-decomposition retention at every B tested. The observed "~3.3x" at
-N=2^256 cited above is the refuted extrapolation and is not support for the
-theorem's numeric consequences.
+Scoped to two claims only; the theorem is unaffected.
+
+1. The last sentence of "Cryptographic significance" above, that the theorem
+   "provides the combinatorial foundation for the empirical improvements in
+   KN-FIND-2a8b7e", is refuted. EV-FALSIFY-67150b (2026-08-08) found the
+   geometric growth law of KN-FIND-2a8b7e confounded with shrinking B, and the
+   geometric and linear laws cannot both hold. KN-FIND-2a8b7e is superseded by
+   KN-FIND-921fbf under CORR-20261024-851c82. The "observed ~3.3x" at N=2^256
+   is that finding's refuted extrapolation.
+2. The "gamma empirical" column of the verification table above (0.86, 0.66,
+   0.35, 0.27) is a per-target success measurement, not per-decomposition
+   retention, so the statement "EC group law gives ~0.1 bonus in gamma above the
+   theoretical floor" is an estimand artefact and is withdrawn (EV-FALSIFY-67150b
+   O-6: measured per-decomposition retention is 0.7497 at m=2 and 0.5000 at m=3,
+   against the proved (m+1)/2^m = 0.75 and 0.50). The "speedup empirical" column
+   inherits this and is likewise not a measurement of the speedup in the theorem.
+   Read the column as per-target success at the B of each row.
+
+What stands: the derivation of per-decomposition retention (m+1)/2^m and the
+resulting speedup (m+1)/2. EV-FALSIFY-67150b matches the retention exactly at
+m=2,3. At m=4,5 the measured values exceed it and shrink toward it as B grows
+(m=5: 0.2309, 0.2182, 0.2113 at B = 12, 18, 24, against 0.1875), so the theorem
+is reproduced to within a B-dependent residual there, not exactly.
