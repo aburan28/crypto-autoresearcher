@@ -23,9 +23,8 @@ python3 tools/lead_atlas.py --stamp <session> # close a review: pin every repo's
 
 ## Why it exists
 
-By 2026-10-24 the ledger held about 2,000 ECDLP-area hypotheses and ideas. About
-1,900 of them were never resolved: they were `specified`, `approved` or
-`proposed`. Every new session re-surveyed the same ground, and idea generation
+By 2026-10-24 the ledger held 2,049 ECDLP-area hypotheses and ideas. 971 of its
+1,031 hypotheses (94%) had no terminal status. Every new session re-surveyed the same ground, and idea generation
 re-proposed mechanisms that an earlier lane had already measured or closed. The
 known-results map stops re-derivation of *published* results. Nothing stopped
 re-derivation of *our own*.

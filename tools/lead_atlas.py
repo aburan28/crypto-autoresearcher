@@ -250,6 +250,17 @@ def check_leads(rows: list[dict[str, Any]], *, strict_paths: bool = False
                                 "out; path unverified")
                 continue
             full = os.path.join(root, str(e["path"]))
+            if e.get("ref"):
+                # Evidence that lives on another branch or an older commit.
+                ok = subprocess.run(
+                    ["git", "-C", root, "cat-file", "-e",
+                     f"{e['ref']}:{e['path']}"],
+                    capture_output=True).returncode == 0
+                if not ok:
+                    warnings.append(f"{p}: evidence[{i}] {e['repo']}:"
+                                    f"{e['ref']}:{e['path']} not found "
+                                    "(ref not fetched?)")
+                continue
             if not os.path.exists(full):
                 # A sparse checkout can leave a committed path off disk.
                 tracked = _git_tracked(root, str(e["path"]))
@@ -576,6 +587,21 @@ def render(rows: list[dict[str, Any]]) -> str:
 # ---------------------------------------------------------------- stamp
 
 
+def reviewed_commit(root: str) -> str | None:
+    """The default-branch commit the review saw: merge-base(HEAD, origin/main).
+
+    A review runs on a work branch whose own commits may never merge; the
+    default-branch commit stays reachable for every later clone. Without an
+    origin/main ref the HEAD itself is pinned.
+    """
+    for ref in ("origin/main", "origin/master"):
+        out = subprocess.run(["git", "-C", root, "merge-base", "HEAD", ref],
+                             capture_output=True, text=True, timeout=60)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    return head(root)
+
+
 def stamp(reviewer: str) -> dict[str, Any]:
     rows = load_leads()
     cov = coverage_report(rows)
@@ -583,7 +609,7 @@ def stamp(reviewer: str) -> dict[str, Any]:
     for name in REPOS:
         root = repo_root(name)
         if root is not None:
-            repos[name] = {"commit": head(root)}
+            repos[name] = {"commit": reviewed_commit(root)}
     state = {
         "schema": "lead-atlas-review/v1",
         "reviewed_at": _dt.date.today().isoformat(),
@@ -592,9 +618,9 @@ def stamp(reviewer: str) -> dict[str, Any]:
         "leads": len(rows),
         "tally": tally(rows),
         "coverage": {"records": cov["records"], "mapped": cov["mapped"]},
-        "note": ("The commits each repository was examined at. A commit on "
-                 "the atlas branch itself is the review's own; --delta "
-                 "ignores knowledge/leads/."),
+        "note": ("The default-branch commit each repository was examined "
+                 "at (merge-base with origin/main). --delta lists watched "
+                 "paths added or modified since, ignoring knowledge/leads/."),
     }
     with open(STATE, "w", encoding="utf-8") as fh:
         json.dump(state, fh, indent=2, sort_keys=True)
