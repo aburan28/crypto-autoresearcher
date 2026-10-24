@@ -97,16 +97,11 @@ def verify_first_dp(job: dict, result: dict) -> bool:
     return add(p, a, multiply(p, a, g, u), multiply(p, a, q, v)) == (x, y)
 
 
-def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
+def receipt_for_result(job_path: Path, worker: Path, walkers: int,
+                       elapsed_ns: int, result: dict) -> dict:
     job = json.loads(job_path.read_text())
-    if walkers < 1 or timeout < 1:
-        raise ValueError("walkers and timeout must be positive")
-    start = time.monotonic_ns()
-    completed = subprocess.run([str(worker), str(job_path), str(walkers)],
-                               check=True, capture_output=True, text=True,
-                               timeout=timeout)
-    elapsed = time.monotonic_ns() - start
-    result = json.loads(completed.stdout)
+    if walkers < 1 or elapsed_ns < 0:
+        raise ValueError("walkers must be positive and elapsed time nonnegative")
     required = {"job_id", "walkers", "class_visits", "distinguished",
                 "short_cycle_escapes", "log"}
     if (not required.issubset(result) or not 0 <= result["walkers"] <= walkers
@@ -119,10 +114,22 @@ def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
         raise ValueError("worker returned an invalid discrete logarithm")
     return {"schema": SCHEMA, "walk": WALK, "job_sha256": digest(job_path),
             "worker_sha256": digest(worker), "requested_walkers": walkers,
-            "elapsed_ns": elapsed, "result": result,
+            "elapsed_ns": elapsed_ns, "result": result,
             "independent_dp_check": result.get("first_dp") is not None,
             "independent_log_check": proposed is not None,
             "scope": "native BigUint toy/research worker; no secp256k1 throughput claim"}
+
+
+def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
+    if walkers < 1 or timeout < 1:
+        raise ValueError("walkers and timeout must be positive")
+    start = time.monotonic_ns()
+    completed = subprocess.run([str(worker), str(job_path), str(walkers)],
+                               check=True, capture_output=True, text=True,
+                               timeout=timeout)
+    elapsed = time.monotonic_ns() - start
+    return receipt_for_result(job_path, worker, walkers, elapsed,
+                              json.loads(completed.stdout))
 
 
 def main() -> None:

@@ -9,7 +9,11 @@ and evidence scope needed to interpret results at the scale actually tested.
 | `toycurve.py` | F_p short-Weierstrass arithmetic, exact point counting, deterministic ECDLP instance generation. Also the **independent verifier** for certificates. |
 | `rho.py` | Pollard rho (Teske r-adding walk) — the matched generic baseline (KN-TECH-001). Recovers k using public data only. |
 | `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, and independently checks the first distinguished point and any recovered logarithm. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
-| `sixclass_challenge.py` | Generates a fresh private-answer secp256k1 ECDLP target from the pinned Curve Smash profile, then writes a public Rust worker job and a separate private audit record. |
+| `sixclass_challenge.py` | Original local conformance generator. The preferred challenge custody and answer check now run in native Rust through `sixclass_isolated.py`. |
+| `sixclass_isolated.py` | Launches native Rust custody, worker, and answer-check binaries in separate pinned, networkless, read-only containers; the worker receives no private audit mount. Docker's host daemon and the orchestrator remain trusted. |
+| `sixclass_paired.py` | Audits native baseline / candidate / baseline trial rows, A/A work equality, recovered logs, binary and job hashes, and unpriced full-work categories. |
+| `sixclass_assumptions.py` | Emits a five-clause H1 coverage ledger from the pinned falsifiable matrix. Current diagnostic receipts leave all clauses open and block a production claim. |
+| `sixclass_followup.py` | Freezes the job, native binary and bounded inputs, runs one initial observation, records one reviewer-selected follow-up before execution, then seals the receipt chain. |
 | `walk.py` | The rho walk as a first-class object: Teske r-adding steps with coefficient bookkeeping, orbit tracing (tail/cycle), distinguished-point walks, and the van Oorschot--Wiener DP collision search. |
 | `kangaroo.py` | Pollard kangaroo over an interval: tame/wild herds meeting at distinguished points, trajectories retained. |
 | `walkviz.py` | Draws what those two produce -- functional graph with one rho highlighted, DP forest with the golden collision, kangaroo herds -- as dependency-free SVG. |
@@ -58,6 +62,63 @@ was generated from this profile with public walk seed 7, 32 branches,
 `dp_bits=5`, and a 512-step cap. Its SHA-256 is
 `b9a9194796a2386d5d6fe67de44c01707b2b656a067e716253b6a16fccadcacd`.
 The private scalar is absent from the repository. Create another instance with:
+
+The original Python generator remains a local conformance path. For isolated
+custody, build `crypto`'s `six_class_challenge`, `six_class_rho`, and
+`six_class_compare` binaries, create two empty disjoint directories, and run:
+
+```sh
+mkdir -m 700 /tmp/sixclass-public /tmp/sixclass-private
+python -m harness.sixclass_isolated generate \
+  --template harness/fixtures/curvesmash_secp256k1_challenge.json \
+  --binary /path/to/crypto/target/debug/six_class_challenge \
+  --public-dir /tmp/sixclass-public --private-dir /tmp/sixclass-private
+python -m harness.sixclass_isolated run \
+  --job /tmp/sixclass-public/job.json \
+  --binary /path/to/crypto/target/debug/six_class_rho \
+  --walkers 1 --out /tmp/sixclass-public/worker-receipt.json
+```
+
+Use `--sudo` before the subcommand only on hosts where the Docker socket
+requires it. The custody container sees the private audit directory; the
+separate worker container mounts only the public job and native binary. A
+third native container verifies a proposed `{"x":"<64 lowercase hex>"}`
+answer with `sixclass_isolated verify`; it does not mount the audit directory.
+The checked [isolated public job and receipts](evidence/sixclass-isolated-secp256k1-20261024/)
+are a full-curve arithmetic and boundary smoke test. The answer and audit
+files are deliberately absent from the repository. A host Docker administrator
+can still access the private directory, so this is process isolation on one
+host, not independent remote custody or attestation.
+
+### H1, paired work, and one follow-up
+
+The [five-clause H1 matrix](fixtures/sixclass_h1_matrix.json) lists each
+prediction, falsifier, control, and required observable. Generate a coverage
+ledger with `python -m harness.sixclass_assumptions --receipt RECEIPT --out
+REPORT`. The [current ledger](evidence/sixclass-h1-coverage-20261024.json)
+keeps every clause open. Algebraic correctness and one-worker DPs cannot
+establish a collision-arrival CDF, bit independence, or a production cost.
+
+Run `python -m harness.sixclass_paired --job JOB --binary COMPARE_BINARY
+--walkers 100 --trials 2 --out RECEIPT` for native A/B/A rows. The
+[p25 paired receipt](evidence/sixclass-paired-p25-20261024.json) preserves
+both raw trials and the unpriced field arithmetic, memory, network, and
+coordinator categories. Its deterministic repeats check timing drift and
+work-count consistency; they are not independent success trials. The current
+BigUint six-class path was slower on this toy job and is not a production
+throughput result.
+
+For a bounded follow-up, write a JSON input with exactly `walkers`,
+`num_branches`, `dp_bits`, `max_steps_per_walker`, and `seed`, then call
+`python -m harness.sixclass_followup freeze`, `initial`, `followup`, and
+`finalize` with `--attempt`, `--binary`, and `--job`. The `followup` command
+also requires `--input`, `--reviewer`, and `--reason`. It refuses a second
+follow-up, a changed binary or job, and a changed runner. The
+[p25 protocol example](evidence/sixclass-followup-p25-20261024/) recovered
+the planted toy log in its single follow-up; its `local-smoke` reviewer label
+is an internal test, not independent review or secp256k1 evidence.
+
+The earlier conformance command is:
 
 ```sh
 python -m harness.sixclass_challenge \
