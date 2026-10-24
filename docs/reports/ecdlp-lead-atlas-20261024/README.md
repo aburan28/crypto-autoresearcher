@@ -32,6 +32,10 @@ algorithms' soundness. Rankings are this review's *proposal*.
 ![Leads by family and disposition](dispositions.svg)
 
 The chart counts filed dispositions. It does not certify their cited experiments.
+The typeset report is reproducible from `report.typ` with
+`typst compile report.typ report.pdf`; the generated PDF stays out of Git under
+the repository's artifact policy. The coverage table stays in Git because
+`tools/lead_atlas.py --check` reads it by path.
 
 ## Result
 
