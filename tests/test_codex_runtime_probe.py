@@ -498,7 +498,7 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     monkeypatch.setattr(codex_runtime.sqlite3, "connect", traced_connect)
     codex_runtime.probe_codex_session(**arguments)
     assert connect_calls[0][0][0].startswith("file:")
-    assert connect_calls[0][0][0].endswith("?mode=ro&immutable=1")
+    assert connect_calls[0][0][0].endswith("?mode=ro")
     assert connect_calls[0][1]["uri"] is True
     normalized = [" ".join(item.split()) for item in statements]
     selects = [item for item in normalized if item.upper().startswith("SELECT")]
@@ -507,6 +507,69 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     assert any(item.upper().startswith("PRAGMA QUERY_ONLY=ON") for item in normalized)
     assert not any(word in " ".join(normalized).upper()
                    for word in ("INSERT ", "UPDATE ", "DELETE ", "VACUUM"))
+
+
+def test_sqlite_reads_uncheckpointed_wal_row(tmp_path):
+    arguments, _, _, _, _, _ = _case(tmp_path)
+    state_db = Path(arguments["state_db"])
+    writer = sqlite3.connect(state_db)
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("UPDATE threads SET model=? WHERE id=?",
+                       ("wal-only-model", THREAD_ID))
+        writer.commit()
+        assert state_db.with_name(state_db.name + "-wal").exists()
+        stale = sqlite3.connect(f"file:{state_db}?mode=ro&immutable=1", uri=True)
+        try:
+            assert stale.execute("SELECT model FROM threads WHERE id=?",
+                                 (THREAD_ID,)).fetchone() == ("gpt-5.6-sol",)
+        finally:
+            stale.close()
+        assert codex_runtime._query_state_row(state_db, THREAD_ID)["model"] == "wal-only-model"
+    finally:
+        writer.close()
+
+
+def test_sqlite_immutable_fallback_only_without_wal(tmp_path, monkeypatch):
+    arguments, _, _, _, _, _ = _case(tmp_path)
+    state_db = Path(arguments["state_db"])
+    real_connect = sqlite3.connect
+    calls = []
+
+    def fail_plain_read(database_uri, **kwargs):
+        calls.append(database_uri)
+        if database_uri.endswith("?mode=ro"):
+            raise sqlite3.OperationalError("simulated macOS read failure")
+        return real_connect(database_uri, **kwargs)
+
+    monkeypatch.setattr(codex_runtime.sqlite3, "connect", fail_plain_read)
+    assert codex_runtime._query_state_row(state_db, THREAD_ID)["id"] == THREAD_ID
+    assert calls[0].endswith("?mode=ro")
+    assert calls[1].endswith("?mode=ro&immutable=1")
+
+
+@pytest.mark.parametrize("backend,model", [
+    ("openai-gpt6", "gpt-6-sol"),
+    ("openai-gpt61", "gpt-6.1-sol"),
+])
+def test_gpt6_backend_alias_matches_native_openai_provider(tmp_path, backend, model):
+    arguments, _, row, session, _, rollout = _case(tmp_path)
+    arguments.update(model=model, effort="high", backend=backend,
+                     policy="coordinator-orchestration-code", role="coordinator")
+    connection = sqlite3.connect(arguments["state_db"])
+    try:
+        connection.execute("UPDATE threads SET model=?, reasoning_effort=? WHERE id=?",
+                           (model, "high", THREAD_ID))
+        connection.commit()
+    finally:
+        connection.close()
+    turn = _turn(cwd=row["cwd"], model=model, effort="high")
+    rollout.write_text(json.dumps(session) + "\n" + json.dumps(turn) + "\n",
+                       encoding="utf-8")
+    body = codex_runtime.probe_codex_session(**arguments)["runtime_session_receipt"]
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["provider_matches"] is True
+    assert body["runtime"]["provider"] == "openai"
 
 
 def test_argv_is_a_list_with_shell_false_for_metacharacter_paths(tmp_path):
