@@ -297,9 +297,18 @@ class MultiJointReviewerTests(unittest.TestCase):
         problems = independence.check(self._plan(), reports)
         self.assertTrue(any("joints_owned" in p for p in problems), problems)
 
-    def test_scalar_verdict_still_works(self) -> None:
-        self.assertEqual(independence.check(self._plan(),
-                                           self._round(verdict="holds")), [])
+    def test_scalar_verdict_cannot_cover_multiple_joints(self) -> None:
+        problems = independence.check(self._plan(),
+                                      self._round(verdict="holds"))
+        self.assertTrue(any("per-joint verdict mapping" in p for p in problems),
+                        problems)
+
+    def test_scalar_verdict_still_works_for_one_joint(self) -> None:
+        plan = self._plan()
+        plan["joints"] = plan["joints"][:1]
+        reports = [("/tmp/a.yaml", _attestation(
+            "TASK-20260913-da3982", ["J1"], verdict="holds"))]
+        self.assertEqual(independence.check(plan, reports), [])
 
     def test_label_extraction(self) -> None:
         for name, label in (

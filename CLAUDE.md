@@ -12,7 +12,7 @@ earlier long form of this file stays unchanged at
 
 ## What is Claude Code specific
 
-- **Batch delivery**: follow AGENTS.md, "Model policy".
+- **Batch delivery** follows the model policy in AGENTS.md; Claude Code uses the same adapter path and custody rules.
 - **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
   `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
   Code only; `experiment-director` writes Haiku's task cards,
