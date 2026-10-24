@@ -55,3 +55,15 @@ At N=2^256 (m_opt ≈ 4-5): **guaranteed speedup ≥ 2.5-3.0x** (theorem), obser
 This is the FIRST PROVABLE speedup for prime-field ECDLP Semaev index calculus
 from the BKK mixed-volume theory. The theorem provides the combinatorial foundation
 for the empirical improvements in KN-FIND-2a8b7e.
+
+## Correction 2026-10-24 (CORR-20261024-851c82)
+
+Scoped to one claim only. The final sentence above, that the theorem "provides
+the combinatorial foundation for the empirical improvements in KN-FIND-2a8b7e",
+is refuted: EV-FALSIFY-67150b (2026-08-08) found the geometric growth law of
+KN-FIND-2a8b7e confounded with shrinking B, and the geometric and linear laws
+cannot both hold. KN-FIND-2a8b7e is superseded by KN-FIND-921fbf under CORR-20261024-851c82. The
+theorem itself is unaffected: EV-FALSIFY-67150b reproduces the (m+1)/2
+per-decomposition retention at every B tested. The observed "~3.3x" at
+N=2^256 cited above is the refuted extrapolation and is not support for the
+theorem's numeric consequences.

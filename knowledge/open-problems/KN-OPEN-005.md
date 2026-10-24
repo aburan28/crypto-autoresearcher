@@ -4,7 +4,23 @@ type: open_problem
 title: Is a non-generic ECDLP representation (jets, elliptic nets, incidence reporting) generic-group-model simulable, or can it supply k-dependent relations below the birthday bound?
 tags: [generic-group-model, birthday, jets, elliptic-nets, incidence, representation, prime-field, ecdlp, open]
 confidence: reported
-status: open
+status: closed_scoped
+closed_scoped_at: '2026-10-24'
+closed_scoped_by: [DEC-20260722-004, DEC-20260722-006]
+closed_scoped_as: >-
+  CLOSED FOR TWO BRANCHES ONLY. (1) Jet / dual-number representations: DEC-20260722-004
+  records the simulation theorem T4 (THM_JETBARRIER1), so the Omega(sqrt(l)) bound lifts
+  to the jet-augmented generic-group model, in-model. (2) Chord / incidence reporting:
+  DEC-20260722-006 records the EC-chord richness ceiling (THM_INCBARRIER1), proved in
+  the uniform-x sampling model only.
+still_open_in:
+  - >-
+    ELLIPTIC NETS (Somos values). Neither DEC addresses this branch.
+  - >-
+    SCOPE LIMITS OF THE TWO CLOSURES: jet closure is in-model (maximality of the
+    simulable class C2 and Weil-restriction / descent G2 are open); chord closure is
+    uniform-x only, with fixed / adversarial factor bases at B = p^alpha, alpha <= 1/2,
+    not certified.
 source_refs: [KN-LIT-011, KN-LIT-018, KN-TECH-005, KN-TECH-009]
 added: 2026-07-21
 superseded_by: null
@@ -38,3 +54,9 @@ GGM-simulable. A simulability proof closes a whole candidate family by theorem
 (cheap, decisive); a measured sub-birthday, k-dependent relation supply would be
 a genuine non-generic signal. It operationalizes the boundary of KN-OPEN-001 for
 representation-based attacks.
+
+## Status 2026-10-24
+Scoped closure of the jet branch (DEC-20260722-004) and the chord/incidence branch
+(DEC-20260722-006) only, each with the limitations those decisions record.
+Still open: the elliptic-net branch. Status field changed from `open` by the
+2026-10-24 refutation-propagation audit; nothing above this section was rewritten.

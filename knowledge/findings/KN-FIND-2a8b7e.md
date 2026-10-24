@@ -10,7 +10,7 @@ internal_refs: [EV-SEMAEV-47d130, EV-SEMAEV-473ea1, EV-SEMAEV-5d7580, EV-SEMAEV-
 proof_status: empirical_only
 proof_refs: []
 added: '2026-08-04'
-superseded_by: null
+superseded_by: KN-FIND-921fbf
 ---
 
 ## Finding
