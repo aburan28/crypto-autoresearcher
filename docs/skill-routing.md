@@ -140,6 +140,12 @@ routing and source interfaces, not scientific claims or live infrastructure.
 
 ## Maintain the map
 
+Curvesmash-style claim verification is available through
+[`autoresearch verify`](curvesmash-verification.md), a pinned optional backend.
+It supplies advisory review artifacts and does not replace `review-evidence`,
+the existing `run` skill, independent review plans or Coordinator transitions.
+Use `pr` for maintaining that integration and its source pins.
+
 When adding a reusable workflow, update its canonical description, host adapter,
 `docs/skill-catalog.json`, and the relevant inventory rows together. Include exact
 source/console interfaces, availability and execution/authority boundaries. Run
