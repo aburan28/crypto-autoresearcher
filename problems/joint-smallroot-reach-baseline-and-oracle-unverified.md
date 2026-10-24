@@ -1,9 +1,9 @@
 # Joint small-root baseline and executable decomposition remain unverified
 
 - **Status:** investigating
-- **Kind:** instrument-accounting defect under independent review; implementation and proof gaps; publication approval limit
+- **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; merge approval limit
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** coordinator; prepared blind review TASK-20261024-da3810 has not been dispatched
+- **Next action owner:** coordinator; blind mathematical derivation TASK-20261024-da3810 completed, optimized construction and full cost experiment remain open
 - **Last updated:** 2026-10-24
 
 ## Problem
@@ -31,8 +31,9 @@ prime-field IC baseline; software checks alone do not meet it.
   exponents s_i have determinant p^q times product(X_i^s_i). Divisibility p^t
   gives the determinant-level budget t*N-q. The legacy code uses q. At t=1
   for the 13-column S3 fixture these are 1 and 12 respectively. This is a
-  scoped arithmetic/software finding awaiting independent blind review, not
-  a closure of any attack family.
+  scoped arithmetic/software finding with a completed independent mathematical
+  derivation and separate parent implementation comparison, not a closure of
+  any attack family.
 - **Missing capability:** an applicable external optimized-shift theorem or
   implementation for the actual joint system; root extraction and its success
   measurements; random-target relation yield/rank; fully charged matched IC
@@ -44,6 +45,17 @@ prime-field IC baseline; software checks alone do not meet it.
   external publication without explicit authorization. No workaround was
   attempted. Local work continued. The repository's independent-dispatch
   rule requires published inputs, so the prepared blind review was not run.
+  The user subsequently authorized publication; the branch is now in
+  [PR #2547](https://github.com/aburan28/crypto-autoresearcher/pull/2547), and the
+  prepared blind review has been dispatched. Auto-merge was separately refused
+  as outside the publication authorization; the PR remains open.
+- **Independent derivation:** [TASK-20261024-da3810](../research/joint_smallroot_reach_20261024/independent-review.md)
+  independently derives K=tN-q, the full-box equal-beta determinant limit, and
+  the exact 13-column S3 determinant. It did not inspect the producer code or
+  artifacts and therefore returns inconclusive on implementation compatibility.
+  The [parent addendum](../research/joint_smallroot_reach_20261024/review-20261024/report.md)
+  compares the matching finite fixture and keeps this separate from a global
+  implementation, optimized-shift, root-extraction or pipeline validation.
 - **What this does not establish:** optimality of the tested shift families,
   impossibility of better decomposition, a validated replacement for 0.8408,
   a root-recovery rate, or an IC speedup. Equal-bound finite volume is not a
@@ -52,10 +64,11 @@ prime-field IC baseline; software checks alone do not meet it.
 
 ## What would unblock it
 
-- [ ] Authorize publication of the concrete local branch; publish the snapshot
-  and perform the prepared independent derivation before promoting the correction.
-- [ ] Reconcile baseline normalization, exact determinant arithmetic, applicable
-  shift family, LLL/norm losses, and root-extraction assumptions.
+- [x] Authorize publication of the concrete local branch and publish the snapshot.
+- [x] Perform the prepared independent mathematical derivation; no scientific-state promotion is made.
+- [x] Independently derive the finite determinant budget, exact fixture and LLL/norm correction.
+- [ ] Reconcile the optimized joint weighted-bound normalization, applicable
+  shift family, charged threshold and root-extraction assumptions.
 - [ ] Produce a real optimized joint construction, and test its bounds and
   verified root recovery on planted public synthetic instances under a frozen
   executable protocol; state the lattice reduction and memory costs.
@@ -71,9 +84,9 @@ moves.
 
 ## Next discriminating step
 
-- **Action:** complete the blind determinant derivation in TASK-20261024-da3810,
-  then bind a theorem-backed optimized joint shift construction to this same
-  budget convention before selecting a root-recovery panel.
+- **Action:** use the completed blind determinant derivation in TASK-20261024-da3810
+  to bind a theorem-backed optimized joint shift construction to this same budget
+  convention before selecting a root-recovery panel.
 - **Inputs and controls:** exact t=1 S3 coefficient matrix; univariate finite
   and asymptotic controls; historical frozen outputs; three-equation candidate
   matrices; generic-support and actual-coefficient distinctions.
@@ -92,3 +105,13 @@ moves.
 2026-10-24: additive audit and candidate finite accounting prepared locally;
 historical code and closure outputs retained. Independent review and the original
 pipeline-improvement requirement remain unresolved.
+
+2026-10-24 publication continuation: user authorization received; exact branch
+history pushed and PR #2547 opened. Prepared independent review dispatched against
+published inputs. Auto-merge remains approval-blocked; this is separate from the
+mathematical and implementation obligations.
+
+2026-10-24 review continuation: independent mathematical derivation and exact
+arithmetic fixture returned. Parent source comparison is recorded separately in
+the addendum. No optimized-shift certificate, joint root extraction, scientific
+state transition, or verified IC improvement is established.

@@ -4,7 +4,8 @@ Start with [report.md](report.md), [report.pdf](report.pdf), and the
 [named unresolved problem](../../problems/joint-smallroot-reach-baseline-and-oracle-unverified.md).
 The [protocol](PROTOCOL.md) fixes the finite diagnostic scope. This directory
 contains software accounting and exact fixtures, not a completed ECDLP experiment
-or an IC improvement claim. The independent blind review is prepared, not run.
+or an IC improvement claim. See the publication update below for current review status;
+the original report preserves the status at the time it was written.
 
 Reproduce into a **fresh** directory, preserving committed outputs:
 
@@ -31,6 +32,17 @@ and all 23 software tests pass again. This is a same-source replay, not the
 prepared independent mathematical review. The replay's raw outputs are retained
 under [artifacts/replay/](artifacts/replay/).
 
-Publication status: the branch is committed locally. Automatic approval review
-rejected the GitHub push; no PR or remote publication is claimed. The full goal
-remains unresolved, including independent review and a verified IC improvement.
+Publication update (2026-10-24): the user authorized publication after the initial
+automatic-review refusal. The exact branch history is now published in
+[PR #2547](https://github.com/aburan28/crypto-autoresearcher/pull/2547).
+The [blind review](independent-review.md) TASK-20261024-da3810 is complete against
+the committed input. It independently derives the determinant budget and exact
+fixture; its verdict on the unseen calculator implementation remains inconclusive.
+The [addendum](review-20261024/report.md) and [PDF](review-20261024/report.pdf)
+record the parent's scoped source comparison. Hosted CI is queued. Auto-merge was separately refused by automatic
+approval review because branch publication authorization did not cover a future
+merge into `main`; no alternative merge route was attempted.
+
+The full goal remains unresolved: an applicable optimized construction,
+weighted-bound normalization, root extraction, and a verified IC pipeline improvement remain
+separate obligations. The earlier report and raw artifacts have not been edited.
