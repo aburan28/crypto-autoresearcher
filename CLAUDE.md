@@ -31,9 +31,8 @@ earlier long form of this file stays unchanged at
   `design-experiment`, `review-evidence`, `research-status`, `deep-research`,
   `curate-knowledge`, `agent-bus`, `consolidate-lanes`, `tune-skill`,
   `research-visuals`, `audit-curve`, `transfer`, `audit-runs` (periodic
-  runbook-session audit), `lead-atlas` (what ECDLP leads were already
-  tried; the session-start brief says whether anything is new). Each ends
-  by writing its session receipt.
+  runbook-session audit), `lead-atlas`. Each ends by writing its session
+  receipt.
 - **Retrieval**: `.mcp.json` starts the read-only `kb/` server (relative
   `--directory`; machine settings in `kb/.env`). The derived index starts
   empty: `make -C kb qdrant-up`, `crypto-kb stage-repo .`, `crypto-kb ingest`.
@@ -41,8 +40,6 @@ earlier long form of this file stays unchanged at
 ## Typical loop
 
 ```text
-(session-start brief)            # lead atlas: nothing new since review? then
-                                #   work open next steps, not a re-survey
 /research-status                # read the census, not the corpus
 /coordinate                     # rank, approve (capacity + runnable), dispatch, archive
   → /propose-ideas RQ-...

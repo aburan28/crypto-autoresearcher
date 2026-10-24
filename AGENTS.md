@@ -308,20 +308,6 @@ and record the missing launcher in the goal's `next_action`. An approved, unrun
 contract is neither evidence nor a failure of its hypothesis. Rank runnable
 work ahead of drafting more contracts when it offers a justified next run.
 
-## Already done is computed: the ECDLP lead atlas
-
-`knowledge/leads/ecdlp/` holds one row per ECDLP lead this program has
-touched, across this repository, crypto, cryptanalysis and ecc-challenges.
-Each row gives its disposition, and either the obstruction that closed it or
-the next step that decides it. `REVIEW_STATE.json` pins the commit each
-repository was reviewed at, so `python3 tools/lead_atlas.py --brief` (printed at
-session start) says whether anything changed since. When nothing has changed,
-do not re-survey: work the open leads' next steps or propose a new lead. When
-something has changed, fold it in with the `lead-atlas` skill and `--stamp`.
-Every ECDLP idea from IDEA-20261025-* names its lead in `prior_art.lead`
-(`tools/validate_ledger.py`). The atlas changes no research status, and
-saturation pauses no goal. Rules: `knowledge/leads/ecdlp/README.md`.
-
 ## Research direction
 
 Target profile: Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
