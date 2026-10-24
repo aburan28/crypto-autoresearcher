@@ -30,6 +30,7 @@ def audit(job: Path, binary: Path, walkers: int, trials: int,
             or not native.get("unpriced")):
         raise ValueError("native comparison does not match the requested job and bounds")
     source = json.loads(job.read_text())
+    branches = source["curve"]["num_branches"]
     rows = []
     for index, trial in enumerate(native["trials"]):
         if trial.get("index") != index:
@@ -47,6 +48,14 @@ def audit(job: Path, binary: Path, walkers: int, trials: int,
             if arm["log"] is not None and not sixclass_native.verify_log(source, arm["log"]):
                 raise ValueError(f"invalid recovered logarithm in {name}")
         before, candidate, after = (trial[name] for name in ARMS)
+        routing = candidate.get("route_by_twist")
+        if routing is not None:
+            if (not isinstance(routing, list) or len(routing) != 6
+                    or any(not isinstance(class_row, list) or len(class_row) != branches
+                           or any(type(count) is not int or count < 0 for count in class_row)
+                           for class_row in routing)
+                    or sum(map(sum, routing)) != candidate["class_visits"]):
+                raise ValueError("invalid six-class routing telemetry")
         if before["method"] != after["method"] or before["method"] != native["baseline"]:
             raise ValueError("A/A baseline methods differ")
         # The same seeds, target, and walkers make A/A counters deterministic.
@@ -59,6 +68,11 @@ def audit(job: Path, binary: Path, walkers: int, trials: int,
                      "baseline_after_ns": after["total_ns"],
                      "baseline_drift_ratio": (after["total_ns"] / before["total_ns"]
                                               if before["total_ns"] else None),
+                     "routing_screen": ({"twist_visits": [sum(c) for c in routing],
+                                          "branch_visits": [sum(c[j] for c in routing)
+                                                            for j in range(branches)],
+                                          "independent_samples": False}
+                                         if routing is not None else None),
                      "six_class_to_bracket_mean_ratio":
                      (candidate["total_ns"] / ((before["total_ns"] + after["total_ns"]) / 2)
                       if before["total_ns"] + after["total_ns"] else None)})

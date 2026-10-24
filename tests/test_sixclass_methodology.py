@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 JOB = ROOT / "harness/fixtures/sixclass_p25.json"
 
 
-def test_paired_aa_control_and_cost_claim_gate():
+def test_paired_aa_control_and_cost_claim_gate(tmp_path):
     native = json.loads((ROOT / "harness/evidence/sixclass-paired-p25-20261024.json").read_text())["native"]
     receipt = sixclass_paired.audit(JOB, Path(__file__), 100, 2, native, 1)
     assert len(receipt["paired_rows"]) == 2
@@ -21,6 +21,23 @@ def test_paired_aa_control_and_cost_claim_gate():
     broken["trials"][0]["baseline_after"]["class_visits"] += 1
     with pytest.raises(ValueError, match="A/A controls"):
         sixclass_paired.audit(JOB, Path(__file__), 100, 2, broken, 1)
+    telemetered = copy.deepcopy(native)
+    for trial in telemetered["trials"]:
+        candidate = trial["six_class"]
+        counts = [[0] * 32 for _ in range(6)]
+        counts[0][0] = candidate["class_visits"]
+        candidate["route_by_twist"] = counts
+    routed = sixclass_paired.audit(JOB, Path(__file__), 100, 2, telemetered, 1)
+    assert routed["paired_rows"][0]["routing_screen"]["twist_visits"][0] > 0
+    routed_path = tmp_path / "routed.json"
+    routed_path.write_text(json.dumps(routed))
+    h1 = sixclass_assumptions.report([routed_path])
+    assert {row["id"] for row in h1["clauses"] if row["observations"]} == {
+        "partition-dp-routing-bits", "twist-index-independence", "surcharge-rates"}
+    assert not h1["production_claim_admissible"]
+    telemetered["trials"][0]["six_class"]["route_by_twist"][0][0] += 1
+    with pytest.raises(ValueError, match="routing telemetry"):
+        sixclass_paired.audit(JOB, Path(__file__), 100, 2, telemetered, 1)
     coverage = sixclass_assumptions.report([])
     assert len(coverage["clauses"]) == 5
     assert not coverage["production_claim_admissible"]

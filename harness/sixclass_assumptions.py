@@ -31,8 +31,15 @@ def report(receipts: list[Path], matrix: Path = MATRIX) -> dict:
                     or not data.get("paired_rows")
                     or not data.get("native", {}).get("unpriced")):
                 raise ValueError("paired receipt omits cost or scope controls")
-            informs = ["surcharge-rates"]
-            limitation = "partial counters and A/A drift only; full-work costs unpriced"
+            routing = [row.get("routing_screen") for row in data["paired_rows"]]
+            if any(row is not None for row in routing):
+                informs = ["partition-dp-routing-bits", "twist-index-independence",
+                           "surcharge-rates"]
+                limitation = ("routing counts and A/A drift are descriptive; correlated visits "
+                              "are not independent H1 samples and full-work costs remain unpriced")
+            else:
+                informs = ["surcharge-rates"]
+                limitation = "partial counters and A/A drift only; full-work costs unpriced"
         elif schema == "crypto.autoresearch.sixclass-isolated.v1":
             if data.get("phase") == "custody" and "publication" in data:
                 informs = []
