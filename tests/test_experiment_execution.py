@@ -6,14 +6,16 @@ exercise the adapter's contract with its emitted plan, not a live campaign.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import json
+import gzip
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
@@ -47,8 +49,26 @@ manifest = {"run": {"id": p.name, "experiment_id": p.parent.parent.name, "status
                     "code": {"commit": "0" * 40, "command": "driver.py measure"},
                     "environment": {"python": "fixture"}, "inputs": {"parameters": {}},
                     "timing": {"wall_seconds": 0}, "result": {"certificate": {"kind": "none"}}}}
-if kind == "bare_manifest":  # RUN-SEMBIN-9ecb77's shape: metrics, no run schema
+if kind == "bare_manifest":  # metrics only, and no attack_claimed to derive a certificate from
     manifest = {"run": {"experiment_id": p.parent.parent.name, "metrics": {"planted_ok": True}}}
+if kind in ("partial", "claimed", "wrong_id"):  # RUN-SEMBIN-9ecb77's partial envelope
+    manifest = {"run": {"experiment_id": p.parent.parent.name, "run_id": p.name,
+                        "attack_claimed": kind == "claimed", "metrics": {"planted_ok": True}}}
+    if kind == "wrong_id":
+        manifest["run"]["run_id"] = "RUN-ECDLP-ffffff"
+if kind == "flat":  # the older flat shape: no run: envelope at all
+    manifest = {"experiment_id": p.parent.parent.name, "attack_claimed": False,
+                "status": "completed", "metrics": {"planted_ok": True}}
+if kind == "complete_wrong_id":
+    manifest["run"]["id"] = "RUN-ECDLP-ffffff"
+if kind == "complete_wrong_alias":
+    manifest["run"]["run_id"] = "RUN-ECDLP-ffffff"
+if kind == "complete_wrong_experiment":
+    manifest["run"]["experiment_id"] = "EXP-ECDLP-ffffff"
+if kind == "claimed_none":
+    manifest["run"]["attack_claimed"] = True
+if kind == "bad_code":
+    manifest["run"]["code"] = "invalid mapping"
 (p / "manifest.yaml").write_text(json.dumps(manifest))  # JSON is valid YAML
 if kind == "empty_manifest":
     (p / "manifest.yaml").write_text("")
@@ -209,9 +229,149 @@ class ExecutionTests(unittest.TestCase):
                 receipt = execution.read_json(self.directory() / "execution-receipt.json")
                 self.assertEqual(receipt["status"], "invalid_output")
                 if mode == "bare_manifest":
-                    self.assertEqual(receipt["check_returncode"], 0)
+                    # Refused before the checker: nothing it sees may be published.
+                    self.assertIsNone(receipt["check_returncode"])
                     self.assertIn("manifest.yaml fails the run schema", receipt["detail"])
-                    self.assertIn("run missing required field 'code'", receipt["detail"])
+                    self.assertIn("certificate.kind", receipt["detail"])
+
+    def run_single(self, index, mode):
+        self.plan["trials"] = [self.trial(index, mode)]
+        self.write_plan_queue(); self.commit()
+        report = self.run_plan()
+        receipt = execution.read_json(self.directory() / "execution-receipt.json")
+        return report, receipt
+
+    def test_partial_envelope_is_completed_from_publish_time_facts(self):
+        # DEC-20261017-0fab25: the driver's partial run envelope was published
+        # unchanged, 11 validate_ledger errors per run. It now gets a complete
+        # envelope from the plan, launch authority and supervisor clock only.
+        for index, mode in enumerate(("partial", "flat"), 20):
+            with self.subTest(mode=mode):
+                self.plan["hypothesis_id"] = "H-ECDLP-aabbcc"
+                report, receipt = self.run_single(index, mode)
+                self.assertEqual(receipt["status"], "output_validated", receipt["detail"])
+                self.assertEqual(report["output_validated"], 1)
+                manifest_path = self.directory() / "manifest.yaml"
+                self.assertEqual(execution.manifest_schema_errors(manifest_path), [])
+                self.assertNotIn("&id", manifest_path.read_text())  # no YAML aliases
+                run = execution.yaml.safe_load(manifest_path.read_text())["run"]
+                trial = self.plan["trials"][0]
+                self.assertEqual(run["id"], trial["run_id"])
+                self.assertEqual(run["experiment_id"], self.exp)
+                self.assertEqual(run["hypothesis_id"], "H-ECDLP-aabbcc")
+                self.assertEqual(run["code"]["commit"], receipt["authority"]["commit"])
+                self.assertEqual(json.loads(run["code"]["command"]),
+                                 json.loads((self.directory() / "command.txt").read_text()))
+                self.assertEqual(run["environment"]["commit"], receipt["authority"]["commit"])
+                self.assertEqual(run["inputs"]["plan_sha256"], execution.sha256(self.path))
+                self.assertNotIn("seed", run["inputs"])  # the plan declares none: not invented
+                self.assertEqual(run["timing"]["started_at"], receipt["started_at"])
+                self.assertEqual(run["result"]["certificate"]["kind"], "none")
+                self.assertIsNone(run["result"]["certificate"]["verified"])
+                self.assertEqual(run["result"]["metrics"], {"planted_ok": True})
+                # The driver's own values are kept as written.
+                self.assertIs(run["attack_claimed"], False)
+                self.assertEqual(run["metrics"], {"planted_ok": True})
+                if mode == "partial":
+                    self.assertEqual(run["run_id"], trial["run_id"])
+                    self.assertEqual(run["status"], "completed")
+                completion = receipt["manifest_completion"]
+                self.assertEqual(completion["action"], "completed")
+                self.assertEqual(completion["driver_shape"], "nested" if mode == "partial" else "flat")
+                original = completion["driver_manifest_text"].encode()
+                self.assertEqual(hashlib.sha256(original).hexdigest(),
+                                 completion["driver_manifest_sha256"])
+                self.assertEqual(run["envelope_completion"]["driver_manifest_sha256"],
+                                 completion["driver_manifest_sha256"])
+                self.assertEqual(receipt["artifact_sha256"]["manifest.yaml"],
+                                 execution.sha256(manifest_path))
+                self.assertFalse((self.directory() / ".manifest.candidate.yaml").exists())
+                self.assertEqual(execution.coverage(self.root, self.path)["trials"][trial["id"]],
+                                 "output_validated")
+
+    def test_complete_driver_manifest_is_published_byte_for_byte(self):
+        report, receipt = self.run_single(30, "ok")
+        self.assertEqual(receipt["status"], "output_validated")
+        self.assertEqual(receipt["manifest_completion"]["action"], "unchanged")
+        self.assertEqual(json.loads((self.directory() / "manifest.yaml").read_text())["run"]["code"]["command"],
+                         "driver.py measure")
+
+    def test_complete_shape_cannot_bypass_identity_or_claim_checks(self):
+        for index, mode in enumerate(("complete_wrong_id", "complete_wrong_alias",
+                                      "complete_wrong_experiment", "claimed_none",
+                                      "bad_code"), 50):
+            with self.subTest(mode=mode):
+                report, receipt = self.run_single(index, mode)
+                self.assertEqual(report["output_validated"], 0)
+                self.assertEqual(receipt["status"], "invalid_output")
+                self.assertIsNone(receipt["check_returncode"])
+                self.assertIsNone(receipt["manifest_completion"])
+                self.assertTrue(receipt["detail"])
+                manifest = self.directory() / "manifest.yaml"
+                self.assertNotIn("envelope_completion", manifest.read_text())
+                self.assertEqual(receipt["artifact_sha256"]["manifest.yaml"],
+                                 execution.sha256(manifest))
+
+    def test_backwards_supervisor_clock_is_not_zero_duration(self):
+        _, receipt = self.run_single(61, "partial")
+        directory = self.directory()
+        original = receipt["manifest_completion"]["driver_manifest_text"].encode()
+        manifest = directory / "manifest.yaml"
+        manifest.write_bytes(original)
+        launch = execution.read_json(directory / "launch.json")
+        earlier = (datetime.fromisoformat(launch["started_at"]) - timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(execution.EnvelopeRefused, "clock"):
+            execution.complete_manifest(
+                directory, self.plan, self.path.relative_to(self.root).as_posix(),
+                execution.sha256(self.path), self.plan["trials"][0], launch["authority"],
+                launch["argv"], launch["check_argv"], launch["started_at"], earlier)
+        self.assertEqual(manifest.read_bytes(), original)
+
+    def test_envelope_that_cannot_be_completed_is_refused_loudly(self):
+        cases = {"bare_manifest": "certificate.kind",  # no claim recorded: nothing to derive
+                 "claimed": "attack_claimed",          # a claim needs the driver's certificate
+                 "wrong_id": "contradicts"}            # never overwrite a driver value
+        for index, (mode, message) in enumerate(cases.items(), 40):
+            with self.subTest(mode=mode), patch("sys.stderr") as stderr:
+                report, receipt = self.run_single(index, mode)
+                self.assertEqual(report["output_validated"], 0)
+                self.assertEqual(report["needs_reconciliation"], 1)
+                self.assertEqual(receipt["status"], "invalid_output")
+                self.assertIsNone(receipt["check_returncode"])
+                self.assertIn(message, receipt["detail"])
+                self.assertIsNone(receipt["manifest_completion"])
+                written = "".join(call.args[0] for call in stderr.write.call_args_list)
+                self.assertIn(f"{self.plan['trials'][0]['run_id']}: refused", written)
+                # The driver's bytes stay as written, hash-bound in the receipt.
+                manifest = self.directory() / "manifest.yaml"
+                self.assertNotIn("envelope_completion", manifest.read_text())
+                self.assertEqual(receipt["artifact_sha256"]["manifest.yaml"], execution.sha256(manifest))
+                self.assertFalse((self.directory() / ".manifest.candidate.yaml").exists())
+
+    def test_committed_partial_envelope_reproduces_and_completes(self):
+        # The bytes RUN-SEMBIN-9ecb77 was published with (DEC-20261017-0fab25).
+        # Its committed record is never edited; this completes a copy.
+        repo = Path(__file__).resolve().parents[1]
+        source = repo / "experiments/EXP-SEMBIN-7c8e98/runs/RUN-SEMBIN-9ecb77"
+        plan_path = repo / "experiments/EXP-SEMBIN-7c8e98/trial-plan.json"
+        if not (source / "manifest.yaml").is_file() or not plan_path.is_file():
+            self.skipTest("EXP-SEMBIN-7c8e98 is not materialized in this checkout")
+        directory = self.root / "runs" / "RUN-SEMBIN-9ecb77"
+        directory.mkdir(parents=True)
+        for name in ("manifest.yaml", "raw-result.json", "command.txt", "environment.json",
+                     "stdout.log", "stderr.log"):
+            (directory / name).write_bytes((source / name).read_bytes())
+        self.assertEqual(len(execution.manifest_schema_errors(directory / "manifest.yaml")), 11)
+        plan = json.loads(plan_path.read_text())
+        launch = json.loads((source / "launch.json").read_text())
+        completion = execution.complete_manifest(
+            directory, plan, plan_path.relative_to(repo).as_posix(), execution.sha256(plan_path),
+            plan["trials"][0], launch["authority"], launch["argv"], launch["check_argv"],
+            launch["started_at"], launch["started_at"])
+        self.assertEqual(execution.manifest_schema_errors(directory / "manifest.yaml"), [])
+        self.assertEqual(completion["driver_manifest_text"], (source / "manifest.yaml").read_text())
+        run = execution.yaml.safe_load((directory / "manifest.yaml").read_text())["run"]
+        self.assertEqual((run["id"], run["hypothesis_id"]), ("RUN-SEMBIN-9ecb77", "H-SEMBIN-371c51"))
 
     def empty_trial(self, index, mode, allowed=True):
         trial = self.trial(index, mode)
@@ -360,9 +520,12 @@ class ExecutionTests(unittest.TestCase):
             self.assertGreater(calls, 1)
             with patch.object(execution, "darwin_group_rss_bytes",
                               side_effect=execution.ExecutionError("monitor unavailable")):
+                # Stay alive past the one-second libproc transition grace.
+                # A child exiting in that grace legitimately returns "exited".
+                persistent = [sys.executable, "-c", "import time; time.sleep(30)"]
                 with self.assertRaisesRegex(execution.ExecutionError, "monitor unavailable"):
                     execution.run_process(
-                        argv, self.root, self.directory(), "unavailable.", trial,
+                        persistent, self.root, self.directory(), "unavailable.", trial,
                         authority, lock.fileno())
 
     def test_watchdog_preserves_failure_not_scientific_conclusion(self):
@@ -371,6 +534,42 @@ class ExecutionTests(unittest.TestCase):
         self.write_plan_queue(); self.commit()
         self.assertFalse(self.run_plan()["measurement_complete"])
         self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "watchdog_expired")
+
+    def test_large_artifacts_are_stored_compressed_and_bound_by_content(self):
+        store = execution.artifact_store
+        with mock.patch.object(store, "COMPRESS_MIN", 1):
+            self.assertTrue(self.run_plan()["measurement_complete"])
+        directory = self.directory()
+        self.assertFalse((directory / "raw-result.json").exists())
+        self.assertTrue((directory / "raw-result.json.gz").is_file())
+        self.assertTrue((directory / "manifest.yaml").is_file())          # read first; kept as written
+        receipt = json.loads((directory / "execution-receipt.json").read_text())
+        entry = receipt["artifact_storage"]["raw-result.json"]
+        content = store.read_bytes(directory / "raw-result.json")
+        self.assertEqual(receipt["artifact_sha256"]["raw-result.json"], entry["content_sha256"])
+        self.assertEqual(entry["content_sha256"], hashlib.sha256(content).hexdigest())
+        self.assertNotIn("manifest.yaml", receipt["artifact_storage"])
+        self.assertTrue(self.run_plan()["measurement_complete"])           # verifies, never relaunches
+        (directory / "raw-result.json.gz").chmod(0o644)
+        (directory / "raw-result.json.gz").write_bytes(gzip.compress(b'{"effect": 100}', mtime=0))
+        self.assertEqual(self.run_plan()["needs_reconciliation"], 1)
+
+    def test_largest_artifacts_offload_to_the_blob_store_as_pointers(self):
+        store = execution.artifact_store
+        blobs = self.root.parent / (self.root.name + "-blobs")
+        env = {"CRYPTO_AR_BLOBSTORE": blobs.as_uri(),
+               "CRYPTO_AR_BLOB_CACHE": str(self.root.parent / (self.root.name + "-cache"))}
+        with mock.patch.dict(os.environ, env), mock.patch.object(store, "COMPRESS_MIN", 1), \
+                mock.patch.object(store, "OFFLOAD_MIN", 1):
+            self.assertTrue(self.run_plan()["measurement_complete"])
+            directory = self.directory()
+            pointer = directory / "raw-result.json.gz.blob.json"
+            self.assertTrue(pointer.is_file())
+            receipt = json.loads((directory / "execution-receipt.json").read_text())
+            self.assertEqual(receipt["artifact_storage"]["raw-result.json"]["path"], pointer.name)
+            self.assertEqual(hashlib.sha256(store.read_bytes(directory / "raw-result.json")).hexdigest(),
+                             receipt["artifact_sha256"]["raw-result.json"])
+            self.assertTrue(self.run_plan()["measurement_complete"])
 
     def test_artifact_tampering_requires_reconciliation(self):
         self.run_plan()
