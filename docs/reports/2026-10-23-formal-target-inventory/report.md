@@ -28,6 +28,21 @@ At full-history checkout `07ac4a7d1a61d05929140f1320e99cfcb273dca5`, the formal 
 
 ## What remains
 
-File presence, kernel acceptance, and allowed axioms are necessary technical checks. They do not prove that the statements faithfully encode all 84 current target claims, independently validate source measurements, or cover the thousands of archived experiment directories. A current-head per-target verifier sweep for the remaining targets and independent semantic review remain claim-level gates; these two declaration audits and the one batch-five per-target receipt do not replace them. The [open semantic-fidelity problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) names the exact coverage and review obligations. The earlier [2026-10-20 formal validation report](../2026-10-20-formal-validation/report.md) recorded 62 machine-verified targets and four then-undischarged targets at its own source commit. These later audits establish the named declaration inventories and builds without rewriting that dated result.
+File presence, kernel acceptance, and allowed axioms are necessary technical checks. They do not prove that the statements faithfully encode all 84 current target claims, independently validate source measurements, or cover the thousands of archived experiment directories. The full per-target sweep below closes the machine-verification gap for its named tree; independent semantic and execution review remain claim-level gates. The [open semantic-fidelity problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) names the exact coverage and review obligations. The earlier [2026-10-20 formal validation report](../2026-10-20-formal-validation/report.md) recorded 62 machine-verified targets and four then-undischarged targets at its own source commit. These later audits establish the named declaration inventories and builds without rewriting that dated result.
+
+## Additive full per-target sweep — 2026-10-24
+
+The full-history checkout at `1c572eb4be33e1cb7fbcd5d50d3982a6eccc6696` produced [84 per-target verifier receipts](evidence/full-target-sweep/receipts/), with **84 `machine_verified`, zero pending, and zero receipt mismatches** in the [aggregate audit](evidence/full-target-sweep/receipt-audit.json). Each receipt binds its task spec, requested theorem file, toolchain and Lake manifest by SHA-256; the repository verifier reports the build and axiom audit passed with no forbidden constructs. Every receipt still marks independent semantic review `pending`.
+
+The sweep's formal tree is `0dd2764cff0c0ec05c4938f12b334ec60376d9ff`, identical to main `bed002e64873c01a10082e1ad464bf0f9159fdce`. All 29 distinct target source documents also have identical Git blob IDs in those two commits, recorded in the [source equivalence receipt](evidence/full-target-sweep/main-source-equivalence.json). The [standalone checker](check_full_sweep.py) recomputes all 84 input hashes, receipt hashes, statuses, and source identities from a full checkout at the sweep commit:
+
+```sh
+python docs/reports/2026-10-23-formal-target-inventory/check_full_sweep.py \
+  --repo /path/to/full/checkout-at-1c572eb4
+```
+
+The original verifier hit an NFS toolchain timeout on one target before making a mathematical conclusion; that [infrastructure receipt](evidence/full-target-sweep/infrastructure-failures/endosweep-blinding-mod-n-original-nfs-timeout.json) is preserved. After the original process stopped, the missing targets ran through an exact local copy of the pinned Lean 4.35.0-rc1 toolchain; the separate scoped target used its pinned Lean 4.22.0 toolchain. The [resume log](evidence/full-target-sweep/resume.log) ends with exit zero and the independent checker passes. No failed mathematical result was overwritten or counted as verified.
+
+This evidence establishes machine acceptance for the named target set and source bytes. It does **not** establish that each theorem has the intended scientific meaning or that 84 targets cover every historical experiment. The `lean-verification` hosted workflow was re-enabled after the sweep and dispatched on named main as [run 40045920236](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40045920236); its hosted result is a separate gate.
 
 No benchmark value, canonical scientific graph, performance dashboard, or official hypothesis state changed. The dashboard publication gate and its unresolved ledger integrity warnings are tracked separately in the [Pages preflight report](../2026-10-23-pages-publication-preflight/report.md).
