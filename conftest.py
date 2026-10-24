@@ -30,6 +30,23 @@ def _no_bindings_overlay():
             os.environ[config_module.BINDINGS_OVERLAY_ENV] = previous
 
 
+@pytest.fixture(autouse=True)
+def _no_git_auto_maintenance_in_sealed_repository_fixtures(request, monkeypatch):
+    # These tests create and immediately seal temporary Git repositories. The
+    # custody checker correctly rejects objects/maintenance.lock, so fixture
+    # Git commands must not launch background maintenance between those steps.
+    if request.node.path.name != "test_p192_wcm_role2_interface.py":
+        return
+    for key, value in {
+        "GIT_CONFIG_COUNT": "2",
+        "GIT_CONFIG_KEY_0": "maintenance.auto",
+        "GIT_CONFIG_VALUE_0": "false",
+        "GIT_CONFIG_KEY_1": "gc.auto",
+        "GIT_CONFIG_VALUE_1": "0",
+    }.items():
+        monkeypatch.setenv(key, value)
+
+
 def pytest_collection_modifyitems(items):
     # Execute reviewed, hash-bound successors without modifying frozen tests.
     from tools.ci_test_supersession import apply_supersession
