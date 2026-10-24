@@ -1,6 +1,11 @@
 ---
 name: ic
-description: "Inspect existing index-calculus artifacts, factor-base definitions, relation quality, decomposition metrics, Frobenius phases, and independent-rank accounting. Use for IC implementation review or experiment design support on synthetic examples; use solver for polynomial or linear algebra diagnostics and run for existing trials."
+description: >-
+  Inspect index-calculus artifacts: factor bases, relation quality,
+  decomposition metrics, Frobenius phases and independent-rank accounting.
+  Use for IC review or experiment design support on synthetic examples; use
+  solver for linear algebra and run for trials.
+
 ---
 
 # Relation analysis
