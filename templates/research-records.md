@@ -469,7 +469,16 @@ prior_art:
       relation: special_case                       # same | special_case | generalizes | adjacent | orthogonal
       delta: "what this idea adds, quantitatively, or 'none'"
   searched: {corpus_grep: [...], web: [...], blocked: []}   # optional, free-form
+  lead: LEAD-ICB-frobenius-invariant-factor-base   # the program's own lead this advances, or: new
+  new_lead_reason: null                            # required when lead is 'new'
 ```
+
+`lead` names the lead-atlas row (`knowledge/leads/ecdlp/`) the idea advances,
+found with `python3 tools/lead_atlas.py --match "<claim + mechanism>"`. It is
+required for ECDLP ideas from IDEA-20261025-* on (`LEAD_CUTOVER`). An idea
+under a closed lead says in its mechanism why the lead's obstruction does not
+apply; `lead: new` adds the new lead to the atlas in the same PR. `nearest`
+may also cite a `LEAD-*` id with provenance `internal`.
 
 `novelty_status: known` requires a `nearest` entry with relation `same` or
 `special_case` whose provenance is not `recalled`. See
