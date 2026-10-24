@@ -1,12 +1,11 @@
 ---
 name: deep-research
 description: >-
-  Analyze the whole portfolio (ledger, knowledge corpus, literature) and
-  produce a ranked, justified shortlist of experiments to run next,
-  dispatching idea-generator and the coordinator, with an optional red-team
-  stress test. Read-only. Use when asked what to work on next, for a roadmap
-  or priority ranking, when a goal's next_action needs deeper justification,
-  or before a new campaign on an open question.
+  Read-only portfolio analysis (ledger, knowledge corpus, literature) that
+  produces a ranked, justified shortlist of experiments to run next,
+  dispatching idea-generator and the coordinator, with optional red-team. Use
+  for what to work on next, a roadmap or priority ranking, or before a new
+  campaign.
 
 ---
 
