@@ -33,24 +33,20 @@ def report(receipts: list[Path], matrix: Path = MATRIX) -> dict:
                 raise ValueError("paired receipt omits cost or scope controls")
             informs = ["surcharge-rates"]
             limitation = "partial counters and A/A drift only; full-work costs unpriced"
-        elif schema in ("crypto.autoresearch.sixclass-native.v1",
-                        "crypto.autoresearch.sixclass-isolated.v1"):
-            if schema.endswith("isolated.v1") and data.get("phase") != "custody":
-                result = data.get("result", {})
-                informs = ["partition-dp-routing-bits", "nonfruitless-return"]
-                limitation = "one endpoint or answer check; no held-out distribution"
-                if "distinguished" not in result and data.get("phase") != "answer-check":
-                    raise ValueError("unrecognized isolated receipt")
-            elif schema.endswith("isolated.v1"):
-                if data.get("phase") != "custody" or "publication" not in data:
-                    raise ValueError("malformed custody receipt")
+        elif schema == "crypto.autoresearch.sixclass-isolated.v1":
+            if data.get("phase") == "custody" and "publication" in data:
                 informs = []
                 limitation = "challenge custody only; no H1 sampling"
+            elif data.get("phase") == "answer-check" and data.get("result", {}).get("schema") == "crypto.sixclass.answer-check.v1":
+                informs = []
+                limitation = "answer correctness only; no H1 sampling"
             else:
-                if "result" not in data or "job_sha256" not in data:
-                    raise ValueError("malformed native worker receipt")
-                informs = ["partition-dp-routing-bits", "nonfruitless-return"]
-                limitation = "one endpoint; no held-out distribution"
+                raise ValueError("malformed isolated receipt")
+        elif schema == "crypto.autoresearch.sixclass-native.v1":
+            if "result" not in data or "job_sha256" not in data:
+                raise ValueError("malformed native worker receipt")
+            informs = ["partition-dp-routing-bits", "nonfruitless-return"]
+            limitation = "one endpoint; no held-out distribution"
         else:
             raise ValueError(f"unsupported receipt schema: {schema}")
         observations.append({"path": str(path), "sha256": sixclass_native.digest(path),

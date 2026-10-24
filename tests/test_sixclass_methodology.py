@@ -25,6 +25,8 @@ def test_paired_aa_control_and_cost_claim_gate():
     assert len(coverage["clauses"]) == 5
     assert not coverage["production_claim_admissible"]
     assert all(row["status"] == "open" for row in coverage["clauses"])
+    answer = ROOT / "harness/evidence/sixclass-isolated-secp256k1-20261024/answer-receipt.json"
+    assert sixclass_assumptions.report([answer])["observations"][0]["informs"] == []
 
 
 def test_followup_is_write_once_and_frozen(tmp_path, monkeypatch):
