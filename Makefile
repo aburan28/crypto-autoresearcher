@@ -102,6 +102,7 @@ check-ledger: check-merge
 	$(PYTHON) tools/port_autolab_experiments.py --verify
 	$(PYTHON) tools/build_source_index.py --check
 	$(PYTHON) tools/build_frontier_map.py --check
+	$(PYTHON) tools/lead_atlas.py --check
 
 # Read-only dashboard over ledger/, experiments/ and knowledge/. Writes
 # nothing -- no ledger record, no coordination state, no derived file. See

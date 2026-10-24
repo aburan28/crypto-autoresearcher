@@ -1,0 +1,82 @@
+name: blobstore
+
+# A committed blob pointer (`*.blob.json`, tools/artifact_store.py) is only as
+# good as the object it names. After each push to main that adds pointers,
+# confirm every object exists in S3 at its recorded size. The PR gate
+# (tools/repo_size.py) already refused pointers that do not address the shared
+# store; this proves the upload happened. docs/artifact-storage.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.blob.json'
+      - '.github/workflows/blobstore.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: blobstore
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AWS_REGION: ${{ vars.BLOBSTORE_AWS_REGION || vars.REPORTS_AWS_REGION || 'us-west-2' }}
+      ROLE_ARN: ${{ vars.BLOBSTORE_S3_ROLE_ARN }}
+      KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    steps:
+      - name: Which credentials
+        id: creds
+        run: |
+          if [ -n "$ROLE_ARN" ]; then mode=role
+          elif [ -n "$KEY_ID" ]; then mode=keys
+          else
+            mode=none
+            echo "::notice::No S3 credentials (vars.BLOBSTORE_S3_ROLE_ARN or secrets.AWS_ACCESS_KEY_ID): blob pointers were not checked. See docs/artifact-storage.md."
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.creds.outputs.mode != 'none'
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tools/artifact_store.py
+            **/*.blob.json
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'role'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'keys'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check this push's pointers resolve
+        if: steps.creds.outputs.mode != 'none'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          pip install --quiet boto3
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "${BEFORE:-}" ] \
+             && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            git diff -z --name-only --diff-filter=AM "$BEFORE" "$GITHUB_SHA" -- ':(glob)**/*.blob.json' > pointers.z
+          else
+            git ls-files -z -- ':(glob)**/*.blob.json' > pointers.z
+          fi
+          if [ ! -s pointers.z ]; then echo "no pointers to check"; exit 0; fi
+          xargs -0 python3 tools/artifact_store.py check-remote < pointers.z
