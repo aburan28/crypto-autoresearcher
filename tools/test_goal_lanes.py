@@ -437,6 +437,159 @@ class CliTests(unittest.TestCase):
             self.assertIn("open", run("lanes", GOAL).stdout)
 
 
+class ExpectedEpochReleaseTests(unittest.TestCase):
+    """Actual native API/CLI controls against the disposable bare-origin Repo."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue = Repo.queue(self.root)
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a", ttl_minutes=60, now=T0)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def state(self) -> dict:
+        claims = self.queue.parent / "claims"
+        return {"head": git(self.root, "rev-parse", "HEAD"),
+                "index_diff": git(self.root, "diff", "--cached", "--binary"),
+                "remote_refs": git(self.repo.origin, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads/"),
+                "releases": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in claims.glob("*.release.json")}}
+
+    def newer(self) -> None:
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a", ttl_minutes=60, now=T0,
+                         force=True, session="newer-same-owner")
+
+    def cli(self, *args: str) -> subprocess.CompletedProcess:
+        argv = [sys.executable, str(Path(lanes.__file__).resolve()), "release", str(self.queue), PRODUCER,
+                "--as", "coord-a", "--outcome", "failed", "--publish", *args]
+        done = subprocess.run(argv, cwd=self.root, capture_output=True, text=True)
+        print(json.dumps({"native_cli_argv": argv, "exit_code": done.returncode,
+                          "stdout": done.stdout, "stderr": done.stderr}), flush=True)
+        return done
+
+    def refused_api(self, expected, *, owner="coord-a", message="expected") -> None:
+        before = self.state()
+        with self.assertRaisesRegex(lanes.LaneError, message) as caught:
+            lanes.release_task(self.root, self.queue, PRODUCER, owner=owner,
+                               outcome="failed", now=T0, expected_epoch=expected)
+        after = self.state()
+        print(json.dumps({"native_api_refusal": repr(expected), "owner": owner,
+                          "error": str(caught.exception), "before": before, "after": after}), flush=True)
+        self.assertEqual(before, after)
+
+    def test_invalid_api_epochs_refuse_without_mutation(self) -> None:
+        class IntSubclass(int):
+            pass
+        for value in (True, False, 0, -1, 1.0, "1", "bad", [], {}, IntSubclass(1)):
+            with self.subTest(value=repr(value)):
+                self.refused_api(value, message="exact positive integer")
+
+    def test_stale_api_epoch_cannot_release_newer_same_owner(self) -> None:
+        self.newer()
+        self.refused_api(1, message="expected epoch 1, current epoch is 2")
+
+    def test_matching_api_epoch_releases_only_checked_epoch(self) -> None:
+        self.newer()
+        path = lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a", outcome="failed",
+                                  now=T0, expected_epoch=2)
+        self.assertEqual(json.loads(path.read_text())["epoch"], 2)
+        self.assertEqual(sorted(p.name for p in path.parent.glob("*.release.json")), [path.name])
+        print(json.dumps({"native_api_match": 2, "release": json.loads(path.read_text())}), flush=True)
+
+    def test_matching_epoch_preserves_owner_fence(self) -> None:
+        self.newer()
+        self.refused_api(2, owner="coord-other", message="only the owner releases")
+
+    def test_matching_epoch_cannot_overwrite_existing_release(self) -> None:
+        self.newer()
+        path = lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a", outcome="failed",
+                                  now=T0, expected_epoch=2)
+        original = path.read_bytes()
+        self.refused_api(2, message="already released")
+        self.assertEqual(path.read_bytes(), original)
+
+    def test_matching_epoch_keeps_exclusive_write_once_fence(self) -> None:
+        self.newer()
+        path = self.queue.parent / "claims" / f"{PRODUCER}.2.release.json"
+        lanes.write_once(path, {"schema": lanes.RELEASE_SCHEMA, "task_id": PRODUCER,
+                               "epoch": 2, "owner": "coord-other", "outcome": "failed"})
+        original = path.read_bytes()
+        self.refused_api(2, message="write-once")
+        self.assertEqual(path.read_bytes(), original)
+
+    def test_omitted_api_epoch_keeps_legacy_selection(self) -> None:
+        self.newer()
+        path = lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a", outcome="failed", now=T0)
+        self.assertEqual(json.loads(path.read_text())["epoch"], 2)
+
+    def test_invalid_and_stale_cli_epochs_refuse_without_mutation(self) -> None:
+        self.newer()
+        for value in ("true", "false", "0", "-1", "1.0", "bad", "1"):
+            with self.subTest(value=value):
+                before = self.state()
+                done = self.cli("--expected-epoch", value)
+                self.assertEqual(done.returncode, 2)
+                self.assertEqual(before, self.state())
+
+    def test_matching_cli_epoch_publishes_only_checked_release(self) -> None:
+        self.newer()
+        done = self.cli("--expected-epoch", "2")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        path = self.queue.parent / "claims" / f"{PRODUCER}.2.release.json"
+        self.assertEqual(json.loads(path.read_text())["epoch"], 2)
+        self.assertFalse(path.with_name(f"{PRODUCER}.1.release.json").exists())
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"),
+                         git(self.repo.origin, "rev-parse", git(self.root, "symbolic-ref", "HEAD")))
+        before = self.state()
+        repeated = self.cli("--expected-epoch", "2")
+        self.assertEqual(repeated.returncode, 2)
+        self.assertIn("already released", repeated.stderr)
+        self.assertEqual(before, self.state())
+
+    def test_matching_cli_epoch_preserves_owner_fence(self) -> None:
+        self.newer()
+        # Change only the real argument, keeping the operation native.
+        argv = [sys.executable, str(Path(lanes.__file__).resolve()), "release", str(self.queue), PRODUCER,
+                "--as", "coord-other", "--outcome", "failed", "--publish", "--expected-epoch", "2"]
+        before = self.state()
+        done = subprocess.run(argv, cwd=self.root, capture_output=True, text=True)
+        print(json.dumps({"native_cli_argv": argv, "exit_code": done.returncode,
+                          "stdout": done.stdout, "stderr": done.stderr}), flush=True)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("only the owner releases", done.stderr)
+        self.assertEqual(before, self.state())
+
+    def test_omitted_cli_epoch_keeps_legacy_selection(self) -> None:
+        self.newer()
+        done = self.cli()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        path = self.queue.parent / "claims" / f"{PRODUCER}.2.release.json"
+        self.assertEqual(json.loads(path.read_text())["epoch"], 2)
+
+    def test_epoch_published_after_selection_cannot_redirect_checked_write(self) -> None:
+        from unittest.mock import patch
+        original = lanes.write_once
+        writes = []
+
+        def scheduled(path, payload):
+            if path.name.endswith(".release.json"):
+                self.newer()
+                writes.append((path.name, payload["epoch"]))
+            return original(path, payload)
+
+        with patch.object(lanes, "write_once", side_effect=scheduled):
+            path = lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a", outcome="failed",
+                                      now=T0, expected_epoch=1)
+        self.assertEqual(writes, [(f"{PRODUCER}.1.release.json", 1)])
+        self.assertEqual(json.loads(path.read_text())["epoch"], 1)
+        self.assertFalse(path.with_name(f"{PRODUCER}.2.release.json").exists())
+        self.assertEqual(lanes.claim_summary(self.root, self.queue, now=T0)[PRODUCER]["status"], "live")
+        print(json.dumps({"native_checked_write_after_newer_claim": writes,
+                          "current": lanes.claim_summary(self.root, self.queue, now=T0)[PRODUCER]}), flush=True)
+
+
 class CompletedReleaseBindsArtifactsTests(unittest.TestCase):
     """A completed release asserts the work was DONE, so it binds what was produced.
 
