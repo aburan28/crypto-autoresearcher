@@ -93,16 +93,24 @@ Shared vocabulary, one meaning per word:
   `status`, `certificate` (kind + digest + verifier), `reference` (matched rho:
   same point, same envelope, the 0 / 0.1 / 1 GAE band), and `inputs` (curve UID,
   code commit, seed). A file without those keys is not a validation record.
+  The schema and validator live in `crypto:validation/v1/schema.json` and
+  `crypto:tools/validate_validation_json.py`. Records written before the schema
+  (any other `schema` value) are immutable and grandfathered; new records use
+  `validation/v1`.
 - **Certificate kinds**: `none` (pure measurement), `replay` (independent
   re-execution reproduces answers and counters), `proof` (Lean, axiom-checked),
   `solver` (checked witness). A failed certificate makes the run
   `invalid_measurement`, never negative evidence.
 - **Independence**: a verifier does not import the producer's code path; a
   review plan names, per load-bearing joint, one owner and one attack.
-- **Required checks** (rulesets, not conventions): `crypto` — `gate`, `size`,
-  and `validation-gate`; `crypto-autoresearcher` — `progress-fidelity` and
-  `ledger-and-harness`; `cryptanalysis` — `analysis` and `ic-bench`. A required
-  check is never skipped, re-run to green, or bypassed. Admin bypass stays off.
+- **Required checks** (rulesets, not conventions): `crypto` — `gate` (the
+  `gate` job of the `validation-gate` workflow) and `size`;
+  `crypto-autoresearcher` — `progress-fidelity` and `ledger-and-harness`;
+  `cryptanalysis` — the `analysis` jobs (`clang-tidy`, `cppcheck`,
+  `gcc-analyzer`, `format`, `lint-scripts`, `coverage`). `ic-bench` is
+  path-scoped, so it gates the PRs it runs on but is not a required context. A
+  required check is never skipped, re-run to green, or bypassed. Admin bypass
+  stays off.
 - A non-required check queued 24 h without starting does not block a merge, if
   every executed check on the head passed; a required check never qualifies.
 
@@ -159,34 +167,45 @@ a copy is not a fix: extend the owner or make the dependency explicit.
 - Records are immutable: correct by superseding, never by rewriting; archive
   receipts bind content first (`path_sha256`), commit reachability second.
 
-## 9. Divergence today (2026-10-24)
+## 9. Divergence at adoption (2026-10-24)
 
 | area | `crypto` | `crypto-autoresearcher` | `cryptanalysis` |
 |:--|:--|:--|:--|
 | instruction | three concatenated documents; `CLAUDE.md` duplicates rules | single contract + pointer `CLAUDE.md` (model) | single contract; `CLAUDE.md` additive |
 | skills | `.agents` canonical, 2 real duplicates, 12 symlinks | `.claude` canonical, `.agents` adapters | `.agents` canonical, 2 of 12 symlinked |
 | store | `.artifacts` → setec, `store/` → `crypto-autoresearcher` | setec | delegates to `crypto store` |
-| blobstore doc | setec | still says `crypto-autoresearcher/blobs`, `us-west-2` | n/a |
-| validation | `VALIDATION.json` gate; no ruleset for it | progress-fidelity ruleset | no ruleset; workflow gates |
+| blobstore doc | setec | `crypto-autoresearcher/blobs`, `us-west-2` | n/a |
+| validation | `VALIDATION.json` gate; ruleset only covers `gate`/`size` | progress-fidelity ruleset | no ruleset; workflow gates |
 | curve source | registry built from `curves.yaml` mirror | consumes a pinned export | owns `curves.yaml` |
 | Lean | local gate | none | local gate |
 | `crypto-lean` | not named as a dependency | not named | not named |
 
-## 10. Migration
+## 10. Migration status
 
-1. **This change**: publish this contract; fix `crypto/store/config.json` and the
-   stale blobstore paragraph; de-duplicate `crypto`'s two real skill copies;
-   expose all `cryptanalysis` skills to Claude.
-2. **Surface parity**: a `check_skills_parity.py` per repository fails a missing
-   symlink or a duplicated body; fix the `crypto` `AGENTS.md` three-document
-   concatenation and the absent `.conductor/WORKFLOW.md` reference.
-3. **Validation**: commit the `validation/v1` JSON schema, convert the existing
-   `VALIDATION.json` instance, and add the missing required checks to the two
-   rulesets (`crypto: validation-gate`; `cryptanalysis: analysis`, `ic-bench`).
-4. **Storage**: move the last writer off `s3://crypto-autoresearcher/**`; declare
-   the legacy buckets read-only in every `AGENTS.md`; add a report-retention
-   note for `cryptanalysis`.
-5. **Curves**: a cross-repo registry parity check (source → mirror → built
-   registry), run on every PR that touches any of the three files.
-6. **Shared code**: add the digest lock and the parity job named in section 7,
-   including the `crypto-lean` proof gate as a named dependency.
+All six steps are implemented; each repository's CI enforces the parts it can
+see, and the cross-repository parts run where a sibling checkout is available.
+
+1. **Contract and endpoints** — this document; `crypto/store/config.json` now
+   `setec-astronomy-artifacts/store`; blobstore paragraph corrected; `crypto`'s
+   two real skill copies are symlinks; all `cryptanalysis` skills are exposed to
+   Claude. `crypto`'s `AGENTS.md` has one H1 and its `.conductor/WORKFLOW.md`
+   reference now points at `docs/CONDUCTOR.md`.
+2. **Surface parity** — `tools/check_skills_parity.py` in all three repositories
+   (owner: this one), run by `.github/workflows/lab-parity.yml` and by hand.
+3. **Validation** — `crypto:validation/v1/schema.json`,
+   `crypto:tools/validate_validation_json.py` and its tests; the validator is run
+   by `crypto`'s `lab-parity` job. The `cryptanalysis` ruleset requires the
+   `analysis` jobs; `ic-bench` stays path-scoped.
+4. **Storage** — every `AGENTS.md` declares the legacy buckets read-only; the
+   `cryptanalysis` report section states the mirror is write-once.
+5. **Curves** — `crypto`'s `ic-semantic-metadata` job already compares the
+   committed crosswalk with `cryptanalysis:main` when its read token is present;
+   it now also runs `scripts/build_curve_registry.py --check`.
+6. **Shared code** — `docs/shared-code.lock.json` with
+   `tools/check_lab_parity.py`; `crypto-lean` is named as the Lean dependency in
+   `crypto` and `cryptanalysis`.
+
+Still owner decisions, not drift: whether to delete the legacy bucket copies
+(the contract keeps them read-only), and whether `crypto` should flip its
+canonical skill surface to `.claude` (this contract allows either direction, as
+long as exactly one body exists).
