@@ -1,0 +1,82 @@
+experiment:
+  id: EXP-ECDLP-20a588
+  hypothesis_id: H-ECDLP-60de36
+  question_id: RQ-ECDLP-001
+  goal_id: GOAL-ECDLP-001
+  predecessors: [EXP-ECDLP-f49f75, EXP-ECDLP-502ae2]
+  version: 1
+  status: approved
+  claim_tier: toy
+  retrospective: false
+  retrospective_note: >-
+    PRE-REGISTRATION, frozen before the first data run. Smoke runs on seed
+    "smoke-blk" debugged the launcher and are not data.
+  title: >-
+    Block elimination order on the chain arm: does eliminating the 2-isogeny
+    chain variables first make the chain encoding competitive with the dense
+    encoding of the same set (m = 3, msolve and Singular)?
+  objective: >-
+    The remaining route named in problems/pkm-isogeny-chain-factor-base-no-fast-decomposition.md
+    (DEC-20261015-ab6f23): exploit the chain's triangular shape with a block
+    order (chain variables >> x variables) instead of plain DRL.
+  inputs:
+    instances: identical to EXP-ECDLP-502ae2 m = 3 (seed string EXP-ECDLP-f49f75/v1), L = 3..7
+    common_ideal: >-
+      Every arm's basis restricted to x1..x3 is a basis of the same ideal
+      <S_4, F_V(x1), F_V(x2), F_V(x3)>; for msolve the x-only part of A_elim's
+      reduced basis must equal B's reduced DRL basis (control elim_equals_B).
+  arms:
+    A_elim_ms: "msolve -e #w -g 2, variables (w..., x1..x3), block order DRL | DRL"
+    A_drl_ms: "msolve -g 2, variables (x1..x3, w...), DRL (EXP-ECDLP-502ae2 instrument)"
+    B_ms: "msolve -g 2, dense same set, DRL"
+    A_block_sg: "Singular std, ring (w..., x...), ordering (dp(#w),dp(3))"
+    B_sg: "Singular std, dense same set, dp"
+  controls:
+    - "positive control - planted decomposition satisfies every element of every arm's basis"
+    - "equivalence control - elim_equals_B true on every instance where both msolve bases finish"
+    - "dynamic-range control - the instrument must resolve the A_elim vs A_drl order effect (median ratio >= 2 at L = 4)"
+  independent_variables: [L, arm]
+  metrics:
+    primary:
+      - median basis wall time per (arm, L) (process wall time; msolve -g 2 and Singular std)
+      - largest L completed within 600 s per arm
+    secondary: [Singular rtimer std_ms, max F4 degree, basis size]
+  preregistered_prediction:
+    formula: >-
+      Coordinator prediction: the block order recovers most of A_drl's loss
+      (A_elim far below A_drl) but A_elim stays at or above B_ms, since its
+      output contains B's basis plus the chain variables' rows (smoke: L = 4,
+      0.58 s vs 0.30 s).
+    source: smoke runs on seed smoke-blk (not data); EXP-ECDLP-502ae2
+  replication:
+    seeds: ["EXP-ECDLP-f49f75/v1"]
+    independent_instances: 6 per L (4 planted + 2 random)
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    maximum_memory_gb: 12
+    maximum_runs: 1
+    maximum_workers: 4
+  stopping_rules:
+    - an arm whose every instance timed out in a cell is not run at larger L
+  invalidation_rules:
+    - a planted decomposition missing from an arm's basis invalidates that arm's cell
+    - elim_equals_B false on any instance invalidates the msolve A_elim/B comparison for that cell
+  success_criterion: >-
+    H-ECDLP-60de36 regains support under the block order if A_elim_ms median
+    is below B_ms median in >= 80% of jointly completed cells AND A_elim_ms
+    completes an L at least as large as B_ms (stated separately for the
+    Singular pair A_block_sg vs B_sg).
+  falsification_criterion: >-
+    The rejection extends to block orders if A_elim_ms median is at or above
+    B_ms in >= 80% of jointly completed cells OR A_elim_ms is retired at a
+    smaller L than B_ms (stated separately for the Singular pair). Anything
+    else is inconclusive.
+  required_artifacts:
+    - runs/RUN-ECDLP-20a588-01/{raw-result.jsonl,command.txt,environment.json,manifest.json,stdout.log,stderr.log}
+    - reports/ run report and review report with graph and PDF
+  launcher: experiments/EXP-ECDLP-20a588/block_order_grid.py
+  trial_plan: experiments/EXP-ECDLP-20a588/trial-plan.json
+  assigned_to: executor
+  approved_by: coordinator
+  approval_basis: AGENTS.md standing user authorization; user request "try the block elimination order on the chain arm" (2026-10-15)

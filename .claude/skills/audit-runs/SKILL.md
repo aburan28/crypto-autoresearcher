@@ -1,6 +1,12 @@
 ---
 name: audit-runs
-description: Independently audit finished runbook sessions, on a schedule or on request. Verify the journal chain and every digest, replay trials sampled from a nonce the executor could not predict, recompute metrics and certificates, and screen Lean statements. The Sonnet sweep validator does the reading, and anything flagged escalates to Opus. Use for audit-runs, checking the math on Haiku or mechanical-tier runs, or before an evidence review cites a runbook session. Never runs trials or changes research state.
+description: >-
+  Audit finished runbook sessions on a schedule or on request: verify the
+  journal chain and digests, replay nonce-sampled trials, recompute metrics
+  and certificates, screen Lean statements; flags escalate to Opus. Use
+  before an evidence review cites a runbook session. Never runs trials or
+  changes research state.
+
 ---
 
 # Audit runs

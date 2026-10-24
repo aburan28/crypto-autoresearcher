@@ -305,6 +305,12 @@ whose filename *is* the identifier, outside an archive — and the collision
 is still reported under integrity. A record that exists only as a correction
 copy is still reachable at that path.
 
+When a canonical YAML record has a registered, hash-matched schema copy, its
+detail page shows the copy in a separate **parsed correction** tab, including
+when the original parses but fails the current ledger schema. The original
+record, source text, parse state, and identifier remain canonical. The reader
+does not treat a hash match as a review of the correction's scientific meaning.
+
 An experiment is likewise not always announced by `specification.yaml`:
 nineteen directories carry `specification.json` or only prose, and between
 them 218 runs. A directory with runs is an experiment whatever shape its
@@ -506,6 +512,11 @@ static exports reflect the chosen source tree, including any uncommitted edits.
 The Compare selectors now include all nine rows of the existing pinned primary
 benchmark snapshot, registered in `ui/receipts.json` with
 `adapter: benchmark-snapshot/1`. This is a new reader adapter, not a new run.
+The 2026-10-20 snapshot pins `cryptanalysis` main commit
+`5ab7d5bc5a16ff4d87a5ef8bed45cf9543f47c14`. It refreshes candidate IDs
+and recorded timings from the committed primary archive, while its coverage
+remains exactly those nine N13 toy rows; see the
+[validation report](../docs/reports/2026-10-20-formal-validation/report.md).
 Its normalized `comparison-package/1` projection preserves curve/candidate/workload
 IDs, source pins, target counts, verification/status, online and total times,
 operation units, calibration/resource IDs and failures. No arbitrary package

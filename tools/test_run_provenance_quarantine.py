@@ -103,6 +103,18 @@ class ProvenanceQuarantineTests(SupersessionFixture):
         ctx = self.validate()
         self.assertTrue(any("missing artifact 'raw-result.json'" in e for e in ctx.errors))
 
+    def test_companion_may_be_stored_compressed_or_as_a_pointer(self):
+        raw = self.run_dir / "raw-result.json"
+        data = raw.read_bytes()
+        raw.unlink()
+        for name in ("raw-result.json.gz", "raw-result.json.gz.blob.json", "raw-result.json.blob.json"):
+            (self.run_dir / name).write_bytes(data)
+            ctx = self.validate()
+            self.assertFalse(any("missing artifact 'raw-result.json'" in e for e in ctx.errors), name)
+            (self.run_dir / name).unlink()
+        (self.run_dir / "raw-result.json.zst").write_bytes(data)     # not a stored form
+        self.assertTrue(any("missing artifact 'raw-result.json'" in e for e in self.validate().errors))
+
     def test_cannot_erase_provenance_already_recorded_in_original(self):
         self.write_manifest("manifest.yaml", manifest_body())
         self.body["provenance_gap"]["searched_source_sha256"] = {
