@@ -198,7 +198,7 @@ cmd_init() {
 
 <!-- Written for a fresh session with none of this conversation. A reader must
      be able to continue the work from this file and the checkpoint alone.
-     Replace every TODO(checkpoint); keep it current as the work moves. -->
+     Replace every placeholder line below; keep it current as the work moves. -->
 
 ## Goal
 TODO(checkpoint): the question this effort answers and why it matters.
