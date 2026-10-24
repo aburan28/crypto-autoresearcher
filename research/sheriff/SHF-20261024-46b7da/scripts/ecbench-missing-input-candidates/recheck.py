@@ -10,6 +10,7 @@ import subprocess
 
 
 HEAD = "172f84c7b0143ff5b4a26d6d21ffed3bf0f0cf3b"
+ECBENCH_SHA256 = "d4916fcb1ba46f8313d83a3776325afee0c0a9b513520730f58b238b62c022a2"
 PAIRS = (
     ("research/gaudry_quartic_d4_char2_20261015/pilot/scratch-session-m10",
      "research/gaudry_quartic_d4_char2_20261015/pilot/scratch-spec-m10.json"),
@@ -39,9 +40,15 @@ def run(repo: Path) -> dict:
     if head != HEAD:
         raise ValueError(f"expected pinned crypto head {HEAD}, got {head}")
     binary = repo / "target/release/ecbench"
+    binary_sha256 = sha256(binary)
+    if binary_sha256 != ECBENCH_SHA256:
+        raise ValueError(f"expected pinned ecbench binary {ECBENCH_SHA256}, got {binary_sha256}")
     names = git("ls-tree", "-r", "--name-only", "HEAD").splitlines()
     host_paths = [p for p in names if "host" in Path(p).name.lower() and p.endswith(".json")]
-    hosts_by_sha = {sha256(repo / p): p for p in host_paths if (repo / p).is_file()}
+    missing_hosts = [p for p in host_paths if not (repo / p).is_file()]
+    if missing_hosts:
+        raise ValueError(f"{len(missing_hosts)} tracked host candidates are not materialized")
+    hosts_by_sha = {sha256(repo / p): p for p in host_paths}
     rows = []
     for session_rel, candidate_rel in PAIRS:
         session = json.loads((repo / session_rel / "session.json").read_text())
@@ -66,7 +73,7 @@ def run(repo: Path) -> dict:
     return {
         "schema": "sheriff.ecbench-missing-input-candidates/v1",
         "crypto_head": head,
-        "ecbench_binary_sha256": sha256(binary),
+        "ecbench_binary_sha256": binary_sha256,
         "host_search": "tracked files whose basename contains host and ends .json",
         "tracked_host_candidates_scanned": len(host_paths),
         "all_spec_identities_match": all(row["spec_identity_matches"] for row in rows),
