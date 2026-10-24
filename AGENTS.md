@@ -507,10 +507,9 @@ resume the effort are checked into S3**, and kept current while it runs.
 - Without AWS credentials, push with an upload token: a presigned POST
   policy that can only write under `checkpoints/`, valid for up to 7 days.
   Someone with credentials mints it with `scripts/checkpoint.sh
-  presign-upload`; a daily job on the owner's Mac re-mints one and stores it
-  in `~/.config/checkpoint/upload-token` and the Conductor vault
-  (`CHECKPOINT_UPLOAD_TOKEN`), where the script finds it. A session can also
-  be given it as `CHECKPOINT_UPLOAD_TOKEN`. It is a bearer credential: never
+  presign-upload`; a daily job on the owner's Mac re-mints one into
+  `~/.config/checkpoint/upload-token`, where the script finds it. A session
+  elsewhere is given it as `CHECKPOINT_UPLOAD_TOKEN`. It is a bearer credential: never
   commit it or put it in a PR, report or task card.
 - To resume: `scripts/checkpoint.sh list` shows the latest checkpoint per
   branch; `scripts/checkpoint.sh restore <repo>/<branch>[/<stamp>]` rebuilds
