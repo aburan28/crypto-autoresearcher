@@ -154,6 +154,26 @@ validate real results, mathematical invariants, controls and manifest semantics;
 merely checking that JSON exists is insufficient. The supervisor's operational
 receipt never replaces the canonical manifest or independent scientific review.
 
+The driver should write a complete run envelope (`run:` with every field
+`tools/validate_ledger.py` requires). Frozen drivers that write a partial one
+(RUN-SEMBIN-9ecb77 and the runs in DEC-20261017-0fab25) are completed by the
+supervisor after the driver exits 0 and before the checker runs, so the checker
+sees the bytes that get published. Completion only adds missing keys, from the
+plan, the launch authority, `environment.json`, `command.txt` and the
+supervisor's clock; a driver value is never changed, and one that contradicts
+the plan is refused. The only derived value is `certificate.kind: none`, and
+only where the driver recorded `attack_claimed: false`. The result must then
+pass `validate_ledger.check_run`; otherwise the trial is `invalid_output`, the
+driver's manifest stays as written, and the refusal is printed to stderr and
+kept in the receipt's `detail`. A completed manifest carries
+`run.envelope_completion` (the driver bytes' SHA-256 and the added keys), and
+the receipt's `manifest_completion` keeps the driver's exact text.
+Run and experiment identity checks apply to already complete envelopes too.
+A claimed attack cannot use `certificate.kind: none`; malformed envelope
+blocks are refused with a retained receipt. If the supervisor clock moves
+backwards, completion refuses to invent a zero duration and preserves the
+driver's original manifest.
+
 ## Launch and progress
 
 First follow the existing lifecycle: preflight, freeze/approve/publish the

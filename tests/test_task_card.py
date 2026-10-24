@@ -367,3 +367,129 @@ def test_assessment_outcome_is_determined_by_the_facts(tmp_path):
     tc.run_card("card.yaml", "0" * 64, stray, repo2)
     facts = tc.assessment_facts(stray, None, repo2)
     assert facts["writes_outside_scope"] == ["stray.txt"] and facts["outcome"] == "executor_deviated"
+
+
+# ---------------------------------------------------------------------------
+# Lane: compile -> run -> assess end to end through a batch backend
+# ---------------------------------------------------------------------------
+
+import json  # noqa: E402
+import sys  # noqa: E402
+
+_ANSWER = r'''
+import re, yaml
+def answer(prompt, digest=None):
+    """What a batch model given only the prompt would reply."""
+    if "compile mode" in prompt:
+        head = re.search(r"repository HEAD: (\w+)", prompt).group(1)
+        sha = digest or re.search(r"bind tools/emit.py: sha256 (\w+)", prompt).group(1)
+        receipt = re.search(r"Receipt at `([^`]+)`", prompt).group(1)
+        scope = re.search(r"Write scope: `([^`]+)`", prompt).group(1)
+        card = {"schema": "crypto.autoresearch.mechanical-task-card.v1", "card_id": "CARD-EXAMPLE-lane-01",
+                "experiment_id": "EXAMPLE-lane", "author_role": "experiment-director",
+                "executor_role": "executor-mechanical", "kind": "frozen_command", "commit": head,
+                "receipt": receipt, "binds": [{"path": "tools/emit.py", "sha256": sha}],
+                "commands": [{"id": "emit", "argv": ["python3", "tools/emit.py", "0"],
+                              "timeout_seconds": 30, "success_exit_codes": [0]}],
+                "bus_address": "executor-mechanical-lane", "background": False,
+                "write_scope": [scope], "stop_when": ["The run command exits with status 2."]}
+        return ("```yaml\n" + yaml.safe_dump(card, sort_keys=False) + "```\n\n"
+                "```yaml\nspecification_errors: []\n```\n")
+    block = re.search(r"```yaml\n(execution_assessment:.*?)```", prompt, re.S).group(1)
+    allowed = re.search(r"recommendation: <one of ([a-z_]+)", block).group(1)
+    block = re.sub(r"<one of [^>]+>", allowed, block)
+    return "```yaml\n" + block.replace("[<one line each>]", '["Computed facts: status."]') + "```\n"
+'''
+
+
+def _fake(tmp_path, name, body):
+    path = tmp_path / name
+    path.write_text(f"#!{sys.executable}\nimport json, os, sys\n{_ANSWER}\n{body}")
+    path.chmod(0o755)
+    return str(path)
+
+
+def _fake_delphi(tmp_path, digest=None):
+    return _fake(tmp_path, "delphi", f"""
+args = sys.argv[1:]
+out = args[args.index("-out") + 1]
+prompt = args[args.index("-prompt") + 1]
+os.makedirs(out, exist_ok=True)
+with open(os.path.join(out, "results.jsonl"), "w") as fh:
+    fh.write(json.dumps({{"id": "prompt-1", "status": "succeeded", "model": args[args.index("-model") + 1],
+                         "batch_id": "msgbatch_fake", "usage": {{"input_tokens": 10, "output_tokens": 5}},
+                         "text": answer(prompt, {digest!r})}}) + "\\n")
+""")
+
+
+def _fake_conductor(tmp_path, log):
+    return _fake(tmp_path, "conductor", f"""
+args = sys.argv[1:]
+open({str(log)!r}, "a").write(json.dumps(args) + "\\n")
+if args[:2] == ["delphi", "profiles"]:
+    print("director  anthropic  claude-sonnet-5-5  high")
+    sys.exit(0)
+print(answer(open(args[args.index("--file") + 1]).read()))
+""")
+
+
+def _lane_repo(tmp_path):
+    repo, script, head = _git_repo(tmp_path)
+    _with_contract(repo)
+    (repo / "design.md").write_text(
+        "Run tools/emit.py with argument 0, timeout 30 seconds, success exit code 0.\n"
+        "Pin the commit. Bind tools/emit.py. Receipt at `out/receipt.json`.\n"
+        "Write scope: `out/` only.\n")
+    return repo
+
+
+def test_lane_runs_end_to_end_through_standalone_delphi(tmp_path):
+    repo = _lane_repo(tmp_path)
+    lines = []
+    code = tc.lane(["design.md"], ["tools/emit.py"], "cards/c.yaml", "out/assessment.yaml", "delphi",
+                   {"delphi": _fake_delphi(tmp_path)}, repo, lines.append)
+    assert code == 0, lines
+    assert (repo / "cards/c.yaml").is_file() and (repo / "out/assessment.yaml").is_file()
+    record = json.loads((repo / "cards/c.lane/lane.json").read_text())
+    assert record["backend"] == "delphi" and record["outcome"] == "executed_as_specified"
+    assert record["calls"]["compile"]["batch_id"] == "msgbatch_fake"
+    assert record["calls"]["assess"]["model"] == tc.DIRECTOR_MODEL
+    assert any("batch msgbatch_fake" in line for line in lines)
+
+
+def test_lane_auto_prefers_a_connected_conductor_and_links_the_task(tmp_path, monkeypatch):
+    repo = _lane_repo(tmp_path)
+    (tmp_path / "bin").mkdir()
+    log = tmp_path / "conductor.log"
+    conductor = _fake_conductor(tmp_path / "bin", log)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    code = tc.lane(["design.md"], ["tools/emit.py"], "cards/c.yaml", "out/assessment.yaml", "auto",
+                   {"conductor": conductor, "delphi": "/nonexistent/delphi", "task": "T-42"},
+                   repo, lambda _line: None)
+    assert code == 0
+    asks = [json.loads(line) for line in log.read_text().splitlines() if "ask" in line]
+    assert len(asks) == 2
+    assert all(a[a.index("--profile") + 1] == "director" and a[a.index("--task") + 1] == "T-42" for a in asks)
+    assert json.loads((repo / "cards/c.lane/lane.json").read_text())["backend"] == "conductor"
+
+
+def test_lane_refuses_an_invented_digest_and_writes_no_card(tmp_path):
+    repo = _lane_repo(tmp_path)
+    (tmp_path / "bin").mkdir()
+    lines = []
+    code = tc.lane(["design.md"], ["tools/emit.py"], "cards/c.yaml", "out/assessment.yaml", "delphi",
+                   {"delphi": _fake_delphi(tmp_path / "bin", digest="0" * 64)}, repo, lines.append)
+    assert code == 1
+    assert not (repo / "cards/c.yaml").exists() and not (repo / "out").exists()
+    assert json.loads((repo / "cards/c.lane/lane.json").read_text())["outcome"] == "card_refused"
+    assert any("does not match its sha256" in line for line in lines)
+
+
+def test_lane_without_a_backend_is_an_impediment_that_writes_nothing(tmp_path, monkeypatch):
+    repo = _lane_repo(tmp_path)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    lines = []
+    code = tc.lane(["design.md"], [], "cards/c.yaml", "out/a.yaml", "auto",
+                   {"conductor": "/nonexistent/conductor", "delphi": "/nonexistent/delphi"}, repo, lines.append)
+    assert code == 2 and lines[-1].startswith("IMPEDIMENT no batch backend")
+    assert not (repo / "cards").exists()
