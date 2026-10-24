@@ -82,14 +82,20 @@ the executor now compresses itself.
 
 ## S3
 
-The blob store reuses the `crypto-autoresearcher` bucket that already holds
-reports (`docs/reports-s3.md`), under its own prefix. Set it wherever large runs
+The blob store uses the same bucket and prefix as the artifact store
+(`docs/artifacts.md`): `s3://setec-astronomy-artifacts/store`, region
+`us-east-2`. Reports live in the same bucket under `reports/<repository>/`
+(`docs/reports-s3.md`); the two never share a prefix. Set it wherever large runs
 are produced (EC2 and RunPod hosts, a workstation):
 
 ```sh
-export CRYPTO_AR_BLOBSTORE=s3://crypto-autoresearcher/blobs/crypto-autoresearcher
-pip install boto3          # credentials: the usual AWS chain (role, profile, env)
+export CRYPTO_AR_BLOBSTORE=s3://setec-astronomy-artifacts/store
+export ARTIFACTS_AWS_REGION=us-east-2
+pip install boto3          # credentials: ARTIFACTS_AWS_ACCESS_KEY_ID/_SECRET, or the usual AWS chain
 ```
+
+The bucket layout, the writer/reader rule and the legacy-bucket freeze are stated
+once in [`docs/lab-contract.md`](lab-contract.md), section 4.
 
 Unset, nothing is offloaded: artifacts are only compressed, and one still 50 MiB
 or more after compression fails the gate until it is offloaded. If an upload

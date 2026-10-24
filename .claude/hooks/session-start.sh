@@ -134,15 +134,17 @@ fi
 
 # The rest of the research toolchain: aburan28/crypto's
 # scripts/setup-workstation.sh (system libraries and PARI/GP, Rust/Go/Node/uv,
-# conductor, the codex and opencode CLIs, a cryptanalysis checkout next to this
-# one, per-repo virtualenvs), minus what this hook already did (cairn, SageMath)
+# conductor, the codex and opencode CLIs, git/gh sign-in as the GitHub service
+# account when GH_APP_* or GH_SERVICE_TOKEN is set as an environment secret, a
+# cryptanalysis checkout next to this one, per-repo virtualenvs), minus what
+# this hook already did (cairn, SageMath)
 # and crypto's control plane. Fetched at a pinned commit, not main, so a session
 # never runs a script nobody reviewed; bump CRYPTO_SETUP_REF to take a newer
 # one. It skips what is installed, so a cached container only re-checks. Its
 # output goes to a log. CRYPTO_WORKSTATION_SETUP=0 turns it off and
 # CRYPTO_SETUP_CLONE lists the repositories to clone (default cryptanalysis).
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "${CRYPTO_WORKSTATION_SETUP:-1}" != 0 ]; then
-    setup_ref="${CRYPTO_SETUP_REF:-b4ba89586d1a2639baf1d0d4d3bb26925781dfc3}"
+    setup_ref="${CRYPTO_SETUP_REF:-28b5c56f3153a5830327b9b70b833f2b062663df}"
     setup_dir="$HOME/.cache/workstation-setup/$setup_ref"
     setup="$setup_dir/setup-workstation.sh"
     setup_log="$HOME/.local/state/workspace-tools/autoresearcher-setup.log"
