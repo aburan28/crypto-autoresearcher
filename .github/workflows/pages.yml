@@ -96,10 +96,16 @@ jobs:
       - name: Check the UI against its own tests
         run: python -m pytest tests/test_ui_index.py tests/test_ui_ops.py tests/test_ui_benchmarks.py tests/test_curve_identity.py -q
 
-      # CloudWatch snapshot of the rho distinguished-point database. The
-      # same names as local `.env`. Absent secrets yield data/ops.json with
-      # available:false; the page hides the panel rather than showing 0.
-      - name: Build the static site
+      # PR previews validate the static reader without AWS credentials.
+      # The operations panel reports unavailable in this preview.
+      - name: Build the static site for review
+        if: github.event_name == 'pull_request'
+        run: python -m ui.build --out site --report site-report.json
+
+      # Only a publishing build reads CloudWatch. Keep these credentials out
+      # of the PR build step, which executes code from the proposed branch.
+      - name: Build the static site for publication
+        if: github.event_name != 'pull_request'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
