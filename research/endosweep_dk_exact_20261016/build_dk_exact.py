@@ -57,6 +57,7 @@ SOURCES = {
     "other/E-521": "Aranha-Barreto-Pereira-Ricardini, ePrint 2013/647",
     "other/Curve41417": "Bernstein-Chuengsatiansup-Lange, Curve41417 (CHES 2014); std-curves cites cr.yp.to/talks/2013.09.16",
     "gost": "TC26 GOST R 34.10-2012 parameter set C",
+    "gost/gost512": "GOST R 34.10-2001, RFC 5832 (the source std-curves gives)",
     "bls": "BLS12 pairing-friendly family (RELIC; ePrint 2012/232)",
     "bn": "BN pairing-friendly family",
     "arkworks": "arkworks / ZEXE pairing-friendly curves",

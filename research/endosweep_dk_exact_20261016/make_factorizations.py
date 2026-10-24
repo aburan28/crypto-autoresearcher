@@ -49,6 +49,9 @@ def method(how: str) -> str:
     m = re.fullmatch(r"PARI factorint \((\d+) s\)", how)
     if m:
         return f"PARI factorint ({m.group(1)} s)"
+    m = re.fullmatch(r"FactorDB \(fetched (\S+)\)", how)
+    if m:   # an external split, fetched by the operator; FactorDB does not record who found it
+        return f"FactorDB (external; finder not recorded; fetched {m.group(1)})"
     raise ValueError(f"unknown split method {how!r}")
 
 

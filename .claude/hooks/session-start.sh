@@ -166,3 +166,10 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "${CRYPTO_WORKSTATION_SETUP:-1}" 
 fi
 
 exit 0
+
+# What this program has already tried against ECDLP, and whether anything
+# changed in the four repositories since the atlas was last reviewed
+# (knowledge/leads/ecdlp/README.md). Hook stdout becomes session context, so a
+# fresh clone starts by knowing whether everything has already been examined.
+# Never fatal.
+python3 tools/lead_atlas.py --brief 2>/dev/null || true
