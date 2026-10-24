@@ -474,6 +474,50 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   `knowledge/` as signed CRDT ops (`docs/cairn-lab.md`); it relaxes nothing
   above, and git stays what archives bind.
 
+## Resume checkpoints in S3 before every run
+
+A session can end at any moment (token or usage limits, a crash, a reclaimed
+container), and a worktree that only it knew about is then lost. So **before
+any experiment run starts, the leads, the spec and everything needed to
+resume the effort are checked into S3**, and kept current while it runs.
+
+- `scripts/checkpoint.sh init` writes `.resume/RESUME.md` (gitignored). Fill
+  every section for a reader who has none of this conversation: goal, the
+  lead or hypothesis and where it came from, the spec or protocol path with
+  frozen inputs, the current state with measured numbers and where raw output
+  lives, next steps with exact commands, every run in flight (command, host,
+  instance id or pid, log and output paths, how to collect it), and the stop
+  and success conditions. The gate rejects missing or empty sections and
+  leftover `TODO(checkpoint)` markers.
+- `scripts/checkpoint.sh push` uploads one checkpoint to
+  `s3://setec-astronomy-artifacts/checkpoints/<repo>/<branch>/<stamp>/`:
+  `RESUME.md`, the spec, leads, protocol and plan files the branch changed, a
+  git bundle of unpushed commits, a patch of uncommitted changes, untracked
+  files (large ones listed, not copied) and `meta.json`. Earlier checkpoints
+  are never overwritten. Push again whenever a run starts or finishes,
+  results arrive, or the plan changes.
+- **Claude Code enforces this** (`.claude/hooks/checkpoint-hook.sh`): writing
+  a spec, leads, protocol or plan file, or `RESUME.md`, pushes a checkpoint,
+  and run launchers (`scripts/run_*`, sweeps, benchmarks, `nohup`, background
+  commands, `cargo run --release`, `expspec run`, `sage-run`, cloud launches)
+  are refused until `RESUME.md` is complete and the push succeeded. A command
+  that is not an experiment run may opt out with `CHECKPOINT_SKIP=<reason>`.
+  **Other runtimes (Codex)** run `scripts/checkpoint.sh gate` before
+  launching and do not launch if it fails.
+- Without AWS credentials, push with an upload token: a presigned POST
+  policy that can only write under `checkpoints/`, valid for up to 7 days.
+  Someone with credentials mints it with `scripts/checkpoint.sh
+  presign-upload` and the session gets it as `CHECKPOINT_UPLOAD_TOKEN` (or
+  in `~/.config/checkpoint/upload-token`). It is a bearer credential: never
+  commit it or put it in a PR, report or task card.
+- To resume: `scripts/checkpoint.sh list` shows the latest checkpoint per
+  branch; `scripts/checkpoint.sh restore <repo>/<branch>[/<stamp>]` rebuilds
+  the worktree next to this checkout and puts `RESUME.md` in it. `share`
+  prints a presigned URL that `restore <url>` accepts without credentials.
+
+A checkpoint is a safety net, not the record: the spec, protocol and results
+still land in a PR under the rules above.
+
 ## Durable research commits
 
 Research is durable only when committed. The Coordinator's archival tasks

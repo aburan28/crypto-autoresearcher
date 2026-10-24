@@ -49,3 +49,9 @@ earlier long form of this file stays unchanged at
   → /review-evidence EXP-...    # knowledge-promotion gate; decision report
   → ledger commit, verified decision → next iteration
 ```
+
+**Resume checkpoints** (owner, 2026-10-24): before any experiment run, fill
+`.resume/RESUME.md` (`scripts/checkpoint.sh init`) so a fresh session could
+resume the effort from it alone. The hooks push it to S3 with the specs,
+leads and unpushed work, and refuse run launchers until that succeeds.
+AGENTS.md, "Resume checkpoints in S3 before every run".
