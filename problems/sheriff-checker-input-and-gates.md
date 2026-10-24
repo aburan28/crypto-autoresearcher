@@ -26,6 +26,8 @@ The sweep's failed statuses must therefore be interpreted per checker. They are 
 
 The follow-up in PR #2540 now materializes tracked gzip inputs, including nested evidence, under scratch; focused passing and corrupt-archive controls pass. It also records absent Lean scripts as `not_covered` and runs the existing source-bound receipt metadata audit under its own name. This has not yet repeated the full 617-session checker on the changed instrument, supplied missing source-byte manifests, or created a native cryptanalysis proof gate. The problem remains open.
 
+The same follow-up moves the per-target temporary Lean audit source out of the audited workspace. A fake-runner control confirms the path is outside the workspace and removed after a failed theorem audit; a real pinned Lean project still accepts its exact theorem through that path. External sweep timeout handling and a complete changed-instrument replay remain unverified, so this source-change control does not close the timeout issue.
+
 - [ ] Normalize tracked gzip inputs and nested evidence in a temporary directory, retain original-byte hashes, and audit completion and records binding separately from local consistency.
 - [ ] Replace absent cryptanalysis Lean paths with current source-bound gates and test an expected-pass and expected-fail fixture.
 - [ ] Provision required checker dependencies or classify missing environments as coverage gaps, then rerun the factor-base archive verifier.

@@ -11,6 +11,7 @@ import subprocess
 
 HEAD = "172f84c7b0143ff5b4a26d6d21ffed3bf0f0cf3b"
 ECBENCH_SHA256 = "d4916fcb1ba46f8313d83a3776325afee0c0a9b513520730f58b238b62c022a2"
+HOST_HASH_CONTROL = "research/gaudry_quartic_d4_char2_20261015/sessions/char2-m14"
 PAIRS = (
     ("research/gaudry_quartic_d4_char2_20261015/pilot/scratch-session-m10",
      "research/gaudry_quartic_d4_char2_20261015/pilot/scratch-spec-m10.json"),
@@ -49,6 +50,10 @@ def run(repo: Path) -> dict:
     if missing_hosts:
         raise ValueError(f"{len(missing_hosts)} tracked host candidates are not materialized")
     hosts_by_sha = {sha256(repo / p): p for p in host_paths}
+    control_session = json.loads((repo / HOST_HASH_CONTROL / "session.json").read_text())
+    control_host_sha = sha256(repo / HOST_HASH_CONTROL / "host.json")
+    if control_host_sha != control_session["host_sha256"]:
+        raise ValueError("pinned complete-session host hash does not bind raw host.json bytes")
     rows = []
     for session_rel, candidate_rel in PAIRS:
         session = json.loads((repo / session_rel / "session.json").read_text())
@@ -75,6 +80,7 @@ def run(repo: Path) -> dict:
         "crypto_head": head,
         "ecbench_binary_sha256": binary_sha256,
         "host_search": "tracked files whose basename contains host and ends .json",
+        "host_sha256_raw_byte_control": HOST_HASH_CONTROL,
         "tracked_host_candidates_scanned": len(host_paths),
         "all_spec_identities_match": all(row["spec_identity_matches"] for row in rows),
         "all_exact_host_candidates_found": all(row["tracked_host_candidate"] for row in rows),
