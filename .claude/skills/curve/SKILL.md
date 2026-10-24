@@ -1,6 +1,11 @@
 ---
 name: curve
-description: "Inspect or maintain exact curve identities, EC1 aliases, global curve UIDs, field metadata, trait catalogs, and curve comparison imports. Use for curve catalog work and identity mismatches. Use endo for CM/endomorphism analysis, transfer for maps, and run for existing trials."
+description: >-
+  Inspect or maintain exact curve identities, EC1 aliases, curve UIDs, field
+  metadata, trait catalogs and comparison imports. Use for catalog work and
+  identity mismatches. Use endo for CM analysis, transfer for maps, and run
+  for trials.
+
 ---
 
 # Curve records

@@ -1,13 +1,11 @@
 ---
 name: consolidate-lanes
 description: >-
-  Cross-lane consolidation over the agent bus: read traffic across lanes that
-  cannot see each other and carry pointers between them, so two sessions
-  circling one experiment find out before the second spends its budget. Use
-  on a schedule while several sessions work one goal, when opening a second
-  lane on a goal, before approving a batch that overlaps another lane, or
-  when asked to reconcile parallel sessions. Dispatches the consolidator;
-  pointers only, changes no status.
+  Carry pointers between agent-bus lanes that cannot see each other, so two
+  sessions circling one experiment find out before the second spends budget.
+  Use on a schedule while several sessions work one goal, before approving an
+  overlapping batch, or to reconcile parallel sessions. Pointers only;
+  changes no status.
 
 ---
 
