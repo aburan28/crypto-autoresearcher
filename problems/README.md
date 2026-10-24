@@ -120,3 +120,4 @@ remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
 
 - [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
+- [ECDLP lead atlas cites unmerged cross-repository evidence](ecdlp-lead-atlas-unmerged-evidence.md) — six crypto study citations and two ecc-challenges walk citations are pinned to open PRs; source replay and four-repository validation remain pending.
