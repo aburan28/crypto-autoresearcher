@@ -119,7 +119,8 @@ review, and synthesis.
    transition is blocked until the dispatcher verifies that commit's parent,
    diff, record IDs, and file hashes.
 6. Push the branch and open or refresh a PR against `main` naming the new
-   `EV-*`/`DEC-*`/`KN-*` records (see "Branch and PR hygiene"). An evidence
+   `EV-*`/`DEC-*`/`KN-*` records, then enable auto-merge
+   (`gh pr merge <n> --auto --merge`; see "Branch and PR hygiene"). An evidence
    or decision record that exists only in a local commit has not been made
    official — it is unpublished.
 7. Report to the user: the decision, the evidence strength, the exact scoped

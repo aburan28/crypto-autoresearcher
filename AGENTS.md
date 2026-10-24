@@ -417,6 +417,16 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   a foreground wait on CI. Check in about 50 minutes after activity, then about
   four hours apart if nothing changes; stop after three unchanged check-ins,
   merge or closure, or an instruction to stop. New activity resets the count.
+- **Auto-merge is on by default** (user, 2026-10-24): the moment a PR against
+  `main` is open and ready for review, enable GitHub auto-merge
+  (`gh pr merge <n> --auto --merge`), then keep the normal check-in flow; do
+  not poll it to completion. Auto-merge exists only when the base is the
+  repository's default branch: a PR based on a feature branch (stacked work)
+  can never be auto-merged, so retarget it to `main` once its parent lands, or
+  merge the stack bottom-up by hand. Enabling auto-merge waives no gate below:
+  required checks, review and approvals still decide, and a failure is fixed,
+  never merged. If the user asks to leave the PR open or wait for review,
+  disable auto-merge (`gh pr merge <n> --disable-auto`) so it stays open.
 - **Merge** the PR for the current user task when its final diff is complete,
   the current head has all required and applicable checks successful (or
   legitimately skipped), no check pending (except as below) or failed, no
@@ -425,9 +435,10 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   logs and fix failures caused by the change; report unrelated failures with
   evidence on the PR. A new commit resets the current-head checks. Never skip,
   disable, or rerun a check merely to get green, and never bypass branch
-  protection or required review. Prefer GitHub auto-merge where useful; use a
-  merge commit and an expected-head guard where supported. Confirm the merged
-  state and merge commit before reporting success. A merge is a git operation,
+  protection or required review. Auto-merge is already enabled by default (see
+  above); use a merge commit and an expected-head guard where supported.
+  Confirm the merged state and merge commit before reporting success. A merge
+  is a git operation,
   not a research-state transition. If a concrete gate prevents merging, name
   it on the PR and continue the check-in flow; do not treat a ready PR as done.
 - **Checks that never start do not block** (owner, 2026-10-23). A check that
