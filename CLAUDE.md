@@ -13,8 +13,11 @@ earlier long form of this file stays unchanged at
 ## What is Claude Code specific
 
 - **Batch delivery**: follow AGENTS.md, "Model policy".
-- **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
-  `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
+- **Subagents** (`.claude/agents/`) are hand-written Claude wrappers around
+  `agents/*.md`; `tools/generate_runtime_agents.py` generates only the Codex and
+  OpenCode bindings, from `orchestration/roles.yaml`, and
+  `tools/check_runtime_bindings.py` checks the Claude wrappers against the same
+  table. Eight roles (`idea-synthesist` is Claude
   Code only; `experiment-director` writes Haiku's task cards,
   `docs/model-tiers.md`) plus the policy-tier variants `executor-mechanical` (Haiku;
   runbooks), `validator-sweep` (Sonnet; `audit-runs`), `validator-breakthrough`
