@@ -51,6 +51,9 @@ signals. A scanner lead or a checker timeout is not a research verdict; see
 The registry holds 2,753 experiment IDs and 3,726 run IDs in the auto
 researcher, 636 crypto session paths (617 ecbench/v1), and 335 cryptanalysis experiment
 directories. Only selected load-bearing joints received independent reading.
+The 84 checked targets cite only five exact experiment IDs and five full run
+IDs across their specs and 29 pinned source files; this is pointer coverage,
+not proof of those runs.
 The 617 ecbench/v1 directories have source-hashed integrity replays: 590
 complete-status bound passes, 13 interrupted-status bound integrity passes
 for retained records only, ten interrupted and unbound, and four missing
