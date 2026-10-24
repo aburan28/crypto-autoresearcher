@@ -1,6 +1,13 @@
 ---
 name: sheriff
-description: "Wildly deep integrity audit of research results across crypto-autoresearcher, crypto and cryptanalysis: execution proofs and STARK/zk verifiers, Lean theorems (holes, axioms, statement fidelity), solve certificates, cost accounting against matched rho, statistics and preregistration, provenance and replays, and every number in papers. Use for /sheriff, 'is this result real', before a claim, paper or benchmark row lands, after a claimed breakthrough, or on a schedule. Writes write-once cases; never repairs or changes research state."
+description: >-
+  Deep integrity audit of research results across crypto-autoresearcher,
+  crypto and cryptanalysis: execution proofs, Lean theorems, solve
+  certificates, cost accounting against matched rho, statistics, provenance
+  and paper numbers. Use for /sheriff, 'is this result real', or before a
+  claim or benchmark row lands. Writes write-once cases; never repairs or
+  changes research state.
+
 ---
 
 # Sheriff

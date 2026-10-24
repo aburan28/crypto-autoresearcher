@@ -407,7 +407,10 @@ def release_task(
     artifact_sha256: dict[str, str] | None = None,
     include_refs: bool = True,
     now: _dt.datetime | None = None,
+    expected_epoch: int | None = None,
 ) -> Path:
+    if expected_epoch is not None and (type(expected_epoch) is not int or expected_epoch <= 0):
+        raise LaneError("expected_epoch must be an exact positive integer")
     if outcome not in RELEASE_OUTCOMES:
         raise LaneError(f"outcome must be one of {RELEASE_OUTCOMES}")
     now = now or utcnow()
@@ -415,6 +418,12 @@ def release_task(
     current = classify(history, now)
     if not current or current["status"] == "orphan_release":
         raise LaneError(f"{task_id} has no claim to release")
+    # Fence the single selected identity before any release payload/path/write.
+    # Later feed changes cannot redirect this operation to another epoch; this
+    # is not a global lock over claims published by other worktrees.
+    epoch = current["epoch"]
+    if expected_epoch is not None and epoch != expected_epoch:
+        raise LaneError(f"{task_id}: expected epoch {expected_epoch}, current epoch is {epoch}; refusing release")
     if current["status"] == "released":
         raise LaneError(
             f"{task_id} epoch {current['epoch']} is already released "
@@ -428,7 +437,7 @@ def release_task(
     payload = {
         "schema": RELEASE_SCHEMA,
         "task_id": task_id,
-        "epoch": current["epoch"],
+        "epoch": epoch,
         "owner": owner,
         "outcome": outcome,
         "released_at": fmt(now),
@@ -436,7 +445,7 @@ def release_task(
         "note": note,
         "artifact_sha256": artifact_sha256 or {},
     }
-    path = root / claims_prefix(root, queue_path) / f"{task_id}.{current['epoch']}.release.json"
+    path = root / claims_prefix(root, queue_path) / f"{task_id}.{epoch}.release.json"
     write_once(path, payload)
     return path
 
@@ -669,6 +678,7 @@ def cmd_release(args: argparse.Namespace) -> int:
     path = release_task(
         root, queue, args.task, owner=args.as_addr, outcome=args.outcome, note=args.note,
         artifact_sha256=hashes, include_refs=not args.local_only,
+        expected_epoch=getattr(args, "expected_epoch", None),
     )
     if hashes:
         print(f"  bound {len(hashes)} artifact hash(es)")
@@ -767,6 +777,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("release", help="end your own claim with an outcome")
     p.add_argument("queue"); p.add_argument("task")
+    p.add_argument("--expected-epoch", type=int, help="refuse unless the selected claim has this positive epoch")
     p.add_argument("--outcome", choices=RELEASE_OUTCOMES, required=True)
     p.add_argument("--note")
     p.add_argument("--artifact", action="append", help="path=sha256, repeatable")
