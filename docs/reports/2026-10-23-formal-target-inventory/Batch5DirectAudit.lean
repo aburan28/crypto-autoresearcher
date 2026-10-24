@@ -1,0 +1,7 @@
+import CryptoResearch.Endosweep.DkExactBatch5
+#check CryptoResearch.Endosweep.DkExactBatch5.exact_discriminants
+#print axioms CryptoResearch.Endosweep.DkExactBatch5.exact_discriminants
+#check CryptoResearch.Endosweep.DkExactBatch5.gost_gost512_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch5.gost_gost512_holds
+#check CryptoResearch.Endosweep.DkExactBatch5.gost_gost512_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch5.gost_gost512_certificate
