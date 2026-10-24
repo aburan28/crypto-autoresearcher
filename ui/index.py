@@ -1025,7 +1025,9 @@ class ResearchIndex:
                 {"id": k, "paths": v} for k, v in sorted(self.duplicate_paths.items())],
             "id_path_mismatch": sorted(id_mismatch, key=lambda d: d["path"]),
             "dangling_refs": [
-                {"id": k, "cited_by": n} for k, n in dangling.most_common(500)],
+                {"id": k, "cited_by": n}
+                for k, n in sorted(dangling.items(), key=lambda item: (-item[1], item[0]))[:500]
+            ],
             "goal_flags": [
                 {"id": g.record_id, "flags": g.flags} for g in self.goals if g.flags],
             "ecc_policy_error": self.ecc_error,
