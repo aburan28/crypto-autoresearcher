@@ -247,7 +247,7 @@ def main():
         L.append(f"  DkCert.statement_of_holds _ {c['name']}_holds")
         L.append("")
     names = [c["name"] for c in cs]
-    L.append(f"/-- The {len(cs)} curves of {DIRNAME}/dk_exact.json. -/")
+    L.append(f"/-- The {len(cs)} curve{'s' if len(cs) != 1 else ''} of {DIRNAME}/dk_exact.json. -/")
     L.append("def dkCerts : List DkCert :=")
     L.append("  [" + ",\n   ".join(names) + "]")
     L.append("")
@@ -269,7 +269,7 @@ automorphism) on {', '.join(m3)} (the pairing-friendly curves with `j = 0`)"""
     hyps = "".join(f"c.DK ≠ {d} → " for d in dks)
     # A batch with no small D_K has no equalities to state: the size bound then covers every curve.
     others = (f"Moreover {moreover},\nand on the other {len(big)} curves" if small else
-              f"Moreover, on all {len(big)} curves")
+              (f"Moreover, on all {len(big)} curves" if len(big) != 1 else "Moreover, on the 1 curve"))
     eqs_conj = f"\n    ({eqs}) ∧" if small else ""
     eqs_proof = " by decide +kernel," if small else ""
     L.append(f"""/-- **Exact CM discriminants** (README "Results").  For every curve in
