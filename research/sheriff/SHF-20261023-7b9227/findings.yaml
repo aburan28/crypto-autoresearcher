@@ -1,0 +1,383 @@
+# Sheriff case SHF-20261023-7b9227: `all` at deep tier, 2026-10-23.
+# Paths: bare = crypto-autoresearcher (origin/main e9b91d62a9); crypto: = crypto (origin/main
+# 6ed792e86, sparse); cryptanalysis: = cryptanalysis (origin/main 6dfc25d, sparse). Reader reports
+# were written in a scratch staging directory and copied verbatim into readers/ and
+# scripts/readers/; absolute /tmp/... paths inside them refer to that staging copy.
+sheriff_case:
+  schema: sheriff.case/v1
+  id: SHF-20261023-7b9227
+  target: >-
+    all (deep sweep of the three repositories) + reader pass on the load-bearing claims merged
+    since SHF-20261017-e4d7f6: the GOAL-MONO-001 closure, crypto's STARK fix 999d4eefc, the 21 new
+    formal/ Lean modules, cryptanalysis's n=83 IC stack and the open residues of the last case
+  prior: >-
+    Written before the sweep (prior.md). Expected the STARK fix to hold against the known
+    mutants with residual risk in its AIR identifier; the ledger to have grown; CI still off;
+    new untraced numbers and strong words; the cryptanalysis K-N residues still open.
+  independence: >-
+    This session wrote crypto-autoresearcher #2330 (the run-manifest gate in
+    tools/experiment_execution.py) and cases SHF-20261016-3caa6f's re-audit and
+    SHF-20261017-e4d7f6. Those are excluded: no claim about them is audited here. The STARK fix
+    on crypto main (999d4eefc) and #2326's ledger repairs were made by other sessions and are in
+    scope. Every reader is the same model family as most producers (see each readers/*.yaml).
+  readers:
+    - {role: validator-breakthrough, model: claude-opus-5-5, joint: "GOAL-MONO-001 closure: blind re-derivation of KN-FIND-bdcd60 (B3/B4/B6/B8)", report: readers/mono-validator.yaml}
+    - {role: red-team-breakthrough, model: claude-fable-5-1, joint: "GOAL-MONO-001 closure: interpretation, scope, decision logic, cheapest falsification", report: readers/mono-redteam.yaml}
+    - {role: validator, model: claude-opus-5-5, joint: "B2 crypto STARK fix 999d4eefc and E1-R: mutation controls", report: readers/stark.yaml}
+    - {role: validator, model: claude-opus-5-5, joint: "B3 the 21 new formal/ Lean modules: holes, fidelity, constants", report: readers/lean.yaml}
+    - {role: red-team, model: claude-opus-5-5, joint: "B5/B6/B7 cryptanalysis n=83 IC stack and #944", report: readers/n83-costmodel.yaml}
+    - {role: session (sheriff), model: claude-opus-5-5, joint: "sweep, CI state, ledger, runbook audits, fb-archive, bare-lean builds and axiom audits, #2066 residues", report: REPORT.md}
+
+  claims:
+    # --- GOAL-MONO-001 (review-breakthrough class: a goal closure) -------------------------
+    - id: C1
+      text: "Generic monodromy of the Semaev summation cover over F_p: ordered base (Z/2)^{m-2} regular, symmetric base (Z/2)^{m-2} semidirect S_{m-1} of order 2^{m-2}(m-1)! for m >= 4, primitive iff m-1 odd, exact Frobenius rule on unramified F_p-fibres (confidence: established)"
+      location: knowledge/findings/KN-FIND-bdcd60.md
+      verdict: upheld_scoped
+      scoped_to: >-
+        true as a derivation-tier statement for p > 3 and nonsingular E: re-derived blind and
+        re-computed with code disjoint from the producers' (group orders 2, 24, 192, 1920, 23040;
+        0 Frobenius-rule mismatches over 89,385 fibres; exhaustive search over every nonsingular
+        curve at small p, 2,131,737 admissible fibres, 0 violations; symmetric base measured at
+        m = 4, 5, 6). The primitivity clause holds for m >= 4 only; the literature check is not
+        covered; not machine-checked.
+      beats: {B3: n/a, B4: pass, B6: pass, B8: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-validator.yaml, research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/mono/blind_derivation.txt]
+      findings: [MN-1, MN-2]
+    - id: C2
+      text: "established: re-derived blind and independently; three derivations agree"
+      location: knowledge/findings/KN-FIND-bdcd60.md (confidence_note); ledger/decisions/DEC-20261022-a0f165.yaml
+      verdict: overclaimed
+      scoped_to: "one derivation, one blind re-derivation (from a card that encoded the answer's shape) and one guided verification, independent by session, role and method within one model family"
+      beats: {B6: fail}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml]
+      findings: [MN-3]
+    - id: C3
+      text: "GOAL-MONO-001 status: completed"
+      location: ledger/goals/GOAL-MONO-001/goal.yaml
+      verdict: upheld_scoped
+      scoped_to: "completed on success criterion (c), a recorded instrument no-go (KN-FIND-4f0d84 / EV-MONO-1ef611); the relation-rate question the goal is named for stays open (KN-OPEN-62c870, RQ-MONO-001 active)"
+      beats: {B6: pass, B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml, ledger/goals/GOAL-MONO-001/goal.yaml]
+      findings: [MN-4, MN-5]
+
+    # --- crypto STARK fix 999d4eefc and E1-R ---------------------------------------------------
+    - id: C4
+      text: "both STARK verifiers bind the whole statement into Fiat-Shamir; frozen-heart, query-count, truncation and zero-fold FRI forgeries are rejected (V1, V3)"
+      location: crypto:src/zk/stark.rs, crypto:src/zk/stark_v2.rs (commit 999d4eefc)
+      verdict: upheld_scoped
+      scoped_to: >-
+        every mutant the 2026-10-17 harness found accepted is now rejected and no input panics
+        (55-row harness adapted to the new API; cargo test zk::stark 41 passed); v1 stays
+        grindable at an unsized q = 20 as documented (0 of 20,000 at the sized q = 333). The new
+        attacks on the new design (AIR-identifier collision, oversized statements) were not run.
+      beats: {B2: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/stark/harness.jsonl]
+      findings: [ST-1, ST-2]
+    - id: C5
+      text: "the stark_v2 soundness text states a conjectured bound with its assumptions and claims no security level (V2)"
+      location: crypto:src/zk/stark_v2.rs
+      verdict: upheld
+      beats: {B2: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/stark/spot_check_queries_exact.json]
+      findings: []
+    - id: C6
+      text: "ecbench audit reports records_bound false for a never-finalised session, and such a session must not be cited as complete (E1-R)"
+      location: crypto:src/cryptanalysis/ecbench/audit.rs
+      verdict: upheld_scoped
+      scoped_to: "the flag is computed correctly and tested (5 of 5); the audit still reports ok: true for such a session and no consumer reads the flag"
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/stark/cargo-test-ecbench-audit.log]
+      findings: [ST-3]
+
+    # --- the 21 new formal/ Lean modules -------------------------------------------------------
+    - id: C7
+      text: "the Lean modules added to formal/CryptoResearch since 2026-10-17 prove their targets' statements under standard axioms"
+      location: formal/CryptoResearch/{Binstd,Endosweep,FrobTrace,NCP,Semaev}/*.lean, formal/targets/*.yaml
+      verdict: upheld_scoped
+      scoped_to: >-
+        no hole or trusted-base escape in any of the 20 files and every asserted constant
+        re-derives (reader); built and axiom-audited by the session only for the Mathlib-free
+        closures (Endosweep DkExact chain incl. DkExactBatch4, Semaev BooleanParityFinite and
+        FiniteEquationSemantics: 30 theorems, standard axioms only; two one-constant mutants
+        fail). The 15 Mathlib-dependent modules are not built here, and lean-verification is
+        disabled, so CI has built none of them.
+      beats: {B3: not_covered}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml, research/sheriff/SHF-20261023-7b9227/scripts/lean-build/axioms.out, research/sheriff/SHF-20261023-7b9227/scripts/lean-build/ptm/RankMutant.out]
+      findings: [LN-2, LN-3, LN-4, CI-2]
+    - id: C8
+      text: "the certificate proves C5 for the resulting exact matrices"
+      location: docs/reports (frob-c5-factor-kernels REPORT.md, as cited in readers/lean.yaml F1)
+      verdict: overclaimed
+      scoped_to: "Lean proves the factor-kernel identities for the exact matrices; that T computed by repeated q-th powering equals h(pi), and that the fixed line lies outside ker T, are checked in Sage, not in Lean"
+      beats: {B3: fail, B8: fail}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/lean/frob_recheck.out.json]
+      findings: [LN-1]
+
+    # --- cryptanalysis n=83 IC stack -------------------------------------------------------
+    - id: C9
+      text: "n83 closure: end-to-end cold 6.4444 [6.0993, 6.7853] (#985); closure + index lift 7.6558 [7.2192, 8.1103] (#997); Tier 1 replication R 7.4133 [7.1999, 7.6362] (#1002)"
+      location: cryptanalysis:experiments/koblitz-n83-closure-20261019
+      verdict: upheld_scoped
+      scoped_to: >-
+        engineering improvement of the IC pipeline at n = 83 on one host class at a time: every
+        ratio re-derives from raw records (#1002 blind: 7.4133 [7.1999, 7.6362]; A/A 0.9991),
+        174/174 answers verify, preregistration proven from GitHub metadata, and the counted-op
+        gain holds across the 0/0.1/1 GAE band (37.5x/23.0x/23.0x). The gain comes from cutting
+        the unknown log columns K' from 600 to 16 at one generic table solve per relation, not
+        from cheaper relations; the K' -> 0 limit is the ledger's own non-IC BSGS-on-quotient
+        construction. Cold gap to rho in-run 62.53 -> 8.434 [7.00, 10.30] (#1002).
+      beats: {B4: pass, B5: pass, B6: pass, B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/rederive_1002.out, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/verify_scalars.out]
+      findings: [N83-1, N83-7]
+    - id: C10
+      text: "n83 index build 1.7406 (#1006), round 2 1.1169 (#1009), rank finder 1.0196 (#1013), online frame round 2 1.0165 (#1015), online stage 1.5733 (#988)"
+      location: cryptanalysis:experiments/koblitz-n83-indexbuild-20261020, cryptanalysis:experiments/koblitz-n83-rankfinder-20261021
+      verdict: upheld_scoped
+      scoped_to: "wall-time engineering only (probe counts identical per seed in both arms), each on its own CPU; #1013 and #1015 are 1.6-2% effects that the A/A control cannot separate from code layout, and #1013 is below its design's minimal effect"
+      beats: {B5: pass, B6: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/rederive_1013.out, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/counts_identical.out]
+      findings: [N83-4, N83-5]
+    - id: C11
+      text: "n=83 IC baseline row: cold gap to matched rho 3.9242; section_5a_band not computable"
+      location: cryptanalysis:docs/ic/baselines.json
+      verdict: overclaimed
+      scoped_to: "gap 3.9242 [3.16, 5.22], host-dependent (4.00 / 4.42 / 5.43 for one producer on three CPUs); a lower-bound GAE band is computable from emitted counters and leaves IC and rho unranked across 0/0.1/1"
+      beats: {B5: fail, B8: fail}
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/gap_1013.out, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/band_1013.out]
+      findings: [N83-2, N83-3, N83-4, N83-8]
+    - id: C12
+      text: "#944 fixes SHF-20261017-e4d7f6 K-N1..K-N4 and R1-R"
+      location: cryptanalysis:docs/ic/baselines.json, cryptanalysis:docs/ic/BASELINES.md (commit 5a52a13)
+      verdict: upheld_scoped
+      scoped_to: "K-N2, K-N3, K-N4 fixed; R1-R fixed as specified (other-CPU replay of rank block K1, protocol frozen 49 s before) but with no env_class_id and only the stacked producer replayed; K-N1 partly: wording and phases fixed, base construction timed (427.5 ms), group-operation counts still not emitted"
+      beats: {B5: pass, B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml]
+      findings: [N83-6, N83-9]
+
+    # --- repository health -------------------------------------------------------------------
+    - id: C13
+      text: "the validate gate guards crypto-autoresearcher main (re-enabled 2026-10-17)"
+      location: .github/workflows/validate.yml
+      verdict: broken
+      beats: {B7: fail}
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/ci-state.txt, research/sheriff/SHF-20261023-7b9227/checks/validate-ledger.txt]
+      findings: [CI-1, M2-R2]
+    - id: C14
+      text: "finished runbook sessions are audited before citation"
+      location: tools/runbook.py pending-audits
+      verdict: upheld_scoped
+      scoped_to: "two sessions finished 2026-10-21 had no audit; this case audited both with fresh nonces and both are clean (RBS-XEDN-a7cd25, RBS-PFDR-ca5e01; PFDR's first attempt hit a 1500 s timeout, kept)"
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/runbook-audit/RBS-XEDN-a7cd25/audit.json, research/sheriff/SHF-20261023-7b9227/checks/runbook-audit/RBS-PFDR-ca5e01/audit.json]
+      findings: [X-1]
+    - id: C15
+      text: "crypto #2066 fixes SHF-20261017-e4d7f6 L-N1 and L-N7 (trusted-native list; committed axiom-audit logs from green CI)"
+      location: crypto:tools/lean/trusted-native.txt, crypto:research/conductor_gap_cm_pairs_20261010/lean/axiom-audit.log
+      verdict: upheld
+      beats: {B3: pass, B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/residues-20261017.txt]
+      findings: []
+    - id: C16
+      text: "fb-archive index complete"
+      location: cryptanalysis:experiments/fb-archive
+      verdict: upheld_scoped
+      scoped_to: "fbarchive.py verify: 2681 archives, 0 problems (on the sparse tree with gf2n.py supplied); refs.py check not covered"
+      beats: {B7: pass}
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/fbarchive-verify.txt]
+      findings: []
+
+  findings:
+    - id: MN-1
+      beat: B8
+      severity: minor
+      claim_ids: [C1]
+      what: "KN-FIND-bdcd60's Basis quotes '334,354 sampled nondegenerate fibres'; the raw records sum to 259,026 sampled (354,354 with the exhaustive run); TASK-20261017-8aff64's '395,914' is also untraced (raw 393,626). The conclusion is unaffected."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-validator.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/mono/postblind_results.txt]
+      fix: "Additive correction note with the traced counts."
+    - id: MN-2
+      beat: B8
+      severity: minor
+      claim_ids: [C1]
+      what: "'primitive iff m - 1 is odd' needs m >= 4 stated: at m = 3 the group is S_2, primitive with m - 1 even. The scope also says measured corroboration covers m in {3,4,5}; on the symmetric base the producers measured only m = 4 (this case measured m = 5 and 6)."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-validator.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/mono/redteam/rt_symmetric_m56_out.json]
+      fix: "Clarification record: state m >= 4 for the primitivity clause and the bases actually measured."
+    - id: MN-3
+      beat: B6
+      severity: major
+      claim_ids: [C2]
+      what: >-
+        'Three derivations agree' and 're-derived blind and independently' overstate the review
+        round. TASK-20261017-8aff64's card carried the full CU-9 statements and the derivation
+        route, so it was a guided verification plus independent measurement; the blind card for
+        TASK-20261017-ccd10c encoded the answer's shape. All reviewers share one model family.
+        The mathematics stands (re-derived blind here); the confidence wording does not.
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml]
+      fix: "A correction record restating the review count (one derivation, one blind re-derivation, one guided verification) and the shared model family; no status change."
+    - id: MN-4
+      beat: B8
+      severity: minor
+      claim_ids: [C3]
+      what: "The closure texts assert 'not full symmetric or wreath' and 'the dichotomy is not exhaustive', but no record defines which wreath product criterion (a) meant; under the only one the lane names (Z/2 wr S_{m-1}) the symmetric-base monodromy is the full image. The outcome is unchanged (criterion (c) is the basis)."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml]
+      fix: "Clarification record defining 'full wreath' and restating the dichotomy result."
+    - id: MN-5
+      beat: B8
+      severity: minor
+      claim_ids: [C3]
+      what: "'completed' means the goal's own instrument was shown unable to answer its question (criterion (c)); portfolio views count GOAL-MONO-001 as a completed goal while the relation-rate gate it is named for is open."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/mono-redteam.yaml]
+      fix: "Goal-level summaries carry '(c) instrument no-go; question open'."
+    - id: ST-1
+      beat: B2
+      severity: minor
+      claim_ids: [C4]
+      what: "The AIR is bound into the transcript by a fingerprint (the transition evaluated at fixed public points), exact only for degree <= 1 transitions; the module's own cheat_air test transition has the same fingerprint as doubling. The verifier still evaluates its own transition, so this weakens domain separation rather than admitting a known forgery. Untested: the identifier-collision attack was not run (the reader's attack code was stopped by a safety check)."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml]
+      fix: "Bind the transition as its coefficients (or a caller-supplied identifier) and add an identifier-collision negative test."
+    - id: ST-2
+      beat: B2
+      severity: minor
+      claim_ids: [C4]
+      what: "'never panics' holds for malformed proof values, not for the statement: v2 builds the n*beta domain before any Merkle check (a size check panics when n*beta > 2^32; below that, multi-GB allocations); the verifier's work is O(n*beta), not succinct. From reading; not executed."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml]
+      fix: "Bound n and beta before allocating, return false on oversized statements, and say the verifier is not succinct."
+    - id: ST-3
+      beat: B7
+      severity: minor
+      claim_ids: [C6]
+      what: "A never-finalised ecbench session still audits ok: true with records_bound: false, and no consumer of audit reports reads the flag; no test drops the last record of such a session, the case the flag exists for."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/stark.yaml]
+      fix: "Make claims/bounds/challenges reject records_bound: false explicitly and add the dropped-last-record test."
+    - id: LN-1
+      beat: B8
+      severity: major
+      claim_ids: [C8]
+      what: "The frob-c5-factor-kernels report says the certificate 'proves C5 for the resulting exact matrices'. Control C5 also needs T (computed by repeated q-th powering) = h(pi) and the fixed line outside ker T; Lean proves neither. Both hold in Sage, so the result is right and the wording overclaims what Lean checked."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/lean/frob_recheck.out.json]
+      fix: "Correction note: 'proves the factor-kernel identities; the T = h(pi) and fixed-line steps are checked in Sage'."
+    - id: LN-2
+      beat: B3
+      severity: minor
+      claim_ids: [C7]
+      what: "FrobTrace/QuotientMatrixKernels' three factor-kernel theorems hold for every endomorphism F (identity, zero, random): they are true but carry no information about the Frobenius matrices they are cited for."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/lean/mutation_controls.out.json]
+      fix: "State them as general lemmas, and cite the matrix-specific facts separately."
+    - id: LN-3
+      beat: B7
+      severity: minor
+      claim_ids: [C7]
+      what: "No committed receipt binds the source hashes of Endosweep/DkExactBatch4 or FrobTrace/OrderFive; OrderFive's report says a receipt 'is recorded separately' and none exists (unsupported)."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/lean/pinning_check.out.json]
+      fix: "Run tools/verify_formal_targets.py on a host with Mathlib and commit the receipts, or correct the sentence."
+    - id: LN-4
+      beat: B3
+      severity: minor
+      claim_ids: [C7]
+      what: "Semaev/Certificate's `decide = true <-> ...` theorem holds for any Decidable instance and no concrete certificate is decided in Lean; at degree 2 the BooleanParity 'no fall' result is rank arithmetic only (dim(V cap R) is tied to the rank difference only at degree 3); four Semaev files set maxHeartbeats 0 (no soundness effect)."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/lean.yaml]
+      fix: "Scope the citing sentences to what each theorem states."
+    - id: N83-1
+      beat: B5
+      severity: major
+      claim_ids: [C9]
+      what: >-
+        The runs gate a probe law of r/(166E) probes per relation, the same as for the target and
+        independent of the number of unknown log columns K': each relation costs one generic
+        table solve, so the pipeline is a table method solving K'+1 targets. The closure cut K'
+        from 600 to 16; it did not raise the chance of a relation. A per-operation model fits
+        (7.29 s against 7.27 s measured; #985 rank stages within 6%) and puts the row at its
+        model optimum (gap 3.93) with a floor of 1.15 at K' = 1 and 0.81 at K' = 0. The K' -> 0
+        limit is the known-log construction the ledger calls 'BSGS on the Frobenius quotient,
+        not IC' (#986), which the improvement metric cannot distinguish. A model, not an
+        impossibility result.
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/ceiling.out, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/chain.out]
+      fix: "Add a known-log arm (608 seeded orbits of G at the row's table size, logs known, no rank stage) paired with the current arms in the next n=83 run, and record it as the row's BSGS-on-quotient comparator; label the closure as fewer unknowns, not cheaper relations."
+    - id: N83-2
+      beat: B5
+      severity: minor
+      claim_ids: [C11]
+      what: "The n=83 row has no dominated_by / Pareto statement and no memory axis (IC uses 1.8 GiB); the Bernstein-Lange precomputed-rho comparison has not been re-run since the first n=83 row."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml]
+      fix: "Add the Pareto field and memory, and re-run the BL comparison."
+    - id: N83-3
+      beat: B5
+      severity: minor
+      claim_ids: [C11]
+      what: "section_5a_band says the band is not computable; a lower-bound band is computable from emitted counters: IC/rho about 0, 0.58-0.79 and 3.2-7.9 at 0, 0.1 and 1 GAE, so IC and rho are not ranked."
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/band_1013.out]
+      fix: "Report the lower-bound band and say IC and rho are unranked across it."
+    - id: N83-4
+      beat: B5
+      severity: minor
+      claim_ids: [C10, C11]
+      what: "The row's gap carries no interval (3.9242 [3.16, 5.22]) and is host-dependent by more than the last two improvements combined: the same round-2 producer reads 4.00, 4.42 and 5.43 on three CPUs; #1006, #1009, #1013 and #1015 ran on four different CPUs."
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/gap_1013.out, research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/gap_paired_runs.out]
+      fix: "Carry the interval and the host class on the row; pin the host class for row-to-row comparisons."
+    - id: N83-5
+      beat: B6
+      severity: minor
+      claim_ids: [C10]
+      what: "#1013 (1.0196) and #1015 (1.0165) are 1.6-2.0% wall-time effects between two different binaries; their A/A runs one binary against itself, so it cannot detect a code-layout effect. #1013 is below its own design's minimal effect of 1.03."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml]
+      fix: "Add a layout control (two builds of the same source, or the baseline relinked) for sub-3% claims."
+    - id: N83-6
+      beat: B6
+      severity: minor
+      claim_ids: [C12]
+      what: "Preregistration is not provable from main alone (every landing commit is a squash, protocol and results arrive together); it is provable from GitHub run metadata, which this case used."
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/prereg_gh.out]
+      fix: "Land protocol commits before result commits on main (merge commits), or record the run's protocol hash in the result."
+    - id: N83-7
+      beat: B6
+      severity: minor
+      claim_ids: [C9]
+      what: "In #1002 all three pairs of a point share one order and 7 of 10 points ran the baseline first, so order is confounded with point; weighting both orders equally gives 7.33 against 7.4133."
+      evidence: [research/sheriff/SHF-20261023-7b9227/scripts/readers/n83/rederive_1002.out]
+      fix: "Balance order within point in the next replication."
+    - id: N83-8
+      beat: B8
+      severity: minor
+      claim_ids: [C11]
+      what: "The n=83 row's sources still name branch claude/n83-rankfinder although the files are on main (994e0ccb); next_improvement names a stale target."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml]
+      fix: "Point the row at main's paths."
+    - id: N83-9
+      beat: B7
+      severity: minor
+      claim_ids: [C12]
+      what: "R1-R's other-CPU replay records no env_class_id (no ICMS capsule), and only the stacked producer was replayed; none of the eight rows since has an other-host replay. K-N1: group-operation counts still not emitted."
+      evidence: [research/sheriff/SHF-20261023-7b9227/readers/n83-costmodel.yaml]
+      fix: "Record env_class_id on replays, replay the current row on another host class, and emit counted group operations."
+    - id: CI-1
+      beat: B7
+      severity: major
+      claim_ids: [C13]
+      what: >-
+        validate was re-enabled on 2026-10-17 but fails on every main run since #2450 (the ten
+        most recent completed main runs all fail); in run 39870687450 every job passes except
+        `ledger`. A gate that is always red on main does not distinguish a new defect from the
+        141 existing ones, so merges land past it.
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/ci-state.txt]
+      fix: "Either bring the ledger to zero new errors or gate on 'no error beyond main's' (relative) until it is; then make validate required."
+    - id: CI-2
+      beat: B3
+      severity: major
+      claim_ids: [C7]
+      what: "lean-verification is still disabled (with 16 other workflows), so none of the 21 formal/ modules merged since 2026-10-17 has been built by CI; this case could build only the 6 Mathlib-free modules."
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/ci-state.txt, research/sheriff/SHF-20261023-7b9227/scripts/lean-build/README.md]
+      fix: "Re-enable lean-verification (formal-workspace job) and run it on main."
+    - id: M2-R2
+      beat: B7
+      severity: minor
+      claim_ids: [C13]
+      what: "validate_ledger on main: 141 new validation errors (157 on 2026-10-17), including experiments/EXP-ICPERF-9cd390/runs/RUN-ICPERF-caa0c1/manifest.yaml, a flat infrastructure-failure manifest committed 2026-10-17 15:32 UTC. Whether the run-manifest gate of #2330 should cover failed trials is a question about this session's own work and is left to the Coordinator without a verdict."
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/validate-ledger.txt]
+      fix: "Coordinator triage of the remaining records; decide whether failed-trial manifests must meet the run schema."
+    - id: X-1
+      beat: B7
+      severity: minor
+      claim_ids: [C14]
+      what: "Two finished runbook sessions (RBS-XEDN-a7cd25 stopped, RBS-PFDR-ca5e01 completed, both 2026-10-21) had no audit of their journal tip before this case."
+      evidence: [research/sheriff/SHF-20261023-7b9227/checks/runbook-audit]
+      fix: "Run /audit-runs on a schedule; this case's audits are clean and may be cited."

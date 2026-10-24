@@ -5,19 +5,9 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
-## Every improvement is a success
+## Observe first; interpret later
 
-Owner's rule, 2026-10-15. The success criterion is a verified, measured
-improvement over the current index-calculus baseline: the best verified
-pipeline for that curve and size, frozen with its protocol and end-to-end
-`S`. Beating Pollard rho is the long-term goal, reached by accumulating
-such improvements, not by one breakthrough. Advance and engineering
-results are successes. Relabelling, accounting and null results are
-recorded but are not improvements. Each landed improvement becomes the new
-baseline, recorded with its delta. Every row reports its gap to the
-matched rho (and to Bernstein–Lange when setup is excluded) as the
-distance remaining, never as a pass/fail gate. A claim to beat rho still
-needs the full reference rules.
+Before planning or reporting research, read and follow the complete [observation-first rule](docs/agent-contract-extended.md#observe-first-interpret-later). Its observation, interpretation, ownership, performance-scope, and evidence requirements are binding; they supersede an improvement-only definition of research success.
 
 ## Name the obstruction
 
@@ -173,7 +163,11 @@ than requesting them.
 
 ## Mandatory progress-fidelity gate
 
-Every new quantitative speedup, performance advantage, or ECDLP attack-cost claim MUST carry a machine-readable record in `claims/*.json` passing `python3 -m tools.progress_fidelity validate`. Local subroutine gains must not be presented as end-to-end gains. All claims require matched baseline/candidate evidence and independent verification; see `docs/progress-fidelity.md`. Missing evidence is unqualified, never inferred. The Coordinator must enforce this for claims in prose as well as code; the `progress-fidelity` CI check must be required by branch protection before merge.
+Every new quantitative speedup, performance advantage, or ECDLP attack-cost claim MUST carry a machine-readable record in `claims/*.json` passing `python3 -m tools.progress_fidelity validate`. Local subroutine gains must not be presented as end-to-end gains. Such claims require matched baseline/candidate evidence and independent verification; see `docs/progress-fidelity.md`. Missing evidence is unqualified, never inferred. The Coordinator must enforce this for claims in prose as well as code; the `progress-fidelity` CI check must be required by branch protection before merge.
+
+This gate qualifies those claims; it does not require descriptive observations
+to assert an advantage or invent a baseline comparison. Report the actual
+controls and reference specified by the study, and defer broader interpretation.
 
 ## Intermediate-cost and asymmetric-access hypotheses
 
@@ -227,6 +221,11 @@ names evidence, budget, test boundary, remaining uncertainty and a successor or
 revisit condition. Decision records (candidate, evidence, rationale, ranking,
 action, model/session provenance) are the audit trail; private chain-of-thought
 is neither stored nor inferred.
+
+Rank observational work by the question it can clarify, measurement quality,
+reproducibility and unresolved uncertainty. Lack of an expected attack advantage
+or immediate application is not grounds to dismiss a measurement or stop
+presenting its data.
 
 ## Goal closure quorum (suspended)
 
@@ -310,7 +309,8 @@ work ahead of drafting more contracts when it offers a justified next run.
 
 ## Research direction
 
-Target profile: Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
+For work explicitly pursuing an algorithmic-complexity claim, the target
+profile is Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
 (`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`;
 `docs/target-result-profile.md`, checklist C1–C18; `KN-TECH-055`):
 exponent first; numbered heuristics, each with random-model justification,
@@ -318,8 +318,9 @@ falsification condition and validation plan; single-responsibility lemmas;
 external structural ingredients; validation at scale; honest cost and scope
 (memory beside time, o(1) disclosed, a concrete cost table, affected-vs-safe
 scope). The Coordinator checks the promotion gates of `agents/coordinator.md`
-before an asymptotic claim moves toward `supported`. The profile biases
-direction and lowers no rule.
+before an asymptotic claim moves toward `supported`. This profile qualifies
+those claims; it is not an admission or success criterion for descriptive
+observation and anomaly measurement.
 
 The **inventor protocol** (`docs/inventor-protocol.md`; `KN-TECH-056`,
 `KN-TECH-080`) binds the Idea Generator, Validator, Red Team and, for §8, the
@@ -327,8 +328,10 @@ Coordinator: premature closure fails like overclaiming; a closure needs a
 named obstruction, recorded as a measured `obstruction` block with a
 `resource_check`, an argument and forward guidance (a count of rejected
 mechanisms is `unverified`); a signal is an artifact until run against a null
-object of the same shape; every deliverable carries a checked `dominated_by`
-and a quantitative `sota_delta`; a proof-oriented proposal carries a
+object of the same shape; deliverables claiming a comparative algorithmic
+advance carry a checked `dominated_by` and a quantitative `sota_delta`.
+Descriptive deliverables state their actual reference and uncertainty without
+inventing a competitive claim. A proof-oriented proposal carries a
 `proof_search_map` whose four cheap audits run before compute and before the
 Coordinator approves implementation.
 
@@ -409,14 +412,27 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
 - **Continue through the PR** (user, 2026-10-14; supersedes the 2026-10-09
-  stop rule): open it ready for review, never as a draft unless the user asks.
-  The authoring session follows its PR through CI, review, conflict resolution,
+  stop rule): open it ready for review, never as a draft unless the user asks
+  (`docs/ci-tiers.md`). Work for an
+  existing research lane goes to its `lane/<lane>` branch with
+  `scripts/lane-push.sh <lane>`, not a new PR, and a PR's head stays within 30
+  CI checks (`ci:over-budget` otherwise). The authoring session follows its PR through CI, review, conflict resolution,
   and merge or closure. A ready PR is not a stopping point. Any model tier may
   fix its own PR's failures and merge it under the same gates. Subscribe to PR
   activity when supported; otherwise use spaced check-ins, not busy polling or
   a foreground wait on CI. Check in about 50 minutes after activity, then about
   four hours apart if nothing changes; stop after three unchanged check-ins,
   merge or closure, or an instruction to stop. New activity resets the count.
+- **Auto-merge is on by default** (user, 2026-10-24): the moment a PR against
+  `main` is open and ready for review, enable GitHub auto-merge
+  (`gh pr merge <n> --auto --merge`), then keep the normal check-in flow; do
+  not poll it to completion. Auto-merge exists only when the base is the
+  repository's default branch: a PR based on a feature branch (stacked work)
+  can never be auto-merged, so retarget it to `main` once its parent lands, or
+  merge the stack bottom-up by hand. Enabling auto-merge waives no gate below:
+  required checks, review and approvals still decide, and a failure is fixed,
+  never merged. If the user asks to leave the PR open or wait for review,
+  disable auto-merge (`gh pr merge <n> --disable-auto`) so it stays open.
 - **Merge** the PR for the current user task when its final diff is complete,
   the current head has all required and applicable checks successful (or
   legitimately skipped), no check pending (except as below) or failed, no
@@ -425,9 +441,10 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   logs and fix failures caused by the change; report unrelated failures with
   evidence on the PR. A new commit resets the current-head checks. Never skip,
   disable, or rerun a check merely to get green, and never bypass branch
-  protection or required review. Prefer GitHub auto-merge where useful; use a
-  merge commit and an expected-head guard where supported. Confirm the merged
-  state and merge commit before reporting success. A merge is a git operation,
+  protection or required review. Auto-merge is already enabled by default (see
+  above); use a merge commit and an expected-head guard where supported.
+  Confirm the merged state and merge commit before reporting success. A merge
+  is a git operation,
   not a research-state transition. If a concrete gate prevents merging, name
   it on the PR and continue the check-in flow; do not treat a ready PR as done.
 - **Checks that never start do not block** (owner, 2026-10-23). A check that
@@ -512,17 +529,27 @@ and solution certificates: `docs/claims-and-verification.md`. Session receipts
 cost; they are never evidence.
 
 Every benchmark, profiler session, and evaluation an agent runs also produces a
-durable insight report, including regressions, failed attempts, and censored
-runs. The report states the question, exact workload and controls, baseline and
-candidate revisions, hardware and tool versions, commands, raw measurements,
-correctness checks, costs, uncertainty, interpretation, and limits; it links to
-the underlying artifacts. Retain native profiler captures (for example Nsight
-Compute `.ncu-rep` files) and source or instruction-level exports when produced.
+durable measurement report, including regressions, failed attempts, and censored
+runs. The report states the question, exact workload and controls, revisions
+(baseline and candidate where applicable), hardware and tool versions, commands, raw measurements,
+correctness checks, costs, uncertainty and limits; it links to the underlying
+artifacts. Any interpretation is labeled separately; a usefulness or attack
+verdict is not a required report field. Retain native profiler captures (for
+example Nsight Compute `.ncu-rep` files) and source or instruction-level exports when produced.
 If capture fails, retain its logs and state which artifact is absent. Keep the
 report and raw artifacts in a durable evidence path, or commit a manifest with
 digests and stable artifact locations. Never replace a raw capture with a
 summary, overwrite a prior attempt, or discard an unfavorable result; each
 rerun gets a distinct record.
+
+## Data files live in the artifact store
+
+Owner, 2026-10-24: any non-code file over 1 MiB, and any data-suffixed file
+(`.jsonl`, `.gz`, `.npy`, logs, archives) over 64 KiB, lives in
+`s3://setec-astronomy-artifacts` with a `.artifacts.json` manifest in its
+directory, moved with `tools/artifacts/artifacts.py push` (not `git add`) and
+read after `pull`. The `artifacts` CI check fails a PR that adds one to Git.
+Never delete remote objects. See [`docs/artifacts.md`](docs/artifacts.md).
 
 ## Papers
 
@@ -567,3 +594,16 @@ serve only token-spending commands. Dashboard:
 127.0.0.1 --port 8787` (unset, source links come from `origin`, whose Cloud
 Agent remote embeds a credential). `formal/setup.sh` (Lean) is not part of
 this environment.
+
+## Progress metrics (daily lab report)
+
+`tools/progress_metrics.py` exports this repo's progress KPIs as JSONL for the lab-wide daily
+report (`/Volumes/SSD990-2/progress-metrics`). It reads committed state at `origin/<default>` and
+prints one sample per line (`metric, value, date, problem, unit, better, kind, label, source`).
+
+- When a PR adds or changes a benchmark, leaderboard, result file or ledger source that carries a
+  number worth tracking day over day, extend the exporter in the same PR. Keep metric ids stable;
+  a renamed id is a new series.
+- Never emit estimates. If a source is missing, emit nothing for it.
+- `python3 tools/progress_metrics.py --since 2026-10-01` must run in under a minute, stdlib only,
+  no builds, and never read the working tree.

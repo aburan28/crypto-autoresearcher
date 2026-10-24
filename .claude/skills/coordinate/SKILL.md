@@ -102,7 +102,9 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    - record impediments on an **active** goal — never `paused` or `blocked`.
 6. **Publish.** After every archive that adds `GOAL-*` / `RQ-*` / `IDEA-*` /
    `H-*` / `EXP-*` / `EV-*` / `DEC-*` / `TASK-*` / `KN-*` records: push the
-   branch and open or refresh a PR against `main` naming those IDs. A local
+   branch and open or refresh a PR against `main` naming those IDs, then enable
+   auto-merge (`gh pr merge <n> --auto --merge`; the base must be the default
+   branch, so a stacked PR is retargeted first). A local
    commit is unpublished.
 7. **Checkpoint** (goal / portfolio): goal, lane, queue, branch/PR, verified
    archive SHAs, completed task IDs, evidence/decision IDs, owners, exactly one
