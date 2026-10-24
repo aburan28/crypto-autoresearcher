@@ -40,7 +40,7 @@ def capture(name, command, directory, environment):
             "exit_code":result.returncode}
 
 
-def render(directory):
+def render(directory, report_root):
     data=json.loads((directory/"finite-audit.json").read_text())
     manifest=json.loads((directory/"manifest.json").read_text())
     table=[]
@@ -187,7 +187,7 @@ Canonical graph check: the earlier atlas snapshot and closure report are frozen
 historical views and were not rewritten. The current lead links this additive
 audit; its disposition remains open_next_step. This report adds its own graph.
 """
-    save(HERE/"report.md",text)
+    save(report_root/"report.md",text)
     os.environ.setdefault("MPLCONFIGDIR",str(directory/"matplotlib-config"))
     import matplotlib
     matplotlib.use("Agg")
@@ -209,7 +209,7 @@ audit; its disposition remains open_next_step. This report adds its own graph.
     axes[0].set_ylabel("Equal-bound volume exponent per equation")
     fig.suptitle("Finite determinant statistics; LLL and root extraction excluded",fontsize=11)
     fig.tight_layout()
-    fig.savefig(HERE/"reach-cost.svg")
+    fig.savefig(report_root/"reach-cost.svg")
     plt.close(fig)
     typst_source="""#set page(paper: "a4", margin: 19mm)
 #set text(size: 10pt)
@@ -265,18 +265,22 @@ Those are operational limits, not mathematical conclusions. The next step is
 publication authorization, independent budget review and an applicable executable
 optimized joint construction. See the linked named problem in report.md.
 """
-    save(HERE/"report.typ",typst_source)
+    save(report_root/"report.typ",typst_source)
     import typst
-    typst.compile(str(HERE/"report.typ"),output=str(HERE/"report.pdf"))
+    typst.compile(str(report_root/"report.typ"),output=str(report_root/"report.pdf"))
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--deps",type=Path)
+    parser.add_argument("--output",type=Path,default=HERE,
+                        help="fresh report location; existing artifacts are never overwritten")
     args=parser.parse_args()
     if args.deps:
         sys.path.insert(0,str(args.deps))
-    artifacts=HERE/"artifacts"
+    report_root=args.output.resolve()
+    report_root.mkdir(parents=True,exist_ok=True)
+    artifacts=report_root/"artifacts"
     artifacts.mkdir(exist_ok=False)
     environment=os.environ.copy()
     if args.deps:
@@ -323,9 +327,9 @@ def main():
     save(artifacts/"manifest.json",json.dumps(manifest,indent=2)+"\n")
     if any(c["exit_code"] for c in commands.values()) or any(not r["equal"] for r in matrices):
         raise SystemExit("Software check failed; artifacts retained; report not rendered.")
-    render(artifacts)
-    print(f"Report: {HERE/'report.md'}")
-    print(f"PDF: {HERE/'report.pdf'}")
+    render(artifacts,report_root)
+    print(f"Report: {report_root/'report.md'}")
+    print(f"PDF: {report_root/'report.pdf'}")
 
 
 if __name__=="__main__":
