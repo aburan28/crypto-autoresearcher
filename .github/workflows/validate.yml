@@ -2,6 +2,7 @@ name: validate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   merge_group:
@@ -49,6 +50,7 @@ env:
 
 jobs:
   changes:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -83,6 +85,7 @@ jobs:
   # PRs. Sparse is safe only for paths explicitly classified as documentation;
   # archive, record, code and unknown paths receive the full checkout.
   merge-hygiene:
+    if: ${{ !github.event.pull_request.draft }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -108,7 +111,9 @@ jobs:
 
   runtime-regressions:
     needs: changes
-    if: ${{ !cancelled() }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (!cancelled())
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
       RUN_RUNTIME: ${{ needs.changes.outputs.runtime }}
@@ -185,7 +190,9 @@ jobs:
 
   ledger:
     needs: changes
-    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false') }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -270,7 +277,9 @@ jobs:
 
   static-checks:
     needs: changes
-    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false') }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -441,7 +450,9 @@ jobs:
   # generated artifacts), and the shards' union is every collected file.
   harness-tests:
     needs: changes
-    if: always()
+    if: >-
+      !github.event.pull_request.draft &&
+      (always())
     name: harness-tests (${{ matrix.shard }}/4)
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
@@ -536,7 +547,9 @@ jobs:
   # Keeps the check name branch protection and auto-merge already know.
   ledger-and-harness:
     needs: [changes, merge-hygiene, ledger, static-checks, harness-tests, runtime-regressions]
-    if: always()
+    if: >-
+      !github.event.pull_request.draft &&
+      (always())
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
