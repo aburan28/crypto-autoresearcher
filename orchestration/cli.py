@@ -304,6 +304,11 @@ def cmd_formal(args: argparse.Namespace) -> int:
     return _delegate("orchestration.formal.cli", args.rest)
 
 
+def cmd_verify(args: argparse.Namespace) -> int:
+    """Advisory mathematical verification through the pinned Curvesmash backend."""
+    return _delegate("orchestration.verification", ["--help"] if args.verify_help else args.rest)
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     """Where things stand, without running anything."""
     cfg = config_module.load()
@@ -399,10 +404,13 @@ def build_parser() -> argparse.ArgumentParser:
             ("agent", cmd_agent, "plan or run a single dispatched task"),
             ("eval", cmd_eval, "evaluation suites, baselines, comparisons"),
             ("campaign", cmd_campaign, "campaign observations and opt-in autopilot"),
+            ("verify", cmd_verify, "Curvesmash verification in separate trust domains"),
             ("formal", cmd_formal, "formalize a claim in Lean and machine-check it")):
         p = sub.add_parser(name, help=help_text,
                            add_help=False)   # pass --help through to the sub-CLI
         p.add_argument("rest", nargs=argparse.REMAINDER)
+        if name == "verify":
+            p.add_argument("-h", "--help", action="store_true", dest="verify_help")
         p.set_defaults(func=handler)
     return parser
 
