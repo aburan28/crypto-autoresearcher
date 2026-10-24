@@ -1,0 +1,448 @@
+validation_report:
+  id: VAL-20261022-833f7f
+  id_note: tools/allocate_id.py has no VAL record type; the 6-hex suffix was drawn with secrets.token_hex(3).
+  task_id: TASK-20261022-38e8d2
+  review_plan_id: REVIEW-CZLIFT-8C50EA-20261022
+  experiment_id: EXP-CZLIFT-8c50ea
+  hypothesis_id: H-CZLIFT-89e169
+  snapshot_validated: 5c3cfdeef76cee2953e46697e37522daab4febda
+  snapshot_note: Every path in the card's read_scope is byte-identical between 5c3cfdeef7 and the working tree (git diff
+    5c3cfdeef7 HEAD and git diff HEAD on those paths are empty). The run packages are tracked and were archived on main
+    by ledger-receipt TASK-20261009-4ac56e (commit 53709b0ab5); no working-tree-only receipt was used.
+  validated_at: '2026-10-22'
+  run_ids:
+  - RUN-CZLIFT-e7147a   # trial cubic-box32-d4 (hmax 32, dmax 4)
+  - RUN-CZLIFT-d6996f   # trial cubic-box24-d6 (hmax 24, dmax 6), the replication
+
+  joint_verdicts:
+    J1: holds
+    J2: breaks
+    J3: breaks
+    PTM-1: holds
+  joint_summaries:
+    J1: Custody is complete. Every artifact hash in both execution receipts and the ledger archive receipt recomputes.
+      Command, revision, dirty flag, environment and the absence of seeds all agree with the frozen plan, and both
+      planned trials are present exactly once.
+    J2: >-
+      The arithmetic from raw-result.json reproduces under the code's own definitions. The recorded quantities do not
+      match the frozen definitions. (a) The point counts drop genuine K-points: a gcd(c0,c1,c2,d) = 1 skip at
+      harness/czlift_cubic.py:97 removes points with denominators at the ramified primes 2 and 3, and a height
+      max(|coords|, d^2) at :114 leaves dmax = 6 unused at H <= 24. (b) coverage_ratio_median is the upper middle
+      element, not the median. (c) As a result, the replication trial is a strict sub-computation of the main trial,
+      not an independent instance. The success and falsification outcomes do not change under the specification's
+      definitions.
+    J3: The sealed blind count for 37a1 disagrees with the recorded count on both boxes (33/15 vs 27/15 on hmax 32,
+      dmax 4; 39/17 vs 27/15 on hmax 24, dmax 6). 11a1 agrees (5/5).
+    PTM-1: On both boxes the 11a1 count is flat at 5, which equals E(K)_tors = Z/5 (proved below), and K = Q at every H.
+      The control can detect only over-acceptance of non-points. It is structurally blind to the under-counting defect
+      found under J2 and J3.
+
+  artifact_checks:
+  - check: artifact hashes vs execution-receipt artifact_sha256
+    result: pass
+    detail: 9 of 9 files match in each run (check.stderr.log, check.stdout.log, command.txt, environment.json, launch.json,
+      manifest.yaml, raw-result.json, stderr.log, stdout.log). The receipt does not hash itself, as expected.
+  - check: artifact hashes vs ledger-receipt path_sha256 (TASK-20261009-4ac56e)
+    result: pass
+    detail: 10 of 10 per run match, including execution-receipt.json (5f35bf10a0ab82c1..., c9b3177948cbb86f...).
+      raw-result.json is d3c5c8e169f6428f... (e7147a) and 54c3a578c7734d9f... (d6996f).
+  - check: frozen contract hashes
+    result: pass
+    detail: specification.yaml 9fcb5cab..., trial-plan.json f8551efc..., run.py b0bccb5b..., check.py 6b40b500...,
+      harness/czlift_cubic.py d0b44782... and harness/czlift_run.py ea163968... equal the trial-plan source_sha256, both
+      environment.json records, both manifests and the snapshot receipt TASK-20261009-046d5b. czlift_run.py is absent
+      from the snapshot receipt because it predates it (commit 6756a75613), but its bytes are identical at the freeze
+      commit and at the run commit. The execution receipts' plan_sha256 equals the trial-plan hash.
+  - check: manifest files_sha256 (named by the J1 statement)
+    result: not_applicable
+    detail: The manifests carry no files_sha256 block, and the specification's required_artifacts do not ask for one.
+      The binding is the execution-receipt artifact_sha256 plus the ledger-receipt path_sha256, both checked above.
+      This is a contradiction between the plan wording and the artifact shape, not a break.
+  - check: revision
+    result: pass
+    detail: Both manifests and receipts record commit 596d091f6f (claim commit, 22:44:26Z). The contract was frozen at
+      b553f64e3a (22:35:28Z), which is an ancestor of 596d091f6f, and 596d091f6f is an ancestor of snapshot 5c3cfdeef7.
+      All six contract files hash identically at both commits.
+  - check: dirty tree
+    result: pass
+    detail: dirty is false in both manifests, computed as git status --porcelain --untracked-files=no
+      (harness/czlift_run.py:55), so it covers tracked files only. Every source is also hash-bound. The only untracked
+      file in the implementation folder is the gitignored __pycache__/run.cpython-313.pyc (2026-10-09 22:24, before
+      the runs); I neither read nor executed it.
+  - check: command
+    result: pass
+    detail: launch.json argv equals the trial-plan argv with {run_dir} substituted; command.txt equals launch argv; the
+      manifest command is the same argv with python3 resolved to /usr/bin/python3; check_argv matches the plan.
+  - check: seeds
+    result: pass
+    detail: The specification has replication.seeds [], and both manifests record seed null with deterministic true.
+      The two "seeds" in the J2 statement are the two deterministic trials (boxes). I followed the specification.
+  - check: environment
+    result: pass_with_limitation
+    detail: Python 3.13.16, x86_64, 4 CPUs. runtime_lock is null, so no dependency lock exists (sympy and PyYAML
+      versions are unrecorded).
+  - check: coverage of the frozen plan
+    result: pass
+    detail: The plan has 2 trials and 2 run directories exist, each with exactly the 10 files listed in the ledger
+      receipt, status output_validated, returncode 0 and check_returncode 0. No path under this experiment's runs/ ever
+      existed in any git ref besides these two packages. Two earlier claims of the execution task TASK-20261009-27d353
+      were released as abandoned (22:37:29-22:38:10, 22:38:48-22:40:03). They committed no artifacts, and each window
+      is shorter than the recorded trial wall times (120.5 s, 81.4 s).
+  - check: resources
+    result: pass_with_limitation
+    detail: Wall time is recorded (120.54 s and 81.43 s; watchdog 3600 s), and 2 runs were used against an advisory
+      maximum of 4. Peak memory is not recorded in either manifest (budget 2 GB, trial memory_mb 2048).
+  - check: amendments
+    result: pass
+    detail: experiments/EXP-CZLIFT-8c50ea/amendments/ contains only .gitkeep.
+
+  blind_rederivation:
+    joint: J3
+    sealed_before_blind_from: true
+    seal: experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/SHA256SUMS (sealed_at_utc 2026-10-22T08:42:11Z;
+      re-verified with sha256sum -c after phase 2)
+    sealed_sha256:
+      blind/blind_points.py: c85584ff03635d087966914a1aa02a5b44017de222e4cb387a1c9f897229bf8e
+      blind/blind_points_output.json: e2bf5488c346b088410665c368b995f39afa42e1e1273471528469ef6c69eca8
+      blind/blind_points_stdout.log: 619edb36ff487424def4a7685602b676f4f79970fe3dd6a1438ef511e3864676
+      blind/blind_interpretation.yaml: 67480e1b92f3cbc5e781a7fd6c91fd6e0ad25a1eeb65fa389209dfb0d6176c72
+    method: G = d^6 f(alpha/d^2) is tested as a square in Z[theta] (the maximal order, disc -108) by two independent
+      exact tests. Test A uses embedding candidates with exact int64 verification. Test B uses a norm filter plus
+      characteristic-polynomial reconstruction with exact integer roots. The two agree on every (alpha, d) in both
+      boxes, and every accepted point is re-verified on the Weierstrass equation in exact arithmetic over K.
+    readings_sealed: Both boxes were sealed, because neither contains the other and "smallest setting" is ambiguous; the
+      replication box has the smaller hmax and fewer candidates. Four count units were sealed (distinct x, affine
+      points, points with O, (alpha, d) pairs), and each point carries min_h and min_d, so any H ladder can be rebuilt.
+    sealed_values_points_with_O:
+      11a1: {h32_d4: [5, 5], h24_d6: [5, 5]}
+      37a1: {h32_d4: [33, 15], h24_d6: [39, 17]}
+    recorded_values_N_K_N_Q_at_hmax:
+      11a1: {RUN-CZLIFT-e7147a: [5, 5], RUN-CZLIFT-d6996f: [5, 5]}
+      37a1: {RUN-CZLIFT-e7147a: [27, 15], RUN-CZLIFT-d6996f: [27, 15]}
+    unit_match: The recorded unit is affine points (+-y) plus O; 11a1's 1 -> 3 -> 5 fixes it. Under that unit the
+      sealed values are the ones shown.
+    disagreement:
+      37a1_h32_d4: N_K 33 sealed vs 27 recorded (difference 6). Three K-points are missing (x = -theta/2,
+        theta^2 - theta/2, -(theta + theta^2)/3). N_Q agrees at 15.
+      37a1_h24_d6: N_K 39 vs 27 (difference 12) and N_Q 17 vs 15 (difference 2). The same three points are missing,
+        plus three d = 5 points (x = 21/25, (3 + theta - 8 theta^2)/25, (-8 - 11 theta + 13 theta^2)/25).
+      11a1: agrees on both boxes.
+    hand_check: For 37a1 (y^2 + y = x^3 - x), x = -theta/2 and y = (theta^2 - 1)/2 give
+      y^2 + y = (2 theta - 1)/4 = x^3 - x, so the point is genuine. With alpha = -2 theta and d = 2,
+      G = 16 theta^4 = (4 theta^2)^2.
+    localisation: The sealed computation was compared with the producer's code only after the seal. Each missing point's
+      minimal (alpha, d) passes the producer's own exact_sqrt (j2_borderline_output.json). The point is lost either
+      because search_points skips gcd(c0,c1,c2,d) != 1 (harness/czlift_cubic.py:97) or because
+      height() = max(|coords|, d^2) > H (:114). The specification's box is |coords(alpha)| <= hmax and d <= dmax, with
+      no primitivity condition and no d^2 in the height.
+
+  metric_recomputations:
+  - metric: N_K(H), N_Q(H) for all six curves, every H in {2,4,8,12,16,24,32}, both runs
+    recorded_vs_own: >-
+      My enumeration under the definition inferred from the data, gcd(c0,c1,c2,d) = 1 and
+      max(|coords|, d^2) <= H, reproduces all 78 recorded (N_K, N_Q) pairs exactly. That definition was confirmed in
+      the code afterwards. Under the specification's box the counts at hmax are as follows. Main run: 37a1 33/15
+      (recorded 27/15), 5077a1 69/47 (59/47), 234446a1 65/47 (63/47); 11a1, 389a1 and 19047851a1 agree. Replication
+      run: 37a1 39/17 (27/15), 5077a1 61/41 (51/39), 234446a1 59/43 (55/41), 389a1 29/29 (27/27), 19047851a1 43/43
+      (41/41); 11a1 agrees.
+    dropped_points_main: '9 x-values, all non-rational, all with a d = 2 or d = 3 denominator (the ramified primes;
+      x has valuation -2 at the prime above 2 or 3): 37a1 x3, 5077a1 x5, 234446a1 x1'
+    dropped_points_replication: The same 8 gcd drops that fall within H <= 24, plus 7 points with d = 5 (rational
+      9/25, 6/25, 21/25, -14/25 and 24/25; two non-rational on 37a1). The latter never enter because d^2 = 25 > 24.
+    verdict: breaks (definition)
+    rows: j2_recompute_output.json part2_enumeration.<run>.curves.<curve>.by_H and x_in_spec_not_inferred_at_hmax;
+      j2_borderline_output.json dropped_points
+  - metric: cubic_gain_median
+    recorded: {RUN-CZLIFT-e7147a: 1.2553191489361701, RUN-CZLIFT-d6996f: 1.3076923076923077}
+    own_from_raw: Reproduces exactly as the code defines it, sorted(N_K/max(1, N_Q) over all six curves)[3] (run.py:103,
+      the upper median including 11a1). It also reproduces as the hypothesis defines it (median over curves with
+      N_Q >= 10). The two readings coincide numerically on these data. The statistical median over all six would be
+      1.127659574468085 and 1.1538461538461537.
+    under_specification_box: {RUN-CZLIFT-e7147a: 1.3829787234042554, RUN-CZLIFT-d6996f: 1.372093023255814}
+    max_per_curve_gain_NQ_ge_10: {recorded: [1.8, 1.8], specification_box: [2.2, 2.2941176470588234]}
+    verdict: breaks (the recorded value is not the frozen quantity; the criterion outcome is unchanged, all values lie in [1, 4])
+  - metric: coverage_ratio_median
+    recorded: {RUN-CZLIFT-e7147a: 1.0077705795564322, RUN-CZLIFT-d6996f: 1.0074825816803135}
+    own_from_raw_statistical_median: {RUN-CZLIFT-e7147a: 1.007730132019672, RUN-CZLIFT-d6996f: 1.0074321304065141}
+    difference: '+4.04e-5 and +5.05e-5. The code records ratios[len // 2] (run.py:98), the upper of the two middle
+      cells. Main: index 150 of 300, 5077a1 p 3631 H 32 (lower middle: 5077a1 p 2953 H 16). Replication: index 120 of
+      240, 234446a1 p 1801 H 8 (lower middle: 234446a1 p 2953 H 16).'
+    under_specification_box: Medians are 1.00803 / 1.00892 / 1.00842 (main, 336 cells) and 1.00806 / 1.00860 / 1.00841
+      (replication, 276 cells) for the three cube roots of 2 mod p; the code uses the smallest root.
+    verdict: breaks (definition; immaterial to the [0.8, 1.2] criterion)
+  - metric: coverage_ratio_frac_above_1p5
+    recorded: [0.0, 0.0]
+    own: '[0.0, 0.0] from raw, and 0.0 under the specification box for all three roots.'
+    verdict: recomputes. Structurally it is 0 for any point set (see null_object_checks).
+  - metric: coverage_cells
+    recorded: [300, 240]
+    own: '[300, 240] under the code rule n_points >= 20 and model_distinct <= 0.9 N_p (run.py:96). The rule is not in
+      the frozen contract. Without it there are 504 and 432 cells with medians 1.0051688 and 1.0049409; the specification
+      box gives 336 and 276.'
+    verdict: recomputes under the code rule; the rule itself is undeclared.
+  - metric: per-cell N_p, n_points, distinct, model_distinct, ratio_to_model (936 cells)
+    own: N_p is recomputed by my own point count for all 72 (curve, p) pairs, and every cell matches. distinct is
+      recomputed from my own points and reductions; it matches under the smallest cube root of 2 mod p, which is the
+      code's choice (run.py:81) and not specified. model_distinct matches within 1e-9 and ratio_to_model within 1e-12 in every cell.
+    verdict: recomputes
+  - metric: growth.<curve>.slope_K (secondary)
+    own: All 12 values reproduce exactly (difference 0.0) under the code's fit (log N_K vs log log H over
+      H >= 4 with N_K(H) >= 3, run.py:75). The specification does not define the fit. On 11a1 the "slope" (1.198 / 1.414)
+      comes entirely from the two torsion x-values entering at heights 5 and 16.
+    verdict: recomputes (definition undeclared in the contract)
+  - metric: split primes
+    own: All 12 recorded primes are p = 1 mod 3 with 2 a cube, inside [101, 5000]. They are every 8th of the 103
+      eligible primes (indices 0, 8, ..., 88), not the first 12 (109, 127, 157, ...). The specification does not say
+      which 12. The driver re-derives the same list.
+    verdict: consistent
+  - metric: manifest vs raw vs stdout
+    own: raw-result.json metrics equal manifest result.metrics exactly in both runs, and stdout.log carries the same values.
+    verdict: consistent
+
+  control_checks:
+  - control: 'The rational sub-count N_Q(H) is the control: N_K >= N_Q always.'
+    result: holds
+    detail: Holds at every H, for every curve, in both runs from raw, and under the specification box.
+  - control: Every recorded sample point is re-verified exactly in Z[theta] by the checker.
+    result: holds
+    detail: All 54 points_sample rows per run (at most 10 per curve, lowest height first) are exact squares by my own
+      Z[theta] arithmetic, not the producer's. Raw records only these samples, not the full point list, so distinct
+      counts cannot be recomputed from raw alone; I recomputed them from my own enumeration.
+  - control: 11a1 (rank 0) must show no height dependence beyond its torsion over K at small heights.
+    result: holds
+    detail: N_K = N_Q at every H. The count is 1, 1, 3, 3, 5, 5, (5); all growth is the two torsion x-values 5 and 16,
+      and nothing else enters on either box. See PTM-1.
+  - control: 'Invalidation rule: the checker cannot reproduce its re-run subset from the recorded inputs.'
+    result: not_triggered
+    detail: >-
+      I evaluated the rule as written, as equality. The re-run subset (37a1, hmax 4, dmax 2) gives counts_K 4 = 19
+      and counts_Q 4 = 11, equal to the recorded values in both runs. The checker itself only tests fresh <= recorded
+      (check.py:33), which cannot detect an under-reproduction. The checker is not independent: it imports the
+      producer's driver and harness. Running it myself returns rc 0 and "check ok" on both run directories.
+  - control: replication (independent_instances 2; a prediction counts only if it holds on both)
+    result: breaks
+    detail: The replication run's counts_K, counts_Q and all 432 coverage cells are identical to the main run's at every
+      shared H for all six curves. Because height() includes d^2, d <= 4 at every H <= 24, so dmax = 6 is never
+      reached. The replication is a strict sub-computation of the main trial, not an independent instance.
+  - control: stopping rules and budget
+    result: holds
+    detail: Two output_validated receipts exist and there was no crash or timeout. 2 runs were used of an advisory 4;
+      wall times are far below 3600 s.
+  - control: producer re-run
+    result: holds
+    detail: driver.measure_curve for 11a1 and 37a1 at hmax 24, dmax 6 with the recorded primes reproduces the raw
+      records byte-for-byte after JSON round-trip (j2_addendum_output.json).
+
+  proves_too_much:
+  - id: PTM-1
+    object: The rank-0 curve 11a1 over K.
+    expected_failure_signature: The count on 11a1 must stay flat across the boxes; growth means the K-search accepts non-points.
+    observed: 'N_K at hmax is 5 on both boxes (recorded and sealed blind), with K = Q at every H. Within each H ladder
+      the count is 1 -> 3 -> 5. The steps are exactly the torsion points (5, 5), (5, -6) entering at H >= 5 and
+      (16, 60), (16, -61) at H >= 16.'
+    torsion_proof: >-
+      5 is unramified in K; x^3 = 2 has the root 3 mod 5, so there is a degree-one prime above 5; 11a1 has
+      good reduction at 5 and #E(F_5) = 5. Torsion injects there (p = 5 > e + 1), so E(K)_tors has order dividing 5,
+      and E(Q)_tors = Z/5 gives E(K)_tors = Z/5. The gcd of #E(F_p) over degree-one primes 5..47 is 5.
+    verdict: holds
+    capability_note: The known-false conclusion is established only within the tested boxes. My exhaustive search
+      (two exact methods) finds no non-torsion K-point of 11a1 in either box, but no artifact here computes the rank of
+      11a1 over K. More important, the object can show only an over-acceptance failure. 11a1 has no non-rational
+      K-points in either box, so a search that drops genuine points (the J2/J3 defect) leaves its count flat. PTM-1
+      therefore cannot see the defect that was present. A control for that failure mode needs a curve with known K-points
+      of valuation -2 at a ramified prime, such as 37a1 at x = -theta/2.
+
+  null_object_checks:
+  - quantity: coverage ratio (distinct residues / uniform-model expectation)
+    same_shape_null: For each counted cell, I drew n_points uniform samples (with replacement) from a set of size N_p,
+      over 1000 trials (seed 20261022), and took each trial's median across cells. The median of those trial medians is
+      1.00477 (2.5-97.5 percent range 1.00433-1.00538). frac_above_1p5 and frac_below_0p5 were 0 in every trial.
+    observed: Medians are 1.00773 (main) and 1.00743 (replication), above the null band. 273 of 300 and 221 of 240 cells
+      have no collision, so the small K-points collide less often than uniform draws, which is the opposite of excess.
+    can_the_instrument_detect_excess: >-
+      No. Because distinct <= n_points, a cell's ratio is at most
+      n / (N_p (1 - (1 - 1/N_p)^n)), which is at most 1.3089 (main) and 1.2632 (replication). frac_above_1p5 is
+      therefore 0 for every possible point set. The median's upper edge 1.2 is also unreachable: if every cell were
+      injective the median would be 1.00820 / 1.00785. Only a deficit, meaning heavy collisions below 0.8, could move
+      the criterion.
+    decay_statement: As p grows with the box fixed, the ceiling tends to 1, so the ratio tends to 1 for any point set
+      and the statistic loses all discriminating power. Neither the frozen contract nor the run records state what the
+      ratio should do as p increases. Per docs/inventor-protocol.md section 3 this is unaddressed.
+
+  heuristic_validation_checks:
+  - check: pre-registered prediction
+    result: pass
+    detail: The H-CZLIFT-89e169 predictions and the specification's preregistered_prediction were frozen at b553f64e3a
+      (22:35:28Z), before the runs (22:44:33Z). The hypothesis file hash 375c7be2... equals the snapshot-receipt value
+      and is unchanged since. heuristic_under_test is null.
+  - check: sample integrity
+    result: fail
+    detail: >-
+      This is a deterministic enumeration with no seeds. The enumerated set is not the frozen box: it omits
+      genuine K-points (J2), and the replication box collapses into the main box. The sample procedure is in the code,
+      but the manifest does not declare it.
+  - check: correspondence validity
+    result: not_applicable
+    detail: No substitute sampler is used. Reduction at a split prime uses one of the three degree-one primes (the
+      smallest cube root), a choice the contract does not make; the medians vary by at most 0.0009 across roots.
+  - check: scale binding
+    result: pass
+    detail: The tier is toy; parameters are recorded in the manifests; no crypto-scale statement is made.
+
+  cost_model_checks: []   # no cost table or cost claim in this experiment
+  proof_architecture_checks: []   # not a proof-oriented task
+
+  plan_specification_contradictions:
+  - The J1 statement names "every manifest files_sha256 entry", but the manifests have no such block. I followed the
+    specification's artifacts and checked the receipt bindings.
+  - The J2 statement says "on both seeds", but the specification has seeds [] and two deterministic trials. I followed
+    the specification.
+  - The blind statement's "height box at its smallest setting" is ambiguous, because the two boxes are not nested. I
+    sealed both.
+  - The PTM-1 statement says "flat across the boxes", while the specification control says "no height dependence
+    beyond its torsion". The count is flat across boxes and steps within each H ladder only by torsion. Both readings
+    are reported.
+  - 'The specification and the implementation contradict each other (the material one): the specification objective
+    is "|coords(alpha)| <= hmax and d <= dmax". The implementation applies gcd(c0,c1,c2,d) = 1 and
+    height = max(|coords|, d^2), and run.py''s own docstring restates the specification''s box. I followed the
+    specification and sealed both readings (blind/ and j2_recompute_output.json).'
+
+  verdict: failed
+  verdict_basis: >-
+    Custody holds (J1). The receipts are complete, bound and reproducible: the producer's code re-runs to
+    identical bytes. But the recorded load-bearing quantities are not the frozen ones (J2), and they disagree with the
+    sealed blind re-derivation (J3). N_K omits genuine K-points with ramified-prime denominators; dmax = 6 of the
+    replication box is unused, so the replication is not an independent instance; and the coverage median is an
+    upper-middle element. On the specification's definitions every success criterion still holds on both trials
+    (cubic_gain_median 1.3830 / 1.3721, coverage median 1.0080-1.0089, frac above 1.5 = 0, max per-curve gain 2.294)
+    and no falsification condition triggers. The failure is therefore in what the receipts record, not a reversal of
+    the outcome. The remedy is an amendment or re-run with a corrected implementation, never an in-place repair. This
+    report is a validation outcome only. It does not support or weaken H-CZLIFT-89e169, changes no status, and
+    authorizes nothing.
+
+  limitations:
+  - The rank of 11a1 over K is not determined, so PTM-1's known-false conclusion is verified only inside the tested
+    boxes.
+  - Raw results hold only 10 sample points per curve. The full point sets and the distinct counts were recomputed from
+    my own enumeration (two exact square tests that agree), not read from the run records.
+  - Peak memory is not recorded and no runtime lock exists. The dispatch queue (dispatch_plan_sha256 bd0520a0...) is
+    outside my read scope and was not verified.
+  - 'Compute was kept modest: one process at nice 10. Blind enumeration took 14 s (11a1, 37a1, both boxes); the J2
+    enumeration of all six curves and both boxes took 55 s; the producer re-run (11a1, 37a1 at hmax 24, dmax 6) and
+    checker took 20 s. I did not re-run the producer''s full six-curve main-box search; the recorded counts were
+    reproduced by my own enumeration instead.'
+  - >-
+      tools/check_review_independence.py will report the phase-2 reads of blind_from paths (implementation, harness,
+      raw-result.json) as a leak. This plan assigns both phases to one task without a blind-phase split. The evidence of
+      ordering is the seal: blind/SHA256SUMS, sealed 2026-10-22T08:42:11Z before the first phase-2 read, and re-verified
+      afterwards. The seal time is self-recorded until the ledger archive commit binds it.
+  - 'Interpretation joints are not owned here (PD-1, no red team): what these measurements mean for H-CZLIFT-89e169,
+    and whether the coverage statistic can bear the claim, stay open for review-evidence.'
+
+  artifact_paths:
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/validation_report.yaml
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/blind_points.py
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/blind_points_output.json
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/blind_points_stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/blind_interpretation.yaml
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/blind/SHA256SUMS
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_recompute.py
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_recompute_output.json
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_recompute_stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_addendum.py
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_addendum_output.json
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_addendum_stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_borderline.py
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_borderline_output.json
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/j2_borderline_stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/reports/validation-20261022/SHA256SUMS
+  handoff: Return to the Coordinator's ledger archive task TASK-20261022-bff8ff. Not committed by the validator.
+
+review_attestation:
+  task_id: TASK-20261022-38e8d2
+  joints_owned:
+  - 'Both run packages are complete and bound: every manifest files_sha256 entry, the snapshot and ledger archive receipts,
+    command, revision, clean tree, seed and environment records agree, and the trials cover the frozen plan.'
+  - Every frozen success and falsification metric, and each control in the specification, recomputes exactly from raw-result.json
+    on both seeds, and the independent checker receipt agrees.
+  - The load-bearing quantity, re-derived blind from the statement, agrees with the producer's value.
+  - J1
+  - J2
+  - J3
+  - PTM-1
+  verdict:
+    "Both run packages are complete and bound: every manifest files_sha256 entry, the snapshot and ledger archive receipts, command, revision, clean tree, seed and environment records agree, and the trials cover the frozen plan.": holds
+    "Every frozen success and falsification metric, and each control in the specification, recomputes exactly from raw-result.json on both seeds, and the independent checker receipt agrees.": breaks
+    "The load-bearing quantity, re-derived blind from the statement, agrees with the producer's value.": breaks
+    J1: holds
+    J2: breaks
+    J3: breaks
+    PTM-1: holds
+  terminal_verdict: failed
+  sources_read:
+  - docs/agent-runtime-core.md
+  - agents/validator.md
+  - AGENTS.md   # heading list and section "Review architecture" (lines 359-371) only
+  - ledger/handoffs/TASK-20261022-38e8d2.yaml
+  - experiments/EXP-CZLIFT-8c50ea/specification.yaml
+  - experiments/EXP-CZLIFT-8c50ea/trial-plan.json
+  - ledger/hypotheses/H-CZLIFT-89e169.yaml
+  - experiments/EXP-CZLIFT-8c50ea/amendments/   # listing only (.gitkeep)
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/manifest.yaml
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/execution-receipt.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/command.txt
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/environment.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/launch.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/check.stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/raw-result.json   # phase 2, after the seal, by key via scripts
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/manifest.yaml
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/execution-receipt.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/command.txt
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/environment.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/launch.json
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/check.stdout.log
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/raw-result.json   # phase 2, after the seal, by key via scripts
+  - coordination/goals/GOAL-CZLIFT-1516d5/archives/TASK-20261009-046d5b/snapshot-receipt.json
+  - coordination/goals/GOAL-CZLIFT-1516d5/batches/BATCH-b04e38/archives/TASK-20261009-4ac56e/ledger-receipt.json
+  - experiments/EXP-CZLIFT-8c50ea/implementation/check.py   # phase 2, after own recomputation was written and run
+  - experiments/EXP-CZLIFT-8c50ea/implementation/run.py   # phase 2
+  - harness/czlift_cubic.py   # phase 2
+  - harness/czlift_run.py   # phase 2
+  - templates/research-records.md   # lines 770-829 (review attestation template)
+  - tools/check_review_independence.py   # rg matches and lines 280-374, 1000-1032
+  - tools/allocate_id.py   # --help output only
+  - 'git metadata: commit objects and subjects for 5c3cfdeef7, 596d091f6f, b553f64e3a, 53709b0ab5, 6df2d0fe4a and the
+    claim/release commits of TASK-20261009-27d353; contract-file bytes at 596d091f6f and b553f64e3a (hashed only);
+    git ls-files and all-refs path history for experiments/EXP-CZLIFT-8c50ea/runs'
+  - 'rg matches only (verdict-term search): docs/evidence-and-reproducibility.md, docs/task-lifecycle.md,
+    templates/research-records.md, AGENTS.md'
+  sources_hashed_not_read:
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/stderr.log   # empty
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-e7147a/check.stderr.log   # empty
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/stderr.log   # empty
+  - experiments/EXP-CZLIFT-8c50ea/runs/RUN-CZLIFT-d6996f/check.stderr.log   # empty
+  sources_read_by_phase:
+    phase_1_blind_until_2026-10-22T08:42:11Z: [docs/agent-runtime-core.md, agents/validator.md, AGENTS.md (Review architecture),
+      ledger/handoffs/TASK-20261022-38e8d2.yaml, experiments/EXP-CZLIFT-8c50ea/specification.yaml, experiments/EXP-CZLIFT-8c50ea/trial-plan.json,
+      ledger/hypotheses/H-CZLIFT-89e169.yaml, experiments/EXP-CZLIFT-8c50ea/amendments/ (listing)]
+    phase_2_after_seal: every other path listed in sources_read
+  not_read:
+  - ledger/decisions/DEC-20261009-*.yaml (none opened; DEC-20261009-575cd3 appears in the snapshot receipt only as a hash)
+  - harness/czlift.py, harness/czlift_medium.py, harness/czlift_formal.py, tests/test_czlift.py (in read_scope, not needed)
+  - PR text, session receipts, other validators' reports
+  read_sibling_reports: false
+  incidental_exposure:
+  - My first git log --oneline -3, run before any sibling-avoidance filter, printed three other validators' commit subjects
+    for other experiments (EXP-CZLIFT-ed8113 "verdict passed", EXP-CZLIFT-a255fc "verdict incomplete", and
+    EXP-CZLIFT-17b7eb/1a3453/ae0a13). I opened no report, file or folder under any experiments/*/reports/validation-20261022
+    other than my own.
+  - The session scratchpad directory, which I used only as a working directory, already held files dated 2026-10-09
+    (complete_ledger*.py, complete_snapshot*.py, gen_lane2.py), which suggests it is shared with an earlier producer-side
+    session. I saw the file names in a listing and opened none of them.
+  blind_from_respected: true
+  blind_from_respected_scope: No blind_from path was opened before the blind derivation was sealed
+    (blind/SHA256SUMS, 2026-10-22T08:42:11Z). As the card's phase-2 constraint directs, harness/czlift_cubic.py,
+    harness/czlift_run.py, experiments/EXP-CZLIFT-8c50ea/implementation/ and both raw-result.json files were read after
+    the seal. No decision in blind_from was read at any point.
