@@ -1,0 +1,488 @@
+# Independent validation of EXP-CZLIFT-a255fc (TASK-20261022-3aca4b, REVIEW-CZLIFT-A255FC-20261022).
+# Joints owned: J1, J2, J3 and the proves-too-much object PTM-1. No verdict on H-CZLIFT-9a32e9.
+validation_report:
+  id: VAL-20261022-9ab683
+  task_id: TASK-20261022-3aca4b
+  review_plan_id: REVIEW-CZLIFT-A255FC-20261022
+  experiment_id: EXP-CZLIFT-a255fc
+  hypothesis_id: H-CZLIFT-9a32e9
+  goal_id: GOAL-CZLIFT-1516d5
+  recorded_at: '2026-10-22T08:28:19Z'
+  validator_session: independent review-adversarial session; no producer decision, PR text, session receipt or sibling report read
+  snapshot_validated:
+    head: 5c3cfdeef76cee2953e46697e37522daab4febda
+    snapshot_archive: {task_id: TASK-20261009-d55ab1, commit: 6756a756135e99bead1a11881b5aba4d03c34ecd,
+                       receipt_sha256: a7ffabe51c0b7c8f550e23896e865acf981a054b75b6066779f72898c98e8946}
+    ledger_archive: {task_id: TASK-20261009-ea3bbc, commit: 48c8727eb124a392c6aa0c0c30e72c2aaf4ef8f9,
+                     receipt_sha256: 71ff4c198b6d87f79cc6e008e0b8b1df771982d8a0b731d9d416a88a1193d30f}
+    working_tree_only_inputs: none. Every run artifact is tracked, and `git diff 48c8727e HEAD` on the experiment is empty.
+  run_ids: [RUN-CZLIFT-74f172, RUN-CZLIFT-490b33]
+
+  joint_verdicts:
+    J1: holds
+    J2: breaks
+    J3: holds
+    PTM-1: breaks
+
+  joint_findings:
+    J1: >-
+      Holds. All 20 run files (10 per run) hash to their execution-receipt artifact_sha256 entries
+      and their ledger-receipt path_sha256 entries; 0 of 20 mismatch. The two receipts hash to the
+      values the dispatch queue binds to commits 6756a756 and 48c8727e, and both commits are
+      ancestors of HEAD. command.txt and launch.json equal the trial-plan argv with {run_dir}
+      substituted. Hashes of the spec, plan and sources match the trial plan, environment.json,
+      the manifest and the snapshot receipt. Both trials ran; there is no extra, missing or
+      duplicated run or artifact. One revision record is inconsistent (not material, see
+      artifact_checks AC-5). The manifests have no files_sha256 block, so the hash carriers are
+      execution-receipt.json and the ledger receipt.
+    J2: >-
+      Breaks, narrowly, on a frozen control. The arithmetic does not break. Every frozen success
+      and falsification metric recomputes exactly (bit-identical floats) from raw-result.json on
+      both runs, using my own code written and sealed before reading check.py. A first-principles
+      replay that shares no code with the producer reproduces all 64 counts and 1024 coverage
+      cells per run up to H = 3e4, and all 172 twist rows. However, frozen control 1 ("11a1: N_E(H)
+      must be constant (5 points) at every H") and invalidation rule 3 ("11a1 shows a
+      height-dependent count") both fire as written on the raw rows: raw.curves[0].counts["10"] = 3
+      against 5 at every other grid height, in both runs. Yet both manifests record valid: true,
+      invalid_reason: null, and neither the driver nor check.py evaluates this control. The count 3
+      is mathematically correct (the points of height <= 10 are O, (5,5), (5,-6); x = 16 has
+      height 16), and my sealed blind search reproduces it. The defect is therefore in the frozen
+      wording, which no correct search can satisfy on a grid starting at H = 10, together with a
+      receipt that silently omits the check. The "independent checker" imports the driver
+      (import run as driver) and re-derives the summary with driver.summarize, so its agreement is
+      a self-consistency check, not an independent one.
+    J3: >-
+      Holds. Sealed blind values (SEAL.sha256, 2026-10-22T08:07:34Z): N_E(300) = 5 and N_E(1000) = 5
+      for 11a1; N_E(300) = 21 and N_E(1000) = 23 for 37a1. Every recorded value is identical in
+      both runs. All 38 recorded 11a1/37a1 grid counts agree with the blind slow search
+      (H <= 1e4) and with a blind group-law enumeration (H <= 3e5). The blind N_p for 37a1 is 99
+      at p = 101 and 1057 at p = 1009, which equals the producer's curve_order_mod_p. The blind
+      model agrees with the producer's model_distinct to within 8.3e-13 (exact rational against
+      float). The producer's prime list never contains 101 or 1009 (strict sympy.nextprime starts
+      at 103), so this comparison evaluates the producer's functions at those primes; the formula
+      is identical on all 304 recorded 37a1 cells (max abs diff 0.0).
+    PTM-1: >-
+      Breaks; the instrument proves too much. A planted set of N distinct residues gives a ratio
+      near 1 at small N/N_p: 1.0147 at N/N_p = 0.03 and 1.0505 at 0.10 on 37a1 at p = 1009. The
+      plan's expected signature (ratio > 1.2 at small N/N_p) does not appear, and cannot: for any
+      point set the ratio is at most min(x,1)/(1-e^-x) = 1 + x/2 + O(x^2), with x = N/N_p, and
+      exceeds 1.2 only for x > 0.376. I placed the maximally spread planted set on exactly the
+      frozen cells and ran it through the producer's own summarize(). It reports median 1.0514
+      with frac_above_1.5 = 0.027 (main), and 1.0548 with 0.032 (replication). Both pass the
+      frozen success criterion (median in [0.8,1.2], frac_above_1.5 < 0.05), so the known-false
+      conclusion is accepted. Only the lower side is seen: a clustered planted set gives median
+      0.016 and frac_below_0.5 = 1.0.
+
+  artifact_checks:
+    - id: AC-1
+      check: every run file hashed against execution-receipt.json artifact_sha256 and ledger-receipt path_sha256
+      result: 20 files, 0 mismatches. Each receipt lists exactly the files on disk; execution-receipt.json is covered by the ledger receipt.
+      files:
+        RUN-CZLIFT-74f172: {raw-result.json: 056518bb02e8712ef66fe02edb435f2c73f75c69ef8cc53941e95d6bebc53f8b,
+                            manifest.yaml: 8105c1b66e6bc346415641599d6365e1f1082ec1f11f4fb5fe01419b17593bb7,
+                            execution-receipt.json: c5b3cc2c655091159be77d11cce2e0e804544563b3ce8551a797ec7bd4c2d611,
+                            command.txt: 62dc5d8fbe96afeb14d5ecf55f9817c7170189006e7d56a16bd2bf861a242acb}
+        RUN-CZLIFT-490b33: {raw-result.json: cfc6bfc8a80b1f903319dc7ce93f9dbba2910ea1ccef2f211d14f8ca2cb831a2,
+                            manifest.yaml: 5f390470b3e71c25fa8b923cbe691fddb7233914cf48a2079bd3506840ddfa97,
+                            execution-receipt.json: d4282002599517a8bedae1639a854e60cf4910e0a3514aab929f9f17939109d8,
+                            command.txt: 9e693d1d2f467541a5dcbe638c2f98e7bca128a1d5ca7191267311ae1f2f4523}
+      status: pass
+    - id: AC-2
+      check: archive receipts bound to commits
+      result: >-
+        The queue archive blocks bind the snapshot receipt (a7ffabe5...) to 6756a756 and the
+        ledger receipt (71ff4c19...) to 48c8727e. Every path hash in both blocks that concerns this
+        experiment or the receipts matches the bytes at HEAD. git show of each receipt at its
+        commit gives the same hash.
+      status: pass
+    - id: AC-3
+      check: frozen sources and contract
+      result: >-
+        specification.yaml e33e3df5..., trial-plan.json b23422ba..., run.py d8de24d0...,
+        check.py 41c01bb9... and harness/czlift_run.py ea163968... match the trial plan,
+        environment.json (both runs), the manifest source_sha256 (run.py and czlift_run.py; the
+        manifest omits check.py) and the snapshot receipt. The hypothesis matches the snapshot
+        receipt (a2e834b1...). The contract was frozen in 6756a756 (16:02:21Z). The launch commit
+        d13377cd (16:04:56Z) descends from it, and git diff d13377cd..HEAD on spec, plan,
+        implementation and harness/czlift*.py is empty.
+      status: pass
+    - id: AC-4
+      check: command, trial coverage, seeds, stopping rule
+      result: >-
+        Two plan trials map to two run directories: census-h1e5-with-twists -> RUN-CZLIFT-74f172
+        and census-h3e5-ladder-only -> RUN-CZLIFT-490b33. Both are output_validated with
+        returncode 0 and check_returncode 0. argv and check_argv equal the plan with {run_dir}
+        substituted. The runs are deterministic: spec replication.seeds [] and manifest seed
+        null, which is consistent, so there are no seeds to check (the J2 phrase "both seeds"
+        means both runs). 2 of the 4 budgeted runs were used, so the stopping rule is met.
+      status: pass
+    - id: AC-5
+      check: revision and clean-tree records
+      result: >-
+        RUN-CZLIFT-74f172: manifest commit d13377cd = environment.json = launch authority, with
+        dirty false. RUN-CZLIFT-490b33: manifest code.commit is cab1e1eb652f86c1e5471f5fa2e78bd72ed6be04,
+        but environment.json and the launch authority say d13377cd. Cause:
+        harness/czlift_run.py:54 reads `git rev-parse HEAD` at write time, after the run. Commit
+        cab1e1eb (16:15:15Z; sibling run archive for TASK-20261009-6791d2/e0b32d) landed in the
+        same worktree while this run executed (16:07:13 to 16:15:44Z). git diff d13377cd..cab1e1eb
+        touches only experiments/EXP-CZLIFT-17b7eb and EXP-CZLIFT-ae0a13 run directories (40 files)
+        and nothing of this experiment or harness/. Not material, because the executed code is
+        pinned by the matching source hashes. It is still a recorded inconsistency, and it shows a
+        commit landing in an executing worktree. dirty: false is computed with
+        --untracked-files=no at end of run.
+      status: pass_with_discrepancy
+    - id: AC-6
+      check: environment and resource records
+      result: >-
+        python 3.13.16 and Linux x86_64 with 4 CPUs are recorded. numpy, sympy and PyYAML versions
+        are not recorded (runtime_lock null). Wall time is 127.07 s and 510.75 s, against a
+        3600 s per-run budget. No memory or CPU-time record exists, so the spec budget of 2 GB
+        maximum memory cannot be verified.
+      status: incomplete_record_non_blocking
+
+  metric_recomputations:
+    - id: MR-1
+      metric: coverage_cells, coverage_ratio_median, coverage_ratio_frac_above_1p5, coverage_ratio_frac_below_0p5
+      definition_used: cells with n_points >= 30 and model_distinct <= 0.9 N_p (spec tail_checks); ratio = distinct / (N_p (1 - (1 - 1/N_p)^N)); median = statistics.median
+      RUN-CZLIFT-74f172: {recorded: [693, 1.033039818679393, 0.0, 0.0], recomputed: [693, 1.033039818679393, 0.0, 0.0], exact: true}
+      RUN-CZLIFT-490b33: {recorded: [785, 1.033250098309885, 0.0, 0.0], recomputed: [785, 1.033250098309885, 0.0, 0.0], exact: true}
+      note: >-
+        The producer takes the upper median ratios[n//2]. That equals the conventional median here
+        only because every cell count (693, 785, 129) is odd; it is a latent definitional
+        difference. Manifest metrics equal raw-result metrics on both runs.
+    - id: MR-2
+      metric: growth_slopes (OLS of log N_E on log log H)
+      definition_used: grid H in [100, hmax] (hypothesis prediction range); the producer also drops counts < 3, which removes nothing
+      result: >-
+        All 16 values (8 curves x 2 runs) are bit-identical to the recorded ones. Recomputed
+        |slope - r/2| on the main run: 37a1 0.035, 389a1 0.008, 5077a1 0.079, 234446a1 0.034,
+        19047851a1 0.190, 5187563742a1 0.163, 382623908456a1 0.319. On the replication: 0.017,
+        0.001, 0.091, 0.035, 0.210, 0.126, 0.280. Every in-scope curve (N_E(hmax) >= 20) is within
+        1. 11a1 (N_E = 5) is exempt.
+      exact: true
+    - id: MR-3
+      metric: h_half per (curve, p) and h_half_scaling slope (log log H_half on log p, >= 3 resolved primes)
+      result: >-
+        h_half recomputes with the "distinct >= N_p/2" convention on all curves and both runs.
+        Scaling slopes are bit-identical: 5 curves on each run (5077a1 0.5896, 234446a1 0.4154,
+        19047851a1 0.4056, 5187563742a1 0.3747 main / 0.3638 rep, 382623908456a1 0.3197 / 0.3116).
+        All lie within [0.5, 2] x 2/r.
+      exact: true
+    - id: MR-4
+      metric: twist_cells, twist_union_ratio_median, twist_union_ratio_frac_above_1p5 (main run only; the replication has twist_curves 0 and records null)
+      definition_used: n_base_points + n_twist_points >= 30 and model_union <= 0.9 N_p
+      RUN-CZLIFT-74f172: {recorded: [129, 1.0035889640776232, 0.0], recomputed: [129, 1.0035889640776232, 0.0], exact: true}
+      row_checks: 172 rows equal the 172 expected (D a nonzero square mod p) with no missing row. model_union, ratio, gain and union bounds are consistent, n_base equals counts[30000], and distinct_base equals the coverage cell.
+    - id: MR-5
+      metric: first-principles row inputs
+      result: >-
+        The discriminant recomputes from the ainvs for all 8 curves, and no listed prime divides
+        one. N_p is recounted independently (Legendre sum) for all 128 (curve, p) pairs with 0
+        mismatches. model_distinct, ratio_to_model and coverage are consistent on every row. counts
+        and distinct are monotone in H, and distinct <= min(N, N_p). All 88 sample points per run
+        satisfy the completed-square equation with gcd(a,d) = 1.
+      exact: true
+    - id: MR-6
+      metric: independent replay (no producer code) of counts and distinct residues
+      result: >-
+        I re-enumerated every point of height <= 30000 on all 8 curves by scalar search. Per run
+        this matches 64 of 64 grid counts and 1024 of 1024 coverage cells' distinct (8 curves x 16
+        primes x 8 heights). I re-enumerated twist points (x rational, D*R(x) a square, height
+        <= 30000) for 4 curves x 6 D; all 172 twist rows match in n_base, n_twist, distinct_base,
+        distinct_twist and distinct_union. Not replayed: rows at H = 1e5 (main) and at 1e5 and 3e5
+        (replication), i.e. 128 and 256 rows, of which 95 and 187 are frozen cells.
+      exact: true
+    - id: MR-7
+      metric: borderline probes (definitions, ties, exclusions)
+      results:
+        - Filter boundaries. No coverage cell has N = 30 or modelled coverage exactly 0.9. The variants N > 30 and coverage < 0.9 give identical metrics, so nothing is silently dropped at the threshold.
+        - Ties. No ratio sits at 0.5 or 1.5. The range is [0.8533, 1.4262] on the main run and [0.8501, 1.4577] on the replication.
+        - Prime range. The spec says "16 primes between 101 and 20000"; the frozen implementation uses 103..20011, because sympy.nextprime is strict. p = 20011 lies outside the frozen range and supplies 46/693 and 53/785 frozen cells. Without it the median is 1.0389 (main) and 1.0393 (replication). Frozen outcome unchanged.
+        - Cell domain. The spec is internally inconsistent, since tail_checks says "modelled coverage <= 0.9" while scale_relevance and HEUR-CZLIFT-UNIFORM say "N <= 0.9 N_p". The producer used the former, which admits cells up to N/N_p = 2.28. Under the latter there are 621 cells with median 1.0265 (main) and 698 cells with median 1.0264 (replication). Frozen outcome unchanged.
+        - Twist point at infinity. N_union = n_base + n_twist counts O twice. The frozen text writes N_E + N_{E^D}, so the producer followed it, but control 2 ("same N the observed count uses") holds only up to this +1. All 43 37a1 twist rows have N = 29 + 1 = 30 and enter the metric only through the duplicated O; 151 of 172 twist rows have no twist point but O. Counting O once gives 86 cells and median 1.0242, against 1.0036. Frozen outcome unchanged.
+        - Height-10 point. Including H = 10 in the 11a1 fit would give slope 0.217, but 11a1 is exempt (N_E < 20).
+        - h_half tie. 389a1 at p = 103 has distinct exactly N_p/2 at H = 1000; the ">= half" convention applies. 389a1 has 1 resolved prime, so the scaling metric is unaffected.
+        - d = +-1. The denominator d ranges over d >= 1 by construction. Integral points (d = 1) are present in the samples, and the replay reproduces them, so nothing is dropped.
+    - id: MR-8
+      metric: frozen success and falsification criteria evaluated on recomputed values
+      result: >-
+        On both runs: coverage median in [0.8,1.2] true; frac_above_1.5 < 0.05 true; every slope
+        within 1 true. On the main run, twist median in [0.8,1.2] is true under every variant above
+        (0.9906 to 1.0242). These are observations; per PTM-1 the upper-side coverage conditions
+        cannot fail on these cells.
+
+  control_checks:
+    - control: "1. Rank-0 curve 11a1: N_E(H) must be constant (5 points) at every H"
+      outcome: >-
+        FAILS as written on both runs at H = 10 (count 3); 5 at every H >= 30. The data is
+        correct (blind and replay). The control cannot hold on the frozen grid for a correct
+        search. No driver or checker code evaluates it, and the manifests record valid: true.
+      status: breaks (contract/receipt inconsistency; not a search defect)
+    - control: 2. Uniform model from the same N and N_p as the observed count
+      outcome: >-
+        Holds on every coverage row (N = n_points, N_p independently recounted). On twist rows N
+        double-counts O (+1), as the frozen formula N_E + N_{E^D} itself does; sized in MR-7.
+      status: holds (twist off-by-one disclosed)
+    - control: 3. Checker re-verifies every sample point; first two curves re-counted at H = 300 by slow scalar search
+      outcome: >-
+        Holds. 88 of 88 sample points per run verify under my own check. The H = 300 recounts
+        (5, 21) match the raw counts, and my sealed blind search gives the same. The checker's
+        slow count shares g_exact with the driver; my blind count does not. The sample is the 12
+        lowest-height points only.
+      status: holds
+    - control: 4. Primes of bad reduction excluded by the discriminant from the a-invariants
+      outcome: Holds. Discriminants recompute from the ainvs, no listed prime divides 6*disc for any curve, and 16 primes per curve are retained.
+      status: holds
+    - control: "Invalidation rules: (1) sample point fails its equation; (2) slow H=300 recount disagrees; (3) 11a1 height-dependent count"
+      outcome: (1) does not fire. (2) does not fire. (3) FIRES as written on both runs (counts 3 -> 5 between H = 10 and 30) and is not evaluated by any producer code.
+      status: breaks
+
+  blind_rederivation:
+    quantity: N_E(H) for 11a1 and 37a1 at H = 300 and 1000 by slow scalar search; N_p (1 - (1 - 1/N_p)^N) for 37a1 at p = 101 and 1009 with own N_p
+    sealed: {file: experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/blind/SEAL.sha256, at_utc: '2026-10-22T08:07:34Z',
+             blind_rederive.py: 4617b2c406cf2503035bdf08203762bb15e4d508105bb3e3a06ed0900a68376a,
+             blind_output.json: 731ed3db337296179cf394e37c84ec0b5da6e52c594df765e59d93e07687b006}
+    assumptions: >-
+      The spec defers the a-invariants to implementation/run.py (blind-from). I used the Cremona
+      minimal models 11a1 = [0,-1,1,-10,-20] and 37a1 = [0,0,1,-1,0] from general knowledge.
+      Phase 2 confirmed these are the producer's ainvs. I assumed the grid 10, 30, 100, ...; the
+      producer uses the same grid.
+    blind_values:
+      N_E: {11a1: {'300': 5, '1000': 5}, 37a1: {'300': 21, '1000': 23}}
+      N_p_37a1: {'101': 99, '1009': 1057}
+      model_37a1: {'p101_N21': 19.008526368292824, 'p101_N23': 20.616354172133892,
+                   'p1009_N21': 20.80250987552101, 'p1009_N23': 22.76222100225554}
+      internal_crosscheck: slow search equals group-law enumeration (multiples of (0,0); 5-torsion of 11a1) at every H <= 1e4
+    recorded_values: {11a1: {'300': [5, 5], '1000': [5, 5]}, 37a1: {'300': [21, 21], '1000': [23, 23]}, producer_N_p_at_101_1009: [99, 1057]}
+    agreement: exact on counts and N_p; model within 8.3e-13
+    comparison_artifact: experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_probes_j3_compare_output.json
+
+  proves_too_much:
+    object: PTM-1, a planted set of N distinct residues of E(F_p), fed to the producer's coverage-ratio instrument (run.model_distinct, run.summarize)
+    known_false_conclusion: Any point set covers E(F_p) at the uniform-reduction rate.
+    expected_failure_signature: ratio > 1.2 at small N/N_p
+    observed:
+      concrete_37a1_p1009: {N_p: 1057, ratio_at_N_over_Np: {'0.030': 1.0147, '0.100': 1.0505, '0.300': 1.1570, '0.375': 1.1985,
+                            '0.500': 1.2700, '0.874': 1.4995, '1.000': 1.5815}}
+      analytic_ceiling_any_point_set: >-
+        The ratio is at most min(x,1)/(1-e^-x), x = N/N_p. It reaches 1.2 at x = 0.3764 and 1.5
+        at x = 0.8742, peaks at 1.5820 at x = 1, and falls back to 1.5 at x = ln 3 = 1.0986.
+      on_frozen_cells_via_producer_summarize:
+        RUN-CZLIFT-74f172: {planted_max_spread: {median: 1.0514390516021028, frac_above_1p5: 0.027417027417027416},
+                            planted_clustered: {median: 0.015952098847562584, frac_below_0p5: 1.0},
+                            cells_any_set_could_exceed_1p2: 159/693, cells_any_set_could_exceed_1p5: 19/693}
+        RUN-CZLIFT-490b33: {planted_max_spread: {median: 1.054776430881404, frac_above_1p5: 0.03184713375796178},
+                            planted_clustered: {median: 0.015438497629053702, frac_below_0p5: 1.0},
+                            cells_any_set_could_exceed_1p2: 183/785, cells_any_set_could_exceed_1p5: 25/785}
+    shows_expected_signature: false
+    meaning: >-
+      At the frozen cells (median N/N_p = 0.10; 74.7 percent of cells have N/N_p < 0.376), the
+      upper-side coverage criteria cannot be violated by any point set. The median can never
+      exceed 1.2, and frac_above_1.5 can never reach 0.05 (ceiling 2.7 and 3.2 percent). The
+      instrument detects only clustering (deficit), not excess spreading. This is a structural
+      property of the ratio, not an implementation bug.
+    null_object_calibration:
+      method: >-
+        N independent uniform draws from the N_p residues per frozen cell (the model's own null,
+        E[distinct] = model), summarized by the producer's summarize(). 200 replicates,
+        numpy default_rng seed 20261022.
+      RUN-CZLIFT-74f172: {null_median_of_medians: 1.0017135915476074, null_95pct: [1.0009581763398658, 1.0023251097773536],
+                          observed_median: 1.033039818679393, null_reps_ge_observed: 0/200}
+      RUN-CZLIFT-490b33: {null_median_of_medians: 1.0016028914787505, null_95pct: [1.0007418152569716, 1.0022054388687436],
+                          observed_median: 1.033250098309885, null_reps_ge_observed: 0/200}
+      observation_not_conclusion: >-
+        The observed median lies outside the null band on both runs. It sits about 63 percent
+        (main) and 60 percent (replication) of the way from the null centre (1.0017, 1.0016) to
+        the maximal-spread value (1.0514, 1.0548). 394/693 (main) and
+        437/785 (replication) frozen cells are already maximally spread (distinct = min(N, N_p)),
+        including every 37a1 row: 144/144 and 160/160. Caveat: the null replicates draw cells
+        independently, while real cells are nested in H, so the null band understates the
+        spread of the median. Interpreting this for H2 belongs to the review-evidence round
+        (PD-1).
+    artifacts: [experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/ptm1_planted.py, experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/ptm1_output.json]
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction
+      result: >-
+        The uniform model N_p(1-(1-1/N_p)^N), the [0.8,1.2] / 1.5 / 5 percent thresholds and the
+        r/2 and 2/r predictions are frozen in spec v1 and H-CZLIFT-9a32e9 (commit 6756a756,
+        16:02:21Z), before the first run started at 16:05:02Z.
+      status: pass
+    - check: sample integrity
+      result: >-
+        Enumeration is exhaustive and deterministic (no seeds), with parameters in the manifest.
+        raw-result.json does not carry the point sets (12 samples per curve only), so `distinct`
+        cannot be recomputed from raw. I replayed it independently up to H = 3e4 (MR-6).
+      status: pass_with_limitation
+    - check: null-object control and decay
+      result: >-
+        The producer ran no null object; the analytic model stands in for it. The PTM-1 null
+        calibration and planted control show the ratio sits near 1 for any spread set while
+        N/N_p is small. The ratio's ability to discriminate grows only as N/N_p approaches 0.4 to
+        1, i.e. as the parameter that should expose structure increases. The run gives no
+        evidence about excess coverage at small N/N_p.
+      status: limitation_for_review_evidence
+    - check: correspondence validity
+      result: >-
+        Not applicable: no substitute sampler. The twist-union stand-in for E(K) points is the
+        hypothesis's own interpretation limit and is not owned here.
+      status: not_applicable
+    - check: scale binding
+      result: >-
+        Toy tier is declared. hmax is 1e5 and 3e5; the primes are 103..20011, while the spec says
+        101..20000 (see MR-7). The hypothesis's interpretation_limits mention "10^6 on the
+        replication trial", but the frozen spec and plan say 3e5, and 3e5 was run.
+      status: pass_with_discrepancy
+  cost_model_checks: []
+  cost_model_checks_note: Not applicable; the experiment reports no cost table.
+  proof_architecture_checks: []
+  proof_architecture_checks_note: Not applicable; empirical census, no proof architecture.
+
+  verdict: incomplete
+  verdict_rationale: >-
+    Custody (J1) and the blind re-derivation (J3) hold, and every recorded number recomputes
+    exactly and is independently reproduced where replayed. The receipts are not admissible as
+    they stand, however: a frozen control and its invalidation rule (11a1 "constant 5 at every H"
+    / "height-dependent count") fire as written on both runs, while the receipts record the runs
+    valid without evaluating them. Not `failed` or `invalid`, because the fired rule
+    contradicts mathematics (N_E(10) = 3 is a fact, so no correct search can satisfy the wording
+    on the frozen grid). The defect is in the frozen wording and in the receipt's silent
+    omission, not in the runs; a validator may neither waive a frozen rule nor repair a record.
+    PTM-1 bears on what the coverage instrument can show, not on admissibility; it is a binding
+    limitation for review-evidence.
+  completion_condition: >-
+    A Coordinator correction or amendment record ruling on control 1 and invalidation rule 3, for
+    example restricting them to H >= 16 or to the slope-fit range H >= 100. Once it exists,
+    nothing in this report blocks admissibility (re-check: counts[H] = 5 for every H >= 30 on both
+    runs, already verified). If the Coordinator instead rules the frozen text binding as written,
+    read this report as `invalid` for both runs, noting that no rerun could pass.
+
+  limitations:
+    - Distinct-residue cells at H = 1e5 (main) and at 1e5 and 3e5 (replication) were not replayed (95 and 187 frozen cells); they rest on the producer's code path, identical to the replayed heights, and pass the bound and monotonicity checks.
+    - Twist rows replayed under my reading of twist height (height of x on E, D*R(x) a square). It reproduces all 172 rows, but the spec does not define twist height.
+    - The blind phase took the 11a1 and 37a1 a-invariants from general knowledge, because the spec defers them to a blind-from file; Phase 2 confirmed they match.
+    - No memory or CPU-time record and no library versions in the run packages; the 2 GB memory budget cannot be verified.
+    - The independent checker is not independent (it imports the driver); my own recomputation and replay stand in for it.
+    - Joints not owned here (interpretation and scope; whether the slope tolerance |slope - r/2| <= 1 can discriminate, recalled rank labels, the twist stand-in for Q(c^{1/d})) are not assessed (PD-1).
+    - Compute was kept modest. All scripts ran single-core at nice 10. Times are blind 1.2 s, J2 recompute 0.4 s, trial replay at H <= 3e3 61 s (scratch output, not kept), replay at H <= 3e4 68.7 s, PTM-1 11.5 s, and probes under 5 s.
+  artifact_paths:
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/validation_report.yaml
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/blind/blind_rederive.py
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/blind/blind_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/blind/SEAL.sha256
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_recompute.py
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_recompute_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/J2_PRE_CHECKPY.sha256
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_replay.py
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_replay_output_HR30000.json
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_replay_timing.txt
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_probes_j3_compare.py
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/j2_probes_j3_compare_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/ptm1_planted.py
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/ptm1_output.json
+  supporting_files_sha256:
+    blind/SEAL.sha256: ce8a3038e1e26c27e4e392ed91eea8ca784d550f42af02ca3a90f0e690573229
+    blind/blind_output.json: 731ed3db337296179cf394e37c84ec0b5da6e52c594df765e59d93e07687b006
+    blind/blind_rederive.py: 4617b2c406cf2503035bdf08203762bb15e4d508105bb3e3a06ed0900a68376a
+    J2_PRE_CHECKPY.sha256: 19b1ab55c8d23b8a1ef72d346970c28bed24b67533eefa018da975153b14b20c
+    j2_recompute.py: 20bcb3387b493b3b13b1753dd9fca70cae36381f465e9bac374d43c1d05c8c60
+    j2_recompute_output.json: 047e1ef04864d7691bf9ccd96d59dfc6983138f5faa7efaa727bd57d60e52e4c
+    j2_replay.py: 3425c1476fee410e861afa8b14a4a875ed48b246daa9c77bf64d744540b8c296
+    j2_replay_output_HR30000.json: e2aca2937d2a5bc8410512f3f7571afcbfcf31a212a1bf5796ec778206588914
+    j2_replay_timing.txt: 17d5834bbf15e99267a504a4a23c79eb92faa843fb0d24ceb1bbbb8ddfe9e7cc
+    j2_probes_j3_compare.py: 673ac2ac4fd095b297fa1b5548e9e077b1b319d27852c3cb3f1af86af271b3c9
+    j2_probes_j3_compare_output.json: 5442e765008e8e592dd19b7f2c3715eec8c3e61a1716d8b29a1e060f7fbdb88a
+    ptm1_planted.py: 6bf4f5570b101a99934dbf91c6e9853b14d3c722ce6094144e4b1db740cac0fa
+    ptm1_output.json: 225d423fc1dca723f7daf753d008ea642248d68d35c17a99b1db3a6479de2a43
+  inference_boundary: >-
+    Admissibility evidence only. This report neither supports nor weakens H-CZLIFT-9a32e9,
+    changes no status and authorizes no promotion. It was not committed; it is handed to
+    TASK-20261022-bff8ff for the ledger archive.
+
+review_attestation:
+  task_id: TASK-20261022-3aca4b
+  joints_owned:
+    - 'Both run packages are complete and bound: every manifest files_sha256 entry, the snapshot and ledger archive receipts, command, revision, clean tree, seed and environment records agree, and the trials cover the frozen plan.'
+    - 'Every frozen success and falsification metric, and each control in the specification, recomputes exactly from raw-result.json on both seeds, and the independent checker receipt agrees.'
+    - 'The load-bearing quantity, re-derived blind from the statement, agrees with the producer''s value.'
+  joint_ids_owned: [J1, J2, J3]
+  controls_owned: [PTM-1]
+  sources_read:
+    # phase 1, before the blind seal at 2026-10-22T08:07:34Z
+    - CLAUDE.md (session context)
+    - ledger/handoffs/TASK-20261022-3aca4b.yaml
+    - docs/agent-runtime-core.md
+    - agents/validator.md
+    - AGENTS.md (heading index; section "Review architecture", lines 359-372)
+    - experiments/EXP-CZLIFT-a255fc/specification.yaml
+    - experiments/EXP-CZLIFT-a255fc/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-9a32e9.yaml
+    - git log --oneline -3 (subjects of HEAD and its two parents)
+    # phase 2, after the blind seal
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/manifest.yaml
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/execution-receipt.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/command.txt
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/launch.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/environment.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/stdout.log
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/check.stdout.log
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/raw-result.json (by key, via scripts)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/stderr.log (hashed; empty)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/check.stderr.log (hashed; empty)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/manifest.yaml
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/execution-receipt.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/command.txt
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/launch.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/environment.json
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/stdout.log
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/check.stdout.log
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/raw-result.json (by key, via scripts)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/stderr.log (hashed; empty)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/check.stderr.log (hashed; empty)
+    - coordination/goals/GOAL-CZLIFT-1516d5/archives/TASK-20261009-d55ab1/snapshot-receipt.json
+    - coordination/goals/GOAL-CZLIFT-1516d5/batches/BATCH-2e44f7/archives/TASK-20261009-ea3bbc/ledger-receipt.json
+    - coordination/goals/GOAL-CZLIFT-1516d5/batches/BATCH-2e44f7/dispatch_queue.json (archive blocks of TASK-20261009-d55ab1 and TASK-20261009-ea3bbc only, by key; outside read_scope, read to settle the commit binding)
+    - experiments/EXP-CZLIFT-a255fc/implementation/check.py (after the J2 seal at 08:12:23Z)
+    - experiments/EXP-CZLIFT-a255fc/implementation/run.py (after the J2 seal; also imported by ptm1_planted.py and j2_probes_j3_compare.py)
+    - harness/czlift_run.py
+    - harness/czlift.py (sha256 only; contents not read)
+    - directory listings of experiments/EXP-CZLIFT-a255fc/{runs,implementation,amendments}
+    - git metadata (commits d13377cd, cab1e1eb, 6756a756, 48c8727e; log/diff --stat/name-only/ls-files/status; the cab1e1eb stat lists sibling-experiment run file names only)
+    - templates/research-records.md (review attestation section, lines 780-830)
+    - tools/check_review_independence.py (lines 30-60, 284-370, 840-960, 1000-1040)
+    - tools/allocate_id.py (--help and --next error output only)
+  sources_read_before_blind_seal:
+    - ledger/handoffs/TASK-20261022-3aca4b.yaml
+    - docs/agent-runtime-core.md
+    - agents/validator.md
+    - AGENTS.md (Review architecture)
+    - experiments/EXP-CZLIFT-a255fc/specification.yaml
+    - experiments/EXP-CZLIFT-a255fc/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-9a32e9.yaml
+  not_read: >-
+    harness/czlift_medium.py, harness/czlift_formal.py, harness/czlift_cubic.py,
+    tests/test_czlift.py, every ledger/decisions/DEC-20261009-*.yaml, PR text, session receipts,
+    and every other validator's report under experiments/*/reports/validation-20261022/.
+  read_sibling_reports: false
+  sibling_exposure_disclosure: >-
+    A final `git status --porcelain` printed the untracked directory names
+    experiments/EXP-CZLIFT-bdae69/reports/ and experiments/EXP-CZLIFT-ed8113/reports/. No file
+    in them was listed or opened.
+  blind_from_respected: true
+  blind_from_respected_scope: >-
+    True for the blind phase, as the card defines it. No blind_from path was opened before
+    blind/SEAL.sha256 was written (08:07:34Z). After the seal, phase 2 required reading
+    implementation/, harness/czlift_run.py and both raw-result.json files, as the card directs;
+    they are listed in sources_read. tools/check_review_independence.py will therefore report a
+    blind_from intersection for this task. That follows from the plan assigning the blind phase
+    and J1/J2 to one task, and the Coordinator may want to record it as a procedure deviation or
+    a phase split.
+  verdict:
+    J1: holds
+    J2: breaks
+    J3: holds
+    PTM-1: breaks
+    'Both run packages are complete and bound: every manifest files_sha256 entry, the snapshot and ledger archive receipts, command, revision, clean tree, seed and environment records agree, and the trials cover the frozen plan.': holds
+    'Every frozen success and falsification metric, and each control in the specification, recomputes exactly from raw-result.json on both seeds, and the independent checker receipt agrees.': breaks
+    'The load-bearing quantity, re-derived blind from the statement, agrees with the producer''s value.': holds
+  terminal_verdict: incomplete

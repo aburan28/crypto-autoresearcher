@@ -36,7 +36,7 @@ from build_dk_exact import EXCLUDED_NIST, certified_curves, load_curves, pari_is
 
 ECM = "GMP-ECM 7.0.5"
 CADO = "CADO-NFS 3.0.0 (git 692ecb7e62f0f3bdab88ee44cc60b8ded0ea1a1b)"
-TIER = {"11000": 1, "50000": 2, "250000": 3, "1000000": 4}
+TIER = {"11000": 1, "50000": 2, "250000": 3, "1000000": 4, "3000000": 5}
 
 
 def method(how: str) -> str:
@@ -49,6 +49,9 @@ def method(how: str) -> str:
     m = re.fullmatch(r"PARI factorint \((\d+) s\)", how)
     if m:
         return f"PARI factorint ({m.group(1)} s)"
+    m = re.fullmatch(r"FactorDB \(fetched (\S+)\)", how)
+    if m:   # an external split, fetched by the operator; FactorDB does not record who found it
+        return f"FactorDB (external; finder not recorded; fetched {m.group(1)})"
     raise ValueError(f"unknown split method {how!r}")
 
 

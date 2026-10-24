@@ -342,6 +342,14 @@ jobs:
               || { cat "$d/render.log" >&2; exit 1; }
           done
 
+      # New files only (records are immutable): refuse 1 MiB+ of uncompressed text,
+      # 1 MiB+ byte-identical copies of tracked files, and anything 50 MiB+.
+      # The error names the artifact_store.py command that fixes it
+      # (docs/artifact-storage.md).
+      - name: Check the size of what this PR adds
+        if: needs.changes.outputs.base != ''
+        run: python3 tools/repo_size.py check --base "$BASE_SHA"
+
       # Absolute, not diffed: these packages assert an artifact list, an
       # artifact count and a sha256 per file, and the check recomputes all
       # three from the files each package actually ships. It needs no Autolab
@@ -364,6 +372,14 @@ jobs:
       - name: Check ECDLP known-results map
         if: needs.changes.outputs.frontier == 'true'
         run: python3 tools/build_frontier_map.py --check
+
+      # The lead atlas (knowledge/leads/ecdlp/README.md): what this program has
+      # already tried. Checks schema, dispositions (a closure names its
+      # obstruction), ledger and KR references, and coverage.tsv. Sibling
+      # repositories are not checked out here, so their evidence paths warn.
+      - name: Check ECDLP lead atlas
+        if: needs.changes.outputs.frontier == 'true'
+        run: python3 tools/lead_atlas.py --check
 
       - name: Validate inference configuration (offline)
         if: needs.changes.outputs.tests == 'true'

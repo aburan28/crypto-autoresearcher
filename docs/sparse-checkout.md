@@ -64,10 +64,23 @@ blob of all ~1,300 branches; archive verification needs reachability and
 trees, and reads the few old blobs it needs on demand. `goal_portfolio_health.py`
 deepens the same way.
 
-**Child sessions.** `create_session`'s `sparse_checkout_paths` is cone mode
-(whole directories), which cannot express "every experiment but not its
-runs". Start the child in an environment whose variables set
-`CRYPTO_AR_SPARSE_PROFILE=harness`, or make `python3
+**Not the default.** Unlike aburan28/crypto, whose hook applies its harness
+profile unless told otherwise, this repository stays opt-in:
+`validate_ledger`, `goal_portfolio_health` and `portfolio_kpis` refuse a
+sparse checkout, and `coordinate`, `research-status`, `design-experiment`,
+`review-evidence`, `propose-ideas` and `curate-knowledge` run them. Opt in for
+execution (`run`) sessions only.
+
+**Child sessions.** A cloud session clones before any hook runs, so only the
+new session's settings shrink the download. When one session starts another
+with `create_session`, pass `blob_limit_kb: 1024`: the 1,402 files over 1 MiB
+(75.6% of the checkout's bytes on 2026-10-22: run archives and reference
+bundles) stay on the server
+until a command reads them, and every path stays in place, so the ledger
+sweeps above still run (fetching what they read). `sparse_checkout_paths` is
+cone mode (whole directories), which cannot express "every experiment but not
+its runs"; for a `run` child, also start it in an environment whose variables
+set `CRYPTO_AR_SPARSE_PROFILE=harness`, or make `python3
 tools/sparse_checkout.py apply harness` the first line of its prompt.
 
 ## What knows about sparse checkouts
