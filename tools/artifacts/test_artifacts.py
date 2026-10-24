@@ -148,6 +148,28 @@ class RoundTrip(unittest.TestCase):
         self.git("commit", "-qm", "move it")
         self.assertEqual(self.art("check", base).returncode, 0)
 
+    def test_check_gate_fetches_missing_blobs_in_filtered_clone(self):
+        base = self.git("rev-parse", "HEAD").strip()
+        (self.repo / "new.jsonl").write_bytes(b"x" * 100_000)
+        (self.repo / "small.jsonl").write_bytes(b"{}\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "add omitted data")
+        self.git("config", "uploadpack.allowFilter", "true")
+        clone = Path(self.tmp.name) / "filtered-clone"
+        # file:// exercises the transport/filter path instead of a local hard-link clone.
+        sh(self.tmp.name, "git", "clone", "-q", "--filter=blob:none", "--no-checkout",
+           self.repo.as_uri(), str(clone), env=self.env)
+        types = sh(clone, "git", "cat-file", "--batch-all-objects",
+                   "--batch-check=%(objecttype)", env=self.env).stdout.splitlines()
+        self.assertNotIn("blob", types)
+        result = self.art("check", base, cwd=clone, check=False)
+        # The policy must inspect the omitted blob and reject its size, not fail
+        # while trying to resolve an abbreviated id or accidentally pass it.
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("new.jsonl", result.stdout)
+        self.assertNotIn("small.jsonl", result.stdout)
+        self.assertNotIn("Not a valid object name", result.stderr)
+
 
 class Policy(unittest.TestCase):
     P = artifacts.DEFAULT_POLICY
