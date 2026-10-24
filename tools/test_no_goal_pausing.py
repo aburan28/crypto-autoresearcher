@@ -97,8 +97,11 @@ class NoGoalRecordIsPausedTests(unittest.TestCase):
             if isinstance(goal, dict) and goal.get("id") in migrated:
                 seen[goal["id"]] = goal
         self.assertEqual(set(seen), migrated, "a migrated goal record vanished")
+        # Never parked again: active, or deliberately retired by a committed
+        # Coordinator decision (AGENTS.md "Goals are never paused").
+        allowed = {"active", "completed", "closed_at_budget", "cancelled"}
         for gid, goal in sorted(seen.items()):
-            self.assertEqual(goal.get("status"), "active", gid)
+            self.assertIn(goal.get("status"), allowed, gid)
             imps = goal.get("impediments")
             self.assertTrue(isinstance(imps, list) and imps, f"{gid}: no impediments")
             for e in imps:
