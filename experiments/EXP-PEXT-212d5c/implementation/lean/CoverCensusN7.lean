@@ -75,27 +75,51 @@ theorem period_three_or_twentyone {x : α} (h21 : Ret f 21 x) (h7 : ¬ Ret f 7 x
   refine ⟨one, ?_⟩
   intro k hk0 hk21 hk
   have hg := ret_gcd f k 21 hk h21
-  match k, hk0, hk21 with
-  | 1, _, _ => exact absurd hk one
-  | 2, _, _ => exact absurd hg one
-  | 3, _, _ => rfl
-  | 4, _, _ => exact absurd hg one
-  | 5, _, _ => exact absurd hg one
-  | 6, _, _ => rfl
-  | 7, _, _ => exact absurd hk h7
-  | 8, _, _ => exact absurd hg one
-  | 9, _, _ => rfl
-  | 10, _, _ => exact absurd hg one
-  | 11, _, _ => exact absurd hg one
-  | 12, _, _ => rfl
-  | 13, _, _ => exact absurd hg one
-  | 14, _, _ => exact absurd hg h7
-  | 15, _, _ => rfl
-  | 16, _, _ => exact absurd hg one
-  | 17, _, _ => exact absurd hg one
-  | 18, _, _ => rfl
-  | 19, _, _ => exact absurd hg one
-  | 20, _, _ => exact absurd hg one
+  have hkcases : k = 1 ∨ k = 2 ∨ k = 3 ∨ k = 4 ∨ k = 5 ∨ k = 6 ∨ k = 7 ∨
+      k = 8 ∨ k = 9 ∨ k = 10 ∨ k = 11 ∨ k = 12 ∨ k = 13 ∨ k = 14 ∨
+      k = 15 ∨ k = 16 ∨ k = 17 ∨ k = 18 ∨ k = 19 ∨ k = 20 := by omega
+  rcases hkcases with hk1 | hk2 | hk3 | hk4 | hk5 | hk6 | hk7 | hk8 | hk9 | hk10 |
+    hk11 | hk12 | hk13 | hk14 | hk15 | hk16 | hk17 | hk18 | hk19 | hk20
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg one
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg one
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg h7
+  · subst k
+    exact absurd hg one
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg one
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg h7
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg one
+  · subst k
+    rfl
+  · subst k
+    exact absurd hg one
+  · subst k
+    exact absurd hg one
 
 /-- Lemma E7, orbit step for a conjugate pair: if `τ¹⁴ β = β` and `τ⁷ β ≠ β`, every return
 before 14 steps is even and `β` is not fixed: its orbit has 2 or 14 points. -/
@@ -144,6 +168,7 @@ def spanSize (v : Nat) : Nat := (span v).length
 
 def weight (v : Nat) : Nat := (List.range 7).foldl (fun acc i => acc + (v >>> i) % 2) 0
 
+set_option maxRecDepth 8192 in
 theorem span_sizes : ∀ v, v < 128 →
     spanSize v = 1 ∨ spanSize v = 2 ∨ spanSize v = 8 ∨ spanSize v = 16 ∨
     spanSize v = 64 ∨ spanSize v = 128 := by
@@ -155,6 +180,7 @@ theorem weight4_dim3 :
       [23, 29, 39, 46, 57, 58, 75, 78, 83, 92, 101, 105, 114, 116] := by
   decide
 
+set_option maxRecDepth 8192 in
 theorem weight4_dim3_or_6 : ∀ v, v < 128 → weight v = 4 → spanSize v = 8 ∨ spanSize v = 64 := by
   decide
 
