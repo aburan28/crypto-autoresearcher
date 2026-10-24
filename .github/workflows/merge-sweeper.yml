@@ -5,10 +5,9 @@ name: merge-sweeper
 # AGENTS.md "Default workflow" merge rule, applied after the authoring
 # session has ended. Gate details: .github/scripts/merge_sweeper.py, docs/ci-tiers.md.
 #
-# With --apply it also keeps CI demand inside runner capacity: red PRs go
-# back to draft (`ci:parked`), at most MERGE_SWEEPER_MAX_READY PRs stay ready
-# (`ci:waiting` for the rest), and PRs whose head ran more than
-# MERGE_SWEEPER_MAX_CHECKS checks are held (docs/ci-tiers.md).
+# With --apply it also records capacity state with `ci:parked` and
+# `ci:waiting` labels. PRs remain open and ready for review; drafts are never
+# created or promoted by the sweeper.
 #
 # Report-only until the repository variable MERGE_SWEEPER_APPLY is "true";
 # the step summary lists every open PR and what keeps it from merging.
@@ -22,11 +21,8 @@ name: merge-sweeper
 #                                  pull requests: write). A merge made with
 #                                  the default GITHUB_TOKEN does NOT start the
 #                                  push workflows on main (release, pages,
-#                                  leaderboards), and its ready_for_review
-#                                  starts no full tier, so promoting
-#                                  `ci:waiting` and lane drafts needs this
-#                                  token. AUTOFIX_GH_TOKEN is used when this
-#                                  one is unset.
+#                                  leaderboards). AUTOFIX_GH_TOKEN is used when
+#                                  this one is unset.
 # Per PR: label `merge-sweeper:off` (or `do-not-merge`, `hold`, `wip`) keeps
 # it open.
 #
@@ -74,7 +70,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.MERGE_SWEEPER_TOKEN || secrets.AUTOFIX_GH_TOKEN || github.token }}
           APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || github.event_name == 'schedule' && vars.MERGE_SWEEPER_APPLY == 'true' }}
-          CAN_PROMOTE: ${{ secrets.MERGE_SWEEPER_TOKEN != '' || secrets.AUTOFIX_GH_TOKEN != '' }}
           MAX_MERGES: ${{ vars.MERGE_SWEEPER_MAX_MERGES || '10' }}
           MAX_CHECKS: ${{ vars.MERGE_SWEEPER_MAX_CHECKS || '30' }}
           MAX_READY: ${{ vars.MERGE_SWEEPER_MAX_READY || '40' }}
@@ -82,6 +77,5 @@ jobs:
         run: |
           args=(--max-merges "$MAX_MERGES" --max-checks "$MAX_CHECKS" --max-ready "$MAX_READY")
           if [ "$APPLY" = "true" ]; then args+=(--apply); fi
-          if [ "$CAN_PROMOTE" = "true" ]; then args+=(--can-promote); fi
           if [ -n "$ONLY_PR" ]; then args+=(--pr "$ONLY_PR"); fi
           python3 .github/scripts/merge_sweeper.py "${args[@]}"

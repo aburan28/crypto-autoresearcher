@@ -28,16 +28,12 @@ A PR is merged only when all of these hold on its current head:
 The merge uses a merge commit and the head SHA the checks ran on, so a push
 that lands between the read and the merge makes GitHub refuse it.
 
-With --apply it also manages capacity, after merging:
+With --apply it also manages capacity labels, after merging. It never changes
+whether a pull request is a draft or ready for review:
 
-  * park: a ready PR that is red, conflicted, over the check budget or
-    labelled `needs-human` goes back to draft with `ci:parked`, so its pushes
-    run only the fast tier until its author fixes it and marks it ready
-  * cap: at most --max-ready PRs stay ready; the newest beyond that go back
-    to draft with `ci:waiting`
-  * promote (--can-promote, which needs a token whose events start
-    workflows): `ci:waiting` drafts, oldest first, then `lane/*` drafts idle
-    for --lane-idle-hours, are marked ready while slots are free
+  * park: red, conflicted, over-budget or `needs-human` PRs get `ci:parked`
+  * cap: PRs beyond --max-ready get `ci:waiting` for prioritization; they stay
+    open and ready, and the label is cleared when they return within the cap
 
 Standard library only; talks to the GitHub REST and GraphQL APIs with
 $GH_TOKEN or $GITHUB_TOKEN (a token is optional for a public repository's
@@ -84,13 +80,6 @@ def api(method: str, path: str, body: dict | None = None) -> object:
     with urllib.request.urlopen(req, context=ctx, timeout=60) as res:
         raw = res.read()
     return json.loads(raw) if raw.strip() else None
-
-
-def graphql(query: str, **variables) -> dict:
-    res = api("POST", f"{API}/graphql", {"query": query, "variables": variables})
-    if res.get("errors"):
-        raise RuntimeError(res["errors"][0].get("message", "GraphQL error"))
-    return res["data"]
 
 
 def paged(path: str, key: str | None = None, max_pages: int = 20) -> list:
@@ -233,22 +222,17 @@ def merge(repo: str, pr: dict) -> str:
 
 
 PARK_NOTE = (
-    "The merge sweeper moved this PR back to draft ({why}). Drafts run only the "
-    "fast CI tier, so further pushes stay cheap. Fix it, then mark the PR ready "
-    "for review to run the full tier; the sweeper merges it once that is green. "
+    "The merge sweeper marked this PR `ci:parked` ({why}). It remains open and "
+    "ready for review; the label records the blocker. The sweeper may merge it "
+    "after the blocker is resolved and all merge gates pass. "
     "Rule: `docs/ci-tiers.md`."
 )
 WAIT_NOTE = (
-    "The merge sweeper moved this PR back to draft with `ci:waiting`: {n} PRs are "
-    "already ready (cap {cap}). It will mark this PR ready again, oldest first, "
-    "as slots free up. Rule: `docs/ci-tiers.md`."
+    "The merge sweeper marked this PR `ci:waiting`: {n} ready PRs exceed the "
+    "prioritization cap ({cap}). It remains open and ready for review. The label "
+    "will be cleared when it returns within the cap. "
+    "Rule: `docs/ci-tiers.md`."
 )
-
-
-def set_draft(repo: str, pr: dict, draft: bool) -> None:
-    mutation = "convertPullRequestToDraft" if draft else "markPullRequestReadyForReview"
-    graphql(f"mutation($id: ID!) {{ {mutation}(input: {{pullRequestId: $id}}) "
-            "{ pullRequest { isDraft } } }", id=pr["node_id"])
 
 
 def add_label(repo: str, number: int, label: str) -> None:
@@ -268,10 +252,9 @@ def comment(repo: str, number: int, body: str) -> None:
         {"body": body + "\n\n---\n_Posted by `merge-sweeper.yml`._"})
 
 
-def plan_capacity(prs: list[dict], buckets: dict[int, str], *, max_ready: int,
-                  can_promote: bool, lane_idle_hours: float,
-                  now: dt.datetime) -> list[tuple[str, dict, str]]:
-    """Actions [(park|wait|promote, pr, why)] that keep CI inside capacity.
+def plan_capacity(prs: list[dict], buckets: dict[int, str], *,
+                  max_ready: int) -> list[tuple[str, dict, str]]:
+    """Plan capacity labels without changing draft/ready state.
 
     `prs` are the open PRs left after merging, `buckets` their assess() bucket.
     """
@@ -280,29 +263,28 @@ def plan_capacity(prs: list[dict], buckets: dict[int, str], *, max_ready: int,
     for pr in prs:
         if pr.get("draft"):
             continue
+        labels = {label["name"] for label in pr.get("labels", [])}
         b = buckets.get(pr["number"])
         if b in PARK_BUCKETS or b == "needs-human":
-            actions.append(("park", pr, {"fail": "failing checks", "conflict": "merge conflict",
-                                         "over-budget": "too many CI checks",
-                                         "needs-human": "labelled needs-human"}[b]))
+            if L_WAITING in labels:
+                actions.append(("resume", pr, "no longer in the waiting lane"))
+            if L_PARKED not in labels:
+                actions.append(("park", pr, {"fail": "failing checks", "conflict": "merge conflict",
+                                             "over-budget": "too many CI checks",
+                                             "needs-human": "labelled needs-human"}[b]))
         elif b != "held":
-            ready.append(pr)
-    ready.sort(key=lambda p: p["created_at"])
-    for pr in ready[max_ready:]:
-        actions.append(("wait", pr, f"{len(ready)} ready"))
-    slots = max_ready - min(len(ready), max_ready)
-    if can_promote and slots > 0:
-        labels = lambda p: {l["name"] for l in p.get("labels", [])}  # noqa: E731
-        waiting = sorted((p for p in prs if p.get("draft") and L_WAITING in labels(p)),
-                         key=lambda p: p["created_at"])
-        idle = dt.timedelta(hours=lane_idle_hours)
-        lanes = sorted((p for p in prs if p.get("draft") and L_WAITING not in labels(p)
-                        and L_PARKED not in labels(p)
-                        and p["head"]["ref"].startswith("lane/")
-                        and now - parse_time(p["updated_at"]) >= idle),
-                       key=lambda p: p["updated_at"])
-        for pr in (waiting + lanes)[:slots]:
-            actions.append(("promote", pr, "slot free" if pr in waiting else "lane idle"))
+            if L_PARKED in labels:
+                actions.append(("unpark", pr, "merge blocker cleared"))
+            ready.append((pr, labels))
+    ready.sort(key=lambda item: item[0]["created_at"])
+    prioritized = ready[:max_ready]
+    waiting = ready[max_ready:]
+    for pr, labels in waiting:
+        if L_WAITING not in labels:
+            actions.append(("wait", pr, f"{len(ready)} ready"))
+    for pr, labels in prioritized:
+        if L_WAITING in labels:
+            actions.append(("resume", pr, "within the prioritization cap"))
     return actions
 
 
@@ -310,16 +292,15 @@ def apply_action(repo: str, kind: str, pr: dict, why: str, *, max_ready: int) ->
     n = pr["number"]
     try:
         if kind == "park":
-            set_draft(repo, pr, True)
             add_label(repo, n, L_PARKED)
             comment(repo, n, PARK_NOTE.format(why=why))
         elif kind == "wait":
-            set_draft(repo, pr, True)
             add_label(repo, n, L_WAITING)
             comment(repo, n, WAIT_NOTE.format(n=why.split()[0], cap=max_ready))
-        elif kind == "promote":
+        elif kind == "resume":
             remove_label(repo, n, L_WAITING)
-            set_draft(repo, pr, False)
+        elif kind == "unpark":
+            remove_label(repo, n, L_PARKED)
     except (urllib.error.HTTPError, RuntimeError) as exc:
         return f"failed: {exc}"
     return "done"
@@ -335,10 +316,6 @@ def main() -> int:
                     help="hold PRs whose head ran more checks than this (default 30)")
     ap.add_argument("--max-ready", type=int, default=40,
                     help="keep at most N PRs ready for review (default 40)")
-    ap.add_argument("--can-promote", action="store_true",
-                    help="mark waiting and idle lane drafts ready (needs a token "
-                         "whose events start workflows)")
-    ap.add_argument("--lane-idle-hours", type=float, default=6)
     ap.add_argument("--pr", type=int, action="append", default=[],
                     help="only consider these PR numbers")
     args = ap.parse_args()
@@ -376,10 +353,7 @@ def main() -> int:
         lines.setdefault(bucket, []).append(line)
         print(f"[{bucket}] {line}", flush=True)
 
-    actions = plan_capacity(left, bucket_of, max_ready=args.max_ready,
-                            can_promote=args.can_promote,
-                            lane_idle_hours=args.lane_idle_hours,
-                            now=dt.datetime.now(dt.timezone.utc))
+    actions = plan_capacity(left, bucket_of, max_ready=args.max_ready)
     acted: dict[str, list[str]] = {}
     for kind, pr, why in actions:
         outcome = apply_action(args.repo, kind, pr, why, max_ready=args.max_ready) \
@@ -395,7 +369,8 @@ def main() -> int:
            f"Check budget {args.max_checks}, ready cap {args.max_ready}, tiers since {tiers}.", "",
            "| bucket | PRs |", "| --- | --- |"]
     out += [f"| {b} | {len(lines.get(b, []))} |" for b in order]
-    out += [f"| → {k} | {len(acted.get(k, []))} |" for k in ("park", "wait", "promote")]
+    out += [f"| → {k} | {len(acted.get(k, []))} |"
+            for k in ("park", "wait", "resume", "unpark")]
     for title, group in [(b, lines.get(b)) for b in order] + [(f"→ {k}", acted.get(k)) for k in acted]:
         if group:
             out += ["", f"<details><summary>{title} ({len(group)})</summary>", ""]

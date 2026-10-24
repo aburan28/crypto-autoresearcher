@@ -154,10 +154,8 @@ class Capacity(unittest.TestCase):
 
     def plan(self, prs, buckets, **kw):
         kw.setdefault("max_ready", 2)
-        kw.setdefault("can_promote", True)
-        kw.setdefault("lane_idle_hours", 6)
         return [(k, p["number"]) for k, p, _ in
-                ms.plan_capacity(prs, buckets, now=self.NOW, **kw)]
+                ms.plan_capacity(prs, buckets, **kw)]
 
     def test_red_prs_are_parked_and_held_ones_are_left(self):
         prs = [pr(i) for i in range(1, 6)]
@@ -170,16 +168,34 @@ class Capacity(unittest.TestCase):
         self.assertEqual(self.plan(prs, {1: "pending", 2: "ready", 3: "pending"}),
                          [("wait", 3)])
 
-    def test_free_slots_promote_waiting_then_idle_lanes(self):
+    def test_drafts_are_never_changed_by_capacity_planning(self):
         prs = [pr(1, draft=True, labels=["ci:waiting"]),
-               pr(2, draft=True, ref="lane/ic", updated="2026-10-23T01:00:00Z"),
-               pr(3, draft=True, ref="lane/vol", updated="2026-10-23T11:00:00Z"),
-               pr(4, draft=True, ref="lane/old", labels=["ci:parked"]),
-               pr(5, draft=True)]
-        buckets = {p["number"]: "draft" for p in prs}
-        self.assertEqual(self.plan(prs, buckets), [("promote", 1), ("promote", 2)])
-        self.assertEqual(self.plan(prs, buckets, max_ready=1), [("promote", 1)])
-        self.assertEqual(self.plan(prs, buckets, can_promote=False), [])
+               pr(2, draft=True, labels=["ci:parked"])]
+        self.assertEqual(self.plan(prs, {1: "draft", 2: "draft"}), [])
+
+    def test_waiting_labels_prioritize_ready_prs_without_demoting_them(self):
+        prs = [pr(1, labels=["ci:waiting"]),
+               pr(2, created="2026-10-22T00:00:00Z", labels=["ci:waiting"]),
+               pr(3, created="2026-10-23T00:00:00Z")]
+        buckets = {1: "ready", 2: "ready", 3: "ready"}
+        self.assertEqual(self.plan(prs, buckets),
+                         [("wait", 3), ("resume", 1), ("resume", 2)])
+
+    def test_capacity_labels_clear_when_status_changes(self):
+        prs = [pr(1, labels=["ci:parked"]),
+               pr(2, labels=["ci:waiting"])]
+        buckets = {1: "ready", 2: "ready"}
+        self.assertEqual(self.plan(prs, buckets), [("unpark", 1), ("resume", 2)])
+
+    def test_applying_capacity_actions_does_not_change_draft_state(self):
+        target = pr(number=7)
+        with mock.patch.object(ms, "add_label") as add_label, \
+                mock.patch.object(ms, "comment") as comment:
+            self.assertEqual(ms.apply_action(REPO, "park", target, "failing checks",
+                                             max_ready=40), "done")
+        add_label.assert_called_once_with(REPO, 7, ms.L_PARKED)
+        comment.assert_called_once()
+        self.assertFalse(target["draft"])
 
 
 class Merge(unittest.TestCase):

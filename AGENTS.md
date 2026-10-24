@@ -409,10 +409,8 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
 - **Continue through the PR** (user, 2026-10-14; supersedes the 2026-10-09
-  stop rule; draft rule replaced by the owner, 2026-10-23): open it as a
-  draft and mark it ready for review when the work is done. Drafts run only
-  the fast CI tier; marking a PR ready runs the full tier once on its head,
-  and the merge sweeper requires that (`docs/ci-tiers.md`). Work for an
+  stop rule): open it ready for review, never as a draft unless the user asks
+  (`docs/ci-tiers.md`). Work for an
   existing research lane goes to its `lane/<lane>` branch with
   `scripts/lane-push.sh <lane>`, not a new PR, and a PR's head stays within 30
   CI checks (`ci:over-budget` otherwise). The authoring session follows its PR through CI, review, conflict resolution,

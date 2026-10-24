@@ -7,6 +7,9 @@ crypto. The owner asked to cut PR and CI volume, cap a PR at 30 CI checks and
 clear PRs faster. The same mechanism is in all three repositories; crypto's
 `.github/CI.md` ("CI tiers") has the measurements.
 
+PRs are opened ready for review by default. A draft, opened only when the user
+asks for one, runs the fast tier:
+
 | PR state | What runs on each push |
 | --- | --- |
 | Draft | Fast tier only: `progress-fidelity.yml` (the required check) and `ci-tier.yml` (`tier-gate`; its `full-tier` job skips) |
@@ -22,10 +25,11 @@ clear PRs faster. The same mechanism is in all three repositories; crypto's
 - **Merge sweeper** (`merge-sweeper.yml`, every 30 minutes; report-only until
   `MERGE_SWEEPER_APPLY=true`): merges green, clean, unblocked PRs with a merge
   commit pinned to the checked head. It holds a PR whose head ran more than 30
-  checks (`ci:over-budget`). With apply it moves red, conflicted, over-budget
-  and `needs-human` PRs back to draft (`ci:parked`) and keeps at most 40 PRs
-  ready (`ci:waiting`). Given `MERGE_SWEEPER_TOKEN` it marks waiting drafts,
-  then `lane/*` drafts idle for six hours, ready as slots free.
+  checks (`ci:over-budget`). With apply it labels red, conflicted, over-budget
+  and `needs-human` PRs `ci:parked` and PRs beyond the 40-PR prioritization cap
+  `ci:waiting`. It never changes whether a PR is a draft: PRs stay open and
+  ready for review (owner, 2026-10-24), and the labels clear when the blocker
+  does.
 - **Lanes:** sessions working one study push to `lane/<lane>` with
   `scripts/lane-push.sh <lane>` (merge commits only, retried, never a
   force-push) instead of opening a PR each.
