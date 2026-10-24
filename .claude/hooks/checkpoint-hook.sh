@@ -51,6 +51,8 @@ case "$event" in
       printf '%s\n' "$out" >&2
       exit 2
     fi
+    # Tell the agent where the checkpoint went; silence reads as "nothing happened".
+    python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "Resume " + sys.argv[1]}}))' "$(printf '%s' "$out" | tail -1)"
     exit 0
     ;;
   PreToolUse)
