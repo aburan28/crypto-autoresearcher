@@ -76,6 +76,17 @@ establish a weakness of E/F_p: ECPP constructs auxiliary curves over the
 integer n it is proving prime. Historical attribution still needs the actual
 caller or independent period provenance.
 
+## Execution library prepared, not executed
+
+`cohort_case.py` binds the 21 inputs, exact compressed runtime payloads, kernel
+and original data inventory. Its public CLI only supports --describe. The
+execute_case library function is prepared for a future approved trial plan; it
+has not been called on any named input. The future plan must declare the
+image-cache write scope under .work/qemu-runtime/images, retain no-concurrency
+on that cache, and bind the earlier independent primality evidence separately.
+Static compilation and payload/manifest description checks do not validate the
+unexecuted named-order execution path.
+
 ## Remaining admission work
 
 The Coordinator must bind the executable launcher/trial plan and complete the
