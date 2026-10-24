@@ -542,6 +542,15 @@ digests and stable artifact locations. Never replace a raw capture with a
 summary, overwrite a prior attempt, or discard an unfavorable result; each
 rerun gets a distinct record.
 
+## Data files live in the artifact store
+
+Owner, 2026-10-24: any non-code file over 1 MiB, and any data-suffixed file
+(`.jsonl`, `.gz`, `.npy`, logs, archives) over 64 KiB, lives in
+`s3://setec-astronomy-artifacts` with a `.artifacts.json` manifest in its
+directory, moved with `tools/artifacts/artifacts.py push` (not `git add`) and
+read after `pull`. The `artifacts` CI check fails a PR that adds one to Git.
+Never delete remote objects. See [`docs/artifacts.md`](docs/artifacts.md).
+
 ## Papers
 
 For manuscripts, follow [the paper contract](docs/agent-contract-extended.md#papers). Its layout, evidence, anonymity, submission, and build requirements are binding.
