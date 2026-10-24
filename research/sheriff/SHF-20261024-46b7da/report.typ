@@ -43,6 +43,7 @@ signals. A scanner lead or a checker timeout is not a research verdict; see
   [C12], [scoped], [2,681 indexed factor-base archives verify with NumPy installed],
   [C13], [broken], [32 cited factor-base digests lack archive or declared debt],
   [C14], [broken], [four complete scratch pilots lack spec and host audit inputs],
+  [C15], [broken], [13 interrupted sessions were counted as complete passes],
 )
 
 == Main limitations
@@ -50,8 +51,9 @@ signals. A scanner lead or a checker timeout is not a research verdict; see
 The registry holds 2,753 experiment IDs and 3,726 run IDs in the auto
 researcher, 636 crypto session paths (617 ecbench/v1), and 335 cryptanalysis experiment
 directories. Only selected load-bearing joints received independent reading.
-The 617 ecbench/v1 directories have source-hashed integrity replays: 603
-complete and bound passes, ten interrupted and unbound, and four missing
+The 617 ecbench/v1 directories have source-hashed integrity replays: 590
+complete-status bound passes, 13 interrupted-status bound integrity passes
+for retained records only, ten interrupted and unbound, and four missing
 required source inputs. These counts do not replay timing and are not a
 theorem-to-run coverage fraction. The n=83 stack omits
 factor-base construction from both arms; a rank-stage planted control and
