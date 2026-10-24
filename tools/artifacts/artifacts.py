@@ -209,7 +209,9 @@ def write_gitignore(d: Path, names: list[str]) -> None:
         head, rest = text.split(BEGIN, 1)
         tail = rest.split(END, 1)[1] if END in rest else ""
         text = head.rstrip("\n") + ("\n" if head.strip() else "") + tail.lstrip("\n")
-    block = [BEGIN, *[gitignore_escape(n) for n in sorted(names)], END]
+    # Negate first so a parent `*.json` (common in experiment trees) cannot
+    # hide the tracked manifest that names the stored files.
+    block = [BEGIN, "!.artifacts.json", *[gitignore_escape(n) for n in sorted(names)], END]
     text = (text.rstrip("\n") + "\n" if text.strip() else "") + "\n".join(block) + "\n"
     p.write_text(text)
 
@@ -546,7 +548,8 @@ def cmd_push(cfg: Config, args) -> int:
     tracked = [f for f, *_ in done]
     for i in range(0, len(tracked), 500):
         git(cfg.root, "rm", "--cached", "--sparse", "-q", "--ignore-unmatch", "--", *tracked[i:i + 500])
-    git(cfg.root, "add", "--sparse", "--", *[rel(cfg.root, d / n) for d in by_dir for n in (MANIFEST, ".gitignore")])
+    git(cfg.root, "add", "-f", "--sparse", "--",
+        *[rel(cfg.root, d / n) for d in by_dir for n in (MANIFEST, ".gitignore")])
     sent = sum(1 for *_, s in done if s)
     print(f"moved {len(done)} files ({sum(s for _, _, s, _ in done) / 1e6:,.1f} MB; {sent} uploaded, "
           f"{len(done) - sent} already stored) into {len(by_dir)} manifests; review with `git status` and commit",
