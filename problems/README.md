@@ -128,5 +128,5 @@ remains `active`; scientific transitions still require the established
 Coordinator decision and evidence.
 
 - [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
-
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
+- [ECDLP lead atlas source and validation gap](ecdlp-lead-atlas-unmerged-evidence.md) — crypto study files now match merged main, while source CI, full replay, the open ecc-challenges PR and four-repository validation remain pending.
