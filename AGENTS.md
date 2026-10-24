@@ -5,6 +5,13 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
+Conventions shared with `aburan28/crypto`, `aburan28/cryptanalysis` and
+`aburan28/crypto-lean` — object storage, the validation vocabulary, curve
+identity, the skill surface and the shared-code parity list — are stated once in
+[`docs/lab-contract.md`](docs/lab-contract.md). That file wins on a shared
+convention; this file wins on anything specific to this repository, and either
+wins over a skill, a runtime file or a generated block.
+
 ## Observe first; interpret later
 
 Before planning or reporting research, read and follow the complete [observation-first rule](docs/agent-contract-extended.md#observe-first-interpret-later). Its observation, interpretation, ownership, performance-scope, and evidence requirements are binding; they supersede an improvement-only definition of research success.
