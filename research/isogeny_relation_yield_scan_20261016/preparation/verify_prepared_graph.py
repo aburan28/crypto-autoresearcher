@@ -75,15 +75,15 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         raise ValueError("Hasse uniqueness failed")
     if len(base) != 2 * manifest["base_abscissae"] or len(targets) != manifest["target_count"]:
         raise ValueError("base or target count mismatch")
+    arm = manifest["arm"]
     for i in range(0, len(base), 2):
         point, inverse = base[i], base[i + 1]
         if not E.is_on_curve(point) or inverse != E.negate(point) or point[1] != min(point[1], p - point[1]):
             # A transported base can reverse the canonical sign convention.
-            if manifest["arm"] != "u2_transport" or not E.is_on_curve(point) or inverse != E.negate(point):
+            if arm not in ("u2_transport", "graph_transport") or not E.is_on_curve(point) or inverse != E.negate(point):
                 raise ValueError("signed base pair failed")
     if len({base[i][0] for i in range(0, len(base), 2)}) != len(base) // 2:
         raise ValueError("duplicate base x-orbit")
-    arm = manifest["arm"]
     base_x = [base[i][0] for i in range(0, len(base), 2)]
     if arm in ("low_x", "mid_x", "u2_native"):
         rule = "low_x" if arm != "mid_x" else "mid_x"
@@ -93,6 +93,37 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         source_a, source_b = a * pow(16, -1, p) % p, b * pow(64, -1, p) % p
         if base_x != [4 * x % p for x in expected_xs(p, source_a, source_b, len(base_x), "low_x")]:
             raise ValueError("transported coordinate base rule failed")
+    if arm == "graph_transport":
+        study = Path(__file__).resolve().parents[1]
+        stratum = manifest["stratum"]
+        if stratum not in ("P29", "P37"):
+            raise ValueError("unsupported graph transport stratum")
+        stride, size, end = ((8, 256, 2048) if stratum == "P29" else (4, 1600, 256))
+        index = manifest["index"]
+        if not isinstance(index, int) or not 0 <= index <= end or index % stride or len(base) != 2 * size:
+            raise ValueError("graph transport check-vertex schedule differs")
+        directory = study / "path_transport/controls" / f"{stratum.lower()}-twoedge-attempt1"
+        walk = study / ("walk-p29-2048-attempt2.jsonl" if stratum == "P29" else "walk-p37-256.jsonl")
+        checkpoint_path = directory / f"edge-{index:04d}.json"
+        expected_path = str(checkpoint_path.relative_to(ROOT))
+        checkpoint = json.loads(checkpoint_path.read_text())
+        path_manifest = json.loads((directory / "manifest.json").read_text())
+        if (manifest.get("checkpoint_path") != expected_path or
+                manifest.get("checkpoint_sha256") != sha(checkpoint_path) or
+                manifest.get("checkpoint_manifest_sha256") != sha(directory / "manifest.json") or
+                manifest.get("checkpoint_terminal_sha256") != sha(directory / f"edge-{end:04d}.json") or
+                path_manifest.get("schema") != "ectd.path-base-transport.v1" or
+                path_manifest.get("stratum") != stratum or path_manifest.get("graph_sha256") != manifest["graph_sha256"] or
+                sha(walk) != manifest["graph_sha256"] or
+                path_manifest.get("p") != p or path_manifest.get("r") != r or
+                path_manifest.get("check_stride") != stride or path_manifest.get("signed_base_points") != len(base) or
+                checkpoint.get("index") != index or checkpoint.get("check_vertex") is not True or
+                checkpoint.get("model", {}).get("a") != a or checkpoint.get("model", {}).get("b") != b or
+                checkpoint.get("model", {}).get("j") != manifest["j"] or
+                checkpoint.get("generator") != list(G) or
+                checkpoint.get("base") != [list(point) for point in base] or
+                checkpoint.get("base_sha256") != hashlib.sha256(json.dumps(checkpoint["base"], separators=(",", ":")).encode()).hexdigest()):
+            raise ValueError("graph transport archive binding differs")
     seen = set()
     for alpha, beta, x, y in targets:
         point = x, y

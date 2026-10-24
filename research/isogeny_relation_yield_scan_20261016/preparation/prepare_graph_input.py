@@ -21,10 +21,12 @@ from prepare_input import lift  # exact square-root and sign convention
 from verify_collector import Curve, certify_group, multiply, negative, on_curve
 
 SCHEMA = "isogeny-relation-input/v1"
-ARMS = ("low_x", "mid_x", "random_x", "power_x", "u2_native", "u2_transport")
+ARMS = ("low_x", "mid_x", "random_x", "power_x", "graph_transport", "u2_native", "u2_transport")
 SCHEDULE = {"P29": {"B": 256, "discovery": 8192, "confirmation": 32768, "power_stride": 8},
             "P37": {"B": 1600, "discovery": 2048, "confirmation": 32768, "power_stride": 4}}
 SOURCES = [Path(__file__), LEGACY / "prepare_input.py", LEGACY / "verify_collector.py"]
+CHECKPOINTS = {"P29": STUDY / "path_transport/controls/p29-twoedge-attempt1",
+               "P37": STUDY / "path_transport/controls/p37-twoedge-attempt1"}
 
 
 def digest(path):
@@ -197,14 +199,44 @@ def transform(point, p):
     return point[0] * 4 % p, point[1] * 8 % p
 
 
+def graph_transport_base(walk_path, header, model, generator, index):
+    """Read the archived source-low-x image at a prespecified check vertex."""
+    stratum = header["stratum"]
+    if index % SCHEDULE[stratum]["power_stride"]:
+        raise ValueError("graph_transport is only defined on prespecified check vertices")
+    directory = CHECKPOINTS[stratum]
+    manifest_path = directory / "manifest.json"
+    terminal_path = directory / f"edge-{header['requested_edges']:04d}.json"
+    checkpoint_path = directory / f"edge-{index:04d}.json"
+    manifest = json.loads(manifest_path.read_text())
+    if (manifest.get("schema") != "ectd.path-base-transport.v1" or
+            manifest.get("stratum") != stratum or manifest.get("graph_sha256") != digest(walk_path) or
+            manifest.get("p") != header["p"] or manifest.get("r") != header["r"] or
+            manifest.get("check_stride") != SCHEDULE[stratum]["power_stride"] or
+            manifest.get("signed_base_points") != 2 * SCHEDULE[stratum]["B"]):
+        raise ValueError("graph transport manifest differs from the archived walk")
+    checkpoint = json.loads(checkpoint_path.read_text())
+    base = checkpoint["base"]
+    base_hash = hashlib.sha256(json.dumps(base, separators=(",", ":")).encode()).hexdigest()
+    if (checkpoint.get("index") != index or checkpoint.get("check_vertex") is not True or
+            checkpoint.get("model") != model or checkpoint.get("generator") != list(generator) or
+            checkpoint.get("base_sha256") != base_hash or len(base) != 2 * SCHEDULE[stratum]["B"]):
+        raise ValueError("graph transport checkpoint identity or base differs")
+    return [tuple(point) for point in base], {
+        "checkpoint_path": str(checkpoint_path.relative_to(ROOT)),
+        "checkpoint_sha256": digest(checkpoint_path),
+        "checkpoint_manifest_sha256": digest(manifest_path),
+        "checkpoint_terminal_sha256": digest(terminal_path)}
+
+
 def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
     header, model, curve, generator = load_vertex(walk_path, index)
     stratum = header["stratum"]
     config = SCHEDULE[stratum]
     if arm not in ARMS or stage not in ("discovery", "confirmation"):
         raise ValueError("unsupported arm or stage")
-    if arm == "power_x" and index % config["power_stride"]:
-        raise ValueError("power_x is only defined on prespecified path indices")
+    if arm in ("power_x", "graph_transport") and index % config["power_stride"]:
+        raise ValueError(f"{arm} is only defined on prespecified path indices")
     k, coefficients, target_rejections = target_coefficients(target_root, stratum, stage, curve.r, target_count)
     q = multiply(k, generator, curve)
     if q is None:
@@ -212,6 +244,7 @@ def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
     targets = [(a, b, multiply(s, generator, curve)) for a, b, s in coefficients]
     if any(point is None for _, _, point in targets):
         raise AssertionError("target construction failed")
+    checkpoint_binding = {}
     if arm in ("u2_native", "u2_transport"):
         result_curve = Curve(curve.p, 16 * curve.a % curve.p, 64 * curve.b % curve.p, curve.r)
         result_generator, result_q = transform(generator, curve.p), transform(q, curve.p)
@@ -223,7 +256,11 @@ def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
             base, base_rejections = base_points(result_curve, config["B"], "u2_native", base_root, stratum, model["j"])
     else:
         result_curve, result_generator, result_q = curve, generator, q
-        base, base_rejections = base_points(curve, config["B"], arm, base_root, stratum, model["j"])
+        if arm == "graph_transport":
+            base, checkpoint_binding = graph_transport_base(walk_path, header, model, generator, index)
+            base_rejections = {"not_applicable": "source low_x base transported through archived maps"}
+        else:
+            base, base_rejections = base_points(curve, config["B"], arm, base_root, stratum, model["j"])
     if len({point[0] for point in base}) != config["B"] or not all(on_curve(point, result_curve) for point in base):
         raise AssertionError("invalid factor base")
     rows = [f"curve {result_curve.p} {result_curve.a} {result_curve.b} {result_curve.r} {len(base)} {len(targets)}"]
@@ -242,6 +279,7 @@ def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
                 "base_sha256": hashlib.sha256(json.dumps(base, separators=(",", ":")).encode()).hexdigest(),
                 "target_vector_sha256": hashlib.sha256(json.dumps(targets, separators=(",", ":")).encode()).hexdigest(),
                 "limits": "prepared input only; no relation yield or ECDLP cost claim"}
+    metadata.update(checkpoint_binding)
     return payload, metadata
 
 
@@ -268,11 +306,12 @@ def main():
     graph_entry = frozen_manifest["files"].get(args.walk.name)
     if graph_entry is None or graph_entry["sha256"] != digest(args.walk):
         parser.error("graph differs from the archived verified walk")
-    verification_name = "verification-" + json.loads(args.walk.open().readline())["stratum"].lower() + "-full.json"
+    header = json.loads(args.walk.open().readline())
+    verification_name = "verification-" + header["stratum"].lower() + "-full.json"
     if frozen_manifest["files"].get(verification_name, {}).get("sha256") != digest(STUDY / verification_name):
         parser.error("graph verification receipt differs from the archive")
     verification = json.loads((STUDY / verification_name).read_text())[0]
-    if not verification["complete"] or verification["checked_edges"] != json.loads(args.walk.open().readline())["requested_edges"]:
+    if not verification["complete"] or verification["checked_edges"] != header["requested_edges"]:
         parser.error("full graph verification receipt is absent or incomplete")
     expected = {"base_root_sha256": hashlib.sha256(base_root).hexdigest(),
                 "target_root_sha256": hashlib.sha256(target_root).hexdigest(),
@@ -280,11 +319,17 @@ def main():
                 "graph_manifest_sha256": digest(graph_manifest)}
     if any(commitment.get(key) != value for key, value in expected.items()):
         parser.error("seed or graph commitment mismatch")
+    if args.arm == "graph_transport":
+        checkpoint_dir = CHECKPOINTS[header["stratum"]]
+        checkpoint_expected = {
+            "checkpoint_manifest_sha256": digest(checkpoint_dir / "manifest.json"),
+            "checkpoint_terminal_sha256": digest(checkpoint_dir / f"edge-{header['requested_edges']:04d}.json")}
+        if any(commitment.get(key) != value for key, value in checkpoint_expected.items()):
+            parser.error("graph transport checkpoint commitment mismatch")
     for path in SOURCES:
         name = str(path.relative_to(ROOT))
         if commitment.get("source_sha256", {}).get(name) != digest(path):
             parser.error("source hash mismatch: " + name)
-    header = json.loads(args.walk.open().readline())
     count = SCHEDULE[header["stratum"]][args.stage]
     payload, metadata = prepare(args.walk, args.index, args.arm, args.stage, base_root, target_root, count)
     metadata["commitment_sha256"] = digest(args.commitment)
