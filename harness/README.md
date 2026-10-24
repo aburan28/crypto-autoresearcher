@@ -8,6 +8,7 @@ and evidence scope needed to interpret results at the scale actually tested.
 |---|---|
 | `toycurve.py` | F_p short-Weierstrass arithmetic, exact point counting, deterministic ECDLP instance generation. Also the **independent verifier** for certificates. |
 | `rho.py` | Pollard rho (Teske r-adding walk) — the matched generic baseline (KN-TECH-001). Recovers k using public data only. |
+| `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, and independently checks any recovered logarithm. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
 | `walk.py` | The rho walk as a first-class object: Teske r-adding steps with coefficient bookkeeping, orbit tracing (tail/cycle), distinguished-point walks, and the van Oorschot--Wiener DP collision search. |
 | `kangaroo.py` | Pollard kangaroo over an interval: tame/wild herds meeting at distinguished points, trajectories retained. |
 | `walkviz.py` | Draws what those two produce -- functional graph with one rho highlighted, DP forest with the golden collision, kangaroo herds -- as dependency-free SVG. |
@@ -23,6 +24,21 @@ Run tests with `python -m pytest -q`. Metrics honesty: the Groebner
 proxy, **not** the theoretical degree of regularity (see KN-TECH-004). Trends
 and absolute timings are interpreted only with their tested parameters, cost
 model, and any stated transfer assumptions.
+
+The native six-class p25 interoperability run is recorded in
+[`harness/evidence/sixclass-p25-20261024.json`](evidence/sixclass-p25-20261024.json).
+After building `crypto`'s `six_class_rho` binary, reproduce a new receipt with:
+
+```sh
+python -m harness.sixclass_native \
+  --job harness/fixtures/sixclass_p25.json \
+  --worker /path/to/crypto/target/debug/six_class_rho \
+  --walkers 1000 --out /tmp/sixclass-p25-receipt.json
+```
+
+The recorded run solved planted log `0x3039` in 430 walkers. The receipt pins
+the tested binary and verifies its proposed log independently. It is a toy
+correctness check, not a secp256k1 throughput measurement.
 
 ## Exemplar-aligned experiment classes (optional manifest metadata)
 
