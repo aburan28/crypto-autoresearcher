@@ -24,7 +24,7 @@ The sweep's failed statuses must therefore be interpreted per checker. They are 
 
 ## Resolution gate
 
-The follow-up in PR #2540 now materializes tracked gzip inputs, including nested evidence, under scratch; focused passing and corrupt-archive controls pass. It also records absent Lean scripts as `not_covered` and runs the existing source-bound receipt metadata audit under its own name. This has not yet repeated the full 617-session checker on the changed instrument, supplied missing source-byte manifests, or created a native cryptanalysis proof gate. The problem remains open.
+The follow-up in PR #2540 now materializes tracked gzip inputs, including nested evidence, under scratch; focused passing and corrupt-archive controls pass. A [real archived session control](../research/sheriff/SHF-20261024-46b7da/scripts/ecbench-checker-real-control.json) also passed the changed checker with 528 of 528 records verified and bound, zero problems, and source hashes for all five tracked members. It records absent Lean scripts as `not_covered` and runs the existing source-bound receipt metadata audit under its own name. This has not yet repeated the full 617-session checker on the changed instrument, supplied missing source-byte manifests for that sweep, or created a native cryptanalysis proof gate. The problem remains open.
 
 The same follow-up moves the per-target temporary Lean audit source out of the audited workspace. A fake-runner control confirms the path is outside the workspace and removed after a failed theorem audit; a real pinned Lean project still accepts its exact theorem through that path. External sweep timeout handling and a complete changed-instrument replay remain unverified, so this source-change control does not close the timeout issue.
 
