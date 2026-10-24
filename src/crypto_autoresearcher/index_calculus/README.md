@@ -37,6 +37,17 @@ or a performance improvement at wider sizes.
 
 ## Running it
 
+The [lifting and representation controls](../../../docs/lifting-representation-controls.md)
+are available through the same CLI:
+
+```sh
+python -m crypto_autoresearcher.index_calculus representation-controls --experiment controls
+```
+
+They calibrate circularity, equivalent-model, residual-correction and CM-filter
+diagnostics on tiny synthetic curves. They do not change the IC baseline or
+constitute approved experiment evidence.
+
 ```sh
 pip install -e ".[index-calculus]"      # numpy for the fast path (optional)
 apt install msolve                       # only for the msolve engine (optional)
