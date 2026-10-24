@@ -8,7 +8,8 @@ and evidence scope needed to interpret results at the scale actually tested.
 |---|---|
 | `toycurve.py` | F_p short-Weierstrass arithmetic, exact point counting, deterministic ECDLP instance generation. Also the **independent verifier** for certificates. |
 | `rho.py` | Pollard rho (Teske r-adding walk) — the matched generic baseline (KN-TECH-001). Recovers k using public data only. |
-| `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, and independently checks any recovered logarithm. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
+| `sixclass_native.py` | Launches crypto's native six-class GLV worker, pins its binary and job hashes, and independently checks the first distinguished point and any recovered logarithm. The Python file contains no walk implementation. `fixtures/sixclass_p25.json` is a planted small-curve interoperability case. |
+| `sixclass_challenge.py` | Generates a fresh private-answer secp256k1 ECDLP target from the pinned Curve Smash profile, then writes a public Rust worker job and a separate private audit record. |
 | `walk.py` | The rho walk as a first-class object: Teske r-adding steps with coefficient bookkeeping, orbit tracing (tail/cycle), distinguished-point walks, and the van Oorschot--Wiener DP collision search. |
 | `kangaroo.py` | Pollard kangaroo over an interval: tame/wild herds meeting at distinguished points, trajectories retained. |
 | `walkviz.py` | Draws what those two produce -- functional graph with one rho highlighted, DP forest with the golden collision, kangaroo herds -- as dependency-free SVG. |
@@ -39,6 +40,44 @@ python -m harness.sixclass_native \
 The recorded run solved planted log `0x3039` in 430 walkers. The receipt pins
 the tested binary and verifies its proposed log independently. It is a toy
 correctness check, not a secp256k1 throughput measurement.
+
+## Curve Smash secp256k1 challenge
+
+[`fixtures/curvesmash_secp256k1_profile.json`](fixtures/curvesmash_secp256k1_profile.json)
+is byte-for-byte the `secp256k1-ecdlp` target profile from
+[`Layr-Labs/curvesma.sh@1f084c1`](https://github.com/Layr-Labs/curvesma.sh/blob/1f084c1914c81a0cdc830b176453adba5dc19ab9/tracks/secp256k1-ecdlp/target-profile.json),
+SHA-256 `18c3338de676f1909715814325bffdb1513f1621d678b942e8a7a9563b8fd086`.
+The profile specifies uniform rejection sampling of a private scalar and
+exposes only `Q=[x]P`. The generator uses that sampling rule and keeps the
+scalar in a mode-0600 audit file outside this repository. A zero draw causes
+an explicit stop because the current native worker cannot encode infinity.
+
+The public job
+[`fixtures/curvesmash_secp256k1_challenge.json`](fixtures/curvesmash_secp256k1_challenge.json)
+was generated from this profile with public walk seed 7, 32 branches,
+`dp_bits=5`, and a 512-step cap. Its SHA-256 is
+`b9a9194796a2386d5d6fe67de44c01707b2b656a067e716253b6a16fccadcacd`.
+The private scalar is absent from the repository. Create another instance with:
+
+```sh
+python -m harness.sixclass_challenge \
+  --job /tmp/secp256k1-job.json \
+  --audit "$HOME/.local/share/crypto-autoresearcher/challenges/new.audit.json" \
+  --seed 7 --dp-bits 5 --max-steps 512
+python -m harness.sixclass_native \
+  --job /tmp/secp256k1-job.json \
+  --worker /path/to/crypto/target/debug/six_class_rho \
+  --walkers 1 --timeout 120 --out /tmp/secp256k1-receipt.json
+```
+
+The committed [one-walker receipt](evidence/sixclass-secp256k1-20261024.json)
+records one independently verified distinguished point after 11 class visits
+and no recovered log. It pins the native binary SHA-256
+`877829b847dedd3e41cfe6ecc8021ba507eba41e21c50362f055d37643786269`.
+This is a native end-to-end admission and arithmetic check on the full curve;
+the one-walker result makes no success-probability or 126.96-bit cost claim.
+The BigUint worker is not a production-throughput implementation. The public
+job and receipt are harness data, not a Curve Smash submission or verifier score.
 
 ## Exemplar-aligned experiment classes (optional manifest metadata)
 

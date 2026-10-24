@@ -68,6 +68,35 @@ def verify_log(job: dict, log: str) -> bool:
     return 0 <= k < n and multiply(p, a, g, k) == q
 
 
+def verify_first_dp(job: dict, result: dict) -> bool:
+    dp = result.get("first_dp")
+    if dp is None:
+        return result["distinguished"] == 0
+    configured_cap = job["curve"]["max_steps_per_walker"]
+    step_cap = min(configured_cap or (20 << job["curve"]["dp_bits"]), 1_000_000)
+    if (result["distinguished"] < 1 or dp["job_id"] != result["job_id"]
+            or not 0 <= dp["walker"] < result["walkers"]
+            or not 0 <= dp["steps"] < step_cap):
+        return False
+    curve = job["curve"]
+    p, a, n = (int(curve[key], 16) for key in ("p", "a", "order"))
+    g = tuple(int(curve["generator"][key], 16) for key in ("x", "y"))
+    q = tuple(int(curve["target"][key], 16) for key in ("x", "y"))
+    x, y, u, v = (int(dp[key], 16) for key in ("x", "y", "a", "b"))
+    if not (0 <= x < p and 0 <= y < p and 0 <= u < n and 0 <= v < n):
+        return False
+    beta = int(job["beta"], 16)
+    if x != min(x, beta * x % p, beta * beta * x % p) or y > p - y:
+        return False
+    branches = curve["num_branches"]
+    if branches < 2 or branches & (branches - 1):
+        return False
+    branch_bits = branches.bit_length() - 1
+    if (y >> branch_bits) & ((1 << curve["dp_bits"]) - 1):
+        return False
+    return add(p, a, multiply(p, a, g, u), multiply(p, a, q, v)) == (x, y)
+
+
 def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
     job = json.loads(job_path.read_text())
     if walkers < 1 or timeout < 1:
@@ -80,14 +109,18 @@ def execute(job_path: Path, worker: Path, walkers: int, timeout: int) -> dict:
     result = json.loads(completed.stdout)
     required = {"job_id", "walkers", "class_visits", "distinguished",
                 "short_cycle_escapes", "log"}
-    if not required.issubset(result) or result["walkers"] > walkers:
+    if (not required.issubset(result) or not 0 <= result["walkers"] <= walkers
+            or not 0 <= result["distinguished"] <= result["walkers"]):
         raise ValueError("worker output lacks six-class campaign fields")
+    if not verify_first_dp(job, result):
+        raise ValueError("worker returned an invalid first distinguished point")
     proposed = result["log"]
     if proposed is not None and not verify_log(job, proposed):
         raise ValueError("worker returned an invalid discrete logarithm")
     return {"schema": SCHEMA, "walk": WALK, "job_sha256": digest(job_path),
             "worker_sha256": digest(worker), "requested_walkers": walkers,
             "elapsed_ns": elapsed, "result": result,
+            "independent_dp_check": result.get("first_dp") is not None,
             "independent_log_check": proposed is not None,
             "scope": "native BigUint toy/research worker; no secp256k1 throughput claim"}
 
