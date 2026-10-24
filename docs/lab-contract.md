@@ -106,8 +106,9 @@ Shared vocabulary, one meaning per word:
 - **Required checks** (rulesets, not conventions): `crypto` — `gate` (the
   `gate` job of the `validation-gate` workflow) and `size`;
   `crypto-autoresearcher` — `progress-fidelity` and `ledger-and-harness`;
-  `cryptanalysis` — the `analysis` jobs (`clang-tidy`, `cppcheck`,
-  `gcc-analyzer`, `format`, `lint-scripts`, `coverage`). `ic-bench` is
+  `cryptanalysis` — the `analysis` checks (`clang-tidy`, `cppcheck`,
+  `gcc -fanalyzer`, `clang-format (changed lines)`, `shellcheck + actionlint`,
+  `coverage`). `ic-bench` is
   path-scoped, so it gates the PRs it runs on but is not a required context. A
   required check is never skipped, re-run to green, or bypassed. Admin bypass
   stays off.
