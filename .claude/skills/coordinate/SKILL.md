@@ -1,11 +1,11 @@
 ---
 name: coordinate
 description: >-
-  Coordinate the Crypto Autoresearcher program: rank work, open batches,
-  approve complete protocols, dispatch non-execution tasks, archive, and
-  publish. Use for /coordinate, launch coordinator, portfolio coordination,
-  resume a GOAL-* without running trials, or keep the research loop turning.
-  Not an execution skill — /run launches experiments.
+  Coordinate the program: rank work, open batches, approve complete
+  protocols, dispatch non-execution tasks, archive and publish. Use for
+  /coordinate, portfolio coordination, or resuming a GOAL-* without running
+  trials. Not an execution skill; /run launches experiments.
+
 ---
 
 # Coordinate
