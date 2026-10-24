@@ -64,3 +64,7 @@ cross-host replay are missing. The STARK public closure accepts an
 out-of-contract non-polynomial AIR, while the tested degree-one mutants reject.
 Any checker infrastructure timeout remains a coverage gap, not a mathematical
 counterexample. Pending PRs and public dashboard refresh are separate gates.
+After this frozen snapshot, the PR replayed all four amended BINSTD cells:
+160 deterministic targets and four archived hit-count pairs matched under
+historical source commits and a separate exhaustive EC pair-sum oracle.
+Original per-target traces and host timing remain unavailable.
