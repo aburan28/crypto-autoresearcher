@@ -17,9 +17,12 @@
 #   scripts/checkpoint.sh share <repo>/<branch>[/<stamp>] [--days N]
 #                                              presigned GET URL for a checkpoint (needs AWS creds)
 #
-# Sessions without AWS credentials push with an upload token: a presigned S3
-# POST policy that can write (not read, list or delete) keys under $PREFIX/
-# for up to 7 days. Mint one where credentials exist (presign-upload) and give
+# Claude Code sessions have no AWS credentials; they use a token: a presigned
+# S3 POST policy that can write (not read, list or delete) keys under $PREFIX/
+# for up to 7 days, plus index_url, a presigned GET of an index of recent
+# checkpoints with their own presigned download URLs, so list, share and
+# restore need no credentials either. The token is tried first; the AWS
+# profile is only a fallback. Mint one where credentials exist (presign-upload) and give
 # it to the session as CHECKPOINT_UPLOAD_TOKEN or in the token file. It is a
 # bearer credential: never commit it or paste it into a PR.
 #
@@ -78,10 +81,10 @@ upload_token() {
   fi
 }
 
-# Which way uploads go: "aws" (a credentialed profile or ambient keys) or
-# "token" (presigned POST). Prints the reason to stderr when neither works.
+# Which way uploads go: "token" (presigned POST, needs no AWS credentials) or
+# "aws" (a credentialed profile or ambient keys). Prints the reason to stderr
+# when neither works.
 transport() {
-  command -v aws >/dev/null && have_profile && { echo aws; return; }
   local tok; tok="$(upload_token)"
   if [ -n "$tok" ]; then
     local exp
@@ -92,6 +95,7 @@ transport() {
     fi
     echo token; return
   fi
+  command -v aws >/dev/null && have_profile && { echo aws; return; }
   command -v aws >/dev/null && [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] && { echo aws; return; }
   echo "checkpoint: no way to upload: no AWS profile '$PROFILE', no CHECKPOINT_UPLOAD_TOKEN, no $TOKEN_FILE" >&2
   return 1
@@ -348,9 +352,47 @@ cmd_list() {
   local repo="" all=0 a
   for a in "$@"; do case "$a" in --all) all=1 ;; *) repo="$a" ;; esac; done
   [ -z "$repo" ] && [ $all = 0 ] && repo="$(repo_name)"
+  local idx
+  if idx="$(index_json 2>/dev/null)"; then
+    printf '%s' "$idx" | python3 -c '
+import json, sys
+repo = sys.argv[1]
+idx = json.load(sys.stdin)
+print("# index generated", idx["generated_utc"], "(new checkpoints appear within ~15 min)")
+for e in idx["entries"]:
+    if repo and e["repo"] != repo:
+        continue
+    c = e["checkpoints"][0]
+    print(c["stamp"] + "  " + e["repo"] + "/" + e["branch"] + "  (%d recent)" % len(e["checkpoints"]))' "$repo"
+    return
+  fi
   local base="s3://$BUCKET/$PREFIX/"; [ -n "$repo" ] && base="$base$repo/"
   aws_ s3 ls --recursive "$base" | awk '$4 ~ /\/LATEST$/ {print $1" "$2"  "$4}' | sort -r \
     | sed "s#  $PREFIX/#  #; s#/LATEST\$##"
+}
+
+# The token's index_url: a presigned GET of $PREFIX/_index/index.json, which the
+# token job rewrites every 15 minutes with presigned GET URLs of recent
+# checkpoints. Lets list, share and restore work without AWS credentials.
+index_json() {
+  local tok url
+  tok="$(upload_token)"; [ -n "$tok" ] || return 1
+  url="$(printf '%s' "$tok" | python3 -c 'import base64,json,sys;print(json.loads(base64.b64decode(sys.stdin.read())).get("index_url",""))' 2>/dev/null)"
+  [ -n "$url" ] || return 1
+  curl -fsS "$url"
+}
+
+# index_lookup <repo> <branch> [<stamp>]: print "<stamp> <tar_url>"
+index_lookup() {
+  index_json | python3 -c '
+import json, sys
+repo, branch, stamp = sys.argv[1], sys.argv[2], (sys.argv[3] if len(sys.argv) > 3 else "")
+for e in json.load(sys.stdin)["entries"]:
+    if e["repo"] == repo and e["branch"] == branch:
+        for c in e["checkpoints"]:
+            if not stamp or c["stamp"] == stamp:
+                print(c["stamp"], c["tar_url"]); sys.exit(0)
+sys.exit(1)' "$@"
 }
 
 # resolve <repo>/<branch>[/<stamp>] to "repo branch stamp" (needs AWS creds for LATEST)
@@ -367,6 +409,7 @@ cmd_share() {
   local ref="" days=7 a
   while [ $# -gt 0 ]; do case "$1" in --days) days="$2"; shift ;; *) ref="$1" ;; esac; shift; done
   [ -n "$ref" ] || die "usage: share <repo>/<branch>[/<stamp>] [--days N]"
+  local hit; hit="$(index_lookup ${ref//\// } 2>/dev/null)" && { echo "${hit#* }"; return; }
   local repo branch stamp; read -r repo branch stamp < <(resolve_ref "$ref")
   signing_env
   python3 "$HERE/checkpoint_presign.py" get "$BUCKET" "$REGION" "$PREFIX/$repo/$branch/$stamp/checkpoint.tar.gz" $((days * 86400))
@@ -390,6 +433,10 @@ cmd_restore() {
   [ -n "$ref" ] || die "usage: restore <repo>/<branch>[/<stamp>] | <presigned-url> [dir]"
   local dl; dl="$(mktemp -d "${TMPDIR:-/tmp}/restore.XXXXXX")"
   local repo branch stamp src
+  local hit
+  if [[ "$ref" != https://* ]] && hit="$(index_lookup ${ref//\// } 2>/dev/null)"; then
+    ref="${hit#* }"
+  fi
   if [[ "$ref" == https://* ]]; then
     src="${ref%%\?*}"
     curl -fsS -o "$dl/checkpoint.tar.gz" "$ref" || die "download of $src failed (expired URL?)"

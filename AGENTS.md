@@ -504,17 +504,21 @@ resume the effort are checked into S3**, and kept current while it runs.
   that is not an experiment run may opt out with `CHECKPOINT_SKIP=<reason>`.
   **Other runtimes (Codex)** run `scripts/checkpoint.sh gate` before
   launching and do not launch if it fails.
-- Without AWS credentials, push with an upload token: a presigned POST
-  policy that can only write under `checkpoints/`, valid for up to 7 days.
-  Someone with credentials mints it with `scripts/checkpoint.sh
-  presign-upload`; a daily job on the owner's Mac re-mints one into
-  `~/.config/checkpoint/upload-token`, where the script finds it. A session
-  elsewhere is given it as `CHECKPOINT_UPLOAD_TOKEN`. It is a bearer credential: never
+- Claude Code sessions have no AWS credentials, so the script works from a
+  token (tried first; an AWS profile is only a fallback). The token is a
+  presigned POST policy that can only write under `checkpoints/`, plus a
+  presigned link to an index of recent checkpoints, so push, `list`, `share`
+  and `restore` all work without credentials. A job on the owner's Mac
+  re-mints it every 15 minutes (7-day lifetime) into
+  `~/.config/checkpoint/upload-token`, where the script finds it; a session
+  elsewhere is given it as `CHECKPOINT_UPLOAD_TOKEN`. The bucket host is in
+  this repo's sandbox network allowlist (`.claude/settings.json`). It is a bearer credential: never
   commit it or put it in a PR, report or task card.
 - To resume: `scripts/checkpoint.sh list` shows the latest checkpoint per
-  branch; `scripts/checkpoint.sh restore <repo>/<branch>[/<stamp>]` rebuilds
-  the worktree next to this checkout and puts `RESUME.md` in it. `share`
-  prints a presigned URL that `restore <url>` accepts without credentials.
+  branch (from the index, up to 15 minutes behind);
+  `scripts/checkpoint.sh restore <repo>/<branch>[/<stamp>]` rebuilds the
+  worktree next to this checkout and puts `RESUME.md` in it. `share` prints a
+  presigned URL that `restore <url>` accepts anywhere.
 
 A checkpoint is a safety net, not the record: the spec, protocol and results
 still land in a PR under the rules above.
