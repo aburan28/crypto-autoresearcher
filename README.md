@@ -178,6 +178,12 @@ orchestration.{adapter,agent,eval}`.
 
 ## Choosing an inference backend
 
+For Curvesmash-style exploratory claim review, use the optional
+[`autoresearch verify` integration](docs/curvesmash-verification.md). It reuses
+the registered challenge's pinned verifier, six protected target definitions,
+isolated experiment phases and deterministic claim scoring. Exploratory results
+remain advisory to this repository's existing scientific review and promotion.
+
 Roles, policies, and evidence records name no vendor. Which model answers is a
 binding table plus one environment variable — see
 [`docs/inference-backends.md`](docs/inference-backends.md):

@@ -11,6 +11,7 @@ fails, and the citation resolves.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import sys
 import tempfile
@@ -133,6 +134,68 @@ class MalformedSpecificationTests(_Tree):
         self.assertEqual(len(ctx.errors), 1)
         self.assertIn("expected top-level key 'experiment'", ctx.errors[0])
         self.assertIn("EXP-AUXIN-339fb0", ctx.legacy_aliases)
+
+
+class FrozenDraftDecisionTests(_Tree):
+    DECISION = "DEC-20260929-7efa82"
+    TARGET = "EXP-AUXIN-bafa2e"
+    BATCH = "BATCH-9b2090"
+    PRODUCER = "TASK-20260928-4d6266"
+    PATH = ("coordination/goals/GOAL-AUXIN-a93442/batches/"
+            "BATCH-9b2090/design/TASK-20260928-4d6266/draft-contract.yaml")
+
+    def _setup_draft(self, *, status: str = "draft",
+                     approved_by: str | None = None) -> None:
+        draft = {"successor_contract": {"fresh": {
+            "id": self.TARGET, "batch_id": self.BATCH,
+            "goal_id": "GOAL-AUXIN-a93442", "producer_task": self.PRODUCER,
+            "status": status, "approved_by": approved_by,
+            "approval_decision": None}}}
+        path = self.write(self.PATH, yaml.safe_dump(draft))
+        with open(path, "rb") as handle:
+            digest = hashlib.sha256(handle.read()).hexdigest()
+        patcher = mock.patch.dict(validate_ledger.DRAFT_DECISION_TARGETS,
+                                  {(self.DECISION, self.TARGET):
+                                   (self.BATCH, self.PRODUCER, digest)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _check(self, decision_id: str = DECISION,
+               batch_id: str = BATCH) -> list[str]:
+        ctx = _ctx()
+        ctx.register(decision_id, "decision.yaml", {
+            "id": decision_id, "goal_id": "GOAL-AUXIN-a93442",
+            "batch_id": batch_id,
+            "target_ids": [self.TARGET, "EXP-AUXIN-ffffff"]},
+            "coordinator_decision")
+        validate_ledger.check_cross_refs(ctx)
+        return ctx.errors
+
+    def test_exact_refused_draft_resolves_only_for_its_decision(self) -> None:
+        self._setup_draft()
+        self.assertEqual(len(self._check()), 1)
+        self.assertIn("EXP-AUXIN-ffffff", self._check()[0])
+        errors = self._check(decision_id="DEC-20260929-eeeeee")
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(len(self._check(batch_id="BATCH-eeeeee")), 2)
+
+    def test_changed_bytes_and_approved_draft_stay_unresolved(self) -> None:
+        self._setup_draft()
+        self.write(self.PATH, "successor_contract: {fresh: {id: wrong}}\n")
+        self.assertEqual(len(self._check()), 2)
+
+        self._setup_draft(status="approved", approved_by="coordinator")
+        self.assertEqual(len(self._check()), 2)
+
+    def test_draft_does_not_become_a_valid_evidence_experiment(self) -> None:
+        self._setup_draft()
+        ctx = _ctx()
+        ctx.register("EV-AUXIN-123abc", "evidence.yaml", {
+            "id": "EV-AUXIN-123abc", "experiment_ids": [self.TARGET]},
+            "evidence")
+        validate_ledger.check_cross_refs(ctx)
+        self.assertEqual(len(ctx.errors), 1)
+        self.assertIn("evidence references unknown experiment", ctx.errors[0])
 
 
 class AmendmentAndFindingTests(_Tree):
