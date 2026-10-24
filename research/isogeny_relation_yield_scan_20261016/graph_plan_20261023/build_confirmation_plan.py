@@ -40,7 +40,8 @@ ALLOW_EMPTY = [
 ]
 SOURCE_PATHS = (
     DRIVER, CHECKER, WRAPPER, MATERIALIZER,
-    HERE / "study_admission.py", HERE / "build_confirmation_plan.py",
+    HERE / "study_admission.py", HERE / "prepared_worker.py",
+    HERE / "prepare_worker_catalog.py", HERE / "build_confirmation_plan.py",
     HERE / "build_discovery_plan.py", HERE / "test_build_confirmation_plan.py",
     STUDY / "preparation/prepare_graph_input.py",
     STUDY / "preparation/verify_prepared_graph.py",
@@ -126,26 +127,48 @@ def selected_rows(selection: dict, schedule_path: Path) -> list[dict]:
 
 def make_trials(rows: list[dict], run_ids: list[str], *, experiment_id: str,
                 root_files: dict, commitments: dict, admission_path: str,
-                collector: str, count_verifier: str) -> list[dict]:
+                collector: str, count_verifier: str,
+                prepared_catalog: Path | None = None) -> list[dict]:
+    prepared_admission = None
+    prepared_arms = None
+    if prepared_catalog is not None:
+        sys.path.insert(0, str(HERE))
+        from prepared_worker import load_worker_catalog
+        prepared_admission, prepared_arms = load_worker_catalog(
+            prepared_catalog, rows, experiment_id, 1)
     if not rows or len(rows) != len(run_ids) or len(rows) > 294:
         raise ValueError("one unique RUN ID is required for each of at most 294 confirmation arms")
     trials = []
     for row, run_id in zip(rows, run_ids):
         family, arm = row["stratum"], row["base_rule"]
-        argv = ["python3", rel(DRIVER), "--arm-key", row["arm_key"],
-                "--stage", "confirmation", "--base-root-file", root_files["base"],
-                "--target-root-file", root_files["target"],
-                "--verifier-root-file", root_files["verifier"],
-                "--commitment", commitments[family], "--admission", admission_path,
-                "--collector", collector, "--count-verifier", count_verifier,
-                "--out", "{run_dir}", "--watchdog-seconds", "1800", "--memory-gib",
-                "4" if family == "P29" else "8"]
+        if prepared_arms is None:
+            argv = ["python3", rel(DRIVER), "--arm-key", row["arm_key"],
+                    "--stage", "confirmation", "--base-root-file", root_files["base"],
+                    "--target-root-file", root_files["target"],
+                    "--verifier-root-file", root_files["verifier"],
+                    "--commitment", commitments[family], "--admission", admission_path]
+            trial_artifacts = ARTIFACTS.copy()
+            trial_allow_empty = ALLOW_EMPTY.copy()
+        else:
+            prepared = prepared_arms[row["arm_key"]]
+            argv = ["python3", rel(DRIVER), "--input", rel(prepared["input"]),
+                    "--prepared-manifest", rel(prepared["manifest"]),
+                    "--prepared-worker-admission", rel(prepared_admission),
+                    "--binding", rel(prepared["binding"]), "--stage", "confirmation"]
+            trial_artifacts = [item for item in ARTIFACTS if item not in (
+                "materializer.stdout", "materializer.stderr", "prepared/prepared.txt",
+                "prepared/manifest.json", "prepared/binding.json")]
+            trial_allow_empty = [item for item in ALLOW_EMPTY if item != "materializer.stderr"]
+        argv += ["--collector", collector, "--count-verifier", count_verifier,
+                 "--out", "{run_dir}", "--watchdog-seconds", "1800", "--memory-gib",
+                 "4" if family == "P29" else "8"]
+        check_admission = rel(prepared_admission) if prepared_admission else admission_path
         check_argv = ["python3", rel(CHECKER), "--run-dir", "{run_dir}",
-                      "--admission", admission_path]
+                      "--admission", check_admission]
         trials.append({
             "id": row["arm_key"], "run_id": run_id, "argv": argv,
-            "check_argv": check_argv, "artifacts": ARTIFACTS.copy(),
-            "allow_empty_artifacts": ALLOW_EMPTY.copy(),
+            "check_argv": check_argv, "artifacts": trial_artifacts,
+            "allow_empty_artifacts": trial_allow_empty,
             "memory_mb": 4096 if family == "P29" else 8192,
             "watchdog_seconds": 1830,
             "watchdog_reason": "Supervisor ceiling allows the arm's 1800-second inner watchdog to seal a censored receipt.",
@@ -258,7 +281,7 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
 
 def build_approved(candidate_path: Path, admission_path: Path,
                    decision_path: Path, specification_path: Path,
-                   output_path: Path) -> dict:
+                   output_path: Path, prepared_catalog: Path | None = None) -> dict:
     from study_admission import validate_approval_fields
     candidate_path, admission_path, decision_path, specification_path = map(
         Path.resolve, (candidate_path, admission_path, decision_path, specification_path))
@@ -308,9 +331,23 @@ def build_approved(candidate_path: Path, admission_path: Path,
         commitments={family: item["path"] for family, item in candidate["commitments"].items()},
         admission_path=f"experiments/{candidate['experiment_id']}/graph-study-admission-confirmation.json",
         collector=candidate["binaries"]["collector"]["path"],
-        count_verifier=candidate["binaries"]["count_verifier"]["path"])
-    if candidate.get("trials") != expected_trials:
-        raise ValueError("confirmation candidate trials differ from the frozen selection workload")
+        count_verifier=candidate["binaries"]["count_verifier"]["path"],
+        prepared_catalog=prepared_catalog)
+    prepared_admission = None
+    if prepared_catalog is not None:
+        catalog_doc = json.loads(prepared_catalog.read_text())
+        prepared_admission = repo_file(catalog_doc.get("worker_admission_path", ""))
+    if prepared_catalog is None:
+        if candidate.get("trials") != expected_trials:
+            raise ValueError("confirmation candidate trials differ from the frozen selection workload")
+    else:
+        stable_fields = ("id", "run_id", "memory_mb", "watchdog_seconds", "watchdog_reason",
+                         "parameters", "depends_on")
+        original_trials = candidate.get("trials", [])
+        if (len(original_trials) != len(expected_trials) or any(
+                any(original.get(field) != approved.get(field) for field in stable_fields)
+                for original, approved in zip(original_trials, expected_trials))):
+            raise ValueError("prepared confirmation trials change the approved workload")
     for source, digest in candidate.get("source_sha256", {}).items():
         if sha(repo_file(source)) != digest:
             raise ValueError(f"confirmation frozen source changed: {source}")
@@ -337,12 +374,22 @@ def build_approved(candidate_path: Path, admission_path: Path,
                     for name in ("base", "target", "verifier"))):
             raise ValueError(f"confirmation {family} commitment differs from candidate")
     body = dict(candidate)
+    body["trials"] = expected_trials
     body.pop("candidate_only")
     body.pop("approval_required")
+    if prepared_catalog is not None:
+        for private_field in ("root_files", "commitments", "selection",
+                              "prior_discovery_admission"):
+            body.pop(private_field, None)
+        body["prepared_catalog_sha256"] = sha(prepared_catalog.resolve())
+        body["prepared_worker_admission_sha256"] = sha(prepared_admission)
     body["approved_by"] = decision["id"]
     body["specification_sha256"] = sha(specification_path)
-    body["stage_admission"] = {"path": rel(admission_path), "sha256": sha(admission_path),
-                               "decision_path": rel(decision_path), "decision_sha256": sha(decision_path)}
+    body["stage_admission"] = ({"sha256": sha(admission_path),
+                                "decision_sha256": sha(decision_path)}
+                               if prepared_catalog is not None else
+                               {"path": rel(admission_path), "sha256": sha(admission_path),
+                                "decision_path": rel(decision_path), "decision_sha256": sha(decision_path)})
     body["scope_note"] = "Coordinator-approved held-out confirmation plan for the exact selected low_x/mid_x/random_x arms. Supervisor halts on any invalid receipt; complete ECDLP costs remain a separate stage."
     output_path = output_path.resolve()
     if not output_path.is_relative_to(ROOT / "experiments" / candidate["experiment_id"]):
@@ -364,6 +411,7 @@ def main() -> None:
     parser.add_argument("--decision")
     parser.add_argument("--approved-specification")
     parser.add_argument("--approved-output", type=Path)
+    parser.add_argument("--prepared-catalog", type=Path)
     parser.add_argument("--specification", type=Path)
     parser.add_argument("--selection", type=Path)
     parser.add_argument("--prior-admission", type=Path)
@@ -386,7 +434,7 @@ def main() -> None:
             parser.error("approved mode requires candidate, admission, decision, specification and output")
         result = build_approved(args.approved_candidate, Path(args.admission),
                                 Path(args.decision), Path(args.approved_specification),
-                                args.approved_output)
+                                args.approved_output, prepared_catalog=args.prepared_catalog)
         print(json.dumps(result, sort_keys=True))
         return
     candidate_required = (args.specification, args.selection, args.prior_admission,

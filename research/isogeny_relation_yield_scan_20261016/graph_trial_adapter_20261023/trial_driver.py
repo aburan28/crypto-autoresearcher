@@ -40,6 +40,7 @@ def main() -> int:
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--admission", type=Path)
     parser.add_argument("--binding", type=Path)
+    parser.add_argument("--prepared-worker-admission", type=Path)
     parser.add_argument("--stage", choices=("discovery", "confirmation", "solve"), default="discovery")
     parser.add_argument("--base-root-file", type=Path)
     parser.add_argument("--target-root-file", type=Path)
@@ -50,16 +51,24 @@ def main() -> int:
     parser.add_argument("--memory-gib", type=int, default=4)
     parser.add_argument("--sage", type=Path)
     args = parser.parse_args()
-    if args.control == (args.admission is not None):
-        parser.error("use --control alone or provide --admission for scientific mode")
+    if args.control == (args.admission is not None or args.prepared_worker_admission is not None):
+        parser.error("use --control alone or provide a scientific admission")
     if args.control and args.binding is not None:
         parser.error("control mode does not accept a materializer binding")
+    if args.control and args.prepared_worker_admission is not None:
+        parser.error("control mode does not accept worker admission")
     if args.control and args.arm_key is not None:
         parser.error("control mode accepts only an existing bounded prepared input")
     if args.input is not None:
         if args.prepared_manifest is None or any(value is not None for value in
                 (args.base_root_file, args.target_root_file, args.verifier_root_file, args.commitment)):
             parser.error("prepared-input mode requires --prepared-manifest and no materialization roots")
+        if args.prepared_worker_admission is not None:
+            if args.admission is not None:
+                parser.error("worker admission cannot be combined with private admission")
+            if args.binding is None:
+                parser.error("worker admission requires a public prepared binding")
+            args.admission = args.prepared_worker_admission
     else:
         if (args.prepared_manifest is not None or args.binding is not None or
                 any(value is None for value in
@@ -120,6 +129,18 @@ def main() -> int:
                 parser.error("study admission requires the materializer --binding")
             if "binding" not in paths:
                 paths["binding"] = args.binding.resolve()
+        elif admission_doc.get("schema") == "ectd.graph-worker-admission.v1":
+            if args.arm_key is not None or args.binding is None:
+                parser.error("worker admission requires prepared input and public binding")
+            paths["binding"] = args.binding.resolve()
+            if admission_doc.get("execution_stage") != expected_stage:
+                parser.error("trial stage differs from the rootless worker admission")
+            if args.stage == "solve":
+                binary = admission_doc.get("binaries", {})
+                sage_path = Path(binary.get("sage_path", "")).resolve()
+                if (args.sage.resolve() != sage_path or not sage_path.is_file() or
+                        sha(sage_path) != binary.get("sage_sha256")):
+                    parser.error("Sage executable differs from the rootless stage-2 admission")
         elif args.binding is not None:
             parser.error("per-arm admission does not accept a materializer binding")
     prepared = json.loads(paths["prepared-manifest"].read_text())

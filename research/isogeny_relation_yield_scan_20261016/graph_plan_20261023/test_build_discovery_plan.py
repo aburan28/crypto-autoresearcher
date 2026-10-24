@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import build_discovery_plan as plan
 
@@ -41,6 +42,38 @@ class DiscoveryPlanTests(unittest.TestCase):
             quota = 8192 if row["stratum"] == "P29" else 2048
             self.assertEqual(trial["id"], row["arm_key"])
             self.assertIn(str(quota), trial["note"])
+
+    def test_prepared_catalog_plan_argv_contains_no_private_root_locators(self) -> None:
+        rows = plan.load_rows()
+        run_ids = [f"RUN-ECTD-{index:06x}" for index in range(len(rows))]
+        prepared_admission = ROOT / "experiments/EXP-ECTD-abcdef/worker-admission.json"
+        prepared_arms = {
+            row["arm_key"]: {
+                "input": ROOT / f"experiments/EXP-ECTD-abcdef/prepared/{row['arm_key']}.txt",
+                "manifest": ROOT / f"experiments/EXP-ECTD-abcdef/prepared/{row['arm_key']}.json",
+                "binding": ROOT / f"experiments/EXP-ECTD-abcdef/prepared/{row['arm_key']}.binding.json",
+            } for row in rows
+        }
+        with patch("prepared_worker.load_worker_catalog",
+                   return_value=(prepared_admission, prepared_arms)):
+            trials = plan.make_trials(
+                rows, run_ids, experiment_id="EXP-ECTD-abcdef",
+                root_files={"base": "private/base", "target": "private/target",
+                            "verifier": "private/verifier"},
+                commitments={"P29": "private/p29-commitment", "P37": "private/p37-commitment"},
+                admission_path="experiments/EXP-ECTD-abcdef/private-admission.json",
+                collector="build/collector", count_verifier="build/count_verify",
+                prepared_catalog=ROOT / "experiments/EXP-ECTD-abcdef/prepared/catalog.json")
+        self.assertEqual(len(trials), 8210)
+        forbidden = {"--arm-key", "--base-root-file", "--target-root-file",
+                     "--verifier-root-file", "--commitment"}
+        for trial in trials:
+            argv = trial["argv"]
+            self.assertTrue({"--input", "--prepared-manifest", "--prepared-worker-admission",
+                             "--binding"}.issubset(argv))
+            self.assertTrue(forbidden.isdisjoint(argv))
+            self.assertNotIn("materializer.stdout", trial["artifacts"])
+            self.assertFalse(any("private/" in value for value in argv))
 
     def test_run_id_file_refuses_wrong_count_and_collisions(self) -> None:
         with self.assertRaises(ValueError):

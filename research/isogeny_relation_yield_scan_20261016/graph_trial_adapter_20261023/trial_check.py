@@ -109,7 +109,32 @@ def check(run_dir: Path, input_path: Path | None = None,
                 receipt.get("admission_sha256") != sha(admission)):
             raise ValueError("admission binding differs")
         admission_doc = load(admission)
-        if admission_doc.get("schema") == "ectd.graph-study-admission.v1":
+        if admission_doc.get("schema") == "ectd.graph-worker-admission.v1":
+            if binding_path is None:
+                raise ValueError("worker admission requires the public prepared binding")
+            expected_stage = {"discovery": 0, "confirmation": 1, "solve": 2}.get(
+                prepared.get("stage"))
+            if expected_stage is None or admission_doc.get("execution_stage") != expected_stage:
+                raise ValueError("rootless worker admission stage differs from prepared input")
+            sys.path.insert(0, str(STUDY / "graph_plan_20261023"))
+            sys.path.insert(0, str(STUDY / "graph_input_schedule_20261023"))
+            sys.path.insert(0, str(STUDY / "preparation"))
+            from prepared_worker import verify_worker_documents
+            replayed = verify_worker_documents(
+                admission, binding_path, input_path, prepared_manifest,
+                Path(manifest["paths"]["collector"]),
+                Path(manifest["paths"]["count-verifier"]), attempt)
+            if (admission_doc.get("source_commit") != receipt.get("source_commit") or
+                    replayed != receipt.get("study_admission")):
+                raise ValueError("rootless worker admission replay differs from receipt")
+            if prepared.get("stage") == "solve":
+                sage_path = Path(admission_doc.get("binaries", {}).get("sage_path", "")).resolve()
+                sage_digest = admission_doc.get("binaries", {}).get("sage_sha256")
+                complete_solve = result.get("complete_solve", {})
+                if (not sage_path.is_file() or sha(sage_path) != sage_digest or
+                        complete_solve.get("sage_sha256") != sage_digest):
+                    raise ValueError("rootless stage-2 Sage binary differs from admission or result")
+        elif admission_doc.get("schema") == "ectd.graph-study-admission.v1":
             if binding_path is None:
                 raise ValueError("study admission requires the prepared-arm binding")
             if (receipt.get("study_admission", {}).get("study_admission_sha256") != sha(admission) or

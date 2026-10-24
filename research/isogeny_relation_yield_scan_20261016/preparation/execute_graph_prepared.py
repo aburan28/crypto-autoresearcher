@@ -62,7 +62,9 @@ def source_paths():
         "group_replay_sha256": ROOT / "harness/toycurve.py",
         "graph_materializer_sha256": STUDY / "graph_input_schedule_20261023/materialize.py",
         "study_admission_sha256": STUDY_PLAN / "study_admission.py",
+        "prepared_worker_sha256": STUDY_PLAN / "prepared_worker.py",
         "graph_trial_driver_sha256": STUDY / "graph_trial_adapter_20261023/trial_driver.py",
+        "graph_worker_catalog_sha256": STUDY_PLAN / "prepare_worker_catalog.py",
         "graph_trial_checker_sha256": STUDY / "graph_trial_adapter_20261023/trial_check.py",
     }
 
@@ -155,6 +157,15 @@ def execute(args):
             source_commit, study_bindings = verify_study_admission(
                 args.admission, args.binding, args, manifest,
                 source_paths(), check_frozen_sources)
+        elif admission.get("schema") == "ectd.graph-worker-admission.v1":
+            if args.binding is None:
+                raise ValueError("worker admission requires a public prepared binding")
+            sys.path.insert(0, str(STUDY_PLAN))
+            from prepared_worker import verify_worker_documents
+            study_bindings = verify_worker_documents(
+                args.admission, args.binding, args.input, args.manifest,
+                args.collector, args.count_verifier, args.output)
+            source_commit = admission["source_commit"]
         else:
             if args.binding is not None:
                 raise ValueError("per-arm admission does not accept a study materializer binding")
