@@ -30,6 +30,12 @@ an additive, source-bound correction is reviewed. Preserve the originals.
   Text matches do not validate the runs or their claims.
 - **Derived or proved:** The YAML syntax failure is reproducible on the exact
   tracked bytes. No cryptanalytic result follows from this finding.
+- **Future-writer repair:** `implementation/runrecord.py` now serializes every
+  string value as a JSON string literal, which PyYAML reads as a YAML string.
+  [Regression tests](../experiments/EXP-ECDLP-a98ea9/implementation/test_runrecord.py)
+  cover multiline `git status` output and string values that resemble numbers
+  or booleans. This changes only future manifests; it does not repair the
+  three archived records.
 - **Suspected explanation:** The writer serialized multiline `git status`
   output as a plain scalar. Whether other run fields are accurate remains
   unreviewed.
@@ -74,6 +80,7 @@ A planned correction is not a completed experiment.
 ## Resolution and history
 
 - 2026-10-25: Opened after the exact-tree sweep reproduced the three parser
-  failures. No original artifact was changed or promoted.
+  failures. The future writer was repaired and tested. No original artifact
+  was changed or promoted.
 
 Unresolved. Recording this problem does not establish a research result.

@@ -55,10 +55,9 @@ def _yaml_scalar(v) -> str:
         return "true" if v else "false"
     if isinstance(v, (int, float)):
         return str(v)
-    s = str(v)
-    if any(c in s for c in ":#{}[]&*!|>'\"%@`") or s != s.strip() or s == "":
-        return json.dumps(s)
-    return s
+    # JSON string literals are valid YAML scalars and escape newlines from
+    # `git status --porcelain` without changing the parsed string value.
+    return json.dumps(str(v))
 
 
 def _dump_yaml(obj, indent=0) -> str:

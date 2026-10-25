@@ -35,4 +35,5 @@ obstruction](../../problems/ecdlp-a98ea9-stage2-manifest-parse.md). Their
 original bytes are retained. A text field in S2c says `valid`, but no
 machine-readable stage-two verdict is promoted from these manifests until an
 additive correction and independent validation meet that problem's exit
-criteria.
+criteria. The run-record writer now escapes future multiline string values;
+that change does not rewrite these archived records.
