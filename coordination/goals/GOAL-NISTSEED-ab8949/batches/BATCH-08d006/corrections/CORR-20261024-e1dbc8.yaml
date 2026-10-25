@@ -1,0 +1,65 @@
+correction:
+  id: CORR-20261024-e1dbc8
+  id_provenance: >-
+    Allocated by `python3 tools/allocate_id.py --next correction --date
+    20261024` and confirmed free by `python3 tools/allocate_id.py --check
+    CORR-20261024-e1dbc8`.
+  recorded_at: '2026-10-24'
+  kind: archive_self_reference_and_queue_binding_correction
+  applies_to:
+    goal_id: GOAL-NISTSEED-ab8949
+    batch_id: BATCH-08d006
+    source_task_id: TASK-20261024-4f1bf4
+    archive_task_id: TASK-20261024-b17301
+    queue_path: coordination/goals/GOAL-NISTSEED-ab8949/batches/BATCH-08d006/dispatch_queue.json
+    canonical_archive_handoff: research/nist_seed_ecpp_compat_20261024/coordination/TASK-20261024-b17301.yaml
+  observed_contract_shape:
+    archive_kind: snapshot
+    binding_mode: commit
+    binding_mode_reason: >-
+      The existing queue omits archive.binding_mode, whose established validator
+      default is commit. This correction does not change that queue binding mode.
+    source_task_ids:
+      - TASK-20261024-4f1bf4
+    queue_expected_paths: >-
+      The six declared implementation artifacts plus the snapshot receipt path.
+      Under commit binding, the snapshot commit must change exactly this seven-
+      path set.
+  problem: >-
+    The immutable canonical archive handoff correctly requires the receipt to
+    bind source artifacts, parent, commit, and path hashes, but a receipt cannot
+    contain its own containing commit SHA or its own final SHA-256 without a
+    fixed point. The existing queue is the validator-owned postcommit location
+    for those two self-referential values.
+  correction: >-
+    Preserve the canonical handoff unchanged. Materialize a precommit snapshot
+    receipt in the isolated snapshot commit with the actual pre-snapshot parent,
+    actual fetched origin/main base, exact seven staged paths, and hashes of the
+    six source artifacts. Leave its own hash and containing commit SHA absent by
+    construction. After the isolated commit exists, compute the actual commit
+    SHA and the receipt blob hash, then in a subsequent administrative commit
+    write both the queue archive metadata and a separate postcommit verification
+    receipt. The queue path_sha256 then covers all seven expected paths,
+    including the receipt itself.
+  required_invariants:
+    - >-
+      The isolated snapshot commit stages exactly the six implementation
+      artifacts and the precommit snapshot receipt; no queue, correction,
+      assessment, raw test evidence, template, unrelated dirty file, or
+      scientific artifact enters that commit.
+    - >-
+      The snapshot commit message includes TASK-20261024-b17301, as required by
+      commit-bound archive verification.
+    - >-
+      The postcommit queue update sets archive.commit_sha, archive.parent_sha,
+      and archive.path_sha256 only from the actual snapshot commit and actual
+      blobs. No hash or commit is guessed before it exists.
+    - >-
+      The later queue-validation/admin commit is not represented as the
+      snapshot commit and cannot alter the six source-artifact hashes.
+  scientific_effect: none
+  status_transitions: []
+  asserts_nothing_about: >-
+    The eleven omissions, the recovered ECPP path’s behavior on any named
+    integer, historical use, ECDLP, curve security, implementation readiness,
+    experiment approval, or any scientific conclusion.

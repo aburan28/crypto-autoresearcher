@@ -24,11 +24,14 @@ class SelectionTests(unittest.TestCase):
                     "useful_targets": 0, "coefficient_sha256": "c" * 64,
                     "base_root_sha256": "b" * 64, "target_root_sha256": "a" * 64,
                     "verifier_root_sha256": "e" * 64,
-                    "commitment_sha256": "d" * 64} for row in schedule]
+                    "commitment_sha256": ("d" if row["stratum"] == "P29" else "f") * 64}
+                   for row in schedule]
         selected = candidate.nominate(schedule, results, b"C" * 32)
         self.assertEqual(len(schedule), 8206)
         self.assertEqual(len(selected["P29"]["control_indices_draw_order"]), 16)
         self.assertEqual(len(selected["P37"]["control_indices_draw_order"]), 8)
+        self.assertNotEqual(selected["P29"]["commitment_sha256"],
+                            selected["P37"]["commitment_sha256"])
         self.assertLessEqual(len(selected["P29"]["selected_vertices"]), 65)
         self.assertLessEqual(len(selected["P37"]["selected_vertices"]), 33)
         self.assertEqual(len(selected["P29"]["confirmation_arm_keys"]),
@@ -61,7 +64,7 @@ class SelectionTests(unittest.TestCase):
                                         "base_root_sha256": "b" * 64,
                                         "target_root_sha256": "a" * 64,
                                         "verifier_root_sha256": "c" * 64,
-                                        "commitment_sha256": "d" * 64})
+                                        "commitment_sha256": ("d" if stratum == "P29" else "f") * 64})
             selected = candidate.nominate(schedule, results, b"C" * 32)
             self.assertEqual(selected["P29"]["extremes"]["low_x"]["top"], [1])
             self.assertEqual(selected["P29"]["extremes"]["low_x"]["bottom"], [2])
@@ -70,6 +73,18 @@ class SelectionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "paired target coefficient stream"):
                 candidate.nominate(schedule, results, b"C" * 32)
             results[-1]["coefficient_sha256"] = "c" * 64
+            results[-1]["commitment_sha256"] = "e" * 64
+            with self.assertRaisesRegex(ValueError, "graph commitment differs within"):
+                candidate.nominate(schedule, results, b"C" * 32)
+            results[-1]["commitment_sha256"] = "f" * 64
+            for result in results:
+                if result["stratum"] == "P37":
+                    result["commitment_sha256"] = "d" * 64
+            with self.assertRaisesRegex(ValueError, "distinct graph strata reuse"):
+                candidate.nominate(schedule, results, b"C" * 32)
+            for result in results:
+                if result["stratum"] == "P37":
+                    result["commitment_sha256"] = "f" * 64
             with self.assertRaisesRegex(ValueError, "coverage incomplete"):
                 candidate.nominate(schedule, results[:-1], b"C" * 32)
             with self.assertRaisesRegex(ValueError, "identities differ"):

@@ -3,24 +3,29 @@
 `discovery_select.py` is an implementation candidate for the prespecified
 post-discovery selection rule. It is not an approved `EXP-*` contract and has
 no scientific discovery data. A Coordinator must freeze this source, the
-8,206-arm schedule, a complete trial plan, and an independent control-index
+8,206-arm graph schedule, the four-arm P29 E2/E3 same-conductor schedule, a complete trial plan, and an independent control-index
 root commitment before any scientific target stream is run.
 The approved plan's `source_sha256` must bind this selector, the schedule, and
 the control-index commitment before the run; the revealed root itself is
 checked against that committed hash.
 
-The selector requires **every** scheduled arm to have a supervisor receipt
+The selector requires **every** scheduled graph arm and E2/E3 control to have a supervisor receipt
 with `output_validated`, zero driver and checker exit codes, and matching
 artifact hashes. It also reads the graph attempt and prepared input, checks
 curve/model/generator identity against the schedule, verifies the fixed target
 quota and rank prefixes, and hashes every `(alpha,beta)` pair. All arms in a
 stratum must share the same coefficient sequence; all arms must share the
-committed base, target, verifier and commitment roots. A graph or coordinate
+committed base, target, and verifier roots. Commitment-file digests must be
+constant within each stratum and distinct between P29 and P37 because each
+file binds that stratum's different archived graph hash. A graph or coordinate
 transport arm must have a dependency on its scheduled reference and a checker
 receipt confirming targetwise transport comparison. Missing, censored, failed,
 or mismatched arms stop selection; none is scored as zero or replaced.
 
-For each main base and stratum, selection takes the prescribed top and bottom
+The four E2/E3 results are required, checked against the same ordered P29
+target-coefficient stream, and emitted in `same_conductor_controls`; they are
+excluded from every graph ranking and confirmation nomination. For each main
+base and stratum, selection takes the prescribed top and bottom
 eight P29 or four P37 vertices by useful-target count (the quota is constant
 within a stratum), breaking ties by smaller `j`. It unions these vertices
 with source index 0 and 16 P29 or eight P37 indices drawn without replacement
@@ -42,7 +47,7 @@ python3 discovery_select.py --repo REPO --schedule DISCOVERY_ARMS_JSONL \
 ```
 
 The CLI writes once. It deliberately refuses the current candidate schedule
-without its complete approved plan and 8,206 validated run receipts. The
+without its complete approved plan and 8,210 validated run receipts. The
 three synthetic tests cover the full 8,206-row schedule shape, tie breaking,
 complete coverage, paired-stream rejection, supervisor hash binding, and
 tamper rejection. They are software controls and carry no relation-yield

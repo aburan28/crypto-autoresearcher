@@ -36,3 +36,15 @@ Either way it delimits how much word-order structure the ECDLP relation problem
 actually carries beyond its commutative image -- a boundary of KN-OPEN-001 for
 noncommutative representations. Any positive claim must survive the fully-charged
 cost model, given the unbounded (semi-decidable) word search.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. The path-algebra result is a scoped negative (word degree <= 6, p in {101, 431}); this entry itself says commutator collapse is not proved.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- EV-NCP-001 (H-NCP-001, `contradicts`, `replicated`): toy primes {101, 431}, orders 13..439, word degree <= 6, B in {4, 8}.
+- DEC-20260724-011 and DEC-20260804-4f37d5 mention this route; H-NCP-4cc527 is `proposed`.
+- A proof of commutator collapse would close this by theorem; none is committed. DEC-20260804-139a86 says "H-NCP-001 rejected_scoped (commutator collapse)", which is a scoped statement, not that theorem.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.
