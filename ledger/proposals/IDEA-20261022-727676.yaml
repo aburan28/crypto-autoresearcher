@@ -1,0 +1,93 @@
+# DRAFT (not a ledger record). Placeholder id; coordinator mints the real one. Proposal only.
+# Labels: [proposed] [derived] [repo] [kb] [owner]. Nothing here is [measured]. Derivations: draft-3.notes.md
+idea:
+  id: IDEA-20261022-727676
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  status: proposed
+  title: 'Replay lever in the PKM tower F4: measure the target-independent share of cost (confirm or kill, one day)'
+  class: measurement
+  supersedes: null
+  lineage:
+    extends: null
+    note: >-
+      Not an extension of the SNFS intake (no B/C/D/E route covers it); belongs to the PKM tower oracle line.
+      Nearest ledger record IDEA-20260829-fa8235 (F_2 Boolean row-partition ceiling).
+  claim: >-
+    [proposed] In f4_fp_tower on m=3 N=15, m=3 N=18, m=4 N=12 (two committed targets each) the systems of two targets
+    differ only through x_R. (a) [derived from committed equal counts] per-step structure (columns, reducers, pivot
+    leads, promoted rows) is identical across targets. (b) [owner, stated before measuring] the target-independent share
+    of multiply-adds is below 5 percent, so a Joux-Vitse-style trace replay is at most a stage-level gain and moves no
+    exponent. Reported separately: Z = multiply-adds on S-rows that reduce to zero; U_time = wall-time share of symbolic
+    preprocessing and basis bookkeeping. Stage diagnostic on the solver axis (AGENTS.md 2), not an end-to-end S claim.
+  mechanism: >-
+    [derived] S_3 depends on x_R only through coefficients; for x_R outside a proper closed set (probability about
+    events/p) the F4 support and pivot structure equal the generic one. A replay can remove symbolic preprocessing, pair
+    selection and zero-reducing rows; it cannot remove the numeric elimination of non-zero residues, whose values depend
+    on x_R. So speedup <= 1/(1-U). Optional arm B: for m >= 3 the chain links without x_R (m-2 of m-1) are
+    target-independent; seed F4 with their Groebner basis to degree D and compare C_seed/C_full.
+  novelty_status: unverified
+  citations:
+    - {ref: KN-LIT-c137bd, provenance: kb, claim: "Joux-Vitse F4 variant: record the trace once, replay on similar systems", verified_by: "KN-LIT-c137bd (abstract only)"}
+    - {ref: "RESEARCH_PKM_TOWER_ORACLE sec 11, 15; f4_generic_field README; GROEBNER_F4F5F6_AUDIT_20261010 4.5-4.6 (/home/user/crypto)", provenance: internal, claim: "same D, width, steps across targets; muladds identical at 45-224 bits; early exit -39.8 percent at m=4 N=12", verified_by: "read"}
+  assumptions:
+    - "Public toy primes and committed targets; no key. Rust only."
+  proof_search_map:
+    not_applicable_reason: "Engine instrumentation and measurement; no theorem proposed."
+  predictions:
+    - {metric: pivot_lead_jaccard_per_step_two_targets, direction: higher, minimum_effect: ">= 0.999 every step (precondition for replay, not payoff)"}
+    - {metric: Z_zero_row_muladd_share_default_exit, direction: lower, minimum_effect: "< 0.05 [owner]; falsified at >= 0.25"}
+    - {metric: U_time_symbolic_plus_bookkeeping, direction: different, minimum_effect: "no point prediction; LIVE >= 0.25, DEAD < 0.05 with Z < 0.05"}
+    - {metric: AA_same_target_twice_muladd_difference, direction: lower, minimum_effect: "0 exactly; digests equal"}
+  minimal_test:
+    design: >-
+      1. Add to StepTrace a per-step digest of the sorted column list, pivot-lead set and promoted rows, plus muladds
+      split by row outcome (zero vs new pivot); ms_rows, ms_reduce, ms_echelon, ms_update exist. 2. Run the three cells,
+      targets 0 and 1 of the committed rows, default options, then full_rank_exit off. 3. Per step: Jaccard of pivot
+      leads, equality of cols/nnz, Z, U_time, Amdahl 1/(1-U). 4. Optional arm B on m=3 N in {9,12,15}, cap one hour per cell.
+    controls:
+      - "A/A: one target twice; digests and muladds identical"
+      - "regression: basis fingerprints and muladds identical with the instrument on and off; ms within 3 percent"
+      - "shape null (S_3 support, random coefficients): structure also identical, so identity comes from shape"
+      - "instrument power: Kummer vs isogeny tower at one (m,N): Jaccard clearly < 1"
+    required_metrics: [jaccard_per_step, cols_nnz_equal, Z, U_time, amdahl_bound, C_seed_over_C_full_armB]
+  falsification_conditions:
+    - "Z >= 0.25, or U_time >= 0.25 with Jaccard >= 0.999: lever live; a replay prototype becomes a separate record."
+    - "Jaccard < 0.99 on a random-target step: structure is target-dependent; replay invalid."
+    - "Z < 0.05 and U_time < 0.05: lever dead at these cells; close with the numbers."
+    - "Arm B: C_seed/C_full <= 0.5 at m=3, or log2-slope in N differing by >= 0.5 bit per tower variable: per-target cost law moves."
+  confounders:
+    - "ms_rows also holds pair selection and S-row ordering; read the boundary in the engine before quoting U_time."
+    - "Early exit already removes zero-reducing rows; Z is measured with it on and off."
+    - "Cells are refutations on random targets; planted systems may differ."
+  interpretation_limits:
+    - "Solver-stage diagnostic; the reducer block B' (memory) binds the N=21 cells, which this cannot unblock."
+    - "Replay cannot change D or width, so no exponent moves; the best case is a constant."
+  heuristic_assumptions:
+    - id: H1
+      statement: "For x_R outside a set of probability at most E/p, every Macaulay matrix in the F4 run has the support and pivot structure of the generic specialisation."
+      rigorous_support: "semicontinuity of rank in x_R; Schwartz-Zippel on each cancellation event"
+      validation_plan: "16 targets at m=2 N=14 at a 20-bit and a 31-bit prime; deviating steps vs E/p (committed 20-bit counts differ by ppm); worst step."
+    - id: H2
+      statement: "Replay removes exactly symbolic preprocessing, pair selection and zero-reducing rows, nothing in the numeric elimination."
+      rigorous_support: "Joux-Vitse replay (KN-LIT-c137bd abstract); elimination values depend on x_R"
+      validation_plan: "no replay is built; U is an upper bound because the removed items are a subset of the measured ones."
+  target_complexity:
+    time_exponent: "unchanged: D (6-7 measured) and width W(m,N) are structural; replay changes a constant, speedup <= 1/(1-U)"
+    memory_exponent: "unchanged: B' dense block binds (N=21 projected 130-150 GB)"
+    best_known: "F4 trace replay is known (KR-IC-f3da82); this engine has none: 4.82e11 muladds at m=2 N=20"
+    hidden_overhead: "none claimed"
+    tradeoff_note: "a replay amortises over the targets of one cell"
+  estimated_cost: {implementation: low, compute: low}
+  recommended_priority: medium
+  dominated_by: "KR-IC-f3da82 (replay known); no result claimed"
+  sota_delta: "none; a diagnostic that closes or opens a constant-factor lever"
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-IC-f3da82, KR-IC-0d2021, KR-IC-5931ee, KR-IC-fbdb61, KR-IC-f5c584, KR-IC-889857, KR-IC-5a43e5]
+    nearest:
+      - {ref: KR-IC-f3da82, provenance: internal, relation: special_case, delta: "known technique; new is its measured share on the tower engine, and arm B"}
+      - {ref: KR-IC-5931ee, provenance: internal, relation: adjacent, delta: "D here is measured F4 degree, not first-fall; KR-IC-f5c584 and -889857 unaffected"}
+    other_related:  # records and directories that are not KR-*/knowledge entries, so cannot sit in nearest
+      - "IDEA-20260829-fa8235: adjacent: same partition logic in the F_2 Boolean Macaulay setting; here F4 over F_p towers"
+    searched: {corpus_grep: [F4 trace, replay, target-independent, PKM], web: [], blocked: []}
