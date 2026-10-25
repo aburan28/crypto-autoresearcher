@@ -55,7 +55,12 @@ KIND_PREFIXES = (
 # silently excluded every decision, proposal, handoff and batch identifier
 # from the link graph.
 _ID_BODY = r"[A-Za-z0-9]{1,20}(?:-[A-Za-z0-9]{1,32}){0,2}"
-RECORD_ID_RE = re.compile(rf"\b(?:{'|'.join(KIND_PREFIXES)})-{_ID_BODY}\b")
+# A knowledge family such as `KN-FIND` is a category, not a record. Knowledge
+# records have an identifier after the family (`KN-FIND-001`). Other kinds
+# retain their legacy one-segment forms, including `BATCH-241d37`.
+_NON_KN_PREFIXES = "|".join(k for k in KIND_PREFIXES if k != "KN")
+_KN_BODY = r"[A-Za-z0-9]{1,20}-[A-Za-z0-9]{1,32}(?:-[A-Za-z0-9]{1,32})?"
+RECORD_ID_RE = re.compile(rf"\b(?:(?:{_NON_KN_PREFIXES})-{_ID_BODY}|KN-{_KN_BODY})\b")
 
 # `KN-LIT-...`/`KN-FIND-...` carry their family in the second position, so the
 # area of a KN identifier is that family; everything else carries the area

@@ -181,6 +181,14 @@ def test_identifier_grammar_matches_both_id_forms(identifier):
     assert scan.RECORD_ID_RE.findall(identifier) == [identifier]
 
 
+def test_knowledge_family_names_are_not_dangling_record_ids():
+    text = (
+        "KN-FIND / KN-OPEN / KN-LIT / KN-TECH / KN-GATHER are families; "
+        "KN-FIND-001 and KN-TECH-a1b2c3 are records."
+    )
+    assert scan.RECORD_ID_RE.findall(text) == ["KN-FIND-001", "KN-TECH-a1b2c3"]
+
+
 def test_area_is_syntactic_and_absent_for_date_keyed_kinds():
     assert scan.id_area("GOAL-ECDLP-001") == "ECDLP"
     assert scan.id_area("EXP-AEADC-22a7e9") == "AEADC"
