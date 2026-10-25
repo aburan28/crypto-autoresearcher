@@ -1,0 +1,103 @@
+# DRAFT (not a ledger record). Placeholder id; coordinator mints the real one. Proposal only.
+# Labels: [proposed] [derived] [kb] [repo] [retrieved] [recalled]. Nothing here is [measured]. Derivations: draft-2.notes.md
+idea:
+  id: IDEA-20261022-727d2e
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  status: proposed
+  title: 'How special is this number: a calibrated radix-and-lattice census of deployed curve integers, with planted and known-special controls and a measured detectability edge'
+  class: measurement
+  supersedes: null
+  lineage:
+    extends: IDEA-20261009-2abd32
+    adds: >-
+      B4 limb (b) measures Murphy-E of one special pair (2^255-19) against CADO; G2 (IDEA-20261009-64a1c0) limb (d)
+      does the same at 2^521-1. Neither detects structure. This adds a detector over all deployed curves with an
+      analytic null, an empirical null, planted and known-special controls and a power curve. Limb (b) is not carried.
+    already_covered: >-
+      nist_trapdoor_slot_program_20261011 round 0: n+-1 small factors, |D| square part, k > 1000, seeds; slot S2 (the
+      prime) is pending a matched-rho control only. p192_cm_norm_sieve.rs: norms in Z[pi], another object, nothing
+      reused. fght_snfs.rs detector [repo, read]: degree 2 only, window +-3, p <= 64 bits (degree 3 returns false).
+  claim: >-
+    [proposed, conditional on H1-H3] For each integer N in {p, r, p-1, p+1, t} of each deployed curve, two enumerable
+    classes give a minimal-height representation and its null probability: E (J*N = sum c_i m^i, m near
+    (J*N/c_d)^(1/d), d <= 12, J <= Jmax, c_d <= Clead, balanced digits) and L (LLL on {c : sum c_i m^i = 0 mod N},
+    d <= 6, m in an enumerated set). [derived expectation] Flagged: Curve25519 p (d=5), Ed448 p (d=2), P-192 p (d=3),
+    P-521 p (J=16, d=5), BN and BLS12-381 primes; not flagged: brainpool, random primes. Audits companion F_p^* and
+    F_{p^2}^* DLP risk and hidden-structure detection, NOT ECDLP; a flag describes an integer, not a curve or a key.
+  mechanism: >-
+    [derived] Class E has at most Jmax*Clead*(2C+1)^d*2^(-n(1-1/d))*O(d) members per n-bit integer (counting bound);
+    flag when log2 of that falls below -64 after the union over the census. Class L is the congruence form: lambda_1 of
+    a (d+1)-dimensional, determinant-N lattice against the Gaussian heuristic. FGHT hidden primes are p = Res(f,
+    g1*x - g0) with g1 > 1 [retrieved, KN-LIT-7635 PDF sec 4]; E and L see g1 = 1, so the power curve over g1 bits
+    measures where this census goes blind, which is what the FGHT detectability claim is about.
+  novelty_status: unverified
+  citations:
+    - {ref: KN-LIT-7635, provenance: kb, claim: "hidden SNFS prime p = Res(f,g); Table 1 SNFS (32/9)^(1/3) vs GNFS (64/9)^(1/3)", verified_by: "this session, local PDF pp.1-8"}
+    - {ref: "/home/user/crypto src/cryptanalysis/fght_snfs.rs, lattice.rs", provenance: internal, claim: "toy generator, degree-2 detector; LLL f64 sound to 256-bit, lll_reduce_hp beyond", verified_by: "read"}
+    - {ref: "Goldstein-Mayer 2003 modular lattices", provenance: recalled, claim: "H2 support", verified_by: null}
+  assumptions:
+    - "Public parameters only; no key. Rust only. Primes copied from standards, never typed from memory."
+  proof_search_map:
+    not_applicable_reason: "Census with controls; no algorithm or theorem proposed."
+  predictions:
+    - {metric: flag_rate_known_special_primes, direction: higher, minimum_effect: "6/6 (Curve25519, Ed448, P-192, P-521, BN, BLS12-381); a miss is a detector bug"}
+    - {metric: false_positives_random_primes_1e5_at_256_384_521_bits, direction: lower, minimum_effect: "0 flagged"}
+    - {metric: flags_on_brainpool_and_non_Solinas_primes, direction: lower, minimum_effect: "0; any flag is logged as unexplained structure"}
+    - {metric: planted_detection_power_vs_g1_bits_and_J, direction: lower, minimum_effect: "1.0 at g1=1, J<=Jmax; 0 beyond the window; curve reported"}
+    - {metric: KS_lambda1_over_GH_random_primes, direction: different, minimum_effect: "p > 0.01 (no difference predicted)"}
+  minimal_test:
+    design: >-
+      1. Class E scanner and class L (lll_reduce_hp) in Rust. 2. Exhaustive null: all primes in [2^(n-1), 2^n), n =
+      24..32, class counts vs the bound. 3. Sampled null: 1e5 random primes per size at 256, 384, 521 bits. 4.
+      Planted p = f(m) prime (no Sophie-Germain filter), n in {256,384,521}, d in {3,5,6}, C in {1,2^8,2^16}, g1 bits
+      in {0,8,16,24,32}, J in {1,2^8,2^16}, 100 per cell. 5. Census of the deployed list; report h_E(d), h_L(d),
+      N^(1/(d+1)), log2 null probability.
+    controls:
+      - "positive (known special): Curve25519, Ed448, P-192, P-521, BN, BLS12-381 must flag"
+      - "positive (planted): construct_trapdoor_general toy, then a 256-521-bit variant"
+      - "negative: equal-size random primes and odd integers; brainpool (digits of pi)"
+      - "blind spot: planted g1 beyond the window must NOT flag (the expected power result)"
+    required_metrics: [h_E_per_d, h_L_per_d, generic_floor, log2_null_prob, flag, power_vs_g1_J]
+  falsification_conditions:
+    - "A known-special prime does not flag: detector broken, census void."
+    - "A random prime flags at -64: null calibration wrong."
+    - "Exhaustive counts at n <= 32 exceed the bound by 5 sigma: H1 false."
+    - "Planted g1 beyond the window flags: the instrument sees more than its classes; look for a leak."
+  confounders:
+    - "Solinas primes are special by design; their flag is the positive control, not a finding."
+    - "p+-1, r, t have no known SNFS consumer; their rows are descriptors."
+  interpretation_limits:
+    - "Not ECDLP, not a security statement about a curve or key, cannot move the baseline. No flag does not mean no hidden structure."
+  heuristic_assumptions:
+    - id: H1
+      statement: "Among n-bit primes the class-E count is at most (1+o(1))/ln(2^n) times the integer count, uniformly for d <= 12."
+      rigorous_support: "integer count is a union bound; the prime factor imitates the prime number theorem"
+      validation_plan: "exhaustive primes n = 24..32 (about 2e8 at 32), d = 2..6; per-class counts vs bound; tail: worst ratio over classes."
+    - id: H2
+      statement: "lambda_1 of {c : sum c_i m^i = 0 mod N}, N prime, follows the Gaussian heuristic for a random (d+1)-dimensional lattice of determinant N."
+      rigorous_support: "equidistribution of modular lattices (Goldstein-Mayer, recalled) and the Gaussian heuristic"
+      validation_plan: "1e5 primes per size, m in {2^k}; CDF of lambda_1/GH vs random-a lattices; smallest 10 ratios vs order statistics."
+    - id: H3
+      statement: "at most 5 integers x 40 curves x 12 degrees hypotheses, so a -64 threshold gives family-wise error below 2^-50."
+      rigorous_support: "Bonferroni"
+      validation_plan: "recount from the final list."
+  target_complexity:
+    time_exponent: "no attack; census O(|S| d (W + |M| T_LLL(d+1))), minutes"
+    memory_exponent: "polynomial in log N"
+    best_known: "SNFS L_p[1/3,(32/9)^(1/3)] vs GNFS (64/9)^(1/3) on F_p^* [retrieved, FGHT Table 1]; no ECDLP exponent"
+    hidden_overhead: "none claimed"
+    tradeoff_note: "n/a"
+  estimated_cost: {implementation: medium, compute: low}
+  recommended_priority: low
+  dominated_by: "n/a (no result claimed)"
+  sota_delta: "none; a calibrated instrument and a detectability edge"
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-53c89f, KR-IC-5931ee]
+    nearest:
+      - {ref: KN-LIT-7635, provenance: kb, relation: adjacent, delta: "FGHT: detection out of reach; this measures the reach of two named classes"}
+    other_related:  # records and directories that are not KR-*/knowledge entries, so cannot sit in nearest
+      - "IDEA-20261009-2abd32: adjacent: limb (b) sieve quality of one pair; this detects structure on all deployed integers"
+      - "nist_trapdoor_slot_program_20261011: adjacent: S2 pending matched rho only; this fills the polynomial gap for p"
+    searched: {corpus_grep: [fght, trapdoor_slot, hidden SNFS, Murphy], web: [], blocked: []}

@@ -54,7 +54,11 @@ everything else by the Reading discipline in `docs/agent-runtime-core.md`.
   a sync conflict by editing a record — stop and create a superseding record.
   The session driving you runs the git commands (`git fetch/merge/push`) and
   opens or refreshes the PR with the runtime's PR tool (`gh pr create/edit`
-  only where `gh auth status` succeeds); a record that exists only in a local
+  only where `gh auth status` succeeds), then enables GitHub auto-merge
+  (`gh pr merge <n> --auto --merge`) — the default, not an extra step.
+  Auto-merge is offered only when the base is the default branch; a PR stacked
+  on another branch is retargeted to `main` and auto-merge enabled once its
+  parent lands. A record that exists only in a local
   commit is unpublished, not durable evidence.
 - Before interpreting any Executor result, verify validity: expected run
   count, schema-complete manifests, seed integrity, raw/summary agreement,

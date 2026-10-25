@@ -1,0 +1,40 @@
+{
+  "task_id": "TASK-20261024-4f1bf4",
+  "named_orders_executed": 0,
+  "patch": "*** Begin Patch\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/cohort_runner.py\n@@\n         matches = [\n             item\n             for item in corpus\n-            if integer(item.get(\"p\")) == integer(row[\"p\"])\n+            if item.get(\"record\") == \"certificate\"\n+            and integer(item.get(\"p\")) == integer(row[\"p\"])\n             and integer(item.get(\"n\")) == integer(row[\"n\"])\n             and integer(item.get(\"b\")) == b\n             and item.get(\"index\") == row[\"ordinal\"]\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/cohort_checker.py\n@@\n-        catalog.setdefault(value, []).append({\"file\": \"ecpp.DfD\", \"record\": ordinal, \"byte_offset\": match.start(\"d\"), \"line\": raw.count(b\"\\n\", 0, match.start(\"d\")) + 1, \"factors\": match.group(\"factors\").split(), \"class_number_sign_code\": int(match.group(\"sign\"))})\n+        catalog.setdefault(value, []).append({\n+            \"file\": \"ecpp.DfD\",\n+            \"record\": ordinal,\n+            \"byte_offset\": match.start(\"d\"),\n+            \"line\": raw.count(b\"\\n\", 0, match.start(\"d\")) + 1,\n+            \"factors\": [factor.decode(\"ascii\") for factor in match.group(\"factors\").split()],\n+            \"class_number_sign_code\": int(match.group(\"sign\")),\n+        })\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/cohort_runner.py\n@@\n         answer.setdefault(d, []).append({\n             \"file\": \"ecpp.DfD\",\n             \"record\": ordinal,\n             \"byte_offset\": match.start(\"d\"),\n             \"line\": raw.count(b\"\\n\", 0, match.start(\"d\")) + 1,\n-            \"factors\": match.group(\"factors\").split(),\n+            \"factors\": [factor.decode(\"ascii\") for factor in match.group(\"factors\").split()],\n             \"class_number_sign_code\": int(match.group(\"sign\")),\n         })\n*** End Patch",
+  "static_check_details": {
+    "inspection_only": true,
+    "full_suite_ran": false,
+    "observed_v6_receipt": {
+      "path": "coordination/goals/GOAL-NISTSEED-ab8949/batches/BATCH-08d006/executor-implementation-v6.test-receipt.json",
+      "compile_returncode": 0,
+      "tests_run": 9,
+      "failures": 0,
+      "errors": 29,
+      "blocked_original_call_attempts": [],
+      "named_orders_executed": 0
+    },
+    "diagnostic": {
+      "path": "coordination/goals/GOAL-NISTSEED-ab8949/batches/BATCH-08d006/operator-trace-json-v6.json",
+      "bytes_path": "trace.events[18].catalog_positions[0].factors[0]",
+      "bytes_hex": "30",
+      "cause": "Both DfD parsers retained bytes from a bytes-regex capture split, making the emitted trace non-JSON-serializable."
+    },
+    "patch_effects": [
+      "The runner and checker now expose DfD factor tokens as exact ASCII decimal strings, which are JSON-safe semantic values permitted by trace_schema.json.",
+      "Raw serial bytes, raw catalog bytes, raw byte offsets, and the original catalog grammar remain unchanged.",
+      "No generic json.dumps default handler, lossy str(bytes) conversion, or trace omission is introduced."
+    ],
+    "not_run": [
+      "No new guarded full suite.",
+      "No original execute_case/vm call.",
+      "No legacy executable, QEMU, VM, or subprocess."
+    ]
+  },
+  "remaining_gaps": [
+    "The operator must apply this compact patch and use a new versioned guarded capture wrapper; it must not rerun or overwrite the immutable V6 wrapper artifacts.",
+    "V6 established that the full 21-row exact mapping passes, but its nine-method suite remains unsuccessful due to the JSON-emission defect. No post-patch full-suite result exists yet.",
+    "The new wrapper must retain compile output, test output, return code, guard attempts, and named_orders_executed: 0 before any implementation-readiness assessment.",
+    "No scientific execution, approval, plan, record, interpretation, state transition, or conclusion is authorized."
+  ]
+}

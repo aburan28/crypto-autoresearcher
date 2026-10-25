@@ -170,8 +170,11 @@ def base_points(curve, count, arm, base_root, stratum, vertex_j):
     raise ValueError("insufficient liftable x-values")
 
 
-def target_coefficients(root, stratum, stage, r, count):
-    k, _ = draw(root, [stratum, stage, "q_scalar"], r - 1)
+def target_coefficients(root, stratum, stage, r, count, verifier_root=None):
+    # The historical small controls used one target root for both draws. The
+    # scientific CLI requires an independent verifier root for Q's scalar.
+    k, _ = draw(root if verifier_root is None else verifier_root,
+                [stratum, stage, "q_scalar"], r - 1)
     k += 1
     accepted, seen = [], set()
     rejects = {"identity": 0, "duplicate": 0, "modulo": 0}
@@ -229,7 +232,11 @@ def graph_transport_base(walk_path, header, model, generator, index):
         "checkpoint_terminal_sha256": digest(terminal_path)}
 
 
-def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
+def prepare(walk_path, index, arm, stage, base_root, target_root, target_count,
+            verifier_root=None):
+    if verifier_root is not None and (
+            len(verifier_root) != 32 or verifier_root in (base_root, target_root)):
+        raise ValueError("independent 256-bit verifier root required")
     header, model, curve, generator = load_vertex(walk_path, index)
     stratum = header["stratum"]
     config = SCHEDULE[stratum]
@@ -237,7 +244,8 @@ def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
         raise ValueError("unsupported arm or stage")
     if arm in ("power_x", "graph_transport") and index % config["power_stride"]:
         raise ValueError(f"{arm} is only defined on prespecified path indices")
-    k, coefficients, target_rejections = target_coefficients(target_root, stratum, stage, curve.r, target_count)
+    k, coefficients, target_rejections = target_coefficients(
+        target_root, stratum, stage, curve.r, target_count, verifier_root)
     q = multiply(k, generator, curve)
     if q is None:
         raise AssertionError("selected Q is identity")
@@ -280,6 +288,9 @@ def prepare(walk_path, index, arm, stage, base_root, target_root, target_count):
                 "target_vector_sha256": hashlib.sha256(json.dumps(targets, separators=(",", ":")).encode()).hexdigest(),
                 "limits": "prepared input only; no relation yield or ECDLP cost claim"}
     metadata.update(checkpoint_binding)
+    if verifier_root is not None:
+        metadata["verifier_root_sha256"] = hashlib.sha256(verifier_root).hexdigest()
+        metadata["seed_mode"] = "independent_verifier_root"
     return payload, metadata
 
 
@@ -291,15 +302,18 @@ def main():
     parser.add_argument("--stage", choices=("discovery", "confirmation"), required=True)
     parser.add_argument("--base-root-file", type=Path, required=True)
     parser.add_argument("--target-root-file", type=Path, required=True)
+    parser.add_argument("--verifier-root-file", type=Path, required=True)
     parser.add_argument("--commitment", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     base_root = bytes.fromhex(args.base_root_file.read_text().strip())
     target_root = bytes.fromhex(args.target_root_file.read_text().strip())
-    if len(base_root) != 32 or len(target_root) != 32 or base_root == target_root:
-        parser.error("distinct 256-bit base and target roots are required")
+    verifier_root = bytes.fromhex(args.verifier_root_file.read_text().strip())
+    if (any(len(root) != 32 for root in (base_root, target_root, verifier_root)) or
+            len({base_root, target_root, verifier_root}) != 3):
+        parser.error("three distinct 256-bit base, target, and verifier roots are required")
     commitment = json.loads(args.commitment.read_text())
-    if commitment.get("schema") != "isogeny-relation-seed-commitment/v1":
+    if commitment.get("schema") != "isogeny-relation-seed-commitment/v2":
         parser.error("invalid commitment schema")
     graph_manifest = STUDY / "manifest-v2.json"
     frozen_manifest = json.loads(graph_manifest.read_text())
@@ -315,6 +329,7 @@ def main():
         parser.error("full graph verification receipt is absent or incomplete")
     expected = {"base_root_sha256": hashlib.sha256(base_root).hexdigest(),
                 "target_root_sha256": hashlib.sha256(target_root).hexdigest(),
+                "verifier_root_sha256": hashlib.sha256(verifier_root).hexdigest(),
                 "graph_sha256": digest(args.walk),
                 "graph_manifest_sha256": digest(graph_manifest)}
     if any(commitment.get(key) != value for key, value in expected.items()):
@@ -331,7 +346,8 @@ def main():
         if commitment.get("source_sha256", {}).get(name) != digest(path):
             parser.error("source hash mismatch: " + name)
     count = SCHEDULE[header["stratum"]][args.stage]
-    payload, metadata = prepare(args.walk, args.index, args.arm, args.stage, base_root, target_root, count)
+    payload, metadata = prepare(args.walk, args.index, args.arm, args.stage,
+                                base_root, target_root, count, verifier_root)
     metadata["commitment_sha256"] = digest(args.commitment)
     args.output_dir.mkdir(mode=0o700, parents=False, exist_ok=False)
     with (args.output_dir / "prepared.txt").open("xb") as output:
