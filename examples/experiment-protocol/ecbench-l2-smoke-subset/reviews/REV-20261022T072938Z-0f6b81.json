@@ -1,0 +1,119 @@
+{
+  "schema": "experiment.review/v1",
+  "review_id": "REV-20261022T072938Z-0f6b81",
+  "created": "2026-10-22T07:29:38Z",
+  "export": {
+    "path": "export.json",
+    "sha256": "f52065132853dfc36181a04a165292e1e60ea8997553c3c8eaa8f772e7c181c5",
+    "export_id": "EXAMPLE-ecbench-l2-smoke-subset-export"
+  },
+  "protocol_sha256": "a5833daf530cfc045e03bcaab76a9ac8e367288c71ffc7dd17cf45186e542edb",
+  "reviewer": {
+    "runtime": "claude_code",
+    "model": "claude-fable-5-1",
+    "session": "session_012DAy48m8pgcXSDPxPsP3DQ",
+    "role": "validator",
+    "independence": {
+      "same_session_as_producer": false,
+      "same_host_class": false,
+      "shares_code_with_producer": true,
+      "declared_conflicts": [
+        "the same session wrote this worked example's protocol after the run; it is an illustration of the record shapes, not an independent review"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "id": "hashes",
+      "kind": "hashes",
+      "result": "pass",
+      "detail": "5 files and every artifact hash recomputed from disk"
+    },
+    {
+      "id": "adherence",
+      "kind": "protocol_adherence",
+      "result": "pass",
+      "detail": "export binds the frozen protocol; arms, seeds, row counts and isolation agree"
+    },
+    {
+      "id": "controls",
+      "kind": "controls",
+      "result": "fail",
+      "detail": "A/A arm rho-neg-aa reproduces rho-neg row for row (identical S on all 6 measured pairs, identical algorithm_seed per (workload, round): True); under same seeds the A/A spread is 0 and measures determinism, not the walk's seed variance. The between-round spread of rho-neg itself (workload W141767324d6e: 2.029, 1.355, 1.079; W8d7a772f8ccd: 0.808, 0.864, 1.776) is the floor a method difference must exceed. The protocol's C-aa therefore does not deliver the noise floor it was written for: an A/A arm needs independent seeds. Positive and negative controls are excused in the protocol; the harness verified [k]G = Q on all 24 rows (24 verified)."
+    },
+    {
+      "id": "recompute",
+      "kind": "recompute",
+      "result": "pass",
+      "detail": "Recomputed from export rows: sum S bsgs-neg 5.6244, sum S rho-neg 7.9112, ratio 0.7109; median S bsgs-neg 0.9374 vs rho-neg 1.2167; bsgs-neg S is constant per workload (1.108, 0.767), rho-neg varies by seed. Numbers agree with crypto:research/eks_crypto_validation_20261019 counts (72 verified records of which these 24 are the subset)."
+    },
+    {
+      "id": "statistics",
+      "kind": "statistics",
+      "result": "fail",
+      "detail": "The decision rule asks for a paired bootstrap interval over workloads; with two workloads the interval degenerates and the A/A half-width is 0 under shared seeds, so the rule cannot be applied as written. No verdict on C2 beyond descriptive."
+    },
+    {
+      "id": "scope",
+      "kind": "scope",
+      "result": "pass",
+      "detail": "One registered 20-bit prime-order curve, two targets, three rounds, one binary (583e62f0), one Spot c8in.xlarge VM; every row L0, so no clock is evidence; nothing here is a scaling or speed claim, as the protocol's inadmissible list says."
+    },
+    {
+      "id": "blinding",
+      "kind": "blinding",
+      "result": "pass",
+      "detail": "Protocol declares no masking and the export's analysis.blinded is false, consistently; the arms are named by method in harness output."
+    },
+    {
+      "id": "measurement_validity",
+      "kind": "measurement_validity",
+      "result": "pass",
+      "detail": "All 18 measured rows wall_valid false (earned L0 < required L2; blockers: unmovable user thread, preflight not quiet, 104 preemptions/s); counted S and total_gae stand. 0 not_completed, 0 excluded."
+    }
+  ],
+  "replay": {
+    "performed": false,
+    "method": "ecbench verify --dir session --replay K (not run: the crypto binary is not built in this checkout)",
+    "units_sampled": 0,
+    "nonce": null,
+    "identical": 0,
+    "mismatched": 0,
+    "miss_probability": null
+  },
+  "observations": [
+    "rho-neg and rho-neg-aa rows are identical pair for pair (seeds equal: True); the A/A spread is 0.",
+    "rho-neg S across rounds: W141767324d6e 2.029, 1.355, 1.079; W8d7a772f8ccd 0.808, 0.864, 1.776.",
+    "bsgs-neg S is 1.108 on W141767324d6e and 0.767 on W8d7a772f8ccd in every round (deterministic given the target); ratio of summed S bsgs-neg/rho-neg = 0.7109.",
+    "Every row earned L0; the pod audit in crypto reproduced 54/54 measured replays; this review did not replay.",
+    "bsgs-neg carries inserts_uncharged and lookups_uncharged counters (376 and 441 on row ECR1h...); rho-neg carries canonicalisations_uncharged (674); the 0 / 0.1 / 1 GAE band was not applied here."
+  ],
+  "judgments": [
+    {
+      "claim_id": "C1",
+      "verdict": "supported_within_scope",
+      "basis": "24/24 rows outcome verified; the harness recomputed [k]G = Q against the planted scalar on every row",
+      "scope": "this session's 24 rows"
+    },
+    {
+      "claim_id": "C2",
+      "verdict": "inconclusive",
+      "basis": "descriptively bsgs-neg sums to 0.711x the reference S, below rho on this fixture, the opposite direction of P1; but the A/A arm shares seeds with the reference and the two-workload interval cannot be formed, so the decision rule does not apply as written",
+      "scope": "one 20-bit curve, two targets, three rounds"
+    }
+  ],
+  "open_questions": [
+    "Does ecbench's control arm draw independent algorithm_seed values when same_seeds is not requested, or is the shared seed the spec's measurement.seed behaviour? The protocol must say which A/A it wants.",
+    "With the uncharged counters priced at 0.1 and 1 GAE on both arms, does the order of bsgs-neg and rho-neg hold?"
+  ],
+  "recommendation": {
+    "action": "respecify",
+    "reason": "amend the protocol so the A/A arm uses independent seeds and the sample has at least eight targets per curve, then rerun; this fixture validates the record shapes and nothing about the methods"
+  },
+  "asserts_nothing_about": [
+    "official research status",
+    "hypothesis status",
+    "the correctness of the design",
+    "any speed or scaling claim about rho or BSGS"
+  ]
+}
