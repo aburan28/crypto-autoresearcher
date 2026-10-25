@@ -37,3 +37,15 @@ driver of point-decomposition counting; a full-rank result is a clean negative
 theory (border-rank lower bound on resultant tensors). Over F_p the truncation
 must be exact rank-revealing, not SVD, so the measurement is well-defined but
 norm-free -- a caveat any claim here must respect.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. The tensor-train results are a toy-scale scoped negative (m <= 6, p <= 1009) and this entry says the asymptotic bond-rank law remains open.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- EV-TTN-001 (H-TTN-001, `weakens`, preliminary, m <= 5) and EV-TTN-002 (`strengthens`, preliminary, m = 6 only).
+- H-TTN-806b84 `proposed`; H-ECDLP-0fd4b9 `supported` also cites this entry (DEC-20261003-c6641c); neither resolves the growth law.
+- DEC-20260804-139a86 records "H-TTN-001 rejected_scoped (earlier campaign)"; no decision record with that disposition was located in `ledger/decisions/` by hypothesis id in this pass, so that line is unverified here.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.

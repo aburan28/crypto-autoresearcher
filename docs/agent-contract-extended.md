@@ -10,13 +10,10 @@ worked reasoning and examples behind each rule. Where the two disagree,
 ---
 
 # Crypto Autoresearcher Agent Contract
-
 ## Literature first
-
 Owner instruction (2026-10-19): check relevant literature before doing any work.
 For every task, complete this review before choosing an approach, editing files,
 implementing, running experiments, or making recommendations.
-
 - Start with this repository's references, research notes and prior results, then
   check relevant papers, standards and official documentation for current methods,
   limitations and known negative results.
@@ -28,6 +25,90 @@ implementing, running experiments, or making recommendations.
 - If relevant sources are inaccessible or no relevant work is found, state the
   search scope and evidence gaps before proceeding. Never invent citations or
   treat an unsuccessful search as proof that no prior work exists.
+
+## Observe first; interpret later
+
+Owner's instruction, 2026-10-17. This is a scientific research harness.
+Its primary purpose is to collect and present reproducible observations:
+distributions, regularities, deviations, unexpected behavior, null observations
+and unresolved measurements. A valid study does not need to discover an
+anomaly, demonstrate an attack advantage, beat a baseline, or establish
+practical usefulness. Those are possible later research questions, not the
+default test of whether an observation is worth collecting or reporting.
+
+Present the data first: exact inputs and scope, methods, controls or stated
+reference, sample counts, raw outputs, uncertainty, censoring, failures and
+limitations. Distinguish successful execution and measurement integrity from
+the direction or interpretation of the observations. Keep operational failures
+separate from mathematical null results. Preserve all outcomes without selecting
+only favorable or surprising ones.
+
+Descriptive studies are legitimate work. State their observables and sampling
+plan without inventing a predicted mechanism or a desired scientific outcome.
+If a deviation is called an anomaly, name its reference and uncertainty;
+exploratory patterns remain observations pending separate checks. Do not force
+a useful/useless, attack/no-attack, support/reject or security conclusion into
+an observation report. Do not dismiss a pattern as unrelated to ECDLP or judge
+its value by anticipated application. The owner makes interpretation, relevance
+and usefulness calls; observation reports present the evidence for those calls.
+
+Owner's clarification, 2026-10-17: present candidate structure as "this pattern
+is worth inspecting" when the data warrant attention. Show the actual values,
+reference, uncertainty, alternative explanations and a concrete next check.
+Distinguish an observed deviation, an exploratory pattern and a suspected
+measurement artifact. Include ordinary/control behavior alongside flagged
+patterns; finding something unusual is not a required outcome. Do not issue
+scientific verdicts or change official scientific conclusions on the owner's
+behalf without an explicit request. This leaves technical readiness approvals
+and observation collection under the existing standing authorization.
+
+This instruction supersedes an improvement-only definition of research success.
+It guides future work and reporting; frozen protocols and historical records
+remain intact. Existing integrity, ownership, resource and claim-review rules
+still apply.
+
+### When a task actually studies performance
+
+Verified improvements are valid findings within an explicitly scoped performance
+study, using its stated matched reference. ECDLP pipeline comparisons use the
+frozen matched index-calculus baseline and end-to-end `S`, and report the matched
+rho gap where applicable; a claim to beat rho retains the full reference rules.
+These requirements qualify performance claims, not unrelated descriptive
+measurements. A null observation is valid research data without being relabeled
+an improvement.
+
+## Scientific observation comes first
+
+Owner's instruction, 2026-10-17, supersedes an improvement-only definition of
+research success. The harness collects and presents reproducible observations,
+including regularities, deviations, null observations and inconclusive data.
+Neither finding an anomaly nor showing an attack advantage or practical use is
+a prerequisite for a worthwhile study. A descriptive study can specify its
+observables, sampling plan and controls without predicting a mechanism or a
+preferred outcome.
+
+Reports present raw data, methods, scope, controls/reference, sample counts,
+uncertainty, failures, censoring and limitations. Operational failures are not
+mathematical null results. An exploratory deviation is not automatically a
+mechanism, significance claim or application. Conclusions and usefulness
+assessments belong to separate, explicitly scoped analysis; observation reports
+need no attack/no-attack or useful/useless verdict. Do not dismiss observations
+because no immediate advantage is apparent.
+
+The owner makes interpretation and relevance calls. Agents may highlight
+candidate structure as worth inspecting, with actual values, uncertainty,
+controls, alternative explanations and a concrete next check. They must not
+dismiss a pattern as unrelated to ECDLP or make scientific decisions on the
+owner's behalf without an explicit request. Ordinary/control observations are
+presented too; an unusual finding is not a required outcome. Technical readiness
+approvals and observation collection retain their standing authorization.
+
+Matched baselines, end-to-end cost accounting and progress-fidelity records
+remain mandatory when making the performance claims they govern. They are not
+requirements to turn every descriptive study into an advantage comparison.
+Integrity, immutable records, frozen protocols, ownership and independent review
+requirements remain unchanged. See `AGENTS.md`, "Observe first; interpret later,"
+for the normative rule.
 
 ## Research budgets: progress first
 

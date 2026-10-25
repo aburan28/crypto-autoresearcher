@@ -46,8 +46,10 @@ the build log do not affect these declarations.
 
 This is a Lean result about the three linear maps defined by the exact
 recorded matrices. The preceding certificate proves that their columns equal
-the q-power images of the quotient-basis monomials. A checked full-map
-linearity/representation lemma, historical Sage implementation refinement,
+the q-power images of the quotient-basis monomials, and a
+[full-map certificate](../2026-10-22-frob-c5-full-map/REPORT.md) proves the
+q-power endomorphism has that exact matrix. Explicit Lean transport of the
+kernel theorem to the quotient endomorphism, historical Sage refinement,
 original run source custody, and independent code/semantic review are still
 needed before calling the frozen C5 run control proof-backed. The
 [open problem](../../../problems/frob-c5-factor-kernel-and-model-bridge.md)

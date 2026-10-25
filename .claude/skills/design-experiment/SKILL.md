@@ -89,7 +89,8 @@ specification, experiment design, approval, and handoff.
    requires an additive correction. The preapproval probe never replaces the
    ordinary selector, dispatcher or live-claim checks.
 9. Push the branch and open or refresh a PR against `main` naming the new
-   `H-*`/`EXP-*`/`TASK-*` records (see "Branch and PR hygiene"). A frozen
+   `H-*`/`EXP-*`/`TASK-*` records, then enable auto-merge
+   (`gh pr merge <n> --auto --merge`; see "Branch and PR hygiene"). A frozen
    contract that exists only in a local commit is not approved — it is
    unpublished.
 10. End with a session receipt: `python3 tools/session_receipt.py --skill
@@ -110,7 +111,8 @@ work as a PR:
 - **After the snapshot archive:** `git push -u origin <branch>`, then open or
   refresh a PR against `main` with the runtime's PR tool, titled
   `experiment: <EXP-ID>` and naming the `H-*`/`EXP-*`/`TASK-*` ids in the
-  body. Use `gh pr create` only where `gh auth status` succeeds; a Cursor
+  body, then enable auto-merge (`gh pr merge <n> --auto --merge`). Use
+  `gh pr create` only where `gh auth status` succeeds; a Cursor
   cloud session uses its PR tool, and a session with neither reports the
   pushed branch and stops.
 
