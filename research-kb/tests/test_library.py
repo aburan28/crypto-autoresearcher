@@ -128,6 +128,7 @@ def test_hybrid_publication_and_stale_revision(populated, tmp_path):
     pointer = lib.index()
     result = lib.search("summation polynomials", mode="hybrid")
     assert result["results"]
+    assert all(len(row["source_content_hash"]) == 64 for row in result["results"])
     assert lib.status()["active_index"]["collection"] == pointer["collection"]
     (a / "new.md").write_text("# Fresh\n\nA fresh document about torsion over finite fields.\n")
     refresh(lib)

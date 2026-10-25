@@ -200,6 +200,11 @@ class Catalog:
     def enrich(self, row):
         r = dict(row)
         with self.connect() as db:
+            if "source_content_hash" not in r:
+                source = db.execute(
+                    "SELECT content_hash FROM versions WHERE id=?", (r["version_id"],)
+                ).fetchone()
+                r["source_content_hash"] = source[0] if source else None
             origins = [
                 dict(x)
                 for x in db.execute(

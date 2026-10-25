@@ -78,7 +78,12 @@ on the next request. If all clients are revoked, HTTP fails closed.
 For container operation, set an absolute `RESEARCH_KB_DATA_DIR`, ensure it is
 writable by UID 10001, and set `RESEARCH_KB_AUTH_DIR` to a directory containing
 the hash registry as `auth.json`. Mounting the directory keeps atomic token
-rotations visible to the running container. Then:
+rotations visible to the running container.
+
+The registry directory and `auth.json` must be readable by UID 10001. Copy only
+the hash registry into that directory, with matching ownership; keep client token
+files in the operator's separate protected directory. The EC2 bootstrap sets this
+ownership automatically. Start the containers:
 
 ```sh
 docker build -t research-kb:local .
