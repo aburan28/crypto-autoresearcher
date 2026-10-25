@@ -22,6 +22,17 @@ def sh(cwd, *argv, check=True, env=None):
     return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=check, env=env)
 
 
+class PlaceCopy(unittest.TestCase):
+    def test_creates_missing_parent_directories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "src.bin"
+            src.write_bytes(b"abc")
+            dest = base / "docs" / "reports" / "x" / "report.pdf"
+            artifacts.place_copy(src, dest)
+            self.assertEqual(dest.read_bytes(), b"abc")
+
+
 class RoundTrip(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
