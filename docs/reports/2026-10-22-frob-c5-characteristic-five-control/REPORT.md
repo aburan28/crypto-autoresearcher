@@ -55,5 +55,5 @@ boundary. The C5 factor-proof diagram is checked separately in merged PR #2475.
 No run value, performance graph, or dashboard row changed because this task
 made no measurement. Separate Lean certificates now check the archived
 quotient-basis matrix entries and exact matrix factor kernels. The next proof
-obligation is a full-map q-power representation lemma and historical Sage
+obligation is explicit quotient-kernel basis transport and historical Sage
 refinement, with source custody and independent semantic/code review.

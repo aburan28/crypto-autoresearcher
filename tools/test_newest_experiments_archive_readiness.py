@@ -11,10 +11,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import newest_experiments as newest
 from test_research_dispatch import archive_task, queue, task
+import experiment_execution as execution  # noqa: E402
 
 EXP = 'EXP-TEST-aaaaaa'
 SPEC = f'experiments/{EXP}/specification.yaml'
@@ -126,6 +129,59 @@ class ArchiveReadinessTests(unittest.TestCase):
         progress = newest.execution_progress(tmp_path / f'experiments/{EXP}', tmp_path)
         assert progress['execution_state'] == 'needs_dispatch_queue'
         assert 'first parent' in progress['reason']
+
+    def test_explicit_unapproved_candidate_can_prove_readiness_but_cannot_execute(self):
+        exp_dir = self.root / f"experiments/{EXP}"
+        exp_dir.mkdir(parents=True)
+        specification = exp_dir / "specification.yaml"
+        specification.write_text(yaml.safe_dump({"experiment": {
+            "id": EXP, "status": "review_required", "frozen": True,
+            "execution_authorized": False,
+        }}))
+        driver = self.root / "driver.py"
+        driver.write_text("# candidate plan source; never executed\n")
+        plan = {
+            "schema": "crypto.autoresearch.trial_plan.v1",
+            "experiment_id": EXP,
+            "task_id": "TASK-20261023-a1b2c3",
+            "candidate_only": True,
+            "approval_required": True,
+            "frozen": True,
+            "specification": SPEC,
+            "specification_sha256": hashlib.sha256(specification.read_bytes()).hexdigest(),
+            "queue": QUEUE,
+            "source_sha256": {"driver.py": hashlib.sha256(driver.read_bytes()).hexdigest()},
+            "trials": [{
+                "id": "candidate-shape",
+                "run_id": "RUN-TEST-abcdef",
+                "argv": ["python3", "driver.py"],
+                "check_argv": ["python3", "driver.py"],
+                "artifacts": ["manifest.yaml", "raw-result.json"],
+                "memory_mb": 64,
+            }],
+        }
+        plan_path = exp_dir / "candidate-trial-plan.json"
+        plan_path.write_text(json.dumps(plan))
+
+        progress = newest.execution_progress(exp_dir, self.root, preapproval_candidate=True)
+        self.assertEqual(progress["execution_state"], "ready")
+        self.assertTrue(progress["approval_required"])
+        self.assertEqual(progress["readiness_kind"], "preapproval_candidate")
+        with self.assertRaises(execution.ExecutionError):
+            execution.load_plan(self.root, plan_path)
+        with self.assertRaises(execution.ExecutionError):
+            execution.run_plan(self.root, plan_path, owner="fixture", epoch=1)
+
+        with mock.patch.object(newest.ecc_priority, "load_policy", return_value={}), \
+                mock.patch.object(newest.ecc_priority, "is_ecc", return_value=True), \
+                mock.patch.object(newest, "_superseded_ids", return_value=set()), \
+                mock.patch.object(newest, "withheld_state", return_value={}):
+            explicit = newest.newest_runnable(
+                repo=self.root, experiment_ids={EXP}, off_main={})
+            default = newest.newest_runnable(repo=self.root, off_main={})
+        self.assertEqual([row["id"] for row in explicit], [EXP])
+        self.assertTrue(explicit[0]["approval_required"])
+        self.assertEqual(default, [])
 
 if __name__ == "__main__":
     unittest.main()

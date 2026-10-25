@@ -19,7 +19,8 @@ triple collector. It does **not** launch that collector or estimate a DLP cost.
   manifest, and terminal chain hashes. Build native and transported bases on
   the `u=2` coordinate model as separate controls.
 - Use one domain-separated 256-bit target root per stratum and stage.
-  Derive a nonzero hidden Q scalar and draw `(alpha,beta)` with exact
+  Use a separate verifier root to derive the nonzero hidden Q scalar; draw
+  `(alpha,beta)` from the target root with exact
   modulo rejection. Reject identity and repeated targets by their scalar
   in the prime-order group. Every arm and vertex within a stratum/stage
   receives the same accepted coefficient sequence. Roots for discovery and
@@ -34,6 +35,13 @@ triple collector. It does **not** launch that collector or estimate a DLP cost.
 `prepare_graph_input.py` exposes a small-count `prepare` function for
 implementation controls. Its CLI is for later admitted preparation only;
 no commitment or scientific root has been issued in this directory.
+The scientific CLI requires three distinct 256-bit base, target, and verifier
+root files, plus a `isogeny-relation-seed-commitment/v2` record binding all
+three digests. The optional verifier-root argument to `prepare` preserves
+replay of historical fixed controls made before this correction; those
+controls have no `seed_mode` field. New scientific inputs carry
+`seed_mode: independent_verifier_root` and a verifier-root digest. Post-seal
+seed replay supplies all three roots to `verify_prepared_graph.py`.
 
 ## Fixed implementation controls
 

@@ -230,8 +230,9 @@ covers the skills above (`tune-skill` only in loop mode, below).
 9. **Commit and push as a normal code change.** One commit covering the
    skill/agent file edit(s) and the round record, message referencing the
    round id. No ledger snapshot/archive step applies — this isn't a ledger
-   record — but open or refresh a PR with the runtime's PR tool as usual so
-   the diff gets the same review any other instruction change would.
+   record — but open or refresh a PR with the runtime's PR tool as usual and
+   enable auto-merge (`gh pr merge <n> --auto --merge`) so the diff gets the
+   same review any other instruction change would.
 
 10. **Receipt.** `python3 tools/session_receipt.py --skill tune-skill
     --role <role> --outcome <published|no_change|impeded> --files-read <n>`

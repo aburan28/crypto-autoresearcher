@@ -6,7 +6,7 @@ description: >-
   result contradicting independently validated evidence. Ordinary challenge
   goes to `red-team`. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
-model: claude-fable-5-1
+model: claude-opus-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> red-team-breakthrough
 # -> model-bindings.yaml anthropic binding of review-breakthrough (Claude
 # Fable 5.1). Edit the binding, never this line; tools/check_runtime_bindings.py
