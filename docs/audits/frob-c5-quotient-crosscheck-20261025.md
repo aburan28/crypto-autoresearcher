@@ -53,7 +53,13 @@ an independent formal semantic/code review. The executable irreducibility
 check does not supply a Lean irreducibility theorem or a field isomorphism.
 C8 and the experiment success gate remain separate.
 
-The existing quotient-matrix proof graph and report were checked. Their
-verified edges and visual coverage do not change: this audit adds a second
-arithmetic check and clarifies provenance of the replay matrix. No canonical
-graph or performance dashboard value changes.
+The existing quotient-matrix proof graph and report were checked. The graph's
+raw-run and replay labels were corrected in this change to show where the
+matrix was reconstructed. Its verified algebraic edges and quantitative
+dashboard coverage do not change; this audit adds a second arithmetic check.
+No performance dashboard value changes.
+
+The refreshed PNG is rendered from the same `proof.dot` as the SVG and figure
+PDF with `dot -Gdpi=72 -Tpng proof.dot -o proof.png`; its labels were visually
+inspected at the resulting 648×389 resolution. The vector exports preserve
+full resolution.
