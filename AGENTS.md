@@ -5,53 +5,20 @@ experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
 file and another document disagree, this file wins.
 
+Conventions shared with `aburan28/crypto`, `aburan28/cryptanalysis` and
+`aburan28/crypto-lean` — object storage, the validation vocabulary, curve
+identity, the skill surface and the shared-code parity list — are stated once in
+[`docs/lab-contract.md`](docs/lab-contract.md). That file wins on a shared
+convention; this file wins on anything specific to this repository, and either
+wins over a skill, a runtime file or a generated block.
+
 ## Observe first; interpret later
 
-This harness collects and presents reproducible observations. Descriptive studies
-do not require an anomaly, advantage, or usefulness verdict. The owner makes
-scientific interpretation and relevance decisions. Follow [the full observation
-rule](docs/agent-contract-extended.md#observe-first-interpret-later); its reporting,
-evidence, performance-scope, authorization, and preservation requirements are binding.
+Before planning or reporting research, read and follow the complete [observation-first rule](docs/agent-contract-extended.md#observe-first-interpret-later). Its observation, interpretation, ownership, performance-scope, and evidence requirements are binding; they supersede an improvement-only definition of research success.
 
 ## Name the obstruction
 
-When substantial research, cryptanalysis, or audit work cannot meet a proof,
-implementation, experiment, or validation requirement, **name the specific
-problem**. Before repeating the same blocked approach or handing it off, create
-or update `problems/<descriptive-slug>.md` using
-[the problem template](problems/TEMPLATE.md), add it to
-[the problem index](problems/README.md), and link it from the affected work.
-
-- State exactly what is blocked, under which parameters and assumptions, and
-  why that gap prevents the requested conclusion. Track major or recurring
-  blockers, not every routine TODO.
-- Separate observed evidence, suspected explanations, missing implementations,
-  access/tool or assistance limits, resource limits, and proved mathematical
-  obstructions. Cite artifacts or proofs with their exact scope; mark unknowns
-  explicitly. A timeout or bounded failed search does not prove impossibility;
-  failure to find an attack does not establish security.
-- Say **what would unblock it**: the missing lemma, construction, verified map,
-  measurement, implementation, access, or resource, with checkable acceptance
-  criteria. Explain what satisfying those criteria would establish and what
-  would remain unresolved. "More research" is not an exit condition.
-- Give the next discriminating experiment or proof obligation, its controls
-  and execution limits where relevant, and how each possible outcome changes
-  the next action. Apply the existing experiment and budget rules.
-- Reuse an existing problem record for the same obstruction, including a
-  cross-repository link when appropriate. Update its evidence, next action,
-  and index row in the PR that changes the situation; preserve frozen evidence.
-  Resolve it only with linked evidence meeting its exit criteria. If another
-  record replaces it, mark it superseded and link the successor.
-
-Recording a problem keeps the original requirement visible; recording it alone
-does not resolve that requirement. It
-does not authorize abandoning requested work, weakening its acceptance criteria,
-or promoting a claim. Completing the template or merging its PR does not solve
-the underlying problem.
-
-In this repository, link problem records to existing goal impediments and
-inventor-protocol obstruction records. Problem status is not a goal or
-hypothesis status; scientific transitions retain their existing authority.
+When substantial research, cryptanalysis or audit work cannot meet a proof, implementation, experiment or validation requirement, create or update a linked problem record before repeating or handing off the blocked approach. The full [problem-record rule](docs/agent-contract-supplement.md#name-the-obstruction) is binding, including its evidence distinctions, exit criteria, next test and preservation of the original requirement. A problem record alone resolves nothing.
 
 ## Budgets: progress first
 
@@ -313,37 +280,7 @@ work ahead of drafting more contracts when it offers a justified next run.
 
 ## Research direction
 
-For work explicitly pursuing an algorithmic-complexity claim, the target
-profile is Wesolowski's `p^{1/3+o(1)}` supersingular isogeny result
-(`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`;
-`docs/target-result-profile.md`, checklist C1–C18; `KN-TECH-055`):
-exponent first; numbered heuristics, each with random-model justification,
-falsification condition and validation plan; single-responsibility lemmas;
-external structural ingredients; validation at scale; honest cost and scope
-(memory beside time, o(1) disclosed, a concrete cost table, affected-vs-safe
-scope). The Coordinator checks the promotion gates of `agents/coordinator.md`
-before an asymptotic claim moves toward `supported`. This profile qualifies
-those claims; it is not an admission or success criterion for descriptive
-observation and anomaly measurement.
-
-The **inventor protocol** (`docs/inventor-protocol.md`; `KN-TECH-056`,
-`KN-TECH-080`) binds the Idea Generator, Validator, Red Team and, for §8, the
-Coordinator: premature closure fails like overclaiming; a closure needs a
-named obstruction, recorded as a measured `obstruction` block with a
-`resource_check`, an argument and forward guidance (a count of rejected
-mechanisms is `unverified`); a signal is an artifact until run against a null
-object of the same shape; deliverables claiming a comparative algorithmic
-advance carry a checked `dominated_by` and a quantitative `sota_delta`.
-Descriptive deliverables state their actual reference and uncertainty without
-inventing a competitive claim. A proof-oriented proposal carries a
-`proof_search_map` whose four cheap audits run before compute and before the
-Coordinator approves implementation.
-
-**Scheme construction** (signature, PKE, KEM, AKE proposals; scheme-security
-claims) meets the six obligations of `docs/scheme-construction-contract.md`
-and its YAML template: exact game, adversary model, oracles, assumptions,
-correctly directed reductions, named missing lifts. Template completeness and
-merge certify nothing.
+For algorithmic-complexity, inventor-protocol and scheme-construction work, follow the full binding [research-direction rule](docs/agent-contract-supplement.md#research-direction). It states the target profile, proof and cost obligations, controls against premature closure, and security-game requirements. Descriptive observations retain their actual scope and reference.
 
 ## Handoffs
 
@@ -405,9 +342,6 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 ## Concurrency: many agents, many worktrees
 
-Each rule exists because a writer was made to read shared state it had no
-reason to read (`docs/claude-code-runtime.md`, "Concurrency").
-
 - **Generated artifacts are never committed**: `knowledge/INDEX.md`,
   `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
   rebuilt on demand; only `main-health.yml` writes the committed
@@ -416,14 +350,27 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
 - **Continue through the PR** (user, 2026-10-14; supersedes the 2026-10-09
-  stop rule): open it ready for review, never as a draft unless the user asks.
-  The authoring session follows its PR through CI, review, conflict resolution,
-  and merge or closure. A ready PR is not a stopping point. Any model tier may
+  stop rule): open it ready for review, never as a draft unless the user asks
+  (`docs/ci-tiers.md`). Work for an
+  existing research lane goes to its `lane/<lane>` branch with
+  `scripts/lane-push.sh <lane>`, not a new PR, and a PR's head stays within 30
+  CI checks (`ci:over-budget` otherwise). The authoring session follows its PR through CI, review, conflict resolution,
+  and merge or closure. Any model tier may
   fix its own PR's failures and merge it under the same gates. Subscribe to PR
   activity when supported; otherwise use spaced check-ins, not busy polling or
   a foreground wait on CI. Check in about 50 minutes after activity, then about
   four hours apart if nothing changes; stop after three unchanged check-ins,
   merge or closure, or an instruction to stop. New activity resets the count.
+- **Auto-merge is on by default** (user, 2026-10-24): the moment a PR against
+  `main` is open and ready for review, enable GitHub auto-merge
+  (`gh pr merge <n> --auto --merge`), then keep the normal check-in flow; do
+  not poll it to completion. Auto-merge exists only when the base is the
+  repository's default branch: a PR based on a feature branch (stacked work)
+  can never be auto-merged, so retarget it to `main` once its parent lands, or
+  merge the stack bottom-up by hand. Enabling auto-merge waives no gate below:
+  required checks, review and approvals still decide, and a failure is fixed,
+  never merged. If the user asks to leave the PR open or wait for review,
+  disable auto-merge (`gh pr merge <n> --disable-auto`) so it stays open.
 - **Merge** the PR for the current user task when its final diff is complete,
   the current head has all required and applicable checks successful (or
   legitimately skipped), no check pending (except as below) or failed, no
@@ -432,19 +379,17 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   logs and fix failures caused by the change; report unrelated failures with
   evidence on the PR. A new commit resets the current-head checks. Never skip,
   disable, or rerun a check merely to get green, and never bypass branch
-  protection or required review. Prefer GitHub auto-merge where useful; use a
-  merge commit and an expected-head guard where supported. Confirm the merged
-  state and merge commit before reporting success. A merge is a git operation,
+  protection or required review. Use a merge commit and an expected-head guard
+  where supported.
+  Confirm the merged state and merge commit before reporting success. A merge
+  is a git operation,
   not a research-state transition. If a concrete gate prevents merging, name
   it on the PR and continue the check-in flow; do not treat a ready PR as done.
-- **Checks that never start do not block** (owner, 2026-10-23). A check that
-  no branch-protection rule or ruleset requires, and that has been queued for
-  24 hours or more without starting (no runner picked it up), does not hold
-  the merge, provided every check that did run on the current head passed.
-  Name each such job and how long it waited in the merge commit message. A
-  required check never falls under this: if one has not run, the PR waits and
-  the session says so on the PR. A check that started and is still running is
-  pending, not stuck.
+- **Checks that never start do not block** (owner, 2026-10-23). A nonrequired
+  check queued for at least 24 hours without a runner may be excluded only if
+  every check that ran on the current head passed. Name it and its wait in the
+  merge commit. Required checks always wait; report their absence on the PR.
+  A started, running check remains pending.
 - **Archive receipts bind to content first**: `path_sha256` verified, commit
   reachability advisory, a content mismatch fatal.
 - **Goal checkpoints are one write-once file per batch**
@@ -532,6 +477,15 @@ digests and stable artifact locations. Never replace a raw capture with a
 summary, overwrite a prior attempt, or discard an unfavorable result; each
 rerun gets a distinct record.
 
+## Data files live in the artifact store
+
+Owner, 2026-10-24: any non-code file over 1 MiB, and any data-suffixed file
+(`.jsonl`, `.gz`, `.npy`, logs, archives) over 64 KiB, lives in
+`s3://setec-astronomy-artifacts` with a `.artifacts.json` manifest in its
+directory, moved with `tools/artifacts/artifacts.py push` (not `git add`) and
+read after `pull`. The `artifacts` CI check fails a PR that adds one to Git.
+Never delete remote objects. See [`docs/artifacts.md`](docs/artifacts.md).
+
 ## Papers
 
 For manuscripts, follow [the paper contract](docs/agent-contract-extended.md#papers). Its layout, evidence, anonymity, submission, and build requirements are binding.
@@ -562,16 +516,8 @@ Before weak-curve, CM, endomorphism, or isogeny claims, follow [the full audit r
 
 ## Cursor Cloud specific instructions
 
-Use `/usr/local/bin/python3` (CPython 3.12.8, `.python-version`), never the
-image's Ubuntu `/usr/bin/python3`: its builtin `_md5` fails
-`tests/test_harness.py::test_md5_pin_mechanism_real_registry_is_distinct`.
-Install the CI extras, not only `make install` (`.[agent,dev]`):
-`python3 -m pip install -e ".[dev,agent,campaign-mcp,research-loop,gf2]"`.
-`autoresearch` and `pytest` land in `~/.local/bin`, linked into
-`/usr/local/bin`; `python3 -m pytest` and `python3 -m orchestration` work
-either way. `autoresearch doctor` needs no API keys; `.env.example` variables
-serve only token-spending commands. Dashboard:
-`GITHUB_REPOSITORY=aburan28/crypto-autoresearcher python3 -m ui --host
-127.0.0.1 --port 8787` (unset, source links come from `origin`, whose Cloud
-Agent remote embeds a credential). `formal/setup.sh` (Lean) is not part of
-this environment.
+On Cursor Cloud, follow the binding [environment instructions](docs/agent-contract-supplement.md#cursor-cloud-specific-instructions) for Python, extras, dashboard and Lean setup.
+
+## Progress metrics (daily lab report)
+
+When changing tracked results, follow the binding [daily progress-metrics rule](docs/agent-contract-supplement.md#progress-metrics-daily-lab-report): extend the exporter in the same PR, retain stable metric ids and emit only measured, committed values.

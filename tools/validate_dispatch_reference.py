@@ -3,11 +3,15 @@
 
 Forwarding records have no runnable tasks or independent claim namespace. The
 dispatcher CLI and this CI entry point verify their custody/routing bindings
-before resolving the sole canonical queue. Unknown schemas are refused.
+before resolving the sole canonical queue. An explicit hash-bound historical
+negative fixture must still fail native admission and independently verify its
+preservation evidence; its CI receipt is never a dispatch plan. Unknown schemas
+are refused.
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -26,6 +30,7 @@ import validate_ledger as ledger
 
 QUEUE_SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 FORWARD_SCHEMA = "crypto.autoresearch.dispatch_queue_forward.v1"
+REFUSAL_REGISTRY = "tools/archived_queue_refusals.json"
 
 
 def require(condition: bool, message: str) -> None:
@@ -40,6 +45,108 @@ def inside(root: Path, relative: str) -> Path:
     resolved = (root / path).resolve()
     require(resolved.is_relative_to(root), "path escapes repository")
     return resolved
+
+
+def bound_document(root: Path, binding: dict) -> dict:
+    require(isinstance(binding, dict), "missing archived-refusal binding")
+    digest = binding.get("sha256")
+    require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest) is not None,
+            "invalid archived-refusal SHA256")
+    path = inside(root, binding.get("path"))
+    data = path.read_bytes()
+    require(hashlib.sha256(data).hexdigest() == digest,
+            f"archived-refusal hash mismatch: {binding['path']}")
+    document = json.loads(data)
+    require(isinstance(document, dict), "archived-refusal input must be an object")
+    return document
+
+
+def archived_refusal(queue: Path, root: Path) -> dict | None:
+    """Check a bound historical rejection; never return a runnable route."""
+    root = root.resolve()
+    queue = queue.resolve()
+    require(queue.is_relative_to(root), "queue escapes repository")
+    registry_path = inside(root, REFUSAL_REGISTRY)
+    if not registry_path.exists():
+        return None
+    registry = json.loads(registry_path.read_text())
+    require(isinstance(registry, dict)
+            and registry.get("schema") == "archived-queue-refusals-v1",
+            "invalid archived-refusal registry")
+    entries = registry.get("entries")
+    require(isinstance(entries, list), "archived-refusal entries must be a list")
+    by_path = {}
+    for entry in entries:
+        require(isinstance(entry, dict) and isinstance(entry.get("queue"), dict),
+                "invalid archived-refusal entry")
+        source = entry["queue"].get("path")
+        inside(root, source)
+        require(source not in by_path, "duplicate archived-refusal path")
+        by_path[source] = entry
+    entry = by_path.get(queue.relative_to(root).as_posix())
+    if entry is None:
+        return None
+    require(entry.get("execution_authorized") is False,
+            "archived refusal cannot authorize execution")
+    original = bound_document(root, entry["queue"])
+    refusal = bound_document(root, entry.get("refusal"))
+    preservation = bound_document(root, entry.get("preservation_queue"))
+    receipt = bound_document(root, entry.get("preservation_receipt"))
+    expected = entry.get("expected_native_error")
+    require(isinstance(expected, str) and bool(expected), "missing expected refusal")
+    require(refusal.get("schema") == "crypto.autoresearch.native_archive_refusal.v1"
+            and refusal.get("queue") == entry["queue"]["path"]
+            and refusal.get("native_gate") == "tools.research_dispatch.validate_queue"
+            and refusal.get("exception") == "DispatchError"
+            and refusal.get("detail") == expected
+            and refusal.get("archive_created") is False,
+            "archived refusal evidence mismatch")
+    import research_dispatch as dispatch
+
+    verifier = dispatch.GitRepositoryVerifier(root)
+    try:
+        dispatch.validate_queue(copy.deepcopy(original), repository_verifier=verifier)
+    except dispatch.DispatchError as error:
+        require(str(error) == expected, "unexpected native refusal")
+    else:
+        raise ValueError("archived negative queue unexpectedly admitted")
+    require(receipt.get("schema") == "crypto.autoresearch.partial_output_preservation_receipt.v1"
+            and receipt.get("original_executor_task_state") == "failed"
+            and receipt.get("original_run_status") == "infrastructure_error"
+            and receipt.get("scientific_driver_started") is False
+            and receipt.get("original_declared_missing_files_preserved_as_absent") is True,
+            "preservation receipt changes the failed-run boundary")
+    completed = receipt.get("preservation_queue")
+    require(isinstance(completed, dict), "missing completed preservation queue")
+    require(original.get("goal_id") == preservation.get("goal_id") == completed.get("goal_id"),
+            "preservation goal mismatch")
+    dispatch.validate_queue(copy.deepcopy(preservation), repository_verifier=verifier)
+    dispatch.validate_queue(copy.deepcopy(completed), repository_verifier=verifier)
+    require(not verifier.content_only_archives, "preservation requires available Git archive proof")
+    normalized = copy.deepcopy(completed)
+    require(len(normalized["tasks"]) == len(preservation["tasks"]),
+            "preservation task count changed")
+    completed_count = 0
+    for current, previous in zip(normalized["tasks"], preservation["tasks"]):
+        if current == previous:
+            continue
+        require(current.get("state") == "completed" and previous.get("state") == "queued"
+                and current.get("archive", {}).get("kind") == "snapshot",
+                "unexpected preservation task change")
+        for path, digest in current["archive"]["path_sha256"].items():
+            require(hashlib.sha256(inside(root, path).read_bytes()).hexdigest() == digest,
+                    f"preserved working bytes differ: {path}")
+        current["state"] = previous["state"]
+        for field in ("commit_sha", "parent_sha", "path_sha256"):
+            current["archive"][field] = previous["archive"][field]
+        completed_count += 1
+    require(completed_count == 1 and normalized == preservation,
+            "preservation receipt is not the exact archived queue completion")
+    return {"schema": "crypto.autoresearch.archived_queue_refusal_check.v1",
+            "queue_path": entry["queue"]["path"], "queue_sha256": entry["queue"]["sha256"],
+            "expected_native_error": expected, "expected_refusal_reproduced": True,
+            "preservation_native_verified": True, "queue_admitted": False,
+            "execution_authorized": False}
 
 
 def canonical_queue(queue: Path, root: Path) -> Path:
@@ -122,6 +229,14 @@ def main() -> int:
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
     try:
+        negative = archived_refusal(args.queue, args.repo_root)
+        if negative is not None:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.report.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(negative, indent=2) + "\n")
+            args.report.write_text("Archived queue remains refused. Exact expected native rejection "
+                                   "and separately bound preservation evidence verified.\n")
+            return 0
         target = canonical_queue(args.queue, args.repo_root)
     except (OSError, ValueError, subprocess.CalledProcessError, yaml.YAMLError) as error:
         print(f"queue reference error: {error}", file=sys.stderr)
