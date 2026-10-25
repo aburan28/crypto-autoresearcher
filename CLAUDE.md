@@ -1,7 +1,8 @@
 # CLAUDE.md
 
 Read [AGENTS.md](AGENTS.md), the only normative contract for every runtime,
-including Claude Code. The earlier long form and typical loop remain in
+including Claude Code; its rules include "ECC comes first" and
+"Goals are never paused". The earlier long form and typical loop remain in
 [docs/claude-code-runtime.md](docs/claude-code-runtime.md).
 
 ## Claude Code specifics
