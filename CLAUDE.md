@@ -4,6 +4,9 @@ Read [AGENTS.md](AGENTS.md), the only normative contract for every runtime,
 including Claude Code. The earlier long form and typical loop remain in
 [docs/claude-code-runtime.md](docs/claude-code-runtime.md).
 
+The AGENTS.md rules “ECC comes first” and “Goals are never paused” also bind
+Claude Code; their full requirements and limits are stated there.
+
 ## Claude Code specifics
 
 - Batch delivery follows AGENTS.md, "Model policy".
