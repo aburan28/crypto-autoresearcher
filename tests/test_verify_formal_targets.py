@@ -132,7 +132,6 @@ def test_explain_survives_a_missing_receipt(tmp_path, capsys):
     """Verification can fail before any receipt exists; triage must not crash."""
 
     module = gate()
-    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     assert module._explain(tmp_path / "absent.json") == ""
     assert "could not read receipt" in capsys.readouterr().err
 
