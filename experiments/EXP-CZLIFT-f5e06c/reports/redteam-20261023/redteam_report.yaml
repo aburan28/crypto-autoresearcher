@@ -1,0 +1,590 @@
+red_team_report:
+  id: RT-20261023-fbf42f
+  task_id: TASK-20261023-e5df50
+  review_plan_id: REVIEW-CZLIFT-F5E06C-EVIDENCE-20261023
+  goal_id: GOAL-CZLIFT-1516d5
+  experiment_id: EXP-CZLIFT-f5e06c
+  hypothesis_id: H-CZLIFT-bd2017
+  target_hypotheses_of_the_tier_move: [H-CZLIFT-889c9d, H-CZLIFT-6d4ed1]
+  recorded_at: '2026-10-23'
+  reviewer_policy: review-adversarial (independent session; producer interpretation read only where it is in read_scope, i.e. DEC-20261009-44c288)
+  snapshot_reviewed: >-
+    14a328a264 (named by the task). HEAD at review time was 5e45fb193b, three later commits that add other experiments'
+    red-team reports. git diff 14a328a264..HEAD and 14a328a264..working-tree over every read_scope path is empty, so the
+    bytes reviewed are the snapshot's bytes.
+  run_ids:
+  - RUN-CZLIFT-032a92   # seed 20261009
+  - RUN-CZLIFT-6447f0   # seed 20261010
+  claim_under_review: >-
+    On 24 class-number-one CM anomalous curves and 16 CM-canonical plus 8 random-lift non-anomalous curves sampled
+    with 10^4 <= p <= 10^5: rule_agreement = 1 and nondegenerate_success_rate = 1 for Smart's attack against the
+    canonical lift (precision 8), the five torsion-section rates equal 1 with identity_rate 1 for every section
+    (precision 4), and every success rate sits within 4 standard errors of 1/p, moving the claim tier of
+    H-CZLIFT-889c9d and H-CZLIFT-6d4ed1 from toy to medium.
+
+  joint_verdicts:
+    R1: breaks
+    R2: breaks
+    PTM-1: holds
+
+  joints:
+    R1:
+      joint: The medium-scale run replicates H-CZLIFT-889c9d and H-CZLIFT-6d4ed1 and justifies moving their claim tier
+        from toy to medium.
+      verdict: breaks
+      breaking_artifact_found: >-
+        A tier move the data cannot carry. The repository derives the tier mechanically: "toy: max field bit size
+        <= 32; medium: 32 < max field bit size <= 96" (docs/claims-and-verification.md, lines 123-127). The largest
+        field here is F_p with p = 97813 < 2^17, so both runs contribute toy-tier evidence. The p-adic working precision
+        (p^8, about 133 bits) is a ring Z/p^8, not a larger field, and does not change this. In addition, two
+        prediction clauses of the target hypotheses cannot be evaluated at this scale (R2, and the arm difference
+        below). Their tier cannot move on these runs even under a looser reading of "medium".
+      evidence:
+      - id: R1-a
+        finding: Tier label contradicts policy.
+        detail: >-
+          specification.yaml scale_relevance.tier reads "medium" and manifest inputs.parameters.tier reads "medium",
+          but by the mechanical rule a p <= 10^5 run is toy. The spec is frozen and stays as it is; the evidence record
+          and decision must carry claim_tier toy and note the mislabel. The last clause of the H-CZLIFT-bd2017
+          statement ("moving the claim tier ... from toy to medium") is therefore not achievable by this design,
+          whatever the data show.
+      - id: R1-b
+        finding: Clause-by-clause comparison with the target hypotheses (scope widened by the Coordinator to read them).
+        H-CZLIFT-889c9d:
+        - clause: v_p(z([p]P^)) >= 2 iff v_p(j(E^) - j_can) >= 2e
+          medium_result: >-
+            Holds on every row. Both seeds have 0 disagreements in 2304 rows. The rows are not 2304 independent tests.
+            Each lift class sits at exactly one lift distance: for e = 1, pert_p has v_dj = 1, pert_p2 has 2, and
+            canonical/isomorphic have 8 (capped); for e = 3 these are 3, 6 and 8 (rt_power_and_design.json
+            A_design.v_dj_by_class_and_e). Degeneracy is a property of the curve lift, not of the point lift. The
+            effective units are 164 distinct curve x class cells over 41 distinct curves, giving a 95% upper bound
+            on the disagreement rate of 1.81% per cell (7.0% per curve). For e = 3 the levels 4 and 5 cannot occur in
+            short Weierstrass form (v_dj is a multiple of 3), so the 2e = 6 threshold is not distinguished from 4
+            or 5 (VAL-20261022-1d018a limitation 3).
+          replicated: >-
+            Yes, at toy tier and over a wider p range. The validator's sealed code (J3, j2j3_independent.py) gives
+            the same 2/1/2 valuation pattern on all 48 curve draws, so this clause has independent-code
+            corroboration.
+        - clause: nondegenerate (v = 1) Smart ratio equals d
+          medium_result: >-
+            576/576 per seed, all in the pert_p class. The validator's independent sampled replay, which imports only
+            sealed blind code, gave 96/96.
+          replicated: yes (toy tier; positive control of Smart's theorem)
+        - clause: degenerate next-digit ratio equals d at the random rate 1/p
+          medium_result: 0/1728 per seed against 0.059 and 0.056 expected. The test has no power (R2).
+          replicated: no. This clause still rests on the toy run alone.
+        - clause: test_boundary was every CM anomalous curve with 7 <= p <= 1500 (29 curves, exhaustive)
+          medium_result: >-
+            A sample, not a census. Exactly 84 class-number-one CM anomalous primes lie in [10^4, 10^5]
+            (rt_population.json, an independent count that matches the sampler's 84 candidates in ptm1.json). The
+            two seeds share 7 of 24 curves and cover 41 of 84 (49%). D = -3 is 20 of the 48 draws, and D = -11 only
+            3.
+        H-CZLIFT-6d4ed1:
+        - clause: five torsion rates = 1 (canonicity, homomorphism, degeneracy, reduction, scalar equivariance)
+          medium_result: >-
+            288/288 per seed on 48 distinct curves (0 shared between seeds), with n in [109, 93001]. The 95% upper
+            bound on the failure rate is 0.52% per pair and 6.05% per curve.
+          replicated: >-
+            Same-code only. The validator records that per-row torsion booleans were checked by recomputing
+            aggregates and by a byte-identical replay of the producer code, not by an independent implementation of
+            the torsion section (VAL-20261022-1d018a limitation 4).
+        - clause: identity_rate (Smart ratio equals the tau-ratio) = 1
+          medium_result: 1.0 on all 9 section x arm cells, both seeds
+          replicated: >-
+            Same-code only. The non-vacuity control holds: hom_prec2 = 0.0 and frac_valuation_1 = 1.0, so the
+            comparison predicates discriminate.
+        - clause: success rate within 4 SE of 1/p on both arms
+          medium_result: 0/288 per section per seed against 0.0075 and 0.0085 expected. No power (R2).
+          replicated: no
+        - clause: cm_canonical and random_naive rates differ by at most 3 SE
+          medium_result: >-
+            Not evaluated. arm_difference.*.z_score is null on both seeds because the pooled rate is 0, so the SE is
+            0 (manifest torsion.arm_difference).
+          replicated: no. This clause has no medium-scale datum at all.
+        - clause: the statement covers ANY lift ("on the canonical curve lift and on an arbitrary lift alike")
+          medium_result: >-
+            The design confounds lift type with curve type. cm_canonical means CM curves on their canonical model,
+            and random_naive means random curves on their integer coefficients. No arm puts a non-canonical lift on
+            a CM curve, so "alike" is tested only through a contrast where both factors change together. This is
+            inherited from the toy design (H-CZLIFT-6d4ed1 test_boundary).
+        - clause: torsion cost within 2(bits(n) + bits(p^k)) + 1 complete additions
+          medium_result: >-
+            True. The mean is 107.17 and 107.75 additions per lift, against summed bounds of 42576 and 41928. This
+            is one tier with no exponent, and the O(log n + k log p) claim is double-and-add, a theorem.
+      - id: R1-c
+        finding: What "replicated" can mean here.
+        detail: >-
+          docs/evidence-and-reproducibility.md defines replicated as "reproduced from a clean run, preferably
+          independently". The two runs are clean, but they use the same hash-bound lane-1 drivers on a new sampler.
+          They therefore test whether the toy instrument's exact identities persist on new curves at larger p. They
+          cannot detect a shared-code artifact. Independence exists only where the validator's sealed code reached:
+          the anomalous valuation pattern on all 48 curve draws, the sampled anomalous attack outcomes, and the
+          sampled non-torsion-section outcomes on 16 torsion curves. It does not reach the torsion-section
+          identities. The mechanism field of H-CZLIFT-bd2017 says nothing in the measurement depends on p, so a flat
+          result at exactly 1.0 is what the theorem predicts, not an artifact tell. It also means the larger p adds
+          instance coverage, not a new regime.
+      - id: R1-d
+        finding: Claim-text defects.
+        detail: >-
+          (i) "every |z| < 0.1", wording from the earlier plan REVIEW-CZLIFT-F5E06C-20261022 as recorded in
+          VAL-20261022-1d018a, is false: anomalous.degenerate_z_score is -0.24321 (seed 20261009) and -0.23607
+          (seed 20261010). More fundamentally, every recorded z equals -sqrt(sum 1/p_i), a function of the design
+          alone, to within 1.1e-15 (R2-b), so no |z| statement of any size is a measurement. (ii) "nondegenerate_success_rate = 1 for Smart's
+          attack against the canonical lift" misplaces the success. Every nondegenerate row is a pert_p,
+          non-canonical lift. On the canonical lift Smart's attack degenerates on 576/576 rows per seed. (iii) "8
+          random-lift non-anomalous curves" are random curves with a naive integer lift, not random lifts of a fixed
+          curve. (iv) H-CZLIFT-bd2017 interpretation_limits says "CM curves only at medium scale", yet the torsion arm
+          includes 8 random curves per seed. The limit applies to the anomalous arm only.
+      what_survives: >-
+        A toy-tier, same-driver replication of the exact clauses at larger p. On the anomalous arm these are the
+        rule at lift distances {1, 2, >=8} (e = 1) and {3, 6, >=8} (e = 3) and Smart's recovery on pert_p lifts, with
+        independent-code corroboration. On the torsion arm they are the five torsion rates, the tau-ratio identity
+        and the cost bound, with same-code evidence only.
+
+    R2:
+      joint: The 1/p tests at this scale can detect anything.
+      verdict: breaks
+      breaking_artifact_found: >-
+        A clause whose outcome is decided by one coin flip, presented as a measurement. On seed 20261010 a single
+        chance success in the 1728 anomalous degenerate rows gives z = 4.0001 and fails the frozen |z| <= 4 bound. On
+        seed 20261009 one success gives z = 3.8686 and passes, and two are needed. Whether one event falsifies a seed
+        thus depends on the fifth significant digit of that seed's mean 1/p. Under the hypotheses' own rate (1/p)
+        that event has probability 0.0542.
+      evidence:
+      - id: R2-a
+        finding: Expected counts and single-event thresholds (rt_power_and_design.json B_null_distribution_per_cell).
+        per_seed:
+          RUN-CZLIFT-032a92: >-
+            Anomalous degenerate: n = 1728, lambda = 0.05915, z(0) = -0.243211, z(1) = 3.8686, 2 successes needed for
+            z > 4, P(S = 0 | 1/p) = 0.9426. Torsion per section (all): n = 288, lambda = 0.00754, z(1) = 11.43
+            (cm arm 15.81, random arm 16.67).
+          RUN-CZLIFT-6447f0: >-
+            Anomalous degenerate: n = 1728, lambda = 0.05573, z(0) = -0.236071, z(1) = 4.0001, 1 success needed,
+            P(S >= 1 | 1/p) = 0.0542. Torsion per section (all): n = 288, lambda = 0.00846, z(1) = 10.78.
+      - id: R2-b
+        finding: Null-object control. The recorded z is a design function.
+        detail: >-
+          With 0 successes, pooled z = -sqrt(n qbar / (1 - qbar)), which depends only on the sampled p values. In
+          every frozen cell on both seeds, the recorded z equals this design-only value to within 1.1e-15
+          (z_recorded_minus_design_only_z0). A section that never succeeds, an object for which "rate = 1/p" is known
+          false, reproduces every recorded z exactly and passes the clause with probability 1.0000. A uniform random
+          guess of d reproduces the recorded all-zero outcome with probability 0.850. The measurement is a controlled
+          null.
+      - id: R2-c
+        finding: Evidential weight of the observed outcome.
+        detail: >-
+          Total expected successes under 1/p, both seeds, are 0.163. P(all zero | 1/p) = 0.850 and P(all zero |
+          rate 0) = 1, so the Bayes factor of 1/p against 0 is 0.85 (log10 = -0.071). The data do not distinguish
+          the predicted rate from zero, which is the repository's definition of inconclusive.
+      - id: R2-d
+        finding: Operating characteristic of the frozen clauses, exact Poisson-binomial over the recorded p_i.
+        table:
+          rate_0: {pass_both: 1.0000, falsify_both: 0.0000}
+          rate_1_over_p (the prediction): {pass_both: 0.8999, falsify_both: 0.0019, inconclusive: 0.0982}
+          rate_2_over_p: {pass_both: 0.8074, falsify_both: 0.0076}
+          rate_5_over_p: {pass_both: 0.5738, falsify_both: 0.0464}
+          rate_10_over_p: {pass_both: 0.3121, falsify_both: 0.1653, inconclusive: 0.5226, torsion_arm_only_falsify_both: 0.0454}
+          rate_20_over_p: {pass_both: 0.0839, falsify_both: 0.4614, torsion_arm_only_falsify_both: 0.1450}
+          rate_50_over_p: {pass_both: 0.0011, falsify_both: 0.9178, torsion_arm_only_falsify_both: 0.4876}
+          rate_100_over_p: {pass_both: 0.0000, falsify_both: 0.9978, torsion_arm_only_falsify_both: 0.8260}
+          rate_p^-1/2: {falsify_both: 1.0000, torsion_arm_only_falsify_both: 0.9735}
+        reading: >-
+          The clause cannot tell 1/p from 0, and by design it passes 0 more surely than it passes 1/p. Its lower
+          side (z < -4) is unreachable, because z(0) >= -0.25. It has no useful power against any rate below about
+          20/p. On the non-anomalous (torsion) arm, a section 10 times better than random is falsified on both seeds
+          with probability 0.045. The clause does retain one use: it screens out gross excess, rates of about 50/p to
+          100/p and above, including any p^-1/2 rate.
+      - id: R2-e
+        finding: Upper bounds the data do support. Exact one-sided Clopper-Pearson 95% with 0 successes; units are
+          probability per (curve lift, section, (P, d)) row.
+        values:
+          anomalous_degenerate_per_seed: 1.732e-3 (51x and 54x the mean 1/p)
+          anomalous_degenerate_both_seeds: 8.66e-4 (26x mean 1/p; n = 3456)
+          torsion_per_section_per_seed: 1.035e-2 (352x to 395x mean 1/p)
+          torsion_per_section_both_seeds: 5.19e-3 (187x mean 1/p; n = 576)
+          torsion_all_sections_both_seeds_common_rate: 1.73e-3 (62x mean 1/p; n = 1728)
+        caveat: >-
+          These bounds treat rows as independent Bernoulli trials. Rows record neither d nor the computed ratio nor
+          the point, so the receipts cannot show whether the same (P, d) draws are reused across lift classes and
+          sections. If only the 24 x 8 = 192 (curve, draw) units per seed are independent, the anomalous bound
+          widens to 1.55e-2 per seed and 7.77e-3 over both seeds. I did not read the lane-1 drivers (outside
+          read_scope), so this is unverified either way.
+      decision_treatment: >-
+        Record the 1/p clauses of H-CZLIFT-bd2017 as inconclusive at this scale, not as met, and record nothing about
+        1/p. The only supportable statement is the upper bound in R2-e. Do not carry DEC-20261009-44c288's reading
+        "success rates of the non-canonical sections stay at 1/p" into any evidence record. The prediction's success
+        criterion was met on both seeds, and that is an observation about a test that had a 90% chance of passing
+        under the prediction and a 100% chance of passing under rate 0.
+
+    PTM-1:
+      object: A non-anomalous curve in range.
+      known_false_conclusion: The canonical-lift rule applies to non-anomalous curves.
+      verdict: holds
+      evidence:
+      - id: PTM1-a
+        detail: >-
+          Expected failure signature confirmed from the sealed validator output (ptm1.json). The twist of a sampled
+          anomalous curve (D = -67, p = 14087, #E = 14089), a sampled CM torsion curve (D = -11, p = 24029,
+          #E = 23901) and a sampled random torsion curve (p = 10007, #E = 9931) are all rejected by the anomaly check
+          with 0 rows. resolve_anomalous returns None for a non-norm p, and all 84 sampler candidates are trace-1
+          norms. My independent population count (rt_population.json) finds exactly 84 such primes, with D in
+          {-3, -11, -19, -43, -67, -163} and none for D = -4, -7 or -8, so the anomalous sampler's domain is that
+          population exactly.
+      - id: PTM1-b
+        detail: >-
+          The inference does not lean on non-anomalous curves for the rule, and the run's own data refute the
+          known-false conclusion. Each seed's torsion arm holds 192 rows of canonical lifts (exact CM model) of
+          non-anomalous CM curves, and on every one of them every non-torsion section has v_p = 1 (frac_valuation_1
+          = 1.0, vP = vQ = 1). The canonical-lift rule would predict degeneracy there. So the instrument rejects the
+          object and, separately, measures it as non-degenerate. The claim text confines the rule to the 24
+          anomalous curves per seed.
+      - id: PTM1-c
+        detail: >-
+          The generic check ("the inference never leans on curves the sampler could not produce") finds leaks in
+          the tier move, not in the PTM-1 object. They are recorded under R1 and in reduction_and_scope_challenges:
+          (i) H-CZLIFT-6d4ed1's ANY-lift clause relies on CM curves with non-canonical lifts, which no torsion arm
+          produces. (ii) No D = -7 or -8 CM curve appears in the 32 CM torsion draws; if the draw were uniform over
+          the RQ's 8 discriminants the chance would be (6/8)^32, about 1.0e-4. The sampler's D set should be
+          confirmed from the hash-bound sampler source, which I did not read. (iii) Every torsion curve has odd
+          order, n is the largest prime factor and n >= 101, matching H-CZLIFT-6d4ed1's odd-order assumption.
+      additional_proves_too_much_objects:
+      - object: A section that never succeeds (rate 0)
+        known_false_conclusion: its success rate sits at 1/p
+        result: >-
+          The argument goes through. It passes the frozen 1/p clause with probability 1.0000 and reproduces every
+          recorded z to within 1.1e-15. The survival happens in the frozen |z| <= 4 clause whenever E[S] < 0.1,
+          where z = -sqrt(lambda) by construction.
+      - object: A section with rate 10/p
+        known_false_conclusion: its success rate sits at 1/p
+        result: >-
+          It passes both seeds with probability 0.312 and is inconclusive with probability 0.523. On the torsion arm
+          alone it is falsified with probability only 0.045.
+      - object: A small-d leak, a section that succeeds for every d <= log2 p (the mechanism DEC-20261009-44c288 found
+          for the Z_p^* naive section, g^d < p)
+        known_false_conclusion: its success rate sits at 1/p
+        result: >-
+          It passes both seeds with probability 0.170 and is inconclusive with probability 0.524. Uniform d in
+          [2, p-2] hits the d <= log2 p stratum in about 1.5e-4 of rows at p ~ 10^5. For the torsion arm the modelled
+          rate understates the leak, because d ranges over [2, n-2] with n < p.
+
+  objections:
+  - id: O1
+    severity: decisive
+    text: >-
+      The tier move toy -> medium is not supported. Max field size is 17 bits, which the mechanical rule in
+      docs/claims-and-verification.md makes toy. The spec's tier label is a mislabel to disclose, not a scope to
+      inherit.
+  - id: O2
+    severity: decisive
+    text: >-
+      The 1/p clauses carry no evidence (Bayes factor 0.85 for 1/p against 0), the recorded z are design-determined,
+      and one chance success decides a seed. Record them as inconclusive at this scale.
+  - id: O3
+    severity: major
+    text: >-
+      The arm-difference prediction of H-CZLIFT-6d4ed1 was not evaluated (z null), so the medium run adds nothing
+      to it. Even where it can be evaluated, the arm contrast confounds canonical-vs-naive lift with CM-vs-random
+      curve.
+  - id: O4
+    severity: major
+    text: >-
+      Replication of the torsion-arm exact clauses is same-code only. Independent-code corroboration exists for the
+      anomalous valuation pattern (all 48 curve draws) and for sampled attack outcomes, not for the torsion-section
+      identities.
+  - id: O5
+    severity: minor
+    text: >-
+      Sample, not census. The anomalous design covers 41 of the 84 curves in range, with 7 of 24 repeated across
+      seeds, where the toy test was exhaustive. Lift-distance levels are fixed per class (e = 3 levels 4 and 5 are
+      unreachable). Rows inflate the apparent sample size about 24-fold for the rule.
+  - id: O6
+    severity: minor
+    text: >-
+      Claim wording. "every |z| < 0.1" is false. "Smart's attack against the canonical lift" succeeds on no
+      canonical row. "random-lift" curves are random curves with a naive lift.
+  - id: O7
+    severity: minor
+    text: >-
+      Rows record no d, ratio or point, so neither row independence nor partial leakage (a ratio near d, or bits
+      of d) can be checked from the receipts.
+
+  required_controls:
+  - id: C1
+    name: Ratio recording (cheapest mutation that turns the 1/p clause into a measurement)
+    text: >-
+      In a successor, record the computed ratio r and d per row and test the residue distribution: (r - d) mod p
+      uniform, r independent of d (chi-square on residues mod small m), and the near-miss fraction
+      |r - d|_p < p/100 against 2%. These tests have power about 1/sqrt(n) whatever p is, and they see partial
+      leakage that exact-hit counting cannot. The lane-1 drivers are hash-bound, so this needs a new driver version,
+      not an edit.
+  - id: C2
+    name: Structured-d stratum
+    text: >-
+      Add deliberate draws of d in [2, 64], d = 2^k and d = p - small. This exposes a bdae69-type sub-p mechanism
+      that uniform d cannot reach at p ~ 10^5.
+  - id: C3
+    name: Exhaustive anomalous census
+    text: >-
+      Run all 84 class-number-one CM anomalous primes in [10^4, 10^5]. At the recorded 10.9-11.2 s per 24 curves
+      plus 24 torsion curves, this is under a minute, and it matches the toy run's exhaustive design.
+  - id: C4
+    name: Deconfounded lift arm
+    text: >-
+      Add a CM-curve non-canonical-lift torsion arm (A + p r on the CM model, or the CM model reduced to [0, p) for
+      j != 0), so that "canonical vs arbitrary lift" is separated from "CM vs random curve".
+  - id: C5
+    name: Unit of analysis
+    text: >-
+      State whether (P, d) draws are shared across lift classes and sections. If they are, compute SEs and bounds
+      on the (curve, draw) unit.
+
+  counterexample_or_mutation: >-
+    A never-succeeding section, an object known not to be at 1/p, reproduces every recorded z of both runs to within
+    1.1e-15 and passes the frozen 1/p clause with probability 1. A 10/p section passes or is inconclusive with
+    probability 0.835. Script and outputs: rt_power_and_design.py / rt_power_and_design.json (section
+    C_operating_characteristic).
+
+  baseline_comparison: >-
+    No attack or cost claim is made. The anomalous arm is the classical Smart baseline (linear time on non-canonical
+    lifts), reproduced as a positive control, 576/576 per seed. On the non-anomalous arm, Pollard rho with negation
+    needs about sqrt(pi n / 4) group operations, about 270 at the largest n = 93001. BSGS needs about 2 sqrt(n), about
+    610 operations and sqrt(n) memory. A non-canonical-section "attack" re-randomised per attempt costs (attempts) x
+    (lift + [N]P^ at precision 4). With the 95% per-section bound 5.19e-3, that is at least 193 attempts of roughly
+    2 log2 N additions each, my estimate and not measured: about 6.5e3 additions over Z/p^4, against rho's 270 over
+    F_p. So even at the bound the section approach is dominated by rho at every tested size, and at the predicted
+    1/p rate it is dominated by a factor of about sqrt(p). The R2 weakness therefore does not affect the security
+    reading at the tested sizes. It affects only the claim that the rate is 1/p. No dominated_by field exists in
+    the reviewed records; with no cost claim there is nothing for it to carry.
+
+  heuristic_challenges:
+  - id: H1
+    text: >-
+      "Non-torsion sections recover d at the random rate 1/p" is a random-model assumption about the tau-map
+      (tau-ratio uniform on F_p and independent of d). It sits in predictions while heuristic_assumptions is []
+      in H-CZLIFT-889c9d, H-CZLIFT-6d4ed1 and H-CZLIFT-bd2017. Per the exemplar profile an unnumbered heuristic is an
+      objection. It should be stated, numbered and justified, or downgraded to an observation.
+  - id: H2
+    text: >-
+      Random-model transfer. The tau-ratio of a naive or Teichmuller section is a structured quantity. The sister
+      Z_p^* lane already showed the random model failing for its naive section on a structured d-subset of size about
+      log p (DEC-20261009-44c288, EXP-CZLIFT-bdae69: 24 of 33 successes were exactly the g^d < p pairs). The cheapest
+      experiments that would expose an elliptic analogue are C1 and C2. The medium design samples that subset with
+      probability about 1.5e-4 per row.
+
+  cost_model_challenges:
+  - id: K1
+    text: >-
+      torsion_cost_mean_additions (107.17 and 107.75 complete additions at precision 4) is a single-tier
+      observation consistent with the double-and-add bound. It supports no exponent, and bounds-and-frontiers
+      requires four sizes for one. There is no memory figure. The validator replay measured 55.2 MB peak RSS and
+      12.2 s wall per run.
+  - id: K2
+    text: >-
+      Per-attempt cost must not be read as total cost. Any attack reading of the sections must multiply by
+      1/success-rate, and at this scale that rate is known only through the R2-e upper bounds.
+
+  reduction_and_scope_challenges:
+  - id: S1
+    text: >-
+      The scope the runs cover. Anomalous arm: class-number-one CM anomalous curves, D in
+      {-3, -11, -19, -43, -67, -163}, p in [11719, 89269], 41 of 84 in-range curves, on their integral CM models and
+      four fixed lift classes. Torsion arm: CM curves (observed D in {-3, -11, -19, -43, -67, -163}) on their
+      canonical model and random curves on naive integer lifts, p in [10007, 97813], odd order, n = largest prime
+      factor of N, n in [109, 93001]. Precision 8 and 4 respectively, two seeds.
+  - id: S2
+    text: >-
+      The runs do not cover: non-CM anomalous curves, D = -7 or -8 CM curves in the torsion arm, non-canonical lifts
+      of CM curves in the torsion arm, even-order curves, n < 101, or any p above 10^5. They say nothing about a
+      deployed curve (spec out_of_scope).
+  - id: S3
+    text: >-
+      Closure scope. If RQ-CZLIFT-b9f765's decision target (a) closes on "every non-canonical section recovers d at
+      the random rate 1/p", this run contributes no evidence to that sentence (R2). The rigorous content of the
+      closure is the Hom(Z/n, Z_p) = 0 argument of H-CZLIFT-6d4ed1: any section's Smart ratio is its tau-ratio, so a
+      recovering section must itself compute the logarithm. That is a reduction, not a hardness statement. It
+      closes "the canonical torsion section is a break" and nothing broader about characteristic-zero lifts.
+
+  proof_architecture_challenges:
+  - id: P1
+    text: >-
+      Observation-fiber attack on the rule. For j != 0, j mod p^k fixes the Z_p-isomorphism class of a lift of E
+      mod p^k up to twists that change the reduction, so v_dj determines q mod p^v and the rule is a genuine
+      function of v_dj. No fiber split was found. For j = 0, the rule reduces to v_p(A) >= 2 in short Weierstrass
+      form, so "2e = 6" is not distinguished from 4 or 5. This is a vacuity of the threshold statement, not a break.
+  - id: P2
+    text: >-
+      Quantifier order. "For NO point lift on the canonical lift" (H-CZLIFT-889c9d) and "ANY lift"
+      (H-CZLIFT-6d4ed1) are universal statements tested on three section families and on two lift arms. They are
+      supported by the stated derivations, not by the sample, and the evidence record should say that the
+      measurement checks the instrument against the derivation.
+
+  narrowest_supported_statement: >-
+    At toy tier (max field size 17 bits), on two clean runs of the unmodified lane-1 drivers over a new sampler with
+    10^4 <= p <= 10^5, the exact clauses of H-CZLIFT-889c9d and H-CZLIFT-6d4ed1 hold with no exception. The
+    anomalous arm covers 41 distinct class-number-one CM anomalous curves of the 84 in range, with independent-code
+    corroboration of the valuations: the j-distance rule agrees at lift distances {1, 2, >=8} (e = 1) and {3, 6, >=8}
+    (e = 3), and Smart's attack recovers d on every pert_p lift. The torsion arm covers 48 distinct odd-order curves
+    with n in [109, 93001], with same-code evidence only: the five torsion-section rates and the tau-ratio identity
+    hold on every pair, and the torsion lift costs about 107 complete additions. Non-canonical sections succeeded
+    0 times in 3456 anomalous-degenerate and 1728 torsion rows. That bounds the per-row success rate below 8.7e-4 and
+    1.7e-3 (95%, independent rows assumed), which is consistent with 1/p and equally with 0. The 1/p and
+    arm-difference clauses are not tested at this scale.
+
+  strength_recommendation:
+    exact_clauses: >-
+      replicated at claim_tier toy. This is justified under the repository definition (clean runs; independent
+      corroboration for the anomalous valuations). The record must say the torsion-arm replication is same-code.
+    success_rate_1_over_p_clauses: inconclusive (data do not distinguish 1/p from 0; Bayes factor 0.85)
+    arm_difference_clause: not evaluated (no datum)
+    tier_move_to_medium: >-
+      Not justified. claim_tier stays toy for H-CZLIFT-889c9d, H-CZLIFT-6d4ed1 and this run's evidence. The
+      contribution is a wider-p toy replication, extending the p range from 7-1500 and 50-600 up to 10^5.
+    direction_for_H-CZLIFT-bd2017: >-
+      supports for the exact clauses. The tier clause of its statement is not met as posed (policy), and the 1/p
+      clause is inconclusive.
+
+  obstruction_reading:
+    obstructions_the_record_would_close:
+    - name: Canonical torsion section kills the formal logarithm; non-canonical sections give only the tau-ratio
+      measured_quantity: >-
+        Identity and torsion-rate failures: 0/576 pairs over both seeds, 95% UB 5.2e-3 per pair (6.1% per curve).
+        Non-canonical success: 0/1728 rows over both seeds and three sections, 95% UB 1.73e-3 per row (62x mean 1/p).
+        Per section: 0/576, UB 5.19e-3 (187x). Units are probability per (curve, section, (P, d)) row, at p in
+        [10^4, 10^5] and n in [109, 93001].
+      scope: S1
+      status_of_obstruction: >-
+        The vanishing is a theorem (Hom(Z/n, Z_p) = 0), checked here by the instrument. The "1/p rate" is a random-model
+        claim this run cannot test.
+    - name: Canonical curve lift degenerates Smart's attack on anomalous CM curves
+      measured_quantity: >-
+        Rule disagreements: 0 in 164 distinct curve x class cells, 95% UB 1.81% per cell. Degenerate next-digit
+        successes: 0/3456 rows, 95% UB 8.66e-4 per row (26x mean 1/p).
+      scope: S1, anomalous arm
+      status_of_obstruction: >-
+        This is a classical fact (a split p-torsion sequence on the canonical lift), and the anomalous curve stays
+        broken by any non-canonical lift. It is not an obstruction to the attack, only to one choice of lift.
+    resource_check:
+      examined: true
+      reading: >-
+        (1) Missed by the record: the instrument counts exact hits only, so the obstruction is silent on partial
+        leakage, meaning tau-ratios that are biased toward d or carry some bits of d. That is exactly the input a
+        hidden-number-problem or lattice attack takes as its hypothesis. "No section beats 1/p" does not imply "no
+        section leaks". C1 measures this. (2) The torsion section is itself a resource: a canonical, homomorphic lift
+        of E(F_p)[n] into E(Q_p)[n] at about 107 additions. Every p-adic analytic invariant vanishes on it by
+        Hom(Z/n, Z_p) = 0, and the only non-vanishing structure on the lifted points is l-adic for l | n, which is
+        the original problem. I found no exploitable reading there.
+      spawned_ids: []
+      note: Candidates for the ranking only, not evidence. No record was created; the red team does not allocate ledger records.
+
+  recalled_citations_checked:
+  - citation: N. P. Smart, The discrete logarithm problem on elliptic curves of trace one, J. Cryptology 12 (1999)
+    used_in: H-CZLIFT-889c9d structural_ingredients (provenance recalled, verified_by null)
+    result: >-
+      Bibliography confirmed: J. Cryptology 12(3):193-196 (1999), DOI 10.1007/s001459900052, preprint HP Labs
+      HPL-97-128. The record uses it only as the definition of the attack (formal-group logarithm after
+      multiplication by p), which matches the abstract-level description. A secondary source (CTF write-up, via
+      search summary) says the paper mentions canonical-lift failure "in passing". I could not retrieve the primary
+      text to confirm that. The record does not attribute the degeneracy rule to Smart (it derives it from
+      Serre-Tate), so there is no delta in what the record claims.
+  - citation: N. Katz, Serre-Tate local moduli, LNM 868 (1981)
+    used_in: H-CZLIFT-889c9d and H-CZLIFT-6d4ed1 (provenance recalled, verified_by null)
+    result: >-
+      Bibliography confirmed: in Surfaces Algebriques (Giraud, Illusie, Raynaud, eds.), Lecture Notes in Math. 868,
+      Springer 1981, pp. 138-202, DOI 10.1007/BFb0090648. The formal-torus parameter q with q(E_can) = 1 is the
+      paper's standard content, but I did not read the primary text. Delta: the relation v_p(q - 1) =
+      v_p(j(E^) - j_can)/e and the e = 3 ramification at j = 0 are the record's own derivation, not a statement
+      located in Katz, and should be labelled as derived. I checked the e = 3 step independently: the order-3
+      automorphism acts on the Serre-Tate torus by q -> q^c with c a primitive cube root of unity in Z_p, so the
+      quotient coordinate is t^3. That is consistent.
+  - citation: (surfaced, not cited) H. Gopalakrishna Gadiyar and R. Padma, arXiv:1702.07107 (2017), Smart attack,
+      non-canonical lifts and logarithmic derivatives over F_p
+    result: >-
+      This is the closest literature to the sister Z_p^* lane (EXP-CZLIFT-bdae69), not to these joints. I examined
+      the abstract only. Flagged for the literature map.
+
+  coordinator_must_not_claim:
+  - A medium claim tier for H-CZLIFT-889c9d, H-CZLIFT-6d4ed1 or this run's evidence (17-bit fields are toy by the mechanical rule).
+  - That success rates "stay at 1/p" or are "consistent with 1/p" as a finding. The data are equally consistent with 0, and the only supportable statement is the R2-e upper bound.
+  - That the arm-difference prediction was replicated (it was not evaluated).
+  - Independent replication of the torsion-section identities (same code only).
+  - '"every |z| < 0.1" (false; the anomalous z are -0.243 and -0.236), or any |z| as a measured closeness to 1/p.'
+  - That Smart's attack succeeds against the canonical lift (it degenerates on every canonical-class row).
+  - Any closure of RQ-CZLIFT-b9f765 beyond "the canonical torsion section is not a break", any closure resting on this run's 1/p numbers, or any deployed-curve statement.
+
+  next_concrete_action: >-
+    Design a successor contract that runs only the exact clauses on class-number-one CM curves with
+    33 <= bits(p) <= 96, the band the policy calls medium. Take the anomalous primes as p = (1 + |D| w^2)/4 and the
+    torsion orders from the CM norm form 4p = t^2 + |D| v^2, so no point counting is needed. Add C1 (record r and d
+    and test the residue distribution) and C4 (CM non-canonical lift arm), and drop the exact-hit z-test. One check
+    belongs in the design: whether the hash-bound lane-1 drivers count points internally, since their source was
+    outside my scope.
+
+  artifact_paths:
+  - experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/redteam_report.yaml
+  - experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/rt_power_and_design.py
+  - experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/rt_power_and_design.json
+  - experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/rt_population.py
+  - experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/rt_population.json
+  supporting_sha256:
+    rt_power_and_design.py: 5bc25b720886a5f2ac1ed5cf8a8d5f425298e546a2b8a491cb364548581bede4
+    rt_power_and_design.json: 8dde84d30169a51d8bbacf063b3e08a446d2c0d2fe15e5861a8aeda09b44d2e2
+    rt_population.py: fd43107a0c8bb9a9b4e635865d9ff78fb72269564d5e1bda7d83f06bb42c1742
+    rt_population.json: 43649a5d8862e1647b1c263307fab988f79a8ae91fa0af8a6b0720e255204795
+  reproduction: >-
+    python3 -I rt_power_and_design.py and python3 -I rt_population.py from this directory. Both are deterministic,
+    stdlib only, import no producer code, and run in under 5 s each on one core.
+  handoff: Report for the Coordinator's ledger archive task TASK-20261023-4d7449. Not committed by the red team.
+  inference_boundary: The report informs the Coordinator decision. It moves no status and is not evidence on its own.
+
+review_attestation:
+  task_id: TASK-20261023-e5df50
+  joints_owned: [R1, R2, PTM-1]
+  sources_read:
+    policy_and_contract:
+    - docs/agent-runtime-core.md
+    - agents/red-team.md
+    - ledger/handoffs/TASK-20261023-e5df50.yaml
+    - AGENTS.md (heading list via grep; lines 22-61 "Name the obstruction"; 359-371 "Review architecture"; 476-488 "Research states"; 500-512)
+    read_scope:
+    - experiments/EXP-CZLIFT-f5e06c/specification.yaml
+    - experiments/EXP-CZLIFT-f5e06c/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-bd2017.yaml
+    - ledger/questions/RQ-CZLIFT-b9f765.yaml
+    - ledger/decisions/DEC-20261009-44c288.yaml
+    - experiments/EXP-CZLIFT-f5e06c/implementation/run.py
+    - experiments/EXP-CZLIFT-f5e06c/implementation/check.py
+    - experiments/EXP-CZLIFT-f5e06c/reports/validation-20261022/validation_report.yaml (sealed report; blindness lifted for this task)
+    - experiments/EXP-CZLIFT-f5e06c/reports/validation-20261022/ptm1.json
+    - experiments/EXP-CZLIFT-f5e06c/reports/validation-20261022/j2_sampled_replay.py, j2j3_independent.py, ptm1.py (import and seal lines only, via grep)
+    - experiments/EXP-CZLIFT-f5e06c/runs/RUN-CZLIFT-032a92/manifest.yaml
+    - experiments/EXP-CZLIFT-f5e06c/runs/RUN-CZLIFT-6447f0/execution-receipt.json and stdout.log
+    - experiments/EXP-CZLIFT-f5e06c/runs/RUN-CZLIFT-032a92/raw-result.json and RUN-CZLIFT-6447f0/raw-result.json (by key, through my scripts; one row of each arm printed)
+    coordinator_granted_scope_expansion:
+      granted_by: Coordinator message to this session, mid-task, in reply to my read-scope question
+      note: The Coordinator stated it will record the widening as a procedure deviation in the archive.
+      paths:
+      - ledger/hypotheses/H-CZLIFT-889c9d.yaml
+      - ledger/hypotheses/H-CZLIFT-6d4ed1.yaml
+      - docs/claims-and-verification.md (lines 105-130, tier table and mechanical rule)
+      - docs/evidence-and-reproducibility.md (lines 1-30, strength scale)
+      - templates/research-records.md (lines 236-237, 336-341, 428-452, 628-640)
+      - rg match lines only for tier and "replicated" terms over AGENTS.md, docs/ and templates/
+    tools_and_metadata:
+    - git log --oneline (last 8 subjects), git cat-file and ls-tree for 14a328a264 over experiments/EXP-CZLIFT-f5e06c, git diff --stat 14a328a264..HEAD and 14a328a264..working tree over read_scope (both empty)
+    - tools/allocate_id.py (--help output; --check RT-20261023-fbf42f)
+    web:
+    - search results for Smart 1999 (doi.org and research-information.bris.ac.uk listings), the Katz LNM 868 bibliography, https://hxp.io/blog/25 and https://arxiv.org/abs/1702.07107
+    not_read:
+    - harness/*.py and the lane-1 drivers experiments/EXP-CZLIFT-17b7eb/implementation/run.py and EXP-CZLIFT-ae0a13/implementation/run.py (outside read_scope; their behaviour is taken from the validator's report and the raw rows)
+    - any other experiment's reports/, including every reports/redteam-20261023/ folder and the 17b7eb/ae0a13 validation reports
+    - experiments/EXP-CZLIFT-f5e06c/reports/validation-20261022/blind/* and the j1/j2 json outputs (verdicts taken from the sealed report)
+  read_sibling_reports: false
+  sibling_exposure_disclosure: >-
+    No sibling report was opened, listed or traversed, and git status was not run. The opening git log --oneline
+    printed three commit subjects naming sibling sealed red-team reports ("red team: sealed report for
+    EXP-CZLIFT-17b7eb / -1a3453 / -ae0a13", with their task ids). These are commit subjects only, with no paths or
+    contents.
+  write_scope_respected: >-
+    true. All files written are under experiments/EXP-CZLIFT-f5e06c/reports/redteam-20261023/. No run, ledger record
+    or validation report was modified, and nothing was committed. The scripts were run with python3 -I.
+  verdict: R1 breaks; R2 breaks; PTM-1 holds

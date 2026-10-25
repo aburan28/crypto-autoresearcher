@@ -90,8 +90,10 @@ step 2).
    treating the ideas as filed. The task must pass the dispatcher's post-commit
    verification.
 6. Push the branch and open or refresh a PR against `main` naming the new
-   `RQ-*`/`IDEA-*` records (see "Branch and PR hygiene"). A filed idea that
-   exists only in a local commit is not a proposal the program can use.
+   `RQ-*`/`IDEA-*` records, then enable auto-merge
+   (`gh pr merge <n> --auto --merge`; see "Branch and PR hygiene"). A filed
+   idea that exists only in a local commit is not a proposal the program can
+   use.
 7. Report to the user: one-line summary per idea (ID, class, claim,
    novelty status, cost) plus the generator's recommended first test, and
    end with `python3 tools/session_receipt.py --skill propose-ideas --role

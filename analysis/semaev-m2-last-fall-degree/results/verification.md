@@ -202,3 +202,63 @@ instance from its seed. All three files are byte-identical to the batch files
 Implementation A's solution count is 0 for all three. On these instances,
 $\dim W_3\cap B_{\le2}=5n-1$, the polynomial-basis count of Observation 2.4.
 P45a's $W_4$ adds no further quadratic.
+
+## Closure certificates for $1\notin W_4$ (`verify/cert_check.py`)
+
+Re-running the closure in pure Python is too slow for $n\ge35$ (about 5 hours at
+$n=45$, and the container that ran it was restarted three times). Proposition 1.5
+gives a cheaper check. `code/lfdclose2.c` writes the quotient map
+$\pi:B_{\le4}\to B_{\le4}/W_4$ when its fourth argument is a file name.
+`verify/cert_check.py` then checks, with its own descent of $S_3$ and without
+trusting how $\pi$ was made:
+
+- **(C0)** the listed monomials are exactly those of degree $\le4$, and $\pi$ is onto $\mathbb F_2^{nq}$;
+- **(C1)** $\pi(f)=0$ for every equation $f$;
+- **(C2)** $\pi(xu)=0$ for every variable $x$ and a basis $u$ of $\ker\pi\cap B_{\le3}$;
+- **(C3)** $\pi(1)\ne0$.
+
+The certificate file is canonical: it depends only on $W_4$ and the column
+order, not on the elimination (checked on R25a at degree 3 with three different
+chunk sizes, which give the same sha256).
+
+**Controls** (R25a, $D=3$, where $\dim M_3\cap B_{\le2}=74$ and $\dim W_3\cap B_{\le2}=75$):
+
+| certificate | result |
+|---|---|
+| `lfdclose2` closure | accepted |
+| `verify/make_cert_py.py` closure (pure Python, shares no code with `lfdclose2`) | accepted |
+| `verify/make_cert_py.py` Macaulay rows only, no closure | **rejected** at (C2) |
+| `lfdclose2` certificate with one bit flipped (8 random positions) | **rejected** (5 as "not onto", 3 at (C2)) |
+
+**Results** (full lines with the sha256 of each certificate: [`certificates.txt`](certificates.txt)).
+All were accepted. "nq" is the codimension of $W_4$ that the certificate proves, and
+$\dim W_4\cap B_{\le3}$ equals the value implementation A reports.
+
+| instance | $n$ | $V$ | variables | nq = codim $W_4$ | $\dim W_4\cap B_{\le3}$ |
+|---|---|---|---|---|---|
+| T33a, T33b | 33 | random $\subset\ker\operatorname{Tr}$ | 34 | 4888 | 2968 |
+| R35a, R35b, U35a, U35b | 35 | random | 36 | 5287 | 3885 |
+| Q35a, Q35b (satisfiable) | 35 | random | 36 | 5287 | 3885 |
+| P45a | 45 | polynomial | 46 | 12742 | 8950 |
+| C19a ($t=3$) | 19 | random | 40 | 9253 | 7000 |
+| C19b ($t=3$) | 19 | random | 40 | 6817 | 7420 |
+| R37a, R37b | 37 | random | 38 | 10066 | 4329 |
+
+For Q35a and Q35b the certificate proves $\operatorname{codim}W_4\ge5287$. With the
+solution counts 6 and 2 (Proposition 1.4), this gives $d_{\tilde F}\ge5$.
+For P45a it proves $1\notin W_4$. Unsatisfiability needs the solution count:
+
+**P45a solution count by implementation B** (`verify/indep_verify.py`, `COUNT_SHARD`, `NOCLOSURE=1`).
+It enumerates $s=X_1+X_2\in V$ with $\operatorname{Tr}s=\operatorname{Tr}\alpha$ and solves
+$X_1^2+sX_1=P$ through the half-trace, a different algorithm from `s3count2.c`. Three shards
+($g\equiv0,1,2 \bmod 3$ over the $2^{23}$ values of $s$), about 8000 s each:
+
+```text
+boolean solutions (ordered pairs) in shard 0/3: 0  [8011.7s]
+boolean solutions (ordered pairs) in shard 1/3: 0  [7996.5s]
+boolean solutions (ordered pairs) in shard 2/3: 0  [8018.1s]
+```
+
+The count is 0, as implementation A found. So P45a is unsatisfiable, its closure certificate
+gives $1\notin W_4$, and $d_{\tilde F}\ge5$. The shard split was checked against the unsharded
+count on eight $n=13$ instances (equal sums, including three with 2 solutions).

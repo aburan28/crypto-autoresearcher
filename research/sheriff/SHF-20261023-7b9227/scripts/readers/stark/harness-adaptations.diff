@@ -1,0 +1,399 @@
+--- harness-main.rs.orig	2026-10-23 00:30:42.966180655 +0000
++++ harness/src/main.rs	2026-10-23 00:39:05.965499169 +0000
+@@ -9,6 +9,10 @@
+ //! Output: one JSON object per line on stdout.  Rate rows ("kind":"rate")
+ //! measure the v1 escape probability against the documented spot-check
+ //! bound (1 - k/n)^q.  Seeds are deterministic (sha256 of a tag and index).
++//!
++//! ADAPTED 2026-10-23 (case3 reader) to crypto 6ed792e86: stark::verify(air, q, proof),
++//! stark_v2::verify(air, config, proof), statement-bound transcripts.  Every change is
++//! tagged `// ADAPT:` and listed in readers/stark.yaml.
+ 
+ use crypto_lib::bls12_381::fq::scalar_modulus;
+ use crypto_lib::hash::sha256::sha256;
+@@ -98,8 +102,9 @@
+         Err(_) => (false, true),
+     }
+ }
+-fn v1v(air: &Air, p: &StarkProof) -> (bool, bool) {
+-    guard(|| stark::verify(air, p))
++// ADAPT A1: the verifier's own query count is now an argument.
++fn v1v(air: &Air, q: usize, p: &StarkProof) -> (bool, bool) {
++    guard(|| stark::verify(air, q, p))
+ }
+ fn v2v(air: &AirV2, cfg: &StarkConfig, p: &StarkProofV2) -> (bool, bool) {
+     guard(|| stark_v2::verify(air, cfg, p))
+@@ -150,17 +155,18 @@
+     (0..t.len() - 1).filter(|&i| fr_mul(&t[i], &big(2)) != t[i + 1]).collect()
+ }
+ 
+-const V1_TAG: &str = "ZK-STARK/v1";
+ 
+ /// Cheating v1 prover: commits to an arbitrary trace, mirrors stark::prove's
+ /// transcript, and chooses the FRI depth (full fold, or zero folds) and q.
+-fn forge_v1(trace: &[BigUint], q: usize, full_fri: bool) -> StarkProof {
++// ADAPT A2: the forger absorbs the statement it forges for (tag, AIR id, n, boundaries, q,
++// FRI folds) exactly as stark::prove does; everything else unchanged.
++fn forge_v1(air: &Air, trace: &[BigUint], q: usize, full_fri: bool) -> StarkProof {
+     let n = trace.len();
+     let dom = subgroup(n);
+     let leaves: Vec<Vec<u8>> = trace.iter().map(to_bytes).collect();
+     let tree = MerkleTree::from_leaves(&leaves);
+     let root = tree.root();
+-    let mut ts = V1_TAG.as_bytes().to_vec();
++    let mut ts = stark::statement_transcript(air, q).expect("valid statement");
+     ts.extend_from_slice(&root);
+     let fri = if full_fri { fri_commit(trace, &dom, &mut ts) } else { fri_commit_to(trace, &dom, &mut ts, n) };
+     let pos = query_positions(&mut ts, q, n);
+@@ -188,28 +194,31 @@
+         .collect()
+ }
+ 
++// ADAPT A1: the verifier's q for every mutant row is the q the original rows were built with.
++const VQ: usize = 20;
++
+ fn run_v1(o: &mut Out) {
+     let n = 8;
+     let m = "stark_v1";
+     let honest = air1(n, big(1), big(128), dbl1());
+     let p_h = stark::prove(&honest, 20).unwrap();
+-    o.row("v1.H0_honest_prove_q20", m, "honest", "honest", Some(true), v1v(&honest, &p_h), true, "stark::prove(doubling 1->128, q=20)");
++    o.row("v1.H0_honest_prove_q20", m, "honest", "honest", Some(true), v1v(&honest, VQ, &p_h), true, "stark::prove(doubling 1->128, q=20)");
+ 
+     // H1: the cheating-prover tool reproduces stark::prove bit for bit.
+-    let p_f = forge_v1(&honest.execute(), 20, true);
++    let p_f = forge_v1(&honest, &honest.execute(), 20, true);
+     let same = p_f.trace_commitment_root == p_h.trace_commitment_root
+         && p_f.fri.layer_roots == p_h.fri.layer_roots
+         && v1_pos(&p_f) == v1_pos(&p_h);
+-    o.row("v1.H1_forge_tool_reproduces_prove", m, "honest", "honest", Some(true), v1v(&honest, &p_f), true,
++    o.row("v1.H1_forge_tool_reproduces_prove", m, "honest", "honest", Some(true), v1v(&honest, VQ, &p_f), true,
+         &format!("forge_v1 == stark::prove (roots, FRI roots, positions): {same}"));
+ 
+     // N1a: one tampered value (row 3 = 99), re-committed; statement 1->128 is
+     // TRUE but the witness breaks transitions 2->3 and 3->4.
+     let mut t = honest.execute();
+     t[3] = big(99);
+-    let p = forge_v1(&t, 20, true);
++    let p = forge_v1(&honest, &t, 20, true);
+     let pos = v1_pos(&p);
+-    o.row("v1.N1a_tampered_value_recommitted", m, "tampered_trace", "invalid_proof", Some(true), v1v(&honest, &p), false,
++    o.row("v1.N1a_tampered_value_recommitted", m, "tampered_trace", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false,
+         &format!("bad rows {:?}; positions {:?}; escape prob (6/8)^20=0.0032", bad_rows(&t), pos));
+ 
+     // N1b: the original M1 shape with the producer's prover: 1 -> 12345, one broken transition at row 6.
+@@ -218,38 +227,38 @@
+     let forged = stark::prove(&cheat, 20).unwrap();
+     let fpos = v1_pos(&forged);
+     let first_hit = fpos.iter().position(|&p| p == 6);
+-    o.row("v1.N1b_false_output_one_broken_row_q20", m, "tampered_trace", "false_statement", Some(false), v1v(&false_air, &forged), false,
++    o.row("v1.N1b_false_output_one_broken_row_q20", m, "tampered_trace", "false_statement", Some(false), v1v(&false_air, VQ, &forged), false,
+         &format!("stark::prove(cheat,20); positions {fpos:?}; first query on row 6 at index {first_hit:?}; row 7 is a no-op position; escape prob (7/8)^20=0.0692"));
+ 
+     // N2: wrong public input.
+     o.row("v1.N2a_wrong_public_output", m, "wrong_public_input", "false_statement", Some(false),
+-        v1v(&air1(n, big(1), big(129), dbl1()), &p_h), false, "honest 1->128 proof, verifier statement 1->129");
++        v1v(&air1(n, big(1), big(129), dbl1()), VQ, &p_h), false, "honest 1->128 proof, verifier statement 1->129");
+     o.row("v1.N2b_wrong_public_input_start", m, "wrong_public_input", "false_statement", Some(false),
+-        v1v(&air1(n, big(3), big(128), dbl1()), &p_h), false, "honest 1->128 proof, verifier statement 3->128");
++        v1v(&air1(n, big(3), big(128), dbl1()), VQ, &p_h), false, "honest 1->128 proof, verifier statement 3->128");
+ 
+     // N3: wrong AIR.
+     o.row("v1.N3a_wrong_air_tripling", m, "wrong_air", "false_statement", Some(false),
+-        v1v(&air1(n, big(1), big(128), trip1()), &p_h), false, "honest doubling proof, verifier AIR tripling 1->128 (false: 3^7=2187)");
++        v1v(&air1(n, big(1), big(128), trip1()), VQ, &p_h), false, "honest doubling proof, verifier AIR tripling 1->128 (false: 3^7=2187)");
+     o.row("v1.N3b_wrong_air_length", m, "wrong_air", "invalid_proof", Some(true),
+-        v1v(&air1(16, big(1), big(32768), dbl1()), &p_h), false, "n=8 proof, verifier AIR n=16 1->32768");
++        v1v(&air1(16, big(1), big(32768), dbl1()), VQ, &p_h), false, "n=8 proof, verifier AIR n=16 1->32768");
+ 
+     // N4: valid proof of a different (true) statement.
+     let other = air1(n, big(2), big(256), dbl1());
+     let p_o = stark::prove(&other, 20).unwrap();
+-    o.row("v1.N4_valid_proof_of_other_statement", m, "other_statement", "invalid_proof", Some(true), v1v(&honest, &p_o), false,
++    o.row("v1.N4_valid_proof_of_other_statement", m, "other_statement", "invalid_proof", Some(true), v1v(&honest, VQ, &p_o), false,
+         "valid proof of 2->256 presented for 1->128");
+ 
+     // N5: truncated FRI.
+     let mut p = p_h.clone();
+     p.fri.layer_roots.pop();
+-    o.row("v1.N5a_fri_drop_last_root", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, &p), false, "pop last FRI layer root");
++    o.row("v1.N5a_fri_drop_last_root", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false, "pop last FRI layer root");
+     let mut p = p_h.clone();
+     for fq in p.fri_queries.iter_mut() {
+         fq.1.openings.pop();
+     }
+-    o.row("v1.N5b_fri_drop_last_openings", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, &p), false, "pop last opening of every FRI query");
+-    let p = forge_v1(&honest.execute(), 20, false);
+-    o.row("v1.N5c_fri_zero_folds_rederived", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, &p), false,
++    o.row("v1.N5b_fri_drop_last_openings", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false, "pop last opening of every FRI query");
++    let p = forge_v1(&honest, &honest.execute(), 20, false);
++    o.row("v1.N5c_fri_zero_folds_rederived", m, "truncated_fri", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false,
+         "FRI truncated to the trace root alone (fri_commit_to final_size=n), transcript and positions re-derived; v1 docs say FRI adds no soundness, so this is a grinding knob, not a false statement");
+ 
+     // N6: reordered / duplicated queries.
+@@ -259,26 +268,30 @@
+     p.trace_queries.swap(0, j);
+     p.trace_next.swap(0, j);
+     p.fri_queries.swap(0, j);
+-    o.row("v1.N6a_reordered_queries", m, "reordered_query", "invalid_proof", Some(true), v1v(&honest, &p), false, &format!("swap queries 0 and {j}"));
++    o.row("v1.N6a_reordered_queries", m, "reordered_query", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false, &format!("swap queries 0 and {j}"));
+     let mut p = p_h.clone();
+     p.trace_queries[j] = p.trace_queries[0].clone();
+     p.trace_next[j] = p.trace_next[0].clone();
+     p.fri_queries[j] = p.fri_queries[0].clone();
+-    o.row("v1.N6b_duplicated_query", m, "duplicated_query", "invalid_proof", Some(true), v1v(&honest, &p), false, &format!("query {j} replaced by a copy of query 0"));
++    o.row("v1.N6b_duplicated_query", m, "duplicated_query", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false, &format!("query {j} replaced by a copy of query 0"));
+ 
+     // N7: reduced query count (the verifier takes q from the proof).
+     let f1 = stark::prove(&cheat, 1).unwrap();
+-    o.row("v1.N7a_false_output_q1_producer_prover", m, "reduced_query_count", "false_statement", Some(false), v1v(&false_air, &f1), false,
++    o.row("v1.N7a_false_output_q1_producer_prover", m, "reduced_query_count", "false_statement", Some(false), v1v(&false_air, VQ, &f1), false,
+         &format!("stark::prove(cheat, 1): one query at position {:?}; verifier has no minimum q beyond 1; predicted accept prob 7/8", v1_pos(&f1)));
+-    if let Some(h) = first_hit {
+-        if h >= 1 {
+-            let mut p = forged.clone();
+-            p.trace_queries.truncate(h);
+-            p.trace_next.truncate(h);
+-            p.fri_queries.truncate(h);
+-            o.row("v1.N7b_truncate_rejected_forgery_to_prefix", m, "reduced_query_count", "false_statement", Some(false), v1v(&false_air, &p), false,
+-                &format!("N1b forgery truncated to its first {h} queries (positions are a prefix-stable function of the transcript)"));
+-        }
++    // ADAPT A6: the original row needs row 6's first hit at index >= 1; positions moved with the
++    // new transcript, so fall back to a 3-query prefix (as the module test does), and also offer
++    // the prefix as a proof for a verifier whose own q is the prefix length (the strongest use).
++    {
++        let h = first_hit.filter(|&h| h >= 1).unwrap_or(3);
++        let mut p = forged.clone();
++        p.trace_queries.truncate(h);
++        p.trace_next.truncate(h);
++        p.fri_queries.truncate(h);
++        o.row("v1.N7b_truncate_rejected_forgery_to_prefix", m, "reduced_query_count", "false_statement", Some(false), v1v(&false_air, VQ, &p), false,
++            &format!("N1b forgery truncated to its first {h} queries (first_hit {first_hit:?}); verifier q = {VQ}"));
++        o.row("v1.N7b2_prefix_offered_at_its_own_q", m, "reduced_query_count", "false_statement", Some(false), v1v(&false_air, h, &p), false,
++            &format!("same {h}-query prefix, verifier q = {h} (q is absorbed, so positions differ)"));
+     }
+ 
+     // N8a: grinding a single broken row with q = 20 fixed (the case the
+@@ -304,8 +317,8 @@
+         for (ei, t) in encs.iter().enumerate() {
+             for full in [true, false] {
+                 tried += 1;
+-                let p = forge_v1(t, 20, full);
+-                if v1v(&false_air, &p).0 {
++                let p = forge_v1(&false_air, t, 20, full);
++                if v1v(&false_air, VQ, &p).0 {
+                     accepted.push(format!("k={k},enc={ei},full_fri={full}"));
+                 }
+             }
+@@ -323,14 +336,30 @@
+     for i in 0..20_000u64 {
+         let v = hash_scalar(tag, i);
+         let t: Vec<BigUint> = vec![big(1), big(2), big(4), v.clone(), fr_mul(&v, &big(2)), fr_mul(&v, &big(4)), fr_mul(&v, &big(8)), big(12345)];
+-        let p = forge_v1(&t, 20, true);
+-        if v1v(&false_air, &p).0 {
++        let p = forge_v1(&false_air, &t, 20, true);
++        if v1v(&false_air, VQ, &p).0 {
+             found = Some((i + 1, bad_rows(&t)));
+             break;
+         }
+     }
+     o.row("v1.N8b_grind_two_broken_rows_q20", m, "grinding", "false_statement", Some(false), (found.is_some(), false), false,
+         &format!("attempts until first accepted forgery of 1->12345 (bad rows, attempts) = {found:?}; predicted mean attempts 1/(6/8)^20 = 315; seed tag {tag}; {:.1}s", t0.elapsed().as_secs_f64()));
++    // ADAPT A8: the same grinding family against a verifier whose q is sized as the module docs
++    // instruct (spot_check_queries(8, 64) = 333), same seeds and the same 20000-attempt budget.
++    let qs = stark::spot_check_queries(8, 64);
++    let t0 = Instant::now();
++    let mut found = None;
++    for i in 0..20_000u64 {
++        let v = hash_scalar(tag, i);
++        let t: Vec<BigUint> = vec![big(1), big(2), big(4), v.clone(), fr_mul(&v, &big(2)), fr_mul(&v, &big(4)), fr_mul(&v, &big(8)), big(12345)];
++        let p = forge_v1(&false_air, &t, qs, true);
++        if v1v(&false_air, qs, &p).0 {
++            found = Some((i + 1, bad_rows(&t)));
++            break;
++        }
++    }
++    o.row("v1.N8b2_grind_two_broken_rows_sized_q", m, "grinding", "false_statement", Some(false), (found.is_some(), false), false,
++        &format!("q = spot_check_queries(8,64) = {qs}; 20000 attempts; first accepted {found:?}; per-attempt escape (6/8)^{qs} = 2^{:.1}; {:.1}s", (qs as f64) * (0.75f64).log2(), t0.elapsed().as_secs_f64()));
+ 
+     // Rate rows: the documented bound (1 - k/n)^q, its decay in q, and a null.
+     let mut rate = |name: &str, k_bad: usize, q: usize, trials: u64, mk: &dyn Fn(u64) -> (Air, Vec<BigUint>)| {
+@@ -338,8 +367,8 @@
+         let mut acc = 0u64;
+         for i in 0..trials {
+             let (air, t) = mk(i);
+-            let p = forge_v1(&t, q, true);
+-            if v1v(&air, &p).0 {
++            let p = forge_v1(&air, &t, q, true);
++            if v1v(&air, q, &p).0 {
+                 acc += 1;
+             }
+         }
+@@ -373,13 +402,12 @@
+     // Robustness: oversize opened value.
+     let mut p = p_h.clone();
+     p.trace_queries[0].1 = one() << 300;
+-    o.row("v1.M1_oversize_opened_value", m, "robustness", "invalid_proof", Some(true), v1v(&honest, &p), false,
++    o.row("v1.M1_oversize_opened_value", m, "robustness", "invalid_proof", Some(true), v1v(&honest, VQ, &p), false,
+         "trace_queries[0] value set to 2^300 (position and leaf_index unchanged): verifier should return false, not panic");
+ }
+ 
+ // ───────────────────────────── v2 ─────────────────────────────
+ 
+-const V2_TAG: &str = "ZK-STARK-V2/v1";
+ 
+ fn dbl2() -> T2 {
+     Arc::new(|p, nx| fr_sub(nx, &fr_mul(p, &big(2))))
+@@ -397,8 +425,11 @@
+     let _ = n;
+     starts.windows(2).all(|w| w[0] == w[1])
+ }
+-fn v2_alphas(tc: &[u8; 32]) -> (BigUint, BigUint, Vec<u8>) {
+-    let mut t = V2_TAG.as_bytes().to_vec();
++// ADAPT A3: the transcript now starts from stark_v2::statement_transcript(air, config) (tag, AIR
++// identifier, n, beta, q, FRI folds, final size, boundaries) and appends "composition_commit"
++// after the two draws; the draws themselves are unchanged (h = SHA-256(t), absorb h, h mod r).
++fn v2_alphas(air: &AirV2, cfg: &StarkConfig, tc: &[u8; 32]) -> (BigUint, BigUint, Vec<u8>) {
++    let mut t = stark_v2::statement_transcript(air, cfg).expect("valid statement");
+     t.extend_from_slice(tc);
+     let a1b = sha256(&t);
+     t.extend_from_slice(&a1b);
+@@ -406,6 +437,7 @@
+     let a2b = sha256(&t);
+     t.extend_from_slice(&a2b);
+     let a2 = BigUint::from_bytes_be(&a2b) % r();
++    t.extend_from_slice(b"composition_commit");
+     (a1, a2, t)
+ }
+ /// Replica of the module-doc composition (item 2); validated by H1.
+@@ -432,6 +464,9 @@
+ struct Knobs {
+     fri_final: Option<usize>,
+     alpha1: Option<BigUint>,
++    // ADAPT A4 (support): force alpha2 too, so the frozen-heart machinery can be checked
++    // under the attacker's alphas (the module tests' composition_is_low_degree control).
++    alpha2: Option<BigUint>,
+     comp_zero: bool,
+     noncanonical_lde: bool,
+ }
+@@ -455,8 +490,9 @@
+         .collect();
+     let ttree = MerkleTree::from_leaves(&committed.iter().map(to_bytes).collect::<Vec<_>>());
+     let tc = ttree.root();
+-    let (a1, a2, mut ts) = v2_alphas(&tc);
++    let (a1, a2, mut ts) = v2_alphas(air, &StarkConfig { blow_up: beta, query_count: q }, &tc);
+     let a1u = k.alpha1.clone().unwrap_or(a1);
++    let a2 = k.alpha2.clone().unwrap_or(a2);
+     let comp: Vec<BigUint> = (0..l)
+         .map(|i| if k.comp_zero { BigUint::default() } else { comp_at(air, &h, &hl[i], &f_lde[i], &f_lde[(i + beta) % l], &a1u, &a2) })
+         .collect();
+@@ -487,6 +523,14 @@
+ /// the public value v at row p that cancels the composition's pole at
+ /// omega^p.  The composition is then a polynomial of degree < n, and the
+ /// producer's own prover emits a proof.
++// ADAPT A4: the statement (every boundary value) is now absorbed before alpha1, alpha2, so the
++// forger cannot read the alphas before choosing v.  Its strongest move: derive the alphas from
++// everything it can absorb (the statement with a placeholder 0 at row p, the trace commitment),
++// solve for v, and also iterate v <- solve(alphas(statement with v)) looking for a fixed point.
++// Returns (false AIR, its proof from stark_v2::prove, v, whether the composition IS low degree
++// under the attacker's alphas (machinery control), the fixed-point search result).
++const FP_ITERS: usize = 100_000;
++#[allow(clippy::type_complexity)]
+ fn frozen_heart(
+     n: usize,
+     cheat: &[BigUint],
+@@ -495,10 +539,14 @@
+     k_index: usize,
+     cfg: &StarkConfig,
+     nudge: u64,
+-) -> (AirV2, StarkProofV2, BigUint) {
+-    let placeholder = air2(n, vec![], dbl2(), cheat.to_vec());
++) -> (AirV2, StarkProofV2, BigUint, bool, Option<usize>) {
++    let with_value = |v: BigUint| {
++        let mut boundary = other.to_vec();
++        boundary.insert(k_index, (p, v));
++        air2(n, boundary, dbl2(), cheat.to_vec())
++    };
++    let placeholder = with_value(BigUint::default());
+     let tc = stark_v2::prove(&placeholder, cfg).unwrap().trace_commit;
+-    let (a1, a2, _) = v2_alphas(&tc);
+     let h = subgroup(n);
+     let mut zp = one();
+     for i in 0..=n - 2 {
+@@ -507,12 +555,27 @@
+         }
+     }
+     let c_p = fr_sub(&cheat[p + 1], &fr_mul(&cheat[p], &big(2)));
+-    let v = fr_add(&fr_add(&cheat[p], &fr_mul(&fr_mul(&a1, &c_p), &inv(&fr_mul(&pow_fr(&a2, k_index), &zp)))), &big(nudge));
+-    let mut boundary = other.to_vec();
+-    boundary.insert(k_index, (p, v.clone()));
+-    let air_false = air2(n, boundary, dbl2(), cheat.to_vec());
++    let solve = |a1: &BigUint, a2: &BigUint| {
++        fr_add(&fr_add(&cheat[p], &fr_mul(&fr_mul(a1, &c_p), &inv(&fr_mul(&pow_fr(a2, k_index), &zp)))), &big(nudge))
++    };
++    let (a1, a2, _) = v2_alphas(&placeholder, cfg, &tc);
++    let v = solve(&a1, &a2);
++    let mut w = v.clone();
++    let mut fixed = None;
++    for it in 0..FP_ITERS {
++        let (b1, b2, _) = v2_alphas(&with_value(w.clone()), cfg, &tc);
++        let next = solve(&b1, &b2);
++        if next == w {
++            fixed = Some(it);
++            break;
++        }
++        w = next;
++    }
++    let air_false = with_value(v.clone());
++    let ctl = prove_v2(&air_false, cheat, cfg.blow_up, cfg.query_count, &Knobs { alpha1: Some(a1.clone()), alpha2: Some(a2.clone()), ..Knobs::default() });
++    let low = ctl.fri.layers.last().unwrap().iter().all(|x| *x == ctl.fri.final_constant);
+     let proof = stark_v2::prove(&air_false, cfg).unwrap();
+-    (air_false, proof, v)
++    (air_false, proof, v, low, fixed)
+ }
+ 
+ fn run_v2(o: &mut Out) {
+@@ -620,20 +683,20 @@
+     let mut cheat0 = honest_t.clone();
+     cheat0[0] = big(5); // breaks transition 0 -> 1 (2 != 10)
+     for (name, c) in [("fast", &cfg), ("default", &dcfg)] {
+-        let (af, pf, v) = frozen_heart(n, &cheat0, 0, &[(7, big(128))], 0, c, 0);
++        let (af, pf, v, low, fixed) = frozen_heart(n, &cheat0, 0, &[(7, big(128))], 0, c, 0);
+         let st = doubling_statement_true(n, &af.boundary);
+         o.row(&format!("v2.N8a_frozen_heart_forged_input_{name}"), m, "fiat_shamir_statement", "false_statement", Some(st), v2v(&af, c, &pf), false,
+-            &format!("statement: doubling with t0 = v, t7 = 128, v = {v} (true only for v = 1); trace [5,2,4,..,128] breaks row 0; v chosen after alpha1, alpha2; proof from stark_v2::prove"));
++            &format!("statement: doubling with t0 = v, t7 = 128, v = {v} (true only for v = 1); trace [5,2,4,..,128] breaks row 0; v solved under the alphas of the placeholder statement; machinery control (composition low-degree under the attacker's alphas) = {low}; fixed-point search over {FP_ITERS} iterations found {fixed:?}; proof from stark_v2::prove"));
+     }
+     let mut cheat6 = honest_t.clone();
+     cheat6[7] = big(999); // breaks transition 6 -> 7
+-    let (af, pf, v) = frozen_heart(n, &cheat6, 6, &[(0, big(1))], 1, &cfg, 0);
++    let (af, pf, v, low, fixed) = frozen_heart(n, &cheat6, 6, &[(0, big(1))], 1, &cfg, 0);
+     let st = doubling_statement_true(n, &af.boundary);
+     o.row("v2.N8b_frozen_heart_forged_row6", m, "fiat_shamir_statement", "false_statement", Some(st), v2v(&af, &cfg, &pf), false,
+-        &format!("statement: doubling with t0 = 1, t6 = v, v = {v} (true only for v = 64); trace breaks row 6"));
+-    let (af, pf, _) = frozen_heart(n, &cheat0, 0, &[(7, big(128))], 0, &cfg, 1);
++        &format!("statement: doubling with t0 = 1, t6 = v, v = {v} (true only for v = 64); trace breaks row 6; machinery control = {low}; fixed-point search found {fixed:?}"));
++    let (af, pf, _, low, _) = frozen_heart(n, &cheat0, 0, &[(7, big(128))], 0, &cfg, 1);
+     o.row("v2.N8c_frozen_heart_control_v_plus_1", m, "fiat_shamir_statement", "attack_control", Some(doubling_statement_true(n, &af.boundary)), v2v(&af, &cfg, &pf), false,
+-        "same forgery with v + 1: pole no longer cancels, must be rejected (shows N8a acceptance comes from the cancellation)");
++        &format!("same forgery with v + 1: pole no longer cancels, must be rejected; composition low-degree under the attacker's alphas = {low} (expected false)"));
+ 
+     // N9: composition not bound to the trace (prover commits Comp = 0).
+     let p = prove_v2(&air_f, &honest_t, cfg.blow_up, cfg.query_count, &Knobs { comp_zero: true, ..Knobs::default() });
+@@ -660,6 +723,7 @@
+         "trace_openings[0] value set to 2^300: verifier should return false, not panic");
+ }
+ 
++// ADAPT A5: crypto_rev updated.
+ fn main() {
+     std::panic::set_hook(Box::new(|info| eprintln!("[caught panic] {info}")));
+     let mut o = Out { mutants_accepted: vec![], honest_rejected: vec![], panics: vec![] };
+@@ -667,7 +731,7 @@
+     run_v2(&mut o);
+     run_v1(&mut o);
+     println!(
+-        "{{\"summary\":true,\"crypto_rev\":\"42b9ca8a5aff5743c42c337f52ddd8bc8612cb59\",\"mutants_accepted\":{:?},\"honest_rejected\":{:?},\"verifier_panics\":{:?},\"seconds\":{:.1}}}",
++        "{{\"summary\":true,\"crypto_rev\":\"6ed792e860c9c8249eb1ac6f10a3e4beec130e1a\",\"mutants_accepted\":{:?},\"honest_rejected\":{:?},\"verifier_panics\":{:?},\"seconds\":{:.1}}}",
+         o.mutants_accepted, o.honest_rejected, o.panics, t0.elapsed().as_secs_f64()
+     );
+ }
