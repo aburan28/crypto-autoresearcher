@@ -34,3 +34,5 @@ At the original design snapshot, only the point-level reference and its 13,731 d
 Every card separates a correct measurement, a falsified candidate, a scoped null and an inconclusive or blocked computation. Shared costs include construction, failed paths, recovery, verification and peak storage. Existing IC-specific or retired records remain unchanged; direct successors are distinct proposals.
 
 Rebuild the report with `./build.sh`. Development checks can run with `./reference/test.sh`; they do not launch scientific experiments.
+
+[PDF formatting and original-byte provenance](../FORMAT-NOTICE.md) document the compact export. Historical readiness and exact raw evidence remain unchanged.

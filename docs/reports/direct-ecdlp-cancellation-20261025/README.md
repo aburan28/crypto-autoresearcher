@@ -46,3 +46,5 @@ The original source index and lexical matches include a historical quantum-resou
 Run `./build.sh` in this directory with Graphviz, Pandoc, XeLaTeX, and DejaVu fonts installed. `report-source.md` is generated from the plan, diagram caption and source notes; `report.tex` is the generated printable source. The PDF includes the plan and sources. The SVG and PDF diagram come from `mechanism.dot`.
 
 Point-level development checks are recorded in the follow-up programme. Gate-level correctness, a new constructive identity, scientific admission and independent replay remain future obligations; document rendering does not satisfy them.
+
+The current PDF is a [compact format derivative](FORMAT-NOTICE.md); the exact original export and all original/compact hashes remain linked in the [manifest](compact-export-manifest.json). Scientific source content and sealed evidence are unchanged.
