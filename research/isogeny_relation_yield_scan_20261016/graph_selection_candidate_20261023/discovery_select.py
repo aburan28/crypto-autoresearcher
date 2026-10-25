@@ -89,6 +89,7 @@ def discover_one(root: Path, plan: dict, plan_sha: str, row: dict, trial: dict) 
     prepared_path = Path(manifest["paths"]["prepared-manifest"])
     input_path = Path(manifest["paths"]["input"])
     prepared = read(prepared_path)
+    endpoint = bool(row.get("endpoint_id"))
     require(result["digests"].get("prepared-manifest_sha256") == sha(prepared_path) and
             result["digests"].get("input_sha256") == sha(input_path) and
             prepared.get("input_sha256") == sha(input_path) and
@@ -99,7 +100,8 @@ def discover_one(root: Path, plan: dict, plan_sha: str, row: dict, trial: dict) 
                  "commitment_sha256")) and
             prepared.get("j") == row["model"]["j"] and
             prepared.get("stratum") == row["stratum"] and
-            prepared.get("index") == row["path_index"] and
+            prepared.get("index") == (None if endpoint else row["path_index"]) and
+            prepared.get("endpoint_id") == row.get("endpoint_id") and
             prepared.get("arm") == row["base_rule"] and
             prepared.get("target_count") == row["discovery_targets"],
             f"prepared input or seed identity differs: {row['arm_key']}")
@@ -125,12 +127,12 @@ def discover_one(root: Path, plan: dict, plan_sha: str, row: dict, trial: dict) 
             coefficients.update((parts[2] + "," + parts[3] + "\n").encode())
             target_rows += 1
     require(target_rows == row["discovery_targets"], f"target extent differs: {row['arm_key']}")
-    expected_prepared = {"stratum": row["stratum"], "index": row["path_index"],
+    expected_prepared = {"stratum": row["stratum"], "index": None if endpoint else row["path_index"],
                          "arm": row["base_rule"], "stage": "discovery",
                          "target_count": row["discovery_targets"]}
     require(result.get("prepared") == expected_prepared and
             attempt.get("bindings", {}).get("stratum") == row["stratum"] and
-            attempt["bindings"].get("index") == row["path_index"] and
+            attempt["bindings"].get("index") == expected_prepared["index"] and
             attempt["bindings"].get("arm") == row["base_rule"] and
             attempt["bindings"].get("target_count") == row["discovery_targets"],
             f"prepared arm identity differs: {row['arm_key']}")
@@ -154,7 +156,9 @@ def discover_one(root: Path, plan: dict, plan_sha: str, row: dict, trial: dict) 
                 checked.get("transport_pair_checked") is True,
                 f"transport oracle or dependency missing: {row['arm_key']}")
     return {"arm_key": row["arm_key"], "stratum": row["stratum"],
-            "index": row["path_index"], "j": row["model"]["j"],
+            "index": None if endpoint else row["path_index"],
+            **({"endpoint_id": row["endpoint_id"]} if endpoint else {}),
+            "j": row["model"]["j"],
             "arm": row["base_rule"], "target_count": rank["targets"],
             "useful_targets": rank["useful_targets"],
             "rank_increments": rank["rank_increments"],
@@ -259,11 +263,36 @@ def select(repo: Path, schedule_path: Path, plan_path: Path,
             raise ValueError(f"analysis input outside repository: {path}") from error
         require(plan.get("source_sha256", {}).get(relative) == sha(path),
                 f"approved plan does not freeze {relative}")
+    secondary_path = schedule_path.parent / "p29-secondary-floor-arms.jsonl"
+    secondary_manifest_path = schedule_path.parent / "p29-secondary-floor-manifest.json"
+    secondary_verification_path = schedule_path.parent / "p29-secondary-floor-verification.json"
+    secondary_source_spec = repo / "experiments/EXP-ECTD-0cf008/specification.yaml"
+    for path in (secondary_path, secondary_manifest_path, secondary_verification_path,
+                 secondary_source_spec):
+        relative = path.resolve().relative_to(repo).as_posix()
+        require(plan.get("source_sha256", {}).get(relative) == sha(path),
+                f"approved plan does not freeze {relative}")
     trials = {trial["id"]: trial for trial in plan["trials"]}
-    require(len(trials) == len(plan["trials"]) == 8206 and
-            set(trials) == {row["arm_key"] for row in schedule} and
-            len({trial["run_id"] for trial in plan["trials"]}) == 8206,
-            "trial plan does not enumerate every discovery arm exactly once")
+    secondary = [json.loads(line) for line in secondary_path.read_text().splitlines()]
+    secondary_manifest = read(secondary_manifest_path)
+    secondary_verification = read(secondary_verification_path)
+    require(len(secondary) == 4 and
+            {row.get("arm_key") for row in secondary} == {
+                "P29-E2-low_x", "P29-E2-random_x", "P29-E3-low_x", "P29-E3-random_x"} and
+            all(row.get("discovery_targets") == 8192 and
+                row.get("finalist_selection_eligible") is False for row in secondary) and
+            secondary_manifest.get("schedule_sha256") == sha(secondary_path) and
+            secondary_manifest.get("primary_graph_schedule_sha256") == sha(schedule_path) and
+            secondary_manifest.get("finalist_selection_eligible") is False and
+            secondary_manifest.get("source_specification_sha256") == sha(secondary_source_spec) and
+            secondary_verification.get("status") == "pass" and
+            secondary_verification.get("schedule_sha256") == sha(secondary_path),
+            "verified secondary same-conductor schedule required")
+    all_rows = schedule + secondary
+    require(len(trials) == len(plan["trials"]) == 8210 and
+            set(trials) == {row["arm_key"] for row in all_rows} and
+            len({trial["run_id"] for trial in plan["trials"]}) == 8210,
+            "trial plan does not enumerate every graph and control arm exactly once")
     commitment = read(commitment_path)
     root = bytes.fromhex(control_root_path.read_text().strip())
     require(commitment.get("schema") == "ectd.graph-control-index-commitment/v1" and
@@ -273,6 +302,12 @@ def select(repo: Path, schedule_path: Path, plan_path: Path,
     plan_hash = sha(plan_path)
     results = [discover_one(repo, plan, plan_hash, row, trials[row["arm_key"]])
                for row in schedule]
+    secondary_results = [discover_one(repo, plan, plan_hash, row, trials[row["arm_key"]])
+                         for row in secondary]
+    p29_streams = {row["coefficient_sha256"] for row in results if row["stratum"] == "P29"}
+    require(len(p29_streams) == 1 and all(
+        row["coefficient_sha256"] in p29_streams for row in secondary_results),
+        "secondary endpoints do not share the P29 target coefficient stream")
     strata = nominate(schedule, results, root)
     return {"schema": "ectd.graph-discovery-selection-candidate/v1",
             "status": "selected_from_validated_discovery",
@@ -282,6 +317,8 @@ def select(repo: Path, schedule_path: Path, plan_path: Path,
             "control_root_sha256": hashlib.sha256(root).hexdigest(),
             "discovery_arms_checked": len(results), "strata": strata,
             "discovery_summary": results,
+            "same_conductor_controls_checked": len(secondary_results),
+            "same_conductor_controls": secondary_results,
             "scope": "nomination only; confirmation, exact intervals, and ECDLP costs require fresh runs"}
 
 

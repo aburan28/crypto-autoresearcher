@@ -1,0 +1,32 @@
+{
+  "task_id": "TASK-20261024-4f1bf4",
+  "named_orders_executed": 0,
+  "patch": "*** Begin Patch\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/cohort_runner.py\n@@\n         matches = [\n             item\n             for item in corpus\n-            if integer(item.get(\"p\")) == integer(row[\"p\"])\n+            if item.get(\"record\") == \"certificate\"\n+            and integer(item.get(\"p\")) == integer(row[\"p\"])\n             and integer(item.get(\"n\")) == integer(row[\"n\"])\n             and integer(item.get(\"b\")) == b\n             and item.get(\"index\") == row[\"ordinal\"]\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/cohort_checker.py\n@@\n-        matches = [item for item in corpus if integer(item.get(\"p\")) == integer(row[\"p\"]) and integer(item.get(\"n\")) == integer(row[\"n\"]) and integer(item.get(\"b\")) == b and item.get(\"index\") == row[\"ordinal\"] and item.get(\"run\") == row[\"timestamp\"] and str(item.get(\"seed\", \"\")).lower() == row[\"seed_hex\"].lower()]\n+        matches = [\n+            item\n+            for item in corpus\n+            if item.get(\"record\") == \"certificate\"\n+            and integer(item.get(\"p\")) == integer(row[\"p\"])\n+            and integer(item.get(\"n\")) == integer(row[\"n\"])\n+            and integer(item.get(\"b\")) == b\n+            and item.get(\"index\") == row[\"ordinal\"]\n+            and item.get(\"run\") == row[\"timestamp\"]\n+            and str(item.get(\"seed\", \"\")).lower() == row[\"seed_hex\"].lower()\n+        ]\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/test_cohort_runner.py\n@@\n-            yield \"row_label\", lambda output: self._mutate_raw(output, lambda raw: raw[\"curve\"].update(label=\"omitted\")), \"cohort row identity\"\n+            yield \"row_label\", lambda output: self._mutate_raw(\n+                output,\n+                lambda raw: raw[\"curve\"].update(\n+                    label=\"published\" if raw[\"curve\"][\"label\"] == \"omitted\" else \"omitted\"\n+                ),\n+            ), \"cohort row identity\"\n*** Update File: experiments/EXP-NISTSEED-6886da/implementation/test-report.txt\n@@\n Retained V5 status:\n - V5 producer/checker bodies were materialized, but V5 omitted the rebuilt test\n   module. No V5 full suite was run and no V5 result is claimed.\n+- `operator-prior-mapping-v5.failure.json` retains a guarded metadata-only\n+  diagnostic: the corpus also contains certificate_run and summary objects with\n+  no p/n. Producer and checker must select `record: certificate` before parsing\n+  p/n/b, while still permitting the exact P-224 `side: other` certificate.\n*** End Patch",
+  "static_check_details": {
+    "inspection_only": true,
+    "full_suite_ran": false,
+    "source_evidence": {
+      "diagnostic": "coordination/goals/GOAL-NISTSEED-ab8949/batches/BATCH-08d006/operator-prior-mapping-v5.failure.json",
+      "observed_error": "Refusal: not an integer encoding: None",
+      "cause": "Non-certificate header/footer corpus records do not have p/n; the exact metadata predicate must run before integer parsing."
+    },
+    "patch_effects": [
+      "Both producer and independent checker now require item.record == certificate before decoding p, n, or b.",
+      "The exact p/n/b/seed/index/run join, unique-match requirement, source UID/a4/a6/cofactor checks, all prior certificate booleans, and record hashes are unchanged.",
+      "No side filter was added; the exact P-224 side=other certificate remains eligible.",
+      "The test's selected index is omitted, so its former row-label mutation was a no-op. It now always flips between omitted and published."
+    ],
+    "not_run": [
+      "No full V6 suite.",
+      "No compilation after application of this operator-bridge patch.",
+      "No execute_case, vm, legacy executable, QEMU, subprocess, or scientific workload."
+    ]
+  },
+  "tests_pending_operator": true,
+  "remaining_gaps": [
+    "The operator must apply this exact patch, hash the resulting files, and run only the new versioned guarded V6 capture wrapper; it must not overwrite retained V4 artifacts.",
+    "No V6 full-suite result exists. The retained metadata diagnostic was a guarded static join probe only and does not establish fixture success.",
+    "The V5 test module remains an unexecuted partial proposal until the operator records a V6 guarded receipt.",
+    "No scientific execution authority exists; a separate Coordinator workflow remains required before any future trial packet, preapproval, ready-state check, or distinct run."
+  ]
+}

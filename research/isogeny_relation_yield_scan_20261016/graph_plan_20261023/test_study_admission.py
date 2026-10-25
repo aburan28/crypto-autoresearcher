@@ -107,7 +107,7 @@ class AdmissionBoundaryTests(unittest.TestCase):
             }
             admission_path = directory / "admission.json"
             admission_path.write_text(json.dumps(admission))
-            with self.assertRaisesRegex(ValueError, "requires execution_stage 0"):
+            with self.assertRaisesRegex(ValueError, "requires a bound selection"):
                 verify_study_admission(
                     admission_path, directory / "binding.json", SimpleNamespace(),
                     {}, {}, lambda *_: self.fail("source check must follow stage gate"))

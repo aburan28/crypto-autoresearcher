@@ -28,6 +28,8 @@ sys.path.insert(0, str(LEGACY))
 from execute_prepared import GIB, run_phase
 from prepare_graph_input import ARMS, SCHEDULE
 
+SOLVE_TARGETS = {"P29": 32768, "P37": 32768}
+
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -60,7 +62,9 @@ def source_paths():
         "group_replay_sha256": ROOT / "harness/toycurve.py",
         "graph_materializer_sha256": STUDY / "graph_input_schedule_20261023/materialize.py",
         "study_admission_sha256": STUDY_PLAN / "study_admission.py",
+        "prepared_worker_sha256": STUDY_PLAN / "prepared_worker.py",
         "graph_trial_driver_sha256": STUDY / "graph_trial_adapter_20261023/trial_driver.py",
+        "graph_worker_catalog_sha256": STUDY_PLAN / "prepare_worker_catalog.py",
         "graph_trial_checker_sha256": STUDY / "graph_trial_adapter_20261023/trial_check.py",
     }
 
@@ -101,6 +105,9 @@ def bindings(args, manifest, source_commit):
         "target_count": manifest["target_count"],
     }
     values.update({name: sha(path) for name, path in source_paths().items()})
+    if manifest["stage"] == "solve":
+        values["solve_preparer_sha256"] = sha(
+            STUDY / "preparation/prepare_graph_solve_input.py")
     if manifest["arm"] == "graph_transport":
         values.update({key: manifest[key] for key in
                        ("checkpoint_sha256", "checkpoint_manifest_sha256", "checkpoint_terminal_sha256")})
@@ -122,7 +129,7 @@ def execute(args):
     if manifest.get("schema") != "isogeny-relation-input/v1" or sha(args.input) != manifest.get("input_sha256"):
         raise ValueError("prepared graph input identity differs")
     stratum, stage, arm = manifest["stratum"], manifest["stage"], manifest["arm"]
-    if stratum not in SCHEDULE or stage not in ("discovery", "confirmation") or arm not in ARMS:
+    if stratum not in SCHEDULE or stage not in ("discovery", "confirmation", "solve") or arm not in ARMS:
         raise ValueError("unsupported graph arm schedule")
     if (arm in ("power_x", "graph_transport") and
             manifest["index"] % SCHEDULE[stratum]["power_stride"]):
@@ -138,7 +145,8 @@ def execute(args):
         require_scientific_seed_mode(manifest)
         if (not manifest.get("schedule_conformant") or
                 not manifest.get("commitment_sha256") or
-                manifest["target_count"] != SCHEDULE[stratum][stage]):
+                manifest["target_count"] != (SOLVE_TARGETS[stratum] if stage == "solve"
+                                               else SCHEDULE[stratum][stage])):
             raise ValueError("scientific graph input requires a frozen commitment and exact quota")
         admission = json.loads(args.admission.read_text())
         if admission.get("schema") == "ectd.graph-study-admission.v1":
@@ -149,6 +157,15 @@ def execute(args):
             source_commit, study_bindings = verify_study_admission(
                 args.admission, args.binding, args, manifest,
                 source_paths(), check_frozen_sources)
+        elif admission.get("schema") == "ectd.graph-worker-admission.v1":
+            if args.binding is None:
+                raise ValueError("worker admission requires a public prepared binding")
+            sys.path.insert(0, str(STUDY_PLAN))
+            from prepared_worker import verify_worker_documents
+            study_bindings = verify_worker_documents(
+                args.admission, args.binding, args.input, args.manifest,
+                args.collector, args.count_verifier, args.output)
+            source_commit = admission["source_commit"]
         else:
             if args.binding is not None:
                 raise ValueError("per-arm admission does not accept a study materializer binding")

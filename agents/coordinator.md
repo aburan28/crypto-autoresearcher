@@ -108,10 +108,13 @@ session that drives this role; see `plugins/crypto-autoresearcher-harness/skills
 2. **Open or update a PR against `main` after every archive.** Each time a
    snapshot or ledger archive adds new `GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`,
    `EXP-*`, `EV-*`, `DEC-*`, `TASK-*`, or `KN-*` records, push the branch and
-   open (or refresh) a PR against `main` naming those records. A record that
-   exists only in a local commit is not generated for the program — it is
-   unpublished, and downstream review or promotion must not treat it as
-   durable evidence.
+   open (or refresh) a PR against `main` naming those records. Enable GitHub
+   auto-merge as soon as it is open (`gh pr merge <n> --auto --merge`); that is
+   the default, not an extra step. Auto-merge applies only when the base is the
+   default branch, so a PR stacked on another branch is retargeted to `main` and
+   auto-merge enabled once its parent lands. A record that exists only in a
+   local commit is not generated for the program — it is unpublished, and
+   downstream review or promotion must not treat it as durable evidence.
 
 ## Target result profile and promotion gates
 

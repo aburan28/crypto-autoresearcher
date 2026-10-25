@@ -27,7 +27,8 @@ RUN_ID = re.compile(r"^RUN-ECTD-[0-9a-f]{6}$")
 
 SOURCE_PATHS = (
     DRIVER, CHECKER, WRAPPER, MATERIALIZER,
-    HERE / "study_admission.py", HERE / "build_discovery_plan.py",
+    HERE / "study_admission.py", HERE / "prepared_worker.py",
+    HERE / "prepare_worker_catalog.py", HERE / "build_discovery_plan.py",
     HERE / "test_build_discovery_plan.py",
     STUDY / "preparation/prepare_graph_input.py",
     STUDY / "preparation/verify_prepared_graph.py",
@@ -42,6 +43,11 @@ SOURCE_PATHS = (
     SCHEDULE_DIR / "verification.json",
     SCHEDULE_DIR / "plan.py",
     SCHEDULE_DIR / "verify.py",
+    SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl",
+    SCHEDULE_DIR / "p29-secondary-floor-manifest.json",
+    SCHEDULE_DIR / "p29-secondary-floor-verification.json",
+    SCHEDULE_DIR / "p29_secondary_floor_controls.py",
+    ROOT / "experiments/EXP-ECTD-0cf008/specification.yaml",
     STUDY / "manifest-v2.json",
     STUDY / "walk-p29-2048-attempt2.jsonl",
     STUDY / "walk-p37-256.jsonl",
@@ -111,7 +117,32 @@ def load_rows() -> list[dict]:
                 row.get("base_rule") not in ("low_x", "mid_x", "random_x", "power_x",
                                                "graph_transport", "u2_native", "u2_transport")):
             raise ValueError(f"invalid fixed schedule row {row.get('arm_key')}")
-    return rows
+    secondary_path = SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl"
+    secondary_manifest_path = SCHEDULE_DIR / "p29-secondary-floor-manifest.json"
+    secondary_verification_path = SCHEDULE_DIR / "p29-secondary-floor-verification.json"
+    secondary = [json.loads(line) for line in secondary_path.read_text().splitlines()]
+    side_manifest = json.loads(secondary_manifest_path.read_text())
+    side_receipt = json.loads(secondary_verification_path.read_text())
+    secondary_spec = ROOT / "experiments/EXP-ECTD-0cf008/specification.yaml"
+    if (side_manifest.get("schema") != "ectd-p29-secondary-floor-schedule/v1" or
+            side_manifest.get("status") != "candidate_unapproved" or
+            side_manifest.get("arms") != 4 or len(secondary) != 4 or
+            side_manifest.get("schedule_sha256") != sha(secondary_path) or
+            side_manifest.get("primary_graph_schedule_sha256") != sha(SCHEDULE_DIR / "discovery-arms.jsonl") or
+            side_manifest.get("same_target_coefficient_stream") is not True or
+            side_manifest.get("conductor_factor") != 8209 or
+            side_manifest.get("source_specification_sha256") != sha(secondary_spec) or
+            side_receipt.get("status") != "pass" or
+            side_receipt.get("arms_checked") != 4 or side_receipt.get("target_probes") != 32768 or
+            side_receipt.get("manifest_sha256") != sha(secondary_manifest_path) or
+            side_receipt.get("schedule_sha256") != sha(secondary_path)):
+        raise ValueError("secondary same-conductor schedule or verification differs")
+    if ({row.get("arm_key") for row in secondary} != {
+            "P29-E2-low_x", "P29-E2-random_x", "P29-E3-low_x", "P29-E3-random_x"} or
+            any(row.get("discovery_targets") != 8192 or
+                row.get("finalist_selection_eligible") is not False for row in secondary)):
+        raise ValueError("secondary same-conductor arm set or quota differs")
+    return rows + secondary
 
 
 def read_run_ids(path: Path, count: int) -> list[str]:
@@ -123,9 +154,17 @@ def read_run_ids(path: Path, count: int) -> list[str]:
 
 def make_trials(rows: list[dict], run_ids: list[str], *, experiment_id: str,
                 root_files: dict, commitments: dict, admission_path: str,
-                collector: str, count_verifier: str) -> list[dict]:
-    if len(rows) != 8206 or len(run_ids) != len(rows):
-        raise ValueError("the plan must bind exactly one run ID to every fixed arm")
+                collector: str, count_verifier: str,
+                prepared_catalog: Path | None = None) -> list[dict]:
+    prepared_admission = None
+    prepared_arms = None
+    if prepared_catalog is not None:
+        sys.path.insert(0, str(HERE))
+        from prepared_worker import load_worker_catalog
+        prepared_admission, prepared_arms = load_worker_catalog(
+            prepared_catalog, rows, experiment_id, 0)
+    if len(rows) != 8210 or len(run_ids) != len(rows):
+        raise ValueError("the plan must bind one run ID to all graph and secondary control arms")
     run_by_arm = {row["arm_key"]: run_id for row, run_id in zip(rows, run_ids)}
     if len(run_by_arm) != len(rows):
         raise ValueError("duplicate scheduled arm")
@@ -133,15 +172,29 @@ def make_trials(rows: list[dict], run_ids: list[str], *, experiment_id: str,
     for row, run_id in zip(rows, run_ids):
         arm_key, family = row["arm_key"], row["stratum"]
         commitment = commitments[family]
-        argv = ["python3", rel(DRIVER), "--arm-key", arm_key,
-                "--base-root-file", root_files["base"],
-                "--target-root-file", root_files["target"],
-                "--verifier-root-file", root_files["verifier"],
-                "--commitment", commitment, "--admission", admission_path,
-                "--collector", collector, "--count-verifier", count_verifier,
-                "--out", "{run_dir}"]
+        if prepared_arms is None:
+            argv = ["python3", rel(DRIVER), "--arm-key", arm_key,
+                    "--base-root-file", root_files["base"],
+                    "--target-root-file", root_files["target"],
+                    "--verifier-root-file", root_files["verifier"],
+                    "--commitment", commitment, "--admission", admission_path]
+            trial_artifacts = ARTIFACTS.copy()
+            trial_allow_empty = ALLOW_EMPTY.copy()
+        else:
+            prepared = prepared_arms[arm_key]
+            argv = ["python3", rel(DRIVER), "--input", rel(prepared["input"]),
+                    "--prepared-manifest", rel(prepared["manifest"]),
+                    "--prepared-worker-admission", rel(prepared_admission),
+                    "--binding", rel(prepared["binding"])]
+            trial_artifacts = [item for item in ARTIFACTS if item not in (
+                "materializer.stdout", "materializer.stderr", "prepared/prepared.txt",
+                "prepared/manifest.json", "prepared/binding.json")]
+            trial_allow_empty = [item for item in ALLOW_EMPTY if item != "materializer.stderr"]
+        argv += ["--collector", collector, "--count-verifier", count_verifier,
+                 "--out", "{run_dir}"]
+        check_admission = rel(prepared_admission) if prepared_admission else admission_path
         check_argv = ["python3", rel(CHECKER), "--run-dir", "{run_dir}",
-                      "--admission", admission_path]
+                      "--admission", check_admission]
         dependency = row.get("control_reference")
         if dependency:
             if dependency not in run_by_arm:
@@ -153,10 +206,11 @@ def make_trials(rows: list[dict], run_ids: list[str], *, experiment_id: str,
         trials.append({
             "id": arm_key, "run_id": run_id,
             "argv": argv, "check_argv": check_argv,
-            "artifacts": ARTIFACTS.copy(), "allow_empty_artifacts": ALLOW_EMPTY.copy(),
+            "artifacts": trial_artifacts, "allow_empty_artifacts": trial_allow_empty,
             "memory_mb": memory, "watchdog_seconds": watchdog,
             "watchdog_reason": "Supervisor ceiling allows the arm's 1800-second inner watchdog to seal a censored receipt.",
-            "note": f"Fixed {family} {row['base_rule']} discovery arm at vertex {row['path_index']} with {row['discovery_targets']} targets.",
+            "note": (f"Fixed {family} {row['base_rule']} discovery arm at vertex "
+                     f"{row.get('endpoint_id', row.get('path_index'))} with {row['discovery_targets']} targets."),
             "depends_on": [dependency] if dependency else [],
         })
     return trials
@@ -203,7 +257,7 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
         _, row = load_schedule(f"{family}-v0000-graph_transport")
         check_commitment(row, root_paths, commitment_paths[family])
 
-    run_ids = read_run_ids(run_ids_path, 8206)
+    run_ids = read_run_ids(run_ids_path, 8210)
     sys.path.insert(0, str(ROOT / "tools"))
     import allocate_id
     if allocate_id.check_run_id_file(run_ids_path) != 0:
@@ -234,8 +288,11 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
         "source_commit": source_commit,
         "source_sha256": sources,
         "schedule_sha256": sha(schedule_path),
-        "schedule_arms": len(rows),
+        "schedule_arms": 8206,
         "schedule_target_probes": 60889088,
+        "secondary_controls": {"arms": 4, "target_probes": 32768,
+                               "schedule_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl"),
+                               "manifest_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-manifest.json")},
         "root_files": {name: {"path": path, "sha256": sha(root_paths[name])}
                         for name, path in root_files.items()},
         "commitments": {family: {"path": path, "sha256": sha(commitment_paths[family])}
@@ -244,7 +301,7 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
                      "count_verifier": {"path": count_verifier_path,
                                         "sha256": sha(count_verifier)}},
         "trials": trials,
-        "scope_note": "Candidate-only 8,206-arm discovery plan. This artifact establishes pre-approval plan readiness and is rejected by the execution loader; Coordinator approval requires a separately built approved trial-plan.json and dispatch queue.",
+        "scope_note": "Candidate-only discovery plan with 8,206 graph arms and four separately reported P29 E2/E3 controls. Same-conductor controls are excluded from graph finalist selection. Coordinator approval and dispatch are still required.",
     }
     encoded = (json.dumps(candidate, indent=2, sort_keys=True) + "\n").encode()
     with output_path.open("xb") as stream:
@@ -258,7 +315,8 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
 
 
 def build(specification_path: Path, admission_path: Path, decision_path: Path,
-          queue_path: Path, run_ids_path: Path, output_path: Path) -> dict:
+          queue_path: Path, run_ids_path: Path, output_path: Path,
+          prepared_catalog: Path | None = None) -> dict:
     specification_path, admission_path, decision_path, queue_path = (
         path.resolve() for path in (specification_path, admission_path, decision_path, queue_path))
     spec_doc = yaml.safe_load(specification_path.read_text())
@@ -292,6 +350,10 @@ def build(specification_path: Path, admission_path: Path, decision_path: Path,
         "verification_sha256": sha(schedule_verification_path),
         "graph_manifest_sha256": sha(STUDY / "manifest-v2.json"),
         "arm_count": 8206, "target_probes": 60889088,
+        "secondary_controls": {"arms_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-arms.jsonl"),
+                               "manifest_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-manifest.json"),
+                               "verification_sha256": sha(SCHEDULE_DIR / "p29-secondary-floor-verification.json"),
+                               "arm_count": 4, "target_probes": 32768},
     }
     if (admission.get("schedule") != expected_schedule or
             set(admission.get("strata", {})) != {"P29", "P37"}):
@@ -308,7 +370,7 @@ def build(specification_path: Path, admission_path: Path, decision_path: Path,
                   admission["binaries"]["collector_path"],
                   admission["binaries"]["count_verifier_path"]]:
         repo_file(value)
-    run_ids = read_run_ids(run_ids_path, 8206)
+    run_ids = read_run_ids(run_ids_path, 8210)
     sys.path.insert(0, str(ROOT / "tools"))
     import allocate_id
     if allocate_id.check_run_id_file(run_ids_path) != 0:
@@ -336,7 +398,8 @@ def build(specification_path: Path, admission_path: Path, decision_path: Path,
     rows = load_rows()
     trials = make_trials(rows, run_ids, experiment_id=spec["id"], root_files=root_files,
                          commitments=family_commitments, admission_path=rel(admission_path),
-                         collector=collector, count_verifier=count_verifier)
+                         collector=collector, count_verifier=count_verifier,
+                         prepared_catalog=prepared_catalog)
     sources = {rel(path): sha(path) for path in SOURCE_PATHS}
     plan = {
         "schema": "crypto.autoresearch.trial_plan.v1", "experiment_id": spec["id"],
@@ -344,7 +407,11 @@ def build(specification_path: Path, admission_path: Path, decision_path: Path,
         "specification": rel(specification_path), "specification_sha256": sha(specification_path),
         "queue": rel(queue_path), "frozen": True, "stop_on_invalid_output": True,
         "source_sha256": sources, "trials": trials,
-        "scope_note": "Fixed 8,206-arm discovery schedule: 7,175 P29 arms and 1,031 P37 arms; all four full-quota check arms are retained at every scheduled check vertex. Every scheduled arm has one allocated RUN ID and a write-once receipt.",
+        **({"prepared_catalog_sha256": sha(prepared_catalog.resolve()),
+            "prepared_worker_admission_sha256": sha(repo_file(
+                json.loads(prepared_catalog.read_text())["worker_admission_path"]))}
+           if prepared_catalog is not None else {}),
+        "scope_note": "Fixed 8,206-arm graph discovery schedule plus four P29 E2/E3 same-conductor controls; graph finalist selection consumes only the graph schedule. Every arm has one allocated RUN ID and a write-once receipt.",
     }
     encoded = (json.dumps(plan, indent=2, sort_keys=True) + "\n").encode()
     with output_path.open("xb") as stream:
@@ -375,6 +442,8 @@ def main() -> None:
     parser.add_argument("--collector")
     parser.add_argument("--count-verifier")
     parser.add_argument("--source-commit")
+    parser.add_argument("--prepared-catalog", type=Path,
+                        help="custodian-built hash-bound catalog for rootless worker argv")
     args = parser.parse_args()
     if args.candidate:
         required = (args.queue, args.task_id, args.base_root_file, args.target_root_file,
@@ -394,7 +463,8 @@ def main() -> None:
         if not args.admission or not args.decision or not args.queue:
             parser.error("approved plan build requires --admission, --decision and --queue")
         result = build(args.specification, args.admission, args.decision,
-                       Path(args.queue), args.run_ids, args.output)
+                       Path(args.queue), args.run_ids, args.output,
+                       prepared_catalog=args.prepared_catalog)
     print(json.dumps(result, sort_keys=True))
 
 

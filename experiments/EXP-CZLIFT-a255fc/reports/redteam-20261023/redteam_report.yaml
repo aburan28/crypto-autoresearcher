@@ -1,0 +1,544 @@
+# Independent red-team report on EXP-CZLIFT-a255fc / H-CZLIFT-9a32e9 (TASK-20261023-326d39,
+# REVIEW-CZLIFT-A255FC-EVIDENCE-20261023). Joints owned: R1, R2 and the proves-too-much object PTM-1.
+# Not committed by the red team; handed to the ledger archive task TASK-20261023-4d7449.
+red_team_report:
+  id: RT-20261023-481827
+  task_id: TASK-20261023-326d39
+  review_plan_id: REVIEW-CZLIFT-A255FC-EVIDENCE-20261023
+  experiment_id: EXP-CZLIFT-a255fc
+  hypothesis_id: H-CZLIFT-9a32e9
+  goal_id: GOAL-CZLIFT-1516d5
+  recorded_at: '2026-10-23'
+  snapshot_reviewed:
+    head: 14a328a2642222c1ba9aa8c3a6b0e2cfef610eed
+    state: >-
+      Every input read is tracked at HEAD and `git status` is clean on all of them. The runs are
+      the two output_validated receipts RUN-CZLIFT-74f172 (hmax 1e5, twists) and RUN-CZLIFT-490b33
+      (hmax 3e5, ladder only). The sealed validation report VAL-20261022-9ab683 (commit 3fbe2dc6)
+      was read under blindness.lifted_for. CORR-20261023-0657da (commit 14a328a2) scopes the 11a1
+      control to H >= 16, and both runs are treated as admissible under it.
+    working_tree_only_inputs: none
+
+  claim_under_review: >-
+    H-CZLIFT-9a32e9, as the review plan states it: N_E(H) ~ c_E (log H)^{r/2}; reductions mod p
+    hit E(F_p) like independent uniform points (median ratio in [0.8, 1.2], under 5 percent of
+    cells above 1.5); hence log log H_half = (2/r) log p + O(1), so the height needed to lift a
+    random residue grows exponentially in p^{2/r}; and K = Q(sqrt D) adds the twist's points
+    with no coverage beyond the uniform model.
+
+  joint_verdicts:
+    R1: breaks
+    R2: breaks
+    PTM-1: holds
+
+  joint_findings:
+    R1:
+      verdict: breaks
+      breaking_artifact_met: >-
+        The first disjunct of the plan's breaking artifact. The clause "reductions behave like
+        independent uniform points" is presented as measured, but the frozen instrument cannot
+        test its upper side, and the calibrated data contradict it. The second disjunct (an
+        excess with an attacker-relevant mechanism) is NOT met: the mechanism is identified,
+        and it is capped by pigeonhole.
+      clause_by_clause:
+        C1_small_points_are_too_few: >-
+          Holds, and more strongly than the frozen test shows. With the regulator taken from a
+          PARI height Gram of the census points, every point of height <= 3e4 is represented
+          exactly in that basis (0 unverified of 2,758 points on the rank >= 1 curves). N_E(H) / (V_r (log H)^{r/2} / sqrt(Reg)),
+          the Neron-Lang volume law with its constant, lies in [0.96, 1.31] for 1e3 <= H <= 3e5 on
+          ranks 1..7, and in [0.99, 1.085] at H = 3e5 (rt_h Q1). The frozen check
+          |slope - r/2| <= 1 cannot tell adjacent ranks apart. The rank-7 fitted slope (3.18 main,
+          3.22 replication) is nearer 3.0 than 3.5, because of finite-height bias in the fit.
+          Rank lower bounds are verified (r independent points, non-singular Gram); rank upper
+          bounds are not.
+        C2_reductions_like_independent_uniform_points: >-
+          Refuted as stated. The cells deviate from the uniform model in both directions, through
+          algebraic mechanisms:
+          (a) Excess. 97 (main) and 123 (replication) frozen cells have an exact upper-tail
+          probability < 1e-6 under the negation-paired uniform null. Examples: 389a1, p = 103,
+          H = 1e4 has 79 of 79 residues distinct with N_p = 110 (tail 2.4e-9).
+          382623908456a1, p = 2417, H = 3e5 has 1371 distinct out of 1559 with N_p = 2364
+          (tail 1.2e-37). Collision-free cells: 57 percent observed against 24 percent expected.
+          Lost residues: 67-70 percent of the model's (rt_a).
+          (b) Clumping. Each collision is explained by a few kernel points K = P - Q of the
+          reduction map. 389a1, p = 149, H = 3e4: 28 collisions from ONE +-K. 5077a1, p = 211:
+          39 from 3. 19047851a1, p = 419: 241 from 10. Every K has p^2 | den X(K) (rt_c).
+          (c) Confinement. red_p(E(Q)) is a proper subgroup on 14 of the 112 rank >= 1
+          (curve, p) pairs, with index >= 3 for 37a1 at p = 211 (k = 5) and p = 293 (k = 4)
+          (rt_c).
+          The frozen criterion passes for two reasons. Its upper-side clauses cannot fire on these
+          cells (VAL-20261022-9ab683 PTM-1; ceiling 1 + x/2 at median x = 0.10). And the
+          opposite-signed structural deviations partly cancel in the median.
+        C3_H_half_scaling: >-
+          Consistent, but not independent of C1. The grid-free slopes of log log H_half on log p
+          equal 2/r within 0 to +10 percent (1 sigma <= 0.022), and they track
+          1/(growth slope). Pigeonhole (distinct <= N) fixes H_half to within a factor
+          1/(2 ln 2) in N, whatever the reduction does. See R2.
+        C4_global_lifts_are_useless: >-
+          Not observed; extrapolated. On every resolved prime, half of E(F_p) is covered at
+          naive height H_half <= p^{1.71}: polynomial in p (rt_h Q5; ranks 2..7, p = 103..2417; rank 2 resolves p = 103 only).
+          On the resolved toy primes, ranks 5..7 sit at or above the rank threshold
+          r*(p) = 2 log p / log(2 log p) (4.2 at p = 103, 5.7 at p = 2417). There the kernel
+          floor binds and global lifts are not useless in coverage terms. Ranks 2..4 still cover
+          half of E(F_p) at H_half <= p^{1.71} on their resolved primes. "Useless" is a theorem-level extrapolation (pigeonhole
+          plus the volume law at fixed rank) over a factor of 23 to 31 in log p. It is not a
+          measurement.
+        C5_twist_and_E_of_K: >-
+          Not tested. Only 21 of 172 twist rows contain a twist point besides O, and only 3 of
+          24 (curve, D) twists have any (11a1 D=-7, 11a1 D=13, 389a1 D=-1). The 8 of 129 frozen
+          twist cells that contain one all come from 389a1 D=-1 (one +- pair). The instrument
+          counts E(Q) union E^D(Q), which grows like (log H)^{max(r, r_D)/2}. It does not count
+          E(K), whose points include the sums P + T' and grow like (log H)^{(r + r_D)/2}.
+          The hypothesis's own parenthetical "N_E + N_{E^D}, still (log H)^{r_K/2}" is therefore
+          internally inconsistent. O is counted twice (VAL MR-7). With O counted once there are
+          86 cells, with upper median 1.0253 and conventional median 1.0242.
+      excess_explained: >-
+        The validator's null band (1.0010 to 1.0023) and every uniform null I ran exclude the
+        observed median 1.0330 / 1.0333. Same-shape nulls (rt_a): independent per cell 1.0016
+        [1.0010, 1.0023]; nested in H [0.9996, 1.0027]; nested and negation-paired 1.0025
+        [1.0010, 1.0041]. The validator's caveat that nesting understates the band does not
+        rescue the uniform model.
+        The excess decomposes into two parts:
+        (1) Geometry, about 1/3. A lattice ball pushed through a uniformly random homomorphism
+        Z^r -> Z/N_p gives 1.0125 [1.0074, 1.0179] with random Gram matrices (rt_b), and 1.0116
+        [1.0080, 1.0164] with the ACTUAL point set in its exact Mordell-Weil coordinates (rt_e,
+        598 cells, H <= 3e4, observed 1.0322). The canonical-height ball of the actual Gram gives
+        the same 1.0117. So the naive-height shape is irrelevant, and generic geometry does not
+        reach the observation (0/200).
+        (2) Arithmetic, about 2/3. Every non-zero K in ker(red_p) has p^2 | den X(K), hence a
+        canonical height of at least 2 log p - c_E (PARI normalization h^ = lim log H(x(nP))/n^2).
+        Measured on 86 cyclic (curve, p) pairs: min lambda1^2(ker red_p) - 2 log p = +0.91. On
+        ranks 5..7 at p <= 1200, a random index-matched kernel has median lambda1^2 below 2 log p
+        in 16 of 18 pairs, while the actual kernel never does. The actual minimum sits at the 90th
+        percentile of the random distribution at p <= 1200 and the 67th at p >= 1697, so the effect
+        decays with p, as it should (rt_f).
+        A random homomorphism with the same image index, conditioned only on
+        lambda1^2(ker) >= 2 log p, reproduces the observation: 1.0350 [1.0294, 1.0398] against the
+        observed 1.0338 on the 470 cyclic cells with H <= 3e4; 69/100 replicates reach or exceed it.
+        The unconditioned version gives 1.0139 [1.0089, 1.0192], 0/100 (rt_g).
+        The Coordinator's prior ("lattice spread") is therefore right about the sign, but accounts
+        for only a third of the size.
+      attacker_relevance: >-
+        None for coverage. distinct <= N always, so at half coverage any spread saves at most a
+        factor ln2/0.5 = 1.386 in N. That is Delta log log H_half <= (2/r) ln(2 ln 2) <= 0.33 for
+        r >= 2 and 0.093 at r = 7, an O(1) shift that cannot change the exponent. The arithmetic
+        floor works against relation-finding: relations among reductions of global points need
+        h^ >= 2 log p - c_E. It binds only where r >= r*(p). That is about 60 at p = 2^256 and
+        34 at p = 2^128, far above the ladder and above record ranks.
+    R2:
+      verdict: breaks
+      breaking_artifact_met: >-
+        Both disjuncts.
+        (i) The extrapolation "grows exponentially in p^{2/r}" is stated without its transfer
+        assumptions in H-CZLIFT-9a32e9, in the specification and in DEC-20261009-9f9254
+        (interpretation_limits only says the exponent is read on a short range).
+        (ii) The slope fits cannot carry the exponent on their own range. 5077a1 rests on 4
+        primes with 3 distinct grid values: slope 0.590 +- 0.156, leave-one-out range
+        [0.535, 0.821]. 234446a1's grid slope 0.415 +- 0.030 sits 2.8 SE below 2/r = 0.5;
+        interpolating off the grid gives 0.500-0.507, so the gap is grid quantization. The frozen
+        tolerance [0.5, 2] x 2/r cannot separate r from r +- 1, or even from 2r.
+      fit_range: >-
+        The resolved primes are 103..2417 only (log p 4.63 to 7.79), with 4 to 10 per curve. The
+        target log p = 256 log 2 = 177.4 is 23 to 31 times the largest fitted log p. With the
+        fitted slopes, the extrapolated log log H_half at p = 2^256 is 56.8 +- 3.5 (rank 7, main)
+        against 51.0 with 2/r through the centroid. The 1-sigma spread of the fitted slope alone
+        moves log H_half by a factor of about e^3.5. None of this changes "astronomical" for
+        r = 7, but it shows the fit does not measure the exponent.
+      what_carries_the_exponent: >-
+        Theorem-level, not the fit. Pigeonhole (coverage <= N_E(H)/N_p) plus the volume law
+        N_E(H) = V_r (log H)^{r/2}/sqrt(Reg) (1 + o(1)) give the unconditional lower bound
+        log H_half >= (sqrt(Reg) N_p / (2 V_r))^{2/r} (1 + o(1)). For the ladder's rank-7 curve at
+        p = 2^256 that is >= 1.3e22. The matching upper bound needs index k_p <= 2 and no gross
+        clustering.
+      transfer_assumptions_the_record_must_state:
+        - 'T1: the lifted curve has rank r fixed independently of p. The bound weakens to polynomial height once r >~ r*(p) = 2 log p / log(2 log p), i.e. 60.4 at p = 2^256 and 34.3 at 2^128.'
+        - 'T2: c_E = V_r / sqrt(Reg) and the naive-canonical height difference stay bounded along the lifts. For a p-dependent lift of a given target curve, coefficients are of size p, so the difference is O(log p); Lang''s height conjecture (proved for broad classes per JKSST 2000 refs [8, 27]) would make Reg grow and only strengthen the bound.'
+        - 'T3: [E(F_p) : red_p E(Q)] <= 2 for a finite H_half. This fails at 37a1 p = 211 and 293 here, and is expected to fail on a positive-density set of primes for any fixed E (Lang-Trotter primitive-point heuristics; recalled, not checked). It holds automatically for prime-order targets unless every generator reduces to O.'
+        - 'T4: a fixed curve E/Q, as the census uses, stands in for the attacker''s p-dependent lift (and for xedni''s curve through lifted points). The census does not test that substitution.'
+      discrepancy_checks: >-
+        Prime range: the spec says 16 primes in 101..20000; the code uses 103..20011, and 20011 is
+        outside. Without 20011 there are 647 / 732 cells with medians 1.0389 / 1.0393. H_half is
+        unaffected, since the largest resolved prime is 2417.
+        Cell domain: 'model <= 0.9 N_p' (tail_checks, used) admits N/N_p up to 2.28; 'N <= 0.9 N_p'
+        (HEUR-CZLIFT-UNIFORM) gives 621 / 698 cells with median 1.0265 on both runs, still far above
+        every uniform null.
+        Twist cells: O is double-counted, as above (rt_d).
+        These match VAL-20261022-9ab683 MR-7 exactly, except that the validator's 1.0242 is the
+        conventional median and the producer's convention gives 1.0253. None changes a frozen
+        outcome.
+    PTM-1:
+      verdict: holds
+      evidence: >-
+        On 11a1, no finite H_half is assigned. The code records h_half = {} on both runs; the
+        scaling fit needs 3 resolved primes; predicted_2_over_r is null at r = 0; the formula
+        (2/r) log p is undefined at r = 0. The image red_p(E(Q)) is the torsion Z/5 at all 16
+        primes (index N_p/5). Maximum coverage is 0.042 (p = 103). The count is 5 for H >= 30, and
+        the H = 10 count of 3 is correct (CORR-20261023-0657da).
+      control_strength: >-
+        Weak. Torsion makes the rank-0 count constant, so any count-based argument gives zero
+        growth there. The object tests the search, not the H_half reasoning.
+      strengthened_object_PTM_1b: >-
+        Red-team addition (verdict: breaks the uniformity of the "+O(1)", in the SAFE direction).
+        On 37a1 (rank 1, E(Q) = Z(0,0); every one of the 28 points of height <= 3e4 is an exactly
+        verified multiple) at p = 211 the index is 5, and at p = 293 it is 4. No lift of 4/5 (resp.
+        3/4) of the residues exists at ANY height. Yet log log H_half = (2/r) log p + O(1) and
+        HEUR-CZLIFT-UNIFORM (whose sample space is E(F_p) rather than red_p(E(Q))) both assign a
+        finite H_half. The survival is located in the heuristic's sample space and in the claim
+        that the O(1) is uniform in p. This makes lifts rarer, so it does not weaken the
+        obstruction. It does falsify HEUR-CZLIFT-UNIFORM's stated scope, "uniformly in p over the primes of good reduction".
+
+  objections:
+    - id: O1
+      joint: R1
+      text: >-
+        HEUR-CZLIFT-UNIFORM's random-model justification ("no algebraic relation ties small
+        global points to a structured subset of E(F_p)") is a bare assertion, and it is false.
+        Reduction is a homomorphism: its image is a subgroup and its kernel has a height floor.
+        The data reject the stated model at the cell level, and a structured model reproduces the
+        median. The "success criterion met" in DEC-20261009-9f9254 must not be read as support
+        for C2.
+    - id: O2
+      joint: R1
+      text: >-
+        The frozen coverage criterion is one-sided. It can detect clustering (median < 0.8) but
+        not excess (ceiling 1.05 at the median cell; frac_above_1.5 capped at 2.7-3.2 percent,
+        VAL PTM-1). It also cannot distinguish the uniform model (about 1.0025) from the
+        structured model (about 1.035). The clause it was written to test is therefore untested
+        by it.
+    - id: O3
+      joint: R1
+      text: >-
+        DEC-20261009-9f9254 user_hypothesis_clauses.global_lifts_fail_by_counting ("Consistent at
+        toy scope ... reductions cover E(F_p) like uniform points") overstates the data twice. The
+        uniform-reduction part is contradicted, and at toy scope lifts cover half of E(F_p) at
+        H <= p^{1.71}. The failure is an extrapolation.
+    - id: O4
+      joint: R1
+      text: >-
+        The twist clause (C5) is presented as measured, but no E(K) point beyond E(Q) union E^D(Q)
+        is ever formed. The frozen twist median rests on 8 twist-bearing cells from one twist, and
+        the r_K/2 growth is not measured at all.
+    - id: O5
+      joint: R2
+      text: >-
+        The H_half exponent is not an independent measurement. It is the inverse growth exponent
+        read through pigeonhole. The fits are grid-quantized, rest on 4 to 10 small primes, and
+        are judged against a factor-2 tolerance. The extrapolation's assumptions T1 to T4 are
+        nowhere stated.
+    - id: O6
+      joint: PTM-1
+      text: >-
+        The formula log log H_half = (2/r) log p + O(1) is not uniform in p. It is infinite where
+        [E(F_p) : red_p E(Q)] >= 3, which happens for 2 of 16 primes on 37a1. Its scope must
+        exclude such primes, or carry + (2/r) log k_p with k_p <= 2.
+    - id: O7
+      joint: R1 (cost reading)
+      text: >-
+        "The height needed ... grows exponentially in p^{2/r}" is not a cost separation from
+        Pollard rho for r >= 5. The lift's bit size is log H ~ p^{2/r}, which is below p^{1/2}
+        for r > 4. What separates lifting from generic attacks is the cost of FINDING the lift,
+        which is outside the census (see baseline_comparison). Promoting the obstruction as
+        "useless because of height" would misattribute it.
+
+  required_controls:
+    - 'For any future coverage claim, use an exact per-cell tail (negation-paired occupancy, rt_a.tails_paired) or a same-shape seeded null, never the analytic model alone. Use the structured null (random homomorphism with the same image index, kernel conditioned on lambda1^2 >= 2 log p; rt_g) as the reference against which "beyond structure" is judged.'
+    - 'Compute [E(F_p) : red_p E(Q)] for every (curve, p) before reading H_half; k_p >= 3 means H_half = infinity (rt_c).'
+    - 'Compute H_half off the grid (interpolation or a finer grid) with a slope SE, and use a tolerance that separates r from r +- 1 (for example |slope * r/2 - 1| <= 0.1); the current [0.5, 2] x 2/r cannot.'
+    - 'If the E(K) clause is kept: enumerate E(K) as sums over the Q-bases of E(Q) and E^D(Q), count by K-height, choose twists of positive rank (e.g. 11a1 D = -7), and count O once.'
+    - 'If rank labels are load-bearing: rank upper bounds by 2-descent (PARI ellrank); lower bounds are already shown by non-singular height Grams (rt_e).'
+
+  counterexample_or_mutation: >-
+    The cheapest discriminating mutation replaces red_p by a uniformly random homomorphism with
+    the same image index and keeps the point set and coordinates (rt_e / rt_f). Generic
+    homomorphism geometry is 1.0116 to 1.0139; the observation is 1.032 to 1.034. Adding back
+    ONE arithmetic fact, ker(red_p) has no vector of h^ < 2 log p, restores 1.035 [1.029, 1.040]
+    (rt_g).
+    Counterexamples to "independent uniform":
+    389a1, p = 103, H = 1e4: 79/79 distinct at N_p = 110 (tail 2.4e-9).
+    389a1, p = 149, H = 3e4: 28 collisions from a single kernel point with H(X(K)) = 404416 >= p^2 = 22201.
+    Counterexample to the finite-H_half formula: 37a1 at p = 211 (index 5).
+
+  baseline_comparison: >-
+    No speedup is claimed and no cost table exists, so there is no dominated_by field to check
+    (the records carry none). For the obstruction's implied comparison:
+    (a) Enumerate-and-hope with a ball of N small points succeeds with probability <= N/N_p
+    (pigeonhole). Total expected cost is at least N + N_p/N >= 2 sqrt(N_p) when the ball serves
+    as a baby-step table for Q + jG.
+    (b) Placing a hit in terms of G still needs log_G of the r generator reductions, i.e. r + 1
+    such hits. The best case is BSGS-equivalent: Theta(sqrt p) time and memory, dominated by
+    Pollard rho (Theta(sqrt p) time, O(1) memory).
+    (c) The CVP route (shortest lift of Q in the coset of Lambda_p = ker red_p) needs a basis of
+    Lambda_p and Q's coset, i.e. discrete logs of the generator reductions and of Q, which is
+    the DLP itself. Per KN-LIT-7593, the eliminated dimension is no speedup until that
+    invariant's cost is charged.
+    The closest specialized baselines are xedni (JKSST 2000: success probability < C0/p under
+    Lang's conjecture, i.e. Omega(p) repetitions) and Silverman-Suzuki lifting. Neither is known
+    to beat rho, and nothing in this census changes that.
+
+  heuristic_challenges:
+    - 'Inventory: one numbered heuristic (HEUR-CZLIFT-UNIFORM). Its justification is neither a rigorous bound nor a distribution theorem. Unnumbered assumptions T1 to T4 above are load-bearing for C4.'
+    - 'Random-model transfer fails. The structured object (a lattice ball under a homomorphism with an arithmetic kernel floor) is measurably not uniform. The cheapest exposing computation is the exact paired-occupancy tail per cell (seconds on raw-result.json, rt_a); the cheapest explaining computation is rt_g.'
+    - 'Decay check ("what should the quantity have done"): under HEUR the excess at fixed x should be fluctuation only; it is not. Under the structured model, the arithmetic part should decay as p outgrows r*(p); it does (kernel percentile 0.90 at p <= 1200 against 0.67 at p >= 1697; the floor binds in 16/18 against 1/20 pairs, ranks 5..7). The geometric part persists, which is expected for a homomorphism.'
+    - 'Scale honesty: the tested range is p = 103..20011 (coverage) and p = 103..2417 (H_half), with H <= 3e5. There is no substitute sampler, so transfer to p ~ 2^256 rests on T1 to T4.'
+
+  cost_model_challenges:
+    - 'Per-attempt versus total: the hypothesis gives no attack cost. Total expected cost of a coverage-based lift is >= (cost per point) x N / (success probability <= N/N_p) >= N_p for single-shot enumeration, and >= 2 sqrt(N_p) with a baby-step table. This is never below generic.'
+    - 'Height is not cost: log H_half ~ p^{2/r} bits is below p^{1/2} for r >= 5. The record must not present exp(p^{2/r}) as the attack cost.'
+    - 'At crypto size the counting floor depends on attainable lift rank: log H_half >= 1.3e22 at r = 7 (Reg 479.9). The illustrative values for unconstructed lifts (Reg = 1) are >= 3.9e5 at r = 29 and >= 1.4e3 at r = 60 (rt_h Q4). The obstruction is a rank obstruction, not an unconditional exponential.'
+
+  reduction_and_scope_challenges:
+    - 'JKSST 2000 is cited as "the obstruction this census quantifies". Its Theorem 4.1 (success probability < C0/p) rests on Lemma 4.1, which needs Lang''s conjecture and log|D| >= C1 max h^(P_i) for the lifted curve. Neither hypothesis is instantiated by fixed-curve census data. The census quantifies only the geometry-of-numbers count JKSST use as an ingredient (their citation: Lang, Fundamentals of Diophantine Geometry, Ch. 5, Thm 7.4).'
+    - 'Scope: the census does not test the xedni construction (a curve through lifted points with Mestre conditions), p-dependent lifts of a given target, fields of degree > 2, or E(K) proper. The user H2 sentence "Silverman-Suzuki, Huang-Kueh-Tan, and the xedni analysis all die on this" is not established by this experiment.'
+    - 'Affected/safe scheme lists: none claimed; none may be inferred.'
+
+  proof_architecture_challenges:
+    - 'Nearby-object attack: 11a1 is too easy. 37a1 at index-4/5 primes is the nearby object on which the H_half formula proves too much (PTM-1b).'
+    - 'Method ceiling: the coverage instrument''s ceiling min(x,1)/(1 - e^{-x}) <= 1.582 bounds any "spread" effect. The obstruction''s headline can only come from counting.'
+
+  narrowest_supported_statement: >-
+    Scope: the eight-curve minimal-conductor ladder (recalled ranks 0..7; r independent points
+    verified per curve), naive height <= 3e5, the 16 primes 103..20011 (H_half resolved only at
+    103..2417), quadratic twists by D in {-1, 2, -3, 5, -7, 13} of the first four curves at
+    height <= 3e4, toy tier.
+    (i) N_E(H) follows the Neron-Lang volume law V_r (log H)^{r/2}/sqrt(Reg) within [0.96, 1.31]
+    for 1e3 <= H <= 3e5. 11a1 stays at its 5 torsion points.
+    (ii) Reductions mod p are NOT independent-uniform. Their distinct-residue counts are those of
+    a lattice ball under the reduction homomorphism, whose kernel (on all 86 cyclic pairs
+    measured) has no point of PARI-height below 2 log p + 0.91 (structured null 1.035 [1.029, 1.040] against observed 1.034; uniform nulls
+    <= 1.005). The excess is capped by pigeonhole and cannot reduce the number of small points
+    needed to cover half of E(F_p) below N_p/2.
+    (iii) In the tested range, half of E(F_p) is covered at H_half <= p^{1.71} for ranks 2..7 (rank 2 at p = 103 only). The
+    grid-free slope of log log H_half on log p equals 2/r within 0 to +10 percent (1 sigma <= 0.022),
+    as the inverse growth exponent.
+    (iv) Where [E(F_p) : red_p E(Q)] >= 3 (37a1, p = 211 and 293) no finite H_half exists.
+    Beyond this scope, the only supported statement is the conditional theorem: for a lift of
+    fixed rank r with bounded c_E and index <= 2, log H_half >= (sqrt(Reg) N_p/(2 V_r))^{2/r}(1 + o(1)).
+    Nothing is measured about E(K), lift construction, attack cost, or cryptographic p.
+
+  strength_assessment: >-
+    (i) and (iii) are a strong, exact-enumeration confirmation of classical consequences
+    (Neron-Tate quadratic form plus geometry of numbers plus pigeonhole). They are sound and of
+    low novelty; the census verifies known mathematics at toy size rather than adding new
+    evidence about ECDLP.
+    (ii) is a moderate-strength refutation of HEUR-CZLIFT-UNIFORM as stated: replicated on both
+    runs, though the runs share all points up to 1e5, so they are not independent for coverage.
+    The mechanism is fitted by a one-assumption structured null.
+    C4 (uselessness) and C5 (E(K)) are untested.
+    The hypothesis as a whole should NOT move to "supported" under the spec's on_positive.
+    Clause-level reading: C1 supported; C2 refuted as stated (structured model); C3 consistent
+    but derivative; C4 conditional extrapolation; C5 untested.
+    On closure: RQ-CZLIFT-b9f765 decision_target (a) requires that "small global points cover
+    E(F_p) no better than uniform reductions". That is false here. Target (b) is met in its letter
+    (a replicated, significant excess), and this review identifies that excess as non-exploitable.
+    A negative closure of the global-lift sub-question therefore has to be written on the counting
+    obstruction with its forward guidance, not on uniformity.
+
+  obstruction_reading:
+    name: counting (pigeonhole + volume-law) floor on the height of lifts of residues, fixed rank
+    measured_quantities:
+      - quantity: 'count ratio N_E(H) / (V_r (log H)^{r/2} / sqrt(Reg)), dimensionless; Reg = det of the verified height Gram in PARI normalization (h^ = lim log H(x(nP))/n^2)'
+        value: '[0.96, 1.31] over 1e3 <= H <= 3e5 and ranks 1..7; [0.99, 1.085] at H = 3e5'
+        runs: [RUN-CZLIFT-490b33]
+        artifact: experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_h_obstruction_numbers_output.json
+      - quantity: 'd log log H_half / d log p (grid-free, uniform-model threshold N = N_p ln 2), dimensionless, against 2/r'
+        value: 'r=3 0.696 +- 0.019 (0.667); r=4 0.500 +- 0.020 / 0.507 +- 0.015 (0.5); r=5 0.416 +- 0.022 / 0.419 +- 0.017 (0.4); r=6 0.356 +- 0.008 / 0.352 +- 0.006 (0.333); r=7 0.298 +- 0.006 / 0.296 +- 0.005 (0.286); 1-sigma OLS SE, main / replication, p = 103..2417, 4-9 primes'
+        runs: [RUN-CZLIFT-74f172, RUN-CZLIFT-490b33]
+        artifact: experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_d_hhalf_slopes_and_definitions_output.json
+      - quantity: 'kernel floor gap lambda1^2(ker red_p) - 2 log p, in nats of PARI canonical height'
+        value: 'min +0.91 over 86 cyclic (curve, p) pairs; [2.3, 7.3] for ranks 5..7 at p <= 1200'
+        runs: [RUN-CZLIFT-490b33]
+        artifact: experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_f_kernel_minimum_output.json
+      - quantity: 'frozen-cell median of distinct / uniform model, dimensionless'
+        value: 'observed 1.0330 / 1.0333; uniform paired null 1.0025 [1.0010, 1.0041]; structured null 1.0350 [1.0294, 1.0398] (470 cyclic cells, H <= 3e4, observed 1.0338)'
+        runs: [RUN-CZLIFT-74f172, RUN-CZLIFT-490b33]
+        artifact: experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_g_conditioned_null_output.json
+    scope_claimed_by_record: 'the ladder, H <= 3e5, p = 103..20011, toy; the fixed-rank theorem beyond'
+    resource_check:
+      examined: true
+      reading: >-
+        Read in reverse, the measurement says the obstruction is a RANK obstruction. The volume
+        law and the kernel floor h^(ker) >= 2 log p meet at r*(p) = 2 log p / log(2 log p) (constants
+        dropped). Above
+        it, small points cover E(F_p) at polynomial height, as observed at toy primes for ranks
+        5..7. Below it, log H_half ~ p^{2/r}. Two theories take this as a hypothesis:
+        (1) A lift construction whose rank grows like log p / log log p (about 60 at 2^256)
+        would collapse the counting obstruction to polynomial height. No such construction is
+        known: the record rank is 29 and PPVW-type heuristics bound ranks (both per the H2
+        source_statement, not checked here), and a lift must reduce to the given target curve.
+        (2) The CVP formulation: lifting Q is the closest-vector problem in the coset of
+        Lambda_p = ker red_p, a rank-r lattice of covolume N_p whose minimum is >= 2 log p - c_E.
+        Fixed-dimension CVP is easy once Lambda_p and Q's coset are known, but obtaining them is
+        the DLP itself (KN-LIT-7593 pattern). The open lane is a method that produces short
+        vectors of Lambda_p, or Q's coset representative, without discrete logs.
+        The kernel floor also gives JKSST-style relation bounds a measured constant: on this
+        ladder a relation among reductions of global points costs h^ >= 2 log p + 0.9.
+        These readings are candidates for the ranking, not evidence.
+      spawned_ids: []
+      spawned_ids_note: Candidates listed; ID allocation and filing belong to the Coordinator.
+    forward_guidance_open_classes:
+      - lifts with rank growing with p (r >~ r*(p)); constructing them for a prescribed reduction
+      - short vectors of ker(red_p) or the coset of Q without discrete logs (CVP route)
+      - E(K) proper (sums) for quadratic K; degree > 2 fields such as Q(c^{1/d})
+      - p-dependent lifts of a given target, where c_E and the height difference depend on p (T2)
+
+  recalled_citations_checked:
+    - citation: 'A. Neron, Quasi-fonctions et hauteurs sur les varietes abeliennes, Ann. of Math. 82 (1965)'
+      role_in_record: the (log H)^{r/2} growth law
+      checked: >-
+        The bibliographic data (Ann. Math. (2) 82, 249-331) match Encyclopedia of Mathematics
+        "Neron-Tate height", seen through a web-search summary only.
+        The paper itself was not read, so whether it contains the counting asymptotic is
+        unconfirmed. The asymptotic count is attributed to Neron's 1958 ICM short communication,
+        "Valeur asymptotique du nombre des points rationnels de hauteur bornee sur une courbe
+        elliptique", whose title alone is printed in the Proceedings (J. S. Milne, "The Work of
+        John Tate", arXiv:1210.7459, footnote 37).
+        JKSST 2000 state the count with its constant,
+        N(B) = T V_ball(r)/sqrt(R) B^{r/2} + O(B^{(r-1)/2}), citing Lang, Fundamentals of
+        Diophantine Geometry (1983), Ch. 5, Thm 7.4.
+      delta: >-
+        The mathematics is correct and confirmed numerically (Q1). The attribution of the growth
+        law to the 1965 paper is imprecise; cite Lang 1983 Ch. 5 Thm 7.4 for the count with its
+        constant.
+    - citation: 'M. J. Jacobson, N. Koblitz, J. H. Silverman, A. Stein, E. Teske, Analysis of the xedni calculus attack, Des. Codes Cryptogr. 20 (2000) 41-64'
+      role_in_record: the obstruction this census quantifies
+      checked: >-
+        Read: abstract, Theorem 4.1, Lemma 4.1 with its proof, and Section 6, from the published
+        PDF at pages.cpsc.ucalgary.ca/~jacobs/PDF/xedni.pdf. The obstruction is a pigeonhole
+        bound on the coefficients of a dependency among lifted points. It is conditional on
+        Lang's conjecture and on log|D| >= C1 max h^(P_i), and gives success probability < C0/p.
+      delta: >-
+        It is not a uniform-reduction statement and is not instantiated by a fixed-curve census.
+        The census quantifies an ingredient (the count), not the theorem.
+    - citation: 'J. H. Silverman, J. Suzuki, Elliptic curve discrete logarithms and the index calculus, ASIACRYPT 1998, LNCS 1514, 110-125'
+      role_in_record: mechanism text (named obstruction)
+      checked: >-
+        The bibliographic data are confirmed by IACR CryptoDB / DBLP through a web-search summary.
+        Content not read. A web-search summary attributes to Huang-Kueh-Tan (ANTS 2000) a
+        description of it as evidence that lifting many random points to bounded-height rational
+        points is infeasible; I did not read that paper either.
+      delta: Unverified beyond bibliography. Not load-bearing for the census numbers.
+
+  scope_limits:
+    - 'Toy tier only; no statement about p ~ 2^256 except the conditional theorem with T1 to T4.'
+    - 'My structured-null analysis covers frozen cells with H <= 3e4 (598, or 470 at cyclic primes). The 1e5 and 3e5 cells (95 main, 187 replication) were not re-modelled; the anatomy statistics (rt_a) cover all cells.'
+    - 'Rank labels are recalled. Lower bounds are verified, upper bounds are not.'
+    - 'The cyclic E(F_p) assumption in rt_f / rt_g skips 26 of 112 rank >= 1 (curve, p) pairs; rt_c uses no such assumption.'
+    - 'A single gap_min-conditioned variant (R2 in rt_g) had 96 rejection-sampling failures and is not used; the reported structured null is the unparameterized floor 2 log p.'
+
+  must_not_claim:
+    - 'That small points reduce "like independent uniform points" or that the coverage criterion supports HEUR-CZLIFT-UNIFORM.'
+    - 'That global lifts fail at toy scope: in the tested range they cover half of E(F_p) at H <= p^{1.71}.'
+    - 'That the height bound exp(p^{2/r}) is an attack-cost separation from Pollard rho (false for r >= 5), or that the census establishes the xedni, Silverman-Suzuki or Huang-Kueh-Tan obstructions.'
+    - 'That E(K) for K = Q(sqrt D) was measured, or anything about Q(c^{1/d}).'
+    - 'That the rank labels are confirmed by the growth slope.'
+    - 'RQ-CZLIFT-b9f765 decision_target (a) "no better than uniform", which is false; or a closure of the global-lift lane without the obstruction block and the forward guidance above.'
+    - 'That the measured excess is an attacker resource: it is capped by pigeonhole, and the arithmetic part works against relation-finding.'
+
+  next_concrete_action: >-
+    Coordinator: write the evidence record for H-CZLIFT-9a32e9 with clause-level readings (C1
+    supported; C2 refuted as stated, structured model per rt_g; C3 consistent but derivative; C4
+    conditional on T1-T4; C5 untested), without moving the hypothesis to supported. Attach the
+    obstruction block above (counting floor at fixed rank, with resource_check and forward
+    guidance) instead of the uniform-reduction wording.
+
+  compute_and_environment:
+    machine: 4 shared cores; every script single-process at nice 10
+    python: 3.13.16; numpy 2.5.3 and sympy 1.14.0 (system); numpy 2.5.4 and cypari2 2.2.4 with PARI/GP 2.17.2 in a scratch virtualenv for rt_e only
+    seeds: numpy default_rng(20261023) throughout
+    wall_seconds: {rt_a: 32, rt_b: 11, rt_c_H30000: 36, rt_d: '<2', rt_e: 40, rt_f: 19, rt_g: 162, rt_h: '<2'}
+    order_of_dependence: rt_e reads rt_c (enumerator) and rt_b (Fincke-Pohst); rt_f reads rt_e output; rt_g reads rt_e and rt_f outputs; rt_h collates rt_d, rt_e, rt_f
+    producer_code_imported: none (run.py and check.py were read, not imported; harness/ was neither read nor imported)
+    independent_replication: >-
+      My own sieve reproduces every grid count with H <= 3e4 on all 8 curves and both runs, and
+      `distinct` on all 2048 coverage cells with H <= 3e4, with 0 mismatches (rt_c). The
+      homomorphism representation <v, a> mod N_p reproduces `distinct` on every cyclic-prime
+      cell with H <= 3e4, with 0 mismatches (rt_f).
+
+  artifact_paths:
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/redteam_report.yaml
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_a_coverage_anatomy.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_a_coverage_anatomy_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_b_lattice_null.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_b_lattice_null_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_c_points_kernel_index.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_c_points_kernel_index_output_H30000.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_d_hhalf_slopes_and_definitions.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_d_hhalf_slopes_and_definitions_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_e_mw_coordinate_null.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_e_mw_coordinate_null_output_H30000.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_f_kernel_minimum.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_f_kernel_minimum_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_g_conditioned_null.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_g_conditioned_null_output.json
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_h_obstruction_numbers.py
+    - experiments/EXP-CZLIFT-a255fc/reports/redteam-20261023/rt_h_obstruction_numbers_output.json
+  supporting_files_sha256:
+    rt_a_coverage_anatomy.py: 9f540f46658060005d71f01577a79c54edc295d4130b3a76d7f6683f10e0cb9d
+    rt_a_coverage_anatomy_output.json: faf63db8510fa58490f1e93c20302978f29a368639c130b47578761337942b1c
+    rt_b_lattice_null.py: 8615f91cdba93e580724e9e149b72d67b023a89f548ac70b83a2ccc9a7576000
+    rt_b_lattice_null_output.json: 4e38963ec530272b3afe96c47e5b9509136957b05b17aa2887a006f770684450
+    rt_c_points_kernel_index.py: d4113c3cfc45b89da92b8ee9bad0f894a2dade79f5813cc26e522614cb67b4e5
+    rt_c_points_kernel_index_output_H30000.json: a5a1221991b16e467ce677a6cb1675f27db3fe654223b2956a00597fd8b56856
+    rt_d_hhalf_slopes_and_definitions.py: eb8daaf23e42a1fe22e13c16791afcad38feac10d55475f15bc91bd431b0a652
+    rt_d_hhalf_slopes_and_definitions_output.json: d1e40fdc581dadd0654a9505e00e5986dba291600b33ac6ad08bbc49890924d2
+    rt_e_mw_coordinate_null.py: 7eb905b629193a37573413dad59e7b29261678626f632b2bcf8acfd9c069e72f
+    rt_e_mw_coordinate_null_output_H30000.json: 7080d6e2e7e668614c516b95f469e435c6129224f404c81ae1315080281c3120
+    rt_f_kernel_minimum.py: 06ba79122beab3eb39a8350edb795b8d1d3ab7e24bdcfb0474337e7c43121738
+    rt_f_kernel_minimum_output.json: 8715fbe32aa2237cfd5197035ff46a290d6359ba2b64f9ba319dcb0daabd6d5a
+    rt_g_conditioned_null.py: df6925d9157c7c0cd2f7e76c534b95267371dd83ad2ecf2fc611462dc71fa90c
+    rt_g_conditioned_null_output.json: 9b58d4c465fd181b912179c92ba021600023dd791dfce9b2d275c36ef5c51c40
+    rt_h_obstruction_numbers.py: 5e342eba5ef1aec29003f99993bed7dca25e0f6cacb16f5f6a77cd5be659eace
+    rt_h_obstruction_numbers_output.json: 4a4b29045da8b01f1e97d6ebbd14b2cb2b10aaad2b65e817b28fbb3a24729387
+
+  inference_boundary: >-
+    This report informs the Coordinator's decision. It moves no status, is not evidence on its
+    own, and was not committed by the red team.
+
+review_attestation:
+  task_id: TASK-20261023-326d39
+  joints_owned:
+    - 'R1: The census supports H-CZLIFT-9a32e9: small points are too few, their reductions behave like uniform points, and H_half(p) grows so fast that global lifts are useless.'
+    - 'R2: The H_half(p) extrapolation to cryptographic p is stated with its transfer assumptions.'
+  joint_ids_owned: [R1, R2]
+  controls_owned: [PTM-1]
+  sources_read:
+    - ledger/handoffs/TASK-20261023-326d39.yaml
+    - ledger/corrections/CORR-20261023-0657da.yaml
+    - docs/agent-runtime-core.md
+    - agents/red-team.md
+    - AGENTS.md (heading index; sections "Name the obstruction" lines 22-61, "Review architecture" lines 359-371, "Curve identity and measured bounds" lines 532-547)
+    - docs/inventor-protocol.md (heading index; sections 3 and 4, lines 73-146; policy named in the red-team operating rules, outside the card's read_scope list)
+    - experiments/EXP-CZLIFT-a255fc/specification.yaml
+    - experiments/EXP-CZLIFT-a255fc/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-9a32e9.yaml
+    - ledger/questions/RQ-CZLIFT-b9f765.yaml
+    - ledger/decisions/DEC-20261009-9f9254.yaml
+    - experiments/EXP-CZLIFT-a255fc/reports/validation-20261022/validation_report.yaml (the only file opened in that folder; the others were listed by name and size only)
+    - experiments/EXP-CZLIFT-a255fc/implementation/run.py
+    - experiments/EXP-CZLIFT-a255fc/implementation/check.py
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/manifest.yaml (first 80 lines)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-74f172/raw-result.json (by key, through my scripts)
+    - experiments/EXP-CZLIFT-a255fc/runs/RUN-CZLIFT-490b33/raw-result.json (by key, through my scripts)
+    - directory listings of experiments/EXP-CZLIFT-a255fc and both run directories
+    - git metadata (log -3; rev-parse HEAD; status, ls-files and log -1 on the read inputs)
+    - tools/allocate_id.py (--help, --next error text and --check output only)
+    - 'external: Jacobson, Koblitz, Silverman, Stein, Teske 2000, published PDF (pages.cpsc.ucalgary.ca/~jacobs/PDF/xedni.pdf), extracted text; abstract, Section 4 and Section 6 and the reference list read'
+    - 'external: arXiv:1210.7459 (J. S. Milne, The Work of John Tate), extracted text; footnote 37 and the surrounding paragraph on heights read'
+    - 'external: web-search result summaries (bibliographic) for Neron 1965 and Silverman-Suzuki 1998'
+  not_read: >-
+    harness/czlift_run.py and every other harness file; every file under
+    experiments/EXP-CZLIFT-a255fc/reports/validation-20261022 other than validation_report.yaml;
+    every other experiment's reports/redteam-20261023 folder; any other red-team or validation
+    report of this round; PR text; session receipts.
+  read_sibling_reports: false
+  sibling_exposure_disclosure: >-
+    A directory listing of this session's shared tool-results folder showed the filenames of four
+    web-fetch PDFs that I did not fetch (timestamps 21:25 to 21:37Z). None was opened. The only
+    fetched documents I read are the two listed under sources_read.
+  blindness_lifted_for_this_task: VAL-20261022-9ab683 (sealed validation report), as declared in review_plan.blindness.lifted_for
+  verdict:
+    R1: breaks
+    R2: breaks
+    PTM-1: holds
+    'R1: The census supports H-CZLIFT-9a32e9: small points are too few, their reductions behave like uniform points, and H_half(p) grows so fast that global lifts are useless.': breaks
+    'R2: The H_half(p) extrapolation to cryptographic p is stated with its transfer assumptions.': breaks

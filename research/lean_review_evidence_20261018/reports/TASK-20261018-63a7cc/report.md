@@ -1,0 +1,105 @@
+---
+title: "Independent transport and rho fidelity review"
+subtitle: "TASK-20261018-63a7cc · J1-transport-and-rho-fidelity · 2026-10-18"
+---
+
+## Scoped finding
+
+**Own-joint verdict: holds.** Each of the five transport and four rho declarations faithfully supports its own proof-map claim with the producer's explicit limitations. All nine exact declarations were recompiled from frozen, hash-matched source and passed the transitive axiom audit. No counterexample under their stated hypotheses was found. This is a verdict on J1 alone; it is not approval of the full review packet, all historical claims, or any scientific promotion.
+
+The stronger historical and implementation obligations remain separate. The new declarations do not construct geometric isogenies or Jacobian base-change maps, re-prove the historical solver-cost construction, certify the actual C walk invariant, or prove composite-order candidate enumeration. These omissions are already disclosed in the producer proof maps and READMEs. They do not turn the nine conditional claims into mismatches.
+
+All citations below have provenance **internal**, retrieved directly from the frozen files or pinned Git blobs in this session. No sibling report or reviewer message was read. This was a source-aware independent review, not the blind mathematical re-derivation assigned elsewhere.
+
+![Logical scope and remaining bridges. Solid arrows apply proved implications to supplied assumptions; the lower boxes remain separate obligations.](artifacts/proof-boundaries.pdf)
+
+## Inputs and machine evidence
+
+The authority is [the committed handoff](/workspace/review-lean-evidence/ledger/handoffs/TASK-20261018-63a7cc.yaml) and the precommitted [review plan](/workspace/review-lean-evidence/research/lean_review_evidence_20261018/review-plan.yaml). [inputs.json](/workspace/review-lean-evidence/research/lean_review_evidence_20261018/inputs.json) binds these exact revisions:
+
+- Review worktree: `1a9d9f4f8a9f214b44c1b424a885051ff3f2846b`.
+- Crypto: `eccff5b6cd1d0231b8d64da099cea954180d9d53`.
+- Cryptanalysis: `25eb01fb6d5d309992edc11e4b940696cc6b112d`.
+
+The reviewed module SHA256 values are:
+
+- `Transport.lean`: `2326c9ada9d5bd412d3088c25896895321788aee43601aa693279d1de326d484`.
+- `RhoCollision.lean`: `2092dd0958c51c829f0562864389db79e5b341bfe3c6cee0f26c254dc95fd317`.
+
+[Input checks](artifacts/input-hash-checks.json) also match the original workspace copies used to locate pinned caches. [Historical binding checks](artifacts/historical-binding-checks.json) confirm that the frozen `TransferBound.lean`, `SubfieldCollapse.lean`, and `src/rho.c` bytes equal the blobs at the proof maps' historical baseline revisions `abee07ee7337d04a7e734333669ca1bacd6c763a` and `1f04dfdff100e7df5ca815b7ed5ba269bcf35f26`.
+
+Fresh producer module outputs were built in isolated `/tmp/review-TASK-20261018-63a7cc/lean`. Lean reports version **4.35.0**, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`. CryptoLean is pinned to `68117089795313bc2ffe3a3b5f72052d5fa7cb91`, Mathlib to `cfc55fc58714a59dc06e6e79edc6d1d95140d3c2`; every package HEAD matched its manifest pin and had no tracked diff. See [dependency checks](artifacts/dependency-checks.json), [commands and exit statuses](artifacts/commands.json), and [replay script](artifacts/replay.py).
+
+The source modules were compiled separately with `lean -o`, then the supplied, hash-bound `AuditAxioms.lean` was run against both exact module names. [The audit](artifacts/axiom-audit.log) reports **9 theorems, 0 failing, 0 compiler-trusted**. [Elaborated types and per-name axiom prints](artifacts/elaborated-types.log) retain all nine names, explicit parameters, universes and foundation dependencies. The dependencies are limited to `propext`, `Classical.choice`, and `Quot.sound`; the zero-coefficient theorem does not need choice.
+
+Dependency `.olean` caches were reused read-only after source/pin checks. They were not all rebuilt. `lean4checker` is unavailable, so this is fresh Lean checking of the two producer source modules and reviewer controls, not fresh external rechecking of every imported dependency.
+
+## Separate declaration verdicts
+
+`T` denotes `Retrospective.Transport`; `R` denotes `Retrospective.Rho`. Every row has **machine: passed; producer fidelity: faithful_scoped; review outcome: validated_scoped**, over this reviewer's stated scope. Their distinct stronger boundaries are recorded separately in [claims.json](claims.json).
+
+| Declaration | Independently supported meaning | Stronger obligation left open |
+|---------------------------------------------|------------------------------|------------------------------|
+| `T.injective_on_subgroup` | Reverse composition and coprimality imply injectivity on the finite subgroup. | Neither map construction nor the interpretation of `d` as geometric degree is proved. |
+| `T.dlog_transport_iff` | Both directions hold for every integer scalar and both subgroup points. | No executable destination solver, cost model, or two-evaluation cost theorem. |
+| `T.curve_dlog_transport_iff` | The same implication specializes to Mathlib's actual point groups. | No chosen curve pair, isogeny, reverse map, or duality certificate. |
+| `T.closure_le_range` | A genuine generated additive subgroup remains in the homomorphism's range. | Concrete factor-base membership and the Jacobian map are assumed through the model. |
+| `T.outside_range_not_in_closure` | A supplied target outside that range is outside the base's generated subgroup. | No proof a research target is outside, Weil bound, or general attack impossibility. |
+| `R.recover` | The ordinary collision equation in any field determines the stated scalar when the coefficient is nonzero. | No C modular-arithmetic or composite-order refinement. |
+| `R.recover_negated` | The negated collision equation gives the different numerator and denominator. | No group-level negated-encoding bridge or composite candidate theorem. |
+| `R.group_collision_recover` | An injective additive `ZMod p` encoding lifts group equality to the ordinary field formula. | Construction from a base point's exact order and the actual C invariant. |
+| `R.zero_coefficient_not_injective` | The constant-zero scalar map on `ZMod 7` is not injective. | This is a mathematical control, not a claimed C defect or a full solver theorem. |
+
+### Transport and historical transfer
+
+The [new source](/workspace/lean-review-inputs/crypto/research/lean_retrospective_20261018/lean/Retrospective/Transport.lean:13) uses `AddCommGroup`, an actual `AddSubgroup`, `Finite S`, additive homomorphisms, and the explicit hypothesis `back (f P) = d • P` for **every** `P : S`. Applying `back` to equal images gives equality after multiplication by `d`; coprimality makes that multiplication bijective on `S`. Injectivity is derived, not stored as a property of a structure merely named “Isogeny.” Neither cyclicity nor a generator for all of `S` is needed. The integer-scalar equivalence [at line 28](/workspace/lean-review-inputs/crypto/research/lean_retrospective_20261018/lean/Retrospective/Transport.lean:28) preserves the same scalar and proves both directions.
+
+The [historical source](/workspace/lean-review-inputs/crypto/research/conductor_gap_cm_pairs_20261010/lean/TransferBound.lean:43) has operations without group-law axioms, a `Hom` that **assumes** injectivity, a self-reported natural cost, and a deterministic solver with correctness on every solvable instance. Its `transfer`, `transfer_cost`, and `within_isogeny_cost` are a separate abstract solver/cost construction. The new equivalence supplies a sound algebraic prerequisite under genuine group laws; it does not reproduce that full construction or justify actual execution cost. The historical comment itself excludes ordinary step-capped randomized walks unless their fixed tape yields an always-correct solver. Neither source alone establishes measured conductor-dependent gains.
+
+The [curve specialization](/workspace/lean-review-inputs/crypto/research/lean_retrospective_20261018/lean/Retrospective/Transport.lean:44) has genuine group laws from Mathlib. Mathlib's `Affine.Point` consists of infinity and **nonsingular** affine points (`Point.lean`, lines 477–480); its `AddCommGroup` instance is at line 805. The theorem permits arbitrary Weierstrass models and does not require `IsElliptic`. It consequently applies to elliptic curves, and can also describe the nonsingular locus of a singular model. It does not certify any supplied model as elliptic. The reviewer checked `y²=x³+1` over `ZMod 7`, nonzero discriminant, a nonzero point `(0,1)`, finiteness, and identity-map transport on its full point subgroup. This is an actual-curve nonvacuity example, not a nontrivial isogeny construction.
+
+### Factor-base range
+
+[Historical `SubfieldCollapse.lean`](/workspace/lean-review-inputs/crypto/research/weak_subfield_hyperelliptic_decomposition_20261012/lean/SubfieldCollapse.lean:1) distinguishes the coordinate rescaling, rationality of relation points, and an operation-generated span. The two new range theorems cover its **third step** with bona fide Mathlib subgroup closure. They do not re-prove the coordinate/rationality lemmas, construct Jacobians, prove the base-change map acts as required on divisor classes, establish image membership of the actual factor base, find an actual target outside the image, or supply a Weil cardinality bound. The historical source and new README both identify the missing geometric bridge.
+
+The control embeds `ZMod 7` as the first axis of `ZMod 7 × ZMod 7`. The nonzero base `{(1,0)}` lies in the image; `(0,1)` does not. Both closure containment and target exclusion are obtained by applying the producer declarations. This avoids relying only on an empty base or a zero map to exhibit satisfiable assumptions.
+
+### Rho formulas and C boundary
+
+At [C lines 184–187](/workspace/lean-review-inputs/cryptanalysis/src/rho.c:184), sign zero computes `c=b1-b2`, `d=a2-a1`, exactly matching `R.recover`. [Lines 188–192](/workspace/lean-review-inputs/cryptanalysis/src/rho.c:188) compute `c=b1+b2`, `d=-(a1+a2)`, exactly matching `R.recover_negated`. The two nonzero conditions are different and were reviewed separately. Both formulas are valid over any field, rather than only a particular prime field.
+
+[The group theorem](/workspace/lean-review-inputs/cryptanalysis/research/lean_retrospective_20261018/lean/Retrospective/RhoCollision.lean:29) assumes prime `p`, an additive encoding and its injectivity. Its group collision is written using `encode (b*x)`. It does not build the encoding `k ↦ [k]G` from a concrete point of exact order `p`, identify the C target as `[x]G`, or verify that encoded products match the C scalar multiplication and group representation.
+
+The C implementation skips `c=0` at line 194, handles `gcd(c,n)` and divisibility at lines 195–198, caps enumeration at 65,536 candidates at line 199, and verifies candidates at line 203. None is modeled by the new theorems. The caller's walk/exponent updates and canonicalization also remain separate obligations. In particular, `ca_htab_insert` at line 278 is passed a hash and coefficients; no theorem here establishes that a hash collision supplies the actual group equality required by `group_collision_recover`. The final `ca_verify_log` is another implementation obligation. These observations do not establish a C defect or failure of the whole solver.
+
+## Checked controls
+
+[Controls.lean](artifacts/Controls.lean), [successful compilation](artifacts/controls-attempt-8.log), and [control axiom audit](artifacts/controls-axiom-audit.log) are retained. The audit covers 27 theorem constants, including automatically generated constants and proposition-valued instances; it reports zero nonstandard or compiler-trusted axioms. The control source uses `decide`, `simp`, `ring`, and ordinary proof-producing normalization; it does not use `native_decide`.
+
+| Control | Kernel-checked result |
+|---|---|
+| Nontrivial abstract transport | On all of `ZMod 7`, `f(x)=2x`, `back(x)=3x`, `d=6` satisfy reverse composition, coprimality, injectivity and integer-scalar equivalence. |
+| Noncoprime/zero map | With both maps zero and `d=7`, reverse composition holds, but 0 and 1 have equal images and distinct preimages. The transported scalar equation can hold while the source equation fails. |
+| Zero degree | Degree zero fails coprimality on the nontrivial `ZMod 7` subgroup; the trivial subgroup legitimately admits the zero-map instance. |
+| Actual curve | The curve and nonzero nonsingular point described above give a finite, nontrivial instance of the curve theorem. |
+| Proper range | The first-axis base and second-axis target instantiate both range declarations. |
+| Ordinary collision | In `ZMod 7`, `(a1,b1,a2,b2,x)=(1,2,3,5,4)` satisfies the collision and recovery formula. |
+| Negated collision | In `ZMod 7`, `(1,2,1,1,4)` satisfies the negated collision and its formula. |
+| Group encoding | The identity encoding of `ZMod 7` satisfies the group theorem nonvacuously. |
+| Zero denominators | Ordinary equal-zero coefficients admit distinct scalars; negated coefficients `(1,2,6,5)` admit both `x=3` and `x=4`. Their unconditional division formulas fail. |
+| Dropped injectivity | A zero group encoding admits a group collision with distinct coefficients while the asserted scalar answer is false. |
+| Composite modulus | In `ZMod 8`, nonzero coefficient 2 satisfies `2·1=2·5=2` with `1≠5`. Nonzero does not imply invertible or unique. |
+
+These are checked mathematical counterexamples to **weakened** assumptions, rather than expected elaboration failures or counterexamples to the producer's stated theorems. Coprimality is a sufficient universal condition here; this review does not claim every map of noncoprime degree is noninjective.
+
+The first seven control drafts failed before the final successful draft. All failed source drafts and compiler logs are retained. The first failure was a missing aggregate `Mathlib.Tactic.olean`; later failures were reviewer syntax, numeral-type, simplification and typeclass elaboration issues. Narrower cached imports, explicit field types, ordinary kernel proofs and a classical finite-subtype instance resolved them. No theorem assumption, producer file, dependency pin, or gate was weakened to obtain success. [commands.json](artifacts/commands.json) distinguishes each attempt.
+
+## Remaining obligations and procedure
+
+- Construct and certify any claimed concrete maps, actual geometric degrees, dual/reverse identities, subgroup preservation and charged evaluations before treating abstract transport as an executable curve route.
+- Supply the Jacobian/base-change, divisor-class, factor-base and target-membership arguments before applying the range statements to the historical weak-subfield construction.
+- Derive the scalar encoding from a concrete base point's exact order and relate the implemented invariant, canonicalization, hash handling, modular routines and candidate verification to it before claiming C refinement. Composite-order handling needs its own theorem with the enumeration cap stated.
+- Historical source modules were compared as source statements and comments, not independently rebuilt in this J1 review. No historical prose corpus, original external paper, execution-time claim, security exponent, or general attack impossibility was certified.
+- Compose the required blind review and other joints only after their separate archival. This report supplies no verdict on their outputs. The Coordinator retains archival, overall review and scientific-state authority.
+
+No producer input, historical record, shared graph, ledger state or scientific status was changed. The only derived graph is this task's logical-scope diagram; it asserts no new curve route or quantitative result requiring changes to canonical performance graphs. No source access or tool failure prevented the assigned J1 review. The unavailable external checker is an explicitly retained verification limit, not evidence against a theorem. Protocol deviations: **none** from the handoff's write scope and mutual blindness; the source-aware review is not claimed as a blind re-derivation.
