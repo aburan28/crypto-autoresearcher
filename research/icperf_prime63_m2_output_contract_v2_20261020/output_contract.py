@@ -53,10 +53,11 @@ def verify_input_manifest():
     for name, expected in manifest.get("source_sha256", {}).items():
         path = HERE / name
         if not path.is_file() or digest(path.read_bytes()) != expected: raise ContractError("source hash mismatch")
+    return manifest
 
 def derive(run_dir):
     run_dir = Path(run_dir)
-    verify_input_manifest()
+    input_manifest = verify_input_manifest()
     launch, launch_bytes = _json(run_dir / "launch.json")
     environment, _ = _json(run_dir / "environment.json")
     receipt, receipt_bytes = _json(run_dir / "diagnostic" / "receipt.json")
@@ -77,6 +78,10 @@ def derive(run_dir):
     sources = environment.get("source_sha256")
     if not isinstance(sources, dict) or not all(isinstance(k, str) and isinstance(v, str) and len(v) == 64 for k, v in sources.items()):
         raise ContractError("source binding missing")
+    expected_sources = {str((HERE / name).relative_to(ROOT)): value
+                        for name, value in input_manifest["source_sha256"].items()}
+    if {key: sources.get(key) for key in expected_sources} != expected_sources:
+        raise ContractError("source binding mismatch")
     tar_path = run_dir / "diagnostic" / "raw.tar.gz"
     if not tar_path.is_file() or tar_path.is_symlink() or receipt.get("raw_tar_sha256") != digest(tar_path.read_bytes()):
         raise ContractError("diagnostic archive mismatch")

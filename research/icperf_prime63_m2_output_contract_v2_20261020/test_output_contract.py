@@ -9,7 +9,7 @@ class ContractTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup); self.run=Path(self.tmp.name); (self.run/"diagnostic").mkdir()
   self.launch={"run_id":"RUN-ICPERF-abcdef","trial_id":"fixture","plan_sha256":"a"*64,"authority":{"owner":"o","epoch":1}}
-  (self.run/"launch.json").write_bytes(output_contract.canonical(self.launch)); (self.run/"environment.json").write_bytes(output_contract.canonical({"commit":"c","source_sha256":{"x":"b"*64}})); (self.run/"command.txt").write_text("fixture\n")
+  source={str((HERE/name).relative_to(ROOT)): value for name,value in output_contract.verify_input_manifest()["source_sha256"].items()}; (self.run/"launch.json").write_bytes(output_contract.canonical(self.launch)); (self.run/"environment.json").write_bytes(output_contract.canonical({"commit":"c","source_sha256":source})); (self.run/"command.txt").write_text("fixture\n")
   self.raw={"a":b"a"}; self.receipt=self.base_receipt(); self.write_raw(); self.write_receipt()
  def base_receipt(self):
   return {"schema":output_contract.DIAGNOSTIC_SCHEMA,"experiment_id":"EXP","run_id":self.launch["run_id"],"trial_id":"fixture","plan_sha256":"a"*64,"launch_sha256":output_contract.digest((self.run/"launch.json").read_bytes()),"claim_owner":"o","claim_epoch":1,"started_utc":"2026-01-01T00:00:00+00:00","ended_utc":"2026-01-01T00:00:00+00:00","cells":[{"cell":"monitor-null","kind":"synthetic_null","attempted":True,"stop":"infrastructure_monitor_error","fault":{"code":"unreadable_live_root"}}]+[{"cell":c,"kind":"positive","attempted":True,"stop":"timeout_censored"} for c in output_contract.CELLS[1:]]}
@@ -35,6 +35,8 @@ class ContractTests(unittest.TestCase):
   with self.assertRaisesRegex(output_contract.ContractError,"binding"): output_contract.write_outputs(self.run)
   self.receipt["claim_epoch"]=1; self.launch["plan_sha256"]="b"*64; (self.run/"launch.json").write_bytes(output_contract.canonical(self.launch)); self.write_receipt()
   with self.assertRaisesRegex(output_contract.ContractError,"binding"): output_contract.write_outputs(self.run)
+  self.launch["plan_sha256"]="a"*64; (self.run/"launch.json").write_bytes(output_contract.canonical(self.launch)); environment=json.loads((self.run/"environment.json").read_text()); environment["source_sha256"][next(iter(environment["source_sha256"]))]="0"*64; (self.run/"environment.json").write_bytes(output_contract.canonical(environment)); self.write_receipt()
+  with self.assertRaisesRegex(output_contract.ContractError,"source binding"): output_contract.write_outputs(self.run)
  def test_raw_member_bytes_extra_duplicate_and_nonfile_rejected(self):
   self.raw={"a":b"changed"}; self.write_raw(); self.receipt["raw_members"]=[{"path":"a","sha256":output_contract.digest(b"a"),"bytes":1}]; self.write_receipt()
   with self.assertRaisesRegex(output_contract.ContractError,"digest"): output_contract.derive(self.run)
