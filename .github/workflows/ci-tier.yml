@@ -1,0 +1,44 @@
+name: CI tier
+
+# The full-tier marker (docs/ci-tiers.md). Draft PRs run only the
+# fast tier; every other PR job is gated on `!github.event.pull_request.draft`
+# (.github/scripts/draft_tier_gate.py). A gated job on a draft reports
+# `skipped`, which looks green, so the merge sweeper also requires this
+# `full-tier` check to have succeeded on the head: it does only when the
+# event that started the head's workflows came from a PR that was ready.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  full-tier:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Full CI tier requested for ${{ github.event.pull_request.head.sha }}"
+
+  # Fast tier: every PR workflow must stay behind the draft gate, and the
+  # sweeper's merge gate keeps its fixtures.
+  tier-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet pyyaml
+      - run: python3 -B .github/scripts/draft_tier_gate.py
+      - run: python3 -B .github/scripts/test_merge_sweeper.py -v

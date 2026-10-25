@@ -1,0 +1,59 @@
+name: PEXT n7 Lean proof
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - experiments/EXP-PEXT-212d5c/implementation/lean/**
+      - .github/workflows/pext-n7-lean.yml
+  push:
+    branches: [main]
+    paths:
+      - experiments/EXP-PEXT-212d5c/implementation/lean/**
+      - .github/workflows/pext-n7-lean.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kernel-build:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: experiments/EXP-PEXT-212d5c/implementation/lean
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: experiments/EXP-PEXT-212d5c/implementation/lean
+          build: 'false'
+          test: 'false'
+          lint: 'false'
+          use-mathlib-cache: 'false'
+      - name: Build pinned finite proofs and audit axioms
+        shell: bash
+        working-directory: experiments/EXP-PEXT-212d5c/implementation/lean
+        run: |
+          set -euo pipefail
+          lake build CoverCensusN7 2>&1 | tee lean-build.log
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          log = Path('lean-build.log').read_text()
+          pattern = re.compile(r"'([^']+)' (?:depends on axioms: \[([^]]*)\]|does not depend on any axioms)")
+          actual = {name: {a.strip() for a in (axioms or '').split(',') if a.strip()}
+                    for name, axioms in pattern.findall(log)}
+          expected = {
+              'Orbit.period_three_or_twentyone', 'Orbit.period_two_or_fourteen',
+              'Rot7.span_sizes', 'Rot7.weight4_dim3', 'Rot7.weight4_dim3_or_6',
+              'Spectrum.split_floor', 'Spectrum.z2_floor', 'Spectrum.odd_support',
+          }
+          if set(actual) != expected:
+              raise SystemExit(f'Expected {len(expected)} axiom reports; found {sorted(actual)}')
+          allowed = {'propext', 'Quot.sound'}
+          unexpected = {name: sorted(axioms - allowed) for name, axioms in actual.items()
+                        if axioms - allowed}
+          if unexpected:
+              raise SystemExit(f'Unexpected axioms: {unexpected}')
+          print(f'Kernel build and axiom audit passed for {len(actual)} theorem constants')
+          PY

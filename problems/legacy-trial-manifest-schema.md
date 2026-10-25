@@ -1,0 +1,67 @@
+# Legacy stage-0 ECDLP trial manifests fail native admission
+
+- **Status:** resolved for native metadata reproduction of six named worksheet scopes
+- **Kind:** implementation gap; separate director access/tool limit
+- **Affected work:** [four original/successor mappings](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/mapping.json), [GOAL-ECDLP-001](../ledger/goals/GOAL-ECDLP-001/goal.yaml)
+- **Next action owner:** Coordinator archives/publishes the scoped implementation resolution; independent scientific assessment remains separate
+- **Last updated:** 2026-10-18
+
+## Problem
+
+The four frozen stage-0 worksheet drivers write `run_id` and metrics but omit the current canonical run fields, so successful original processes cannot yield native `output_validated` receipts. The affected original experiments are EXP-ECDLP-bfbe6f, EXP-ECDLP-5f4f14, EXP-ECDLP-3c166b and EXP-ECDLP-20ac31. Their exact toy curves, samples, seeds and criteria remain fixed in their original specifications.
+
+## Evidence and uncertainty
+
+- **Observed:** [retained original receipts and hashes](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/gates/original-attempts.json). RUN-ECDLP-8f5190 has driver/checker exits 0 but native `invalid_output`: its manifest lacks id, status, code, environment, inputs, timing and result, including commit/command and certificate.kind. Other original receipts are retained as they actually arrive; no failed receipt is edited.
+- **Derived:** `experiment_execution.trial_state` keeps invalid attempts `needs_reconciliation`. The CLI offers status/run/report, with no command that retroactively validates that attempt. `docs/experiment-execution.md` requires additive contracts/successors; native preapproval refuses an already-approved canonical specification. A protocol amendment alone therefore cannot grant native in-place reapproval.
+- **Missing capability:** a new, source-bound adapter producing a canonical outer manifest while preserving old driver/checker/raw bytes, plus complete native-approved successor packages. Nine synthetic adapter tests have passed without invoking the four scientific censuses; full successor trials remain unexecuted at design time.
+- **Access/tool limit:** the configured director backend reports ANTHROPIC_API_KEY unset and model IDs unverified. The allowed implementation-tier route is retained; no mechanical runbook, director inference or model binding is fabricated.
+- **What this does not establish:** no failure of a mathematical hypothesis, security result, ECDLP attack, new negative theorem or measured pipeline improvement follows from a manifest defect. A schema-valid envelope alone also does not prove computation or independent scientific correctness.
+
+## What would unblock it
+
+- [x] Native prospective preapproval reports approvable:true for the exact four new successor specifications/plans/handoffs/queue after their review_required drafts, source and lane are committed and published.
+- [x] Exact approved-byte archives verify against Git, are published, and ordinary selection reports each successor ready.
+- [x] Under fresh native claims, all four new successor trials retain original raw bytes/metrics, pass the unchanged original checker controls and the native canonical-manifest gate, with complete source/provenance/output hashes.
+- [x] Every original invalid receipt/artifact remains immutable and the new reports label original deterministic readings as in-sample calibration; no scientific interpretation status changes.
+
+Meeting these conditions establishes a compatible reproduction route for these four exact worksheets. Scientific review, execution-proof integration and broader ECDLP conclusions remain separate obligations.
+
+## Next discriminating step
+
+- **Action:** publish the new review_required drafts/source/lane, then run the four exact native preapproval packets in [BATCH-7ddcd6](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/preapproval/). Only accepted exact final bytes may be approved, archived and dispatched.
+- **Inputs and controls:** original hash-bound driver, checker, plan and specification; one fresh deterministic driver pass and two fixed original-checker recomputations; preserved raw/legacy-manifest identities; command/source/tamper/no-overwrite controls.
+- **Execution limits:** one newly allocated run per successor, memory256MiB in its plan, queue concurrency1; no old slot is reused and no campaign spending cap is introduced.
+- **Outcomes:** accepted metadata allows the exact reproduction route; schema/provenance/checker failure retains a new invalid attempt and names the adapter defect; infrastructure refusal carries no mathematical reading.
+- **Recheck trigger:** native preapproval/publication/readiness completion and the first successor execution receipts.
+
+## Resolution and history
+
+2026-10-18: original driver/checker processes exposed the native manifest defect. A role-separated Executor implemented a new adapter and synthetic failure tests; the Coordinator prepared four review_required successor packages. Unresolved: no full successor trial or scientific promotion is claimed.
+
+
+## Scoped implementation resolution (DEC-20261018-6b8340)
+
+All four original worksheet scopes now have a fresh native `output_validated` reproduction: EXP-ECDLP-4bb0ef, EXP-ECDLP-087aea, EXP-ECDLP-11c54d and EXP-ECDLP-5d6ec1. Their exact raw and legacy-manifest bytes match their original actual outputs. [Machine-readable comparisons](../reports/ideas_execution_20261018/final-native-worksheets/four-valid-reproductions.json) name each original/new EXP/RUN, status, return codes and hashes. [All nine actual attempts](../reports/ideas_execution_20261018/final-native-worksheets/all-nine-attempts.json) preserve the four original invalid manifests and the intermediate infrastructure failure. [Raw archives](../reports/ideas_execution_20261018/final-native-worksheets/raw-archives.json) are published before derived reports.
+
+The first metadata attempt failed before its scientific driver because Git threaded lstat could not start under 256 MiB. [The retained diagnostic](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/runtime/git-preload-index-diagnostic.json) found process-local `core.preloadIndex=false` succeeds under that same limit. The three untouched approved sibling slots used that environment setting; the consumed first slot was preserved, and a separate prospectively approved EXP/RUN/TASK encoded the same setting in both exact argv arrays. No source, fixture, count, memory limit or native gate was altered.
+
+The terminal void-source archive proposal encountered an actual native duplicate-ownership refusal. [The refusal](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-7ddcd6/first-successor-failure/void-route-refusal.json) remains retained. A distinct zero-run Coordinator preservation producer archived only the eight existing immutable native files through the ordinary full queue/Git verifier; four unproduced adapter outputs remain absent. The failed scientific task is never reclassified completed.
+
+This resolves the metadata-compatible reproduction route for these four exact worksheets only. It does not repair the original immutable manifests, score the slope fixture, provide independent scientific review, resolve the standalone integer-only seed schema discrepancy, or complete the audit's unspecified original eighteen contracts. The local director binding is still unusable; no mechanical runbook, inference compatibility or formal execution proof is claimed. Full-ledger validation remains207 errors with zero-delta admission/approval checks; native scoped gates passing is not global ledger success.
+
+
+## Additional three-output scopes (2026-10-18)
+
+The current executable inventory exposed two more finite stage-0 programs: EXP-ECDLP-f34097 / RUN-ECDLP-62ec3d and EXP-ECDLP-903c48 / RUN-ECDLP-4616a2. Both actually executed under fresh published epoch2 claims with driver/checker exit0; both remained native `invalid_output` because their minimal `run.id` envelopes lack code/environment/inputs/timing/result. Each eleven-file package is durably retained through its exact terminal-preservation snapshot. Their raw payloads contain per-process timing observations and their third artifact is RESULTS.md. [Exact actual mappings and receipts](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-5b3b39/mapping.json) preserve original identities and failed status.
+
+A role-separated Executor implemented a new standalone three-output adapter under tools/legacy_stage0_manifest.py. It preserves the exact newly produced raw/RESULTS/legacy-manifest bytes and maps only prospectively named observed scalar fields. It does not claim byte equality across separate timed reruns. Twenty-three synthetic controls pass, including native minimum-envelope validation with honest null seed, failure/partial-byte retention and source/provenance/tamper refusals. No real fixture was invoked during source implementation. The old two-output adapter remains unchanged.
+
+Two fresh canonical specs remain review_required: EXP-ECDLP-ee406e and EXP-ECDLP-5c8854. [Their exact prospective packets](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-5b3b39/preapproval/) currently have only publication blockers (new draft/lane/helper absent at source_ref). Source publication, actual approvable:true, exact approval archival/publication and fresh claimed executions remain required. Full ledger now reports223 errors: prior207 plus exactly16 errors from the two deliberately retained new malformed manifests, with no other added/removed error. No old result was rewritten.
+
+
+## Two additional native acceptances (DEC-20261018-ae74db)
+
+EXP-ECDLP-ee406e/RUN-ECDLP-4110e6 and EXP-ECDLP-5c8854/RUN-ECDLP-67ed93 now actually report native output_validated with driver/checker0. Their canonical drafts, source closure and lane were published before native approvable:true; accepted final bytes were archived/published before fresh claims. Each exact13-file output and its own original failed11-file output was archived/published before the corresponding inspected report. [Six-scope actual mappings and thirteen attempts](../reports/ideas_execution_20261018/six-native-reproductions/) retain all statuses, fresh byte hashes and limits.
+
+The earlier future-tense preparation text above records the historical source-stage state; it is superseded operationally by these actual receipts. Fresh raw timing bytes remain fresh observations, never copied from the old run. This resolves only the six named native metadata routes. Full ledger remains223preserved/historical errors; seed-schema/director/proof/independent-scientific-review limitations remain. No old scientific record or status changed.

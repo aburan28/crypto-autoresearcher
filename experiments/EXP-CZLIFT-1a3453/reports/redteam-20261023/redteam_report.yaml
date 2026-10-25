@@ -1,0 +1,424 @@
+# Independent red-team review of EXP-CZLIFT-1a3453 (TASK-20261023-792040, review plan REVIEW-CZLIFT-1A3453-EVIDENCE-20261023).
+# Snapshot reviewed: local HEAD 14a328a2642222c1ba9aa8c3a6b0e2cfef610eed. Every reviewed path is tracked and clean there;
+# only this write folder is untracked. Blindness lifted for this task: VAL-20261022-55676f was read in full.
+# Verdicts are on the joints owned (R1, R2, PTM-1), not on the claim as a whole. This report moves no status.
+red_team_report:
+  id: RT-20261023-dcb217
+  task_id: TASK-20261023-792040
+  review_plan_id: REVIEW-CZLIFT-1A3453-EVIDENCE-20261023
+  experiment_id: EXP-CZLIFT-1a3453
+  hypothesis_id: H-CZLIFT-fba874
+  run_ids: [RUN-CZLIFT-037e5f, RUN-CZLIFT-d37ca4]
+  validation_report_read: VAL-20261022-55676f
+  snapshot_revision: 14a328a2642222c1ba9aa8c3a6b0e2cfef610eed
+  reviewed_at: '2026-10-23'
+
+  claim_under_review: >-
+    Let E/F_p have a prime-order subgroup <P>, n != p, and let s_tor be the torsion section on a lift E^/Z_p (the CM
+    canonical model or an arbitrary integer lift). For every digit function f(k) = a_i(x(s_tor([k]P))) or
+    a_i(y(s_tor([k]P))), i = 1..4, over the half-range k = 1..(n-1)/2, max over nontrivial additive psi of F_p and all
+    characters chi of Z/n of |sum_k psi(f(k)) chi(k)|^2 / n_half is below ln((p-1) n) + 12, exactly as for the same
+    digits re-indexed by a random permutation and for uniform random digits. Digit 0 is the control that must obey the
+    same bound. (Hypothesis title: no p-adic digit of the torsion section's coordinates correlates with the discrete
+    logarithm.)
+
+  joint_verdicts:
+    R1: breaks
+    R2: breaks
+    PTM-1: breaks   # on the recorded scope (all 72 records, 11 <= n <= 613); holds when restricted to the 42 power-bearing records (n >= 47)
+
+  joints:
+    R1:
+      joint: 'The clean spectrum supports H-CZLIFT-fba874 as stated: no digit of s_tor carries the discrete log at the tested scale.'
+      verdict: breaks
+      what_the_statistic_detects: >-
+        X(f) = max over t != 0 and j of |sum_{k=1..h} e(t f(k)/p) e(-jk/n)|^2 / h, h = (n-1)/2. Since every term has
+        modulus 1, X <= h (trivial bound). A digit function registers only if a single pair (psi_t, chi_j) has normalised
+        half-range correlation tau >= rho_min(p,n) = sqrt(T/h), T = ln((p-1)n) + 12. The j = 0 pair is the
+        permutation-invariant DC sum, which measures the digit-value distribution, not dependence on k. So the
+        instrument sees one class: gross single-character (linear, MSB-type) dependence on k.
+      evidence:
+        - check: power and blind zone (rt_scope.py, from the raw rows of both runs)
+          result: >-
+            30/72 records are structurally blind (h <= T, all n <= 41): 12/36 on seed 20261009 (6 CM, 6 random), 18/36
+            on seed 20261010 (9 CM, 9 random). On them "max < T" is a tautology. 42/72 records bear power (n >= 47), all
+            distinct (p, n): 33 CM-canonical, 9 random-arm. rho_min on those 42 is 0.284 (min), 0.502 (median), 0.978
+            (max); 21/42 need tau >= 0.5. The random-arm ("arbitrary lift") clause rests on 9 records with one naive
+            lift each. Agrees with VAL-20261022-55676f.
+        - check: known-leaking digit functions through the unchanged instrument run.spectrum (rt_leakers.py, rt_leakers_dc.py)
+          result: >-
+            CHIRP f(k) = floor(p (k^2 mod n)/n) and INV f(k) = floor(p (k^-1 mod n)/n) determine k on the half range
+            (264-300 distinct values out of h at the largest n). Neither registers as a DL correlation on any of the 72
+            records. Both spike on 9 records, all with p/n >= 2.8 (cofactor >= 3), and only at the trivial character
+            j = 0 (a value-lattice artifact). There the shuffled control also spikes in 20/20 seeded permutations, so the
+            frozen falsification rule vetoes them. LEGMSB (a digit whose Legendre symbol equals one exact bit of k)
+            stays at or below 0.68 T on every record (0/72). SPARSE (PTM on m = ceil(0.6 sqrt(T h)) positions, i.e.
+            m/h = 0.6 rho_min: 17 % of the half range on the best record, 30 % at the median) is invisible on 40/42
+            power-bearing records. WEAK (PTM with
+            probability 0.6 rho_min per k) is invisible on 38/42. Calibration: LSB (k mod 2 in the digit's low bit) is
+            seen on 29/42 at non-DC pairs with a clean shuffle, so the class is not literally characters only.
+        - check: the experiment's own control digit
+          result: >-
+            Digit 0 (x(kP) mod p) is injective on the +- classes, so it carries k completely up to sign. It is white
+            on all 72 records (spikes_digit0 = 0 on both seeds; VAL: its maxima sit below the Exp(1) null). A uniform
+            independent digit is also white. The statistic therefore cannot separate "carries the discrete log" from
+            "independent of it". It separates only "single-character correlated above rho_min" from "not".
+        - check: generator-covariant leaks, which the plan did not anticipate (rt_fold.py)
+          result: >-
+            x(-R) = x(R), so every x-digit is even in k. A leak of +-jk that does not depend on which generator P was
+            drawn (FOLD_j: f(k) = floor(p r(jk)/n) with r(x) = min(x, n-x)) is folded on the half range for every
+            j != +-1. Measured median X/h = 0.48 against 1.00 for j = 1. It spikes in 182/210 random-j cases: only
+            37/65 for 47 <= n < 100, and all for n >= 109 (29 of the 42 power-bearing records). The odd y-type analogue
+            ODD_j spikes in 210/210. For x-digits the effective floor is about 1.44 rho_min, and 13 power-bearing
+            records with n < 109 have only partial power against covariant leaks. The statistic is not invariant under
+            change of generator for even digit functions; only full-range sums are.
+      breaking_artifacts:
+        - 'A leaking digit function the statistic cannot see: CHIRP, INV, LEGMSB and digit 0 itself (rt_leakers_output.json, rt_leakers_dc_output.json).'
+        - 'A scope statement wider than the curves that can register a spike: H, the specification success criterion and DEC-20261009-6aef7a count all 72 records, 30 of them blind (see PTM-1).'
+      what_survives: 'See narrowest_supported_statement.'
+
+    R2:
+      joint: The null and the threshold are right and the controls are independent of the signal.
+      verdict: breaks
+      sub_verdicts:
+        threshold_vs_number_of_tests: holds
+        null_shape: breaks
+        control_independence: breaks
+        k0_placeholder: holds   # negligible in itself; the material defect is the full-range sampling it travels with
+      evidence:
+        - check: threshold against the actual number of tests (rt_scope.py)
+          result: >-
+            Each row tests N = (p-1) n pairs (p-1 additive characters times n FFT bins, the trivial chi included). VAL
+            confirms T = ln N + 12 exactly on all 720 rows. X(a,t) = X(p-a, n-t) halves the distinct values, and
+            zero-padded bins correlate. The uniform control's row maxima fit ln N + mu + beta G with mu = -0.92,
+            beta = 0.90 (420 power-bearing rows). Per-row Bonferroni tail e^-12 = 6.1e-6. Per-seed family-wise level:
+            1.8e-3 over the 288 higher-digit rows, 6.6e-3 over all 1080 rows. A 5 % per-seed family-wise margin would
+            be 8.66 / 9.98 (Bonferroni, 288 / 1080 rows) or 6.86 / 8.04 (uniform-calibrated Gumbel). Moving 12 -> 9.98
+            lowers rho_min by a median factor 0.955 and unblinds 3 of the 30 records. So the margin is conservative by
+            about 2-4 nats, but it is not what limits power; h (n <= 613) and the max over ~10^5 pairs are.
+        - check: null shape on CM D = -3 y-digits (rt_d3.py; own lift and own arithmetic)
+          result: >-
+            T1 = [c]P^ (c = 1 mod n, c = 0 mod p^4) was computed with complete projective addition over Z/p^5 and
+            certified (T1 = P mod p, [n]T1 = O). It equals the validator's recorded T1 on all 10 power-bearing D = -3
+            records. The order-3 automorphism identity y(s_tor([lambda k]P)) = y(s_tor([k]P)),
+            lambda^2 + lambda + 1 = 0 mod n, holds exactly on all 10. Over the 40 D = -3 y-digit rows (i = 1..4), mean
+            excess over ln(N/2) + gamma is real +2.60, shuffled +3.65, uniform +0.04. The maxima sit at the trivial
+            character in 32/40 real and 36/40 shuffled rows. Exp(1) is not the null there.
+        - check: is the elevation explained by the symmetry, and does it hide a real excess? (rt_d3.py, rt_d3_aggregate.py, rt_d3_symfreq.py)
+          result: >-
+            Against a symmetry-matched null (a random mu_6-invariant function with y(-k) = -y(k), 60 draws per row), the
+            real DC maxima have mean rank 0.44 (1/40 rows below 0.05). The real non-DC maxima average +0.14 above the
+            matched mean. On the frequency class t(1-lambda) = +-1 or t(1-lambda^2) = +-1, pooled over the 39 rows
+            other than the one that suggested it, Fisher chi^2 = 76.0 on 78 dof. The real D = -3 series is a random
+            symmetric function within resolution, and no real excess is hidden in these runs.
+        - check: is the shuffled control contaminated by the same structure as the signal? (rt_d3.py, rt_d3_aggregate.py, rt_scope.py)
+          result: >-
+            Yes. The DC term is invariant under any re-indexing, so real and shuffled share the digit-value multiset.
+            The producer's shuffle also reads a random half-subsample of the FULL range, which pulls in the mirror
+            values: x(-k) = x(k) gives exact duplicates, and a_i(y(-k)) = p-1-a_i(y(k)) aligns pairs of terms along the
+            fixed phase e(-t/p), giving a chi-square(1)-like DC tail. That is the negation artifact the frozen half-range
+            design removed from the real series (specification status_note); on D = -3 the mu_6 orbits compound it.
+            Non-D = -3 higher-digit rows show the same direction: shuffled argmax at DC 24/256 vs real 2/256. Measured
+            with 60 producer-style permutations per row, the shuffled per-row spike probability at the frozen margin 12
+            reaches 0.167 (p 571, n 541, y1), 0.15 (499/457 y4), 0.10 (457/139 y2), 0.083 (379/409 y3). The pre-registered
+            figure is about e^-12. Probability that shuffled_spikes_total > 0 from the D = -3 y-rows alone:
+            seed 20261009 0.49 (margins 10/9/8: 0.70/0.84/0.94); seed 20261010 0.083 (0.25/0.43/0.63). P(zero on both
+            seeds at margin 12) is about 0.47, so the recorded shuffled zeros were close to a coin flip, not a
+            near-certainty. Under the per-digit aggregate reading of the falsification rule, a real DL spike on seed
+            20261009 would be vetoed with probability 0.22 (y1), 0.17 (y2), 0.02 (y3), 0.19 (y4) by this artifact. The
+            contamination biases the decision toward the hypothesis under test.
+        - check: coupling of threshold and control
+          result: >-
+            The margin of 12 is load-bearing for the control's cleanliness, not for the null's family-wise level. At the
+            uniform-calibrated 5 % margin (about 8.0), the real D = -3 y2 row (p 571, n 541, DC 20.70) would itself spike
+            (its first-spike margin is 8.06), and seed 20261009's shuffled control would spike with probability about
+            0.94. A correctly calibrated threshold could not have been used with this control.
+        - check: the k = 0 placeholder
+          result: >-
+            The value-0 placeholder enters the shuffled half range in 350/720 rows (VAL). It is one unit-modulus term
+            among h, and its effect is dominated by the full-range sampling above. Not a break on its own.
+      breaking_artifact: 'A control contaminated by the same (non-DL, value-multiset and symmetry) structure as the signal, with a per-row tail more than 10^4 times heavier than its stated null (0.167 against e^-12) on D = -3 y-digits; rt_d3_output.json, rt_d3_aggregate_output.json.'
+      consequence_for_the_recorded_runs: >-
+        No recorded count changes. No real spike existed to be hidden, and the real D = -3 series matches its symmetry-
+        matched null. What fails is the claim that the null and the controls are right and independent, and therefore
+        the clause "exactly as for the same digits re-indexed by a random permutation", which held by luck here.
+
+    PTM-1:
+      object: The planted digit floor(p k / n) mod p, a deterministic function of k.
+      known_false_conclusion: No digit derived from s_tor carries the discrete log.
+      verdict: breaks   # on the recorded scope; holds on the 42 power-bearing records
+      evidence:
+        - check: argument run unchanged (rt_leakers.py; producer's run.spectrum)
+          result: >-
+            Spikes on 42/42 power-bearing records and 0/30 blind records, excess up to +281.2. This reproduces
+            VAL-20261022-55676f exactly.
+        - check: is the inference stated on the other 30?
+          result: >-
+            Yes. H-CZLIFT-fba874 assumptions give "prime subgroup order 11 <= n <= 600", and test_boundary.instances names
+            all 24 CM and 12 random curves. The specification success criterion and the metric spikes_higher_digits sum
+            over all 36 records per seed. DEC-20261009-6aef7a records curves: 36 per run, reads "No digit ... on either
+            arm ... on either seed", and gives claim_boundary "p <= 600, n <= 600" with no lower bound on n. The
+            known-false conclusion therefore survives the argument on 30 of the records the inference is stated over.
+        - check: stronger known-false objects (the plan's object is the floor)
+          result: >-
+            Digit 0 itself (complete information on +-k), CHIRP, INV and LEGMSB survive the unchanged argument and the
+            frozen decision rule on all 72 records. Under the information reading of "carries", the argument proves too
+            much everywhere. Under the single-character reading, it holds on the 42.
+      survival_location: >-
+        The inference step "no single (psi, chi) pair above T  =>  the digit does not carry k". It is vacuous where
+        h <= T (trivial bound X <= h: the 30 blind records), and it is valid elsewhere only for the single-character class.
+
+  objections:
+    - 'Title and mechanism of H-CZLIFT-fba874 ("no digit ... correlates with the discrete logarithm") are wider than the instrument: digit 0, CHIRP, INV and LEGMSB carry k and are white (R1).'
+    - '30/72 records are blind by the trivial bound and still counted as evidence in H, the specification and DEC-20261009-6aef7a (PTM-1).'
+    - 'The shuffled control is not the null of the real series: it shares the DC term, re-introduces the negation symmetry through full-range sampling, and on D = -3 spikes per row with probability up to 0.17 at margin 12; the zero recorded was an event of probability about 0.47 (R2).'
+    - 'The pre-registered null (Exp(1) per pair, Gumbel maximum) is an unnumbered random-model heuristic; it fails for D = -3 y-digits (mu_6 symmetry), for digit 0 (below null) and for the shuffled control. The margin of 12 absorbed these deviations; it was not calibrated to them.'
+    - '"Arbitrary lift" is one naive integer lift (a, b in [0, p)) on 9 power-bearing random curves; digit functions are model-dependent (a change of Weierstrass model over Z_p mixes digits), and one random generator per record was used although the half-range statistic is not generator-invariant for even (x) digits.'
+    - 'decision_impact.on_positive ("the canonical section clause of H2 is closed at the nonlinear (character) level") is not supported: single-digit, additive-character, single-pair, tau >= 0.28-0.98, n <= 613.'
+
+  required_controls:
+    - 'Count only power-bearing records (h > T) as evidence; publish per-record rho_min with the result.'
+    - 'Replace the shuffle with a symmetry-matched null: permute within the half range (or permute +- classes, or mu_6 orbits on D = -3), never sample from the full range; alternatively drop the trivial character from the spike count and test digit uniformity separately.'
+    - 'Compare real against control per curve-row and per (psi, chi) pair, which fixes the reading ambiguity VAL recorded and removes the aggregate veto.'
+    - 'Planted-leak power curves on every record: PTM at strength rho and sparsity m, reporting the 50 %-power rho and m, so that the detection floor is part of the result.'
+    - 'Generator covariance: use the full range (cosine transform for even x-digits) or several generators per record.'
+    - 'For any broader claim: multiplicative characters of F_p on digits (Legendre), pairwise digit combinations, and a heavy-Fourier-coefficient search of psi o digit at growing n.'
+
+  counterexample_or_mutation: >-
+    Feed f(k) = floor(p (k^2 mod n)/n) (or f(k) = random QR if [k] <= h/2 else random QNR) to the frozen
+    run.spectrum at every recorded (p, n). The digit determines k (respectively one exact bit of k), yet the frozen
+    falsification rule fires on 0/72 records (rt_leakers_output.json, rt_leakers_dc_output.json). The cheapest mutation
+    of all is already in the runs: digit 0.
+
+  baseline_comparison: >-
+    No speedup or cost claim is made, so H carries no dominated_by or Pareto field and none is owed. What matters is
+    attack relevance. s_tor is a homomorphism computable at any point, so g(k) = psi(a_i(s_tor([k]P))) has shift-query
+    access (g(d + r) from Q + [r]P). A heavy coefficient tau = |g^(chi_j)| then gives chi_j(d) from O(tau^-2) queries
+    and d by scaling Q -> [u]Q, costing about tau^-2 polylog(n) s_tor evaluations of O(log n) operations over Z/p^5.
+    Against Pollard rho (sqrt(pi n / 4) group operations; BSGS similar with sqrt(n) memory), breakeven is roughly
+    tau* = (c log^2 n / sqrt n)^(1/2). That is above 1 at n <= 613, so no correlation of any size could beat rho at
+    toy size, and about 2^-53 at 256-bit n (order of magnitude; c ~ 25 for p^5 arithmetic, constants not optimised).
+    The closest specialised baselines for leakage, the lattice and Fourier hidden-number attacks of the Boneh-Venkatesan
+    lineage, use biases far below the experiment's floor of 0.28. The measurement is about 50 bits of correlation away
+    from attack relevance, and no scaling law links the two.
+
+  heuristic_challenges:
+    - 'Heuristic inventory: H lists heuristic_assumptions: [] but rests on the random-model null "|S|^2/n_half ~ Exp(1) per pair, maximum about ln N + Gumbel". It should be numbered and stated as a heuristic.'
+    - 'Random-model transfer: torsion-section digits are structured. D = -3 y-digits are exactly mu_6-invariant (verified on 10/10 records); digit 0 obeys Weil-type subgroup-sum bounds and sits below the null; the shuffled control inherits +- and mu_6 repetitions. The cheapest experiment that exposes the deviation is the symmetry-matched null of rt_d3.py, which takes about 40 s.'
+    - 'Scale honesty: tier toy is stated. rho_min falls only like sqrt(ln(pn)/n). No transfer assumption to larger n exists, and none should be implied.'
+
+  cost_model_challenges:
+    - 'Not applicable: no cost table, no exponent, no memory claim. The baseline_comparison above is the only cost reading, and it is this review''s, not the record''s.'
+
+  reduction_and_scope_challenges:
+    - 'Scope inflation: 72 records claimed, 42 informative; "both arms behave alike" rests on 9 random-arm records.'
+    - 'Model and lift dependence: the digits belong to one Weierstrass model per curve (CM canonical integer model; naive (a, b) lift); no other model, lift or Z_p-coordinate change was tested.'
+    - 'Precision 5 bounds the digits to 0..4; digits beyond 4 are untested.'
+    - 'The H mechanism cites KN-TECH-73630e as the closure it extends; that entry is outside this task''s read_scope and is unverified here.'
+
+  proof_architecture_challenges:
+    - 'Observation-fiber: hold the statistic fixed (white) and vary the digit. Digit 0 (complete information on +-k) and a uniform digit (none) both give white. The missing separator is a reduction statement (Fourier mass tau of psi o digit against a query-complexity bound), not a single-pair threshold.'
+    - 'Quantifier order: "for every digit function / every lift / every generator" is tested as 10 fixed digit functions, one lift per curve and one random generator per record. Covariant even leaks need n >= 109 for guaranteed detection (rt_fold.py).'
+    - 'Boundary: the trivial bound X <= h makes the claim vacuous for h <= T. That boundary (n <= 41 here) must be part of the statement.'
+    - 'Method ceiling: the most this resource measure can support at n <= 613 is tau < 0.28 on the best record. It cannot reach attack-relevant tau, and it cannot falsify H for pseudorandom, multiplicative-character, sparse or weak encodings (CHIRP, INV, LEGMSB, SPARSE and WEAK all pass the frozen rule).'
+
+  unexpected_observations:
+    - observation: >-
+        RUN-CZLIFT-037e5f, D = -3, p 439, n 151, y4: the non-DC maximum is 17.72 at (a 33, t 39), with
+        t(1-lambda) = -1 mod n (a symmetry frequency). It exceeds all 300 symmetry-matched and all 300 uniform null draws.
+        It stays below T (23.10).
+      control: >-
+        Look-elsewhere across 40 screened rows (about 1 in 8). The pooled test of the same frequency class on the other
+        39 rows gives Fisher chi^2 = 76.0 on 78 dof (rt_d3_symfreq_output.json). Controlled null, preserved here.
+
+  narrowest_supported_statement: >-
+    On the 42 power-bearing records of RUN-CZLIFT-037e5f and RUN-CZLIFT-d37ca4 (33 CM-canonical class-number-one integer
+    models and 9 random curves with one naive integer lift; 47 <= n <= 613, p <= 571; one random generator P per record;
+    precision 5), none of the 10 single-digit functions a_i(x(s_tor([k]P))), a_i(y(s_tor([k]P))), i = 0..4, has a
+    half-range correlation with any single pair (nontrivial additive character of F_p, character of Z/n) of normalised
+    magnitude >= rho_min(p,n) = sqrt((ln((p-1)n) + 12)/h). That floor is 0.28-0.98, median 0.50, and about 1.44x larger
+    for generator-covariant leaks through the even x-digits when n < 109. On CM D = -3 the y-digit spectra match a random
+    mu_6-symmetric function. The 30 records with n <= 41 carry no information. Nothing follows about nonlinear or
+    pseudorandom encodings of k (digit 0 is one), multiplicative characters of digits, leaks below rho_min or on fewer
+    than about sqrt(T h) values of k, multi-digit functions, other models, lifts or generators, or any larger n.
+
+  strength:
+    level: weak
+    reason: >-
+      The result is replicated on two seeds with disjoint power-bearing curve sets, independently validated and
+      recomputed (VAL), and its torsion lift is re-derived here by a third route. But it excludes only gross
+      single-character leaks (tau >= 0.28-0.98) at n <= 613, a class roughly 50 bits from attack relevance. Its shuffled
+      control is miscalibrated (the recorded zero had probability about 0.47), and its pre-registered null is wrong for
+      the one structured subfamily (D = -3). It supports the narrow statement above at toy tier. It does not support
+      H-CZLIFT-fba874 as titled, and it does not support decision_impact.on_positive.
+
+  obstruction_and_resource_reading:
+    obstruction_the_record_would_close: >-
+      "No canonical p-adic digit of the torsion section reads the discrete logarithm"
+      (decision_impact.on_positive: the canonical-section clause of H2 closed at the character level).
+    measured_quantity: >-
+      Per record and digit, max over nontrivial psi and chi of |sum_{k<=h} psi(a_i(k)) chi(k)|^2 / h, which equals
+      tau^2 h for the largest single-character correlation tau. Bounded result: tau < rho_min in [0.28, 0.98] on 42
+      records (n <= 613).
+    is_it_an_obstruction: >-
+      No. It is a toy-scale absence of one gross leak class, not a named obstruction with an argument. The provable
+      obstruction needs no experiment: s_tor: <P> -> E(Z/p^5)[n] is a group isomorphism computable in polynomial time
+      in both directions (reduction mod p is its inverse), so the DLP in the image is polynomially equivalent, and the
+      formal logarithm vanishes on torsion, so Smart-type linearisation returns 0. Any gain must therefore come from the
+      encoding (the digits). That is the open part, and it is what the forward guidance should name.
+    resource_reading:
+      theory_taking_it_as_hypothesis: >-
+        The Fourier-learning approach to hidden-number and hard-core problems (Boneh-Venkatesan 1996;
+        Akavia-Goldwasser-Safra 2003). Because s_tor is a computable homomorphism, digit predicates come with exact
+        shift-query access, and the Fourier mass tau = max_j |g^(chi_j)| is exactly the parameter of a DL algorithm
+        costing about tau^-2 polylog(n) s_tor evaluations. Whiteness (small tau for every j) is the hypothesis under
+        which this route fails. The measurement is a toy sanity check of that hypothesis at tau >= 0.28, not evidence
+        about tau ~ 2^-53 at 256 bits.
+      classical_companion: >-
+        For digit 0 the whiteness is a theorem-type statement: Lange-Shparlinski subgroup sums
+        sum_{Q in H} psi(x(Q)) = O(q^(1/2)), and the Kohel-Shparlinski analogue of Gauss sums. That explains its
+        below-null maxima. For digits >= 1 no Weil-type bound is available (the digit functions pass through
+        [p^4]-multiplication of a lift, the Greenberg transform, with degree growing in p), so the measurement is the
+        only evidence for them.
+      spawned_ids: []
+      spawned_note: >-
+        No record filed (this task has no ledger write authority). Candidate for the Coordinator's ranking, not
+        evidence: estimate tau for torsion-section digit predicates at growing n, using a full-range, orbit-matched,
+        generator-covariant statistic with planted-tau power curves; or prove a Weil-type bound for the digit-1 function.
+
+  recalled_citations_checked:
+    - citation: 'D. Boneh, R. Venkatesan, Hardness of computing the most significant bits of secret keys in Diffie-Hellman and related schemes, CRYPTO 1996, LNCS 1109, 129-142'
+      checked: 'confirmed (venue, pages, origin of the hidden number problem) via crypto.stanford.edu/~dabo/abstracts/dhmsb.html and cs.princeton.edu TR-515-96'
+      delta: none for the use made here
+    - citation: 'A. Akavia, S. Goldwasser, S. Safra, Proving hard-core predicates using list decoding, FOCS 2003, 146-157'
+      checked: 'confirmed (codes whose codewords have few heavy Fourier coefficients; learning algorithm over Z_N) from secondary sources and the MIT thesis record; full text not retrieved'
+      delta: >-
+        Their theorems concern predictors for predicates of a one-way function's preimage. Here only the
+        Fourier-learning mechanism with exact query access is used, which is stronger access, so the mechanism applies a
+        fortiori. No AGS theorem is invoked as stated.
+    - citation: 'D. Kohel, I. Shparlinski, Exponential sums and group generators for elliptic curves over finite fields, ANTS-IV 2000, LNCS 1838, 395-404'
+      checked: 'existence and topic confirmed (bound for Gauss-sum analogues on points of E over a prime field); the exact form and constant of the bound were not confirmed (author PDF returned HTTP 503)'
+      delta: used only qualitatively
+    - citation: 'T. Lange, I. Shparlinski bound, as stated in Lemma 5 of R. R. Farashahi, I. E. Shparlinski, Pseudorandom bits from points on elliptic curves, arXiv:1005.4771'
+      checked: 'text confirmed: sum over Q in H \ {O} of psi(sum c_i x(d_i Q)) = O(s D^2 q^(1/2)) for ordinary E and a subgroup H with gcd(#H, d_1...d_s) = 1'
+      delta: 'untwisted (no group character chi); the chi-twisted half-range sums of the experiment need completion, costing a log factor'
+    - citation: 'J. Renes, C. Costello, L. Batina, Complete addition formulas for prime order elliptic curves, EUROCRYPT 2016 (ePrint 2015/1060)'
+      checked: 'confirmed scope (complete on prime-order short Weierstrass curves, char != 2, 3); "Algorithm 1" numbering not confirmed'
+      delta: >-
+        The correctness of rt_d3.py does not rest on the citation. Its addition is tested against affine F_p addition
+        on 200 pairs per curve, and its T1 equals the validator's on 10/10 records.
+    - citation: 'KN-TECH-73630e (cited by H as structural ingredient and as the closure being extended)'
+      checked: 'not checked: outside read_scope'
+      delta: unknown
+
+  must_not_claim:
+    - 'That no digit of the torsion section carries, or correlates with, the discrete logarithm (H title and mechanism).'
+    - 'That the canonical-section clause of H2 is closed at any level (specification decision_impact.on_positive).'
+    - 'Any statement counting 36 curves per seed or 72 records; the evidence is 42 records (24 + 18), 9 of them random-arm.'
+    - 'That the shuffled and uniform controls "sit where the Exp(1) null puts them" (DEC-20261009-6aef7a reading) or that shuffled = 0 confirms the null calibration.'
+    - 'That the D = -3 near-misses are Exp(1) noise; they are the mu_6 symmetry, explained and controlled.'
+    - 'That an arbitrary lift, model or generator behaves alike beyond the one naive lift on 9 random-arm records.'
+    - 'Any transfer to larger n, to cryptographic sizes or to a deployed curve, and any obstruction record that cites this spectrum as the reason the lane is closed.'
+
+  next_concrete_action: >-
+    Coordinator: record EXP-CZLIFT-1a3453 as weak, toy-tier support for the narrowest_supported_statement only, not for
+    H-CZLIFT-fba874 as titled. Do not invoke decision_impact.on_positive. Preserve the shuffled-control contamination as
+    a design defect with the symmetry-matched null (rt_d3.py) as its corrected control. Any follow-up on this lane should
+    report a planted-leak power curve per record before its result is read.
+
+  limitations_of_this_review:
+    - 'Monte Carlo in rt_d3.py draws an independent permutation per row; the producer shares one permutation across the 10 rows of a curve. Row-level spike rates are unaffected; seed-level union probabilities are approximate.'
+    - 'Planted-leak results use one seeded instance per (p, n) and kind (SPARSE, WEAK); power fractions are indicative, not curves.'
+    - 'The breakeven tau* is an order-of-magnitude estimate with unoptimised constants.'
+    - 'harness/*.py were executed (imported by the frozen run.py so that run.spectrum could be used unchanged) but not read.'
+
+  artifact_paths:
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/redteam_report.yaml
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_scope.py
+      sha256: 55d0a1b3d26b3f4e72f539055d49546e9a6a6bd05b9b52a9ad55ae4b2e723f4d
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_scope_output.json
+      sha256: 19ee354906c191608d82a80d5e588050e1a1493773db2167a16ea8e14a78898c
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_scope_stdout.txt
+      sha256: 44aec3ffd9dfe7cfe50dc665ac0e1243b7437c323e03bb9622840fa4171e95db
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers.py
+      sha256: 1c72edab5dc2ebe46d84534be2d28b95ddbacb58af3219d387b4352c661f2b32
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers_output.json
+      sha256: 9a890f07e62b7ca5a1b934bd511e2bc754789cffaa5fd6e072005eb57c42e162
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers_stdout.txt
+      sha256: fc1432019b28208165612db8dbd84ec85c07d4bdad166f6ac107d65f2413c1ab
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers_dc.py
+      sha256: ee084cc42816fc253e4bd72d4f5499f864c6a5fc59769e2ed855c4f82706f842
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers_dc_output.json
+      sha256: 4dde0ebb45c8def899e7b673660b258b04cd98c76fd9d846952fa3d098efb5f4
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_leakers_dc_stdout.txt
+      sha256: 07e731e38ec56d695562388c783cb6099c086c5d2c27bf4101f5a1b9a73946f4
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_fold.py
+      sha256: 0a6c1db9da8cfb0c2bbd2c08feae0ba9567439cec6133de0dfeca71ddc961ed7
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_fold_output.json
+      sha256: 6c6cfa6ce79d403584295a919bd0d8c6c439cebdef4804e0907ebb6fae8595b2
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3.py
+      sha256: e945f562114dbf88769575f7c953cf34672cfb13c5258204acc904c206e3c7f0
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_output.json
+      sha256: 7878d3454e69055b79f34594537a1b9257f971979c7b3d76145f262aaef8dd3d
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_stdout.txt
+      sha256: ba8687c832f43ea56f6d214992192a8ea8a292e4177924363a7772a883bce4b0
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_aggregate.py
+      sha256: 2dc40b34e10d5b9ebf0b2419b2773422d598fb6047a7ccbe1f169185f1e5cf28
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_aggregate_output.json
+      sha256: 512c9d842510457198cdd25ac44091a33fecce799213be368d0e823c33c5cfdd
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_outlier.py
+      sha256: 597f1dcc7cc6c7bf533ea8f8a36a04b59af03fccaf9638908a2c516b95bc7931
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_outlier_output.json
+      sha256: 6e7da9abb9843d75ef2d2c65a416e6b4bcea0276bb43712e404274193c4e756e
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_symfreq.py
+      sha256: 82a15abebcae20080b08ad5acce4d2f4d24e685a38e1f043336703c761ed6fd6
+    - path: experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/rt_d3_symfreq_output.json
+      sha256: 9ecc0ceca5b33bf4bc2751c249fa79d2f35aa47a3d329838f5da854e53e06ec0
+  compute: 'about 2 minutes of one core in total (scripts run from the repository root with python3 3.13.16, numpy 2.5.3)'
+
+review_attestation:
+  task_id: TASK-20261023-792040
+  review_plan_id: REVIEW-CZLIFT-1A3453-EVIDENCE-20261023
+  role: red-team
+  joints_owned: [R1, R2, PTM-1]
+  joint_verdicts: {R1: breaks, R2: breaks, PTM-1: breaks}
+  verdict_note: 'PTM-1 breaks on the recorded scope (72 records) and holds on the 42 power-bearing records; R2 breaks on null shape and control independence, holds on threshold-vs-tests.'
+  snapshot_revision: 14a328a2642222c1ba9aa8c3a6b0e2cfef610eed
+  sources_read:
+    - ledger/handoffs/TASK-20261023-792040.yaml
+    - docs/agent-runtime-core.md
+    - agents/red-team.md
+    - 'AGENTS.md (heading list; "Name the obstruction" lines 22-61; "Review architecture" lines 359-371)'
+    - experiments/EXP-CZLIFT-1a3453/specification.yaml
+    - experiments/EXP-CZLIFT-1a3453/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-fba874.yaml
+    - ledger/questions/RQ-CZLIFT-b9f765.yaml
+    - ledger/decisions/DEC-20261009-6aef7a.yaml
+    - experiments/EXP-CZLIFT-1a3453/implementation/run.py
+    - experiments/EXP-CZLIFT-1a3453/implementation/check.py
+    - experiments/EXP-CZLIFT-1a3453/reports/validation-20261022/validation_report.yaml
+    - 'experiments/EXP-CZLIFT-1a3453/reports/validation-20261022/j2_replay.py (lines 1-200)'
+    - 'experiments/EXP-CZLIFT-1a3453/reports/validation-20261022/j2_replay_stdout.txt (first 60 lines)'
+    - 'experiments/EXP-CZLIFT-1a3453/reports/validation-20261022/j2_replay_output.json (by key, programmatically: P, T1, per-row argmax and multiplicity fields)'
+    - 'experiments/EXP-CZLIFT-1a3453/runs/RUN-CZLIFT-037e5f/manifest.yaml (first 80 lines)'
+    - 'experiments/EXP-CZLIFT-1a3453/runs/RUN-CZLIFT-037e5f/raw-result.json (by key, programmatically)'
+    - 'experiments/EXP-CZLIFT-1a3453/runs/RUN-CZLIFT-d37ca4/raw-result.json (by key, programmatically)'
+    - 'directory listings (names, sizes) of experiments/EXP-CZLIFT-1a3453/, its runs/, reports/ and reports/validation-20261022/ (including blind/)'
+    - 'tools/allocate_id.py (--help output only; --next and --check runs)'
+    - 'web: search results for Boneh-Venkatesan 1996, Akavia-Goldwasser-Safra 2003, Kohel-Shparlinski 2000, Renes-Costello-Batina 2016; arXiv:1005.4771 text (section 2.2 and reference list, via pdftotext in the session scratchpad)'
+  executed_not_read:
+    - 'harness/czlift.py, harness/czlift_run.py, harness/toycurve.py (imported transitively by the frozen run.py so that run.spectrum could be used unchanged; contents not opened; no bytecode cache written outside the write scope)'
+  not_read:
+    - knowledge/techniques/KN-TECH-73630e.md (outside read_scope)
+    - 'experiments/EXP-CZLIFT-1a3453/reports/validation-20261022/ptm1*.{py,json,txt}, j2_recompute*, blind/*, SHA256SUMS, J2_PRECHECK.sha256 (contents)'
+    - 'run files other than those listed (execution receipts, launch, environment, logs)'
+  read_sibling_reports: false
+  sibling_report_disclosure: >-
+    No sibling report was opened. experiments/EXP-CZLIFT-1a3453/reports/ contained only validation-20261022 (lifted
+    for this task) when listed. Two incidental touches are disclosed. (1) tools/allocate_id.py --check scanned the
+    identifier space internally (45044 paths, count only). (2) An `rg -l RT-20261023-dcb217 ledger experiments` started
+    for the same purpose was killed before it printed any filename. Neither displayed any report content, and no other
+    experiment's reports/redteam-20261023/ folder was read.
+  blindness_lifted_for_this_task: [VAL-20261022-55676f]
+  writes: 'only experiments/EXP-CZLIFT-1a3453/reports/redteam-20261023/ (this report, scripts, outputs); no commit; no edit to runs, ledger or validation reports'
+  verdict: 'R1 breaks; R2 breaks; PTM-1 breaks on the recorded scope (holds on the 42 power-bearing records)'
