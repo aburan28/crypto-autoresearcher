@@ -1,0 +1,174 @@
+blind_from:
+  paths:
+    - crypto:research/ic_planner_validation_20261020/analysis/
+    - crypto:research/ic_planner_validation_20261020/sessions/*/comparisons/
+    - crypto:research/ic_planner_validation_20261020/README.md
+    - crypto:research/ic_planner_validation_20261020/REPORT.typ
+    - crypto:research/ic_planner_validation_20261020/REPORT.pdf
+    - crypto:research/ic_planner_validation_20261020/figures/
+    - crypto:research/ic_planner_validation_20261020/scripts/
+    - crypto:research/ic_planner_validation_20261020/reports/
+    - crypto:research/ic_planner_validation_20261020/sessions/*.audit.json
+    - crypto:benchmarks/20261020-ic-planner-validation/
+  blind_from_respected: true
+  seal: >-
+    scripts/readers/stats/blind_seal.txt (2026-10-21T05:22:07Z) holds the sha256 of
+    rederive.py, controls.py and their outputs, all written before any blind_from path was
+    opened. reports/ and sessions/*.audit.json were never opened. benchmarks/ was only hashed.
+  disclosures:
+    - >-
+      Before deriving, this reader read the case prior (prior.md), which lists commit
+      subjects and timestamps but no numbers.
+    - >-
+      A git log run after rederive_out.json was written (05:18:44Z) showed the subject of
+      68bae680b, which quotes "44.8 [39.0, 50.6]" for r24 random-targets. The blind value
+      was already on disk as 44.8493 [38.9584, 50.6450].
+    - >-
+      The ecbench source (compare.rs, stats.rs, band.rs, bin/ecbench.rs) was read, as the
+      task directed, to port the method. That is the instrument's code, not the producer's
+      analysis.
+checks:
+  - id: S01
+    what: "Preregistration (B6.1). The protocol and amendment commits are ancestors of their data commits and dated before them. PROTOCOL*.md, specs and records were each written in exactly one commit. No source change between the planner commit and the amendment."
+    command: "git log/merge-base --is-ancestor/diff --name-only (read-only); python3 -I receipt_checks.py <campaign>"
+    output: scripts/readers/stats/git_checks.txt, scripts/readers/stats/receipt_checks.txt
+    result: >-
+      pass. 05a0ebd92 (16:55:46Z) is an ancestor of 93cfcfbea (c data, 17:16:57Z), and the
+      c records span 17:00:53-17:16:04Z with git_commit 05a0ebd92, clean. d1be0c1c8
+      (17:35:49Z) is an ancestor of ce4392f14 (r data, 17:47:20Z), and the r records span
+      17:40:54-17:46:56Z with git_commit d1be0c1c8, clean. No file under src/, crates/ or
+      Cargo.* changed between a29bead23 and d1be0c1c8. All six sessions ran binary
+      d05271011cd7. The amendment came after the c data were committed; see F6.
+  - id: S02
+    what: "Stopping and N (B6.2): planned against written, status counts, failure, timeout and OOM rows, design 8 arms x 8 targets x (3+1)"
+    command: python3 -I receipt_checks.py <campaign>
+    output: scripts/readers/stats/receipt_checks.txt
+    result: >-
+      pass. Each of the six sessions has executions_planned 256, records_written 256, 256
+      lines, all verified, matches_target true, 0 failure/timeout rows, 64 warm-ups (round
+      0), and records_sha256 equal to session.json. The discarded pre-freeze launch left no
+      row; see F5.
+  - id: S03
+    what: "Exclusions declared beforehand: warm-ups excluded from compare, table and band"
+    command: "source reading: compare.rs:208-210, record.rs:361-363, band.rs:189, ecbench.rs:1695-1701; reproduction in rederive.py"
+    output: scripts/readers/stats/rederive_out.json
+    result: "pass. Warm-ups are the only exclusion; the protocol declares them (PROTOCOL.md:43). The reproduction with warm-ups excluded matches the producer exactly (S06)."
+  - id: S04
+    what: "S definition (B5.2): S = total/sqrt(r)"
+    command: python3 -I receipt_checks.py <campaign>
+    output: scripts/readers/stats/receipt_checks.txt
+    result: "pass. cost.s = cost.total_gae / sqrt(workload.curve.r) on all 1,536 records (relative tolerance 1e-12)."
+  - id: S05
+    what: "Pairing (B6.5): by (workload_id, round), verified on both sides, matched seeds"
+    command: python3 -I rederive.py <campaign> rederive_out.json
+    output: scripts/readers/stats/rederive_out.json
+    result: "pass. 24 pairs on 8 workloads per comparison, 0 unpaired, and one algorithm_seed per (target, round) shared by all 8 arms, so same_seeds holds in every comparison."
+  - id: S06
+    what: "Step 3: the blind numbers against the producer's ecbench outputs: comparisons/*.json (ratio and CI to 1e-9 relative, pairs, seeds, method, resamples, per-workload ratios, arm mean S), table-*.txt (mean S, CI, S/ref, verified, isolation levels), band-*.json (mean S at 3 weights, uncounted, ranks), band-*.txt"
+    command: python3 -I compare_producer.py <campaign> rederive_out.json
+    output: scripts/readers/stats/compare_producer.txt
+    result: "pass. 1,536 values checked, 0 mismatches. ecbench's two-stage bootstrap (splitmix64 seed 20261002, 4000 resamples) reproduces bit for bit."
+  - id: S07
+    what: "Step 3: analysis/summary.json, all 396 values, and its verdict labels against protocol-faithful labels"
+    command: python3 -I compare_summary.py <campaign> rederive_out.json
+    output: scripts/readers/stats/compare_summary.txt
+    result: >-
+      Numbers pass: 396 checked, 0 mismatches. The labels agree on 30/30 cells, but the
+      producer derived them with a rule that is not the protocol's (summary.jq:20-22); see
+      F1.
+  - id: S08
+    what: "Cross-check interval: a one-stage numpy cluster bootstrap by target (20,000 resamples)"
+    command: python3 -I rederive.py (np_cluster_boot)
+    output: scripts/readers/stats/rederive_tables.txt
+    result: >-
+      All 30 alternative/plan intervals at w=0 lie above 1 under both methods. At w=1 the
+      two methods disagree only on double-base: the one-stage interval lies below 1 on c30
+      [0.9134, 0.9994] and r28 [0.8795, 0.9915], while the two-stage (protocol-named)
+      interval contains 1 on all six curves.
+  - id: S09
+    what: "Step 5: the protocol's decision rule (PROTOCOL.md:68-71) applied with an interval at every band weight. ecbench band gives no interval (band.rs:154-167,187-274), so this reader computes one: the same two-stage cluster bootstrap on priced S."
+    command: python3 -I rederive.py; python3 -I print_tables.py rederive_out.json
+    output: scripts/readers/stats/rederive_tables.txt
+    result: >-
+      24 cells confirmed (half-base, rootfind, full-rank and random-targets on all six
+      curves; above 1 at w=0, 0.1 and 1). 6 cells not separated (double-base on all six:
+      above 1 at w=0 and 0.1, containing 1 at w=1, with upper bounds 1.0178-1.0727). 0
+      cells refuted.
+  - id: S10
+    what: "Multiplicity (B6.3): 6 curves x 5 alternatives x 3 weights = 90 interval decisions; Bonferroni alpha=0.05/90"
+    command: python3 -I multiplicity.py <campaign> multiplicity_out.json
+    output: scripts/readers/stats/multiplicity.txt
+    result: >-
+      pass. Every label is unchanged under the Bonferroni correction. The lowest corrected
+      lower bound for a confirmed cell is 1.079 (c30 half-base, w=0). The headline is a
+      conjunction over all 30 cells, not a best-of-k. Sessions on the question: the 6
+      committed sessions plus 1 discarded launch (F5); no other sessions are in the PR.
+  - id: S11
+    what: "A/A control (B6.4): plan-aa against plan"
+    command: python3 -I receipt_checks.py; rederive.py determinism probe
+    output: scripts/readers/stats/receipt_checks.txt
+    result: >-
+      Degenerate (F2). plan-aa equals plan in total_gae and every native counter on all
+      192 (target, round) pairs, warm-ups included, including 45 pairs where the two ran at
+      different isolation levels. The 1.000 [1, 1] interval is a determinism check, not a
+      noise floor.
+  - id: S12
+    what: "Seed A/A (this reader's construction): plan on target t at round i against plan on t at round i+1 mod 3, i.e. the same instrument with a different seed"
+    command: python3 -I controls.py <campaign> controls_out.json
+    output: scripts/readers/stats/controls_tables.txt
+    result: >-
+      Contains 1 on all six curves, with intervals about [0.92, 1.09]. Within-target
+      coefficient of variation of plan S across seeds: mean 0.11-0.14. A +3% injected
+      effect is not detected on any curve and +10% is detected on all six, so the
+      per-curve minimum detectable effect is about 10%.
+  - id: S13
+    what: "Isolation (B6.4, B5.7): isolation_required L2 against the recorded levels"
+    command: python3 -I receipt_checks.py <campaign>
+    output: scripts/readers/stats/receipt_checks.txt
+    result: >-
+      Deviation, disclosed and harmless for counts (F7). Some arms ran entirely at L1:
+      rootfind on c28, c30 and r28 (24/24 each) and random-targets on c30 (24/24); every
+      session mixes L1 and L2. The counted metric does not depend on isolation: the 45
+      mixed-level plan/plan-aa pairs have identical counts.
+  - id: S14
+    what: "P1-P5 and the quoted ranges (step 5)"
+    command: rederive.py and check_prose.py
+    output: scripts/readers/stats/rederive_tables.txt, scripts/readers/stats/check_prose.txt
+    result: >-
+      P1 holds at w=0 on 6/6 curves; at w=1 double-base has the lower mean S on 6/6. P2
+      holds at w=0: half-base 1.356-1.561 and double-base 1.489-1.597, every interval
+      above 1 (lowest lower bounds 1.199 and 1.372). P3 holds: rootfind 150.3-636.5 (lowest
+      lower bound 141.6 >= 10), full-rank 3.30-4.81 (2.97 >= 1.5) and random-targets
+      41.5-58.7 (35.2 >= 1.5), every interval above 1 at every weight. P4 holds: measured
+      over predicted is 1.007-1.177, and every prediction lies inside its interval. P5
+      fails for double-base (the point order reverses at w=1 on 6/6) and holds for the
+      other four. The quoted figures "within 18%" (max 17.7%), "1-18%" (0.74%-17.7%),
+      "12.6x to 25.8x", "2-8%" (registered: 1.8%, 6.8%, 8.3%) and "4-9%" (supplementary:
+      4.4%, 7.4%, 8.75%) all match.
+  - id: S15
+    what: "Step 4: every ratio, interval, S, band value and percent in README.md and REPORT.typ (REPORT.pdf text equals REPORT.typ)"
+    command: "python3 -I check_prose.py <campaign> rederive_out.json; pdftotext -layout REPORT.pdf"
+    output: scripts/readers/stats/check_prose.txt
+    result: "209 numbers checked, 2 mismatches: the same value printed twice (F4)."
+  - id: S16
+    what: "Step 4: the data in the three figures, decoded from SVG path coordinates through axis-tick fits"
+    command: python3 -I decode_figures.py <campaign>/figures rederive_out.json
+    output: scripts/readers/stats/decode_figures.txt
+    result: >-
+      pass. 156 decoded values (30 bars and 60 interval ends at w=0, 36 band-ratio points,
+      30 rho-gap values) all match within 1% (log axis) or 0.5% (linear axis). The
+      benchmarks/ copies are byte-identical. base_size_band.svg draws point ratios with no
+      intervals (F1).
+  - id: S17
+    what: "Proves-too-much (step 7)"
+    command: python3 -I controls.py <campaign> controls_out.json
+    output: scripts/readers/stats/controls_tables.txt
+    result: "pass. The pipeline's conclusions flip when they should; see proves_too_much_control."
+  - id: S18
+    what: "Post-hoc prose correction 68bae680b (B6.2, interim edits)"
+    command: git show --stat 68bae680b (read-only)
+    output: scripts/readers/stats/git_checks.txt
+    result: >-
+      This commit only corrected the rounding of r24 random-targets (44.9 [.., 50.7] to
+      44.8 [39.0, 50.6]); no data changed. The same double-rounding error remains in the
+      r24 rho-gap upper bound (F4).
