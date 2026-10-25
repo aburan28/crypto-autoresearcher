@@ -93,7 +93,7 @@ def positive(value: Any, field: str) -> None:
         raise ExecutionError(f"{field}: expected a finite positive number")
 
 
-def load_plan(root: Path, path: Path) -> dict[str, Any]:
+def load_plan(root: Path, path: Path, *, allow_preapproval_candidate: bool = False) -> dict[str, Any]:
     path = path.absolute()
     try:
         safe_path(root, path.relative_to(root.resolve()).as_posix())
@@ -102,9 +102,22 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     plan = read_json(path)
     if plan.get("schema") != PLAN_SCHEMA or plan.get("frozen") is not True:
         raise ExecutionError("trial plan must use the supported schema and be frozen")
-    for field in ("experiment_id", "task_id", "approved_by", "specification", "queue"):
+    if ("stop_on_invalid_output" in plan and
+            not isinstance(plan["stop_on_invalid_output"], bool)):
+        raise ExecutionError("stop_on_invalid_output must be Boolean when present")
+    for field in ("experiment_id", "task_id", "specification", "queue"):
         if not isinstance(plan.get(field), str) or not plan[field].strip():
             raise ExecutionError(f"missing {field}")
+    if allow_preapproval_candidate:
+        if (plan.get("candidate_only") is not True or
+                plan.get("approval_required") is not True or
+                plan.get("approved_by") not in (None, "")):
+            raise ExecutionError("preapproval readiness requires a candidate-only plan with no approver")
+    else:
+        if plan.get("candidate_only") is True:
+            raise ExecutionError("candidate-only trial plans cannot execute; rebuild after Coordinator approval")
+        if not isinstance(plan.get("approved_by"), str) or not plan["approved_by"].strip():
+            raise ExecutionError("missing approved_by")
     spec_path = safe_path(root, plan["specification"])
     if spec_path.parent.name != plan["experiment_id"]:
         raise ExecutionError("specification/experiment ID mismatch")
@@ -123,7 +136,14 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     # further execution_authorized stages remain runnable (DEC expand).
     # Expand after Stages 0-1 review leaves status=running while further
     # execution_authorized stages remain runnable (DEC expand / standing auth).
-    if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
+    if allow_preapproval_candidate:
+        if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
+                or spec.get("status") != "review_required"
+                or spec.get("frozen") is not True
+                or spec.get("approved_by") not in (None, "")
+                or spec.get("execution_authorized") is not False):
+            raise ExecutionError("candidate readiness requires an unapproved frozen review_required specification")
+    elif (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
             or spec.get("status") not in ("approved", "running")
             or spec.get("frozen") is not True
             or not spec.get("approved_by") or spec.get("execution_authorized") is False):
@@ -411,8 +431,8 @@ def trial_state(root: Path, plan: dict[str, Any], trial: dict[str, Any], plan_ha
         return "needs_reconciliation"
 
 
-def coverage(root: Path, path: Path) -> dict[str, Any]:
-    plan = load_plan(root, path)
+def coverage(root: Path, path: Path, *, allow_preapproval_candidate: bool = False) -> dict[str, Any]:
+    plan = load_plan(root, path, allow_preapproval_candidate=allow_preapproval_candidate)
     digest = sha256(path)
     states = {t["id"]: trial_state(root, plan, t, digest) for t in plan["trials"]}
     for trial in plan["trials"]:
@@ -801,7 +821,9 @@ def run_plan(root: Path, path: Path, owner: str, epoch: int, *,
             authority = gate(root, path, plan, owner, epoch)
             if sha256(path) != digest:
                 raise ExecutionError("trial plan changed during execution")
-            execute_trial(root, path, plan, trial, authority, fd)
+            status = execute_trial(root, path, plan, trial, authority, fd)
+            if plan.get("stop_on_invalid_output") is True and status == "invalid_output":
+                break
     return coverage(root, path)
 
 
