@@ -38,6 +38,27 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def exact_directory_mentions(data: bytes, known_ids: list[str]) -> list[str]:
+    """Independently scan pinned bytes for whole directory-ID tokens."""
+    text = data.decode("utf-8")
+
+    def token_char(char: str) -> bool:
+        return ("A" <= char <= "Z" or "a" <= char <= "z"
+                or "0" <= char <= "9" or char == "-")
+
+    found = []
+    for experiment_id in known_ids:
+        start = 0
+        while (offset := text.find(experiment_id, start)) != -1:
+            end = offset + len(experiment_id)
+            if ((offset == 0 or not token_char(text[offset - 1]))
+                    and (end == len(text) or not token_char(text[end]))):
+                found.append(experiment_id)
+                break
+            start = offset + 1
+    return found
+
+
 def main() -> None:
     if not __debug__:
         raise RuntimeError("receipt checks require ordinary Python; optimized execution is refused")
@@ -97,6 +118,10 @@ def main() -> None:
         assert digest(spec_bytes) == row["spec_sha256"]
         assert digest(source_bytes) == row["source_sha256"]
         assert digest(theorem_bytes) == row["theorem_sha256"]
+        assert (exact_directory_mentions(spec_bytes, experiment_ids)
+                == row["exp_directory_ids_in_spec"])
+        assert (exact_directory_mentions(source_bytes, experiment_ids)
+                == row["exp_directory_ids_in_source"])
         assert spec["task_id"] == row["proof_task_id"]
         assert spec["claim_id"] == row["claim_id"]
         assert spec["source"] == row["source_path"]
