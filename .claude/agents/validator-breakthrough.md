@@ -10,7 +10,7 @@ tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_object
 model: claude-opus-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> validator-breakthrough
 # -> model-bindings.yaml anthropic binding of review-breakthrough (Claude
-# Fable 5.1). Edit the binding, never this line; tools/check_runtime_bindings.py
+# Opus 5.5). Edit the binding, never this line; tools/check_runtime_bindings.py
 # fails the build when they disagree.
 # Policy-tier variant of `validator` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
