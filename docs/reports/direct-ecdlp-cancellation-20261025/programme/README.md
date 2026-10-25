@@ -1,0 +1,32 @@
+# Classical ECDLP experiments
+
+A separate experimental card for every classical lead in the parent plan, plus a shared direct-response protocol, correctness scaffolding and explicit success/failure criteria. Classical CPU/GPU only; no index calculus.
+
+- [Programme, measurements and shared controls](EXPERIMENTS.md)
+- [Nine lead-specific experiment cards](LEADS.md)
+- [Readiness and missing implementations](READINESS.json)
+- [Development checks and exact limits](CHECKS.md)
+- [Printable programme](report.pdf)
+- [Editable diagram](programme.dot) and [SVG](programme.svg)
+- [C++ reference and launcher](reference/README.md)
+- [Exact scalar-window control](window-control.md)
+- [Preliminary methodology criticism](methodology-review.md)
+
+The point-level tagged reference passes 13,731 development assertions. No admitted scientific trial, new cancellation identity, solver advantage or novelty claim is established. Gate-level compilation, candidate constructors, registered cohorts and normal execution admission remain pending. The programme covers the named leads; it does not certify exhaustion of the literature or algorithm space.
+
+| Track | First discriminating measurement | Main gap |
+| --- | --- | --- |
+| Direct tagged response | Every tagged block boundary, composition and full construction cost | Gate circuit and EC-specific rewrite |
+| Prime-to-p sections | Computable section defects and scalar-profile/null comparison | Lift implementation and explicit decoder |
+| EDS / elliptic nets | Linear complexity, 15-monomial predictor and orientation ambiguity | Nonlinear locator constructor |
+| Endomorphism observables | Exact eigenvalue/certificate redundancy | Information beyond known scalar action |
+| Matchgate successor | Exact identities for a finite ≤81-arm basis grammar | Global planar/tag construction |
+| Radical-ladder successor | Branch count versus reduced algebra dimension | Target-local constructive invariant |
+| Reverse automata | Full state/label sizes and target ambiguity | Uniform constructor and orientation |
+| Conditional coefficients | Exact prefix coefficients versus truth | Cheap coefficient evaluator |
+| Ax–Katz successor | Empty/nonempty receipt collisions and degree hypotheses | Exact singleton residue evaluator |
+| Lossy propagation | Entropy, fibres, candidate support and relabeling nulls | Repaired calibration and inference decoder |
+
+Every card separates a correct measurement, a falsified candidate, a scoped null and an inconclusive or blocked computation. Shared costs include construction, failed paths, recovery, verification and peak storage. Existing IC-specific or retired records remain unchanged; direct successors are distinct proposals.
+
+Rebuild the report with `./build.sh`. Development checks can run with `./reference/test.sh`; they do not launch scientific experiments.

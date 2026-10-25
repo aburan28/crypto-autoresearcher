@@ -8,6 +8,8 @@ This review proposes a direct scalar-circuit workstream and identifies the exact
 
 The requested novelty criterion remains unresolved. The plan gives a precise object, prior-work collisions, discovery tasks, controls, cost accounting, and rejection conditions instead of presenting a renamed known method as a new algorithm.
 
+**Follow-up experiment programme:** [all ten classical workstreams](programme/README.md), [per-lead designs](programme/LEADS.md), [shared measurements and criteria](programme/EXPERIMENTS.md), and [printable programme](programme/report.pdf). A C++ point-level reference now passes 13,731 development assertions. These checks are separate from scientific trials; no new cancellation construction or speedup is established. Several original proposals are IC-specific, so their possible direct successors are explicitly distinguished.
+
 - [Research plan and review](PLAN.md)
 - [Printable report, including the mechanism diagram](report.pdf)
 - [Diagram](mechanism.svg) and [editable source](mechanism.dot)
@@ -41,4 +43,4 @@ The original source index and lexical matches include a historical quantum-resou
 
 Run `./build.sh` in this directory with Graphviz, Pandoc, XeLaTeX, and DejaVu fonts installed. `report-source.md` is generated from the plan, diagram caption and source notes; `report.tex` is the generated printable source. The PDF includes the plan and sources. The SVG and PDF diagram come from `mechanism.dot`.
 
-Scientific identity proofs, code correctness checks and independent replay are future obligations; document rendering does not satisfy them.
+Point-level development checks are recorded in the follow-up programme. Gate-level correctness, a new constructive identity, scientific admission and independent replay remain future obligations; document rendering does not satisfy them.
