@@ -27,8 +27,8 @@ def main():
     receipt_path=d/"receipt.json"; receipt_path.write_bytes(canon(receipt)); output_contract.write_outputs(args.run_dir)
     # Fixture-only post-emission faults leave the driver successful so the real
     # supervisor/checker, rather than this driver, classifies invalid_output.
-    if args.fault == "missing-top": (args.run_dir/"manifest.yaml").unlink()
-    elif args.fault == "empty-top": (args.run_dir/"manifest.yaml").write_bytes(b"")
+    if args.fault == "missing-top": (args.run_dir/"raw-result.json").unlink()
+    elif args.fault == "empty-top": (args.run_dir/"raw-result.json").write_bytes(b"")
     elif args.fault == "changed-digest": (args.run_dir/"raw-result.json").write_bytes(b"{}\n")
     elif args.fault == "unlisted-raw":
         extra=d/"unlisted.txt"; extra.write_text("fixture-only extra\n")
