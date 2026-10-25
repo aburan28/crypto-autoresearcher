@@ -36,8 +36,17 @@ def blob(path: str) -> tuple[str, bytes, str]:
 
 
 def main() -> None:
+    if not __debug__:
+        raise RuntimeError("builder assertions require ordinary Python; optimized execution is refused")
     assert git("rev-parse", COMMIT).decode().strip() == COMMIT
     tree = git("rev-parse", f"{COMMIT}:formal").decode().strip()
+    experiments_tree = git("rev-parse", f"{COMMIT}:experiments").decode().strip()
+    directory_names = git("ls-tree", "-d", "--name-only", f"{COMMIT}:experiments").decode().splitlines()
+    experiment_ids = sorted(name for name in directory_names if name.startswith("EXP-"))
+    experiment_set = set(experiment_ids)
+    exact_directory_id = re.compile(
+        r"(?<![A-Za-z0-9-])(?:" + "|".join(re.escape(name) for name in sorted(experiment_ids, key=len, reverse=True)) + r")(?![A-Za-z0-9-])"
+    )
     paths = git("ls-tree", "-r", "--name-only", COMMIT, "formal/targets").decode().splitlines()
     targets = []
     for path in sorted(p for p in paths if p.endswith(".yaml")):
@@ -63,6 +72,8 @@ def main() -> None:
             "theorem_blob": theorem_oid, "theorem_sha256": theorem_sha,
             "canonical_exp_ids_in_spec": sorted(set(EXP.findall(spec_text))),
             "canonical_exp_ids_mentioned_in_source": sorted(set(EXP.findall(source_text))),
+            "exp_directory_ids_in_spec": sorted(set(exact_directory_id.findall(spec_text))),
+            "exp_directory_ids_in_source": sorted(set(exact_directory_id.findall(source_text))),
             "source_path_is_run_artifact": "/runs/" in f"/{source}/",
             "spec_explicit_run_reference": bool(re.search(r"(?:/runs/|\bRUN-[A-Za-z0-9-]+\b)", spec_text)),
         })
@@ -81,6 +92,30 @@ def main() -> None:
         "direct_run_artifact_sources": sum(t["source_path_is_run_artifact"] for t in targets),
         "specs_with_explicit_run_reference": sum(t["spec_explicit_run_reference"] for t in targets),
     }
+    pointers: dict[str, list[str]] = {}
+    for target in targets:
+        mentions = set(target["exp_directory_ids_in_spec"])
+        mentions.update(target["exp_directory_ids_in_source"])
+        for experiment_id in sorted(mentions & experiment_set):
+            pointers.setdefault(experiment_id, []).append(target["target"].removesuffix(".yaml"))
+    pointers = dict(sorted(pointers.items()))
+    corpus = {
+        "schema": "crypto.validation.formal_corpus_pointer_coverage.v1",
+        "main_commit": COMMIT,
+        "experiments_tree": experiments_tree,
+        "formal_tree": tree,
+        "method": "Known exact EXP directory-ID tokens in target specs or declared source bytes, including legacy multi-hyphen IDs; syntactic pointers only, not proof suitability, semantic linkage, or run validation",
+        "experiment_directory_ids": experiment_ids,
+        "experiment_directory_count": len(experiment_ids),
+        "ids_with_exact_target_pointer": sorted(pointers),
+        "ids_without_exact_target_pointer": sorted(experiment_set - pointers.keys()),
+        "targets_with_exact_experiment_pointer": len({name for names in pointers.values() for name in names}),
+        "exact_pointer_map": pointers,
+    }
+    (OUT / "corpus-pointer-coverage.json").write_text(json.dumps(corpus, indent=2, sort_keys=True) + "\n")
+    summary["experiment_directory_count"] = len(experiment_ids)
+    summary["ids_with_exact_target_pointer"] = len(pointers)
+    summary["targets_with_exact_experiment_pointer"] = corpus["targets_with_exact_experiment_pointer"]
     document = {
         "schema": "crypto.validation.formal_target_provenance_inventory.v1",
         "main_commit": COMMIT, "formal_tree": tree,
@@ -96,10 +131,12 @@ def main() -> None:
   spec [label="87 target YAML specs\\n87 unique task and claim IDs"];
   theorem [label="87 exact hosted machine receipts\\nformal tree identical at current main"];
   run [label="0 direct /runs/ sources\\n0 explicit RUN refs in specs", color="orange"];
+  corpus [label="2781 EXP-prefix directories\\n5 with exact target pointer", color="orange"];
   review [label="Claim-specific semantic review\\nand experiment controls pending", color="orange"];
   source -> spec [label="declared path + SHA-256"];
   spec -> theorem [label="declared theorem file"];
   run -> source [style=dashed, label="execution provenance open"];
+  corpus -> spec [style=dashed, label="syntactic pointers only"];
   theorem -> review [style=dashed, label="statement-to-claim bridge open"];
 }
 '''

@@ -39,7 +39,10 @@ def digest(data: bytes) -> str:
 
 
 def main() -> None:
+    if not __debug__:
+        raise RuntimeError("receipt checks require ordinary Python; optimized execution is refused")
     inventory = json.loads((HERE / "provenance.json").read_text())
+    corpus = json.loads((HERE / "corpus-pointer-coverage.json").read_text())
     audit = json.loads((HERE / "evidence/hosted-87/receipt-audit.json").read_text())
     rows = inventory["targets"]
     names = {Path(row["target"]).stem for row in rows}
@@ -52,6 +55,26 @@ def main() -> None:
     assert {p.stem for p in receipts} == names
     sources = sorted({row["source_path"] for row in rows})
     assert len(sources) == 30
+    experiment_tree = git("rev-parse", f"{MAIN}:experiments").decode().strip()
+    directory_names = git("ls-tree", "-d", "--name-only", f"{MAIN}:experiments").decode().splitlines()
+    experiment_ids = sorted(name for name in directory_names if name.startswith("EXP-"))
+    assert corpus["schema"] == "crypto.validation.formal_corpus_pointer_coverage.v1"
+    assert corpus["main_commit"] == MAIN and corpus["formal_tree"] == TREE
+    assert corpus["experiments_tree"] == experiment_tree
+    assert corpus["experiment_directory_ids"] == experiment_ids
+    assert corpus["experiment_directory_count"] == len(experiment_ids) == 2781
+    experiment_set = set(experiment_ids)
+    pointers: dict[str, list[str]] = {}
+    for row in rows:
+        mentions = set(row["exp_directory_ids_in_spec"])
+        mentions.update(row["exp_directory_ids_in_source"])
+        for experiment_id in sorted(mentions & experiment_set):
+            pointers.setdefault(experiment_id, []).append(Path(row["target"]).stem)
+    assert corpus["exact_pointer_map"] == dict(sorted(pointers.items()))
+    assert corpus["ids_with_exact_target_pointer"] == sorted(pointers)
+    assert len(pointers) == 5
+    assert corpus["ids_without_exact_target_pointer"] == sorted(experiment_set - pointers.keys())
+    assert corpus["targets_with_exact_experiment_pointer"] == len({name for names in pointers.values() for name in names}) == 17
     diff = subprocess.run(
         ["git", "-C", str(ROOT), "diff", "--quiet", HOSTED, MAIN, "--", *sources],
         check=False, capture_output=True,
