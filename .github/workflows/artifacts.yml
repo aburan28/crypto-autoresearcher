@@ -8,7 +8,7 @@ name: artifacts
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
 # One run per pull request; a newer push cancels the run it supersedes.
 concurrency:
   group: artifacts-${{ github.event.pull_request.number || github.ref }}
@@ -16,7 +16,9 @@ concurrency:
 
 jobs:
   artifacts:
-    if: github.event_name == 'pull_request'
+    if: >-
+      !github.event.pull_request.draft &&
+      (github.event_name == 'pull_request')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -43,6 +45,9 @@ jobs:
         env:
           LARGE_FILE_OK: ${{ contains(github.event.pull_request.labels.*.name, 'large-file-ok') }}
         run: |
+          # Full object IDs let cat-file fetch missing blobs in this partial clone.
+          # Abbreviated IDs cannot be resolved until those blobs are present.
+          git config --local core.abbrev 40
           if python3 tools/artifacts/artifacts.py check HEAD^1 HEAD; then exit 0; fi
           if [ "$LARGE_FILE_OK" = true ]; then
             echo "::warning::data files committed under the large-file-ok label"
