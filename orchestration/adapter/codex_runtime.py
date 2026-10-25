@@ -770,6 +770,11 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         # values consume no clock reading and are only a preliminary metadata
         # check; the exact persisted final timestamp is checked below using the
         # real binding interval.
+        # The binding backend selects a model; Codex records the underlying
+        # provider. Both GPT-6 bindings use the same native OpenAI provider.
+        expected_provider = (
+            "openai" if resolution.backend in {"openai-gpt6", "openai-gpt61"}
+            else resolution.backend)
         failures = _cross_checks(
             receipt=result, request_model=model, request_effort=effort,
             request_workdir=canonical_workdir, thread_id=thread_id,
@@ -777,7 +782,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=launch_end,
             binding_end=launch_end, recorded_at=launch_end,
-            expected_provider=resolution.backend)
+            expected_provider=expected_provider)
         if failures:
             raise _ProbeFailure(*failures)
         binding_argv = ["python3", "tools/check_runtime_bindings.py"]
@@ -804,7 +809,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=binding_start,
             binding_end=binding_end, recorded_at=recorded_at,
-            expected_provider=resolution.backend)
+            expected_provider=expected_provider)
         if failures:
             raise _ProbeFailure(*failures)
         body["verification"].update({

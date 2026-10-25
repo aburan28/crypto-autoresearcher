@@ -116,11 +116,17 @@ their READMEs:
 |:--|--:|--:|:--|--:|:--|--:|--:|:--|
 | gost/gost512 | 511 | 155 | 19870558523 · p71 · p74 | 1 | −(155 digits) | 512.00 (511.998) | 2^510.00 | (not checked against literature) |
 
-* `h = 1`, and `4q − t²` is squarefree with `4q − t² ≡ 3 (mod 4)`.  So
-  `D_K = −s = t² − 4q`, `f = 1` and `End(E) = O_K`.
+* For the recorded integers, `h = 1`, and `4q − t²` is squarefree with
+  `4q − t² ≡ 3 (mod 4)`. Thus `D_K = −s = t² − 4q` and `f = 1`.
+  Identifying this discriminant with the endomorphism ring of the named
+  curve requires that `q` is its prime field size, `t` is its actual
+  Frobenius trace, and the listed large factors are prime. Under those
+  hypotheses and the standard ordinary-curve order theorem, `End(E) = O_K`.
+  The Lean target below does not prove that curve-model bridge or primality.
 * The gap `log2(4q) − log2 |D_K|` is 0.11 bits.
-* `|D_K| ≥ 2^511`, so every non-scalar endomorphism has degree at least 2^509
-  (Lean, below).
+* `|D_K| ≥ 2^511`, and the abstract quadratic-order model has minimum
+  non-scalar norm at least 2^509 (Lean, below). Applying this as an
+  endomorphism degree bound for the named curve needs the curve-model bridge.
 * [`dk_exact.json`](dk_exact.json) has every number in full.
 
 **Who found the factors** (from [`dk_exact.md`](dk_exact.md)):
@@ -278,9 +284,11 @@ units of expected curves against factor size.
 
 ## Scope
 
-* Part A is an exact integer fact about `t² − 4q`, plus the standard theory
-  that `End(E)` is an order of `Q(√D_K)` containing `Z[π]`.  Here
-  `f = 1`, so it is the maximal order.
+* Part A certifies integer facts about `t² − 4q`. Conditional on the named
+  curve having prime field size `q` and actual Frobenius trace `t`, and on
+  the listed large factors being prime, standard ordinary-curve theory
+  identifies `End(E)` as an order containing `Z[π]`. With `f = 1`, that order
+  is maximal. This curve-model identification is not Lean-certified here.
 * Part B records effort and status.  It makes no claim that any cofactor has
   no small factor, beyond the approximate model above.
 * No attack, speed-up or weakness is claimed.  A large `|D_K|` rules out a
@@ -376,6 +384,13 @@ The theorems:
 **The primality hypothesis.**  All three factors (19870558523, p71 and p74) are
 above 10^8, so all three are in `largePrimes`.  Fundamentality of `D_K` is
 conditional on their primality.  PARI `isprime` proved them; Lean did not.
+An [independent 2026-10-24 replay](validation/pari-isprime-20261024.json) built
+PARI/GP 2.19.0 from the release archive matching the upstream SHA-256 and
+returned `isprime = 1` for each exact archived factor; their product also
+matches the archived integer. The [script](validation/pari-isprime-20261024.gp)
+and [raw output](validation/pari-isprime-20261024.log) are retained. This
+replays the factor-primality premise externally; it does not change the Lean
+theorem's conditional type or establish the named-curve model bridge.
 
 **Not certified:**
 

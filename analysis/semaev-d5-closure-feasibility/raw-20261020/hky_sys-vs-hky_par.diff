@@ -1,0 +1,26 @@
+--- examples/hky_par.rs	2026-10-19 16:34:41.566326187 +0000
++++ examples/hky_sys.rs	2026-10-20 06:27:21.181580112 +0000
+@@ -356,6 +356,23 @@
+                     "secs": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0, "threads": rayon::current_num_threads()}));
+             }
+         }
++        Some("sys") => {
++            // scratch cross-check: read an lfdclose2 .sys file (N np; per poly: nt then hex masks) and run the same closure/refute
++            let txt = std::fs::read_to_string(&args[2]).unwrap();
++            let mut it = txt.split_whitespace();
++            let nv: u32 = it.next().unwrap().parse().unwrap();
++            let np: usize = it.next().unwrap().parse().unwrap();
++            let mut eqs: Vec<Vec<u64>> = Vec::new();
++            for _ in 0..np {
++                let nt: usize = it.next().unwrap().parse().unwrap();
++                eqs.push((0..nt).map(|_| u64::from_str_radix(it.next().unwrap(), 16).unwrap()).collect());
++            }
++            let t0 = Instant::now();
++            let (d_f, dims) = refute(&eqs, nv, cmax);
++            println!("{}", json!({"schema": "hky_sys_scratch/v1", "file": args[2], "n_vars": nv, "n_eqs": np, "d_f": d_f,
++                "d_f_at_least": if d_f.is_none() { Some(cmax + 1) } else { None }, "per_degree": dims,
++                "secs": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0, "threads": rayon::current_num_threads()}));
++        }
+         Some("newcells") => {
+             let seed: u64 = get("--seed").unwrap().parse().unwrap();
+             let keep: usize = get("--keep").map_or(4, |v| v.parse().unwrap());

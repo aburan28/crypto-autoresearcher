@@ -106,8 +106,8 @@ def _dispatch_queue_ready(repo: Path, plan: Path) -> tuple[bool, str, str | None
     return True, "", bound_name
 
 
-def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
-    plan = exp_dir / "trial-plan.json"
+def execution_progress(exp_dir: Path, repo: Path, *, preapproval_candidate: bool = False) -> dict[str, Any]:
+    plan = exp_dir / ("candidate-trial-plan.json" if preapproval_candidate else "trial-plan.json")
     # A sparse checkout leaves tracked files off disk; they still exist.
     absent = sparse_checkout.tracked_absent(repo, f"experiments/{exp_dir.name}/")
     materialize = {"execution_state": "needs_materialization",
@@ -115,8 +115,24 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
                              f"`{sparse_checkout.materialize_hint(exp_dir.name)}` first"}
     if plan.exists() or plan.is_symlink():
         try:
-            report = coverage(repo, plan)
+            if preapproval_candidate:
+                report = coverage(repo, plan, allow_preapproval_candidate=True)
+            else:
+                # Keep the approved-plan call compatible with existing
+                # coverage adapters that accept only (repo, plan).
+                report = coverage(repo, plan)
             plan_name = str(plan.relative_to(repo))
+            if preapproval_candidate:
+                states = set(report.get("trials", {}).values())
+                if (states and states <= {"planned", "waiting_on_dependencies"}
+                        and report["output_validated"] == 0):
+                    return {"execution_state": "ready", "approval_required": True,
+                            "readiness_kind": "preapproval_candidate",
+                            "reason": "frozen candidate plan validates; Coordinator approval and a new approved plan are still required",
+                            "trial_plan": plan_name, "coverage": report}
+                return {"execution_state": "needs_reconciliation",
+                        "reason": "candidate plan contains run outputs, invalid states, or no planned trials",
+                        "trial_plan": plan_name, "coverage": report}
             if report.get("not_materialized") and not report["measurement_complete"]:
                 return {**materialize, "trial_plan": plan_name, "coverage": report}
             if report["planned"] and not report["measurement_complete"]:
@@ -131,7 +147,7 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
                     "coverage": report}
         except (OSError, ValueError, TypeError) as error:
             return {"execution_state": "needs_plan_repair", "reason": str(error)}
-    if f"experiments/{exp_dir.name}/trial-plan.json" in absent:
+    if f"experiments/{exp_dir.name}/{plan.name}" in absent:
         return materialize
     runs = exp_dir / "runs"
     activity = runs.is_dir() and any(runs.iterdir())
@@ -260,15 +276,23 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
     rows: list[dict[str, Any]] = []
     for spec, exp in specs:
         exp_id = str(exp.get("id") or spec.parent.name)
-        if (exp.get("status") != "approved" or not exp.get("approved_by")
-                or exp.get("frozen") is not True or exp.get("execution_authorized") is False
-                or exp_id in superseded):
+        candidate = (experiment_ids is not None and exp_id in experiment_ids and
+                     exp.get("status") == "review_required" and
+                     exp.get("frozen") is True and
+                     exp.get("execution_authorized") is False and
+                     not exp.get("approved_by"))
+        approved = (exp.get("status") == "approved" and bool(exp.get("approved_by")) and
+                    exp.get("frozen") is True and exp.get("execution_authorized") is not False)
+        if (not (approved or candidate) or exp_id in superseded):
             continue
         if goal is not None and exp.get("goal_id") != goal:
             continue
         if experiment_ids is not None and exp_id not in experiment_ids:
             continue
-        progress = execution_progress(spec.parent, repo)
+        if candidate:
+            progress = execution_progress(spec.parent, repo, preapproval_candidate=True)
+        else:
+            progress = execution_progress(spec.parent, repo)
         if progress["execution_state"] == "measurement_complete":
             continue
         if not include_blocked and progress["execution_state"] not in _SELECTABLE:

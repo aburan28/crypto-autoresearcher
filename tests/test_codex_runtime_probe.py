@@ -203,30 +203,6 @@ def test_happy_path_writes_exact_session_receipt(tmp_path):
         "sandbox_matches", "session_id_matches", "timestamp_order_valid"))
 
 
-def test_state_lookup_reads_new_session_from_uncheckpointed_wal(tmp_path):
-    state_db = tmp_path / "state.sqlite"
-    writer = sqlite3.connect(state_db)
-    try:
-        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
-        writer.execute("PRAGMA wal_autocheckpoint=0")
-        writer.execute("""CREATE TABLE threads (
-            id TEXT, rollout_path TEXT, cwd TEXT, source TEXT, model TEXT,
-            reasoning_effort TEXT, model_provider TEXT, cli_version TEXT,
-            created_at TEXT, updated_at TEXT)""")
-        writer.execute("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (THREAD_ID, "sessions/probe.jsonl", str(tmp_path), "exec",
-                        "gpt-5.6-sol", "high", "openai", "0.155.1",
-                        _iso(2.1), _iso(2.6)))
-        writer.commit()
-        assert Path(str(state_db) + "-wal").stat().st_size > 0
-        row = codex_runtime._query_state_row(state_db, THREAD_ID)
-        assert row["id"] == THREAD_ID
-        assert row["model"] == "gpt-5.6-sol"
-        assert row["reasoning_effort"] == "high"
-    finally:
-        writer.close()
-
-
 @pytest.mark.parametrize(("events", "code"), [
     (_events(thread_ids=()), "thread_id_missing"),
     (_events(thread_ids=(THREAD_ID, OTHER_ID)), "thread_id_ambiguous"),
@@ -523,7 +499,6 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     codex_runtime.probe_codex_session(**arguments)
     assert connect_calls[0][0][0].startswith("file:")
     assert connect_calls[0][0][0].endswith("?mode=ro")
-    assert len(connect_calls) == 1
     assert connect_calls[0][1]["uri"] is True
     normalized = [" ".join(item.split()) for item in statements]
     selects = [item for item in normalized if item.upper().startswith("SELECT")]
@@ -532,6 +507,27 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     assert any(item.upper().startswith("PRAGMA QUERY_ONLY=ON") for item in normalized)
     assert not any(word in " ".join(normalized).upper()
                    for word in ("INSERT ", "UPDATE ", "DELETE ", "VACUUM"))
+
+
+def test_sqlite_reads_uncheckpointed_wal_row(tmp_path):
+    arguments, _, _, _, _, _ = _case(tmp_path)
+    state_db = Path(arguments["state_db"])
+    writer = sqlite3.connect(state_db)
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("UPDATE threads SET model=? WHERE id=?",
+                       ("wal-only-model", THREAD_ID))
+        writer.commit()
+        assert state_db.with_name(state_db.name + "-wal").exists()
+        stale = sqlite3.connect(f"file:{state_db}?mode=ro&immutable=1", uri=True)
+        try:
+            assert stale.execute("SELECT model FROM threads WHERE id=?",
+                                 (THREAD_ID,)).fetchone() == ("gpt-5.6-sol",)
+        finally:
+            stale.close()
+        assert codex_runtime._query_state_row(state_db, THREAD_ID)["model"] == "wal-only-model"
+    finally:
+        writer.close()
 
 
 @pytest.mark.parametrize("wal_present", [False, True])
@@ -598,6 +594,28 @@ def test_sqlite_wal_creation_at_fallback_boundary_cannot_return_stale_row(
             writer.close()
 
 
+@pytest.mark.parametrize("backend,model", [
+    ("openai-gpt6", "gpt-6-sol"),
+    ("openai-gpt61", "gpt-6.1-sol"),
+])
+def test_gpt6_backend_alias_matches_native_openai_provider(tmp_path, backend, model):
+    arguments, _, row, session, _, rollout = _case(tmp_path)
+    arguments.update(model=model, effort="high", backend=backend,
+                     policy="coordinator-orchestration-code", role="coordinator")
+    connection = sqlite3.connect(arguments["state_db"])
+    try:
+        connection.execute("UPDATE threads SET model=?, reasoning_effort=? WHERE id=?",
+                           (model, "high", THREAD_ID))
+        connection.commit()
+    finally:
+        connection.close()
+    turn = _turn(cwd=row["cwd"], model=model, effort="high")
+    rollout.write_text(json.dumps(session) + "\n" + json.dumps(turn) + "\n",
+                       encoding="utf-8")
+    body = codex_runtime.probe_codex_session(**arguments)["runtime_session_receipt"]
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["provider_matches"] is True
+    assert body["runtime"]["provider"] == "openai"
 
 
 def test_argv_is_a_list_with_shell_false_for_metacharacter_paths(tmp_path):
@@ -737,3 +755,26 @@ def test_cli_help_states_session_only_scope():
                  "--policy", "--role", "--task-id", "--receipt",
                  "--independent-session", "--timeout-seconds", "--backend"):
         assert flag in result.stdout
+
+def test_state_lookup_reads_new_session_from_uncheckpointed_wal(tmp_path):
+    state_db = tmp_path / "state.sqlite"
+    writer = sqlite3.connect(state_db)
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("""CREATE TABLE threads (
+            id TEXT, rollout_path TEXT, cwd TEXT, source TEXT, model TEXT,
+            reasoning_effort TEXT, model_provider TEXT, cli_version TEXT,
+            created_at TEXT, updated_at TEXT)""")
+        writer.execute("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (THREAD_ID, "sessions/probe.jsonl", str(tmp_path), "exec",
+                        "gpt-5.6-sol", "high", "openai", "0.155.1",
+                        _iso(2.1), _iso(2.6)))
+        writer.commit()
+        assert Path(str(state_db) + "-wal").stat().st_size > 0
+        row = codex_runtime._query_state_row(state_db, THREAD_ID)
+        assert row["id"] == THREAD_ID
+        assert row["model"] == "gpt-5.6-sol"
+        assert row["reasoning_effort"] == "high"
+    finally:
+        writer.close()

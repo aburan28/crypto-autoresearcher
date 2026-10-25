@@ -3,8 +3,10 @@
  *  - echelon (not reduced) form; W cap B_{<=D-1} = span of rows with low leading column
  *  - products x*M_{D-1} are already in M_D: pre-mark leading columns of M_{D-1}
  *  - mutant products added in chunks (bounded memory), early stop when 1 appears
- * args: D [verbose] [chunk_rows]   stdin: system
- * output: M_D dims, W_D dims (cumulative dims of W cap B_{<=d}), W_one, iterations */
+ * args: D [verbose] [chunk_rows] [cert_path]   stdin: system
+ * output: M_D dims, W_D dims (cumulative dims of W cap B_{<=d}), W_one, iterations
+ * cert_path: if 1 is not in W_D, write the quotient map pi: B_{<=D} -> B_{<=D}/W_D (see export_cert)
+ *   for verify/cert_check.py, which re-checks it without trusting this program. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -47,9 +49,35 @@ static void dims_of(mzd_t *A, long rank, long *dims, int *one) {
   for (int e = 0; e <= D; e++) dims[e] = 0; *one = 0;
   for (long i = 0; i < rank; i++) { long c = leadcol(A, i); int dg = __builtin_popcountll(colmask[c]); for (int e = dg; e <= D; e++) dims[e]++; if (c == ncols - 1) *one = 1; }
 }
+/* Certificate: with U = rowspace(A) = W_D, write pi: B_{<=D} -> F_2^nq, where nq = ncols - rank and
+ * pi(m) = the reduction of the monomial m modulo U, expressed on the non-pivot columns.
+ * Row echelon form: row i is e_{p_i} + (terms in columns > p_i), so pi(e_p) = sum of pi(e_t) over those terms.
+ * Pivot rows are processed from the last pivot to the first. Non-pivot column q-th (in column order) has pi = unit vector q.
+ * File (little endian): int64 N, D, ncols, nq; uint64 mask[ncols]; uint64 pi[ncols][qw], qw = max(1, ceil(nq/64)). */
+static long *g_pc;
+static int cmp_desc(const void *a, const void *b) { long x = g_pc[*(const long *)a], y = g_pc[*(const long *)b]; return (x < y) - (x > y); }
+static void export_cert(const char *path, mzd_t *A, long rank) {
+  long *pc = malloc(sizeof(long) * (rank + 1)), *ord = malloc(sizeof(long) * (rank + 1)); char *ispiv = calloc(ncols, 1);
+  for (long i = 0; i < rank; i++) { pc[i] = leadcol(A, i); if (pc[i] < 0 || ispiv[pc[i]]) { fprintf(stderr, "cert: not an echelon form\n"); exit(5); } ispiv[pc[i]] = 1; ord[i] = i; }
+  g_pc = pc; qsort(ord, rank, sizeof(long), cmp_desc);
+  long nq = ncols - rank; size_t qw = nq > 0 ? (size_t)((nq + 63) / 64) : 1;
+  uint64_t *R = calloc((size_t)ncols * qw, 8); long q = 0;
+  for (long c = 0; c < ncols; c++) if (!ispiv[c]) { R[(size_t)c * qw + (q >> 6)] |= 1ULL << (q & 63); q++; }
+  for (long oi = 0; oi < rank; oi++) {
+    long i = ord[oi], c = pc[i]; word *row = mzd_row(A, i); uint64_t *Rc = R + (size_t)c * qw;
+    for (wi_t w = (wi_t)(c >> 6); w < A->width; w++) {
+      word x = row[w]; if (w == (wi_t)(c >> 6)) x &= ~((((word)2) << (c & 63)) - 1);
+      while (x) { int b = __builtin_ctzll(x); x &= x - 1; uint64_t *Rt = R + ((size_t)w * 64 + b) * qw; for (size_t j = 0; j < qw; j++) Rc[j] ^= Rt[j]; }
+    }
+  }
+  FILE *fh = fopen(path, "wb"); if (!fh) { perror("cert"); exit(6); }
+  int64_t hdr[4] = { N, D, ncols, nq }; fwrite(hdr, 8, 4, fh); fwrite(colmask, 8, ncols, fh); fwrite(R, 8, (size_t)ncols * qw, fh); fclose(fh);
+  fprintf(stderr, "cert written: %s ncols %ld rank %ld nq %ld\n", path, ncols, rank, nq);
+  free(R); free(pc); free(ord); free(ispiv);
+}
 int main(int argc, char **argv) {
   if (argc < 2) { fprintf(stderr, "usage: lfdclose2 D [verbose] [chunk]\n"); return 1; }
-  D = atoi(argv[1]); int verbose = argc > 2 ? atoi(argv[2]) : 0; long chunk = argc > 3 ? atol(argv[3]) : 60000;
+  D = atoi(argv[1]); int verbose = argc > 2 ? atoi(argv[2]) : 0; long chunk = argc > 3 ? atol(argv[3]) : 60000; const char *cert = argc > 4 ? argv[4] : NULL;
   if (scanf("%d %d", &N, &np) != 2) return 2;
   P = malloc(sizeof(poly) * np);
   for (int i = 0; i < np; i++) { if (scanf("%d", &P[i].nt) != 1) return 3; P[i].t = malloc(8 * (P[i].nt + 1)); P[i].deg = -1;
@@ -93,5 +121,6 @@ int main(int argc, char **argv) {
     mzd_free(Lw); iter++;
   }
   printf("W%d_dims", D); for (int e = 0; e <= D; e++) printf(" %ld", dims[e]); printf(" W%d_one %d iters %d ncols %ld\n", D, one, iter, ncols);
+  if (cert && !one) export_cert(cert, A, rank);
   mzd_free(A); return 0;
 }

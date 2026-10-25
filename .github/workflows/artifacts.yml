@@ -1,0 +1,58 @@
+name: artifacts
+# Data files live in the artifact store, not in Git (docs/artifacts.md). This
+# runs the tool's tests, fails a pull request that adds or modifies a tracked
+# file the policy says belongs in the store, and checks that every workflow
+# naming moved data pulls it. A PR that must commit such a file anyway carries
+# the `large-file-ok` label; the check then reports the files and passes. It
+# runs no experiment and needs no secrets.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+# One run per pull request; a newer push cancels the run it supersedes.
+concurrency:
+  group: artifacts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  artifacts:
+    if: >-
+      !github.event.pull_request.draft &&
+      (github.event_name == 'pull_request')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # The merge commit and its first parent (the base); blobs on demand only.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tools/artifacts/
+            /.artifacts/
+            /.github/workflows/
+      - name: Artifact tool tests
+        env:
+          GIT_AUTHOR_NAME: ci
+          GIT_AUTHOR_EMAIL: ci@example.invalid
+          GIT_COMMITTER_NAME: ci
+          GIT_COMMITTER_EMAIL: ci@example.invalid
+        run: python3 -m unittest tools/artifacts/test_artifacts.py
+      - name: No added or modified file that belongs in the store
+        env:
+          LARGE_FILE_OK: ${{ contains(github.event.pull_request.labels.*.name, 'large-file-ok') }}
+        run: |
+          # Full object IDs let cat-file fetch missing blobs in this partial clone.
+          # Abbreviated IDs cannot be resolved until those blobs are present.
+          git config --local core.abbrev 40
+          if python3 tools/artifacts/artifacts.py check HEAD^1 HEAD; then exit 0; fi
+          if [ "$LARGE_FILE_OK" = true ]; then
+            echo "::warning::data files committed under the large-file-ok label"
+            exit 0
+          fi
+          exit 1
+      - name: Every workflow that names moved data pulls it
+        run: python3 tools/artifacts/wire_workflows.py --check
