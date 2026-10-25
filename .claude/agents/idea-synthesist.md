@@ -7,7 +7,7 @@ description: >-
   proposes ideas from CONNECTIONS between them. Per-RQ ideation goes to
   `idea-generator`. Never assigns work or changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
-model: claude-fable-5-1
+model: claude-opus-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> idea-synthesist
 # -> model-bindings.yaml anthropic binding of research-synthesis. Edit the
 # binding, never this line; tools/check_runtime_bindings.py fails the build
