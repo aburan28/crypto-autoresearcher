@@ -30,8 +30,8 @@ model, which is why tiers are a separate floor from reasoning effort.
 
 | policy | tier floor | Anthropic binding | effort |
 | --- | --- | --- | --- |
-| `review-breakthrough` | frontier | Fable 5.1 (Mythos on `anthropic-mythos`) | max |
-| `research-synthesis` | frontier | Fable 5.1 (Mythos on `anthropic-mythos`) | high |
+| `review-breakthrough` | core | Opus 5.5 (Fable or Mythos on their backends) | max |
+| `research-synthesis` | core | Opus 5.5 (Fable or Mythos on their backends) | high |
 | `coordinator-orchestration-code`, `coordinator-orchestration` | core | Opus 5.5 (Fable or Mythos on their backends) | high |
 | `review-adversarial` | core | Opus 5.5 | xhigh |
 | `director-runbook` | director | Sonnet 5.5 | high |
@@ -42,11 +42,11 @@ A model at or above the floor may serve a policy (Opus may run a Sonnet
 policy); one classified below it is refused like any other unmet requirement,
 and only `degraded_allowed` with a Coordinator inference amendment lets it
 through, recorded on the resolution. `review-breakthrough` is not degradable,
-so it is never served below frontier, and never by a model nobody classified.
+so it is never served below core, and never by a model nobody classified.
 
 An unclassified model (a local overlay, an OpenRouter id) is recorded on the
 resolution as `model_tier: null` and is not refused, except on the
-non-degradable frontier gate. A local overlay may classify a model the
+non-degradable gate. A local overlay may classify a model the
 repository has never seen (`model_tiers:` in the overlay) but may not
 reclassify one it has. Backends where one operator-chosen model serves every
 policy (`local`, `abliteration`) are listed in `tier_exempt_backends`: their
@@ -54,13 +54,13 @@ tier gap is recorded on every resolution (`below_model_tier: true`) instead
 of enforced.
 
 Selecting `AUTORESEARCH_BACKEND=anthropic-mythos` (or `anthropic-fable`) puts
-coordination and both frontier policies on that model; everything else on
+coordination and both breakthrough policies on that model; everything else on
 those backends is unbound, so pair them with `anthropic` for the lower tiers.
 
 ## The delegation topology
 
 ```text
-  frontier / core  (Coordinator: Opus 5.5; breakthrough review and synthesis: Fable 5.1 / Mythos)
+  frontier / core  (Coordinator: Opus 5.5; breakthrough review and synthesis: Opus 5.5; Fable 5.1 / Mythos on explicit selection)
       │  designs and approves the experiment; approves the runbook sha256 in a DEC-*
       ▼
   director         (experiment-director: Sonnet 5.5, effort high)
