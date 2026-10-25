@@ -203,6 +203,21 @@ class Policy(unittest.TestCase):
         self.assertFalse(f("docs/browser/data.json", 30 << 20, {**self.P, "keep": ["docs/browser/data.json"]}))
 
 
+class NeededPaths(unittest.TestCase):
+    def test_sibling_doc_does_not_pull_whole_docs_tree(self):
+        sys.path.insert(0, str(TOOL.parent))
+        import wire_workflows as w
+        moved = {"docs/reports/ecdlp-lead-discovery-20261024/report.pdf",
+                 "knowledge/leads/ecdlp/coverage.tsv"}
+        dirs = {"docs", "docs/reports", "docs/reports/ecdlp-lead-discovery-20261024",
+                "knowledge", "knowledge/leads", "knowledge/leads/ecdlp"}
+        self.assertEqual(w.needed("see docs/ci-tiers.md and .github/scripts/x.py", moved, dirs), [])
+        self.assertEqual(
+            w.needed("python3 tools/lead_atlas.py  # knowledge/leads/ecdlp/coverage.tsv", moved, dirs),
+            ["knowledge/leads/ecdlp/coverage.tsv"],
+        )
+
+
 class S3Argv(unittest.TestCase):
     def setUp(self):
         cfg = artifacts.Config(root=Path("."), remote="s3://bucket/store", endpoint=None, read_url=None,

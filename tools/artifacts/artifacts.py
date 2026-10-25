@@ -646,20 +646,31 @@ def cmd_status(cfg: Config, args) -> int:
     return 0
 
 
+def blob_sizes(root: Path, blobs: list[str]) -> list[int]:
+    """Object sizes, fetching from the (retargeted) promisor remote if needed."""
+    if not blobs:
+        return []
+    out = git(root, "cat-file", "--batch-check=%(objectsize)", input="\n".join(blobs).encode() + b"\n")
+    return [int(s) for s in out.decode().split()]
+
+
 def cmd_check(cfg: Config, args) -> int:
     """Fail when BASE..HEAD adds or grows a tracked file the policy assigns to the store."""
     # Partial clones cannot lazy-fetch a missing blob by an abbreviated object
     # name. Keep the full object ID from the raw diff for the size check below.
     out = git(cfg.root, "diff", "--raw", "--abbrev=40", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
     fields = out.decode(errors="surrogateescape").split("\0")
-    offenders = []
+    entries: list[tuple[str, str]] = []
     for meta, path in zip(fields[0::2], fields[1::2]):
         if not meta:
             continue
         _, mode, _, blob, _ = meta.lstrip(":").split()
         if mode == "160000":
             continue
-        size = int(git(cfg.root, "cat-file", "-s", blob))
+        entries.append((path, blob))
+    sizes = blob_sizes(cfg.root, [b for _, b in entries])
+    offenders = []
+    for (path, _), size in zip(entries, sizes):
         if belongs_in_store(path, size, cfg.policy):
             offenders.append((path, size))
     if not offenders:
