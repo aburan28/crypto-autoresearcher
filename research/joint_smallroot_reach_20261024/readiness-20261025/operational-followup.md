@@ -24,3 +24,16 @@ the existing nondraft job guard to those two files. The resulting checker report
 remain active on this ready PR and their original triggers and path filters
 are retained. Required checks are not removed or waived. The original artifact
 CI repair remains in place. Hosted checks must still complete on the final head.
+
+Artifact policy selects PDFs above 64 KiB. The full 87,712-byte rendering was
+retained unchanged in commit 3417ab1c4, before the artifact check identified it.
+It is removed from the tip without rewriting history; the local copy is ignored.
+Object-store credentials are absent, so no upload is asserted. The published
+view is `report-compact.pdf`, made by `compact.py`: the complete source text and
+vector artwork are retained, the display font changes to Nimbus Roman, and
+structural PDF accessibility tags are omitted. Pixel hashes verify that the
+container compression changes no pixels relative to that font variant.
+`report.typ` and the original generator remain unchanged. To regenerate, run
+`render.py` and then `compact.py` in a fresh copy of this directory. The
+compact source, verification receipt and PDF are published under the size
+threshold; no artifact-policy exception or threshold change is used.

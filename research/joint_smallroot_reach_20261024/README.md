@@ -51,7 +51,7 @@ Continuation (2026-10-25): the user explicitly authorized merge. The earlier
 approval refusal above is historical. The CI repair is published and the
 artifact check passes; other applicable hosted checks are pending, so no merge
 has occurred. See [weighted reach and readiness](readiness-20261025/report.md)
-and its [PDF](readiness-20261025/report.pdf). The pinned cuso backend runs its
+and its [PDF](readiness-20261025/report-compact.pdf). The pinned cuso backend runs its
 documented univariate 1/3 calibration. Its optimal-shift routine calls a
 Gröbner-basis computation, which must be included in costs. The three archived
 joint certificate regions have no overlap with the stated conditional sub-rho

@@ -122,7 +122,7 @@ the previous approval impediment is resolved. Artifact-policy and draft-tier
 CI defects were repaired without weakening enforcement; the artifact workflow
 passes and the other applicable checks remain pending. No merge has occurred.
 The [new report](../research/joint_smallroot_reach_20261024/readiness-20261025/report.md)
-and [PDF](../research/joint_smallroot_reach_20261024/readiness-20261025/report.pdf)
+and [PDF](../research/joint_smallroot_reach_20261024/readiness-20261025/report-compact.pdf)
 derive the weighted conditional cost model from the archived finite counts.
 These three certificate regions do not meet that model's sub-rho condition;
 this is not an impossibility claim about improved shifts. The pinned cuso
