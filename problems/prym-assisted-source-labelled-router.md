@@ -10,7 +10,7 @@
   RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (existing goal states unchanged;
   design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
-- **Last updated:** 2026-10-21
+- **Last updated:** 2026-10-25
 
 ## Problem
 
@@ -26,6 +26,10 @@ and nonzero-image gates, while the natural anti-invariant projector kills the
 conorm image. That fact does not reject auxiliary relation search.
 
 ## Evidence and uncertainty
+
+**2026-10-25 prospective rank-census update:** [EXP-ECDLP-d6d8e8](../experiments/EXP-ECDLP-d6d8e8/specification.yaml) now specifies a nested comparison on eight fresh A=2 toy curves: the same public sources1..64 and eight-atom base in both arms, with64 sampled branches versus all3,584 tuple/sign branches per source. The finite end is1,867,776 attempts; full rank never stops collection. Public-anchor projection, exact rank/kernel certificates and an independent complete-stream replay are implemented. Only public fixture construction and deliberately planted software controls have run; fresh-panel relation labels have not been observed. The canonical experiment remains `review_required`, with no execution approval or new scientific run.
+
+Required artifact publication is currently an infrastructure impediment: this managed environment reports no configured storage credentials/outbound identities, and the ordinary AWS route returned `Unable to locate credentials`. The current repository contract requires large data in `s3://setec-astronomy-artifacts` with digest manifests. Admission must bind a working writer/readback route and preserve raw-output custody before this census can run. This access failure says nothing about matrix rank or the Prym mechanism. Checkable exit: configured approved runtime identity, successful normal bucket write/readback through `tools/artifacts/artifacts.py`, digest-verified manifest custody, then exact native preapproval/approval/archive/ordinary-ready/live-claim gates. Complete weighted costs, worker isolation and blind recovery remain separate later requirements.
 
 **2026-10-21 execution update:** [implementation and recorded results](../research/prym_experiment_design_20261019/implementation/README.md) now supersede the original design-only status statements below. Native G (RUN-ECDLP-dad803) and schema-only W2 (RUN-ECDLP-d25f6a, EXP-ECDLP-cded08) completed with passed independent checkers. W2 verified public source/principal-divisor witnesses but reached nontrivial full rank in only six of 24 cells; six cells were already fully public, and twelve had insufficient rank. The fixed source/tuple stream, not the entire Prym direction, is bounded by this result. No current-IC or complete-cost gain was measured.
 
@@ -72,6 +76,8 @@ recording an incremental improvement. No acceptance checkbox changes a
 scientific status without the existing Coordinator decision.
 
 ## Next discriminating step
+
+The immediate step is the fixed paired census above, after its publication/admission gates. Report accepted rows, U, rank modulo r and costs together. If complete support remains deficient, retain its finite nullspace and prospectively change one constructor or factor-base ingredient. These data do not decide a structural impossibility claim. The older design-intake items below remain historical context.
 
 - **Bounded engineering tests:** the [four-stage experiment programme](../research/prym_experiment_design_20261019/README.md)
   now specifies geometry checks, public-source/rank controls, a concrete PO003
