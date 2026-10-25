@@ -6,7 +6,7 @@ dot -Tpdf mechanism.dot -o mechanism.pdf
 {
   cat PLAN.md
   printf '\n\\newpage\n\n## Mechanism and validation dependencies\n\n'
-  printf '![Known constructions are blue; the missing EC-specific operation is dashed amber. All downstream tests are pending. No measured speedup is depicted.](mechanism.pdf){width=82%%}\n\n'
+  printf '![Classical computation only. Known constructions are blue; the missing EC-specific operation is dashed amber. All downstream tests are pending. No measured speedup is depicted.](mechanism.pdf){width=82%%}\n\n'
   printf '\n\\newpage\n\n'
   cat SOURCES.md
 } > report-source.md

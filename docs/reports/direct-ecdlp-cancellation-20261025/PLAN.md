@@ -1,8 +1,10 @@
-# A direct ECDLP research plan outside index calculus
+# Classical-only ECDLP research outside index calculus
 
 Date: 25 October 2026. Status: research design and bounded source review; no new algorithm, experimental result, or speedup is claimed.
 
-The proposed direction is **exact cancellation in a target-conditioned scalar-multiplication circuit**. The objective is to compute the scalar bits directly from the public point. This workstream has no factor base, smoothness search, relation matrix, or index-calculus descent.
+**Hard scope: classical algorithms only, executable on ordinary CPUs or GPUs.** Shor's algorithm, Grover search, amplitude amplification, quantum walks, quantum annealing, quantum hardware, and simulation of a quantum attack are excluded. This explicit scope statement records the user's clarification; the original proposal already specified classical computation.
+
+The proposed direction is **exact cancellation in a classical program for scalar multiplication, with its output fixed to the public target point**. A "Boolean circuit" here means an ordinary program of deterministic bit operations. The objective is to compute the scalar bits directly from the public point. This workstream has no factor base, smoothness search, relation matrix, or index-calculus descent.
 
 There is an important qualification: the counting formulation below is established machinery. A novel algorithm would require a new, constructive identity specific to elliptic-curve arithmetic that makes its evaluation cheap. That identity has not been supplied. The plan is concrete about how to search for it and how to reject a repackaging; it does not certify novelty in advance.
 
@@ -27,6 +29,8 @@ The review used these `main` revisions:
 | `aburan28/crypto-autoresearcher` | `ab0609ebee3d17527a51667591bda56f7cdece31` |
 
 All 147 lead rows and 52 known-result rows were materialized and their Git blob hashes checked against GitHub metadata. This is index coverage, not independent validation of 199 scientific claims. Relevant idea records, rejected/deferred indexes, source notes, contracts, and primary literature were read selectively. The source manifest records the indexed files.
+
+The indexed corpus includes a historical quantum-resource lead, and the unfiltered lexical matcher returned it. That row is outside this workstream and supplies no proposed algorithm, dependency, or cost comparison. `atlas-match-classical.txt` makes its exclusion explicit while preserving the original matcher output and source manifest.
 
 The live atlas contains 43 `closed_obstructed`, 18 `closed_known`, 5 `closed_dominated`, 6 `exhausted_at_scale`, 51 `open_next_step`, 16 `open_blocked`, and 8 `open_unexamined` entries. These are recorded dispositions, not new verdicts from this session.
 
@@ -55,6 +59,8 @@ Two scope distinctions guide the search. A lower bound on representing a full re
 ## 4. The exact object to investigate
 
 Use a deterministic, total Boolean circuit $C_{E,P}$ computing a canonical point encoding of $[b]P$ from the $\ell$ input bits of $b$. Enforce $b<r$. Every internal wire must be a deterministic function of those bits. Include the identity point, exceptional additions, field reduction, and canonical output encoding.
+
+All variables are ordinary classical bits. "Parity" means their exact XOR. Where the literature uses "tensor contraction," it means summation and multiplication of finite arrays of constraint values on a classical computer. No quantum states, amplitudes, measurements, or quantum speedups enter this construction. The coefficient tags below are stored as finite bit vectors.
 
 Let $F_Q(b)$ be 1 exactly when $b<r$ and $C_{E,P}(b)=Q$, and 0 otherwise. Since $P$ has order $r$ and $Q$ belongs to its subgroup, exactly one accepted input is $b=k$.
 
@@ -90,7 +96,7 @@ so a tagged operation costs $O(\ell)$ bit operations with a direct representatio
 
 Attach weight $1+\varepsilon_j$ to the positive scalar-input literal, weight 1 to its negative literal, and weight 1 to internal wires. Count satisfying assignments of the exact circuit constraints in $R$. This is an instance of [algebraic model counting](https://arxiv.org/html/1211.4475), including its existing gradient-style semiring construction. It is **not** a novel algorithm merely because the weights are interpreted as scalar bits. Known reductions from counting to tensor contraction are also explicit prior art: [Dudek, Dueñas-Osorio and Vardi](https://arxiv.org/abs/1908.04381).
 
-An arbitrary Boolean circuit cannot be evaluated bottom-up as a model count by simply replacing OR and AND with ring operations: sharing and overlapping assignments invalidate that shortcut. Use an exact factor-network contraction, a sound compiled counting circuit, or a separately proved rewrite system. If auxiliary variables have multiple satisfying extensions, parity can erase the unique scalar; unique-extension correctness is mandatory.
+An arbitrary Boolean circuit cannot be evaluated bottom-up as a model count by simply replacing OR and AND with ring operations: sharing and overlapping assignments invalidate that shortcut. Use exact classical variable elimination over finite arrays of constraint values, a sound compiled counting circuit, or a separately proved rewrite system. If auxiliary variables have multiple satisfying extensions, parity can erase the unique scalar; unique-extension correctness is mandatory.
 
 ## 5. The missing operation, stated without an oracle
 
@@ -138,7 +144,7 @@ Primary observables are actual primitive/bit-operation counts, intermediate repr
 
 ## 7. Cost and falsification
 
-Let $N$ be the number of local constraints. For a dense binary contraction schedule whose largest union of participating indices has size $w$, a conservative time bound is $O(\ell N2^w)$ bit operations, plus circuit construction and schedule search. Record live storage explicitly. A small separator or low rank only helps if its representation is constructed and manipulated cheaply.
+Let $N$ be the number of local constraints. For a dense binary variable-elimination schedule whose largest union of participating indices has size $w$, a conservative time bound is $O(\ell N2^w)$ classical bit operations, plus circuit construction and schedule search. Record live storage explicitly. A small separator or low rank only helps if its representation is constructed and manipulated cheaply. Neither a quantum oracle nor the cost of simulating a quantum algorithm is an allowed resource model.
 
 For a compressed procedure, report its actual arithmetic-circuit operations, coefficient storage, and compilation cost rather than substituting a rank for time. All curve-specific setup is charged to the first target. If setup is excluded in a secondary many-target experiment, disclose the reuse count and include preprocessing-rho as a comparison.
 

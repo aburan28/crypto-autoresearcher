@@ -2,6 +2,8 @@
 
 This is a selective source review, not a claim to have read the entire ECDLP literature. `verified_by` for retrieved content means this Codex session read the indicated material; it does not mean the mathematical claim was independently proved or the experiment replayed.
 
+**Classical-only source use.** The proposed method draws on classical arithmetic, Boolean constraints, algebraic model counting, and exact classical variable elimination. Quantum algorithms and simulation of quantum attacks are excluded. The full historical atlas manifest is preserved for provenance, including `LEAD-EXO-quantum-ecdlp-resources`; that row is outside the proposal. `atlas-match-classical.txt` removes that row from the original lexical hits. Matchgate/Pfaffian and tensor terminology appears in classical mathematical methods and prior-work comparisons here; it does not supply a quantum computation or a quantum speedup.
+
 ## Internal sources
 
 The following paths are at `aburan28/crypto-autoresearcher`, commit `ab0609ebee3d17527a51667591bda56f7cdece31`, unless stated otherwise. All provenance in this section is `internal`.
