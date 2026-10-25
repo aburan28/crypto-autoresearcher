@@ -1,0 +1,48 @@
+diff --git a/tools/artifacts/artifacts.py b/tools/artifacts/artifacts.py
+index 4f13449695..ebeafd7d38 100644
+--- a/tools/artifacts/artifacts.py
++++ b/tools/artifacts/artifacts.py
+@@ -620,7 +620,9 @@ def cmd_status(cfg: Config, args) -> int:
+ 
+ def cmd_check(cfg: Config, args) -> int:
+     """Fail when BASE..HEAD adds or grows a tracked file the policy assigns to the store."""
+-    out = git(cfg.root, "diff", "--raw", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
++    # A blobless sparse checkout cannot resolve a missing object's abbreviated
++    # name. Its full id lets the promisor remote supply the blob on demand.
++    out = git(cfg.root, "diff", "--raw", "--no-abbrev", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
+     fields = out.decode(errors="surrogateescape").split("\0")
+     offenders = []
+     for meta, path in zip(fields[0::2], fields[1::2]):
+diff --git a/tools/artifacts/test_artifacts.py b/tools/artifacts/test_artifacts.py
+index 1102eb509b..bfa41f6e62 100644
+--- a/tools/artifacts/test_artifacts.py
++++ b/tools/artifacts/test_artifacts.py
+@@ -148,6 +148,28 @@ class RoundTrip(unittest.TestCase):
+         self.git("commit", "-qm", "move it")
+         self.assertEqual(self.art("check", base).returncode, 0)
+ 
++    def test_check_gate_fetches_missing_blobs_in_filtered_clone(self):
++        base = self.git("rev-parse", "HEAD").strip()
++        (self.repo / "new.jsonl").write_bytes(b"x" * 100_000)
++        (self.repo / "small.jsonl").write_bytes(b"{}\n")
++        self.git("add", "-A")
++        self.git("commit", "-qm", "add omitted data")
++        self.git("config", "uploadpack.allowFilter", "true")
++        clone = Path(self.tmp.name) / "filtered-clone"
++        # file:// exercises the transport/filter path instead of a local hard-link clone.
++        sh(self.tmp.name, "git", "clone", "-q", "--filter=blob:none", "--no-checkout",
++           self.repo.as_uri(), str(clone), env=self.env)
++        types = sh(clone, "git", "cat-file", "--batch-all-objects",
++                   "--batch-check=%(objecttype)", env=self.env).stdout.splitlines()
++        self.assertNotIn("blob", types)
++        result = self.art("check", base, cwd=clone, check=False)
++        # The policy must inspect the omitted blob and reject its size, not fail
++        # while trying to resolve an abbreviated id or accidentally pass it.
++        self.assertEqual(result.returncode, 1, result.stderr)
++        self.assertIn("new.jsonl", result.stdout)
++        self.assertNotIn("small.jsonl", result.stdout)
++        self.assertNotIn("Not a valid object name", result.stderr)
++
+ 
+ class Policy(unittest.TestCase):
+     P = artifacts.DEFAULT_POLICY
