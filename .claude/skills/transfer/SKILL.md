@@ -1,11 +1,10 @@
 ---
 name: transfer
 description: >-
-  Assess lifts, descents, field extensions, isogenies, curve covers, Jacobian
-  correspondences and decompositions: does moving the problem to another
-  curve, field or Jacobian make it easier? Use to audit a supplied map, a
-  cover or descent claim, subgroup preservation, representation costs or a
-  claimed speedup. Produces certificates, cost accounting, controls and open
+  Assess lifts, descents, field extensions, isogenies, curve covers and
+  Jacobian correspondences: does moving the problem to another curve, field
+  or Jacobian make it easier? Use to audit a supplied map, cover or descent
+  claim, or claimed speedup. Produces certificates, cost accounting and open
   obligations.
 
 ---

@@ -44,6 +44,8 @@ it; never edit a copy.
     python3 tools/task_card.py request assess <card.yaml> [--report <executor-report.txt>]
     python3 tools/task_card.py ingest <reply.md> --expect card --out <card.yaml>
     python3 tools/task_card.py ingest <reply.md> --expect assessment --card <card.yaml> --out <assessment.yaml>
+    python3 tools/task_card.py lane --design <spec> [--bind <path>]... --card <card.yaml> \
+        --assessment <assessment.yaml> [--via auto|conductor|delphi] [--task T-42]
 
 BATCH LANE. `request` prints a single-turn prompt with every fact computed
 (HEAD, sha256s, the receipt, what changed on disk), for a batch API: Delphi
@@ -51,6 +53,9 @@ BATCH LANE. `request` prints a single-turn prompt with every fact computed
 `python3 -m orchestration.adapter batch submit --role experiment-director`
 in crypto-autoresearcher. `ingest` writes the reply only when it is
 mechanically right. Between them, `run` executes the card with no model.
+`lane` does all of it end to end through one backend: Conductor-hosted
+Delphi (the key is in the project vault) or standalone `delphi` (the key is
+ANTHROPIC_API_KEY); `--via auto` picks whichever is connected.
 
 Exit status: 0 clean / completed, 1 findings, 2 the card could not be read or
 `run` refused to start, 3 `run` stopped at a failing command (a result to
@@ -63,6 +68,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -826,6 +832,136 @@ def ingest(reply: str, out: str, expect: str, card: dict[str, Any] | None = None
     return []
 
 
+# ---------------------------------------------------------------------------
+# Lane: compile -> run -> assess end to end through one batch backend
+# ---------------------------------------------------------------------------
+#
+# The two director calls go to a batch API; everything else is this tool.
+# `conductor` is Conductor-hosted Delphi (`conductor delphi ask --profile
+# director`, the key in the project vault, the delegation linked to a task);
+# `delphi` is the standalone binary (`delphi run`, the key in the environment).
+# Neither ever sees a file: each call is the prompt `request` printed.
+
+DIRECTOR_MODEL = "claude-sonnet-5-5"   # director-runbook's anthropic binding
+DIRECTOR_PROFILE = "director"          # Conductor's delphi director profile
+
+
+def _conductor_connected(binary: str) -> bool:
+    if not shutil.which(binary):
+        return False
+    try:
+        probe = subprocess.run([binary, "delphi", "profiles"], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return probe.returncode == 0 and DIRECTOR_PROFILE in probe.stdout
+
+
+def pick_backend(via: str, conductor: str, delphi: str) -> str:
+    if via != "auto":
+        return via
+    if _conductor_connected(conductor):
+        return "conductor"
+    if shutil.which(delphi) and os.environ.get("ANTHROPIC_API_KEY"):
+        return "delphi"
+    raise CardError("no batch backend: `conductor delphi profiles` does not list a director profile "
+                    "(connect Conductor to a control plane whose vault holds the key), and standalone "
+                    "delphi needs ANTHROPIC_API_KEY")
+
+
+def _ask(backend: str, prompt: Path, workdir: Path, name: str, opts: dict[str, Any]) -> tuple[str, dict]:
+    """One batch call; returns the answer text and what the backend reported."""
+    if backend == "conductor":
+        argv = [opts["conductor"], "delphi", "ask", "--profile", DIRECTOR_PROFILE, "--wait",
+                "--file", str(prompt)] + (["--task", opts["task"]] if opts.get("task") else [])
+        proc = subprocess.run(argv, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise CardError(f"conductor delphi ask failed ({proc.returncode}): {proc.stderr.strip()[-400:]}")
+        return proc.stdout, {"profile": DIRECTOR_PROFILE, "stderr_tail": _tail(proc.stderr.encode())}
+    out = workdir / name
+    argv = [opts["delphi"], "run", "-model", opts["model"], "-effort", "high", "-every", "30s",
+            "-out", str(out), "-prompt", prompt.read_text(encoding="utf-8")]
+    proc = subprocess.run(argv, capture_output=True, text=True)
+    results = out / "results.jsonl"
+    if proc.returncode != 0 or not results.is_file():
+        raise CardError(f"delphi run failed ({proc.returncode}): {proc.stderr.strip()[-400:]}")
+    rows = [json.loads(line) for line in results.read_text(encoding="utf-8").splitlines() if line.strip()]
+    result = rows[-1]
+    meta = {k: result.get(k) for k in ("status", "model", "batch_id", "usage", "stop_reason", "truncated")}
+    if result.get("status") != "succeeded":
+        raise CardError(f"delphi returned status {result.get('status')}: "
+                        f"{json.dumps(result.get('refusal') or result.get('error'))}")
+    return result["text"], meta
+
+
+def lane(designs: list[str], binds: list[str], card_out: str, assessment_out: str, via: str = "auto",
+         opts: dict[str, Any] | None = None, repo: Path = REPO, say=print) -> int:
+    """Exit status: 0 ran and assessed; 1 a reply was refused (nothing written for it);
+    2 impediment (no backend, a call failed, a path already exists); 3 the run stopped at a
+    failing command and was assessed."""
+    opts = {"conductor": os.environ.get("CONDUCTOR", "conductor"),
+            "delphi": os.environ.get("DELPHI", "delphi"), "model": DIRECTOR_MODEL, **(opts or {})}
+    card_out, assessment_out = safe_relative(card_out), safe_relative(assessment_out)
+    workdir = repo / (card_out.rsplit(".", 1)[0] + ".lane")
+    record: dict[str, Any] = {"card": card_out, "assessment": assessment_out, "calls": {}}
+    try:
+        for path in (card_out, assessment_out):
+            if (repo / path).exists():
+                raise CardError(f"{path} already exists; cards and assessments are write-once")
+        if workdir.exists():
+            raise CardError(f"{rel(repo, workdir)} already exists; every lane gets a fresh record")
+        backend = pick_backend(via, opts["conductor"], opts["delphi"])
+        record["backend"] = backend
+        say(f"LANE backend {backend}")
+        workdir.mkdir(parents=True)
+
+        def call(name: str, text: str) -> str:
+            prompt = workdir / f"{name}.prompt.md"
+            prompt.write_text(text, encoding="utf-8")
+            say(f"LANE {name}: submitted, waiting for the batch")
+            answer, meta = _ask(backend, prompt, workdir, name, opts)
+            (workdir / f"{name}.reply.md").write_text(answer, encoding="utf-8")
+            record["calls"][name] = {"prompt_sha256": sha256_bytes(text.encode()),
+                                     "reply_sha256": sha256_bytes(answer.encode()), **meta}
+            say(f"LANE {name}: answered" + (f" (batch {meta['batch_id']}, usage {json.dumps(meta['usage'])})"
+                                            if meta.get("batch_id") else ""))
+            return answer
+
+        reply = call("compile", compile_request(designs, binds, card_out, repo))
+        findings = ingest(reply, card_out, "card", None, repo)
+        if findings:
+            record["outcome"] = "card_refused"
+            for item in findings:
+                say(f"INGEST: {item}")
+            say(f"LANE FAIL card refused; reply kept at {rel(repo, workdir / 'compile.reply.md')}")
+            return 1
+        card_path, card_sha, card = load_card(card_out, repo)
+        say(f"CARD OK {card_path} sha256 {card_sha}")
+        receipt = run_card(card_path, card_sha, card, repo)
+        say(brief(receipt, card["receipt"], sha256_file(repo / card["receipt"])))
+        reply = call("assess", assess_request(card_path, card_sha, card, None, repo))
+        findings = ingest(reply, assessment_out, "assessment", card, repo)
+        if findings:
+            record["outcome"] = "assessment_refused"
+            for item in findings:
+                say(f"INGEST: {item}")
+            say(f"LANE FAIL assessment refused; reply kept at {rel(repo, workdir / 'assess.reply.md')}")
+            return 1
+        verdict = yaml.safe_load((repo / assessment_out).read_text(encoding="utf-8"))["execution_assessment"]
+        record.update(outcome=verdict["outcome"], recommendation=verdict["recommendation"],
+                      card_sha256=card_sha, receipt=card["receipt"])
+        say(f"LANE OK {verdict['outcome']} -> {verdict['recommendation']}; assessment {assessment_out}")
+        return 0 if receipt["status"] == "completed" else 3
+    except CardError as exc:
+        record["outcome"] = "impeded"
+        record["impediment"] = str(exc)
+        say(f"IMPEDIMENT {exc}")
+        return 2
+    finally:
+        if workdir.is_dir():
+            (workdir / "lane.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n",
+                                               encoding="utf-8")
+
+
 def _main_batch(args) -> int:
     try:
         if args.command == "request" and args.mode == "compile":
@@ -871,7 +1007,18 @@ def main(argv: list[str] | None = None) -> int:
     take.add_argument("--expect", choices=("card", "assessment"), required=True)
     take.add_argument("--out", required=True)
     take.add_argument("--card", help="assessment: the card it assesses")
+    run_lane = sub.add_parser("lane", help="compile, run and assess end to end through a batch backend")
+    run_lane.add_argument("--design", action="append", required=True, help="a decided design file (repeatable)")
+    run_lane.add_argument("--bind", action="append", help="a file whose sha256 the card binds")
+    run_lane.add_argument("--card", required=True, help="where the card is written")
+    run_lane.add_argument("--assessment", required=True, help="where the assessment is written")
+    run_lane.add_argument("--via", choices=("auto", "conductor", "delphi"), default="auto")
+    run_lane.add_argument("--task", help="conductor: link each delegation to this Conductor task")
+    run_lane.add_argument("--model", default=DIRECTOR_MODEL, help="delphi: the director model")
     args = parser.parse_args(argv)
+    if args.command == "lane":
+        return lane(args.design, args.bind or [], args.card, args.assessment, args.via,
+                    {"task": args.task, "model": args.model})
     if args.command in ("request", "ingest"):
         if args.command == "request" and args.mode == "compile" and not (args.design and args.out):
             parser.error("request compile needs --design and --out")

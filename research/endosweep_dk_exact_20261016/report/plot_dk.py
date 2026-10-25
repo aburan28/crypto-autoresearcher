@@ -40,8 +40,9 @@ b.set_yticklabels(names)
 b.invert_yaxis()
 b.set_xlabel("log2(4q) − log2 |D_K|  (bits)")
 b.set_title("(b) bits lost to f² and to t²")
-fig.text(0.01, 0.01, f"n = {len(rows)} curves; exact integers (PARI isprime-proved factorisations), no uncertainty. "
-         f"Not shown: {not_shown}.", fontsize=7.5)
+fig.text(0.01, 0.01, f"n = {len(rows)} curve{'s' if len(rows) != 1 else ''}; exact integers (PARI isprime-proved "
+         "factorisations), no uncertainty."
+         + (f" Not shown: {not_shown}." if small else ""), fontsize=7.5)
 fig.tight_layout(rect=(0, 0.04, 1, 1))
 fig.savefig(HERE / "dk_exact.svg")
 print("wrote", HERE / "dk_exact.svg")

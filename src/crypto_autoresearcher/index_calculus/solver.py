@@ -50,6 +50,7 @@ from .decompose import DecompStats, decompose, use_acceleration
 from .factor_base import FACTOR_BASES, FactorBase, build_factor_base, default_fb_size
 from .linalg import PIVOT_RULES, EliminationState
 from .tails import TailTable, default_table_arity
+from .targets import TARGET_ENGINES, FixedBaseMultiplier
 
 ENGINES = ("enumerate", "mitm", "msolve")
 HARVEST_MODES = ("off", "census", "on")
@@ -87,6 +88,12 @@ class ICResult:
     seconds_linalg: float
     seconds_total: float
     harvest: dict | None = None
+    target_engine: str = "reference"
+    target_window: int | None = None
+    target_setup_ops: int = 0
+    target_table_entries: int = 0
+    target_table_coordinate_bytes: int = 0
+    seconds_target_setup: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -108,7 +115,9 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
                          encoding_budget: int | None = None,
                          relcount: bool = False,
                          retain: str = "default",
-                         digest_classes=()) -> ICResult:
+                         digest_classes=(),
+                         target_engine: str = "reference",
+                         target_window: int = 4) -> ICResult:
     N = E.order
     if N is None:
         raise ValueError("curve order must be known")
@@ -116,6 +125,11 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         raise ValueError("m must be >= 2")
     if engine not in ENGINES:
         raise ValueError(f"unknown engine {engine!r}; choose from {ENGINES}")
+    if target_engine not in TARGET_ENGINES:
+        raise ValueError(f"unknown target engine {target_engine!r}; choose from {TARGET_ENGINES}")
+    if (isinstance(target_window, bool) or not isinstance(target_window, int)
+            or not 1 <= target_window <= 8):
+        raise ValueError("target window must be an integer in [1, 8]")
     if la_pivot not in PIVOT_RULES:
         raise ValueError(f"unknown pivot rule {la_pivot!r}; choose from {PIVOT_RULES}")
     if harvest not in HARVEST_MODES_ALL:
@@ -156,6 +170,9 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     on = None
     search_only = harvest == "search"
     budget_reached = False
+    target_tables = None
+    target_setup_ops = 0
+    seconds_target_setup = 0.0
     if harvest != "off":
         from .harvest import Harvester
 
@@ -182,7 +199,18 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     while k is None and stats.attempts < limit:
         a, b = rng.randrange(N), rng.randrange(1, N)
         before = E.ops.group_ops
-        R = E.add(E.mul(a, P), E.mul(b, Q))
+        if target_engine == "fixed_window":
+            # Lazy construction avoids charging/allocating an unused cache in
+            # table-only runs or when table relations already determine k.
+            if target_tables is None:
+                ts = time.perf_counter()
+                target_tables = (FixedBaseMultiplier(E, P, N, target_window),
+                                 FixedBaseMultiplier(E, Q, N, target_window))
+                seconds_target_setup = time.perf_counter() - ts
+                target_setup_ops = E.ops.group_ops - before
+            R = E.add(target_tables[0].mul(a), target_tables[1].mul(b))
+        else:
+            R = E.add(E.mul(a, P), E.mul(b, Q))
         target_ops += E.ops.group_ops - before
         if harv is not None:
             harv.begin_attempt(stats.attempts + 1, a, b)
@@ -272,6 +300,13 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         seconds_relations=t2 - t1 - t_la,
         seconds_linalg=t_la, seconds_total=t2 - t0,
         harvest=harvest_block,
+        target_engine=target_engine,
+        target_window=target_window if target_engine == "fixed_window" else None,
+        target_setup_ops=target_setup_ops,
+        target_table_entries=sum(t.entries for t in target_tables) if target_tables else 0,
+        target_table_coordinate_bytes=(sum(t.coordinate_bytes for t in target_tables)
+                                       if target_tables else 0),
+        seconds_target_setup=seconds_target_setup,
     )
 
 
