@@ -1,4 +1,4 @@
-# Current formal target provenance inventory
+# Formal target provenance inventory at a named main commit
 
 **Scope:** Static repository inventory at main `0b38ac1157f777cb4a77d35e53d7ed583c541eb4` (formal tree `96f334e856c87d397b5db720899d833a75db0352`) and exact archived hosted Lean receipts from main `5998553341fb29d3b9ca1a4c9ac6e58d96ca3ffa`. This is an evidence review, not a research run or a proof of claim fidelity. The machine-readable [target inventory](provenance.json), [experiment pointer map](corpus-pointer-coverage.json), [builder](build.py), [hosted receipt checker](check_hosted.py), [receipt audit](evidence/hosted-87/receipt-audit.json), [diagram source](coverage.dot), [rendered diagram](coverage.svg), and [PDF](report.pdf) are kept together. The inventory records the Git blob ID and SHA-256 of every declared source, target spec, and theorem file.
 
@@ -9,7 +9,7 @@
 | Target YAML specs | 87 |
 | Declared theorem paths that exist as Git blobs | 87 |
 | Distinct declared source paths | 30 |
-| `EXP-*` directories on current main | 2,781 |
+| `EXP-*` directories at the named main commit | 2,781 |
 | Experiment directory IDs with an exact target/source token pointer | 5 |
 | Formal targets with at least one such pointer | 17 |
 | Specs containing a canonical `EXP-*` identifier | 12 |
@@ -20,9 +20,9 @@
 
 The 12 `EXP-*` references name two experiments: `EXP-BINSTD-8bdf86` and `EXP-FROB-91ee9c`. Source status labels in the specs are 54 `COMPUTED`, 23 `PROVED`, eight `STATED`, one `DERIVATION`, and one `MEASURED_WITH_ALGEBRAIC_EXPLANATION`. These are source labels, not independently checked outcome tiers. The builder checks unique task and claim IDs, parses every YAML spec, and reads the source and theorem bytes from the named Git commit. It does not use the working tree as evidence for those source bytes.
 
-The reverse map enumerates every top-level `EXP-*` directory at current main, including legacy numeric IDs. It finds exact ID tokens in target specs or their declared source bytes for `EXP-BINSTD-8bdf86`, `EXP-FROB-91ee9c`, `EXP-FROB-b8cf21`, `EXP-GFPN-05ff43`, and legacy `EXP-NCP-001`. The earlier canonical six-hex-digit scan omitted that legacy pointer. The other 2,776 directory IDs have no **exact token pointer in these 87 target/spec-source pairs**. This is not a claim that those experiments lack an applicable generic theorem, or that the five pointed experiments have been semantically validated.
+The reverse map enumerates every top-level `EXP-*` directory at the named main commit, including legacy numeric IDs. It finds exact ID tokens in target specs or their declared source bytes for `EXP-BINSTD-8bdf86`, `EXP-FROB-91ee9c`, `EXP-FROB-b8cf21`, `EXP-GFPN-05ff43`, and legacy `EXP-NCP-001`. The earlier canonical six-hex-digit scan omitted that legacy pointer. The other 2,776 directory IDs have no **exact token pointer in these 87 target/spec-source pairs**. This is not a claim that those experiments lack an applicable generic theorem, or that the five pointed experiments have been semantically validated.
 
-The [hosted `lean-verification` run](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40168163325) completed successfully at `5998553341fb29d3b9ca1a4c9ac6e58d96ca3ffa`. Its 87 archived per-target receipts report `machine_verified`, successful builds and axiom audits, zero forbidden constructs, and semantic review pending. The portable checker matches every receipt hash and input SHA-256 to the named commit. The entire formal Git tree and all 30 declared source blobs are identical at that hosted commit and current main `0b38ac1157f777cb4a77d35e53d7ed583c541eb4`. This supports machine acceptance of the same 87 theorem statements on current main; it does not replace an independent semantic review.
+The [hosted `lean-verification` run](https://github.com/aburan28/crypto-autoresearcher/actions/runs/40168163325) completed successfully at `5998553341fb29d3b9ca1a4c9ac6e58d96ca3ffa`. Its 87 archived per-target receipts report `machine_verified`, successful builds and axiom audits, zero forbidden constructs, and semantic review pending. The portable checker matches every receipt hash and input SHA-256 to the named commit. The entire formal Git tree and all 30 declared source blobs are identical at that hosted commit and the named main snapshot `0b38ac1157f777cb4a77d35e53d7ed583c541eb4`. This supports machine acceptance of the same 87 theorem statements on that snapshot; it does not replace an independent semantic review.
 
 ![Static provenance topology; dashed links are open obligations](coverage.svg)
 
@@ -30,7 +30,7 @@ The diagram shows declared links, syntactic corpus pointers, and two missing evi
 
 ## Interpretation and limits
 
-The earlier local per-target sweep covered 84 targets. The later hosted 87-target run closes the machine-verification gap for the identical current formal tree. All 87 hosted receipts still mark independent semantic review `pending`. The open [semantic fidelity problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) remains the controlling limitation.
+The earlier local per-target sweep covered 84 targets. The later hosted 87-target run closes the machine-verification gap for the identical named formal tree. All 87 hosted receipts still mark independent semantic review `pending`. The open [semantic fidelity problem](../../../problems/formal-target-semantic-fidelity-unreviewed.md) remains the controlling limitation.
 
 For each claim that might be promoted to a dashboard or scientific conclusion, the next review must name the source and any frozen run record, exact theorem statement and assumptions, the model bridge, controls, and independent reviewer conclusion. Empirical measurements may have no appropriate Lean theorem; their provenance, controls, units and uncertainty need separate validation. The Semaev first-fall correction is a known reason to check meaning instead of counting compiled declarations.
 
