@@ -50,7 +50,7 @@ def _fixture(root: Path, mode: str, source_commit: str, source: dict[str, str], 
              "check_argv": [sys.executable, str(HERE / "check.py"), "--run-dir", "{run_dir}"],
              "artifacts": ["manifest.yaml", "raw-result.json"], "allow_empty_artifacts": [],
              "memory_mb": 64, "watchdog_seconds": 20, "watchdog_reason": "fixture process bound"}
-    plan = {"schema": "crypto.autoresearch.trial_plan.v1", "experiment_id": "EXP-ICPERF-fixture",
+    plan = {"schema": "crypto.autoresearch.trial_plan.v1", "experiment_id": "EXP-ICPERF-fixture", "approved_by": "fixture-only",
             "task_id": "TASK-20261020-f237a2", "specification": "experiments/EXP-ICPERF-fixture/specification.yaml",
             "specification_sha256": sha(specification),
             "source_sha256": {str((HERE / name).relative_to(ROOT)): digest for name, digest in source.items()},
