@@ -1,10 +1,26 @@
-# Independent ICPERF review awaits blind Validator and archive
+# ICPERF independent review admission is task-specific
 
 - **Status:** open
-- **Kind:** reviewer admission and evidence-process gap; no mathematical obstruction is established
-- **Affected work:** [prime63 postrun review plan](../coordination/review/icperf-prime63-m2-postrun-20261019/review-plan.yaml), [Red Team task](../ledger/handoffs/TASK-20261019-02a5c2.yaml), [blind Validator task](../ledger/handoffs/TASK-20261019-bb87e3.yaml), [ICPERF goal](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml). Ordinary-binary m=8 has a separate reviewer-access gap.
-- **Next action owner:** Coordinator publishes prospective Validator admission; blind Validator owns its sealed P1/P2 report; Coordinator later archives and composes only after both releases.
-- **Last updated:** 2026-10-19
+- **Kind:** reviewer runtime access and evidence-process gap; no mathematical obstruction is established.
+- **Affected work:** [ICPERF goal](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), ordinary binary m=8 review lane, and [v2 output-contract O1-O3 plan](../coordination/review/icperf-prime63-m2-output-contract-v2-20261025/review-plan.yaml).
+- **Next action owner:** Coordinator obtains an exact independent review-adversarial xhigh Validator receipt for [TASK-20261025-b2e2cd](../ledger/handoffs/TASK-20261025-b2e2cd.yaml), archives a separate session-bound admission, then allows only that exact thread to review. Ordinary binary m=8 requires its own route.
+- **Last updated:** 2026-10-25
+
+## Current 2026-10-25 state
+
+The prime63 postrun P1-P4 review referenced in the historical record below is sealed and composed under [DEC-20261019-471fe2](../ledger/decisions/DEC-20261019-471fe2.yaml). Its direct Codex reviewer sessions do not transfer admission to a new task. The completed v2 no-science source and fixture package now has a verified [ten-file snapshot receipt](../coordination/goals/GOAL-ICPERF-e6b6a4/batches/BATCH-ac3c38/archives/TASK-20261020-fa096d/snapshot-receipt.json), and [DEC-20261025-888555](../ledger/decisions/DEC-20261025-888555.yaml) freezes a separate O1-O3 independent engineering review.
+
+**Observed access:** The default Anthropic review-adversarial resolution is unverified because the tested API route has no usable key. The explicit openai route resolves prospectively to gpt-5.6-sol at xhigh, and exact independent Codex sessions are supported, but no receipt exists for TASK-20261025-b2e2cd. Neither default failure nor prospective resolution proves global unavailability or grants this task a session. The ordinary binary m=8 lane still needs its own task-specific review route.
+
+**What is blocked:** Only the new Validator card and its dependent review snapshot, plus ordinary binary m=8's separate reviewer access. The v2 producer and source snapshot are already completed. This access gap says nothing about source correctness, solver feasibility or ECDLP performance.
+
+**Exit criteria:** After the frozen O1-O3 plan and handoff are committed and pushed, obtain a fresh independent exact-session receipt matching task, validator role, review-adversarial policy, xhigh effort, model/provider/workdir and runtime bindings with no fallback/degradation. Verify lane and claim, archive a separate additive sole-Ready admission, then run the review in the exact receipt-bound thread. A sealed report, attestation and completed release followed by TASK-20261025-6d007d snapshot clear this task's review-process gap; ordinary binary m=8 has its own exit.
+
+**Next discriminating action:** Probe the explicit direct Codex route for TASK-20261025-b2e2cd after publication. If verified, bind and admit only that session. If the probe fails, retain the receipt and exact failure reason, leave the card blocked, and test a different allowed route only after recording its own identity. No scientific solver call or source edit is part of this review.
+
+## Historical 2026-10-19 admission snapshot
+
+The following text preserves the earlier admission-stage account and its then-open actions. Its present-tense references to the blind P1/P2 Validator are historical, not current dispatch instructions.
 
 ## Problem
 
