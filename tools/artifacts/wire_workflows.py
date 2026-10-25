@@ -122,9 +122,25 @@ def add_sparse_pattern(block: list[str], indent: str) -> list[str]:
                 items.append(block[n])
                 n += 1
             if any("tools/artifacts" in x or x.strip() in ("/*", "tools", "/tools/") for x in items):
-                return block
+                extra = []
+                if not any(".artifacts" in x for x in items):
+                    pad = (items[0][: len(items[0]) - len(items[0].lstrip())]) if items else indent + "      "
+                    extra = [pad + (".artifacts" if cone else "/.artifacts/")]
+                return block[:n] + extra + block[n:] if extra else block
             pad = (items[0][: len(items[0]) - len(items[0].lstrip())]) if items else indent + "      "
-            return block[:n] + [pad + ("tools/artifacts" if cone else "/tools/artifacts/")] + block[n:]
+            tool = "tools/artifacts" if cone else "/tools/artifacts/"
+            cfg = ".artifacts" if cone else "/.artifacts/"
+            return block[:n] + [pad + tool, pad + cfg] + block[n:]
+        m = re.match(rf"^{indent}    sparse-checkout:\s+(\S.*)$", b)
+        if m and "{{" not in m.group(1) and not m.group(1).lstrip().startswith("|"):
+            val = m.group(1).strip()
+            if "tools/artifacts" in val or val in ("/*", "tools", "/tools/"):
+                return block
+            cone = not any("sparse-checkout-cone-mode: false" in x for x in block)
+            extra = "tools/artifacts" if cone else "/tools/artifacts/"
+            cfg = ".artifacts" if cone else "/.artifacts/"
+            block[k] = f"{indent}    sparse-checkout: |"
+            return block[: k + 1] + [f"{indent}      {val}", f"{indent}      {extra}", f"{indent}      {cfg}"] + block[k + 1 :]
     return block
 
 
