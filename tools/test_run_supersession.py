@@ -48,15 +48,6 @@ ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
 # exact bytes here again without rewriting the test.
 PROSE_SUPERSESSION_SHA256: dict[str, str] = {}
 
-# Closed, exact disclosed debt for test_committed_supersessions_are_clean.
-# Never grow this to turn the test green: an entry belongs here only when a
-# committed correction record lists the error by exact text as permanent.
-_QSP_S0_V2 = "experiments/EXP-QSP-33b442/runs/RUN-QSP-33b442-S0/manifest_v2.yaml"
-DISCLOSED_SUPERSESSION_DEBT: frozenset[str] = frozenset(
-    f"{_QSP_S0_V2}: run directory missing artifact '{name}'"
-    for name in ARTIFACTS)
-
-
 def manifest_body(**over) -> dict:
     """A run manifest that validates clean, before any field is removed."""
     body = {
@@ -710,6 +701,35 @@ class RegistryLoaderTests(unittest.TestCase):
         self.assertEqual(vl.load_run_supersessions("/nonexistent/registry.yaml"),
                          {})
 
+    def test_non_execution_requires_exact_source_bindings(self) -> None:
+        bound = {
+            "kind": "hand_derivation",
+            "specification_path": "experiments/EXP-SUP-001/specification.yaml",
+            "specification_sha256": "a" * 64,
+            "derivation_path": "experiments/EXP-SUP-001/runs/RUN-SUP-001/derivation-note.md",
+            "derivation_sha256": "b" * 64,
+        }
+        document = registry_document(
+            supersession_kind="zero_compute_misclassification",
+            non_execution=bound)
+        entry = next(iter(self.load(document).values()))
+        self.assertEqual(entry["non_execution"]["kind"], "hand_derivation")
+        self.assertTrue(os.path.isabs(entry["non_execution"]["specification_path"]))
+        for bad in (
+            None,
+            dict(bound, kind="compute_run"),
+            dict(bound, specification_path="experiments/EXP-OTHER/specification.yaml"),
+            dict(bound, derivation_path="../outside.md"),
+            dict(bound, specification_sha256="not-a-hash"),
+            dict(bound, extra="ignored"),
+        ):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.load(registry_document(
+                    supersession_kind="zero_compute_misclassification",
+                    non_execution=bad))
+        with self.assertRaises(ValueError):
+            self.load(registry_document(non_execution=bound))
+
     def test_wrong_schema_is_refused(self) -> None:
         document = registry_document()
         document["schema"] = "something-else-v1"
@@ -942,14 +962,62 @@ class CommittedRegistryTests(unittest.TestCase):
                                    "coordinator_decision", ctx)
         for key in entries:
             vl.check_run(key, ctx, entries)
-        # Disclosed debt is exact: RUN-QSP-33b442-S0 is a zero-compute hand
-        # derivation whose five companion artifacts never existed (registry
-        # entry and CORR-20260917-8b80cc route.D2_route_S0). Writing them would
-        # describe an execution that did not occur, so the errors stay, listed
-        # by exact text; any other error, or any growth here, still fails.
-        self.assertEqual(
-            sorted(e for e in ctx.errors if e not in DISCLOSED_SUPERSESSION_DEBT),
-            [])
+        # The explicitly registered hand derivation has no execution
+        # artifacts, and every ordinary run retains the capture contract.
+        self.assertEqual(ctx.errors, [])
+        self.assertTrue(any("registered zero-compute hand derivation" in a
+                            for a in ctx.advisories))
+
+    def test_zero_compute_admission_is_bound_and_rejects_captured_output(self) -> None:
+        entries = vl.load_run_supersessions()
+        entry = next(e for e in entries.values()
+                     if e["run_id"] == "RUN-QSP-33b442-S0")
+        body = yaml.safe_load(Path(entry["superseding_path"]).read_text())["run"]
+        run_dir = str(Path(entry["superseded_path"]).parent)
+        admit = vl._registered_non_execution_derivation
+        self.assertTrue(admit(entry["superseded_path"], run_dir, body, entry))
+        for role in ("superseded_sha256", "superseding_sha256"):
+            with self.subTest(role=role):
+                changed = dict(entry, **{role: "0" * 64})
+                self.assertFalse(admit(entry["superseded_path"], run_dir, body, changed))
+        for role in ("specification_sha256", "derivation_sha256"):
+            with self.subTest(role=role):
+                changed = dict(entry, non_execution=dict(
+                    entry["non_execution"], **{role: "0" * 64}))
+                self.assertFalse(admit(entry["superseded_path"], run_dir, body, changed))
+        for field, value in (("compute", "measured"), ("execution", "ran"),
+                             ("stage", "stage_1"), ("status", "failed")):
+            with self.subTest(field=field):
+                self.assertFalse(admit(entry["superseded_path"], run_dir,
+                                       dict(body, **{field: value}), entry))
+        original_lexists = os.path.lexists
+        with patch.object(vl.os.path, "lexists", side_effect=lambda p:
+                          p == os.path.join(run_dir, "command.txt") or original_lexists(p)):
+            self.assertFalse(admit(entry["superseded_path"], run_dir, body, entry))
+
+        changed = dict(entry, non_execution=dict(
+            entry["non_execution"], derivation_sha256="0" * 64))
+        ctx = vl.Ctx(set())
+        vl.check_run(entry["superseded_path"], ctx,
+                     {entry["superseded_path"]: changed})
+        self.assertTrue(any("non-execution declaration fails" in error
+                            for error in ctx.errors), ctx.errors)
+        self.assertEqual(sum("run directory missing artifact" in error
+                             for error in ctx.errors), 5)
+
+    def test_unregistered_zero_compute_marker_still_owes_all_capture_files(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="unregistered-zero-compute-") as root:
+            run_dir = Path(root) / "experiments/EXP-SUP-001/runs/RUN-SUP-001"
+            run_dir.mkdir(parents=True)
+            path = run_dir / "manifest.yaml"
+            body = manifest_body(stage="stage_0", compute="zero",
+                                 execution="none_occurred")
+            path.write_text(yaml.safe_dump({"run": body}, sort_keys=False))
+            ctx = vl.Ctx(set())
+            vl.check_run(str(path), ctx, {})
+            for artifact in ARTIFACTS:
+                self.assertTrue(any(f"missing artifact '{artifact}'" in error
+                                    for error in ctx.errors), ctx.errors)
 
     def test_lpf_plantz_manifest_is_routed_to_its_superseding_record(self) -> None:
         superseded = REPO / ("experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/"
