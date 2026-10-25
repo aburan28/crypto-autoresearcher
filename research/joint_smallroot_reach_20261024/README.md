@@ -66,3 +66,18 @@ specific next design and matched complete-cost measurement requirements.
 The [operational follow-up](readiness-20261025/operational-followup.md) records
 the direct Codex initialization failure on the read-only filesystem and the
 two additional draft-tier fixes inherited from current main.
+
+Coordination correction (2026-10-25): the failed nested CLI and two open lane
+records did not establish a global runtime or capacity block. An authenticated
+managed native Coordinator session is operating under the repository's native
+runtime rule. The inspected old producer claims have completed releases. After
+deepening history and hydrating historical blobs, the existing PFDR archive task
+is ready, so the earlier absent-artifact observation was not queue corruption.
+See the [additive operational correction](../../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/additive-operational-correction.md).
+
+Disjoint BATCH-3cfef2 and its zero-run design task TASK-20261025-b7e32e are
+published and claimed in [PR #2557](https://github.com/aburan28/crypto-autoresearcher/pull/2557).
+This advances applicability and contract preparation, not scientific execution.
+The remaining audit publication gate includes owner-first shared artifact-tool
+parity: its narrow fix is prepared, but has not landed in the owning `crypto`
+repository. The earlier reports and scientific evidence remain unchanged.
