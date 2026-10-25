@@ -14,6 +14,10 @@
 #      repository corruption; it is a missing object. It once put 26 of 46
 #      active goals in that bucket, leaving the harness nothing to dispatch.
 #
+# In the web container it also starts a cairn node, installs SageMath 10.9, and
+# runs aburan28/crypto's scripts/setup-workstation.sh for the rest of the
+# toolchain (the last block below).
+#
 # Idempotent, non-interactive, and never fatal: a session that starts with a
 # degraded environment is better than one that does not start.
 set -uo pipefail
@@ -24,6 +28,8 @@ cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}" || exit 0
 # 7 GB of it run archives and reference bundles an execution session never
 # reads, and it leaves too little disk for SageMath below. Opt in per
 # environment with CRYPTO_AR_SPARSE_PROFILE=harness; `disable` undoes it.
+# Opt-in, not default: the ledger sweeps the Coordinator skills run refuse a
+# sparse checkout (docs/sparse-checkout.md, "Not the default").
 if [ -n "${CRYPTO_AR_SPARSE_PROFILE:-}" ]; then
     python3 tools/sparse_checkout.py apply "$CRYPTO_AR_SPARSE_PROFILE" >&2 \
         || echo "session-start: sparse profile '$CRYPTO_AR_SPARSE_PROFILE' not applied; checkout stays full" >&2
@@ -126,4 +132,44 @@ SAGESHIM
     fi
 fi
 
+# The rest of the research toolchain: aburan28/crypto's
+# scripts/setup-workstation.sh (system libraries and PARI/GP, Rust/Go/Node/uv,
+# conductor, the codex and opencode CLIs, git/gh sign-in as the GitHub service
+# account when GH_APP_* or GH_SERVICE_TOKEN is set as an environment secret, a
+# cryptanalysis checkout next to this one, per-repo virtualenvs), minus what
+# this hook already did (cairn, SageMath)
+# and crypto's control plane. Fetched at a pinned commit, not main, so a session
+# never runs a script nobody reviewed; bump CRYPTO_SETUP_REF to take a newer
+# one. It skips what is installed, so a cached container only re-checks. Its
+# output goes to a log. CRYPTO_WORKSTATION_SETUP=0 turns it off and
+# CRYPTO_SETUP_CLONE lists the repositories to clone (default cryptanalysis).
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "${CRYPTO_WORKSTATION_SETUP:-1}" != 0 ]; then
+    setup_ref="${CRYPTO_SETUP_REF:-28b5c56f3153a5830327b9b70b833f2b062663df}"
+    setup_dir="$HOME/.cache/workstation-setup/$setup_ref"
+    setup="$setup_dir/setup-workstation.sh"
+    setup_log="$HOME/.local/state/workspace-tools/autoresearcher-setup.log"
+    mkdir -p "$setup_dir" "$(dirname "$setup_log")"
+    if [ ! -s "$setup" ]; then
+        curl -fsSL --max-time 30 \
+            "https://raw.githubusercontent.com/aburan28/crypto/$setup_ref/scripts/setup-workstation.sh" \
+            -o "$setup.tmp" && mv "$setup.tmp" "$setup" \
+            || echo "session-start: could not fetch setup-workstation.sh at $setup_ref; skipping workstation setup" >&2
+    fi
+    if [ -s "$setup" ]; then
+        if CLONE_REPOS="${CRYPTO_SETUP_CLONE-cryptanalysis}" bash "$setup" \
+            --workspace "$(dirname "$PWD")" --skip cairn,sage,control-plane >>"$setup_log" 2>&1; then
+            echo "session-start: workstation setup ran (log: $setup_log)" >&2
+        else
+            echo "session-start: workstation setup failed (log: $setup_log)" >&2
+        fi
+    fi
+fi
+
 exit 0
+
+# What this program has already tried against ECDLP, and whether anything
+# changed in the four repositories since the atlas was last reviewed
+# (knowledge/leads/ecdlp/README.md). Hook stdout becomes session context, so a
+# fresh clone starts by knowing whether everything has already been examined.
+# Never fatal.
+python3 tools/lead_atlas.py --brief 2>/dev/null || true

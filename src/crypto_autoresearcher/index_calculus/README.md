@@ -21,7 +21,7 @@ how the classical prime-field index calculus scales.
 | `_accel.py` | optional numpy scan that locates the useful `S_3` roots (in the base or in a table of tails); relations and every counter are identical to the pure-Python path |
 | `msolve.py` | algebraic decomposition: the Semaev system solved by the msolve Gröbner-basis engine |
 | `linalg.py` | incremental sparse elimination mod `N`, stopping at the first relation that fixes the target log; pivots on the column the fewest pivot rows hold (`min_fill`) or, as before, the lowest index (`min_index`) |
-| `rho.py` | Pollard rho with distinguished points and a Teske 20-adding walk |
+| `rho.py` | Pollard rho with distinguished points and a Teske 20-adding walk on `{X, −X}` (negation map, look-ahead, short-cycle escape); `--rho-walk plain` walks on points |
 | `solver.py` | the end-to-end solver and its cost columns |
 | `stats.py` | exponent fits with a stratified bootstrap confidence interval |
 
@@ -36,6 +36,17 @@ Python object overhead. This storage path does not establish a complete solve
 or a performance improvement at wider sizes.
 
 ## Running it
+
+The [lifting and representation controls](../../../docs/lifting-representation-controls.md)
+are available through the same CLI:
+
+```sh
+python -m crypto_autoresearcher.index_calculus representation-controls --experiment controls
+```
+
+They calibrate circularity, equivalent-model, residual-correction and CM-filter
+diagnostics on tiny synthetic curves. They do not change the IC baseline or
+constitute approved experiment evidence.
 
 ```sh
 pip install -e ".[index-calculus]"      # numpy for the fast path (optional)
@@ -91,6 +102,13 @@ Costs are counts in separate columns, and columns are never summed.
   The fixed scalar multiplications for the step table and the walk starts
   are reported separately as `setup_ops`. At toy sizes that setup term rivals
   the walk, and mixing the two flattens a fitted slope toward 0.3.
+  Since 2026-10-20 the walk runs on the classes `{X, −X}` (the negation map,
+  `A = 2`, about `√(πN/4)` steps; every row records `rho_walk`). The
+  look-ahead's discarded additions and the cycle escapes' doublings are in
+  `walk_ops`. Rows without `rho_walk`, including section 1 below, used the
+  walk on points (`A = 1`, `√(πN/2)`), which `--rho-walk plain` reproduces;
+  against those rows index calculus looks `√2` better than against the
+  negation walk.
 - **Exponents.** An exponent is the least-squares slope of `log2(cost)`
   against `log2(N)`. The 95% interval comes from a bootstrap that resamples
   instances within each size.
@@ -577,3 +595,38 @@ What the ladder shows:
 - **msolve bound.** The comparison runs below 2^16 because msolve 0.6.5 is
   wrong above that bound (see `msolve.py`). The per-target exponents concern
   `|F|`, not `p`.
+
+## Repeated-base target generation
+
+Single solves can opt into positional fixed-base tables:
+
+```sh
+python -m crypto_autoresearcher.index_calculus solve --bits 16 --engine mitm \
+  --target-engine fixed_window --target-window 4
+```
+
+The Python API accepts the same `target_engine="fixed_window"` and
+`target_window=4` keyword arguments. The default `reference` path keeps the
+historical scalar multiplication and operation counts. Both paths draw the
+same coefficients and produce the same targets and relations. The cache is
+local to one solve and built only when a target is needed.
+
+`target_ops` and `group_ops` include table construction; `target_setup_ops`
+is a subset of `target_ops`. `seconds_target_setup` is a subset of the
+existing relation-phase time, not an extra term to add. The reported target
+table entry count includes zero-digit slots. `target_table_coordinate_bytes`
+is packed affine-coordinate payload only, excluding Python objects and
+containers; use process peak RSS for total memory. Larger windows trade more
+setup and memory for fewer online additions, so a cache may cost more when
+few targets are needed.
+
+For historical reproducibility, `seconds_total` retains its existing boundary
+before final verification and harvest finalization. Full-solve comparisons
+must wrap the complete API call, as the frozen
+`config/ic-target-benchmark.json` workload and `tools/ic_target_benchmark.py`
+do. The benchmark is launched through its approved experiment trial plan,
+not by running the driver directly. These are toy prime-field engineering
+measurements; they do not imply a production-curve attack or a change in
+asymptotic complexity.
+
+The held-out balanced experiment [EXP-ICPERF-6c546e](../../../experiments/EXP-ICPERF-6c546e/reports/review-DEC-20261023-122e32/report.md) independently verified a **1.1606×** geometric complete-solve speedup (clustered95% interval approximately1.1268–1.1977×) on nine12/14/16-bit public curves, with two solver seeds and three repetitions. All162 executions include per-solve setup and final verification; arms cross every execution slot. This is one CPython/scalar-mitm host/session, with five slower candidate pairs, not a universal or vectorized result. The [structured claim](../../../claims/ic-target-balanced-6c546e.json) retains raw paired evidence, timing boundaries and uncertainty. Matched rho and Bernstein–Lange gaps were not measured.
