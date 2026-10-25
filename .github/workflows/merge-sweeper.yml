@@ -1,0 +1,81 @@
+name: merge-sweeper
+
+# Lands open PRs whose merge gate is already satisfied: every check on the
+# head green, no conflict, no hold label, no changes requested. This is the
+# AGENTS.md "Default workflow" merge rule, applied after the authoring
+# session has ended. Gate details: .github/scripts/merge_sweeper.py, docs/ci-tiers.md.
+#
+# With --apply it also records capacity state with `ci:parked` and
+# `ci:waiting` labels. PRs remain open and ready for review; drafts are never
+# created or promoted by the sweeper.
+#
+# Report-only until the repository variable MERGE_SWEEPER_APPLY is "true";
+# the step summary lists every open PR and what keeps it from merging.
+#
+# Controls (Settings > Secrets and variables > Actions)
+#   vars.MERGE_SWEEPER_APPLY       "true" merges; anything else reports only
+#   vars.MERGE_SWEEPER_MAX_MERGES  merges per sweep, default 10
+#   vars.MERGE_SWEEPER_MAX_CHECKS  check budget per PR head, default 30
+#   vars.MERGE_SWEEPER_MAX_READY   ready PRs at once, default 40
+#   secrets.MERGE_SWEEPER_TOKEN    optional fine-grained PAT (contents and
+#                                  pull requests: write). A merge made with
+#                                  the default GITHUB_TOKEN does NOT start the
+#                                  push workflows on main (release, pages,
+#                                  leaderboards). AUTOFIX_GH_TOKEN is used when
+#                                  this one is unset.
+# Per PR: label `merge-sweeper:off` (or `do-not-merge`, `hold`, `wip`) keeps
+# it open.
+#
+# Runs on a GitHub-hosted runner on purpose: it must not queue behind the
+# PR checks it is waiting for.
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Merge ready PRs (otherwise report only)
+        type: boolean
+        default: false
+      pr:
+        description: Only consider this PR number (blank sweeps every open PR)
+        required: false
+        type: string
+
+concurrency:
+  group: merge-sweeper
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+      statuses: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Sweep open pull requests
+        env:
+          GH_TOKEN: ${{ secrets.MERGE_SWEEPER_TOKEN || secrets.AUTOFIX_GH_TOKEN || github.token }}
+          APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || github.event_name == 'schedule' && vars.MERGE_SWEEPER_APPLY == 'true' }}
+          MAX_MERGES: ${{ vars.MERGE_SWEEPER_MAX_MERGES || '10' }}
+          MAX_CHECKS: ${{ vars.MERGE_SWEEPER_MAX_CHECKS || '30' }}
+          MAX_READY: ${{ vars.MERGE_SWEEPER_MAX_READY || '40' }}
+          ONLY_PR: ${{ inputs.pr }}
+        run: |
+          args=(--max-merges "$MAX_MERGES" --max-checks "$MAX_CHECKS" --max-ready "$MAX_READY")
+          if [ "$APPLY" = "true" ]; then args+=(--apply); fi
+          if [ -n "$ONLY_PR" ]; then args+=(--pr "$ONLY_PR"); fi
+          python3 .github/scripts/merge_sweeper.py "${args[@]}"
