@@ -51,4 +51,9 @@ class ContractTests(unittest.TestCase):
   commit=__import__("subprocess").check_output(["git","-C",str(ROOT),"rev-parse","HEAD"],text=True).strip()
   for mode in ("bounded-censor","canned-positive"):
    with self.subTest(mode=mode): self.assertEqual(fixture_supervisor.run(mode,commit)["status"],"output_validated")
+ def test_real_supervisor_negative_fixtures_are_invalid_output(self):
+  commit=__import__("subprocess").check_output(["git","-C",str(ROOT),"rev-parse","HEAD"],text=True).strip()
+  for fault in ("missing-top","empty-top","changed-digest","unlisted-raw"):
+   with self.subTest(fault=fault):
+    report=fixture_supervisor.run("bounded-censor",commit,fault=fault); self.assertEqual(report["status"],"invalid_output"); self.assertEqual(report["receipt_status"],"invalid_output"); self.assertEqual(report["returncode"],0); self.assertNotEqual(report["check_returncode"],0)
 if __name__ == "__main__": unittest.main()
