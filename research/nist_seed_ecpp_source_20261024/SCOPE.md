@@ -1,0 +1,9 @@
+# Scope: recovered ECPP source and certificate-search failure semantics
+
+24 October 2026 UTC. Retrospective primary-source and static-control-flow audit. The source branches and discriminant-file row count were inspected before this scope was written. No prospective discovery claim is made.
+
+Bind both retrieved ECPP V3.4.1 archives, their matching bytes, internal version and selected source/data file hashes. Bind the October 1996 Chabaud thesis that references this exact distribution filename. Keep the distinction between historical availability of the named version and authentication of today's exact archive bytes: the contemporary reference supplies no archive digest. Preserve the bounded archive-index searches and direct-author-site connection failures. Do not redistribute the external source package or PDFs.
+
+Read the static return chain from catalog exhaustion in nextD/findD through findm, buildchain and ecpp to runecpp's printed classification. Record both the ordinary failure path and successful-certificate path; distinguish reachable source branches from a demonstrated failed prime input. Parse the 1,684 supplied discriminant records, the rank guard, sieve/factoring parameter table and relevant command-line defaults. No named curve is executed or classified by this audit, no bundled executable is run and no compatibility port is claimed complete.
+
+Produce exact machine-readable source bindings, a replayable static checker, an editable control-flow diagram, a derived catalog-coverage graph, a report and visually inspected PDF. Update the existing open selection problem with the acquired source and the next frozen full-cohort replay obligation. A search failure is not mathematical weakness or a historical rejection trace. No ECDLP cost or scientific-status transition.
