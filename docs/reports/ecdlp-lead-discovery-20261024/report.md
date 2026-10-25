@@ -212,11 +212,97 @@ ic-binary and ic-engine next_actions once checked.
 
 ## c. Graveyard
 
-(filled from the scouting workflow; see `GRAVEYARD.md`)
+Full record: `GRAVEYARD.md`; dossiers and raw gate output: `scouting/`.
+Twelve outside fields were scouted (coding theory and ISD, lattice small-root
+methods, SAT/XOR and planted systems, additive combinatorics, commutative
+algebra, p-adic and tropical geometry, arithmetic statistics, query and
+communication complexity, HPC constants, algebraic geometry of covers, the
+polynomial method, algorithmic number theory). Screened count: **47 candidates
+proposed after 152 scout-level kills** (every kill with its reason in
+`GRAVEYARD.md` section D). Gate outcome for the 36 candidates that received a
+verdict: **8 killed (7 N1 duplicates of a lead, 1 N2 known result), 28 judged
+`advances_lead` (a sharper step on an existing open lead), 0 new mechanisms.**
+Eleven candidates have no gate verdict (the gate agents hit the session limit
+twice) and are listed as unexamined. No skeptic votes were obtained (every
+refutation agent failed on the limit), so nothing below is independently
+refuted or confirmed; the lead author's own reading is marked as such.
+
+| candidate | killed by | obstruction kind | forecloses phrases | record needed |
+|---|---|---|---|---|
+| Riemann-Roch excess lemma: no AG-code decoder or ISD algorithm is a point-decomposition oracle | N1 (duplicate of LEAD-EXO-ideas-corpus-algebraic-transforms; FINDING-PF-IC-001 P1539, rejected ideas 013/014/130/...) | proof (the lead's) | AG code decoding as decomposition; list decoding the elliptic code; syndrome decoding for ECDLP | none new; the lead's record |
+| Function-field corner lemma: F_2[z] Popov-form lattice decomposition on ECC2K-130 | N1 (same mechanism as LEAD-ICP-coppersmith-smallroot-semaev, binary arm) | cost_model | polynomial-lattice small roots of S_m over F_2[z]; Popov form decomposition; function-field Coppersmith | that lead's reach record |
+| Exact tree-like Res(xor) optimum of UNSAT descended PDP instances | N1 (LEAD-ICB-decomposition-encoding-and-sat, closed; candidate does not escape its measured alpha ~ m) | measured | parity decision tree for PDP; tree-like Res(xor) refutation size; UNSAT core size of descended S_m | the lead's EV records |
+| Popcount-filtered exact refutation-degree meter for squaring and Chebyshev towers | N1 (LEAD-ICP-algebraic-membership-factor-base; residual item is IDEA-20261018-e0857e) | theorem | refutation degree of tower bases; Chebyshev tower factor base; squaring tower membership | KN-FIND-007 / the lead's record |
+| Valuation-triviality lemma: p-adic tropical initial-form decoder for a Semaev system | N2 (KR-IC-5931ee consequence; frontier delta 0) | literature | p-adic valuation decoder for Semaev; tropical initial forms of S_m; Newton polygon decomposition | KR-IC-5931ee |
+| (tau, mu) admission region for IC decomposition oracles, find-one vs list-all | N1 (quantitative complement of LEAD-ICE-generic-oracle-arity-cost-floor; now covered by IDEA-20261024-a2b05d's theorem) | proof (model) | oracle admission region; find-one versus list-all oracle; tau-mu exponent plane | TASK-20261024-9fbb0f |
+| One FFT per statistic: heavy Fourier coefficient and autocorrelation for the Miller cocycle | N1 (LEAD-TRF-miller-cocycle-nonhom-transfer already holds both halves) | n/a (open lead) | heavy Fourier coefficient of a non-homomorphic transfer; Goldreich-Levin on the Miller primitive; autocorrelation of U(kP) | the lead's first step |
+| SAT/XOR oracle decided by the break-even conflict price (HPC scout's version) | N1 (the repricing clause of LEAD-ICE-sat-xor-pdp-oracle's own next_action; merged into IDEA-20261024-741c49) | cost_model | conflict pricing of the SAT oracle; ns per conflict versus ns per group addition; break-even conflict weight | IDEA-20261024-741c49 |
+
+Scout-level kills worth recording because they close routes a future session
+would otherwise retry (all in `GRAVEYARD.md` D, with the scout's argument):
+every list-decoding, ISD, folded-code, interleaved and quasi-cyclic decoding
+route (agreement equals the dimension; collisions reduce to the group-law MITM;
+no small-order translation on a prime-order group); every Coppersmith variant
+beyond the corner lemma (Jochemsz-May, Herrmann-May, Bauer-Joux, Kannan
+embedding, BKZ at any dimension, rank-r GAP lattices, Farey bases,
+Bombieri-Pila); sum-product, incidence, Kloosterman/Weil/Burgess and
+Balog-Szemeredi-Gowers routes (vacuous below sqrt(p) or above the break-even);
+overlap-gap, low-degree, k-XORSAT threshold, cutting-planes and lifted Res(xor)
+bounds (wrong model or gadget-composed formulas); Mordell-Weil CVP, Weil
+polynomial enumeration for Jacobian carriers and EDS ratio stripping; and every
+binary/Koblitz coding-theory route (reduce to SO-QSP, rank-metric K7 or
+SO-FROB).
 
 ## d. Survivors, ranked
 
-(filled from the scouting workflow)
+No candidate opens a new lead; the six carried forward are sharper first steps
+for existing open leads, filed as IDEA records with `prior_art.lead` set,
+criteria blocks and draft protocols in their notes (section g). Ranking by
+P(first step rules it in) x gain / cost, with each factor the lead author's
+estimate (unverified by a skeptic; the dossier's own self-kill risk is quoted):
+
+| idea (advances lead) | tier | claim type | P(rule-in) | gain if it does | cost of the step | first step |
+|---|---|---|---|---|---|---|
+| IDEA-20261024-741c49 conflict-priced 5a band for the native-XOR SAT oracle from the recorded ecbench counters (LEAD-ICE-sat-xor-pdp-oracle; ECC2K-130 family, n = 17, m = 2) | I | exact_computation + measured | the arithmetic stands (every number traced to `research/ecbench_sat_pdp_20261009/`); the ORDER is **unresolved** under crypto/AGENTS.md 5a: SAT/strong-rho is 0.854 [0.825, 0.883] at w = 0 but 7.34 at w = 0.1 and 51.0 at w = 1, break-even w* = 1/458 = 2^-8.84, so the lead's sub-rho branch holds only if a CDCL+XOR conflict costs under 1/458 of a group addition; 0.3 that a qualified-host calibration lands below that | decides the one binary row with a sub-1 unpriced ratio; removes a planned ns-per-conflict calibration only if the calibration itself is the deciding step | zero for step (i); step (ii) needs a re-freeze (PROTOCOL-4: n = 17 and 23, l-ladder 8-12, conflict budget 300,000, since n = 19 and 29 degenerate and n = 23 trips the frozen 20,000 budget) | file the band computation as the repricing; an admitted ns-per-conflict calibration on a qualified host; the PROTOCOL-4 re-freeze |
+| IDEA-20261024-1b76a4 corner lemma: strategy-independent Howgrave-Graham ceiling for single-equation lattice decomposition, plus the addition-tree initial-ideal ceiling and the tropical corollary (LEAD-ICP-coppersmith-smallroot-semaev) | X (rule-out) | theorem (conditional on H1: no structurally short vector without a determinant reason) | 0.7 for the single-equation closure; 0.4 that the addition-tree cells also close | closes the last open prime-field small-root lead by proof instead of a reach computation; a Lean target | about 1 day review, minutes of probes | independent review of the lemma; extend the corner probe to the rank-2 GAP form; cuso on S_3 |
+| IDEA-20261024-e65d46 characteristic-p IPS subset-sum degree floor and the polynomial-calculus degree bound for digit/box presentations (LEAD-ICP-digit-presentation-solving-degree) | X (rule-out) | theorem (conditional on H1: Wilson's rank theorem transfers to F_{p^d}, p > s) | 0.7 for the direct digit branch; the chained cell stays open | closes the digit-presentation escape of the Semaev solving-degree closure; a Lean target | 1-2 days (proof + exact PC-degree checker), minutes of compute | review the five-lemma proof; retrieve Wilson 1990; run the exact checker at s = 6..14 |
+| IDEA-20261024-5bbcda writability floor for the expanded reduced binary-digit presentation via uniqueness of multilinear representations (LEAD-ICP-digit-presentation-solving-degree) | X (rule-out) | theorem (rigorous at m <= 4) + exact_computation (H-TOP at m >= 5; H4w certified by sampling at m = 6-8 only) | 0.5 (the floor needs H2; m = 5 at 128 bits is undecided at +1.1 bits; m = 9-14 rests on unverified H3) | a cost floor on one presentation, independent of any solver; it does not close the SO-ALGFB escape | about 1 day for the sampler; medium compute (one coefficient costs about 2^(4m-1) point additions: 2.4-24 core-hours per m = 8 cell) | certify H4w by sampled coefficients at m = 6-8, 128/256 bits, 40 monomials per cell |
+| IDEA-20261024-06f16f move Table B to the tau = 0 vertex: full m-fold signed sumset, one lookup per walked target (LEAD-ICP-prime-ic-constant-engineering) | I | measured | 0.35 (constants extrapolated from one m = 2 row; early-stop rank at m >= 3 unmeasured; "BSGS relabelling" reading must be excluded) | predicted 1.9-2.4x (m = 3) to 2.7-3.5x (m = 4) fewer GAE at fp24, i.e. the Table B distance 13.5x -> 5.6-7.1x, a Tier I end-to-end move if the paired ratio's lower CI bound is above 1 at every band weight | 1-2 days Rust, under an hour of compute per panel | implement `mitm-full:m=3` in ic.pipeline; paired arm vs the incumbent at fp20/22/24/28 with matched rho and A/A |
+| IDEA-20261024-892d61 exact occupancy calculator: conservation, Markov ceiling, Paley-Zygmund floor (LEAD-ICP-isogeny-transported-relation-yield; also LEAD-TRF-teske-secret-isogeny-trapdoor, LEAD-ICE-decomposition-probability-audit) | I (instrument) | exact_computation | 0.8 that the exact tables reproduce the two run arms within noise | replaces 17 missing arms of EXP-ECTD-0cf008 by exact population quantities; a Lean target for the three inequalities | done (about 200 lines of C++); 6 s to 2 h per base | file popcov and the P29 exact table as a pre-registered prediction in the recovery amendment |
+
+Four more gate-passed candidates are proposed as next_action sharpenings without
+an IDEA record (section b's proposed diffs or `GRAVEYARD.md` B): the exact
+all-target decomposition census from the log-domain spectrum
+(LEAD-ICE-decomposition-probability-audit), the cofactor-coset counting law that
+makes the volcano l = 2 yield effect 2-torsion bookkeeping
+(LEAD-STR-class-representative-ic-selection), the Table B "rho denominator"
+decomposition with a falsifiable 28/32-bit projection
+(LEAD-RHO-matched-rho-calibration), and the Kummer-conductor / Weil-Deligne
+bound for the Miller primitive (LEAD-TRF-miller-cocycle-nonhom-transfer).
+
+Two corrections the record writers made to the lead author's first reading,
+kept here because they change how the ideas are read: (1) the full-sumset arm
+(IDEA-20261024-06f16f) is a **k = 0 oracle** (one lookup per walked target),
+not a k = ceil(m/2) one; its exponent stays at m/(2m-1) > 1/2 only because the
+B^m table build is charged, which is the arity-2 memory-coupling theorem of
+`MemoryCouplingArityTwo.lean` generalised to arity m (proposed as that idea's
+Lean target); and (2) the occupancy calculator (IDEA-20261024-892d61) settles
+only the two occupancy contrasts of EXP-ECTD-0cf008, not all 17 missing arms;
+its rank-prefix, interval, replay and transported-base-equality exit criteria
+stay owed. The writers also found two crypto study directories cited by no lead
+(`research/ic_triple_table_20260923`, `research/ic_triple_counted_20260923`),
+an atlas gap for the next fold.
+
+**What the round says about the prime-field path forward.** Every candidate
+that survived the gates is either a closure (corner lemma, IPS degree floor,
+writability floor, occupancy calculator) or a constant-level engineering step
+(the tau = 0 sumset arm). Together with the threshold theorem (section f) the
+prime-field picture is: the exponent question is open only for a decomposition
+oracle of enumeration order k < (m-1)/2, every lattice, Groebner-on-digits, SAT
+and enumeration route proposed in this round sits at or above the line by its
+own dossier, and the measurable work is (1) the oracle-order census, (2) the
+tau = 0 sumset arm against Table B, and (3) sealing the three closures as Lean
+targets.
 
 ## e. Obstruction matrix and raw `--match` output
 
@@ -231,6 +317,8 @@ IDEA-20260830-4ab603 (the two-term model lineage). Verdict: same mechanism as th
 first hit; the idea upgrades its closure (AUD-3) and does not file a new lead.
 
 ## f. Lean status
+
+![Arity / oracle-order threshold: cost exponent E*(m, k) against the generic 1/2 for both oracle semantics, with the sealed prime toy IC bounds and the atlas mitm exponents placed at their model order (editable source: render.py; nothing in the figure is a measurement produced by this session).](threshold-line.svg)
 
 | theorem (file) | file or attempt dir | role | status | open bridges |
 |---|---|---|---|---|
@@ -267,7 +355,18 @@ size.
 1. `specs/EXP-SPEC-oracle-order-census.md` - prime-field decomposition-oracle
    order census (fitted k per implemented oracle against the threshold line;
    positive controls with k = 1 by construction; matched rho.negation; A/A).
-2. (survivors' first steps, filled from the scouting workflow)
+2. Draft PROTOCOL for each carried-forward idea's first step, in section 4 of
+   its notes file (`ledger/proposals/<IDEA-ID>.notes.md`), with the criteria
+   block in section 3: IDEA-20261024-1b76a4 (corner-lemma review, rank-2 GAP
+   probe, cuso on S_3), IDEA-20261024-e65d46 (five-lemma proof review, exact
+   polynomial-calculus degree checker at s = 6..14, three toy primes),
+   IDEA-20261024-5bbcda (sampled-coefficient certification of H4w at 128/256
+   bits), IDEA-20261024-741c49 (band computation from the recorded counters;
+   PROTOCOL-3 re-run with the 0 / 0.1 / 1 GAE band), IDEA-20261024-06f16f
+   (paired `mitm-full:m=3` arm against the Table B incumbent at fp20/22/24/28
+   with matched rho.negation and A/A), IDEA-20261024-892d61 (pre-registered
+   exact occupancy tables for the EXP-ECTD-0cf008 recovery amendment). All
+   carry `approved_by: null`; none was compiled, relayed or run.
 
 ## h. Blockers (problems/ records)
 
@@ -298,13 +397,24 @@ size.
 
 ## i. Verdict lines
 
-(filled at the end)
+- LEAD-ICE-generic-oracle-arity-cost-floor (IDEA-20261024-a2b05d): advance | needs the repository Lean gate on a host without the EINTR fault, then a separate sheriff review, to decide the proof upgrade.
+- LEAD-ICE-charged-toy-ic-exponent-vs-rho: needs the measured enumeration order k of the O5 oracle (oracle-order census spec) to decide.
+- LEAD-ICP-generic-table-decomposition: advance (revisit_when sharpened to the threshold line); no disposition change.
+- LEAD-ICP-extension-field-embedding (TASK-20261024-551bd9): needs the Lean gate to decide the kind upgrade; the audit's structural lemma is the stronger target.
+- LEAD-ICE-sat-xor-pdp-oracle (IDEA-20261024-741c49): needs an admitted ns-per-conflict calibration on a qualified host (break-even 1/458 of a group addition) and the PROTOCOL-4 re-freeze to decide; the band is unresolved inside w in (0, 0.1), so neither branch is met today.
+- LEAD-ICP-coppersmith-smallroot-semaev (IDEA-20261024-1b76a4): needs the independent review of the corner lemma and the rank-2 GAP probe to decide; predicted close (proof, conditional on H1).
+- LEAD-ICP-digit-presentation-solving-degree (IDEA-20261024-e65d46, IDEA-20261024-5bbcda): needs the five-lemma proof review plus the exact PC-degree checker (direct branch, odd-order curves) and the H4w coefficient sampling at m = 6-8 (expanded presentation, rigorous at m <= 4) to decide; the chained cell and m = 5 at 128 bits stay open.
+- LEAD-ICP-prime-ic-constant-engineering (IDEA-20261024-06f16f): needs the paired `mitm-full:m=3` arm against the incumbent at fp20-fp28 with matched rho, A/A and the band to decide; Tier I only.
+- LEAD-ICP-isogeny-transported-relation-yield (IDEA-20261024-892d61): advance | needs the pre-registered exact occupancy tables filed in the EXP-ECTD-0cf008 amendment to decide.
+- LEAD-TRF-padic-canonical-section, LEAD-TRF-small-genus-cover-general, LEAD-EXO-augmented-oracle-ggm, LEAD-EXO-miller-pairing-cocycle, LEAD-RHO-non-automorphism-equivalence, LEAD-ICE-chained-semaev-dreg-vs-semiregular: advance (row splits or sharper next steps proposed in PROPOSED-DIFFS.md 7-12, each verified by three skeptics); the Coordinator decides.
+- Six proposed new rows from the fold (section b): needs their own `--match` runs and criteria blocks to decide; not filed here.
 
 ## Checks
 
 | check | result |
 |---|---|
-| `python3 tools/validate_ledger.py` | FAIL, 104 pre-existing errors on origin/main (re-run after merging origin/main e5f46a5951: the same 104); 0 errors name RQ-ECDLP-361f3a, IDEA-20261024-a2b05d or the new targets (every error line in `checks/validate_ledger_excerpt.txt`) |
+| `python3 tools/validate_ledger.py` | FAIL, 104 pre-existing errors on origin/main (re-run after merging origin/main e5f46a5951 and again after filing the six scouted ideas: the same 104); 0 errors and 0 advisories name RQ-ECDLP-361f3a or any IDEA-20261024-* record of this session (every error line in `checks/validate_ledger_excerpt.txt`) |
+| `python3 tools/lead_atlas.py --check` (plain) | PASS: `lead atlas OK: 147 leads ...; coverage 2056/2089 (33 unmapped)`; the 7 new ideas are mapped in `coverage.tsv` |
 | `python3 tools/check_merge_hygiene.py --base origin/main` | PASS on the 27 touched paths (no conflict markers, no unparseable records, no identifier collisions) |
 | `python3 tools/lead_atlas.py --check --strict-paths` | FAIL, 2 pre-existing errors (LEAD-RHO-pool-class-quotient evidence[4], [5]); 0 attributable to this session; without `--strict-paths` these are warnings and the check passes |
 | `python3 tools/build_frontier_map.py --check` | PASS: `known-results map OK: 52 rows` |
