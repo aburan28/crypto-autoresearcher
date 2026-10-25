@@ -37,6 +37,7 @@ import glob
 import random
 import os
 import re
+import secrets
 import sys
 from pathlib import Path
 
@@ -383,6 +384,58 @@ def next_free(rec_type: str, middle: str) -> int:
     return 0
 
 
+def _run_ids_in_paths(paths: list[str]) -> set[str]:
+    """Index existing new-form RUN IDs from one repository path scan."""
+    found: set[str] = set()
+    pattern = re.compile(r"^(RUN-[A-Za-z]+-[0-9a-f]{6})(?:[._-]|$)")
+    for path in paths:
+        for component in Path(path).parts:
+            match = pattern.match(component)
+            if match:
+                found.add(match.group(1))
+    return found
+
+
+def allocate_many_runs(area: str, count: int, *, seed: int | None = None) -> list[str]:
+    """Allocate unique RUN IDs after one collision-index scan."""
+    if not NEW_RUN_AREA.fullmatch(area):
+        raise ValueError("run allocation requires a letters-only uppercase area")
+    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 100_000:
+        raise ValueError("bulk run count must be an integer from 1 through 100000")
+    used = _run_ids_in_paths(_identifier_paths())
+    rng = random.Random(seed) if seed is not None else secrets.SystemRandom()
+    allocated: list[str] = []
+    attempts = 0
+    while len(allocated) < count and attempts < count * 64:
+        attempts += 1
+        rec_id = f"RUN-{area}-{random_token(rng)}"
+        ok, why = well_formed(rec_id)
+        if not ok:
+            raise ValueError(f"allocator produced malformed ID {rec_id}: {why}")
+        if rec_id not in used:
+            used.add(rec_id)
+            allocated.append(rec_id)
+    if len(allocated) != count:
+        raise RuntimeError("bulk allocator exhausted its bounded collision retries")
+    return allocated
+
+
+def check_run_id_file(path: Path) -> int:
+    """Check uniqueness, grammar and repository collisions in one file pass."""
+    from collections import Counter
+    ids = [line.strip() for line in path.read_text().splitlines() if line.strip()]
+    run_pattern = re.compile(r"^RUN-[A-Z]+-[0-9a-f]{6}$")
+    bad = [rec_id for rec_id in ids if not run_pattern.fullmatch(rec_id) or not well_formed(rec_id)[0]]
+    duplicates = sorted(rec_id for rec_id, count in Counter(ids).items() if count > 1)
+    taken = _run_ids_in_paths(_identifier_paths())
+    collisions = sorted(set(ids) & taken)
+    if not ids or bad or duplicates or collisions:
+        print(f"REFUSE: {len(ids)} IDs; malformed={bad[:10]}, duplicates={duplicates[:10]}, taken={collisions[:10]}")
+        return 1
+    print(f"well-formed, unique and free: {len(ids)} RUN IDs")
+    return 0
+
+
 def audit() -> int:
     """Report every malformed or duplicated identifier in the repository."""
     seen: dict[str, list[str]] = {}
@@ -418,6 +471,8 @@ def main(argv: list[str] | None = None) -> int:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", metavar="ID",
                    help="check one identifier for form and freedom")
+    g.add_argument("--check-file", type=Path,
+                   help="check every ID in a newline-delimited file with one scan")
     g.add_argument("--next", metavar="TYPE",
                    choices=sorted(set(PREFIX_TYPE.values())
                                   | set(KNOWLEDGE_PREFIX_TYPE.values())),
@@ -433,6 +488,8 @@ def main(argv: list[str] | None = None) -> int:
                          "that will be merged.")
     ap.add_argument("--seed", type=int, default=None,
                     help="seed the random allocator (tests and reproduction only)")
+    ap.add_argument("--count", type=int, default=1,
+                    help="number of IDs for --next; bulk RUN allocation scans once")
     args = ap.parse_args(raw_argv)
     area_occurrences = len(args.area or [])
     # Preserve the existing last-value behavior for other record types while
@@ -441,6 +498,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         return check(args.check)
+    if args.check_file:
+        return check_run_id_file(args.check_file)
     if args.audit:
         return audit()
     if args.next == "run" and (area_occurrences != 1
@@ -448,6 +507,16 @@ def main(argv: list[str] | None = None) -> int:
                                or args.date is not None):
         ap.error("run allocation requires exactly one letters-only uppercase "
                  "--area (A-Z) and does not accept --date")
+    if args.count != 1:
+        if args.next != "run" or args.sequential:
+            ap.error("--count is supported only for random RUN allocation")
+        try:
+            ids = allocate_many_runs(args.area, args.count, seed=args.seed)
+        except ValueError as error:
+            ap.error(str(error))
+        print("\n".join(ids))
+        print(f"bulk allocation: {len(ids)} unique RUN IDs; verify with --check-file", file=sys.stderr)
+        return 0
     if args.next == "goal" and (area_occurrences != 1
                                 or not args.area or args.date):
         ap.error("goal allocation requires exactly one --area occurrence "
