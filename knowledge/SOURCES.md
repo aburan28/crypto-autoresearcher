@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 8 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8105 |
-| — with a resolvable external identifier | 2491 |
+| Literature entries (`KN-LIT-*`) | 8114 |
+| — with a resolvable external identifier | 2500 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 182, eprint 837, url 129. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 189, eprint 839, url 129. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page)` 1, `abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check)` 1, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 3, `partial` 5, `read` 7527, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 525.
+`citation_verified` distribution: `False` 23, `True` 10, `abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page)` 1, `abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check)` 1, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 3, `partial` 5, `read` 7534, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 527.
 
 ## 1. Frozen source packages
 
@@ -243,7 +243,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2491 of 8105 `KN-LIT-*` entries carry an
+2500 of 8114 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1466,6 +1466,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | 2020 | `arxiv:2005.10741` | read |
 | KN-LIT-1d7668 | Classic McEliece key generation on RAM constrained devices | 2022 | `eprint:2022/1613` | web |
 | KN-LIT-1d8337 | Masking large keys in hardware: a masked implementation of McEliece | 2015 | `eprint:2015/924` | web |
+| KN-LIT-1e6270 | On the discrete logarithm problem for prime-field elliptic curves (full text read): random known-log factor base, one relation, about m^m Groebner solves of a split system, no exponent claimed | 2018 | `eprint:2017/609` | read |
 | KN-LIT-1ec508 | QIMEN-PIKE（NGCC 公钥第一轮候选 · 密钥封装 31） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-1f10ac | A summary of McEliece-type cryptosystems and their security | 2007 | `eprint:2006/162` | web |
 | KN-LIT-1fe0a3 | PolarLAC（NGCC 公钥第一轮候选 · 密钥封装 30） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
@@ -1591,6 +1592,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-2b7e8e | The Certicom ECC Challenge (status page) | 1997 | `url:www.certicom.com/content/certicom/en/the-certicom-ecc-challenge.html` | web |
 | KN-LIT-2c4f3d | Kangaroo: Pollard's kangaroo for SECPK1 (GPU ECDLP interval solver) | 2020 | `url:github.com/jeanlucpons/kangaroo` | web |
 | KN-LIT-2c8264 | A Subexponential-Time Quantum Algorithm for the Dihedral Hidden Subgroup Problem (Kuperberg 2005) | 2005 | `arxiv:quant-ph/0302112` | web |
+| KN-LIT-2d30ef | A new index calculus algorithm for the elliptic curve discrete logarithm problem and summation polynomial evaluation (full text read): Groebner O(p^{omega-omega/m}), evaluation O(p log^2 p), sum-(m-1)-and-test O(p); all worse than rho | 2017 | `eprint:2017/1262` | read |
 | KN-LIT-2d4a82 | Octarine（NGCC 公钥第一轮候选 · 数字签名 16） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-2d85cd | Low-Reiter: Niederreiter encryption scheme for embedded microcontrollers | 2010 | `doi:10.1007/978-3-642-12929-2_13` | web |
 | KN-LIT-2d9edb | An algebraic attack against McEliece-like cryptosystems based on BCH codes | 2023 | `eprint:2022/1715` | web |
@@ -2334,6 +2336,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | 2020 | `arxiv:2009.13837` | read |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | 2020 | `arxiv:2004.10592` | read |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | 2020 | `arxiv:2008.02571` | read |
+| KN-LIT-7a7034 | A generalized birthday problem (long version read): k-tree algorithm, the group conditions under which it applies, and Theorem 2 (W. Dai): a k-sum solver in a cyclic group gives discrete logarithms in the same time, so every generic k-sum algorithm needs Omega(sqrt p) | 2002 | `doi:10.1007/3-540-45708-9_19` | read |
 | KN-LIT-7baf07 | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) | 2026 | `eprint:2026/1630` | web |
 | KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | 2026 | `eprint:2026/366` | web |
 | KN-LIT-7c4620 | A heuristic subexponential attack on the McEliece cryptosystem | 2026 | `eprint:2026/1232` | web |
@@ -2465,7 +2468,9 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-898 | On order of vanishing of characteristic elements | 2021 | `arxiv:2109.03985` | read |
 | KN-LIT-899 | On parameterizations of cyclic N -isogenies and strict K-curves lying above rational points of Y0+(N ) | 2021 | `arxiv:2110.13908` | read |
 | KN-LIT-89d5df | Compact GF(2) systemizer and optimized constant-time hardware sorters for Key Generation in Classic McEliece | 2022 | `eprint:2022/1277` | web |
+| KN-LIT-8aca31 | A strategy for finding roots of multivariate polynomials with new applications in attacking RSA variants (full text read): basic and extended Coppersmith strategies, their determinant conditions, Assumption 1, and the generalized-rectangle bound prod X_i^{lambda_i} < N^{2/((n+1)D)} | 2006 | `doi:10.1007/11935230_18` | read |
 | KN-LIT-8aff72 | EcGFp5: a Specialized Elliptic Curve (read at source) | 2022 | `eprint:2022/274` | read |
+| KN-LIT-8bf122 | Complexity bounds on Semaev's naive index calculus method for ECDLP (full text read): Groebner bases of the split-base PDP ideal are an extended Euclidean algorithm over the d^m grid; lower bound m*delta*d^{m-1} per system under two statistical assumptions | 2020 | `doi:10.1515/jmc-2019-0029` | read |
 | KN-LIT-8cc29a | Brace for impact: ECDLP challenges for quantum cryptanalysis | 2025 | `arxiv:2508.14011` | web |
 | KN-LIT-8d4e62 | Rudraksh2（NGCC 公钥第一轮候选 · 密钥封装 34） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-8d516e | On Generalized First Fall Degree Assumptions | 2015 | `eprint:2015/358` | web |
@@ -2589,6 +2594,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-99d262 | NEV-AKE（NGCC 公钥第一轮候选 · 密钥交换 7） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-99dfe4 | On the discrete logarithm problem for prime-field elliptic curves | 2018 | `eprint:2017/609` | web |
 | KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
+| KN-LIT-9c442f | Algebraic approaches for the elliptic curve discrete logarithm problem over prime fields (full text read): compositional factor bases, the smooth-order multiplicative-subgroup and isogeny-kernel-coset bases, and the p^{1/2-1/m} per-system threshold | 2016 | `doi:10.1007/978-3-662-49387-8_1` | read |
 | KN-LIT-9d845c | Kleptography: Using Cryptography Against Cryptography | 1997 | `doi:10.1007/3-540-69053-0_6` | web |
 | KN-LIT-9e78f8 | Origami（NGCC 公钥第一轮候选 · 数字签名 18） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
@@ -2611,6 +2617,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-aa3372 | A complete quantum circuit to solve the information set decoding problem | 2021 | `doi:10.1109/qce52317.2021.00056` | web |
 | KN-LIT-aa5c47 | Lynxer（NGCC 公钥第一轮候选 · 数字签名 14） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-ace115 | Acceleration of Classic McEliece post-quantum cryptosystem with cache processing | 2023 | `doi:10.1109/mm.2023.3304425` | web |
+| KN-LIT-ad6582 | Mathematics of Public Key Cryptography (chapters 13, 15, 19 read): BSGS and interval DLP bounds, Semaev's prime-field factor base with 'no efficient algorithm even for n = 5; Coppersmith's method seems not to be useful', and the univariate/bivariate Coppersmith theorems | 2012 | `doi:10.1017/cbo9781139012843` | read |
 | KN-LIT-ae78e5 | Can we Beat the Square Root Bound for ECDLP over F_{p^2} via Representations? | 2019 | `eprint:2019/800` | web |
 | KN-LIT-ae8a1e | A modular analysis of the Fujisaki-Okamoto transformation | 2017 | `eprint:2017/604` | web |
 | KN-LIT-aebbc8 | MAMBA-NIKE（NGCC 公钥第一轮候选 · 密钥交换 6） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
@@ -2647,6 +2654,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c137bd | A Variant of the F4 Algorithm | 2011 | `eprint:2010/158` | web |
 | KN-LIT-c143e7 | COMPASS-KEM（NGCC 公钥第一轮候选 · 密钥封装 11） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-c14d68 | An Efficient Variant of F4 Algorithm for Solving MQ Problem | 2026 | `eprint:2023/1650` | web |
+| KN-LIT-c1e815 | Acceleration of index calculus for solving ECDLP over prime fields and its limitation (abstract plus two secondary restatements): hybrid method, (x1+x2, x1x2) symmetrisation and GCD solving on the Amadori variant; neither APS nor PKM outperforms rho; cost at least p^{2/3} | 2018 | `doi:10.1007/978-3-030-00434-7_19` | web |
 | KN-LIT-c2c4d0 | Reaction attacks against several public-key cryptosystems | 1999 | `url:cypherpunks.ca/~iang/pubs/paper-reaction-attacks.pdf` | false |
 | KN-LIT-c41d8b | Polynomial time key-recovery attack on high rate random alternant codes (boundary corrected: generic alternant only, Goppa codes explicitly excluded) | 2024 | `arxiv:2304.14757` | transcription_of_full_text_at_recorded_sha256 |
 | KN-LIT-c42d33 | When Module Lattice Leaks: Horizontal Fusion Attacks on ML-DSA Implementation | 2026 | `eprint:2026/1904` | web |
@@ -2702,6 +2710,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-e8eaf8 | A designer's guide to KEMs | 2003 | `eprint:2002/174` | web |
 | KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | 2025 | `doi:10.6028/nist.ir.8545` | web |
 | KN-LIT-ebd657 | Decomposition formula of the Jacobian group of plane curve (Draft) | 2013 | `eprint:2013/548` | read |
+| KN-LIT-ed7e23 | Linear recurrences with polynomial coefficients and application to integer factorization and Cartier-Manin operator: the N-th term of a P-recursive sequence, hence prod_{i<N} M(i) for a polynomial matrix M, in O~(sqrt N) ring operations (baby-step/giant-step) | 2007 | `doi:10.1137/s0097539704443793` | web |
 | KN-LIT-edd7ba | Point compression for the trace zero subgroup over a small degree extension field (read at source) | 2014 | `arxiv:1403.0126` | read |
 | KN-LIT-ef2183 | DKEM (Ding Key Encapsulation)（NGCC 公钥第一轮候选 · 密钥封装 13） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | 2023 | `eprint:2023/1940` | web |
@@ -8380,10 +8389,12 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
 | `arxiv:2501.03245` | KN-LIT-1394, KN-LIT-74dfa6 |
 | `arxiv:2508.14011` | KN-LIT-1351, KN-LIT-8cc29a |
+| `doi:10.1007/978-3-030-00434-7_19` | KN-LIT-17ea20, KN-LIT-c1e815 |
+| `doi:10.1007/978-3-662-49387-8_1` | KN-LIT-025, KN-LIT-9c442f |
 | `doi:10.1007/pl00003816` | KN-LIT-012, KN-LIT-73f7e1 |
 | `doi:10.1109/fpl.2010.34` | KN-LIT-2791, KN-LIT-63a5c5 |
 | `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
-| `doi:10.1515/jmc-2019-0029` | KN-LIT-4558, KN-LIT-d8e1b9 |
+| `doi:10.1515/jmc-2019-0029` | KN-LIT-4558, KN-LIT-8bf122, KN-LIT-d8e1b9 |
 | `eprint:2003/128` | KN-LIT-d7995a, KN-LIT-fa389d |
 | `eprint:2004/153` | KN-LIT-164, KN-LIT-92caf4 |
 | `eprint:2008/390` | KN-LIT-0cb87e, KN-LIT-235 |
@@ -8400,6 +8411,8 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
 | `eprint:2015/805` | KN-LIT-449, KN-LIT-bf1772 |
 | `eprint:2015/984` | KN-LIT-456, KN-LIT-71b758 |
+| `eprint:2017/1262` | KN-LIT-2d30ef, KN-LIT-6966ea |
+| `eprint:2017/609` | KN-LIT-1e6270, KN-LIT-99dfe4 |
 | `eprint:2020/1315` | KN-LIT-0d9d28, KN-LIT-796 |
 | `eprint:2022/1573` | KN-LIT-1037, KN-LIT-f34f74 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |

@@ -16,7 +16,7 @@ tags: [cryptanalysis, factoring, lattice, provable-security, rsa]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-8aca31
 ---
 
 ## Contribution

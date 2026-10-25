@@ -18,7 +18,7 @@ tags: [index-calculus, prime-field, summation-polynomial, groebner, limits, ecdl
 confidence: reported
 citation_verified: web
 added: "2026-09-26"
-superseded_by: null
+superseded_by: KN-LIT-c1e815
 ---
 
 ## Contribution

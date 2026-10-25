@@ -18,7 +18,7 @@ tags: [index-calculus, prime-field, lower-bound, semaev, naive-index-calculus, e
 confidence: reported
 citation_verified: web
 added: "2026-09-26"
-superseded_by: null
+superseded_by: KN-LIT-8bf122
 ---
 
 ## Contribution
