@@ -46,3 +46,23 @@ merge into `main`; no alternative merge route was attempted.
 The full goal remains unresolved: an applicable optimized construction,
 weighted-bound normalization, root extraction, and a verified IC pipeline improvement remain
 separate obligations. The earlier report and raw artifacts have not been edited.
+
+Continuation (2026-10-25): the user explicitly authorized merge. The earlier
+approval refusal above is historical. The CI repair is published and the
+artifact check passes; other applicable hosted checks are pending, so no merge
+has occurred. See [weighted reach and readiness](readiness-20261025/report.md)
+and its [PDF](readiness-20261025/report.pdf). The pinned cuso backend runs its
+documented univariate 1/3 calibration. Its optimal-shift routine calls a
+Gröbner-basis computation, which must be included in costs. The three archived
+joint certificate regions have no overlap with the stated conditional sub-rho
+region. Neither observation supplies an optimized joint bound or root oracle.
+
+The design workflow has not admitted a new joint experiment: the host goal
+already has two open lanes, and no independent Coordinator runtime receipt
+has been established here. Full-ledger validation also reports 106 errors
+outside this PR's changed paths; the full output is retained. The repository's
+scientific statuses remain unchanged. The continuation report gives the
+specific next design and matched complete-cost measurement requirements.
+The [operational follow-up](readiness-20261025/operational-followup.md) records
+the direct Codex initialization failure on the read-only filesystem and the
+two additional draft-tier fixes inherited from current main.

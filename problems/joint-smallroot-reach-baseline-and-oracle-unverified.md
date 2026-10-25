@@ -1,10 +1,10 @@
 # Joint small-root baseline and executable decomposition remain unverified
 
 - **Status:** investigating
-- **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; merge approval limit
+- **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
 - **Next action owner:** coordinator; blind mathematical derivation TASK-20261024-da3810 completed, optimized construction and full cost experiment remain open
-- **Last updated:** 2026-10-24
+- **Last updated:** 2026-10-25
 
 ## Problem
 
@@ -97,8 +97,9 @@ moves.
   requires an additive correction before any benchmark. A feasible optimized
   construction motivates a frozen recovery test. An unavailable theorem or
   tool remains an implementation/access gap, not negative mathematical evidence.
-- **Recheck trigger:** publication authorization or a checked applicable joint
-  shift construction/root-extraction implementation.
+- **Recheck trigger:** a lawful design lane and verified independent Coordinator
+  runtime; a checked applicable weighted joint shift construction/root-extraction
+  implementation; completion of current-head hosted merge checks.
 
 ## Resolution and history
 
@@ -115,3 +116,26 @@ mathematical and implementation obligations.
 arithmetic fixture returned. Parent source comparison is recorded separately in
 the addendum. No optimized-shift certificate, joint root extraction, scientific
 state transition, or verified IC improvement is established.
+
+2026-10-25 readiness continuation: the user explicitly authorized merge, so
+the previous approval impediment is resolved. Artifact-policy and draft-tier
+CI defects were repaired without weakening enforcement; the artifact workflow
+passes and the other applicable checks remain pending. No merge has occurred.
+The [new report](../research/joint_smallroot_reach_20261024/readiness-20261025/report.md)
+and [PDF](../research/joint_smallroot_reach_20261024/readiness-20261025/report.pdf)
+derive the weighted conditional cost model from the archived finite counts.
+These three certificate regions do not meet that model's sub-rho condition;
+this is not an impossibility claim about improved shifts. The pinned cuso
+implementation runs its documented univariate calibration at delta*=1/3.
+Its optimal-shift implementation uses Gröbner preprocessing, so bypassing all
+such costs has not been established. No joint solver trial was launched.
+Two host-goal lanes are already open and an independent Coordinator runtime
+receipt remains unavailable in this session. Full-ledger validation reports
+106 errors outside the audit's changed paths; no historical records or
+validation baselines were altered. The optimized joint oracle and matched
+complete IC comparison remain the scientific gaps.
+The direct authenticated Codex readiness check exits before initialization
+with a read-only filesystem error, as recorded in the
+[operational follow-up](../research/joint_smallroot_reach_20261024/readiness-20261025/operational-followup.md).
+Two newly inherited main workflows also needed the existing draft-tier guards;
+the local checker now reports zero uncovered workflows.
