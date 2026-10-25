@@ -1,11 +1,14 @@
 """Small fixed implementation controls; never part of a scientific target stream."""
 import hashlib
+import json
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prepare_graph_input import SCHEDULE, base_points, draw, load_vertex, prepare, target_coefficients
 from verify_collector import add, multiply, parse_input, on_curve
+from verify_prepared_graph import verify
 
 
 STUDY = Path(__file__).resolve().parents[1]
@@ -13,6 +16,7 @@ WALKS = {"P29": STUDY / "walk-p29-2048-attempt2.jsonl",
          "P37": STUDY / "walk-p37-256.jsonl"}
 BASE_ROOT = b"B" * 32
 TARGET_ROOT = b"T" * 32
+VERIFIER_ROOT = b"V" * 32
 
 
 def parse_payload(payload):
@@ -31,15 +35,22 @@ def main():
         header1, model1, curve1, generator1 = load_vertex(walk, 1)
         assert header0 == header1 and model0["j"] != model1["j"]
         k, coeffs, _ = target_coefficients(TARGET_ROOT, stratum, "discovery", curve0.r, 8)
+        independent_k, independent_coeffs, _ = target_coefficients(
+            TARGET_ROOT, stratum, "discovery", curve0.r, 8, VERIFIER_ROOT)
+        other_target_k, _, _ = target_coefficients(
+            b"U" * 32, stratum, "discovery", curve0.r, 8, VERIFIER_ROOT)
+        assert independent_k == other_target_k
+        assert independent_k != k
+        assert len(independent_coeffs) == 8
         assert len(coeffs) == 8 and len({scalar for _, _, scalar in coeffs}) == 8
         assert all(scalar for _, _, scalar in coeffs)
         assert draw(BASE_ROOT, ["domain-a"], 1000) == draw(BASE_ROOT, ["domain-a"], 1000)
         assert draw(BASE_ROOT, ["domain-a"], 1000) != draw(BASE_ROOT, ["domain-b"], 1000)
-        arms = ("low_x", "mid_x", "random_x", "power_x", "u2_native", "u2_transport")
+        arms = ("low_x", "mid_x", "random_x", "power_x", "graph_transport", "u2_native", "u2_transport")
         for index in (0, 1):
             expected_coeffs = None
             for arm in arms:
-                if arm == "power_x" and index != 0:
+                if arm in ("power_x", "graph_transport") and index != 0:
                     continue
                 payload, meta = prepare(walk, index, arm, "discovery", BASE_ROOT, TARGET_ROOT, 8)
                 again, same_meta = prepare(walk, index, arm, "discovery", BASE_ROOT, TARGET_ROOT, 8)
@@ -76,6 +87,61 @@ def main():
             pass
         else:
             raise AssertionError("power_x index restriction missing")
+        try:
+            prepare(walk, 1, "graph_transport", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("graph_transport index restriction missing")
+        check_index = SCHEDULE[stratum]["power_stride"]
+        payload, meta = prepare(walk, check_index, "graph_transport", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        native, native_meta = prepare(walk, check_index, "low_x", "discovery", BASE_ROOT, TARGET_ROOT, 8)
+        graph_base, graph_targets = parse_payload(payload)
+        native_base, native_targets = parse_payload(native)
+        assert graph_targets == native_targets and graph_base != native_base
+        assert meta["generator"] == native_meta["generator"] and meta["Q"] == native_meta["Q"]
+        checkpoint = Path(__file__).resolve().parents[3] / meta["checkpoint_path"]
+        assert graph_base == [tuple(point) for point in json.loads(checkpoint.read_text())["base"]]
+        with TemporaryDirectory() as temp:
+            prepared_path = Path(temp) / "prepared.txt"
+            manifest_path = Path(temp) / "manifest.json"
+            prepared_path.write_bytes(payload)
+            manifest_path.write_text(json.dumps(meta))
+            result = verify(prepared_path, manifest_path)
+            assert result["status"] == "pass" and result["base_points_checked"] == len(graph_base)
+            altered = dict(meta)
+            altered["checkpoint_sha256"] = "0" * 64
+            manifest_path.write_text(json.dumps(altered))
+            try:
+                verify(prepared_path, manifest_path)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("changed checkpoint digest accepted")
+            scientific, scientific_meta = prepare(
+                walk, check_index, "graph_transport", "discovery",
+                BASE_ROOT, TARGET_ROOT, 8, VERIFIER_ROOT)
+            assert scientific_meta["seed_mode"] == "independent_verifier_root"
+            assert scientific_meta["verifier_root_sha256"] == hashlib.sha256(VERIFIER_ROOT).hexdigest()
+            assert [(a, b) for a, b, _, _ in parse_payload(scientific)[1]] == [
+                (a, b) for a, b, _ in independent_coeffs]
+            prepared_path.write_bytes(scientific)
+            manifest_path.write_text(json.dumps(scientific_meta))
+            base_path, target_path, verifier_path = [Path(temp) / name for name in
+                                                     ("base-root", "target-root", "verifier-root")]
+            for path, root in ((base_path, BASE_ROOT), (target_path, TARGET_ROOT),
+                               (verifier_path, VERIFIER_ROOT)):
+                path.write_text(root.hex())
+            replayed = verify(prepared_path, manifest_path, base_path, target_path, verifier_path)
+            assert replayed["status"] == "pass" and replayed["deterministic_seed_replay"]
+            for wrong in (None, target_path):
+                try:
+                    verify(prepared_path, manifest_path, base_path, target_path, wrong)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("missing or nonindependent verifier root accepted")
+        cases += 1
     print({"status": "pass", "small_fixture_cases": cases,
            "scope": "base/target preparation correctness only; no relation collection"})
 
