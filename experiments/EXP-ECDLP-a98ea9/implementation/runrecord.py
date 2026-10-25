@@ -65,14 +65,18 @@ def _dump_yaml(obj, indent=0) -> str:
     lines = []
     if isinstance(obj, dict):
         for k, v in obj.items():
-            if isinstance(v, (dict, list)):
+            if isinstance(v, (dict, list)) and not v:
+                lines.append(f"{pad}{k}: {'[]' if isinstance(v, list) else '{}'}")
+            elif isinstance(v, (dict, list)):
                 lines.append(f"{pad}{k}:")
                 lines.append(_dump_yaml(v, indent + 1))
             else:
                 lines.append(f"{pad}{k}: {_yaml_scalar(v)}")
     elif isinstance(obj, list):
         for item in obj:
-            if isinstance(item, (dict, list)):
+            if isinstance(item, (dict, list)) and not item:
+                lines.append(f"{pad}- {'[]' if isinstance(item, list) else '{}'}")
+            elif isinstance(item, (dict, list)):
                 lines.append(f"{pad}-")
                 lines.append(_dump_yaml(item, indent + 1))
             else:

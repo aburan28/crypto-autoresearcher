@@ -32,10 +32,12 @@ an additive, source-bound correction is reviewed. Preserve the originals.
   tracked bytes. No cryptanalytic result follows from this finding.
 - **Future-writer repair:** `implementation/runrecord.py` now serializes every
   string value as a JSON string literal, which PyYAML reads as a YAML string.
+  It also emits empty lists and maps explicitly instead of YAML nulls.
   [Regression tests](../experiments/EXP-ECDLP-a98ea9/implementation/test_runrecord.py)
-  cover multiline `git status` output and string values that resemble numbers
-  or booleans. This changes only future manifests; it does not repair the
-  three archived records.
+  cover multiline `git status` output, string values resembling numbers or
+  booleans, and empty collections. Four other parseable manifests from this
+  experiment round-trip with unchanged parsed data. This changes only future
+  manifests; it does not repair the three archived records.
 - **Suspected explanation:** The writer serialized multiline `git status`
   output as a plain scalar. Whether other run fields are accurate remains
   unreviewed.

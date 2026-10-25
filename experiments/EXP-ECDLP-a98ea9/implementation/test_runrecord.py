@@ -25,6 +25,11 @@ class RunRecordYamlTests(unittest.TestCase):
 
         self.assertEqual(yaml.safe_load(_dump_yaml(value)), value)
 
+    def test_empty_collections_keep_their_types(self):
+        value = {"nested": {"no_items": [], "no_fields": {}}, "list": [[], {}]}
+
+        self.assertEqual(yaml.safe_load(_dump_yaml(value)), value)
+
 
 if __name__ == "__main__":
     unittest.main()
