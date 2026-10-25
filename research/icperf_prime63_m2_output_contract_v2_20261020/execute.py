@@ -23,6 +23,6 @@ def main():
         row={"cell":cell,"kind":"positive","attempted":True,"stop":stop}
         if stop=="exited": row["response"]="canned_positive"
         cells.append(row)
-    receipt={"schema":output_contract.DIAGNOSTIC_SCHEMA,"experiment_id":"EXP-ICPERF-fixture","run_id":launch["run_id"],"trial_id":launch["trial_id"],"plan_sha256":launch["plan_sha256"],"launch_sha256":sha((args.run_dir/"launch.json").read_bytes()),"claim_owner":launch["authority"]["owner"],"claim_epoch":launch["authority"]["epoch"],"started_utc":now,"ended_utc":now,"raw_tar_sha256":sha(tar.read_bytes()),"raw_members":[{"path":n} for n in raw],"cells":cells}
+    receipt={"schema":output_contract.DIAGNOSTIC_SCHEMA,"experiment_id":"EXP-ICPERF-fixture","run_id":launch["run_id"],"trial_id":launch["trial_id"],"plan_sha256":launch["plan_sha256"],"launch_sha256":sha((args.run_dir/"launch.json").read_bytes()),"claim_owner":launch["authority"]["owner"],"claim_epoch":launch["authority"]["epoch"],"started_utc":now,"ended_utc":now,"raw_tar_sha256":sha(tar.read_bytes()),"raw_members":[{"path":n,"sha256":sha(data),"bytes":len(data)} for n,data in raw.items()],"cells":cells}
     (d/"receipt.json").write_bytes(canon(receipt)); output_contract.write_outputs(args.run_dir)
 if __name__ == "__main__": main()

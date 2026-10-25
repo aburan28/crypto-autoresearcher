@@ -85,10 +85,25 @@ def derive(run_dir):
         raise ContractError("raw member custody missing")
     try:
         with tarfile.open(tar_path, "r:gz") as archive:
-            names = [m.name for m in archive.getmembers() if m.isfile()]
+            entries = archive.getmembers()
+            names = [m.name for m in entries if m.isfile()]
+            if len(names) != len(entries) or len(names) != len(set(names)):
+                raise ContractError("non-file or duplicate raw member")
+            declared = []
+            for row in members:
+                if not isinstance(row, dict): raise ContractError("raw member declaration invalid")
+                name, expected, size = row.get("path"), row.get("sha256"), row.get("bytes")
+                if not isinstance(name, str) or name.startswith("/") or ".." in Path(name).parts: raise ContractError("unlisted raw member")
+                _sha(expected, "raw member")
+                if type(size) is not int or size < 0: raise ContractError("raw member size invalid")
+                handle = archive.extractfile(name)
+                if handle is None: raise ContractError("missing raw member")
+                data = handle.read()
+                if len(data) != size or digest(data) != expected: raise ContractError("raw member digest mismatch")
+                declared.append(name)
     except tarfile.TarError as error:
         raise ContractError("invalid diagnostic archive") from error
-    if names != [r.get("path") for r in members] or any(not isinstance(r.get("path"), str) or r["path"].startswith("/") or ".." in Path(r["path"]).parts for r in members):
+    if names != declared:
         raise ContractError("unlisted raw member")
     cells = receipt.get("cells")
     if not isinstance(cells, list) or [r.get("cell") for r in cells if isinstance(r, dict)] != list(CELLS):
