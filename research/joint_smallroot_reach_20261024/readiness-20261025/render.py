@@ -123,6 +123,6 @@ while i < len(lines):
         while i < len(lines) and lines[i].strip() and not lines[i].startswith(("#", "|", "- ")):
             para.append(lines[i]); i += 1
         out.append('#text(' + q(plain(" ".join(para))) + ')\n\n')
-(HERE / "report.typ").write_text("\n".join(out) + "\n")
+(HERE / "report.typ").write_text("\n".join(out).rstrip() + "\n")
 import typst
 typst.compile(str(HERE / "report.typ"), output=str(HERE / "report.pdf"))

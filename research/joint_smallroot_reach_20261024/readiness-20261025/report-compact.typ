@@ -97,5 +97,3 @@
 
 
 #text("Graph sources checked: the original reach-cost.svg and review-20261024/accounting.svg report their frozen accounting, so they are preserved. This report adds weighted-reach.svg and its drawing script. No canonical curve/isogeny relationship or scientific status changed.")
-
-
