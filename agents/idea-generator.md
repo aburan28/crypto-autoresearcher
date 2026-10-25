@@ -169,6 +169,19 @@ nearest prior work with its relation and delta, or the searches that found
 nothing. From IDEA-20261001-* onward the validator requires the block. A missing
 row is not evidence of novelty — the map is curated, not exhaustive.
 
+The known-results map covers the literature; the **lead atlas**
+(`knowledge/leads/ecdlp/`, or the `--render` output pasted into the handoff)
+covers what this program has already done. Each lead carries its disposition,
+the obstruction that closed it or the next step that would decide it, and the
+phrases an idea uses when it re-proposes it. Before writing an ECDLP idea, find
+its lead. An idea under an open lead advances that lead's `next_action` or says
+why a different step discriminates better. An idea under a closed lead states,
+in its mechanism, which premise of the recorded obstruction it escapes; an idea
+that cannot do so is a duplicate, and you do not file it. Record the lead as
+`prior_art.lead` (required from IDEA-20261025-*). Use `lead: new` with
+`new_lead_reason` only for a mechanism no lead covers. A new lead is the
+most valuable output this role can produce once the atlas is saturated.
+
 Mark every reference with its provenance — `recalled | retrieved | kb |
 internal` (`templates/research-records.md`, "Citation provenance"). Name the
 nearest work you can remember even when you cannot open it: a hedged

@@ -1,0 +1,578 @@
+red_team_report:
+  id: RT-20261023-d796bb
+  task_id: TASK-20261023-62eb31
+  review_plan_id: REVIEW-CZLIFT-ED8113-EVIDENCE-20261023
+  goal_id: GOAL-CZLIFT-1516d5
+  experiment_id: EXP-CZLIFT-ed8113
+  hypothesis_id: H-CZLIFT-cb95b8
+  reviewed_at: '2026-10-23'
+  reviewer_policy: review-adversarial, independent session; blindness lifted only for VAL-20261022-b08129
+  snapshot_reviewed: >-
+    Local HEAD 14a328a264 (task card committed there). Every read_scope path is clean against HEAD
+    (git status shows only untracked redteam-20261023 directories). Run packages RUN-CZLIFT-c3f8a8 and
+    RUN-CZLIFT-218843 were read as committed. No working-tree-only artifact was used as evidence; the
+    red-team scripts and outputs below are review artifacts in this write_scope, not evidence.
+
+  claim_under_review: >-
+    H-CZLIFT-cb95b8 as copied into the review plan: for the 8 primes, random curves, r in {2, 3} random
+    points with symmetric lifts and the fitted model, the exact search over max|m_i| <= 6 "finds no relation
+    in any of 100 trials per cell on either seed (dependence_rate_overall = 0, upper 95 percent bound below
+    0.002)", the planted [2]P control is detected 24/24, and lifted points have naive log-height "about
+    0.7 log p". Joints owned here: R1 (support for H and for the xedni-style obstruction "naive lifts of
+    random points are independent with overwhelming probability"), R2 (the search can see the dependences an
+    attacker would use), PTM-1.
+
+  joint_verdicts:
+    R1: breaks
+    R2: breaks
+    PTM-1: breaks
+
+  joints:
+    R1:
+      verdict: breaks
+      summary: >-
+        The runs do not support H-CZLIFT-cb95b8 as worded, and they do not support "naive lifts of random
+        points are independent with overwhelming probability" as the xedni obstruction. Four independent
+        breaks. A narrower restated claim holds (narrowest_supported_statement).
+      breaks:
+        - id: R1-B1
+          kind: literal statement false on its own run
+          evidence: >-
+            Seed 20261009 has 1 relation in 1600 valid trials (p = 101, r = 2, trial 61, lifts (-24, -15),
+            (48, -15), relation 2P~1 + P~2 = O, recorded [-2, -1]); re-found by the producer's dependent() on
+            replayed inputs (rt_replay_inputs.json, refound_relations_p101). H says "no relation in any of 100
+            trials per cell on either seed" and its predictions block says "exactly 0 on 1600 valid trials per
+            seed". The per-seed 95 percent one-sided bound for seed 20261009 is 0.00296 > 0.002 (rt_stats.json;
+            agrees with VAL-20261022-b08129 F4). Only the specification's looser success criterion
+            (rate <= 0.002) is met on both seeds. H's predictions and the specification's success criterion
+            are internally inconsistent frozen records; a correction must name which governs.
+        - id: R1-B2
+          kind: reading under which the claim fails (sampler)
+          evidence: >-
+            Confirmed behaviourally (rt_sampler_probe.json): the frozen sampler never returns y = 0 (0 of
+            60000 draws on three p = 101 curves with full 2-torsion, where about 1820 are expected under
+            uniform sampling of affine points); 0 of 8000 replayed producer points have Y = 0. Under the
+            literal reading "r random points of E(F_p)" a y = 0 point lifts to Y = 0, a 2-torsion point over
+            Q (relation (2, 0)). Expected such hits are 9.77 per seed (rate 0.0061). Poisson reading:
+            P(success criterion met on one seed) = 0.0122, on both seeds 1.5e-4; P(falsification) = 0.022;
+            P(inconclusive band) = 0.965 per seed (rt_stats.json literal_sampler_reading). The validator's
+            blind literal sampler observed 8/1600 = 0.005 (VAL F1). The recorded "success" therefore exists
+            only under an undeclared sampler restriction.
+          decision_on_reading: >-
+            The hypothesis must be read as the hash-pinned sampler: uniform over affine points with y != 0
+            (2-torsion excluded) and pairwise distinct x. This is also the attack-relevant direction, since
+            xedni's points s_i Q - t_i P lie in a subgroup of large odd prime order: none has y = 0, and a
+            (2, 0) relation carries no information about the logarithm. The attack-relevant restriction is
+            stronger than y != 0, however: it excludes every point of small order mod p on these composite-order
+            random curves, and the sampler does not. The claim must be restated with the restriction in its
+            text (correction record). It may not be described as "random points of E(F_p)".
+        - id: R1-B3
+          kind: cited result says something different
+          evidence: >-
+            JKSST 2000 (Designs, Codes and Cryptography 20, 41-64; primary PDF read in full) does not say
+            that lifts are independent with overwhelming probability, and does not give the probability of
+            dependence as negligible at this scale. (a) Theorem 4.1 (p. 49) gives success probability
+            < C0/p under "certain plausible assumptions": Lang's height conjecture m > C3 log|D|, and Lemma 4.1's
+            assumption log|D| >= C1 max hhat(P_i). Its mechanism is an absolute bound C2 on the COEFFICIENTS
+            of any relation (Lemma 4.1, p. 50), followed by pigeonhole: Pr ~ (2 C2)^r / p (p. 52). (b) Section
+            4.1 (p. 53) estimates C0 ~ 1e4 for r = 2 and ~ 1e12 for r = 3, with C3 < 1/2000 from Silverman's
+            data (p. 52). So C0/p >= 0.78 (r = 2) and >> 1 (r = 3) at every p <= 12809: the theorem is vacuous
+            across the whole tested grid. (c) Their measurements show that dependence is COMMON when heights
+            and discriminants are small: section 5.1.2 found 2895, 21165 and 10698 dependent of 200000 for
+            r = 2, 3, 4, with empirical bounds 5|D|^-1/4, 66|D|^-1/4 and 322|D|^-1/4; section 5.2 found about
+            30 percent dependence at <= 40-bit discriminants; Table 3 (p. 61) has p = 17, r = 2, 317/100000.
+            (d) Their conclusion (section 6) is that xedni fails because the relations that do occur have
+            trivially small coefficients (usually +-1) and dependence falls as |D| grows. H's mechanism text,
+            "JKSST gives the probability of such a configuration as negligible", misattributes. The run is
+            consistent with JKSST's empirical law: applied to the replayed minimal discriminants
+            (rt_regulator_control.json), the law predicts 0.512 + 0.343 = 0.855 dependent trials, and 1 was
+            observed. JKSST's own Experiment C (p = 257, r = 2, 0 of 100000 dependent) is a far stronger
+            prior measurement of the same null.
+        - id: R1-B4
+          kind: inference beyond the instrument
+          evidence: >-
+            "Independent" does not follow from "no relation with max|m| <= 6" (PTM-1: in-distribution
+            dependent tuples score "no relation"). Independence of the recorded tuples holds, but only through
+            a control the record did not run. The red-team height-pairing determinant on all 3200 replayed
+            tuples (PARI 2.17.2, realprecision 77) finds 3199 tuples Z-independent at every coefficient size
+            (normalized det min 0.440 for r = 2, 0.539 for r = 3) and no torsion points. The single dependent
+            tuple is the recorded one, with relation (2, 1), verified exactly (rt_regulator_control.json).
+      secondary_findings:
+        - id: R1-S1
+          text: >-
+            "Naive log-height about 0.7 log p" is the small-p value of a ratio that tends to 1. For a uniform
+            symmetric residue, E log|X| = log(p/2) - 1, so the ratio is 1 - (1 + ln 2)/ln p:
+            0.633, 0.684, 0.718, 0.747, 0.771, 0.790, 0.807, 0.821 over the grid, against recorded
+            0.632-0.810 (seed 20261009) and 0.655-0.831 (seed 20261010) (rt_stats.json). Restate as
+            log(p/2) - 1. The canonical heights (JKSST normalization) have median hhat/ln p of 0.48 -> 0.62
+            for r = 2 and 0.67 -> 0.97 for r = 3, rising with p.
+        - id: R1-S2
+          text: >-
+            Null-object control (docs/inventor-protocol.md section 3), run here because the record has none.
+            The identical bounded search on the residues mod p (rt_modp_null.json) finds a relation with
+            max|m| <= 6 mod p in 1261 of 3200 trials: r = 2 254/1600, r = 3 1007/1600; 100 percent of r = 3
+            trials at p <= 211. Any Q-relation reduces to the same mod-p relation, so the Q-rate is bounded by
+            the mod-p rate, which pigeonhole forces to decay as about (13^r - 1)/(2p). For r = 2 at
+            p >= 3203, only 3 of 600 trials have a bounded relation even mod p. The zero there is forced by
+            construction and carries no information about lifting. The informative quantity is the
+            lift-survival fraction: 1 of 1261, 7.9e-4, 95 percent CI [2.0e-5, 4.4e-3].
+    R2:
+      verdict: breaks
+      breaking_artifact: >-
+        The dependence regime an xedni attacker needs has coefficients of order p^(1/r) (JKSST p. 51-52:
+        "the smallest value of max |n_i| that is likely to occur ... is of order O(p^(1/r))"). Measured on
+        the replayed residues (rt_modp_null.json), the median smallest mod-p relation, max|n|, by cell is:
+        r = 2: 6, 8, 10-11, 15.5-17, 21-21.5, 29-32.5, 45.5-46.5, 60.5-61 for p = 101 ... 12809;
+        r = 3: 3, 3, 4, 5, 6, 8, 9-10.5, 13. Bound 6 lies below the median in every r = 2 cell with
+        p >= 211 and every r = 3 cell with p >= 3203. A Q-relation with max|m| <= 6 among lifts of
+        s_i Q - t_i P yields the logarithm only if the same bounded relation already holds mod p. That
+        happens with probability about (13^r - 1)/(2n), and the attacker can check it directly mod p in
+        13^r group operations without lifting anything. The search therefore measures only the regime an
+        attacker cannot use, and is blind to the regime they need. For the Silverman-Suzuki / Miller
+        index-calculus reading, expressing a lift in a factor base of E(Q) needs coefficients of order
+        n^(1/rank), which is likewise unreachable.
+      bound_excludes: >-
+        On the recorded tuples: every relation with max|m| <= 6. That covers tangent and chord relations
+        (2P1 +- P2, collinear P1 + P2 + P3), torsion of order <= 6, and torsion translates such as
+        P1 + P2 = T2 (exact relation (2, 2)).
+      bound_cannot_exclude:
+        - Rational torsion of order 7 to 12 (Mazur). An in-distribution relation (7, 0) and (8, 0) is constructed under PTM-1.
+        - >-
+          Non-torsion relations with a coefficient >= 7. JKSST section 5.1.2 observed coefficients up to 8 for
+          r = 2 and up to 13 for r = 3 (p. 55); Tables 2 and 4 contain coefficients of 7.
+        - The attack regime, max|n| ~ p^(1/r), above.
+      empirical_mitigation: >-
+        In this distribution the blind spot is empirically unpopulated for non-torsion relations. The
+        unbounded control finds the recorded 1/1 dependence within the bound (3199 others independent). Over
+        288337 + 196271 uniformly sampled in-distribution r = 2 tuples at p = 101 and 211
+        (rt_ptm_search.json), all 399 dependences found by the height-pairing determinant have an exact
+        minimal relation with max|m| <= 6. The histogram at p = 101 is {2: 301, 3: 23, 4: 5, 5: 1, 6: 1}, and
+        at p = 211 {2: 60, 3: 5, 4: 3}. Missed fraction 0/399, one-sided 95 percent upper bound 0.0075.
+        Relations at max|m| = 5 and 6 do occur at p = 101, so the bound sits at the edge of what occurs.
+        This rescues the recorded count, not the joint. The joint concerns the attacker's regime, which no
+        bound-6 instrument can reach.
+    PTM-1:
+      verdict: breaks
+      summary: >-
+        On the plan's object the instrument's null is correct. The obstruction inference, however, also
+        "proves" independence for tuples inside the experiment's own sampling distribution that are in fact
+        dependent with larger coefficients.
+      objects:
+        - object: 389a1 generators (short model [0,0,0,-3024,46224], (-24,324), (12,108))
+          known_status: independent; regulator 0.152460177943143751... at realprecision 77 (rt_ptm_389a1.json)
+          instrument_result: no relation at bound 6 or 12 (VAL-20261022-b08129); correct
+          signature_seen: expected failure signature observed (no relation within |m| <= 12)
+        - object: (7G, 3G) with G = G1 + G2 on the same 389a1 model (out of distribution; log-height of x is 26.9)
+          known_status: dependent, minimal relation (-3, 7)
+          instrument_result: producer dependent() returns None at bound 6 and (-3, 7) at bound 7 (rt_ptm_389a1.json)
+        - object: >-
+            In-distribution, N = 7. E: Y^2 = X^3 - 309643 X + 61048006 (Tate normal form t = 8), T = (411, -1792)
+            of order 7, P = (243, 392) of infinite order. At p = 6421 (also 12809) both points lie in the
+            symmetric box with Y != 0, distinct X, and p not dividing the discriminant; the residues are
+            T = (411, 4629), P = (243, 392) on (a, b) = (4986, 3559) mod 6421.
+          known_status: dependent, relation (7, 0)
+          instrument_result: >-
+            The producer's own lift_curve() through the two lifts reproduces E exactly. Its dependent()
+            returns None at bound 6 and (-7, 0) at bound 7 (rt_ptm_torsion_object.json).
+        - object: >-
+            In-distribution, N = 8. E: Y^2 = X^3 - 1976427 X + 1069210746 (t = -1/4), T = (777, -1620) of
+            order 8, P = (831, 810), at p = 6421.
+          known_status: dependent, relation (8, 0)
+          instrument_result: None at bound 6; (-8, 0) at bound 8.
+        - object: in-distribution non-torsion tuple with a coefficient >= 7
+          known_status: none found in 399 sampled dependences at p in {101, 211} (see R2 empirical_mitigation)
+          instrument_result: not applicable
+      survival_location: >-
+        The step "no relation with max|m_i| <= 6, therefore the lifted points are independent". The
+        missing separator is an unbounded independence certificate: the Neron-Tate height-pairing
+        determinant (about 1 ms per tuple in PARI), or 2-descent as JKSST used (section 5.1.1). The
+        alternative would be a proven coefficient bound C2 <= 6 for the distribution, which cannot exist:
+        rational torsion reaches order 12 (Mazur), and JKSST's C2 is conditional and astronomically larger.
+        Torsion objects show the inference is invalid. They are attack-irrelevant (a residue of order 7 or 8
+        cannot lie in a large prime-order subgroup), and their sampling probability is negligible. They do
+        not show that the recorded rate is wrong; the unbounded control shows it is right.
+
+  objections:
+    - id: O1
+      text: H-CZLIFT-cb95b8's statement and its prediction "exactly 0 per seed" are contradicted by RUN-CZLIFT-c3f8a8 (R1-B1).
+    - id: O2
+      text: >-
+        The success criterion holds only under the undeclared y != 0 sampler. Under the literal reading it
+        fails in expectation (R1-B2). Restate the claim with the restriction in its text.
+    - id: O3
+      text: >-
+        The mechanism misattributes JKSST 2000: its obstruction is a conditional coefficient bound plus
+        pigeonhole, it is vacuous at p <= 12809, and it reports frequent dependence in the small-height
+        regime (R1-B3).
+    - id: O4
+      text: >-
+        "Independent" is inferred from a bounded search. PTM-1 shows the inference proves too much;
+        independence of the recorded tuples needs the unbounded control (R1-B4).
+    - id: O5
+      text: >-
+        The near-zero rate at large p is forced by pigeonhole mod p, not by the lift (R1-S2). Report the
+        lift-survival fraction, not the raw rate, as the lift-specific quantity.
+    - id: O6
+      text: >-
+        The tested configuration is a zero-freedom fit: two equations in (A, B) for r = 2 and three in
+        (A2, A4, A6) for r = 3, with no discriminant minimization. That is the configuration JKSST shows
+        minimizes dependence (section 5.2). Median log2|Delta_min| is 68-74 bits at p = 101 rising to
+        about 200 bits at p = 12809 for r = 2, and 138-147 rising to about 424 bits for r = 3; JKSST
+        section 5.1 found no dependence at all above 2^72. The null was predictable from the cited source.
+    - id: O7
+      text: '"Naive log-height about 0.7 log p" should be log(p/2) - 1, a ratio rising to 1 (R1-S1).'
+    - id: O8
+      text: >-
+        decision_impact.on_positive would promote the rate as "the counting form of the xedni
+        obstruction". It is not: it is the downstream bounded-relation count. The obstruction (JKSST Lemma
+        4.1) is about coefficient size and Lang's conjecture, neither of which this run tests.
+
+  required_controls:
+    - control: Unbounded independence certificate (height-pairing determinant, or 2-descent) on every trial, as a frozen metric
+      status: run by the red team on replayed inputs (rt_regulator_control.py); 3199/3200 independent; not frozen evidence
+      cost: 3.9 s single core for 3200 tuples
+    - control: Mod-p null object (identical bounded search on residues) and lift-survival fraction
+      status: run by the red team (rt_modp_null.py); 1261 bounded mod-p relations, 1 lifted
+      cost: 52 s single core
+    - control: Literal-sampler arm (y = 0 admitted) reported separately, or the y != 0 restriction declared in the specification text
+      status: validator blind sampler 8/1600 (VAL F1); restriction confirmed behaviourally here
+    - control: >-
+        A calibrated null prediction (JKSST section 5.1.2 law on the actual minimal discriminants) in place
+        of "exactly 0"
+      status: computed here (0.855 expected; P(0 on both seeds) = 0.43)
+    - control: >-
+        Nearby-object arm if the RQ is to say anything about xedni proper: discriminant-minimized fits
+        (xedni Steps 7-10, LLL over the kernel) with r = 4, where dependence is known to be frequent
+        (JKSST section 5.2)
+      status: not run; outside this experiment's frozen scope
+
+  counterexample_or_mutation: >-
+    An in-distribution known-false object for the independence inference: the (T, P) pair at p = 6421 on
+    Y^2 = X^3 - 309643 X + 61048006, with T of order 7. The producer pipeline's fit reproduces the curve,
+    and the bound-6 search returns no relation although (7, 0) holds (rt_ptm_torsion_object.json). The
+    cheapest discriminating mutation of the instrument is to raise the bound to 12, which catches all
+    rational torsion. It still cannot certify independence; only the height-pairing determinant can.
+
+  baseline_comparison: >-
+    No cost or attack claim is made, and none may be added. As a reading only: one round of bounded xedni
+    succeeds with probability about Pr[bounded mod-p relation] x f, where Pr[bounded mod-p relation] is
+    about (13^r - 1)/(2n) for a prime-order group of size n, and f is the lift-survival fraction measured
+    here: 7.9e-4, 95 percent CI [2.0e-5, 4.4e-3]. Expected rounds are then about 15 n for r = 2 and
+    1.15 n for r = 3 (2.7 n and 0.21 n at f's upper bound). Even at f = 1 the count stays linear in n, as in
+    JKSST's "at least O(p)" repetitions. Every round also needs an exact Q-fit and height arithmetic on
+    numbers with poly(log p) digits. Pollard rho (about 0.886 sqrt(n) group operations, negligible memory),
+    BSGS (about sqrt(n) time and memory) and van Oorschot-Wiener parallel rho all dominate at every n beyond
+    toy size; for r = 2 at the measured f, exhaustive search does as well. dominated_by: Pollard rho on time
+    with equal memory, so the Pareto check is trivially satisfied: there is no frontier claim.
+
+  heuristic_challenges:
+    - id: HC1
+      text: >-
+        heuristic_assumptions is [] and heuristic_under_test is null, yet the mechanism rests on JKSST,
+        which is conditional on (i) Lang's lower bound for the canonical height, hhat >= C3 log|D|, and
+        (ii) Lemma 4.1's log|D| >= C1 max hhat(P_i). Neither is listed or numbered. Measured here, as a
+        resource reading for (ii): C1 = log|Delta_min| / max hhat_S has minimum 11.24 and medians 21.0-23.7
+        (r = 2) and 28.3-31.6 (r = 3), against JKSST's assumed 26.4 (r = 2) and 39 (r = 3). Lang's
+        conjecture is not tested by anything in this experiment.
+    - id: HC2
+      text: >-
+        The preregistered point prediction ("exactly 0 per seed") was uncalibrated against its own source.
+        JKSST's empirical law gives P(0 on both seeds) = 0.43, so the prediction had a 57 percent prior
+        chance of failing. Transfer caveat: the law was fitted to LLL-minimized integral curves with
+        |x|, |y| <= 30-40. Applying it to zero-freedom rational fits is an assumption; the observed 1 against
+        a predicted 0.86 is consistent with it.
+    - id: HC3
+      text: >-
+        The random-model transfer for "a relation with max|m| <= 6 among r random points" assumes uniform
+        points in a cyclic group of order about p. The curves are random, with composite group order. The
+        measured mod-p rate (r = 2 at p = 101: 58-64 percent) sits below the union bound 84/101, because of
+        saturation and group structure. This is harmless for the conclusion, but it is the reason the
+        mod-p null was measured rather than assumed.
+
+  cost_model_challenges:
+    - id: CC1
+      text: >-
+        Not applicable as a claim. If anyone later converts the rate into an attack cost, the total expected
+        cost must be (per-round cost) x 1/(Pr[bounded mod-p relation] x f), never per-round cost alone; see
+        baseline_comparison.
+
+  reduction_and_scope_challenges:
+    - id: SC1
+      text: >-
+        RQ-CZLIFT-b9f765 decision_target (a) speaks of coverage of E(F_p) by small global points. This
+        experiment measures no coverage, so it cannot close that clause.
+    - id: SC2
+      text: >-
+        Untested and not closed: xedni proper. That means r = 4..9, general cubic with 10 coefficients,
+        reverse-Mestre conditions mod small l, discriminant minimization (Steps 7-10), and non-symmetric or
+        lattice-reduced lifts. The latter is H's own interpretation limit.
+    - id: SC3
+      text: >-
+        Silverman-Suzuki index calculus: no factor base and no expression of lifts in generators are tested
+        here. Nothing in the record bears on it beyond restating Miller's heuristic.
+    - id: SC4
+      text: No deployed-curve, cost or transfer claim; toy tier, p <= 12809.
+
+  proof_architecture_challenges:
+    - id: PA1
+      kind: observation-fiber
+      text: >-
+        The observation "bounded search returns None" is constant across independent tuples (389a1, 3199
+        recorded tuples) and dependent ones (PTM-1 in-distribution torsion objects). Missing separator: the
+        height-pairing determinant.
+    - id: PA2
+      kind: quantifier order
+      text: >-
+        JKSST's statement has the form "there exists an absolute C2 such that for every lifted curve ...",
+        conditionally. The record fixes C = 6 without deriving C >= C2. Any independence statement needs
+        C >= C2, which is unknown and in theory huge.
+    - id: PA3
+      kind: method ceiling
+      text: >-
+        The largest claim the bounded instrument supports is "no relation with max|m_i| <= 6 among the
+        sampled tuples". It reaches neither "independent" nor "xedni obstruction".
+    - id: PA4
+      kind: nearby object
+      text: >-
+        The same measurement on discriminant-minimized fits gives dependence rates around 30 percent at
+        <= 40-bit discriminants (JKSST section 5.2). The conclusion depends on the zero-freedom fit, which
+        the claim does not name as load-bearing.
+
+  narrowest_supported_statement: >-
+    Setting: p in {101, 211, 401, 809, 1601, 3203, 6421, 12809}; random y^2 = x^3 + a x + b over F_p; r in
+    {2, 3} points drawn uniformly from the affine points with y != 0 and pairwise distinct x (the hash-pinned
+    harness sampler; 2-torsion excluded); symmetric integer lifts; and the unique zero-freedom rational fit
+    through them (short model for r = 2, X^2-term model for r = 3).
+    Result: the exact search over max|m_i| <= 6 found 1 relation in 3200 valid trials pooled over seeds
+    20261009 and 20261010. The rate is 3.1e-4 with exact 95 percent CI [7.9e-6, 1.7e-3]; per seed 1/1600 and
+    0/1600; for r = 3, 0/1600 [0, 2.3e-3]. The one relation is the tangent relation 2P~1 + P~2 = O at
+    p = 101, r = 2. The planted (2, -1) control was detected 48/48. Naive point log-height follows
+    log(p/2) - 1, a ratio of 0.63 to 0.82 of log p across the grid.
+    Red-team controls on the replayed inputs (review findings, not frozen evidence): the other 3199
+    tuples are Z-independent at every coefficient size; 1 of the 1261 bounded mod-p relations lifted
+    (7.9e-4, CI [2.0e-5, 4.4e-3]); and the count is consistent with the JKSST 2000 empirical dependence
+    law (0.86 predicted).
+    Scope: toy tier; zero-freedom fits, r <= 3 and symmetric lifts only. Nothing about xedni with
+    discriminant minimization, reverse-Mestre conditions or r >= 4, about index calculus, or about any
+    deployed curve.
+
+  strength:
+    level: weak (toy-tier observation, two internally replicated seeds)
+    reasons:
+      - >-
+        The frozen success criterion is met only under the undeclared y != 0 sampler, and the hypothesis's
+        own zero prediction failed on one seed.
+      - >-
+        The quantity is dominated by a pigeonhole factor that the design forces to decay with p. The
+        lift-specific part rests on 1261 mod-p relations and a single hit, measured by the red team, not
+        frozen.
+      - >-
+        It is a scaled-down replication of JKSST 1999-2000 measurements. Their Experiment C (p = 257, r = 2,
+        0 of 100000) is about 60 times the whole r = 2 arm here and about 500 times any single r = 2 cell,
+        so the run adds little beyond a consistency check at p <= 12809.
+      - >-
+        Record it as an observation consistent with the literature. It is not a standalone obstruction and
+        does not warrant moving H-CZLIFT-cb95b8 to supported as worded.
+
+  obstruction_readings:
+    - obstruction: >-
+        The xedni-style obstruction as the record would close it: lifts of r <= 3 random points under
+        zero-freedom fits are almost never dependent within |m| <= 6.
+      measured_quantity: Q-dependence rate within max|m| <= 6
+      units: dependent trials per valid trial
+      value: 3.125e-4 (1/3200)
+      error_bars: exact Clopper-Pearson 95 percent [7.9e-6, 1.74e-3]; one-sided upper 1.48e-3
+      decomposition: >-
+        (mod-p bounded-relation rate 1261/3200 = 0.394) x (lift-survival fraction 1/1261 = 7.9e-4, 95 percent
+        CI [2.0e-5, 4.4e-3]). By r: 1 of 254 (r = 2), 0 of 1007 (r = 3; upper bound 3.7e-3).
+      what_should_have_happened: >-
+        The parameter that destroys the signal is p. The mod-p factor must fall roughly as
+        (13^r - 1)/(2p), and it does: r = 2 falls from 58-64 percent at p = 101 to 0-1 percent at
+        p >= 6421. A flat zero at large p is therefore forced, not informative. The lift-survival fraction
+        is the quantity that should be read.
+      resource_reading: >-
+        Which theory takes this as its hypothesis? JKSST's success model, per round
+        Pr = Pr[bounded mod-p relation] x f, takes f as an input. Because Pr[bounded mod-p relation] <=
+        (2 C2)^r / n, no value of f in [0, 1] gives a sublinear attack. The measurement has no resource
+        reading for an attack, a negative result recorded as such. It is the downstream consequence of
+        JKSST Lemma 4.1, not a hypothesis of it. The lifted relations that do occur are geometric: tangent
+        or chord lines whose mod-p coefficients have small rational representatives. In the one hit, the
+        line Y = -15 is tangent at P~1 with X2 = -2 X1 exactly, because the symmetric lift did not wrap.
+        Lifting such a relation requires the relation to be known mod p already, so any theory exploiting
+        it is a mod-p test in disguise. That is consistent with the Huang-Kueh-Tan framing, which was not
+        verified here.
+      spawned_ids: []
+    - obstruction: Hypothesis (ii) of JKSST Lemma 4.1, log|D| >= C1 max hhat(P_i)
+      measured_quantity: C1 = log|Delta_min| / max hhat_S(P_i), JKSST normalization (half PARI's)
+      units: dimensionless
+      value: minimum 11.24 over 3200 tuples; per-cell medians 21.0-23.7 (r = 2) and 28.3-31.6 (r = 3)
+      error_bars: per-cell medians over 100 tuples; minimum is a sample extreme
+      resource_reading: >-
+        This measurement is exactly the hypothesis of JKSST Lemma 4.1 and holds at toy scale. Combined with
+        Lang's conjecture, which is untested here, it yields the coefficient bound C2. A small C1 would
+        weaken the JKSST obstruction; nothing here suggests C1 -> 0 with p.
+      spawned_ids: []
+
+  citations_checked:
+    - citation: Jacobson, Koblitz, Silverman, Stein, Teske, "Analysis of the xedni calculus attack", Des. Codes Cryptogr. 20 (2000) 41-64
+      how_checked: primary PDF (pages.cpsc.ucalgary.ca/~jacobs/PDF/xedni.pdf) extracted and read in full
+      record_says: >-
+        H mechanism: "the JKSST analysis (KR-IC-cd159a) gives the probability of such a configuration as
+        negligible". Review-plan R1: "naive lifts of random points are independent with overwhelming
+        probability".
+      source_says: >-
+        Theorem 4.1: success < C0/p, conditional on Lang's conjecture and log|D| >= C1 max hhat. Its
+        mechanism is a coefficient bound plus pigeonhole. C0 ~ 1e4 (r = 2) and 1e12 (r = 3), so the bound
+        is vacuous at p <= 12809. Dependence is frequent at small |D| (sections 5.1-5.4); observed relation
+        coefficients reach 8 (r = 2) and 13 (r = 3).
+      delta: >-
+        Misattribution. JKSST does not give negligible dependence probability at this scale, and its
+        obstruction is coefficient size, not independence.
+    - citation: Silverman, "The xedni calculus and the elliptic curve discrete logarithm problem", Des. Codes Cryptogr. 20 (2000) 5-40
+      how_checked: through JKSST section 3, which restates the algorithm; primary not retrieved
+      source_says: >-
+        2 <= r <= 9 (most likely 4-6); Weierstrass form with 7 coefficients or general cubic with 10;
+        reverse-Mestre conditions mod l for 7 <= l <= 100; discriminant minimization (Steps 9-10).
+      delta: The experiment tests none of the attacker's freedoms (O6, SC2).
+    - citation: Silverman, Suzuki, "Elliptic curve discrete logarithms and the index calculus", ASIACRYPT '98, LNCS 1514, 110-125 (cited in RQ-CZLIFT-b9f765)
+      how_checked: >-
+        Bibliographic data confirmed via Crossref (title, pages 110-125). Full text not retrieved (Springer
+        authentication; Semantic Scholar abstract elided). Content checked only through secondary sources:
+        Menezes, CRYPTREC ECDLP report (2001) section 4.5, which says SS elaborate and support Miller's
+        argument that E(Q) has very few points of small height and that lifting looks hopeless; and JKSST,
+        which cites it for the N(B) point count in Lemma 4.1 and states that "xedni fails asymptotically
+        for much the same reason that index calculus is infeasible (see [21, 34])".
+      delta: >-
+        Consistent with the RQ's use as a heuristic obstruction. The exact height/rank bounds the RQ
+        motivation leans on ("points of height <= H number about H^{r/2}") match JKSST's N(B) estimate; any
+        SS-specific constant remains unverified (recalled).
+    - citation: Huang, Kueh, Tan, "Lifting elliptic curves and solving the ECDLP", ANTS 2000 (cited in RQ-CZLIFT-b9f765)
+      how_checked: search-engine snippet only
+      delta: unverified (recalled); not load-bearing for R1, R2 or PTM-1
+    - citation: knowledge/frontiers/ecdlp/index-calculus/KR-IC-cd159a.yaml (internal row cited by H)
+      how_checked: not read (outside read_scope)
+      delta: >-
+        The Coordinator should check whether the row states "negligible" or "independent with overwhelming
+        probability". If it does, it misstates JKSST Theorem 4.1, section 4.1 and section 5 as above.
+
+  must_not_claim:
+    - '"No relation in any trial on either seed" (false on seed 20261009), or "exactly 0 per seed".'
+    - '"Random points of E(F_p)" without the y != 0 restriction.'
+    - '"Naive lifts of random points are independent with overwhelming probability", as a consequence of the bounded search.'
+    - That JKSST shows the dependence probability is negligible at p <= 12809 (Theorem 4.1 is vacuous there).
+    - That the near-zero rate at large p is evidence of a lift obstruction (it is forced mod p by pigeonhole).
+    - That the count is "the counting form of the xedni obstruction", or that it closes xedni, index calculus or RQ-CZLIFT-b9f765 clause (a).
+    - That bound 6 captures the dependences an attacker would use.
+    - '"About 0.7 log p" as a constant.'
+    - Any cost, attack or deployed-curve statement.
+
+  next_concrete_action: >-
+    Record H-CZLIFT-cb95b8 only against a correction record that restates it as
+    narrowest_supported_statement, with the y != 0 sampler written into the text and the 1/1600 seed
+    named. If the Coordinator wants "independent" or a lift-survival figure as evidence, freeze one
+    follow-up experiment that replays both seeds' inputs and adds two preregistered metrics: the
+    height-pairing-determinant independence count, and the lift-survival fraction against the mod-p null.
+    It needs no new sampling and takes about 1 CPU-minute; start from rt_regulator_control.py and
+    rt_modp_null.py, with cypari2/PARI pinned in the environment record.
+
+  limitations:
+    - >-
+      All red-team controls run on inputs regenerated by executing the frozen driver build() with
+      dependent() replaced by a recorder. The replay is exact: per-cell mean heights differ by 0.0, and
+      the recorded relation was re-found. harness/czlift.py, harness/toycurve.py and harness/czlift_run.py
+      were imported and executed through run.py but not read.
+    - >-
+      PARI/GP 2.17.2 came from cypari2 2.2.4, pip-installed into the session scratchpad outside the
+      repository. It is not pinned in any runtime lock, and the scripts take its path from RT_PYENV.
+    - >-
+      Heights and determinants are numerical at realprecision 77. Independence is read from a normalized
+      determinant >= 0.44, far from noise; the single dependent case was verified exactly with
+      ellmul/elladd.
+    - >-
+      rt_regulator_control.py's rtrel() keeps a dead lindep line. Relation vectors are taken from
+      lindep(H[1,]), which is valid for r = 2. The only dependent tuple is r = 2 and was verified exactly.
+    - >-
+      rt_ptm_search.py was run twice with identical seeds and identical printed histograms. The second run
+      overwrote the first JSON with a superset (all relations stored); no other output changed.
+      rt_ptm_torsion_object.py was run four times. The first three produced 0 candidates because of
+      script bugs (wrong ellminimalmodel call syntax; no rank or box filter, so only rank-0 curves were
+      seen). The fourth, recorded run found 8 candidates.
+    - The JKSST |D|^-1/4 law is applied outside its fitted regime (HC2).
+    - The in-distribution PTM search covers r = 2 at p in {101, 211} only (about 485k tuples); r = 3 and larger p were not sampled.
+    - Silverman-Suzuki and Huang-Kueh-Tan were not read in primary form.
+
+  compute_used: >-
+    Single core per process, at most two concurrently. Replay 33 s; mod-p null 52 s; regulator control
+    4 s; PTM sampling search 2 x 337 s; torsion objects about 1 s per run; 389a1 and sampler probe a few
+    seconds; stats about 1 s. About 13 CPU-minutes in total, with no new experiment runs (maximum_runs 0
+    respected).
+
+  artifact_paths:
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/redteam_report.yaml
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_replay_inputs.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_replay_inputs.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_modp_null.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_modp_null.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_regulator_control.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_regulator_control.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_search.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_search.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_torsion_object.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_torsion_object.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_389a1.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_ptm_389a1.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_sampler_probe.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_sampler_probe.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_stats.py
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/rt_stats.json
+    - experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/SHA256SUMS
+  environment: Python 3.13.16; Linux 6.18.44-fc-v153 x86_64, 4 CPUs (shared); cypari2 2.2.4 / PARI 2.17.2; pdftotext (poppler) for the JKSST PDF
+  handoff: For the Coordinator's ledger archive task TASK-20261023-4d7449. Not committed by the red team.
+
+review_attestation:
+  task_id: TASK-20261023-62eb31
+  joints_owned: [R1, R2, PTM-1]
+  sources_read:
+    - CLAUDE.md (auto-loaded project instructions)
+    - docs/agent-runtime-core.md
+    - agents/red-team.md
+    - AGENTS.md (heading index; sections "Name the obstruction" lines 22-61, "Review architecture" lines 359-371, "Artifact policy" lines 489-523)
+    - ledger/handoffs/TASK-20261023-62eb31.yaml
+    - experiments/EXP-CZLIFT-ed8113/specification.yaml
+    - experiments/EXP-CZLIFT-ed8113/trial-plan.json
+    - ledger/hypotheses/H-CZLIFT-cb95b8.yaml
+    - ledger/questions/RQ-CZLIFT-b9f765.yaml
+    - ledger/decisions/DEC-20261009-6aef7a.yaml
+    - experiments/EXP-CZLIFT-ed8113/implementation/run.py
+    - experiments/EXP-CZLIFT-ed8113/implementation/check.py
+    - experiments/EXP-CZLIFT-ed8113/reports/validation-20261022/validation_report.yaml (sealed report; blindness lifted for this task)
+    - experiments/EXP-CZLIFT-ed8113/runs/RUN-CZLIFT-c3f8a8/manifest.yaml
+    - experiments/EXP-CZLIFT-ed8113/runs/RUN-CZLIFT-c3f8a8/execution-receipt.json (first 40 lines)
+    - experiments/EXP-CZLIFT-ed8113/runs/RUN-CZLIFT-c3f8a8/raw-result.json (keys and first cell; all cells by rt_replay_inputs.py)
+    - experiments/EXP-CZLIFT-ed8113/runs/RUN-CZLIFT-218843/raw-result.json (cells, by rt_replay_inputs.py only)
+    - 'file listing and sizes of experiments/EXP-CZLIFT-ed8113/ (find | wc -c); validation-20261022 files other than validation_report.yaml were listed by name and size only, never opened'
+    - 'git metadata: git log -3, git status --short (whole tree; and for ledger, experiments/EXP-CZLIFT-ed8113, harness), git check-ignore for __pycache__'
+    - tools/allocate_id.py (--help and --check output only; source not read)
+    - 'external: JKSST 2000 full text (pages.cpsc.ucalgary.ca/~jacobs/PDF/xedni.pdf); Menezes, CRYPTREC ECDLP report 2001 (section 4.5); Crossref and Semantic Scholar metadata for Silverman-Suzuki; web search results'
+  executed_not_read:
+    - harness/czlift.py (random_point, via run.py import)
+    - harness/toycurve.py (EllipticCurve, via run.py import)
+    - harness/czlift_run.py (imported by run.py; write_run_record not called)
+  never_read:
+    - knowledge/frontiers/ecdlp/index-calculus/KR-IC-cd159a.yaml (outside read_scope)
+    - experiments/EXP-CZLIFT-ed8113/reports/validation-20261022/ files other than validation_report.yaml
+    - any other experiment's reports, including every reports/redteam-20261023/ folder of another experiment
+  read_sibling_reports: false
+  read_sibling_reports_note: >-
+    git status --short printed the untracked directory names experiments/EXP-CZLIFT-17b7eb/,
+    EXP-CZLIFT-1a3453/, EXP-CZLIFT-a255fc/ and EXP-CZLIFT-ae0a13/reports/redteam-20261023/. A final
+    git status --short printed experiments/EXP-CZLIFT-14f6d5/reports/redteam-20261023/ and the untracked
+    names ledger/corrections/CORR-20261023-9f2176.yaml, ledger/evidence/EV-CZLIFT-712fe4.yaml,
+    EV-CZLIFT-ad28f5.yaml and EV-CZLIFT-e9a7cf.yaml, written by other sessions. No file in any of them was
+    listed or opened.
+  writes: only under experiments/EXP-CZLIFT-ed8113/reports/redteam-20261023/; no run, ledger record or validation report edited; nothing committed
+  verdict: breaks
+  verdict_by_joint: {R1: breaks, R2: breaks, PTM-1: breaks}
+  verdict_meaning: >-
+    The broad readings on my joints fail; the narrowest_supported_statement survives. This report moves no
+    status and is not evidence on its own.

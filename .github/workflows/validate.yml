@@ -2,6 +2,7 @@ name: validate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   merge_group:
@@ -49,6 +50,7 @@ env:
 
 jobs:
   changes:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -66,6 +68,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
           sparse-checkout: .github/scripts
       - name: Verify CI scope controls
         run: python3 -m unittest discover -s .github/scripts -p test_ci_scope.py -v
@@ -83,6 +86,7 @@ jobs:
   # PRs. Sparse is safe only for paths explicitly classified as documentation;
   # archive, record, code and unknown paths receive the full checkout.
   merge-hygiene:
+    if: ${{ !github.event.pull_request.draft }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -92,6 +96,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
           sparse-checkout: ${{ needs.changes.outputs.full_checkout != 'true' && env.SPARSE_RULES || '' }}
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
@@ -108,7 +113,9 @@ jobs:
 
   runtime-regressions:
     needs: changes
-    if: ${{ !cancelled() }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (!cancelled())
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
       RUN_RUNTIME: ${{ needs.changes.outputs.runtime }}
@@ -185,7 +192,9 @@ jobs:
 
   ledger:
     needs: changes
-    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false') }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -200,6 +209,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0        # full history: the base worktree and the immutability diff
+          filter: blob:none
 
       - uses: actions/setup-python@v5
         with:
@@ -270,7 +280,9 @@ jobs:
 
   static-checks:
     needs: changes
-    if: ${{ always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false') }}
+    if: >-
+      !github.event.pull_request.draft &&
+      (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -285,6 +297,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-python@v5
         with:
@@ -373,6 +386,14 @@ jobs:
         if: needs.changes.outputs.frontier == 'true'
         run: python3 tools/build_frontier_map.py --check
 
+      # The lead atlas (knowledge/leads/ecdlp/README.md): what this program has
+      # already tried. Checks schema, dispositions (a closure names its
+      # obstruction), ledger and KR references, and coverage.tsv. Sibling
+      # repositories are not checked out here, so their evidence paths warn.
+      - name: Check ECDLP lead atlas
+        if: needs.changes.outputs.frontier == 'true'
+        run: python3 tools/lead_atlas.py --check
+
       - name: Validate inference configuration (offline)
         if: needs.changes.outputs.tests == 'true'
         run: python3 -m orchestration.adapter doctor
@@ -433,7 +454,9 @@ jobs:
   # generated artifacts), and the shards' union is every collected file.
   harness-tests:
     needs: changes
-    if: always()
+    if: >-
+      !github.event.pull_request.draft &&
+      (always())
     name: harness-tests (${{ matrix.shard }}/4)
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
@@ -458,6 +481,7 @@ jobs:
         if: env.RUN_TESTS == 'true'
         with:
           fetch-depth: 0
+          filter: blob:none
           sparse-checkout: ${{ matrix.shard != 1 && env.SPARSE_RULES || '' }}
           sparse-checkout-cone-mode: false
 
@@ -528,7 +552,9 @@ jobs:
   # Keeps the check name branch protection and auto-merge already know.
   ledger-and-harness:
     needs: [changes, merge-hygiene, ledger, static-checks, harness-tests, runtime-regressions]
-    if: always()
+    if: >-
+      !github.event.pull_request.draft &&
+      (always())
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:

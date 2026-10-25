@@ -48,6 +48,12 @@ remain separate; the register changes no official hypothesis status.
 
 ## Research direction
 
+[Lifting and representation controls](docs/lifting-representation-controls.md)
+provide searchable methods and executable toy checks for circular p-adic
+linearizations, equivalent-model factor bases, residual corrections and CM
+filters, linked to the existing prime-to-p lifting boundary. Run them through
+`python -m crypto_autoresearcher.index_calculus representation-controls`.
+
 What counts as a target result is defined in
 [`docs/target-result-profile.md`](docs/target-result-profile.md). Its canonical
 exemplar is Wesolowski's p^{1/3+o(1)} result on the supersingular isogeny

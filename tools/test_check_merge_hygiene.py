@@ -232,6 +232,36 @@ class ParseTests(unittest.TestCase):
 
 
 class CollisionTests(unittest.TestCase):
+    def _binary_collision(self, published: bytes, candidate: bytes) -> list[str]:
+        with _Repo() as r:
+            r.write("README.md", "base\n")
+            r.commit("base")
+            git(r.path, "branch", "-q", "other")
+            rel = "experiments/EXP-ICPERF-123abc/reports/report.pdf"
+            for branch, payload in (("other", published), ("main", candidate)):
+                git(r.path, "checkout", "-q", branch)
+                path = Path(r.path, rel)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(payload)
+                r.commit(branch)
+            return mh.check_collisions("other")
+
+    def test_identical_binary_artifact_is_not_a_collision(self) -> None:
+        payload = b"%PDF-1.7\n%\x80\x81\x82\x83\n"
+        self.assertEqual(self._binary_collision(payload, payload), [])
+
+    def test_changed_binary_artifact_is_a_collision(self) -> None:
+        bad = self._binary_collision(b"%PDF-1.7\n%\x80\x81\n",
+                                     b"%PDF-1.7\n%\x80\x82\n")
+        self.assertEqual(len(bad), 1, bad)
+        self.assertIn("report.pdf: identifier report is already published", bad[0])
+        self.assertIn("Do not resolve this by choosing a side", bad[0])
+
+    def test_line_ending_changes_are_not_byte_identical(self) -> None:
+        bad = self._binary_collision(b"same text\r\n", b"same text\n")
+        self.assertEqual(len(bad), 1, bad)
+        self.assertIn("different content", bad[0])
+
     def test_catches_the_id_allocated_twice(self) -> None:
         """Both branches grepped their own tree correctly. Both got 004."""
         with _Repo() as r:
