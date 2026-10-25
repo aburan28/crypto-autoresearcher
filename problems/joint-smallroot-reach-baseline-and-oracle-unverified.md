@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Coordinator task TASK-20261025-b7e32e in disjoint BATCH-3cfef2; prepare the exact weighted joint applicability and experiment-contract preview, with no scientific execution
+- **Next action owner:** executor-implementation under the owning crypto workflow; the zero-run applicability/design task is archived, and the native launcher now requires a lawful Conductor scope before code edits
 - **Last updated:** 2026-10-25
 
 ## Problem
@@ -161,3 +161,19 @@ needs the artifact-tool fix to land in its owning `crypto` repository and mirror
 consistently; the exact patch is prepared, but the owner workflow's Conductor
 tool is absent here and no owner code was edited. See the
 [operational correction](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/additive-operational-correction.md).
+
+2026-10-25 implementation compatibility continuation: the zero-run design and
+snapshot archive are complete and verified. Completing `coordinate` is not a
+permanent restriction on advancing the original goal through its implementation
+workflow. The actual owner requirements are more specific: `crypto/AGENTS.md`
+prohibits Python research execution and compiled wrappers that delegate to it,
+and requires a Conductor task/check before code changes. The Sage/cuso adapter
+preview therefore needs an explicit native implementation path, not a wrapper.
+Native Singular 4.4.1 and a C++ compiler are present, but the complete shift,
+polytope, echelon and normalization path has not been ported or validated.
+The required Conductor check exits127 because the command is unavailable; no
+owner code was edited and no ownership approval was fabricated. The
+[compatibility assessment](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/owner-native-implementation-gates.md)
+names the source policies, exact observations, native implementation obligations
+and checkable exit condition. This is an owner-workflow and implementation gap,
+not a mathematical negative result or a request to reapprove the research.
