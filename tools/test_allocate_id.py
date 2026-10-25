@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 import random
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -149,6 +150,32 @@ class UnionScopeTests(unittest.TestCase):
 
 
 class AllocationTests(unittest.TestCase):
+    def test_bulk_run_allocator_scans_once_and_rejects_existing_and_internal_collisions(self) -> None:
+        tokens = iter(("aaaaaa", "bbbbbb", "aaaaaa", "cccccc", "dddddd"))
+        with mock.patch.object(ai, "_identifier_paths", return_value=["/repo/RUN-ECTD-bbbbbb/"]), \
+                mock.patch.object(ai, "random_token", side_effect=lambda _rng, width=6: next(tokens)):
+            allocated = ai.allocate_many_runs("ECTD", 3, seed=1)
+        self.assertEqual(allocated, ["RUN-ECTD-aaaaaa", "RUN-ECTD-cccccc", "RUN-ECTD-dddddd"])
+        self.assertEqual(len(set(allocated)), 3)
+
+    def test_bulk_run_check_scans_once_and_rejects_duplicates_or_taken_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            ids = Path(temp) / "ids.txt"
+            ids.write_text("RUN-ECTD-aaaaaa\nRUN-ECTD-bbbbbb\n")
+            with mock.patch.object(ai, "_identifier_paths", return_value=["/repo/RUN-ECTD-bbbbbb/"]):
+                output = StringIO()
+                with redirect_stdout(output):
+                    status = ai.check_run_id_file(ids)
+            self.assertEqual(status, 1)
+            self.assertIn("RUN-ECTD-bbbbbb", output.getvalue())
+            ids.write_text("RUN-ECTD-aaaaaa\nRUN-ECTD-cccccc\n")
+            with mock.patch.object(ai, "_identifier_paths", return_value=[]):
+                output = StringIO()
+                with redirect_stdout(output):
+                    status = ai.check_run_id_file(ids)
+            self.assertEqual(status, 0)
+            self.assertIn("unique and free: 2", output.getvalue())
+
     def test_next_free_never_fills_a_gap(self) -> None:
         """Gaps have undetermined provenance; reusing one revives a retired record."""
         used = {1, 2, 5}

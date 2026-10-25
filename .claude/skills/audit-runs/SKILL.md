@@ -56,8 +56,9 @@ Never in the session that produced the run: independence is the point. Fetch
    session id, an implementation fix, or an invalidation record. Repair
    nothing.
 5. **Publish.** Commit only the new `<experiment>/audits/<AUD-id>/`
-   directories on this session's branch, push, and open or refresh a PR. An
-   audit is a record about a session, never an edit to one.
+   directories on this session's branch, push, and open or refresh a PR, then
+   enable auto-merge (`gh pr merge <n> --auto --merge`; the base must be the
+   default branch). An audit is a record about a session, never an edit to one.
 6. **Receipt.** `python3 tools/session_receipt.py --skill audit-runs --role
    validator --outcome <reviewed|no_change|impeded> --created <AUD ids>`.
 
