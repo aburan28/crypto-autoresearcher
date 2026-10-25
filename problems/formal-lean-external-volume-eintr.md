@@ -48,6 +48,17 @@ differs on every run; the same files open and read without error from Python
     system call` and three more such lines, so the fault is not specific to
     Lean: any process that does not retry `EINTR` sees it on this volume.
     Python (which retries `EINTR` internally since PEP 475) and `cat` did not.
+    A later `git fetch` reported `fatal: loose object 484693b3... is corrupt`
+    once and succeeded on the retry; `git cat-file -t` reads the object fine.
+  - `python3 tools/verify_formal_targets.py --artifact-dir <scratch>
+    --build-timeout 1500` (22:26-22:40 PDT, stopped after 5 of about 90
+    targets): every receipt, including targets that were `machine_verified`
+    on earlier hosts (`CryptoResearch.Endosweep.AlphaAdic.*`,
+    `CryptoResearch.Binstd.*`), reads `status: formalization_blocked`,
+    `build_passed: False`, `blocking_reason: lake build failed`, with
+    `Interrupted system call` in 4 of the 5 build logs and
+    `infrastructure_failure: None`. On this host the gate's verdict measures
+    the fault, not the proofs, and it would wrongly demote committed targets.
 - **Derived or proved:** not established. The EINTR reaches `git` and
   Lean/Lake alike and never Python, which is consistent with a signal
   delivered to processes during slow directory/file reads on this volume and
