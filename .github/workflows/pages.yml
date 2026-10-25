@@ -38,6 +38,7 @@ on:
   # builder mistake would first surface AFTER merge, on main, with the
   # published page as the thing that breaks.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'ui/**'
       - 'tests/test_ui_index.py'
@@ -61,6 +62,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !github.event.pull_request.draft }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -73,6 +75,7 @@ jobs:
           # so the builder refuses to emit dates at all on a shallow clone,
           # and this is what keeps them available.
           fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-python@v5
         with:
@@ -94,10 +97,16 @@ jobs:
       - name: Check the UI against its own tests
         run: python -m pytest tests/test_ui_index.py tests/test_ui_ops.py tests/test_ui_benchmarks.py tests/test_curve_identity.py -q
 
-      # CloudWatch snapshot of the rho distinguished-point database. The
-      # same names as local `.env`. Absent secrets yield data/ops.json with
-      # available:false; the page hides the panel rather than showing 0.
-      - name: Build the static site
+      # PR previews validate the static reader without AWS credentials.
+      # The operations panel reports unavailable in this preview.
+      - name: Build the static site for review
+        if: github.event_name == 'pull_request'
+        run: python -m ui.build --out site --report site-report.json
+
+      # Only a publishing build reads CloudWatch. Keep these credentials out
+      # of the PR build step, which executes code from the proposed branch.
+      - name: Build the static site for publication
+        if: github.event_name != 'pull_request'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -149,7 +158,9 @@ jobs:
   deploy:
     timeout-minutes: 5
     needs: build
-    if: github.event_name != 'pull_request'
+    if: >-
+      !github.event.pull_request.draft &&
+      (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     # Scoped to this job: the build needs neither, and a token that can
     # publish the site should not be live while arbitrary branch code runs.
