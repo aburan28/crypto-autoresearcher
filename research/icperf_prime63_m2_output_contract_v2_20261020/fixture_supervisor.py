@@ -23,6 +23,9 @@ SOURCE_FILES = ("execute.py", "check.py", "output_contract.py", "fixture_supervi
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def sha_or_none(path: Path) -> str | None:
+    return sha(path) if path.is_file() else None
+
 def source_hashes():
     return {name: sha(HERE / name) for name in SOURCE_FILES}
 
@@ -65,11 +68,13 @@ def _fixture(root: Path, mode: str, source_commit: str, source: dict[str, str], 
             raise ValueError("fixture manifest failed source/plan binding")
     return directory, {"case": label, "mode": mode, "fault": fault, "status": status, "receipt_status": receipt["status"], "returncode": receipt["returncode"], "check_returncode": receipt["check_returncode"], "detail": receipt["detail"],
                        "artifact_sha256": receipt["artifact_sha256"], "raw_member_sha256": raw_members(directory),
-                       "manifest_sha256": sha(directory / "manifest.yaml"), "raw_result_sha256": sha(directory / "raw-result.json")}
+                       "manifest_sha256": sha_or_none(directory / "manifest.yaml"), "raw_result_sha256": sha_or_none(directory / "raw-result.json")}
 
 def raw_members(directory: Path) -> dict[str, str]:
-    receipt = json.loads((directory / "diagnostic" / "receipt.json").read_text())
-    return {row["path"]: row["sha256"] for row in receipt["raw_members"]}
+    tar = directory / "diagnostic" / "raw.tar.gz"
+    with tarfile.open(tar, "r:gz") as archive:
+        return {member.name: hashlib.sha256(archive.extractfile(member).read()).hexdigest()
+                for member in archive.getmembers() if member.isfile()}
 
 def run(mode: str, source_commit: str, capture: Path | None = None, fault: str | None = None):
     source = source_hashes(); verify_source_commit(source_commit, source)
