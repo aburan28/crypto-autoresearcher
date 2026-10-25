@@ -38,3 +38,15 @@ probability of index-calculus budget planning (KN-OPEN-002) with a theorem-backe
 rate. The census is cheap (Frobenius cycle-type histograms), so the value/cost
 ratio is high. Any exceptional-curve claim must exclude j=0/1728 extra-
 automorphism artifacts from the random controls.
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. This entry already carries `superseded_by: KN-OPEN-8a7432` (2026-10-17), which keeps the m >= 4 and relation-supply questions open.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- DEC-20260804-4f37d5 recorded `kn_open_009_disposition: CLOSED` (monodromy C_2^{m-2}, universal) with `official_research_state_changed: false`. CORR-20260807-652652 then narrowed KN-FIND-a1f3c2: the conclusion stands but the sketch omitted the load-bearing step, supplied as Lemma 3.2 of `papers/semaev-conservation-specialization/paper.tex`.
+- KN-FIND-a8990a (derivation, toy) says of this entry: "the open problem this bears on; NOT closed by it", and is not independently reviewed. KN-OPEN-8a7432 states that the ordered-base (Z/2)^{m-2} derivations are single-reviewer leads not re-derived by any committed record.
+- So the "monodromy group resolved" reading is not on record: a `CLOSED` disposition (2026-08-04) and a later supersession that reopens the m >= 4 question (2026-10-17) coexist. Treat KN-OPEN-8a7432 as the live entry.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.

@@ -48,6 +48,12 @@ remain separate; the register changes no official hypothesis status.
 
 ## Research direction
 
+[Lifting and representation controls](docs/lifting-representation-controls.md)
+provide searchable methods and executable toy checks for circular p-adic
+linearizations, equivalent-model factor bases, residual corrections and CM
+filters, linked to the existing prime-to-p lifting boundary. Run them through
+`python -m crypto_autoresearcher.index_calculus representation-controls`.
+
 What counts as a target result is defined in
 [`docs/target-result-profile.md`](docs/target-result-profile.md). Its canonical
 exemplar is Wesolowski's p^{1/3+o(1)} result on the supersingular isogeny
@@ -171,6 +177,12 @@ directly: `autoresearch adapter|agent|eval ...`, or `python3 -m
 orchestration.{adapter,agent,eval}`.
 
 ## Choosing an inference backend
+
+For Curvesmash-style exploratory claim review, use the optional
+[`autoresearch verify` integration](docs/curvesmash-verification.md). It reuses
+the registered challenge's pinned verifier, six protected target definitions,
+isolated experiment phases and deterministic claim scoring. Exploratory results
+remain advisory to this repository's existing scientific review and promotion.
 
 Roles, policies, and evidence records name no vendor. Which model answers is a
 binding table plus one environment variable — see

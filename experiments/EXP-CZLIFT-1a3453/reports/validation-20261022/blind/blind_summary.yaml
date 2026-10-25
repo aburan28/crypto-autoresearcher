@@ -1,0 +1,38 @@
+# Sealed blind re-derivation, TASK-20261022-8ebef8, joint J3 (EXP-CZLIFT-1a3453).
+# Written before any path in review_plan.blind_rederivation.blind_from was opened.
+# Inputs read: experiments/EXP-CZLIFT-1a3453/specification.yaml,
+#   experiments/EXP-CZLIFT-1a3453/trial-plan.json, ledger/hypotheses/H-CZLIFT-fba874.yaml,
+#   ledger/handoffs/TASK-20261022-8ebef8.yaml (task card), plus general mathematics.
+# Code: blind/blind_derivation.py ; output: blind/blind_output.json, blind/blind_stdout.txt
+blind_rederivation:
+  task_id: TASK-20261022-8ebef8
+  statistic: 'X(a,t) = |sum_{k=1..m} e(a f(k)/p) e(t k/n)|^2 / m, m = (n-1)/2, a = 1..p-1, t = 0..n-1'
+  threshold:
+    formula: 'T(p,n) = ln((p-1) n) + 12'
+    pairs_per_digit: '(p-1) n, of which (p-1) n / 2 distinct values (X(a,t) = X(p-a,n-t))'
+    per_digit_family_wise_level_bonferroni: 6.144e-06   # e^-12
+    per_digit_level_distinct_values: 3.072e-06          # e^-12 / 2
+    range_over_stated_family: [18.35, 24.86]            # p=53,n=11 .. p=599,n=641
+    per_seed_fwer_bonferroni:
+      spikes_higher_digits_gt0: 1.77e-03     # 36 curves x 2 coords x 4 digits
+      shuffled_spikes_total_gt0: 2.21e-03    # 36 x 2 x 5
+      uniform_spikes_total_gt0: 2.21e-03
+    two_seed_probability_success_criterion_fails_under_null: '<= 1.24e-02 (Bonferroni), <= 6.2e-03 over distinct values'
+  null_calibration:
+    marginal: 'P(X > 5), P(X > 10) match e^-5, e^-10 to within sampling error for m >= 63; lighter for m <= 29 (bounded by m)'
+    null_max_per_digit: 'about ln((p-1)n/2) + 0.577 minus 0.1..0.5: 4.9 (p53,n13), 7.2 (p53,n59), 9.2 (p131,n127), 10.9 (p263,n271), 12.3 (p557,n563), 12.5 (p599,n593)'
+    gap_to_threshold: 'null maxima sit about 12 to 14 below T; no simulated draw (7 configs x 60) came within 7 of T'
+  planted_PTM1:
+    sequence: 'f(k) = floor(p k / n) mod p, k = 1..m'
+    value: 'max_{a,t} X = m * r with r in [0.99887, 0.999998] over all 5909 (p,n) grid cells (p prime in [50,600], n odd prime in [11, p+1+2 sqrt p], n != p); argmax at a = 1 or p-1'
+    expected_signature: 'spike far above T when m = (n-1)/2 >> T, e.g. p=307,n=311: X = 154.99 vs T = 23.47'
+    trivial_bound_blind_zone: >-
+      X <= m for every digit sequence, so when (n-1)/2 <= ln((p-1)n) + 12 no sequence at all can
+      register a spike. Smallest odd n escaping the zone: 41 (p=53), 43 (p=101), 45 (p=307), 47 (p=557, 599).
+      907 of 5909 grid cells are in the zone; one further cell (p=73, n=41) is outside it by 0.01 but the
+      planted value 19.98 still misses T = 19.99. Curves with n below about 41..47 are structurally blind.
+  predictions_for_phase2:
+    - 'Every recorded threshold equals ln((p-1) n) + 12 for the curve recorded p, n.'
+    - 'Every recorded spike count is even.'
+    - 'Recorded per-digit maxima on real, shuffled and uniform digits lie near the null maxima above and below m.'
+    - 'PTM-1 on the recorded curves spikes iff (n-1)/2 > T(p,n) (up to the p=73,n=41 type edge).'

@@ -1,12 +1,10 @@
 ---
 name: tune-skill
 description: >-
-  Propose a reward-guided revision of another skill's instructions (and its
-  dispatched agent contract) using that skill's downstream ledger records as
-  the reward. Writes no ledger record and holds no Coordinator authority;
-  every diff is a code change a human approves. Use when asked to tune,
-  improve or "RL" a skill against its track record, e.g. `/tune-skill
-  propose-ideas`.
+  Propose a reward-guided revision of another skill's instructions, using its
+  downstream ledger records as the reward. Writes no ledger record; every
+  diff is a code change a human approves. Use to tune or improve a skill
+  against its track record, e.g. `/tune-skill propose-ideas`.
 
 ---
 
@@ -232,8 +230,9 @@ covers the skills above (`tune-skill` only in loop mode, below).
 9. **Commit and push as a normal code change.** One commit covering the
    skill/agent file edit(s) and the round record, message referencing the
    round id. No ledger snapshot/archive step applies — this isn't a ledger
-   record — but open or refresh a PR with the runtime's PR tool as usual so
-   the diff gets the same review any other instruction change would.
+   record — but open or refresh a PR with the runtime's PR tool as usual and
+   enable auto-merge (`gh pr merge <n> --auto --merge`) so the diff gets the
+   same review any other instruction change would.
 
 10. **Receipt.** `python3 tools/session_receipt.py --skill tune-skill
     --role <role> --outcome <published|no_change|impeded> --files-read <n>`

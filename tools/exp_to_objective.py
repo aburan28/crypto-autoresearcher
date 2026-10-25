@@ -66,6 +66,10 @@ try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
     import fast_yaml
 except ImportError:  # imported as tools.<name>, the repository root importable
     from orchestration import fast_yaml
+try:  # stored forms of run artifacts (tools/artifact_store.py)
+    import artifact_store
+except ImportError:  # imported as tools.<name>
+    from tools import artifact_store
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -561,10 +565,9 @@ def witnesses(repo: Path, exp_id: str, run_id: str) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for name in WITNESS_FILES:
         path = run_dir / name
-        if not path.is_file():
-            continue
         try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
+            # any stored form: as written, .gz, or a blob pointer (tools/artifact_store.py)
+            doc = artifact_store.read_json(path)
         except (OSError, ValueError):
             continue
         curve = doc.get("curve") if isinstance(doc, dict) else None
