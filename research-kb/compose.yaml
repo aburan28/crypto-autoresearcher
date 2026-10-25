@@ -1,0 +1,51 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    user: "10001:10001"
+    restart: unless-stopped
+    volumes:
+      - qdrant:/qdrant/storage
+    networks: [backend]
+    # Database has no host ports. Clients use the retrieval service only.
+  api:
+    image: ${RESEARCH_KB_IMAGE:-research-kb:local}
+    build: .
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    environment:
+      RESEARCH_KB_HOME: /data
+      RESEARCH_KB_AUTH_FILE: /run/secrets/auth.json
+      RESEARCH_KB_QDRANT_URL: http://qdrant:6333
+      RESEARCH_KB_PUBLIC_URL: ${RESEARCH_KB_PUBLIC_URL:-http://127.0.0.1:8080}
+      RESEARCH_KB_ALLOWED_HOSTS: ${RESEARCH_KB_ALLOWED_HOSTS:-["localhost","127.0.0.1"]}
+    volumes:
+      - ${RESEARCH_KB_DATA_DIR:-./data}:/data
+      - ${RESEARCH_KB_AUTH_DIR:-./secrets}:/run/secrets:ro
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [backend,edge]
+    depends_on: [qdrant]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+  ingest:
+    image: ${RESEARCH_KB_IMAGE:-research-kb:local}
+    profiles: [operator]
+    environment:
+      RESEARCH_KB_HOME: /data
+      RESEARCH_KB_QDRANT_URL: http://qdrant:6333
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-west-2}
+    volumes:
+      - ${RESEARCH_KB_DATA_DIR:-./data}:/data
+    networks: [backend,edge]
+    command: [status]
+volumes:
+  qdrant:
+networks:
+  backend:
+    internal: true
+  edge:
