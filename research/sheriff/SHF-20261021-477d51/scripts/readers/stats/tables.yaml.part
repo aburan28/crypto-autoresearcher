@@ -1,0 +1,323 @@
+blind_rederivation:
+  method: >-
+    Own Python (scripts/readers/stats/rederive.py) written from PROTOCOL.md,
+    PROTOCOL_AMENDMENT_1.md, raw records.jsonl and a read-only reading of the ecbench
+    source. S = cost.total_gae / sqrt(r) (checked on all 1,536 records); warm-ups
+    excluded (record.rs:361-363, compare.rs:208-210); pairs keyed (workload_id, round),
+    both verified (compare.rs:230-260); ratio = sum S_B / sum S_A (compare.rs:213-221);
+    95% interval = ecbench two-stage cluster bootstrap (targets, then pairs within
+    target), 4000 resamples, seed 20261002, splitmix64 state chain, linear-interpolated
+    2.5/97.5% quantiles (stats.rs:53-140, ecbench.rs:238-241). Cross-check: one-stage
+    numpy target-cluster bootstrap (20000 resamples). Band: priced_S(w) = (total_gae +
+    w*U)/sqrt(r), U = sum of the record's cost.unpriced counters found in counters or
+    phase native maps (band.rs:39-64,136-152); no record carries calibration pins, so
+    C = n_C = 0. ecbench band gives point means only; the per-weight interval below is
+    this reader's: the same two-stage cluster bootstrap applied to priced S pairs.
+  table_columns: >-
+    mean_S per arm (24 measured runs) with ecbench table's cluster CI of the mean;
+    alt/plan ratio at w=0 [ecbench-method CI] {numpy one-stage CI}; band mean S at
+    w=0,0.1,1; alt/plan band ratio per weight [two-stage CI] and class; protocol label.
+  sessions:
+    c24:
+      curve: {slug: icv1-fp24-tm1741-7eb5536e, r: 11649061, log2_r: 23.4737}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 1.047, ci95: [0.831, 1.291], S_over_rho: 1.000, levels: {"L1": 2, "L2": 22}}
+        plan: {mean: 13.145, ci95: [11.709, 14.319], S_over_rho: 12.560, levels: {"L1": 3, "L2": 21}}
+        half-base: {mean: 20.116, ci95: [17.468, 22.766], S_over_rho: 19.221, levels: {"L1": 2, "L2": 22}}
+        double-base: {mean: 19.572, ci95: [19.033, 20.072], S_over_rho: 18.701, levels: {"L1": 2, "L2": 22}}
+        rootfind: {mean: 1975.881, ci95: [1658.986, 2238.587], S_over_rho: 1887.990, levels: {"L1": 11, "L2": 13}}
+        full-rank: {mean: 43.400, ci95: [39.009, 48.376], S_over_rho: 41.469, levels: {"L1": 2, "L2": 22}}
+        random-targets: {mean: 545.121, ci95: [463.609, 634.419], S_over_rho: 520.873, levels: {"L1": 15, "L2": 9}}
+        plan-aa: {mean: 13.145, ci95: [11.709, 14.319], S_over_rho: 12.560, levels: {"L1": 4, "L2": 20}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.5303, ci95_ecbench: [1.3335, 1.7645], ci95_numpy_target_cluster: [1.4064, 1.6927], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.4889, ci95_ecbench: [1.3724, 1.6537], ci95_numpy_target_cluster: [1.3863, 1.6260], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 150.3172, ci95_ecbench: [141.5608, 156.3397], ci95_numpy_target_cluster: [142.8953, 155.7842], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 3.3017, ci95_ecbench: [2.9673, 3.6789], ci95_numpy_target_cluster: [3.0288, 3.6225], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 41.4706, ci95_ecbench: [35.2486, 48.2789], ci95_numpy_target_cluster: [35.9833, 47.6240], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 12.5600, ci95_ecbench: [9.7456, 16.4553], ci95_numpy_target_cluster: [10.1921, 15.6379], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [1.047, 1.140, 1.985]  # mean unpriced ops/run 3203
+        plan: [13.145, 14.923, 30.924]  # mean unpriced ops/run 60682
+        half-base: [20.116, 23.827, 57.224]  # mean unpriced ops/run 126654
+        double-base: [19.572, 20.436, 28.217]  # mean unpriced ops/run 29507
+        rootfind: [1975.881, 2174.310, 3960.170]  # mean unpriced ops/run 6772523
+        full-rank: [43.400, 51.236, 121.764]  # mean unpriced ops/run 267463
+        random-targets: [545.121, 546.811, 562.022]  # mean unpriced ops/run 57684
+        plan-aa: [13.145, 14.923, 30.924]  # mean unpriced ops/run 60682
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.5303 [1.3335, 1.7645] above; w0.1: 1.5967 [1.3869, 1.8510] above; w1.0: 1.8505 [1.5866, 2.1850] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.4889 [1.3724, 1.6537] above; w0.1: 1.3695 [1.2567, 1.5285] above; w1.0: 0.9125 [0.8225, 1.0353] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 150.3172 [141.5608, 156.3397] above; w0.1: 145.7052 [138.1508, 150.8426] above; w1.0: 128.0617 [124.6858, 130.2762] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 3.3017 [2.9673, 3.6789] above; w0.1: 3.4334 [3.0768, 3.8467] above; w1.0: 3.9375 [3.4825, 4.4919] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 41.4706 [35.2486, 48.2789] above; w0.1: 36.6430 [31.0719, 42.6837] above; w1.0: 18.1743 [15.2914, 21.3760] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 12.5600 [9.7456, 16.4553]; w0.1: 13.0854 [10.0895, 17.2266]; w1.0: 15.5783 [11.6989, 20.9905]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 12.5600, predicted: 11.46, measured_over_predicted: 1.0960, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+    c28:
+      curve: {slug: icv1-fp28-tm4805-5eb8d6cb, r: 216772169, log2_r: 27.6916}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 0.926, ci95: [0.683, 1.172], S_over_rho: 1.000, levels: {"L1": 1, "L2": 23}}
+        plan: {mean: 20.230, ci95: [18.477, 21.666], S_over_rho: 21.849, levels: {"L1": 7, "L2": 17}}
+        half-base: {mean: 29.829, ci95: [26.367, 32.869], S_over_rho: 32.217, levels: {"L1": 2, "L2": 22}}
+        double-base: {mean: 31.231, ci95: [30.651, 31.828], S_over_rho: 33.731, levels: {"L1": 3, "L2": 21}}
+        rootfind: {mean: 8351.384, ci95: [7302.233, 9212.097], S_over_rho: 9020.015, levels: {"L1": 24}}
+        full-rank: {mean: 84.026, ci95: [75.096, 92.283], S_over_rho: 90.754, levels: {"L1": 11, "L2": 13}}
+        random-targets: {mean: 1093.936, ci95: [1012.028, 1169.050], S_over_rho: 1181.519, levels: {"L1": 23, "L2": 1}}
+        plan-aa: {mean: 20.230, ci95: [18.477, 21.666], S_over_rho: 21.849, levels: {"L1": 1, "L2": 23}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.4745, ci95_ecbench: [1.3412, 1.6132], ci95_numpy_target_cluster: [1.3918, 1.5596], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.5438, ci95_ecbench: [1.4382, 1.6846], ci95_numpy_target_cluster: [1.4555, 1.6496], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 412.8256, ci95_ecbench: [395.1971, 425.1820], ci95_numpy_target_cluster: [399.1320, 423.5382], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 4.1536, ci95_ecbench: [3.6220, 4.7771], ci95_numpy_target_cluster: [3.7054, 4.7347], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 54.0754, ci95_ecbench: [49.8137, 58.8898], ci95_numpy_target_cluster: [50.3180, 57.9902], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 21.8495, ci95_ecbench: [17.0388, 29.7852], ci95_numpy_target_cluster: [17.8936, 26.9839], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [0.926, 1.016, 1.826]  # mean unpriced ops/run 13249
+        plan: [20.230, 23.032, 48.250]  # mean unpriced ops/run 412542
+        half-base: [29.829, 35.458, 86.119]  # mean unpriced ops/run 828767
+        double-base: [31.231, 32.578, 44.700]  # mean unpriced ops/run 198301
+        rootfind: [8351.384, 9187.915, 16716.691]  # mean unpriced ops/run 123163963
+        full-rank: [84.026, 99.593, 239.696]  # mean unpriced ops/run 2291947
+        random-targets: [1093.936, 1096.750, 1122.071]  # mean unpriced ops/run 414231
+        plan-aa: [20.230, 23.032, 48.250]  # mean unpriced ops/run 412542
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.4745 [1.3412, 1.6132] above; w0.1: 1.5395 [1.3973, 1.6883] above; w1.0: 1.7849 [1.6139, 1.9693] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.5438 [1.4382, 1.6846] above; w0.1: 1.4145 [1.3121, 1.5518] above; w1.0: 0.9264 [0.8432, 1.0389] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 412.8256 [395.1971, 425.1820] above; w0.1: 398.9230 [383.8781, 409.3757] above; w1.0: 346.4620 [340.0806, 350.7590] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 4.1536 [3.6220, 4.7771] above; w0.1: 4.3242 [3.7621, 4.9954] above; w1.0: 4.9678 [4.2737, 5.8396] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 54.0754 [49.8137, 58.8898] above; w0.1: 47.6189 [43.7808, 52.0598] above; w1.0: 23.2555 [21.2052, 25.7842] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 21.8495 [17.0388, 29.7852]; w0.1: 22.6722 [17.6546, 30.9945]; w1.0: 26.4270 [20.3275, 36.3672]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 21.8495, predicted: 19.33, measured_over_predicted: 1.1303, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+    c30:
+      curve: {slug: icv1-fp30-t8157-3aef4064, r: 826801823, log2_r: 29.6230}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 0.937, ci95: [0.693, 1.197], S_over_rho: 1.000, levels: {"L1": 2, "L2": 22}}
+        plan: {mean: 24.161, ci95: [22.592, 25.418], S_over_rho: 25.780, levels: {"L1": 5, "L2": 19}}
+        half-base: {mean: 32.762, ci95: [29.036, 36.283], S_over_rho: 34.957, levels: {"L1": 11, "L2": 13}}
+        double-base: {mean: 38.583, ci95: [37.933, 39.215], S_over_rho: 41.168, levels: {"L1": 6, "L2": 18}}
+        rootfind: {mean: 15379.978, ci95: [13908.978, 16558.295], S_over_rho: 16410.400, levels: {"L1": 24}}
+        full-rank: {mean: 116.301, ci95: [106.302, 127.493], S_over_rho: 124.093, levels: {"L1": 22, "L2": 2}}
+        random-targets: {mean: 1417.226, ci95: [1234.627, 1564.096], S_over_rho: 1512.177, levels: {"L1": 24}}
+        plan-aa: {mean: 24.161, ci95: [22.592, 25.418], S_over_rho: 25.780, levels: {"L1": 7, "L2": 17}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.3560, ci95_ecbench: [1.1992, 1.5348], ci95_numpy_target_cluster: [1.2318, 1.4880], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.5969, ci95_ecbench: [1.5166, 1.7049], ci95_numpy_target_cluster: [1.5455, 1.6514], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 636.5492, ci95_ecbench: [615.6520, 651.4369], ci95_numpy_target_cluster: [626.0732, 645.4306], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 4.8135, ci95_ecbench: [4.2975, 5.4020], ci95_numpy_target_cluster: [4.3773, 5.2960], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 58.6564, ci95_ecbench: [52.0920, 64.8255], ci95_numpy_target_cluster: [53.5421, 63.2377], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 25.7803, ci95_ecbench: [19.9311, 35.1860], ci95_numpy_target_cluster: [21.8974, 31.2138], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [0.937, 1.030, 1.861]  # mean unpriced ops/run 26559
+        plan: [24.161, 27.454, 57.089]  # mean unpriced ops/run 946809
+        half-base: [32.762, 38.914, 94.283]  # mean unpriced ops/run 1768968
+        double-base: [38.583, 40.181, 54.560]  # mean unpriced ops/run 459406
+        rootfind: [15379.978, 16919.620, 30776.389]  # mean unpriced ops/run 442710886
+        full-rank: [116.301, 138.026, 333.546]  # mean unpriced ops/run 6246684
+        random-targets: [1417.226, 1420.610, 1451.060]  # mean unpriced ops/run 972859
+        plan-aa: [24.161, 27.454, 57.089]  # mean unpriced ops/run 946809
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.3560 [1.1992, 1.5348] above; w0.1: 1.4174 [1.2500, 1.6098] above; w1.0: 1.6515 [1.4462, 1.8988] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.5969 [1.5166, 1.7049] above; w0.1: 1.4636 [1.3859, 1.5684] above; w1.0: 0.9557 [0.8918, 1.0406] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 636.5492 [615.6520, 651.4369] above; w0.1: 616.2838 [598.4079, 628.9304] above; w1.0: 539.0929 [531.4365, 544.3557] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 4.8135 [4.2975, 5.4020] above; w0.1: 5.0275 [4.4771, 5.6648] above; w1.0: 5.8425 [5.1491, 6.6726] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 58.6564 [52.0920, 64.8255] above; w0.1: 51.7446 [45.9395, 57.2913] above; w1.0: 25.4174 [22.5957, 28.3113] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 25.7803 [19.9311, 35.1860]; w0.1: 26.6656 [20.5705, 36.4777]; w1.0: 30.6789 [23.5365, 42.2027]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 25.7803, predicted: 24.55, measured_over_predicted: 1.0501, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+    r24:
+      curve: {slug: icv1-fp24-tm5099-a6f137c6, r: 16782299, log2_r: 24.0004}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 0.954, ci95: [0.735, 1.191], S_over_rho: 1.000, levels: {"L1": 4, "L2": 20}}
+        plan: {mean: 13.727, ci95: [12.705, 14.676], S_over_rho: 14.390, levels: {"L1": 4, "L2": 20}}
+        half-base: {mean: 21.428, ci95: [18.702, 24.041], S_over_rho: 22.464, levels: {"L1": 5, "L2": 19}}
+        double-base: {mean: 20.686, ci95: [20.034, 21.250], S_over_rho: 21.686, levels: {"L1": 1, "L2": 23}}
+        rootfind: {mean: 2341.216, ci95: [2080.837, 2583.324], S_over_rho: 2454.398, levels: {"L1": 7, "L2": 17}}
+        full-rank: {mean: 49.985, ci95: [45.185, 55.249], S_over_rho: 52.401, levels: {"L1": 3, "L2": 21}}
+        random-targets: {mean: 615.639, ci95: [558.434, 665.719], S_over_rho: 645.401, levels: {"L1": 10, "L2": 14}}
+        plan-aa: {mean: 13.727, ci95: [12.705, 14.676], S_over_rho: 14.390, levels: {"L1": 2, "L2": 22}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.5610, ci95_ecbench: [1.3538, 1.7699], ci95_numpy_target_cluster: [1.4276, 1.7197], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.5070, ci95_ecbench: [1.3974, 1.6403], ci95_numpy_target_cluster: [1.4148, 1.6100], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 170.5574, ci95_ecbench: [163.7743, 176.0238], ci95_numpy_target_cluster: [165.0033, 175.3332], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 3.6414, ci95_ecbench: [3.2372, 4.1403], ci95_numpy_target_cluster: [3.3316, 4.0203], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 44.8493, ci95_ecbench: [38.9584, 50.6450], ci95_numpy_target_cluster: [41.0245, 48.8491], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 14.3905, ci95_ecbench: [11.6319, 18.4487], ci95_numpy_target_cluster: [12.5191, 16.9112], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [0.954, 1.040, 1.818]  # mean unpriced ops/run 3539
+        plan: [13.727, 15.583, 32.288]  # mean unpriced ops/run 76037
+        half-base: [21.428, 25.410, 61.245]  # mean unpriced ops/run 163115
+        double-base: [20.686, 21.577, 29.597]  # mean unpriced ops/run 36504
+        rootfind: [2341.216, 2576.224, 4691.297]  # mean unpriced ops/run 9627388
+        full-rank: [49.985, 59.103, 141.162]  # mean unpriced ops/run 373518
+        random-targets: [615.639, 617.494, 634.186]  # mean unpriced ops/run 75978
+        plan-aa: [13.727, 15.583, 32.288]  # mean unpriced ops/run 76037
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.5610 [1.3538, 1.7699] above; w0.1: 1.6306 [1.4108, 1.8553] above; w1.0: 1.8969 [1.6262, 2.1833] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.5070 [1.3974, 1.6403] above; w0.1: 1.3847 [1.2764, 1.5160] above; w1.0: 0.9167 [0.8181, 1.0309] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 170.5574 [163.7743, 176.0238] above; w0.1: 165.3233 [159.4677, 169.9955] above; w1.0: 145.2964 [142.7295, 147.2997] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 3.6414 [3.2372, 4.1403] above; w0.1: 3.7928 [3.3596, 4.3251] above; w1.0: 4.3720 [3.8268, 5.0604] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 44.8493 [38.9584, 50.6450] above; w0.1: 39.6263 [34.3441, 44.8985] above; w1.0: 19.6417 [16.8614, 22.6007] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 14.3905 [11.6319, 18.4487]; w0.1: 14.9798 [12.0830, 19.2652]; w1.0: 17.7632 [14.1856, 23.0875]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 14.3905, predicted: 12.23, measured_over_predicted: 1.1767, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+    r26:
+      curve: {slug: icv1-fp26-tm1775-7e8fb6df, r: 42653927, log2_r: 25.3462}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 1.046, ci95: [0.788, 1.334], S_over_rho: 1.000, levels: {"L1": 3, "L2": 21}}
+        plan: {mean: 15.228, ci95: [14.397, 16.098], S_over_rho: 14.557, levels: {"L1": 1, "L2": 23}}
+        half-base: {mean: 23.559, ci95: [21.278, 25.692], S_over_rho: 22.521, levels: {"L2": 24}}
+        double-base: {mean: 24.296, ci95: [23.805, 24.706], S_over_rho: 23.226, levels: {"L1": 6, "L2": 18}}
+        rootfind: {mean: 3551.026, ci95: [3260.089, 3855.019], S_over_rho: 3394.638, levels: {"L1": 18, "L2": 6}}
+        full-rank: {mean: 58.453, ci95: [54.128, 63.236], S_over_rho: 55.878, levels: {"L1": 5, "L2": 19}}
+        random-targets: {mean: 747.613, ci95: [668.054, 817.161], S_over_rho: 714.688, levels: {"L1": 19, "L2": 5}}
+        plan-aa: {mean: 15.228, ci95: [14.397, 16.098], S_over_rho: 14.557, levels: {"L1": 3, "L2": 21}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.5471, ci95_ecbench: [1.4080, 1.6911], ci95_numpy_target_cluster: [1.4702, 1.6224], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.5955, ci95_ecbench: [1.4985, 1.6976], ci95_numpy_target_cluster: [1.5191, 1.6630], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 233.1950, ci95_ecbench: [226.4556, 239.4744], ci95_numpy_target_cluster: [228.6266, 238.0829], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 3.8386, ci95_ecbench: [3.4347, 4.2116], ci95_numpy_target_cluster: [3.5446, 4.1164], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 49.0955, ci95_ecbench: [43.7429, 53.9608], ci95_numpy_target_cluster: [45.8098, 52.6473], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 14.5571, ci95_ecbench: [11.1851, 19.5702], ci95_numpy_target_cluster: [11.6582, 18.3802], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [1.046, 1.145, 2.035]  # mean unpriced ops/run 6457
+        plan: [15.228, 17.279, 35.741]  # mean unpriced ops/run 133975
+        half-base: [23.559, 27.967, 67.640]  # mean unpriced ops/run 287894
+        double-base: [24.296, 25.376, 35.102]  # mean unpriced ops/run 70576
+        rootfind: [3551.026, 3907.129, 7112.055]  # mean unpriced ops/run 23257066
+        full-rank: [58.453, 69.158, 165.509]  # mean unpriced ops/run 699183
+        random-targets: [747.613, 749.736, 768.842]  # mean unpriced ops/run 138648
+        plan-aa: [15.228, 17.279, 35.741]  # mean unpriced ops/run 133975
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.5471 [1.4080, 1.6911] above; w0.1: 1.6185 [1.4707, 1.7719] above; w1.0: 1.8925 [1.7080, 2.0904] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.5955 [1.4985, 1.6976] above; w0.1: 1.4686 [1.3724, 1.5699] above; w1.0: 0.9821 [0.8969, 1.0727] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 233.1950 [226.4556, 239.4744] above; w0.1: 226.1189 [220.3358, 231.4640] above; w1.0: 198.9861 [196.4887, 201.2308] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 3.8386 [3.4347, 4.2116] above; w0.1: 4.0024 [3.5702, 4.4045] above; w1.0: 4.6307 [4.0818, 5.1429] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 49.0955 [43.7429, 53.9608] above; w0.1: 43.3898 [38.6151, 47.7364] above; w1.0: 21.5112 [19.0977, 23.7982] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 14.5571 [11.1851, 19.5702]; w0.1: 15.0918 [11.5638, 20.3182]; w1.0: 17.5660 [13.2981, 23.9267]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 14.5571, predicted: 14.45, measured_over_predicted: 1.0074, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+    r28:
+      curve: {slug: icv1-fp28-t28201-65099091, r: 268407199, log2_r: 27.9998}
+      records: 256  # status {'verified': 256}, warm-ups 64
+      mean_S:
+        rho-neg: {mean: 0.943, ci95: [0.721, 1.185], S_over_rho: 1.000, levels: {"L1": 1, "L2": 23}}
+        plan: {mean: 20.437, ci95: [19.050, 21.637], S_over_rho: 21.679, levels: {"L1": 3, "L2": 21}}
+        half-base: {mean: 29.299, ci95: [25.811, 32.479], S_over_rho: 31.079, levels: {"L1": 8, "L2": 16}}
+        double-base: {mean: 32.039, ci95: [31.205, 32.825], S_over_rho: 33.986, levels: {"L1": 2, "L2": 22}}
+        rootfind: {mean: 8970.428, ci95: [8074.769, 9744.522], S_over_rho: 9515.451, levels: {"L1": 24}}
+        full-rank: {mean: 93.157, ci95: [84.775, 102.460], S_over_rho: 98.817, levels: {"L1": 14, "L2": 10}}
+        random-targets: {mean: 1053.374, ci95: [915.923, 1155.069], S_over_rho: 1117.375, levels: {"L1": 22, "L2": 2}}
+        plan-aa: {mean: 20.437, ci95: [19.050, 21.637], S_over_rho: 21.679, levels: {"L1": 5, "L2": 19}}
+      ratios_w0:
+        half-base/plan: {ratio: 1.4336, ci95_ecbench: [1.2772, 1.5952], ci95_numpy_target_cluster: [1.3371, 1.5439], pairs: 24, unpaired: 0}
+        double-base/plan: {ratio: 1.5677, ci95_ecbench: [1.4872, 1.6753], ci95_numpy_target_cluster: [1.5061, 1.6387], pairs: 24, unpaired: 0}
+        rootfind/plan: {ratio: 438.9242, ci95_ecbench: [423.8790, 450.3980], ci95_numpy_target_cluster: [429.7093, 447.7614], pairs: 24, unpaired: 0}
+        full-rank/plan: {ratio: 4.5582, ci95_ecbench: [4.1013, 5.1187], ci95_numpy_target_cluster: [4.2099, 4.9557], pairs: 24, unpaired: 0}
+        random-targets/plan: {ratio: 51.5417, ci95_ecbench: [43.7930, 58.4758], ci95_numpy_target_cluster: [45.6003, 57.2196], pairs: 24, unpaired: 0}
+        plan-aa/plan: {ratio: 1.0000, ci95_ecbench: [1.0000, 1.0000], ci95_numpy_target_cluster: [1.0000, 1.0000], pairs: 24, unpaired: 0}
+        plan/rho-neg: {ratio: 21.6790, ci95_ecbench: [17.0401, 28.2827], ci95_numpy_target_cluster: [17.7257, 27.1049], pairs: 24, unpaired: 0}
+      band_mean_S_w0_0.1_1:
+        rho-neg: [0.943, 1.035, 1.862]  # mean unpriced ops/run 15058
+        plan: [20.437, 23.231, 48.374]  # mean unpriced ops/run 457688
+        half-base: [29.299, 34.811, 84.412]  # mean unpriced ops/run 902923
+        double-base: [32.039, 33.346, 45.104]  # mean unpriced ops/run 214042
+        rootfind: [8970.428, 9868.860, 17954.743]  # mean unpriced ops/run 147191273
+        full-rank: [93.157, 110.499, 266.584]  # mean unpriced ops/run 2841289
+        random-targets: [1053.374, 1056.043, 1080.063]  # mean unpriced ops/run 437238
+        plan-aa: [20.437, 23.231, 48.374]  # mean unpriced ops/run 457688
+      band_ratio_alt_over_plan:
+        half-base: {cells: "w0.0: 1.4336 [1.2772, 1.5952] above; w0.1: 1.4985 [1.3333, 1.6707] above; w1.0: 1.7450 [1.5423, 1.9639] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        double-base: {cells: "w0.0: 1.5677 [1.4872, 1.6753] above; w0.1: 1.4354 [1.3570, 1.5402] above; w1.0: 0.9324 [0.8634, 1.0178] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        rootfind: {cells: "w0.0: 438.9242 [423.8790, 450.3980] above; w0.1: 424.8150 [411.9435, 434.5767] above; w1.0: 371.1662 [365.6421, 375.2094] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        full-rank: {cells: "w0.0: 4.5582 [4.1013, 5.1187] above; w0.1: 4.7566 [4.2688, 5.3623] above; w1.0: 5.5109 [4.8980, 6.2954] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        random-targets: {cells: "w0.0: 51.5417 [43.7930, 58.4758] above; w0.1: 45.4584 [38.6206, 51.6719] above; w1.0: 22.3274 [18.8571, 25.6935] above", protocol_label: 'confirmed', point_order_holds_across_band: true}
+        plan-aa: {cells: "w0.0: 1.0000 [1.0000, 1.0000] across; w0.1: 1.0000 [1.0000, 1.0000] across; w1.0: 1.0000 [1.0000, 1.0000] across", protocol_label: 'not separated', point_order_holds_across_band: false}
+        plan/rho-neg: "w0.0: 21.6790 [17.0401, 28.2827]; w0.1: 22.4533 [17.6375, 29.3094]; w1.0: 25.9815 [20.2295, 34.0317]"
+      P1_plan_lowest_mean_S_of_IC_arms_w0: true
+      P4: {S_plan_over_S_rho: 21.6790, predicted: 20.08, measured_over_predicted: 1.0796, within_factor_2: true}
+      plan_vs_plan_aa_identical_counts_every_pair: true
+  pooled_double_base_over_plan_geomean_of_curve_ratios_stratified_target_bootstrap:
+    all6: "w0.0: 1.5494 [1.5146, 1.5881] curves_below_1=0; w0.1: 1.4222 [1.3885, 1.4596] curves_below_1=0; w1.0: 0.9373 [0.9097, 0.9677] curves_below_1=6"
+    r: "w0.0: 1.5563 [1.5110, 1.6045] curves_below_1=0; w0.1: 1.4291 [1.3847, 1.4764] curves_below_1=0; w1.0: 0.9433 [0.9049, 0.9839] curves_below_1=3"
+    c: "w0.0: 1.5426 [1.4921, 1.6030] curves_below_1=0; w0.1: 1.4153 [1.3667, 1.4737] curves_below_1=0; w1.0: 0.9314 [0.8932, 0.9769] curves_below_1=3"
+  break_even_weight_double_base_equals_plan:
+    c24: {w_star: 0.704, plan_unpriced_ops_per_GAE: 1.353, double_unpriced_ops_per_GAE: 0.442}
+    c28: {w_star: 0.756, plan_unpriced_ops_per_GAE: 1.385, double_unpriced_ops_per_GAE: 0.431}
+    c30: {w_star: 0.851, plan_unpriced_ops_per_GAE: 1.363, double_unpriced_ops_per_GAE: 0.414}
+    r24: {w_star: 0.721, plan_unpriced_ops_per_GAE: 1.352, double_unpriced_ops_per_GAE: 0.431}
+    r26: {w_star: 0.934, plan_unpriced_ops_per_GAE: 1.347, double_unpriced_ops_per_GAE: 0.445}
+    r28: {w_star: 0.780, plan_unpriced_ops_per_GAE: 1.367, double_unpriced_ops_per_GAE: 0.408}
+  seed_AA_plan_vs_plan_other_round_same_target:
+    c24: {ratio: 1.0000, ci95: [0.9204, 1.0871], class: across, mean_within_target_cv_of_plan_S: 0.141}
+    c28: {ratio: 1.0000, ci95: [0.9176, 1.0858], class: across, mean_within_target_cv_of_plan_S: 0.135}
+    c30: {ratio: 1.0000, ci95: [0.9188, 1.0897], class: across, mean_within_target_cv_of_plan_S: 0.138}
+    r24: {ratio: 1.0000, ci95: [0.9303, 1.0708], class: across, mean_within_target_cv_of_plan_S: 0.116}
+    r26: {ratio: 1.0000, ci95: [0.9381, 1.0689], class: across, mean_within_target_cv_of_plan_S: 0.106}
+    r28: {ratio: 1.0000, ci95: [0.9181, 1.0820], class: across, mean_within_target_cv_of_plan_S: 0.127}
+proves_too_much_control:
+  script: scripts/readers/stats/controls.py  # output controls_out.json, controls_tables.txt
+  controls:
+    c24:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.6535, 0.6263, 0.5404]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6716 [0.6047, 0.7286] below; w0.1: 0.7302 [0.6543, 0.7957] below; w1.0: 1.0959 [0.9659, 1.2159] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 2, "across": 96, "below": 2}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9480, 1.1197] across", x1.10: "[1.0124, 1.1958] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.4889, 1.5507, 2.0926]}
+    c28:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.6782, 0.6495, 0.5603]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6478 [0.5936, 0.6953] below; w0.1: 0.7070 [0.6444, 0.7621] below; w1.0: 1.0794 [0.9625, 1.1860] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 0, "across": 98, "below": 2}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9452, 1.1184] across", x1.10: "[1.0094, 1.1944] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.5438, 1.6087, 2.1872]}
+    c30:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.7375, 0.7055, 0.6055]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6262 [0.5865, 0.6594] below; w0.1: 0.6833 [0.6376, 0.7216] below; w1.0: 1.0464 [0.9609, 1.1214] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 0, "across": 98, "below": 2}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9463, 1.1224] across", x1.10: "[1.0106, 1.1987] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.5969, 1.6619, 2.2439]}
+    r24:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.6406, 0.6133, 0.5272]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6636 [0.6096, 0.7156] below; w0.1: 0.7222 [0.6596, 0.7834] below; w1.0: 1.0909 [0.9700, 1.2223] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 0, "across": 97, "below": 3}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9582, 1.1029] across", x1.10: "[1.0233, 1.1779] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.5070, 1.5683, 2.1083]}
+    r26:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.6464, 0.6178, 0.5284]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6268 [0.5891, 0.6673] below; w0.1: 0.6809 [0.6370, 0.7286] below; w1.0: 1.0182 [0.9322, 1.1149] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 0, "across": 97, "below": 3}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9663, 1.1010] across", x1.10: "[1.0319, 1.1758] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.5955, 1.6637, 2.2672]}
+    r28:
+      swap_plan_half_base_labels: {actual: 'confirmed', swapped: 'refuted (at >=1 weight)', swapped_ratios: [0.6975, 0.6674, 0.5731]}
+      swap_plan_double_base_labels: {actual: 'not separated', swapped: 'refuted (at >=1 weight)', swapped_cells: "w0.0: 0.6379 [0.5969, 0.6724] below; w0.1: 0.6967 [0.6493, 0.7369] below; w1.0: 1.0725 [0.9825, 1.1582] across"}
+      random_within_pair_swaps_plan_vs_half_base_w0_100perm: {"above": 1, "across": 98, "below": 1}
+      injected_effect_identical_seed_copy: {x1.03: [1.0300, 1.0300], x1.10: [1.1000, 1.1000]}
+      injected_effect_with_seed_noise: {x1.03: "[0.9456, 1.1145] across", x1.10: "[1.0099, 1.1902] above"}
+      drop_plan_lookup_and_probe_pricing_double_base: {label: 'confirmed', ratios: [1.5677, 1.6301, 2.1869]}
