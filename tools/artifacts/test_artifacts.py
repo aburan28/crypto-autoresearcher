@@ -22,6 +22,34 @@ def sh(cwd, *argv, check=True, env=None):
     return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=check, env=env)
 
 
+class RetargetOrigin(unittest.TestCase):
+    def test_rewrites_stale_github_remote_in_actions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "r"
+            repo.mkdir()
+            sh(repo, "git", "init", "-q", "-b", "main")
+            sh(repo, "git", "remote", "add", "origin", "https://github.com/old-owner/repo.git")
+            saved = {k: os.environ.get(k) for k in ("GITHUB_ACTIONS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL")}
+            os.environ["GITHUB_ACTIONS"] = "true"
+            os.environ["GITHUB_REPOSITORY"] = "new-owner/repo"
+            os.environ["GITHUB_SERVER_URL"] = "https://github.com"
+            try:
+                artifacts.retarget_actions_origin(repo)
+                url = sh(repo, "git", "remote", "get-url", "origin").stdout.strip()
+                self.assertEqual(url, "https://github.com/new-owner/repo.git")
+                os.environ.pop("GITHUB_ACTIONS", None)
+                sh(repo, "git", "remote", "set-url", "origin", "https://github.com/old-owner/repo.git")
+                artifacts.retarget_actions_origin(repo)
+                url = sh(repo, "git", "remote", "get-url", "origin").stdout.strip()
+                self.assertEqual(url, "https://github.com/old-owner/repo.git")
+            finally:
+                for k, v in saved.items():
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+
+
 class PlaceCopy(unittest.TestCase):
     def test_creates_missing_parent_directories(self):
         with tempfile.TemporaryDirectory() as tmp:

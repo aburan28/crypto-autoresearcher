@@ -95,6 +95,31 @@ def git(root: Path, *args: str, input: bytes | None = None) -> bytes:
     return p.stdout
 
 
+def retarget_actions_origin(root: Path) -> None:
+    """Point remotes at GITHUB_REPOSITORY so partial clones can lazy-fetch blobs.
+
+    After a repository transfer the checkout still names the old URL. GitHub then
+    403s ('repository is disabled') on `cat-file` for blobs not in the sparse tree.
+    """
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        return
+    want = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com').rstrip('/')}/{repo}.git"
+    p = subprocess.run(["git", "-C", str(root), "remote"], capture_output=True, text=True)
+    if p.returncode != 0:
+        return
+    for name in p.stdout.split():
+        cur = subprocess.run(["git", "-C", str(root), "remote", "get-url", name],
+                             capture_output=True, text=True)
+        if cur.returncode != 0:
+            continue
+        url = cur.stdout.strip()
+        if "github.com" in url and repo not in url:
+            subprocess.run(["git", "-C", str(root), "remote", "set-url", name, want], check=False)
+
+
 def repo_root() -> Path:
     p = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     if p.returncode != 0:
@@ -114,6 +139,7 @@ class Config:
 
     @classmethod
     def load(cls, root: Path) -> "Config":
+        retarget_actions_origin(root)
         raw: dict = {}
         cfg_path = root / CONFIG
         if cfg_path.exists():
