@@ -10,6 +10,21 @@ The correction derives `1 ≤ k ≤ 20` from the theorem's hypotheses using `ome
 
 On the corrected source, the pinned `lake build CoverCensusN7` completed. The eight named theorem constants printed only Lean's `propext` and `Quot.sound` axioms, or no axioms. [The build log](fixed-build.log) and [machine-readable receipt](receipt.json) record the source hash, toolchain, command and each theorem's axiom set. The new `PEXT n7 Lean proof` workflow runs the same build and rejects missing reports or any extra axiom on future changes to this Lean project. Local controls accepted the intact log and rejected both a missing theorem report and an injected `sorryAx`.
 
+### Hosted gate follow-up (2026-10-25)
+
+The first `kernel-build` check for PR #2546 failed in `leanprover/lean-action`
+before running the proof build: the standalone Lake package had no
+`lake-manifest.json`. PR #2546 merged despite that failed check, so its hosted
+proof gate did not validate the merged head. The manifest added by this
+follow-up was generated with the pinned Lean 4.34.1 `lake update`; it records
+the package and an empty dependency list. With that manifest, a fresh local
+`lake build CoverCensusN7` completed three jobs, and all eight named theorem
+reports contained only the permitted `propext` and `Quot.sound` axioms, or no
+axioms. The [follow-up build log](hosted-gate-followup-build.log) and
+[receipt](hosted-gate-followup.json) bind the manifest, theorem source, and
+eight reports. The theorem source is unchanged. The hosted check on this
+follow-up must pass before calling the recurring gate operational.
+
 ![Proof-build scope and remaining gap](diagram.svg)
 
 ## Inference and limits
