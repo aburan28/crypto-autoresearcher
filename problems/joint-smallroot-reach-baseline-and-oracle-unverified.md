@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** executor-implementation under the owning crypto workflow; the zero-run applicability/design task is archived, and the native launcher now requires a lawful Conductor scope before code edits
+- **Next action owner:** Coordinator publishes the native implementation handoff after GitHub access is restored; executor-implementation then reserves the actual owner scope and prepares the native launcher
 - **Last updated:** 2026-10-25
 
 ## Problem
@@ -177,3 +177,15 @@ owner code was edited and no ownership approval was fabricated. The
 names the source policies, exact observations, native implementation obligations
 and checkable exit condition. This is an owner-workflow and implementation gap,
 not a mathematical negative result or a request to reapprove the research.
+
+2026-10-25 setup follow-up: the missing local Conductor installation is resolved.
+The documented, checksum-verified release is installed, PostgreSQL17.11 and an
+isolated loopback control plane are running, and the local native-directory
+check returns exit0 with outcome allow. This is workspace-local readiness,
+not a global reservation or scientific approval. Owner code remains unchanged.
+The external publication gate has changed: Git push returns403 and the connected
+GitHub tool returns404 for existing PR2557, despite the plugin being enabled.
+The correction is committed locally; its publication and a new admitted
+implementation handoff await restored repository access. Existing user research
+and merge authorization persist. The native port, independent review, runnable
+preapproval and matched complete IC improvement remain uncompleted obligations.

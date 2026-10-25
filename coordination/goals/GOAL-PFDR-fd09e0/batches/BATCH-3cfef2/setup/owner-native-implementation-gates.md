@@ -89,9 +89,9 @@ Reduction/root extraction and a matched complete IC comparison remain later
 obligations. Native implementation, software checks or a symbolic bound do not
 establish an IC improvement.
 
-## Exact impediment and exit condition
+## Initial impediment and exit condition
 
-Owner code edits are presently blocked by the unavailable required Conductor
+At the initial check, owner code edits were blocked by the unavailable required Conductor
 task/check. A lawful task reservation on a host where that workflow is
 available, followed by the native implementation and checks above, clears
 this operational impediment. No additional scientific permission is being
@@ -110,3 +110,40 @@ scope and prepare the native adapter/launcher, trial plan and supervisor without
 scientific execution, then return for independent review and prospective
 preapproval. Do not repeat the earlier overbroad runtime/capacity or
 coordination-mode blocker claims.
+
+## Setup follow-up: local Conductor works; GitHub access is now the external gate
+
+The owner's `docs/CONDUCTOR.md` supplies installation instructions. Following
+its release route installed Conductor v0.1.11, commit `64ebf0fcaa86`, after the
+release archive passed its SHA256SUMS check. The attempted Go install had used
+an unrelated `/usr/bin/go`; that executable did not support `go install`.
+The documented release installation needed no Go compiler.
+
+PostgreSQL 17.11 is installed in a workspace prefix, and an isolated loopback
+Conductor instance is running at `127.0.0.1:18080` with a workspace-local crypto
+project. No shared remote control plane was substituted or altered. This local
+instance coordinates this workspace only. Credentials are kept in private
+workspace files and are absent from repository artifacts. No worker or
+scientific process was started. Home directories were not repurposed.
+
+The installed CLI, authenticated to this local instance, now returns exit0 and
+`{"outcome":"allow"}` for the proposed native implementation directory. This
+resolves the missing local CLI/control-plane check; it does not assert global
+ownership, create a programme execution handoff, implement the native port or
+approve a scientific trial. Owner code remains unchanged.
+
+Separately, the new Git push returned HTTP403, "Write access to repository not
+granted", and the connected GitHub tool returned HTTP404 reading existing
+PR2557. Plugin discovery confirms GitHub is installed/enabled; that status does
+not establish repository access. No permission setting, OAuth scope or alternate
+identity was changed. The cause of the service access failure is not inferred.
+The compatibility correction was committed locally but could not be published.
+The last confirmed published lane head remains
+`eccb2f95dca706ca6b6c8d1acbc4818aba7a1152`.
+
+Current exit condition: restore the existing GitHub connection's access, publish
+the native implementation requirements and proper handoff, acquire its actual
+owner reservation, and prepare the native port and prospective runnable packet.
+Research and merge authorization are already given; this is a service-access
+dependency, not another request to approve the research. No native implementation,
+scientific execution or verified IC improvement has been completed by setup.
