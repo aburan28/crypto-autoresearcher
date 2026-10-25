@@ -16,3 +16,8 @@ The eight directions in [the original plan](plan/original-week-plan.json) are be
 Each producer retains code, exact checks, assumptions, failures and a next discriminating action. The final report will distinguish actual published-field checks from arguments about scaling and from unrun scientific trials. No speed advantage follows from a compact representation or a constructed successful relation.
 
 Inputs in `baseline/` are copied from the earlier local Dickson inspection and plan. They are reference data, not fresh output. The original plan is preserved; today’s instruction changes execution priority, not historical evidence.
+
+
+Current same-day outputs are summarized in [report.md](report.md), with machine-readable state in [status.json](status.json). [The delivery audit](archive/payload-audit.json) distinguishes local evidence from the public branch. Broad publication is pending explicit disclosure approval after automatic approval review refused it. Local independent checks carry [a recorded custody exception](reviews/local-custody-exception.json); they are not canonical scientific promotion gates.
+
+Track PDFs are named `report-delivery.pdf`; all were inspected. [F3 coefficient clarification](corrections/f3-coefficients-mod-r.md) qualifies its original lemma without changing sealed evidence. [P-224/Curve448 comparisons](comparisons/p224-curve448/report.md) and [the Cartier-component derivation](analysis/cartier-proposal/derivation.md) extend the initial pass.

@@ -239,6 +239,40 @@ def claims(ref):
          label="structured speedup claims (progress-fidelity)", source=f"claims/*.json@{ref}")
 
 
+def p256_factor_base_checks(ref, since):
+    """Count completed engineering packages; this is no scientific verdict.
+
+    Like the other exporters, read only committed bytes. Missing or malformed
+    sources produce no sample, rather than an invented zero.
+    """
+    path = "research/p256_factor_base_parallel_20261025/status.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        record = json.loads(text)
+        date = dt.date.fromisoformat(record["date"]).isoformat()
+        tracks = record["tracks"]
+    except (ValueError, KeyError, TypeError):
+        return
+    if date < since or not isinstance(tracks, list):
+        return
+    expected = {f"F{i}" for i in range(1, 9)}
+    if (len(tracks) != 8 or any(not isinstance(t, dict) for t in tracks)
+            or any(not isinstance(t.get("id"), str) for t in tracks)
+            or {t.get("id") for t in tracks} != expected):
+        return
+    if any(not isinstance(t.get("implementation_status"), str) or
+           t["implementation_status"] not in
+           {"pending", "complete", "needs_correction"} for t in tracks):
+        return
+    complete = sum(t["implementation_status"] == "complete" for t in tracks)
+    emit("p256.factor_base.implementation_packages", complete, date=date,
+         problem="p256-factor-bases", unit="packages", better="neutral",
+         label="P-256 direction packages with completed implementation checks (no scientific verdict)",
+         source=f"{path}@{ref}")
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -246,6 +280,7 @@ def main():
     runs(a.ref)
     funnel(a.ref, a.since)
     claims(a.ref)
+    p256_factor_base_checks(a.ref, a.since)
 
 
 if __name__ == "__main__":
