@@ -1,0 +1,22 @@
+#set page(margin: 24mm)
+#set text(font: "DejaVu Sans", size: 10pt)
+#set heading(numbering: "1.")
+
+= Concrete finite Semaev first-fall witness
+2026-10-23 · One archived Boolean draw · Machine-checked finite proof
+
+The frozen sample is $n=4$, $n'=4$, seed 32201, $x_R=1$, basis $[9,3,2,12]$. Its equation SHA-256 is `89ab8e668c510572bbf9307f105b2eaf46858ad900f0b6b4a2fce8803e0ba6eb`. No new experiment or performance measurement was run.
+
+== Exact certificate
+XOR 23 of 80 degree-three rows using selector `1321682796735964`. The result has monomial masks `1, 2, 4, 8, 9, 10, 12, 16, 18, 20, 32, 40, 48, 64, 65, 128, 144, 192`, all of degree at most two. The linear functional consisting of coefficients at masks 80 and 192 is zero on all 28 degree-two rows but one on this result. It therefore lies in the degree-three row space and outside the degree-two row space. Adding it raises the latter rank from 11 to 12.
+
+#figure(image("row-space.svg", width: 100%), caption: [Exact dimensions from the source-binding receipt; no sampling uncertainty.])
+
+== Checks and scope
+`ConcreteFirstFallWitness.concreteNewFall` is compiled with pinned Lean 4.35.0-rc1. A source-binding checker replays the literal archived equations, row order, XOR, separator and rank extension. Full build, axiom audit and formal target verification are recorded in `evidence/concrete-proof.json`; row and source hashes are in `evidence/source-binding.json`.
+
+`verify_independent.py` separately derives all four component equations from 256 direct $S_3$ evaluations by a Möbius transform. A second field multiplier and low-column elimination reproduce ranks 1, 11 and 53, low-degree dimensions 1 and 12, and the same 23-row witness and separator. The source-bound result is `evidence/independent-replay.json`. This remains one finite-model implementation replay, not an independent human claim review.
+
+The current-main integration check copied all 148 tracked formal files from commit `d513b75233`, built 8,975 jobs and audited 652 theorems. With this witness added, it built 8,976 jobs and audited 661 theorems with standard axioms only. `evidence/current-main-integration.json` binds the sources and logs.
+
+This proves one finite Boolean-model witness. Independent semantic review, generic rank semantics and symbolic descent, additive correction of historical wording, and any ECDLP cost inference remain open. The row-space graph above and the archived-versus-corrected draw chart were checked against the replay and have no changed values; performance dashboards have no changed data.

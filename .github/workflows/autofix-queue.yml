@@ -84,8 +84,8 @@ env:
 jobs:
   triage:
     if: >-
-      vars.AUTOFIX_PAUSED != 'true' &&
-      (github.event_name != 'pull_request' || github.event.label.name == 'autofix')
+      !github.event.pull_request.draft &&
+      (vars.AUTOFIX_PAUSED != 'true' && (github.event_name != 'pull_request' || github.event.label.name == 'autofix'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -140,7 +140,9 @@ jobs:
 
   fix:
     needs: triage
-    if: needs.triage.outputs.count != '' && needs.triage.outputs.count != '0'
+    if: >-
+      !github.event.pull_request.draft &&
+      (needs.triage.outputs.count != '' && needs.triage.outputs.count != '0')
     name: "#${{ matrix.pr.number }} (${{ matrix.pr.tier }})"
     runs-on: ubuntu-latest
     # Two bounded attempts leave time to release labels and upload diagnostics.
@@ -180,6 +182,7 @@ jobs:
         with:
           ref: ${{ matrix.pr.head_ref }}
           fetch-depth: 0
+          filter: blob:none
           # No token left in .git/config while a model runs here; the scripts
           # pass one explicitly for the base fetch and the final push.
           persist-credentials: false

@@ -668,6 +668,32 @@ def test_rho_walk_is_square_root_sized():
     assert 0.4 < ratio < 2.5
 
 
+def test_rho_negation_walk_is_the_default_and_counts_its_guards(curve14):
+    E, P = curve14
+    Q = E.mul(4321, P)
+    neg, plain = pollard_rho(E, P, Q, seed=2), pollard_rho(E, P, Q, seed=2, negation=False)
+    assert neg.negation and neg.walk == "negation" and plain.walk == "plain"
+    for rr in (neg, plain):
+        assert rr.verified and rr.k == 4321 % E.order
+        assert rr.group_ops == rr.walk_ops + rr.setup_ops
+    # the look-ahead and the escapes are walk additions, counted in walk_ops
+    assert neg.look_ahead_adds + neg.escapes < neg.walk_ops <= neg.canonicalisations
+    assert plain.look_ahead_adds == plain.escapes == plain.canonicalisations == 0
+
+
+def test_rho_negation_walk_saves_about_sqrt2():
+    E, P = generate_prime_order_curve(20, 5)
+    neg, plain = [], []
+    for seed in range(24):
+        Q = E.mul(777 + 31 * seed, P)
+        for out, flag in ((neg, True), (plain, False)):
+            rr = pollard_rho(E, P, Q, seed=seed, negation=flag)
+            assert rr.verified
+            out.append(rr.walk_ops)
+    assert 0.5 < statistics.mean(neg) / math.sqrt(math.pi * E.order / 4) < 2.0
+    assert statistics.mean(neg) < statistics.mean(plain)
+
+
 def test_bootstrap_slope_of_an_exact_line():
     xs = [10, 10, 12, 12, 14, 14]
     fit = bootstrap_slope(xs, [0.5 * x + 3 for x in xs], reps=200)

@@ -38,3 +38,15 @@ finding either way. It is the LA-stage counterpart to the relation-generation
 questions KN-OPEN-002 and KN-OPEN-004, and must be judged under the same
 fully-charged cost model (the LA saving counts only if the harvesting penalty
 does not cancel it).
+
+## Reconciliation note, 2026-10-18 (appended; the entry above is unchanged)
+
+Register status stays `open`. The supporting hypothesis H-STR-002 is `weakened` on artifact, scoped-ablation and missing-cost-evidence grounds (see problems/str002-support-verdict-missing-artifacts.md). The measured ablation remains evidence about its four instances and collection convention; the general mechanism question is unresolved.
+
+Premise check: the request that prompted this note cited DEC-20260722-003..006 as the proving decisions. They are not: DEC-20260722-003 targets GOAL-MLKEM-001/IDEA-20260722-001, -004 and -005 target GOAL-ECDLP-001 BATCH-002 task handling, and no DEC-20260722-006 exists. The records that do bear on this problem are below.
+
+- EV-STR-001 (STR-H-001, AP supports, `contradicts`, preliminary, n <= 4139).
+- H-STR-002: `supported` (DEC-20260726-006) then `weakened` (DEC-20260727-009) for artifact defects, a scoped one-variable comparison, and missing complete-cost evidence. The decision retains the independently reproduced displacement-metric comparison while refusing rejection of the general mechanism. EXP-STR-004 / EV-STR-004 (DEC-20260730-014, `inconclusive`) tested the displacement-rank instrument only: "No H-STR-002 mechanism test".
+- DEC-20260804-139a86 lists this problem as addressed by "H-STR-001/002 ... earlier campaign"; that survey closes no entry.
+
+Decision request: `coordination/remediation/DECISION-REQUEST-20261018-ic-integrity.md`, item R-3.
