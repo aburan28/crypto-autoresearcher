@@ -86,8 +86,26 @@ skeptics each, majority rule):**
 | LEAD-ICB-tau-horner-chain | AUD-4 | a counting identity decides the m! accounting before the run | refuted |
 | LEAD-ICE-sat-xor-pdp-oracle | AUD-4 | recorded counts already exclude "priced S/rho below 1 across the band" | refuted |
 | LEAD-ICE-first-fall-degree-assumptions | AUD-4 | the counterexample branch is realised on a finite model (Lean certificates) | refuted |
-| LEAD-ICP-lattice-ic-relation-construction | AUD-4 | two of three routes reduce to standing obstructions | refuted |
-| 13 further rows (LEAD-ICP-gfp5-odd-char-cover, LEAD-ICP-xline-symmetry-special-j, LEAD-ICP-construction-normal-form, LEAD-TRF-global-lift-small-height, LEAD-TRF-padic-canonical-section x3, LEAD-TRF-cover-catalog-jacobian-transfer, LEAD-TRF-miller-cocycle-nonhom-transfer, LEAD-TRF-teske-secret-isogeny-trapdoor, LEAD-TRF-small-genus-cover-general, LEAD-EXO-augmented-oracle-ggm, LEAD-EXO-miller-pairing-cocycle) | mixed | see `AUDIT.md` | verification **pending** (the first verify run hit the session limit; resumed) |
+| LEAD-ICP-lattice-ic-relation-construction | AUD-4 | two of three routes reduce to standing obstructions | refuted (the evidence path is a proposal report, not a deciding record) |
+| LEAD-TRF-padic-canonical-section | AUD-1 | the clause "any non-homomorphic section recovers d only at the random 1/p rate" is recorded false by DEC-20261024-23d64d; split the row, keep the homomorphic/formal-log clause closed (kind theorem via KN-FIND-7e2b94) and open the digit-character channel | **survives** (3 votes; all three skeptics give the same split, see PROPOSED-DIFFS.md 7) |
+| LEAD-TRF-padic-canonical-section | FOLD | closed_obstructed -> open_next_step on DEC-20261023-2e7447 (NA-4 successor) | **survives** (3 votes; corrected: add the next_action the validator requires, cite DEC-20261024-23d64d N-3(1)) |
+| LEAD-TRF-padic-canonical-section | FOLD | DEC-20261023-36b4f0 confirms the closure for the formal-log clause | **survives** (2 of 3; corrected: keep closed, narrow the statement to EV-CZLIFT-ad28f5's scope, kind proof not theorem) |
+| LEAD-TRF-small-genus-cover-general | AUD-5 | the title scope "other configurations over F_{q^3}" exceeds the x-line proof; narrow the title and split the non-x-line degree-2-function / Jacobian-existence routes into an open row | **survives** (3 votes; corrected: frame as narrowing to the proof's scope, which the row's own revisit_when already names) |
+| LEAD-EXO-augmented-oracle-ggm | AUD-2 | the theorem closure (Shoup via GGM simulability) forecloses coordinate-reading oracles it does not reach; split: keep closed for oracles whose answers are computable by group operations and equality, open the coordinate-reading group | **survives** (3 votes; same split from all three) |
+| LEAD-EXO-miller-pairing-cocycle | AUD-4 | a derivation (T-KUMMER, in `AUDIT.md`) decides the correlation part of the queued step; commit it as a reviewable record first, then run the K1/K2 identity check | **survives** (2 of 3; corrected: keep open_next_step, anchor the Weil/Deligne input on a KN-LIT row) |
+| LEAD-ICP-gfp5-odd-char-cover | AUD-4 | paper theorems already in crypto (genus floor g >= 33 at n = 5) decide the blocked step | refuted (2 of 3: the census is committed but does not price the non-x-line routes the row names) |
+| LEAD-ICP-xline-symmetry-special-j | AUD-5 | dominated by LEAD-STR-special-j-ic-semaev | refuted (that row is itself open; nothing decided) |
+| LEAD-ICP-construction-normal-form | AUD-5 | methodology row; dominate it by LEAD-EXO-methodology-instruments | refuted (no committed record decides it) |
+| LEAD-TRF-global-lift-small-height | AUD-1 | both load-bearing clauses revised by CZLIFT records; closed_known -> closed_obstructed (proof for coverage) | refuted (2 of 3: DEC-20261024-23d64d still has `archived_by: null`; wait for the archive) |
+| LEAD-TRF-cover-catalog-jacobian-transfer | AUD-4 | every catalogued map is same-field, so SO-COVER decides it | refuted (the assessment README classifies, it does not decide) |
+| LEAD-TRF-miller-cocycle-nonhom-transfer | AUD-5 | duplicate of LEAD-EXO-miller-pairing-cocycle | refuted (no committed record; propose `related`, not closed_dominated) |
+| LEAD-TRF-teske-secret-isogeny-trapdoor | AUD-4 | a pigeonhole bound caps the occupancy meter at e/(e-1) | refuted (H-ECTD-e88346 is an approved hypothesis, not a result; the bound is a Lean target, not a closure) |
+
+Net: **8 of 21 proposed disposition changes survive** three skeptics each; 13
+are refuted, in every case because the cited record is a plan, a proposal, a
+classification or an un-archived decision rather than a deciding record. The
+8 survivors are written as proposed diffs with the skeptics' corrected wording
+(`PROPOSED-DIFFS.md`, items 7-12); none is applied.
 
 **Prime-field findings that change what to do next (ic-prime, ic-engine; the
 proposer's wording, with the evidence path in `AUDIT.md`):**
@@ -259,10 +277,15 @@ size.
 - `problems/README.md` is held by Conductor task T-5065 (another session), so
   the index line for the new problem record is **not** added here; proposed line:
   `- [Lean/Lake file reads on the external APFS volume fail intermittently with EINTR, blocking the formal gate](formal-lean-external-volume-eintr.md) - open`.
-- `gh auth status`: the keyring token for github.com is invalid on this host
-  and `api.github.com` is outside the sandbox allowlist; the PR for this branch
-  is opened only if `gh` works at delivery time, otherwise the pushed branch is
-  reported (propose-ideas skill, "Branch and PR hygiene").
+- PR creation: the keyring token for github.com is invalid on this host; a
+  fine-grained token supplied in chat authenticates (`gh api user` ->
+  aburan28) but `gh pr create` returns "Resource not accessible by personal
+  access token (createPullRequest)" (no pull-request write permission). The
+  branch `lead-discovery/20261024-mythos-ecdlp` is pushed; the PR is opened by
+  the user with `gh pr create` after `gh auth login -h github.com`, or from the
+  compare page, with the body in the session summary.
+- Conductor: task T-5083 holds the touched paths (epoch 7); further lease
+  renewals were refused ("retry budget exhausted (4/4)").
 - Pre-existing: `tools/validate_ledger.py` reports `FAIL: 104 new validation
   error(s)` on origin/main records (IDEA-20261003-*, IDEA-20261016-*,
   experiments/EXP-AES-14352a, EXP-ICPERF-*, ...), none naming this session's
@@ -281,7 +304,8 @@ size.
 
 | check | result |
 |---|---|
-| `python3 tools/validate_ledger.py` | FAIL, 104 pre-existing errors on origin/main; 0 errors name RQ-ECDLP-361f3a, IDEA-20261024-a2b05d or the new targets (full log in `checks/validate_ledger_full.log`) |
+| `python3 tools/validate_ledger.py` | FAIL, 104 pre-existing errors on origin/main (re-run after merging origin/main e5f46a5951: the same 104); 0 errors name RQ-ECDLP-361f3a, IDEA-20261024-a2b05d or the new targets (every error line in `checks/validate_ledger_excerpt.txt`) |
+| `python3 tools/check_merge_hygiene.py --base origin/main` | PASS on the 27 touched paths (no conflict markers, no unparseable records, no identifier collisions) |
 | `python3 tools/lead_atlas.py --check --strict-paths` | FAIL, 2 pre-existing errors (LEAD-RHO-pool-class-quotient evidence[4], [5]); 0 attributable to this session; without `--strict-paths` these are warnings and the check passes |
 | `python3 tools/build_frontier_map.py --check` | PASS: `known-results map OK: 52 rows` |
 | `lake build` / `AxiomAudit.lean` / `verify_formal_targets.py` | NOT RUN TO COMPLETION (EINTR on this host); plain `lean` compile of both new files: PASS (logs in `checks/`) |
