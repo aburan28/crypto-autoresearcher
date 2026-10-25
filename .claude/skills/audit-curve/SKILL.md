@@ -215,7 +215,12 @@ For a Koblitz subgroup or vertical-isogeny comparison, **read and apply**
 [the Koblitz comparison controls](references/koblitz-comparison.md) before a
 verdict. They require the certified `tau` action, paired calibration, the
 native signed-`tau` incumbent, fully charged transported actions, and the
-one-time dual-transfer control.
+one-time dual-transfer control. Relative to the same curve's signed-`tau`
+rho, a negation-only walk loses a certified `tau` orbit of size `m` and
+has a structural `sqrt(m)` transition penalty; use measured full-walk
+costs for a verdict. When `gcd(d,r)=1`, the one-time transfer control
+checks `[d^(-1) mod r] o phi o tau o dual(phi)` on the selected subgroup;
+see the reference for map domains and evaluation costs.
 
 ## 3. Verify every claimed isogeny transfer
 
