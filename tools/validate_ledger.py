@@ -446,6 +446,11 @@ def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
 # immutable record changes state and the prune-only baseline never grows. Move
 # or remove the cutover here; nothing else keys on it.
 PRIOR_ART_CUTOVER = 20261001
+# The lead atlas (knowledge/leads/ecdlp/README.md, rule 4): from this date an
+# ECDLP idea also names the program's own lead it advances, so ideas stop
+# re-proposing mechanisms an earlier lane already measured or closed.
+LEAD_CUTOVER = 20261025
+_LEAD_ID = re.compile(r"^LEAD-[A-Z]+-[a-z0-9][a-z0-9-]{1,47}$")
 PRIOR_ART_NOVELTY = {"known", "adaptation", "speculative", "unverified"}
 PRIOR_ART_RELATIONS = {"same", "special_case", "generalizes", "adjacent",
                        "orthogonal"}
@@ -467,14 +472,44 @@ def _frontier_row_ids() -> set[str]:
     return _FRONTIER_ROW_IDS
 
 
+def _lead_exists(ref: str) -> bool:
+    return bool(_LEAD_ID.match(ref)) and bool(glob.glob(os.path.join(
+        REPO, "knowledge", "leads", "ecdlp", "*", ref + ".yaml")))
+
+
 def _prior_art_ref_resolves(ref: str) -> bool:
     if ref.startswith("KR-"):
         return ref in _frontier_row_ids()
+    if ref.startswith("LEAD-"):
+        return _lead_exists(ref)
     m = _KN_REF.match(ref)
     if m:
         return os.path.exists(os.path.join(REPO, "knowledge",
                                            _KN_DIRS[m.group(1)], ref + ".md"))
     return False
+
+
+def check_prior_art_lead(path: str, block: dict, date: re.Match | None,
+                         ctx: Ctx, *, ecdlp: bool) -> None:
+    """`prior_art.lead`: the atlas lead an ECDLP idea advances, or `new`."""
+    lead = block.get("lead")
+    required = ecdlp and bool(date) and int(date.group(1)) >= LEAD_CUTOVER
+    if lead is None:
+        if required:
+            ctx.err(path, "prior_art.lead is required for ECDLP ideas from "
+                          f"IDEA-{LEAD_CUTOVER} on: the LEAD-* id this idea "
+                          "advances (python3 tools/lead_atlas.py --match), or "
+                          "'new' with new_lead_reason "
+                          "(knowledge/leads/ecdlp/README.md)")
+        return
+    lead = str(lead)
+    if lead == "new":
+        if not str(block.get("new_lead_reason") or "").strip():
+            ctx.err(path, "prior_art.lead 'new' requires new_lead_reason: why "
+                          "no existing lead covers the mechanism")
+    elif not _lead_exists(lead):
+        ctx.err(path, f"prior_art.lead '{lead}' is not a lead in "
+                      "knowledge/leads/ecdlp/")
 
 
 def check_prior_art(path: str, body: dict, ctx: Ctx) -> None:
@@ -506,6 +541,8 @@ def check_prior_art(path: str, body: dict, ctx: Ctx) -> None:
     elif isinstance(fmap, str) and fmap.startswith("knowledge/frontiers/"):
         if not os.path.isdir(os.path.join(REPO, fmap.rstrip("/"))):
             ctx.err(path, f"prior_art.frontier_map '{fmap}' is not a directory")
+        check_prior_art_lead(path, block, m, ctx,
+                             ecdlp=fmap.startswith("knowledge/frontiers/ecdlp"))
         rows = block.get("rows_checked")
         if not isinstance(rows, list) or not rows:
             ctx.err(path, "prior_art.rows_checked must list the KR-* rows the "
@@ -873,6 +910,16 @@ def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
     if moved == "exponent" and not scaling:
         ctx.err(path, f"{label}.verdict.level_moved 'exponent' requires "
                       f"alpha.scaling_claim: true")
+
+
+# A declared run artifact may be stored compressed or as a blob-store pointer
+# (tools/artifact_store.py, docs/artifact-storage.md); any one form satisfies it.
+ARTIFACT_STORED_FORMS = ("", ".gz", ".blob.json", ".gz.blob.json")
+
+
+def _artifact_stored(run_dir: str, name: str) -> bool:
+    return any(os.path.isfile(os.path.join(run_dir, name + suffix))
+               for suffix in ARTIFACT_STORED_FORMS)
 
 
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
@@ -1273,7 +1320,7 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
         if artifact == "raw-result.json" and (
                 raw_result_pending or raw_result_explicitly_unwritten):
             continue
-        if not os.path.exists(os.path.join(run_dir, artifact)):
+        if not _artifact_stored(run_dir, artifact):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
     # Certificate discipline (docs/claims-and-verification.md).
     result = body.get("result") or {}
