@@ -1,0 +1,32 @@
+name: lab-parity
+
+# The cross-repository contract (docs/lab-contract.md): every skill resolves on
+# both agent surfaces, and every shared file matches docs/shared-code.lock.json.
+# A copy edited on one side fails here until the owner change lands and the lock
+# is updated everywhere.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lab-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skills surfaces
+        run: python3 tools/check_skills_parity.py
+      - name: Shared-code lock
+        run: python3 tools/check_lab_parity.py --repo crypto-autoresearcher
