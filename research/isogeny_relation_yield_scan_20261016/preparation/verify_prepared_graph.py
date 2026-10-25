@@ -62,11 +62,35 @@ def expected_xs(p, a, b, count, rule):
     raise ValueError("insufficient liftable x-values")
 
 
-def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=None):
+def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=None,
+           verifier_root_path=None):
     manifest = json.loads(Path(manifest_path).read_text())
     if manifest.get("schema") != "isogeny-relation-input/v1" or sha(prepared_path) != manifest["input_sha256"]:
         raise ValueError("manifest or prepared digest mismatch")
+    if (manifest.get("seed_mode") not in (None, "independent_verifier_root") or
+            (manifest.get("seed_mode") == "independent_verifier_root") !=
+            ("verifier_root_sha256" in manifest)):
+        raise ValueError("manifest seed mode differs")
     (p, a, b, r), base, targets = read_prepared(prepared_path)
+    endpoint_id = manifest.get("endpoint_id")
+    if endpoint_id is not None:
+        study = Path(__file__).resolve().parents[1]
+        schedule_path = study / "graph_schedule_20261023/p29-secondary-floor-arms.jsonl"
+        rows = [json.loads(line) for line in schedule_path.read_text().splitlines()]
+        matches = [row for row in rows
+                   if row.get("endpoint_id") == endpoint_id and
+                   row.get("base_rule") == manifest.get("arm")]
+        if (len(matches) != 1 or manifest.get("stratum") != "P29" or
+                manifest.get("index") is not None or manifest.get("stage") != "discovery"):
+            raise ValueError("secondary endpoint identity differs from the frozen schedule")
+        row = matches[0]
+        if (p, a, b, r) != (row["p"], row["model"]["a"], row["model"]["b"], row["r"]):
+            raise ValueError("secondary endpoint curve differs from the frozen schedule")
+        if (manifest.get("j") != row["model"]["j"] or
+                manifest.get("generator") != row["generator"] or
+                manifest.get("target_count") != row["discovery_targets"] or
+                manifest.get("base_abscissae") != row["base_x_orbits"]):
+            raise ValueError("secondary endpoint parameters differ from the frozen schedule")
     E = EllipticCurve(p, a, b)
     G, Q = tuple(manifest["generator"]), tuple(manifest["Q"])
     if not E.is_on_curve(G) or not E.is_on_curve(Q) or E.mul(r, G) is not None or E.mul(r, Q) is not None:
@@ -75,15 +99,15 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         raise ValueError("Hasse uniqueness failed")
     if len(base) != 2 * manifest["base_abscissae"] or len(targets) != manifest["target_count"]:
         raise ValueError("base or target count mismatch")
+    arm = manifest["arm"]
     for i in range(0, len(base), 2):
         point, inverse = base[i], base[i + 1]
         if not E.is_on_curve(point) or inverse != E.negate(point) or point[1] != min(point[1], p - point[1]):
             # A transported base can reverse the canonical sign convention.
-            if manifest["arm"] != "u2_transport" or not E.is_on_curve(point) or inverse != E.negate(point):
+            if arm not in ("u2_transport", "graph_transport") or not E.is_on_curve(point) or inverse != E.negate(point):
                 raise ValueError("signed base pair failed")
     if len({base[i][0] for i in range(0, len(base), 2)}) != len(base) // 2:
         raise ValueError("duplicate base x-orbit")
-    arm = manifest["arm"]
     base_x = [base[i][0] for i in range(0, len(base), 2)]
     if arm in ("low_x", "mid_x", "u2_native"):
         rule = "low_x" if arm != "mid_x" else "mid_x"
@@ -93,6 +117,37 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         source_a, source_b = a * pow(16, -1, p) % p, b * pow(64, -1, p) % p
         if base_x != [4 * x % p for x in expected_xs(p, source_a, source_b, len(base_x), "low_x")]:
             raise ValueError("transported coordinate base rule failed")
+    if arm == "graph_transport":
+        study = Path(__file__).resolve().parents[1]
+        stratum = manifest["stratum"]
+        if stratum not in ("P29", "P37"):
+            raise ValueError("unsupported graph transport stratum")
+        stride, size, end = ((8, 256, 2048) if stratum == "P29" else (4, 1600, 256))
+        index = manifest["index"]
+        if not isinstance(index, int) or not 0 <= index <= end or index % stride or len(base) != 2 * size:
+            raise ValueError("graph transport check-vertex schedule differs")
+        directory = study / "path_transport/controls" / f"{stratum.lower()}-twoedge-attempt1"
+        walk = study / ("walk-p29-2048-attempt2.jsonl" if stratum == "P29" else "walk-p37-256.jsonl")
+        checkpoint_path = directory / f"edge-{index:04d}.json"
+        expected_path = str(checkpoint_path.relative_to(ROOT))
+        checkpoint = json.loads(checkpoint_path.read_text())
+        path_manifest = json.loads((directory / "manifest.json").read_text())
+        if (manifest.get("checkpoint_path") != expected_path or
+                manifest.get("checkpoint_sha256") != sha(checkpoint_path) or
+                manifest.get("checkpoint_manifest_sha256") != sha(directory / "manifest.json") or
+                manifest.get("checkpoint_terminal_sha256") != sha(directory / f"edge-{end:04d}.json") or
+                path_manifest.get("schema") != "ectd.path-base-transport.v1" or
+                path_manifest.get("stratum") != stratum or path_manifest.get("graph_sha256") != manifest["graph_sha256"] or
+                sha(walk) != manifest["graph_sha256"] or
+                path_manifest.get("p") != p or path_manifest.get("r") != r or
+                path_manifest.get("check_stride") != stride or path_manifest.get("signed_base_points") != len(base) or
+                checkpoint.get("index") != index or checkpoint.get("check_vertex") is not True or
+                checkpoint.get("model", {}).get("a") != a or checkpoint.get("model", {}).get("b") != b or
+                checkpoint.get("model", {}).get("j") != manifest["j"] or
+                checkpoint.get("generator") != list(G) or
+                checkpoint.get("base") != [list(point) for point in base] or
+                checkpoint.get("base_sha256") != hashlib.sha256(json.dumps(checkpoint["base"], separators=(",", ":")).encode()).hexdigest()):
+            raise ValueError("graph transport archive binding differs")
     seen = set()
     for alpha, beta, x, y in targets:
         point = x, y
@@ -106,14 +161,34 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
     if base_digest != manifest["base_sha256"] or target_digest != manifest["target_vector_sha256"]:
         raise ValueError("base or target-vector digest mismatch")
     replay = False
-    if base_root_path is not None and target_root_path is not None:
+    if (base_root_path is None) != (target_root_path is None):
+        raise ValueError("base and target roots must be supplied together")
+    if verifier_root_path is not None and base_root_path is None:
+        raise ValueError("verifier root requires base and target roots")
+    if base_root_path is not None:
         roots = [bytes.fromhex(Path(path).read_text().strip()) for path in (base_root_path, target_root_path)]
-        if [hashlib.sha256(root).hexdigest() for root in roots] != [manifest["base_root_sha256"], manifest["target_root_sha256"]]:
+        independent = manifest.get("seed_mode") == "independent_verifier_root"
+        if independent != (verifier_root_path is not None):
+            raise ValueError("verifier root replay mode differs from manifest")
+        if independent:
+            roots.append(bytes.fromhex(Path(verifier_root_path).read_text().strip()))
+        expected_hashes = [manifest["base_root_sha256"], manifest["target_root_sha256"]]
+        if independent:
+            expected_hashes.append(manifest["verifier_root_sha256"])
+        if (any(len(root) != 32 for root in roots) or len(set(roots)) != len(roots) or
+                [hashlib.sha256(root).hexdigest() for root in roots] != expected_hashes):
             raise ValueError("root digest mismatch")
-        from prepare_graph_input import prepare
         study = Path(__file__).resolve().parents[1]
         walk = study / ("walk-p29-2048-attempt2.jsonl" if manifest["stratum"] == "P29" else "walk-p37-256.jsonl")
-        regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"], roots[0], roots[1], len(targets))
+        if manifest["stage"] == "solve":
+            from prepare_graph_solve_input import prepare as prepare_solve
+            regenerated, _ = prepare_solve(walk, manifest["index"], arm,
+                                           roots[0], roots[1], roots[2], len(targets))
+        else:
+            from prepare_graph_input import prepare
+            regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
+                                     roots[0], roots[1], len(targets),
+                                     roots[2] if independent else None)
         if regenerated != Path(prepared_path).read_bytes():
             raise ValueError("seed replay differs")
         replay = True
@@ -128,5 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--base-root", type=Path)
     parser.add_argument("--target-root", type=Path)
+    parser.add_argument("--verifier-root", type=Path)
     args = parser.parse_args()
-    print(json.dumps(verify(args.prepared, args.manifest, args.base_root, args.target_root), sort_keys=True))
+    print(json.dumps(verify(args.prepared, args.manifest, args.base_root,
+                            args.target_root, args.verifier_root), sort_keys=True))
