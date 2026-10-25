@@ -10,7 +10,7 @@ this guide, catalog checks and subject assessment are never launch preflights.
 | --- | --- | --- |
 | Run an existing experiment, goal, task or command | `run` | Execute existing public synthetic trials; preserve named scope and built-in admission |
 | Turn an idea into a frozen trial | `design-experiment` | Coordinator design/approval; no trial execution |
-| Review results or a scientific conclusion | `review-evidence` | Independent claim-tier review; no automatic promotion |
+| Review results, Lean theorem fidelity, proof workflows or a scientific conclusion | `review-evidence` | Independent claim-tier and formal-artifact review; no automatic promotion |
 | Show progress or unresolved work | `research-status` | Read-only record snapshot |
 | Rank goals or continue coordination | `coordinate` | Existing Coordinator authority |
 | Generate candidate research ideas | `propose-ideas` | Falsifiable proposals, not validated discoveries |
@@ -143,6 +143,12 @@ command; ops now states that limitation explicitly. Validation checks metadata,
 routing and source interfaces, not scientific claims or live infrastructure.
 
 ## Maintain the map
+
+Curvesmash-style claim verification is available through
+[`autoresearch verify`](curvesmash-verification.md), a pinned optional backend.
+It supplies advisory review artifacts and does not replace `review-evidence`,
+the existing `run` skill, independent review plans or Coordinator transitions.
+Use `pr` for maintaining that integration and its source pins.
 
 When adding a reusable workflow, update its canonical description, host adapter,
 `docs/skill-catalog.json`, and the relevant inventory rows together. Include exact

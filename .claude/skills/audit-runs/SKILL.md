@@ -1,6 +1,12 @@
 ---
 name: audit-runs
-description: Independently audit finished runbook sessions, on a schedule or on request. Verify the journal chain and every digest, replay trials sampled from a nonce the executor could not predict, recompute metrics and certificates, and screen Lean statements. The Sonnet sweep validator does the reading, and anything flagged escalates to Opus. Use for audit-runs, checking the math on Haiku or mechanical-tier runs, or before an evidence review cites a runbook session. Never runs trials or changes research state.
+description: >-
+  Audit finished runbook sessions on a schedule or on request: verify the
+  journal chain and digests, replay nonce-sampled trials, recompute metrics
+  and certificates, screen Lean statements; flags escalate to Opus. Use
+  before an evidence review cites a runbook session. Never runs trials or
+  changes research state.
+
 ---
 
 # Audit runs
@@ -54,8 +60,9 @@ Never in the session that produced the run: independence is the point. Fetch
    session id, an implementation fix, or an invalidation record. Repair
    nothing.
 5. **Publish.** Commit only the new `<experiment>/audits/<AUD-id>/`
-   directories on this session's branch, push, and open or refresh a PR. An
-   audit is a record about a session, never an edit to one.
+   directories on this session's branch, push, and open or refresh a PR, then
+   enable auto-merge (`gh pr merge <n> --auto --merge`; the base must be the
+   default branch). An audit is a record about a session, never an edit to one.
 6. **Receipt.** `python3 tools/session_receipt.py --skill audit-runs --role
    validator --outcome <reviewed|no_change|impeded> --created <AUD ids>`.
 
