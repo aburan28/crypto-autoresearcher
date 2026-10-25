@@ -530,22 +530,68 @@ def test_sqlite_reads_uncheckpointed_wal_row(tmp_path):
         writer.close()
 
 
-def test_sqlite_immutable_fallback_only_without_wal(tmp_path, monkeypatch):
-    arguments, _, _, _, _, _ = _case(tmp_path)
+@pytest.mark.parametrize("wal_present", [False, True])
+def test_sqlite_read_error_fails_closed_without_immutable_retry(
+        tmp_path, monkeypatch, wal_present):
+    arguments, receipt, *_ = _case(tmp_path)
+    state_db = Path(arguments["state_db"])
+    writer = sqlite3.connect(state_db) if wal_present else None
+    calls = []
+    try:
+        if writer is not None:
+            assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+            writer.execute("UPDATE threads SET model=? WHERE id=?",
+                           ("wal-only-model", THREAD_ID))
+            writer.commit()
+        assert state_db.with_name(state_db.name + "-wal").exists() is wal_present
+
+        def fail_plain_read(database_uri, **kwargs):
+            calls.append(database_uri)
+            if "immutable=1" in database_uri:
+                raise AssertionError("live database must never use immutable mode")
+            raise sqlite3.OperationalError("simulated ordinary read failure")
+
+        monkeypatch.setattr(codex_runtime.sqlite3, "connect", fail_plain_read)
+        body = _failed(arguments, receipt, "state_db_read_failed")
+        assert len(calls) == 1 and calls[0].endswith("?mode=ro")
+        assert body["observed"]["state_row_allowlist"] is None
+        assert body["verification"]["runtime_bindings_check"] is None
+    finally:
+        if writer is not None:
+            writer.close()
+
+
+def test_sqlite_wal_creation_at_fallback_boundary_cannot_return_stale_row(
+        tmp_path, monkeypatch):
+    arguments, _, *_ = _case(tmp_path)
     state_db = Path(arguments["state_db"])
     real_connect = sqlite3.connect
+    writers = []
     calls = []
+    assert not state_db.with_name(state_db.name + "-wal").exists()
 
-    def fail_plain_read(database_uri, **kwargs):
+    def race_at_immutable_open(database_uri, **kwargs):
         calls.append(database_uri)
-        if database_uri.endswith("?mode=ro"):
-            raise sqlite3.OperationalError("simulated macOS read failure")
+        if "immutable=1" not in database_uri:
+            raise sqlite3.OperationalError("simulated first read failure")
+        # Reproduce a writer committing after the former WAL-absence check.
+        writer = real_connect(state_db)
+        writers.append(writer)
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("UPDATE threads SET model=? WHERE id=?",
+                       ("committed-wal-model", THREAD_ID))
+        writer.commit()
         return real_connect(database_uri, **kwargs)
 
-    monkeypatch.setattr(codex_runtime.sqlite3, "connect", fail_plain_read)
-    assert codex_runtime._query_state_row(state_db, THREAD_ID)["id"] == THREAD_ID
-    assert calls[0].endswith("?mode=ro")
-    assert calls[1].endswith("?mode=ro&immutable=1")
+    monkeypatch.setattr(codex_runtime.sqlite3, "connect", race_at_immutable_open)
+    try:
+        with pytest.raises(codex_runtime._ProbeFailure) as excinfo:
+            codex_runtime._query_state_row(state_db, THREAD_ID)
+        assert excinfo.value.codes == ("state_db_read_failed",)
+        assert len(calls) == 1 and calls[0].endswith("?mode=ro")
+    finally:
+        for writer in writers:
+            writer.close()
 
 
 @pytest.mark.parametrize("backend,model", [

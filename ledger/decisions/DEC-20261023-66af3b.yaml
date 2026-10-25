@@ -1,0 +1,192 @@
+# DEC-20261023-66af3b: validity return of EXP-CZLIFT-7c8d73 (RUN-CZLIFT-ac0be5,
+# RUN-CZLIFT-8cd006) for H-CZLIFT-d3dc4b. Independent validation VAL-20261022-a38921 failed
+# on instrument defects. The run set goes back to the Executor with concrete defects, and the
+# review stops there (.claude/skills/review-evidence/SKILL.md step 2, first bullet). No evidence
+# record. No hypothesis transition. Not a negative result.
+coordinator_decision:
+  id: DEC-20261023-66af3b
+  recorded_at: '2026-10-24'
+  goal_id: GOAL-CZLIFT-1516d5
+  question_ids: [RQ-CZLIFT-b9f765]
+  kind: validity_return
+  mode: goal
+  context: >-
+    EXP-CZLIFT-7c8d73 (frozen v1, approved by DEC-20261009-575cd3) ran its two planned trials,
+    RUN-CZLIFT-ac0be5 (seed 20261009) and RUN-CZLIFT-8cd006 (seed 20261010). Both receipts are
+    output_validated with returncode 0 and check_returncode 0. DEC-20261009-44c288 recorded their
+    frozen criterion as met, as an observation, and moved no status. Independent validation
+    TASK-20261022-d7d57f (VAL-20261022-a38921) returned the verdict failed: J1 custody holds, J2
+    breaks, J3 breaks, PTM-1 holds. The ledger archive TASK-20261022-bff8ff lists the
+    experiment as an open item that needs an amendment and a superseding run. This decision
+    records the Coordinator's validity check and returns the run set.
+  decision: pause
+  decision_label: >-
+    Run set returned to the Executor with concrete defects; the evidence review of
+    H-CZLIFT-d3dc4b stops here. No evidence record is written. H-CZLIFT-d3dc4b stays approved.
+  decision_scope: >-
+    One action: the run set of EXP-CZLIFT-7c8d73 is ruled inadmissible as evidence and returned.
+    The value "pause" is used because it is the only value in both the template schema
+    (templates/research-records.md, "Coordinator decision") and the skill's transition list that
+    stops a review without moving a claim. Here it pauses only the evidence review of
+    H-CZLIFT-d3dc4b until a valid run set exists. The reason is invalidity, not low value. The
+    alternatives are excluded: support and weaken by the skill's stop rule; replicate and expand
+    because they presuppose admissible evidence; refine/revise because they are evidence-led
+    readings of the hypothesis, and this decision reads no result. Nothing else is decided here.
+    No hypothesis status moves. RQ-CZLIFT-b9f765 is not changed. GOAL-CZLIFT-1516d5 stays active
+    (goals are never paused; AGENTS.md); the blocked item is this one claim's review. No run is
+    authorized, nothing is promoted, and the recorded runs are not edited. The frozen v1 contract
+    is not amended in place. A successor is a new, versioned, superseding contract approved by a
+    later decision.
+  target_ids:
+    - EXP-CZLIFT-7c8d73
+    - H-CZLIFT-d3dc4b
+    - RUN-CZLIFT-ac0be5
+    - RUN-CZLIFT-8cd006
+    - VAL-20261022-a38921
+    - TASK-20261022-bff8ff
+    - TASK-20261023-1072b0
+  status_transitions: []
+  validity_check:
+    expected_run_count: '2 of 2 planned trials present (trial-plan.json), each output_validated, returncode 0, check_returncode 0; 2 of an advisory maximum of 4 runs used.'
+    manifests_schema: 'complete for the required artifacts. Custody J1 holds: 18/18 execution-receipt hashes and 20/20 ledger-receipt hashes match (VAL-20261022-a38921 artifact_checks).'
+    seed_integrity: 'seeds 20261009 -> RUN-CZLIFT-ac0be5 and 20261010 -> RUN-CZLIFT-8cd006, as planned; 29 curves x 56 rows = 1624 rows per run; no curve duplicated.'
+    raw_summary_agreement: 'every recorded metric recomputes exactly from raw-result.json, and an independent correct-series replay reproduces all 3248 rows field for field.'
+    control_comparability: 'FAILS. Frozen control C1 fails as written on both seeds and was never evaluated by the checker. Control C2 is vacuous. The "independent checker" imports the producer code path.'
+    instrument_fidelity: 'FAILS. The computed lambda is not the specified log_F(z([p]P^)) mod p^6 on the 18 of 29 curves with A != 0.'
+    verdict: 'inadmissible: the receipts faithfully record a computation, but not the specified instrument, and a frozen control fails as written.'
+  defects:
+    - id: D1
+      kind: implementation_error
+      where: harness/czlift_formal.py, formal_series (frozen sha256 fedf4035554c21c1effe823427a4b2aa4723cca56089e11ff54d962bc3e55030)
+      defect: >-
+        w is iterated only through z^k (N = k+1). u = Series(w.c[3:] + [0, 0, 0]) then pads u_4..u_6
+        with zeros, where the true values are u_4 = A and u_6 = B. As a result u = 1, and log_F = exp_F = z
+        mod z^7 on every curve. The true term (2A/5) z^5 of log_F (and -(2A/5) z^5 of exp_F) is missing
+        on the 18 of 29 curves with A != 0. Example: D = -11, p = 223, producer coefficient 0, sealed
+        blind value 2A/5 mod 223^6 = 73787097714279. The docstring claim "the series are exact mod p^k"
+        is false for A != 0.
+      evidence: VAL-20261022-a38921 blind_rederivation (result_specification); j3_compare.out.json
+    - id: D2
+      kind: implementation_error
+      where: lambda and the constructed point P~ in experiments/EXP-CZLIFT-7c8d73/implementation/run.py (via D1)
+      defect: >-
+        The computed lambda differs from the true log_F(z([p]P^)) at valuation exactly 5 on 280 rows per
+        seed (all e = 1 non-split rows). The constructed P~ is the identity-series construction. On e = 1
+        curves it is p-torsion only to z-valuation 6 (716 and 715 rows), so it passes the precision-5
+        verification and would fail at precision 7. No recorded flag changes, because the defect lies
+        below the verification precision. The specified instrument was therefore never exercised.
+      evidence: VAL-20261022-a38921 metric_recomputations (independent_replay)
+    - id: D3
+      kind: specification_error
+      where: control C1 of experiments/EXP-CZLIFT-7c8d73/specification.yaml; run.lift_classes
+      defect: >-
+        "pert_p (non-split) must never yield a construction" fails as written on both seeds: 8 pert_p
+        constructions per seed (seed 20261009: p = 17, D = -67, rows 24..31; seed 20261010: p = 223,
+        D = -11, rows 24..31). Both lifts are genuinely split: exact v_p(j - j_cm) = 2 = 2e, because
+        j_A r1 + j_B r2 = 0 mod p. That happens with probability about 1/p for e = 1 pert_p draws
+        (expected 0.478 per seed). The constructions on them are correct (p-torsion to z-valuation >= 21
+        by the validator's own construction). The class label is wrong, and the control's premise is
+        false for those draws.
+      evidence: VAL-20261022-a38921 control_checks C1 and proves_too_much
+    - id: D4
+      kind: implementation_error
+      where: experiments/EXP-CZLIFT-7c8d73/implementation/check.py
+      defect: >-
+        The checker never evaluates C1. Its C2 test (exp_F(log_F(z)) == z at one point) cannot fail: the
+        producer's series are the identity, which is self-inverse, and a reversion is inverse by
+        construction in any case. Its re-run subset (D = -3, p = 7 and 19) contains only A = 0 curves, where
+        mu_6 symmetry masks D1. It imports run.measure_curve and run.summarize, so it is a replication of the
+        producer path, not an independent checker. No additivity test exists, although its comment claims
+        one.
+      evidence: VAL-20261022-a38921 control_checks C2, invalidation rule, independence
+    - id: D5
+      kind: specification_error
+      where: success criterion and metric definitions
+      defect: >-
+        Two primary metrics cannot fail as defined and implemented. (a) nonsplit_with_construction =
+        #(v_log = 1 and constructed): the recorded rows satisfy constructed == split == (v_log >= 2) on
+        all 1624 rows per seed, so the construction is attempted only when v_log >= 2 and the count is
+        structurally zero. (b) construction_verified_rate at precision 5 cannot distinguish the specified
+        series from the identity series (D2). The success criterion is therefore met by a defective
+        instrument.
+      evidence: VAL-20261022-a38921 metric_recomputations (definitions, independent_replay)
+    - id: D6
+      kind: specification_error
+      where: decision_impact.on_positive
+      defect: >-
+        The validator reports that v_p(log_F(z)) = v_p(z) on E1 for p > 2. If so, the series split flag
+        equals EXP-CZLIFT-17b7eb's z-valuation reading whether or not the series is correct, and
+        "EXP-CZLIFT-17b7eb's rule gains an independent instrument" cannot be earned by rule_agreement. Only
+        a construction verified at a precision where the series terms matter is series-dependent. This is
+        an observation outside the validator's joints. It is recorded here as a design defect, not as
+        an interpretation of results.
+      evidence: VAL-20261022-a38921 limitations (interpretation observation)
+    - id: D7
+      kind: scope_note
+      where: harness.czlift.anomalous_cm_curves(1500)
+      defect: >-
+        The family omits the class-number-one non-maximal order of discriminant -27 (j = -12288000), which
+        has anomalous curves at p = 7, 61, 331, 547. The frozen family is still the 29 curves the
+        specification names. A successor must either include them or state their exclusion.
+      evidence: VAL-20261022-a38921 limitations; scope_check_d27.out.txt
+  superseding_contract_must:
+    - 'Code fix (D1, D2): compute w through at least z^(k+3) before forming u = w/z^3, so that u is exact mod z^(k+1). State the series precision per curve with k < p, so that every coefficient has unit denominators. The z^7 coefficient 3B/7 is not 7-integral, so p = 7 curves are excluded or capped. Add regression tests: the z^5 coefficient equals 2A/5 on A != 0 curves against the sealed values of VAL-20261022-a38921; mu_6 symmetry on A = 0; additivity of log_F on E1(Q_p) by an independent chord law.'
+    - 'Verification precision (D2, D5b): verify [p]P~ = O at a precision strictly above the first A-dependent term (z-valuation >= 7 on e = 1 curves, with stated margin), so that the identity-series construction fails it.'
+    - 'Control wording (D3): define the non-split class so that it is non-split by construction. Either label each lift by the j-rule (v_dj = 2e - 1 exactly for e = 1, v_dj = 3 for e = 3), or resample pert_p until j_A r1 + j_B r2 != 0 mod p and record every rejected draw. The checker evaluates C1 on raw-result.json as written.'
+    - 'Criterion that cannot fail (D5a): attempt the construction on every row, non-split rows included, and count verifications, or replace the metric with the PTM-1 signature (z([p](P^ + U)) has valuation exactly 1 for every attempted U on a genuine non-split lift). Replace the inverse check C2 with an additivity check and a coefficient check against an independently derived series.'
+    - 'Same-shape null: run the known-wrong series (the identity series, which is the current defect, and z + z^3/3) through the identical pipeline on the same curves and samples. It must fail additivity and the raised-precision torsion verification on the A != 0 rows. This is a pre-registered negative control, not a tuned threshold.'
+    - 'Independent checker (D4): it must not import run.py or harness/czlift_formal.py. It derives the series independently (for example the Silverman AEC IV recursion over Q[A, B]), and its re-run subset includes A != 0 curves.'
+    - 'Replication: the two seeds stay as independent instances of the sampling. In addition, the replication instance must exercise a different series precision (two values of k), so that agreement is not an artifact of one truncation.'
+    - 'Decision impact (D6): drop "independent instrument for EXP-CZLIFT-17b7eb''s rule", or restrict it to the raised-precision construction witness. State what on_positive and on_negative change.'
+    - 'Scope (D7): include the D = -27 curves (p = 7, 61, 331, 547, subject to the k < p rule) or record their exclusion in out_of_scope.'
+    - 'Version and supersession: a new experiment id (or a v2 with a versioned amendment under experiments/EXP-CZLIFT-7c8d73/amendments/) that names EXP-CZLIFT-7c8d73 v1 as superseded. Source hashes are re-frozen. Approval requires tools/experiment_preapproval.py approvable: true (AGENTS.md "Approval is bounded by execution").'
+  observation_decision_citation_limits:
+    record: DEC-20261009-44c288
+    fields: [criterion_readings.EXP-CZLIFT-7c8d73]
+    may_no_longer_be_cited_for:
+      - 'success_criterion_met_on_both_seeds: true, as evidence for H-CZLIFT-d3dc4b. The criterion was met by an instrument that is not the specified one (D1, D2), and two of its metrics cannot fail (D5).'
+      - 'The reading "the formal-series instrument agrees with the j-distance rule on every sample". The series computed was the identity mod z^7, not log_F.'
+      - 'The reading "on every split sample the explicitly constructed p-torsion lift verifies by curve arithmetic". The construction verified at precision 5 is the identity-series construction, which is not a p-torsion lift beyond z-valuation 6 on e = 1 curves.'
+      - 'The reading "non-split lifts never admit one". It is structurally zero (D5a), and the pert_p label includes two split lifts (D3).'
+      - 'by_class_frac_split pert_p = 0.017241379310344827 as a non-split rate. The 8 rows per seed are mislabelled split lifts.'
+      - 'Any statement that EXP-CZLIFT-17b7eb''s rule has an independent instrument.'
+    still_records: >-
+      That the two trials ran under the frozen plan, with the receipts and numbers shown. Those numbers
+      are reproduced exactly by validation as outputs of the code as written, and remain observations of
+      that code only. DEC-20261009-44c288 is not edited; this field supersedes its use, not its text.
+  rationale:
+    - 'Validity before interpretation (coordinator contract, responsibility 6; skill step 2). Custody is exact, and every number reproduces. But a frozen control fails as written (C1), the checker evaluates neither C1 nor any non-vacuous form of C2, and the load-bearing quantity is not the specified quantity on 18 of 29 curves (J3, against the specification''s curve family). An output_validated receipt certifies a computation, not the specified instrument.'
+    - 'The defects are implementation and specification errors (agents/executor.md failure semantics), not negative observations. Under AGENTS.md core rule 5 they say nothing against H-CZLIFT-d3dc4b. The validator''s full correct-series replay reproduces every recorded flag, but that replay is a verification and not a run record. Citing it as the result would repair a run set in prose, which is forbidden.'
+    - 'The success criterion is not informative as frozen: nonsplit_with_construction is structurally 0, and precision-5 verification is blind to the defect. A re-run of the same contract with only the code fixed would therefore still not test the claim. A superseding contract is required, not a replication.'
+    - 'No evidence record and no hypothesis transition: the skill stops at an invalid run set. No refutation artifact is sought, because no adverse call is made.'
+  evidence_refs:
+    - experiments/EXP-CZLIFT-7c8d73/reports/validation-20261022/validation_report.yaml
+    - experiments/EXP-CZLIFT-7c8d73/reports/validation-20261022/j3_compare.out.json
+    - experiments/EXP-CZLIFT-7c8d73/reports/validation-20261022/independent_replay.out.json
+    - experiments/EXP-CZLIFT-7c8d73/reports/validation-20261022/recompute_metrics.out.json
+    - experiments/EXP-CZLIFT-7c8d73/reports/validation-20261022/scope_check_d27.out.txt
+    - experiments/EXP-CZLIFT-7c8d73/specification.yaml
+    - experiments/EXP-CZLIFT-7c8d73/trial-plan.json
+    - experiments/EXP-CZLIFT-7c8d73/runs/RUN-CZLIFT-ac0be5/execution-receipt.json
+    - experiments/EXP-CZLIFT-7c8d73/runs/RUN-CZLIFT-8cd006/execution-receipt.json
+    - ledger/hypotheses/H-CZLIFT-d3dc4b.yaml
+    - ledger/handoffs/TASK-20261022-bff8ff.yaml
+    - ledger/decisions/DEC-20261009-44c288.yaml
+  limitations:
+    - 'The defect list rests on one independent validation (VAL-20261022-a38921) and on this Coordinator''s check of the receipts'' status fields. The Coordinator did not open raw-result.json or the harness source; line-level locations are the validator''s.'
+    - 'D5a (structural zero) is inferred from the validator''s statement that constructed == split on every row. The successor''s checker must confirm the code path.'
+    - 'D6 rests on a validator observation outside its owned joints (v_p(log_F(z)) = v_p(z) for p > 2). It is used here only to constrain design, not as a finding.'
+    - 'Toy tier only (29 anomalous CM curves, p <= 1500, precision 6). Nothing here bears on any other curve, size or precision.'
+    - 'No decision report, graph or PDF is written. This is a validity return, not an evidence review: no admitted quantity exists to plot. The session may record this as a research-visuals deviation if it reads the rule otherwise.'
+    - 'This decision is not official until a ledger archive commit containing it, TASK-20261023-1072b0 and the H-CZLIFT-d3dc4b status_history entry passes post-commit verification and is pushed to a branch with an open PR.'
+  next_actions:
+    - 'Session (archive): allocate one ledger archive task (python3 tools/allocate_id.py --next handoff --date <today>, then --check). Run tools/validate_ledger.py. Stage by exact path: ledger/decisions/DEC-20261023-66af3b.yaml, ledger/handoffs/TASK-20261023-1072b0.yaml and ledger/hypotheses/H-CZLIFT-d3dc4b.yaml (status_history append only), together with the sibling return DEC-20261023-fdc4af if archived jointly. Verify the commit, merge origin/main (merge, never rebase), push, and open or refresh a ready-for-review PR naming the DEC and TASK ids.'
+    - 'Goal checkpoint: GOAL-CZLIFT-1516d5 stays active. Record an impediment whose what_is_blocked is "evidence review of H-CZLIFT-d3dc4b (EXP-CZLIFT-7c8d73 run set inadmissible)", clears_when is "a superseding contract is approved, run, and passes independent validation", and asserts_nothing_about is "the truth of H-CZLIFT-d3dc4b".'
+    - 'Dispatch TASK-20261023-1072b0 to the executor (executor-implementation) once its archived_by is bound and the lane is claimed, and only if the goal checkpoint ranks it ahead of doing nothing. It is cheap (library repair and tests; no trial), but its exponent value is low: it is a level-1 calibration.'
+    - 'On its return: the Coordinator (design lane, /design-experiment) freezes the superseding contract from the amendment request, with every item under superseding_contract_must. Approve only with tools/experiment_preapproval.py approvable: true. Then issue a new run handoff with its own snapshot archive and a validation round whose review_plan includes a blind re-derivation of the z^5 and z^7 coefficients on A != 0 curves.'
+    - 'Infrastructure note to the harness owner (not evidence): checkers must not import the driver, and must evaluate every frozen control.'
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Invalid run set returned to the Executor; no evidence record exists, so there is nothing to promote.
+  decided_by: coordinator
+  decided_at: '2026-10-24'
