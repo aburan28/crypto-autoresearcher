@@ -72,6 +72,25 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
             ("verifier_root_sha256" in manifest)):
         raise ValueError("manifest seed mode differs")
     (p, a, b, r), base, targets = read_prepared(prepared_path)
+    endpoint_id = manifest.get("endpoint_id")
+    if endpoint_id is not None:
+        study = Path(__file__).resolve().parents[1]
+        schedule_path = study / "graph_schedule_20261023/p29-secondary-floor-arms.jsonl"
+        rows = [json.loads(line) for line in schedule_path.read_text().splitlines()]
+        matches = [row for row in rows
+                   if row.get("endpoint_id") == endpoint_id and
+                   row.get("base_rule") == manifest.get("arm")]
+        if (len(matches) != 1 or manifest.get("stratum") != "P29" or
+                manifest.get("index") is not None or manifest.get("stage") != "discovery"):
+            raise ValueError("secondary endpoint identity differs from the frozen schedule")
+        row = matches[0]
+        if (p, a, b, r) != (row["p"], row["model"]["a"], row["model"]["b"], row["r"]):
+            raise ValueError("secondary endpoint curve differs from the frozen schedule")
+        if (manifest.get("j") != row["model"]["j"] or
+                manifest.get("generator") != row["generator"] or
+                manifest.get("target_count") != row["discovery_targets"] or
+                manifest.get("base_abscissae") != row["base_x_orbits"]):
+            raise ValueError("secondary endpoint parameters differ from the frozen schedule")
     E = EllipticCurve(p, a, b)
     G, Q = tuple(manifest["generator"]), tuple(manifest["Q"])
     if not E.is_on_curve(G) or not E.is_on_curve(Q) or E.mul(r, G) is not None or E.mul(r, Q) is not None:
@@ -159,12 +178,17 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
         if (any(len(root) != 32 for root in roots) or len(set(roots)) != len(roots) or
                 [hashlib.sha256(root).hexdigest() for root in roots] != expected_hashes):
             raise ValueError("root digest mismatch")
-        from prepare_graph_input import prepare
         study = Path(__file__).resolve().parents[1]
         walk = study / ("walk-p29-2048-attempt2.jsonl" if manifest["stratum"] == "P29" else "walk-p37-256.jsonl")
-        regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
-                                 roots[0], roots[1], len(targets),
-                                 roots[2] if independent else None)
+        if manifest["stage"] == "solve":
+            from prepare_graph_solve_input import prepare as prepare_solve
+            regenerated, _ = prepare_solve(walk, manifest["index"], arm,
+                                           roots[0], roots[1], roots[2], len(targets))
+        else:
+            from prepare_graph_input import prepare
+            regenerated, _ = prepare(walk, manifest["index"], arm, manifest["stage"],
+                                     roots[0], roots[1], len(targets),
+                                     roots[2] if independent else None)
         if regenerated != Path(prepared_path).read_bytes():
             raise ValueError("seed replay differs")
         replay = True

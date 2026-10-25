@@ -1,51 +1,25 @@
 # CLAUDE.md
 
-Read **[AGENTS.md](AGENTS.md)**, the one normative contract for every runtime,
-Claude Code included: budgets are advisory, `run` is the only execution skill,
-only the Coordinator changes research state, records are immutable,
-"ECC comes first", "Goals are never paused",
-"Approval is bounded by execution", "Continue through the PR", "Every improvement is
-a success", and `main` takes merge
-commits only. One file, because two copies of a rule become two rules; the
-earlier long form of this file stays unchanged at
-[`docs/claude-code-runtime.md`](docs/claude-code-runtime.md).
+Read [AGENTS.md](AGENTS.md), the only normative contract for every runtime,
+including Claude Code. The earlier long form and typical loop remain in
+[docs/claude-code-runtime.md](docs/claude-code-runtime.md).
 
-## What is Claude Code specific
+The AGENTS.md rules “ECC comes first” and “Goals are never paused” also bind
+Claude Code; their full requirements and limits are stated there.
 
-- **Batch delivery**: follow AGENTS.md, "Model policy".
-- **Subagents** (`.claude/agents/`) are generated from `agents/*.md` by
-  `tools/generate_runtime_agents.py`: eight roles (`idea-synthesist` is Claude
-  Code only; `experiment-director` writes Haiku's task cards,
-  `docs/model-tiers.md`) plus the policy-tier variants `executor-mechanical` (Haiku;
-  runbooks), `validator-sweep` (Sonnet; `audit-runs`), `validator-breakthrough`
-  and `red-team-breakthrough`. They keep
-  `model: inherit` except the `runtime_model_pins` roles
-  (`orchestration/roles.yaml`), pinned to their policy's `anthropic` binding;
-  each `effort:` derives from the role's policy (`orchestration/roles.yaml` →
-  `orchestration/model-policies.yaml`). Never hand-edit a model or an effort;
-  `tools/check_runtime_bindings.py --list` shows where each comes from.
-  Session default `claude-opus-5-5` (`.claude/settings.json`); `--model` or
+## Claude Code specifics
+
+- Batch delivery follows AGENTS.md, "Model policy".
+- `.claude/agents/` contains hand-written wrappers around `agents/*.md`.
+  `orchestration/roles.yaml` and `orchestration/model-policies.yaml` define
+  roles, model pins, and effort. `tools/generate_runtime_agents.py` generates
+  Codex and OpenCode bindings; `tools/check_runtime_bindings.py` checks Claude
+  wrappers. Keep `model: inherit` except declared `runtime_model_pins` roles.
+  Never hand-edit model or effort; use `tools/check_runtime_bindings.py --list`
+  for provenance. The session defaults to `claude-opus-5-5`; `--model` or
   `adapter env --runtime claude_code --role <role>` overrides it.
-- **Skills** (`.claude/skills/`): `run` (execution only), `coordinate` (rank,
-  approve, dispatch, archive, publish; never runs trials), `propose-ideas`,
-  `design-experiment`, `review-evidence`, `research-status`, `deep-research`,
-  `curate-knowledge`, `agent-bus`, `consolidate-lanes`, `tune-skill`,
-  `research-visuals`, `audit-curve`, `transfer`, `audit-runs` (periodic
-  runbook-session audit), `lead-atlas`. Each ends by writing its session
-  receipt.
-- **Retrieval**: `.mcp.json` starts the read-only `kb/` server (relative
-  `--directory`; machine settings in `kb/.env`). The derived index starts
-  empty: `make -C kb qdrant-up`, `crypto-kb stage-repo .`, `crypto-kb ingest`.
-
-## Typical loop
-
-```text
-/research-status                # read the census, not the corpus
-/coordinate                     # rank, approve (capacity + runnable), dispatch, archive
-  → /propose-ideas RQ-...
-  → /design-experiment IDEA-... # runnable in this turn or review_required
-  → /run EXP-...                # execution; publishes run records, then reports
-  → snapshot commit, independent validation / red team
-  → /review-evidence EXP-...    # knowledge-promotion gate; decision report
-  → ledger commit, verified decision → next iteration
-```
+- Use `.claude/skills/`: only `run` executes trials; `coordinate` governs and
+  never runs them. Follow AGENTS.md, "Skill routing", for other skills. Each
+  skill writes a session receipt.
+- `.mcp.json` starts the read-only `kb/` server. See the runtime guide for
+  index setup and retrieval commands.
