@@ -620,7 +620,9 @@ def cmd_status(cfg: Config, args) -> int:
 
 def cmd_check(cfg: Config, args) -> int:
     """Fail when BASE..HEAD adds or grows a tracked file the policy assigns to the store."""
-    out = git(cfg.root, "diff", "--raw", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
+    # Partial clones cannot lazy-fetch a missing blob by an abbreviated object
+    # name. Keep the full object ID from the raw diff for the size check below.
+    out = git(cfg.root, "diff", "--raw", "--abbrev=40", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
     fields = out.decode(errors="surrogateescape").split("\0")
     offenders = []
     for meta, path in zip(fields[0::2], fields[1::2]):
