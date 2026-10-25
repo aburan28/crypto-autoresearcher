@@ -1,0 +1,301 @@
+# Sheriff reader report, beat B2: STARK verifier soundness and mutation controls.
+# Re-audit of crypto 999d4eefc ("zk: bind the STARK statement into Fiat-Shamir; ecbench: mark
+# unbound sessions") as on crypto origin/main 6ed792e86. Prior: SHF-20261017-e4d7f6 V1, V2, V3, E1-R.
+# Staging path; the case owner composes verdicts. S = /tmp/claude-0/-home-user/68f0a115-6224-56c1-b4ad-506008dfed54/scratchpad/case3
+reader_report:
+  prior_case: SHF-20261017-e4d7f6
+  beat: B2 (plus E1-R, B7)
+  joint: "STARK verifier soundness and mutation controls (B2.3 line-by-line, B2.4 mutants, stated bounds), and E1-R records_bound"
+  date: 2026-10-23
+  reader:
+    role: validator
+    model: claude-opus-5-5
+    independence: >-
+      Independent sheriff reader. I wrote none of commit 999d4eefc, its PR, or the prior case code.
+      I did not read the PR description or comments. `git show --stat 999d4eefc` printed the commit
+      message, so I read it. It is not in blind_from, and the task quoted part of it to me anyway.
+      I judged the code on disk at 6ed792e86. Read-only on the crypto tree: git status was empty
+      before and after every build and run. I added no sparse-checkout paths. The coordinator added
+      isogeny_algos/ (see deviations).
+  subject:
+    repo: crypto (sparse, detached checkout /home/user/aburan28/crypto)
+    revision: 6ed792e860c9c8249eb1ac6f10a3e4beec130e1a
+    fix_commit: "999d4eefcfea81c45f2b14be3aeaf8dd10dce26e (ancestor of HEAD: yes)"
+    dirty: false
+    toolchain: "cargo/rustc on host, --release, CARGO_TARGET_DIR=/home/user/aburan28/crypto/target"
+  sources_read:
+    - {path: "crypto:src/zk/stark.rs", lines: "1-1189 (full)", sha256: 79644b774dbbafcb552756b4451a325a5d15489a5ea2c014ace61583c985db25}
+    - {path: "crypto:src/zk/stark_v2.rs", lines: "1-993 (full)", sha256: ce8f2a68b31cd5ccdf99612d6a436669d1f97f1770c74b358e7d2362d2ea63ab}
+    - {path: "crypto:src/cryptanalysis/ecbench/audit.rs", lines: "136-160, 195-284, 600-825 plus the 999d4eefc~1..HEAD diff", sha256: 87375206783816c6a508b26d8c0100a74b3152d8dca395d67ba17a31d19c3af7}
+    - {path: "crypto:src/zk/merkle.rs", lines: "40-73, 186-208 (merkle_verify, hash tags)", sha256: f6d709b42309c1570beb6760de288ec4c69e03bb389ad1ad61ce54a2c0dfc95b, note: "unchanged since the prior case"}
+    - {path: "crypto:src/zk/plonk.rs", lines: "74-83 (primitive_nth_root)"}
+    - {path: "crypto:src/bin/ecbench.rs", lines: "diff 999d4eefc~1..HEAD and 960-1012 (verify path)"}
+    - {path: "crypto:README.md", lines: "rg stark (line 484)", sha256: 91e75171a50b8724e16f57e7ea1e17b10bc7db2534dd2bf958675e5419f14413}
+    - {path: "crypto:docs/ecbench/README.md", lines: "diff hunk at 272 only"}
+    - {path: "crypto:Cargo.toml, tools/volcano-cli/Cargo.toml", lines: "rg for the path dependency"}
+    - {path: "research/sheriff/SHF-20261017-e4d7f6/findings.yaml", lines: "205-260, 360-385 (V1, V2, V3, E1-R)"}
+    - {path: "research/sheriff/SHF-20261017-e4d7f6/readers/stark.yaml", lines: full}
+    - {path: "research/sheriff/SHF-20261017-e4d7f6/scripts/readers/stark/new-mutants/{Cargo.toml,src/main.rs}", sha256_main_rs: 181df19fa251809bc742c06904a68333d342b1e7815f24a748760d11236c8a31}
+    - {path: "docs/agent-runtime-core.md, agents/validator.md", lines: full}
+    - {path: "docs/sheriff.md", lines: "103-158 (B2), 436-505 (B9, B10)"}
+    - {path: "AGENTS.md", lines: "359-371 (Review architecture)"}
+  blind_from:
+    - "crypto PR description and comments for 999d4eefc (not opened)"
+    - "sibling reader reports in this round (none opened)"
+  blind_from_respected: true
+
+  checks:
+    - id: C1_adapted_harness
+      what: "SHF-20261017-e4d7f6 new-mutants harness, adapted to the new API, run against 6ed792e86"
+      command: >-
+        cp -r .../new-mutants/. $S/scripts/readers/stark/harness/; adapt src/main.rs (below);
+        cd harness && CARGO_TARGET_DIR=/home/user/aburan28/crypto/target cargo build --release;
+        /home/user/aburan28/crypto/target/release/sheriff-stark-reader-mutants > ../harness.jsonl 2> ../harness.stderr.log
+      script: $S/scripts/readers/stark/harness/src/main.rs
+      script_sha256: a000be82f919febe798e50ef01e6e934c6af5662e8fbc19bc295c10d704b2eb0
+      original_sha256: "181df19fa251809bc742c06904a68333d342b1e7815f24a748760d11236c8a31 ($S/scripts/readers/stark/harness-main.rs.orig)"
+      diff: "$S/scripts/readers/stark/harness-adaptations.diff (sha256 f25f33fb68a6b8366435d90b6f7c0a3440a83e0e0f66965e26d206dbc564dea0)"
+      adaptations:
+        - {id: A0, what: "Cargo.toml unchanged; it already pointed crypto at /home/user/aburan28/crypto. The scratch Cargo.lock gained the new transitive deps (isogeny_algos, volcano-cli, rusqlite, ...) during the build; Cargo.lock.orig keeps the copy."}
+        - {id: A1, what: "v1v(air, p) -> v1v(air, q, p) calling stark::verify(air, q, proof). The verifier q is VQ = 20 for every mutant row (the q the rows were built with). Rate rows use the row's own q."}
+        - {id: A2, what: "forge_v1 takes the statement and starts its transcript from stark::statement_transcript(air, q) (tag, AIR id, n, both boundaries, q, FRI folds), as stark::prove does. Validated by v1.H1: identical roots, FRI roots and positions."}
+        - {id: A3, what: "v2_alphas/prove_v2 start from stark_v2::statement_transcript(air, config) and append b\"composition_commit\" after the two draws. Validated by v2.H1: identical trace, composition and FRI roots, final constant and positions."}
+        - {id: A4, what: "frozen_heart: the forger computes the alphas from everything it can absorb (the statement with placeholder 0 at row p, plus the trace commitment), solves for v, and also searches 100000 iterations of v <- solve(alphas(statement with v)) for a fixed point. Machinery control: under the attacker's alphas the composition IS low degree (FRI final layer constant) for N8a fast/default and N8b, and is NOT for the N8c v+1 control. So only statement binding stops these proofs. Knobs gained alpha2 to support this."}
+        - {id: A5, what: "summary crypto_rev -> 6ed792e86"}
+        - {id: A6, what: "N7b: positions moved, so the row-6 first-hit index guard falls back to a 3-query prefix (here first_hit = 7, so h = 7). New row N7b2 offers the same prefix to a verifier whose q is the prefix length."}
+        - {id: A8, what: "New row N8b2: the N8b two-row grinding family with the same seeds and the same 20000-attempt budget, against q = spot_check_queries(8, 64) = 333."}
+        - "No expected value or row label changed. kind/expect_accept are as in the original."
+      output: $S/scripts/readers/stark/harness.jsonl
+      output_sha256: 21ee4c75a5cd7e874a6df82abbfc1d55ca8d887aa069525fb7f7788a299649b8
+      stderr: "$S/scripts/readers/stark/harness.stderr.log (empty, sha256 e3b0c442...; no panic hook fired)"
+      runtime: "462.5 s (429 s of it N8b2 at q = 333)"
+      result: "Honest 0 of 7 rejected (H0a-c, H1 for v2; H0, H1 for v1). Mutants: 1 of 47 accepted, v1.N8b at q = 20, which is the documented spot-check property. 0 panics."
+      mutant_table:
+        - {control: v2.N1a_tampered_value_recommitted, accepted: false}
+        - {control: v2.N1b_false_output_one_broken_row, accepted: false}
+        - {control: v2.N2a_wrong_public_output, accepted: false}
+        - {control: v2.N2b_wrong_public_input, accepted: false}
+        - {control: v2.N3a_wrong_air_tripling, accepted: false}
+        - {control: v2.N3b_wrong_air_length, accepted: false}
+        - {control: v2.N4_valid_proof_of_other_statement, accepted: false}
+        - {control: v2.N5a_fri_drop_last_root, accepted: false}
+        - {control: v2.N5b_fri_drop_last_openings, accepted: false}
+        - {control: v2.N5c_fri_one_fold_fewer_rederived, accepted: false}
+        - {control: v2.N5d_final_constant_tampered, accepted: false}
+        - {control: v2.N6a_reordered_queries, accepted: false}
+        - {control: v2.N6b_duplicated_query, accepted: false}
+        - {control: v2.N7a_prover_q10_verifier_q20, accepted: false}
+        - {control: v2.N7b_truncated_to_10_queries, accepted: false}
+        - {control: v2.N7c_blowup_mismatch, accepted: false}
+        - {control: v2.N8a_frozen_heart_forged_input_fast, accepted: false, before: TRUE, note: "machinery control true; no fixed point in 1e5 iterations"}
+        - {control: v2.N8a_frozen_heart_forged_input_default, accepted: false, before: TRUE, note: "machinery control true; no fixed point"}
+        - {control: v2.N8b_frozen_heart_forged_row6, accepted: false, before: TRUE, note: "machinery control true; no fixed point"}
+        - {control: v2.N8c_frozen_heart_control_v_plus_1, accepted: false, note: "attack control; not low degree even under the attacker's alphas"}
+        - {control: v2.N9_composition_zero_not_bound, accepted: false}
+        - {control: v2.N10_composition_with_alpha1_zero, accepted: false}
+        - {control: v2.M1_last_fri_root_garbage, accepted: false, before: TRUE}
+        - {control: v2.M2_noncanonical_trace_encoding, accepted: false, before: TRUE}
+        - {control: v2.M3_oversize_opened_value, accepted: false, panicked: false, before: "panicked"}
+        - {control: v1.N1a_tampered_value_recommitted, accepted: false}
+        - {control: v1.N1b_false_output_one_broken_row_q20, accepted: false, note: "row 6 first hit at query index 7; probabilistic, escape (7/8)^20 = 0.069"}
+        - {control: v1.N2a_wrong_public_output, accepted: false}
+        - {control: v1.N2b_wrong_public_input_start, accepted: false}
+        - {control: v1.N3a_wrong_air_tripling, accepted: false}
+        - {control: v1.N3b_wrong_air_length, accepted: false}
+        - {control: v1.N4_valid_proof_of_other_statement, accepted: false}
+        - {control: v1.N5a_fri_drop_last_root, accepted: false}
+        - {control: v1.N5b_fri_drop_last_openings, accepted: false}
+        - {control: v1.N5c_fri_zero_folds_rederived, accepted: false, before: TRUE}
+        - {control: v1.N6a_reordered_queries, accepted: false}
+        - {control: v1.N6b_duplicated_query, accepted: false}
+        - {control: v1.N7a_false_output_q1_producer_prover, accepted: false, before: TRUE}
+        - {control: v1.N7b_truncate_rejected_forgery_to_prefix, accepted: false, before: TRUE}
+        - {control: v1.N7b2_prefix_offered_at_its_own_q, accepted: false, note: "new; q is absorbed, so a prefix is not a q=7 proof"}
+        - {control: v1.N8a_grind_one_broken_row_q20, accepted: false, note: "28 variants; the v+r and zero-fold variants are now rejected outright"}
+        - {control: v1.N8b_grind_two_broken_rows_q20, accepted: TRUE, note: "first accepted at attempt 330 (predicted mean 315). The module docs and the test spot_check_at_q20_is_grindable state exactly this; q = 20 is an unsized q, not a defect"}
+        - {control: v1.N8b2_grind_two_broken_rows_sized_q, accepted: false, note: "new; q = 333, 0 of 20000 accepted; per-attempt escape 2^-138.2"}
+        - {control: v1.M1_oversize_opened_value, accepted: false, panicked: false, before: "panicked"}
+      rates_v1_spot_check_bound:
+        - {control: v1.R0_null_honest_k0_q20, trials: 500, accepted: 500, predicted: 1.0}
+        - {control: v1.R1_escape_k1_q1, trials: 2000, accepted: 1739, rate: 0.8695, predicted: 0.875, z: -0.74}
+        - {control: v1.R1_escape_k1_q5, trials: 2000, accepted: 1022, rate: 0.511, predicted: 0.5129, z: -0.17}
+        - {control: v1.R1_escape_k1_q10, trials: 2000, accepted: 532, rate: 0.266, predicted: 0.2631, z: 0.30}
+        - {control: v1.R1_escape_k1_q20, trials: 2000, accepted: 130, rate: 0.065, predicted: 0.0692, z: -0.74}
+        - {control: v1.R1_escape_k1_q40, trials: 2000, accepted: 4, rate: 0.002, predicted: 0.0048, z: -1.81}
+        - {control: v1.R2_escape_k2_q20, trials: 20000, accepted: 73, rate: 0.00365, predicted: 0.00317, z: 1.20}
+      rates_reading: >-
+        The verifier now fixes q. The escape rate matches (1-k/n)^q within |z| <= 1.81 and decays
+        in q as it should (0.87 -> 0.002 for q 1 -> 40). The k=0 null accepts 500/500. These are
+        n = 8 only.
+
+    - id: C2_cargo_test
+      command: "cd /home/user/aburan28/crypto && CARGO_TARGET_DIR=/home/user/aburan28/crypto/target cargo test --release --locked --lib zk::stark"
+      first_attempt: {output: $S/scripts/readers/stark/cargo-test-zk-stark.log, sha256: 3e7dc598e921a119431980089159be36faac8d420bde4efd739818d82026844b, result: "exit 101, manifest error: path dependency volcano-cli -> isogeny_algos missing from the sparse checkout (not an include_str! input). Reported to main, who added isogeny_algos/."}
+      output: $S/scripts/readers/stark/cargo-test-zk-stark.retry.log
+      output_sha256: 993597c1658add76fbb93208376091cdabe6870a9093f27b942fcb4f06baf5fb
+      result: "PASS: 41 passed, 0 failed, 0 ignored, 4565 filtered out (exit 0; build 39 min)"
+      note: "--locked added so cargo could not rewrite crypto's Cargo.lock; tree clean afterwards"
+      negative_tests_now_cover: "frozen heart N8a (fast, default) and N8b with the low-degree machinery control and the N8c control; wrong AIR; duplicated, reordered and moved query; v1 q=1 forgery; truncated prefix; query-count, blow-up and layer-count mismatch; zero-fold and one-fold-fewer FRI; tampered final layer and last root; non-canonical and 2^300 values; grinding at q=20 (accepted, pinned) and at the sized q (300 rejected)"
+
+    - id: C3_ecbench_audit_tests
+      command: "cd /home/user/aburan28/crypto && CARGO_TARGET_DIR=... cargo test --release --locked --lib ecbench::audit"
+      output: $S/scripts/readers/stark/cargo-test-ecbench-audit.log
+      output_sha256: f50d3058a2c02337bbac3d625d688ec9088e789863aaa4315f3135b000375319
+      result: "PASS: 5 passed, 0 failed (includes a_killed_session_is_interrupted_only_when_interruptions_are_allowed and a_finalised_interrupted_session_is_records_bound)"
+
+    - id: C4_spot_check_queries_exact
+      what: "Is spot_check_queries(n, bits) the least q with (1-1/n)^q <= 2^-bits? f64 formula ported to Python, then checked with exact integers"
+      script: "$S/scripts/readers/stark/spot_check_queries_exact.py (sha256 1b53aff9d562f0cdbc0fcc469b4f69dc4ae7a9c18970f61066c004cf5a1d8703)"
+      output: "$S/scripts/readers/stark/spot_check_queries_exact.json (sha256 68fce9723b8509fdd0d6bf7adaf1ad1b3c84232d76d9c6046d48ab79861e09c2)"
+      result: "380 cells (n = 2^1..2^10; bits 1..32, 40, 48, 64, 80, 96, 128): 0 violations of bound or minimality. (8,64) -> 333 and (8,4) -> 21, as the module test says."
+      limitation: "Python math.log2 stands in for Rust f64::log2. I did not call the Rust function across the grid, and I did not run a grinding grid over other n and bits (only n = 8: R1, R2, N8b2)."
+
+    - id: C5_verify_line_by_line
+      v2_verify_455_518:
+        statement_binding: "PASS for n, beta, q, FRI fold count, final size, and every boundary (position, value). Boundary values must be canonical and positions < n (statement_transcript 299-323). All of it is absorbed before the trace commitment, then alpha1 and alpha2 are drawn (326-332)."
+        air_binding: "air_fingerprint (274-292) evaluates the transition at (0,0), (1,0), (0,1) and two fixed hashed points. That is exact for transitions of degree <= 1, the only kind the docs support (77). It is NOT enforced: AirV2.transition is an arbitrary closure. See F1."
+        commitments_before_challenges: "PASS: trace -> alphas; composition commit; each FRI root before its fold challenge (stark.rs 379-383); last root and final constant (absorb_fri_final 325-329, 417-421) before positions"
+        constraints_per_query: "PASS (503-510): comp == composition_at(f(x), f(wx)), and FRI layer 0 == comp"
+        fri: "PASS: layer count fixed to log2 n + 1 (471). The last root must equal the Merkle root of beta copies of the final constant (fri_verify 521-527). Every Merkle path is checked at its folding position with canonical values. Fold consistency down to the constant."
+        merkle: "PASS: opening_ok checks position, leaf_index, path and direction lengths, canonical value, and merkle_verify ties directions to the index bits (merkle.rs 193-198)"
+        query_count: "PASS: q comes from the config; all four vectors must have length q (463-469)"
+        ood_sample: "ABSENT, documented (7). Unchanged from the prior F5. I found no exploit."
+        robustness: "Proof-level malformed values return false (canonical_bytes, 110-118; fr_inv let-else in fri_verify). Statement-level: see F3."
+      v1_verify_718_779:
+        statement_binding: "PASS for n, both boundaries (canonical), q, FRI folds (267-287). The AIR is bound only through a 6-point fingerprint (F2)."
+        query_count: "PASS: verifier argument; exact lengths (725-731); layer count log2 n + 1 (733)"
+        transition: "Spot-check at each queried row (763-771); row n-1 is a no-op, as documented"
+        fri: "Bound and depth-fixed. The docs still say it adds no soundness here."
+
+  findings:
+    - id: F1
+      severity: minor
+      what: >-
+        stark_v2's AIR identifier identifies the transition only within the documented degree <= 1
+        class, and nothing enforces that class. AirV2.transition is an arbitrary closure, and the
+        verifier calls it only at the fingerprint points and at the opened LDE points. Two closures
+        that agree on those inputs but differ on trace-domain rows share an identifier, and the
+        verifier cannot tell them apart. The documented degree-1 restriction (also needed for the
+        composition degree bound) is therefore a caller obligation, not a verifier check. For
+        degree-1 transitions the fingerprint is exact, so N3a-type wrong-AIR mutants are rejected
+        (harness and module test).
+      evidence: ["crypto:src/zk/stark_v2.rs:147 (closure transition)", "crypto:src/zk/stark_v2.rs:269-292 (fingerprint doc: 'for higher degree this is a fingerprint')", "crypto:src/zk/stark_v2.rs:77 ('The transition must be of degree 1')"]
+      tested: false
+      fix: "Represent the v2 transition as its coefficients (c0 + c1*a + c2*b), so degree 1 is structural and the identifier is the coefficient vector. Or state that the verifier's AIR must be fixed independently of any proof and is trusted to be degree 1."
+    - id: F2
+      severity: minor
+      what: >-
+        In stark v1, transitions of any degree are in scope, and the docs say the identifier is a
+        6-point fingerprint (242-246). Yet the module docs (60-65) say the transcript absorbs "the
+        whole statement". The module's own cheat_air (64 -> 12345, otherwise doubling, stark.rs
+        894-905) has the same fingerprint as doubling, so distinct transitions with equal
+        identifiers exist in the tree. Every documented bound (the (1-k/n)^q escape, the 2^(g-bits)
+        grinding bound) assumes the AIR is fixed before the commitment. That holds when the verifier
+        supplies the AIR. It is not guaranteed by the transcript if the AIR can be chosen after the
+        query positions are known. Not measured.
+      evidence: ["crypto:src/zk/stark.rs:60-65", "crypto:src/zk/stark.rs:242-255", "crypto:src/zk/stark.rs:289-297", "crypto:src/zk/stark.rs:894-905"]
+      tested: false
+      fix: "Say 'an AIR fingerprint' rather than 'the whole statement', and state that the bounds hold for a verifier-fixed AIR. Or absorb a collision-resistant identifier of a canonical AIR description."
+    - id: F3
+      severity: minor
+      what: >-
+        "Malformed input returns false; it never panics" holds for proof values (M3, v1.M1 and the
+        module tests: no panics). By reading, it does not hold for the statement. v2 verify
+        materialises coset(n*beta) before any Merkle check (479), and primitive_nth_root asserts
+        log2(n*beta) <= 32 (plonk.rs 75-77). So a statement with n*beta > 2^32 panics, and n*beta
+        near 2^31..2^32 attempts a multi-GB allocation first. v1 verify calls subgroup(n) (775).
+        This matters only where n comes from an untrusted party. The verifier's own work is
+        O(n*beta), so it is not succinct. Not run, to avoid an OOM on the shared host.
+      evidence: ["crypto:src/zk/stark_v2.rs:477-480", "crypto:src/zk/stark.rs:773-778", "crypto:src/zk/plonk.rs:74-83"]
+      tested: false
+      fix: "Reject n*beta > 2^32 (or a configured maximum) in statement_transcript, and compute only the queried domain points (7*omega_L^p) instead of whole domains."
+    - id: F4
+      severity: info
+      what: "Both proof structs carry the prover's full FRI tables (FriCommitment.layers, layer_trees). The verifier never reads them, so they are unbound passengers: arbitrary content does not change the verdict, and the proof as a struct is non-succinct. No soundness effect."
+      evidence: ["crypto:src/zk/stark.rs:304-313", "crypto:src/zk/stark.rs:506-603 (fri_verify reads only layer_roots and final_constant)"]
+      tested: false
+      fix: "Split the prover state from the proof object."
+    - id: F5
+      severity: minor
+      what: >-
+        E1-R residual. records_bound is computed correctly
+        (!killed && records_sha256.is_some() && rec_sha == records_sha256, audit.rs 631-633), and
+        the tests cover strict, lenient, finalised and appended-byte cases (5/5 pass). But a
+        never-finalised session still audits ok: true. The flag shows only in the JSON field and a
+        stderr warning (ecbench.rs 1000-1006), so a consumer that checks only `ok` cannot see it.
+        No test truncates the last record of a never-finalised session, the case the flag exists
+        for. By reading, it passes with ok: true, fewer records and records_bound false.
+      evidence: ["crypto:src/cryptanalysis/ecbench/audit.rs:143-158, 264-273, 621-633, 728-783", "crypto:src/bin/ecbench.rs:1000-1006", "$S/scripts/readers/stark/cargo-test-ecbench-audit.log"]
+      fix: "Make consumers (claim build, sheriff ecbench-sessions-integrity, VALIDATION gate) require records_bound == true for any session cited as complete. Add a test that drops the last record of the killed fixture and asserts ok && records_bound == Some(false) && records == 3."
+    - id: F6
+      severity: info
+      what: "v1 at an unsized q stays grindable: v1.N8b found an accepted false-statement proof at attempt 330 with q = 20. This is documented (stark.rs 75-80) and pinned by spot_check_at_q20_is_grindable. At q = spot_check_queries(8, 64) = 333, 0 of 20000 attempts were accepted (N8b2). Any caller passing q below the sized value gets this."
+      evidence: ["$S/scripts/readers/stark/harness.jsonl rows v1.N8b_grind_two_broken_rows_q20, v1.N8b2_grind_two_broken_rows_sized_q"]
+      fix: "None needed beyond the docs. Optionally make verify take bits and derive q."
+
+  soundness_statement_review:
+    v2_docs_54_77:
+      formula: "eps <~ rho^q * 2^-g + eps_field + eps_hash, rho = 1/beta. This is the standard conjectured (ethSTARK-style) query term; rho = n/(n*beta) is correct for FRI to degree < n on n*beta points."
+      numbers: "8^-80 = 2^-240 and 4^-20 = 2^-40 correct. g = 0 correct (no grinding). r ~ 2^254.86 correct (log2 r = 254.857). SHA-256 generic collision ~2^128 cap and the T-query Fiat-Shamir factor are correct."
+      scoping: "Honest. No security level is claimed. It says the analysis is normally stated for DEEP-ALI, 'which this is not'. eps_field is 'not analysed'. Proven bounds are 'weaker', with no number given. The prior V2 objections (240-bit headline, missing hash cap, unsourced 'about half') are all withdrawn."
+      residual: "The non-DEEP soundness argument the conjecture would need is still not given (prior F5). The degree-1 restriction is stated but unenforced (F1)."
+    v1_docs_70_83:
+      formulas: "(1-k/n)^q for a verifier-fixed q, 1-(1-1/n)^q per proof, 1-(1-p)^G <= G*p for grinding, and spot_check_queries minimal (C4): all correct and measured at n = 8 (rates table, N8b, N8b2). '(6/8)^333 < 2^-138' is correct (2^-138.2)."
+      residual: "'absorbs the whole statement' overstates the AIR binding (F2)."
+    readme: "README.md:484 now marks both modules educational, unaudited, not zero-knowledge, no DEEP, no stated security level, must not back a research claim."
+
+  suggested_verdicts:
+    "V1 fixed":
+      verdict: fixed_scoped
+      reason: >-
+        Every frozen-heart, query-count, truncation, zero-fold and prefix mutant that was accepted
+        before is now rejected, in my adapted harness and in the module's own 41 passing tests. The
+        frozen-heart machinery control shows statement binding is what stops it. Scope: v2 for
+        degree-1 transitions; v1 as a spot-check with a verifier-sized q and a verifier-fixed AIR.
+        Residuals F1, F2 (AIR identity is a fingerprint) are minor and unexploited here.
+    "V2 fixed":
+      verdict: fixed
+      reason: "The bit figures are withdrawn, the formula is standard and correctly instantiated, the hash cap, field and grinding are stated, and no level is claimed."
+    "V3 fixed":
+      verdict: fixed_scoped
+      reason: >-
+        The last FRI root and final constant are bound (M1 rejected). Non-canonical encodings are
+        rejected (M2). 2^300 returns false without a panic. Path lengths are checked. v1 text is
+        corrected (C4). README has the marker. The missing negative tests are added. Residual: the
+        'never panics' claim fails for statement-level n by reading (F3, minor). No DEEP sample
+        remains (documented).
+    "E1-R fixed":
+      verdict: fixed_scoped
+      reason: "It implements the 'report them as unbound' option: records_bound is false and the CLI warns. Correct and tested. But ok stays true and no consumer enforces the flag (F5)."
+
+  procedure_deviations:
+    - "Task 2 (new attacks on the new design) was NOT executed. My attempt to write that attack code was stopped by a safety check partway through, and I did not retry it. F1-F4 are code-reading findings, marked tested: false. The adapted harness covers only the prior mutant set plus A6/A8 rows. A wrong-AIR identifier-collision run, a grinding grid over n and bits, and a malformed-statement panic run remain open for whoever owns that follow-up."
+    - "Sparse checkout: isogeny_algos/ was added by the coordinator, not by me (a path dependency, about 11 MB). I added no paths."
+    - "cargo test used --locked, so crypto's Cargo.lock could not be rewritten."
+
+  limitations:
+    - "All harness runs are at n = 8 (v1) and n = 8 or 16 (v2); spot-check rates are n = 8 only."
+    - "Results are deterministic given the transcript, except the probabilistic v1 rows (N1a, N1b, N8a), whose rejection depends on these commitments' positions."
+    - "No timing or resource claims; one shared host."
+
+  artifact_paths:
+    - $S/readers/stark.yaml
+    - $S/scripts/readers/stark/harness/ (src/main.rs a000be82..., Cargo.toml unchanged, Cargo.lock 975f2cf5..., Cargo.toml.orig, Cargo.lock.orig)
+    - $S/scripts/readers/stark/harness-main.rs.orig
+    - $S/scripts/readers/stark/harness-adaptations.diff
+    - $S/scripts/readers/stark/harness.build.log (sha256 0cd48c23963fc955e6bcea9ae01639dac398772aa9df130786ebae8855031002)
+    - $S/scripts/readers/stark/harness.jsonl
+    - $S/scripts/readers/stark/harness.stderr.log
+    - $S/scripts/readers/stark/cargo-test-zk-stark.log
+    - $S/scripts/readers/stark/cargo-test-zk-stark.retry.log
+    - $S/scripts/readers/stark/cargo-test-ecbench-audit.log
+    - $S/scripts/readers/stark/spot_check_queries_exact.py
+    - $S/scripts/readers/stark/spot_check_queries_exact.json
+
+  review_attestation:
+    joints_owned: ["B2: STARK verifier soundness and mutation controls", "E1-R records_bound (B7)"]
+    joint_verdict: "holds (scoped; see suggested_verdicts and F1-F5)"
+    sources_read: "as listed above, plus the 999d4eefc commit message (disclosed in independence)"
+    read_sibling_reports: false
+    blind_from_respected: true
+    note: "A sheriff reader report, not a validation_report on a run receipt. It changes no hypothesis, ledger record or case verdict."

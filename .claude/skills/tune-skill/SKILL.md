@@ -1,12 +1,10 @@
 ---
 name: tune-skill
 description: >-
-  Propose a reward-guided revision of another skill's instructions (and its
-  dispatched agent contract) using that skill's downstream ledger records as
-  the reward. Writes no ledger record and holds no Coordinator authority;
-  every diff is a code change a human approves. Use when asked to tune,
-  improve or "RL" a skill against its track record, e.g. `/tune-skill
-  propose-ideas`.
+  Propose a reward-guided revision of another skill's instructions, using its
+  downstream ledger records as the reward. Writes no ledger record; every
+  diff is a code change a human approves. Use to tune or improve a skill
+  against its track record, e.g. `/tune-skill propose-ideas`.
 
 ---
 
@@ -33,17 +31,18 @@ output is a record with a gradable downstream outcome:
 | `design-experiment` | `H-*` status change + `EXP-*` contract | → `EXP-*` → `EV-*` → `DEC-*` |
 | `run` | run records under `experiments/EXP-*/` | → `EV-*` → `DEC-*` |
 | `review-evidence` | `EV-*` + `DEC-*` | (terminal — score its own `strength`/`knowledge_promotion` choices against later corrections, if any) |
+| `tune-skill` | round records | → applied round → outcome record (`tools/self_improve.py`); loop mode only |
 
 For anything else in `.claude/skills/` (`coordinate`, `deep-research`,
 `research-status`, `curate-knowledge`, `agent-bus`) there is no single graded
 output record to chain from — refuse, and tell the user this prototype only
-covers the four skills above.
+covers the skills above (`tune-skill` only in loop mode, below).
 
 ## Steps
 
 1. **Resolve target and files in scope.** Take the skill name from the
    command args (`/tune-skill <skill-name> [--since <date-or-commit>]`).
-   Confirm it's one of the four skills above; if not, stop and say so. Read
+   Confirm it's one of the skills above; if not, stop and say so. Read
    `.claude/skills/<skill-name>/SKILL.md`. If its text dispatches a
    subagent ("Dispatch the **X** subagent"), also read `agents/X.md` — both
    files are in scope for the diff, since instructions live in either place.
@@ -117,11 +116,13 @@ covers the four skills above.
 4. **Score the batch — decisiveness, not correctness.** For each item with a
    terminal `EV-*`, map `strength` to a reward:
 
+   <!-- frozen:reward -->
    | `strength` | reward | why |
    | --- | --- | --- |
    | `strong`, `replicated` | +2 | minimal test actually discriminated |
    | `preliminary`, `anecdotal` | +1 | discriminated, weakly |
    | `inconclusive`, `contradictory` | 0 | test failed to resolve, or wasn't reproducible |
+   <!-- /frozen:reward -->
 
    **Any `strength` value outside this table is `unscored`, not `0`.** The
    dry run against `propose-ideas` found live evidence records using `n/a`
@@ -159,6 +160,7 @@ covers the four skills above.
    table of record IDs with short excerpts (`claim`/`mechanism` snippet,
    terminal `strength`+`direction`, any flagged `DEC-*` rationale); the
    window and coverage stats; and these hard constraints for the agent:
+   <!-- frozen:constraints -->
    - Propose a **minimal, targeted diff** — specific sentences or bullets
      added/changed/removed, not a rewrite.
    - **Cite the specific record IDs** from this batch that motivate each
@@ -173,6 +175,7 @@ covers the four skills above.
      5 *scored* terminal items — `unscored` items from step 4 don't count
      toward this — or concentrated in a single `RQ-*`/area) and recommend no
      change rather than a confident-sounding diff on noise.
+   <!-- /frozen:constraints -->
 
 6. **Dispatch a general-purpose agent** with that prompt, read-only against
    the repo (instruct it explicitly not to edit or write any file — it
@@ -190,7 +193,7 @@ covers the four skills above.
 
    ```sh
    python3 tools/tune_skill_batch.py <skill-name> --write-round coordination/skill-tuning \
-       --decision applied|rejected|deferred --rationale "..." --caveat "..."
+       --decision proposed|applied|rejected|deferred --rationale "..." --caveat "..."
    ```
 
    It mints `round-<6hex>` with `secrets.token_hex(3)` — a minted token,
@@ -227,13 +230,53 @@ covers the four skills above.
 9. **Commit and push as a normal code change.** One commit covering the
    skill/agent file edit(s) and the round record, message referencing the
    round id. No ledger snapshot/archive step applies — this isn't a ledger
-   record — but open or refresh a PR with the runtime's PR tool as usual so
-   the diff gets the same review any other instruction change would.
+   record — but open or refresh a PR with the runtime's PR tool as usual and
+   enable auto-merge (`gh pr merge <n> --auto --merge`) so the diff gets the
+   same review any other instruction change would.
 
 10. **Receipt.** `python3 tools/session_receipt.py --skill tune-skill
     --role <role> --outcome <published|no_change|impeded> --files-read <n>`
     (`docs/session-receipts.md`). A round with a thin batch is
     `no_change`; it is still a round.
+
+## Loop mode: `/tune-skill next`
+
+The loop (`tools/self_improve.py`; design, calibration and limits in
+`docs/self-improvement-loop.md`) picks the target, measures what an applied
+round did, and makes `tune-skill` a target of itself. Run `python3
+tools/self_improve.py plan` and act on its `next` line only:
+
+- **`tune <skill>`**: steps 1–7 for that skill (write scope: `TARGETS` in the
+  tool, which leaves out `agents/coordinator.md`), with the PR as step 7's
+  approval gate. Branch `skill-tuning/<skill>-<round-id>`; write the round
+  with `--decision proposed`; run `python3 tools/self_improve.py guard
+  --target <skill>` and stop if it fails; if it lists `eval_required`, run
+  `python3 -m orchestration.eval run --suite evals/suites/discipline.yaml
+  --trials 10 --baseline evals/baselines/current.json` and stop on a
+  discipline regression, or say in the PR that it was not run. Then step 9
+  and the PR. The round is applied when a human merges it.
+- **`measure <round>`**: `python3 tools/self_improve.py measure <round>
+  --write`, commit the outcome record in a PR.
+- **`revert <round>`**: a round whose outcome is `regressed`. Open a PR
+  restoring its `files_changed` from the commit before it merged, with a new
+  round record carrying `reverts: <round>` and `--decision proposed`.
+- **`wait_*` / `idle`**: no change. Report the plan and stop.
+
+<!-- frozen:loop-gates -->
+Loop gates, outside every round's write scope:
+
+- One live round per target: no new round while a `skill-tuning/<skill>-*`
+  branch is open or an applied round is unmeasured, so outcomes stay
+  attributable to one change.
+- Never merge a tuning PR yourself, and never re-run `measure` to get a
+  different verdict: an outcome record is written once.
+- `guard` failing, or a discipline-eval regression, ends the round; a
+  capability gain never pays for a discipline loss.
+- For target `tune-skill` the batch is the outcome records
+  (`improved` +2, `no_change_detectable` 0, `regressed` −2) and the diff may
+  touch neither these gates, the `reward` and `constraints` regions, nor the
+  scoring code.
+<!-- /frozen:loop-gates -->
 
 ## If this proves out
 
