@@ -1,0 +1,7 @@
+# Archived queue refusal as a negative CI fixture
+
+The original `BATCH-7ddcd6/first-successor-failure/dispatch_queue.json` is an intentionally rejected proposal. Its adjacent `void-route-refusal.json` records the exact duplicate-owner error and `archive_created: false`. The separate preservation queue and completed receipt retain the eight actual failure artifacts without creating the four missing outputs. All four historical files remain byte-identical.
+
+CI previously treated this archived rejection as a runnable positive queue. The new `tools/archived_queue_refusals.json` binds only this exact source, refusal, preservation queue and preservation receipt by path and SHA256. The CI entry point requires the unchanged native validator to reject the original with the exact retained error, validates both preservation queue states with the native Git verifier, requires available Git proof, verifies current preserved bytes, and checks that the completed receipt changes only the single snapshot task's state and commit bindings. A changed source hash, unexpected acceptance/rejection, altered failure classification or invalid preservation proof fails CI.
+
+The output is an archived-refusal check receipt, never a dispatch plan. `queue_admitted` and `execution_authorized` remain false. `canonical_queue` and `research_dispatch.py` are unchanged: the ordinary dispatcher still refuses the original queue. Unregistered queue paths retain ordinary positive validation. No new experiment, archival action, research-state transition or retrospective approval occurs.
