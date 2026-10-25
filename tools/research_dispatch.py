@@ -64,6 +64,22 @@ SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
+
+# A declared run artifact may be stored compressed or as a blob-store pointer
+# beside its declared path (tools/artifact_store.py, docs/artifact-storage.md).
+# An archive declares the logical path; path_sha256 binds the stored bytes git holds.
+ARTIFACT_STORED_SUFFIXES = (".gz", ".blob.json", ".gz.blob.json")
+
+
+def _declared_form(path: str, declared: set[str]) -> str:
+    """The declared path a changed path stores, or the path itself."""
+    if path in declared:
+        return path
+    hits = [path[: -len(suffix)] for suffix in ARTIFACT_STORED_SUFFIXES
+            if path.endswith(suffix) and path[: -len(suffix)] in declared]
+    return hits[0] if len(hits) == 1 else path
+
+
 class DispatchError(ValueError):
     """Raised when a dispatch queue cannot be safely scheduled."""
 
@@ -1744,6 +1760,19 @@ class GitRepositoryVerifier:
                 f"terminal snapshot {task['id']} lacks exact committed scope authorization"
             )
 
+    def _stored_path(self, tree_ref: str, path: str) -> str:
+        """The one stored form of a declared path in a tree; the path itself if none."""
+        def present(candidate: str) -> bool:
+            return subprocess.run(
+                ["git", "-C", str(self.repo_root), "cat-file", "-e", f"{tree_ref}:{candidate}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode == 0
+        if present(path):
+            return path
+        found = [path + suffix for suffix in ARTIFACT_STORED_SUFFIXES if present(path + suffix)]
+        if len(found) > 1:
+            raise DispatchError(f"declared artifact {path} is stored more than once in {tree_ref}: {found}")
+        return found[0] if found else path
+
     def _changed_paths(self, commit_sha: str, task_id: str) -> list[str]:
         raw = self._run(
             [
@@ -1832,7 +1861,8 @@ class GitRepositoryVerifier:
             # fail an archive for a file the repository deliberately no longer
             # tracks.
             blob = subprocess.run(
-                ["git", "-C", str(self.repo_root), "show", f"{tree_ref}:{path}"],
+                ["git", "-C", str(self.repo_root), "show",
+                 f"{tree_ref}:{self._stored_path(tree_ref, path)}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
                 if allow_generated_skip and _is_generated_path(path):
@@ -1979,8 +2009,9 @@ class GitRepositoryVerifier:
             return
 
         self._assert_void_paths_absent(task_id, commit_sha, void_paths)
-        actual_paths = self._changed_paths(commit_sha, task_id)
         expected = set(expected_paths)
+        actual_paths = [_declared_form(path, expected)
+                        for path in self._changed_paths(commit_sha, task_id)]
         actual = set(actual_paths)
         missing = sorted(expected - actual)
         extra = sorted(actual - expected)
@@ -1998,10 +2029,11 @@ class GitRepositoryVerifier:
             )
 
         for path in sorted(expected):
-            object_type = self._run(["cat-file", "-t", f"{commit_sha}:{path}"]).decode("ascii").strip()
+            stored = self._stored_path(commit_sha, path)
+            object_type = self._run(["cat-file", "-t", f"{commit_sha}:{stored}"]).decode("ascii").strip()
             if object_type != "blob":
                 raise DispatchError(f"archive task {task_id} artifact {path} is not a file blob")
-            content = self._run(["show", f"{commit_sha}:{path}"])
+            content = self._run(["show", f"{commit_sha}:{stored}"])
             observed = hashlib.sha256(content).hexdigest()
             if observed != archive["path_sha256"][path]:
                 raise DispatchError(
