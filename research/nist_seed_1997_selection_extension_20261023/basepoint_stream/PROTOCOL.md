@@ -1,0 +1,7 @@
+# Frozen direct-stream base-point search
+
+2026-10-24 UTC. Input: `research/nist_seed_skipped_curves_20261016/traits.json`, SHA-256 `a1102bd487379d223581863fab731d6eb6957bf0e264b450f1c7b298279b0b67`. Use all ten published controls, including the six May 1997 points whose separate FreeLIP derivation is already reported. Retain their full EC1 UIDs.
+
+For each published timestamp initialize the 48-bit `srand48` state as `(timestamp << 16) | 0x330e`, advance by `s = (0x5deece66d*s + 0xb) mod 2^48`, and append the byte `s >> 40`. Search the exact big-endian `Gx` byte string of length `ceil(bit_length(p)/8)` in the resulting byte stream from offset zero through `20*ordinal + 100000 + len(Gx)-1` (the first byte of a match may be at most `20*ordinal + 100000`). Also verify the published 20-byte seed at offset `20*(ordinal-1)` and list every 20-byte occurrence of that seed in the same bounded stream. The positive control is the known seed occurrence. A synthetic `Gx` formed from the first `len(Gx)` stream bytes must match at offset zero. Report the exact match offsets, range, and controls for each curve.
+
+Interpretation: a missing published `Gx` rules out only direct, contiguous high-byte assembly in the stated finite window. It cannot rule out other encodings, hashing, a separate generator or state, saved/restored RNG state, or the original program's unrecorded behavior. Neither outcome is an ECDLP attack or a selector unless it predicts the skipped/published labels independently.

@@ -1,0 +1,85 @@
+schema: ectd.graph-finalist-solve-contract/v1
+status: candidate_protocol
+execution_authorized: false
+selection:
+  source: graph_confirmation_candidate_20261023/confirm.py
+  require_confirmation_status: confirmed_receipts_analyzed
+  require_confirmation_selection_digest_match: true
+  strata: [P29, P37]
+  maximum_finalists_per_stratum: 6
+  treatments: [low_x, mid_x, random_x]
+  candidate_relation_trials_maximum: 36
+target_stream:
+  stage: solve
+  targets_per_treatment: 32768
+  roots: [base, target, verifier]
+  require_fresh_target_root_vs_discovery_and_confirmation: true
+  share_target_root_across_treatments_and_vertices: true
+  require_independent_commitment_per_stratum: true
+  source_point_rule: generate_G_and_Q_once_at_walk_source_then_map_each_through_the_archived_path
+  require_map_images_to_match_scheduled_endpoint_G_and_Q: true
+  preserve_same_scalar_across_isogenous_endpoints: true
+  scalar_hidden_from_executor: true
+relation_pipeline:
+  collector: exact_triple_collector
+  verify_input_and_group: true
+  verify_ordered_counts_and_rank_prefixes: [512, 2048, 8192, 32768]
+  solver: graph_solve_candidate_20261023/solve.py
+  solver_verifier: graph_solve_candidate_20261023/check.py
+  insufficient_rank: censored_without_scalar
+  solver_failure: preserve_artifacts_and_mark_invalid_or_infrastructure
+matched_rho:
+  method: plain_r_adding_walk_without_negation
+  same_curve_generator_and_target_as_each_factor_base_treatment: true
+  repetitions_per_finalist: 10
+  per_repetition_step_cap: 60000000
+  seed: committed_after_freeze
+  verify_each_recovered_scalar_independently: true
+accounting:
+  report_separately:
+    - path_transfer_and_setup
+    - source_G_and_Q_construction
+    - per_edge_map_evaluation_for_G_and_Q
+    - base_generation
+    - target_preparation
+    - relation_collection
+    - input_and_relation_replay
+    - matrix_construction
+    - linear_algebra
+    - individual_log_recovery
+    - independent_verification
+    - matched_rho
+    - peak_memory
+    - wall_clock
+  cold_start_and_amortized_costs: separate
+  target_count_for_amortization: explicit
+  cold_start_total: path_transfer_plus_curve_setup_plus_target_preparation_plus_solver
+  solver_comparison: same_vertex_same_G_same_Q_same_host_and_build
+  wall_clock: monotonic_process_wall_time_including_child_processes
+  retain_cpu_time_peak_rss_and_all_phase_durations: true
+  record_host_os_cpu_memory_compiler_sage_and_binary_hashes: true
+inference:
+  relation_yield: exact_count_and_useful_rank_by_fixed_prefix
+  complete_solve: compare_each_verified_scalar_cold_start_total_with_all_10_same_point_rho_totals
+  censored_cells: retain_and_report
+  extremes: minimum_and_maximum_only_with_all_cell_values_and_selection_rule
+  report_per_treatment_min_median_max_and_all_paired_rho_values: true
+  scope: finalists_from_the_two_fixed_P29_and_P37_graphs_only
+stopping:
+  stop_on_first_invalid_map_point_or_relation_certificate: true
+  watchdog_seconds_per_relation_trial: 1830
+  memory_mb: {P29: 4096, P37: 8192}
+  rho_cap_status: censored_timeout
+  no_adaptive_quota_increase: true
+artifacts:
+  - immutable_trial_plan_and_admission
+  - raw_collector_output_and_receipts
+  - independent_replay_receipts
+  - complete_cost_table
+  - report.md
+  - diagram.svg
+  - report.pdf
+limits:
+  - This file freezes a candidate protocol only; it is not Coordinator approval or an executable admission.
+  - Candidate selection after confirmation must be bound by its exact output digest.
+  - A missing scalar or timeout is not a zero-cost solve and does not establish impossibility.

@@ -89,7 +89,8 @@ promote it.
    Report the item only after the post-commit verifier accepts its declared
    paths and hashes.
 6. Push the branch and open or refresh a PR against `main` naming the new
-   `KN-*` records (see "Branch and PR hygiene"). A knowledge entry that exists
+   `KN-*` records, then enable auto-merge (`gh pr merge <n> --auto --merge`;
+   see "Branch and PR hygiene"). A knowledge entry that exists
    only in a local commit is not part of the corpus — it is unpublished.
 7. Report what was added and any related entries found while grepping.
 
@@ -105,7 +106,8 @@ pulls in `main` and surfaces the entry as a PR:
   `tools/build_source_index.py --check` after the merge.
 - **After the archive commit:** `git push -u origin <branch>`, then open or
   refresh a PR against `main` with the runtime's PR tool, titled
-  `knowledge: <KN-ID>` and naming the `KN-*` ids. Use `gh pr create` only
+  `knowledge: <KN-ID>` and naming the `KN-*` ids, then enable auto-merge
+  (`gh pr merge <n> --auto --merge`). Use `gh pr create` only
   where `gh auth status` succeeds; a session with no PR tool reports the
   pushed branch.
 - **Receipt:** end with `python3 tools/session_receipt.py --skill
