@@ -408,9 +408,6 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 ## Concurrency: many agents, many worktrees
 
-Each rule exists because a writer was made to read shared state it had no
-reason to read (`docs/claude-code-runtime.md`, "Concurrency").
-
 - **Generated artifacts are never committed**: `knowledge/INDEX.md`,
   `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
   rebuilt on demand; only `main-health.yml` writes the committed
@@ -424,7 +421,7 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   existing research lane goes to its `lane/<lane>` branch with
   `scripts/lane-push.sh <lane>`, not a new PR, and a PR's head stays within 30
   CI checks (`ci:over-budget` otherwise). The authoring session follows its PR through CI, review, conflict resolution,
-  and merge or closure. A ready PR is not a stopping point. Any model tier may
+  and merge or closure. Any model tier may
   fix its own PR's failures and merge it under the same gates. Subscribe to PR
   activity when supported; otherwise use spaced check-ins, not busy polling or
   a foreground wait on CI. Check in about 50 minutes after activity, then about
@@ -448,20 +445,17 @@ reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   logs and fix failures caused by the change; report unrelated failures with
   evidence on the PR. A new commit resets the current-head checks. Never skip,
   disable, or rerun a check merely to get green, and never bypass branch
-  protection or required review. Auto-merge is already enabled by default (see
-  above); use a merge commit and an expected-head guard where supported.
+  protection or required review. Use a merge commit and an expected-head guard
+  where supported.
   Confirm the merged state and merge commit before reporting success. A merge
   is a git operation,
   not a research-state transition. If a concrete gate prevents merging, name
   it on the PR and continue the check-in flow; do not treat a ready PR as done.
-- **Checks that never start do not block** (owner, 2026-10-23). A check that
-  no branch-protection rule or ruleset requires, and that has been queued for
-  24 hours or more without starting (no runner picked it up), does not hold
-  the merge, provided every check that did run on the current head passed.
-  Name each such job and how long it waited in the merge commit message. A
-  required check never falls under this: if one has not run, the PR waits and
-  the session says so on the PR. A check that started and is still running is
-  pending, not stuck.
+- **Checks that never start do not block** (owner, 2026-10-23). A nonrequired
+  check queued for at least 24 hours without a runner may be excluded only if
+  every check that ran on the current head passed. Name it and its wait in the
+  merge commit. Required checks always wait; report their absence on the PR.
+  A started, running check remains pending.
 - **Archive receipts bind to content first**: `path_sha256` verified, commit
   reachability advisory, a content mismatch fatal.
 - **Goal checkpoints are one write-once file per batch**
