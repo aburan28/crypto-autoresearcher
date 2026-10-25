@@ -1,0 +1,132 @@
+"""Protocol gates for native paired work and one bounded follow-up."""
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+from harness import sixclass_assumptions, sixclass_followup, sixclass_native, sixclass_paired
+
+
+ROOT = Path(__file__).resolve().parents[1]
+JOB = ROOT / "harness/fixtures/sixclass_p25.json"
+
+
+def test_paired_aa_control_and_cost_claim_gate(tmp_path):
+    native = json.loads((ROOT / "harness/evidence/sixclass-paired-p25-20261024.json").read_text())["native"]
+    receipt = sixclass_paired.audit(JOB, Path(__file__), 100, 2, native, 1)
+    assert len(receipt["paired_rows"]) == 2
+    assert receipt["status"] == "bounded_diagnostic_only"
+    broken = copy.deepcopy(native)
+    broken["trials"][0]["baseline_after"]["class_visits"] += 1
+    with pytest.raises(ValueError, match="A/A controls"):
+        sixclass_paired.audit(JOB, Path(__file__), 100, 2, broken, 1)
+    telemetered = copy.deepcopy(native)
+    for trial in telemetered["trials"]:
+        candidate = trial["six_class"]
+        counts = [[0] * 32 for _ in range(6)]
+        counts[0][0] = candidate["class_visits"]
+        candidate["route_by_twist"] = counts
+    routed = sixclass_paired.audit(JOB, Path(__file__), 100, 2, telemetered, 1)
+    assert routed["paired_rows"][0]["routing_screen"]["twist_visits"][0] > 0
+    routed_path = tmp_path / "routed.json"
+    routed_path.write_text(json.dumps(routed))
+    h1 = sixclass_assumptions.report([routed_path])
+    assert {row["id"] for row in h1["clauses"] if row["observations"]} == {
+        "partition-dp-routing-bits", "twist-index-independence", "surcharge-rates"}
+    assert not h1["production_claim_admissible"]
+    telemetered["trials"][0]["six_class"]["route_by_twist"][0][0] += 1
+    with pytest.raises(ValueError, match="routing telemetry"):
+        sixclass_paired.audit(JOB, Path(__file__), 100, 2, telemetered, 1)
+    coverage = sixclass_assumptions.report([])
+    assert len(coverage["clauses"]) == 5
+    assert not coverage["production_claim_admissible"]
+    assert all(row["status"] == "open" for row in coverage["clauses"])
+    answer = ROOT / "harness/evidence/sixclass-isolated-secp256k1-20261024/answer-receipt.json"
+    assert sixclass_assumptions.report([answer])["observations"][0]["informs"] == []
+    trail = ROOT / "harness/evidence/sixclass-isolated-secp256k1-20261024/trail-audit-receipt.json"
+    assert sixclass_assumptions.report([trail])["observations"][0]["informs"] == [
+        "nonfruitless-return"]
+
+
+def test_followup_is_write_once_and_frozen(tmp_path, monkeypatch):
+    binary = tmp_path / "worker"
+    binary.write_bytes(b"test binary pin")
+    initial = {"walkers": 1000, "num_branches": 32, "dp_bits": 4,
+               "max_steps_per_walker": 320, "seed": 7}
+    attempt = tmp_path / "attempt"
+    sixclass_followup.freeze(binary, JOB, attempt, initial)
+    raw = json.loads((ROOT / "harness/evidence/sixclass-p25-20261024.json").read_text())["result"]
+
+    def sealed_run(job, worker, walkers, out, **_kwargs):
+        receipt = sixclass_native.receipt_for_result(job, worker, walkers, 1, raw)
+        receipt["container"] = {"image": sixclass_followup.sixclass_isolated.IMAGE,
+                                "private_audit_mounted": False,
+                                "network": "none", "read_only": True}
+        out.write_text(json.dumps(receipt))
+        return receipt
+
+    monkeypatch.setattr(sixclass_followup.sixclass_isolated, "run", sealed_run)
+    sixclass_followup.initial(attempt, binary, JOB)
+    with pytest.raises(ValueError, match="must change"):
+        sixclass_followup.followup(attempt, binary, JOB, initial, "reviewer", "reason")
+    selected = dict(initial, walkers=1001)
+    sixclass_followup.followup(attempt, binary, JOB, selected, "local-test", "bounded change")
+    with pytest.raises(FileExistsError):
+        sixclass_followup.followup(attempt, binary, JOB, selected, "local-test", "again")
+    final = sixclass_followup.finalize(attempt, binary, JOB)
+    assert len(final["stages"]) == 2
+    with pytest.raises(ValueError, match="finalized"):
+        sixclass_followup.followup(attempt, binary, JOB, dict(initial, seed=8),
+                                  "local-test", "after final")
+
+
+def test_followup_replays_requested_bound_before_selection(tmp_path, monkeypatch):
+    binary = tmp_path / "worker"
+    binary.write_bytes(b"test binary pin")
+    initial = {"walkers": 1000, "num_branches": 32, "dp_bits": 4,
+               "max_steps_per_walker": 320, "seed": 7}
+    attempt = tmp_path / "attempt"
+    sixclass_followup.freeze(binary, JOB, attempt, initial)
+    raw = json.loads((ROOT / "harness/evidence/sixclass-p25-20261024.json").read_text())["result"]
+    def sealed_run(job, worker, walkers, out, **_kwargs):
+        receipt = sixclass_native.receipt_for_result(job, worker, walkers, 1, raw)
+        receipt["container"] = {"image": sixclass_followup.sixclass_isolated.IMAGE,
+                                "private_audit_mounted": False,
+                                "network": "none", "read_only": True}
+        receipt["requested_walkers"] += 1
+        out.write_text(json.dumps(receipt))
+        return receipt
+    monkeypatch.setattr(sixclass_followup.sixclass_isolated, "run", sealed_run)
+    sixclass_followup.initial(attempt, binary, JOB)
+    with pytest.raises(ValueError, match="independent replay"):
+        sixclass_followup.followup(attempt, binary, JOB, dict(initial, walkers=1001),
+                                  "local-test", "reject tamper")
+
+
+def test_followup_rejects_tampered_binary_and_out_of_bounds(tmp_path):
+    binary = tmp_path / "worker"
+    binary.write_bytes(b"original")
+    initial = {"walkers": 1, "num_branches": 32, "dp_bits": 4,
+               "max_steps_per_walker": 320, "seed": 7}
+    attempt = tmp_path / "attempt"
+    sixclass_followup.freeze(binary, JOB, attempt, initial)
+    binary.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="frozen binary"):
+        sixclass_followup.initial(attempt, binary, JOB)
+    with pytest.raises(ValueError, match="bounded schema"):
+        sixclass_followup.validate_input(dict(initial, walkers=10001))
+
+
+def test_native_trail_audit_binds_exact_job_and_record(tmp_path):
+    record = tmp_path / "dp.json"
+    dp = {"walker": 3, "steps": 17}
+    record.write_text(json.dumps(dp))
+    audit = {"schema": "crypto.sixclass.trail-audit.v1",
+             "job_sha256": sixclass_native.digest(JOB),
+             "record_sha256": sixclass_native.digest(record),
+             "verified": True, **dp}
+    sixclass_native.validate_trail_audit(JOB, record, dp, audit)
+    audit["steps"] += 1
+    with pytest.raises(ValueError, match="not bound"):
+        sixclass_native.validate_trail_audit(JOB, record, dp, audit)

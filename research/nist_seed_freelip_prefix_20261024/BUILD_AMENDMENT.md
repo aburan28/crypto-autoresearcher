@@ -1,0 +1,5 @@
+# Portable 26-bit build amendment
+
+The first frozen build compiled in `SINGLE_MUL` mode, but the first direct-discard-seven point case exceeded the ten-second per-process watchdog on the recorded modern arm64 host. No point result or complete state trace was obtained. The build, original launcher (`run_v1.py`), case, compiler messages and failure are preserved under `runs/prefix-v1/`. The cause of the noncompletion is unclassified; it is not a result about any historical curve or the 1997 executable.
+
+The amended bounded replay configures the unchanged source with `PLAIN=1` and `NBITS=26`, preserving the recovered limb width through the header's explicit `NBITS` override while using portable integer arithmetic. The 30-bit control remains `PLAIN=1` with its default limb width. No library source, input, seed, call route, output comparison, or 77-case workload changes. The new record binds this amendment and goes to a fresh output directory. A successful portable replay establishes those configured calls' outputs; it does not establish historical use of `SINGLE_MUL`, `PLAIN`, a particular processor, or an original invocation.
