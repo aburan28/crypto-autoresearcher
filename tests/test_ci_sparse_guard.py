@@ -69,6 +69,25 @@ def test_hook_logs_reads_and_listings_inside_excluded_directories(tmp_path: Path
     assert guard.main(["report", str(tmp_path / "absent")]) == 0
 
 
+def test_hook_names_the_test_file_whose_import_reads_off_disk(tmp_path: Path):
+    # tools/port_autolab_experiments.py globs inputs/refs at import, while pytest
+    # collects tools/test_port_autolab_experiments.py and no test is current.
+    root = tmp_path / "repo"
+    (root / "tools").mkdir(parents=True)
+    (root / "inputs/refs").mkdir(parents=True)
+    (root / "tools/source.py").write_text("import glob\nglob.glob('inputs/refs/x/*.json')\n")
+    (root / "tools/test_source.py").write_text("import sys\nsys.path.insert(0, 'tools')\nimport source\n")
+    rules, log = tmp_path / "rules", tmp_path / "log"
+    rules.write_text(RULES)
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+    env.update({"PYTHONPATH": str(REPO / "tools" / "sparse_guard_site"),
+                "CI_SPARSE_GUARD_ROOT": str(root), "CI_SPARSE_GUARD_RULES": str(rules),
+                "CI_SPARSE_GUARD_LOG": str(log)})
+    subprocess.run([sys.executable, "tools/test_source.py"], cwd=root, env=env, check=True)
+    assert {line.split("\t")[0] for line in log.read_text().splitlines()} == {
+        "tools/test_source.py::<import>"}
+
+
 def test_ci_sparse_rules_are_the_harness_profile_exclusions():
     """validate.yml's SPARSE_RULES must not drift from tools/sparse_checkout.py."""
     workflow = yaml.safe_load((REPO / ".github/workflows/validate.yml").read_text())

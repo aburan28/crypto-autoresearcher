@@ -7,6 +7,10 @@
 - **Raw outputs:** `ffd_semaev_measure_results.txt`, `ffd_semaev_results.json`, `ffd_s3_formula_control_results.txt`
 - **Status:** MEASUREMENT at toy scale. Not an approved `EXP-*`, no run record, no hypothesis moved.
 
+**Correction (2026-10-24):** The uniform degree-two first-fall conclusion in
+§3a is withdrawn. The archived 70/10 counts reproduce a Boolean-product bug;
+see §6 for the corrected counts, finite counterexample, and proof scope.
+
 ## 0. What was measured
 
 For `E : y² + xy = x³ + a₂x² + a₆` over `F_{2ⁿ}`, factor base `V ⊆ F_{2ⁿ}` an
@@ -144,3 +148,29 @@ still proves only that a degree-2 fall **exists**; §4 below is unchanged.
 - **(N3)** Push `n'` to 5–6 (`N = 10–12`) to see whether the null keeps rising
   linearly while Semaev stays pinned, which is the trend claim.
 - **(N4)** `m = 3` (`S₄`), where the symmetry class becomes non-trivial.
+
+## 6. Correction (2026-10-24) — trace cancellation is not a uniform first fall
+
+The field identity in §3a and
+[`trace_witness_annihilates_degree_two_part`](../formal/CryptoResearch/Semaev/DegreeTwoFall.lean)
+cancel the degree-two coefficients when `x_R ≠ 0`. They do not establish that
+the residual is a new nonzero class outside the lower-degree row space. Thus
+§3a's assertion that a degree-two *first fall* exists for every `n`, `n'`, and
+`V` is false as stated. In the checked Boolean model with
+`(n,n',s,x_R) = (4,4,1,1)`, the trace residual is already a degree-one
+generator; there is no new degree-two fall. The
+[`concreteNewFall` certificate](../formal/CryptoResearch/Semaev/ConcreteFirstFallWitness.lean)
+instead proves one new degree-three fall for that same finite system. Neither
+Lean theorem proves a generic first-fall degree or an ECDLP speedup.
+
+The historical `fall_profile` also used set union for monomial multiplication,
+so duplicate Boolean monomials failed to cancel over `F₂`. The original 70 of
+80 degree-two and 10 of 80 degree-three counts remain reproducible *as archived
+program output*. [Corrected exact replay](../docs/reports/2026-10-22-semaev-first-fall-replay/report.md)
+on the same 80 systems gives 68 and 12, respectively. The
+[open proof-gap record](../problems/semaev-degree-two-fall-nonzero-bridge.md)
+tracks the missing general nonzero bridge and source-code defect. The
+[finite witness report](../docs/reports/2026-10-23-semaev-concrete-witness/report.md)
+binds the particular Lean certificate to its input equations and independent
+row-space replay. Sections 0–5 are retained as historical statements, not as
+current conclusions where they conflict with this correction.

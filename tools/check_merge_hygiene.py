@@ -614,9 +614,14 @@ def check_collisions(base: str) -> list[str]:
         on_base = _run("git", "cat-file", "-e", f"{base}:{rel}")
         if on_base.returncode != 0:
             continue
-        theirs = _run("git", "show", f"{base}:{rel}").stdout
+        # Identifier-bearing directories also contain binary artifacts. Compare
+        # exact bytes, without UTF-8 decoding or newline normalization.
+        theirs = subprocess.run(
+            ("git", "show", f"{base}:{rel}"), cwd=REPO,
+            capture_output=True, check=True,
+        ).stdout
         try:
-            with open(os.path.join(REPO, rel), "r", encoding="utf-8") as fh:
+            with open(os.path.join(REPO, rel), "rb") as fh:
                 ours = fh.read()
         except OSError:
             continue

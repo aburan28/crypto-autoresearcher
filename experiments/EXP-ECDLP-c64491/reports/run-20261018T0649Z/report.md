@@ -1,0 +1,798 @@
+# Native worksheet execution: EXP-ECDLP-c64491
+
+Descriptive finite worksheet observations only; no hypothesis verdict, asymptotic claim or deployed-curve result.
+
+Source experiment: EXP-ECDLP-d68ac9. Original approved frozen finite worksheet. These deterministic readings remain historical in-sample calibration; no ambiguous original criterion is closed or re-scored. Complete lineage hashes remain in report-data.json.
+
+Hypothesis `H-ECDLP-298630`; goal `GOAL-ECDLP-001`. Requested 2 trials; native statuses and resources follow.
+
+| Run | Native status | Driver wall s | Driver CPU s | Peak RSS bytes |
+| --- | --- | ---: | ---: | ---: |
+| RUN-ECDLP-40541f | output_validated | 8.040957 | 7.263561 | 169009152 |
+| RUN-ECDLP-fce7f4 | output_validated | 8.972116 | 7.89497 | 169017344 |
+
+All values are recorded unless expressly labeled derived. Native elapsed is derived as finished_at minus started_at. Driver wall/CPU/RSS use each manifest's explicit boundaries, retained in report-data.json; RSS is a lifetime per-process peak, not aggregate memory. These deterministic route observations have one datum each, no sampled uncertainty or performance inference. No random draw is introduced; null seed and curve_id remain as recorded. A finite worksheet witness is not a formal, decomposition or discrete-log certificate. The authorized outer supervisor environment sets GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=core.preloadIndex and GIT_CONFIG_VALUE_0=false under DEC-20261018-1a5209; exact direct child argv and resource limits are unchanged. The exact outer command style is retained in report-data.json.
+
+Complete raw transcripts, controls, prediction comparisons, witness bindings, source/input hashes, code commits, dirty states, environment and exact commands: [report-data.json](report-data.json). All run paths and published raw commit IDs are listed there. Prediction comparison is distinct from control/output validity.
+
+Recorded metric fields (complete, unchanged):
+
+```json
+[
+  {
+    "metrics": {
+      "implementations_agree": true,
+      "measurement_valid": true,
+      "observations": {
+        "ceiling": 36,
+        "escape_fraction": "1/8",
+        "j": 72,
+        "log_sides": [
+          true,
+          true
+        ],
+        "multiplier_orders": [
+          166,
+          166
+        ],
+        "pair_sum_23": 28,
+        "pair_sum_5": 36,
+        "pair_sums_23": [
+          [
+            1,
+            96
+          ],
+          [
+            19,
+            29
+          ],
+          [
+            21,
+            136
+          ],
+          [
+            22,
+            109
+          ],
+          [
+            29,
+            84
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            31,
+            94
+          ],
+          [
+            32,
+            145
+          ],
+          [
+            40,
+            64
+          ],
+          [
+            43,
+            60
+          ],
+          [
+            47,
+            49
+          ],
+          [
+            49,
+            26
+          ],
+          [
+            51,
+            91
+          ],
+          [
+            56,
+            106
+          ],
+          [
+            76,
+            131
+          ],
+          [
+            78,
+            77
+          ],
+          [
+            83,
+            145
+          ],
+          [
+            84,
+            56
+          ],
+          [
+            88,
+            141
+          ],
+          [
+            89,
+            58
+          ],
+          [
+            107,
+            40
+          ],
+          [
+            115,
+            11
+          ],
+          [
+            117,
+            23
+          ],
+          [
+            125,
+            70
+          ],
+          [
+            128,
+            73
+          ],
+          [
+            133,
+            58
+          ],
+          [
+            142,
+            41
+          ],
+          [
+            150,
+            150
+          ]
+        ],
+        "pair_sums_5": [
+          [
+            6,
+            15
+          ],
+          [
+            6,
+            136
+          ],
+          [
+            21,
+            15
+          ],
+          [
+            29,
+            84
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            31,
+            94
+          ],
+          [
+            36,
+            6
+          ],
+          [
+            39,
+            13
+          ],
+          [
+            43,
+            60
+          ],
+          [
+            49,
+            26
+          ],
+          [
+            51,
+            91
+          ],
+          [
+            53,
+            54
+          ],
+          [
+            59,
+            9
+          ],
+          [
+            68,
+            140
+          ],
+          [
+            75,
+            19
+          ],
+          [
+            75,
+            132
+          ],
+          [
+            82,
+            150
+          ],
+          [
+            83,
+            145
+          ],
+          [
+            89,
+            58
+          ],
+          [
+            93,
+            23
+          ],
+          [
+            95,
+            104
+          ],
+          [
+            102,
+            38
+          ],
+          [
+            107,
+            40
+          ],
+          [
+            111,
+            17
+          ],
+          [
+            114,
+            144
+          ],
+          [
+            119,
+            11
+          ],
+          [
+            119,
+            140
+          ],
+          [
+            122,
+            54
+          ],
+          [
+            123,
+            89
+          ],
+          [
+            133,
+            58
+          ],
+          [
+            136,
+            29
+          ],
+          [
+            138,
+            71
+          ],
+          [
+            140,
+            110
+          ],
+          [
+            141,
+            72
+          ],
+          [
+            148,
+            44
+          ],
+          [
+            149,
+            12
+          ]
+        ],
+        "point_count": 167,
+        "point_on_curve": true,
+        "point_order": 167,
+        "residue_1728": 67,
+        "scalars_23": [
+          1,
+          23,
+          28,
+          143,
+          116,
+          163,
+          75,
+          55
+        ],
+        "scalars_5": [
+          1,
+          5,
+          25,
+          125,
+          124,
+          119,
+          94,
+          136
+        ],
+        "shortfall": 8,
+        "sqrt_sides": [
+          true,
+          true
+        ],
+        "sqrt_squares": [
+          7997584,
+          8003241
+        ],
+        "window_23": [
+          [
+            1,
+            55
+          ],
+          [
+            107,
+            111
+          ],
+          [
+            142,
+            110
+          ],
+          [
+            40,
+            87
+          ],
+          [
+            133,
+            93
+          ],
+          [
+            125,
+            81
+          ],
+          [
+            22,
+            42
+          ],
+          [
+            84,
+            95
+          ]
+        ],
+        "window_5": [
+          [
+            1,
+            55
+          ],
+          [
+            57,
+            60
+          ],
+          [
+            35,
+            123
+          ],
+          [
+            82,
+            150
+          ],
+          [
+            102,
+            38
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            122,
+            54
+          ],
+          [
+            47,
+            102
+          ]
+        ]
+      },
+      "prediction_match": true
+    },
+    "run_id": "RUN-ECDLP-40541f"
+  },
+  {
+    "metrics": {
+      "implementations_agree": true,
+      "measurement_valid": true,
+      "observations": {
+        "ceiling": 36,
+        "escape_fraction": "1/8",
+        "j": 72,
+        "log_sides": [
+          true,
+          true
+        ],
+        "multiplier_orders": [
+          166,
+          166
+        ],
+        "pair_sum_23": 28,
+        "pair_sum_5": 36,
+        "pair_sums_23": [
+          [
+            1,
+            96
+          ],
+          [
+            19,
+            29
+          ],
+          [
+            21,
+            136
+          ],
+          [
+            22,
+            109
+          ],
+          [
+            29,
+            84
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            31,
+            94
+          ],
+          [
+            32,
+            145
+          ],
+          [
+            40,
+            64
+          ],
+          [
+            43,
+            60
+          ],
+          [
+            47,
+            49
+          ],
+          [
+            49,
+            26
+          ],
+          [
+            51,
+            91
+          ],
+          [
+            56,
+            106
+          ],
+          [
+            76,
+            131
+          ],
+          [
+            78,
+            77
+          ],
+          [
+            83,
+            145
+          ],
+          [
+            84,
+            56
+          ],
+          [
+            88,
+            141
+          ],
+          [
+            89,
+            58
+          ],
+          [
+            107,
+            40
+          ],
+          [
+            115,
+            11
+          ],
+          [
+            117,
+            23
+          ],
+          [
+            125,
+            70
+          ],
+          [
+            128,
+            73
+          ],
+          [
+            133,
+            58
+          ],
+          [
+            142,
+            41
+          ],
+          [
+            150,
+            150
+          ]
+        ],
+        "pair_sums_5": [
+          [
+            6,
+            15
+          ],
+          [
+            6,
+            136
+          ],
+          [
+            21,
+            15
+          ],
+          [
+            29,
+            84
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            31,
+            94
+          ],
+          [
+            36,
+            6
+          ],
+          [
+            39,
+            13
+          ],
+          [
+            43,
+            60
+          ],
+          [
+            49,
+            26
+          ],
+          [
+            51,
+            91
+          ],
+          [
+            53,
+            54
+          ],
+          [
+            59,
+            9
+          ],
+          [
+            68,
+            140
+          ],
+          [
+            75,
+            19
+          ],
+          [
+            75,
+            132
+          ],
+          [
+            82,
+            150
+          ],
+          [
+            83,
+            145
+          ],
+          [
+            89,
+            58
+          ],
+          [
+            93,
+            23
+          ],
+          [
+            95,
+            104
+          ],
+          [
+            102,
+            38
+          ],
+          [
+            107,
+            40
+          ],
+          [
+            111,
+            17
+          ],
+          [
+            114,
+            144
+          ],
+          [
+            119,
+            11
+          ],
+          [
+            119,
+            140
+          ],
+          [
+            122,
+            54
+          ],
+          [
+            123,
+            89
+          ],
+          [
+            133,
+            58
+          ],
+          [
+            136,
+            29
+          ],
+          [
+            138,
+            71
+          ],
+          [
+            140,
+            110
+          ],
+          [
+            141,
+            72
+          ],
+          [
+            148,
+            44
+          ],
+          [
+            149,
+            12
+          ]
+        ],
+        "point_count": 167,
+        "point_on_curve": true,
+        "point_order": 167,
+        "residue_1728": 67,
+        "scalars_23": [
+          1,
+          23,
+          28,
+          143,
+          116,
+          163,
+          75,
+          55
+        ],
+        "scalars_5": [
+          1,
+          5,
+          25,
+          125,
+          124,
+          119,
+          94,
+          136
+        ],
+        "shortfall": 8,
+        "sqrt_sides": [
+          true,
+          true
+        ],
+        "sqrt_squares": [
+          7997584,
+          8003241
+        ],
+        "window_23": [
+          [
+            1,
+            55
+          ],
+          [
+            107,
+            111
+          ],
+          [
+            142,
+            110
+          ],
+          [
+            40,
+            87
+          ],
+          [
+            133,
+            93
+          ],
+          [
+            125,
+            81
+          ],
+          [
+            22,
+            42
+          ],
+          [
+            84,
+            95
+          ]
+        ],
+        "window_5": [
+          [
+            1,
+            55
+          ],
+          [
+            57,
+            60
+          ],
+          [
+            35,
+            123
+          ],
+          [
+            82,
+            150
+          ],
+          [
+            102,
+            38
+          ],
+          [
+            30,
+            149
+          ],
+          [
+            122,
+            54
+          ],
+          [
+            47,
+            102
+          ]
+        ]
+      },
+      "prediction_match": true
+    },
+    "run_id": "RUN-ECDLP-fce7f4"
+  }
+]
+```
+
+Canonical graph scope checked: knowledge/frontiers/ecdlp and the frozen specification. These finite records do not change a scientific status or graph. The pipeline diagram records what ran; the timing plot, where present, plots recorded driver intervals only and claims no speedup.
+
+[Pipeline](pipeline.svg), [editable source](pipeline.dot), [PDF](report.pdf). Raw source paths:
+
+- `experiments/EXP-ECDLP-c64491/runs/RUN-ECDLP-40541f`; archive `ba096eec5808126c6dfb4e1c8bbf491a04c913de`.
+- `experiments/EXP-ECDLP-c64491/runs/RUN-ECDLP-fce7f4`; archive `ba096eec5808126c6dfb4e1c8bbf491a04c913de`.
