@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Check archived 87-target hosted Lean receipts against current main blobs.
+"""Check archived 87-target hosted Lean receipts against a named main snapshot.
 
-The receipt run is at HOSTED; current main is MAIN. This checks exact formal
-tree and declared-source identity across those commits, plus every receipt's
-input hashes and machine-verification fields. It does not judge claim meaning.
+The receipt run is at HOSTED; MAIN identifies the named main snapshot. This
+checks exact formal tree and declared-source identity across those commits,
+plus every receipt's input hashes and machine-verification fields. It does not
+judge claim meaning.
 """
 
 from __future__ import annotations
@@ -157,7 +158,7 @@ def main() -> None:
         verified.append(name)
     assert audit["receipt_sha256"] == hashes
     assert audit["verified_targets"] == verified
-    print("PASS: 87/87 exact hosted machine receipts; formal tree and 30 declared sources match current main; semantic review pending")
+    print("PASS: 87/87 exact hosted machine receipts; formal tree and 30 declared sources match the named main snapshot; semantic review pending")
 
 
 if __name__ == "__main__":
