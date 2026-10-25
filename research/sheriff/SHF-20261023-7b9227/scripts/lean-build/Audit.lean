@@ -1,0 +1,32 @@
+import CryptoResearch.Endosweep.DkExactBatch4
+import CryptoResearch.Semaev.FiniteEquationSemantics
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_numsp384d1_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_numsp384d1_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_Curve41417_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_Curve41417_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_ed_510_mont_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_ed_510_mont_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_M_511_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_M_511_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_numsp512d1_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.nums_numsp512d1_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_E_521_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.other_E_521_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.arkworks_ed_on_mnt4_753_holds
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.arkworks_ed_on_mnt4_753_certificate
+#print axioms CryptoResearch.Endosweep.DkExactBatch4.exact_discriminants
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.firstEquation_matches_input
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.archived_product_extra_masks
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.archived_product_differs
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.rank_one
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.projected_rank_one
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.rank_two
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.projected_rank_two
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.rank_three
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.projected_rank_three
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.no_fall_one
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.no_fall_two
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.first_new_fall_three
+#print axioms CryptoResearch.Semaev.BooleanParityFiniteCertificate.exact_first_fall_at_three
+#print axioms CryptoResearch.Semaev.FiniteEquationSemantics.fieldMul_closed
+#print axioms CryptoResearch.Semaev.FiniteEquationSemantics.all_component_equations_match_s3

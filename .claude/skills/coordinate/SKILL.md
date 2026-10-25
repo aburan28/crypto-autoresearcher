@@ -1,11 +1,11 @@
 ---
 name: coordinate
 description: >-
-  Coordinate the Crypto Autoresearcher program: rank work, open batches,
-  approve complete protocols, dispatch non-execution tasks, archive, and
-  publish. Use for /coordinate, launch coordinator, portfolio coordination,
-  resume a GOAL-* without running trials, or keep the research loop turning.
-  Not an execution skill — /run launches experiments.
+  Coordinate the program: rank work, open batches, approve complete
+  protocols, dispatch non-execution tasks, archive and publish. Use for
+  /coordinate, portfolio coordination, or resuming a GOAL-* without running
+  trials. Not an execution skill; /run launches experiments.
+
 ---
 
 # Coordinate
@@ -102,7 +102,9 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    - record impediments on an **active** goal — never `paused` or `blocked`.
 6. **Publish.** After every archive that adds `GOAL-*` / `RQ-*` / `IDEA-*` /
    `H-*` / `EXP-*` / `EV-*` / `DEC-*` / `TASK-*` / `KN-*` records: push the
-   branch and open or refresh a PR against `main` naming those IDs. A local
+   branch and open or refresh a PR against `main` naming those IDs, then enable
+   auto-merge (`gh pr merge <n> --auto --merge`; the base must be the default
+   branch, so a stacked PR is retargeted first). A local
    commit is unpublished.
 7. **Checkpoint** (goal / portfolio): goal, lane, queue, branch/PR, verified
    archive SHAs, completed task IDs, evidence/decision IDs, owners, exactly one

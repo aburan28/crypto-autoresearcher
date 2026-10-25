@@ -30,8 +30,8 @@ model, which is why tiers are a separate floor from reasoning effort.
 
 | policy | tier floor | Anthropic binding | effort |
 | --- | --- | --- | --- |
-| `review-breakthrough` | frontier | Fable 5.1 (Mythos on `anthropic-mythos`) | max |
-| `research-synthesis` | frontier | Fable 5.1 (Mythos on `anthropic-mythos`) | high |
+| `review-breakthrough` | core | Opus 5.5 (Fable or Mythos on their backends) | max |
+| `research-synthesis` | core | Opus 5.5 (Fable or Mythos on their backends) | high |
 | `coordinator-orchestration-code`, `coordinator-orchestration` | core | Opus 5.5 (Fable or Mythos on their backends) | high |
 | `review-adversarial` | core | Opus 5.5 | xhigh |
 | `director-runbook` | director | Sonnet 5.5 | high |
@@ -42,11 +42,11 @@ A model at or above the floor may serve a policy (Opus may run a Sonnet
 policy); one classified below it is refused like any other unmet requirement,
 and only `degraded_allowed` with a Coordinator inference amendment lets it
 through, recorded on the resolution. `review-breakthrough` is not degradable,
-so it is never served below frontier, and never by a model nobody classified.
+so it is never served below core, and never by a model nobody classified.
 
 An unclassified model (a local overlay, an OpenRouter id) is recorded on the
 resolution as `model_tier: null` and is not refused, except on the
-non-degradable frontier gate. A local overlay may classify a model the
+non-degradable gate. A local overlay may classify a model the
 repository has never seen (`model_tiers:` in the overlay) but may not
 reclassify one it has. Backends where one operator-chosen model serves every
 policy (`local`, `abliteration`) are listed in `tier_exempt_backends`: their
@@ -54,13 +54,13 @@ tier gap is recorded on every resolution (`below_model_tier: true`) instead
 of enforced.
 
 Selecting `AUTORESEARCH_BACKEND=anthropic-mythos` (or `anthropic-fable`) puts
-coordination and both frontier policies on that model; everything else on
+coordination and both breakthrough policies on that model; everything else on
 those backends is unbound, so pair them with `anthropic` for the lower tiers.
 
 ## The delegation topology
 
 ```text
-  frontier / core  (Coordinator: Opus 5.5; breakthrough review and synthesis: Fable 5.1 / Mythos)
+  frontier / core  (Coordinator: Opus 5.5; breakthrough review and synthesis: Opus 5.5; Fable 5.1 / Mythos on explicit selection)
       │  designs and approves the experiment; approves the runbook sha256 in a DEC-*
       ▼
   director         (experiment-director: Sonnet 5.5, effort high)
@@ -135,7 +135,34 @@ dispatch itself, and is checked by `tools/task_card.py`:
 
 Under Claude Code, the director and the executor are subagents. Anywhere else
 (Conductor tasks, overnight sweeps, a Mythos-led session that delegates) the
-same topology runs through a batch API at half price, with no subagent:
+same topology runs through a batch API at half price, with no subagent. One
+command does all of it:
+
+```sh
+python3 tools/task_card.py lane --design <spec> --bind <file>... \
+    --card <card> --assessment <assessment> [--via auto|conductor|delphi] [--task T-42]
+```
+
+It writes the compile prompt, sends it as one batch request, ingests the reply
+as the card (only if it lints), runs the card with no model, sends the assess
+prompt, and ingests that reply as the assessment. Prompts, replies and a
+`lane.json` record (backend, prompt and reply digests, batch ids and token
+usage when the backend reports them) go to `<card stem>.lane/`.
+
+- `--via conductor`: Conductor-hosted Delphi, `conductor delphi ask --profile
+  director --wait --file …`, the key in the control plane's vault and each
+  delegation linked to `--task` on its timeline. This is the lane a Conductor
+  task runs: no key in the worker's environment.
+- `--via delphi`: standalone `delphi run` with `ANTHROPIC_API_KEY` (or
+  Anthropic WIF) in the environment.
+- `--via auto` (default): Conductor when `conductor delphi profiles` lists a
+  `director` profile, else standalone delphi when a key is set, else an
+  `IMPEDIMENT` (exit 2) before anything is written.
+- Exit 0: ran and assessed. 1: a reply was refused; nothing was written for it
+  and the reply is kept. 2: impediment. 3: the run stopped at a failing
+  command, which is a result, and was assessed.
+
+The same steps by hand:
 
 ```sh
 python3 tools/task_card.py request compile --design <spec> --bind <file>... --out <card> > compile.md
@@ -170,9 +197,9 @@ batch registry (it resolves to `director-runbook`, Sonnet 5.5 at high).
   is none. Haiku (`--profile executor.mechanical`) stays the tier for
   single-turn mechanical work that is text, not commands: reformatting a
   record, regenerating an index from given inputs.
-- `examples/batch-lane/smoke.sh` runs the whole lane once against a live
-  Message Batch through standalone `delphi` (two Sonnet requests); it exits 2
-  without `ANTHROPIC_API_KEY`.
+- `examples/batch-lane/smoke.sh` runs `lane` once on a toy card against a live
+  Message Batch (two Sonnet requests), through whichever backend `--via auto`
+  finds (`VIA=` and `TASK=` override); it exits 2 when neither is connected.
 - Kind `runbook` cards are not compiled in this lane: a runbook is written and
   linted against files.
 

@@ -1,196 +1,286 @@
+/-
+Source: research/THM_COMMUTATOR_KERNEL1.md, Lemma 2(b).
+Target: formal/targets/ncp-reachability.yaml.
+
+This is the exact shortest-word criterion for the signed-count shadow of
+translation/negation words. `signedCount` and `shadowSign` are imported from
+the affine-normal-form proof, preserving its left-to-right action convention
+and signs from negations to the right of each translation.
+
+The lower bound charges one word position per unit of signed-count L1 weight
+and the necessary zero, one, or two negations. The construction realizes the
+bound by listing positive and negative translations around those negations.
+It concerns word combinatorics; it does not measure NC search cost or prove
+the path-algebra kernel ideal.
+-/
 import CryptoResearch.NCP.AffineNormalForm
-import Mathlib.Tactic.Linarith
-import Mathlib.Algebra.BigOperators.Fin
 
-set_option autoImplicit false
 namespace CryptoResearch.NCP
-variable {B : ℕ}
 
-def shadowL1 (a : Fin B → ℤ) : ℕ := ∑ i, (a i).natAbs
-
-def minNegations (e : ℤ) (a : Fin B → ℤ) : ℕ :=
-  if e = -1 then 1 else if ∀ i, 0 ≤ a i then 0 else 2
-
-theorem wordSign_cases (w : List (Letter B)) : wordSign w = 1 ∨ wordSign w = -1 := by
-  induction w with
-  | nil => simp [wordSign]
-  | cons l w ih =>
-    cases l with
-    | translate i => simpa [wordSign] using ih
-    | negate => rcases ih with h | h <;> simp [wordSign, h]
-
-theorem shadowL1_translate (a : Fin B → ℤ) (e : ℤ) (j : Fin B)
-    (he : e = 1 ∨ e = -1) :
-    shadowL1 (fun i => a i + if j = i then e else 0) ≤ shadowL1 a + 1 := by
-  unfold shadowL1
-  have hpoint : ∀ i, (a i + if j = i then e else 0).natAbs ≤
-      (a i).natAbs + if j = i then 1 else 0 := by
-    intro i
-    split_ifs with h
-    · have htri := Int.natAbs_add_le (a i) e
-      rcases he with rfl | rfl <;> simpa using htri
-    · simp
-  calc
-    _ ≤ ∑ i, ((a i).natAbs + if j = i then 1 else 0) := Finset.sum_le_sum (fun i _ => hpoint i)
-    _ = _ := by simp [Finset.sum_add_distrib]
-
-theorem minNegations_translate (a : Fin B → ℤ) (e : ℤ) (j : Fin B)
-    (he : e = 1 ∨ e = -1) :
-    minNegations e (fun i => a i + if j = i then e else 0) ≤ minNegations e a := by
-  rcases he with rfl | rfl
-  · by_cases ha : ∀ i, 0 ≤ a i
-    · have hnew : ∀ i, 0 ≤ a i + if j = i then (1 : ℤ) else 0 := by
-        intro i; split_ifs <;> have := ha i <;> omega
-      simp [minNegations, ha, hnew]
-    · simp [minNegations, ha]; split_ifs <;> omega
-  · simp [minNegations]
-
-theorem minNegations_negate (a : Fin B → ℤ) (e : ℤ) (he : e = 1 ∨ e = -1) :
-    minNegations (-e) a ≤ minNegations e a + 1 := by
-  rcases he with rfl | rfl <;> by_cases ha : ∀ i, 0 ≤ a i <;>
-    simp [minNegations, ha]
-
-theorem shadow_cost_le_length (w : List (Letter B)) :
-    shadowL1 (signedCounts w) + minNegations (wordSign w) (signedCounts w) ≤ w.length := by
-  induction w with
-  | nil => simp [shadowL1, signedCounts, minNegations, wordSign]
-  | cons l w ih =>
-    cases l with
-    | translate j =>
-      have h1 := shadowL1_translate (signedCounts w) (wordSign w) j (wordSign_cases w)
-      have h2 := minNegations_translate (signedCounts w) (wordSign w) j (wordSign_cases w)
-      simp only [signedCounts, wordSign, List.length_cons]
-      omega
-    | negate =>
-      have hm := minNegations_negate (signedCounts w) (wordSign w) (wordSign_cases w)
-      change shadowL1 (signedCounts w) + minNegations (-wordSign w) (signedCounts w) ≤ w.length + 1
-      omega
-
-theorem wordSign_append (u v : List (Letter B)) :
-    wordSign (u ++ v) = wordSign u * wordSign v := by
+private theorem negCount_append {B : Nat} (u v : List (Letter B)) :
+    negCount (u ++ v) = negCount u + negCount v := by
   induction u with
-  | nil => simp [wordSign]
-  | cons l u ih => cases l <;> simp [wordSign, ih, neg_mul]
-
-theorem signedCounts_append (u v : List (Letter B)) (j : Fin B) :
-    signedCounts (u ++ v) j = signedCounts u j * wordSign v + signedCounts v j := by
-  induction u with
-  | nil => simp [signedCounts]
+  | nil => simp [negCount]
   | cons l u ih =>
-    cases l with
-    | negate => simpa [signedCounts] using ih
-    | translate i =>
-      simp only [List.cons_append, signedCounts, wordSign_append, ih]
-      split_ifs <;> ring
+      cases l <;> simp [negCount, ih, Nat.add_comm, Nat.add_left_comm]
 
-def translationBlock (c : Fin B → ℕ) : List (Letter B) :=
-  (List.ofFn fun i => List.replicate (c i) (.translate i : Letter B)).flatten
+private theorem signedCount_append {B : Nat} (u v : List (Letter B))
+    (i : Fin B) :
+    signedCount (u ++ v) i =
+      (-1 : Int) ^ negCount v * signedCount u i + signedCount v i := by
+  induction u with
+  | nil => simp [signedCount]
+  | cons l u ih =>
+      cases l with
+      | neg => simpa [signedCount] using ih
+      | trans j =>
+          simp only [List.cons_append, signedCount, negCount_append, pow_add]
+          rw [ih]
+          split_ifs <;> ring
 
-theorem translationBlock_length (c : Fin B → ℕ) :
-    (translationBlock c).length = ∑ i, c i := by
-  simp [translationBlock, List.length_flatten, List.map_ofFn, List.sum_ofFn]
+private theorem negCount_replicate_trans {B : Nat} (n : Nat) (j : Fin B) :
+    negCount (List.replicate n (.trans j)) = 0 := by
+  induction n with
+  | zero => simp [negCount]
+  | succ n ih => simp [List.replicate, negCount, ih]
 
-theorem translationBlock_no_negate (c : Fin B → ℕ) :
-    .negate ∉ translationBlock c := by
-  simp [translationBlock]
+private theorem signedCount_replicate_trans {B : Nat} (n : Nat) (j i : Fin B) :
+    signedCount (List.replicate n (.trans j)) i =
+      if i = j then (n : Int) else 0 := by
+  induction n with
+  | zero => simp [signedCount]
+  | succ n ih =>
+      simp only [List.replicate_succ, signedCount, negCount_replicate_trans,
+        pow_zero, ih]
+      split_ifs <;> simp
 
-theorem translationBlock_sign (c : Fin B → ℕ) : wordSign (translationBlock c) = 1 := by
-  rw [wordSign_eq_negOne_pow, List.count_eq_zero.mpr (translationBlock_no_negate c)]
-  simp
+private theorem pureWord_on_set {B : Nat} (s : Finset (Fin B))
+    (k : Fin B → Nat) :
+    ∃ w : List (Letter B), negCount w = 0 ∧
+      (∀ i : Fin B, signedCount w i = if i ∈ s then (k i : Int) else 0) ∧
+      w.length = ∑ i ∈ s, k i := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+      refine ⟨[], ?_, ?_, ?_⟩
+      · rfl
+      · intro i; simp [signedCount]
+      · simp
+  | @insert j s hj ih =>
+      obtain ⟨w, hneg, hcount, hlen⟩ := ih
+      let block : List (Letter B) := List.replicate (k j) (.trans j)
+      refine ⟨block ++ w, ?_, ?_, ?_⟩
+      · simp [negCount_append, negCount_replicate_trans, hneg, block]
+      · intro i
+        rw [signedCount_append, hneg, pow_zero, one_mul]
+        rw [signedCount_replicate_trans, hcount]
+        by_cases hij : i = j
+        · subst i
+          simp [Finset.mem_insert, hj]
+        · simp [Finset.mem_insert, hij]
+      · simp [block, List.length_append, hlen, Finset.sum_insert, hj]
 
-theorem signedCounts_eq_count (w : List (Letter B)) (h : .negate ∉ w) (j : Fin B) :
-    signedCounts w j = (w.count (.translate j) : ℤ) := by
+def shadowWeight {B : Nat} (w : List (Letter B)) : Nat :=
+  ∑ i : Fin B, (signedCount w i).natAbs
+
+private theorem weight_cons_trans_le {B : Nat} (j : Fin B)
+    (w : List (Letter B)) :
+    shadowWeight (.trans j :: w) ≤ shadowWeight w + 1 := by
+  classical
+  calc
+    shadowWeight (.trans j :: w) =
+        ∑ i : Fin B,
+          (signedCount w i + if i = j then (-1 : Int) ^ negCount w else 0).natAbs := by
+            rfl
+    _ ≤ ∑ i : Fin B,
+          ((signedCount w i).natAbs +
+            (if i = j then (-1 : Int) ^ negCount w else 0).natAbs) := by
+          apply Finset.sum_le_sum
+          intro i hi
+          exact Int.natAbs_add_le _ _
+    _ = shadowWeight w + 1 := by
+          rw [Finset.sum_add_distrib]
+          simp [shadowWeight, apply_ite]
+
+private theorem weight_plus_negs_le_length {B : Nat} (w : List (Letter B)) :
+    shadowWeight w + negCount w ≤ w.length := by
   induction w with
-  | nil => simp [signedCounts]
+  | nil => simp [shadowWeight, negCount, signedCount]
   | cons l w ih =>
-    cases l with
-    | negate => simp at h
-    | translate i =>
-      have hw : wordSign w = 1 := by
-        rw [wordSign_eq_negOne_pow, List.count_eq_zero.mpr (by simpa using h)]
-        simp
-      simp only [signedCounts, hw]
-      rw [ih (by simpa using h)]
-      by_cases hij : i = j
-      · subst i; simp
-      · have hji : j ≠ i := Ne.symm hij
-        simp [hij]
+      cases l with
+      | trans j =>
+          have h := weight_cons_trans_le j w
+          simp only [List.length_cons, negCount] at *
+          omega
+      | neg =>
+          change shadowWeight w + (negCount w + 1) ≤ w.length + 1
+          omega
 
-theorem translationBlock_counts (c : Fin B → ℕ) (j : Fin B) :
-    signedCounts (translationBlock c) j = (c j : ℤ) := by
-  rw [signedCounts_eq_count _ (translationBlock_no_negate c)]
-  congr 1
-  simp [translationBlock, List.count_flatten, List.map_ofFn, List.sum_ofFn,
-    List.count_replicate]
+private theorem count_nonneg_of_no_neg {B : Nat} (w : List (Letter B))
+    (h : negCount w = 0) :
+    ∀ i : Fin B, 0 ≤ signedCount w i := by
+  induction w with
+  | nil => intro i; simp [signedCount]
+  | cons l w ih =>
+      cases l with
+      | trans j =>
+          have hw : negCount w = 0 := by simpa [negCount] using h
+          intro i
+          have htail := ih hw i
+          simp only [signedCount, hw, pow_zero]
+          split_ifs <;> omega
+      | neg =>
+          simp [negCount] at h
 
+def shadowPenalty {B : Nat} (e : Int) (a : Fin B → Int) : Nat :=
+  if e = 1 then if ∀ i, 0 ≤ a i then 0 else 2 else 1
 
-theorem int_parts_abs (z : ℤ) : z.toNat + (-z).toNat = z.natAbs := by
-  omega
+private theorem shadow_length_lower {B : Nat} (w : List (Letter B)) :
+    shadowWeight w + shadowPenalty (shadowSign w) (signedCount w) ≤ w.length := by
+  classical
+  have hbase := weight_plus_negs_le_length w
+  by_cases hs : shadowSign w = 1
+  · by_cases hall : ∀ i : Fin B, 0 ≤ signedCount w i
+    · simp [shadowPenalty, hs, hall]
+      omega
+    · push Not at hall
+      obtain ⟨i, hi⟩ := hall
+      have h0 : negCount w ≠ 0 := by
+        intro heq
+        have hn := count_nonneg_of_no_neg w heq i
+        omega
+      have h1 : negCount w ≠ 1 := by
+        intro heq
+        simp [shadowSign, heq] at hs
+      have htwo : 2 ≤ negCount w := by omega
+      simp [shadowPenalty, hs, show ¬∀ i : Fin B, 0 ≤ signedCount w i from by
+        push Not; exact ⟨i, hi⟩]
+      omega
+  · have hneg : shadowSign w = -1 :=
+      (shadowSign_eq_one_or_neg_one w).resolve_left hs
+    have h0 : negCount w ≠ 0 := by
+      intro heq
+      simp [shadowSign, heq] at hneg
+    have hone : 1 ≤ negCount w := by omega
+    simp [shadowPenalty, hs]
+    omega
 
-def positiveBlock (a : Fin B → ℤ) : List (Letter B) := translationBlock (fun i => (a i).toNat)
-def negativeBlock (a : Fin B → ℤ) : List (Letter B) := translationBlock (fun i => (-a i).toNat)
+def vectorWeight {B : Nat} (a : Fin B → Int) : Nat :=
+  ∑ i : Fin B, (a i).natAbs
 
-theorem parts_length (a : Fin B → ℤ) :
-    (positiveBlock a).length + (negativeBlock a).length = shadowL1 a := by
-  simp only [positiveBlock, negativeBlock, translationBlock_length, shadowL1]
+private theorem int_parts (z : Int) :
+    (z.toNat : Int) - ((-z).toNat : Int) = z ∧
+      z.natAbs = z.toNat + (-z).toNat := by
+  constructor <;> omega
+
+private theorem vectorWeight_parts {B : Nat} (a : Fin B → Int) :
+    vectorWeight a =
+      (∑ i : Fin B, (a i).toNat) + (∑ i : Fin B, (-(a i)).toNat) := by
+  unfold vectorWeight
   rw [← Finset.sum_add_distrib]
-  exact Finset.sum_congr rfl (fun i _ => int_parts_abs (a i))
+  apply Finset.sum_congr rfl
+  intro i hi
+  exact (int_parts (a i)).2
 
-/-- An explicit shortest representative, including empty bases. -/
-def shadowWord (e : ℤ) (a : Fin B → ℤ) : List (Letter B) :=
-  if e = -1 then negativeBlock a ++ [.negate] ++ positiveBlock a
-  else if ∀ i, 0 ≤ a i then positiveBlock a
-  else [.negate] ++ negativeBlock a ++ [.negate] ++ positiveBlock a
+private theorem pureWord {B : Nat} (k : Fin B → Nat) :
+    ∃ w : List (Letter B), negCount w = 0 ∧
+      (∀ i : Fin B, signedCount w i = (k i : Int)) ∧
+      w.length = ∑ i : Fin B, k i := by
+  simpa using pureWord_on_set (Finset.univ : Finset (Fin B)) k
 
-theorem shadowWord_sign (e : ℤ) (a : Fin B → ℤ) (he : e = 1 ∨ e = -1) :
-    wordSign (shadowWord e a) = e := by
-  rcases he with rfl | rfl <;> by_cases ha : ∀ i, 0 ≤ a i <;>
-    simp [shadowWord, ha, wordSign_append, wordSign, positiveBlock, negativeBlock,
-      translationBlock_sign]
+private theorem oneNeg_count {B : Nat} (n p : List (Letter B))
+    (hn : negCount n = 0) (hp : negCount p = 0) :
+    negCount (n ++ (.neg :: p)) = 1 := by
+  simp [negCount_append, negCount, hn, hp]
 
-theorem shadowWord_counts (e : ℤ) (a : Fin B → ℤ) (j : Fin B) :
-    signedCounts (shadowWord e a) j = a j := by
-  by_cases he : e = -1
-  · simp [shadowWord, he, signedCounts_append, wordSign,
-      signedCounts, positiveBlock, negativeBlock, translationBlock_sign,
-      translationBlock_counts]
-    have h := Int.toNat_sub_toNat_neg (a j)
-    omega
-  · by_cases ha : ∀ i, 0 ≤ a i
-    · simp [shadowWord, he, ha, positiveBlock, translationBlock_counts,
-        Int.toNat_of_nonneg (ha j)]
-    · simp [shadowWord, he, ha, signedCounts_append, wordSign,
-        signedCounts, positiveBlock, negativeBlock, translationBlock_sign,
-        translationBlock_counts]
-      have h := Int.toNat_sub_toNat_neg (a j)
+private theorem oneNeg_signed {B : Nat} (n p : List (Letter B))
+    (hp : negCount p = 0) (i : Fin B) :
+    signedCount (n ++ (.neg :: p)) i =
+      signedCount p i - signedCount n i := by
+  rw [signedCount_append]
+  simp [negCount, hp, signedCount]
+  ring
+
+private theorem twoNeg_count {B : Nat} (p n : List (Letter B))
+    (hp : negCount p = 0) (hn : negCount n = 0) :
+    negCount (p ++ (.neg :: (n ++ [.neg]))) = 2 := by
+  simp [negCount_append, negCount, hp, hn]
+
+private theorem twoNeg_signed {B : Nat} (p n : List (Letter B))
+    (hn : negCount n = 0) (i : Fin B) :
+    signedCount (p ++ (.neg :: (n ++ [.neg]))) i =
+      signedCount p i - signedCount n i := by
+  rw [signedCount_append]
+  have hcount : negCount (n ++ [.neg]) = 1 := by
+    simp [negCount_append, negCount, hn]
+  have hsigned : signedCount (n ++ [.neg]) i = -signedCount n i := by
+    simpa [signedCount] using (oneNeg_signed n ([] : List (Letter B)) (by rfl) i)
+  simp [negCount, hcount, signedCount, hsigned]
+  ring
+
+private theorem shadow_realized_with_length {B : Nat} (e : Int)
+    (a : Fin B → Int) (he : e = 1 ∨ e = -1) :
+    ∃ w : List (Letter B), shadowSign w = e ∧
+      (∀ i : Fin B, signedCount w i = a i) ∧
+      w.length = vectorWeight a + shadowPenalty e a := by
+  classical
+  obtain ⟨p, hp0, hpc, hplen⟩ := pureWord (fun i => (a i).toNat)
+  obtain ⟨n, hn0, hnc, hnlen⟩ := pureWord (fun i => (-a i).toNat)
+  have hweight := vectorWeight_parts a
+  rcases he with he | he
+  · subst e
+    by_cases hall : ∀ i : Fin B, 0 ≤ a i
+    · have hnegSum : (∑ i : Fin B, (-a i).toNat) = 0 := by
+        apply Finset.sum_eq_zero
+        intro i hi
+        have hn := hall i
+        omega
+      refine ⟨p, ?_, ?_, ?_⟩
+      · simp [shadowSign, hp0]
+      · intro i
+        rw [hpc i]
+        have hn := hall i
+        omega
+      · simp [shadowPenalty, hall]
+        omega
+    · let w : List (Letter B) := p ++ (.neg :: (n ++ [.neg]))
+      refine ⟨w, ?_, ?_, ?_⟩
+      · simp [w, shadowSign, twoNeg_count p n hp0 hn0]
+      · intro i
+        rw [show signedCount w i = signedCount p i - signedCount n i from
+          twoNeg_signed p n hn0 i, hpc i, hnc i]
+        exact (int_parts (a i)).1
+      · simp [w, hplen, hnlen, shadowPenalty, hall]
+        omega
+  · subst e
+    let w : List (Letter B) := n ++ (.neg :: p)
+    refine ⟨w, ?_, ?_, ?_⟩
+    · simp [w, shadowSign, oneNeg_count n p hn0 hp0]
+    · intro i
+      rw [show signedCount w i = signedCount p i - signedCount n i from
+        oneNeg_signed n p hp0 i, hpc i, hnc i]
+      exact (int_parts (a i)).1
+    · simp [w, hplen, hnlen, shadowPenalty]
       omega
 
-theorem shadowWord_length (e : ℤ) (a : Fin B → ℤ) :
-    (shadowWord e a).length = shadowL1 a + minNegations e a := by
-  have hparts := parts_length a
-  by_cases he : e = -1
-  · simp only [shadowWord, minNegations, ite_eq_left he, List.length_append, List.length_singleton]
-    omega
-  · by_cases ha : ∀ i, 0 ≤ a i
-    · have hz : (negativeBlock a).length = 0 := by
-        have hzero : ∀ i, (-a i).toNat = 0 := fun i => Int.toNat_eq_zero.mpr (by linarith [ha i])
-        simp [negativeBlock, translationBlock_length, hzero]
-      simp only [shadowWord, minNegations, ite_eq_right he, ite_eq_left ha, add_zero]
-      omega
-    · simp only [shadowWord, minNegations, ite_eq_right he, ite_eq_right ha, List.length_append, List.length_singleton]
-      omega
-
-/-- Lemma 2(b): existence at every length bound iff the exact L1 cost plus
-its necessary sign overhead fits. Both directions use the original word
-alphabet, not an assumed shadow-group representation. -/
-theorem shadow_reachable_iff (e : ℤ) (a : Fin B → ℤ) (he : e = 1 ∨ e = -1) (d : ℕ) :
-    (∃ w : List (Letter B), w.length ≤ d ∧ wordSign w = e ∧ signedCounts w = a) ↔
-      shadowL1 a + minNegations e a ≤ d := by
+/-- Exact shortest-word criterion for the translation/negation shadow.
+The hypothesis says the sign belongs to the two-element parity factor. -/
+theorem shadow_reachable_iff {B : Nat} (e : Int) (a : Fin B → Int)
+    (he : e = 1 ∨ e = -1) (d : Nat) :
+    (∃ w : List (Letter B), w.length ≤ d ∧ shadowSign w = e ∧
+      ∀ i : Fin B, signedCount w i = a i) ↔
+      vectorWeight a + shadowPenalty e a ≤ d := by
   constructor
-  · rintro ⟨w, hlen, rfl, rfl⟩
-    exact (shadow_cost_le_length w).trans hlen
-  · intro h
-    exact ⟨shadowWord e a, by rwa [shadowWord_length], shadowWord_sign e a he,
-      funext (shadowWord_counts e a)⟩
+  · rintro ⟨w, hlen, hsign, hcount⟩
+    have hlower := shadow_length_lower w
+    have ha : signedCount w = a := funext hcount
+    have hw : shadowWeight w = vectorWeight a := by
+      simp [shadowWeight, vectorWeight, hcount]
+    rw [hw, hsign, ha] at hlower
+    omega
+  · intro hbound
+    obtain ⟨w, hsign, hcount, hlen⟩ := shadow_realized_with_length e a he
+    refine ⟨w, ?_, hsign, hcount⟩
+    omega
 
 end CryptoResearch.NCP

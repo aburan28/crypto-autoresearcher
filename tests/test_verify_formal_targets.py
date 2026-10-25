@@ -61,18 +61,27 @@ def test_infrastructure_failure_is_not_a_failed_proof(monkeypatch, tmp_path):
 def test_floor_rejects_a_run_that_verifies_nothing(monkeypatch, tmp_path):
     """A gate that machine-checks no proof must not report success.
 
-    Use an empty fixture workspace so this stays undischarged when new
-    proofs land in the repository.
+    Use a deliberately absent theorem file so this regression control remains
+    valid as the committed targets are discharged.
     """
 
     targets = tmp_path / "targets"
     targets.mkdir()
-    template = REPO_ROOT / "formal/targets/ncp-reachability.yaml"
-    shutil.copy2(template, targets / template.name)
-    (tmp_path / "formal").mkdir()
+    assert not (REPO_ROOT / "formal/CryptoResearch/NCP/AbsentFloorFixture.lean").exists()
+    (targets / "absent-floor-fixture.yaml").write_text(
+        "schema: crypto.autoresearch.formal_task.v1\n"
+        "task_id: TASK-20261021-0abcde\n"
+        "claim_id: TEST-EMPTY-FLOOR\n"
+        "kind: formalize_claim\n"
+        "source: research/THM_COMMUTATOR_KERNEL1.md\n"
+        "claim: A deliberately absent theorem file.\n"
+        "theorem_name: CryptoResearch.NCP.absentFloorFixture\n"
+        "theorem_file: CryptoResearch/NCP/AbsentFloorFixture.lean\n"
+        "workspace: formal\n",
+        encoding="utf-8",
+    )
 
     module = gate()
-    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(module, "formal_main",
                         lambda argv: pytest.fail("verifier ran for an absent theorem file"))
     assert module.main(["--artifact-dir", str(tmp_path / "receipts"),
@@ -123,6 +132,7 @@ def test_explain_survives_a_missing_receipt(tmp_path, capsys):
     """Verification can fail before any receipt exists; triage must not crash."""
 
     module = gate()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     assert module._explain(tmp_path / "absent.json") == ""
     assert "could not read receipt" in capsys.readouterr().err
 
