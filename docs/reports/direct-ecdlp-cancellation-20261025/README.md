@@ -2,6 +2,8 @@
 
 25 October 2026. Planning report; no new attack or performance claim.
 
+**Latest implementation:** [the all-ten-track finite pilot has completed](../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/HEADER.md), with [241 recorded rows](../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/observations.md), a [seven-page report](../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/report.pdf) and a [working C++ harness](../../../harness/classical_ecdlp_pilot/README.md). The original planning documents below remain historical; the pilot does not establish a new attack.
+
 **Classical algorithms only, running on ordinary CPUs or GPUs.** Quantum algorithms, quantum hardware, and simulation of a quantum attack are excluded. A Boolean circuit in this report is an ordinary deterministic bit program; tensor contraction is classical summation and multiplication of finite arrays.
 
 This review proposes a direct scalar-circuit workstream and identifies the exact missing contribution: an elliptic-curve-specific cancellation identity that evaluates a target-conditioned tagged parity response cheaply. The response formulation itself is established algebraic model counting. It is explicitly excluded from the novelty claim.

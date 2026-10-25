@@ -2,6 +2,8 @@
 
 A separate experimental card for every classical lead in the parent plan, plus a shared direct-response protocol, correctness scaffolding and explicit success/failure criteria. Classical CPU/GPU only; no index calculus.
 
+**Execution update, 25 October 2026:** the finite all-track pilot is now implemented and complete. [Actual report](../../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/HEADER.md), [observations](../../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/observations.md), [PDF](../../../../experiments/EXP-ECDLP-fe3337/reports/run-20261025T0526Z/report.pdf) and [runnable harness](../../../../harness/classical_ecdlp_pilot/README.md). One admitted batch ran five C++ programs with three measurement workers, covering all ten tracks on eight toy fixtures: 241 rows, zero failed modules, no remaining pilot trials. This is smaller than the original discovery/confirmation design and establishes no new solver or speedup.
+
 - [Programme, measurements and shared controls](EXPERIMENTS.md)
 - [Nine lead-specific experiment cards](LEADS.md)
 - [Readiness and missing implementations](READINESS.json)
@@ -12,7 +14,7 @@ A separate experimental card for every classical lead in the parent plan, plus a
 - [Exact scalar-window control](window-control.md)
 - [Preliminary methodology criticism](methodology-review.md)
 
-The point-level tagged reference passes 13,731 development assertions. No admitted scientific trial, new cancellation identity, solver advantage or novelty claim is established. Gate-level compilation, candidate constructors, registered cohorts and normal execution admission remain pending. The programme covers the named leads; it does not certify exhaustion of the literature or algorithm space.
+At the original design snapshot, only the point-level reference and its 13,731 development assertions existed. The subsequent implementation supplies a gate-level compiler, per-lead diagnostics, certified local synthetic fixtures and genuine admission/execution receipts. The frozen [readiness snapshot](READINESS.json) and earlier planning PDF describe that earlier state. A new EC-specific cancellation identity, fast locators/decoders, solver advantage and novelty remain unverified.
 
 | Track | First discriminating measurement | Main gap |
 | --- | --- | --- |
