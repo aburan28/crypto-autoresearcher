@@ -349,8 +349,10 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
     # A live Codex database may use WAL. immutable=1 ignores its uncheckpointed
     # rows, including the session just created by this probe. Use SQLite's
-    # read-only WAL view first. On macOS, com.apple.provenance can make that
-    # connection fail; immutable is safe as a fallback only without a WAL file.
+    # read-only WAL view. A missing WAL file does not establish immutability:
+    # a writer can create one immediately after the check. Ordinary read errors
+    # (including macOS provenance restrictions) must fail verification; do not
+    # bypass SQLite locking or change detection with an immutable fallback.
     base_uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro"
 
     def query(uri: str) -> list[tuple[Any, ...]]:
@@ -366,12 +368,7 @@ def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
     try:
         rows = query(base_uri)
     except sqlite3.Error:
-        if state_db.with_name(state_db.name + "-wal").exists():
-            raise _ProbeFailure("state_db_read_failed") from None
-        try:
-            rows = query(base_uri + "&immutable=1")
-        except sqlite3.Error:
-            raise _ProbeFailure("state_db_read_failed") from None
+        raise _ProbeFailure("state_db_read_failed") from None
     if not rows:
         raise _ProbeFailure("state_row_missing")
     if len(rows) != 1:

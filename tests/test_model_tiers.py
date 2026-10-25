@@ -74,7 +74,7 @@ def test_the_floor_refuses_nothing_another_requirement_would_admit(cfg):
 def test_the_anthropic_chain_is_frontier_core_director_mechanical(cfg):
     tiers = {pid: cfg.model_tier(cfg.binding("anthropic", pid)["model"])
              for pid in cfg.policy_table}
-    assert tiers["review-breakthrough"] == tiers["research-synthesis"] == "frontier"
+    assert tiers["review-breakthrough"] == tiers["research-synthesis"] == "core"
     assert tiers["coordinator-orchestration-code"] == tiers["review-adversarial"] == "core"
     assert tiers["director-runbook"] == "director"
     assert tiers["executor-mechanical"] == "mechanical"
@@ -91,12 +91,12 @@ def test_frontier_backends_route_the_frontier_policies(cfg):
         assert resolution.model_tier == "frontier" and not resolution.below_model_tier
 
 
-def test_a_mechanical_model_is_refused_on_a_frontier_policy(tmp_path):
+def test_a_mechanical_model_is_refused_on_a_core_policy(tmp_path):
     bindings = _bindings()
     gate = bindings["bindings"]["anthropic"]["review-breakthrough"]
     gate["model"] = "claude-haiku-5-5"
     cfg = _load(tmp_path, bindings)
-    with pytest.raises(resolver_module.ResolutionError, match="model_tier: policy requires frontier"):
+    with pytest.raises(resolver_module.ResolutionError, match="model_tier: policy requires core"):
         adapter.resolve(cfg, "review-breakthrough", independent_session=True, env={})
 
 

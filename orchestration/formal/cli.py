@@ -242,6 +242,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
     }
     hashes = {name: digest(path) for name, path in inputs.items()}
     rebuild_root(workspace)
+    from .receipts import workspace_inputs, verifier_inputs
+    local_inputs = workspace_inputs(workspace)
+    software_inputs = verifier_inputs()
     result, failure, lean_version = None, None, None
     try:
         version = subprocess.run(["lake", "env", "lean", "--version"], cwd=workspace,
@@ -254,7 +257,13 @@ def cmd_verify(args: argparse.Namespace) -> int:
         result = LeanWorker(repo, timeout_seconds=args.build_timeout).verify(task)
     except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
         failure = f"{type(exc).__name__}: {exc}"
-    if any(digest(path) != hashes[name] for name, path in inputs.items()):
+    try:
+        changed = (any(digest(path) != hashes[name] for name, path in inputs.items())
+                   or workspace_inputs(workspace) != local_inputs
+                   or verifier_inputs() != software_inputs)
+    except (OSError, ValueError):
+        changed = True
+    if changed:
         result, failure = None, "verification inputs changed while the checks ran; repeat from frozen inputs"
     receipt = {
         "schema": "crypto.autoresearch.formal_verification.v1",
@@ -267,6 +276,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "provenance": {
             "source_commit": _repo_commit(repo),
             "lean_version": lean_version,
+            "workspace_inputs": local_inputs,
+            "verifier_inputs": software_inputs,
             **hashes,
         },
     }
