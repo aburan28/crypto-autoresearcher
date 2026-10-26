@@ -4,18 +4,18 @@
 Lean theorem remain open. This report does not change the frozen target,
 archived outputs, official research status, or any ECDLP cost claim.
 
-The [inspected PDF](report.pdf) embeds the additive chart; [report.tex](report.tex)
-is its editable source, and [direct-row-grades.png](direct-row-grades.png) is
-the high-resolution rendering of the source SVG used in that PDF. From this
-directory, rebuild the visual and PDF with:
+The [inspected PDF](report.pdf) embeds both additive charts; [report.tex](report.tex)
+is its editable source. From this directory, rebuild the visuals and PDF with:
 
 ```sh
 convert -density 192 direct-row-grades.svg -resize 1640x960 direct-row-grades.png
+python3 render_closure.py
+convert -density 192 closure-ranks.svg -resize 1640x580 closure-ranks.png
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 ```
 
-Both PDF pages were rendered and visually inspected before publication.
+Every PDF page was rendered and visually inspected before publication.
 
 ## Question and sources
 
@@ -88,21 +88,50 @@ degree-three polynomial with masks
 Adjoining that product increases the selected degree-three row rank from
 **53 to 54**. The exact inputs and output are in [evidence.json](evidence.json).
 
+## Degree-bounded closure in the fixed Boolean quotient
+
+The separate [closure checker](closure.py) computes the least subspace of
+`F₂[u₀,…,u₇]/(uᵢ²−uᵢ)` containing the four source-bound equations and closed
+under `f·g` whenever `deg(g) ≤ D−deg(f)`, using squarefree monomial degree.
+It forms a finite fixed point in three ways: degree-filtered echelon rows with
+one-variable products; degree-filtered rows with every allowed monomial; and
+numeric-pivot elimination that obtains low-degree vectors from the kernel of
+the top-degree projection. They agree on the *spaces* by joint-rank checks,
+as well as on ranks. Repeated one-variable products generate every allowed
+monomial product, while high-degree-first elimination isolates the vectors
+whose actual degree has fallen and permits their further multiplication.
+
+| D | Direct rank / top projection / low dimension | Closed Boolean rank / top projection / low dimension | New closed low-degree classes |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 / 1 / 0 | 1 / 1 / 0 | — |
+| 2 | 11 / 10 / 1 | 11 / 10 / 1 | 0 |
+| 3 | 53 / 41 / 12 | **79 / 56 / 23** | **23−11=12** |
+
+The closed quotient retains the zero degree-two fall on this draw. Its
+degree-three count is 12, whereas the selected direct-row statistic gives 1.
+The published `W` is outside closed `D=2`, and both `W` and `u₀W` lie in closed
+`D=3`. Exact source hashes, all three method profiles, inclusion checks and
+counts are in [closure-evidence.json](closure-evidence.json). The independent
+[comparison chart](closure-ranks.svg) shows only this **one fixed draw**;
+it is not a corrected distribution for the 80 archived draws.
+
+![Selected direct rows versus full degree-bounded closure for one Boolean draw](closure-ranks.svg)
+
 ## Interpretation and limits
 
 The Lean matrix-rank theorems remain valid for their literal 80 rows. This
 counterexample shows that their span is **not closed under multiplication** by
 all monomials allowed by a degree-three filtration rule in the Boolean
 quotient: `W` has degree two, `u₀` has degree one, and their product is absent
-from the span. It does not by itself compute the full closed filtration or
-prove that the polynomial-ring `V_{F,3}` of Caminata–Gorla, augmented with
-Boolean field equations, has rank 54. The passage between that polynomial
-ring and this quotient needs an explicit theorem or independently reviewed
-definition. The published `newFalls(3)=1` is established for the selected
-row statistic; its equality with a standard first-fall multiplicity remains
-unproved. The exact degree-two direct-row statistic and the existence of a
-degree-three witness in the literal system are unaffected by this calculation;
-their full-filtration interpretation still needs the stated bridge.
+from the span. The separate finite computation gives rank **79** for the
+*defined Boolean quotient closure* on this draw. It does not establish the
+rank of the polynomial-ring `V_{F,3}` of Caminata–Gorla augmented with Boolean
+field equations. That passage needs an explicit theorem and independent
+semantic review. The published `newFalls(3)=1` is established for the selected
+row statistic, while the fixed quotient closure gives 12; neither number is
+yet a proved standard first-fall multiplicity. The 80-draw distribution of
+closed quotient grades has not been computed. The literal Lean row theorems
+are intact, but no Lean theorem yet certifies this new closure computation.
 
 This also does not refute Kosters–Yeo's trace identity or their qualified
 statement that degree-two first falls usually occur. The frozen uniform
