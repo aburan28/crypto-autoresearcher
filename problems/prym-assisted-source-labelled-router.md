@@ -174,6 +174,24 @@ required for empirical advancement; crossing rho is not a prerequisite for
 recording an incremental improvement. No acceptance checkbox changes a
 scientific status without the existing Coordinator decision.
 
+**2026-10-26 published readiness checkpoint:** source preparation, runner-label
+metadata and the available blocked-lane checkpoint are published and independently
+verified at `daf54f7`, `c400e5e` and `d38e2b9`. A new read-only native preapproval
+on the published source now reports **`approvable:true`, `blockers:[]`**; its
+exact source/input/prospective-byte and lawful-lane barriers are cleared. The
+earlier 20- and 30-blocker refusals remain untouched as history.
+
+Scientific approval is still held. The local artifact writer is unconfigured,
+and replacement engineering run
+[40255274176](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40255274176)
+is still externally queued with no runner, steps or output observed. No cause
+or IAM readiness is proved. GOAL-ECDLP-001 stays active; EXP-ECDLP-a9b6a5 stays
+`review_required` and every scientific task remains blocked. The frozen v1
+protocol still declares the local backend; a future CI scientific route would
+need a prospective backend amendment before data. No new m16 attempt, rank,
+ECDLP advantage or mathematical verdict has been produced. The next action is
+the actual canonical access proof, not further speculative source changes.
+
 ## Next discriminating step
 
 **Current selected next experiment, not executed here:** complete and publish
