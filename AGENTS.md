@@ -526,7 +526,7 @@ verdict, changes state. Wall time is never a bound.
 
 ## Weak-curve and isogenous-representative audits
 
-Before weak-curve, CM, endomorphism, or isogeny claims, follow [the full audit rule](docs/agent-contract-extended.md#weak-curve-and-isogenous-representative-audits). Its scope, controls, transfer, cost, and inference requirements are binding.
+Before weak-curve, CM, endomorphism, or isogeny claims, read [`audit-curve`](.claude/skills/audit-curve/SKILL.md) and follow [the full audit rule](docs/agent-contract-extended.md#weak-curve-and-isogenous-representative-audits). Its scope, controls, transfer, cost, and inference requirements are binding. The [curve-audit topic index](docs/agent-contract-topic-rules.md#weak-curve-and-isogenous-representative-audits) specifies the applicable labels. A singular or invalid formula-compatible companion supports only an implementation-weak label.
 
 ## Cursor Cloud specific instructions
 
