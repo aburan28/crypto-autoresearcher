@@ -60,12 +60,15 @@ CODE_EXT = {
     ".bib", ".cfg", ".ini", ".mk", ".cmake", ".go", ".swift", ".m", ".gp",
     ".mag", ".sql", ".nix", ".ipynb", ".v", ".sv", ".tcl", ".xdc", ".json5",
 }
+# Stay in Git at any size. Owner decision (2026-10-26): papers and reports
+# are read from the tree; they are not store data.
+GIT_EXT = {".pdf"}
 DATA_EXT = {
     ".jsonl", ".ndjson", ".gz", ".zst", ".xz", ".bz2", ".lz4", ".tar", ".zip", ".7z",
     ".npy", ".npz", ".pkl", ".pickle", ".h5", ".hdf5", ".parquet", ".arrow",
     ".feather", ".bin", ".dat", ".raw", ".rsp", ".csv", ".tsv", ".log", ".out",
     ".stdout", ".stderr", ".trace", ".prof", ".perf", ".png", ".jpg", ".jpeg",
-    ".gif", ".webp", ".pdf", ".svgz", ".sqlite", ".db", ".dylib", ".so", ".a",
+    ".gif", ".webp", ".svgz", ".sqlite", ".db", ".dylib", ".so", ".a",
     ".o", ".exe", ".wasm", ".safetensors", ".pt", ".onnx", ".ckpt",
 }
 
@@ -151,7 +154,7 @@ def belongs_in_store(path: str, size: int, policy: dict) -> bool:
     if any(fnmatch.fnmatchcase(path, pat) for pat in policy.get("keep", [])):
         return False
     ext = suffix(path)
-    if ext in CODE_EXT:
+    if ext in CODE_EXT or ext in GIT_EXT:
         return False
     if size > policy["max_bytes"]:
         return True

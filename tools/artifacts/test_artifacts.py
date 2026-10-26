@@ -159,6 +159,8 @@ class Policy(unittest.TestCase):
         self.assertTrue(f("a/b.json", 2 << 20, self.P))
         self.assertFalse(f("a/b.json", 500_000, self.P))
         self.assertFalse(f("src/big.rs", 5 << 20, self.P))
+        self.assertFalse(f("docs/report.pdf", 70_000, self.P))
+        self.assertFalse(f("docs/report.pdf", 5 << 20, self.P))
         self.assertTrue(f("x/fb.tar.part-0001", 100_000, self.P))
         self.assertFalse(f("x/.artifacts.json", 5 << 20, self.P))
         self.assertFalse(f("docs/browser/data.json", 30 << 20, {**self.P, "keep": ["docs/browser/data.json"]}))
