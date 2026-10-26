@@ -58,12 +58,15 @@ abscissae with a point, 30 exact Frobenius merges; the PR's `L` is 460).
 
 Files: `matched_null/matched_null_check.py`, `output.json`, `summary.txt`,
 `frobenius_window_closure.py`, `frobenius_window_closure.json`,
-`frobenius_window_closure.txt`. Reproduce (about 5 s each, Python 3.13, numpy 2.5):
+`frobenius_window_closure.txt`, and the graph and report drawn from
+`output.json` by `plot_matched_null.py` (recorded values only):
+`matched_null.svg`, `matched_null_report.pdf`. Reproduce (about 5 s each, Python 3.13, numpy 2.5):
 
 ```sh
 cd research/ecdlp_retrospective_followup_20261026/matched_null
 python3 matched_null_check.py --out output.json > summary.txt
 python3 frobenius_window_closure.py --out frobenius_window_closure.json > frobenius_window_closure.txt
+python3 plot_matched_null.py output.json
 ```
 
 The check is independent in code, not blind: I had the reviewer's numbers
@@ -102,6 +105,16 @@ membership by reading goal titles, and the lane's goal is ECC); (B) list them in
 `excluded_areas` with reasons; (C) leave the file and make the classifier take a
 question's area from its goal. This needs your decision because it changes which
 ideas AGENTS.md "ECC comes first" requires to be designed rather than shelved.
+
+## Graphs checked (AGENTS.md "Visual research record")
+
+New: `matched_null/matched_null.svg` and `matched_null_report.pdf` (the figure
+plus the full numeric summary). Unchanged, and why: the lead-atlas report
+`docs/reports/ecdlp-lead-atlas-20261024` (no lead disposition, next action or
+evidence entry changed); the index-calculus leaderboards and scoreboards (this
+adds no whole-pipeline `S` point and no benchmark row); no canonical graph or
+diagram source in `docs/` cites `EV-BINSTD-769c7c`. No edge in the new figure is
+conjectural.
 
 ## Not done
 
