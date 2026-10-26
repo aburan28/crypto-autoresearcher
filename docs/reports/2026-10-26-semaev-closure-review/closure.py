@@ -11,13 +11,13 @@ import subprocess
 import audit
 
 
-ORDER = sorted(range(256), key=lambda m: (-audit.degree(m), -m))
-VARIABLES = tuple(1 << bit for bit in range(8))
-
-
 def row_degree(row):
-    return max((audit.degree(m) for m in range(256) if row & (1 << m)),
-               default=-1)
+    result = -1
+    while row:
+        bit = row & -row
+        result = max(result, audit.degree(bit.bit_length() - 1))
+        row ^= bit
+    return result
 
 
 class FilteredBasis:
@@ -28,13 +28,15 @@ class FilteredBasis:
     the degree-<=d intersection of the current span.
     """
 
-    def __init__(self, rows=()):
+    def __init__(self, rows=(), nvars=8):
         self.pivots = {}
+        self.order = sorted(range(1 << nvars),
+                            key=lambda m: (-audit.degree(m), -m))
         for row in rows:
             self.add(row)
 
     def add(self, row):
-        for column in ORDER:
+        for column in self.order:
             if row & (1 << column):
                 if column in self.pivots:
                     row ^= self.pivots[column]
@@ -72,7 +74,7 @@ class NumericBasis:
         return list(self.pivots.values())
 
 
-def closure(equations, bound, method):
+def closure(equations, bound, method, nvars=8):
     """Least degree-bounded span closed under allowed Boolean products.
 
     `variables` uses one-variable products repeatedly. `all_monomials` adds
@@ -81,7 +83,8 @@ def closure(equations, bound, method):
     """
     seed = [audit.packed(eq) for eq in equations
             if max(map(audit.degree, eq)) <= bound]
-    basis = FilteredBasis(seed)
+    basis = FilteredBasis(seed, nvars)
+    variables = tuple(1 << bit for bit in range(nvars))
     passes = 0
     while True:
         snapshot = list(basis.pivots.items())
@@ -89,9 +92,9 @@ def closure(equations, bound, method):
         for pivot, row in snapshot:
             allowance = bound - audit.degree(pivot)
             if method == "variables":
-                multipliers = VARIABLES if allowance >= 1 else ()
+                multipliers = variables if allowance >= 1 else ()
             elif method == "all_monomials":
-                multipliers = (m for m in range(256)
+                multipliers = (m for m in range(1 << nvars)
                                if audit.degree(m) <= allowance)
             else:
                 raise ValueError(method)
@@ -106,7 +109,8 @@ def closure(equations, bound, method):
         passes += 1
         if passes > 256:
             raise RuntimeError("finite closure failed to stabilize")
-    top = audit.packed(m for m in range(256) if audit.degree(m) == bound)
+    top = audit.packed(m for m in range(1 << nvars)
+                       if audit.degree(m) == bound)
     projected_rank = audit.rank(row & top for row in basis.rows())
     return basis, {
         "seed_rank": audit.rank(seed), "rank": basis.rank,
@@ -116,7 +120,7 @@ def closure(equations, bound, method):
     }
 
 
-def projection_kernel_closure(equations, bound):
+def projection_kernel_closure(equations, bound, nvars=8):
     """Third method: find low-degree vectors as a projection kernel.
 
     The basis uses numeric pivots. Gaussian elimination of its top-degree
@@ -127,7 +131,9 @@ def projection_kernel_closure(equations, bound):
     seed = [audit.packed(eq) for eq in equations
             if max(map(audit.degree, eq)) <= bound]
     basis = NumericBasis(seed)
-    high = audit.packed(m for m in range(256) if audit.degree(m) >= bound)
+    high = audit.packed(m for m in range(1 << nvars)
+                        if audit.degree(m) >= bound)
+    variables = tuple(1 << bit for bit in range(nvars))
     passes = 0
     while True:
         projected_pivots = {}
@@ -149,7 +155,7 @@ def projection_kernel_closure(equations, bound):
         for row in low_vectors:
             if row_degree(row) >= bound:
                 raise RuntimeError("projection kernel was not low degree")
-            for variable in VARIABLES:
+            for variable in variables:
                 if basis.add(audit.multiply_boolean(row, variable)):
                     new_rows += 1
         if not new_rows:

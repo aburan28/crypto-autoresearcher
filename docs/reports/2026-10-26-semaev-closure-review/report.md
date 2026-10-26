@@ -1,16 +1,20 @@
 # Finite Semaev row-space closure audit — 2026-10-26
 
-**Status:** independent finite-model code review; a semantic bridge and a new
+**Status:** independent finite-model code review of the 80 archived Semaev
+draws, with one detailed closure witness; a semantic bridge and a new
 Lean theorem remain open. This report does not change the frozen target,
 archived outputs, official research status, or any ECDLP cost claim.
 
-The [inspected PDF](report.pdf) embeds both additive charts; [report.tex](report.tex)
+The [inspected PDF](report.pdf) embeds all three additive charts; [report.tex](report.tex)
 is its editable source. From this directory, rebuild the visuals and PDF with:
 
 ```sh
 convert -density 192 direct-row-grades.svg -resize 1640x960 direct-row-grades.png
 python3 render_closure.py
 convert -density 192 closure-ranks.svg -resize 1640x580 closure-ranks.png
+python3 distribution.py > distribution-evidence.json
+python3 render_distribution.py
+convert -density 192 closure-distribution.svg -resize 2200x820 closure-distribution.png
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 ```
@@ -71,7 +75,7 @@ multiplier, and elimination routine.
 
 The [additive chart](direct-row-grades.svg) preserves every tile, count, and
 color of the [archived chart](../2026-10-22-semaev-first-fall-replay/draws.svg)
-while labeling the values as **direct-row grades** and the closed-filtration
+while labeling the values as **direct-row grades** and the polynomial-ring
 interpretation as unverified. Its [renderer](render.py) changes only explanatory
 SVG text and checks that all 80 draw tiles remain; the historical chart is
 unchanged. The 68/12 counts are therefore presented as exact outputs of the
@@ -113,9 +117,48 @@ The published `W` is outside closed `D=2`, and both `W` and `u₀W` lie in close
 `D=3`. Exact source hashes, all three method profiles, inclusion checks and
 counts are in [closure-evidence.json](closure-evidence.json). The independent
 [comparison chart](closure-ranks.svg) shows only this **one fixed draw**;
-it is not a corrected distribution for the 80 archived draws.
+the complete archived-draw calculation is reported separately below.
 
 ![Selected direct rows versus full degree-bounded closure for one Boolean draw](closure-ranks.svg)
+
+## All 80 archived Semaev draws
+
+The [distribution checker](distribution.py) independently re-derives every
+archived component equation from `S₃` over the recorded binary fields, checks
+the four field moduli have no zero divisors, checks each basis is independent
+and each target abscissa is on the recorded curve, and verifies all 80
+per-draw equation hashes. It reproduces every archived parity-corrected
+selected-row rank, low-degree dimension, new-class count and row count at
+degrees 1–3. For each draw and degree it then compares three fixed-point
+methods for the specified Boolean quotient closure, checks equality of their
+*spaces* by joint rank, and verifies that the closed spaces are nested.
+
+| Observable among 80 draws | D=1 | D=2 | D=3 |
+| --- | ---: | ---: | ---: |
+| Selected rank differs from quotient closure rank | 2 | 68 | 74 |
+| Selected new-class count differs from quotient count | 0 | 23 | 77 |
+| Selected row space has a vector outside quotient closure | 2 | 5 | 0 |
+
+Despite these differences, the **first degree with a positive new-class count**
+agrees draw by draw: 68 draws at degree two and 12 at degree three under both
+definitions. This equality of grade labels must not be mistaken for equality
+of spaces or multiplicities. At degree three, the selected and quotient
+new-class counts differ for 77 draws; the fixed draw above changes from 1 to
+12. At degrees one and two, seven selected-row spaces contain rows outside
+the specified closure. The selected policy admits a product based on its
+*actual* degree after cancellation, even when its multiplier exceeds the
+degree budget required by the quotient closure definition.
+
+The exact 80-row comparison, hashes and per-degree profiles are in
+[distribution-evidence.json](distribution-evidence.json). The additive
+[distribution chart](closure-distribution.svg) compares grade counts and
+dimension disagreements without altering the frozen draw chart. The closure
+calculation used less than 17 MiB peak RSS under a 1 GiB process limit;
+normal and optimized Python runs produced identical JSON. This is finite
+computational evidence in a defined quotient, with no Lean closure theorem
+or established transfer to the polynomial-ring filtration.
+
+![First positive degree agrees while selected and quotient dimensions differ across 80 draws](closure-distribution.svg)
 
 ## Interpretation and limits
 
@@ -129,9 +172,10 @@ rank of the polynomial-ring `V_{F,3}` of Caminata–Gorla augmented with Boolean
 field equations. That passage needs an explicit theorem and independent
 semantic review. The published `newFalls(3)=1` is established for the selected
 row statistic, while the fixed quotient closure gives 12; neither number is
-yet a proved standard first-fall multiplicity. The 80-draw distribution of
-closed quotient grades has not been computed. The literal Lean row theorems
-are intact, but no Lean theorem yet certifies this new closure computation.
+yet a proved standard polynomial-ring first-fall multiplicity. The all-draw
+Boolean quotient computation agrees on first-positive degrees but differs
+widely in dimensions. The literal Lean row theorems are intact, but no Lean
+theorem yet certifies this new closure computation.
 
 This also does not refute Kosters–Yeo's trace identity or their qualified
 statement that degree-two first falls usually occur. The frozen uniform
