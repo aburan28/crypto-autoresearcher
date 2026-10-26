@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import random
 
+import numpy as np
 import pytest
 from sympy import isprime, primerange
 
@@ -13,6 +14,16 @@ from harness.endosweep import qcurves as QC
 
 
 # --- rmkummer -----------------------------------------------------------------
+
+@pytest.mark.parametrize("bad_output", [6000.003, float("nan"), float("inf")])
+def test_fft_rounding_guard_rejects_bad_output(monkeypatch, bad_output):
+    # The old relative-and-absolute guard accepted 6000.003: 0.003 > 0.001
+    # but 0.003 <= 1e-6 * 6000.003. Non-finite outputs also bypassed it.
+    monkeypatch.setattr(RK.np.fft, "irfft", lambda *_args, **_kwargs:
+                        np.array([bad_output]))
+    with pytest.raises(ArithmeticError):
+        RK._correlate_sum(np.zeros((1, 1)), np.zeros((1, 1)), 1)
+
 
 def test_fft_family_counts_match_bruteforce_orders():
     rng = random.Random(3)
