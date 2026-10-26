@@ -1,0 +1,70 @@
+name: Iso Lab experiment
+on:
+  workflow_dispatch:
+    inputs:
+      spec_path:
+        description: Repository ecbench.spec/v1 JSON file (image remains digest-pinned)
+        type: string
+        default: taskq/deploy/eks-karpenter/l2-validation.json
+      instance_type:
+        description: Spot worker type; c8a has one thread per core
+        type: string
+        default: c8a.2xlarge
+      seconds:
+        description: Kubernetes deadline including provisioning (1..3600)
+        type: string
+        default: '900'
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  experiment:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && contains(vars.CRYPTO_EKS_HIGHMEM_WORKFLOWS, '|isolab-experiment.yml|') && 'ubuntu-latest' || (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && contains(vars.CRYPTO_EKS_WORKFLOWS, '|isolab-experiment.yml|') && 'ubuntu-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    env:
+      AWS_REGION: ${{ vars.ISOLAB_AWS_REGION }}
+      ISOLAB_BUCKET: ${{ vars.ISOLAB_RESULTS_BUCKET }}
+      ISOLAB_CODEBUILD_PROJECT: ${{ vars.ISOLAB_CODEBUILD_PROJECT }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout: taskq/deploy/eks-karpenter
+      - name: Prepare the versioned experiment request
+        env:
+          SPEC_PATH: ${{ inputs.spec_path }}
+          INSTANCE_TYPE: ${{ inputs.instance_type }}
+          DEADLINE: ${{ inputs.seconds }}
+        run: |
+          set -euo pipefail
+          printf 'ISOLAB_CLIENT_OUTPUT=%s/isolab-launch\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          [[ "$SPEC_PATH" =~ ^[a-zA-Z0-9_./-]+\.json$ && "$SPEC_PATH" != /* && "/$SPEC_PATH/" != *"/../"* ]]
+          spec="$RUNNER_TEMP/isolab-spec.json"
+          git show "$GITHUB_SHA:$SPEC_PATH" > "$spec"
+          [[ "$DEADLINE" =~ ^[1-9][0-9]{0,3}$ && "$DEADLINE" -le 3600 ]]
+          jq -n --slurpfile spec "$spec" --arg name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --arg instance "$INSTANCE_TYPE" --argjson seconds "$DEADLINE" --arg rev "$GITHUB_SHA" \
+            --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{schema:"isolab.eks.request/v1",job:{job_name:$name,instance_type:$instance,seconds:$seconds,spec:$spec[0]},
+              provenance:{harness:"github-actions",source_revision:$rev,run_url:$url}}' > "$RUNNER_TEMP/isolab-request.json"
+          taskq/deploy/eks-karpenter/remote/validate-request "$RUNNER_TEMP/isolab-request.json" >/dev/null
+      - name: Obtain temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.ISOLAB_TRIGGER_ROLE_ARN }}
+          role-session-name: isolab-${{ github.run_id }}
+          role-duration-seconds: 7200
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Launch, await and verify the EKS experiment
+        run: taskq/deploy/eks-karpenter/remote/launch-remote "$RUNNER_TEMP/isolab-request.json"
+      - name: Report the outcome
+        if: always()
+        run: |
+          if [[ -f "$ISOLAB_CLIENT_OUTPUT/result.json" ]]; then
+            jq -r '"Iso Lab job: `\(.job_name)`\n\nOutcome: **\(.state)**.\n\nFull receipts and measurements are retained in the private lab S3 bucket."' \
+              "$ISOLAB_CLIENT_OUTPUT/result.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'No final experiment receipt. Inspect the launcher error and CodeBuild status.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

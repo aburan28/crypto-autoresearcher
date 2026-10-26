@@ -1,0 +1,230 @@
+{
+  "schema": "classical.ecdlp.endpoint-reuse.row.v1",
+  "common": [
+    "schema",
+    "scope",
+    "row_kind",
+    "cell_id",
+    "fixture",
+    "replicate",
+    "arm"
+  ],
+  "scope": "classical_ecdlp_endpoint_reuse",
+  "arms": [
+    "static_full",
+    "static_small",
+    "static_filled",
+    "harvest",
+    "harvest_disabled",
+    "rho_reference"
+  ],
+  "cli": "endpoint_reuse --run FIXTURES.tsv PUBLIC_TARGETS.tsv SETTINGS.tsv ARM FRESH_OUTPUT.jsonl",
+  "fixture_tsv": [
+    "fixture_id",
+    "stratum",
+    "p",
+    "a",
+    "b",
+    "gx",
+    "gy",
+    "r",
+    "N",
+    "seed"
+  ],
+  "target_tsv": [
+    "fixture_id",
+    "replicate",
+    "target_id",
+    "target_ordinal",
+    "qx",
+    "qy",
+    "infinity"
+  ],
+  "settings_tsv": [
+    "cell_id",
+    "fixture_id",
+    "replicate",
+    "dp_bits",
+    "initial_chains",
+    "endpoint_cap",
+    "max_precomp_ops",
+    "max_online_ops",
+    "seed"
+  ],
+  "point": {
+    "x": "int64 canonical",
+    "y": "int64 canonical",
+    "infinity": "boolean; identity x=y=0"
+  },
+  "rows": {
+    "fixture_validation": [
+      "curve",
+      "base",
+      "order",
+      "total_order",
+      "counters",
+      "target_count"
+    ],
+    "setup": [
+      "status",
+      "parameters",
+      "counters",
+      "auxiliary_work",
+      "upstream_stats",
+      "memory",
+      "known_count",
+      "endpoint_cap",
+      "table_state_hash64",
+      "rng",
+      "fill",
+      "precompute_reported_ops_total"
+    ],
+    "initial_endpoint": [
+      "index",
+      "fp",
+      "exponent"
+    ],
+    "terminal": [
+      "target_id",
+      "target_ordinal",
+      "attempt",
+      "reason",
+      "point",
+      "offset_a",
+      "fp",
+      "pending_slot",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ],
+    "verified_solution": [
+      "target_id",
+      "target_ordinal",
+      "point",
+      "verified_scalar",
+      "public_equation_checked",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ],
+    "harvest_proposal": [
+      "target_id",
+      "target_ordinal",
+      "pending_slot",
+      "fp",
+      "exponent",
+      "accepted",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ],
+    "harvest_commit_ready": [
+      "target_id",
+      "target_ordinal",
+      "accepted_count",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ],
+    "target": [
+      "target_id",
+      "target_ordinal",
+      "point",
+      "status",
+      "verified_scalar",
+      "public_equation_checked",
+      "counters",
+      "auxiliary_work",
+      "upstream_stats",
+      "reuse",
+      "known_count",
+      "pending_count",
+      "endpoint_cap",
+      "table_state_hash64",
+      "harvest_committed",
+      "rng",
+      "rho_seed"
+    ],
+    "lookup": [
+      "target_id",
+      "target_ordinal",
+      "attempt",
+      "fp",
+      "offset_a",
+      "lookup_begin",
+      "lookup_end_exclusive",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ],
+    "lookup_witness": [
+      "target_id",
+      "target_ordinal",
+      "attempt",
+      "entry_index",
+      "fp",
+      "exponent",
+      "offset_a",
+      "candidate_scalar",
+      "public_equation_checked",
+      "verified",
+      "known_count",
+      "pending_count",
+      "endpoint_cap"
+    ]
+  },
+  "terminal_reasons": [
+    "unmatched_dp",
+    "chain_limit"
+  ],
+  "event_order": "For harvest: terminal* then verified_solution (only after upstream equation check), harvest_proposal* then harvest_commit_ready then final target. Ready/proposals are NOT active until target.harvest_committed=true. Failed targets discard pending entries.",
+  "active_state": "Sorted known prefix contains only canonical verified-known exponents. Pending(fp,a) slots lie beyond nent and are never searched. Exactpointdedup by e modulo primeorderr.",
+  "primary_counter": "counters.group_additions counts every shared Ops.add invocation once, including doubles and identity cases. Scalar-multiplication calls are nested and must not be added.",
+  "timing": "No clocks emitted; internal upstream seconds excluded. No L2 qualification asserted.",
+  "upstream_stats": [
+    "reported_group_ops",
+    "iterations",
+    "table_entries",
+    "collisions",
+    "table_bytes_peak_estimate",
+    "threads"
+  ],
+  "reuse": [
+    "unmatched_dp",
+    "chain_limit_restarts",
+    "staged",
+    "capacity_rejections",
+    "exact_exponent_comparisons",
+    "scalar_addmods",
+    "sort_comparisons",
+    "bucket_candidates_verified",
+    "rejected_bucket_witnesses",
+    "proposed",
+    "inserted",
+    "duplicates",
+    "fingerprint_aliases",
+    "rolled_back",
+    "known_before",
+    "known_after",
+    "pending_peak",
+    "capacity"
+  ],
+  "memory_scope": "Exact requested persistent arena/fixed arrays/object bytes, bounded build payload; allocator metadata, library setup-qsort scratch, pthread stack and process RSS separate. Candidate growth heapsort uses constant one-entry stack workspace. Strict arena cap includes known+pending. Raw streamed events are not an in-memory endpoint pool.",
+  "rng": {
+    "seed_calls": "seed initializations; each executes4source splitmix steps",
+    "word_draws": "xoshiro256** output words including rejection-sampling retries",
+    "below_calls": "bounded-draw requests; word draws nested, do not add"
+  },
+  "table_state_hash64": "XOR over known entries of splitmix_finalizer(fp ^ rotl64(exponent,17) ^ 0x65726c61622d7631); empty0; audit digest not cryptographic integrity",
+  "fixed_capacity": "All BL arms reserve exactly C 16-byte arena slots after build; original static lookup/RNG unchanged. Candidate pending shares unused slots. Static full requests C raw chains; others C0. Initial upstream fingerprint-only dedup preserved.",
+  "static_filled": "Initial C0 raw-chain upstream table, then dedicated known-scalar walks until C distinct canonical exponents in same C-slot arena or explicit watchdog. Same S/DP map. Entire initial+fill counters charged; no target growth; partial censored table retained.",
+  "reported_precomp_guard": {
+    "meaning": "Settings max_precomp_ops caps total reported initial plus fill group work, not actual Ops.add or field work. Zero is unlimited group work but fill starts still finitely bounded.",
+    "setup_reported_upper": "21*(bitlen(r)-1): Gpow costs bitlen-1 doubles, each of20 nonzero adding scalars costs at most bitlen-1 fixed-base additions.",
+    "upstream_walk_budget": "max_precomp_ops minus upper; if nonzero max<=upper censor before construction.",
+    "fill_remaining": "max minus actual initial upstream_stats.reported_group_ops, check before every fill group operation.",
+    "fill_seed": "settings.seed XOR 0x65722d66696c6c31",
+    "fill_max_starts": "max_precomp_ops+endpoint_cap+64; reject uint64 addition overflow."
+  },
+  "parameter_scope": "Setup parameters are actual BL settings; rho_reference explicitly marks BL parameters unused and rho_auto_requested=true. Its target row records the actual domain-separated rho_seed. Rho requests r=0,walks=0,dp_bits=-1,threads=1,negation_map=true and its own max_ops."
+}
