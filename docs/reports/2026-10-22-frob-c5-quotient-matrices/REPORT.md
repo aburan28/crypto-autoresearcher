@@ -6,6 +6,16 @@ show the exact algebraic certificate and the remaining code-to-model boundary.
 No scientific trial was rerun and no measured speed or attack-cost value changed.
 The frozen run is `RUN-FROB-91ee9c-7119f2`.
 
+**2026-10-25 provenance clarification.** The frozen cell outputs serialize
+the quotient moduli and C5 flags, but no Frobenius matrices. The matrices in
+the replay receipt were reconstructed later from those moduli. A separate
+[read-only cross-check](../../audits/frob-c5-quotient-crosscheck-20261025.md)
+verified all 75 reconstructed entries, seven source hashes, three raw output
+hashes, and executable irreducibility and lexicographic selection of the three
+moduli. The proof graph and PDF were refreshed to show this boundary. The
+original exact-source proof receipt and its pending semantic-review status
+were not changed.
+
 ## Frozen source and theorem
 
 The [frozen C5 source-bound replay](../2026-10-22-frob-c5-factor-kernels/c5-matrix-replay.json)

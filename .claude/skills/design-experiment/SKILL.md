@@ -43,6 +43,13 @@ specification, experiment design, approval, and handoff.
      with an A/A comparison, `prediction_provenance`, and, when a claim
      crosses a map, `transfer_obligations` with the `transfer` skill's
      assessment;
+   - write `experiments/<EXP-ID>/protocol.json`, the cross-repository
+     `experiment.protocol/v1` form of the same decisions (`experiment-protocol`
+     skill; `docs/experiment-protocol.md`): claims classed, controls present
+     or excused, randomization, seeds, blinding, power, counted metrics with
+     their precision, the checkpoint policy, the frozen analysis. `python3
+     tools/experiment_protocol.py validate` then `freeze` it, and bind it in
+     `execution_plan.protocol_hashes`;
    - refuse approval while required scientific-contract fields, including
      those blocks, are incomplete (status stays `review_required`). Advisory
      research estimates and unlimited campaign budgets may be null under the

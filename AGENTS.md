@@ -1,5 +1,9 @@
 # Crypto Autoresearcher Agent Contract
 
+## Literature first
+
+Before any work, follow [the literature-first rule](docs/agent-contract-extended.md#literature-first). Its prior source review, linked task notes, assumption checks, and explicit evidence-gap requirements are binding for every task.
+
 The normative contract of a multi-agent system for reproducible ECDLP
 experimentation: rules, each with its reason. Narratives and full statements:
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
@@ -35,8 +39,9 @@ independent review and the Bedrock ban still bind.
 
 - **`run`** (`plugins/crypto-autoresearcher-harness/skills/run/SKILL.md`, same
   name on every host) is the only public execution skill: it runs existing
-  experiment programs and reports outputs, adding no preflight, validation,
-  audit, protocol authoring, mandatory review or state transition. The runner's
+  experiment programs and reports outputs after the literature-first review
+  required above, adding no other preflight, validation, audit, protocol
+  authoring, mandatory review or state transition. The runner's
   own admission, ownership, resource and correctness checks stay; a refused
   launch is reported, never bypassed. Results are observations until
   archive/review says otherwise. `run` may commit and push its run records, then
@@ -56,8 +61,9 @@ Use [the workflow map](docs/skill-routing.md) and [route](.claude/skills/route/S
 when selecting a recurring analysis, implementation, review or maintenance workflow.
 Canonical skills live under `.claude/skills/`; `.agents/skills/` exposes the same
 names to Codex/OpenCode. Choose by action first, then load a relevant subject profile.
-Explicit scientific execution goes directly to `run`: catalog checks and subject
-assessment are not launch prerequisites. This map adds no runtime role or authority.
+After the literature-first review above, explicit scientific execution goes
+directly to `run`: catalog checks and subject assessment are not launch
+prerequisites. This map adds no runtime role or authority.
 
 ## Roles
 
@@ -89,6 +95,20 @@ finding or correction updates the affected canonical graph source and
 rendering in the same change; if none changes, record what was checked and
 why. Label conjectural edges and extrapolations; cite immutable evidence for
 verified ones.
+
+## Experiment protocol, export and review
+
+Owner, 2026-10-22. Every experiment, benchmark, sweep or training run in this
+repository and its siblings is designed from a frozen `experiment.protocol/v1`
+record (`docs/experiment-protocol.md`; skill `experiment-protocol`), leaves
+its data as one `experiment.export/v1` bundle beside the raw records, and may
+be reviewed by any other runner through a write-once `experiment.review/v1`
+record (skill `review-run`). `tools/experiment_protocol.py` checks all three.
+A protocol names its controls (A/A, positive, negative) or excuses each, its
+variable ledger, randomization and blinding, power, counted metrics with
+their resolution, the isolation a clock needs, and the checkpoint policy
+under which a restored row keeps its counts and loses its clock. A review is
+an input to `review-evidence`, never the decision.
 
 ## Standing user authorization
 
@@ -520,4 +540,49 @@ On Cursor Cloud, follow the binding [environment instructions](docs/agent-contra
 
 ## Progress metrics (daily lab report)
 
+## Resume checkpoints in S3 before every run
+A session can end at any moment (token or usage limits, a crash, a reclaimed
+container), and a worktree that only it knew about is then lost. So **before
+any experiment run starts, the leads, the spec and everything needed to
+resume the effort are checked into S3**, and kept current while it runs.
+- `scripts/checkpoint.sh init` writes `.resume/RESUME.md` (gitignored). Fill
+  every section for a reader who has none of this conversation: goal, the
+  lead or hypothesis and where it came from, the spec or protocol path with
+  frozen inputs, the current state with measured numbers and where raw output
+  lives, next steps with exact commands, every run in flight (command, host,
+  instance id or pid, log and output paths, how to collect it), and the stop
+  and success conditions. The gate rejects missing or empty sections and
+  leftover `TODO(checkpoint)` markers.
+- `scripts/checkpoint.sh push` uploads one checkpoint to
+  `s3://setec-astronomy-artifacts/checkpoints/<repo>/<branch>/<stamp>/`:
+  `RESUME.md`, the spec, leads, protocol and plan files the branch changed, a
+  git bundle of unpushed commits, a patch of uncommitted changes, untracked
+  files (large ones listed, not copied) and `meta.json`. Earlier checkpoints
+  are never overwritten. Push again whenever a run starts or finishes,
+  results arrive, or the plan changes.
+- **Claude Code enforces this** (`.claude/hooks/checkpoint-hook.sh`): writing
+  a spec, leads, protocol or plan file, or `RESUME.md`, pushes a checkpoint,
+  and run launchers (`scripts/run_*`, sweeps, benchmarks, `nohup`, background
+  commands, `cargo run --release`, `expspec run`, `sage-run`, cloud launches)
+  are refused until `RESUME.md` is complete and the push succeeded. A command
+  that is not an experiment run may opt out with `CHECKPOINT_SKIP=<reason>`.
+  **Other runtimes (Codex)** run `scripts/checkpoint.sh gate` before
+  launching and do not launch if it fails.
+- Claude Code sessions have no AWS credentials, so the script works from a
+  token (tried first; an AWS profile is only a fallback). The token is a
+  presigned POST policy that can only write under `checkpoints/`, plus a
+  presigned link to an index of recent checkpoints, so push, `list`, `share`
+  and `restore` all work without credentials. A job on the owner's Mac
+  re-mints it every 15 minutes (7-day lifetime) into
+  `~/.config/checkpoint/upload-token`, where the script finds it; a session
+  elsewhere is given it as `CHECKPOINT_UPLOAD_TOKEN`. The bucket host is in
+  this repo's sandbox network allowlist (`.claude/settings.json`). It is a bearer credential: never
+  commit it or put it in a PR, report or task card.
+- To resume: `scripts/checkpoint.sh list` shows the latest checkpoint per
+  branch (from the index, up to 15 minutes behind);
+  `scripts/checkpoint.sh restore <repo>/<branch>[/<stamp>]` rebuilds the
+  worktree next to this checkout and puts `RESUME.md` in it. `share` prints a
+  presigned URL that `restore <url>` accepts anywhere.
+A checkpoint is a safety net, not the record: the spec, protocol and results
+still land in a PR under the rules above.
 When changing tracked results, follow the binding [daily progress-metrics rule](docs/agent-contract-supplement.md#progress-metrics-daily-lab-report): extend the exporter in the same PR, retain stable metric ids and emit only measured, committed values.
