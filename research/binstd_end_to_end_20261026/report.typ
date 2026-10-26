@@ -41,7 +41,8 @@ division independently checks that the archived `t^17+t^3+1` modulus and
 degree-eight factors are irreducible, and their product is `X^17+1`. This is
 computed evidence. A new Lean theorem also kernel-checks the 510/30/30 exact
 *bitmask* divisor trials using `decide`; its axiom audit lists only `propext`.
-It does not yet prove polynomial irreducibility.
+The same predicate rejects encoded reducible `X^17+1` and `X^8+1` controls,
+with degree-one witness `X+1`. It does not yet prove polynomial irreducibility.
 A separate set-polynomial Rabin test obtains Frobenius residue `X` and GCD `1`
 for all three masks; reducible `X^17+1` and `X^8+1` controls fail.
 

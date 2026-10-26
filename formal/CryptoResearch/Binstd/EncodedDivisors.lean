@@ -57,17 +57,33 @@ theorem archived_trial_counts :
     trialCount 313 = 30 ∧
     trialCount 471 = 30 := by decide
 
-/-- One target declaration binds all three exact encoded trial results. -/
+/-- The degree-one mask `3` is an explicit encoded divisor of two nearby controls. -/
+theorem reducible_control_witnesses :
+    remFuel 18 131073 3 = 0 ∧
+    remFuel 9 257 3 = 0 := by decide
+
+/-- The same finite search rejects both known reducible controls. -/
+theorem reducible_controls_rejected :
+    noSmallMonicDivisor 131073 = false ∧
+    noSmallMonicDivisor 257 = false := by decide
+
+/-- One target declaration binds the exact trials and nearby negative controls. -/
 theorem archived_no_small_monic_divisors :
     noSmallMonicDivisor 131081 = true ∧
     noSmallMonicDivisor 313 = true ∧
     noSmallMonicDivisor 471 = true ∧
     trialCount 131081 = 510 ∧
     trialCount 313 = 30 ∧
-    trialCount 471 = 30 := by
+    trialCount 471 = 30 ∧
+    noSmallMonicDivisor 131073 = false ∧
+    noSmallMonicDivisor 257 = false := by
   exact ⟨modulus17_no_small_monic_divisor,
     factor8a_no_small_monic_divisor,
     factor8b_no_small_monic_divisor,
-    archived_trial_counts⟩
+    archived_trial_counts.1,
+    archived_trial_counts.2.1,
+    archived_trial_counts.2.2,
+    reducible_controls_rejected.1,
+    reducible_controls_rejected.2⟩
 
 end CryptoResearch.Binstd.EncodedDivisors

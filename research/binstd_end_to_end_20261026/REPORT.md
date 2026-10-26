@@ -52,9 +52,12 @@ now proves, by kernel-checked `decide`, that the exact masks `131081`, `313`
 and `471` survive the 510, 30 and 30 monic bitmask divisor trials defined in
 that file. Direct compilation with the pinned Lean 4.35.0-rc1 toolchain
 passed; `#print axioms` found only `propext`, which the workspace permits.
-The [direct Lean validation receipt](lean-encoded-divisors-validation.json)
-binds the source and evidence SHA-256 values, exact command, exit status and
-per-theorem axiom output.
+The [initial direct Lean validation receipt](lean-encoded-divisors-validation.json)
+binds its earlier source revision and evidence SHA-256 values, exact command,
+exit status and per-theorem axiom output. A [new direct control
+receipt](lean-encoded-controls-validation.json) binds the current source and
+checks two known-reducible encoded controls: mask `3` yields zero remainder
+for `X^17+1` and `X^8+1`, and the same finite search returns false for both.
 This certifies the finite *encoded* computation. It does not prove that the
 XOR reduction implements Euclidean remainder in `(ZMod 2)[X]` or connect the
 masks to the polynomial declarations in `Factorization.lean`.
