@@ -178,8 +178,10 @@ class LeanWorker:
         if audit.returncode == 0:
             # Do not trust a successful project-wide audit to imply that the
             # requested theorem was included. Check it using harness code.
+            # Keep this transient source outside the audited workspace so an
+            # interrupted verifier cannot leave an untracked Lean file there.
             with tempfile.NamedTemporaryFile(mode="w", suffix=".lean", prefix="TargetAudit-",
-                                             dir=workspace, encoding="utf-8") as audit_source:
+                                             encoding="utf-8") as audit_source:
                 audit_source.write(target_audit_source(module, task.theorem_name))
                 audit_source.flush()
                 target = self._run(["lake", "env", "lean", audit_source.name], cwd=workspace)
