@@ -549,6 +549,23 @@ jobs:
         run: |
           python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
 
+      # The example export binds its raw records by SHA-256, while the bytes
+      # live in the content-addressed store. All shards restore and verify the
+      # fixture because file-to-shard assignment can change as tests are added.
+      - name: Restore verified experiment protocol fixture
+        if: env.RUN_TESTS == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-2
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::Scoped artifact-store read credentials are required for the hash-bound fixture"
+            exit 1
+          fi
+          python3 tools/artifacts/artifacts.py pull examples/experiment-protocol/ecbench-l2-smoke-subset/session
+          python3 tools/artifacts/artifacts.py verify examples/experiment-protocol/ecbench-l2-smoke-subset/session
+
       - name: Build generated artifacts
         if: env.RUN_TESTS == 'true'
         run: python3 tools/build_knowledge_index.py
