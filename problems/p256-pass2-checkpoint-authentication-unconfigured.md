@@ -77,3 +77,13 @@ observed account-billing failure is a separate service issue.
 
 Unresolved. Consent is supplied and the Linux portability fault is repaired;
 supported authentication and a successful actual upload remain missing.
+
+2026-10-26 continuation: the independent software inspection reproduced a
+second stat/cache issue at `616878bcf`: a swallowed untracked metadata failure
+could reuse an older receipt. `a527b62b1` propagates that error through state
+hashing and both callers. Five isolated tests and the
+[directed follow-up](../research/p256_factor_base_parallel_20261026/environment/checkpoint-repair-review-01/followup-cache-fix.md)
+cover the repaired path. This does not establish native BSD, authenticated
+upload/restore or general checkpoint-cache security. F3/F4 protocol/recipe
+corrections are tracked [separately](p256-pass2-launch-contract-metadata-incomplete.md).
+Authentication and the actual successful S3 gate remain unresolved.

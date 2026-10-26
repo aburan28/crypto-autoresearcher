@@ -1,6 +1,6 @@
 # P-256 second-pass launch metadata needs prospective corrections
 
-- **Status:** investigating
+- **Status:** resolved
 - **Kind:** implementation/contract gaps
 - **Affected work:** F3/F4 frozen protocols and F2-F8 process recipes in the [second pass](../research/p256_factor_base_parallel_20261026/README.md)
 - **Next action owner:** Coordinator prepares additive protocol versions; executor supplies the declared outer process guards
@@ -44,13 +44,13 @@ protocols or changing seeds, cases, analysis or observed data.
 
 ## What would unblock it
 
-- [ ] Preserve original frozen bytes and publish F3 v2 with the exact five
+- [x] Preserve original frozen bytes and publish F3 v2 with the exact five
   source digests, matching the original instrument commit, before any data.
-- [ ] Preserve F4 v1 and publish a before-data v2 declaring no in-row
+- [x] Preserve F4 v1 and publish a before-data v2 declaring no in-row
   application restore, while retaining the separate mandatory S3 gate.
-- [ ] Supply concrete outer process commands with the declared resource
+- [x] Supply concrete outer process commands with the declared resource
   guard and the actual per-track CLI/protocol/release paths.
-- [ ] Validate/freeze the new records and verify that the scientific design,
+- [x] Validate/freeze the new records and verify that the scientific design,
   analysis and original source/input bytes are unchanged.
 
 These conditions resolve these metadata/recipe gaps only. Actual execution
@@ -73,5 +73,13 @@ a genuine successful gate and matching releases. F1 is separately incomplete.
 
 ## Resolution and history
 
-Unresolved pending exact prospective freeze and outer-command custody.
-Recording this problem makes no mathematical or official research-state claim.
+Resolved for the named metadata/recipe gaps on 2026-10-26.
+[Freeze receipt](../research/p256_factor_base_parallel_20261026/environment/protocol-amendment-freeze-01/result.json)
+binds both unchanged-design v2 bodies to prospective draft snapshot
+`396d09b942d9fc431974d788bb5276f7929f4a27`.
+The [outer-command plan](../research/p256_factor_base_parallel_20261026/environment/phase-b-commands-01.json)
+supplies exact CLI/release paths and TERM at119 seconds followed by KILL one
+second later, implementing the existing120-second maximum process guard.
+These command recipes have not run on a scientific process. S3 authentication,
+a genuine gate, task releases and actual execution remain separate unresolved
+requirements. No arithmetic correctness or official research-state claim is made.
