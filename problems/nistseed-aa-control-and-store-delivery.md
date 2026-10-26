@@ -40,3 +40,6 @@ These conditions establish only an A/A-control implementation prerequisite. They
 ## Resolution and history
 
 Unresolved.
+
+
+2026-10-26 UTC: The first public-only Executor returned `NOT_DISPATCHED` and no files because its allowed handoff commit predates the later published claim. This is an operator dispatch-reference defect, not a module test or legacy-program result. The exact response and correction are retained in BATCH-62db73. Renew the expired claim without force and explicitly bind its actual published commit before resuming the same frozen implementation task; no protocol, input or acceptance condition is weakened.
