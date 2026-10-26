@@ -1,5 +1,14 @@
 # The lattice-describable factor base is closed, by 0.048 in the exponent
 
+> **CORRECTED 2026-10-24 — the numbers below are superseded; see
+> [`CORRECTION.md`](CORRECTION.md) and `ledger/corrections/CORR-20261024-b2a799.yaml`.**
+> The success condition used the p-exponent of `det(L)` instead of
+> `t·dim − s_p`. Corrected: `ε(S_3) = 0.2803` (not 0.8408), `ε(S_4) = 0.1034`,
+> full-box limit `2/(d(n+1))`, best margin about −0.61 at `(4,2)` (not −0.0481).
+> The family is still closed, by a much wider margin, but §1's "rises toward 1
+> with `n`", §4's "widens monotonically", §5's 0.048 and §6.1/§6.3's rationale
+> are wrong as written. Text below is preserved unedited as the record.
+
 **Status: analysis note, not an evidence record.** Nothing here transitions a
 hypothesis, discharges a completion criterion, or claims a speedup.
 `sota_delta`: zero. `dominated_by`: Pollard rho at exponent 1/2, unchanged.
