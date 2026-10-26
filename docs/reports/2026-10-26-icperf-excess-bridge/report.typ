@@ -15,6 +15,8 @@ _Figure 1._ Source-reported exact counts from crypto `d51b908a`, `run-20261016T1
 
 The cryptanalysis PDP study uses direct and symmetric formulations, while the crypto closure study reconstructs a chained S3 system from saved random `v_basis` and target coordinates. The proposed bridge is a target-blind scan of equal-dimension subspaces, followed by top-`e`, median-`e` and random-control comparisons on one exact curve, system builder and held-out target list. Record actual usable-point count and cofactor class, product dimensions, construction, input density, solving degree, closure cost, censoring and certified relations. Measure novel rank and complete cost separately; equal dimension does not imply equal factor-base size or relation yield.
 
+The pinned cryptanalysis paired MXL table reports random/structured operation ratios for symmetric `m=3` of 11.7 per query and 6.6 per derived relation across eligible small-field cells; its direct `m=3` table reports 1.46 and 1.01 on a different cell set. These are source-reported PDP stages, so the next protocol must compare formulations on the same bases and targets before transferring a cost ratio.
+
 This is a proposed test boundary, not an approved protocol or a new performance measurement. The complete 50–63-bit prime, Koblitz and ordinary-binary arity grid remains open.
 
 == Sources
