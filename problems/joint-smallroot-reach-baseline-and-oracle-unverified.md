@@ -3,8 +3,8 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Coordinator publishes the native implementation handoff after GitHub access is restored; executor-implementation then reserves the actual owner scope and prepares the native launcher
-- **Last updated:** 2026-10-25
+- **Next action owner:** Coordinator publishes the native implementation handoff; executor-implementation then reserves the actual owner scope and prepares the native launcher
+- **Last updated:** 2026-10-26
 
 ## Problem
 
@@ -189,3 +189,17 @@ The correction is committed locally; its publication and a new admitted
 implementation handoff await restored repository access. Existing user research
 and merge authorization persist. The native port, independent review, runnable
 preapproval and matched complete IC improvement remain uncompleted obligations.
+
+2026-10-26 repository transfer follow-up: connected repository discovery identifies
+`isogeny-labs/crypto` and `isogeny-labs/crypto-autoresearcher`. Both remotes now
+use these paths, authenticated fetch succeeds, and the PR connector reads both
+PRs. PR #2557 merged into the audit branch; #2547 remains open. The two local
+operational follow-up commits are preserved alongside the newer hosted changes.
+Current main is merged without rewriting archived records. The earlier HTTP
+observations stay historical; repository access is no longer the next-action
+blocker. The owner artifact checker now contains full-object-ID handling, and
+this checkout passes its current shared-code lock; full sibling byte parity is
+not asserted. See the [transfer receipt](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/repository-transfer-followup-20261026.json).
+The next concrete step is the native implementation handoff and owner reservation.
+No joint scientific calculation, root-extraction validation, or matched IC
+improvement has occurred.
