@@ -54,6 +54,17 @@ The resulting *direct-row statistic* has no new degree-two fall
 the published finite computation with a separate field evaluator, Boolean
 multiplier, and elimination routine.
 
+![Archived and parity-corrected direct-row grades for the 80 fixed draws](direct-row-grades.svg)
+
+The [additive chart](direct-row-grades.svg) preserves every tile, count, and
+color of the [archived chart](../2026-10-22-semaev-first-fall-replay/draws.svg)
+while labeling the values as **direct-row grades** and the closed-filtration
+interpretation as unverified. Its [renderer](render.py) changes only explanatory
+SVG text and checks that all 80 draw tiles remain; the historical chart is
+unchanged. The 68/12 counts are therefore presented as exact outputs of the
+parity-corrected row procedure, not as newly established standard first-fall
+grades.
+
 There is an additional closure witness. Let `W` be the already published
 degree-two polynomial with monomial masks
 `[1,2,4,8,9,10,12,16,18,20,32,40,48,64,65,128,144,192]`.
