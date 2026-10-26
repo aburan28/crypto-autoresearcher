@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Legacy ledger YAML parse debt remains in 15 records](legacy-ledger-yaml-parse-debt.md) | open | An unqualified full-ledger parseability claim and downstream validation of 15 baselined records | Immutable, semantically reviewed schema successors for all 15, shrink the baseline, pass absolute hygiene and ledger validation |
 | [P-256 symmetric membership needs a costed global solver](p256-symmetric-radical-global-solver.md) | investigating | Exact symmetric and cubic-divisor formulations, depth-3 completeness; depth-4 distinct strata remain unknown | Complete implicit extraction/cost argument with repeated strata, matched controls and independent checks |
 | [Natural useful factor-base relations and complete costs](p256-natural-useful-factor-base-relations.md) | investigating | P-256 labelled/divisor prototypes and secp256k1 orbit control have exact constructed checks; natural useful rates and full costs remain unmeasured | Method-specific admitted natural-instance studies with full rank, failure, memory and target-attachment accounting |
 | [P-256 cover target-component solver](p256-cover-target-component-solver.md) | investigating | Explicit genus-three and genus-two maps inject the target subgroup; arbitrary-class solver and full cost remain missing | Certified component/arithmetic interface and costed image-specific relations/descent |
