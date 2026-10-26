@@ -1,0 +1,119 @@
+--- examples/hky_par.rs	2026-10-19 16:34:41.566326187 +0000
++++ examples/hky_sys.rs	2026-10-26 19:08:09.191819787 +0000
+@@ -332,6 +332,46 @@
+     e.raw_bits().first().copied().unwrap_or(0)
+ }
+ 
++
++/// Scratch: does the chained system have ANY solution? Same search as `chained_solution_count`, returning at the first one.
++fn has_solution(m: usize, basis: &[F2mElement], x_r: &F2mElement, irr: &crypto_lib::binary_ecc::IrreduciblePoly) -> bool {
++    use crypto_lib::cryptanalysis::semaev_decomp::Gf2;
++    let gf = Gf2::new(irr);
++    let n = irr.degree;
++    let word = |e: &F2mElement| e.raw_bits().first().copied().unwrap_or(0);
++    let words: Vec<u64> = basis.iter().map(word).collect();
++    let span: Vec<u64> = (0..1u64 << words.len())
++        .map(|c| (0..words.len()).filter(|t| (c >> t) & 1 == 1).fold(0, |acc, t| acc ^ words[t]))
++        .collect();
++    let (xr, bb) = (word(x_r), 1u64);
++    let squares: Vec<u64> = (0..1u64 << n).map(|u| gf.sqr(u)).collect();
++    let roots = |a: u64, c: u64| -> Vec<u64> {
++        let (lead, mid) = (gf.sqr(a ^ c), gf.mul(a, c));
++        let tail = gf.sqr(mid) ^ bb;
++        (0..1u64 << n).filter(|&d| gf.mul(lead, squares[d as usize]) ^ gf.mul(mid, d) ^ tail == 0).collect()
++    };
++    let s3 = |a: u64, c: u64, d: u64| {
++        let ac = gf.mul(a, c);
++        gf.mul(gf.sqr(a ^ c), gf.sqr(d)) ^ gf.mul(ac, d) ^ gf.sqr(ac) ^ bb
++    };
++    fn rest_any(e: u64, left: usize, span: &[u64], xr: u64, roots: &dyn Fn(u64, u64) -> Vec<u64>, s3: &dyn Fn(u64, u64, u64) -> u64) -> bool {
++        if left == 1 {
++            return span.iter().any(|&x| s3(e, x, xr) == 0);
++        }
++        span.iter().any(|&x| roots(e, x).into_iter().any(|next| rest_any(next, left - 1, span, xr, roots, s3)))
++    }
++    for &x1 in &span {
++        for &x2 in &span {
++            for e1 in roots(x1, x2) {
++                if rest_any(e1, m - 2, &span, xr, &roots, &s3) {
++                    return true;
++                }
++            }
++        }
++    }
++    false
++}
++
+ fn main() {
+     let args: Vec<String> = std::env::args().collect();
+     let get = |k: &str| args.iter().position(|a| a == k).map(|i| args[i + 1].clone());
+@@ -356,6 +396,69 @@
+                     "secs": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0, "threads": rayon::current_num_threads()}));
+             }
+         }
++        Some("sys") => {
++            // scratch cross-check: read an lfdclose2 .sys file (N np; per poly: nt then hex masks) and run the same closure/refute
++            let txt = std::fs::read_to_string(&args[2]).unwrap();
++            let mut it = txt.split_whitespace();
++            let nv: u32 = it.next().unwrap().parse().unwrap();
++            let np: usize = it.next().unwrap().parse().unwrap();
++            let mut eqs: Vec<Vec<u64>> = Vec::new();
++            for _ in 0..np {
++                let nt: usize = it.next().unwrap().parse().unwrap();
++                eqs.push((0..nt).map(|_| u64::from_str_radix(it.next().unwrap(), 16).unwrap()).collect());
++            }
++            let t0 = Instant::now();
++            let (d_f, dims) = refute(&eqs, nv, cmax);
++            println!("{}", json!({"schema": "hky_sys_scratch/v1", "file": args[2], "n_vars": nv, "n_eqs": np, "d_f": d_f,
++                "d_f_at_least": if d_f.is_none() { Some(cmax + 1) } else { None }, "per_degree": dims,
++                "secs": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0, "threads": rayon::current_num_threads()}));
++        }
++        Some("drawcount") => {
++            // scratch: time solution counts of fresh draws exactly as `newcells` makes them (no closure)
++            let seed: u64 = get("--seed").unwrap().parse().unwrap();
++            let maxd: usize = get("--max").map_or(10, |v| v.parse().unwrap());
++            let p: Vec<usize> = get("--cell").unwrap().split(':').map(|x| x.parse().unwrap()).collect();
++            let (m, n, ell) = (p[0], p[1] as u32, p[2]);
++            let mut rng = StdRng::seed_from_u64(cell_seed(seed, n, ell, m));
++            let irr = find_irreducible_sparse(n).unwrap();
++            for draw in 0..maxd {
++                let (basis, x_r) = ladder_sample(n, ell, &mut rng);
++                let t0 = Instant::now();
++                let b1 = F2mElement::one(n);
++                let sols = if m == 3 { chained_s3_solution_count(&basis, &x_r, &b1, &irr) } else { chained_solution_count(m, &basis, &x_r, &b1, &irr) };
++                println!("{}", json!({"draw": draw, "sols": sols, "secs": (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
++                    "v_basis": basis.iter().map(word).collect::<Vec<_>>(), "x_r": word(&x_r), "n": n, "ell": ell, "m": m, "seed": seed}));
++            }
++        }
++        Some("findunsat") => {
++            // scratch: stream of draws exactly as `newcells`; worker w of W takes draws with draw % W == w.
++            let seed: u64 = get("--seed").unwrap().parse().unwrap();
++            let maxd: usize = get("--max").map_or(1000, |v| v.parse().unwrap());
++            let (w, ww): (usize, usize) = (get("--worker").map_or(0, |v| v.parse().unwrap()), get("--workers").map_or(1, |v| v.parse().unwrap()));
++            let check = args.iter().any(|a| a == "--check");
++            let p: Vec<usize> = get("--cell").unwrap().split(':').map(|x| x.parse().unwrap()).collect();
++            let (m, n, ell) = (p[0], p[1] as u32, p[2]);
++            let mut rng = StdRng::seed_from_u64(cell_seed(seed, n, ell, m));
++            let irr = find_irreducible_sparse(n).unwrap();
++            for draw in 0..maxd {
++                let (basis, x_r) = ladder_sample(n, ell, &mut rng);
++                if draw % ww != w { continue; }
++                let t0 = Instant::now();
++                let any = has_solution(m, &basis, &x_r, &irr);
++                let t_any = t0.elapsed().as_secs_f64();
++                if check {
++                    let b1 = F2mElement::one(n);
++                    let sols = if m == 3 { chained_s3_solution_count(&basis, &x_r, &b1, &irr) } else { chained_solution_count(m, &basis, &x_r, &b1, &irr) };
++                    println!("{}", json!({"draw": draw, "has_solution": any, "exact_sols": sols, "agree": any == (sols > 0), "secs_any": (t_any * 10.0).round() / 10.0}));
++                } else if !any {
++                    let b1 = F2mElement::one(n);
++                    let sols = if m == 3 { chained_s3_solution_count(&basis, &x_r, &b1, &irr) } else { chained_solution_count(m, &basis, &x_r, &b1, &irr) };
++                    println!("{}", json!({"schema": "hky_sys_unsat_draw/v1", "m": m, "n": n, "ell": ell, "draw": draw, "seed": seed, "solutions": sols,
++                        "v_basis": basis.iter().map(word).collect::<Vec<_>>(), "x_r": word(&x_r), "secs_any": (t_any * 10.0).round() / 10.0}));
++                    return;
++                } else if draw % (50 * ww) == w { eprintln!("worker {} draw {} sat ({:.2}s)", w, draw, t_any); }
++            }
++        }
+         Some("newcells") => {
+             let seed: u64 = get("--seed").unwrap().parse().unwrap();
+             let keep: usize = get("--keep").map_or(4, |v| v.parse().unwrap());
