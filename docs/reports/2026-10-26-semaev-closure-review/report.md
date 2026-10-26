@@ -1,11 +1,12 @@
 # Finite Semaev row-space closure audit — 2026-10-26
 
 **Status:** independent finite-model code review of the 80 archived Semaev
-draws, with one detailed closure witness; a semantic bridge and a new
+draws and 200 archived matched-null controls, with one detailed closure
+witness; a semantic bridge and a new
 Lean theorem remain open. This report does not change the frozen target,
 archived outputs, official research status, or any ECDLP cost claim.
 
-The [inspected PDF](report.pdf) embeds all three additive charts; [report.tex](report.tex)
+The [inspected PDF](report.pdf) embeds all four additive charts; [report.tex](report.tex)
 is its editable source. From this directory, rebuild the visuals and PDF with:
 
 ```sh
@@ -15,6 +16,9 @@ convert -density 192 closure-ranks.svg -resize 1640x580 closure-ranks.png
 python3 distribution.py > distribution-evidence.json
 python3 render_distribution.py
 convert -density 192 closure-distribution.svg -resize 2200x820 closure-distribution.png
+python3 null_distribution.py > null-distribution-evidence.json
+python3 render_null_distribution.py
+convert -density 192 null-closure-distribution.svg -resize 1840x740 null-closure-distribution.png
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 pdflatex -interaction=nonstopmode -halt-on-error report.tex
 ```
@@ -160,6 +164,40 @@ or established transfer to the polynomial-ring filtration.
 
 ![First positive degree agrees while selected and quotient dimensions differ across 80 draws](closure-distribution.svg)
 
+## The 200 archived support-matched null controls
+
+The [null checker](null_distribution.py) reads the same frozen archive and
+verifies each null equation hash, variable mask range, and per-equation
+multiset of monomial degrees against the source Semaev draw recorded for that
+cell. It reproduces every archived parity-corrected selected-row rank,
+low-degree dimension, new-class count and row count through degree six. For
+each null and degree, the same three quotient fixed-point methods agree on
+their full spaces by joint rank, and the degree-bounded spaces are nested.
+No null system was generated or resampled for this audit.
+
+| First positive degree | Selected direct rows | Closed Boolean quotient |
+| ---: | ---: | ---: |
+| 2 | 13 | **1** |
+| 3 | 111 | **117** |
+| 4 | 76 | **82** |
+
+Exactly 12 nulls move from degree two to three and six move from degree three
+to four; 182 retain their label. Selected rows are outside the specified
+quotient closure in 69 nulls at degree two and 23 at degree three. The
+[machine-readable evidence](null-distribution-evidence.json) identifies
+every control, source-draw link, equation hash, selected profile, quotient
+profile and transition. Normal and optimized Python runs produced identical
+JSON, taking about 82 seconds with less than 20 MiB peak RSS under a 1 GiB
+process limit. The [additive chart](null-closure-distribution.svg)
+shows the counts. This changes the interpretation of the old null comparison:
+the archived selected-row null distribution **13/111/76** is not the
+specified quotient-closure distribution **1/117/82**. The 80 Semaev draws
+retain 68/12 first-positive labels in this quotient. These two frozen sample
+sets have different sizes, and this report makes no significance, general
+curve, security or performance inference from their contrast.
+
+![The 200 archived matched-null controls shift under Boolean quotient closure](null-closure-distribution.svg)
+
 ## Interpretation and limits
 
 The Lean matrix-rank theorems remain valid for their literal 80 rows. This
@@ -173,8 +211,9 @@ field equations. That passage needs an explicit theorem and independent
 semantic review. The published `newFalls(3)=1` is established for the selected
 row statistic, while the fixed quotient closure gives 12; neither number is
 yet a proved standard polynomial-ring first-fall multiplicity. The all-draw
-Boolean quotient computation agrees on first-positive degrees but differs
-widely in dimensions. The literal Lean row theorems are intact, but no Lean
+Boolean quotient computation agrees on Semaev first-positive degrees but
+differs widely in dimensions, while 18 null labels shift. The literal Lean
+row theorems are intact, but no Lean
 theorem yet certifies this new closure computation.
 
 This also does not refute Kosters–Yeo's trace identity or their qualified
