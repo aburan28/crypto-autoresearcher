@@ -98,10 +98,38 @@ else:
         self.stub("stat", "#!/bin/sh\necho failed-stat-output\nexit 1\n")
         result = self.gate()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("cannot size untracked file", result.stderr)
+        self.assertIn("cannot hash the current worktree", result.stderr)
         self.assertNotIn("failed-stat-output", result.stdout + result.stderr)
         self.assertNotIn("unexpected network call", result.stderr)
         self.assertFalse((self.repo / ".resume/.last-push").exists())
+
+    def test_failed_stat_cannot_reuse_receipt_for_state_without_new_file(self):
+        payload = self.repo / "untracked payload.txt"
+        payload.unlink()
+        definitions = self.base / "state-hash-fixture.sh"
+        definitions.write_text((self.repo / "checkpoint.sh").read_text().split(
+            'case "${1:-}" in', 1)[0] + "\nstate_hash\n")
+        baseline = subprocess.run(["bash", str(definitions)], cwd=self.repo,
+                                  env=self.env, check=True, capture_output=True,
+                                  text=True, timeout=20).stdout.strip()
+        self.assertRegex(baseline, r"^[0-9a-f]{64}$")
+        # A synthetic prior receipt in an isolated fixture is never a real gate.
+        prior = baseline + " fixture-stamp s3://fixture-not-an-upload/\n"
+        receipt = self.repo / ".resume/.last-push"
+        receipt.write_text(prior)
+        payload.write_bytes(b"new payload\n")
+        self.stub("stat", "#!/bin/sh\necho failed-stat-output\nexit 1\n")
+        for command in ("gate", "status"):
+            with self.subTest(command=command):
+                result = subprocess.run(["bash", "checkpoint.sh", command],
+                                        cwd=self.repo, env=self.env,
+                                        capture_output=True, text=True, timeout=20)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot hash the current worktree", result.stderr)
+                self.assertNotIn("unchanged since", result.stdout)
+                self.assertNotIn("unexpected network call", result.stderr)
+                self.assertNotIn("failed-stat-output", result.stdout + result.stderr)
+                self.assertEqual(receipt.read_text(), prior)
 
     def test_size_limit_still_excludes_nonempty_untracked_payload(self):
         self.env["CHECKPOINT_MAX_FILE_MB"] = "0"

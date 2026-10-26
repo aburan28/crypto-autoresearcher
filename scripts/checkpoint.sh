@@ -193,13 +193,20 @@ resume_problems() {
 }
 
 state_hash() {
+  local untracked_files
+  untracked_files="$(git ls-files --others --exclude-standard)" || return 1
   {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
-      if [ -f "$f" ]; then file_stat '%n %s %Y' '%N %z %m' "$f" || true; fi
-    done
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      [[ "$f" =~ $EXCLUDE_RE ]] && continue
+      [[ "$f" = .resume/* ]] && continue
+      if [ -f "$f" ]; then
+        file_stat '%n %s %Y' '%N %z %m' "$f" || return 1
+      fi
+    done <<< "$untracked_files"
   } | shasum -a 256 | cut -d' ' -f1
 }
 
@@ -250,12 +257,13 @@ EOF
 
 cmd_status() {
   cd "$(top)"
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
   echo "s3 target : s3://$BUCKET/$PREFIX/$(repo_name)/$(branch_key)/"
   echo "unpushed  : $(git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0) commit(s)"
   echo "spec files:"; spec_files | sed 's/^/  /'
   local p; p="$(resume_problems)"
   if [ -n "$p" ]; then echo "RESUME.md : NOT READY"; printf '%s\n' "$p" | sed 's/^/  /'; else echo "RESUME.md : ok"; fi
-  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$(state_hash)" ]; then
+  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "last push : current ($(cut -d' ' -f2- .resume/.last-push))"
   else
     echo "last push : stale or none"
@@ -267,7 +275,7 @@ cmd_push() {
   [ "${1:-}" = "--force" ] && force=1
   cd "$(top)"
   mkdir -p .resume
-  local hash; hash="$(state_hash)"
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
   if [ $force = 0 ] && [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "checkpoint: unchanged since $(cut -d' ' -f2- .resume/.last-push)"; return 0
   fi
