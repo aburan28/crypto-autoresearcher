@@ -9,6 +9,10 @@ Sources (committed, read at --ref):
   experiments/*/runs/*/manifest.json         run manifests by status
   coordination/portfolio_health/latest.json  funnel KPIs (approved-unrun, conversions); history via git log
   claims/*.json                              structured speedup claims (progress-fidelity)
+  experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/verification.json
+                                             completed finite Prym census counts/ranks
+  experiments/EXP-ECDLP-a9b6a5/runs/RUN-ECDLP-967315/verification.json
+                                             completed width16 Prym counts/ranks
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -187,6 +191,79 @@ def runs(ref):
          label="run manifests failed / invalid", source=f"experiments/*/runs/*/manifest.json@{ref}")
 
 
+def prym_census(ref):
+    """Neutral observations from the committed checker, never planned workloads."""
+    path = "experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/verification.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return
+    if (not isinstance(data, dict) or data.get("schema") != "prym-rank-census-independent/v1"
+            or data.get("status") != "passed" or data.get("failed_checks") != []
+            or not isinstance(data.get("cells"), list) or not data["cells"]):
+        return
+    fields = {"attempts": "attempts_replayed", "accepted_rows": "rows_verified",
+              "rank": "rank", "unknown_columns": "U"}
+    seen = set()
+    # Validate the entire source before emitting any gauges from it.
+    for cell in data["cells"]:
+        if (not isinstance(cell, dict) or not isinstance(cell.get("curve_uid"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", cell["curve_uid"])
+                or cell.get("arm") not in {"sample64", "full3584"}
+                or type(cell.get("seed")) is not int or cell["seed"] < 0
+                or any(type(cell.get(key)) is not int or cell[key] < 0 for key in fields.values())):
+            return
+        identity = (cell["curve_uid"], cell["seed"], cell["arm"])
+        if (identity in seen or cell["rank"] > min(cell["U"], cell["rows_verified"])
+                or cell["rows_verified"] > cell["attempts_replayed"]):
+            return
+        seen.add(identity)
+    for cell in data["cells"]:
+        identity = f"{cell['curve_uid']}.s{cell['seed']}.{cell['arm']}"
+        label = f"RUN-ECDLP-ea49a6 fixture {identity}"
+        for name, key in fields.items():
+            emit(f"prym.census.ea49a6.{identity}.{name}", cell[key],
+                 problem="ecdlp-prym-relations", unit="count", better="neutral",
+                 label=f"{label}: {name}", source=f"{path}@{ref}")
+
+
+def prym_width(ref):
+    """Counted width16 observations from its committed native replay only."""
+    path = "experiments/EXP-ECDLP-a9b6a5/runs/RUN-ECDLP-967315/verification.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return
+    if (not isinstance(data, dict) or data.get("schema") != "prym-width-independent/v1"
+            or data.get("status") != "passed" or data.get("failed_checks") != []
+            or not isinstance(data.get("cells"), list) or not data["cells"]):
+        return
+    fields = {"attempts": "attempts_replayed", "accepted_rows": "rows_verified",
+              "rank": "rank", "unknown_columns": "U"}
+    seen = set()
+    for cell in data["cells"]:
+        if (not isinstance(cell, dict) or not isinstance(cell.get("curve_uid"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", cell["curve_uid"])
+                or any(type(cell.get(key)) is not int or cell[key] < 0 for key in fields.values())):
+            return
+        if (cell["curve_uid"] in seen or cell["rank"] > min(cell["U"], cell["rows_verified"])
+                or cell["rows_verified"] > cell["attempts_replayed"]):
+            return
+        seen.add(cell["curve_uid"])
+    for cell in data["cells"]:
+        identity = f"{cell['curve_uid']}.m16_full35840"
+        for name, key in fields.items():
+            emit(f"prym.width.967315.{identity}.{name}", cell[key],
+                 problem="ecdlp-prym-relations", unit="count", better="neutral",
+                 label=f"RUN-ECDLP-967315 fixture {identity}: {name}", source=f"{path}@{ref}")
+
+
 def funnel(ref, since):
     for date, commit, txt in file_history(ref, "coordination/portfolio_health/latest.json", since):
         try:
@@ -244,6 +321,8 @@ def main():
     census(a.ref, a.since)
     receipts(a.ref, a.since)
     runs(a.ref)
+    prym_census(a.ref)
+    prym_width(a.ref)
     funnel(a.ref, a.since)
     claims(a.ref)
 
