@@ -4,27 +4,20 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
   merge_group:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Keep the newest PR check instead of paying for obsolete queued revisions.
-# One run per pull request, and one for main. A newer push to a PR branch cancels
-# the run it supersedes. A push to main never cancels a run that is already
-# executing: GitHub keeps one running and one pending run per group, and a newer
-# push replaces only the pending one. Main used to key on run_id, so every merge
-# queued its own full validation and a busy day of merges held the account's
-# runners for hours; it then cancelled the running one on every merge, so during
-# a burst of merges (one a minute against a validation that takes longer) no
-# run of main ever finished. Only the newest main needs checking; main-health
-# also runs on each substantive main push.
+# PR revisions supersede earlier checks. A merged PR gets its own main-commit
+# check, so direct bot commits to main do not start this CI workflow.
 concurrency:
-  group: validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+  group: validate-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'merge_group' }}
 
 defaults:
   run:
@@ -48,7 +41,7 @@ env:
 
 jobs:
   changes:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -90,7 +83,7 @@ jobs:
   # PRs. Sparse is safe only for paths explicitly classified as documentation;
   # archive, record, code and unknown paths receive the full checkout.
   merge-hygiene:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -124,6 +117,7 @@ jobs:
   runtime-regressions:
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (!cancelled())
     env:
@@ -210,6 +204,7 @@ jobs:
   ledger:
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false'))
     runs-on: ubuntu-latest
@@ -304,6 +299,7 @@ jobs:
   static-checks:
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.static != 'false'))
     runs-on: ubuntu-latest
@@ -484,6 +480,7 @@ jobs:
   harness-tests:
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (always())
     name: harness-tests (${{ matrix.shard }}/4)
@@ -606,6 +603,7 @@ jobs:
   ledger-and-harness:
     needs: [changes, merge-hygiene, ledger, static-checks, harness-tests, runtime-regressions]
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (always())
     runs-on: ubuntu-latest
