@@ -2,14 +2,12 @@ name: validate
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   merge_group:
   workflow_dispatch:
-  schedule:
-    # Full software/corpus compatibility sweep, off the PR merge path.
-    - cron: "41 4 * * 1"
 
 permissions:
   contents: read
@@ -22,8 +20,8 @@ permissions:
 # queued its own full validation and a busy day of merges held the account's
 # runners for hours; it then cancelled the running one on every merge, so during
 # a burst of merges (one a minute against a validation that takes longer) no
-# run of main ever finished. Only the newest main needs checking, and
-# main-health sweeps it hourly regardless.
+# run of main ever finished. Only the newest main needs checking; main-health
+# also runs on each substantive main push.
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
@@ -206,7 +204,7 @@ jobs:
   # `ledger-and-harness` check name and passes only when every applicable part passed.
   # Documentation-only changes keep merge hygiene; corpus-only changes keep
   # the corpus validators. Code, tests, dependencies, instructions, workflows
-  # and unknown paths run the entire suite. A weekly/manual run is absolute.
+  # and unknown paths run the entire suite. A manual run is absolute.
   # Each component installs the dependencies its checker needs.
 
   ledger:
@@ -457,7 +455,7 @@ jobs:
           done
 
       # Corpus-only changes render only changed queues above. Full software
-      # and weekly/manual checks still exercise the live queue absolutely.
+      # and manual checks still exercise the live queue absolutely.
       - name: Validate live research dispatch queue
         if: needs.changes.outputs.tests == 'true'
         run: |
