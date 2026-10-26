@@ -755,3 +755,26 @@ def test_cli_help_states_session_only_scope():
                  "--policy", "--role", "--task-id", "--receipt",
                  "--independent-session", "--timeout-seconds", "--backend"):
         assert flag in result.stdout
+
+def test_state_lookup_reads_new_session_from_uncheckpointed_wal(tmp_path):
+    state_db = tmp_path / "state.sqlite"
+    writer = sqlite3.connect(state_db)
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("""CREATE TABLE threads (
+            id TEXT, rollout_path TEXT, cwd TEXT, source TEXT, model TEXT,
+            reasoning_effort TEXT, model_provider TEXT, cli_version TEXT,
+            created_at TEXT, updated_at TEXT)""")
+        writer.execute("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (THREAD_ID, "sessions/probe.jsonl", str(tmp_path), "exec",
+                        "gpt-5.6-sol", "high", "openai", "0.155.1",
+                        _iso(2.1), _iso(2.6)))
+        writer.commit()
+        assert Path(str(state_db) + "-wal").stat().st_size > 0
+        row = codex_runtime._query_state_row(state_db, THREAD_ID)
+        assert row["id"] == THREAD_ID
+        assert row["model"] == "gpt-5.6-sol"
+        assert row["reasoning_effort"] == "high"
+    finally:
+        writer.close()
