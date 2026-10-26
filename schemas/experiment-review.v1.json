@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experiment.review/v1",
+  "title": "Experiment review v1",
+  "description": "A write-once record one runner files about another runner's experiment.export/v1 bundle: what was checked, what was observed, what the reviewer judges, and what stays open. It changes no research status; the owning repository's review gate (review-evidence, the validation gate, a PR review) decides what follows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review_id", "created", "export", "protocol_sha256", "reviewer", "checks", "replay", "observations", "judgments", "open_questions", "recommendation", "asserts_nothing_about"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$"}
+  },
+  "properties": {
+    "schema": {"const": "experiment.review/v1"},
+    "review_id": {"type": "string", "pattern": "^REV-[0-9]{8}T[0-9]{4,6}Z-[0-9a-f]{6}$"},
+    "created": {"type": "string", "minLength": 10},
+    "export": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "export_id"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "export_id": {"$ref": "#/$defs/id"}}
+    },
+    "protocol_sha256": {"$ref": "#/$defs/sha256"},
+    "reviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime", "model", "session", "role", "independence"],
+      "properties": {
+        "runtime": {"type": ["string", "null"]},
+        "model": {"type": ["string", "null"]},
+        "session": {"type": ["string", "null"]},
+        "role": {"enum": ["validator", "red-team", "reviewer", "sheriff", "human", "other"]},
+        "independence": {
+          "type": "object", "additionalProperties": false,
+          "required": ["same_session_as_producer", "same_host_class", "shares_code_with_producer", "declared_conflicts"],
+          "properties": {
+            "same_session_as_producer": {"const": false},
+            "same_host_class": {"type": ["boolean", "null"]},
+            "shares_code_with_producer": {"type": "boolean", "description": "True when the replay used the producer's binary; an independent implementation sets false."},
+            "declared_conflicts": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "result", "detail"],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "kind": {"enum": ["hashes", "protocol_adherence", "controls", "replay", "recompute", "statistics", "scope", "provenance", "blinding", "measurement_validity"]},
+          "result": {"enum": ["pass", "fail", "not_covered"]},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "replay": {
+      "type": "object", "additionalProperties": false,
+      "required": ["performed", "method", "units_sampled", "nonce", "identical", "mismatched", "miss_probability"],
+      "properties": {
+        "performed": {"type": "boolean"},
+        "method": {"type": ["string", "null"]},
+        "units_sampled": {"type": "integer", "minimum": 0},
+        "nonce": {"type": ["string", "null"], "description": "Fresh randomness drawn after the export was published; never derived from the export alone."},
+        "identical": {"type": "integer", "minimum": 0},
+        "mismatched": {"type": "integer", "minimum": 0},
+        "miss_probability": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": {"type": "number"},
+                             "description": "P(fabrication at rate f escapes the sample) = (1-f)^k, keyed by f."}]}
+      }
+    },
+    "observations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "judgments": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["claim_id", "verdict", "basis"],
+        "properties": {
+          "claim_id": {"$ref": "#/$defs/id"},
+          "verdict": {"enum": ["supported_within_scope", "within_control_distribution", "more_extreme_than_controls", "not_established", "invalid_measurement", "positive_control_failed", "inconclusive", "refuted_within_scope"]},
+          "basis": {"type": "string", "minLength": 1},
+          "effect_size": {"type": ["string", "null"]},
+          "scope": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "open_questions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "recommendation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action", "reason"],
+      "properties": {
+        "action": {"enum": ["replicate", "expand", "respecify", "rerun_after_infrastructure_fix", "no_action", "escalate"]},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "asserts_nothing_about": {"type": "array", "minItems": 1, "items": {"type": "string"}, "contains": {"const": "official research status"}},
+    "supersedes": {"type": ["string", "null"]}
+  }
+}
