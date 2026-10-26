@@ -7,10 +7,10 @@ description: >-
   claim-changing validation goes to `validator`. Never changes research
   status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
-model: claude-fable-5-1
+model: claude-opus-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> validator-breakthrough
 # -> model-bindings.yaml anthropic binding of review-breakthrough (Claude
-# Fable 5.1). Edit the binding, never this line; tools/check_runtime_bindings.py
+# Opus 5.5). Edit the binding, never this line; tools/check_runtime_bindings.py
 # fails the build when they disagree.
 # Policy-tier variant of `validator` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
