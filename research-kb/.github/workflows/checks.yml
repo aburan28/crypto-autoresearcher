@@ -1,0 +1,40 @@
+name: checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  python-and-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,index,pdf]'
+      - run: pytest -q
+      - run: ruff check src/research_kb tests
+      - run: ruff format --check src/research_kb tests
+      - run: docker build -t research-kb:ci .
+      - run: docker run --rm research-kb:ci --help
+  lean-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          curl -fsSL https://raw.githubusercontent.com/leanprover/elan/v4.1.2/elan-init.sh | sh -s -- -y --default-toolchain leanprover/lean4:v4.19.0
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - run: python -m pip install -e '.[dev,index,pdf]'
+      - run: pytest tests/test_lean_audit.py -q
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - run: terraform fmt -check -recursive infra/aws
+      - run: terraform -chdir=infra/aws init -backend=false -input=false
+      - run: terraform -chdir=infra/aws validate

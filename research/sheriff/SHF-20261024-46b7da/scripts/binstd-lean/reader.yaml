@@ -1,0 +1,161 @@
+joint: B3
+reader:
+  role: validator
+  model: "GPT-6 (exact serving identifier not exposed to reader)"
+  session: sheriff_b3
+  independence: "Did not produce the audited theorem, finding, or runs."
+prior: >-
+  Expected the Lean theorem to be a conditional combinatorial ceiling and the
+  finding to risk broadening it to measured yield; checked whether its premises
+  were satisfiable and whether it certified the archived counts.
+source_revision: 4647b1d072ffaebbbb85127bdc60343bbd372ec4
+formal_tree: 0dd2764cff0c0ec05c4938f12b334ec60376d9ff
+blind_from:
+  - "Root agent's scratch notes and receipts: never read."
+  - "Prior sheriff cases: never read."
+  - "Producer verification receipt: not read until after initial source/theorem judgment."
+blindness_lifted_for:
+  - "Receipt hashes and pinned machine-verification claim only."
+sources_read:
+  - AGENTS.md
+  - .claude/skills/sheriff/SKILL.md
+  - docs/sheriff.md
+  - docs/formal-research-lane.md
+  - knowledge/findings/KN-FIND-48f0ae.md
+  - formal/targets/binstd-yield-ceiling.yaml
+  - formal/CryptoResearch/Binstd/YieldCeiling.lean
+  - formal/targets/binstd-x17-factorization.yaml
+  - formal/CryptoResearch/Binstd/Factorization.lean
+  - experiments/EXP-BINSTD-8bdf86/stage1-ell89/yield-matrix.json
+  - experiments/EXP-BINSTD-8bdf86/stage1-ell89r1/yield-matrix.json
+  - experiments/EXP-BINSTD-8bdf86/stage1-ell89/admissible-phi-dims.json
+  - experiments/EXP-BINSTD-8bdf86/stage1-ell89r1/admissible-phi-dims.json
+  - experiments/EXP-BINSTD-8bdf86/runs/RUN-BINSTD-43abd4/raw-result.json
+  - experiments/EXP-BINSTD-8bdf86/runs/RUN-BINSTD-a2a24c/raw-result.json
+  - experiments/EXP-BINSTD-8bdf86/runs/RUN-BINSTD-43abd4/manifest_v2.yaml
+  - experiments/EXP-BINSTD-8bdf86/runs/RUN-BINSTD-a2a24c/manifest_v2.yaml
+  - experiments/EXP-BINSTD-8bdf86/implementation/run.py
+  - experiments/EXP-BINSTD-8bdf86/specification-ell89.yaml
+  - experiments/EXP-BINSTD-8bdf86/specification-ell89r1.yaml
+  - experiments/EXP-BINSTD-8bdf86/stage0-ell89/preregistered-predictions.json
+  - experiments/EXP-BINSTD-8bdf86/stage0-ell89r1/preregistered-predictions.json
+  - research/binstd_yield_ceiling_20261022/verification.json
+artifact_root: /home/ec2-user/scratch/validation-continuation-20261023/sheriff_b3_binstd
+checks:
+  - id: pinning
+    command: "git rev-parse origin/main:formal; git rev-parse HEAD:formal in preflight checkout; sha256sum theorem/toolchain/manifest"
+    output_path: pinning.out
+    result: pass
+    observed: >-
+      Both formal tree IDs 0dd2764cff0c0ec05c4938f12b334ec60376d9ff.
+      Target source/toolchain/manifest SHA-256s c76fc9b9, 5699bbbd, 3adfcdc0
+      match the committed verification receipt; working files are clean.
+  - id: a_statement
+    command: "Clause-by-clause comparison of finding and target with saturated_open_below_band theorem."
+    output_path: fidelity.md
+    result: pass_scoped
+    observed: >-
+      Nat targets, tauHits, openHits; forall values satisfying positive targets,
+      openHits=targets, tauHits<=targets; conclusion 4*tauHits<5*openHits.
+      With openHits>0 this is exactly ratio<5/4. The theorem does not prove
+      open-arm saturation or runner correctness, and the prose says so.
+  - id: b_hypotheses
+    command: "lake env lean positive.lean"
+    output_path: positive.out
+    exit_path: positive.exit
+    result: pass
+    observed: >-
+      Concrete witness targets=40, tauHits=40, openHits=40 satisfies all
+      hypotheses and yields 160<200. Hypotheses are jointly satisfiable.
+  - id: c_definitions
+    command: "Read Lean definitions and run.py measure_yield_cell; compare exact rational rate ratio with cross multiplication."
+    output_path: rederive.out
+    result: pass_scoped
+    observed: >-
+      Ceiling theorem introduces no custom definitions. Runner counts each
+      target's Boolean m3_decomposes result once per arm, then divides both
+      counts by the same target_count; for positive openHits the ratio is
+      tauHits/openHits. Exact fractions and threshold are equivalent to the
+      theorem's integer inequality. No Lean definition of EC arithmetic is claimed.
+  - id: d_data
+    command: "python3 rederive.py"
+    output_path: rederive.out
+    result: pass_for_recorded_data
+    observed: >-
+      SHA-256s of both yield matrices match raw-result references. Four
+      (tau,open,target) triples are (16,40,40), (40,40,40), (20,40,40),
+      (40,40,40), yielding 2/5, 1, 1/2, 1. Constants match Lean, and both
+      frozen Stage-0 preregistrations specify band 1.25 and minimum 40 targets.
+  - id: e_scope
+    command: "Compare finding heading, Ceiling interpretation, Lean boundary, Limits and target notes."
+    output_path: fidelity.md
+    result: pass_scoped
+    observed: >-
+      Claim is toy n=17, ell 8/9, exhaustive m=3 pin and observed open saturation.
+      Finding explicitly denies runner certification, EC oracle, larger-field
+      transfer, Stage 2, and rho/break claims; proof_status stays empirical_only.
+  - id: blind_rederivation
+    command: "python3 rederive.py"
+    output_path: rederive.out
+    result: pass
+    observed: >-
+      Starting only from N>0, open=N and 0<=tau<=N, derive
+      4*tau<=4*N<5*N=5*open. All 860 finite witness pairs for N=1..40 pass.
+  - id: negative_control
+    command: "lake env lean negative.lean"
+    output_path: negative.out
+    exit_path: negative.exit
+    result: expected_failure
+    observed: >-
+      Changing the first coefficient from 4 to 5 makes the claim false at
+      tau=open=targets=40. Lean exits 1: omega could not prove goal and reports
+      a possible counterexample.
+  - id: exact_axioms
+    command: "lake env lean positive.lean (#print axioms both ceiling theorems)"
+    output_path: positive.out
+    exit_path: positive.exit
+    result: pass
+    observed: "Both theorems depend only on [propext, Quot.sound]."
+  - id: full_build
+    command: "lake build from exact formal tree, pinned Lean 4.35.0-rc1"
+    output_path: build.out
+    exit_path: build.exit
+    result: pass
+    observed: "Build completed successfully (8976 jobs); process exit 0."
+  - id: project_axioms
+    command: "lake env lean AxiomAudit.lean"
+    output_path: project-audit-observation.txt
+    result: pass
+    observed: "Exit 0; 656 theorem(s), all standard axioms only. Output path is a verbatim transcription of the tool result."
+  - id: forbidden_constructs
+    command: "rg scan for holes, custom axioms, unsafe, native_decide, ofReduceBool, trustCompiler, implemented_by, extern, skipKernelTC and #exit in both files."
+    output_path: forbidden.out
+    result: pass
+    observed: "No matches."
+  - id: secondary_factorization
+    command: "python3 rederive.py; lake env lean factor.lean"
+    output_path: factor.out
+    exit_path: factor.exit
+    result: pass_scoped
+    observed: >-
+      The archived factors [3,313,471] carrylessly multiply to 131073 =
+      X^17+1 over F2. The theorem's exact axioms are [propext,
+      Classical.choice, Quot.sound]. This proves product identity only.
+findings: []
+suggested_verdicts:
+  - claim: "Conditional BINSTD 1.25 ceiling theorem"
+    verdict: upheld_scoped
+    scoped_to: "For N>0, openHits=N and tauHits<=N, 4*tauHits<5*openHits."
+  - claim: "All four archived open arms reached 40/40"
+    verdict: not_covered
+    scoped_to: >-
+      B3 verifies recorded JSON values and their hash references, not
+      independently the EC computation or target-level raw observations.
+  - claim: "BINSTD x17 polynomial product"
+    verdict: upheld_scoped
+    scoped_to: "Product identity in (ZMod 2)[X]; no irreducibility or invariant-subspace classification."
+not_covered:
+  - "No independent EC arithmetic oracle or per-target archived hit log; defer run validity to B6/B7."
+  - "Execution proof of archived observations does not exist in this B3 check."
+  - "Official formal-lane semantic_review status remains pending; this reader does not change repository state."
+  - "tools/verify_formal_targets.py not rerun on full published-main checkout while materialization is in progress."

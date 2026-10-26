@@ -300,15 +300,18 @@ def _joint_label(name: str) -> str:
 
 
 def _joint_name(entry: dict) -> str:
-    """A plan joint's label under either spelling.
+    """Use an explicit joint ID for matching, retaining legacy joint-only plans.
 
-    The ICPERF plans name a joint `joint:` and its owner `assigned_to:`; the
-    SEMBIN plans name them `id:` and `owner:`. Both are committed and immutable,
-    so the tool reads both rather than holding one round to the other's keys --
-    an addendum that matched only `joint` silently reassigned nothing on a plan
-    written with `id`.
+    A plan may carry both an ID such as P3 and a full-sentence ``joint``
+    statement. The ID is the reviewer's attested label; the statement remains
+    in the plan for the attack and breaking-artifact obligations. An explicit
+    malformed ID must not silently fall back to the statement: ``check``
+    reports it as a plan defect.
     """
-    return str(entry.get("joint") or entry.get("id") or "")
+    if "id" in entry:
+        identifier = entry["id"]
+        return identifier.strip() if isinstance(identifier, str) else ""
+    return str(entry.get("joint") or "")
 
 
 def _owner_key(entry: dict) -> str:
@@ -855,6 +858,8 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         if not isinstance(entry, dict):
             problems.append(f"review_plan.joints[{index}] must be a mapping")
             continue
+        if "id" in entry and (not isinstance(entry["id"], str) or not entry["id"].strip()):
+            problems.append(f"review_plan.joints[{index}].id must be a nonempty string")
         name = _joint_name(entry).strip() or f"joints[{index}]"
         owner = _joint_owner(entry)
         if not owner:
