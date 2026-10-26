@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** coordinator; blind mathematical derivation TASK-20261024-da3810 completed, optimized construction and full cost experiment remain open
+- **Next action owner:** Coordinator task TASK-20261025-b7e32e in disjoint BATCH-3cfef2; prepare the exact weighted joint applicability and experiment-contract preview, with no scientific execution
 - **Last updated:** 2026-10-25
 
 ## Problem
@@ -97,9 +97,10 @@ moves.
   requires an additive correction before any benchmark. A feasible optimized
   construction motivates a frozen recovery test. An unavailable theorem or
   tool remains an implementation/access gap, not negative mathematical evidence.
-- **Recheck trigger:** a lawful design lane and verified independent Coordinator
-  runtime; a checked applicable weighted joint shift construction/root-extraction
-  implementation; completion of current-head hosted merge checks.
+- **Recheck trigger:** completion and verified archival of the published zero-run
+  design task TASK-20261025-b7e32e; a checked applicable weighted joint shift
+  construction/root-extraction implementation; owner-first shared artifact-tool
+  parity and completion of current-head hosted merge checks.
 
 ## Resolution and history
 
@@ -139,3 +140,24 @@ with a read-only filesystem error, as recorded in the
 [operational follow-up](../research/joint_smallroot_reach_20261024/readiness-20261025/operational-followup.md).
 Two newly inherited main workflows also needed the existing draft-tier guards;
 the local checker now reports zero uncovered workflows.
+
+2026-10-25 coordination correction: the failed nested CLI did not establish
+that the authenticated managed native Coordinator was unavailable. The
+repository's documented native runtime alternative is now in use, with actual
+model selection and authentication provenance recorded without claiming an API
+catalog probe or an unrelated CLI receipt. Two open lanes also did not establish
+two active workers: the inspected producer claims have completed releases.
+After full history and historical blobs were fetched, targeted health reports
+the old PFDR archive task ready; its earlier missing-artifact report was not
+proved queue corruption. No existing lane was closed or taken over.
+
+The new disjoint zero-run design lane BATCH-3cfef2 is registered and
+TASK-20261025-b7e32e is published and claimed in
+[PR #2557](https://github.com/aburan28/crypto-autoresearcher/pull/2557), under
+DEC-20261025-fe4f22. It specifies the first joint workload and applicability
+obligations prospectively. It does not approve a scientific trial or resolve the
+optimized oracle and matched IC comparison gaps. The audit PR additionally
+needs the artifact-tool fix to land in its owning `crypto` repository and mirror
+consistently; the exact patch is prepared, but the owner workflow's Conductor
+tool is absent here and no owner code was edited. See the
+[operational correction](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/additive-operational-correction.md).
