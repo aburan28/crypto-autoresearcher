@@ -30,13 +30,15 @@ What this module establishes, and how
   D_5 permutes F_p (the "permutation polynomial" of the family's origin) and
   f has exactly ONE rational root for every t.  The criterion is compared
   with direct root counting on every member.
-* **#J for every member, exactly.**  N1 = #C(F_p) and N2 = #C(F_{p^2}) for
+* **#J for every member, from checked rounded FFT counts.**  N1 = #C(F_p) and N2 = #C(F_{p^2}) for
   ALL t at once: the values g(x), x in F_{p^2}, are binned by (Re, nr*Im^2),
   and sum_x chi(N(g(x) + t)) becomes a sum over bins of a cross-correlation in
   t, done by FFT (floating point, rounded; an ArithmeticError is raised
   if any value is more than 1e-3 from an integer).  #J = (N1^2 + N2)/2 - p, the twist's with -a1.
   Spot-checked against ``genus2.jacobian_order`` (pure brute force) and
-  against PARI's ``hyperellcharpoly`` when cypari2 is installed.
+  against PARI's ``hyperellcharpoly`` when cypari2 is installed. The residual
+  guard does not itself prove that every rounded value is the true integer;
+  see ``problems/rm-kummer-fft-counts-unverified.md``.
 * **The RM is real (measured on every member).**  The characteristic
   polynomial T^4 - s1 T^3 + s2 T^2 - p s1 T + p^2 factors as
   (T^2 - aT + p)(T^2 - a'T + p) with a, a' conjugate in Z[(1+sqrt5)/2] iff
@@ -121,9 +123,11 @@ def _correlate_sum(H: np.ndarray, Gm: np.ndarray, p: int) -> np.ndarray:
     FG = np.fft.rfft(Gm.astype(np.float64), axis=0)
     spec = np.sum(np.conj(FH) * FG, axis=1)
     S = np.fft.irfft(spec, n=p)
+    if not np.all(np.isfinite(S)):
+        raise ArithmeticError(f"non-finite FFT correlation at p = {p}")
     Sr = np.rint(S)
     err = float(np.max(np.abs(S - Sr))) if p else 0.0
-    if err > 1e-6 * max(1.0, float(np.max(np.abs(S)))) and err > 1e-3:
+    if err > 1e-3:
         raise ArithmeticError(f"FFT rounding error {err} at p = {p}")
     return Sr.astype(np.int64)
 
@@ -639,7 +643,8 @@ def markdown(r: dict) -> str:
     rm, ctl, sc = r["rm"], r["control"], r["split_control"]
     L = ["# RM family on fast Kummer surfaces: survey", "",
          f"Primes {r['range'][0]} < p < {r['range'][1]}, seed {r['seed']}, {r['elapsed_s']} s.  "
-         "All counts are exact (FFT point counts, rounded and checked); every figure here is measured.", "",
+         "Point counts use rounded FFT sums with a 1e-3 residual guard; all-member exact replay is open. "
+         "Every figure here is computed from this run.", "",
          "| | RM family D_5 + t | control A: g + t, g random | control B: random split f |",
          "|:--|--:|--:|--:|"]
     rows = [("primes p = +-1 (mod 5)", "primes", "primes"),
