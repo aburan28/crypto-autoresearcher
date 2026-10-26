@@ -11,8 +11,9 @@ been created. Seven source packages remain prepared; F1 is partial. The user
 replied “Go” to the pending S3 disclosure question; consent for this second-pass
 checkpoint scope is supplied. It is no longer an approval blocker. The actual
 canonical gate then reached authentication and refused because no supported
-upload credential was configured. See environment/checkpoint-gate-03/result.json
-and the newer gate receipt if present. A local preview or unit test is never
+upload credential was configured. The final repaired-code attempt at
+environment/checkpoint-gate-04/result.json also exited1 at authentication,
+with no upload or .last-push receipt. A local preview or unit test is never
 a successful S3 gate.
 
 The checkpoint portability repair and subsequent stat/cache error-propagation
