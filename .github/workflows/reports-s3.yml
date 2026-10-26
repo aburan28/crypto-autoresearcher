@@ -25,30 +25,21 @@ on:
     paths:
       - 'experiments/*/reports/**'
       - 'research/**/*.pdf'
+      - 'research/**/.artifacts.json'
       - 'docs/reports/**'
       - '.github/workflows/reports-s3.yml'
   workflow_dispatch:
-    inputs:
-      storage_probe:
-        description: Test the Prym canonical store route only; skip report uploads
-        type: boolean
-        default: false
-      expected_source_sha:
-        description: Exact published feature commit required for the storage probe
-        type: string
-        default: ''
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: ${{ inputs.storage_probe && 'prym-width-storage-probe' || 'reports-s3' }}
+  group: reports-s3
   cancel-in-progress: false
 
 jobs:
   upload:
-    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.storage_probe }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -80,8 +71,10 @@ jobs:
             /.artifacts/
             /experiments/*/reports/
             /research/**/*.pdf
+            /research/**/.artifacts.json
             /docs/reports/
             /tools/artifacts/
+            /tools/report_publication_files.py
       - uses: aws-actions/configure-aws-credentials@v4
         if: steps.creds.outputs.mode == 'role'
         with:
@@ -101,7 +94,9 @@ jobs:
           ARTIFACTS_REMOTE: s3://setec-astronomy-artifacts/store
           AWS_REGION: us-east-2
           AWS_DEFAULT_REGION: us-east-2
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research
+        run: |
+          python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research docs/reports
+          python3 tools/artifacts/artifacts.py verify experiments research docs/reports
 
       - name: Upload this push's reports
         if: steps.creds.outputs.mode != 'none'
@@ -109,7 +104,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          specs=(':(glob)experiments/*/reports/**' ':(glob)research/**/*.pdf' ':(glob)docs/reports/**')
+          specs=(':(glob)experiments/*/reports/**' ':(glob)research/**/*.pdf' ':(glob)research/**/.artifacts.json' ':(glob)docs/reports/**')
           # A push lists what it added or changed; a manual run, a new branch
           # or an unreachable "before" commit lists every report on main.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "${BEFORE:-}" ] \
@@ -118,6 +113,9 @@ jobs:
           else
             git ls-files -z -- "${specs[@]}" > files.z
           fi
+          # Expand changed manifests to verified logical report files after
+          # hydration. Only this workflow publishes under the reports prefix.
+          python3 tools/report_publication_files.py --files files.z
           : > manifest.jsonl
           echo "### Reports uploaded to s3://$BUCKET/$PREFIX/" >> "$GITHUB_STEP_SUMMARY"
           while IFS= read -r -d '' f; do
@@ -139,74 +137,3 @@ jobs:
             aws s3 cp --only-show-errors manifest.json "s3://$BUCKET/$PREFIX/_manifests/$GITHUB_SHA.json"
           fi
           echo "$n report file(s) uploaded to s3://$BUCKET/$PREFIX/" | tee -a "$GITHUB_STEP_SUMMARY"
-
-  prym-width-storage-probe:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.storage_probe }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      AWS_REGION: us-east-2
-      AWS_DEFAULT_REGION: us-east-2
-      ARTIFACTS_REMOTE: s3://setec-astronomy-artifacts/store
-      ROLE_ARN: ${{ vars.REPORTS_S3_ROLE_ARN }}
-      KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
-      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
-    steps:
-      - name: Require exact published probe source
-        run: |
-          test -n "$EXPECTED_SOURCE_SHA"
-          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
-      - name: Select existing store identity
-        id: creds
-        run: |
-          if [ -n "$ROLE_ARN" ]; then mode=role
-          elif [ -n "$KEY_ID" ]; then mode=keys
-          else echo "No configured canonical store identity" >&2; exit 2
-          fi
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /.artifacts/
-            /tools/
-            /orchestration/
-            /src/
-            /coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/ci-storage-probe/
-            /research/prym_factor_base_width_20261025/
-            /research/prym_rank_census_20261025/
-            /research/prym_experiment_design_20261019/implementation/
-            /experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/
-            /experiments/EXP-ECDLP-d6d8e8/artifact-deliveries/RUN-ECDLP-ea49a6/
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12.14'
-      - name: Install probe dependencies
-        run: python3 -m pip install PyYAML==6.0.3 reportlab==4.4.9 jsonschema==4.26.0 awscli==1.46.2
-      - uses: aws-actions/configure-aws-credentials@v4
-        if: steps.creds.outputs.mode == 'role'
-        with:
-          role-to-assume: ${{ env.ROLE_ARN }}
-          aws-region: us-east-2
-      - uses: aws-actions/configure-aws-credentials@v4
-        if: steps.creds.outputs.mode == 'keys'
-        with:
-          aws-access-key-id: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - name: Probe canonical storage and hydrate two prior objects
-        run: >-
-          python3 coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/ci-storage-probe/run_probe.py
-          --expected-source-sha "$EXPECTED_SOURCE_SHA"
-          --output-dir "$RUNNER_TEMP/prym-width-storage-proof"
-      - name: Retain safe probe proof and compressed public research objects
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: prym-width-storage-proof-${{ github.run_id }}
-          path: ${{ runner.temp }}/prym-width-storage-proof/
-          if-no-files-found: warn
-          retention-days: 7
