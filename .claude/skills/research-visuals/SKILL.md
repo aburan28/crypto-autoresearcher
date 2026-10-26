@@ -166,7 +166,7 @@ The labelling rule in "Deliverables for each search round" still applies:
   immutable run receipt or historical report to make a graph appear current.
 - Distinguish proposed, literature-reported, independently checked, and
   measured items visually. An isogeny class sketch does not prove a map;
-  similarly a scalar identity tested on toy curves is not a universal rule.
+  similarly a scalar identity tested on selected curve instances is not a universal rule.
   Do not infer exact curve identity from field degree or a short alias.
 - If no graphable finding survives, record the negative or inconclusive result
   and list the graphs checked. Still provide the search report, diagram, and
