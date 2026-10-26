@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Executor completes source execution-proof and a guard-qualified runnable protocol after the bounded Coordinator revision; compatible host information is required separately from research authorization
+- **Next action owner:** Executor completes source execution-proof and a guard-qualified runnable protocol after the bounded Coordinator revision; the managed Docker runtime now offers a candidate private delegation, whose qualification is required separately from research authorization
 - **Last updated:** 2026-10-26
 
 ## Problem
@@ -249,3 +249,23 @@ ruleset lacks required-status-check rules, so auto-merge is held to preserve
 the repository's stronger all-applicable-checks contract; no financial or
 branch-protection setting was changed. The original goal remains active and
 unfulfilled; no verified IC improvement or mathematical impossibility follows.
+
+2026-10-26 CPU-accounting and runtime continuation: the published source-only
+continuation DEC-20261026-45aec1 fixes CPU receipt units/coverage under a fresh
+Executor/snapshot/Reviewer/Coordinator chain, preserving the completed queue and
+checkpoint. No scientific case is authorized by it. Owner head27fca7749 currently
+fails Rust library compilation in an unchanged upstream file; the exact retained
+[attempt7 log](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-45aec1/operations/upstream-cargo-attempt7.log) is not relabelled a pass.
+
+The managed local Docker daemon provides a candidate route around the outer
+read-only cgroup mount: an ephemeral private privileged container successfully
+created a delegated subtree and wrote/read the exact8GiB child memory limit.
+The ordinary container remained read-only despite a misleading test-w result.
+The [runtime observation](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-45aec1/operations/docker-cgroup-readiness.json)
+records both outcomes. This resolves neither guard qualification nor scientific
+readiness: actual stopped-child placement, full-tree cleanup, the unchanged1800s
+watchdog, serial admission, OOM enforcement, failure retention, native runtime
+compatibility and effective ancestor headroom remain to be tested prospectively.
+No additional external host is assumed necessary until this supported local
+runtime is assessed. Existing research authorization persists; there is still
+no reach-cost measurement or verified IC gain.
