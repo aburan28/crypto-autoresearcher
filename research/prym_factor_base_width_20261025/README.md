@@ -1,3 +1,11 @@
+# Current checked state — 2026-10-26
+
+The fixed m16 census is complete: **4,587,520 new attempts**. B13 recorded 97 rows and rank 13/U=15; B16 recorded 67 rows and rank 9/U=15. The archived m8 reference was not newly run. Native and fresh independent full-stream checks passed; the prospective sealed-review gate and protocol companion both passed. See the [run report](../../experiments/EXP-ECDLP-a9b6a5/reports/run-20261026T0559Z/report.md), [independent review](../../experiments/EXP-ECDLP-a9b6a5/reviews/TASK-20261025-2fe077/report.md) and [Coordinator decision report](../../experiments/EXP-ECDLP-a9b6a5/reports/review-DEC-20261026-83e304/report.md).
+
+Actual execution source is `9b101900b8b5c0450d7aaa4f5b5131e40bede87f`; the frozen source manifest remains historical and must not be rebound after data. Metadata below describing unpublished engineering, zero target calls and future probes/runs records the earlier preparation state. It is preserved as written. No target-recovery, speedup, complete-S or general rank obstruction claim is established; no goal/hypothesis state changed.
+
+## Historical engineering record
+
 # Factor-base width engineering draft
 
 This directory implements the local engineering handoff

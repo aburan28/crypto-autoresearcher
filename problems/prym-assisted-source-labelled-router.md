@@ -3,7 +3,7 @@
 - **Status:** `open`
 - **Kind:** missing construction, implementation and comparative measurement;
   a scoped prior algebraic argument is linked, not a universal obstruction
-- **Affected work:** [issue #2414](https://github.com/aburan28/crypto-autoresearcher/issues/2414),
+- **Affected work:** [issue #2414](https://github.com/isogeny-labs/crypto-autoresearcher/issues/2414),
   [IDEA-20260909-4c5ee9](../ledger/proposals/IDEA-20260909-4c5ee9.yaml),
   [ECDLP-IDEA-002](../ideas/ECDLP-IDEA-002_split_jacobian_projected_smoothness_hypothesis.md),
   [the follow-up](../research/prym_relation_followup_20261019/README.md),
@@ -11,6 +11,16 @@
   design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
 - **Last updated:** 2026-10-26
+
+## Current checked state — 2026-10-26
+
+The m16 follow-up [EXP-ECDLP-a9b6a5](../experiments/EXP-ECDLP-a9b6a5/specification.yaml) / RUN-ECDLP-967315 completed exactly **4,587,520 new attempts**. On the same p=4099, A=2, B=13/16 cases and64 public sources, B13 recorded 97 rows, rank 13/U=15 and nullity 2; B16 recorded 67 rows, rank 9/U=15 and nullity 6. The m8 reference has zero rows/rank 0/U=7 on both cases; no new m8 scientific trial ran. Selection was conditioned on those known m8 zeros, and width changes support and unknown columns together.
+
+The fresh [independent review](../experiments/EXP-ECDLP-a9b6a5/reviews/TASK-20261025-2fe077/report.md) reproduced every new status and all 164 principal/E1/E2/transported witnesses, then separately validated 458,752 archived m8 descriptors. Its four joints hold;19 mathematical false copies and 4 pointer copies reject. The [actual separate-actor formal gates](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/final/review-gates.json) both return0 under the prospectively recorded sealed plan. The prior historical review still fails its original gate; its missing exact first-unblind timestamp is not reconstructed or waived.
+
+Local canonical writer/readback and old-object hydration passed through the user-authorized temporary private process; actual run storage/export custody is retained. The temporary credential broker is closed. The prior queued CI/access states below are historical; the replacement probe later completed successfully. Current execution source is 9b1019, not newer main. DEC-20261026-83e304 accepts only observation completion and this new review round, with no H/goal promotion.
+
+The problem remains open: target Q/descent, a distinct useful public router and matched complete costs are unmeasured. Rank deficiency does not rule out a particular future target functional: on consistentMz=b, v·z is determined by these equations iff v annihilates ker M. Next rank residual-kernel/constructor diagnosis and a separately frozen target-row span question; no new experiment is authorized here. [Decision report](../experiments/EXP-ECDLP-a9b6a5/reports/review-DEC-20261026-83e304/report.md). Earlier dated states are retained below with their original scope.
 
 ## Problem
 
