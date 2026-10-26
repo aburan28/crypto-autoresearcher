@@ -59,6 +59,17 @@ This certifies the finite *encoded* computation. It does not prove that the
 XOR reduction implements Euclidean remainder in `(ZMod 2)[X]` or connect the
 masks to the polynomial declarations in `Factorization.lean`.
 
+A separate [set-polynomial Rabin check](rabin.py) uses symmetric-difference
+coefficients, repeated Frobenius squaring and polynomial GCD rather than the
+bitmask trial loop. For each of the three archived masks,
+`X^(2^degree) mod f = X` and the GCD at every prime divisor of its degree is
+one. The reducible controls `X^17+1` and `X^8+1` are rejected. The
+[Rabin receipt](rabin-evidence.json) records each residue and GCD and binds
+the input and checker SHA-256 values. The criterion follows
+[Rabin's original paper](https://epubs.siam.org/doi/10.1137/0209024), as
+stated in the [FLINT documentation](https://flintlib.org/doc/gr_poly/gr_poly_is_irreducible.html).
+This is a distinct finite algebra check, not the missing Lean bridge.
+
 ## Observations
 
 | Archived cell | Tau hits / misses | Open hits / misses | Independently checked triple witnesses |

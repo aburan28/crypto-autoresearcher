@@ -42,6 +42,8 @@ degree-eight factors are irreducible, and their product is `X^17+1`. This is
 computed evidence. A new Lean theorem also kernel-checks the 510/30/30 exact
 *bitmask* divisor trials using `decide`; its axiom audit lists only `propext`.
 It does not yet prove polynomial irreducibility.
+A separate set-polynomial Rabin test obtains Frobenius residue `X` and GCD `1`
+for all three masks; reducible `X^17+1` and `X^8+1` controls fail.
 
 == Boundary and next check
 
@@ -52,6 +54,7 @@ is also not formalized. Obtain the original trace or execution proof; then
 prove that the encoded remainder agrees with `(ZMod 2)[X]`, identify the
 archived masks with the polynomial factors, and prove the Frobenius bridge.
 
-_Source: `research/binstd_end_to_end_20261026/REPORT.md`, `evidence.json`,
+Source: `research/binstd_end_to_end_20261026/REPORT.md`, `evidence.json`,
 `formal/CryptoResearch/Binstd/EncodedDivisors.lean`, and
-SEC 1 v2 §2.2.2 (https://www.secg.org/sec1-v2.pdf)._
+SEC 1 v2 §2.2.2 (https://www.secg.org/sec1-v2.pdf). Rabin's criterion:
+https://doi.org/10.1137/0209024.
