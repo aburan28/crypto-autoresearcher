@@ -1,14 +1,14 @@
-# GitHub Actions jobs remain queued without runner assignment
+# GitHub Actions jobs queue or fail before runner assignment
 
 - **Status:** `open`
-- **Kind:** recurrent infrastructure scheduling delay; original cause unknown.
+- **Kind:** recurrent runner-assignment obstruction; the causes of the queued jobs and later pre-run failure are unknown.
 - **Affected work:** [PR #2395](https://github.com/aburan28/crypto-autoresearcher/pull/2395), [PR #2396](https://github.com/aburan28/crypto-autoresearcher/pull/2396), [validation PR #2453](https://github.com/aburan28/crypto-autoresearcher/pull/2453), the required [progress-fidelity gate](../docs/progress-fidelity.md), and [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml). The separate [harness-test failure](ci-harness-failures-block-icperf-integration.md) remains after runners start.
 - **Next action owner:** PR author for runner-eligibility diagnostics and current-head check/merge follow-through; repository owner or GitHub support if account-only diagnostics are needed.
-- **Last updated:** 2026-10-22.
+- **Last updated:** 2026-10-26.
 
 ## Problem
 
-A prolonged GitHub Actions queue delayed the two ready IC PRs. Runners later accepted some jobs on both PRs, but the no-assignment symptom recurred on validation PR #2453. Its current-head downstream checks are queued without runners. The original scheduling cause is not established. No affected PR meets the merge gate solely because a local validation passed. This record does not classify any IC experiment or imply a solver result.
+A prolonged GitHub Actions queue delayed the two ready IC PRs. Runners later accepted some jobs on both PRs, but the no-assignment symptom recurred on validation PR #2453. On October 26, a separate main-branch Lean workflow failed before a runner was assigned. Neither cause is established. No affected PR meets the merge gate solely because a local validation passed. This record does not classify any IC experiment or imply a solver or theorem result.
 
 ## Evidence and uncertainty
 
@@ -23,6 +23,7 @@ A prolonged GitHub Actions queue delayed the two ready IC PRs. Runners later acc
 - **Suspected explanation:** The original delay's cause remains unknown. The user reports available quota. Current runner assignment argues against an ongoing account-wide runner ban but does not diagnose the prior delay.
 - **Missing capability:** Completed current-head CI checks on affected PRs, corrected #2396 workflow plus a new run, and runner-eligibility or account diagnostics if the new #2453 queue persists.
 - **What this evidence does not establish:** It does not show that either PR passes CI, that a queued job may be skipped, or that GitHub's global operational status guarantees this repository can schedule runners.
+- **Observed October 26 recurrence:** [Lean verification run 40361157225](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40361157225) on main head `6a69b2d02ecd53f1649bcf56e23e4ffe91d953ad` failed within seconds. Its `changes` job `121706661268` had no runner name or steps, and GitHub returned no job log. The dependent formal-workspace and kernel jobs failed without executing. This is a pre-run failure, not a Lean elaboration or axiom-audit verdict. Whether it shares a cause with the earlier queued jobs is unknown.
 
 ## What would unblock it
 
@@ -30,12 +31,13 @@ A prolonged GitHub Actions queue delayed the two ready IC PRs. Runners later acc
 - [ ] Observe all applicable current-head checks reach terminal results. Bring the corrected scope-ordering workflow into #2396 and inspect its fresh run; require all applicable current-head checks to pass or legitimately skip before merging either PR.
 - [ ] Observe the nine #2453 current-head downstream jobs acquire runners and finish; inspect any actual failure before deciding whether #2453 can merge.
 - [ ] If prolonged unassigned jobs recur, establish runner eligibility through owner-visible settings, job diagnostics, or GitHub support. The user reports quota available; record any actual cause and authorized remedy.
+- [ ] Diagnose run 40361157225 from owner-visible job and account information, then observe a later runner-backed formal-workspace build and axiom audit on the relevant current source.
 
 These conditions would clear the delivery gate only. They would not approve the binary m=8 solver panel, repair the BINSTD certificate-kind records, or establish an end-to-end IC improvement.
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Apply the already demonstrated scope-ordering correction to #2396 and validate its fresh run. Check #2395 and #2453 current-head jobs at spaced intervals. If assignment stalls again, compare runner eligibility and scheduling diagnostics with the exact queued job IDs.
+- **Action or proof obligation:** Apply the already demonstrated scope-ordering correction to #2396 and validate its fresh run. Check #2395 and #2453 current-head jobs at spaced intervals. Inspect why the October 26 `changes` job failed with no runner or steps. Compare runner eligibility and scheduling diagnostics with the exact job IDs; do not rerun merely to obtain a green result.
 - **Inputs and controls:** Preserve current-head SHA and job ID for each PR; compare the enabled Actions permission, GitHub's service status, in-progress count, and the oldest queued run. A billing denial must be observed directly before changing spend or runner configuration.
 - **Execution limits and stop condition:** Read-only status and runner checks; no workflow, branch-protection, or runner bypass. Any spending or shared-runner change requires the applicable authorization.
 - **Outcomes and next actions:** If jobs finish, inspect their test outcomes and continue the existing PR repair path. If unassigned jobs persist again, use account diagnostics or GitHub support with exact run and job IDs. Do not infer the prior delay's cause from resumed scheduling.
@@ -50,3 +52,5 @@ These conditions would clear the delivery gate only. They would not approve the 
 2026-10-18 05:41 UTC: Read #2396's completed failed logs. Its inherited workflow executes the scope assertion before computing scope. #2395 carries the corrected order. #2396 needs that correction and a fresh CI run; the failed guards do not evaluate the IC artifacts.
 
 2026-10-22 06:35 UTC: #2453's current-head validate run had one successful `changes` job and nine downstream jobs queued with no runner. The scheduling cause remains unknown; hosted checks cannot yet certify the local validation report.
+
+2026-10-26 UTC: Main-branch Lean verification run 40361157225 failed before its `changes` job acquired a runner or executed a step. The dependent formal and kernel jobs provide no proof verdict. This may be a different failure from the prior queue; account or runner diagnostics and a later complete build are needed.
