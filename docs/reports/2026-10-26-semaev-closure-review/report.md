@@ -4,6 +4,19 @@
 Lean theorem remain open. This report does not change the frozen target,
 archived outputs, official research status, or any ECDLP cost claim.
 
+The [inspected PDF](report.pdf) embeds the additive chart; [report.tex](report.tex)
+is its editable source, and [direct-row-grades.png](direct-row-grades.png) is
+the high-resolution rendering of the source SVG used in that PDF. From this
+directory, rebuild the visual and PDF with:
+
+```sh
+convert -density 192 direct-row-grades.svg -resize 1640x960 direct-row-grades.png
+pdflatex -interaction=nonstopmode -halt-on-error report.tex
+pdflatex -interaction=nonstopmode -halt-on-error report.tex
+```
+
+Both PDF pages were rendered and visually inspected before publication.
+
 ## Question and sources
 
 Does the published rank-53 degree-three span of the fixed Boolean Semaev draw
