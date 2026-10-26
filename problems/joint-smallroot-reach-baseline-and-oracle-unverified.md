@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Coordinator publishes the native implementation handoff; executor-implementation then reserves the actual owner scope and prepares the native launcher
+- **Next action owner:** Executor completes source execution-proof and a guard-qualified runnable protocol after the bounded Coordinator revision; compatible host information is required separately from research authorization
 - **Last updated:** 2026-10-26
 
 ## Problem
@@ -215,3 +215,37 @@ pass27/27, hygiene/artifact/local-lock checks pass, and the full ledger retains
 100 unsuppressed errors outside this follow-up's changed records. Merge waits
 for applicable hosted verification after account availability is restored;
 native handoff preparation can continue.
+
+2026-10-26 native-source and review continuation: published owner snapshot
+`1d47988261c4d13f7a8549d70f53571163246c77` in
+[crypto PR #2642](https://github.com/isogeny-labs/crypto/pull/2642) implements
+the prospective C++/GMP/Singular construction. All 77 bound source blobs and
+the eleven-path programme snapshot `0baa7b0901230b23dce945adc55695abd3e48249`
+verify against Git. Native warnings-as-errors and sealed structural/guard-codec
+checks pass. The later integrated owner library run passes 4862 tests with 0
+failed and 121 inherited ignores; its separately retained earlier 18 missing
+sparse-fixture failures were repaired by restoring tracked inputs unchanged.
+These are software checks, not reach-cost or IC evidence.
+
+The normalization/domain/order review is bounded to static source semantics;
+full-cell executed parity is unestablished. The independent specialization/
+extraction/cost review is inconclusive for theorem applicability and attack
+readiness. Both reviewers read the complete 52-page Ryan primary paper, resolving
+the earlier retrieval gap without resolving applicability. The actual review
+independence checker fails with two retained attestation/phase-list issues;
+no perfect mechanical pass or source-equivalence certificate is asserted.
+See the source and review packet in
+[PR #2594](https://github.com/isogeny-labs/crypto-autoresearcher/pull/2594).
+
+All 24 symbolic-bound cases and the proposed four additional control constructions
+remain unrun. The current host mounts cgroupfs read-only and cannot install
+the frozen 8 GiB process-tree guard. A writable delegated cgroup host and actual
+guard qualification are required; no RSS fallback or unguarded run is allowed.
+Execution-proof/authoritative receipt integration, literal failure semantics,
+finite-specialization/group/extraction checks and matched complete IC costs
+remain unresolved. Hosted owner migrate/review and lab checks also report
+account payment/spending-limit failures before starting. The active owner
+ruleset lacks required-status-check rules, so auto-merge is held to preserve
+the repository's stronger all-applicable-checks contract; no financial or
+branch-protection setting was changed. The original goal remains active and
+unfulfilled; no verified IC improvement or mathematical impossibility follows.
