@@ -9,6 +9,7 @@ deliberately broken scanner, where it has to fail.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 from pathlib import Path
 import subprocess
@@ -298,6 +299,44 @@ def test_ecbench_sessions_fail_is_reported(tmp_path):
     root = _ecbench_repo(tmp_path, bad=True)
     row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
     assert row["status"] == "fail" and row["failed_sessions"] == ["research/a/sessions/s1"]
+
+
+def test_ecbench_gzip_and_nested_evidence_are_verified_without_checkout_edits(tmp_path):
+    root = _ecbench_repo(tmp_path)
+    session = root / "research/a/sessions/s1"
+    (session / "records.jsonl").unlink()
+    (session / "records.jsonl.gz").write_bytes(gzip.compress(b'{"record":1}\n'))
+    (session / "exec").mkdir()
+    (session / "exec/stderr.txt.gz").write_bytes(gzip.compress(b"nested evidence\n"))
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "archive gzip inputs")
+    (root / sh.ECBENCH).write_text(
+        '#!/bin/sh\n'
+        'if [ -f "$3/records.jsonl.gz" ]; then\n'
+        '  [ "$(cat "$3/records.jsonl")" = \'{"record":1}\' ] || exit 2\n'
+        '  [ "$(cat "$3/exec/stderr.txt")" = "nested evidence" ] || exit 3\n'
+        'fi\n'
+        'exit 0\n')
+    before = (session / "records.jsonl.gz").read_bytes()
+    row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
+    assert row["status"] == "pass", row
+    assert row["sessions"]["passed"] == 3
+    assert not (session / "records.jsonl").exists()
+    assert not (session / "exec/stderr.txt").exists()
+    assert (session / "records.jsonl.gz").read_bytes() == before
+
+
+def test_ecbench_corrupt_gzip_is_an_archive_failure(tmp_path):
+    root = _ecbench_repo(tmp_path)
+    session = root / "research/a/sessions/s1"
+    (session / "records.jsonl").unlink()
+    (session / "records.jsonl.gz").write_bytes(b"not gzip")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "corrupt archived input")
+    row = sh.run_checker(_ecbench_spec(), root, deep=True, scratch=tmp_path)
+    assert row["status"] == "fail", row
+    assert row["failed_sessions"] == ["research/a/sessions/s1"]
+    assert "BadGzipFile" in row["preparation_failures"]["research/a/sessions/s1"]
 
 
 def test_checker_passing_on_a_sparse_checkout_is_partial(tmp_path):
