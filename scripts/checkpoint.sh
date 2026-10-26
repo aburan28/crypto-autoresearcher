@@ -64,6 +64,20 @@ REQUIRED_SECTIONS=("Goal" "Lead / hypothesis" "Spec" "State" "Next steps" "Runs 
 
 die() { echo "checkpoint: $*" >&2; exit 1; }
 
+# GNU stat can print filesystem data before failing a BSD-style invocation.
+# Capture each candidate separately and emit only output from a successful one.
+file_stat() {
+  local gnu_format="$1" bsd_format="$2" file="$3" value
+  if value="$(stat -c "$gnu_format" "$file" 2>/dev/null)"; then
+    printf '%s\n' "$value"
+  elif value="$(stat -f "$bsd_format" "$file" 2>/dev/null)"; then
+    printf '%s\n' "$value"
+  else
+    echo "checkpoint: cannot stat $file" >&2
+    return 1
+  fi
+}
+
 aws_() {
   if aws configure list-profiles 2>/dev/null | grep -qx "$PROFILE"; then
     env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_PROFILE \
@@ -184,7 +198,7 @@ state_hash() {
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
     git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
-      [ -f "$f" ] && stat -f '%N %z %m' "$f" 2>/dev/null || stat -c '%n %s %Y' "$f" 2>/dev/null || true
+      if [ -f "$f" ]; then file_stat '%n %s %Y' '%N %z %m' "$f" || true; fi
     done
   } | shasum -a 256 | cut -d' ' -f1
 }
@@ -288,7 +302,7 @@ cmd_push() {
   : > "$stage/untracked.list"; : > "$stage/skipped-untracked.txt"
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    sz="$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")"
+    sz="$(file_stat %s %z "$f")" || die "cannot size untracked file $f"
     if [ "$sz" -gt "$maxb" ] || [ $((total + sz)) -gt "$capb" ]; then
       printf '%s\t%s bytes\n' "$f" "$sz" >> "$stage/skipped-untracked.txt"
     else
