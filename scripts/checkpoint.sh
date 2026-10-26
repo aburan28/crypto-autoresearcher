@@ -183,7 +183,8 @@ state_hash() {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
+    # An empty eligible file list is valid; grep status 1 must not trip pipefail.
+    git ls-files --others --exclude-standard | { grep -Ev "$EXCLUDE_RE|^\.resume/" || [ "$?" -eq 1 ]; } | while IFS= read -r f; do
       [ -f "$f" ] && stat -f '%N %z %m' "$f" 2>/dev/null || stat -c '%n %s %Y' "$f" 2>/dev/null || true
     done
   } | shasum -a 256 | cut -d' ' -f1
