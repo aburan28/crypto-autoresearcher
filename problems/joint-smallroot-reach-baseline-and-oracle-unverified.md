@@ -203,3 +203,15 @@ not asserted. See the [transfer receipt](../coordination/goals/GOAL-PFDR-fd09e0/
 The next concrete step is the native implementation handoff and owner reservation.
 No joint scientific calculation, root-extraction validation, or matched IC
 improvement has occurred.
+
+2026-10-26 hosted-check follow-up: push to audit PR #2547 succeeds at
+`c62bcf577851492f4865ad1940e32b6ac1727938`. GitHub reports failure before job
+steps begin: “The job was not started because recent account payments have
+failed or your spending limit needs to be increased.” The same annotation is
+present on progress-fidelity and artifact checks. Their [exact annotations](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3cfef2/setup/hosted-check-followup-20261026.json)
+are retained. This is a hosted account-availability gate. No billing settings,
+permissions, checks or validation baselines were changed. Local focused tests
+pass27/27, hygiene/artifact/local-lock checks pass, and the full ledger retains
+100 unsuppressed errors outside this follow-up's changed records. Merge waits
+for applicable hosted verification after account availability is restored;
+native handoff preparation can continue.
