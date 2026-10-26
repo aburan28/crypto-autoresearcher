@@ -89,16 +89,21 @@ def test_requested_theorem_audit_failure_cannot_pass(tmp_path):
     formal.mkdir()
     (formal / 'Theorem.lean').write_text('theorem other : True := True.intro\n')
     (formal / 'AxiomAudit.lean').write_text('-- a project audit may cover no target\n')
+    target_paths = []
     def runner(command, **kwargs):
         is_target = 'TargetAudit-' in command[-1]
         if is_target:
-            assert 'let target := `missing' in Path(command[-1]).read_text()
+            target = Path(command[-1])
+            target_paths.append(target)
+            assert formal not in target.parents
+            assert 'let target := `missing' in target.read_text()
         return subprocess.CompletedProcess(command, 1 if is_target else 0, 'missing theorem' if is_target else '', '')
     task = FormalProofTask(task_id='test', kind=FormalTaskKind.FORMALIZE_CLAIM,
                           claim_id='test', claim='True', theorem_name='missing', theorem_file='Theorem.lean')
     result = LeanWorker(tmp_path, runner=runner).verify(task)
     assert not result.machine_verified
     assert 'missing theorem' in result.audit_log
+    assert target_paths and not target_paths[0].exists()
 
 
 @pytest.mark.parametrize('toolchain,packages', [
