@@ -39,15 +39,19 @@ All archived count pairs satisfy the premises of the *conditional* Lean
 `YieldCeiling.saturated_open_below_band` theorem. Exhaustive finite trial
 division independently checks that the archived `t^17+t^3+1` modulus and
 degree-eight factors are irreducible, and their product is `X^17+1`. This is
-computed evidence, not an added Lean proof.
+computed evidence. A new Lean theorem also kernel-checks the 510/30/30 exact
+*bitmask* divisor trials using `decide`; its axiom audit lists only `propext`.
+It does not yet prove polynomial irreducibility.
 
 == Boundary and next check
 
 The finite exhaustive check covers each reported miss for the *source-generated*
 factor bases and targets. It does not establish the original host's input
 selection, per-target execution or timing. The normal-basis/Frobenius bridge
-is also not formalized. Obtain the original trace or execution proof; then add a pinned
-Lean irreducibility and model-bridge proof with axiom and semantic review.
+is also not formalized. Obtain the original trace or execution proof; then
+prove that the encoded remainder agrees with `(ZMod 2)[X]`, identify the
+archived masks with the polynomial factors, and prove the Frobenius bridge.
 
-_Source: `research/binstd_end_to_end_20261026/REPORT.md`, `evidence.json`, and
+_Source: `research/binstd_end_to_end_20261026/REPORT.md`, `evidence.json`,
+`formal/CryptoResearch/Binstd/EncodedDivisors.lean`, and
 SEC 1 v2 §2.2.2 (https://www.secg.org/sec1-v2.pdf)._

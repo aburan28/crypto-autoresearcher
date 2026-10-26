@@ -136,6 +136,15 @@ admissible-dimension files. It proves their product is `X^17+1` over
 that the field Frobenius has the asserted normal-basis module structure,
 or that the listed dimensions exhaust all invariant subspaces.
 
+`binstd-encoded-divisors.yaml` kernel-checks the archived integer masks
+131081, 313 and 471 against every monic bitmask divisor through half their
+degrees, using the exact XOR-and-shift remainder function in its Lean source.
+The three concrete Boolean equalities use `decide` and depend only on
+`propext`. This certifies the finite encoded computation; it does not prove
+the remainder function correct for `(ZMod 2)[X]` or that the masks denote the
+polynomials in `Factorization.lean`. The irreducibility and Frobenius-model
+obligations remain open.
+
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
 `KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
 arm cannot exceed the target count, its tau/open ratio is strictly below the

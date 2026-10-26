@@ -47,6 +47,18 @@ subset-sum dimensions `0,1,8,9,16,17`. It is **not a Lean theorem** about
 factor irreducibility or a bridge from the actual field Frobenius to the
 normal-basis cyclic module.
 
+The companion [Lean encoded-divisor certificate](../../formal/CryptoResearch/Binstd/EncodedDivisors.lean)
+now proves, by kernel-checked `decide`, that the exact masks `131081`, `313`
+and `471` survive the 510, 30 and 30 monic bitmask divisor trials defined in
+that file. Direct compilation with the pinned Lean 4.35.0-rc1 toolchain
+passed; `#print axioms` found only `propext`, which the workspace permits.
+The [direct Lean validation receipt](lean-encoded-divisors-validation.json)
+binds the source and evidence SHA-256 values, exact command, exit status and
+per-theorem axiom output.
+This certifies the finite *encoded* computation. It does not prove that the
+XOR reduction implements Euclidean remainder in `(ZMod 2)[X]` or connect the
+masks to the polynomial declarations in `Factorization.lean`.
+
 ## Observations
 
 | Archived cell | Tau hits / misses | Open hits / misses | Independently checked triple witnesses |
@@ -87,10 +99,12 @@ The Lean ceiling theorem is conditional on counts, and this audit checks its
 four concrete premises against the later source-bound replay. It does not
 turn the measured hit counts into Lean-certified observations. The separate
 `x17_factorization` theorem checks the polynomial product; the new finite
-trial-division result is a computational candidate for a later Lean
-irreducibility certificate, not a machine proof of the field-to-Frobenius
-model. Current-head hosted proof checks cannot run while GitHub reports an
-account payment/spending-limit block; no fresh Lean build is claimed here.
+trial-division theorem closes only its encoded Boolean statement. A general
+remainder-correctness and bitmask-to-polynomial bridge is still needed before
+calling either degree-eight polynomial Lean-proved irreducible. The actual
+field-to-Frobenius model is also open. Current-head hosted proof checks cannot
+run while GitHub reports an account payment/spending-limit block; no full
+Lake workspace build is claimed here.
 
 **Next discriminating check.** Obtain an original per-target trace or an
 execution certificate for both archived runs and compare it to the now
