@@ -1,4 +1,4 @@
-# BINSTD archived toy witness and theorem-premise audit — 2026-10-26
+# BINSTD archived toy outcome and theorem-premise audit — 2026-10-26
 
 **Scope.** At crypto-autoresearcher main
 `6a69b2d02ecd53f1649bcf56e23e4ffe91d953ad`, this read-only check tests
@@ -28,7 +28,16 @@ raw-result-to-yield-matrix digest bindings. It validates every target and
 reported triple witness on the curve using interleaved binary-field
 multiplication and polynomial-Euclid inversion, separately implemented from
 the archived worker. It rejects a deliberately negated, still-on-curve witness
-point. The complete machine-readable output is [evidence.json](evidence.json).
+point. For the later source-bound replay, the checker loads only the archived
+seeded input generator at each run's recorded authority commit. It matches all
+160 generated targets to the frozen per-target receipt, reconstructs the four
+tau/open factor bases, and independently computes every ordered base-pair sum
+and every target-minus-base-point membership test with its separate field and
+curve arithmetic. It checks factor-base membership of each positive witness,
+all 276 hit flags, all 44 miss flags, and the four archived pair-sum
+cardinalities. A deliberately flipped false-hit flag is rejected in each of
+the two cells that contains a miss. The complete machine-readable output is
+[evidence.json](evidence.json).
 
 The checker also trials every monic divisor through half degree: 510 for
 `t^17+t^3+1` and 30 for each archived degree-eight factor. This finite
@@ -40,34 +49,39 @@ normal-basis cyclic module.
 
 ## Observations
 
-| Archived cell | Tau hits | Open hits | Independently checked triple witnesses |
+| Archived cell | Tau hits / misses | Open hits / misses | Independently checked triple witnesses |
 | --- | ---: | ---: | ---: |
-| ell89 / ell=8 | 16/40 | 40/40 | 56 |
-| ell89 / ell=9 | 40/40 | 40/40 | 80 |
-| ell89r1 / ell=8 | 20/40 | 40/40 | 60 |
-| ell89r1 / ell=9 | 40/40 | 40/40 | 80 |
+| ell89 / ell=8 | 16 / 24 | 40 / 0 | 56 |
+| ell89 / ell=9 | 40 / 0 | 40 / 0 | 80 |
+| ell89r1 / ell=8 | 20 / 20 | 40 / 0 | 60 |
+| ell89r1 / ell=9 | 40 / 0 | 40 / 0 | 80 |
 
-All 160 target coordinates pass the curve equation. All 276 reported hit
-triples sum to their target. Each cell's observed count matches its archived
-yield matrix; the on-curve mutation is rejected in each cell. Every cell
+All 160 target coordinates pass the curve equation and match the source-bound
+seeded generator. All 276 reported hit triples sum to their target and belong
+to the corresponding reconstructed factor base. The independent exhaustive
+pair-sum oracle finds exactly the archived 276 hits and 44 misses. Each cell's
+observed count matches its archived yield matrix; the on-curve mutation is
+rejected in each cell, and a false-hit mutation is rejected where applicable. Every cell
 satisfies the **premises** `targets > 0`, `openHits = targets`, and
 `tauHits ≤ targets` of
 `CryptoResearch.Binstd.YieldCeiling.saturated_open_below_band`. Thus the
 conditional arithmetic inequality `4*tauHits < 5*openHits` follows for the
-four receipt count pairs. The [graph](hits.svg) plots counts only.
+four receipt count pairs. The [graph](hits.svg) plots checked hit and miss
+counts, not timing or attack advantage.
 
 ![Four archived BINSTD cells with tau and open hit counts](hits.svg)
 
 ## Meaning and remaining checks
 
-The independent checker validates **positive witnesses** in the later sheriff
-replay. It does not independently re-enumerate all factor-base triples for
-rows marked `hit=false`; the existing sheriff replay did that using its
-separate EC addition routine, but both replays use archived target generation.
-No original per-target execution trace has been found in these committed
-records. The source and artifact hashes bind archived bytes, not the identity
-or timing of the original host process. The original host's runtime and any
-large-field extrapolation remain unverified.
+The independent checker validates **positive witnesses and negative outcomes**
+for the exact factor bases and targets produced by the pinned historical input
+generator. Its curve arithmetic and pair-sum search are separate from that
+generator and the sheriff replay. This is an exhaustive finite check of the
+later replay, not an independent reconstruction of the original host's input
+selection or execution. No original per-target execution trace has been found
+in these committed records. The source and artifact hashes bind archived
+bytes, not the identity or timing of the original host process. The original
+host's runtime and any large-field extrapolation remain unverified.
 
 The Lean ceiling theorem is conditional on counts, and this audit checks its
 four concrete premises against the later source-bound replay. It does not
@@ -79,14 +93,15 @@ model. Current-head hosted proof checks cannot run while GitHub reports an
 account payment/spending-limit block; no fresh Lean build is claimed here.
 
 **Next discriminating check.** Obtain an original per-target trace or an
-execution certificate for both archived runs and independently compare all
-40 target outcomes per cell. Then formalize the degree-eight factor
+execution certificate for both archived runs and compare it to the now
+independently checked later replay. Then formalize the degree-eight factor
 irreducibility and the normal-basis/Frobenius model bridge in Lean, with a
 current-head build, axiom audit, and independent theorem-meaning review.
 Until then, the empirical and model-bridge rows remain open in the
 [historical coverage problem](../../problems/historical-experiment-lean-and-execution-coverage.md).
 
 This report is accompanied by [report.pdf](report.pdf), rendered from
-[report.typ](report.typ). No canonical performance dashboard metric changes:
-the audited numbers match the already archived counts, and this audit adds no
-new measurement or accepted claim.
+[report.typ](report.typ). The report graph was refreshed to show the checked
+misses. No canonical performance dashboard metric changes: the audited hit
+counts match the already archived counts, and this audit adds no new
+measurement or accepted claim.
