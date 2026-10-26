@@ -10,7 +10,7 @@
   RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (existing goal states unchanged;
   design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
-- **Last updated:** 2026-10-25
+- **Last updated:** 2026-10-26
 
 ## Problem
 
@@ -36,6 +36,87 @@ The independent [review](../experiments/EXP-ECDLP-d6d8e8/reviews/TASK-20261025-5
 **Formal independence bookkeeping remains open.** The actual generic checker exits 1 on six phase-2 reads because it unions the complete read history rather than representing the predeclared sealed-then-unblind phases. Phase 1 was sealed at 03:44:38.004075Z with hash `0751c0c2771e291a363d92c99d5b16cdce27a2a340abe6080e150394b418db84`. First unblinding occurred before 03:48:10.196002Z, but its exact time was not separately captured. Exact UID serialization was checked in phase 2; remote GET and operation counters were not independently remeasured. All disclosures and the actual checker finding remain in the record. No all-gate pass, exception or scientific promotion is claimed.
 
 **Checkable procedural exit:** test a proper prospective phase-aware validator that accepts a valid sealed-then-unblind transcript and rejects pre-seal result reads, missing read disclosures, changed seals/hashes, and false or late time controls. Resolve timing/provenance obligations before claiming formal independence or promotion. This is a workflow/provenance gap. Current PR #2560 also requires final-head CI/review; PR #2415 is merged history.
+
+**2026-10-25 local preparation update:** the user selected the new-width
+workload of **4,587,520 m=16 attempts**, with the archived m=8 full-support
+slice of **458,752 attempts** as the fixed reference; the m=8 stream will not
+be rerun. The unpublished [new contract](../experiments/EXP-ECDLP-a9b6a5/specification.yaml)
+and [task plan](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/draft-plan.json)
+preserve the same two p=4099, A=2, B=13/16 curves, P, original eight atoms
+and lifts, public sources 1..64 and original source order independent of the
+new base UID. This is a conditioned finite-support comparison: the known
+m=8 zero-row cases motivated selection. Different execution times and
+instrumentation prevent a matched performance comparison. No m=16 target
+acceptance labels have been collected in this preparation.
+
+The prospective opt-in `sealed-blind-review/v1` checker now has locally
+reported software validation, recorded in the
+[engineering artifact](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/engineering-verification.json).
+It binds the actual plan, derivation, seal, release and complete declared
+read timeline, while legacy plans remain strict. These software checks do
+not repair the historical missing first-unblind timestamp, establish a new
+formal scientific review, or authenticate undisclosed reads or publication
+timing. A separate local code review and a fresh prospective scientific
+review are reserved; the scientific review is undispatched.
+
+At that earlier local-preparation snapshot, access was a separate infrastructure impediment. The root session
+observed a GitHub connector 404 and actual `git fetch origin main` HTTP 403;
+cached `origin/main` is `e5f46a59` and was **not refreshed**. Current managed
+runtime status reports no configured artifact secret or outbound identity.
+The former temporary blob cache was lost during environment refresh; the
+completed census raw data remain local native blob pointers requiring
+canonical hydration. An ordinary anonymous HEAD of an existing canonical
+raw object returned HTTP 403, as reported by the root session. No credential
+values were inspected. Local tool/input/planted-test engineering is
+authorized; the new protocol remains `review_required`, unfrozen,
+uncommitted and unpublished. No approval, archival commit, scientific
+review dispatch or scientific run is authorized from these draft bytes.
+
+**Checkable access exit:** restore the normal configured repository identity
+and artifact identity without placing keys in chat or source; successfully
+fetch and inspect current main, hydrate the exact old raw objects with
+content-digest verification, and demonstrate the normal required canonical
+write/readback route. Then complete exact source/input/launcher bindings,
+prospective preapproval, published approval/archive, ordinary ready-state
+and live-claim gates. Access failures assert nothing about Prym rank or
+ECDLP cost.
+
+**2026-10-26 post-merge update:** normal repository access is restored. The
+same stable repository (ID `1301963193`) now lives at
+`isogeny-labs/crypto-autoresearcher`; root fetched current main
+`0e8723243ee7fb082b71e4bee56abab8a45e158c` and merged it at
+`c9a1b7d1e8e37733664c7319b14d93816ba34106`. The older 403/404 and stale-ref
+observations above are historical. The merged instruction set requires a
+new `experiment.protocol/v1` record, frozen analysis, unified export and
+protocol hash binding; these are being added to the new m16 contract without
+changing any completed run or old review.
+
+The phase checker now passes **148 local software tests**. The separate
+[code review](../coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/code-review/TASK-20261025-a58a22/report.json)
+retains seven repaired/retested findings and 38 independent probes. This
+supports the tested software scope only; the historical review still fails
+its original formal gate. The new width collector and fixed-EXP/RUN storage
+wrapper passed 36 planted software tests before additional export
+integration; no p4099 target constructor or acceptance collection has run.
+The daily exporter tracks the old committed census with neutral
+per-fixture/arm gauges, never planned m16 counts.
+
+The current infrastructure blocker is canonical artifact access. Direct
+runtime status revision 108 still reports no configured artifact secrets or
+outbound identities. Historical raw hydration and a real normal writer plus
+digest-checked readback remain unmet. Source preparation/publication are
+authorized after the fresh-main merge; technical approval and scientific
+execution still require exact native preapproval, canonical delivery,
+published approval/archive, ordinary ready-state and live-claim gates. The
+original 20-blocker local preapproval output is preserved; the next probe
+will use a new dated path after source rebind and protocol/export integration.
+
+The new [protocol](../experiments/EXP-ECDLP-a9b6a5/protocol.json) is now content-frozen before new target data and validates with zero findings; the experiment remains unapproved. The final local collector/storage/export/cache suite passes **53 tests**, with zero target constructor calls. The [new dated native preapproval](../experiments/EXP-ECDLP-a9b6a5/packaging/admission-20261026T005445Z/preapproval.json) reports `approvable:false` and 30 publication/lane blockers, with no structural/hash/coverage/route defect. Root is testing an explicitly declared probe-only existing Actions identity route; its actual canonical writer/readback and hydration readiness are still unknown.
+
+Automatic approval review separately rejected enabling auto-merge for PR
+2560 because it did not recognize specific authorization for automatically
+merging into the protected default branch. No bypass or merge-gate pass is
+claimed. Normal source preparation/publication remains authorized.
 
 The dated prospective statements below are preserved as earlier states. The current observations supersede their execution/access status only; goal and hypothesis states remain unchanged.
 
@@ -95,7 +176,20 @@ scientific status without the existing Coordinator decision.
 
 ## Next discriminating step
 
-**Next proposed experiment, not executed here:** after the current observation review is archived and its procedural limits are treated explicitly, draft a NEW contract testing factor-base size m=8 versus m=16 on the same two p=4099, a=2 curves with constants b=13 and b=16. Preserve P/EC1 and the first eight atoms/lifts; append the next eight eligible distinct norm classes in the same lexicographic rational-point order. Freeze public scalars 1..64, source order independent of base UID, and the same cubic/residual/chart/alias law. Full `C(m,3) × 4^3` support gives 3,584 versus 35,840 branches per source. Re-enumerating both arms on two curves would prescribe a derived 5,046,272 attempts. This work has not run.
+**Current selected next experiment, not executed here:** complete and publish
+[EXP-ECDLP-a9b6a5](../experiments/EXP-ECDLP-a9b6a5/specification.yaml), then
+collect the m=16 full stream only on the same two p=4099, a=2 curves with
+constants b=13 and b=16. Preserve P/EC1 and the first eight atoms/lifts;
+append the next eight eligible distinct norm classes by the unchanged
+lexicographic rule, including the inherited x=0 prefix atom and its explicit
+constructor rejection. Freeze public scalars 1..64, original source order
+independent of new base UID, and the same cubic/residual/chart/alias law.
+Full support is `C(16,3) × 4^3 = 35,840` branches/source and
+`2 × 64 × 35,840 = 4,587,520` new attempts. The frozen m=8 reference is
+`2 × 64 × 3,584 = 458,752` prior attempts. No m=8 replay is included.
+The earlier outline considered re-enumerating both widths, totaling
+5,046,272 attempts; it remains historical design context and is superseded
+for the next workload. No new scientific work has run.
 
 Measure the changed U, affine/augmented rank, nullity, accepted/rejected/alias counts and all setup, construction, normalization, matrix, checker and storage costs. Include old-eight-atom witness embedding and transported-encoding controls. Add no anchors, early stopping, large-prime repair or different constructor. Disclose that the m=8 zero-row outcomes motivated case selection, while m=16 acceptance labels remain unseen. The new contract must freeze inputs, controls, metrics and stopping rules before approval. Phase-aware independence/tooling acceptance remains an explicit requirement before formal promotion.
 
