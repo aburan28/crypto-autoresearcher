@@ -83,6 +83,8 @@ Keep resolved and superseded records in the index.
 | [Staged x-rank independent arithmetic verification](staged-xrank-independent-arithmetic-verification.md) | open | Adjacent19th staged instrument has only legacy label/file-presence checking; metadata preservation supplies no arithmetic certificate | Independent point/group/rank/overlap recomputation and explicit scalar-control/normalization review under a new protocol |
 | [Finite worksheet direct invocation](finite-worksheet-direct-invocation.md) | resolved for six named native metadata routes | Direct child argv preserved; outer Git-only control fixes metadata resource refusal; original 8file and615partial failures retained | See exact current inventory: twelve accepted primary RUNs across six final scopes; broader proof/schema and adjacent arithmetic obligations remain separate |
 
+| [PEXT n=7 frozen source binding](pext-n7-frozen-source-binding.md) | investigating | Native admission of EXP-PEXT-212d5c after the committed Lean proof correction | Publish the prospective source binding, verify exact hashes and invariants, then verify the correction archive |
+
 ## Add or update a problem
 
 1. Check this index and the affected work for an existing record. Reuse it when
