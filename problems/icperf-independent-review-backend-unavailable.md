@@ -4,7 +4,15 @@
 - **Kind:** reviewer runtime access and evidence-process gap; no mathematical obstruction is established.
 - **Affected work:** [ICPERF goal](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), ordinary binary m=8 review lane, and [v2 output-contract O1-O3 plan](../coordination/review/icperf-prime63-m2-output-contract-v2-20261025/review-plan.yaml).
 - **Next action owner:** Coordinator obtains an exact independent review-adversarial xhigh Validator receipt for [TASK-20261025-b2e2cd](../ledger/handoffs/TASK-20261025-b2e2cd.yaml), archives a separate session-bound admission, then allows only that exact thread to review. Ordinary binary m=8 requires its own route.
-- **Last updated:** 2026-10-25
+- **Last updated:** 2026-10-26
+
+## Current 2026-10-26 access boundary
+
+The split B1 task `TASK-20261025-0cc64e` was admitted in exact independent session `01a1749e-713f-7932-8df9-f29b5bf93356`. Its corrected [blind derivation](../coordination/review/icperf-prime63-m2-output-contract-v2-remedy-20261025/TASK-20261025-0cc64e/blind-derivation.yaml) is sealed at commit `f68077a3cf` and SHA-256 `0ef24b92eb4931b4a8ce8da9674c705e5dcdfcd4a0c5d4b151780081d29f97a8`. The [epoch-1 release](../coordination/goals/GOAL-ICPERF-e6b6a4/batches/BATCH-ac3c38/claims/TASK-20261025-0cc64e.1.release.json) records `failed` after the lease expired, preserving that one artifact. There is no B1 report, attestation or completed review release. The full O1–O3 task remains separate and unadmitted.
+
+**Observed access change:** GitHub reported this repository `PUBLIC` earlier on 2026-10-25 and `PRIVATE` later that day and again on 2026-10-26. Automatic approval review rejected resuming the external OpenAI Codex session for the B1 report because the prior session and prompt carry private-repository context without specific egress authorization. The operator requested that authorization and did not retry after the rejection. This is a runtime/access limit, not a mathematical or source-correctness result. The mechanical queue may show B1 Ready after its failed release, but its old epoch-1 session admission and claim cannot authorize another launch.
+
+**Checkable exit:** Obtain explicit authorization for the exact private-repository context and external reviewer route, or a different policy-compliant backend that accepts the same `review-adversarial` xhigh role without fallback or degradation. Then prospectively archive a fresh exact-session receipt and sole-Ready admission, verify live identity, lane and a new claim, and finish an independently authored B1 report and attestation with truthful cumulative reads and a completed release. A separate full-source reviewer and a verified composition are still required for engineering source acceptance. If authorization is refused or no compliant backend works, keep this access impediment open and rank independent ECC work without promoting B1. The next discriminating probe is one read-only exact-session identity check after access is restored; zero scientific trials or candidate reads occur in that probe.
 
 ## Current 2026-10-25 state
 

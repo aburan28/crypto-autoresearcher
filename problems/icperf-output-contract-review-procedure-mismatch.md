@@ -4,7 +4,13 @@
 - **Kind:** review procedure and checker-contract mismatch; separate from the implementation/output obstruction
 - **Affected work:** [GOAL-ICPERF-e6b6a4](../ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml), [TASK-20261025-b2e2cd](../ledger/handoffs/TASK-20261025-b2e2cd.yaml), [TASK-20261025-6d007d](../ledger/handoffs/TASK-20261025-6d007d.yaml), [DEC-20261025-5b84e8](../ledger/decisions/DEC-20261025-5b84e8.yaml), [new split plan](../coordination/review/icperf-prime63-m2-output-contract-v2-remedy-20261025/review-plan.yaml)
 - **Next action owner:** Coordinator for exact-session admissions and archive; independent Validators for B1 and O1–O3
-- **Last updated:** 2026-10-25
+- **Last updated:** 2026-10-26
+
+## Current 2026-10-26 split-review observation
+
+The new B1 reviewer read only its five frozen allowed paths. Its first substantive output incorrectly identified the current remedy plan as a protected old plan; the same exact session corrected that literal path comparison before sealing the [worked blind derivation](../coordination/review/icperf-prime63-m2-output-contract-v2-remedy-20261025/TASK-20261025-0cc64e/blind-derivation.yaml) at `f68077a3cf` (SHA-256 `0ef24b92eb4931b4a8ce8da9674c705e5dcdfcd4a0c5d4b151780081d29f97a8`). Its corrected disclosure says `blind_from_respected: true` and reports a **B1-only `breaks` verdict**: the five permitted files do not define complete mandatory manifest/raw-result field sets, and the standard supervisor alone does not rule out an extra run-root member when the unread checker succeeds. This is a reviewer observation about derivability from the frozen statement. It neither tests nor condemns the candidate checker, and the Coordinator has not composed or accepted it as an official source finding.
+
+The [claim release](../coordination/goals/GOAL-ICPERF-e6b6a4/batches/BATCH-ac3c38/claims/TASK-20261025-0cc64e.1.release.json) is `failed`, with report and attestation unfinished after an external-inference auto-review rejection when the repository became private. The prior storage-full warning was followed by an operator check that both captured final messages were present in the recovered session rollout; it did not complete the review. B1 needs a new policy-compliant admission and claim before further reviewer work. The separate full O1–O3 review, both completed releases, snapshot, pinned independence check and Coordinator assessment remain outstanding. An honest B1 `breaks` report, if completed and upheld, calls for a prospective contract repair and fresh review rather than forced checker PASS.
 
 ## Problem
 
