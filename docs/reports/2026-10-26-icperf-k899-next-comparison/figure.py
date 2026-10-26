@@ -17,7 +17,7 @@ def x(value: float) -> float:
 parts = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">',
     '<rect width="900" height="260" fill="white"/>',
-    '<text x="28" y="30" font-family="sans-serif" font-size="18" font-weight="bold">N83 K899 versus K600, older rank-probe producer</text>',
+    '<text x="28" y="30" font-family="sans-serif" font-size="18" font-weight="bold">N83 K899 versus K600, older direct rank-probe producer</text>',
     '<text x="28" y="50" font-family="sans-serif" font-size="12" fill="#4b5563">Run 39306394645 · 20 targets, four rank blocks · K600 / K899 · source-reported intervals</text>',
     f'<line x1="{x(1):.1f}" y1="64" x2="{x(1):.1f}" y2="184" stroke="#999" stroke-dasharray="4 4"/>',
 ]
@@ -36,7 +36,7 @@ for tick in (1.0, 1.2, 1.4, 1.6):
         f'<text x="{x(tick)-12:.1f}" y="213" font-family="sans-serif" font-size="12">{tick:.1f}</text>',
     ])
 parts.extend([
-    '<text x="28" y="242" font-family="sans-serif" font-size="11" fill="#6b7280">Intervals belong to the old producer; no current-rank-finder K899 observation is plotted.</text>',
+    '<text x="28" y="242" font-family="sans-serif" font-size="11" fill="#6b7280">No K899 arm on the current 16-column M38 closure/rank-finder producer is plotted.</text>',
     '</svg>',
 ])
 OUT.write_text("\n".join(parts) + "\n")
