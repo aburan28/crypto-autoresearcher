@@ -3,7 +3,7 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Reviewer checks the frozen original and successor guard observations after their actual published programme snapshot; Coordinator then composes partial software coverage and the unexecuted OOM requirement before any scientific protocol can be considered
+- **Next action owner:** Coordinator prospectively specifies a lawful actual OOM qualification route when measured enclosing headroom at least 12 GiB and fresh admission are available; no further case is authorized by the exhausted one-pass/no-retry cards
 - **Last updated:** 2026-10-27
 
 ## Problem
@@ -396,7 +396,7 @@ require their separately admitted phases. All 24 scientific cases remain unrun; 
 extraction, complete cost and a verified improvement over a frozen current
 prime-field IC baseline remain unresolved. The goal remains active.
 
-## 2026-10-27: terminal successor observations, independent review pending
+## 2026-10-27: terminal successor observations and independent review
 
 The sole Q3 follow-up completed once at
 2026-10-27T01:33:08.853118452Z. The container, launcher, wait CLI and removal
@@ -427,21 +427,68 @@ Rust replay logs; those bytes were preserved, not relabelled a clean check.
 
 The original Q1/Q2/Q5 outcomes belong to the C1 helper; the sole Q3 follow-up
 belongs to its repaired receipt-order helper. Those other classes did not rerun.
-Independent review must check the exact source/runtime/ownership/publication
-bindings and justify any transfer to the same protected supervisor. Its review
-and the programme snapshot are still pending here. The preparation-stage
+Independent TASK-20261026-5bedd5 checked the exact source/runtime/custody and
+publication bindings. Its full-joint verdict is **breaks** because actual Q4
+OOM enforcement is absent; narrower recorded observations hold. It supports
+transfer of Q1/Q2/Q5 only to the same protected supervisor and fixture because
+the sole helper change is Q3-specific after the supervisor returns. Successor
+programme snapshot `c90b8b1a12bc6323ece604a965bb96bad823c166` binds all five
+final outputs. The preparation-stage
 publication occurred after Q3 launch; this timing is retained and is not
 represented as a prelaunch publication. Separately published execution seals
-and Q3 admission preceded the authorized Q3 invocation.
+and Q3 admission preceded the authorized Q3 invocation. Independent review
+finds the pre-action source/admission gates hold: the later preparation archive
+preserves already-completed preparation records and is not itself a prelaunch
+gate.
 
 Neither Q4 admission launched an OOM allocator. The follow-up's observed
 H = 9,264,652,288 bytes remains below the unchanged 12,884,901,888-byte threshold;
 the exact 8 GiB empty-cap readback does not establish OOM enforcement. Current
 one-pass/no-retry authority is exhausted, so another preparation pass or Q4
 attempt would need a prospective scoped admission rather than an automatic
-retry. Full guard qualification remains false even if the completed Q3 scope
-survives review. A lawful actual OOM qualification with sufficient measured
+retry. Full guard qualification remains false after review. A lawful actual
+OOM qualification with sufficient measured
 enclosing headroom would address this resource-enforcement gap only; theorem
 applicability, scientific execution, extraction and the matched complete IC
 comparison would remain separate requirements. All 24 scientific cases remain
 unrun, no verified IC gain is established, and the goal stays active.
+
+The canonical current-round independence checker exits 0 with one owned-joint
+attestation, blindness respected and controls declared. This is a genuine
+fresh `openai/gpt-5.6-sol`, `review-adversarial/xhigh`, `fork:none` review with
+zero guard, regression, stress or scientific executions. Its source/raw review
+does not claim a regression replay. Current mechanical PASS does not repair
+the original mathematical round's two retained attestation/phase-list issues,
+and the earlier independent CPU-only acceptance remains separate. The
+[composition](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-2a1490/tasks/TASK-20261026-94c1e6/report.md)
+and [DEC-20261026-3380c9](../ledger/decisions/DEC-20261026-3380c9.yaml)
+record partial software observations only and require root's exact isolated
+ledger archive verification/publication before official effect. Its two-page
+Typst PDF was rendered and every final page inspected. No scientific graph,
+goal status or immutable original batch checkpoint changed.
+
+Owner head 76a3 currently retains 16 failed checks and one skip in the root
+observation. The inspected current-head
+[review annotation](https://api.github.com/repos/isogeny-labs/crypto/check-runs/121956938857/annotations)
+again states that account payment/spending-limit availability prevented job
+start. This is separate from the failed full Rust run and its incomplete
+canonical full-log custody. Applicable checks remain unsatisfied; no merge
+bypass is authorized. Recheck actual OOM admission only when the stated
+headroom/runtime/ownership packet exists, and recheck normal artifact-store
+custody and hosted verification when their configured services are available.
+
+The exact ten-file review/composition archive is now published at
+`c0618e50c6b26758e479592b01397041f37c2c9b`, parent
+`6b8d69f0504fb1d6d731ec6afa5e7526d6d99c00`. Its actual parent, exact path
+set, required record IDs and all ten hashes were verified. The completed
+review and composition releases report observations only; all six tasks in
+this guard queue are terminal and formal dispatch reports zero ready and zero
+deferred tasks. Source reservation T-4 was ordinarily released after final
+owner/snapshot publication; subsequent observation shows its lease inactive
+and task cancelled, with the authorized wrapper and watcher stopped. This is
+an unmerged reservation release, not owner work landed/done or a goal status.
+Final branch hygiene passes; full-ledger validation still reports the exact
+same ordered 100 preexisting errors and no new record error. No error
+suppression, failed-check bypass, new research chain or immutable checkpoint
+edit occurred. Authorized software coordination is complete; the scientific
+goal remains active and impeded by the requirements stated above.
