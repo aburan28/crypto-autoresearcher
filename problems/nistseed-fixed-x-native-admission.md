@@ -36,3 +36,15 @@ Implement the narrow successor and test synthetic fixtures only. Preserve all fr
 ## Resolution and history
 
 Unresolved. Preserve original frozen protocol core hash 8960ab8353246733c09a707a9f559fe69d5fb2f71a8f1c7f579a52db2ca05c28, original source bytes and all failures. The ECPP validity, dual-custody, PDF publication and S3 access problems remain separate.
+
+## 2026-10-27: observed v2 raw-schema obstruction
+
+Source-only engineering observations under TASK-20261027-3a4831. The parent executed the exact Executor-authored guarded suite; no named omission membership, scientific run, VM, legacy program or storage operation occurred. The original frozen protocol and historical exhibits remain unchanged.
+
+The first retained invocation passed its 55 implemented checks. A test-only amendment added five raw-schema/outer-promotion controls and an output-directory alias check, preserving the previous test source and first invocation. The second invocation returned 1: 55 of 60 checks passed and five failed. The bridge remained SHA-256 `3b75dfac014ed90e53128c7dd46c17346d00a23546163b1559f6c8bbfb33c0b4`; the amended test source was `ebec4cc5fa4ef7ad505cd5cc7a71480de854508c2c322be04a8d8170f5395230`.
+
+Three mutated synthetic packages were accepted: an unexpected native raw key, outer `historical_selector_established=true`, and outer `official_transition=true`. Removing `driver_manifest_sha256` raised a later KeyError, while replacing summary with a list reached the later summary-disagreement gate. These two were rejected, but not at the intended native raw-schema gate. The explicit output-directory alias check passed. This scopes the obstruction to raw-record validation and forbidden outer promotion; it establishes nothing about any historical curve.
+
+Evidence: `research/nist_seed_point_first_native_20261027/tasks/TASK-20261027-3a4831/test-receipts.json`, retained suite sequence 2, complete stdout SHA-256 `0ace44656837b3faa8eb24ed6c7cde4bbaff7d90809bd3f7b348bbf6b81e8232`, 1,060,351 bytes, empty stderr. At this checkpoint the append-only receipt envelope is 581,620 bytes, SHA-256 `8b3c6500973953763cf915c0370fe48f4e21a102f4bbf7c868f88d6fc489cccc`. Its first invocation and all second-invocation retained regular-file hashes were checked by the parent. Guard totals remain zero for named/scientific/VM/legacy/storage/forbidden activity.
+
+Next test: the same producer assesses the complete retained second record and supplies a guarded source correction with prior-source custody and updated lineage/draft hashes, followed by one new `--record` invocation of the unchanged 60-check suite. Exit criteria are actual intended-gate refusals for these five controls, continued ordinary/alias/control success, complete retained attempts, all twelve artifacts, then the separately assigned source snapshot and independent engineering review. A producer test pass alone does not satisfy independent review or scientific admission. The problem and full research objective remain open.
