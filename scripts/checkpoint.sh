@@ -38,7 +38,8 @@
 #   CHECKPOINT_MAX_TOTAL_MB cap on the untracked tarball input (default 300)
 #
 # Layout: s3://$BUCKET/$PREFIX/<repo>/<branch>/<UTC stamp>-<sha>/
-#   checkpoint.tar.gz  (meta.json RESUME.md files/<spec and lead files>
+#   checkpoint.tar.gz  (meta.json RESUME.md relay/<HANDOFF.md handoff.json relay.jsonl>
+#                       files/<spec and lead files>
 #                       branch.bundle worktree.patch untracked.tar.gz
 #                       skipped-untracked.txt)
 #   RESUME.md  meta.json  (copies, for reading without unpacking)
@@ -267,6 +268,10 @@ cmd_push() {
   trap "rm -rf '$stage'; trap - RETURN" RETURN
 
   [ -f .resume/RESUME.md ] && cp .resume/RESUME.md "$stage/RESUME.md"
+  # Runtime relay handoff (scripts/relay.py), so another runtime or host can take over.
+  mkdir -p "$stage/relay"
+  for f in HANDOFF.md handoff.json relay.jsonl; do [ -f ".resume/$f" ] && cp ".resume/$f" "$stage/relay/$f"; done
+  rmdir "$stage/relay" 2>/dev/null || true
 
   local f
   while IFS= read -r f; do
@@ -468,12 +473,14 @@ print(m["repo"], s[-2], s[-1])' "$dl/meta.json")
   [ -f "$dl/untracked.tar.gz" ] && tar -xzf "$dl/untracked.tar.gz" -C "$dest"
   mkdir -p "$dest/.resume"
   [ -f "$dl/RESUME.md" ] && cp "$dl/RESUME.md" "$dest/.resume/RESUME.md"
+  [ -d "$dl/relay" ] && cp "$dl/relay/"* "$dest/.resume/"
   cp "$dl/meta.json" "$dest/.resume/restored-from.json"
   [ -f "$dl/skipped-untracked.txt" ] && { echo "Not in the checkpoint (too large):"; cat "$dl/skipped-untracked.txt"; }
   rm -rf "$dl"
   echo "restored $src"
   echo "  worktree: $dest (branch $newb)"
   echo "  read:     $dest/.resume/RESUME.md"
+  [ -f "$dest/.resume/HANDOFF.md" ] && echo "  handoff:  $dest/.resume/HANDOFF.md (python3 scripts/relay.py accept)"
 }
 
 case "${1:-}" in
