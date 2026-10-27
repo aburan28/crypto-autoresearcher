@@ -134,6 +134,16 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_pull_into_absent_sparse_directory_preserves_bytes_and_clean_tree(self):
+        self.art("push", "research/r1/runs/a.jsonl")
+        self.git("commit", "-qm", "archive fixture")
+        (self.repo / "research/r1/runs/a.jsonl").unlink()
+        self.git("sparse-checkout", "set", "--no-cone", "/*", "!/research/")
+        self.assertFalse((self.repo / "research").exists())
+        self.art("pull", "research/r1/runs/a.jsonl")
+        self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
     def test_check_gate(self):
         base = self.git("rev-parse", "HEAD").strip()
         (self.repo / "new.jsonl").write_bytes(os.urandom(100_000))
