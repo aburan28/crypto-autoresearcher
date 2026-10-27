@@ -163,7 +163,7 @@ class LeanWorker:
         identity = (self.repo_root, workspace, id(self.runner), self.timeout_seconds)
         snapshot = _input_snapshot(workspace) if session is not None else None
         cached = session.get(identity) if session is not None else None
-        if cached is not None and cached[0] != snapshot:
+        if cached is not None and (cached[0] != snapshot or cached[3] is not self.runner):
             session.pop(identity)
             cached = None
         forbidden = self._scan_forbidden(workspace)
@@ -224,7 +224,8 @@ class LeanWorker:
                 return self._blocked(task, "formal workspace inputs changed during verification",
                                      build_log=self._log(build))
             if project_audit.returncode == 0:
-                session[identity] = (snapshot, project_build, project_audit)
+                # Retain the callable itself too, preventing object-id reuse.
+                session[identity] = (snapshot, project_build, project_audit, self.runner)
         target_log = ""
         target_ok = False
         if audit.returncode == 0:
