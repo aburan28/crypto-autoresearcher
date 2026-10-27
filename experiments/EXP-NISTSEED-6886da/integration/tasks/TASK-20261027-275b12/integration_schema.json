@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Additive one-index ECPP integration custody envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","mode","cohort_index","identity","external_binding","supervisor_artifact_sha256","capture_directory","synthetic_profile","real_admission_receipt","runtime_cache","sidecars","finalization","claim_scope"],
+  "properties": {
+    "schema": {"const":"crypto.autoresearch.nistseed_ecpp_integration.v1"},
+    "mode": {"enum":["synthetic","real"]},
+    "cohort_index": {"type":"integer","minimum":0,"maximum":20},
+    "identity": {"type":"object","additionalProperties":false,"required":["source_pins","frozen_input_sha256","curve","ordered_cohort","prior_primality_mapping","runtime","limits","primary_configuration","prover_argv","checker_argv"],"properties":{
+      "source_pins":{"$ref":"#/$defs/digests"},"frozen_input_sha256":{"$ref":"#/$defs/digests"},
+      "curve":{"$ref":"#/$defs/row"},"ordered_cohort":{"type":"array","minItems":21,"maxItems":21,"items":{"$ref":"#/$defs/row"}},
+      "prior_primality_mapping":{"type":"object","minProperties":21,"maxProperties":21,"additionalProperties":{"type":"object"}},
+      "runtime":{"type":"object"},"limits":{"$ref":"#/$defs/limits"},"primary_configuration":{"type":"object"},
+      "prover_argv":{"const":["/program","-l","/ecpp/","-f","/input","-Fc","-C","/tmp/certificate"]},
+      "checker_argv":{"const":["/program","-f","/input"]}
+    }},
+    "external_binding":{"type":"object","additionalProperties":false,"required":["path","sha256"],"properties":{"path":{"type":"string","minLength":1},"sha256":{"$ref":"#/$defs/digest"}}},
+    "supervisor_artifact_sha256":{"type":"object","additionalProperties":false,"required":["launch.json","environment.json","command.txt","stdout.log","stderr.log"],"properties":{"launch.json":{"$ref":"#/$defs/digest"},"environment.json":{"$ref":"#/$defs/digest"},"command.txt":{"$ref":"#/$defs/digest"},"stdout.log":{"$ref":"#/$defs/digest"},"stderr.log":{"$ref":"#/$defs/digest"}}},
+    "capture_directory":{"type":"string","minLength":1},
+    "synthetic_profile":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["scope","catalog_directory","image_sha256"],"properties":{"scope":{"const":"EXPLICIT_SYNTHETIC_FIXTURE_ONLY"},"catalog_directory":{"type":"string","minLength":1},"image_sha256":{"type":"object","additionalProperties":false,"required":["prover","checker"],"properties":{"prover":{"$ref":"#/$defs/digest"},"checker":{"$ref":"#/$defs/digest"}}}}}]},
+    "real_admission_receipt":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["protocol_sha256","approval_decision","ready_receipt_sha256","request_sha256"],"properties":{"protocol_sha256":{"$ref":"#/$defs/digest"},"approval_decision":{"type":"string","minLength":1},"ready_receipt_sha256":{"$ref":"#/$defs/digest"},"request_sha256":{"$ref":"#/$defs/digest"}}}]},
+    "runtime_cache":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["state","sha256"],"properties":{"state":{"enum":["ABSENT","SYNTHETIC_NO_RUNTIME_CACHE","VERIFIED_RECONSTRUCTIBLE"]},"sha256":{"$ref":"#/$defs/digests"}}}]},
+    "sidecars":{"type":"object","additionalProperties":{"type":"object","additionalProperties":false,"required":["bytes","sha256"],"properties":{"bytes":{"type":"integer","minimum":0},"sha256":{"$ref":"#/$defs/digest"}}}},
+    "finalization":{"type":"object","additionalProperties":false,"required":["state","errors","capsule","inventory"],"properties":{"state":{"enum":["COMPLETE","INCOMPLETE"]},"errors":{"$ref":"#/$defs/errors"},"capsule":{"enum":["raw-artifacts.tar.gz",null]},"inventory":{"enum":["raw-artifact-inventory.json",null]}}},
+    "claim_scope":{"type":"string","minLength":1}
+  },
+  "$defs": {
+    "digest":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "digests":{"type":"object","additionalProperties":{"$ref":"#/$defs/digest"}},
+    "row":{"type":"object","additionalProperties":false,"required":["curve_uid","curve_id","label","n","p","ordinal","seed_hex","timestamp"],"properties":{"curve_uid":{"type":"string","pattern":"^urn:ec-record:1:sha256:[0-9a-f]{64}$"},"curve_id":{"type":"string"},"label":{"enum":["omitted","published"]},"n":{"type":"string"},"p":{"type":"string"},"ordinal":{"type":"integer"},"seed_hex":{"type":"string"},"timestamp":{"type":"integer"}}},
+    "limits":{"const":{"emulated_cpus":1,"vm_ram_mib":256,"child_address_space_mib":128,"prover_guest_seconds":300,"prover_host_seconds":390,"checker_guest_seconds":30,"checker_host_seconds":90}},
+    "errors":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["operation","type","message"],"properties":{"operation":{"type":"string"},"type":{"type":"string"},"message":{"type":"string","maxLength":4096}}}},
+    "source_rule":{"oneOf":[{"type":"null"},{"type":"string"},{"type":"object","additionalProperties":false,"required":["source","source_sha256","archive_sha256","rule","scope"],"properties":{"source":{"type":"string"},"source_sha256":{"$ref":"#/$defs/digest"},"archive_sha256":{"$ref":"#/$defs/digest"},"rule":{"type":"string"},"scope":{"type":"string"}}}]},
+    "evidence":{"type":"object","additionalProperties":false,"required":["path","sha256","stage","kind","byte_offset","byte_length","source_rule","synthetic"],"properties":{"path":{"type":"string"},"sha256":{"$ref":"#/$defs/digest"},"stage":{"enum":["prover","checker"]},"kind":{"type":"string"},"byte_offset":{"type":["integer","null"],"minimum":0},"byte_length":{"type":["integer","null"],"minimum":0},"source_rule":{"$ref":"#/$defs/source_rule"},"synthetic":{"type":"boolean"}}},
+    "stage":{"type":"object","additionalProperties":false,"required":["launch_intent","guest_init_observed","program_output_observed","stage_completed_success","stage_completed_failure","exact_program_starts","program_start_observed_lower_bound","program_start_unobserved_or_ambiguous","framing_state","status_state","errors","evidence"],"properties":{"launch_intent":{"enum":[0,1]},"guest_init_observed":{"enum":[0,1]},"program_output_observed":{"enum":[0,1]},"stage_completed_success":{"enum":[0,1]},"stage_completed_failure":{"enum":[0,1]},"exact_program_starts":{"type":"null"},"program_start_observed_lower_bound":{"enum":[0,1]},"program_start_unobserved_or_ambiguous":{"enum":[0,1]},"framing_state":{"enum":["COMPLETE","MALFORMED","UNAVAILABLE"]},"status_state":{"enum":["UNAVAILABLE","RECONCILED","UNRECONCILED"]},"errors":{"$ref":"#/$defs/errors"},"evidence":{"type":"array","items":{"$ref":"#/$defs/evidence"}}}},
+    "counters":{"type":"object","additionalProperties":false,"required":["schema","mode","selected_cohort_indices","boundary_calls_attempted","boundary_evidence_path","boundary_evidence_sha256","legacy_selected_work_field","stages","certificate_admitted","certificate_admission_state","exact_program_start_total","synthetic_evidence_contributes_to_real_execution_totals"],"properties":{
+      "schema":{"const":"crypto.autoresearch.nistseed_ecpp_integration_counters.v1"},"mode":{"enum":["synthetic","real"]},
+      "selected_cohort_indices":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"integer","minimum":0,"maximum":20}},
+      "boundary_calls_attempted":{"type":"object","additionalProperties":false,"required":["synthetic","real"],"properties":{"synthetic":{"enum":[0,1]},"real":{"enum":[0,1]}}},
+      "boundary_evidence_path":{"enum":["integration-boundary-call.json",null]},"boundary_evidence_sha256":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/digest"}]},
+      "legacy_selected_work_field":{"type":"object","additionalProperties":false,"required":["path","field","value","meaning"],"properties":{"path":{"const":"raw-result.json"},"field":{"const":"named_orders_executed"},"value":{"enum":[1,null]},"meaning":{"const":"frozen selected-work literal; never a program-start count"}}},
+      "stages":{"type":"object","additionalProperties":false,"required":["prover","checker"],"properties":{"prover":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/stage"}]},"checker":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/stage"}]}}},
+      "certificate_admitted":{"type":"null"},"certificate_admission_state":{"const":"DEFERRED_TO_INDEPENDENT_CHECKER"},"exact_program_start_total":{"type":"null"},"synthetic_evidence_contributes_to_real_execution_totals":{"const":false}
+    }}
+  }
+}
