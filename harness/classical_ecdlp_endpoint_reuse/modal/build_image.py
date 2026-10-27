@@ -118,7 +118,7 @@ def build(context, repo, output, modal_module=None):
                  .add_local_dir(Path(context) / "payload", "/opt/study", copy=True)
                  .run_commands("python3 /opt/study/execution/image_build.py --source-revision " + revision,
                                "python3 /opt/study/modal/build_image.py --write-provenance /opt/study",
-                               "mkdir -p /work/tmp && chown -R 1000:1000 /work && chmod -R a-w /opt/study && chmod 0555 /usr/local/bin/endpoint_reuse")
+                               "mkdir -p /work/tmp && chown -R 1000:1000 /work && chmod -R a=rX /opt/study && chmod 0555 /usr/local/bin/endpoint_reuse")
                  .env({"PYTHONDONTWRITEBYTECODE": "1"}))
         image.build(app)
         receipt["image_id"] = receipt["modal_image_id"] = image.object_id
@@ -150,6 +150,40 @@ def build(context, repo, output, modal_module=None):
                                       "argv": argv, "stdout_sha256": sha(stdout.encode()), "stderr_sha256": sha(stderr.encode()), "returncode": code}
         if code:
             raise ValueError("native image self-test failed")
+        # Native execution alone does not exercise UID1000's source traversal.
+        # The context's private local modes must become readable, immutable
+        # image modes before the Python study engine can start.
+        import_code = """import json,os,pathlib,sys
+assert os.getuid()==1000 and os.getgid()==1000
+root=pathlib.Path('/opt/study')
+files=0
+for path in [root,*root.rglob('*')]:
+    assert not os.access(path,os.W_OK), str(path)
+    if path.is_dir():
+        assert os.access(path,os.R_OK|os.X_OK), str(path)
+    elif path.is_file():
+        with path.open('rb') as stream: stream.read(1)
+        files+=1
+sys.path.insert(0,'/opt/study/modal')
+import engine
+from execution import run_experiment
+json.loads((root/'build-info.json').read_text())
+json.loads((root/'adapter-manifest.json').read_text())
+print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),'readable_immutable_files':files,'engine_imported':True}))
+"""
+        import_argv = argv[:-2] + ["python3", "-c", import_code]
+        proc = sb.exec(*import_argv, timeout=60)
+        stdout, stderr = proc.stdout.read(), proc.stderr.read()
+        code = proc.wait()
+        (output / "runtime-import.stdout.txt").write_text(stdout)
+        (output / "runtime-import.stderr.txt").write_text(stderr)
+        receipt["runtime_import_probe"] = {
+            "purpose": "unprivileged_immutable_source_and_engine_import_only",
+            "scientific_measurement": False, "argv": import_argv,
+            "stdout_sha256": sha(stdout.encode()), "stderr_sha256": sha(stderr.encode()),
+            "returncode": code}
+        if code:
+            raise ValueError("unprivileged Python engine import probe failed")
         receipt["completed"] = True
     except Exception as error:
         receipt["error"] = {"type": type(error).__name__, "message": str(error)}

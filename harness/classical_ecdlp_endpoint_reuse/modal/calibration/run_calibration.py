@@ -120,7 +120,8 @@ for p in sorted(root.iterdir()) if p.is_file() and p.name!='output-manifest.json
             sb.filesystem.copy_to_local(remote, target)
             assert target.stat().st_size == item['bytes'] and sha(target.read_bytes()) == item['sha256']
             record['files_collected'].append({**item,'readback_verified':True})
-        receipt = json.loads((raw_out/'receipt.json').read_text())
+        receipt_path = raw_out/'receipt.json'
+        receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else {'completed':False,'worker_failed_before_receipt':True}
         record['completed'] = record['worker_returncode'] == 0 and receipt['completed']
         record['runtime_estimate'] = receipt.get('runtime_estimate')
     except Exception as error:
