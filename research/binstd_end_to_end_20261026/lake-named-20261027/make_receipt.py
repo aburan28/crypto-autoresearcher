@@ -5,6 +5,7 @@ This records fresh command outputs from this run. The logs are not remote
 attestation, and this does not claim the full workspace verifier passed.
 """
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -40,8 +41,20 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--check", action="store_true",
+                    help="verify the existing receipt without changing it")
+args = parser.parse_args()
+output = HERE / "lake-named-validation.json"
+existing = json.loads(output.read_text()) if args.check else None
+if not args.check:
+    assert not output.exists(), "receipt already exists; use --check"
+
 assert subprocess.run(["git", "diff", "--quiet", PRODUCER, "HEAD", "--", *INPUTS],
                       cwd=ROOT).returncode == 0
+for path in INPUTS:
+    frozen = subprocess.check_output(["git", "show", f"{PRODUCER}:{path}"], cwd=ROOT)
+    assert (ROOT / path).read_bytes() == frozen, path
 manifest = json.loads((FORMAL / "lake-manifest.json").read_text())
 packages = []
 for pkg in manifest["packages"]:
@@ -84,7 +97,8 @@ for name in NAMES:
 receipt = {
     "schema": "binstd.lake_named_validation.v1",
     "producer_revision": PRODUCER,
-    "review_branch_revision": git("rev-parse", "HEAD"),
+    "review_branch_revision": (existing["review_branch_revision"] if args.check
+                               else git("rev-parse", "HEAD")),
     "toolchain": (FORMAL / "lean-toolchain").read_text().strip(),
     "input_sha256": {path: sha256(ROOT / path) for path in INPUTS},
     "frozen_inputs_unchanged_since_producer": True,
@@ -111,5 +125,13 @@ receipt = {
     "polynomial_bridge": "not_proved_by_this_module",
     "execution_authentication": "local command output and file hashes; no independent kernel binary recheck",
 }
-(HERE / "lake-named-validation.json").write_text(json.dumps(receipt, indent=2) + "\n")
+content = json.dumps(receipt, indent=2) + "\n"
+if args.check:
+    revision = existing["review_branch_revision"]
+    assert len(revision) == 40
+    subprocess.run(["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+                   cwd=ROOT, check=True)
+    assert output.read_text() == content, "receipt differs from frozen evidence"
+else:
+    output.write_text(content)
 print("PASS: nine exact clean dependencies, named Lake module, seven axiom lines")
