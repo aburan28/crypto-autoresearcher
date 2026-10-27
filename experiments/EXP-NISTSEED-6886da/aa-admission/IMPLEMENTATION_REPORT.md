@@ -6,9 +6,9 @@ The separate full-cohort investigation is in `research/nist_seed_ecpp_full_cohor
 
 # TASK-20261025-ad9d68 corrected-v3 source-only implementation report
 
-`named_orders_executed: 0`  
-`legacy_program_executed: false`  
-`VM calls: 0`  
+`named_orders_executed: 0`
+`legacy_program_executed: false`
+`VM calls: 0`
 `storage attempts: 0`
 
 ## Observed input availability
