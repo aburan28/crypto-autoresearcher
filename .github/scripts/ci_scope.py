@@ -112,6 +112,15 @@ def resolve_base(event: dict, event_name: str) -> tuple[str | None, bool]:
         # potentially stale pull_request.base.sha. Compare exactly that merge.
         parents = git("rev-list", "--parents", "-n", "1", "HEAD").split()
         base = parents[1] if len(parents) > 2 else event["pull_request"]["base"]["sha"]
+    elif event_name == "pull_request_target":
+        # This trigger is limited to merged PRs on main. GitHub checks out the
+        # base-branch commit, whose first parent is the pre-merge main tip.
+        if event.get("action") != "closed" or not event["pull_request"].get("merged"):
+            return None, True
+        parents = git("rev-list", "--parents", "-n", "1", "HEAD").split()
+        if len(parents) < 2:
+            raise ValueError("merged main commit has no parent")
+        base = parents[1]
     elif event_name == "merge_group":
         base = event["merge_group"]["base_sha"]
     elif event_name == "push":
