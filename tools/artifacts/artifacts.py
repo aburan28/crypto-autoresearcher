@@ -20,6 +20,7 @@ repositories and `crypto store` share objects and a local cache.
     artifacts.py verify [PATH ...] [--remote]
     artifacts.py ls [PATH ...]
     artifacts.py check BASE [HEAD]          PR gate: added/modified tracked files that belong in the store
+    artifacts.py migrate BASE [HEAD]        upload changed data, verify remote bytes, stage pointers
 
 Stdlib only; transport is the `aws` CLI (credentials, SSO, retries are the
 CLI's), a `file://` directory, or a read-only `https://` base URL. See
@@ -209,7 +210,7 @@ def write_gitignore(d: Path, names: list[str]) -> None:
         head, rest = text.split(BEGIN, 1)
         tail = rest.split(END, 1)[1] if END in rest else ""
         text = head.rstrip("\n") + ("\n" if head.strip() else "") + tail.lstrip("\n")
-    block = [BEGIN, *[gitignore_escape(n) for n in sorted(names)], END]
+    block = [BEGIN, "!.artifacts.json", *[gitignore_escape(n) for n in sorted(names)], END]
     text = (text.rstrip("\n") + "\n" if text.strip() else "") + "\n".join(block) + "\n"
     p.write_text(text)
 
@@ -409,7 +410,7 @@ def cache_path(cfg: Config, digest: str) -> Path:
 
 def ensure_cached(cfg: Config, remote: Remote, digest: str, size: int) -> Path:
     c = cache_path(cfg, digest)
-    if c.exists() and c.stat().st_size == size:
+    if c.exists() and c.stat().st_size == size and sha256_file(c) == digest:
         return c
     (cfg.cache / "tmp").mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=cfg.cache / "tmp")
@@ -430,19 +431,27 @@ def ensure_cached(cfg: Config, remote: Remote, digest: str, size: int) -> Path:
 
 def cache_insert(cfg: Config, src: Path, digest: str) -> None:
     c = cache_path(cfg, digest)
-    if c.exists():
+    if c.exists() and sha256_file(c) == digest:
         return
     c.parent.mkdir(parents=True, exist_ok=True)
     (cfg.cache / "tmp").mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=cfg.cache / "tmp")
     os.close(fd)
-    place_copy(src, Path(tmp))
-    Path(tmp).chmod(0o444)
-    os.replace(tmp, c)
+    try:
+        place_copy(src, Path(tmp))
+        if sha256_file(Path(tmp)) != digest:
+            die(f"source changed while caching {digest[:12]}; refused")
+        Path(tmp).chmod(0o444)
+        os.replace(tmp, c)
+    finally:
+        Path(tmp).unlink(missing_ok=True)
 
 
 def place_copy(src: Path, dest: Path) -> None:
     """Copy-on-write clone where the filesystem has it (APFS, btrfs, XFS), else a copy."""
+    # A sparse checkout can expose a tracked manifest through the index while
+    # leaving its directory absent from the working tree.
+    dest.parent.mkdir(parents=True, exist_ok=True)
     dest.unlink(missing_ok=True)
     flag = "-c" if sys.platform == "darwin" else "--reflink=auto"
     p = subprocess.run(["cp", flag, str(src), str(dest)], capture_output=True)
@@ -546,7 +555,8 @@ def cmd_push(cfg: Config, args) -> int:
     tracked = [f for f, *_ in done]
     for i in range(0, len(tracked), 500):
         git(cfg.root, "rm", "--cached", "--sparse", "-q", "--ignore-unmatch", "--", *tracked[i:i + 500])
-    git(cfg.root, "add", "--sparse", "--", *[rel(cfg.root, d / n) for d in by_dir for n in (MANIFEST, ".gitignore")])
+    git(cfg.root, "add", "-f", "--sparse", "--",
+        *[rel(cfg.root, d / n) for d in by_dir for n in (MANIFEST, ".gitignore")])
     sent = sum(1 for *_, s in done if s)
     print(f"moved {len(done)} files ({sum(s for _, _, s, _ in done) / 1e6:,.1f} MB; {sent} uploaded, "
           f"{len(done) - sent} already stored) into {len(by_dir)} manifests; review with `git status` and commit",
@@ -620,9 +630,24 @@ def cmd_status(cfg: Config, args) -> int:
 
 def cmd_check(cfg: Config, args) -> int:
     """Fail when BASE..HEAD adds or grows a tracked file the policy assigns to the store."""
-    # Partial clones cannot lazy-fetch a missing blob by an abbreviated object
-    # name. Keep the full object ID from the raw diff for the size check below.
-    out = git(cfg.root, "diff", "--raw", "--abbrev=40", "-z", "--no-renames", "--diff-filter=AM", args.base, args.head)
+    offenders = changed_candidates(cfg, args.base, args.head)
+    if not offenders:
+        print("artifacts check: no data files committed", file=sys.stderr)
+        return 0
+    for p, s in offenders:
+        print(f"{s:>14,}  {p}")
+    print(f"\n{len(offenders)} data file(s) belong in the store, not Git. Move them with\n"
+          f"  python3 tools/artifacts/artifacts.py push <file-or-dir>...\n"
+          f"and commit the .artifacts.json / .gitignore it writes (docs/artifacts.md).", file=sys.stderr)
+    return 1
+
+
+def changed_candidates(cfg: Config, base: str, head: str) -> list[tuple[str, int]]:
+    """Policy-selected additions and modifications on the source branch."""
+    # Full object ids: --full-index only widens the patch "index" line, not
+    # --raw. A blobless checkout can fetch a full id on demand, but the default
+    # 7-character raw id is not a valid object name when that blob is absent.
+    out = git(cfg.root, "diff", "--raw", "--no-abbrev", "-z", "--no-renames", "--diff-filter=AM", base, head)
     fields = out.decode(errors="surrogateescape").split("\0")
     offenders = []
     for meta, path in zip(fields[0::2], fields[1::2]):
@@ -634,15 +659,34 @@ def cmd_check(cfg: Config, args) -> int:
         size = int(git(cfg.root, "cat-file", "-s", blob))
         if belongs_in_store(path, size, cfg.policy):
             offenders.append((path, size))
-    if not offenders:
-        print("artifacts check: no data files committed", file=sys.stderr)
+    return offenders
+
+
+def cmd_migrate(cfg: Config, args) -> int:
+    """Move only changed policy-selected files; never commit before byte replay."""
+    if not args.dry_run and git(cfg.root, "status", "--porcelain", "-z"):
+        die("migrate requires a clean checkout")
+    candidates = changed_candidates(cfg, args.base, args.head)
+    if not candidates:
+        print("artifacts migrate: no changed data files", file=sys.stderr)
         return 0
-    for p, s in offenders:
-        print(f"{s:>14,}  {p}")
-    print(f"\n{len(offenders)} data file(s) belong in the store, not Git. Move them with\n"
-          f"  python3 tools/artifacts/artifacts.py push <file-or-dir>...\n"
-          f"and commit the .artifacts.json / .gitignore it writes (docs/artifacts.md).", file=sys.stderr)
-    return 1
+    paths = [p for p, _ in candidates]
+    if args.dry_run:
+        for p, s in candidates:
+            print(f"{s:>14,}  {p}")
+        return 0
+    cmd_push(cfg, argparse.Namespace(paths=paths, dry_run=False, jobs=args.jobs))
+    remote = Remote(cfg)
+    for d, name, entry in selected(cfg.root, [Path(p) for p in paths]):
+        # HEAD can report a checksum without proving that an older object is
+        # readable. Replay the actual remote bytes before the workflow commits.
+        with tempfile.TemporaryDirectory() as tmp:
+            downloaded = Path(tmp) / "object"
+            remote.get(entry["sha256"], downloaded)
+            if downloaded.stat().st_size != entry["bytes"] or sha256_file(downloaded) != entry["sha256"]:
+                die(f"remote byte replay failed for {rel(cfg.root, d / name)}")
+    print(f"artifacts migrate: {len(paths)} remote objects replayed; staged pointers are ready", file=sys.stderr)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -668,11 +712,16 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("check", help="PR gate")
     s.add_argument("base")
     s.add_argument("head", nargs="?", default="HEAD")
+    s = sub.add_parser("migrate", help="upload changed data, replay remote bytes and stage pointers")
+    s.add_argument("base", help="merge base with the source branch")
+    s.add_argument("head", nargs="?", default="HEAD")
+    s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--jobs", type=int, default=4)
     args = ap.parse_args(argv)
     cfg = Config.load(repo_root())
     return {
         "status": cmd_status, "plan": cmd_plan, "push": cmd_push, "pull": cmd_pull,
-        "verify": cmd_verify, "ls": cmd_ls, "check": cmd_check,
+        "verify": cmd_verify, "ls": cmd_ls, "check": cmd_check, "migrate": cmd_migrate,
     }[args.cmd](cfg, args)
 
 
