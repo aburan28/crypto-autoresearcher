@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -52,6 +53,48 @@ def needed(text: str, moved: set[str], dirs: set[str]) -> list[str]:
         if p:
             found.add(p)
     return sorted(p for p in found if not any(p.startswith(q + "/") for q in found))
+
+
+def explicitly_pulled_and_verified(text: str, paths: list[str]) -> bool:
+    """Accept a scoped pull only in each job that names the moved path.
+
+    The automatic writer inserts a pull after every checkout in a workflow.
+    Some workflows have a single consuming job and other jobs with deliberately
+    narrow sparse checkouts. A pull in the consumer, followed by verification,
+    is sufficient there; requiring it in unrelated jobs would break those
+    checkouts. Do not let a pull in one job cover a different consuming job.
+    """
+    jobs = re.search(r"(?m)^jobs:\s*$", text)
+    if jobs is None:
+        return False
+    tail = text[jobs.end():]
+    starts = list(re.finditer(r"(?m)^  [A-Za-z_][A-Za-z0-9_-]*:\s*(?:#.*)?$", tail))
+    if not starts:
+        return False
+    blocks = [tail[m.end():starts[i + 1].start() if i + 1 < len(starts) else len(tail)]
+              for i, m in enumerate(starts)]
+    seen: set[str] = set()
+    for block in blocks:
+        named = [path for path in paths if path in block]
+        if not named:
+            continue
+        seen.update(named)
+        commands: dict[str, list[list[str]]] = {"pull": [], "verify": []}
+        for line in block.splitlines():
+            match = re.match(r"\s*python3?\s+tools/artifacts/artifacts\.py\s+(pull|verify)\s+(.+)$", line)
+            if match is None:
+                continue
+            try:
+                commands[match.group(1)].append(shlex.split(match.group(2)))
+            except ValueError:
+                return False
+        for path in named:
+            if not all(any(path == arg or path.startswith(arg.rstrip("/") + "/")
+                           for args in commands[verb] for arg in args
+                           if arg and not arg.startswith("-"))
+                       for verb in ("pull", "verify")):
+                return False
+    return seen == set(paths)
 
 
 def step_lines(indent: str, paths: list[str]) -> list[str]:
@@ -94,6 +137,12 @@ def wire(text: str, paths: list[str]) -> tuple[str, list[str]]:
             continue
         if any(re.match(rf"^{indent}    path: ", b) for b in block):
             notes.append("checkout into a `path:` left unwired")
+            out.extend(block)
+            i = j
+            continue
+        # CI scope detection checks out only .github/scripts and never reads
+        # moved data. A hydration step there cannot even access artifacts.py.
+        if any(b.strip() == "sparse-checkout: .github/scripts" for b in block):
             out.extend(block)
             i = j
             continue
@@ -142,6 +191,8 @@ def main() -> int:
         text = f.read_text()
         paths = needed(text, moved, dirs)
         if not paths:
+            continue
+        if explicitly_pulled_and_verified(text, paths):
             continue
         new, notes = wire(text, paths)
         for n in notes:

@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import functools
+import gzip
 import hashlib
 import html
 import json
@@ -50,6 +51,7 @@ import sys
 import tempfile
 import time
 from typing import Any, Iterable
+import zlib
 
 import yaml
 
@@ -861,18 +863,49 @@ def ecbench_sessions_check(repo: Path, scratch: Path, timeout: float) -> dict[st
     present = [d for d in sessions if all((repo / f).is_file() for f in members[d])]
     absent = [d for d in sessions if d not in set(present)]
     failed, errors, passed = [], [], 0
+    preparation_failures: dict[str, str] = {}
     deadline = time.monotonic() + timeout
     for d in present:
-        left = deadline - time.monotonic()
-        if left <= 0:
+        if deadline <= time.monotonic():
             errors.append(d)
             continue
         try:
-            proc = subprocess.run([str(repo / ECBENCH), "verify", "--dir", d, "--replay", "0", "--allow-interrupted",
-                                   "--exit-code", "--out", str(scratch / "v.json")], cwd=repo,
-                                  capture_output=True, text=True, errors="replace", timeout=left)
+            # Tracked sessions often keep verifier inputs as .gz files. Build
+            # the CLI's expected plain-file view in scratch, preserving nested
+            # exec evidence and leaving the audited checkout untouched.
+            with tempfile.TemporaryDirectory(prefix="ecbench-verify-", dir=scratch) as tmp:
+                view = Path(tmp)
+                for rel in members[d]:
+                    source = repo / rel
+                    target = view / Path(rel).relative_to(d)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.symlink_to(source)
+                for rel in members[d]:
+                    if not rel.endswith(".gz"):
+                        continue
+                    source = repo / rel
+                    target = view / Path(rel).relative_to(d)
+                    plain = target.with_name(target.name[:-3])
+                    if not plain.exists():
+                        with gzip.open(source, "rb") as packed, plain.open("xb") as unpacked:
+                            shutil.copyfileobj(packed, unpacked)
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    errors.append(d)
+                    continue
+                proc = subprocess.run([str(repo / ECBENCH), "verify", "--dir", tmp, "--replay", "0",
+                                       "--allow-interrupted", "--exit-code", "--out", str(scratch / "v.json")],
+                                      cwd=repo, capture_output=True, text=True, errors="replace", timeout=left)
         except subprocess.TimeoutExpired:
             errors.append(d)
+            continue
+        except (gzip.BadGzipFile, EOFError, zlib.error) as exc:
+            failed.append(d)
+            preparation_failures[d] = f"{type(exc).__name__}: {exc}"
+            continue
+        except OSError as exc:
+            errors.append(d)
+            preparation_failures[d] = f"environment or I/O error: {type(exc).__name__}: {exc}"
             continue
         if proc.returncode == 0:
             passed += 1
@@ -886,6 +919,7 @@ def ecbench_sessions_check(repo: Path, scratch: Path, timeout: float) -> dict[st
     status = ("fail" if failed else "error" if errors else "partial" if absent else "pass")
     return {"status": status, "note": note, "exit_code": 1 if failed else 0, "sessions": counts,
             "failed_sessions": failed[:LIST_CAP], "unrun_sessions": errors[:LIST_CAP],
+            "preparation_failures": preparation_failures,
             "not_materialised_sessions": absent[:LIST_CAP],
             "tail": "\n".join([*(f"FAIL {d}" for d in failed[:50]), note])}
 CHECKERS: list[dict[str, Any]] = [
@@ -932,10 +966,17 @@ CHECKERS: list[dict[str, Any]] = [
      "argv": [sys.executable, "experiments/fb-archive/fbarchive.py", "verify"]},
     {"id": "fb-refs", "repo": "cryptanalysis", "beat": "B7", "tier": "quick",
      "argv": [sys.executable, "experiments/fb-archive/refs.py", "check"]},
+    {"id": "lean-evidence-metadata", "repo": "cryptanalysis", "beat": "B3", "tier": "quick",
+     "argv": [sys.executable, "tools/audit_lean_evidence.py", "--json", "{scratch}/cryptanalysis-lean-evidence.json"],
+     "needs": ["tools/audit_lean_evidence.py"]},
     {"id": "lean-gate-selftest", "repo": "cryptanalysis", "beat": "B3", "tier": "deep", "timeout": 3600,
-     "needs_bin": ["lake"], "argv": ["bash", "tools/lean/selftest/run.sh"]},
+     "needs_bin": ["lake"], "needs": ["tools/lean/selftest/run.sh"],
+     "argv": ["bash", "tools/lean/selftest/run.sh"],
+     "enable": "add a tracked Lean gate self-test script, then rerun the deep sweep"},
     {"id": "lean-proof-gate", "repo": "cryptanalysis", "beat": "B3", "tier": "deep", "timeout": 3600,
-     "needs_bin": ["lake"], "argv": ["bash", "tools/lean/proof-gate.sh"]},
+     "needs_bin": ["lake"], "needs": ["tools/lean/proof-gate.sh"],
+     "argv": ["bash", "tools/lean/proof-gate.sh"],
+     "enable": "add a tracked Lean proof-gate script, then rerun the deep sweep"},
 ]
 
 

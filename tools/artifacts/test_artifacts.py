@@ -16,6 +16,7 @@ from pathlib import Path
 TOOL = Path(__file__).resolve().parent / "artifacts.py"
 sys.path.insert(0, str(TOOL.parent))
 import artifacts  # noqa: E402
+from wire_workflows import explicitly_pulled_and_verified, wire  # noqa: E402
 
 
 def sh(cwd, *argv, check=True, env=None):
@@ -183,6 +184,51 @@ class S3Argv(unittest.TestCase):
     def test_rejects_non_digest(self):
         with self.assertRaises(SystemExit):
             artifacts.object_key("../../etc/passwd")
+
+
+class WorkflowWiring(unittest.TestCase):
+    PATH = "examples/experiment-protocol/ecbench-l2-smoke-subset/session"
+
+    def test_scope_only_checkout_stays_unwired(self):
+        workflow = ("jobs:\n  changes:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "        with:\n          sparse-checkout: .github/scripts\n"
+                    "      - run: python3 .github/scripts/ci_scope.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertEqual(wired, workflow)
+
+    def test_data_reading_checkout_still_gets_pull(self):
+        workflow = ("jobs:\n  ledger:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "      - run: python3 tools/check_merge_hygiene.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertIn("artifacts.py pull --jobs 16 coordination docs", wired)
+
+    def workflow(self):
+        return ("jobs:\n"
+                "  changes:\n"
+                "    steps:\n"
+                "      - run: echo checked\n"
+                "  harness:\n"
+                "    steps:\n"
+                "      - run: |\n"
+                f"          python3 tools/artifacts/artifacts.py pull {self.PATH}\n"
+                f"          python3 tools/artifacts/artifacts.py verify {self.PATH}\n")
+
+    def test_explicit_pull_and_verify_in_consumer(self):
+        self.assertTrue(explicitly_pulled_and_verified(self.workflow(), [self.PATH]))
+
+    def test_missing_verify_is_not_accepted(self):
+        self.assertFalse(explicitly_pulled_and_verified(
+            self.workflow().replace("artifacts.py verify", "artifacts.py list"), [self.PATH]))
+
+    def test_missing_pull_is_not_accepted(self):
+        self.assertFalse(explicitly_pulled_and_verified(
+            self.workflow().replace("artifacts.py pull", "artifacts.py list"), [self.PATH]))
+
+    def test_pull_in_one_job_does_not_cover_another_consumer(self):
+        other = f"  second-consumer:\n    steps:\n      - run: cat {self.PATH}/records.jsonl\n"
+        self.assertFalse(explicitly_pulled_and_verified(self.workflow() + other, [self.PATH]))
 
 
 if __name__ == "__main__":

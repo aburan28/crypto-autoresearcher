@@ -22,6 +22,10 @@ runs no trial, writes no run record and changes no research state.
   session with `/audit-runs`.
 - Before a `/review-evidence` that cites a runbook session.
 - When asked to check the math on Haiku (mechanical-tier) runs.
+- For an `experiment.export/v1` bundle with no runbook session (an ecbench,
+  taskq or manual run from any repository), use `review-run` instead; it
+  files an `experiment.review/v1` record the same way this skill files an
+  audit.
 
 Never in the session that produced the run: independence is the point. Fetch
 `origin/main` first so the sessions other branches published are on disk.
