@@ -492,3 +492,93 @@ same ordered 100 preexisting errors and no new record error. No error
 suppression, failed-check bypass, new research chain or immutable checkpoint
 edit occurred. Authorized software coordination is complete; the scientific
 goal remains active and impeded by the requirements stated above.
+
+
+## 2026-10-27 02:56 UTC: informational host-status recheck
+
+A read-only continuation assessment at 2026-10-27T02:56:36.173000+00:00
+recorded the whitelisted host/cgroup status below. It read system metadata
+only: no container, helper, Docker inner probe, memory-advice pass, allocator,
+qualification case or scientific case was launched. This is informational
+prospective-route orientation, not a new admission, qualification attempt,
+retry or rescoring of either historical Q4 row.
+
+The measured visible cgroup has memory.max 17,179,869,184 bytes and
+memory.current 7,881,801,728 bytes. Its derived finite headroom is
+`17,179,869,184 - 7,881,801,728 = 9,298,067,456` bytes, below the unchanged
+12,884,901,888-byte requirement by the derived 3,586,834,432 bytes. Host
+MemAvailable 17,882,804,224 bytes is not the limiting recorded value. The
+visible cgroup mount is read-only, its raw swap maximum is `max`, and current
+swap usage and host swap totals are 0. No new inner-runtime effective swap cap
+or writable delegation was measured; hidden ancestors remain unobserved.
+This snapshot therefore establishes no eligible current candidate route and
+confirms the present visible-headroom impediment. It does not establish OOM
+behavior, invalidate the historical software observations, or provide a
+mathematical negative result.
+
+The complete whitelisted status JSON is retained inline, rather than relying
+on an unpublished scratch pointer. Its source bytes have SHA-256
+`4957c3b72931531a6a5bdfd10bf4c18ec7917b12e6be219e004abccfa7630223`.
+
+```json
+{
+  "schema": "informational-host-status-v1",
+  "recorded_at": "2026-10-27T02:56:36.173000+00:00",
+  "purpose": "Read-only prospective-route orientation; not admission, qualification, retry, or rescoring of historical Q4 rows.",
+  "operations": [
+    "Read /proc/meminfo and own cgroup/mount mappings",
+    "Read visible cgroup memory and swap status"
+  ],
+  "containers_helpers_allocators_advice_launched": 0,
+  "host_meminfo": {
+    "MemTotal_bytes": 18882674688,
+    "MemAvailable_bytes": 17882804224,
+    "SwapTotal_bytes": 0,
+    "SwapFree_bytes": 0
+  },
+  "own_cgroup_mapping": "0::/",
+  "visible_cgroup_mounts": [
+    {
+      "root": "/..",
+      "mount_point": "/sys/fs/cgroup",
+      "options": "ro,nosuid,nodev,noexec,relatime"
+    }
+  ],
+  "visible_levels": [
+    {
+      "visible_path": "/sys/fs/cgroup",
+      "raw": {
+        "memory.max": "17179869184",
+        "memory.current": "7881801728",
+        "memory.swap.max": "max",
+        "memory.swap.current": "0"
+      },
+      "finite_headroom_bytes": 9298067456
+    }
+  ],
+  "informational_visible_minimum_headroom_bytes": 9298067456,
+  "fixed_required_headroom_bytes": 12884901888,
+  "hidden_ancestors": "unobserved",
+  "execution_authorized": false
+}
+```
+
+Root's concurrent read-only PR/status observation retains owner PR #2642 open
+and unmerged at 76a3e4eb67e818354da7575dad4b834467a97e5c and programme PR #2594
+open and unmerged at unchanged head 5fdacf2d; eight current owner workflow runs
+are completed failures. No workflow rerun or merge bypass occurred in this
+recheck. These workflow-run counts are separate from the earlier per-check
+counts and do not relabel any failed verification as successful.
+
+Standing Coordinator authority still permits justified prospective design;
+the completed cards' one-pass/no-retry authority does not permit another
+case. This below-threshold observation supplies no viable fresh executable
+host route and creates no packet or execution authority. The exact existing
+recheck remains a host/admission packet demonstrating measured enclosing
+H at least 12,884,901,888 bytes with the unchanged 8 GiB payload/runtime and
+production watchdog, serial admission, kernel-event/victim/peak/parent-
+survival/cleanup receipts, and fresh maintained ownership. Recheck when that
+condition changes, without automatically repeating preparation or Q4 under
+the completed cards. Both Q4 rows and all completed task states remain
+unchanged; all 24 scientific cases remain unrun, no IC gain is established,
+and the goal remains active.
