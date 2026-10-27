@@ -15,6 +15,15 @@ power residues of j and coefficients, all 61 source-table root levels, and
 recorded validation features. Its scope is two atoms from that library;
 arbitrary complex or field-dependent rules remain outside that result.
 
+The [signed Frobenius extension](signed-frobenius-20261027/report.md) adds
+full torsion actions and source eigenvalue-list metrics. It finds 16 exact
+retrospective signature-pair fits, including a two-cap separator at auxiliary
+prime 199 covering all ten publications and eleven omissions. Independently
+frozen source-policy checks expose the remaining gap: uniform caps reject
+every publication, unknown-degree mode loses four, and the later counter's
+reported working-prime traces stop below 199 on all omissions. Every fit and
+counterexample is retained; historical use remains unestablished.
+
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
 These are reconstructed omissions, not documented historical rejection events.
