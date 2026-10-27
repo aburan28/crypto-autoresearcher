@@ -119,6 +119,42 @@ class OpenIdeaWorklistTests(unittest.TestCase):
         # against it, so it must not appear on the "still to design" worklist.
         self.assertNotIn("IDEA-20260903-81a943", ids)
 
+    def test_hash_bound_schema_redirects_replace_predecessors_in_worklist(self):
+        ids = {row["id"] for row in EP.open_ecc_ideas()}
+        predecessors = {"IDEA-20261016-7a138a", "IDEA-20261016-bb92bd",
+                        "IDEA-20261016-d0335b", "IDEA-20261016-e191a8"}
+        successors = {"IDEA-20261027-93b28d", "IDEA-20261027-4d8543",
+                      "IDEA-20261027-27d8bf", "IDEA-20261027-1ffd7c"}
+        self.assertTrue(predecessors.isdisjoint(ids))
+        self.assertTrue(successors.issubset(ids))
+
+    def test_redirect_with_changed_source_hash_fails_open(self):
+        import hashlib
+        import tempfile
+        import yaml
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            source = repo / "ledger/proposals/old.yaml"
+            target = repo / "ledger/proposals/new.yaml"
+            registry = repo / "tools/schema_supersession_registry.yaml"
+            source.parent.mkdir(parents=True)
+            target.write_text("idea:\n  id: IDEA-20261027-abc123\n")
+            original = b"idea:\n  id: IDEA-20261016-abc123\n"
+            source.write_bytes(original + b"# changed after registration\n")
+            registry.parent.mkdir(parents=True)
+            registry.write_text(yaml.safe_dump({
+                "schema": "schema-supersession-registry-v1",
+                "records": [{
+                    "kind": "ledger", "superseded_path": "ledger/proposals/old.yaml",
+                    "superseded_sha256": hashlib.sha256(original).hexdigest(),
+                    "superseding_path": "ledger/proposals/new.yaml",
+                    "superseding_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+                    "redirect_id": "IDEA-20261027-abc123",
+                }],
+            }))
+            self.assertEqual(EP._verified_idea_redirects(repo), set())
+
     def test_legacy_three_digit_idea_ids_count_as_designed(self):
         """A designed LEGACY-form idea must drop off the worklist too.
 
