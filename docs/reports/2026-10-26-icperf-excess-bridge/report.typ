@@ -1,15 +1,16 @@
 #set page(paper: "us-letter", margin: 0.72in)
-#set text(font: "Libertinus Serif", size: 10pt)
+#set text(font: "Arial", size: 10pt)
+#show raw: set text(font: "Arial")
 #set par(justify: true, leading: 0.56em)
 
 = Linearization excess and elite binary factor bases
-_Preparatory source assessment · 26 October 2026_
+Preparatory source assessment · 26 October 2026
 
 The source-reported two-summand PDP fit uses `e = n - ℓ - dim(V²)` and predicts *solving degree* `2 + [e < -3.5] + [e < -8.5]` over 656 tested bases, with mean absolute error 0.06. Its homogeneous degree of regularity is `ℓ+1`. The product-space theorem of Bachoc, Serra and Zémor identifies geometric progressions in prime-degree extensions when the product span attains its minimum below dimension `n-1`. Neither statement predicts the charged cost of a chained three- or four-summand S3 system by itself.
 
 #image("figure.svg", width: 100%)
 
-_Figure 1._ Source-reported exact counts from crypto `d51b908a`, `run-20261016T1705Z`: four unsatisfiable draws per cell, all saturated through degree 4. These are random-subspace arms; `n` and `ℓ` both change. No elite-base comparison was run.
+Figure 1. Source-reported exact counts from crypto `d51b908a`, `run-20261016T1705Z`: four unsatisfiable draws per cell, all saturated through degree 4. These are random-subspace arms; `n` and `ℓ` both change. No elite-base comparison was run.
 
 == Transfer boundary
 
