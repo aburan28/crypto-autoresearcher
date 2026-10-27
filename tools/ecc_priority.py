@@ -409,6 +409,10 @@ def _verified_idea_redirects(repo: Path, *, warn=warn) -> set[str]:
         records = document.get("records")
         if not isinstance(records, list):
             raise ValueError("schema supersession records must be a list")
+    except FileNotFoundError:
+        # Fixture repositories used by callers may not model the registry.
+        # With no registry there are no applicable redirects to apply.
+        return set()
     except (OSError, ValueError, yaml.YAMLError) as error:
         warn(f"cannot read schema supersession registry ({error}); no IDEA "
              "redirects are applied")
