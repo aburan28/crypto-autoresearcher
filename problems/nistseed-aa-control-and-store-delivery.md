@@ -4,7 +4,7 @@
 - **Kind:** implementation gap; access/tool limit
 - **Affected work:** GOAL-NISTSEED-ab8949; RQ-NISTSEED-ac8851; prospective EXP-NISTSEED-6886da; BATCH-62db73
 - **Next action owner:** Executor, TASK-20261025-ad9d68
-- **Last updated:** 2026-10-25
+- **Last updated:** 2026-10-27
 
 ## Problem
 
@@ -40,3 +40,12 @@ These conditions establish only an A/A-control implementation prerequisite. They
 ## Resolution and history
 
 Unresolved.
+
+
+### 2026-10-27: publication collision; separate completed research observations
+
+The original future EXP-NISTSEED-6886da admission packet remains distinct from the later standalone completed [ECPP](../research/nist_seed_ecpp_full_cohort_20261027/REPORT.txt), [SEA](../research/nist_seed_sea_all_roots_20261027/report.md) and [FreeLIP](../research/nist_seed_pre1997_library_20261027/report.md) observations. Its earlier zero-run statements are historical packet state, not the current count of all research executions. The canonical-store refusal is still not storage success.
+
+Refreshing main to `6464133bfc8d76771c523bfb6bc3c56763b747b4` exposes five immutable-record collisions under `experiments/EXP-NISTSEED-6886da/aa-admission/`: `IMPLEMENTATION_REPORT.md`, `aa_fixture_producer.py`, `aa_fixture_schema.json`, `test-report.txt` and `test_aa_fixture_producer.py`. Main includes the separately archived zero-run snapshot at `f80cf4fbf0`. The [publication receipt](../research/nist_seed_pre1997_library_20261027/PUBLICATION-STATUS.json) binds the exact branch/main Git blobs and failing check; all five branch blobs are unchanged from `01980761a4` before the new FreeLIP commits. This blocks a current-main merge-hygiene pass, not the scientific replay. The earlier pass against an older main ref is not a current pass.
+
+Required publication exit: preserve both already-published byte versions through an allocated successor and a CORR alias mapping, retain all source/runtime bindings, and pass branch merge hygiene against a freshly fetched main. Do not overwrite either frozen snapshot or select one side as a collision resolution. Resolving that publication issue would not identify the historical curve criterion. T-5518 records this obstruction; the current scientific source investigation remains active.

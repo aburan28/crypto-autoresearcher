@@ -48,3 +48,12 @@ PDF and both vector figures. Its counts come from the sealed observations and
 published summary. The editable workflow data is [workflow.diagram.json](workflow.diagram.json).
 No scientific run is needed. The prior SEA and ECPP graph sets retain their own
 unchanged sealed-run scopes; this study adds separate library-validation figures.
+
+## Publication state
+
+The scientific archive and both portable auditors pass. The refreshed-main
+branch check exposes five inherited immutable A/A-record collisions, separately
+bound in [PUBLICATION-STATUS.json](PUBLICATION-STATUS.json) and the canonical
+[problem record](../../problems/nistseed-aa-control-and-store-delivery.md).
+The new FreeLIP study does not edit those five frozen records. The PR is open;
+this is not a claim that all merge gates pass.
