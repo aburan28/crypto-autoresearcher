@@ -129,6 +129,7 @@ def main() -> None:
             break
     demand(order == N, 'Frobenius order differs')
     normal = None
+    normal_orbit = None
     for v in range(1, 1 << N):
         orbit = []
         x = v
@@ -137,6 +138,7 @@ def main() -> None:
             x = apply(columns, x)
         if rank(orbit) == N:
             normal = v
+            normal_orbit = orbit
             break
     demand(normal is not None, 'no cyclic/normal witness found')
     kernel_dims = {}
@@ -162,6 +164,7 @@ def main() -> None:
         'frobenius_columns': columns,
         'frobenius_order': order,
         'normal_basis_generator_bitmask': normal,
+        'normal_basis_orbit_bitmasks': normal_orbit,
         'normal_basis_orbit_rank': N,
         'factor_kernel_dimensions': kernel_dims,
         'factor_degree_subset_sums': sorted(dims),
