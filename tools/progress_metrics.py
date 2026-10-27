@@ -15,6 +15,8 @@ Sources (committed, read at --ref):
                                              completed width16 Prym counts/ranks
   experiments/EXP-ECDLP-2b4ff1/reports/run-20261027T1934Z/data.json
                                              endpoint-reuse execution/public-witness observations
+  experiments/EXP-ECDLP-f50061/reports/run-20261027T2311Z/observations.json
+                                             parameter-sweep counts, retaining censored cases
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -356,6 +358,43 @@ def endpoint_reuse_observations(ref, since):
              label=f"RUN-ECDLP-b883bf: {labels[name]}", source=f"{path}@{ref}")
 
 
+def endpoint_reuse_sweep_observations(ref, since):
+    """Actual sweep counts, including censoring; no cost or clock qualification."""
+    path = "experiments/EXP-ECDLP-f50061/reports/run-20261027T2311Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.parameter-sweep.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-f50061"
+                or data.get("run_id") != "RUN-ECDLP-e69a23"
+                or data.get("protocol_sha256") != "f882380374559faae1b50d86c1583c06c36738fc5dce43d2861fadaa6204b812"
+                or data.get("public_equation_verification") != "passed"
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("native_counter_replay_verified") is not False or date < since):
+            return
+        labels = {
+            "completed_children": "completed native children (execution observation)",
+            "public_fixtures": "public fixtures checked",
+            "public_target_ids": "unique public target identities checked",
+            "observed_target_arm_cases": "observed target-arm cases, including censoring",
+            "verified_case_witnesses": "solved public-equation witnesses verified (native counters not replayed)",
+            "censored_target_arm_cases": "retained censored target-arm cases",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["observed_target_arm_cases"] != values["verified_case_witnesses"] + values["censored_target_arm_cases"]):
+        return
+    for name, value in values.items():
+        emit(f"endpoint_reuse.e69a23.{name}", value, date=date,
+             problem="ecdlp-endpoint-reuse", unit="count", better="neutral",
+             label=f"RUN-ECDLP-e69a23: {labels[name]}", source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -431,6 +470,7 @@ def main():
     funnel(a.ref, a.since)
     claims(a.ref)
     endpoint_reuse_observations(a.ref, a.since)
+    endpoint_reuse_sweep_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
