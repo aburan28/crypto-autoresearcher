@@ -8,19 +8,14 @@ name: main-health
 # touched none of them and which could not have repaired them without fabricating
 # run output. With 115 open branches that coupling was the dominant CI failure.
 #
-# Absolute checking is still necessary -- it is the only thing that finds
-# breakage already sitting on main. It just belongs HERE, where the failure
-# reaches the campaign that owns the artifact, instead of on every PR.
+# Absolute checking is still necessary to find breakage after a PR merges to
+# main. The merged-PR event starts that sweep without rerunning it for the
+# cache commits that this workflow makes directly on main.
 
 on:
-  push:
+  pull_request_target:
     branches: [main]
-    # The sweep commits its own cache; without this it would retrigger itself.
-    paths-ignore:
-      - "coordination/portfolio_health/**"
-      - "coordination/events/**"
-  schedule:
-    - cron: "0 * * * *"
+    types: [closed]
   workflow_dispatch:
 
 # At most one sweep runs and one waits: a newer trigger replaces the waiting one. Not
@@ -37,6 +32,7 @@ permissions:
 
 jobs:
   absolute-sweep:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.merged }}
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
