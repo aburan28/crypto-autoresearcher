@@ -79,9 +79,31 @@ def main():
         record['worker_returncode'] = proc.wait()
         (args.out/'worker.stdout.txt').write_text(proc.stdout.read())
         (args.out/'worker.stderr.txt').write_text(proc.stderr.read())
+        # Reuse the reviewed UID1000 cleanup before sealing any partial raw files.
+        seal_code = """import hashlib,json,sys
+from pathlib import Path
+sys.path.insert(0,'/opt/study/modal')
+from controller import quiesce_study_processes
+cleanup=quiesce_study_processes()
+print(json.dumps(cleanup),flush=True)
+assert cleanup['quiescent'], 'Study UID1000 remained live'
+root=Path('/work/calibration/result')
+root.mkdir(exist_ok=True)
+(root/'process-cleanup.json').write_text(json.dumps(cleanup,indent=2)+'\\n')
+manifest={'schema':'classical.ecdlp.runtime-calibration-output-manifest/v1','study_uid1000_quiescent':True,
+'files':[{'path':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+for p in sorted(root.iterdir()) if p.is_file() and p.name!='output-manifest.json']}
+(root/'output-manifest.json').write_text(json.dumps(manifest,indent=2)+'\\n')
+"""
+        seal = sb.exec('python3', '-c', seal_code, timeout=50)
+        record['seal_returncode'] = seal.wait()
+        (args.out/'seal.stdout.txt').write_text(seal.stdout.read())
+        (args.out/'seal.stderr.txt').write_text(seal.stderr.read())
+        assert record['seal_returncode'] == 0
         data = regular_bytes(sb, '/work/calibration/result/output-manifest.json')
         manifest = json.loads(data)
         assert manifest['schema'] == 'classical.ecdlp.runtime-calibration-output-manifest/v1'
+        assert manifest['study_uid1000_quiescent'] is True
         (args.out/'output-manifest.json').write_bytes(data)
         raw_out = args.out/'result'
         raw_out.mkdir()

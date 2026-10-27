@@ -36,29 +36,44 @@ def main():
                'started_at': helper.utc(), 'plan_sha256': sha(ROOT / 'plan.json'),
                'purpose': plan['purpose'], 'scientific_confirmation_measurement': False,
                'uid': os.getuid(), 'gid': os.getgid(), 'wall_valid': False,
-               'host': helper.host_facts(), 'arms': [], 'completed': False}
+               'host': helper.host_facts(), 'arms': [], 'child_call_intents': [], 'completed': False}
     deadline = time.monotonic() + plan['native_global_timeout_seconds']
     with (ROOT / 'targets.tsv').open() as stream:
         targets = list(csv.DictReader(stream, delimiter='\t'))
-    for arm in plan['arms']:
-        if time.monotonic() >= deadline:
-            receipt['stop_reason'] = 'native_global_timeout_before_next_child'
-            break
-        raw = OUT / (arm + '.jsonl')
-        argv = ['/usr/local/bin/endpoint_reuse', '--run', str(ROOT/'fixtures.tsv'),
-                str(ROOT/'targets.tsv'), str(ROOT/'settings.tsv'), arm, str(raw)]
-        observation = helper.wait_child(argv, OUT/(arm+'.stdout.txt'), OUT/(arm+'.stderr.txt'),
-                                        plan['native_child_timeout_seconds'], deadline=deadline)
-        observation.update({'arm': arm, 'argv': argv, 'raw_path': raw.name,
-                            'scientific_confirmation_measurement': False})
-        if raw.exists():
-            observation['raw_sha256'] = sha(raw)
-        if observation['exitcode'] == 0:
-            observation['shape'] = helper.shape_check(raw, plan['setting']['cell_id'], plan['setting'], arm, targets)
-        receipt['arms'].append(observation)
-        write(arm+'.command.json', observation)
-        # Every native outcome is preserved; there is no automatic retry.
-    receipt['completed'] = (len(receipt['arms']) == 6 and
+    pending_arm = None
+    try:
+        for arm in plan['arms']:
+            if time.monotonic() >= deadline:
+                receipt['stop_reason'] = 'native_global_timeout_before_next_child'
+                break
+            raw = OUT / (arm + '.jsonl')
+            argv = ['/usr/local/bin/endpoint_reuse', '--run', str(ROOT/'fixtures.tsv'),
+                    str(ROOT/'targets.tsv'), str(ROOT/'settings.tsv'), arm, str(raw)]
+            receipt['child_call_intents'].append(arm)
+            write(arm+'.intent.json', {'arm': arm, 'argv': argv, 'started_at': helper.utc()})
+            pending_arm = arm
+            observation = helper.wait_child(argv, OUT/(arm+'.stdout.txt'), OUT/(arm+'.stderr.txt'),
+                                            plan['native_child_timeout_seconds'], deadline=deadline)
+            pending_arm = None
+            observation.update({'arm': arm, 'argv': argv, 'raw_path': raw.name,
+                                'scientific_confirmation_measurement': False})
+            receipt['arms'].append(observation)
+            if raw.exists():
+                observation['raw_sha256'] = sha(raw)
+            if observation['exitcode'] == 0:
+                try:
+                    observation['shape'] = helper.shape_check(raw, plan['setting']['cell_id'], plan['setting'], arm, targets)
+                except Exception as error:
+                    # The child was reaped; retain its observation and finish the other arms.
+                    observation['shape_error'] = {'type': type(error).__name__, 'message': str(error)}
+            write(arm+'.command.json', observation)
+            # Every native outcome is preserved; there is no automatic retry.
+    except Exception as error:
+        receipt['error'] = {'type': type(error).__name__, 'message': str(error),
+                            'possible_live_native_child': pending_arm is not None,
+                            'pending_arm': pending_arm}
+        receipt['stop_reason'] = 'helper_or_shape_exception_no_later_child_started'
+    receipt['completed'] = ('error' not in receipt and len(receipt['arms']) == 6 and
                             all(r['exitcode'] == 0 and r.get('shape',{}).get('output_shape_complete') for r in receipt['arms']))
     receipt['finished_at'] = helper.utc()
     if receipt['completed']:
