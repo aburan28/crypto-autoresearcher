@@ -16,7 +16,7 @@ PR #2564 fixes future run-record string quoting and empty container types. Its t
 
 ## Validation
 
-- Schema supersession safety tests: 13 passed, including both duplicate-key controls. The CI supersession helper module also imports and passes its available unittest discovery.
+- Schema and CI supersession safety controls: 22 pytest tests passed, including both new duplicate-key controls and real child-process execution, fixture forwarding, hash drift refusals and unchanged-node selection. The standalone schema unittest run also passes all 13 tests.
 - All 238 active schema routes: original and replacement bytes present and SHA-256 matched, no hash errors.
 - Future run-record serialization: 3 tests passed, including multiline Git status, string type preservation and empty lists/maps.
 - All five named PR heads are ancestors of this integration.
@@ -24,3 +24,5 @@ PR #2564 fixes future run-record string quoting and empty container types. Its t
 Sources reviewed: AGENTS.md, tools/validate_ledger.py, tools/schema_supersession_registry.yaml, the author PR bodies and exact merge deltas, DEC-20261023-5c9671, CORR-20261024-7c17bf, the current handoff’s Git history, and the existing safe YAML serializer tests. The repair keeps each correction bound to the source it actually describes.
 
 Current-head hosted CI and review remain required. This report does not establish a clean full-corpus ledger, universal theorem fidelity, valid archived S2 results, or completion of the user’s wider backlog request.
+
+The first broader pytest invocation failed six child-process controls because pytester changes HOME and this environment had pytest installed only in its user site. Repeating in an isolated virtual environment with pytest 8.3.5 installed there passed all 22 controls; both outputs are retained. No repository test or loader was changed to work around this local installation issue.
