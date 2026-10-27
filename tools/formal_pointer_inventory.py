@@ -15,7 +15,7 @@ import json
 import re
 import subprocess
 
-EXP_RE = re.compile(r'(?<![A-Za-z0-9_-])EXP-[A-Z0-9]+-[0-9a-z]+(?![A-Za-z0-9_-])')
+EXP_RE = re.compile(r'(?<![A-Za-z0-9_-])EXP-(?:[A-Za-z0-9]+-)+[A-Za-z0-9]+(?![A-Za-z0-9_-])')
 TEXT_EXT = {'.md', '.txt', '.yaml', '.yml', '.json', '.lean'}
 MAX_SOURCE_BYTES = 1_000_000
 
@@ -58,6 +58,9 @@ def build(repo: Path, revision: str) -> dict:
     commit = git(repo, 'rev-parse', f'{revision}^{{commit}}').decode().strip()
     paths = git(repo, 'ls-tree', '-r', '--name-only', commit, '--', 'experiments').decode().splitlines()
     ids = sorted({p.split('/')[1] for p in paths if p.startswith('experiments/EXP-') and p.count('/') >= 2})
+    unrecognized = [name for name in ids if not EXP_RE.fullmatch(name)]
+    if unrecognized:
+        raise ValueError(f'experiment IDs outside token grammar: {unrecognized[:10]}')
     idset = set(ids)
     names = [p for p in git(repo, 'ls-tree', '--name-only', f'{commit}:formal/targets').decode().splitlines()
              if p.endswith(('.yaml', '.yml'))]
