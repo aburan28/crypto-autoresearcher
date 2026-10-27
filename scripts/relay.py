@@ -446,8 +446,9 @@ def cmd_snapshot(args) -> int:
         event = hook.get("hook_event_name", "")
         error = str(hook.get("error") or "")
         budget = event == "StopFailure" and error in BUDGET_ERRORS
-        # Never overwrite another session's unclaimed handoff with our own draft.
-        if prev.get("status") == "pending" and prev.get("session_id") != hook.get("session_id") and not budget:
+        # A pending handoff stays until it is accepted, even across the outgoing
+        # session's own Stop hook; only a new budget stop replaces it.
+        if prev.get("status") == "pending" and not budget:
             return 0
         if budget:
             h = write(root, status="pending", reason=f"budget: {error}", frm=runtime, to=other(runtime),
@@ -593,13 +594,16 @@ def cmd_run(args) -> int:
         sys.exit("relay: run needs a task after --")
     logdir = paths(root)["dir"] / "relay-runs"
     logdir.mkdir(parents=True, exist_ok=True)
-    prompt, i, hops, exhausted = task, 0, 0, set()
+    prompt, i, hops, exhausted, missing = task, 0, 0, set(), set()
     while hops <= args.max_hops:
         rt = order[i % len(order)]
         argv = runtime_cmd(rt, False) + [prompt]
         if not shutil.which(argv[0]):
             print(f"relay: {argv[0]} not on PATH; skipping {rt}", file=sys.stderr)
-            exhausted.add(rt)
+            missing.add(rt)
+            if missing >= set(order):
+                print("relay: no runtime executable is available", file=sys.stderr)
+                return 127
         else:
             started = now()
             log = logdir / f"{started.replace(':', '')}-{rt}.log"
@@ -627,7 +631,7 @@ def cmd_run(args) -> int:
             prompt = takeover_prompt(root, h, task)
             hops += 1
         i += 1
-        if exhausted >= set(order):
+        if exhausted | missing >= set(order):
             print(f"relay: every runtime is out of budget; waiting {args.cooldown}s", file=sys.stderr)
             time.sleep(args.cooldown)
             exhausted.clear()

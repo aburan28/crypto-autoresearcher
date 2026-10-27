@@ -46,8 +46,9 @@ restored worktree.
 | Claude Code | `SessionStart` | announce a pending handoff as session context |
 | Codex | `Stop` (every turn), `SessionStart` | the same draft and announcement (`.codex/hooks.json`) |
 
-A draft never overwrites another session's pending handoff, so the incoming
-runtime cannot clobber what it has not yet accepted. Codex has no
+A pending handoff stays pending until it is accepted: no runtime's per-turn
+draft overwrites it, the outgoing session's own included; only a new budget
+stop replaces it. Codex has no
 `StopFailure` equivalent: when Codex runs out, its last per-turn draft is
 current, and `relay.py out --runtime codex --to claude` (or the `run` loop)
 marks it pending. Codex project hooks need hooks enabled in your Codex

@@ -185,3 +185,25 @@ def test_this_repo_is_wired():
         assert "relay.py" in json.dumps(codex[ev])
     assert "docs/runtime-relay.md" in (root / "AGENTS.md").read_text()
     assert "relay.py accept" in (root / "docs/runtime-relay.md").read_text()
+
+
+def test_outgoing_sessions_own_stop_keeps_pending(repo):
+    hook = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(repo)}
+    relay(repo, "--runtime", "claude", "snapshot", stdin=json.dumps(hook))
+    relay(repo, "--runtime", "claude", "out", "--to", "codex", "--no-push", "--quiet", "--note", "keep me")
+    relay(repo, "--runtime", "claude", "snapshot", stdin=json.dumps(hook))
+    h = json.loads((repo / ".resume/handoff.json").read_text())
+    assert h["status"] == "pending" and h["note"] == "keep me" and h["to"] == "codex"
+
+
+def test_run_stops_when_no_runtime_is_installed(repo, tmp_path):
+    env = {"RELAY_CLAUDE_CMD": str(tmp_path / "nope1"), "RELAY_CODEX_CMD": str(tmp_path / "nope2")}
+    r = subprocess.run([sys.executable, str(RELAY), "run", "--max-hops", "0", "--cooldown", "0", "--", "t"],
+                       cwd=repo, capture_output=True, text=True, timeout=20, check=False,
+                       env={**os.environ, **env})
+    assert r.returncode == 127 and "no runtime executable" in r.stderr
+
+
+def test_restore_announcement_exits_zero_without_handoff():
+    body = (RELAY.parent / "checkpoint.sh").read_text()
+    assert '[ -f "$dest/.resume/HANDOFF.md" ] && echo' not in body

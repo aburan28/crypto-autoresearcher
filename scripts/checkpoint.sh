@@ -480,7 +480,9 @@ print(m["repo"], s[-2], s[-1])' "$dl/meta.json")
   echo "restored $src"
   echo "  worktree: $dest (branch $newb)"
   echo "  read:     $dest/.resume/RESUME.md"
-  [ -f "$dest/.resume/HANDOFF.md" ] && echo "  handoff:  $dest/.resume/HANDOFF.md (python3 scripts/relay.py accept)"
+  if [ -f "$dest/.resume/HANDOFF.md" ]; then
+    echo "  handoff:  $dest/.resume/HANDOFF.md (python3 scripts/relay.py accept)"
+  fi
 }
 
 case "${1:-}" in
