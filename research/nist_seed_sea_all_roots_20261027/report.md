@@ -37,6 +37,8 @@ P-224 therefore retains its specific four-roots-versus-one-root lead. P-192 and 
 
 ## Source dating and inference boundary
 
+Compatibility amendment: the inherited static-library build includes the recorded pre-Dewaghe sign-ambiguity switch. With NIST_PRE1998_X set, test_x_coordinate_uniquely returns false, retaining both X-coordinate trace signs. This is an explicit reconstruction amendment preserved in source/pre-dewaghe-sign.patch, not authenticated 1997 source. The all-root observer itself adds access-label changes only.
+
 Measured source: passagemath/upstream-LiDIA commit 23dac491f4cd96eb7de648a5cf90eb9ec77653c8; version string 2.3.0+latte-patches-2019-05-02. The full fetched Git history starts with a 2013 import of release 2.3.0. The initial-import NEWS says the point-counting package was integrated in 2.1pre2. The retained ChangeLog dates documentation of the newly inserted package to 2001-06-05. It records a splitting-degree fix and an occasional-crash comparison typo on 2001-09-15, and a schoofpart failure fix on 2004-03-15. These messages do not identify the old faulty lines, date creation of standalone ECO, or demonstrate generator use. No speculative reversal of a comparison has been presented as recovered code.
 
 For this precise build and these levels, every rational-root branch produced independently valid arithmetic for both profiles. Consequently these captures provide no omission-specific failure mechanism. They leave earlier implementations, other levels, optimizer settings and an external caller policy untested. They do not turn all later point counters into reconstructions of a 1997 program. The original selection criterion is not identified.
@@ -44,6 +46,8 @@ For this precise build and these levels, every rational-root branch produced ind
 The next source-dependent test is to recover a dated pre-fix or standalone point counter, identify the exact corrected path, freeze its prediction without label-dependent changes, and check all 21 inputs. Arbitrary field-specific Boolean fits cannot establish that history.
 
 ## Evidence and reproduction
+
+Top-level observer and auditor copies are browseable mirrors. Run the verifier inside the extracted evidence directory, where its sealed source/table/input paths are present.
 
 The raw evidence archive includes every native capture, source/table/static-library bindings, both frozen protocols, failures, controls, observer and independent arithmetic replay. Extract evidence.tar.zst, then run `python3 -B evidence/verify.py`. The replay verifies 489 sealed files and repeats only pure Python arithmetic, launching zero native point-counting programs. The exact source/static-library build is retained for provenance; this is a portable arithmetic replay, not a claim of a portable historical build.
 

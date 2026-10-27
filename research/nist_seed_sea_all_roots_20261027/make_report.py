@@ -53,6 +53,10 @@ lines += ['',
 'Primary sources:','',
 '- https://github.com/passagemath/upstream-LiDIA/tree/23dac491f4cd96eb7de648a5cf90eb9ec77653c8/src/ec_order','- https://github.com/passagemath/upstream-LiDIA/blob/23dac491f4cd96eb7de648a5cf90eb9ec77653c8/ChangeLog','- https://github.com/passagemath/upstream-LiDIA/blob/0171e66/NEWS','- Historical question: https://words.filippo.io/seeds-solved/','',
 'The old Darmstadt distribution URL and Wayback index requests were inaccessible through the web reader in this search. A failed retrieval is not proof that a release or archive does not exist. The Coster/SVIC lead yielded bibliographic references but no authenticated 1997 source release, and was not executed.','']
+lines.insert(lines.index('## Source dating and inference boundary')+2,
+ 'Compatibility amendment: the inherited static-library build includes the recorded pre-Dewaghe sign-ambiguity switch. With NIST_PRE1998_X set, test_x_coordinate_uniquely returns false, retaining both X-coordinate trace signs. This is an explicit reconstruction amendment preserved in source/pre-dewaghe-sign.patch, not authenticated 1997 source. The all-root observer itself adds access-label changes only.\n')
+lines.insert(lines.index('## Evidence and reproduction')+2,
+ 'Top-level observer and auditor copies are browseable mirrors. Run the verifier inside the extracted evidence directory, where its sealed source/table/input paths are present.\n')
 (HERE/'report.md').write_text('\n'.join(lines))
 
 def escape(s):return html.escape(str(s))
@@ -99,6 +103,7 @@ p('81 native invocations were retained: 9 initial missing-table controls, then 9
 p('Independent polynomial arithmetic reconstructed every specialized table polynomial, enumerated the complete rational-root set with gcd(F,X^p-X), checked distinct kernels and trace relations, and verified quotients. Controls included direct finite-field point counting and explicit positive/negative order-3 kernels.')
 p('Source and inference','Heading2')
 p('LiDIA commit 23dac491f4cd96eb7de648a5cf90eb9ec77653c8; version string 2.3.0+latte-patches-2019-05-02. Access labels alone were changed in an observer header; the static library was unchanged. This is a later lineage, not authenticated 1997 generator code.')
+p('The inherited build already includes an explicit pre-Dewaghe compatibility amendment: NIST_PRE1998_X disables unique X-sign resolution, retaining both signs. The patch is archived; it is a reconstruction amendment, not authenticated 1997 source. The observer adds access-label changes only.')
 p('All-root success leaves no omission-specific exceptional path in this build at these levels. Earlier code, other levels, optimizer settings and caller policies remain untested. It does not establish a historical exclusion criterion.')
 p('Provenance gap: the full fetched Git history starts with a 2013 import. NEWS says ECO was integrated in 2.1pre2; ChangeLog dates documentation to June 2001 and records September 2001 splitting-degree/crash fixes and a March 2004 schoofpart fix. The old faulty lines were not recovered.')
 p('Evidence: attempt-02/PROTOCOL.json, runs/case-00..20-ell-{03,05,13}, AUDIT.json; source-history/ChangeLog and git-history.txt. Complete capture and replay: evidence.tar.zst, BUNDLE.json.')
