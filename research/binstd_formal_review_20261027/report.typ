@@ -6,7 +6,7 @@
 #align(center)[
   #text(size: 17pt, weight: "bold")[BINSTD canonical-field Lean proof review]
   #linebreak()
-  27 October 2026 UTC · technical review packet · machine gate pending
+  27 October 2026 UTC · technical review packet · scoped machine gate passed; packet evidence gap
 ]
 
 #v(8pt)
@@ -20,23 +20,23 @@
   stroke: 0.4pt + rgb("adb9c2"),
   [*Claim*], [*Current machine status*], [*Fidelity / outcome*],
   [`factor8_irreducible_pair`: factors 313 and 471 are irreducible over F₂],
-  [`not_verified` while current-head workspace gate runs],
+  [`passed`: named build and axiom audit],
   [`faithful_scoped`; `inconclusive`],
   [`canonicalFrobenius_order_and_minpoly`: canonical GF(2¹⁷) Frobenius order 17 and stated minimal polynomial],
-  [`not_verified` while current-head workspace gate runs],
+  [`passed`: named build and axiom audit],
   [`faithful_scoped`; `inconclusive`],
   [Archived runner, complete invariant-subspace classification and Stage 1 yield],
   [`not_verified` by these declarations],
   [`partial` bridge; `needs_revision` for concrete certification],
 )
 
-The current-head machine status above records an incomplete gate, not a Lean refutation. Historical receipts record success for earlier commits but omit complete workspace/verifier input maps. The hosted controls passed 317 tests with zero failures, errors or skips on the dependency-free Lean 4.22.0 smoke project; the subject workspace uses Lean 4.35.0-rc1 and Mathlib revision `7fa22735254ddf7e11f119250a9f2d0352bc7c3a`.
+The full packet remains `inconclusive` against its frozen contract because no separate elaborated-type printout was emitted. Run 40591043322 completed successfully: 89 machine-verified receipts, including the two named targets. Artifact 12774634972 has SHA-256 `4a558a174bbcb8f8f13f27cd9c96d45a8868c67a3fd20fbf6928aa766acbb99f`. J1 independently downloaded both named receipts and matched all 65 workspace and 10 verifier inputs to the producer tree. The audit reported 713 theorems using only standard allowed axioms. Hosted controls passed 317 tests. The subject workspace uses Lean 4.35.0-rc1 and Mathlib revision `7fa22735254ddf7e11f119250a9f2d0352bc7c3a`. No independent lean4checker binary check was available.
 
 = Independent review and controls
 
-J1 inspected the exact types, target specs, polynomial definitions, pinned Mathlib lemmas, worker and CI gate. The two narrow source claims match their declarations. The worker explicitly builds each requested target module and audits the named theorem's transitive axioms. The global wrapper can label a missing theorem file undischarged, so the two named receipts remain required.
+Prospective J1 checked exact source signatures, coefficients, target specs, pinned Mathlib dependencies, verifier logic, and the fresh named receipts. Both narrow source claims match their declarations without circular premises; machine status is `passed` and fidelity is `faithful_scoped`. Source signatures are not a separate elaborated-type dump.
 
-J2 derived the factors and canonical Frobenius result from a blinded statement before reading producer source. Its seal was written at 22:07:34 UTC. All five sealed artifact hashes still match, and its deterministic calculation reproduces the archived output. The method rejects reducible `X^8+1` and distinguishes Frobenius on GF(2), whose order is 1. J2 also computed order 17, minimal polynomial `X^17+1`, and kernel dimensions 1, 8, 8 for an independently defined quotient by modulus 131081. These calculations do not certify the archived runner's execution.
+Prospective J2 received only an isolated statement and read no producer or sibling report through delivery. It exhaustively tested all 30 possible low-degree monic divisors for each degree-eight factor and proved canonical GF(2¹⁷) Frobenius order 17 and minimal polynomial `X^17+1` by the field root bound. False controls `X^8+1` and GF(2) were rejected. Its exact script reproduced sealed raw output SHA-256 `606465241f032b7e1d924f92235df0a49d277a7eeef367355767f5c72ded73fd`. Its quotient calculation does not certify archived runner code.
 
 #pagebreak()
 
@@ -47,8 +47,8 @@ J2 derived the factors and canonical Frobenius result from a blinded statement b
 
 = Protocol finding and open obligations
 
-The stock independence checker returned exit 1 with seven recorded problems. The frozen plan used actual Conductor IDs `T-608` and `T-609`, while the checker requires `TASK-*` IDs. It also requires explicit blind quantity and source fields and a supported phase contract. Truthful reviewer identities and post-seal read lists were retained. This round therefore cannot claim a passed machine-checkable independence gate; a prospectively corrected round is required.
+The first frozen review round failed the stock independence checker with seven recorded plan/schema problems; that failure remains preserved. A corrected prospective round assigned valid task refs and a truly blind J2. The stock checker initially rejected J2's truthful YAML serialization twice: it expected a `review_attestation` wrapper and path-string `sources_read` list, while the sealed report recorded detailed read objects. A deterministic, sealed-hash-pinned adapter projected only the read paths and preserved the full objects. The stock checker returned exit 0 on J1's original attestation and that disclosed projection. The raw pair does not directly pass its interface.
 
-The named Lean receipts, elaborated types and transitive axiom logs from #link("https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40591043322")[run 40591043322] must still be inspected. Formal bridges remain for runner encoding and field construction, executable arithmetic, canonical conjugacy, matrix representation, invariant-subspace classification, constructor correctness (including the empty subset), and exact archived-output binding. Neither theorem proves empirical yield or security cost.
+The hosted job did not emit a separate elaborated `#print` or `#check` type output. That frozen documentation item remains open, as do ordinary Lean/Lake binary trust and absent independent kernel recheck. Runner encoding, executable arithmetic, canonical conjugacy, complete invariant-subspace classification, constructor correctness including the empty subset, and archived-output binding need separate proof. Neither named theorem proves empirical yield or security cost.
 
-No new experiment, cloud worker or scientific status change was made. The editable report, diagram, blind calculation and reviewer attestations live in `research/binstd_formal_review_20261027/` on #link("https://github.com/isogeny-labs/crypto-autoresearcher/pull/2629")[review PR 2629].
+No new experiment, cloud worker or scientific status change was made. The editable report and evidence live in `research/binstd_formal_review_20261027/` on #link("https://github.com/isogeny-labs/crypto-autoresearcher/pull/2629")[review PR 2629].
