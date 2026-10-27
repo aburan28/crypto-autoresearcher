@@ -38,6 +38,16 @@ class Tests(unittest.TestCase):
     x=json.loads((raw/"checker/result.json").read_text());x["elapsed_host_seconds"]=3;dump(raw/"checker/result.json",x)
     x=json.loads((raw/"prover/started.json").read_text());x["utc"]="2026-10-27T00:00:00+00:00";dump(raw/"prover/started.json",x)
   r=self.call("baseline",mutate);self.assertTrue(r["aa"]["equal"]);self.assertNotEqual(r["raw_custody"]["left"],r["raw_custody"]["right"])
+ def test_real_output_timing_normalizes_and_checker_semantics_remain_visible(self):
+  for stage in ("prover","checker"):
+   left=(HERE/"fixtures"/f"real-101-left-{stage}.stdout").read_bytes();right=(HERE/"fixtures"/f"real-101-right-{stage}.stdout").read_bytes()
+   self.assertNotEqual(left,right)
+   self.assertEqual(aa.semantic_events(left),aa.semantic_events(right))
+   self.assertNotEqual(aa.semantic_events(left+b"\n% UNEXPECTED SEMANTIC EVENT\n"),aa.semantic_events(right))
+  checker=(HERE/"fixtures/real-101-left-checker.stdout").read_bytes()
+  self.assertEqual(len(aa.semantic_events(checker)),2)
+  self.assertNotEqual(aa.semantic_events(checker),aa.semantic_events(checker.replace(b"-1 1",b"-1 0",1)))
+  self.assertNotEqual(aa.semantic_events(b"% Time for unknown setting is 1s"),aa.semantic_events(b"% Time for unknown setting is 2s"))
  def test_schema_accepts_actual_result_and_refuses_nested_semantic_mutations(self):
   try:
    import jsonschema

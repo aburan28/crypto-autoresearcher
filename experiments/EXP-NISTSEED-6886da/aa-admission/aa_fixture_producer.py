@@ -151,10 +151,18 @@ def frame(serial: bytes) -> tuple[bytes, list[bytes]]:
     return normalized[start:stop - 1], certificates
 
 def semantic_events(body: bytes) -> list[dict[str, str]]:
-    return [{"raw_hex": line.hex()} for line in body.splitlines()
-            if not (line.startswith(b"% Time") or line.startswith(b"% Total"))
-            and (line.startswith(b"%") or re.match(rb"^\s*\d+:\s*-?\d+\s+[01]\s*$", line)
-                 or b"This number is " in line)]
+    events = []
+    for line in body.splitlines():
+        # The real public101 output also has a "% ==> Total time" footer.
+        # Remove only explicit elapsed-time fields; retain unknown event text.
+        if re.fullmatch(rb"% (?:Time for (?:building|proof\[\d+\]|proving|this number)\s+is|Total time is|==> Total time for the computations is)\s+\d+(?:\.\d+)?\s*s", line):
+            continue
+        checker = re.fullmatch(rb"\s*(\d+):\s*(-?\d+)\s+([01])(?:\s+\d+(?:\.\d+)?s)?\s*", line)
+        if checker:
+            line = b" ".join(checker.groups())
+        if line.startswith(b"%") or checker or b"This number is " in line:
+            events.append({"raw_hex": line.hex()})
+    return events
 
 def stage_expectation(output: Path, cache: Path, runtime: dict[str, Any], name: str, payload: bytes) -> dict[str, Any]:
     artifacts = {Path(item["logical_path"]).name: read(ROOT / item["logical_path"]) for item in runtime["artifacts"]}
@@ -206,7 +214,7 @@ def check_started(started: dict[str, Any], status: dict[str, Any], expected: dic
         raise Refusal("invalid elapsed host seconds")
 
 def default_legacy_boundary(output: Path, cache: Path, payload: bytes, config: dict[str, Any]) -> None:
-    """Future-only original-default boundary; this task never calls it."""
+    """Original-default boundary for explicitly requested real controls."""
     sys.path.insert(0, str(COMPAT))
     import qemu_controls
     cache.mkdir(exist_ok=False)

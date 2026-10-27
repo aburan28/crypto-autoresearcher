@@ -1,3 +1,9 @@
+# Actual-output follow-up, 27 October 2026
+
+The first real public101 A/A pair exposed a total-time footer that the original semantic filter retained. The producer now omits only explicitly parsed elapsed-time fields and retains normalized checker step index, discriminant and acceptance values. Four retained output fixtures reproduce the mismatch; a changed checker result and an unknown time-like event remain distinguishable. All six mocked/fixture methods, including the JSON schema checks, pass. The corrected producer also replays two retained actual controls successfully without starting a new VM.
+
+The separate full-cohort investigation is in `research/nist_seed_ecpp_full_cohort_20261027/REPORT.txt`. Its frozen source commit is4c7298e5212f523642c782483cd28f4bd5000d66, before this producer correction. The complete evidence archive preserves that snapshot, all original failures and both full-cohort format diagnostics. It does not identify the historical selection criterion. Earlier source-only task/archive statements below describe their original dated scope.
+
 # TASK-20261025-ad9d68 corrected-v3 source-only implementation report
 
 `named_orders_executed: 0`  
