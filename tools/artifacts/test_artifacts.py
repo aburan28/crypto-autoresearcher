@@ -247,7 +247,9 @@ class WorkflowBootstrap(unittest.TestCase):
         stale = once.replace("pull --jobs 16 data/new", "pull data/old")
         self.assertEqual(once, wire_workflows.wire(stale, ["data/new"])[0])
         self.assertEqual(once.count("if: needs.changes.outputs.run == 'true'"), 2)
-        self.assertIn('export ARTIFACTS_AWS="$RUNNER_TEMP/aws-bin/aws"', once)
+        self.assertIn("shell: bash", once)
+        self.assertIn("working-directory: ${{ github.workspace }}", once)
+        self.assertIn('export ARTIFACTS_AWS="$artifacts_cli_aws"', once)
 
 if __name__ == "__main__":
     unittest.main()

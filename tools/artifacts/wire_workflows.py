@@ -103,19 +103,24 @@ def step_lines(indent: str, paths: list[str]) -> list[str]:
     i2 = indent + "  "
     return [
         f"{indent}- name: {STEP_NAME}",
+        f"{i2}shell: bash",
+        f"{i2}working-directory: ${{{{ github.workspace }}}}",
         f"{i2}env:",
         f"{i2}  AWS_ACCESS_KEY_ID: ${{{{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}}}",
         f"{i2}  AWS_SECRET_ACCESS_KEY: ${{{{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}}}",
         f"{i2}  AWS_REGION: ${{{{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}}}",
         f"{i2}run: |",
-        # Self-hosted runners may lack the AWS CLI the store backend shells
-        # out to; install it into the runner's temp dir (no sudo) when absent.
+        # A pinned, isolated CLI works on Linux, macOS and Windows without sudo.
         f"{i2}  if ! command -v aws >/dev/null; then",
-        f'{i2}    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "$RUNNER_TEMP/awscli.zip"',
-        f'{i2}    python3 -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$RUNNER_TEMP/awscli.zip" "$RUNNER_TEMP/awscli"',
-        f'{i2}    chmod -R u+x "$RUNNER_TEMP/awscli"',  # zipfile drops the mode bits
-        f'{i2}    "$RUNNER_TEMP/awscli/aws/install" --update -i "$RUNNER_TEMP/aws-cli" -b "$RUNNER_TEMP/aws-bin"',
-        f'{i2}    export ARTIFACTS_AWS="$RUNNER_TEMP/aws-bin/aws"',
+        f'{i2}    python3 -m venv "$RUNNER_TEMP/artifacts-awscli"',
+        f'{i2}    artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/bin/python"',
+        f'{i2}    artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/bin/aws"',
+        f'{i2}    if [ -d "$RUNNER_TEMP/artifacts-awscli/Scripts" ]; then',
+        f'{i2}      artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/Scripts/python.exe"',
+        f'{i2}      artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/Scripts/aws.exe"',
+        f'{i2}    fi',
+        f'{i2}    "$artifacts_cli_python" -m pip install --disable-pip-version-check awscli==1.46.2',
+        f'{i2}    export ARTIFACTS_AWS="$artifacts_cli_aws"',
         f"{i2}  fi",
         f"{i2}  python3 tools/artifacts/artifacts.py pull --jobs 16 {' '.join(paths)}",
     ]
