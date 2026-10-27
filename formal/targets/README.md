@@ -70,6 +70,16 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
 
+## Batch-five discriminant wording
+
+The frozen `endosweep-dk-exact-batch5-discriminants.yaml` target proves exact
+integer and abstract-order statements. Its notes call the listed-factor
+product the squarefree part unconditionally; the theorem makes factor
+primality an explicit premise for fundamentality. The [dated correction](corrections/2026-10-25-endosweep-batch5-squarefree.md)
+records the conditional wording and named-curve model boundary without
+changing the frozen target or its Lean proposition. The [independent review](https://github.com/aburan28/crypto-autoresearcher/blob/c613c3b2173a05e46fbd3cf8e967581b9878e5fa/docs/reports/2026-10-25-batch5-semantic-review/composition.md)
+binds the source, theorem and blind arithmetic.
+
 ## FROB C4 conditional order arithmetic
 
 `frob-c4-null-curve-order.yaml` targets five conditional integer uniqueness

@@ -1,12 +1,14 @@
 name: PEXT n7 Lean proof
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - experiments/EXP-PEXT-212d5c/implementation/lean/**
       - .github/workflows/pext-n7-lean.yml
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
     paths:
       - experiments/EXP-PEXT-212d5c/implementation/lean/**
       - .github/workflows/pext-n7-lean.yml
@@ -15,13 +17,19 @@ permissions:
   contents: read
 jobs:
   kernel-build:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: experiments/EXP-PEXT-212d5c/implementation/lean
+      - name: Pull store data this workflow reads (tools/artifacts)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
+        run: python3 tools/artifacts/artifacts.py pull --jobs 16 experiments
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: experiments/EXP-PEXT-212d5c/implementation/lean

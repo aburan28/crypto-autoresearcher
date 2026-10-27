@@ -1,0 +1,108 @@
+#!/bin/bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y docker.io docker-compose-v2 awscli
+systemctl enable --now docker
+
+device=""
+for attempt in $(seq 1 180); do
+  device=$(lsblk -ndo PATH,SERIAL | awk '$2 == "${volume_serial}" { print $1; exit }')
+  if [ -n "$device" ]; then break; fi
+  sleep 2
+done
+test -n "$device"
+if ! blkid "$device" >/dev/null 2>&1; then mkfs.ext4 "$device"; fi
+mkdir -p /srv/research-kb
+volume_uuid=$(blkid -s UUID -o value "$device")
+printf 'UUID=%s /srv/research-kb ext4 defaults,nofail 0 2\n' "$volume_uuid" >> /etc/fstab
+mount /srv/research-kb
+mkdir -p /srv/research-kb/data /srv/research-kb/qdrant /srv/research-kb/secrets /opt/research-kb
+chown -R 10001:10001 /srv/research-kb/data /srv/research-kb/qdrant /srv/research-kb/secrets
+
+echo '${compose}' | base64 -d > /opt/research-kb/compose.yaml
+echo '${compose_aws}' | base64 -d > /opt/research-kb/compose.aws.yaml
+echo '${caddy}' | base64 -d > /opt/research-kb/Caddyfile
+cat > /opt/research-kb/.env <<'ENV'
+RESEARCH_KB_IMAGE=${image}
+RESEARCH_KB_DATA_DIR=/srv/research-kb/data
+RESEARCH_KB_AUTH_DIR=/srv/research-kb/secrets
+RESEARCH_KB_PUBLIC_URL=https://${hostname}
+RESEARCH_KB_ALLOWED_HOSTS=["${hostname}","127.0.0.1","localhost"]
+KB_HOSTNAME=${hostname}
+AWS_DEFAULT_REGION=${region}
+ENV
+
+cat > /opt/research-kb/start.sh <<'START'
+#!/bin/bash
+set -euo pipefail
+cd /opt/research-kb
+mountpoint -q /srv/research-kb
+umask 077
+aws secretsmanager get-secret-value --region '${region}' --secret-id '${auth_secret}' --query SecretString --output text > /srv/research-kb/secrets/auth.json.tmp
+python3 -c 'import json; v=json.load(open("/srv/research-kb/secrets/auth.json.tmp")); assert v["schema_version"]==1 and v["tokens"]'
+chown 10001:10001 /srv/research-kb/secrets/auth.json.tmp
+chmod 600 /srv/research-kb/secrets/auth.json.tmp
+mv /srv/research-kb/secrets/auth.json.tmp /srv/research-kb/secrets/auth.json
+aws ecr get-login-password --region '${region}' | docker login --username AWS --password-stdin '${registry}'
+docker compose -f compose.yaml -f compose.aws.yaml up -d --pull always --no-build
+START
+chmod 700 /opt/research-kb/start.sh
+
+cat > /etc/systemd/system/research-kb.service <<'UNIT'
+[Unit]
+Description=Unified research knowledge base
+Requires=docker.service
+After=docker.service network-online.target
+RequiresMountsFor=/srv/research-kb
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/research-kb
+ExecStart=/opt/research-kb/start.sh
+ExecStop=/usr/bin/docker compose -f compose.yaml -f compose.aws.yaml stop
+Restart=on-failure
+RestartSec=30
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > /opt/research-kb/import.sh <<'IMPORT'
+#!/bin/bash
+set -euo pipefail
+cd /opt/research-kb
+# IMDSv2 stays host-only. The operator downloads bundles; containers receive no AWS credentials.
+mkdir -p /srv/research-kb/data/inbox
+aws s3 sync 's3://${bucket}/inbox/' /srv/research-kb/data/inbox/ --exclude '*' --include '*.tar.gz' --only-show-errors
+chown -R 10001:10001 /srv/research-kb/data/inbox
+find /srv/research-kb/data/inbox -maxdepth 1 -name '*.tar.gz' -print0 | while IFS= read -r -d '' file; do
+  checksum=$(sha256sum "$file" | cut -d' ' -f1)
+  marker="/srv/research-kb/data/inbox/$checksum.done"
+  if [ -f "$marker" ]; then continue; fi
+  relative=$(basename "$file")
+  docker compose -f compose.yaml -f compose.aws.yaml run --rm ingest import-bundle "/data/inbox/$relative" --build-index
+  touch "$marker"
+done
+IMPORT
+chmod 700 /opt/research-kb/import.sh
+
+cat > /opt/research-kb/backup.sh <<'BACKUP'
+#!/bin/bash
+set -euo pipefail
+cd /opt/research-kb
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+mkdir -p /srv/research-kb/data/backups
+chown 10001:10001 /srv/research-kb/data/backups
+docker compose -f compose.yaml -f compose.aws.yaml run --rm ingest backup "/data/backups/catalog-$stamp.sqlite"
+aws s3 sync /srv/research-kb/data/objects/ 's3://${bucket}/objects/' --only-show-errors
+aws s3 cp "/srv/research-kb/data/backups/catalog-$stamp.sqlite" "s3://${bucket}/backups/catalog-$stamp.sqlite" --only-show-errors
+BACKUP
+chmod 700 /opt/research-kb/backup.sh
+cat > /etc/cron.d/research-kb <<'CRON'
+*/15 * * * * root /opt/research-kb/import.sh >> /var/log/research-kb-import.log 2>&1
+30 3 * * * root /opt/research-kb/backup.sh >> /var/log/research-kb-backup.log 2>&1
+CRON
+systemctl daemon-reload
+systemctl enable research-kb.service
+# Restart policy waits for the image and out-of-band auth secret to be published.
+systemctl start research-kb.service || true
