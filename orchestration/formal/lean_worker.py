@@ -6,6 +6,8 @@ and the canonical Coordinator to interpret.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 import re
 import subprocess
 import tempfile
@@ -13,8 +15,30 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from .models import FormalProofResult, FormalProofTask, FormalStatus
+from .receipts import workspace_inputs, verifier_inputs
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
+
+# This state exists only inside one explicitly scoped verification invocation.
+# It is never read from a receipt, dependency cache, environment flag or disk.
+_SESSION: ContextVar[dict | None] = ContextVar("formal_verification_session", default=None)
+
+
+@contextmanager
+def verification_session():
+    """Share fresh successful workspace checks within one batch, then discard."""
+    cache = {}
+    token = _SESSION.set(cache)
+    try:
+        yield
+    finally:
+        cache.clear()
+        _SESSION.reset(token)
+
+
+def _input_snapshot(workspace: Path):
+    return (tuple(workspace_inputs(workspace).items()),
+            tuple(verifier_inputs().items()))
 
 _FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("sorry", re.compile(r"\bsorry\b")),
@@ -135,9 +159,23 @@ class LeanWorker:
                 or not all(re.fullmatch(name_pattern, p) for p in task.theorem_name.split("."))):
             return self._blocked(task, "unsupported Lean module or theorem name")
         module = ".".join(module_parts)
+        session = _SESSION.get()
+        identity = (self.repo_root, workspace, id(self.runner), self.timeout_seconds)
+        snapshot = _input_snapshot(workspace) if session is not None else None
+        cached = session.get(identity) if session is not None else None
+        if cached is not None and cached[0] != snapshot:
+            session.pop(identity)
+            cached = None
         forbidden = self._scan_forbidden(workspace)
         # Build this module even when the project root forgot to import it.
-        build = self._run(["lake", "build"], cwd=workspace)
+        project_build = (cached[1] if cached is not None else
+                         self._run(["lake", "build"], cwd=workspace))
+        build = project_build
+        if cached is not None:
+            build = subprocess.CompletedProcess(
+                project_build.args, 0,
+                "Reused fresh workspace build from this invocation; all source and verifier inputs unchanged.\n"
+                + self._log(project_build), "")
         if build.returncode == 0:
             target_build = self._run(["lake", "build", f"+{module}"], cwd=workspace)
             build = subprocess.CompletedProcess(target_build.args, target_build.returncode,
@@ -172,7 +210,21 @@ class LeanWorker:
         if not audit_file.is_file():
             return self._blocked(task, "missing AxiomAudit.lean", build_log=self._log(build))
 
-        audit = self._run(["lake", "env", "lean", "AxiomAudit.lean"], cwd=workspace)
+        project_audit = (cached[2] if cached is not None else
+                         self._run(["lake", "env", "lean", "AxiomAudit.lean"], cwd=workspace))
+        audit = project_audit
+        if cached is not None:
+            audit = subprocess.CompletedProcess(
+                project_audit.args, 0,
+                "Reused fresh project axiom audit from this invocation; all source and verifier inputs unchanged.\n"
+                + self._log(project_audit), "")
+        if session is not None:
+            if snapshot != _input_snapshot(workspace):
+                session.pop(identity, None)
+                return self._blocked(task, "formal workspace inputs changed during verification",
+                                     build_log=self._log(build))
+            if project_audit.returncode == 0:
+                session[identity] = (snapshot, project_build, project_audit)
         target_log = ""
         target_ok = False
         if audit.returncode == 0:
@@ -187,6 +239,10 @@ class LeanWorker:
                 target = self._run(["lake", "env", "lean", audit_source.name], cwd=workspace)
             target_log = self._log(target)
             target_ok = target.returncode == 0
+        if session is not None and snapshot != _input_snapshot(workspace):
+            session.pop(identity, None)
+            return self._blocked(task, "formal workspace inputs changed during verification",
+                                 build_log=self._log(build))
         status = FormalStatus.MACHINE_VERIFIED if target_ok else FormalStatus.FORMALIZATION_BLOCKED
         return FormalProofResult(
             task_id=task.task_id,
