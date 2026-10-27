@@ -24,6 +24,17 @@ every publication, unknown-degree mode loses four, and the later counter's
 reported working-prime traces stop below 199 on all omissions. Every fit and
 counterexample is retained; historical use remains unestablished.
 
+The [exact capacity calibration](signed-frobenius-20261027/calibration-01/report.md)
+checks both the broad search and the narrow same-prime cap family. The broad
+family represents 3,864 of 4,480 field-count labelings robustly; the narrow
+family represents only the observed labeling, at ell=199. With stream
+endpoints fixed the counts are 110 of 126 and 1 of 126. These are descriptive
+reference populations, not historical-choice probabilities. A newly recovered
+December 1996 Dewaghe thesis contains the sign refinements, but its Atkin
+odd-projective-order condition fails published P-224 as an acceptance rule.
+Müller's 1995 dissertation was located in its university catalog; its PDF
+has not been read. The historical-use gap remains open.
+
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
 These are reconstructed omissions, not documented historical rejection events.
