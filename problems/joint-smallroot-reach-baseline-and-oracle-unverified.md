@@ -3,8 +3,8 @@
 - **Status:** investigating
 - **Kind:** historical instrument accounting discrepancy; optimized-oracle implementation and proof gaps; admission and CI gates
 - **Affected work:** [small-root lead](../knowledge/leads/ecdlp/ic-prime/LEAD-ICP-coppersmith-smallroot-semaev.yaml); [audit](../research/joint_smallroot_reach_20261024/report.md); the user's reach-cost and verified prime-field IC improvement objective
-- **Next action owner:** Executor completes source execution-proof and a guard-qualified runnable protocol after the bounded Coordinator revision; the managed Docker runtime now offers a candidate private delegation, whose qualification is required separately from research authorization
-- **Last updated:** 2026-10-26
+- **Next action owner:** Reviewer checks the frozen original and successor guard observations after their actual published programme snapshot; Coordinator then composes partial software coverage and the unexecuted OOM requirement before any scientific protocol can be considered
+- **Last updated:** 2026-10-27
 
 ## Problem
 
@@ -269,3 +269,179 @@ compatibility and effective ancestor headroom remain to be tested prospectively.
 No additional external host is assumed necessary until this supported local
 runtime is assessed. Existing research authorization persists; there is still
 no reach-cost measurement or verified IC gain.
+
+
+## 2026-10-27: original guard observations and current owner validation
+
+The original fixed qualification at owner C1
+`204735c3f6f3144911df58a6ece7699c0e74d4ad` retained all five outcomes:
+Q1 placement, Q2 escaped-tree cleanup and both Q5 negative cases passed their
+fixture assertions; Q3 failed because generic orphan cleanup consumed the
+competitor before its dedicated `wait4` receipt, leaving ECHILD; Q4 was
+`infrastructure_not_started` at measured enclosing headroom 12,439,695,360
+bytes, below the unchanged 12,884,901,888-byte gate. No Q4 allocator ran.
+Q3 retained genuine production censoring after 1800.071693757 seconds, serial
+rejection and cleanup evidence; its receipt failure is not a mathematical or
+production-enforcement failure verdict. Full qualification is not established.
+The [original snapshot receipt](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-2a1490/archives/TASK-20261026-a3ab76/snapshot-receipt.json)
+binds the five programme outputs and published C1 records.
+
+The original T-3 lease expired after credential expiry stalled heartbeats;
+a live wrapper process did not prove a live lease. The published
+[not-admitted receipt](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-2a1490/amendments/DEC-20261026-b83007/archives/TASK-20261026-a4dde2/repair-admission.json)
+preserves that refusal. Normal daemon outage recovery later extended T-3's
+lease, permitting ordinary release without declaring its work merged/done.
+Fresh Conductor T-4 and programme TASK-20261026-1525ac were acquired separately;
+no continuous-ownership claim bridges the earlier loss. The
+[published limited successor admission](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-2a1490/successors/DEC-20261026-7a93a8/archives/TASK-20261026-a4dde2/successor-admission.json)
+permits the scoped helper repair, builds and one presealed native software
+regression. That regression passed once, preserving old-order ECHILD and
+correct-order exact-child exit status and actual usage. Source stage
+`6b3ed020228586f60ab4ae56edf68fed2a853ef5`, parent60e694, is now published;
+its 87 paths include the 86-member source/check manifest, with all five
+external binary hashes verified. The one-pass cache-preparation admission is
+published at `446773e283ba386cb19a052b0c542c08204fc3cf`. The sole advice pass
+accepted all 375 sealed files, with zero exclusions/failures and every return
+code zero with stable metadata. Its success did not establish enough headroom:
+post-pass H was **9,264,652,288 bytes**, below the unchanged **12,884,901,888**
+gate by 3,620,249,600 bytes. The limiting observed outer group had
+memory.max17,179,869,184 and memory.current7,915,216,896; the empty 8 GiB worker
+was excluded from that minimum. Its raw swap.max was `max`, while the observed
+container parent's zero cap established effective zero swap. Hidden ancestors
+remain unobserved. The empty-group probe and preparation containers exited and
+were removed; no allocator or worker ran. The separately recorded Q4 follow-up
+is `infrastructure_not_started`; its
+[not-admitted receipt](../coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-ee839d/continuations/DEC-20261026-2a1490/successors/DEC-20261026-7a93a8/archives/TASK-20261026-a4dde2/q4-execution-admission.json)
+binds 317 raw phase files. No extra advice, retry or threshold change is
+authorized. The Q4 refusal is published at
+`3d369f1f451e290c22b8e9d06b185f795179ebcb`. Q3's separate admission is
+published at `57f3427d8019a29bd88ec6da0aa4fd366460f1bc`. Parent serial checks
+recorded no remaining task-owned containers, the repaired helper hash and
+then-live T-4/goal claim; the sole Q3 follow-up started at container timestamp
+2026-10-27T01:03:08.619938647Z in `jsr-1525ac-q3-followup-1`. Its actual
+terminal observation is now retained separately below; the earlier approximate
+01:33:09 completion window was a scheduling estimate, not evidence.
+Q4 success is not a Q3 prerequisite.
+The 375-file inventory had excluded 23 of 398 original candidates; its
+631,361,269 bytes were never a promise of reclamation or adequate headroom.
+
+Owner integration `60e6943d31dc57ab509b37a5f62cba2f134d8b74` contains C1 and
+has identical native-directory bytes before the new eight-line Q3-only helper
+repair. Protected production source remains pinned to
+`86ddd19f67e08160c22a0d8ba9a32a92321d18ad`. The earlier attempt7 syntax failure
+belongs to an older head and is not a current-head compile result. Current
+attempt8 instead failed compilation because a tracked bitop/v2 fixture was
+absent from this sparse worktree; it was materialized byte-for-byte, without
+changing tracked source. Attempt9 then compiled and ran the complete library
+suite: **4,888 passed, 6 failed, 121 ignored**, exit101, in 1290.51 seconds of
+test execution. This is a failed full run, not Rust PASS.
+
+The six terminal failures were:
+
+- `weighted_comparison_prices_verified_pairs_and_records_weight_identity`:
+  `zero.legacy_comparison_id.is_none()` failed at `compare.rs:2448`.
+- Three `hyper_ic` tests: method resolution rejected the `branches` parameter
+  at `hyper_ic.rs:1126` or `:1203`.
+- `fixture_records_reprice_to_their_committed_blocks`: tracked
+  `tests/fixtures/ecbench/work-v1/records.jsonl` was absent at `work.rs:2067`.
+- `pqc::hawk::tests::naive_forgery_fails`: verification assertion failed at
+  `hawk.rs:328`.
+
+The raw attempt9 log is retained locally as
+`/workspace/smallroot-session/native-owner-current-cargo-attempt9-60e694.log`,
+SHA-256 `b37a4217610b6d40aa72004ef36b170bac669545f389b6bc218f7f6c2cd38636`;
+its durable raw-log publication is pending. Exact tracked work/v1 fixture
+materialization restored the original fixture bytes, and its one same-binary
+replay passed. Weighted comparison and all three hyperelliptic parameter
+failures reproduced with exit101; the one HAWK replay passed. That single HAWK
+pass does not repair or erase its original failure, and the full-suite result
+remains 4,888 passed, 6 failed, 121 ignored. The six bounded replays and their
+logs/hashes are recorded in local metadata
+`native-owner-current-library-validation-60e694.json`, SHA-256
+`4473057570356d17ab4f6f673f04630ccaf3b025b25c16c949c9a47405333d35`;
+its raw/metadata durable publication is also pending. An ancillary upload
+attempt through the normal configured AWS CLI failed at STS with exit255,
+`Unable to locate credentials`; no credential/configuration change, alternate
+identity or artifact-store bypass was attempted. The 431,104-byte full log
+exceeds the64KiB data-file threshold and remains locally retained, not in
+canonical durable custody. A separate18-file bounded validation package
+(17members plus manifest), under owner checks
+`parent-library-validation-60e694/`, has manifest SHA-256
+`b782e9677ba9b7e99d99728fe04b7ba249cba216ce47d2ca0d3aa78fcd4b70ba`.
+Its member hashes were independently checked. It preserves attempt8 raw/meta,
+the actual attempt9 result metadata, all six replay logs/exits and the exact
+2,850-byte failure excerpt beginning at full-log byte offset428254, with an
+explicit `full_run_log_canonical_custody_complete:false` limitation. This
+partial package is prepared for the final owner manifest; it neither replaces
+the full log nor establishes Rust PASS. Recheck the normal artifact-store
+credential chain when available, retaining original bytes in the meantime.
+Guard raw records remain separate from this ancillary library-log limitation.
+Source and test trees at
+60e694 and base `8eef1252714097e0b8279c0bf55b82ed9e49943d` are identical
+(`src` tree `6f82e102c66eda913a81a1e20c29a79366b0c597`, `tests` tree
+`d2aa1e178ab14f5881081e2bbcb7c8ec628bdd37`); Cargo.toml/lock also have no
+base-to-head changes. These parity checks support an untouched-service scope
+assessment; they do not preclassify the remaining runtime failures or excuse
+failed merge checks. The scoped C++ task does not authorize unrelated Rust
+bug fixes. Owner AGENTS requires failures caused by the change to be repaired
+and unrelated base/service failures to be reported with evidence on the PR.
+
+Hosted owner checks at head60e694 also retain the actual
+[account billing annotation](https://api.github.com/repos/isogeny-labs/crypto/check-runs/121910719417/annotations):
+the job did not start because account payments failed or its spending limit
+requires attention. Applicable failed checks are not a pass or an invitation
+to bypass merge gates. The source stage is published with honest untouched-service failure evidence;
+applicable merge checks remain unsatisfied. Subsequent guard observations still
+require their separately admitted phases. All 24 scientific cases remain unrun; applicability,
+extraction, complete cost and a verified improvement over a frozen current
+prime-field IC baseline remain unresolved. The goal remains active.
+
+## 2026-10-27: terminal successor observations, independent review pending
+
+The sole Q3 follow-up completed once at
+2026-10-27T01:33:08.853118452Z. The container, launcher, wait CLI and removal
+all returned exit 0. Production watchdog time was 1,800,064,885,794 ns and
+independent elapsed time was 1,800,065,709,473 ns; the supervisor retained
+`censored=true` and wait status 9. The repaired helper retained the dedicated
+competitor PID 7 receipt before generic cleanup: errno 0, reaped true, exit 0,
+user 1,018 microseconds and system 0 microseconds, both available. Serial
+admission rejected the competitor and launched no competing worker. Retained
+cleanup shows the escaping child changing R to Z and cgroup populated changing
+1 to 0; the owned group was removed, its lock released, and exact container
+absence checked. The external 1,950-second fail-safe did not fire. These are
+bounded software observations; original Q3 remains failed with ECHILD and
+its original raw receipt is unchanged.
+
+Final owner evidence is published at
+`76a3e4eb67e818354da7575dad4b834467a97e5c`, parent
+`608f7198db59fc431123de2c4d928e4e3466d6da`, in
+[owner PR #2642](https://github.com/isogeny-labs/crypto/pull/2642).
+The exact 284-path final stage contains the terminal Q3 records, current
+681-member record index with seven shards, all 18 bounded Rust-package files
+and the appended daily log. The protected production source remains identical
+to 86ddd19f67. Historical phase manifests bind their own published commit trees;
+the current index binds final appended-log bytes. No historical log hash is
+asserted equal to the final appended log. The actual cached diff check exits 2
+for eight retained blank-at-EOF diagnostics in two raw CPU-info and six raw
+Rust replay logs; those bytes were preserved, not relabelled a clean check.
+
+The original Q1/Q2/Q5 outcomes belong to the C1 helper; the sole Q3 follow-up
+belongs to its repaired receipt-order helper. Those other classes did not rerun.
+Independent review must check the exact source/runtime/ownership/publication
+bindings and justify any transfer to the same protected supervisor. Its review
+and the programme snapshot are still pending here. The preparation-stage
+publication occurred after Q3 launch; this timing is retained and is not
+represented as a prelaunch publication. Separately published execution seals
+and Q3 admission preceded the authorized Q3 invocation.
+
+Neither Q4 admission launched an OOM allocator. The follow-up's observed
+H = 9,264,652,288 bytes remains below the unchanged 12,884,901,888-byte threshold;
+the exact 8 GiB empty-cap readback does not establish OOM enforcement. Current
+one-pass/no-retry authority is exhausted, so another preparation pass or Q4
+attempt would need a prospective scoped admission rather than an automatic
+retry. Full guard qualification remains false even if the completed Q3 scope
+survives review. A lawful actual OOM qualification with sufficient measured
+enclosing headroom would address this resource-enforcement gap only; theorem
+applicability, scientific execution, extraction and the matched complete IC
+comparison would remain separate requirements. All 24 scientific cases remain
+unrun, no verified IC gain is established, and the goal stays active.
