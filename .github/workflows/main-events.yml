@@ -51,7 +51,15 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 coordination
+        run: |
+          if ! command -v aws >/dev/null; then
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "$RUNNER_TEMP/awscli.zip"
+            python3 -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$RUNNER_TEMP/awscli.zip" "$RUNNER_TEMP/awscli"
+            chmod -R u+x "$RUNNER_TEMP/awscli"
+            "$RUNNER_TEMP/awscli/aws/install" --update -i "$RUNNER_TEMP/aws-cli" -b "$RUNNER_TEMP/aws-bin"
+            export ARTIFACTS_AWS="$RUNNER_TEMP/aws-bin/aws"
+          fi
+          python3 tools/artifacts/artifacts.py pull --jobs 16 coordination
 
       - uses: actions/setup-python@v5
         with:

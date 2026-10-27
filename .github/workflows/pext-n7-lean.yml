@@ -23,13 +23,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: experiments/EXP-PEXT-212d5c/implementation/lean
+          sparse-checkout: |
+            experiments/EXP-PEXT-212d5c/implementation/lean
+            tools/artifacts
+            .artifacts
       - name: Pull store data this workflow reads (tools/artifacts)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 experiments
+        run: |
+          if ! command -v aws >/dev/null; then
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "$RUNNER_TEMP/awscli.zip"
+            python3 -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$RUNNER_TEMP/awscli.zip" "$RUNNER_TEMP/awscli"
+            chmod -R u+x "$RUNNER_TEMP/awscli"
+            "$RUNNER_TEMP/awscli/aws/install" --update -i "$RUNNER_TEMP/aws-cli" -b "$RUNNER_TEMP/aws-bin"
+            export ARTIFACTS_AWS="$RUNNER_TEMP/aws-bin/aws"
+          fi
+          python3 tools/artifacts/artifacts.py pull --jobs 16 experiments
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: experiments/EXP-PEXT-212d5c/implementation/lean
