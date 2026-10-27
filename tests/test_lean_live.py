@@ -32,11 +32,8 @@ def test_real_lean_accepts_proof_and_keeps_review_pending(workspace):
     assert 'CryptoResearch.Smoke.add_zero' in result.audit_log
     # Preserve Lean's elaborated type and exact axiom printout for reviewers,
     # rather than asking them to infer both from the source declaration.
-    assert 'CryptoResearch.Smoke.add_zero :' in result.audit_log
-    assert (
-        "'CryptoResearch.Smoke.add_zero' depends on axioms:" in result.audit_log
-        or "'CryptoResearch.Smoke.add_zero' does not depend on any axioms" in result.audit_log
-    )
+    assert 'CryptoResearch.Smoke.add_zero (n : Nat) : n + 0 = n' in result.audit_log
+    assert "'CryptoResearch.Smoke.add_zero' does not depend on any axioms" in result.audit_log
 
 
 @pytest.mark.parametrize('name', ['CryptoResearch.Smoke.missing', 'Nat.add'])
