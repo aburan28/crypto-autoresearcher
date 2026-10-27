@@ -104,14 +104,16 @@ def solve(input_path: Path, collector_path: Path, count_path: Path,
            for coefficients, rhs in ordered_rows):
         raise ValueError("modular matrix solution fails an equation")
     result["timings_seconds"]["linear_algebra"] = time.monotonic() - started
-    started = time.monotonic()
     g_orbit, g_log, q_orbit, q_sign, columns, q_column = layout
+    log_recovery_started = time.monotonic()
     base_logs = [g_log if orbit == g_orbit else solution[columns[orbit]]
                  for orbit in range(len(base) // 2)]
     if q_orbit is None:
         scalar = solution[q_column]
     else:
         scalar = q_sign * base_logs[q_orbit] % curve.r
+    result["timings_seconds"]["individual_log_recovery"] = time.monotonic() - log_recovery_started
+    verification_started = time.monotonic()
     E = EllipticCurve(GF(curve.p), [curve.a, curve.b])
     sage_g = E(generator)
     if scalar * sage_g != E(q):
@@ -121,7 +123,7 @@ def solve(input_path: Path, collector_path: Path, count_path: Path,
             raise ValueError(f"factor-base log fails independent point equation at orbit {orbit}")
     result.update({"status": "verified_scalar", "scalar": scalar,
                    "base_logs": base_logs, "solution": solution})
-    result["timings_seconds"]["scalar_verification"] = time.monotonic() - started
+    result["timings_seconds"]["scalar_verification"] = time.monotonic() - verification_started
     return result
 
 
