@@ -59,7 +59,7 @@ def _lean_code(text: str) -> str:
 
 
 def target_audit_source(module: str, theorem: str) -> str:
-    """Trusted audit: the requested declaration must exist and be a theorem."""
+    """Audit the requested theorem and print its elaborated type and axioms."""
     return f'''import {module}
 import Lean
 open Lean Elab Command
@@ -74,6 +74,8 @@ run_cmd do
   unless bad.isEmpty do
     throwError "target axiom audit failed: {{bad.toList}}"
   logInfo m!"target axiom audit passed: {{target}}"
+#check {theorem}
+#print axioms {theorem}
 '''
 
 
