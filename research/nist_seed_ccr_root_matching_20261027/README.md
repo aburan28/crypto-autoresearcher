@@ -7,6 +7,14 @@ case at degree seven or higher. No cohort input has the tested projection
 collision or repeated-root complication. The literal-draft conversion finds
 no kernels at degree five or higher, including for the publications.
 
+The subsequent [finite two-predicate audit](two-rule-audit-20261027/report.md)
+tests combinations directly: 1,913 frozen predicates reduce to 495 observation
+signatures, with zero robust or possible fits among 122,265 signature pairs
+and all 16 Boolean functions per pair. This includes local CM splitting,
+power residues of j and coefficients, all 61 source-table root levels, and
+recorded validation features. Its scope is two atoms from that library;
+arbitrary complex or field-dependent rules remain outside that result.
+
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
 These are reconstructed omissions, not documented historical rejection events.

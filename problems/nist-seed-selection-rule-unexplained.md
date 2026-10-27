@@ -1,6 +1,7 @@
 # Historical selection rule for skipped NIST prime-field seed candidates is unknown
 
 - **Status:** `open`
+- **Latest two-rule comparison:** [fixed 21-curve finite-library audit](../research/nist_seed_ccr_root_matching_20261027/two-rule-audit-20261027/report.md): 1,913 predicates, 495 distinct complemented observation signatures, 122,265 pairs and all 16 Boolean functions per pair; zero robust or possible fits. Independent arithmetic and enumeration agree on every feature, fit and collision witness. The P-224 cubic-j pattern remains a field-specific observation. No arbitrary complex two-rule impossibility or historical selection mechanism follows.
 - **Latest completed validation:** [all-21 ECPP](../research/nist_seed_ecpp_full_cohort_20261027/REPORT.txt), [all-root SEA](../research/nist_seed_sea_all_roots_20261027/report.md), [recovered pre-1997 FreeLIP](../research/nist_seed_pre1997_library_20261027/report.md), [canonical/Atkin coordinate and CCR formula checks](../research/nist_seed_modular_coordinate_guards_20261027/report.md), and [CCR root matching](../research/nist_seed_ccr_root_matching_20261027/report.md). Earlier dated zero-run statements below describe their original checkpoints; actual full-cohort observations now exist and still do not identify the historical selector.
 - **Kind:** unknown cause; missing historical generator program or run log
 - **Latest exact census:** [all eleven omissions and eight same-field published controls](../research/nist_seed_exact_conductor_census_20261023/report.md)
