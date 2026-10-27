@@ -160,6 +160,27 @@ class RoundTrip(unittest.TestCase):
         self.git("commit", "-qm", "move it")
         self.assertEqual(self.art("check", base).returncode, 0)
 
+    def test_migrate_from_subdirectory_resolves_root_level_candidates(self):
+        base = self.git("rev-parse", "HEAD").strip()
+        payload = os.urandom(100_000)
+        (self.repo / "new.jsonl").write_bytes(payload)
+        self.git("add", "new.jsonl")
+        self.git("commit", "-qm", "add root-level data")
+        caller = self.repo / "research"
+
+        dry = self.art("migrate", base, "--dry-run", cwd=caller)
+        self.assertIn("new.jsonl", dry.stdout)
+        self.assertEqual(self.art("migrate", base, cwd=caller).returncode, 0)
+
+        tracked = self.git("ls-files").splitlines()
+        self.assertNotIn("new.jsonl", tracked)
+        manifest = self.repo / ".artifacts.json"
+        self.assertTrue(manifest.is_file())
+        entry = json.loads(manifest.read_text())["files"]["new.jsonl"]
+        digest = hashlib.sha256(payload).hexdigest()
+        self.assertEqual(entry, {"sha256": digest, "bytes": len(payload)})
+        self.assertEqual((self.remote / "sha256" / digest[:2] / digest).read_bytes(), payload)
+
 
 class Policy(unittest.TestCase):
     P = artifacts.DEFAULT_POLICY

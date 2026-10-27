@@ -670,7 +670,10 @@ def cmd_migrate(cfg: Config, args) -> int:
     if not candidates:
         print("artifacts migrate: no changed data files", file=sys.stderr)
         return 0
-    paths = [p for p, _ in candidates]
+    # changed_candidates returns repository-relative paths. Resolve them before
+    # handing them to commands that also accept caller-relative paths, because
+    # migrate may be invoked from any subdirectory in the checkout.
+    paths = [str(cfg.root / p) for p, _ in candidates]
     if args.dry_run:
         for p, s in candidates:
             print(f"{s:>14,}  {p}")
