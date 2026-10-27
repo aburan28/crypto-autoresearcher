@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [NIST dual archive identity and later source custody](nistseed-dual-archive-custody-20261027.md) | open | PR2602 integration and source-dependent packet readiness: nine immutable collisions and third source version | Independently reviewed native successor/CORR map preserving both completed bindings, then separate integration/publication gates |
 | [P-256 symmetric membership needs a costed global solver](p256-symmetric-radical-global-solver.md) | investigating | Exact symmetric and cubic-divisor formulations, depth-3 completeness; depth-4 distinct strata remain unknown | Complete implicit extraction/cost argument with repeated strata, matched controls and independent checks |
 | [Natural useful factor-base relations and complete costs](p256-natural-useful-factor-base-relations.md) | investigating | P-256 labelled/divisor prototypes and secp256k1 orbit control have exact constructed checks; natural useful rates and full costs remain unmeasured | Method-specific admitted natural-instance studies with full rank, failure, memory and target-attachment accounting |
 | [P-256 cover target-component solver](p256-cover-target-component-solver.md) | investigating | Explicit genus-three and genus-two maps inject the target subgroup; arbitrary-class solver and full cost remain missing | Certified component/arithmetic interface and costed image-specific relations/descent |
@@ -82,6 +83,8 @@ Keep resolved and superseded records in the index.
 | [Legacy stage-0 ECDLP trial manifests](legacy-trial-manifest-schema.md) | resolved for six native metadata routes | Native validity of six frozen programs despite successful original processes | Published exact native-approved metadata-only successors, fresh claims, unchanged checker/raw bytes and valid new envelopes; preserve original invalid attempts |
 | [Staged x-rank independent arithmetic verification](staged-xrank-independent-arithmetic-verification.md) | open | Adjacent19th staged instrument has only legacy label/file-presence checking; metadata preservation supplies no arithmetic certificate | Independent point/group/rank/overlap recomputation and explicit scalar-control/normalization review under a new protocol |
 | [Finite worksheet direct invocation](finite-worksheet-direct-invocation.md) | resolved for six named native metadata routes | Direct child argv preserved; outer Git-only control fixes metadata resource refusal; original 8file and615partial failures retained | See exact current inventory: twelve accepted primary RUNs across six final scopes; broader proof/schema and adjacent arithmetic obligations remain separate |
+
+| [PEXT n=7 frozen source binding](pext-n7-frozen-source-binding.md) | investigating | Native admission of EXP-PEXT-212d5c after the committed Lean proof correction | Publish the prospective source binding, verify exact hashes and invariants, then verify the correction archive |
 
 ## Add or update a problem
 
