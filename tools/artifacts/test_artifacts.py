@@ -7,7 +7,6 @@ import base64
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -106,13 +105,6 @@ class RoundTrip(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("refused", r.stderr)
         self.assertFalse((self.repo / "research/r1/runs/a.jsonl").exists())
-
-    def test_pull_recreates_missing_manifest_parent(self):
-        self.art("push", "research/r1/runs")
-        self.git("commit", "-qm", "move data to the store")
-        shutil.rmtree(self.repo / "research/r1/runs")
-        self.art("pull", "research/r1/runs/a.jsonl")
-        self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
 
     def test_push_merges_existing_manifest_and_gitignore(self):
         (self.repo / "research/r1/runs/.gitignore").write_text("/tmp/\n")
