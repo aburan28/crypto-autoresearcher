@@ -17,6 +17,8 @@ Sources (committed, read at --ref):
                                              endpoint-reuse execution/public-witness observations
   experiments/EXP-ECDLP-f50061/reports/run-20261027T2311Z/observations.json
                                              parameter-sweep counts, retaining censored cases
+  experiments/EXP-ECDLP-c45dd8/reports/run-20261027T2329Z/observations.json
+                                             fixed NG screen counts, including covariance views
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -395,6 +397,45 @@ def endpoint_reuse_sweep_observations(ref, since):
              label=f"RUN-ECDLP-e69a23: {labels[name]}", source=f"{path}@{ref}")
 
 
+def nongeneric_screen_observations(ref, since):
+    """Neutral fixed-screen counts; repeated coordinate views remain counted."""
+    path = "experiments/EXP-ECDLP-c45dd8/reports/run-20261027T2329Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.nongeneric-screen.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-c45dd8"
+                or data.get("run_id") != "RUN-ECDLP-a11661"
+                or data.get("protocol_sha256") != "31d6425d88c3217ddab47fe3fbc295a6ec6b0af3513942f0fc2a9156ccea7d3d"
+                or data.get("verification_status") != "passed"
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("candidate_counter_execution_replayed") is not False or date < since):
+            return
+        labels = {
+            "observed_cases": "retained fixed-screen cases, including undefined outcomes and covariance views",
+            "candidate_cases": "retained candidate-template cases, including covariance views",
+            "control_cases": "retained control-arm cases, including covariance views",
+            "passing_groups": "base/view groups passing the fixed public gate",
+            "templates_with_passing_groups": "templates with one or more passing base/view groups",
+            "verified_recovered_targets": "verified fresh recovery targets across repeated coordinate views",
+            "fresh_predicate_evaluations": "executed fresh recovery predicate evaluations",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["observed_cases"] != values["candidate_cases"] + values["control_cases"]
+            or values["templates_with_passing_groups"] > 40):
+        return
+    for name, value in values.items():
+        emit(f"nongeneric.a11661.{name}", value, date=date,
+             problem="ecdlp-nongeneric-screen", unit="count", better="neutral",
+             label=f"RUN-ECDLP-a11661: {labels[name]}", source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -471,6 +512,7 @@ def main():
     claims(a.ref)
     endpoint_reuse_observations(a.ref, a.since)
     endpoint_reuse_sweep_observations(a.ref, a.since)
+    nongeneric_screen_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
