@@ -7,6 +7,7 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -106,6 +107,13 @@ class RoundTrip(unittest.TestCase):
         self.assertIn("refused", r.stderr)
         self.assertFalse((self.repo / "research/r1/runs/a.jsonl").exists())
 
+    def test_pull_recreates_missing_manifest_parent(self):
+        self.art("push", "research/r1/runs")
+        self.git("commit", "-qm", "move data to the store")
+        shutil.rmtree(self.repo / "research/r1/runs")
+        self.art("pull", "research/r1/runs/a.jsonl")
+        self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
+
     def test_push_merges_existing_manifest_and_gitignore(self):
         (self.repo / "research/r1/runs/.gitignore").write_text("/tmp/\n")
         self.art("push", "research/r1/runs/a.jsonl")
@@ -188,6 +196,16 @@ class S3Argv(unittest.TestCase):
 
 class WorkflowWiring(unittest.TestCase):
     PATH = "examples/experiment-protocol/ecbench-l2-smoke-subset/session"
+
+    def test_comment_only_data_path_does_not_require_pull(self):
+        from wire_workflows import needed
+        text = "# See docs/ci-tiers.md for the policy.\nrun: echo checked\n"
+        moved = {"docs/reports/one/figure.png"}
+        dirs = {"docs", "docs/reports", "docs/reports/one"}
+        self.assertEqual(needed(text, moved, dirs), [])
+        self.assertEqual(needed("run: echo docs/reports-s3.md\n", moved, dirs), [])
+        self.assertEqual(needed("run: cat docs/reports/one/figure.png\n", moved, dirs),
+                         ["docs/reports/one/figure.png"])
 
     def test_scope_only_checkout_stays_unwired(self):
         workflow = ("jobs:\n  changes:\n    steps:\n"

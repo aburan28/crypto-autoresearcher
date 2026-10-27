@@ -443,6 +443,7 @@ def cache_insert(cfg: Config, src: Path, digest: str) -> None:
 
 def place_copy(src: Path, dest: Path) -> None:
     """Copy-on-write clone where the filesystem has it (APFS, btrfs, XFS), else a copy."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
     dest.unlink(missing_ok=True)
     flag = "-c" if sys.platform == "darwin" else "--reflink=auto"
     p = subprocess.run(["cp", flag, str(src), str(dest)], capture_output=True)

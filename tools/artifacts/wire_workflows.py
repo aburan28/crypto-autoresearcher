@@ -46,11 +46,12 @@ def moved_paths(root: Path) -> set[str]:
 def needed(text: str, moved: set[str], dirs: set[str]) -> list[str]:
     """Paths the workflow names that are, or contain, moved files; minimal cover."""
     found = set()
-    for m in PATH_RE.finditer(text):
+    # Documentation comments do not make a job consume the referenced path.
+    active_text = "\n".join(line for line in text.splitlines()
+                            if not line.lstrip().startswith("#"))
+    for m in PATH_RE.finditer(active_text):
         p = m.group(1).split("*", 1)[0].rstrip("/.")
-        while p and p not in moved and p not in dirs:
-            p = p.rsplit("/", 1)[0] if "/" in p else ""
-        if p:
+        if p in moved or p in dirs:
             found.add(p)
     return sorted(p for p in found if not any(p.startswith(q + "/") for q in found))
 
