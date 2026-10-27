@@ -1,0 +1,19 @@
+# Native execution interface: source only
+
+27 October 2026. This additive source note leaves the full commonality objective unresolved. No new omission-to-point membership was computed.
+
+The frozen standalone protocol now validates with zero findings. Its canonical protocol hash is 8960ab8353246733c09a707a9f559fe69d5fb2f71a8f1c7f579a52db2ca05c28; its instrument snapshot is 720b9c1df9496e2a792c60ac51d3f56f92e80845. The original draft snapshot and its manifest remain immutable. freeze.stdout.txt and validation-frozen.stdout.txt preserve the actual freeze and validation output.
+
+native_bridge.py is a new, unexecuted adapter for tools/experiment_execution.py. It supplies run/check commands, native manifest and raw-result packaging, nested raw-file digests, child exit/error retention, and a separate arithmetic/chronology verification path. It calls the supervisor's authorization before the producer. It requires the exact frozen protocol as a plan input and the original checker as bound source. Its syntax compiles; no import, command invocation, planted-control execution, or runtime validity claim has been made. The separate checker is an instrument control, not an independent session's review.
+
+The interface gap was identified by reading load_plan, authorize, execute_trial and complete_manifest in tools/experiment_execution.py and the standalone check_fixed_x.py. The supervisor creates the outer output directory, whereas the standalone checker refuses an existing output path; the adapter assigns a fresh nested raw directory. Packaging completion preserves the actual child exit and cannot turn an invalid child into valid output. Further source review and native admission are required before execution.
+
+The prospective workload is unchanged: eleven canonical omissions paired with the next publication's x-coordinate, ten published self controls, three opposite-sign P-224 sensitivities, exact A/A, fixed positive/negative/zero/circularity and corruption controls. The original 7c70b0b9 checker and the frozen mathematical protocol remain unchanged. Neither the 24-row workload nor this adapter accounts for all 69 broader census positions.
+
+Still missing: a lawful ledger specification, trial plan, executor handoff, complete artifact/archive coverage, queue and lane, a successful prospective preapproval probe, a committed Coordinator approval, execution-state ready, and independent review. The goal's max_concurrent=1 and existing unfinished ECPP integration path must be resolved by the Coordinator without declaring that path complete. This source publication does not grant execution authority.
+
+The previously completed full-ledger validation (100 errors across 29 files, all byte-identical to origin/main 90c5eb480e795029ee36ebc03ae9fff82ff7b47f at that check) is now retained in ledger-validation-retained.json and ledger-baseline-comparison.json. It is not a current-main validation or a passing full-ledger check. No baseline was updated. A subsequent fetch observed origin/main 6464133bfc8d76771c523bfb6bc3c56763b747b4, whose new A/A producer archive must be considered before any design dispatch.
+
+Conductor T-5500's existing claim, attempt 1 and epoch 1 remained authoritative; fresh conflict checks returned allow. Reattachment requests nevertheless returned conflicts with that same task. No duplicate task, lease takeover or forced operation was used. The source stays inside the existing point-work scope.
+
+Publication owner remains TASK-20261027-99dad5, as assigned in the source-authoring delivery. This checkpoint publishes source and frozen metadata only; future result publication must use an additive receipt. There are no new verified historical-selection or mathematical graph edges; the prospective diagram and prior source-only PDF remain applicable, without being presented as a trial report.
