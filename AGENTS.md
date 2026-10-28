@@ -584,5 +584,6 @@ resume the effort are checked into S3**, and kept current while it runs.
   worktree next to this checkout and puts `RESUME.md` in it. `share` prints a
   presigned URL that `restore <url>` accepts anywhere.
 A checkpoint is a safety net, not the record: the spec, protocol and results
-still land in a PR under the rules above.
+still land in a PR under the rules above. Switching runtimes:
+[docs/runtime-relay.md](docs/runtime-relay.md).
 When changing tracked results, follow the binding [daily progress-metrics rule](docs/agent-contract-supplement.md#progress-metrics-daily-lab-report): extend the exporter in the same PR, retain stable metric ids and emit only measured, committed values.
