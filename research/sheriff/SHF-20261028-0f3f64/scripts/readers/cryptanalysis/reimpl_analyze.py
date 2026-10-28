@@ -142,10 +142,12 @@ def main():
     ap.add_argument("--runs-jsonl", type=Path, required=True)
     ap.add_argument("--archive-runs-jsonl", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--panel", type=Path, default=None, help="controls only: a mutated copy of panel/")
+    ap.add_argument("--force-band", action="store_true", help="controls only: compute the band even if a gate fails")
     args = ap.parse_args()
     clone = args.clone
     run_dir = clone / EXP / "run_github_39882571652"
-    panel = run_dir / "panel"
+    panel = args.panel or (run_dir / "panel")
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
     report = {"inputs": {}, "checks": {}, "notes": []}
@@ -271,6 +273,14 @@ def main():
         for p in paths:
             patterns.setdefault(p, []).append(k)
     report["strict_nonclock_diff_paths"] = {p: len(v) for p, v in sorted(patterns.items())}
+
+    gate = all(report["checks"].values())
+    report["gate_passed"] = gate
+    if not gate and not args.force_band:
+        (out / "reimpl_result.json").write_text(json.dumps(report, indent=1, sort_keys=True, default=str) + "\n")
+        print(json.dumps({"gate_passed": False, "checks": report["checks"],
+                          "protocol_mismatches": protocol_mismatches[:10], "decode_problems": decode_problems[:10]}, indent=1))
+        raise SystemExit(1)
 
     # ---- 4. band units per PROTOCOL.md ----
     def ic_unit(rank_arm, cold_arm, point, include_rank_la=False, include_index_digest=False):
