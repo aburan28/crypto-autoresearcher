@@ -392,6 +392,39 @@ def _check_driver_facts(body: dict[str, Any], plan: dict[str, Any], plan_relativ
                               f"contradicts raw-result.json's {raw['attack_claimed']!r}")
 
 
+# Where each key completion may add comes from (SHF-20261028-0f3f64, LGN-4).
+_LATER = "supervisor constant; the supervisor writes this file after completion"
+ADDED_FIELD_SOURCES = {
+    "run.id": "frozen trial run_id",
+    "run.experiment_id": "frozen plan experiment_id",
+    "run.hypothesis_id": "frozen plan hypothesis_id",
+    "run.task_id": "frozen plan task_id",
+    "run.trial_id": "frozen trial id",
+    "run.approved_by": "frozen plan approved_by",
+    "run.status": "derived: the driver exited 0",
+    "run.status_note": "supervisor constant explaining run.status",
+    "run.code.commit": "launch authority commit",
+    "run.code.commit_meaning": "supervisor constant",
+    "run.code.command_file": "supervisor constant (command.txt, written at launch)",
+    "run.code.command": "launched argv, equal to command.txt",
+    "run.code.check_command": "launched checker argv",
+    "run.environment": "environment.json, plus file: environment.json",
+    "run.inputs": "frozen plan path and hash, frozen trial id, seed, parameters, curve_id",
+    "run.timing": "supervisor clock around the driver process",
+    "run.result.raw_result": "supervisor constant (raw-result.json exists)",
+    "run.result.metrics": "copy of the driver's run.metrics",
+    "run.result.certificate": "derived: attack_claimed false in the driver's own files",
+    "run.result.executor_receipt": _LATER,
+    "run.artifacts": "supervisor constant; stdout.log and stderr.log exist, "
+                     "check.stdout.log and check.stderr.log are written after completion",
+}
+REPRESENTATION_NOTE = ("published manifest.yaml is a yaml.safe_dump re-serialisation of the "
+                       "driver's values plus the added keys: comments and source formatting "
+                       "are not kept; the driver's exact bytes are in the execution receipt's "
+                       "manifest_completion.driver_manifest_text, hashed in "
+                       "driver_manifest_sha256")
+
+
 def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
                       plan_hash: str, trial: dict[str, Any], authority: dict[str, Any],
                       argv: list[str], checker: list[str], started: str,
@@ -406,12 +439,14 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
     the driver wrote is kept as written, and one that contradicts a publish-time
     fact (plan, trial, launch authority, environment.json, launched argv, the
     supervisor's clock, run.metrics, raw-result.json's attack_claimed) is a
-    refusal, compared type-strictly (_check_driver_facts). Only missing keys are added, each from the plan, the launch
-    authority, environment.json, command.txt or the supervisor's clock. The one
-    derived value is certificate.kind none, and only where the driver itself
-    recorded attack_claimed false. Nothing else is inferred, so a manifest that
-    still fails check_run after completion is refused (EnvelopeRefused), never
-    published. The driver's exact bytes are kept in the completion record.
+    refusal, compared type-strictly (_check_driver_facts). Only missing keys are
+    added, and envelope_completion.sources names each one's source (ADDED_FIELD_SOURCES):
+    a publish-time fact, a value derived from one (status from exit code 0,
+    certificate.kind none from the driver's attack_claimed false), or a
+    supervisor constant. Nothing else is inferred, so a manifest that still fails
+    check_run after completion is refused (EnvelopeRefused), never published.
+    The published file is a YAML re-serialisation; the driver's exact bytes are
+    kept in the receipt's completion record (SHF-20261028-0f3f64, LGN-4/LGN-5).
     """
     path = safe_path(directory, "manifest.yaml")
     original = path.read_bytes()
@@ -447,6 +482,12 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
         except (UnicodeDecodeError, json.JSONDecodeError):
             raw = None
     environment = read_json(safe_path(directory, "environment.json"))
+    command_file = safe_path(directory, "command.txt")
+    if command_file.is_file():
+        recorded = command_file.read_text(encoding="utf-8").strip()
+        if recorded != json.dumps(argv):
+            raise EnvelopeRefused(f"command.txt {recorded!r} disagrees with the launched argv "
+                                  f"{json.dumps(argv)}")
     # Schema validity does not bind an envelope to the frozen trial. Check
     # every publish-time fact even when no completion would otherwise be needed.
     _check_driver_facts(body, plan, plan_relative, plan_hash, trial, authority, environment,
@@ -526,7 +567,9 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
                             "check_stderr": "check.stderr.log"}, "run.artifacts")
     record = {"schema": COMPLETION_SCHEMA, "action": "completed", "driver_shape": shape,
               "driver_manifest_sha256": hashlib.sha256(original).hexdigest(),
-              "completed_by": "tools/experiment_execution.py", "added": added}
+              "completed_by": "tools/experiment_execution.py", "added": added,
+              "sources": {name: ADDED_FIELD_SOURCES[name] for name in added},
+              "representation": REPRESENTATION_NOTE}
     body["envelope_completion"] = record
     completed = yaml.safe_dump({"run": body}, sort_keys=False, allow_unicode=True)
     # Gate the candidate before replacing the driver's bytes, beside the run's
