@@ -19,11 +19,13 @@ JOBS = [
         "job": 122604839789,
         "head": "64da2f50560c3565c36880fc86b0aad8addeb223",
         "url": "https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40624063556/job/122604839789",
+        "downloaded_log_sha256": "d5cc3cfc3e2978093ca8899ddaa1e9b77627088c719ffff427816ad8d01d221f",
     },
     {
         "job": 122616982776,
         "head": "a94a304f1e76d81e4a9899e8bcb709b8fdb0e21c",
         "url": "https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40627808095/job/122616982776",
+        "downloaded_log_sha256": "facca0444c59dc386a6662c21e73a552a329cc5008cee2c6c602e662cd7b75af",
     },
 ]
 LINE = re.compile(r"^.*?Z\s+-\s+((?:ledger/|experiments/)[^\n]+)$")
@@ -52,6 +54,7 @@ def main() -> None:
     assert len(sys.argv) == 3
     old, old_digest = read_log(Path(sys.argv[1]))
     new, new_digest = read_log(Path(sys.argv[2]))
+    assert [old_digest, new_digest] == [job["downloaded_log_sha256"] for job in JOBS], "source log hash mismatch"
     assert old == new, "CI error sets differ; inspect before publishing"
     errors = []
     for line in new:
@@ -63,7 +66,7 @@ def main() -> None:
         "schema": "ledger-validation-observation/v1",
         "observation_utc": "2026-10-28T03:47:00Z",
         "base_main_sha": "7b16f392d39c00e558bdaf44a35063303cd550ab",
-        "jobs": [{**job, "downloaded_log_sha256": digest} for job, digest in zip(JOBS, (old_digest, new_digest))],
+        "jobs": JOBS,
         "normalized_error_set_sha256": sha256("\n".join(new).encode()).hexdigest(),
         "unsuppressed_errors": len(errors),
         "affected_paths": len(paths),
