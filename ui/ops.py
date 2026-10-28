@@ -388,7 +388,7 @@ def collect_payload(*, now: int | None = None) -> dict[str, Any]:
         "sampled_at": _iso(now),
         "latest_point": _iso(latest),
         "latest_point_age_seconds": age,
-        "stale": bool(age is not None and age > STALE_AFTER_SECONDS),
+        "stale": age is None or age > STALE_AFTER_SECONDS or instance.get("status") != "available",
         "last_hour": {
             "basis": hour_basis,
             "empty": hour_write["samples"] == 0 and hour_read["samples"] == 0,

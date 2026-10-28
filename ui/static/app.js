@@ -380,6 +380,12 @@ function opsPanel(ops) {
   const usedPct = storage.allocated_bytes && storage.used_bytes != null
     ? Math.min(100, (storage.used_bytes / storage.allocated_bytes) * 100) : null;
   const db = ops.database || {};
+  const dbStatus = (db.status || '').toLowerCase();
+  const freshness = dbStatus && dbStatus !== 'available'
+    ? tag(dbStatus, 'warn', latestPointNote(ops))
+    : dbStatus === 'available' && !ops.stale && ops.latest_point
+      ? tag('live', 'ok', latestPointNote(ops))
+      : tag('stale', 'warn', latestPointNote(ops));
   const dayExtra = h('div', { class: 'ops-line ops-total' },
     h('strong', {}, fmtCount(day.write_ops)), h('span', {}, 'write ops'),
     h('strong', {}, fmtCount(day.read_ops)), h('span', {}, 'read ops'));
@@ -390,7 +396,7 @@ function opsPanel(ops) {
         h('h2', {}, db.id || 'rho-dp'),
         h('p', { class: 'faint' },
           [db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
-      ops.stale ? tag('stale', 'warn', latestPointNote(ops)) : tag('live', 'ok', latestPointNote(ops))),
+      freshness),
     h('div', { class: 'ops-windows' },
       opsWindow(hour.basis === 'latest_sample' ? 'Hour at latest sample' : 'Last hour',
         hour, null, latestPointNote(ops), hour.empty),
