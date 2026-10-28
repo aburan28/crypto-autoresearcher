@@ -19,6 +19,8 @@ Sources (committed, read at --ref):
                                              parameter-sweep counts, retaining censored cases
   experiments/EXP-ECDLP-c45dd8/reports/run-20261027T2329Z/observations.json
                                              fixed NG screen counts, including covariance views
+  experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/observations.json
+                                             fresh transfer counts, events and distinct target-arm pairs
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -436,6 +438,47 @@ def nongeneric_screen_observations(ref, since):
              label=f"RUN-ECDLP-a11661: {labels[name]}", source=f"{path}@{ref}")
 
 
+def transfer_study_observations(ref, since):
+    """Neutral actual counts; successful attempt events and recovered pairs differ."""
+    path = "experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.transfer-study.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-8dc19d"
+                or data.get("run_id") != "RUN-ECDLP-994f70"
+                or data.get("protocol_sha256") != "fa961d179668d86e1dfcdc393d80c60e4f6a6f3ac541b9015f6011beba050c71"
+                or data.get("verification_status") != "passed"
+                or data.get("cohort_complete") is not True
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("counter_execution_replayed") is not False or date < since):
+            return
+        labels = {
+            "fresh_curves": "distinct fresh public curves retained",
+            "target_ids": "distinct fresh public target identities retained",
+            "attempt_rows": "retained primary attempt rows, including failed and undefined outcomes",
+            "checked_attempt_rows": "primary attempt rows checked by the independent verifier",
+            "working_baseline_verified_target_ids": "unique targets verified by the working BSGS reference",
+            "candidate_success_events": "verified candidate attempt success events, including repeated successes",
+            "unique_target_arm_pairs_recovered": "distinct recovered target-arm pairs, with retries deduplicated",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["checked_attempt_rows"] > values["attempt_rows"]
+            or values["working_baseline_verified_target_ids"] > values["target_ids"]
+            or values["unique_target_arm_pairs_recovered"] > values["candidate_success_events"]):
+        return
+    for name, value in values.items():
+        emit(f"transfer.994f70.{name}", value, date=date,
+             problem="ecdlp-fixed-circuit-transfer", unit="count", better="neutral",
+             label=f"RUN-ECDLP-994f70: {labels[name]}", source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -513,6 +556,7 @@ def main():
     endpoint_reuse_observations(a.ref, a.since)
     endpoint_reuse_sweep_observations(a.ref, a.since)
     nongeneric_screen_observations(a.ref, a.since)
+    transfer_study_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
