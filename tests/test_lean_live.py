@@ -30,6 +30,8 @@ def test_real_lean_accepts_proof_and_keeps_review_pending(workspace):
     assert result.machine_verified, result.build_log + result.audit_log
     assert result.needs_semantic_review
     assert 'CryptoResearch.Smoke.add_zero' in result.audit_log
+    assert 'CryptoResearch.Smoke.add_zero (n : Nat) : n + 0 = n' in result.audit_log
+    assert "'CryptoResearch.Smoke.add_zero' does not depend on any axioms" in result.audit_log
 
 
 def test_batch_shared_audit_still_checks_each_requested_theorem(workspace):
