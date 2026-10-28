@@ -150,6 +150,20 @@ test('an available database without samples shows a stale badge', () => {
   dom.window.close();
 });
 
+test('an old static snapshot cannot remain live after its sample ages out', () => {
+  const {dom} = setup();
+  const el = dom.window.ui.opsPanel({
+    available: true, stale: false,
+    latest_point: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    database: {id: 'rho-dp', status: 'available'},
+    last_hour: {basis: 'latest_sample', empty: false, samples: 1},
+    last_24h: {samples: 1}, storage: {},
+  });
+  assert.match(el.querySelector('.ops-head').textContent, /stale/);
+  assert.doesNotMatch(el.querySelector('.ops-head').textContent, /live|snapshot/);
+  dom.window.close();
+});
+
 test('an empty last-hour window shows an em dash, never a naked zero', () => {
   const {dom} = setup();
   const latest = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
@@ -204,6 +218,8 @@ test('a live hour shows writes and reads per second, not a zero placeholder', ()
               allocated_bytes: 400 * (1024 ** 3)},
   });
   assert.match(el.textContent, /Last hour/);
+  assert.match(el.querySelector('.ops-head').textContent, /snapshot/);
+  assert.doesNotMatch(el.querySelector('.ops-head').textContent, /live/);
   assert.match(el.textContent, /1\.7k\/s/);
   assert.match(el.textContent, /11\.6k\/s/);
   assert.doesNotMatch(el.textContent, /No samples in this window/);
