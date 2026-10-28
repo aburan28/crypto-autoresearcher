@@ -20,6 +20,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -255,9 +256,18 @@ def _same(left: Any, right: Any) -> bool:
     return left == right
 
 
+def _conflicts(driver: Any, fact: Any) -> bool:
+    """A driver value contradicts a fact. Mappings conflict only on keys both
+    state (a driver may record derived extras, or fewer keys); everything
+    else is compared type-strictly."""
+    if isinstance(driver, dict) and isinstance(fact, dict):
+        return any(_conflicts(driver[key], fact[key]) for key in driver.keys() & fact.keys())
+    return not _same(driver, fact)
+
+
 def _agree(body: dict[str, Any], field: str, value: Any, where: str,
            source: str = "the frozen plan") -> None:
-    if field in body and not _same(body[field], value):
+    if field in body and _conflicts(body[field], value):
         raise EnvelopeRefused(f"driver manifest {where}{field}={body[field]!r} contradicts "
                               f"{source}'s {value!r}")
 
@@ -277,6 +287,19 @@ def _instant(value: Any, field: str) -> datetime:
         raise EnvelopeRefused(f"driver manifest {field}={value!r} has no time zone and "
                               "cannot be checked against the supervisor clock")
     return moment
+
+
+LAUNCH_ENVIRONMENT_FACTS = ("commit", "source_sha256", "specification_sha256",
+                            "runtime_lock", "runtime_lock_sha256")
+
+
+def _same_interpreter(program: str) -> bool:
+    """True when the driver was launched with the supervisor's own Python."""
+    found = shutil.which(program)
+    try:
+        return bool(found) and os.path.samefile(found, sys.executable)
+    except OSError:
+        return False
 
 
 # A driver's own clock reads inside the supervisor's interval, possibly
@@ -316,8 +339,23 @@ def _check_driver_facts(body: dict[str, Any], plan: dict[str, Any], plan_relativ
     _agree(code, "command_file", "command.txt", "run.code.", "the supervisor")
     driver_environment = body.get("environment", {})
     _agree(driver_environment, "file", "environment.json", "run.environment.", "the supervisor")
-    for key, value in environment.items():
-        _agree(driver_environment, key, value, "run.environment.", "environment.json")
+    # environment.json binds the launch (commit, hashed sources, runtime lock)
+    # and also describes the SUPERVISOR's own process (python, platform). Only
+    # the binding is a fact about the driver: a driver may run under another
+    # interpreter and may describe its platform differently (sys.platform vs
+    # platform.platform(), EXP-ICPERF-018b0c), so those strings are its own.
+    for key in LAUNCH_ENVIRONMENT_FACTS:
+        if key in environment:
+            _agree(driver_environment, key, environment[key], "run.environment.",
+                   "environment.json")
+    if ("python" in driver_environment and isinstance(environment.get("python"), str)
+            and _same_interpreter(argv[0])):
+        # Same interpreter: the driver's Python must at least name its version.
+        version = environment["python"].split()[0] if environment["python"].split() else ""
+        if version not in str(driver_environment["python"]):
+            raise EnvelopeRefused(f"driver manifest run.environment.python="
+                                  f"{driver_environment['python']!r} contradicts the "
+                                  f"launched interpreter's Python {version}")
     inputs = body.get("inputs", {})
     _agree(inputs, "trial_plan", plan_relative, "run.inputs.")
     _agree(inputs, "plan_sha256", plan_hash, "run.inputs.", "the frozen plan file")

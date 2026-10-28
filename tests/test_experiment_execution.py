@@ -757,10 +757,11 @@ class DriverContradictionTests(unittest.TestCase):
             "approved_by": "DEC-20260909-aabbcc", "hypothesis_id": "H-ECDLP-aabbcc"}
     TRIAL = {"id": "seed-1", "run_id": RUN, "seed": 1, "parameters": {"field_bits": 20}}
     AUTHORITY = {"commit": "a" * 40}
-    ARGV = ["python3", "-S", "driver.py", "measure", "RUNDIR"]
-    CHECKER = ["python3", "-S", "driver.py", "check", "RUNDIR"]
+    ARGV = [sys.executable, "-S", "driver.py", "measure", "RUNDIR"]
+    CHECKER = [sys.executable, "-S", "driver.py", "check", "RUNDIR"]
     STARTED, FINISHED = "2026-10-28T00:00:00+00:00", "2026-10-28T00:00:05+00:00"
-    ENVIRONMENT = {"commit": "a" * 40, "python": "3.fixture", "platform": "linux"}
+    ENVIRONMENT = {"commit": "a" * 40, "python": "3.12.1 (fixture build)", "platform": "linux",
+                   "source_sha256": {"driver.py": "e" * 64}}
     PLAN_REL, PLAN_HASH = f"experiments/{EXP}/trial-plan.json", "b" * 64
 
     def partial(self):
@@ -808,10 +809,10 @@ class DriverContradictionTests(unittest.TestCase):
         ("code.commit", "f" * 40), ("code.command", "python3 something-else.py"),
         ("code.check_command", "true"), ("code.command_file", "other.txt"),
         ("environment.commit", "f" * 40), ("environment.python", "2.7"),
+        ("environment.source_sha256", {"driver.py": "f" * 64}),
         ("environment.file", "other.json"),
         ("inputs.seed", 2), ("inputs.seed", "1"), ("inputs.seed", 1.0), ("inputs.seed", True),
         ("inputs.parameters", {"field_bits": 64}), ("inputs.parameters", {"field_bits": "20"}),
-        ("inputs.parameters", {"field_bits": 20, "extra": 1}),
         ("inputs.plan_sha256", "c" * 64), ("inputs.trial_id", "seed-999"),
         ("inputs.trial_plan", "experiments/other/trial-plan.json"),
         ("timing.started_at", "1999-01-01T00:00:00+00:00"),
@@ -841,7 +842,7 @@ class DriverContradictionTests(unittest.TestCase):
         manifest = {"run": {"id": self.RUN, "experiment_id": self.EXP,
                             "task_id": "TASK-20990101-ffffff", "status": "completed",
                             "code": {"commit": "a" * 40, "command": json.dumps(self.ARGV)},
-                            "environment": {"python": "3.fixture"}, "inputs": {"seed": 999},
+                            "environment": {"python": "3.12.1"}, "inputs": {"seed": 999},
                             "timing": {"wall_seconds": 1},
                             "result": {"certificate": {"kind": "none"}}}}
         self.assert_refused(manifest)
@@ -869,8 +870,10 @@ class DriverContradictionTests(unittest.TestCase):
         run.update({"task_id": self.PLAN["task_id"], "trial_id": "seed-1",
                     "hypothesis_id": self.PLAN["hypothesis_id"], "host_note": "driver-only"})
         run["code"] = {"commit": "a" * 40, "command": " ".join(self.ARGV)}
-        run["environment"] = {"python": "3.fixture", "host": "driver-only"}
-        run["inputs"] = {"seed": 1, "parameters": {"field_bits": 20}, "extra": "driver-only"}
+        run["environment"] = {"python": "3.12.1", "platform": "Linux-6.18.55-x86_64",
+                              "host": "driver-only"}
+        run["inputs"] = {"seed": 1, "parameters": {"field_bits": 20, "derived": 3},
+                         "extra": "driver-only"}
         run["timing"] = {"started_at": "2026-10-28T00:00:00Z", "wall_seconds": 4.5}
         completion = self.complete(manifest)
         self.assertEqual(completion["action"], "completed")
@@ -882,6 +885,18 @@ class DriverContradictionTests(unittest.TestCase):
         self.assertEqual(published["inputs"], run["inputs"])
         self.assertEqual(published["timing"], run["timing"])
         self.assertNotIn("run.inputs", completion["added"])
+
+    def test_python_of_another_interpreter_is_the_drivers_own(self):
+        manifest = self.partial()
+        manifest["run"]["environment"] = {"python": "2.7.18"}
+        argv = self.ARGV
+        try:
+            self.ARGV = ["/nonexistent/python2.7", *argv[1:]]
+            self.assertEqual(self.complete(manifest)["action"], "completed")
+        finally:
+            self.ARGV = argv
+        published = execution.yaml.safe_load(self.published)["run"]
+        self.assertEqual(published["environment"], {"python": "2.7.18"})
 
     def test_same_is_type_strict(self):
         for left, right in ((1.0, 1), (True, 1), ("1", 1), (False, 0), ([1], (1,)),
