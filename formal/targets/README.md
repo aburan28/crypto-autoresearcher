@@ -56,6 +56,11 @@ of the latter at nonzero `x_R`. Thus the trace identity does not certify the
 historical uniform first-fall wording. The new finite target checks one
 transcribed counterexample's executable ranks; its semantic limits are stated
 in that target and the [open problem](../../problems/semaev-degree-two-fall-nonzero-bridge.md).
+The [independent semantic review](../../docs/reports/2026-10-25-semaev-semantic-review/composition.md)
+confirmed the finite degree-three first fall and the narrower trace theorem.
+Its [dated target correction](corrections/2026-10-25-semaev-s3-degree-two.md)
+withdraws the frozen target's uniform degree-two inference while preserving
+the original target bytes.
 
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
