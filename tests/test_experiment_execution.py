@@ -768,7 +768,7 @@ class DriverContradictionTests(unittest.TestCase):
         return {"run": {"experiment_id": self.EXP, "run_id": self.RUN,
                         "attack_claimed": False, "metrics": {"m": 1}}}
 
-    def complete(self, manifest, raw=None):
+    def complete(self, manifest, raw=None, command_txt=None):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         directory = Path(temporary.name)
@@ -776,7 +776,8 @@ class DriverContradictionTests(unittest.TestCase):
         (directory / "manifest.yaml").write_text(text)
         (directory / "raw-result.json").write_text(json.dumps(
             raw if raw is not None else {"attack_claimed": False, "m": 1}))
-        (directory / "command.txt").write_text(json.dumps(self.ARGV) + "\n")
+        (directory / "command.txt").write_text(
+            command_txt if command_txt is not None else json.dumps(self.ARGV) + "\n")
         (directory / "environment.json").write_text(json.dumps(self.ENVIRONMENT))
         for name in ("stdout.log", "stderr.log"):
             (directory / name).write_text("")
@@ -789,9 +790,9 @@ class DriverContradictionTests(unittest.TestCase):
             self.published = (directory / "manifest.yaml").read_bytes()
             self.unchanged = self.published == before
 
-    def assert_refused(self, manifest, raw=None, pattern="contradicts"):
+    def assert_refused(self, manifest, raw=None, pattern="contradicts", **kw):
         with self.assertRaisesRegex(execution.EnvelopeRefused, pattern):
-            self.complete(manifest, raw)
+            self.complete(manifest, raw, **kw)
         self.assertTrue(self.unchanged, "a refusal must leave the driver's bytes as written")
 
     @staticmethod
@@ -897,6 +898,20 @@ class DriverContradictionTests(unittest.TestCase):
             self.ARGV = argv
         published = execution.yaml.safe_load(self.published)["run"]
         self.assertEqual(published["environment"], {"python": "2.7.18"})
+
+    def test_every_added_field_names_its_source(self):
+        completion = self.complete(self.partial())
+        record = execution.yaml.safe_load(self.published)["run"]["envelope_completion"]
+        self.assertEqual(set(record["sources"]), set(completion["added"]))
+        self.assertTrue(all(record["sources"].values()))
+        self.assertEqual(record["sources"]["run.status"], "derived: the driver exited 0")
+        self.assertIn("written after completion", record["sources"]["run.artifacts"])
+        self.assertIn("re-serialisation", record["representation"])
+        self.assertLessEqual(set(completion["added"]), set(execution.ADDED_FIELD_SOURCES))
+
+    def test_command_txt_disagreeing_with_argv_is_refused(self):
+        self.assert_refused(self.partial(), pattern="command.txt .* disagrees",
+                            command_txt=json.dumps([*self.ARGV[:-1], "OTHER"]) + "\n")
 
     def test_same_is_type_strict(self):
         for left, right in ((1.0, 1), (True, 1), ("1", 1), (False, 0), ([1], (1,)),
