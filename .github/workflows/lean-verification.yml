@@ -243,6 +243,17 @@ jobs:
         if: env.BUILD_WORKSPACE == 'true'
         working-directory: formal
         run: lake build
+      # The root Mathlib workspace uses Lean 4.35, while scoped-obstructions
+      # is a separate dependency-free project pinned to Lean 4.22. Install
+      # its exact checked-in pin before the per-target verifier reaches it.
+      # Otherwise elan cannot provide that toolchain on a fresh runner and
+      # the verifier correctly records an infrastructure failure.
+      - name: Install the scoped-obstructions pinned Lean toolchain
+        if: env.BUILD_WORKSPACE == 'true'
+        run: |
+          pinned=$(cat formal/scoped-obstructions/lean-toolchain)
+          elan toolchain install "$pinned"
+          (cd formal/scoped-obstructions && lake env lean --version)
       # The gate: forbidden-construct scan, lake build, project axiom audit,
       # and a per-theorem audit confirming the named theorem was in what got
       # audited. Exit 3 means the toolchain fell over and is reported as
