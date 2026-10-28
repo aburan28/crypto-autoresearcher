@@ -257,7 +257,9 @@ jobs:
       !github.event.pull_request.draft &&
       (always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ledger != 'false'))
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Full checkout alone exhausted 20m in job 122973073101. Keep the complete
+    # archive and allow bounded startup plus the separate 20m validation step.
+    timeout-minutes: 45
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
       RUN_LEDGER: ${{ needs.changes.outputs.ledger }}
@@ -315,6 +317,7 @@ jobs:
       # (lfs: false) leaves the head's: otherwise `git worktree add` downloaded
       # a 721 MiB LFS object at ~2.6 MiB/s, 4m36s of every PR's ledger job.
       - name: Validate ledger, experiments, and run records
+        timeout-minutes: 20
         env:
           GIT_LFS_SKIP_SMUDGE: "1"
         run: |
@@ -565,7 +568,9 @@ jobs:
       SCOPE_RESULT: ${{ needs.changes.result }}
       RUN_TESTS: ${{ needs.changes.outputs.tests }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Job 122973073212 spent >11m on full-checkout/setup and was cancelled
+    # at 66% of shard 1. Sparse shards retain their existing total allowance.
+    timeout-minutes: ${{ matrix.shard == 1 && 45 || 20 }}
     strategy:
       fail-fast: false
       matrix:
@@ -661,6 +666,7 @@ jobs:
         run: python3 tools/ci_sparse_guard.py tripwires
 
       - name: Run harness tests (shard ${{ matrix.shard }} of 4)
+        timeout-minutes: 20
         if: env.RUN_TESTS == 'true'
         env:
           SPARSE: ${{ matrix.shard != 1 && '1' || '' }}
