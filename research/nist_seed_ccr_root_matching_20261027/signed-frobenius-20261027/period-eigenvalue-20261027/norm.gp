@@ -1,0 +1,6 @@
+flags(p,n)={my(t=p+1-n,ss=t==0,c3=0,c4=0,v,a,b);if(ss,return([1,0,0]));if(p%3==1,v=qfbsolve(Qfb(1,0,3),p);if(#v!=2,error("norm -3 solution missing"));a=v[1];b=v[2];if(a*a+3*b*b!=p,error("norm -3 identity"));c3=setsearch(Set([2*a,-2*a,a+3*b,-a-3*b,a-3*b,-a+3*b]),t)!=0);if(p%4==1,v=qfbsolve(Qfb(1,0,1),p);if(#v!=2,error("norm -4 solution missing"));a=v[1];b=v[2];if(a*a+b*b!=p,error("norm -4 identity"));c4=setsearch(Set([2*a,-2*a,2*b,-2*b]),t)!=0);return([0,c3,c4]);};
+firstphase(p,m)={my(ell=3);while(1,m*=ell;if(m^2>=16*p,return([ell,m]));ell=nextprime(ell+1));};
+smallok(p,a,b,n)={return((4*a^3+27*b^2)%p!=0 && n==1+sum(x=0,p-1,1+kronecker(x^3+a*x+b,p)));};
+controls()={my(c,p,a,b,n,j,f);for(i=1,#fixtures,c=fixtures[i];p=c[1];a=c[2];b=c[3];n=c[4];if(!smallok(p,a,b,n),error("control point count/model"));f=flags(p,n);if(f!=c[5],error("control route"));if(f!=flags(p,n),error("A/A"));if(i<=2,j=lift(1728*Mod(4*a^3,p)/(4*a^3+27*b^2));if(j==0 || j==1728%p,error("generic control j"))));if(smallok(5,0,0,6)||smallok(5,4,1,7),error("invalid model/order guard"));};
+controls();
+for(i=1,#cohort,my(p=cohort[i][1],n=cohort[i][2],t=p+1-n,f=flags(p,n),s1=firstphase(p,1),s2=firstphase(p,2));print(concat(concat([i-1,p,n,t,4*p-t*t],f),concat(s1,s2))));
