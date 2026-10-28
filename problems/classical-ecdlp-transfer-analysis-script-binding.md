@@ -1,6 +1,6 @@
 # Transfer postrun analysis-script binding
 
-- **Status:** investigating; versioned mechanical correction in preparation.
+- **Status:** resolved for the observed script-binding and missing-import defects; actual independent verification and export passed.
 - **Kind:** implementation/export binding gap.
 - **Affected work:** EXP-ECDLP-8dc19d/RUN-ECDLP-994f70 postprocessing only; frozen CPU scientific source and protocol are preserved.
 - **Next action owner:** Executor TASK-20261028-870b3b, custody Coordinator TASK-20261028-cf40ac.
@@ -17,3 +17,11 @@ The next step is the versioned mechanical adapter under DEC-20261028-7bc743. A f
 ## 2026-10-28 observed missing-import refusal
 
 The actual first v2 postrun invocation returned1 before independent verification because `hashlib` was undefined in the official-protocol hashing path. The separately preserved v3 adapter also omitted that import. This observed implementation failure precedes the script-pin check; it is not a failed circuit result. DEC-20261028-743e6e authorizes a separate v4 adding the missing standard-library import, retaining both older versions/refusals. Undefined-name/import and binding checks must pass before the corrected postprocessing. Frozen VM source, registered analysis.py d5, verifier2654, protocol, counts and all scientific outputs remain unchanged. Final resolution still requires actual complete verifier/export/report checks.
+
+## 2026-10-28 actual resolution evidence
+
+Status: resolved for the observed script-binding and missing-import defects.
+
+The versioned v4 adapter055d299b989348fdc6381a63e3f7ac7d583d1a22b9ddbc6a478bf7773b370a0a passed actual independent verification and official export/file checks for440complete cells and102828retained results. Registered d5analysis and2654verifier/scientific VM7/protocol remained unchanged; v2/v3 refusals and after-data correction provenance are preserved. Source tests alone were not treated as data validation.
+
+Evidence: [EXP-ECDLP-8dc19d report](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/report.md), [working-domain scope](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/working-scope.md), [postprocessing provenance](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/postprocessing-provenance.md), [complete custody](../coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-319445/archives/TASK-20261028-cf40ac/snapshot-receipt.json). Hypothesis remains specified and goal active.

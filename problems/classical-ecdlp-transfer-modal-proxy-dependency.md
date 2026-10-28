@@ -1,6 +1,6 @@
 # Transfer transport proxy dependency
 
-- **Status:** resolved for the identified optional-dependency defect; successor execution pending.
+- **Status:** resolved for the observed transport route; successor execution and independent checks completed.
 - **Kind:** access/tool configuration limit, not a mathematical obstruction.
 - **Affected work:** EXP-ECDLP-ef7323, RUN-ECDLP-ea5986, successor EXP-ECDLP-8dc19d/RUN-ECDLP-994f70.
 - **Next action owner:** root Executor under fresh admission.
@@ -27,3 +27,11 @@ Prepare EXP-ECDLP-8dc19d/RUN-ECDLP-994f70 with literal identity/prefix-only bind
 ## Resolution and history
 
 DEC-20261028-408069 records the observed configuration repair and zero-data successor source preparation. Original frozen v1/v2 source, protocols, approvals and failed run files remain immutable. No scientific result, performance claim, hypothesis transition or goal closure follows. The mechanism graph is unchanged; this dependency sequence is `missing proxy support -> read-only connectivity repair -> fresh admission -> future one-VM measurement`.
+
+## 2026-10-28 actual resolution evidence
+
+Status: resolved with actual isolated execution.
+
+After the optional dependency repair, the separately admitted successor completed one genuine existing-image VM with all102828primary attempts and independent verification/export pass. This establishes the corrected transport route for this invocation; original0create/0science failure and export gap remain in the predecessor report. It establishes no future availability guarantee or mathematical advantage.
+
+Evidence: [EXP-ECDLP-8dc19d report](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/report.md), [working-domain scope](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/working-scope.md), [postprocessing provenance](../experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/postprocessing-provenance.md), [complete custody](../coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-319445/archives/TASK-20261028-cf40ac/snapshot-receipt.json). Hypothesis remains specified and goal active.
