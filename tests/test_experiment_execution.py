@@ -45,9 +45,13 @@ if kind == "symlink":
     (p / "counterexamples.jsonl").symlink_to(p / "raw-result.json")
 if kind != "missing":
     (p / "raw-result.json").write_text(json.dumps({"effect": -1, "bad": kind in ("bad", "empty_bad")}))
+# A faithful driver: its provenance is the supervisor's (environment.json and
+# command.txt exist before it starts); a contradicting value is refused.
+env = json.loads((p / "environment.json").read_text())
 manifest = {"run": {"id": p.name, "experiment_id": p.parent.parent.name, "status": "completed",
-                    "code": {"commit": "0" * 40, "command": "driver.py measure"},
-                    "environment": {"python": "fixture"}, "inputs": {"parameters": {}},
+                    "code": {"commit": env["commit"],
+                             "command": (p / "command.txt").read_text().strip()},
+                    "environment": {"python": env["python"]}, "inputs": {"parameters": {}},
                     "timing": {"wall_seconds": 0}, "result": {"certificate": {"kind": "none"}}}}
 if kind == "bare_manifest":  # metrics only, and no attack_claimed to derive a certificate from
     manifest = {"run": {"experiment_id": p.parent.parent.name, "metrics": {"planted_ok": True}}}
@@ -294,7 +298,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(receipt["status"], "output_validated")
         self.assertEqual(receipt["manifest_completion"]["action"], "unchanged")
         self.assertEqual(json.loads((self.directory() / "manifest.yaml").read_text())["run"]["code"]["command"],
-                         "driver.py measure")
+                         (self.directory() / "command.txt").read_text().strip())
 
     def test_complete_shape_cannot_bypass_identity_or_claim_checks(self):
         for index, mode in enumerate(("complete_wrong_id", "complete_wrong_alias",
@@ -407,7 +411,12 @@ class ExecutionTests(unittest.TestCase):
                 receipt = execution.read_json(self.directory() / "execution-receipt.json")
                 self.assertEqual(receipt["status"], "invalid_output")
                 self.assertEqual(receipt["returncode"], 0)
-                self.assertEqual(receipt["check_returncode"], 1 if mode == "empty_bad" else 0)
+                if mode == "empty_manifest":
+                    # Refused at completion, before the checker (LGN-3).
+                    self.assertIsNone(receipt["check_returncode"])
+                    self.assertIn("not a mapping", receipt["detail"])
+                else:
+                    self.assertEqual(receipt["check_returncode"], 1 if mode == "empty_bad" else 0)
 
     def test_empty_artifact_change_or_deletion_requires_reconciliation(self):
         for index, mutation in enumerate(("change", "delete"), 41):
@@ -443,6 +452,16 @@ class ExecutionTests(unittest.TestCase):
                         self.run_plan()
                     launch.assert_not_called()
                 self.assertFalse(self.directory().exists())
+
+    def test_run_records_cannot_be_declared_empty(self):
+        for name in ("manifest.yaml", "raw-result.json"):
+            with self.subTest(name=name):
+                trial = self.trial(54)
+                trial["allow_empty_artifacts"] = [name]
+                self.plan["trials"] = [trial]
+                self.path.write_text(json.dumps(self.plan))
+                with self.assertRaisesRegex(execution.ExecutionError, "may never be empty"):
+                    execution.load_plan(self.root, self.path)
 
     def test_empty_declaration_rejects_noncanonical_and_symlink_paths(self):
         paths = ("/tmp/outside", "../outside", "a/../b", "./a", "a//b", "a/", "a\\b", "a\x00b")
@@ -726,6 +745,150 @@ class ExecutionTests(unittest.TestCase):
         with patch("sys.stderr"):
             self.assertEqual(execution.main(["run", "--repo", str(self.root), "--plan", str(self.path)]), 2)
         self.assertFalse((self.expdir / "runs").exists())
+
+
+class DriverContradictionTests(unittest.TestCase):
+    """complete_manifest refuses every driver value contradicting a publish-time
+    fact, type-strictly, and never overwrites one (SHF-20261028-0f3f64 LGN-2,
+    LGN-3, LGN-5; the contradiction classes of its adversarial suite)."""
+
+    EXP, RUN = "EXP-ECDLP-aabbcc", "RUN-ECDLP-0000aa"
+    PLAN = {"experiment_id": EXP, "task_id": "TASK-20260909-aabbcc",
+            "approved_by": "DEC-20260909-aabbcc", "hypothesis_id": "H-ECDLP-aabbcc"}
+    TRIAL = {"id": "seed-1", "run_id": RUN, "seed": 1, "parameters": {"field_bits": 20}}
+    AUTHORITY = {"commit": "a" * 40}
+    ARGV = ["python3", "-S", "driver.py", "measure", "RUNDIR"]
+    CHECKER = ["python3", "-S", "driver.py", "check", "RUNDIR"]
+    STARTED, FINISHED = "2026-10-28T00:00:00+00:00", "2026-10-28T00:00:05+00:00"
+    ENVIRONMENT = {"commit": "a" * 40, "python": "3.fixture", "platform": "linux"}
+    PLAN_REL, PLAN_HASH = f"experiments/{EXP}/trial-plan.json", "b" * 64
+
+    def partial(self):
+        return {"run": {"experiment_id": self.EXP, "run_id": self.RUN,
+                        "attack_claimed": False, "metrics": {"m": 1}}}
+
+    def complete(self, manifest, raw=None):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        directory = Path(temporary.name)
+        text = manifest if isinstance(manifest, str) else json.dumps(manifest)
+        (directory / "manifest.yaml").write_text(text)
+        (directory / "raw-result.json").write_text(json.dumps(
+            raw if raw is not None else {"attack_claimed": False, "m": 1}))
+        (directory / "command.txt").write_text(json.dumps(self.ARGV) + "\n")
+        (directory / "environment.json").write_text(json.dumps(self.ENVIRONMENT))
+        for name in ("stdout.log", "stderr.log"):
+            (directory / name).write_text("")
+        before = (directory / "manifest.yaml").read_bytes()
+        try:
+            return execution.complete_manifest(
+                directory, self.PLAN, self.PLAN_REL, self.PLAN_HASH, self.TRIAL, self.AUTHORITY,
+                self.ARGV, self.CHECKER, self.STARTED, self.FINISHED)
+        finally:
+            self.published = (directory / "manifest.yaml").read_bytes()
+            self.unchanged = self.published == before
+
+    def assert_refused(self, manifest, raw=None, pattern="contradicts"):
+        with self.assertRaisesRegex(execution.EnvelopeRefused, pattern):
+            self.complete(manifest, raw)
+        self.assertTrue(self.unchanged, "a refusal must leave the driver's bytes as written")
+
+    @staticmethod
+    def put(run, path, value):
+        *parents, leaf = path.split(".")
+        for part in parents:
+            run = run.setdefault(part, {})
+        run[leaf] = value
+
+    CONTRADICTIONS = (
+        ("id", "RUN-ECDLP-ffffff"), ("run_id", "RUN-ECDLP-ffffff"),
+        ("experiment_id", "EXP-ECDLP-ffffff"), ("task_id", "TASK-20990101-ffffff"),
+        ("trial_id", "seed-999"), ("approved_by", "DEC-20990101-ffffff"),
+        ("hypothesis_id", "H-ECDLP-ffffff"),
+        ("code.commit", "f" * 40), ("code.command", "python3 something-else.py"),
+        ("code.check_command", "true"), ("code.command_file", "other.txt"),
+        ("environment.commit", "f" * 40), ("environment.python", "2.7"),
+        ("environment.file", "other.json"),
+        ("inputs.seed", 2), ("inputs.seed", "1"), ("inputs.seed", 1.0), ("inputs.seed", True),
+        ("inputs.parameters", {"field_bits": 64}), ("inputs.parameters", {"field_bits": "20"}),
+        ("inputs.parameters", {"field_bits": 20, "extra": 1}),
+        ("inputs.plan_sha256", "c" * 64), ("inputs.trial_id", "seed-999"),
+        ("inputs.trial_plan", "experiments/other/trial-plan.json"),
+        ("timing.started_at", "1999-01-01T00:00:00+00:00"),
+        ("timing.finished_at", "2026-10-28T01:00:00+00:00"),
+        ("timing.wall_seconds", 99999), ("timing.wall_seconds", -1),
+        ("result.metrics", {"m": 2}), ("result.metrics", {"m": 1.0}),
+        ("result.raw_result", "other.json"),
+    )
+
+    def test_every_contradicting_driver_value_is_refused(self):
+        for path, value in self.CONTRADICTIONS:
+            with self.subTest(field=path, value=value):
+                manifest = self.partial()
+                self.put(manifest["run"], path, value)
+                self.assert_refused(manifest)
+
+    def test_attack_claimed_disagreeing_with_raw_result_is_refused(self):
+        certificate = {"kind": "discrete_log", "verified": True}
+        for manifest_claim, raw_claim in ((False, True), (True, False)):
+            with self.subTest(manifest=manifest_claim, raw=raw_claim):
+                manifest = self.partial()
+                manifest["run"]["attack_claimed"] = manifest_claim
+                manifest["run"]["result"] = {"certificate": certificate}
+                self.assert_refused(manifest, raw={"attack_claimed": raw_claim})
+
+    def test_complete_envelope_is_checked_too(self):
+        manifest = {"run": {"id": self.RUN, "experiment_id": self.EXP,
+                            "task_id": "TASK-20990101-ffffff", "status": "completed",
+                            "code": {"commit": "a" * 40, "command": json.dumps(self.ARGV)},
+                            "environment": {"python": "3.fixture"}, "inputs": {"seed": 999},
+                            "timing": {"wall_seconds": 1},
+                            "result": {"certificate": {"kind": "none"}}}}
+        self.assert_refused(manifest)
+
+    def test_timing_clock_and_zone_must_be_checkable(self):
+        for value in ("not a time", "2026-10-28T00:00:01"):
+            with self.subTest(value=value):
+                manifest = self.partial()
+                manifest["run"]["timing"] = {"started_at": value}
+                self.assert_refused(manifest, pattern="cannot be checked")
+
+    def test_duplicate_driver_key_is_refused(self):
+        text = (f"run:\n  experiment_id: {self.EXP}\n  run_id: {self.RUN}\n"
+                "  attack_claimed: true\n  attack_claimed: false\n  metrics: {m: 1}\n")
+        self.assert_refused(text, raw={"m": 1}, pattern="duplicate YAML key.*attack_claimed")
+
+    def test_empty_or_null_driver_manifest_is_refused(self):
+        for text in ("", "# comment only\n", "null\n"):
+            with self.subTest(text=text):
+                self.assert_refused(text, pattern="not a mapping")
+
+    def test_agreeing_driver_values_are_kept_as_written(self):
+        manifest = self.partial()
+        run = manifest["run"]
+        run.update({"task_id": self.PLAN["task_id"], "trial_id": "seed-1",
+                    "hypothesis_id": self.PLAN["hypothesis_id"], "host_note": "driver-only"})
+        run["code"] = {"commit": "a" * 40, "command": " ".join(self.ARGV)}
+        run["environment"] = {"python": "3.fixture", "host": "driver-only"}
+        run["inputs"] = {"seed": 1, "parameters": {"field_bits": 20}, "extra": "driver-only"}
+        run["timing"] = {"started_at": "2026-10-28T00:00:00Z", "wall_seconds": 4.5}
+        completion = self.complete(manifest)
+        self.assertEqual(completion["action"], "completed")
+        published = execution.yaml.safe_load(self.published)["run"]
+        for key in ("task_id", "trial_id", "hypothesis_id", "host_note"):
+            self.assertEqual(published[key], run[key])
+        self.assertEqual(published["code"]["command"], " ".join(self.ARGV))
+        self.assertEqual(published["environment"], run["environment"])
+        self.assertEqual(published["inputs"], run["inputs"])
+        self.assertEqual(published["timing"], run["timing"])
+        self.assertNotIn("run.inputs", completion["added"])
+
+    def test_same_is_type_strict(self):
+        for left, right in ((1.0, 1), (True, 1), ("1", 1), (False, 0), ([1], (1,)),
+                            ({"a": 1}, {"a": 1, "b": 2})):
+            with self.subTest(left=left, right=right):
+                self.assertFalse(execution._same(left, right))
+        self.assertTrue(execution._same({"a": [1, {"b": "c"}]}, {"a": [1, {"b": "c"}]}))
 
 
 class SelectionTests(unittest.TestCase):
