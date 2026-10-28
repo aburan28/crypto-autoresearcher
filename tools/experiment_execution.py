@@ -19,6 +19,8 @@ import math
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -201,6 +203,11 @@ def load_plan(root: Path, path: Path, *, allow_preapproval_candidate: bool = Fal
             safe_path(run_root(root, plan, trial), name)
             if name in GENERATED or name not in artifacts:
                 raise ExecutionError(f"{tid}.allow_empty_artifacts: undeclared or reserved artifact {name}")
+            if name in ("manifest.yaml", "raw-result.json"):
+                # An empty run record would pass a schema gate that has nothing
+                # to read (SHF-20261028-0f3f64, LGN-3).
+                raise ExecutionError(f"{tid}.allow_empty_artifacts: {name} is a run record "
+                                     "and may never be empty")
         positive(trial.get("memory_mb"), f"{tid}.memory_mb")
         watchdog = trial.get("watchdog_seconds")
         if watchdog is not None:
@@ -238,10 +245,151 @@ class EnvelopeRefused(ExecutionError):
     """A driver manifest the supervisor may not complete or publish."""
 
 
-def _agree(body: dict[str, Any], field: str, value: Any, where: str) -> None:
-    if field in body and body[field] != value:
+def _same(left: Any, right: Any) -> bool:
+    """Type-strict, recursive equality: 1.0, True and "1" are not 1."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(_same(left[k], right[k]) for k in left)
+    if isinstance(left, list):
+        return len(left) == len(right) and all(map(_same, left, right))
+    return left == right
+
+
+def _conflicts(driver: Any, fact: Any) -> bool:
+    """A driver value contradicts a fact. Mappings conflict only on keys both
+    state (a driver may record derived extras, or fewer keys); everything
+    else is compared type-strictly."""
+    if isinstance(driver, dict) and isinstance(fact, dict):
+        return any(_conflicts(driver[key], fact[key]) for key in driver.keys() & fact.keys())
+    return not _same(driver, fact)
+
+
+def _agree(body: dict[str, Any], field: str, value: Any, where: str,
+           source: str = "the frozen plan") -> None:
+    if field in body and _conflicts(body[field], value):
         raise EnvelopeRefused(f"driver manifest {where}{field}={body[field]!r} contradicts "
-                              f"the frozen plan's {value!r}")
+                              f"{source}'s {value!r}")
+
+
+def _instant(value: Any, field: str) -> datetime:
+    if isinstance(value, datetime):
+        moment = value
+    elif isinstance(value, str):
+        try:
+            moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as error:
+            raise EnvelopeRefused(f"driver manifest {field}={value!r} is not an ISO 8601 "
+                                  "time and cannot be checked against the supervisor clock") from error
+    else:
+        raise EnvelopeRefused(f"driver manifest {field}={value!r} is not a time")
+    if moment.tzinfo is None:
+        raise EnvelopeRefused(f"driver manifest {field}={value!r} has no time zone and "
+                              "cannot be checked against the supervisor clock")
+    return moment
+
+
+LAUNCH_ENVIRONMENT_FACTS = ("commit", "source_sha256", "specification_sha256",
+                            "runtime_lock", "runtime_lock_sha256")
+
+
+def _same_interpreter(program: str) -> bool:
+    """True when the driver was launched with the supervisor's own Python."""
+    found = shutil.which(program)
+    try:
+        return bool(found) and os.path.samefile(found, sys.executable)
+    except OSError:
+        return False
+
+
+# A driver's own clock reads inside the supervisor's interval, possibly
+# truncated to whole seconds; anything further outside is a contradiction.
+CLOCK_SLACK_SECONDS = 1.0
+
+
+def _check_driver_facts(body: dict[str, Any], plan: dict[str, Any], plan_relative: str,
+                        plan_hash: str, trial: dict[str, Any], authority: dict[str, Any],
+                        environment: dict[str, Any], argv: list[str], checker: list[str],
+                        started: str, driver_finished: str, raw: Any) -> None:
+    """Refuse every driver value that contradicts a fact the supervisor holds.
+
+    Facts: the frozen plan and trial, the launch authority, environment.json,
+    the launched argv and the supervisor's clock, plus the driver's own
+    raw-result.json. A key the driver omitted is not checked here (completion
+    supplies it); a key with no publish-time source is the driver's own and is
+    kept as written. Nothing is ever overwritten (SHF-20261028-0f3f64, LGN-2).
+    """
+    for alias in ("id", "run_id"):
+        _agree(body, alias, trial["run_id"], "run.")
+    _agree(body, "experiment_id", plan["experiment_id"], "run.")
+    _agree(body, "task_id", plan["task_id"], "run.")
+    _agree(body, "trial_id", trial["id"], "run.", "the frozen trial")
+    _agree(body, "approved_by", plan["approved_by"], "run.")
+    if isinstance(plan.get("hypothesis_id"), str) and plan["hypothesis_id"].strip():
+        _agree(body, "hypothesis_id", plan["hypothesis_id"], "run.")
+    code = body.get("code", {})
+    _agree(code, "commit", authority["commit"], "run.code.", "the launch authority")
+    for field, launched in (("command", argv), ("check_command", checker)):
+        # The launched argv, as a JSON array (what completion writes), as that
+        # array itself, or shell-quoted. Any other value names another command.
+        if field in code and not any(_same(code[field], form) for form in
+                                     (json.dumps(launched), launched, shlex.join(launched))):
+            raise EnvelopeRefused(f"driver manifest run.code.{field}={code[field]!r} "
+                                  f"contradicts the launched argv {json.dumps(launched)}")
+    _agree(code, "command_file", "command.txt", "run.code.", "the supervisor")
+    driver_environment = body.get("environment", {})
+    _agree(driver_environment, "file", "environment.json", "run.environment.", "the supervisor")
+    # environment.json binds the launch (commit, hashed sources, runtime lock)
+    # and also describes the SUPERVISOR's own process (python, platform). Only
+    # the binding is a fact about the driver: a driver may run under another
+    # interpreter and may describe its platform differently (sys.platform vs
+    # platform.platform(), EXP-ICPERF-018b0c), so those strings are its own.
+    for key in LAUNCH_ENVIRONMENT_FACTS:
+        if key in environment:
+            _agree(driver_environment, key, environment[key], "run.environment.",
+                   "environment.json")
+    if ("python" in driver_environment and isinstance(environment.get("python"), str)
+            and _same_interpreter(argv[0])):
+        # Same interpreter: the driver's Python must at least name its version.
+        version = environment["python"].split()[0] if environment["python"].split() else ""
+        if version not in str(driver_environment["python"]):
+            raise EnvelopeRefused(f"driver manifest run.environment.python="
+                                  f"{driver_environment['python']!r} contradicts the "
+                                  f"launched interpreter's Python {version}")
+    inputs = body.get("inputs", {})
+    _agree(inputs, "trial_plan", plan_relative, "run.inputs.")
+    _agree(inputs, "plan_sha256", plan_hash, "run.inputs.", "the frozen plan file")
+    _agree(inputs, "trial_id", trial["id"], "run.inputs.", "the frozen trial")
+    for key in ("parameters", "seed", "curve_id"):
+        if key in trial:
+            _agree(inputs, key, trial[key], "run.inputs.", "the frozen trial")
+    timing = body.get("timing", {})
+    start, finish = datetime.fromisoformat(started), datetime.fromisoformat(driver_finished)
+    wall = (finish - start).total_seconds()
+    for key in ("started_at", "finished_at"):
+        if key in timing:
+            moment = _instant(timing[key], f"run.timing.{key}")
+            if not (start.timestamp() - CLOCK_SLACK_SECONDS <= moment.timestamp()
+                    <= finish.timestamp() + CLOCK_SLACK_SECONDS):
+                raise EnvelopeRefused(f"driver manifest run.timing.{key}={timing[key]!r} "
+                                      f"contradicts the supervisor's driver interval "
+                                      f"{started} .. {driver_finished}")
+    if "wall_seconds" in timing:
+        seconds = timing["wall_seconds"]
+        if (isinstance(seconds, bool) or not isinstance(seconds, (int, float))
+                or not math.isfinite(seconds) or seconds < 0
+                or seconds > wall + CLOCK_SLACK_SECONDS):
+            raise EnvelopeRefused(f"driver manifest run.timing.wall_seconds={seconds!r} "
+                                  f"contradicts the supervisor's {wall} s around the driver")
+    result = body.get("result", {})
+    if "metrics" in body and "metrics" in result and not _same(body["metrics"], result["metrics"]):
+        raise EnvelopeRefused(f"driver manifest run.result.metrics={result['metrics']!r} "
+                              f"contradicts run.metrics={body['metrics']!r}")
+    _agree(result, "raw_result", "raw-result.json", "run.result.", "the trial's artifacts")
+    if (isinstance(raw, dict) and "attack_claimed" in raw and "attack_claimed" in body
+            and not _same(body["attack_claimed"], raw["attack_claimed"])):
+        raise EnvelopeRefused(f"driver manifest run.attack_claimed={body['attack_claimed']!r} "
+                              f"contradicts raw-result.json's {raw['attack_claimed']!r}")
 
 
 def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
@@ -255,8 +403,10 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
     RUN-ECDLP-3d61b8 and -06bb83 were published with only run_id, experiment_id,
     attack_claimed and metrics (11 validate_ledger errors each, DEC-20261017-0fab25),
     and older ones were flat. The driver's own values are never changed: a key
-    the driver wrote is kept as written, and one that contradicts the plan is a
-    refusal. Only missing keys are added, each from the plan, the launch
+    the driver wrote is kept as written, and one that contradicts a publish-time
+    fact (plan, trial, launch authority, environment.json, launched argv, the
+    supervisor's clock, run.metrics, raw-result.json's attack_claimed) is a
+    refusal, compared type-strictly (_check_driver_facts). Only missing keys are added, each from the plan, the launch
     authority, environment.json, command.txt or the supervisor's clock. The one
     derived value is certificate.kind none, and only where the driver itself
     recorded attack_claimed false. Nothing else is inferred, so a manifest that
@@ -265,10 +415,16 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
     """
     path = safe_path(directory, "manifest.yaml")
     original = path.read_bytes()
+    import validate_ledger  # noqa: PLC0415 -- heavy; only after a trial succeeds
     try:
         document = fast_yaml.safe_load(original.decode("utf-8"))
+        # A repeated key is the driver contradicting itself; the loader would
+        # silently keep the last value (SHF-20261028-0f3f64, LGN-5).
+        validate_ledger.load_yaml_unique_keys(original.decode("utf-8"), "driver manifest.yaml")
     except (UnicodeDecodeError, yaml.YAMLError) as error:
         raise EnvelopeRefused(f"driver manifest.yaml is not YAML: {error}") from error
+    except ValueError as error:
+        raise EnvelopeRefused(str(error)) from error
     if not isinstance(document, dict):
         raise EnvelopeRefused("driver manifest.yaml is not a mapping")
     if "run" in document:
@@ -277,11 +433,6 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
         body, shape = dict(document["run"]), "nested"
     else:
         body, shape = dict(document), "flat"  # legacy flat shape: wrap, never rename
-    # Schema validity does not bind an envelope to the frozen trial. Check
-    # identity and claims even when no completion would otherwise be needed.
-    for alias in ("id", "run_id"):
-        _agree(body, alias, trial["run_id"], "run.")
-    _agree(body, "experiment_id", plan["experiment_id"], "run.")
     for block in ("code", "result", "inputs", "environment", "timing"):
         if block in body and not isinstance(body[block], dict):
             raise EnvelopeRefused(f"driver manifest run.{block} is not a mapping")
@@ -295,6 +446,11 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
             raw = json.loads(raw_path.read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             raw = None
+    environment = read_json(safe_path(directory, "environment.json"))
+    # Schema validity does not bind an envelope to the frozen trial. Check
+    # every publish-time fact even when no completion would otherwise be needed.
+    _check_driver_facts(body, plan, plan_relative, plan_hash, trial, authority, environment,
+                        argv, checker, started, driver_finished, raw)
     claims = {where: value["attack_claimed"] for where, value in
               (("manifest.yaml", body), ("raw-result.json", raw))
               if isinstance(value, dict) and "attack_claimed" in value}
@@ -314,7 +470,6 @@ def complete_manifest(directory: Path, plan: dict[str, Any], plan_relative: str,
             target[key] = value
             added.append(name)
 
-    environment = read_json(safe_path(directory, "environment.json"))
     started_at = datetime.fromisoformat(started)
     finished_at = datetime.fromisoformat(driver_finished)
     wall_seconds = (finished_at - started_at).total_seconds()
@@ -737,7 +892,7 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         else:
             # Before the checker, so it validates the bytes that get published.
             manifest = safe_path(directory, "manifest.yaml")
-            if manifest.is_file() and manifest.stat().st_size:
+            if manifest.is_file():  # an empty one is refused, never skipped
                 completion = complete_manifest(
                     directory, plan, path.relative_to(root).as_posix(), digest, trial,
                     authority, argv, checker, started, driver_finished)
