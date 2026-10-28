@@ -1,0 +1,1 @@
+Control-only preflight, no cohort executions. Initial GP syntax failure retained; first change of reserved I did not resolve it. Renaming the built-in powers function to classpowers fixed the parse error. Version3 GP and Python controls agree on all reduced triples. These repairs precede the scientific freeze.
