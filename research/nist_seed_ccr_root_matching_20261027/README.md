@@ -67,6 +67,16 @@ announcement explicitly excludes SEA from the free distribution. Original
 coefficient bytes and the NIST caller remain missing. The overall selector
 remains unresolved.
 
+The [table-artifact continuation](signed-frobenius-20261027/period-eigenvalue-20261027/eco-code-recovery-01/table-artifacts-01/report.md)
+verifies all14 entries of Le94's printed ell5 integer table against the later
+ASCII table and checks the modulo101 values independently. The preserved1997
+libI/FreeLIP/GMP binary interfaces establish a file/backend/ABI dependency;
+original file bytes, visitation and error policy remain unknown, leaving all21
+historical I/O predictions undetermined. The previously located SWH
+LiDIA-history snapshot is actually empty; its full-visit metadata supplies no
+source branches. Exact receipts and failed indexes are retained. The selector
+remains unresolved.
+
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
 These are reconstructed omissions, not documented historical rejection events.
