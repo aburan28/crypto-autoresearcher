@@ -587,6 +587,81 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     return bad
 
 
+# Mutable routing indexes. A duplicate key in either silently reroutes or
+# drops a supersession (yaml keeps the last value): merge 21acbaab63 folded two
+# registry entries into a third this way and validate_ledger loaded it without
+# complaint (sheriff case SHF-20261028-0f3f64, LGN-1). Checked absolutely: the
+# files are small and a clean main is the invariant.
+ROUTING_REGISTRIES = (
+    ("tools/schema_supersession_registry.yaml", "schema supersession registry"),
+    ("tools/run_supersession_registry.yaml", "run supersession registry"),
+)
+
+
+def check_registry_duplicate_keys() -> list[str]:
+    import yaml
+    bad = []
+    for rel, label in ROUTING_REGISTRIES:
+        full = os.path.join(REPO, rel)
+        if not os.path.isfile(full):
+            continue
+        try:
+            with open(full, "r", encoding="utf-8") as fh:
+                vl.load_yaml_unique_keys(fh, label)
+        except ValueError as exc:
+            bad.append(f"{rel}: {exc}. Restore each entry as its own list "
+                       f"item ('- kind: ...'); never let a merge fold two "
+                       f"entries into one.")
+        except yaml.YAMLError:
+            continue                   # unparseable: reported by validate_ledger
+    return bad
+
+
+def check_new_run_manifests(paths: list[str]) -> list[str]:
+    """Run manifests this branch adds or changes must pass check_run.
+
+    validate_ledger's CI gate is relative and lives in the `ledger` job, and
+    run records that fail the schema reached main through PRs merged while
+    that job was red or still running (#2452, #2579; SHF-20261028-0f3f64,
+    LGN-8: 26 of 67 errors on main). This is the same schema check, scoped to
+    the run records the branch introduces, in the cheap gate every PR runs. A
+    defect in a record already on main is not this branch's: it is never
+    reported here, and it is repaired by supersession, not by an edit. A
+    manifest routed through tools/run_supersession_registry.yaml is checked
+    through its superseding record, exactly as validate_ledger does.
+    """
+    try:
+        supersessions = vl.load_run_supersessions(
+            os.path.join(REPO, "tools", "run_supersession_registry.yaml"))
+    except ValueError as exc:
+        return [f"tools/run_supersession_registry.yaml: {exc}"]
+    superseding = {}
+    for entry in supersessions.values():
+        rel = os.path.relpath(entry["superseding_path"], vl.REPO)
+        superseding[rel] = os.path.relpath(entry["superseded_path"], vl.REPO)
+    manifests = set()
+    for rel in paths:
+        if vl.RUN_MANIFEST_PATH.match(rel):
+            manifests.add(rel)
+        elif rel in superseding:
+            manifests.add(superseding[rel])
+    bad = []
+    for rel in sorted(manifests):
+        full = os.path.join(REPO, rel)
+        if not os.path.isfile(full):
+            continue                   # deleted: check_run_immutability's job
+        ctx = vl.Ctx(set())
+        vl.check_run(full, ctx, supersessions)
+        for error in ctx.errors:
+            bad.append(f"{rel}: {error.split(': ', 1)[-1]}")
+    if bad:
+        bad.append("A run record that fails the run schema is never published "
+                   "as-is: publish a schema-valid envelope (a failed run as "
+                   "status failed_infrastructure), or a faithful superseding "
+                   "manifest registered in tools/run_supersession_registry.yaml.")
+    return bad
+
+
 def check_collisions(base: str) -> list[str]:
     """Identifiers this branch adds that `base` already spends differently.
 
@@ -692,7 +767,12 @@ def main() -> int:
         ("unresolved conflict markers", check_markers(parse_paths)),
         ("unparseable records", check_parses(parse_paths,
                                              report_stale=scoped is None)),
+        ("duplicate keys in routing registries", check_registry_duplicate_keys()),
     ]
+    if scoped is not None and not trusted_prefix_problems:
+        # PR-scoped only: records already on main keep their rulings.
+        groups.append(("run manifests failing the run schema",
+                       check_new_run_manifests(scoped)))
     if args.base and not trusted_prefix_problems:
         groups.append(("identifier collisions", check_collisions(args.base)))
         groups.append(("new legacy GOAL identifiers",
@@ -712,7 +792,9 @@ def main() -> int:
 
     if failed:
         return 1
-    print("PASS: no conflict markers, no unparseable records"
+    print("PASS: no conflict markers, no unparseable records, no duplicate "
+          "registry keys"
+          + (", no schema-failing new run manifests" if scoped is not None else "")
           + (", no identifier collisions, no new legacy GOAL identifiers"
              if args.base else ""))
     return 0
