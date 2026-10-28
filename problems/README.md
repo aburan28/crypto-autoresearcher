@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Exact-small transfer sampling collision](classical-ecdlp-transfer-small-order-exclusion-collision.md) | v1 infeasible; pre-data v2 repair specified | Distinct(p,j) r17/r31 panel cannot complete | New r29 plan, zero-draw validation, source custody and prospective admission |
 | [Source-bound endpoint-reuse execution is available](classical-ecdlp-endpoint-reuse-isolated-runner-unavailable.md) | resolved for execution/custody | Three source-bound Modal studies completed; timing and independent counter-replay qualification remain separate | Reuse the observed B2/staged-source route with normal new-study admission; retain the separate qualification obligations |
 | [Generator-ordered half-root lacks a uniform constructor](classical-ecdlp-generator-ordered-root-constructor-missing.md) | open | A direct non-generic scalar-half solver from the ordered-root / sparse-antiderivative proposal | Explicit uniform circuit, all-target ordering proof and charged setup/evaluation/recovery recurrence |
 | [Formal workspace build does not fit in 16 GB of RAM](formal-workspace-build-exceeds-16gb.md) | open | Whole-workspace `lake build`, and so every `formal verify` gate run, on 16 GB hosts: `Semaev.BooleanParityDegreeThreeRankCertificate` is killed out of memory (exit 137) | Peak-RSS measurement, then a larger runner, a restructured certificate, or a per-target gate with recorded exclusions |
