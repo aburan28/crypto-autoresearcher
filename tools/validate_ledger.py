@@ -1681,13 +1681,34 @@ def _schema_supersession_kind_for_path(relative: str) -> str | None:
     return None
 
 
+class _SchemaRegistryLoader(yaml.SafeLoader):
+    """Reject ambiguous keys in the mutable schema-routing index only."""
+
+    def construct_mapping(self, node, deep=False):
+        self.flatten_mapping(node)
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                duplicate = key in seen
+                seen.add(key)
+            except TypeError:
+                # Preserve SafeLoader's normal error for unhashable keys.
+                return super().construct_mapping(node, deep=deep)
+            if duplicate:
+                raise ValueError(
+                    "duplicate YAML key in schema supersession registry: "
+                    f"{key!r} at line {key_node.start_mark.line + 1}")
+        return super().construct_mapping(node, deep=deep)
+
+
 def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
     """Load immutable-record schema replacements keyed by original path."""
     path = path or SCHEMA_SUPERSESSION_REGISTRY
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = _safe_load(handle)
+        doc = yaml.load(handle, Loader=_SchemaRegistryLoader)
     if (not isinstance(doc, dict)
             or doc.get("schema") != SCHEMA_SUPERSESSION_SCHEMA):
         raise ValueError("invalid schema supersession registry schema")
