@@ -136,3 +136,6 @@ immutable A/A-record collisions remain a separate publication issue.
 
 
 [Single ideal-class element follow-up, 28 October2026 UTC](../nist_seed_class_number_dated_bound_20261028/element-order-01/report-01/report.md): ETSI's individual-element order>=200 witness passes for all11 omissions and8 publications at the first odd split prime. Every reduced power agrees across2 methods (3,781 per arm). No1997 use, original witness-choice/retry policy or actual selector is established. P384/P521 unknowns remain explicit; previous graphs unchanged.
+
+
+[May1997 polynomial-degree source and later fix](signed-frobenius-20261027/period-eigenvalue-20261027/eco-code-recovery-01/degree-routines-01/report.md),28October2026UTC: exact old/later bytes and dated2001fix note verified; actualpatch not recovered. Four normalized bodies match; latercaller removesfixedroots. Source-only degree-one invalid-index path is untestednatively/unlinkedtooriginalcaller. Intendeduniform-random valid-input exception bound<2^-174 percall in documentedrange is conditional,not historicalodds. Every21 identity remainsbound;all original applicationsUNDETERMINED;0newnative trials;full selector unresolved.
