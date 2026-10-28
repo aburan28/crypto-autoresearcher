@@ -1,3 +1,23 @@
+# Source-bound endpoint-reuse execution is available
+
+- **Status:** `resolved` for source-bound counted execution and artifact custody.
+- **Remaining scope:** clock qualification and independent operation-counter execution replay remain separate obligations.
+- **Last updated:** 2026-10-28.
+
+The original runner-access impediment is resolved by the approved Modal VM route. Three source-bound studies completed: [the original six-arm study](../experiments/EXP-ECDLP-2b4ff1/runs/RUN-ECDLP-b883bf/execution-receipt.json), [the fixed parameter sweep](../experiments/EXP-ECDLP-f50061/runs/RUN-ECDLP-e69a23/execution-receipt.json), and [the fixed non-generic constructor screen](../experiments/EXP-ECDLP-c45dd8/runs/RUN-ECDLP-a11661/execution-receipt.json). Their original failures, censoring, source identities, admission records and output custody remain preserved.
+
+The [observed B2 image receipt](../harness/classical_ecdlp_endpoint_reuse/modal/receipts-b2/image-build.json) binds actual Modal App `ap-EAHJ6SjvmeY99EQ2I47duh`, Image `im-zz2zzbG7JE9xilcBO1QJMh`, native source A, adapter source B2 and the binary/build hashes. Later studies staged their exact new Python source separately. The [execution approval](../ledger/decisions/DEC-20261027-6b094c.yaml) and [admission custody receipt](../coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-b1c6e1/archives/TASK-20261027-1b283c/snapshot-receipt.json) document that approved alternative to the initial fixed-image bridge. A Modal Image ID is not an OCI registry digest.
+
+The retained executions observed genuine VM runtime, blocked workload network, unprivileged source-bound workers, sealed output collection and length/SHA-256 readback. They establish this execution route and custody. They do not attest dedicated physical hardware, L2 isolation or qualified clocks; all study clock observations remain `wall_valid=false`. Public witness checks and the primitive/static source reviews do not independently replay the operation counters. Any quantitative performance or attack-cost qualification still needs the evidence required for its own scope.
+
+The [parameter-sweep checkpoint](../ledger/goals/GOAL-ECDLP-e70832/checkpoints/BATCH-aa69fc.yaml) and [constructor-screen checkpoint](../ledger/goals/GOAL-ECDLP-e70832/checkpoints/BATCH-45711d.yaml) record completed observations and these remaining limits. The active goal and specified hypotheses are unchanged by this factual context correction.
+
+The next study should use the existing observed image/staged-source route and its normal exact-source/protocol/admission workflow. Reopen this access problem only if that route becomes unavailable or its source/runtime/readback identities fail. Do not repeat the old claim that no source-bound execution or measurements exist.
+
+## Historical initial record (2026-10-26, preserved verbatim)
+
+The following was the contemporaneous access problem and its planned acceptance conditions. Its statements of missing access and absent measurements describe that earlier session, not the current capability. The approved alternative route and the evidence above supersede those current-status statements without rewriting their history.
+
 # Endpoint reuse has no source-bound isolated execution route
 
 - **Status:** `open`
