@@ -264,7 +264,7 @@ cmd_push() {
   stamp="$(date -u +%Y%m%dT%H%M%SZ)-$sha"
   key="$PREFIX/$repo/$branch/$stamp"
   stage="$(mktemp -d "${TMPDIR:-/tmp}/checkpoint.XXXXXX")"
-  trap "rm -rf '$stage'; trap - RETURN" RETURN
+  trap 'rm -rf -- "$stage"; trap - RETURN' RETURN
 
   [ -f .resume/RESUME.md ] && cp .resume/RESUME.md "$stage/RESUME.md"
 
@@ -409,7 +409,9 @@ cmd_share() {
   local ref="" days=7 a
   while [ $# -gt 0 ]; do case "$1" in --days) days="$2"; shift ;; *) ref="$1" ;; esac; shift; done
   [ -n "$ref" ] || die "usage: share <repo>/<branch>[/<stamp>] [--days N]"
-  local hit; hit="$(index_lookup ${ref//\// } 2>/dev/null)" && { echo "${hit#* }"; return; }
+  local -a ref_parts
+  IFS=/ read -r -a ref_parts <<< "$ref"
+  local hit; hit="$(index_lookup "${ref_parts[@]}" 2>/dev/null)" && { echo "${hit#* }"; return; }
   local repo branch stamp; read -r repo branch stamp < <(resolve_ref "$ref")
   signing_env
   python3 "$HERE/checkpoint_presign.py" get "$BUCKET" "$REGION" "$PREFIX/$repo/$branch/$stamp/checkpoint.tar.gz" $((days * 86400))
@@ -434,7 +436,9 @@ cmd_restore() {
   local dl; dl="$(mktemp -d "${TMPDIR:-/tmp}/restore.XXXXXX")"
   local repo branch stamp src
   local hit
-  if [[ "$ref" != https://* ]] && hit="$(index_lookup ${ref//\// } 2>/dev/null)"; then
+  local -a ref_parts
+  IFS=/ read -r -a ref_parts <<< "$ref"
+  if [[ "$ref" != https://* ]] && hit="$(index_lookup "${ref_parts[@]}" 2>/dev/null)"; then
     ref="${hit#* }"
   fi
   if [[ "$ref" == https://* ]]; then
