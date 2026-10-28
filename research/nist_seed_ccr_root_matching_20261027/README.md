@@ -32,8 +32,15 @@ endpoints fixed the counts are 110 of 126 and 1 of 126. These are descriptive
 reference populations, not historical-choice probabilities. A newly recovered
 December 1996 Dewaghe thesis contains the sign refinements, but its Atkin
 odd-projective-order condition fails published P-224 as an acceptance rule.
-Müller's 1995 dissertation was located in its university catalog; its PDF
-has not been read. The historical-use gap remains open.
+At that point Müller's 1995 dissertation was located but unread. The
+subsequent [period-source audit](signed-frobenius-20261027/period-eigenvalue-20261027/report.md)
+retrieves and reads the actual thesis, then checks its special CM routes by
+two independent methods on all 21 curves, including P-384. None is
+supersingular or in an ordinary base-field isogeny class containing j=0 or
+j=1728; generic-j positive controls exercise both targets. The thesis switches
+methods for large candidate lists and insufficient memory, and explicitly
+continues beyond its literal first-phase product threshold. It supplies no
+32/2048 acceptance gate or original caller. The historical-use gap stays open.
 
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
