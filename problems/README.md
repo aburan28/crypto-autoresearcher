@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [JINV preparation admission lacks an eligible successor card](jinv-preparation-admission-unresolved.md) | open | Continuing existing JINV preparation after completed finite static prerequisite chains | Source-bound existing-interface admission contract and ranked fresh card with publication, resource and exact-session gates |
 | [NIST dual archive identity and later source custody](nistseed-dual-archive-custody-20261027.md) | open | PR2602 integration and source-dependent packet readiness: nine immutable collisions and third source version | Independently reviewed native successor/CORR map preserving both completed bindings, then separate integration/publication gates |
 | [P-256 symmetric membership needs a costed global solver](p256-symmetric-radical-global-solver.md) | investigating | Exact symmetric and cubic-divisor formulations, depth-3 completeness; depth-4 distinct strata remain unknown | Complete implicit extraction/cost argument with repeated strata, matched controls and independent checks |
 | [Natural useful factor-base relations and complete costs](p256-natural-useful-factor-base-relations.md) | investigating | P-256 labelled/divisor prototypes and secp256k1 orbit control have exact constructed checks; natural useful rates and full costs remain unmeasured | Method-specific admitted natural-instance studies with full rank, failure, memory and target-attachment accounting |
