@@ -105,6 +105,36 @@ class LedgerSummaryTest(unittest.TestCase):
         self.assertEqual(exp["specifications"]["draft"], 1)
         self.assertEqual(exp["runs"]["completed_valid"], 1)
 
+    def test_yaml_run_replaces_json_summary_in_one_run_directory(self) -> None:
+        write(self.root / "experiments/EXP-T-D/specification.yaml", {"experiment": {
+            "id": "EXP-T-D", "status": "approved"}})
+        run_dir = self.root / "experiments/EXP-T-D/runs/RUN-T-D-1"
+        write(run_dir / "manifest.yaml", {"run": {
+            "id": "RUN-T-D-1", "experiment_id": "EXP-T-D", "status": "completed_valid"}})
+        (run_dir / "manifest.json").write_text(json.dumps({
+            "run_id": "RUN-T-D-1", "status": "legacy_summary"}))
+        report = self.report()["experiments"]
+        self.assertEqual(report["runs"], {"completed_valid": 2})
+        self.assertEqual([e["id"] for e in report["in_flight"]], ["EXP-T-B"])
+        self.assertEqual(ls.portfolio_kpis.funnel(self.root)["run_manifests_by_status"],
+                         {"completed_valid": 2})
+
+    def test_nested_attempt_manifest_is_not_a_second_run(self) -> None:
+        nested = self.root / "experiments/EXP-T-A/runs/RUN-T-A-1/attempt-1"
+        write(nested / "manifest.yaml", {"run": {"status": "failed_implementation"}})
+        self.assertEqual(self.report()["experiments"]["runs"], {"completed_valid": 1})
+
+    def test_malformed_canonical_yaml_is_visible_even_with_json_summary(self) -> None:
+        run_dir = self.root / "experiments/EXP-T-A/runs/RUN-T-A-1"
+        (run_dir / "manifest.yaml").write_text("run: {status: [unclosed\n")
+        self.assertEqual(self.report()["experiments"]["runs"], {"unparseable": 1})
+
+    def test_run_artifact_without_manifest_is_not_reported_as_unrun(self) -> None:
+        run_dir = self.root / "experiments/EXP-T-B/runs/RUN-T-B-1"
+        run_dir.mkdir(parents=True)
+        (run_dir / "result.txt").write_text("partial run evidence")
+        self.assertEqual(self.report()["experiments"]["in_flight"], [])
+
     def test_decisions_are_ordered_most_recent_first(self) -> None:
         rows = self.report()["recent_decisions"]
         self.assertEqual([r["id"] for r in rows],

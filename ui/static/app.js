@@ -381,11 +381,19 @@ function opsPanel(ops) {
     ? Math.min(100, (storage.used_bytes / storage.allocated_bytes) * 100) : null;
   const db = ops.database || {};
   const dbStatus = (db.status || '').toLowerCase();
-  const freshness = dbStatus && dbStatus !== 'available'
-    ? tag(dbStatus, 'warn', latestPointNote(ops))
-    : dbStatus === 'available' && !ops.stale && ops.latest_point
-      ? tag('live', 'ok', latestPointNote(ops))
-      : tag('stale', 'warn', latestPointNote(ops));
+  const pointAgeMs = Date.now() - Date.parse(ops.latest_point || '');
+  const pointIsRecent = Number.isFinite(pointAgeMs)
+    && pointAgeMs >= -60 * 1000 && pointAgeMs <= 15 * 60 * 1000;
+  let freshness;
+  if (dbStatus && dbStatus !== 'available') {
+    freshness = tag(dbStatus, 'warn', latestPointNote(ops));
+  } else if (dbStatus === 'available' && !ops.stale && pointIsRecent) {
+    const staticSnapshot = state.meta?.mode === 'static';
+    freshness = tag(staticSnapshot ? 'snapshot' : 'live',
+      staticSnapshot ? 'info' : 'ok', latestPointNote(ops));
+  } else {
+    freshness = tag('stale', 'warn', latestPointNote(ops));
+  }
   const dayExtra = h('div', { class: 'ops-line ops-total' },
     h('strong', {}, fmtCount(day.write_ops)), h('span', {}, 'write ops'),
     h('strong', {}, fmtCount(day.read_ops)), h('span', {}, 'read ops'));
