@@ -8,7 +8,9 @@ that hold moved files, and inserts after each `actions/checkout` step:
 
     - name: Pull store data this workflow reads (tools/artifacts)
       env: {AWS_ACCESS_KEY_ID: ..., AWS_SECRET_ACCESS_KEY: ..., AWS_REGION: ...}
-      run: python3 tools/artifacts/artifacts.py pull research/x experiments/y/results
+      run: |
+        if ! command -v aws ...; then (install the AWS CLI into $RUNNER_TEMP); fi
+        python3 tools/artifacts/artifacts.py pull research/x experiments/y/results
 
 A sparse checkout also gets `tools/artifacts` added to its patterns. The edit
 is textual (comments and layout survive) and idempotent; checkouts into a
@@ -102,11 +104,26 @@ def step_lines(indent: str, paths: list[str]) -> list[str]:
     i2 = indent + "  "
     return [
         f"{indent}- name: {STEP_NAME}",
+        f"{i2}shell: bash",
+        f"{i2}working-directory: ${{{{ github.workspace }}}}",
         f"{i2}env:",
         f"{i2}  AWS_ACCESS_KEY_ID: ${{{{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}}}",
         f"{i2}  AWS_SECRET_ACCESS_KEY: ${{{{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}}}",
         f"{i2}  AWS_REGION: ${{{{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}}}",
-        f"{i2}run: python3 tools/artifacts/artifacts.py pull --jobs 16 {' '.join(paths)}",
+        f"{i2}run: |",
+        # A pinned, isolated CLI works on Linux, macOS and Windows without sudo.
+        f"{i2}  if ! command -v aws >/dev/null; then",
+        f'{i2}    python3 -m venv "$RUNNER_TEMP/artifacts-awscli"',
+        f'{i2}    artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/bin/python"',
+        f'{i2}    artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/bin/aws"',
+        f'{i2}    if [ -d "$RUNNER_TEMP/artifacts-awscli/Scripts" ]; then',
+        f'{i2}      artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/Scripts/python.exe"',
+        f'{i2}      artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/Scripts/aws.exe"',
+        f'{i2}    fi',
+        f'{i2}    "$artifacts_cli_python" -m pip install --disable-pip-version-check awscli==1.46.2',
+        f'{i2}    export ARTIFACTS_AWS="$artifacts_cli_aws"',
+        f"{i2}  fi",
+        f"{i2}  python3 tools/artifacts/artifacts.py pull --jobs 16 {' '.join(paths)}",
     ]
 
 
@@ -149,32 +166,54 @@ def wire(text: str, paths: list[str]) -> tuple[str, list[str]]:
             continue
         block = add_sparse_pattern(block, indent)
         out.extend(block)
-        nxt = next((lines[k] for k in range(j, len(lines)) if lines[k].strip()), "")
-        if STEP_NAME not in nxt:
-            step = step_lines(indent, paths)
-            cond = next((re.sub(rf"^{indent}(?:- |  )", "", b) for b in block
-                         if re.match(rf"^{indent}(?:- |  )if: ", b)), None)
-            if cond:  # skipped with its checkout, so it never runs against an empty workspace
-                step.insert(1, f"{indent}  {cond}")
-            out.extend(step)
+        k = next((k for k in range(j, len(lines)) if lines[k].strip()), len(lines))
+        if k < len(lines) and STEP_NAME in lines[k]:
+            # A step inserted earlier: replace it, so a changed template or
+            # path list regenerates (and --check flags the stale copy).
+            out.extend(lines[j:k])
+            j = k + 1
+            while j < len(lines) and (not lines[j].strip() or len(lines[j]) - len(lines[j].lstrip()) > len(indent)):
+                j += 1
+            while j > k + 1 and not lines[j - 1].strip():
+                j -= 1
+        step = step_lines(indent, paths)
+        cond = next((re.sub(rf"^{indent}(?:- |  )", "", b) for b in block
+                     if re.match(rf"^{indent}(?:- |  )if: ", b)), None)
+        if cond:  # skipped with its checkout, so it never runs against an empty workspace
+            step.insert(1, f"{indent}  {cond}")
+        out.extend(step)
         i = j
     return "\n".join(out), notes
 
 
 def add_sparse_pattern(block: list[str], indent: str) -> list[str]:
-    """Make a sparse checkout also fetch tools/artifacts."""
+    """Make a sparse checkout also fetch tools/artifacts and .artifacts (the
+    store config the pull step reads; without it the remote is empty)."""
+    cone = not any("sparse-checkout-cone-mode: false" in x for x in block)
+    want = [("tools/artifacts", "/tools/artifacts/", ("tools", "/tools/")),
+            (".artifacts", "/.artifacts/", ())]
     for k, b in enumerate(block):
+        scalar = re.match(rf"^({indent}    sparse-checkout: )(?!\|)(\S.*)$", b)
+        if scalar and "${{" in scalar.group(2):
+            # A conditional empty value means a full checkout. Appending literal
+            # patterns would silently narrow it to the artifact bootstrap only.
+            return block
+        if scalar:  # one literal pattern on the key line: rewrite as a block list
+            pad = indent + "      "
+            block = block[:k] + [f"{scalar.group(1)}|", pad + scalar.group(2)] + block[k + 1:]
+            b = block[k]
         if re.match(rf"^{indent}    sparse-checkout: \|", b):
-            cone = not any("sparse-checkout-cone-mode: false" in x for x in block)
             items = []
             n = k + 1
             while n < len(block) and len(block[n]) - len(block[n].lstrip()) > len(indent) + 4:
                 items.append(block[n])
                 n += 1
-            if any("tools/artifacts" in x or x.strip() in ("/*", "tools", "/tools/") for x in items):
+            if any(x.strip() == "/*" for x in items):
                 return block
             pad = (items[0][: len(items[0]) - len(items[0].lstrip())]) if items else indent + "      "
-            return block[:n] + [pad + ("tools/artifacts" if cone else "/tools/artifacts/")] + block[n:]
+            extra = [pad + (c if cone else nc) for c, nc, covers in want
+                     if not any(c in x or x.strip() in covers for x in items)]
+            return block[:n] + extra + block[n:]
     return block
 
 

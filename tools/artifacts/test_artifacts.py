@@ -16,6 +16,7 @@ from pathlib import Path
 TOOL = Path(__file__).resolve().parent / "artifacts.py"
 sys.path.insert(0, str(TOOL.parent))
 import artifacts  # noqa: E402
+import wire_workflows  # noqa: E402
 from wire_workflows import explicitly_pulled_and_verified, wire  # noqa: E402
 
 
@@ -133,6 +134,16 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_pull_into_absent_sparse_directory_preserves_bytes_and_clean_tree(self):
+        self.art("push", "research/r1/runs/a.jsonl")
+        self.git("commit", "-qm", "archive fixture")
+        (self.repo / "research/r1/runs/a.jsonl").unlink()
+        self.git("sparse-checkout", "set", "--no-cone", "/*", "!/research/")
+        self.assertFalse((self.repo / "research").exists())
+        self.art("pull", "research/r1/runs/a.jsonl")
+        self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
     def test_check_gate(self):
         base = self.git("rev-parse", "HEAD").strip()
         (self.repo / "new.jsonl").write_bytes(os.urandom(100_000))
@@ -148,6 +159,27 @@ class RoundTrip(unittest.TestCase):
         self.art("push", "new.jsonl")
         self.git("commit", "-qm", "move it")
         self.assertEqual(self.art("check", base).returncode, 0)
+
+    def test_migrate_from_subdirectory_resolves_root_level_candidates(self):
+        base = self.git("rev-parse", "HEAD").strip()
+        payload = os.urandom(100_000)
+        (self.repo / "new.jsonl").write_bytes(payload)
+        self.git("add", "new.jsonl")
+        self.git("commit", "-qm", "add root-level data")
+        caller = self.repo / "research"
+
+        dry = self.art("migrate", base, "--dry-run", cwd=caller)
+        self.assertIn("new.jsonl", dry.stdout)
+        self.assertEqual(self.art("migrate", base, cwd=caller).returncode, 0)
+
+        tracked = self.git("ls-files").splitlines()
+        self.assertNotIn("new.jsonl", tracked)
+        manifest = self.repo / ".artifacts.json"
+        self.assertTrue(manifest.is_file())
+        entry = json.loads(manifest.read_text())["files"]["new.jsonl"]
+        digest = hashlib.sha256(payload).hexdigest()
+        self.assertEqual(entry, {"sha256": digest, "bytes": len(payload)})
+        self.assertEqual((self.remote / "sha256" / digest[:2] / digest).read_bytes(), payload)
 
 
 class Policy(unittest.TestCase):
@@ -240,6 +272,40 @@ class WorkflowWiring(unittest.TestCase):
         other = f"  second-consumer:\n    steps:\n      - run: cat {self.PATH}/records.jsonl\n"
         self.assertFalse(explicitly_pulled_and_verified(self.workflow() + other, [self.PATH]))
 
+
+
+class WorkflowBootstrap(unittest.TestCase):
+    def test_sparse_clone_can_load_tool_and_remote_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sh(root, "git", "init", "-q", "-b", "main")
+            for name, content in {".github/scripts/scope.py": "", "tools/artifacts/artifacts.py": TOOL.read_text(), ".artifacts/config.json": '{"remote":"file:///test-store"}'}.items():
+                p = root / name
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(content)
+            sh(root, "git", "add", ".")
+            sh(root, "git", "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture")
+            block = ["      - uses: actions/checkout@v4", "        with:", "          sparse-checkout: .github/scripts"]
+            wired = wire_workflows.add_sparse_pattern(block, "      ")
+            patterns = [line.strip() for line in wired[3:]]
+            sh(root, "git", "sparse-checkout", "set", "--cone", *patterns)
+            self.assertTrue((root / "tools/artifacts/artifacts.py").is_file())
+            self.assertEqual(artifacts.Config.load(root).remote, "file:///test-store")
+
+    def test_conditional_full_checkout_is_preserved(self):
+        block = ["      - uses: actions/checkout@v4", "        with:", "          sparse-checkout: ${{ needs.changes.outputs.full_checkout != 'true' && env.SPARSE_RULES || '' }}", "          sparse-checkout-cone-mode: false"]
+        self.assertEqual(wire_workflows.add_sparse_pattern(block, "      "), block)
+
+    def test_rewiring_refreshes_paths_and_keeps_checkout_condition(self):
+        source = "jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n        if: needs.changes.outputs.run == 'true'\n      - run: make check\n"
+        once, _ = wire_workflows.wire(source, ["data/new"])
+        self.assertEqual(once, wire_workflows.wire(once, ["data/new"])[0])
+        stale = once.replace("pull --jobs 16 data/new", "pull data/old")
+        self.assertEqual(once, wire_workflows.wire(stale, ["data/new"])[0])
+        self.assertEqual(once.count("if: needs.changes.outputs.run == 'true'"), 2)
+        self.assertIn("shell: bash", once)
+        self.assertIn("working-directory: ${{ github.workspace }}", once)
+        self.assertIn('export ARTIFACTS_AWS="$artifacts_cli_aws"', once)
 
 if __name__ == "__main__":
     unittest.main()
