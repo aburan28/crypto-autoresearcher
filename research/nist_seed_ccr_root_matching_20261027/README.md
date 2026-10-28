@@ -42,6 +42,20 @@ methods for large candidate lists and insufficient memory, and explicitly
 continues beyond its literal first-phase product threshold. It supplies no
 32/2048 acceptance gate or original caller. The historical-use gap stays open.
 
+The [implementation-source continuation](signed-frobenius-20261027/period-eigenvalue-20261027/implementation-sources-01/report.md)
+now recovers and reads Maurer's actual 130-page thesis, dated 29 July 1994.
+It documents separate total-CRT and baby-step-table bounds, table rebalancing,
+supplied-prime-list and saved-splitting-file modes, and the names of the C
+functions. Its explicit unsupported type2 repeated-fiber condition is absent
+on all 21 curves in the retained later-table audit: 1,281 curve/level cells,
+1,185 parameters and 2,071 fibers, including 299 type2 fibers. This is a new
+source-to-existing-evidence crosswalk with zero new scientific trials. The
+printed loop guard has an initialization inconsistency that prevents treating
+the informal pseudocode as an authenticated executable. Neither the original
+caller nor the two fitted caps or a cube-root-of-j requirement is recovered.
+Lehmann's companion thesis remains unobtained; exact filenames and access
+outcomes are now retained. The overall selector remains unresolved.
+
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
 These are reconstructed omissions, not documented historical rejection events.
