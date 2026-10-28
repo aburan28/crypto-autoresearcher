@@ -56,6 +56,11 @@ of the latter at nonzero `x_R`. Thus the trace identity does not certify the
 historical uniform first-fall wording. The new finite target checks one
 transcribed counterexample's executable ranks; its semantic limits are stated
 in that target and the [open problem](../../problems/semaev-degree-two-fall-nonzero-bridge.md).
+The [independent semantic review](../../docs/reports/2026-10-25-semaev-semantic-review/composition.md)
+confirmed the finite degree-three first fall and the narrower trace theorem.
+Its [dated target correction](corrections/2026-10-25-semaev-s3-degree-two.md)
+withdraws the frozen target's uniform degree-two inference while preserving
+the original target bytes.
 
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
@@ -64,6 +69,16 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
+
+## Batch-five discriminant wording
+
+The frozen `endosweep-dk-exact-batch5-discriminants.yaml` target proves exact
+integer and abstract-order statements. Its notes call the listed-factor
+product the squarefree part unconditionally; the theorem makes factor
+primality an explicit premise for fundamentality. The [dated correction](corrections/2026-10-25-endosweep-batch5-squarefree.md)
+records the conditional wording and named-curve model boundary without
+changing the frozen target or its Lean proposition. The [independent review](https://github.com/aburan28/crypto-autoresearcher/blob/c613c3b2173a05e46fbd3cf8e967581b9878e5fa/docs/reports/2026-10-25-batch5-semantic-review/composition.md)
+binds the source, theorem and blind arithmetic.
 
 ## FROB C4 conditional order arithmetic
 
