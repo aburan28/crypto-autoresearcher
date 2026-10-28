@@ -133,3 +133,6 @@ immutable A/A-record collisions remain a separate publication issue.
 ## Dated class-number lower bound, 28 October2026 UTC
 
 [Completed source-bound certificate test](../nist_seed_class_number_dated_bound_20261028/certificate-report-01/report.md): all11 omissions and8 published controls prove h(K)>=16,777,216; P-384/P-521 retain UNKNOWN_D_K. The documented200 and10^7 lower bounds reject zero omissions, so contribute no exclusions to a two-rule model. Both implementations, all controls and exports pass. Initial17/4 outputs and prospective P-256 import amendment are retained. No exact class number or1997 adoption is claimed. The P-224 cube/splitting observation and existing signed-action/source graphs remain unchanged.
+
+
+[Single ideal-class element follow-up, 28 October2026 UTC](../nist_seed_class_number_dated_bound_20261028/element-order-01/report-01/report.md): ETSI's individual-element order>=200 witness passes for all11 omissions and8 publications at the first odd split prime. Every reduced power agrees across2 methods (3,781 per arm). No1997 use, original witness-choice/retry policy or actual selector is established. P384/P521 unknowns remain explicit; previous graphs unchanged.

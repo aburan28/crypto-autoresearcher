@@ -7,3 +7,6 @@ The completed [certificate report](certificate-report-01/report.md), [two-page P
 * [Certificate proof](CERTIFICATE-LEMMA.md), [dated source audit](SOURCE-AUDIT.json), [original planning note](report.md). The initial report records the pre-execution state and is retained as such.
 
 No exact class number or1997 use is claimed. The19 direct certificates do not depend on the external h<=2000 completeness theorem used in the earlier list comparison. The ring-class map to the maximal-order class group is surjective, so the same lower bound holds for the actual CM order. No official research-state transition is made.
+
+
+The [single-element follow-up](element-order-01/report-01/report.md) separately checks ETSI's operational witness: all11 omissions and8 publications pass order>=200 using the first odd split prime, with3,781 reduced triples per arm agreeing exactly. P-384/P-521 remain unknown. Existence is certified; the original element-selection/retry/error policy remains undocumented.
