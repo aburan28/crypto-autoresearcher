@@ -87,6 +87,7 @@ Keep resolved and superseded records in the index.
 
 | [PEXT n=7 frozen source binding](pext-n7-frozen-source-binding.md) | investigating | Native admission of EXP-PEXT-212d5c after the committed Lean proof correction | Publish the prospective source binding, verify exact hashes and invariants, then verify the correction archive |
 
+| [RELN retained off-main F-2/P-5 custody](reln-f2-p5-off-main-custody-unreconciled.md) | open | Repeat source scheduling and official snapshot adoption without reconciled provenance | Source-owner/publication reconciliation and a verified immutable-safe native custody correction; scientific approval remains separate |
 ## Add or update a problem
 
 1. Check this index and the affected work for an existing record. Reuse it when
