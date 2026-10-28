@@ -102,6 +102,9 @@ contain unique canonical relative paths already named in `artifacts`; reserved
 supervisor paths, wildcard exemptions, and missing files are not allowed.
 Listed files may also be nonempty. The independent `check_argv` still runs and
 must validate the scientific meaning of their contents, including emptiness.
+`manifest.yaml` and `raw-result.json` are run records and can never be listed:
+an empty manifest is refused at completion and reported by `check_run`
+(SHF-20261028-0f3f64, LGN-3).
 Empty files receive ordinary SHA-256 bindings, so later modification or deletion
 still requires reconciliation. Adding this field changes the frozen plan hash
 and requires the normal additive approval and claim bindings.
@@ -160,8 +163,19 @@ The driver should write a complete run envelope (`run:` with every field
 supervisor after the driver exits 0 and before the checker runs, so the checker
 sees the bytes that get published. Completion only adds missing keys, from the
 plan, the launch authority, `environment.json`, `command.txt` and the
-supervisor's clock; a driver value is never changed, and one that contradicts
-the plan is refused. The only derived value is `certificate.kind: none`, and
+supervisor's clock; a driver value is never changed. Every driver value with a
+publish-time source is checked against it type-strictly (`1.0`, `true` and `"1"`
+are not `1`), on complete envelopes too, and a contradiction is refused:
+run/experiment/task/trial/hypothesis ids and `approved_by` (plan and trial);
+`code.commit` (launch authority); `code.command` and `code.check_command` (the
+launched argv, as its JSON array, the array itself or shell-quoted);
+`environment.*` (`environment.json`); `inputs.trial_plan`, `plan_sha256`,
+`trial_id`, `seed`, `parameters`, `curve_id` (plan and trial); `timing`
+(started/finished inside the supervisor's driver interval, wall seconds at
+most its duration, 1 s slack for truncated clocks; a time without a zone
+cannot be checked and is refused); `result.metrics` against `run.metrics`; and
+`attack_claimed` against `raw-result.json`. A driver manifest with a duplicate
+key is refused (SHF-20261028-0f3f64, LGN-2 and LGN-5). The only derived value is `certificate.kind: none`, and
 only where the driver recorded `attack_claimed: false`. The result must then
 pass `validate_ledger.check_run`; otherwise the trial is `invalid_output`, the
 driver's manifest stays as written, and the refusal is printed to stderr and

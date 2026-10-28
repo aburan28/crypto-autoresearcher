@@ -707,6 +707,15 @@ def load_yaml(path: str, ctx: Ctx):
         return None
 
 
+def _yaml_document_is_empty(source: str) -> bool:
+    """True when `source` parses cleanly to None (empty, comments, `null`)."""
+    try:
+        with open(source, encoding="utf-8") as handle:
+            return _safe_load(handle) is None
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return False
+
+
 EXTERNAL_VERIFICATION_VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
 EXTERNAL_VERIFICATION_REQUIRED = ("network", "objective_id", "claim_id", "verdict", "node")
 
@@ -1223,6 +1232,12 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
                     force=True)
     doc = load_yaml(path, ctx)
     if doc is None:
+        # load_yaml has already reported a parse error; an empty, comment-only
+        # or `null` document parses cleanly to None and must not pass as a
+        # run record with no findings (SHF-20261028-0f3f64, LGN-3).
+        if _yaml_document_is_empty(ctx.source_path(path)):
+            ctx.err(path, "run manifest is empty (no YAML document); "
+                          "expected top-level key 'run'")
         return
     body = doc.get("run") if isinstance(doc, dict) else None
     if not isinstance(body, dict):
@@ -1548,7 +1563,7 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = _safe_load(handle)
+        doc = yaml.load(handle, Loader=_RunRegistryLoader)
     if not isinstance(doc, dict) or doc.get("schema") != RUN_SUPERSESSION_SCHEMA:
         raise ValueError("invalid run supersession registry schema")
     records = doc.get("records") or []
@@ -1681,25 +1696,44 @@ def _schema_supersession_kind_for_path(relative: str) -> str | None:
     return None
 
 
-class _SchemaRegistryLoader(yaml.SafeLoader):
-    """Reject ambiguous keys in the mutable schema-routing index only."""
+def _unique_key_loader(label: str) -> type:
+    """A SafeLoader that refuses duplicate mapping keys, naming `label`.
 
-    def construct_mapping(self, node, deep=False):
-        self.flatten_mapping(node)
-        seen = set()
-        for key_node, _ in node.value:
-            key = self.construct_object(key_node, deep=deep)
-            try:
-                duplicate = key in seen
-                seen.add(key)
-            except TypeError:
-                # Preserve SafeLoader's normal error for unhashable keys.
-                return super().construct_mapping(node, deep=deep)
-            if duplicate:
-                raise ValueError(
-                    "duplicate YAML key in schema supersession registry: "
-                    f"{key!r} at line {key_node.start_mark.line + 1}")
-        return super().construct_mapping(node, deep=deep)
+    yaml.safe_load keeps the LAST value of a repeated key. In a routing index
+    that is silent corruption: a merge that dropped one entry's `- kind:` line
+    folded its keys into the previous entry, which then routed only the second
+    record (sheriff case SHF-20261028-0f3f64, LGN-1). Used for the mutable
+    routing indexes and for driver manifests, never for archived records.
+    """
+
+    class Loader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            self.flatten_mapping(node)
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                try:
+                    duplicate = key in seen
+                    seen.add(key)
+                except TypeError:
+                    # Preserve SafeLoader's normal error for unhashable keys.
+                    return super().construct_mapping(node, deep=deep)
+                if duplicate:
+                    raise ValueError(
+                        f"duplicate YAML key in {label}: "
+                        f"{key!r} at line {key_node.start_mark.line + 1}")
+            return super().construct_mapping(node, deep=deep)
+
+    return Loader
+
+
+_SchemaRegistryLoader = _unique_key_loader("schema supersession registry")
+_RunRegistryLoader = _unique_key_loader("run supersession registry")
+
+
+def load_yaml_unique_keys(source, label: str):
+    """yaml.safe_load that raises ValueError on a duplicate mapping key."""
+    return yaml.load(source, Loader=_unique_key_loader(label))
 
 
 def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
