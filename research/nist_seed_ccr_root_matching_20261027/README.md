@@ -53,8 +53,19 @@ source-to-existing-evidence crosswalk with zero new scientific trials. The
 printed loop guard has an initialization inconsistency that prevents treating
 the informal pseudocode as an authenticated executable. Neither the original
 caller nor the two fitted caps or a cube-root-of-j requirement is recovered.
-Lehmann's companion thesis remains unobtained; exact filenames and access
-outcomes are now retained. The overall selector remains unresolved.
+The next [source recovery](signed-frobenius-20261027/period-eigenvalue-20261027/eco-code-recovery-01/report.md)
+obtains Lehmann's actual 125-page thesis from its July1997 author-homepage
+capture and statically inventories an advertised LiDIA1.3 package captured
+May1997 (its internal version header still says1.2.0). Le94's cube occurs in
+forward q-series construction; the curve interface substitutes j(E), with no
+cube-root-of-j prerequisite. It reports coefficient tables for every prime
+ell<800. CRT stabilization and libI binary conversion identify original-table
+provenance as a concrete remaining dependency. The retained all21 crosswalk
+has zero documented precondition failures, with the later-table/rational-root
+scope explicit. The general package lacks the named eco routines; the2000
+announcement explicitly excludes SEA from the free distribution. Original
+coefficient bytes and the NIST caller remain missing. The overall selector
+remains unresolved.
 
 Read [the report](report.md), its inspected [PDF](report.pdf), the complete
 [21-curve comparison](comparison.csv), and the [147 cell results](cells.csv).
