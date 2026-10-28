@@ -98,6 +98,8 @@ run_cmd do
   unless bad.isEmpty do
     throwError "target axiom audit failed: {{bad.toList}}"
   logInfo m!"target axiom audit passed: {{target}}"
+#check {theorem}
+#print axioms {theorem}
 '''
 
 
