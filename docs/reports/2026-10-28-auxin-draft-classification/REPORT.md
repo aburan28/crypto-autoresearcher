@@ -36,10 +36,23 @@ The altered source copy retains the ordinary top-level schema error and no
 experiment registration. The underlying archived files, hash registries,
 suppression baseline, and numerical results are unchanged.
 
-This targeted check demonstrates one accurately classified draft. It does
-**not** establish a clean full-ledger gate. The earlier hosted job had 65
-unsuppressed messages; the expected current-head delta is removal of this
-one line plus one non-failing advisory. A complete-tree hosted validator run
-must confirm the exact delta, including any new cross-reference effect,
-before the change can be merged. No canonical performance graph changes:
-this is a record-category correction with no measured quantity.
+The [complete-tree hosted ledger job](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40630565509/job/122625879025)
+compared branch head `07460029d2ebfdc3f800161bc144e4b0ac70ef0f` with
+base `fb55b843d5c025d95e80de6185f12a4dd5da2a6f`. Its downloaded
+[CI artifact](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40630565509/artifacts/12790843247)
+contains the exact [base log](evidence/ledger-base.log) and
+[head log](evidence/ledger-head.log). The base has **65 errors in 22 paths**;
+the head has **64 in 21**. Set comparison finds **zero added** and exactly
+one removed message:
+
+> `experiments/EXP-AUXIN-339fb0/specification.yaml: expected top-level key 'experiment'`
+
+The base log SHA-256 is
+`463cdceec5d3b008c9788d45f91842197e50b5066bb3aaa547fcf10d88d58149`;
+the head log SHA-256 is
+`3c9ef0f1c32e23900a5b47c5e093e844b326fbdf2d03c8eebf21338ba7ed2a77`.
+Advisories increase from 578 to 579, as intended. Both full validators still
+exit 1. The CI relative-delta gate passes because no new error appeared;
+the **absolute full-ledger gate remains red**. [validation.json](validation.json)
+records the comparison. No canonical performance graph changes: this is a
+record-category correction with no measured quantity.
