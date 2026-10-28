@@ -1,0 +1,468 @@
+# Sheriff case SHF-20261028-0f3f64 -- independent B7 reader: ledger, manifests,
+# repository health. Audited state: origin/main b7d5e65b9fcfe423898e74ba2a2e53f6ec4859b9
+# (branch claude/sheriff-reaudit-20261028; identical outside this case directory).
+# This reader produced nothing under audit. Every count below comes from a rerun
+# by this reader; PR descriptions, commit messages and prior case text were used
+# only to locate commits and finding ids, never as evidence.
+joint: "B7 ledger, manifests and repository health: tools/experiment_execution.py complete_manifest() (PR #2488); PR #2497 / DEC-20261023-5c9671; deferred validate_ledger items; prior findings M1, M2, M2-R, CI1, L-N8, L-N9, X1"
+reader:
+  role: validator
+  model: claude-opus-5-5
+  produced_audited_result: false
+
+sources_read:
+  contracts:
+    - docs/agent-runtime-core.md
+    - agents/validator.md
+    - .claude/skills/sheriff/SKILL.md
+    - docs/sheriff.md (B7, B9, B10 and "What the deterministic sweep cannot see")
+  code:
+    - "git diff ceefb51387^1 ceefb51387 (PR #2488): tools/experiment_execution.py, docs/experiment-execution.md"
+    - tools/experiment_execution.py on main (lines 40-96, 180-420, 725-810; complete_manifest identical to the PR version)
+    - tests/test_experiment_execution.py (harness, DRIVER, completion tests 1-420)
+    - tools/validate_ledger.py (Ctx, load_yaml, check_run, RUN_REQUIRED_TOP, RUN_CAPTURE_ARTIFACTS, check_provenance_quarantine, main/baseline logic); e9b91d62a9 copy (check_record_sizes, DRAFT_DECISION_TARGETS)
+    - tools/ci_ledger_gate.py (compare_reports)
+    - .github/workflows/validate.yml (lines 255-300) and the on/if blocks of all 28 workflow files
+  records:
+    - "git diff 0265593c57^1 0265593c57 (PR #2497), its commits 572f6d6bb3, 82416965ef, 4327c99df8, f450a6cce3 and merge 21acbaab63"
+    - ledger/decisions/DEC-20261023-5c9671.yaml
+    - ledger/decisions/DEC-20261017-0fab25.yaml (dispositions, lines 115-240)
+    - tools/schema_supersession_registry.yaml (lines 1580-1590, 1866-1892; parsed in full)
+    - tools/run_supersession_registry.yaml (parsed in full)
+    - "the 7 manifest_v2.yaml records of PR #2497 and every file in their run directories (raw-result.json read by hash only for the four ECDLP runs)"
+    - experiments/EXP-*/specification.yaml of those experiments (hypothesis_id)
+    - ledger/handoffs/TASK-20261017-2d324f.yaml, -4d744d.yaml and their .v2 supersessions; DEC-20261017-95d677, DEC-20261017-f2d04c (grep budget/limit)
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/manifest.yaml (grep), directory listing
+    - experiments/EXP-QSP-70b731/runs/RUN-QSP-715b58/ (listing, execution-receipt.json)
+    - experiments/EXP-AUXIN-339fb0/specification.yaml (head), experiments/EXP-BINSTD-591d28/runs/RUN-BINSTD-f7ca97/ (listing)
+    - "receipts and manifest heads of RUN-ECDLP-9f18c9, RUN-ICPERF-b09be8, RUN-ICPERF-943efa"
+    - ledger/decisions/DEC-20261016-5d2fb8.yaml and its v2 supersession (parse + hash)
+  prior_findings:
+    - research/sheriff/SHF-20261016-3caa6f/findings.yaml (findings M1, M2, X1 only)
+    - research/sheriff/SHF-20261017-e4d7f6/findings.yaml (findings M2-R, CI1, L-N8, L-N9; original_finding_verdicts X1 and claim C13)
+  formal_text:
+    - formal/CryptoResearch/Quotient/TranslationDescent.lean (full text; not built)
+    - research/THM_QUOTIENT_DESCENT1.md (lines 1-6, 78-130)
+    - formal/targets/quotient-translation-descent.yaml (theorem_name line)
+
+blind_from:
+  - research/sheriff/SHF-20261028-0f3f64/prior.md (not read)
+  - research/sheriff/SHF-20261028-0f3f64/readers/* other than this file (not read; git status showed that readers/cryptanalysis.yaml and scripts/readers/cryptanalysis/ exist, by name only)
+  - research/sheriff/SHF-20261028-0f3f64/checks/ and sweep.* (not read)
+  - "the shared session scratchpad: a directory listing showed other files (prior.md, pr1077.git, data/, work/ and others). None were opened. Only this reader's own temporary files were removed."
+  - PR bodies and commit messages as evidence
+blind_from_respected: true
+read_sibling_reports: false
+
+checks:
+  - id: K1
+    what: "Adversarial unit tests of complete_manifest(): 43 cases over C-MAN-1..4, inputs built in temp dirs"
+    command: "python3 research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/test_complete_manifest_adversarial.py research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json
+    result: "C-MAN-1 4/4 cases hold (but 15 literal-constant fields listed); C-MAN-2 3/27 hold (only id, run_id, experiment_id are refused); C-MAN-3 6/7 hold (check_run vacuous on empty/null documents); C-MAN-4 4/5 hold (duplicate-key collapse)"
+  - id: K2
+    what: "End-to-end through execute_trial() with the repo's temp-dir harness: E1 0-byte manifest permitted by allow_empty_artifacts; E2 partial envelope contradicting plan task_id, seed and commit"
+    command: "python3 research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/test_execute_trial_end_to_end.py research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/execute_trial_end_to_end.json"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/execute_trial_end_to_end.json
+    result: "E1 status output_validated with a 0-byte manifest.yaml (manifest_completion null). E2 status output_validated, completion 'completed', published task_id TASK-20990101-ffffff vs plan TASK-20260909-aabbcc, inputs {seed: 999} vs plan seed 1, code.commit ffff... vs authority commit"
+  - id: K3
+    what: "Repo's own completion tests"
+    command: "python3 -m pytest -q -x tests/test_experiment_execution.py -k 'envelope or manifest or complet'"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/pytest_experiment_execution_completion.txt
+    result: "9 passed, 13 subtests passed (they test the cases they test; none covers K1/K2 gaps)"
+  - id: K4
+    what: "validate_ledger on current main, full checkout, as CI's non-PR branch runs it (relative to tools/validate_ledger_baseline.txt)"
+    command: "python3 tools/validate_ledger.py"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_main.txt
+    result: "FAIL: 67 new errors (1,210 baseline entries suppressed). exit 1"
+  - id: K5
+    what: "Method control: the same commit b7d5e65b9f in a sparse worktree (tracked files >1 MB, except YAML and manifest.json, replaced by empty placeholders; CRYPTO_AR_ALLOW_SPARSE=1)"
+    command: "bash research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/sparse_validate.sh b7d5e65b9fcfe423898e74ba2a2e53f6ec4859b9 main-control <out>"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_main-control.txt
+    result: "67 new errors, line-for-line identical to K4 (diff empty). A first attempt that also placeholdered >1 MB YAML gave 69: two phantom 'unknown target/run' errors, now excluded by the method. Worktree removed."
+  - id: K6
+    what: "validate_ledger at PR #2497 original base e9b91d62a9, PR tip f450a6cce3, merge first parent 692b54f1f4, merge 0265593c57 (sparse method of K5; worktrees under scratchpad/wt-*, each removed after use)"
+    command: "bash research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/sparse_validate.sh <commit> <label> <out>"
+    output: "research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_pr2497-{base,tip,parent1,merge}.txt (+ _nobaseline, .meta)"
+    result: "base 141, tip 124 (-17: 10 AES, 5 flat runs, 2 handoff budgets); parent1 115, merge 100 (-16 +1 = -15: TASK-20261017-2d324f not fixed, DEC-20261019-624f64 newly failing). No-baseline totals: 1351, 1334, 1325, 1310; main 1277"
+  - id: K7
+    what: "Disjoint error categories across the five commits"
+    command: "python3 research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/categorize_validate_errors.py out/validate_ledger_categories.json pr2497-base=... pr2497-tip=... pr2497-parent1=... pr2497-merge=... main-b7d5e65b9f=..."
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_categories.json
+    result: "main: prior_art 4, citation_provenance 0, review_plan 30, run_manifest_schema 30, specification_schema 1, handoff_budget 1, decision_knowledge_promotion 1 = 67"
+  - id: K8
+    what: "Schema registry as merged: duplicate-key detection"
+    command: "python3 (custom SafeLoader that reports duplicate mapping keys) over tools/schema_supersession_registry.yaml; git show f450a6cce3 / 21acbaab63^1 / 21acbaab63 :tools/schema_supersession_registry.yaml"
+    output: "inline (this file, finding LGN-1)"
+    result: "DUPLICATE KEYS at line 1873 [decision_id, defect, superseded_path, superseded_sha256, superseding_path, superseding_sha256]. The entry well-formed at the PR tip (f450a6cce3) and at 21acbaab63^1 lost its '- kind: ledger' and 'registered:' lines in merge 21acbaab63. The parsed registry routes only TASK-20261017-4d744d."
+  - id: K9
+    what: "manifest_v2 fidelity: hash recomputation, registry re-hash, value trace to archived bytes (7 records)"
+    command: "python3 research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/check_manifest_v2_fidelity.py out/manifest_v2_fidelity.json"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/manifest_v2_fidelity.json
+    result: "53/53 cited sha256 recompute (spec and source hashes match at HEAD and at the launch commit); 7/7 run_supersession_registry entries re-hash on both sides with decision_id DEC-20261023-5c9671. Values sourced 304; unsourced: raw_result/specification path pointers (files exist) and certificate.kind none in the 4 ECDLP flat runs (derived, disclosed in kind_basis)"
+  - id: K10
+    what: "manifest_v2 field-to-source equality (each value against the specific archived key it claims)"
+    command: "python3 research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/check_manifest_v2_fieldmap.py out/manifest_v2_fieldmap.json"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/manifest_v2_fieldmap.json
+    result: "AES 47/48 x2 (the one diff is the added inference.source annotation); ECDLP 39/39, 38/38, 39/39, 39/39; ICPERF-caa0c1 28/31: status failed_infrastructure is taken from the flat manifest, as status_source discloses (receipt infrastructure_error kept as result.supervisor_status); checker_stdout_literal null vs empty log (checker never ran); certificate basis is outputs {} plus the raw-result reason, not asserts_nothing_about (disclosed)"
+  - id: K11
+    what: "DEC-20261023-5c9671 ruling premises"
+    command: "git ls-tree -r cb06b8c20c -- experiments/EXP-FROB-91ee9c/; ls/receipt of RUN-QSP-715b58; ls ledger/handoffs/TASK-20261003-6e0c8a.yaml; git grep TASK-20261003-6e0c8a 16555aac8d; EXP-AUXIN-339fb0 approved_by; RUN-BINSTD-f7ca97 listing; diff of handoff v1 vs v2; rg budget in the handoffs and approving decisions; git log --full-history for AES implementation/"
+    output: "inline (this file, C-LED-2/C-LED-3 and LGN-6, LGN-7)"
+    result: "All premises hold, except the two noted in LGN-6 (phantom DEC-20260929 errors) and LGN-7 (AES custody pointer)."
+  - id: K12
+    what: "Runbook sessions awaiting audit (X1)"
+    command: "python3 tools/runbook.py pending-audits"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/runbook_pending_audits.txt
+    result: "4 sessions awaiting audit: RBS-ICPERF-b7e41c, RBS-ICPERF-c4a91e (stopped, 2026-10-21), RBS-PFDR-ca5e01, RBS-PFDR-bb0d26 (completed). Neither X1 session (RBS-EXAMPLE-b301f5, RBS-IC-f59d5a) is listed."
+  - id: K13
+    what: "Merge hygiene, absolute"
+    command: "python3 tools/check_merge_hygiene.py --absolute"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/check_merge_hygiene_absolute.txt
+    result: "PASS: no conflict markers, no unparseable records (exit 0). It does not detect duplicate YAML keys (LGN-1 passes it)."
+  - id: K14
+    what: "GitHub Actions workflow states"
+    command: "ToolSearch is not available to this reader, so mcp__github__actions_list could not be loaded; gh api repos/isogeny-labs/crypto-autoresearcher/actions/workflows and repos/aburan28/... both refused by the proxy (403); fallback: read .github/workflows/*.yml"
+    output: "inline (deferred_items.workflows)"
+    result: not_covered
+  - id: K15
+    what: "How post-#2488 schema-failing run manifests reached main"
+    command: "git log --diff-filter=A on each manifest; first-parent search of origin/main for the merge that introduced each commit; execution-receipt.json fields"
+    output: "inline (finding LGN-8)"
+    result: "RUN-ICPERF-943efa and -b09be8 via PR #2452 (merged 2026-10-24), receipts invalid_output with the schema refusal in detail. RUN-ECDLP-9f18c9 via PR #2579 (2026-10-25), receipt infrastructure_error, returncode 2, so completion never ran. Together, 26 of the 67 errors."
+
+findings:
+  - id: LGN-1
+    severity: major
+    claim_ids: [C-LED-1, C-LED-3]
+    what: >-
+      PR #2497's merge corrupted tools/schema_supersession_registry.yaml. Merge commit 21acbaab63
+      ("keep both sides of the overlap") dropped the '- kind: ledger' and 'registered:' lines of
+      both new entries. Their keys became duplicate keys inside the existing DEC-20261019-624f64
+      entry, and YAML keeps the last value. On main only TASK-20261017-4d744d is routed.
+      TASK-20261017-2d324f still fails "missing required field 'budget'", although its v2 exists and
+      hash-matches. DEC-20261019-624f64 lost its routing and now fails "missing required field
+      'knowledge_promotion'" (a regression). Both errors are among the 67 on main today.
+      check_merge_hygiene --absolute and validate_ledger both load the file without complaint.
+    evidence:
+      - "tools/schema_supersession_registry.yaml lines 1873-1892 (duplicate keys at 1873)"
+      - "git show f450a6cce3:tools/schema_supersession_registry.yaml (well-formed) vs 21acbaab63 (broken)"
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_pr2497-parent1.txt
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_pr2497-merge.txt
+    fix: >-
+      A registry correction that restores the three entries as separate list items
+      (DEC-20261019-624f64, TASK-20261017-2d324f, TASK-20261017-4d744d) under a Coordinator
+      decision. Also make the registry loaders (validate_ledger, check_merge_hygiene) reject
+      duplicate mapping keys, so a merge cannot silently clobber an entry again.
+  - id: LGN-2
+    severity: major
+    claim_ids: [C-MAN-2]
+    what: >-
+      complete_manifest() checks only id, run_id and experiment_id against the plan (_agree).
+      Every other field the driver wrote is kept unchecked, because put() adds only missing keys and
+      whole blocks are skipped when present. 24 of 27 contradiction cases were accepted:
+      task_id, trial_id, approved_by, hypothesis_id; code.commit, code.command and
+      code.check_command; environment.commit and environment.python; inputs.seed 2 vs 1, "1" vs 1,
+      1.0 vs 1 and True vs 1; inputs.parameters, including "20" vs 20; inputs.plan_sha256;
+      inputs.trial_id; timing.started_at and timing.wall_seconds; result.metrics vs run.metrics;
+      attack_claimed false in manifest.yaml but true in raw-result.json (and the reverse) when the
+      driver supplies a certificate. A complete envelope ('unchanged' path) contradicting task_id,
+      seed and commit was also accepted. End to end, a driver with a contradicting task_id, seed and
+      commit is published as output_validated. _agree uses Python !=, which treats 1.0, True and 1
+      as equal (latent, because only string fields are compared today). The documentation says
+      "one that contradicts the plan is refused".
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json (cases b_*)
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/execute_trial_end_to_end.json (E2)
+      - tools/experiment_execution.py:241-245, 280-285, 312-371
+    fix: >-
+      Compare every driver-present field that has a declared source (plan, trial, authority,
+      environment.json, argv, checker, clock) recursively and type-strictly (same type and equal at
+      every level). Refuse mismatches between run.metrics and result.metrics, and between the
+      manifest's and raw-result.json's attack_claimed. Otherwise narrow docs/experiment-execution.md
+      to "id, run_id and experiment_id are checked".
+  - id: LGN-3
+    severity: major
+    claim_ids: [C-MAN-3]
+    what: >-
+      The gate is check_run, and check_run is vacuous on a document that loads as None: a 0-byte,
+      comment-only or 'null' manifest.yaml yields no errors. execute_trial skips complete_manifest
+      for a 0-byte manifest, and load_plan lets a plan list manifest.yaml in allow_empty_artifacts.
+      End to end, such a trial is output_validated with an empty manifest.yaml (coverage
+      output_validated, measurement_complete true). The full ledger validator also accepts the empty
+      file silently; it would surface only as "unknown run" if something cited the run.
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json (c7_check_run_on_empty_or_null_manifest)
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/execute_trial_end_to_end.json (E1)
+      - "tools/validate_ledger.py check_run: 'doc = load_yaml(path, ctx); if doc is None: return'"
+      - tools/experiment_execution.py:195-203, 739-753
+    fix: >-
+      check_run reports an error for a None or non-mapping document. load_plan refuses
+      manifest.yaml and raw-result.json in allow_empty_artifacts. execute_trial calls
+      complete_manifest for any existing manifest.yaml, which refuses non-mappings.
+  - id: LGN-4
+    severity: minor
+    claim_ids: [C-MAN-1]
+    what: >-
+      No measured or scientific value is invented. But the documentation's "the only derived value
+      is certificate.kind: none" is inaccurate. status: completed and its status_note are derived
+      from exit code 0. code.commit_meaning, code.command_file, environment.file, timing.source,
+      result.raw_result, result.executor_receipt and artifacts.* are constants. Three of those
+      pointers (execution-receipt.json, check.stdout.log, check.stderr.log) name files that do not
+      exist when the manifest is written; the supervisor creates them later. code.command comes from
+      argv in memory, not from command.txt as documented, and a disagreement between the two is not
+      detected.
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json (a1 provenance_table, literal_fields, pointers_to_files_absent_at_completion_time)
+    fix: "Correct docs/experiment-execution.md, and record each added field's source in run.envelope_completion."
+  - id: LGN-5
+    severity: minor
+    claim_ids: [C-MAN-4]
+    what: >-
+      The driver's bytes are kept exactly (receipt manifest_completion.driver_manifest_text) and
+      hashed in both the receipt and run.envelope_completion. A BOM, CRLF and non-ASCII manifest
+      round-trips byte-exactly through the receipt's JSON options. Refusal and 'unchanged' paths
+      leave manifest.yaml byte-identical with no candidate left behind. However, the published
+      manifest.yaml is a yaml.safe_dump re-serialisation. Comments are dropped; 1.10 becomes 1.1,
+      yes becomes True, 017 becomes 15, and timestamp text becomes a datetime. Duplicate keys
+      collapse silently, last one wins: a driver text 'attack_claimed: true' then
+      'attack_claimed: false' is published as false, with certificate.kind none derived from it.
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/complete_manifest_adversarial.json (d1..d5)
+    fix: >-
+      Refuse driver manifests with duplicate keys. State in envelope_completion that values were
+      re-serialised. Optionally keep the driver bytes as a sibling file
+      (manifest.driver.yaml) in addition to the receipt copy.
+  - id: LGN-6
+    severity: minor
+    claim_ids: [C-LED-1, C-LED-3]
+    what: >-
+      DEC-20261023-5c9671's 143 and 126 each include two phantom errors from its own sparse
+      measurement, which left files over 300 KB off disk. The DEC-20260929-21bb51 and -7efa82
+      draft-contract.yaml files are about 700 KB, and the validator hashes them. The decision lists
+      both decisions as "still reported in this measurement" among unchanged rulings, although its
+      own delta note says cc21e56e76 validated these references. With a measurement controlled
+      against a full checkout, the counts are 141 at e9b91d62a9 and 124 at f450a6cce3. The -17
+      delta is exact.
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_pr2497-base.txt
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_pr2497-tip.txt
+      - "git ls-tree -l e9b91d62a9 coordination/goals/GOAL-AUXIN-a93442 (BATCH-8456b6 703334 B, BATCH-9b2090 705752 B draft contracts)"
+    fix: "Record ledger counts from a measurement controlled against a full checkout (K5 shows one that fits about 2.7 GB), and name any measurement artifacts."
+  - id: LGN-7
+    severity: minor
+    claim_ids: [C-LED-2]
+    what: >-
+      RUN-AES-0739d9 and RUN-AES-a36d0b manifest_v2 execution_source_custody say the implementation
+      files "were first committed later (via merge fa563c5812, 2026-10-03)". In fact
+      implementation/ (8 files) was first committed in 3bc7f516ec at 2026-09-10T19:38:24Z. That
+      commit is the direct child of the recorded launch HEAD d447e31aaa, lands about 5 minutes after
+      the run's last logged event (19:33:09Z), and its bytes are identical to main today. The
+      record's conclusion still stands (the executed bytes are not hash-bound), but the pointer is
+      wrong and understates the custody that exists.
+    evidence:
+      - experiments/EXP-AES-14352a/runs/RUN-AES-0739d9/manifest_v2.yaml (execution_source_custody)
+      - "git log --full-history --diff-filter=AD -- experiments/EXP-AES-14352a/implementation/run_stage1.py; git log -1 --format=%P 3bc7f516ec; git diff --stat 3bc7f516ec origin/main -- experiments/EXP-AES-14352a/implementation/ (empty)"
+    fix: "A superseding correction note naming 3bc7f516ec; records stay immutable."
+  - id: LGN-8
+    severity: major
+    claim_ids: [C-LED-1]
+    what: >-
+      Schema-failing run manifests keep entering main through PRs whose merges add new
+      validate_ledger errors. RUN-ICPERF-943efa and RUN-ICPERF-b09be8 came in via PR #2452 (merged
+      2026-10-24; receipts invalid_output, refusal recorded in detail). RUN-ECDLP-9f18c9 came in via
+      PR #2579 (2026-10-25; infrastructure_error, rc 2, so completion never applied). Together they
+      account for 26 of the 67 errors on main. PR #2497 itself added DEC-20261019-624f64.
+      tools/ci_ledger_gate.py fails any PR whose head has an error its base lacks, so either the
+      validate workflow did not run or it is not required for merge. The class of M2-R recurs after
+      PR #2488.
+    evidence:
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/validate_ledger_main.txt
+      - "experiments/EXP-ICPERF-e467a5/runs/RUN-ICPERF-943efa/execution-receipt.json, experiments/EXP-ICPERF-b2f2d0/runs/RUN-ICPERF-b09be8/execution-receipt.json, experiments/EXP-ECDLP-381959/runs/RUN-ECDLP-9f18c9/execution-receipt.json"
+      - tools/ci_ledger_gate.py:47-75
+    fix: >-
+      Make validate a required check on main and observe that it runs. Publish failed runs either
+      with a schema-valid failure envelope (status failed_infrastructure; check_run already exempts a
+      stated "did not write raw-result.json") or not as run records at all. Then triage the 26 errors
+      by supersession.
+  - id: LGN-9
+    severity: minor
+    claim_ids: []
+    what: "4 runbook sessions await audit: RBS-ICPERF-b7e41c, RBS-ICPERF-c4a91e, RBS-PFDR-ca5e01, RBS-PFDR-bb0d26. The two ICPERF sessions belong to the runs in LGN-8."
+    evidence: [research/sheriff/SHF-20261028-0f3f64/scripts/readers/ledger/out/runbook_pending_audits.txt]
+    fix: "Run /audit-runs on each before any is cited."
+
+deferred_items:
+  validate_ledger_main:
+    commit: b7d5e65b9fcfe423898e74ba2a2e53f6ec4859b9
+    new_errors: 67
+    no_baseline_total: 1277
+    baseline_suppressed: 1210
+    by_category:
+      prior_art: {count: 4, records: ["IDEA-20261003-43f871 (prior_art.nearest[1].ref is an IDEA id)", "IDEA-20261003-4f41d0 (prior_art.nearest[0].ref is an IDEA id)", "IDEA-20261003-94078e (no prior_art block)", "IDEA-20261003-c9c6c3 (no prior_art block)"]}
+      citation_provenance: {count: 0, note: "21 verified_by errors at e9b91d62a9; 0 already at 692b54f1f4 (cleared by other sessions before #2497 merged)"}
+      review_plan: {count: 30, records: [TASK-20260910-19bd7b, -2c0931, -4abecd, -59d885, -6d6bd3 (4), -c8cb36, TASK-20260913-9863af, TASK-20261003-308fcf (14), -46fb77, -478a3c, -68bcf5 (3), -6edf51]}
+      run_manifest_schema: {count: 30, records: [RUN-ECDLP-9f18c9 (10), RUN-ICPERF-b09be8 (8), RUN-ICPERF-943efa (8), EXP-FROB-91ee9c/runs/TASK-20260914-7119f2 (3), RUN-BINSTD-f7ca97 (1)]}
+      specification_schema: {count: 1, records: [EXP-AUXIN-339fb0]}
+      handoff_budget: {count: 1, records: [TASK-20261017-2d324f], note: "should be 0; LGN-1"}
+      decision_knowledge_promotion: {count: 1, records: [DEC-20261019-624f64], note: "regression; LGN-1"}
+    frob_task: "experiments/EXP-FROB-91ee9c/runs/TASK-20260914-7119f2/manifest.yaml: 3 errors (environment, code.commit, code.command), unchanged since the triage; the decision's premise holds (cb06b8c20c holds only specification.yaml for this experiment)."
+    qsp_run: "RUN-QSP-715b58 (EXP-QSP-70b731): 0 validator errors because no manifest.yaml exists. The directory holds launch.json, environment.json, command.txt, a receipt (claim_expired, returncode null, check_returncode null) and 4 empty logs. EV-QSP-2c78d3 still lists it in its archived bytes, but it is routed to the 20261022 v2, which drops it."
+    prior_art_trajectory: "68 at e9b91d62a9 and f450a6cce3 -> 36 at 692b54f1f4 and 0265593c57 -> 4 at main"
+  workflows:
+    enabled_state: not_covered
+    why: "mcp__github__actions_list not loadable (no ToolSearch in this reader); gh API refused for both repo names (403). Enabled/disabled state is invisible from the files."
+    from_files:
+      lean-verification: "on pull_request (main), pull_request_target closed, merge_group, workflow_dispatch"
+      validate: "on pull_request (main), pull_request_target closed, merge_group, workflow_dispatch. PRs run the relative head/base ledger gate (ci_ledger_gate.py); other events run the absolute 'python3 tools/validate_ledger.py', which fails on main today with 67 errors"
+      main-health: "on pull_request_target closed (job gated on merged) and workflow_dispatch"
+      total_workflow_files: 28
+    indirect_evidence: >-
+      The main-events bot's last digest commit on main is 2026-10-12 (4a57ea3e6e), with none among
+      the ~3,700 commits since. Three PRs (#2452, #2497, #2579) merged while adding errors that
+      ci_ledger_gate.py fails on. research/THM_QUOTIENT_DESCENT1.md (2026-10-17) states that
+      lean-verification is disabled. All of this is consistent with CI1 not being fixed, but none of
+      it observes the enabled state.
+
+prior_finding_verdicts:
+  - id: M1
+    case: SHF-20261016-3caa6f
+    verdict: fixed
+    evidence: >-
+      ledger/decisions/DEC-20261016-5d2fb8.yaml still fails to parse (line 91) but is unchanged
+      since b6187cbe7e, as immutability requires. It is routed by tools/schema_supersession_registry.yaml
+      (line 1582) to ledger/corrections/schema-supersessions/20261016/ledger__decisions__DEC-20261016-5d2fb8.v2.yaml,
+      which parses. Both sha256 values (7674027... and 18e82cf...) match the registry, and
+      check_merge_hygiene --absolute passes (K13).
+  - id: M2
+    case: SHF-20261016-3caa6f
+    verdict: partially_fixed
+    evidence: >-
+      349 new errors then, 67 now (K4, K5). Remaining: prior_art 4, review_plan 30, run manifest
+      schema 30, spec 1, handoff budget 1, knowledge_promotion 1. No absolute gate is observed to be
+      enforced on main (K14, LGN-8).
+  - id: M2-R
+    case: SHF-20261017-e4d7f6
+    verdict: partially_fixed
+    evidence: >-
+      330 then, 67 now. RUN-SEMBIN-9ecb77 no longer errs. Triage records exist (DEC-20261017-0fab25,
+      DEC-20261023-5c9671). But the absolute gate on main is not observable, and new schema-failing
+      run manifests entered via PRs #2452 and #2579 after the triage (26 errors, LGN-8). PR #2497
+      itself regressed DEC-20261019-624f64 (LGN-1).
+  - id: CI1
+    case: SHF-20261017-e4d7f6
+    verdict: not_covered
+    evidence: >-
+      Workflow enabled state not observable (K14). Indirect evidence is consistent with not_fixed:
+      no main-events digest since 2026-10-12, and three error-adding PRs merged past
+      ci_ledger_gate.py.
+    would_cover: "mcp__github__actions_list (or gh api repos/isogeny-labs/crypto-autoresearcher/actions/workflows) with repository access granted"
+  - id: L-N8
+    case: SHF-20261017-e4d7f6
+    verdict: fixed
+    evidence: >-
+      research/THM_QUOTIENT_DESCENT1.md now carries "## Correction (2026-10-17): Status-line change
+      and the pre-minting Sage check" (lines 100-130, commit 1f96ad0ba1) under
+      DEC-20261017-edb475, which exists. The Sage check is retired unrun and is not evidence, and the
+      earlier text is kept.
+  - id: L-N9
+    case: SHF-20261017-e4d7f6
+    verdict: partially_fixed
+    evidence: >-
+      formal/CryptoResearch/Quotient/TranslationDescent.lean is unchanged since 418825c73d. The
+      theorem is still named translation_descends_iff_two_torsion. Its statement,
+      (forall P, -(P + S) + T = -(P + T + S)) <-> 2 • T = 0, is commutation with iota_S, not descent.
+      The docstring still reads "(i.e. descends through the degree-2 quotient by iota_S)", and both
+      unreachable 'first' fallbacks remain. The disclosure route was applied to the two primary
+      citations: formal/targets/quotient-translation-descent.yaml:7 (inline comment) and
+      research/THM_QUOTIENT_DESCENT1.md:81 (name_note). Not renamed. Text only; not built.
+  - id: X1
+    case: SHF-20261016-3caa6f
+    verdict: fixed
+    evidence: >-
+      Neither RBS-EXAMPLE-b301f5 nor RBS-IC-f59d5a is pending (K12). The class recurs: 4 other
+      sessions await audit (LGN-9).
+
+suggested_verdicts:
+  - claim: C-MAN-1
+    text: "complete_manifest never invents values"
+    verdict: upheld_scoped
+    scoped_to: >-
+      No measured or scientific value is invented. Identity, inputs, environment, timing and code
+      fields come from the plan, trial, authority, environment.json, argv and the clock, and absent
+      plan keys (seed, parameters, hypothesis_id) are not defaulted. The envelope does fill
+      constants: status completed and its note (from exit code 0), commit_meaning, pointer fields
+      (three of which name files not yet written), and the documented certificate.kind none.
+    findings: [LGN-4]
+  - claim: C-MAN-2
+    text: "complete_manifest refuses contradictions"
+    verdict: overclaimed
+    scoped_to: >-
+      Refuses contradictions only on run.id, run.run_id and run.experiment_id, and only by Python !=.
+      All other fields, nested blocks and type differences pass (24/27 cases). A contradicting
+      envelope reaches output_validated end to end.
+    findings: [LGN-2]
+  - claim: C-MAN-3
+    text: "complete_manifest gates on validate_ledger.check_run and refuses when it fails"
+    verdict: upheld_scoped
+    scoped_to: >-
+      check_run is called on the driver manifest and on the completed candidate before os.replace.
+      A planted check_run error, missing raw-result.json or stdout.log, a bad certificate kind or an
+      unverified claim certificate each refuse, and the driver bytes are kept. The gate is schema-only
+      (empty Ctx, no cross-references). check_run passes empty or null documents, so a 0-byte
+      manifest allowed empty by the plan is output_validated. Driver-failure runs (rc != 0) are never
+      completed or gated, and are still committed to main (LGN-8).
+    findings: [LGN-3, LGN-8]
+  - claim: C-MAN-4
+    text: "complete_manifest preserves the driver's bytes (kept and hashed, not re-serialised)"
+    verdict: upheld_scoped
+    scoped_to: >-
+      The original bytes are kept exactly in the receipt and sha256-bound in both the receipt and the
+      completed manifest. Refusal and unchanged paths leave the file byte-identical. The published
+      manifest.yaml itself is a re-serialisation: comments are lost, YAML 1.1 values are normalised
+      and duplicate keys collapse silently.
+    findings: [LGN-5]
+  - claim: C-LED-1
+    text: "PR #2497 took validate_ledger new errors from 143 to 126"
+    verdict: overclaimed
+    scoped_to: >-
+      At the PR tip, a controlled measurement gives 141 -> 124 (-17, exactly the 17 claimed records).
+      The absolute figures carry 2 measurement artifacts. As merged (0265593c57 vs 692b54f1f4) the
+      change is 115 -> 100 (-15): TASK-20261017-2d324f was not fixed and DEC-20261019-624f64
+      regressed, both still failing on main.
+    findings: [LGN-1, LGN-6, LGN-8]
+  - claim: C-LED-2
+    text: "The AES and five flat-run manifest_v2 records are faithful to the archived bytes they cite"
+    verdict: upheld_scoped
+    scoped_to: >-
+      All 7 records: 53/53 cited hashes recompute and 7/7 registry entries re-hash. Every transcribed
+      value equals the archived key it claims, with the 3 ICPERF differences disclosed in
+      status_source and kind_basis. certificate.kind none in the five flat runs is a derived,
+      disclosed ruling, not a transcribed value. The AES custody annotation names the wrong first
+      commit (LGN-7).
+    findings: [LGN-7]
+  - claim: C-LED-3
+    text: "The rulings DEC-20261023-5c9671 left in place are justified by the record contents"
+    verdict: upheld_scoped
+    scoped_to: >-
+      Each kept ruling's premise holds on the record contents: FROB (cb06b8c20c lacks the driver;
+      quarantine requires completed_invalid and evidence_eligible false); QSP-715b58 (claim_expired,
+      no output); TASK-20261003-6e0c8a (no handoff, id only in 16555aac8d); prior-art/citations (a
+      screen or source reading is needed); EXP-AUXIN-339fb0 (draft, approved_by null);
+      RUN-BINSTD-f7ca97 (no capture companions); the 30 review-plan errors (completing them would
+      invent assignments); handoff budgets (no limit in card or decision). Exceptions: the two
+      DEC-20260929 items are listed as live errors but are measurement artifacts (LGN-6), and the
+      "resolved" TASK-20261017-2d324f budget is not resolved as merged (LGN-1).
+    findings: [LGN-1, LGN-6]
+
+review_attestation:
+  joints_owned: ["B7 ledger/manifests/repository health for SHF-20261028-0f3f64"]
+  sources_read: "as listed in sources_read above"
+  read_sibling_reports: false
+  verdict: "holds on C-MAN-1, C-MAN-3, C-MAN-4, C-LED-2, C-LED-3 as scoped; breaks on C-MAN-2 and C-LED-1 as worded"
+  limitations:
+    - "The PR-era validate_ledger counts come from sparse worktrees (bulk files over 1 MB as empty placeholders), controlled by an exact line-for-line match with the full checkout on main (K5). At older commits the placeholder set differs (1105 vs 1439 files)."
+    - "Workflow enabled state not_covered (K14)."
+    - "Lean not built. L-N9 is a text check only."
+    - "complete_manifest tests call the module from the repo, with fixture drivers in temp dirs. No scientific trial was run, and nothing was written under ledger/ or experiments/."
+    - "Temporary worktrees scratchpad/wt-{main-control,pr2497-base,pr2497-tip,pr2497-parent1,pr2497-merge} were created and removed. git worktree list shows only the main worktree."
