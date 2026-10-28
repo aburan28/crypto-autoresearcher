@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Transfer Modal proxy dependency](classical-ecdlp-transfer-modal-proxy-dependency.md) | connectivity resolved; new invocation pending | The original attempt stopped before VM creation | Optional proxy packages installed; read-only app lookup passed; preserve failure and use a fresh admitted invocation |
 | [Exact-small transfer sampling collision](classical-ecdlp-transfer-small-order-exclusion-collision.md) | v1 infeasible; pre-data v2 repair specified | Distinct(p,j) r17/r31 panel cannot complete | New r29 plan, zero-draw validation, source custody and prospective admission |
 | [Source-bound endpoint-reuse execution is available](classical-ecdlp-endpoint-reuse-isolated-runner-unavailable.md) | resolved for execution/custody | Three source-bound Modal studies completed; timing and independent counter-replay qualification remain separate | Reuse the observed B2/staged-source route with normal new-study admission; retain the separate qualification obligations |
 | [Generator-ordered half-root lacks a uniform constructor](classical-ecdlp-generator-ordered-root-constructor-missing.md) | open | A direct non-generic scalar-half solver from the ordered-root / sparse-antiderivative proposal | Explicit uniform circuit, all-target ordering proof and charged setup/evaluation/recovery recurrence |
