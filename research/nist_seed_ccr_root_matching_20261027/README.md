@@ -139,3 +139,8 @@ immutable A/A-record collisions remain a separate publication issue.
 
 
 [May1997 polynomial-degree source and later fix](signed-frobenius-20261027/period-eigenvalue-20261027/eco-code-recovery-01/degree-routines-01/report.md),28October2026UTC: exact old/later bytes and dated2001fix note verified; actualpatch not recovered. Four normalized bodies match; latercaller removesfixedroots. Source-only degree-one invalid-index path is untestednatively/unlinkedtooriginalcaller. Intendeduniform-random valid-input exception bound<2^-174 percall in documentedrange is conditional,not historicalodds. Every21 identity remainsbound;all original applicationsUNDETERMINED;0newnative trials;full selector unresolved.
+
+
+## Requested stopping point,28October2026
+
+[Final fixed arithmetic pass](../nist_seed_final_checks_20261028/report.md):21 curves checked once;63 original/opposite-root/twist order certificates independently verified;no fixed flag or monotone twist-strength separator. MOV20/100,order/anomalous checks all pass. Investigation loop stopped by user instruction; historical objective unresolved and paused. No further speculative arithmetic or historical-code rounds are scheduled.
