@@ -223,20 +223,41 @@ def run(config=None):
     aa=learned_solve(aa_instance["ring"],aa_instance["polynomials"])
     comparable=lambda x:{k:v for k,v in x.items() if k!="sat_stats"}
     aa_equal=comparable(aa)==comparable(first["learner"])
-    return {"schema":"prime-five-sat/v1", "scope":"bounded proof-producing external theory learning",
+    return {"schema":"prime-five-sat/v1", "config":config, "scope":"bounded proof-producing external theory learning",
+            "counter_scope":"partial arithmetic instrument; excludes inversions, direct evaluation, restriction and backend internals",
             "exact_degree_of_regularity_claim":False,"rows":rows,"controls":controls,
             "aa":{"equal":aa_equal,"replay":aa},
             "all_verified":all(r["verified"] for r in rows) and all(c["verified"] for c in controls) and aa_equal}
 
 
 def verify(data):
+    config=data["config"]
+    expected=list(itertools.product(config.get("primes",[17,97,257]),
+        config.get("digits",config.get("digit_bits",[2,3])),config.get("targets",[0,1,2]),[False,True]))
+    observed=[(r["instance"]["p"],r["instance"]["s"],r["instance"]["target"],r["instance"]["curve_membership"]) for r in data["rows"]]
+    if observed!=expected:
+        return False
     for row in data["rows"]:
         m=row["instance"]
         instance=generate_s3(m["p"],m["s"],m["target"],a=m["a"],b=m["b"],curve_membership=m["curve_membership"])
         saved=[instance["ring"].clean(f) for f in row["generators"]]
         if saved != instance["polynomials"] or not verify_learning(instance["ring"],saved,row["learner"]):
             return False
-    return True
+    if [c["name"] for c in data["controls"]]!=["positive_sat","negative_unsat"]:
+        return False
+    ring=BoolRing(2,17)
+    for control, expected_status, equations in zip(data["controls"],["sat","unsat"],[[{1:1}],[{1:1},{0:16,1:1}]]):
+        if [ring.clean(f) for f in control["generators"]]!=equations or control["result"]["status"]!=expected_status:
+            return False
+        if not verify_learning(ring,equations,control["result"]):
+            return False
+    first=data["rows"][0]
+    m=first["instance"]
+    instance=generate_s3(m["p"],m["s"],m["target"],a=m["a"],b=m["b"],curve_membership=m["curve_membership"])
+    comparable=lambda x:{k:v for k,v in x.items() if k!="sat_stats"}
+    return (verify_learning(instance["ring"],instance["polynomials"],data["aa"]["replay"])
+            and comparable(data["aa"]["replay"])==comparable(first["learner"])
+            and data["aa"]["equal"] is True and data["all_verified"] is True)
 
 
 if __name__ == "__main__":

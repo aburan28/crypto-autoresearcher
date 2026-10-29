@@ -4,6 +4,7 @@ import argparse
 import copy
 import hashlib
 import importlib.metadata
+import itertools
 import json
 import os
 import platform
@@ -35,6 +36,9 @@ def verify_packages(raw_path):
     from sat.solver import verify as check_sat, verify_learning
     from core import BoolRing
     raw=artifact_store.read_json(raw_path)
+    frozen_config=ROOT/"experiments"/raw["config"]["experiment_id"]/"config.json"
+    if digest(frozen_config)!=raw["config_sha256"] or json.loads(frozen_config.read_text())!=raw["config"]:
+        raise ValueError("raw configuration differs from frozen input")
     checks={}
     for package in ("geometry","sat","algebra"):
         entry=raw["packages"][package]
@@ -45,10 +49,29 @@ def verify_packages(raw_path):
         if hashlib.sha256(artifact_store.read_bytes(path)).hexdigest()!=entry["sha256"]:
             raise ValueError("package digest mismatch")
         data=artifact_store.read_json(path)
+        if data["config"]!=raw["config"][package]:
+            raise ValueError("package configuration differs from frozen input")
         if package=="geometry":
+            cfg=data["config"]
+            expected=[(kind,c) for kind,key in (("forward","forward_cells"),("empty_squarefree_control","negative_cells"),("inverse","inverse_cells")) for c in cfg["graeffe"][key]]
+            if [(c["kind"],c["input"]) for c in data["graeffe"]["cells"]]!=expected:
+                raise ValueError("geometry planned Graeffe coverage mismatch")
+            if [c["input"] for c in data["saturation"]["cells"]]!=cfg["saturation"]["cells"]:
+                raise ValueError("geometry planned saturation coverage mismatch")
             checks[package]=check_geometry(data)
         elif package=="algebra":
+            cfg=data["config"]
+            expected=[f"{population}-p{p}-s{s}-r{target}" for p,s,target in itertools.product(cfg["primes"],cfg["digits"],cfg["targets"]) for population in cfg["populations"]]
+            expected += [f"{kind}-p{p}" for p in cfg["primes"] for kind in ("affine-unsat","gate-backdoor")]
+            if [c["id"] for c in data["cells"]]!=expected:
+                raise ValueError("algebra planned fixture coverage mismatch")
+            for cell in data["cells"]:
+                for lead in ("lead3","lead4"):
+                    if [a["arm"] for a in cell[lead]]!=cfg[lead+"_arms"]:
+                        raise ValueError("algebra planned arm coverage mismatch")
             counts=check_algebra(data)
+            if counts["source_matrices"]!=4:
+                raise ValueError("source calibration matrix coverage mismatch")
             bad=copy.deepcopy(data)
             row=next(r for cell in bad["cells"] for arm in cell["lead3"] for r in arm["basis"])
             row["combination"][0][2]+=1
