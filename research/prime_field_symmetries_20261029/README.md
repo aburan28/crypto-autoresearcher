@@ -73,6 +73,14 @@ target or collector draws. `catalog-initial.json` preserves the earlier
 exploratory worktree output; `catalog.json` is the source-pinned version used
 here. Their metadata differ; no scientific observations were discarded.
 
+After publication, a clean-checkout checkpoint attempt exposed an empty-list
+shell bug: filtering zero untracked files returned 1 under `pipefail`. The
+state-hash loop now accepts clean or fully excluded lists while preserving
+file-metadata failures and the real S3 gate. The regression fails on the old
+function; seventeen affected checkpoint/relay tests pass after repair. This
+bookkeeping fix follows the original C1 data snapshot. Reproduce C1 from its
+pinned release/source; the old release correctly rejects changed source bytes.
+
 `symmetry.py` separates four obligations: a valid curve map, a verified subgroup
 eigenvalue, a known signed base action, and the information left after that
 action. For the restricted map `(x,y)->(u²x,u³y)`, substituting the curve equation
