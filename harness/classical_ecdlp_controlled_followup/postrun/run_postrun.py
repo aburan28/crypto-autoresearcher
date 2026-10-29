@@ -13,22 +13,66 @@ import driver
 analysis=c.module(Path(__file__).with_name('analysis.py'),'_controlled_analysis')
 
 
-def run(out,destination,repo,verifier=None,interface=None):
-    out=Path(out); out=out/'modal' if (out/'modal').is_dir() else out; destination=Path(destination)
+def authenticate_inputs(out, repo, record, worker_plan, fixture_law=None):
+    """Authenticate invocation independently of the worker's matching assertions.
+
+    The explicit fixture seam has no source/VM qualification and is unavailable
+    to the ordinary production entry point.
+    """
+    config=c.read(out/'config.json')
+    if fixture_law is not None:
+        c.need(fixture_law=='fixed-F11-calibration/v1', 'unknown fixed fixture law')
+        c.need(config.get('seed_rules')=={'fixture_only':'fixed00_no_entropy'}, 'fixture invocation declaration')
+        c.need(c.read(out/'protocol.json')['protocol_id']=='TEST-F11', 'fixture protocol identity')
+        pins={'protocol_sha256':'00'*32, 'source_fingerprint':'00'*32}
+        c.need(record['plan']['source_fingerprint']==pins['source_fingerprint'], 'independent fixture source pin')
+        c.need(config['inputs']['protocol']['sha256']==pins['protocol_sha256'], 'independent fixture protocol pin')
+        inputs={'workload_law':fixture_law,'max_jsonl_line_bytes':record['plan']['limits']['max_jsonl_line_bytes']}
+    else:
+        expected, invocation, static, _=c.make_plan(repo,config)
+        c.need(expected==record['plan'], 'controller plan differs from independent invocation')
+        c.need(worker_plan.get('provenance',{}).get('protocol_sha256')==invocation['inputs']['protocol']['sha256'] and worker_plan.get('provenance',{}).get('source_fingerprint')==expected['source_fingerprint'], 'worker provenance differs from independent invocation')
+        for role,binding in invocation['inputs'].items():
+            copied=out/(role+'.json')
+            c.need(c.sha_file(copied)==binding['sha256'], 'copied input hash mismatch: '+role)
+            c.need(c.read(copied)==static[role], 'copied input semantics differ: '+role)
+        wm,_=c.source_payload(repo,out/'worker_manifest.json','worker')
+        hm,hosts=c.source_payload(repo,out/'host_manifest.json','host')
+        fingerprint=c.sha_bytes(c.canonical({'worker':wm,'host':hm}))
+        c.need(fingerprint==expected['source_fingerprint'], 'copied source fingerprint mismatch')
+        # Every module already executing on the host must be in the exact map.
+        executing=[Path(__file__),Path(c.__file__),Path(driver.__file__),Path(analysis.__file__),
+                   c.safe(repo,c.PREFIX+'/host/verify.py'),c.safe(repo,c.PREFIX+'/host/reference.py'),
+                   Path(__file__).with_name('render_report.py')]
+        for path in executing:
+            relative=path.resolve().relative_to(Path(repo).resolve()).as_posix()
+            c.need(relative in hosts and c.sha_file(path)==hm['files'][relative], 'executing host source not bound: '+relative)
+        pins={'protocol_sha256':invocation['inputs']['protocol']['sha256'],'source_fingerprint':fingerprint}
+        inputs={'workload_law':'production/v1','prior_exclusions':static['prior_exclusions'],
+                'max_jsonl_line_bytes':expected['limits']['max_jsonl_line_bytes']}
+    for key,value in pins.items():
+        c.need(worker_plan.get('provenance',{}).get(key)==value, 'worker provenance differs from invocation: '+key)
+    return inputs
+
+
+def run(out,destination,repo,verifier=None,interface=None,inner_transport=False,fixture_law=None):
+    supervisor=Path(out)
+    out=supervisor/'modal' if (supervisor/'modal').is_dir() else supervisor
+    destination=Path(destination)
     destination.mkdir(parents=True,exist_ok=False)
     receipt=out/'controller-receipt.json'
-    if receipt.is_file():record=c.read(receipt)
-    else:
-        receipt=out/'controller-error.json'
-        record={'status':'failed','files':[],'engine_execs':0,'plan':{'limits':{'max_jsonl_line_bytes':64<<20}},'controller_record_missing':True}
+    record={'status':'failed','files':[],'engine_execs':0,'plan':{'limits':{'max_jsonl_line_bytes':64<<20}},'controller_record_missing':True}
     export={'schema':c.SCHEMA+'postrun-result/v1','status':'incomplete','observed_only':True,
             'scientific_validity':'not_assessed','wall_valid':False,'counter_replay_qualified':False,
             'automatic_retry':False,'artifacts':[],'errors':[]}
     try:
-        driver.check(out)
+        driver.check(supervisor,allow_inner=inner_transport)
+        record=c.read(receipt)
         c.need(record['status']=='complete','operational failure; no host oracle work allowed')
         evidence=c.custody_for(out/'collected',record)
         plan=c.read(out/'collected/host-plan.json')
+        c.need(fixture_law is None or verifier is not None, 'fixed fixture requires explicit injected verifier')
+        authenticated=authenticate_inputs(out,repo,record,plan,fixture_law)
         public_path=out/'collected/public-cohort.json'
         entry=next((e for e in record['files'] if e['path']=='public-cohort.json'),None)
         c.need(entry is not None and c.sha_file(public_path)==entry['sha256'],'sealed public cohort missing')
@@ -38,21 +82,21 @@ def run(out,destination,repo,verifier=None,interface=None):
         interface=interface or c.read(out/'engine_interface.json')
         # Host module import is deliberately after custody gate and termination ACK.
         if verifier is None:
-            config=c.read(out/'config.json')
-            manifest,_=c.source_payload(repo,c.safe(repo,config['inputs']['host_manifest']['path']),'host')
+            manifest=c.read(out/'host_manifest.json')
             path=c.safe(repo,c.PREFIX+'/host/verify.py')
             c.need(c.sha_file(path)==manifest['files'][c.PREFIX+'/host/verify.py'],'host verifier source mismatch')
             host=c.module(path,'verify')
             verifier=host.verify_bundle
             reference=c.module(c.safe(repo,c.PREFIX+'/host/reference.py'),'reference')
-            master=os.urandom(32)
-            c.write(destination/'host-seed-event.json',{'master_hex':master.hex(),'bytes':32,'phase':'after_complete_collection_seal_quiescence_termination_ack','model':'domain-separated SHA256 null and uniform streams from one fresh host master'})
+
         with (destination/'host-cells.jsonl').open('x') as stream:
             def emit(row):
                 stream.write(json.dumps(row,sort_keys=True,allow_nan=False)+'\n'); stream.flush()
-            checked=verifier(out/'collected/raw',evidence,plan,interface,emit=emit)
+            checked=verifier(out/'collected/raw',evidence,plan,interface,emit=emit,authenticated_inputs=authenticated)
         c.write(destination/'verification.json',checked)
         if 'host' in locals():
+            master=os.urandom(32)
+            c.write(destination/'host-seed-event.json',{'master_hex':master.hex(),'bytes':32,'phase':'after_authenticated_frozen_workload_verification_collection_seal_quiescence_termination_ack','model':'domain-separated SHA256 null and uniform streams from one fresh host master'})
             run_references(host,reference,out/'collected/raw',evidence,plan,c.read(public_path),master,destination,record['plan']['limits']['max_jsonl_line_bytes'])
         summary=analysis.summarize(out/'collected/raw',record['plan']['limits']['max_jsonl_line_bytes'])
         c.write(destination/'analysis.json',summary)
@@ -68,20 +112,23 @@ def run(out,destination,repo,verifier=None,interface=None):
             export['errors'].append({'partial_analysis':type(partial).__name__,'message':str(partial)})
     for p in sorted(destination.iterdir()):
         if p.is_file(): export['artifacts'].append({'path':p.name,'sha256':c.sha_file(p),'bytes':p.stat().st_size})
-    export['raw_transport']={'receipt_sha256':c.sha_file(receipt) if receipt.is_file() else None, 'files':record['files'], 'status':record['status']}
-    c.write(destination/'postrun-result.json',export)
-    renderer=c.module(Path(__file__).with_name('render_report.py'),'_controlled_render')
-    renderer.render(destination)
+    export['raw_transport']={'receipt_sha256':c.sha_file(receipt) if receipt.is_file() else None, 'files':record['files'], 'status':record['status'],
+                             'integrity_scope':'inner_transport_only' if inner_transport else 'complete_supervisor_envelope'}
     ep=c.module(Path(repo)/'tools/experiment_protocol.py','_controlled_unified_export')
-    try:bundle,findings=make_export(ep,out,destination,record,export)
+    try:
+        bundle,findings=make_export(ep,out,destination,record,export,supervisor if not inner_transport else None)
+        c.write(destination/'export.json',bundle)
+        validation={'findings':findings,'schema_compliant':not ep.schema_errors(bundle,'experiment.export/v1'),'protocol_qualified':not findings}
     except (OSError,KeyError,ValueError) as error:
         findings=['unified export unavailable without required protocol/input bytes: '+str(error)]
-        c.write(destination/'export.validation.json',{'findings':findings,'schema_compliant':False,'protocol_qualified':False})
-        export['export_findings']=findings
-        return export
-    c.write(destination/'export.json',bundle)
-    c.write(destination/'export.validation.json',{'findings':findings,'schema_compliant':not ep.schema_errors(bundle,'experiment.export/v1'),'protocol_qualified':not findings})
+        validation={'findings':findings,'schema_compliant':False,'protocol_qualified':False}
+    c.write(destination/'export.validation.json',validation)
     export['export_findings']=findings
+    c.write(destination/'postrun-result.json',export)
+    # Export seals raw and analysis only. Reports consume its completed findings;
+    # neither report nor export attempts to hash its own bytes.
+    renderer=c.module(Path(__file__).with_name('render_report.py'),'_controlled_render')
+    renderer.render(destination)
     return export
 
 
@@ -101,7 +148,7 @@ def run_references(verify,reference,raw,evidence,plan,public,master,destination,
             start=f.tell();line=f.readline(max_line+1)
             if not line:break
             c.need(len(line)<=max_line and line.endswith(b'\n'),'cell line resource bound/partial')
-            cell=json.loads(line,object_pairs_hook=c.unique)
+            cell=json.loads(line,object_pairs_hook=c.unique,parse_constant=analysis.nonfinite,parse_float=analysis.finite_float)
             curve=trace_meta[cell['trace_id']]['curve_id'];offsets[curve].append((start,len(line)))
             c.need(sum(map(len,offsets.values()))<=73728,'cell offset index resource cap')
     total=sum(curve['model']['r'] for curve in public['curves'])
@@ -155,7 +202,7 @@ def run_references(verify,reference,raw,evidence,plan,public,master,destination,
         uniform_path='uniform-'+ident+'.jsonl'
         with (destination/uniform_path).open('x') as target,(raw/'decoder-cells.jsonl').open('rb') as source:
             for offset,length in offsets[ident]:
-                source.seek(offset);cell=json.loads(source.read(length),object_pairs_hook=c.unique)
+                source.seek(offset);cell=json.loads(source.read(length),object_pairs_hook=c.unique,parse_constant=analysis.nonfinite,parse_float=analysis.finite_float)
                 meta=trace_meta[cell['trace_id']]
                 uniform=reference.uniform_list(seal,oracle.group,oracle.base,tuple(meta['target']),cell['M'],seed('uniform/'+cell['cell_id']))
                 target.write(json.dumps({'trace_id':cell['trace_id'],'cell_id':cell['cell_id'],'M':cell['M'],'uniform':uniform},sort_keys=True,allow_nan=False)+'\n');target.flush()
@@ -171,7 +218,7 @@ def entry(path,base,kind='raw'):
     return {'path':os.path.relpath(path,base),'sha256':c.sha_file(path),'bytes':path.stat().st_size,'kind':kind}
 
 
-def make_export(ep,out,destination,record,result):
+def make_export(ep,out,destination,record,result,supervisor=None):
     protocol=c.read(out/'protocol.json')
     bundle=ep.export_skeleton(protocol,os.path.relpath(out/'protocol.json',destination),'modal',protocol['protocol_id']+'.controlled-export')
     bundle['producer']={'runtime':'codex_cli','model':None,'session':None,'role':'executor'}
@@ -186,7 +233,9 @@ def make_export(ep,out,destination,record,result):
         summary_path=destination/('analysis.json' if (destination/'analysis.json').exists() else 'partial-analysis.json')
         summary=c.read(summary_path) if summary_path.exists() else {}
         rows=summary.get('per_curve_six_cell',[])
-        bundle['runs']=[ep.run_row(run_id=protocol['protocol_id']+'.supervisor',arm=arm,instance_id='candidate-vm',replicate=0,seed=None,
+        identity=record.get('supervisor_identity',{})
+        c.need(identity.get('experiment_id')==protocol['protocol_id'] and str(identity.get('run_id','')).startswith('RUN-'),'allocated supervisor identity required for export')
+        bundle['runs']=[ep.run_row(run_id=identity['run_id'],arm=arm,instance_id='candidate-vm',replicate=0,seed=None,
             status='succeeded' if record['status']=='complete' else 'infra_error',attempts=1,resumed=0,
             measurements={'counted':{'retained_decoder_cells':sum(r['attempts'] for r in rows),'retained_success_events':sum(r['successes'] for r in rows)},
                 'counters':{'per_curve_six_cell_json':json.dumps(rows,sort_keys=True),'counter_replay_qualified':'false','unmetered':'native RSS,interpreter allocations,I/O,integer internals'},'wall_valid':False},
@@ -197,6 +246,8 @@ def make_export(ep,out,destination,record,result):
     files=[entry(p,destination,'raw') for p in sorted((out/'collected').rglob('*')) if p.is_file()] if (out/'collected').exists() else []
     files.extend(entry(p,destination,'receipt') for p in sorted(out.glob('*.json')))
     outputs=[entry(p,destination,'report' if p.suffix in {'.pdf','.svg','.md'} else 'analysis') for p in sorted(destination.iterdir()) if p.is_file()]
+    if supervisor is not None:
+        files.extend(entry(supervisor/name,destination,'receipt') for name in ['manifest.yaml','raw-result.json','modal-evidence.tar.gz','modal-evidence-manifest.json'])
     files.extend(outputs);bundle['files']=files
     bundle['analysis']={'script':entry(Path(__file__).with_name('analysis.py'),destination,'analysis'),'outputs':outputs,'blinded':False,'blinding_key_sha256':None,'unmasked_at':None}
     bundle['notes']=[{'kind':'observation','by':'controlled postrun','text':'One actual composite supervisor execution row; raw calibration/confirmation schedules and shared six-cell outcomes retained. No padded observations. Wall clocks and counter replay unqualified; no scientific conclusion.'}]

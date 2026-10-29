@@ -30,10 +30,14 @@ class Fixtures(unittest.TestCase):
         self.root=Path(self.tmp.name)
         for name in v.FILES:
             (self.root/name).write_bytes(b'{}\n')
+        self.entropy_guard=patch.object(os,'urandom',side_effect=AssertionError('source tests forbid entropy'))
+        self.entropy_guard.start()
         self.evidence=custody(self.root)
         self.seal=v.open_sealed(self.root,self.evidence)
 
-    def tearDown(self): self.tmp.cleanup()
+    def tearDown(self):
+        self.entropy_guard.stop()
+        self.tmp.cleanup()
 
     def test_custody_rejects_before_oracle(self):
         for key in ('sealed','collection_complete','uid1000_quiescent','termination_ack'):
@@ -237,13 +241,119 @@ class Fixtures(unittest.TestCase):
             'provenance':completion['provenance'],'setup_ids':['fixture-F11/circuit1.a5'],
             'single_ids':[sample['single-point']['single_id']],
             'trace_ids':[trace['trace_id']],'paired_trace_ids':[],'expected':expected}
-        checked=v.verify_bundle(self.root,evidence,plan,interface)
+        checked=v.verify_bundle(self.root,evidence,plan,interface,authenticated_inputs={'workload_law':'fixed-F11-calibration/v1'})
         self.assertEqual(checked['observed'],expected)
         altered=copy.deepcopy(plan);altered['public_cohort_bytes_hex']=v.canonical({'curves':[]}).hex()
-        with self.assertRaises(ValueError):v.verify_bundle(self.root,evidence,altered,interface)
+        with self.assertRaises(ValueError):v.verify_bundle(self.root,evidence,altered,interface,authenticated_inputs={'workload_law':'fixed-F11-calibration/v1'})
         broken=copy.deepcopy(plan);broken['paired_trace_ids']=[trace['trace_id']]
-        with self.assertRaises(ValueError):v.verify_bundle(self.root,evidence,broken,interface)
+        with self.assertRaises(ValueError):v.verify_bundle(self.root,evidence,broken,interface,authenticated_inputs={'workload_law':'fixed-F11-calibration/v1'})
+        # Each semantic mutant is correctly resealed, including completion hashes.
+        originals={name:(self.root/name).read_bytes() for name in v.FILES}
+        def restore():
+            for name,raw in originals.items():(self.root/name).write_bytes(raw)
+        def reseal():
+            complete=v.strict_loads((self.root/'engine-completion.json').read_bytes(),64<<20)
+            for name,item in complete['files'].items():
+                raw=(self.root/name).read_bytes()
+                item.update(sha256=v.digest(raw),bytes=len(raw))
+            (self.root/'engine-completion.json').write_bytes(v.canonical(complete))
+            return custody(self.root)
+        def reject(label,mutate,law='fixed-F11-calibration/v1',cap=64<<20):
+            restore();candidate=copy.deepcopy(plan);mutate(candidate)
+            sealed=reseal()
+            with patch.object(v,'Oracle',side_effect=AssertionError('labels reached before rejection')),patch.object(os,'urandom',side_effect=AssertionError('entropy forbidden')):
+                with self.assertRaises(ValueError,msg=label):
+                    v.verify_bundle(self.root,sealed,candidate,interface,authenticated_inputs={'workload_law':law,'max_jsonl_line_bytes':cap,'prior_exclusions':{'excluded_p_j':[]}})
+            print(json.dumps({'fixture':'F11','rejected_before_labels':label}))
+        def edit(name,operation):
+            path=self.root/name;path.write_bytes(operation(path.read_bytes()))
+        reject('duplicate-key single',lambda p:edit('single-points.jsonl',lambda b:b.replace(b'{',b'{"schema":"WRONG",',1)))
+        reject('partial-final trace',lambda p:edit('traces.jsonl',lambda b:b.rstrip(b'\n')))
+        reject('nonfinite single NaN',lambda p:edit('single-points.jsonl',lambda b:b.replace(b'{',b'{"rogue":NaN,',1)))
+        reject('nonfinite exponent overflow',lambda p:edit('single-points.jsonl',lambda b:b.replace(b'{',b'{"rogue":1e999,',1)))
+        reject('duplicate-key summary',lambda p:edit('engine-summary.json',lambda b:b.replace(b'{',b'{"schema":"WRONG",',1)))
+        reject('line byte bound',lambda p:None,cap=32)
+        def shrink(p):
+            (self.root/'single-points.jsonl').write_bytes(b'')
+            p['single_ids']=[];p['expected']['singles']=0
+            summary=v.strict_loads((self.root/'engine-summary.json').read_bytes(),64<<20)
+            summary['expected']['singles']=summary['observed']['singles']=0
+            (self.root/'engine-summary.json').write_bytes(v.canonical(summary))
+            complete=v.strict_loads((self.root/'engine-completion.json').read_bytes(),64<<20)
+            complete['files']['single-points.jsonl']['records']=0
+            (self.root/'engine-completion.json').write_bytes(v.canonical(complete))
+        reject('removed row and consistently shrunken worker plan',shrink)
+        reject('F11 under production law',lambda p:None,law='production/v1')
+        def rebind_public(p,raw):
+            p['public_cohort_bytes_hex']=raw.hex();p['provenance']['cohort_sha256']=v.digest(raw)
+            for name in ('engine-summary.json','engine-completion.json'):
+                value=v.strict_loads((self.root/name).read_bytes(),64<<20)
+                value['provenance']=copy.deepcopy(p['provenance'])
+                (self.root/name).write_bytes(v.canonical(value))
+        reject('duplicate cohort key with correct byte pins',lambda p:rebind_public(p,bytes.fromhex(p['public_cohort_bytes_hex']).replace(b'{',b'{"nonce":"WRONG",',1)))
+        def production_disguise(p):
+            old='fixture-F11';new='confirmation-A-16-0'
+            for key in ('setup_ids','single_ids','trace_ids','paired_trace_ids'):p[key]=[x.replace(old,new) for x in p[key]]
+            for name in v.FILES:
+                path=self.root/name;path.write_bytes(path.read_bytes().replace(old.encode(),new.encode()))
+            rebind_public(p,bytes.fromhex(p['public_cohort_bytes_hex']).replace(old.encode(),new.encode()))
+        reject('original F11 confirmation-A-16 calibration-arm disguise',production_disguise)
+        restore()
+        # Equal-count replacement is rejected by the ACTUAL host engine-cell path.
+        o=v.Oracle(self.seal,sample['setup']['model'],sample['setup']['base'])
+        trace=copy.deepcopy(sample['trace'])
+        bits,_=v.check_engine_trace(o,sample['setup']['arm'],trace)
+        cell=copy.deepcopy(sample['decoder-cell'])
+        cell['words'][1]=copy.deepcopy(cell['words'][0])
+        self.assertEqual(len(cell['words']),cell['expected_word_count'])
+        with self.assertRaisesRegex(ValueError,'word order/value'):
+            v.check_engine_cell(o,trace,bits,cell)
+        print(json.dumps({'fixture':'F11','equal_count_duplicate_engine_cell':'rejected ordered word replacement without changing producer'}))
         print(json.dumps({'fixture':'F11','published_data_only_sample':'trace+cell pass; five mutants rejected; complete original-only bundle passes; paired schedule mutant rejected'}))
+
+    def test_independent_production_law_no_draw_and_population_controls(self):
+        with patch.object(os,'urandom',side_effect=AssertionError('entropy forbidden')):
+            law=v.production_schedule()
+        self.assertEqual(len(law['slots']),48)
+        self.assertEqual(law['physical_calls'],1033728)
+        self.assertEqual(len(law['single_ids'])+len(law['trace_ids']),382464)
+        self.assertEqual(len(law['setup_ids']),216)
+        self.assertEqual(len(law['paired_trace_ids']),12288)
+        self.assertEqual(law['expected']['cells'],6*len(law['paired_trace_ids']))
+        self.assertIn('validation-13-3/single1799/circuit2.a5',law['single_ids'])
+        self.assertIn('confirmation-B-16-3/target0063/rep7',law['paired_trace_ids'])
+        self.assertNotIn('confirmation-B-16-3/target0064/rep7',law['paired_trace_ids'])
+        self.assertEqual(law['trace_ids']['confirmation-B-16-3/target0063/rep7'],
+            {'curve_id':'confirmation-B-16-3','arm_id':'circuit2.a1','target_id':'target0063'})
+        for name,model,base in FIXTURES:
+            bits=model['r'].bit_length()
+            identity=v.public_curve_identity(model,bits,set())
+            with self.assertRaisesRegex(ValueError,'duplicate/excluded'):
+                v.public_curve_identity(model,bits,{identity})
+            with self.assertRaisesRegex(ValueError,'actual production r tier'):
+                v.public_curve_identity(model,16,set())
+            target=[7,2] if name=='F11' else [15,7]
+            public={'nonce':'0'*64,'curves':[{'curve_id':'fixture-'+name,'model':model,'base':base,'targets':[{'target_id':'target7','point':target}]}]}
+            fixture=v.frozen_schedule(public,{'workload_law':'fixed-'+name+'-calibration/v1'})
+            self.assertEqual(fixture['expected'],{'setups':1,'singles':1,'traces':1,'intents':1,'cells':0})
+            # F11/F23 cannot acquire production tier labels through a fixture law.
+            public['curves'][0]['curve_id']='confirmation-A-16-0'
+            with self.assertRaisesRegex(ValueError,'fixed fixture curve ID'):
+                v.frozen_schedule(public,{'workload_law':'fixed-'+name+'-calibration/v1'})
+        print(json.dumps({'host_independent_no_draw_law':{'slots':48,'jobs':382464,'setups':216,'physical_calls':1033728,'confirmation_cells':73728},
+            'fixed_population_controls':'F11/F23 exact fixtures accept; production tier disguises and global exclusion/duplicate identities reject'}))
+
+    def test_strict_parser_and_cached_schema_contract(self):
+        for raw in (b'{"x":1,"x":2}',b'{"x":NaN}',b'{"x":Infinity}',b'{"x":-Infinity}',b'{"x":1e999}',b'{"nested":[{"x":1,"x":2}]}'):
+            with self.assertRaises(ValueError):v.strict_loads(raw,1024)
+        self.assertEqual(v.strict_loads(b'{"x":0,"y":false}',1024),{'x':0,'y':False})
+        schema=v.canonical({'type':'object','required':['x'],'properties':{'x':{'type':'integer','minimum':0}},'additionalProperties':False})
+        first=v.compiled_validator(schema);second=v.compiled_validator(schema)
+        self.assertIs(first,second)
+        first.validate({'x':0})
+        import jsonschema
+        for invalid in ({},{'x':-1},{'x':True},{'x':0,'extra':1}):
+            with self.assertRaises(jsonschema.ValidationError):second.validate(invalid)
 
     def test_references_saturation_null_and_bsgs(self):
         for name,model,P in FIXTURES:

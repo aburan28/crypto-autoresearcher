@@ -9,6 +9,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -55,10 +56,16 @@ def unique(pairs):
     return result
 
 
+def finite_float(value):
+    result=float(value)
+    need(math.isfinite(result), 'nonfinite JSON number')
+    return result
+
+
 def read(path, limit=64 << 20):
     path = Path(path)
     need(path.is_file() and not path.is_symlink() and path.stat().st_size <= limit, 'bounded regular JSON required')
-    return json.loads(path.read_bytes(), object_pairs_hook=unique,
+    return json.loads(path.read_bytes(), object_pairs_hook=unique, parse_float=finite_float,
                       parse_constant=lambda x: (_ for _ in ()).throw(ValueError('nonfinite JSON')))
 
 
@@ -116,6 +123,12 @@ def source_payload(repo, manifest_path, kind):
 
 
 def audit_closure(files):
+    """Static import screen, not a sandbox or proof of runtime capability isolation.
+
+    It checks literal imports and direct named dynamic calls only. Aliased,
+    reflective and stdlib-mediated dynamic access is outside this screen's
+    guarantee; committed-byte closure and OS/provider custody remain separate.
+    """
     need(set(files) == WORKER, 'exact worker closure')
     std = set(sys.stdlib_module_names)
     for name, data in files.items():
@@ -265,7 +278,8 @@ def custody_for(output, record):
     need(record.get('collection_complete') is True and record.get('uid1000_quiescent') is True, 'collection/quiescence incomplete')
     ack = record.get('termination_ack') or {}
     need(ack.get('acknowledged') is True and ack.get('transport_id') and ack.get('uid') == 1000, 'actual termination ACK missing')
-    entries = record['files']
+    entries = validate_entries(record['files'], record['plan']['limits'])
+    need({'host-plan.json', 'public-cohort.json'} <= {e['path'] for e in entries}, 'required public custody entries missing')
     raw = []
     for e in entries:
         path = safe(output, e['path'])
@@ -293,8 +307,12 @@ def bindings_protocol_sha(config):
     return config['inputs']['protocol']['sha256']
 
 
-def run(repo, config_path, out, sdk=None):
+def run(repo, config_path, out, sdk=None, supervisor_identity=None):
+    if supervisor_identity is not None:
+        need(set(supervisor_identity) == {'experiment_id', 'run_id'} and isinstance(supervisor_identity['experiment_id'], str) and supervisor_identity['experiment_id'].startswith('EXP-') and isinstance(supervisor_identity['run_id'], str) and supervisor_identity['run_id'].startswith('RUN-'), 'allocated supervisor identity')
     plan, config, inputs, workers = make_plan(repo, config_path)
+    if supervisor_identity is not None:
+        need(inputs['protocol']['protocol_id'] == supervisor_identity['experiment_id'], 'controller protocol/allocated experiment mismatch')
     out = Path(out); out.mkdir(parents=True, exist_ok=False)
     write(out/'plan.json', plan)
     snapshot_inputs(repo, config_path, config, inputs, out)
@@ -304,6 +322,8 @@ def run(repo, config_path, out, sdk=None):
     record = {'schema': SCHEMA+'controller-receipt/v1', 'plan': plan, 'vm_creates': 0, 'engine_execs': 0,
               'files': [], 'collection_complete': False, 'uid1000_quiescent': False,
               'termination_ack': None, 'automatic_retry': False, 'wall_valid': False}
+    if supervisor_identity is not None:
+        record['supervisor_identity'] = dict(supervisor_identity)
     sb = None
     try:
         if sdk is None:

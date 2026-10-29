@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from itertools import combinations, product
+from functools import lru_cache
 from math import comb, isqrt
 from pathlib import Path
 import hashlib
@@ -30,7 +31,7 @@ def require(condition, message):
 
 
 def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode()
 
 
 def digest(value):
@@ -47,15 +48,17 @@ class SealedInput:
     files: dict[str, Path]
     digest: str
     evidence: dict
+    max_line_bytes: int = 64 << 20
 
 
-def open_sealed(root, evidence):
+def open_sealed(root, evidence, max_line_bytes=64 << 20):
     """Validate transport assertions and ALL collected bytes before parsing labels.
 
     Caller must authenticate the transport-owned evidence independently. Boolean
     fields are assertions, not a process-isolation proof. Symlinks, extra files,
     path traversal, missing bytes and mismatched hashes are rejected.
     """
+    require(type(max_line_bytes) is int and 0 < max_line_bytes <= 64 << 20, 'JSON line byte cap')
     require(evidence.get('schema') == PREFIX+'host-custody/v1', 'custody schema')
     require(evidence.get('collection_complete') is True, 'incomplete collection')
     require(evidence.get('uid1000_quiescent') is True, 'UID1000 not quiescent')
@@ -88,7 +91,7 @@ def open_sealed(root, evidence):
             for chunk in iter(lambda:source.read(1048576),b''):h.update(chunk)
         require(h.hexdigest() == row.get('sha256'), 'file digest mismatch')
         files[name] = file
-    return SealedInput(files, evidence['tree_sha256'], evidence)
+    return SealedInput(files, evidence['tree_sha256'], evidence, max_line_bytes)
 
 
 def prime(n):
@@ -338,12 +341,184 @@ def check_cell(g,G,Q,a,b,bits,reported):
     return wanted
 
 
+def strict_loads(raw, limit):
+    require(type(raw) is bytes and len(raw)<=limit, 'bounded JSON required')
+    def unique(pairs):
+        result={}
+        for key,value in pairs:
+            require(key not in result, 'duplicate JSON key: '+key)
+            result[key]=value
+        return result
+    def nonfinite(value):
+        raise ValueError('nonfinite JSON')
+    result=json.loads(raw, object_pairs_hook=unique, parse_constant=nonfinite)
+    # JSON exponent overflow (1e999) also produces an IEEE infinity.
+    def finite(value):
+        if type(value) is float:
+            from math import isfinite
+            require(isfinite(value),'nonfinite JSON')
+        elif type(value) is dict:
+            for child in value.values():finite(child)
+        elif type(value) is list:
+            for child in value:finite(child)
+    finite(result)
+    return result
+
+
+def read_json(path, limit):
+    require(path.stat().st_size<=limit,'bounded JSON required')
+    with path.open('rb') as source:
+        return strict_loads(source.read(limit+1),limit)
+
+
 def iter_records(seal,name):
     need_seal(seal)
     with seal.files[name].open('rb') as source:
-        for raw in source:
+        while True:
+            raw=source.readline(seal.max_line_bytes+1)
+            if not raw:break
+            require(len(raw)<=seal.max_line_bytes,'JSONL line byte cap')
+            require(raw.endswith(b'\n'),'partial final JSONL row')
             require(bool(raw.strip()),'blank JSONL row')
-            yield json.loads(raw)
+            yield strict_loads(raw,seal.max_line_bytes)
+
+
+@lru_cache(maxsize=32)
+def compiled_validator(schema_bytes):
+    """Compile each exact schema once; keep jsonschema.validate's chosen draft."""
+    import jsonschema
+    schema=strict_loads(schema_bytes,64<<20)
+    cls=jsonschema.validators.validator_for(schema)
+    cls.check_schema(schema)
+    return cls(schema)
+
+
+def public_curve_identity(model,bits,excluded):
+    """Check a retained model's tier and global exclusion key without labels."""
+    p,a,b,r=(model[k] for k in ('p','a','b','r'))
+    require(all(type(x) is int for x in (p,a,b,r)) and r.bit_length()==bits,'actual production r tier')
+    require((1<<(bits-1))<=p<(1<<(bits+1)) and prime(p) and p%4==3 and 0<=a<p and 0<=b<p,'production field range')
+    den=(4*a**3+27*b*b)%p
+    require(den!=0 and prime(r) and r!=p and (p+1-r)%p!=0,'production ordinary prime order domain')
+    ident=(p,1728*4*a**3*pow(den,-1,p)%p)
+    require(ident not in excluded,'production duplicate/excluded (p,j)')
+    return ident
+
+
+def frozen_schedule(cohort, authenticated_inputs):
+    """Host-owned law; no import of cohort/worker planning or worker authority.
+
+    The caller authenticates static inputs before calling. A fixture law is an
+    explicit invocation capability, never inferred from labels or worker plan.
+    """
+    require(type(authenticated_inputs) is dict,'independently authenticated workload law required')
+    law=authenticated_inputs.get('workload_law')
+    curves=cohort['curves']
+    setups={};singles={};traces={};paired=set()
+    def setup(cid,arm):setups[cid+'/'+arm]={'curve_id':cid,'arm_id':arm}
+    def single(cid,arm,ident):singles[ident]={'curve_id':cid,'arm_id':arm}
+    def trace(cid,arm,ident,target_id=None,target=None):
+        traces[ident]={'curve_id':cid,'arm_id':arm}
+        if target_id is not None:traces[ident].update(target_id=target_id,target=target)
+    if law in ('fixed-F11-calibration/v1','fixed-F23-calibration/v1'):
+        name=law.split('-')[1]
+        model,base=({'p':11,'a':1,'b':6,'r':13},[2,7]) if name=='F11' else ({'p':23,'a':11,'b':5,'r':17},[5,22])
+        cid='fixture-'+name
+        # Q=[7]P is the disclosed deterministic known-answer target.
+        require(len(curves)==1 and curves[0]['curve_id']==cid,'fixed fixture curve ID')
+        require(curves[0]['model']==model and curves[0]['base']==base,'fixed fixture model/base')
+        target=[7,2] if name=='F11' else [15,7]
+        require(curves[0]['targets']==[{'target_id':'target7','point':target}],'fixed fixture public target')
+        arm='circuit1.a5'
+        setup(cid,arm);single(cid,arm,cid+'/single0000/'+arm)
+        setups[cid+'/'+arm].update(model=model,base=base,arm=ARMS[arm])
+        singles[cid+'/single0000/'+arm]['point']=target
+        trace(cid,arm,cid+'/target7/rep0','target7',target)
+        traces[cid+'/target7/rep0']['target_multiplier']=1
+        expected={'setups':1,'singles':1,'traces':1,'intents':1,'cells':0}
+        return {'setup_ids':setups,'single_ids':singles,'trace_ids':traces,'paired_trace_ids':paired,'expected':expected}
+    require(law=='production/v1','unknown workload law')
+    schedule=production_schedule()
+    slots=schedule.pop('slots')
+    require(len(curves)==48 and {c['curve_id'] for c in curves}==set(slots),'exact 48 production slots')
+    exclusions=authenticated_inputs.get('prior_exclusions',{}).get('excluded_p_j')
+    require(type(exclusions) is list and all(type(x) is list and len(x)==2 and all(type(v) is int and v>=0 for v in x) for x in exclusions),'frozen exposed exclusions required')
+    excluded={tuple(x) for x in exclusions}
+    require(len(excluded)==len(exclusions),'duplicate frozen exclusions')
+    for curve in curves:
+        cid=curve['curve_id'];stage,bits=slots[cid];model=curve['model']
+        excluded.add(public_curve_identity(model,bits,excluded))
+        targets=curve['targets']
+        if stage in ('discovery','validation'):
+            require(targets==[],'calibration public targets must be empty')
+        else:
+            require(len(targets)==64 and [t['target_id'] for t in targets]==[f'target{i:04d}' for i in range(64)],'exact production targets/IDs')
+            require(all(type(t['point']) is list and len(t['point'])==2 for t in targets),'public target coordinates')
+            require(len({tuple(t['point']) for t in targets})==64,'unique production public targets')
+            for t in targets:
+                for rep in range(8):schedule['trace_ids'][f"{cid}/{t['target_id']}/rep{rep}"]['target']=t['point']
+        for arm in (ARMS if stage in ('discovery','validation') else ('circuit2.a1',)):
+            schedule['setup_ids'][cid+'/'+arm].update(model=model,base=curve['base'],arm=ARMS[arm])
+    schedule.pop('physical_calls')
+    return schedule
+
+
+def production_schedule():
+    """Pure no-draw host construction, independent of all worker plan outputs."""
+    slots={f'{stage}-{bits}-{index}':(stage,bits)
+           for stage in ('discovery','validation','confirmation-A','confirmation-B')
+           for bits in (10,13,16) for index in range(4)}
+    setups={};singles={};traces={};paired=set();physical_calls=0
+    for cid,(stage,bits) in slots.items():
+        if stage in ('discovery','validation'):
+            for arm in ARMS:
+                metadata={'curve_id':cid,'arm_id':arm}
+                setups[cid+'/'+arm]=dict(metadata)
+                for i in range(1800):singles[f'{cid}/single{i:04d}/{arm}']=dict(metadata)
+                for i in range(128):traces[f'{cid}/trace{i:04d}/{arm}']={**metadata,'target_id':None}
+            physical_calls+=1800*8+128*8*(bits+1)
+        else:
+            metadata={'curve_id':cid,'arm_id':'circuit2.a1'}
+            setups[cid+'/circuit2.a1']=dict(metadata)
+            for i in range(64):
+                target=f'target{i:04d}'
+                for rep in range(8):
+                    ident=f'{cid}/{target}/rep{rep}'
+                    traces[ident]={**metadata,'target_id':target};paired.add(ident)
+            physical_calls+=64*8*2*(bits+1)
+    expected={'setups':216,'singles':345600,'traces':36864,'intents':36864,'cells':73728}
+    require(physical_calls==1033728 and len(singles)+len(traces)==382464,'host frozen construction counts')
+    require(len(setups)==216 and len(singles)==345600 and len(traces)==36864 and len(paired)==12288,'host schedule counts')
+    return {'slots':slots,'setup_ids':setups,'single_ids':singles,'trace_ids':traces,
+            'paired_trace_ids':paired,'expected':expected,'physical_calls':physical_calls}
+
+
+def preflight_records(seal, schedule, check):
+    """Validate every retained syntax/schema/ID before constructing a label oracle."""
+    for filename,kind,key,ids in [('setups.jsonl','setup',None,'setup_ids'),
+        ('single-points.jsonl','single-point','single_id','single_ids'),
+        ('traces.jsonl','trace','trace_id','trace_ids'),
+        ('attempt-intents.jsonl','intent','trace_id','trace_ids')]:
+        seen=set()
+        for row in iter_records(seal,filename):
+            check(kind,row)
+            ident=row['curve_id']+'/'+row['arm_id'] if key is None else row[key]
+            require(ident not in seen and ident in schedule[ids],'independent schedule '+kind)
+            seen.add(ident)
+            want=schedule[ids][ident]
+            require(all(row[k]==v for k,v in want.items()),'frozen row metadata '+kind)
+            if kind=='trace':require((row['incremental'] is not None)==(ident in schedule['paired_trace_ids']),'independent paired schedule')
+            if kind in ('trace','intent'):
+                require(row['base_multiplier']==ARMS[row['arm_id']]['base_multiplier'],'frozen base multiplier')
+        require(seen==set(schedule[ids]),'independent complete '+kind+' schedule')
+    seen=set()
+    for row in iter_records(seal,'decoder-cells.jsonl'):
+        check('decoder-cell',row)
+        ident=row['cell_id'];trace=row['trace_id'];cell=(row['radius'],row['erasure_cap'])
+        require(trace in schedule['paired_trace_ids'] and cell in CELLS,'independent six-cell schedule')
+        require(ident==trace+f'/t{cell[0]}.e{cell[1]}' and ident not in seen,'independent cell ID')
+        seen.add(ident)
+    require(len(seen)==schedule['expected']['cells'],'independent complete cell schedule')
 
 
 def engine_answer(oracle,R,arm):
@@ -474,7 +649,7 @@ def check_engine_trace(oracle,arm,row):
     return bits,geometry(oracle,Q,a,b,bits)
 
 
-def verify_bundle(root,evidence,plan,interface,emit=None):
+def verify_bundle(root,evidence,plan,interface,emit=None,authenticated_inputs=None):
     """Streaming checker. Frozen plan contains exact scheduled row IDs and pins.
 
     emit receives host diagnostic rows; it must never feed the terminated worker.
@@ -482,11 +657,13 @@ def verify_bundle(root,evidence,plan,interface,emit=None):
     Unknown/invalid rows raise; caller retains the exception and entire bundle.
     No function here launches or approves scientific work.
     """
-    seal=open_sealed(root,evidence) # MUST precede any labelled arithmetic
+    require(type(authenticated_inputs) is dict,'independently authenticated workload law required')
+    max_line=authenticated_inputs.get('max_jsonl_line_bytes',64<<20)
+    seal=open_sealed(root,evidence,max_line) # MUST precede any labelled arithmetic
     require(digest(canonical(interface))==plan['engine_interface_canonical_sha256'],'interface binding')
     cohort_raw=bytes.fromhex(plan['public_cohort_bytes_hex'])
     require(digest(cohort_raw)==plan['provenance']['cohort_sha256'],'public cohort bytes binding')
-    cohort=json.loads(cohort_raw)
+    cohort=strict_loads(cohort_raw,64<<20)
     require(set(cohort)=={'curves','nonce'},'public cohort allowlist')
     require(type(cohort['nonce']) is str and re.fullmatch('[0-9a-f]{64}',cohort['nonce']) is not None,'public nonce')
     for curve in cohort['curves']:
@@ -496,14 +673,14 @@ def verify_bundle(root,evidence,plan,interface,emit=None):
         require(len(set(t['target_id'] for t in curve['targets']))==len(curve['targets']),'duplicate public target IDs')
     public_curves={row['curve_id']:row for row in cohort['curves']}
     require(len(public_curves)==len(cohort['curves']),'duplicate cohort curve IDs')
-    import jsonschema
     schemas=interface['record_schemas']
+    validators={kind:compiled_validator(canonical(schema)) for kind,schema in schemas.items()}
     def check(kind,row):
-        jsonschema.validate(row,schemas[kind])
+        validators[kind].validate(row)
         require(row['schema']==PREFIX+kind+'/v1','record schema name')
         return row
-    completion=check('completion',json.loads(seal.files['engine-completion.json'].read_bytes()))
-    summary=check('summary',json.loads(seal.files['engine-summary.json'].read_bytes()))
+    completion=check('completion',read_json(seal.files['engine-completion.json'],max_line))
+    summary=check('summary',read_json(seal.files['engine-summary.json'],max_line))
     require(completion['provenance']==summary['provenance']==plan['provenance'],'source/protocol/cohort pins')
     require(completion['wall_valid'] is False and summary['wall_valid'] is False,'clock must remain unqualified')
     require(completion['termination_ack'] is False,'engine cannot assert transport ACK')
@@ -513,6 +690,17 @@ def verify_bundle(root,evidence,plan,interface,emit=None):
         rawhash=next(x for x in evidence['files'] if x['path']==name)
         require(item['sha256']==rawhash['sha256'] and item['bytes']==rawhash['size'],'completion byte binding')
     require(set(completion['files'])==set(FILES)-{'engine-completion.json'},'completion coverage')
+    schedule=frozen_schedule(cohort,authenticated_inputs)
+    for key in ('setup_ids','single_ids','trace_ids','paired_trace_ids'):
+        require(type(plan[key]) is list and len(plan[key])==len(set(plan[key])) and set(plan[key])==set(schedule[key]),'worker plan differs from independent '+key)
+    require(plan['expected']==schedule['expected'],'worker expected differs from independent workload')
+    require(summary['observed']==summary['expected']==schedule['expected'],'independent summary workload counts')
+    require(completion['status']==summary['status']=='complete' and not summary['errors'],'operational incomplete: retain raw failures')
+    for name,key in [('setups.jsonl','setups'),('single-points.jsonl','singles'),('traces.jsonl','traces'),('decoder-cells.jsonl','cells'),('attempt-intents.jsonl','intents')]:
+        require(completion['files'][name]['records']==schedule['expected'][key],'independent completion record count')
+    preflight_records(seal,schedule,check)
+    # All subsequent expected IDs originate in the independent host law.
+    plan={**plan,**{k:list(schedule[k]) for k in ('setup_ids','single_ids','trace_ids','paired_trace_ids')},'expected':schedule['expected']}
     setups={}
     oracles={}
     total_points=0

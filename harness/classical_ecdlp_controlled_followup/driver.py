@@ -51,7 +51,7 @@ def run(repo,config_path,out,sdk=None,experiment_id=None,run_id=None):
         config=config_path if isinstance(config_path,dict) else c.read(config_path)
         protocol=c.read(c.safe(repo,config['inputs']['protocol']['path']))
         c.need(protocol['protocol_id']==experiment_id,'allocated supervisor experiment differs from frozen protocol')
-        record=c.run(repo,config_path,out/'modal',sdk=sdk)
+        record=c.run(repo,config_path,out/'modal',sdk=sdk,supervisor_identity={'experiment_id':experiment_id,'run_id':run_id})
     except Exception as exc:
         error={'type':type(exc).__name__,'message':str(exc)}
         # Keep readable declared protocol/static inputs even on pre-VM refusal.
@@ -80,15 +80,39 @@ def run(repo,config_path,out,sdk=None,experiment_id=None,run_id=None):
     return raw
 
 
-def check(out):
+def check(out, allow_inner=False):
     out=Path(out)
-    if not (out/'raw-result.json').exists():return check_transport(out)
+    if not (out/'raw-result.json').exists():
+        c.need(allow_inner is True, 'supervisor envelope required; inner transport mode must be explicit')
+        result=check_transport(out)
+        result['integrity_scope']='inner_transport_only'
+        return result
     raw=c.read(out/'raw-result.json');evidence=raw['evidence']
+    run_manifest=c.read(out/'manifest.yaml')['run']
+    identity={'experiment_id':raw.get('experiment_id'),'run_id':raw.get('run_id')}
+    c.need(isinstance(identity['experiment_id'],str) and identity['experiment_id'].startswith('EXP-') and isinstance(identity['run_id'],str) and identity['run_id'].startswith('RUN-'), 'allocated supervisor IDs required')
+    c.need(run_manifest.get('id')==identity['run_id'] and run_manifest.get('experiment_id')==identity['experiment_id'] and run_manifest.get('status')==raw.get('operational_status'), 'manifest/supervisor identity or status mismatch')
+    protocol_path=out/'modal/protocol.json'
+    if protocol_path.exists():
+        c.need(c.read(protocol_path).get('protocol_id')==identity['experiment_id'], 'supervisor/protocol experiment mismatch')
+    else:
+        c.need(raw.get('controller') is None and raw.get('driver_error') is not None and raw.get('operational_status')=='failed', 'protocol snapshot required')
+
     c.need(raw['schema']==c.SCHEMA+'supervisor-trial/v1' and raw['automatic_retry'] is False and raw['all_clocks_wall_valid'] is False,'supervisor contract')
     c.need(evidence['path']=='modal-evidence.tar.gz' and evidence['member_manifest']=='modal-evidence-manifest.json','fixed archive paths')
     archive_path=out/evidence['path'];member_path=out/evidence['member_manifest']
     c.need(c.sha_file(archive_path)==evidence['sha256'] and archive_path.stat().st_size==evidence['bytes'] and c.sha_file(member_path)==evidence['member_manifest_sha256'],'evidence archive hashes')
-    manifest=c.read(member_path);expected={e['path']:e for e in manifest['files']}
+    manifest=c.read(member_path)
+    c.need(manifest.get('schema')==c.SCHEMA+'supervisor-evidence/v1' and isinstance(manifest.get('files'),list), 'supervisor member manifest contract')
+    for e in manifest['files']:
+        c.need(set(e)=={'path','sha256','bytes'} and isinstance(e['path'],str) and e['path'].startswith('modal/') and c.HEX.fullmatch(e['sha256']) and type(e['bytes']) is int and e['bytes']>=0,'archive entry contract')
+        c.safe(out,e['path'])
+    expected={e['path']:e for e in manifest['files']}
+    live=set()
+    for path in (out/'modal').rglob('*'):
+        c.need(not path.is_symlink() and (path.is_file() or path.is_dir()),'unsafe live supervisor tree')
+        if path.is_file():live.add(path.relative_to(out).as_posix())
+    c.need(live==set(expected),'unbound or missing supervisor tree member')
     c.need(len(expected)==len(manifest['files']),'duplicate archive members')
     seen=set()
     with tarfile.open(archive_path,'r|gz') as archive:
@@ -104,10 +128,13 @@ def check(out):
     receipt=out/'modal/controller-receipt.json'
     if raw['controller'] is not None:
         c.need(receipt.is_file() and c.read(receipt)==raw['controller'],'controller receipt duplicate mismatch')
+        c.need(raw['controller'].get('supervisor_identity')==identity,'controller/supervisor identity mismatch')
         status=check_transport(out/'modal')['operational_status']
-    else:status='failed'
+    else:
+        c.need(not receipt.exists() and (out/'modal/controller-error.json').is_file() and raw.get('driver_error') is not None,'failed controller envelope mismatch')
+        status='failed'
     c.need(raw['operational_status']==('completed' if status=='complete' and raw['driver_error'] is None else 'failed'),'supervisor operational status')
-    return {'transport_evidence_integrity':True,'operational_status':status,'scientific_validity':'not_assessed','wall_valid':False}
+    return {'transport_evidence_integrity':True,'operational_status':status,'scientific_validity':'not_assessed','wall_valid':False,'integrity_scope':'complete_supervisor','run_id':identity['run_id'],'experiment_id':identity['experiment_id']}
 
 
 def main():
@@ -120,10 +147,11 @@ def main():
     p.add_argument('--experiment-id')
     p.add_argument('--run-id')
     p.add_argument('--out',type=Path)
+    p.add_argument('--allow-inner-transport',action='store_true',help='check only an explicitly supplied standalone inner transport tree; no supervisor qualification')
     a=p.parse_args()
     if a.action=='check':
         p.error('--out required') if a.out is None else None
-        result=check(a.out)
+        result=check(a.out,allow_inner=a.allow_inner_transport)
         print(json.dumps(result,sort_keys=True))
         return 0 if result['operational_status']=='complete' else 1
     if a.repo_root is None:p.error('--repo-root required')

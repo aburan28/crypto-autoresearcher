@@ -16,6 +16,16 @@ def unique(pairs):
     return d
 
 
+def nonfinite(value):
+    raise ValueError('nonfinite JSON')
+
+
+def finite_float(value):
+    result=float(value)
+    if not math.isfinite(result):raise ValueError('nonfinite JSON')
+    return result
+
+
 def rows(path,max_line_bytes):
     with Path(path).open('rb') as f:
         while True:
@@ -23,7 +33,7 @@ def rows(path,max_line_bytes):
             if not line:break
             if len(line)>max_line_bytes:raise ValueError('row resource bound exceeded; no truncation')
             if not line.endswith(b'\n'):raise ValueError('partial JSONL row')
-            yield json.loads(line,object_pairs_hook=unique)
+            yield json.loads(line,object_pairs_hook=unique, parse_constant=nonfinite, parse_float=finite_float)
 
 
 def sum_vectors(target,counts):
@@ -47,11 +57,11 @@ def summarize(raw,max_line_bytes=64<<20):
     setups=[]
     for setup in rows(raw/'setups.jsonl',max_line_bytes):
         setups.append({'curve_id':setup['curve_id'],'arm_id':setup['arm_id'],'setup_reason':setup['setup_reason'],'counts':setup['counts']})
-    curves=defaultdict(lambda:defaultdict(lambda:{'outcomes':Counter(),'decoder_component_costs':Counter(),'attempts':0,'successes':0,'zero_candidate_checks':0,'targets':set()}))
+    curves=defaultdict(lambda:defaultdict(lambda:{'outcomes':Counter(),'decoder_component_costs':Counter(),'attempts':0,'successes':0,'zero_candidate_checks':0,'targets':set(),'retained_targets':set()}))
     paired=defaultdict(dict)
     for cell in rows(raw/'decoder-cells.jsonl',max_line_bytes):
         meta=trace_meta[cell['trace_id']];curve=meta['curve_id'];key=cell['cell_id'].rsplit('/',1)[-1]
-        item=curves[curve][key];item['attempts']+=1;item['successes']+=cell['status']=='RECOVERED'
+        item=curves[curve][key];item['retained_targets'].add(meta['target_id']);item['attempts']+=1;item['successes']+=cell['status']=='RECOVERED'
         item['outcomes'][cell['status']]+=1;item['zero_candidate_checks']+=cell['zero_candidate_checks']
         sum_vectors(item['decoder_component_costs'],cell['counts'])
         if cell['status']=='RECOVERED':item['targets'].add(meta['target_id'])
@@ -61,7 +71,7 @@ def summarize(raw,max_line_bytes=64<<20):
         match=SLOT.fullmatch(curve);stage=match[1] if match else 'disclosed_fixture'
         for key,item in sorted(cells.items()):
             item={**item,'outcomes':dict(item['outcomes']),'decoder_component_costs':dict(item['decoder_component_costs']),'unique_targets_recovered':len(item['targets'])}
-            del item['targets'];n=item['attempts'];s=item['successes']
+            item['unique_targets_retained']=len(item.pop('retained_targets'));del item['targets'];n=item['attempts'];s=item['successes']
             item['success_fraction']={'numerator':s,'denominator':n}
             item['decoder_component_batch_cost_per_success']={k:({'numerator':v,'denominator':s} if s else None) for k,v in item['decoder_component_costs'].items()}
             item['zero_event_upper_bound']=(1-(0.05/144)**(1/n)) if n and s==0 else None
@@ -73,6 +83,7 @@ def summarize(raw,max_line_bytes=64<<20):
             a,b=pair['t0.e0'],pair['t1.e2'];discordants[trace_meta[ident]['curve_id']][str(int(a))+str(int(b))]+=1
     panels={stage:[r for r in result if r['stage']==stage] for stage in ['confirmation-A','confirmation-B']}
     return {'schema':'classical.ecdlp.controlled-followup.analysis/v1','per_curve_six_cell':result,'panels':panels,
+        'coverage':{'retained_curves':len(trace_counts),'retained_physical_trace_records':sum(trace_counts.values()),'retained_decoder_cells':sum(r['attempts'] for r in result),'retained_curve_cell_pairs':len(result),'per_curve_cells':{curve:sorted(cells) for curve,cells in sorted(curves.items())},'interpretation':'Retained counts only; workload completeness is checked independently before labels, and partial rows are never padded.'},
         'traces_by_curve':dict(trace_counts),'paired_discordants_t0e0_t1e2':{k:dict(v) for k,v in discordants.items()},
         'setup_components':setups,'physical_trace_components_once':[{'curve_id':k[0],'method':k[1],'counts':dict(v)} for k,v in sorted(physical.items())],
         'cost_scope':'Decoder costs are component-only. Physical original/incremental query, blinding, reduction, conversion and state vectors retained once per actual trace; setup/common separately. No full-solver ratio is asserted.',
