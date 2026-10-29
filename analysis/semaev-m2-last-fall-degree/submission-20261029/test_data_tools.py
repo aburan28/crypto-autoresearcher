@@ -1,5 +1,6 @@
 """Small exhaustive software fixtures; not a research sweep or timing evidence."""
 import importlib.util
+import fcntl
 import itertools
 import os
 from pathlib import Path
@@ -20,6 +21,18 @@ spec.loader.exec_module(campaign)
 
 
 class DataTools(unittest.TestCase):
+    def test_owner_lock_on_output_filesystem(self):
+        sys.path.insert(0, str(HERE))
+        from supervise_publication import held
+        with tempfile.TemporaryDirectory(dir=os.environ.get('SEMAEV_TEST_WORKDIR')) as td:
+            path = Path(td) / 'owner.lock'
+            self.assertFalse(held(path))
+            with open(path, 'w') as owner:
+                self.assertFalse(held(path))
+                fcntl.flock(owner, fcntl.LOCK_EX)
+                self.assertTrue(held(path))
+            self.assertFalse(held(path))
+
     def test_count_against_all_pairs(self):
         found=shutil.which(os.environ.get('SEMAEV_COUNT_BIN','count_by_sum'))
         if not found:self.skipTest('compile count_by_sum.c and set SEMAEV_COUNT_BIN')

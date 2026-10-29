@@ -24,7 +24,9 @@ from publish_certificates import public_readback
 def held(path):
     if not path.exists():
         return False
-    with open(path, 'r') as lock:
+    # NFS emulates flock with a whole-file record lock; an exclusive probe
+    # requires a writable descriptor even though no file bytes are changed.
+    with open(path, 'r+') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
