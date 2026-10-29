@@ -101,3 +101,11 @@ The frozen historical lift trial completed all thirteen inputs and all thirteen 
 The [complete report](reports/native-lift-historical-001/report.md), graph, PDF, immutable raw records and validated unified export are retained. Both accepted certificates have public download and object-store readback receipts in `archive/`. The native implementation PR2696 merged.
 
 The n47–51 frontier requirement remains open. One prospective alternative is a checked D3 seed followed by successive D4 and D5 lifts, avoiding a prerequisite dense D4 seed calculation. The native primitive supports these degrees and has single-stage software comparisons; a complete two-stage control and new frozen protocol are required before scientific execution. No frontier feasibility or scientific outcome is inferred from this proposal.
+
+## Frontier successive-lift execution
+
+The consecutive D3-to-D4-to-D5 controls now pass: all nine maps from three fixtures are independently accepted and match direct dense codimensions. The complete driver also passes its count/checker control; see [control notes](validation/CASCADE.md).
+
+`cascade-plan.json` retains all fifty n47–51 inputs from the original panel. `cascade-protocol.json` was frozen and checkpointed before launching `run_cascade.py`, one worker with a16 GiB cap. Outputs live at `/home/ec2-user/fall-degree-data-20261029/frontier-cascade-001`; each input keeps all accepted intermediate maps and logs. Original dense-panel attempts remain unchanged.
+
+At initial observation, the first n47 input has an accepted D3 certificate with codimension10093 and fresh exact count0; this supports only LFD>=4. Its D4 lift was admitted under the allocation envelope and is running. No completed frontier D5 map or LFD>=6 is claimed. Resource refusal and quotients killing the constant remain explicit unknown outcomes for later stages.
