@@ -5,6 +5,63 @@ through n=45 and explore n=47..51, reconcile definitions and full primary
 literature, and prepare an external expert review before ePrint/journal submission.
 Conductor task: T-778. This is preparation, not submission or scientific promotion.
 
+The owner's subsequent instruction defers external human review and prioritizes
+the data. The active work is certificate retention/publication and the frozen
+190-input panel. The manuscript, secondary PKM replication and Nagao note have
+not been completed by this data campaign.
+
+## Public data and reproduction
+
+The additive public archive is the
+[certificate release](https://github.com/isogeny-labs/crypto-autoresearcher/releases/tag/semaev-closure-certificates-20261029).
+Each completed publication has four assets: `ID.D4.cert.gz`,
+`ID.receipt.json`, `ID.evidence.tar.gz`, and `ID.publication.json`.
+The receipt carries the exact field, curve, subspace, target, original
+certificate digest and independent checker output. The evidence archive carries
+the original attempt records and logs. Fresh-input evidence additionally carries
+the exhaustive count and inference record. The publication acknowledgement
+records anonymous HTTPS and canonical S3 download/hash checks. Files not yet
+listed in the release are not claimed to be published.
+
+The certificate header contains its degree. For example, after downloading
+T33a's certificate and receipt, run this from the dossier's parent repository:
+
+```sh
+gunzip -k T33a.D4.cert.gz
+python3 - T33a.receipt.json T33a.D4.cert <<'PY'
+import hashlib, json, subprocess, sys
+receipt = json.load(open(sys.argv[1]))
+result = receipt['result']
+assert hashlib.sha256(open(sys.argv[2], 'rb').read()).hexdigest() == result['certificate_sha256']
+item = result['parameters']; r = item['record']
+argv = [sys.executable, 'analysis/semaev-m2-last-fall-degree/verify/cert_check.py']
+if item.get('chain'): argv.append('--t3')
+argv += [sys.argv[2], str(r['n']), r['modulus_hex'], str(r['a2']), r['a6_hex'], r['z_hex'], *r['V_basis_hex']]
+subprocess.run(argv, check=True)
+PY
+```
+
+The checker uses the Python standard library. Rebuilding the producer requires
+M4RI. This run used release-20240729 at
+`d0a1ee18511714a2c33cc0920a068c05c1f0f8fb`, with its 15 tests passing.
+The native counter can be built on x86 with CLMUL/SSE4.1 as follows:
+
+```sh
+gcc -O3 -mpclmul -msse4.1 -Wall -Wextra -Werror count_by_sum.c -o count_by_sum
+SEMAEV_COUNT_BIN=/absolute/path/count_by_sum \
+SEMAEV_REFERENCE_COUNT_BIN=/absolute/path/s3count2 \
+python3 -m unittest test_data_tools.py
+```
+
+`certificate_campaign.py` retains completed files and separate attempts;
+`expand_instances.py` uses the frozen seeds, retains every outcome, and joins
+checked codimension bounds with exact counts. `publish_certificates.py`
+publishes only completed, hash-consistent evidence and never replaces a release
+asset. `collect_progress.py` writes a fresh snapshot with pending cells explicit.
+The active campaign commands, ownership and recovery caveats are in the S3
+resume checkpoint. See `operational-deviations.md` for the checkpoint-gate
+omission and unified-export limitation; neither is concealed by a passing test.
+
 ## Reconciliation before execution
 
 The original checkout was at 2026-10-18. This work uses a separate sparse
