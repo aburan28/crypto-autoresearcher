@@ -57,3 +57,9 @@ Before scientific use: freeze a separate instrument/protocol, retain an
 actual run's complete artifacts, and obtain original-checker acceptance for
 any candidate certificate. Do not replace the active campaign's binary or
 interpret these controls as a speed measurement.
+
+## Baseline x86-64 build qualification
+
+The separate portable build uses `-O3 -march=x86-64 -mtune=generic` and the static M4RI build configured with SIMD flags disabled. It passes the same four generic cases at all three block sizes: 12 candidate comparisons are byte-identical to the portable batched reference, and all 16 reference/candidate outputs match the prior native build. The nine Semaev stage certificates pass the original checker, match direct codimensions, and match the previous native certificate bytes.
+
+[Qualification records](validation/blocked-portable-20261029/qualification.json) bind compiler details, library/source/binary hashes, exact build commands, complete control outputs, and the artifact-store archive containing the binaries. This is local software qualification, not a universal CPU compatibility assertion. Per-node controls remain required. No frontier trial, performance comparison, or scientific admission was performed with this build; the active workers retain their frozen instruments.
