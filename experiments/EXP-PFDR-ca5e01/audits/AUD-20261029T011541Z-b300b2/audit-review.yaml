@@ -1,0 +1,220 @@
+audit_review:
+  audit_id: AUD-20261029T011541Z-b300b2
+  session_dir: experiments/EXP-PFDR-ca5e01/runbook-sessions/RBS-PFDR-ca5e01
+  journal_tip: b82cdf03bef1a0168258fabad0979419f620487c540cd92db3c9906b71c57565
+  auditor_model: claude-sonnet-5-5
+  scope: >-
+    Sweep-tier screen (validator-sweep) dispatched by audit-runs. Not a validation_report, not evidence
+    about H-PFDR-011a4b, not an execution proof, not a review gate. Closes nothing by itself; it is the
+    reader-check input for sheriff finding LGN-9 (research/sheriff/SHF-20261028-0f3f64). I did not produce
+    this run. I wrote only this file and files under audits/AUD-20261029T011541Z-b300b2/scripts/.
+  audit_json_read:
+    deterministic_verdict: clean
+    findings: []
+    not_covered: []
+    replayed_units: [census-main RUN-PFDR-eb4733, analyze-main RUN-PFDR-c08b70, census-rep RUN-PFDR-e15482, pilot RUN-PFDR-93c865]
+    not_replayed_units: [selftest RUN-PFDR-936605, analyze-final RUN-PFDR-b7c582]
+    replay_comparison_declared: raw-result.json /summary only
+    miss_probability: {at_50pct_fabrication: 0.0625, at_10pct: 0.6561}
+    sha_check_done_by_me: >-
+      sha256 of specification.yaml, trial-plan.json, check.py, run.py, paircount.c and vendor/curve.py in the
+      working tree equal the values bound in runbook.yaml and trial-plan.json.
+
+  specification_fidelity:
+    summary: >-
+      Every arm, control, metric and stopping rule of the specification has a counterpart in the
+      runbook, the trial plan or the bound driver. The runbook is thin by design: it runs the six frozen
+      trials through the supervisor and delegates the arms, the statistics and the class rules to the
+      sha-bound run.py/check.py. No item is without a counterpart. Two observations below, neither a finding.
+    arms:
+      - item: structured window base (d=1)
+        implemented_in: run.py window_base via the trial plan census-main; not named in runbook.yaml
+        independently_confirmed: >-
+          rebuilt from (p, a, b_coef, b, x0) by the specification rule and recounted for 153 d=1 job records across three sampling runs; see certificate_checks
+      - item: structured rank-d label GAP (d=2,3)
+        implemented_in: run.py gap_base via census-main/census-rep
+        independently_confirmed: >-
+          rebuilt from (x0, w, side) with innermost index fastest and outermost unbounded; count, side and
+          enumerated all matched (see certificate_checks)
+      - item: 20 matched uniformly random symmetric null bases
+        implemented_in: run.py null_base; every job record carries 20 null counts (checked below)
+        independently_confirmed: record shape and use in statistics only; bases not reconstructible without the producer RNG
+      - item: planted known-log AP
+        implemented_in: run.py planted_base/plant_size; plant_L, plant_internal, plant_feasible per record
+        independently_confirmed: plant_internal and minimal-L rule recomputed for all 19388 records (zero violations)
+    controls:
+      - id: "C1"
+        item: "kernel selftest"
+        runbook: "step S01-trials trial selftest, controls: [selftest], assertion /summary/selftest_pass == true, selftest.json required"
+        status: "implemented"
+      - id: "C2"
+        item: "matched random null"
+        runbook: "inside run.py census; no runbook assertion"
+        status: "implemented_in_driver_only"
+      - id: "C3"
+        item: "planted known-log AP"
+        runbook: "inside run.py/analyze; no runbook assertion on planted_recovered"
+        status: "implemented_in_driver_only"
+      - id: "C4"
+        item: "null-vs-null calibration gate"
+        runbook: "metrics calibration_n/mean/sd_final from analyze-final /summary/calibration"
+        status: "implemented"
+      - id: "C5"
+        item: "disjoint seed blocks and replication"
+        runbook: "trial-plan defaults.seed_blocks 7000000/7100000/7200000; spec_bindings pin replication.seeds; census-rep trial with allow_empty_artifacts rep-jobs.jsonl"
+        status: "implemented"
+      - id: "C6"
+        item: "checker replay and brute recount"
+        runbook: "check_argv per trial; every run has check.stdout.log CHECK OK"
+        status: "implemented"
+      - id: "C7"
+        item: "Pollard rho"
+        runbook: "none"
+        status: "not run by specification (no cost claim); consistent"
+    metrics:
+      - item: "kappa per cell with ci95/z/S/M/V/curves/powered/cls"
+        where: "analysis.json written by analyze-final; runbook asserts only /cells length 90 and outcome in the allowed set"
+        note: "no runbook metric aggregates per-cell values; they exist only in analysis.json"
+      - item: "outcome, /fraction_valid, /flagged_cells"
+        where: "raw-result.json /summary of analyze-final; runbook metric fraction_valid_final; outcome and flagged_cells asserted in set/array only (not numeric metrics)"
+      - item: "calibration"
+        where: "runbook metrics calibration_*_final"
+      - item: "planted recovery"
+        where: "analysis.json /cells[]/planted_recovered only; no runbook-level assertion"
+      - item: "replication of flagged cells"
+        where: "census-rep trial; empty (0 jobs) because no cell flagged; census_rep_jobs and census_rep_failed_infrastructure metrics"
+      - item: "sizing record"
+        where: "design.json (length 90 asserted); I re-derived n_curves for all 90 cells"
+      - item: "infrastructure failures"
+        where: "metrics census_main_failed_infrastructure = 0, census_rep_failed_infrastructure = 0; I confirmed 0 non-ok records among 19388"
+    stopping_rules:
+      - item: "per-trial watchdogs 1800/14400/43200/3600/43200/3600 s"
+        where: "trial-plan watchdog_seconds; runbook timeout_seconds 109800 equals their sum; claim ttl 1830 min equals 109800 s"
+      - item: "per-trial memory caps 2048/4096/4096/2048/4096/2048"
+        where: "trial-plan memory_mb, matches spec note"
+      - item: "kernel call over 3600 s is failed_infrastructure"
+        where: "run.py KERNEL_TIMEOUT_S = 3600, rec status failed_infrastructure:timeout"
+      - item: "stop after six trials"
+        where: "trial plan has exactly six trials; runbook has one step S01-trials; journal has one attempt"
+      - item: "on_failure mapping"
+        where: "runbook on_failure stops on timeout, exit 1, exit 3, validity false; no retry"
+    observations_not_findings:
+      - >-
+        The runbook asserts structure (run_id, trial_id, array lengths, outcome in an enumerated set), not the
+        preregistered thresholds. The thresholds (M >= 2500, class bands, calibration band, 80 and 50 percent
+        validity) live only in run.py and check.py, which are sha-bound and which I re-derived independently
+        (blind_rederivation). The session therefore measured every specified item, but a threshold edit
+        would have been caught only by the sha bindings, which hold.
+      - >-
+        The replay compares only raw-result.json /summary. For the census trials that is jobs and
+        failed_infrastructure (counts), not S, M or kappa. To compensate I compared the audit's replay
+        outputs against the session outputs myself (see certificate_checks.replay_file_comparison).
+
+  blind_rederivation:
+    metric: >-
+      kappa per cell (primary, pointer analysis.json /cells[]/kappa), with S, M, V, z, z_cal, plant_kappa,
+      plant_z, class, calibration gate, fraction_valid and outcome
+    script: experiments/EXP-PFDR-ca5e01/audits/AUD-20261029T011541Z-b300b2/scripts/blind_rederive.py
+    invocation: python3 -I blind_rederive.py experiments/EXP-PFDR-ca5e01
+    derived_from: >-
+      specification.yaml (statistics, cell_classes, calibration_gate, outcome_rules, cells rule) and the raw
+      records main-jobs.jsonl, pilot-jobs.jsonl, design.json. The script imports nothing from the producer
+      and did not read run.py, check.py or the producer's report; the bootstrap uses my own seed.
+    results:
+      grid: 90 cells reproduced from the cell rule; ids and b equal design.json
+      sizing: n_curves re-derived from pilot-jobs.jsonl for all 90 cells, 0 mismatches
+      completeness: 19388 ok records, every cell has exactly curves 0..n_curves-1, no duplicates, 0 non-ok
+      max_abs_difference_vs_session:
+        S: 0
+        M: 9.5e-07
+        V: 7.6e-06
+        kappa: 4.4e-16
+        z: 5.0e-12
+        z_cal: 5.0e-12
+        plant_kappa: 6.7e-16
+        plant_z: 5.5e-12
+        ci95_lo: 0.00976 (different bootstrap seed, expected sampling noise)
+        ci95_hi: 0.00870 (different bootstrap seed, expected sampling noise)
+      calibration:
+        session: {n: 79, mean: -0.11682059807008112, sd: 0.9459886192990902, pass: true}
+        mine: {n: 79, mean: -0.11682059807008, sd: 0.94598861929900, pass: true}
+      fraction_valid: {session: 0.8777777777777778, mine: 0.8777777777777778}
+      outcome: {session: O-MIXED, mine: O-MIXED, flagged_cells_both: []}
+      class_counts: {session: {null: 63, intermediate: 16, inconclusive_underpowered: 11}, mine: {null: 64, intermediate: 15, inconclusive_underpowered: 11}}
+    one_difference: >-
+      b18-t0.30-d1 (kappa 0.9801, 1760 curves): the session class is intermediate (ci95 lower 0.8958), mine is
+      null (lower 0.9010). The null rule needs the bootstrap interval inside [0.90, 1.10] and this lower
+      end sits on 0.90. Over 20 other seeds of my own bootstrap the lower end ranged 0.8916 to 0.9018 and was
+      >= 0.90 in 4 of 20, so the class is seed-dependent at this boundary. S, M, V, kappa and z agree to
+      rounding. It does not change the outcome (O-MIXED holds with 15 or 16 intermediate cells, 11
+      underpowered cells and no flagged cell), the calibration gate or fraction_valid. Recorded as a
+      boundary sensitivity of the preregistered seeded bootstrap, not as a defect.
+    verdict: session summary reproduced
+
+  certificate_checks:
+    certificate_kind: >-
+      none (exact counts; no logarithm, relation or decomposition is claimed, per the specification). The
+      analogue checked is the exact pair-sum coincidence count C(F) of a stated base on a stated curve,
+      and the curve and plant data it depends on.
+    script: experiments/EXP-PFDR-ca5e01/audits/AUD-20261029T011541Z-b300b2/scripts/certificate_checks.py
+    shares_no_code_with_producer: >-
+      own affine group law with Python ints, sympy isprime/sqrt_mod, numpy, and PARI/GP ellcard as a
+      subprocess; no import of run.py, check.py, vendor/curve.py or paircount.c
+    replay_file_comparison:
+      note: >-
+        Beyond the audit's /summary comparison, I compared the replay outputs under replay/ with the
+        session outputs (read only, seconds field and record order stripped). This establishes
+        determinism of the producer code, not correctness.
+      main_jobs: "RUN-PFDR-eb4733 main-jobs.jsonl, 19388 records, identical to replay"
+      pilot_jobs: "RUN-PFDR-93c865 pilot-jobs.jsonl, 720 records, identical to replay"
+      design_json: identical
+      analysis_main_json: identical
+    replayed_units_checked:
+      - unit: census-main RUN-PFDR-eb4733 (replayed)
+        checks:
+          - "structured-base recount by brute force with my own group law: 3 runs, 150 + 300 + 9 job records over d = 1, 2, 3 (b from 28 to 956); count_match for every one; window span / GAP side and enumerated matched for every one; bases on-curve and symmetric asserted"
+          - "curves: p prime, nonsingular, N equals PARI ellcard, N prime, Hasse bound: 400 + 800 + 24 curves sampled (different draws), 0 failures; parameters consistent across cells at the same (bits, c) for all 19388 records (6377 distinct curves)"
+          - "pairs == struct_pairs == b(b-2)/2 for all 19388 records"
+          - "plant_internal(L) recomputed as integer arithmetic on {+-k} (no wrap since 4L < N), and L the smallest integer in [1, b//4] with plant_internal >= 0.30 x mean(null) (or the cap when infeasible), all 19388 records, 0 violations"
+      - unit: pilot RUN-PFDR-93c865 (replayed)
+        checks:
+          - "n_curves re-derived for 90 of 90 cells from pilot-jobs.jsonl (0 mismatches); design.json equals the replay"
+          - "pilot records are null bases only; their random bases are not reconstructible without the producer RNG, so only the sizing arithmetic and replay equality are established"
+    unreplayed_units_checked:
+      - unit: analyze-final RUN-PFDR-b7c582 (not replayed)
+        checks:
+          - "full re-derivation of analysis.json from the raw jobs (blind_rederivation above); analysis.json is byte-equal in content to analysis-main.json, consistent with census-rep having 0 jobs and no flagged cell"
+      - unit: selftest RUN-PFDR-936605 (not replayed)
+        checks:
+          - "selftest.json has 45 checks (bits 10, 12, 14 x null, window, gap2, gap3, plant x 3 curves), kernel == brute in all 45, pass true, matching C1 in the specification"
+          - "the bases are not stored in selftest.json, so I could not recount them independently; the on-curve / symmetry / plant_internal-vs-group-brute-force parts of C1 are visible only through the aggregate pass flag. My plant_internal check on all main records covers the same quantity independently."
+    not_independently_recounted: >-
+      Jobs with b > 1200 (the largest cells, b up to 8192) were not recounted by me (brute force in Python is
+      impractical in this screen); the null and planted random bases, which depend on the producer RNG, were
+      not rebuilt. Their counts are covered only by determinism of the replay and by the producer's
+      check.py replay of small-base jobs.
+    failures: none
+
+  lean_statement_fidelity:
+    lean_obligations: []
+    result: not applicable; audit.json lean is empty and the journal summary lists lean_obligations [] (no Lean step ran or was required)
+
+  not_covered:
+    copied_from_audit_json: []
+    additional:
+      - "Execution proof: execution_proofs chain is incomplete (docs/execution-proof-chain.md milestones open); 0 verified, 0 failed, 0 unavailable units. No claim here is execution verified."
+      - "Replay compares /summary only (job counts, calibration summary, outcome); I added a record-level comparison for census-main, pilot, design and analysis-main, but not for census-rep (0 jobs) or the selftest (not replayed)."
+      - "Replay reproduces the producer's own code on the same inputs, so it shows determinism, not that run.py computes the specified quantity; my independent recounts cover a sample of structured bases with b <= 1200, plant_internal on all records, and the statistics from the raw counts."
+      - "The kernel (paircount.c) was not independently exercised for b > 1200, nor for the random null and planted bases."
+      - "The bootstrap interval was not reproduced exactly (seeded per cell by the producer); one cell class (b18-t0.30-d1) is seed-sensitive."
+      - "Replication statistics were not exercised: no cell was flagged, so census-rep recorded 0 jobs. The replication rule, the R3 incomplete path and the O-STRUCT branch were not measured by this session."
+      - "Underpowered cells: 11 of 90 cells have M < 2500 (pilot sizing from 8 curves is noisy); they are inconclusive_underpowered by the frozen rule and are neither null nor evidence."
+      - "check.py is producer-written (specification resolution R5); it is not independent review. Review-evidence and the Coordinator decide inference; the outcome O-MIXED is inconclusive under the specification's inconclusive_criterion and moves no status."
+      - "Scope is toy: bits 16-22, b <= 8192, pair level h = 2, windows and rank <= 3 GAP only; nothing about larger N, other bases, or cost."
+
+  verdict: clean
+  escalate: false
+  escalate_note: >-
+    No finding. escalate is false because this screen found nothing to send to a full validation. If an
+    evidence review later cites RBS-PFDR-ca5e01, set escalate for that review: the session reads O-MIXED
+    (inconclusive) and the not_covered list above applies to anything it cites.
