@@ -41,6 +41,7 @@ otherwise (`docs/execution-proof-chain.md`).
     python3 tools/runbook.py render <report_dir>
     python3 tools/runbook.py publish-paths <session_dir>
     python3 tools/runbook.py audit  <session_dir> [--samples K] [--nonce HEX]
+                                    [--float-tolerance rel_tol=R,abs_tol=A]
     python3 tools/runbook.py pending-audits [--json]
 
 Exit status: 0 ok; 1 a lint, verify or audit finding; 2 an impediment (the run
@@ -75,7 +76,10 @@ PLAN_SCHEMA = "crypto.autoresearch.trial_plan.v1"
 SUPERVISOR_RECEIPT_SCHEMA = "crypto.autoresearch.trial_receipt.v1"
 LOCAL_RECEIPT_SCHEMA = "crypto.autoresearch.runbook_local_receipt.v1"
 FORMAL_TASK_SCHEMA = "crypto.autoresearch.formal_task.v1"
-AUDIT_SCHEMA = "crypto.autoresearch.runbook_audit.v1"
+# v2 (TASK-20261029-1bcf80): a replay carries `result` (matched,
+# matched_within_tolerance, mismatch), and `matched` stays true only for an
+# exact match, so a v1 reader would misread a toleranced match as a mismatch.
+AUDIT_SCHEMA = "crypto.autoresearch.runbook_audit.v2"
 
 # Separate hash domains for separate meanings (docs/execution-proof-chain.md:
 # "Use separate domains for plan, input, result and semantic work identity").
@@ -107,6 +111,7 @@ STEP_KINDS = ("command", "trials", "lean", "execution_proof")
 COMMAND_PURPOSES = ("probe", "coordination", "verification")
 ENGINES = ("supervisor", "local")
 REPLAY_MODES = ("fields", "bytes", "exempt")
+TOLERANCE_KEYS = ("rel_tol", "abs_tol")
 AGGREGATES = ("count", "sum", "mean", "min", "max", "median", "fraction_true")
 PROOF_BACKENDS = ("risc0", "sp1")
 ASSERTION_OPS = ("equals", "not_equals", "in", "type", "min", "max", "matches",
@@ -238,9 +243,9 @@ def read_json_file(path: Path) -> Any:
                       parse_constant=constant)
 
 
-def git(repo: Path, *args: str) -> tuple[int, bytes]:
+def git(repo: Path, *args: str, stdin: bytes | None = None) -> tuple[int, bytes]:
     try:
-        done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True,
+        done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, input=stdin,
                               timeout=60, check=False)
     except (OSError, subprocess.SubprocessError):
         return 1, b""
@@ -250,6 +255,139 @@ def git(repo: Path, *args: str) -> tuple[int, bytes]:
 def committed_bytes_match(repo: Path, relative: str) -> bool:
     code, blob = git(repo, "show", f"HEAD:{relative}")
     return code == 0 and blob == resolve(repo, relative).read_bytes()
+
+
+def git_blob_id(data: bytes) -> str:
+    """The object id git gives these bytes as a blob (sha1 object format)."""
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def _own_git_repo(repo: Path) -> bool:
+    """True when repo is the top level of a git work tree, so repository-relative
+    paths mean the same thing to git as to this tool."""
+    code, top = git(repo, "rev-parse", "--show-toplevel")
+    return code == 0 and Path(top.decode().strip()).resolve() == repo.resolve()
+
+
+def _blob_ids(repo: Path, specs: list[str]) -> list[str | None]:
+    """`<rev>:<path>` -> blob id, or None where the path is absent. One
+    read-only `git cat-file --batch-check` for all of them."""
+    if not specs:
+        return []
+    code, out = git(repo, "cat-file", "--batch-check=%(objectname) %(objecttype)",
+                    stdin="".join(f"{spec}\n" for spec in specs).encode())
+    if code != 0:
+        raise RunbookError("git cat-file --batch-check failed; the session-id check cannot run")
+    ids: list[str | None] = []
+    for line in out.decode().splitlines():
+        parts = line.split()
+        ids.append(parts[0] if len(parts) == 2 and parts[1] == "blob" else None)
+    if len(ids) != len(specs):
+        raise RunbookError("git cat-file --batch-check returned an unexpected number of lines")
+    return ids
+
+
+def _blob_bytes(repo: Path, blob: str) -> bytes:
+    code, data = git(repo, "cat-file", "blob", blob)
+    if code != 0:
+        raise RunbookError(f"cannot read git blob {blob}")
+    return data
+
+
+def ref_journals(repo: Path, relative: str) -> list[tuple[str, str]]:
+    """(ref, blob) for every local branch and fetched remote-tracking ref that
+    holds `relative`. Read-only; never fetches. Empty outside a git work tree."""
+    if not _own_git_repo(repo):
+        return []
+    code, out = git(repo, "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes")
+    if code != 0:
+        return []
+    refs = [line for line in out.decode().splitlines() if line and not line.endswith("/HEAD")]
+    blobs = _blob_ids(repo, [f"{ref}:{relative}" for ref in refs])
+    return [(ref, blob) for ref, blob in zip(refs, blobs) if blob]
+
+
+def history_journals(repo: Path, relative: str) -> list[dict[str, Any]]:
+    """Every distinct blob `relative` has had in `git log --all --full-history`,
+    oldest first, with the commits that hold it. Read-only."""
+    if not _own_git_repo(repo):
+        return []
+    code, out = git(repo, "log", "--all", "--full-history", "--format=%H %cI", "--", relative)
+    if code != 0:
+        return []
+    commits = [line.split(" ", 1) for line in out.decode().splitlines() if line.strip()]
+    blobs = _blob_ids(repo, [f"{sha}:{relative}" for sha, _ in commits])
+    found: dict[str, dict[str, Any]] = {}
+    for (sha, when), blob in zip(commits, blobs):
+        if blob:
+            row = found.setdefault(blob, {"blob": blob, "commits": []})
+            row["commits"].append({"commit": sha, "time": when})
+    for row in found.values():
+        row["commits"].sort(key=lambda c: c["time"])
+    return sorted(found.values(), key=lambda r: r["commits"][0]["time"])
+
+
+def session_id_collisions(repo: Path, relative: str, local: bytes | None) -> list[str]:
+    """Why `run` must not write to the session journal at `relative`.
+
+    No local journal: any ref that holds one means the session id is taken.
+    A local journal: a ref's journal must be a byte prefix or an extension of
+    it (a resume appends), or two executions share the session id."""
+    problems = []
+    local_blob = git_blob_id(local) if local is not None else None
+    for ref, blob in ref_journals(repo, relative):
+        if local is None:
+            problems.append(f"{ref} already holds {relative} (blob {blob}); this session id belongs to "
+                            "another execution")
+            continue
+        if blob == local_blob:
+            continue
+        theirs = _blob_bytes(repo, blob)
+        if not (local.startswith(theirs) or theirs.startswith(local)):
+            problems.append(f"{ref} holds {relative} as blob {blob}, which is neither a prefix nor an "
+                            f"extension of the local journal (blob {local_blob}); two executions share "
+                            "this session id")
+    return problems
+
+
+def journal_chain_findings(repo: Path, relative: str, local: bytes | None) -> tuple[list[str], list[dict[str, Any]]]:
+    """Distinct journal chains at one session path across all history.
+
+    Resumes append, so a blob that is a byte prefix of another belongs to the
+    same chain. Each maximal blob (a prefix of no other) heads one chain; more
+    than one chain means the session id was written by unrelated executions.
+    The working-tree journal takes part as a blob of its own."""
+    rows = history_journals(repo, relative)
+    contents: dict[str, bytes] = {}
+    for row in rows:
+        contents[row["blob"]] = _blob_bytes(repo, row["blob"])
+    if local is not None:
+        blob = git_blob_id(local)
+        if blob not in contents:
+            rows.append({"blob": blob, "commits": [{"commit": "working tree", "time": None}]})
+            contents[blob] = local
+    heads = [b for b, data in contents.items()
+             if not any(o != b and other.startswith(data) for o, other in contents.items())]
+    chains = []
+    for head in heads:
+        members = [r for r in rows if contents[head].startswith(contents[r["blob"]])]
+        own = [r for r in members if all(h == head or not contents[h].startswith(contents[r["blob"]])
+                                         for h in heads)] or members
+        first = own[0]["commits"][0]
+        try:
+            start = json.loads(contents[head].split(b"\n", 1)[0])
+        except ValueError:
+            start = {}
+        chains.append({"blob": head, "first_commit": first["commit"], "first_commit_time": first["time"],
+                       "first_entry_time": start.get("time"), "owner": start.get("owner"),
+                       "entries": contents[head].count(b"\n")})
+    findings = []
+    if len(chains) > 1:
+        for chain in chains:
+            findings.append(f"{relative}: unrelated journal chain blob {chain['blob']} (first commit "
+                            f"{chain['first_commit']}, first entry {chain['first_entry_time']}, owner "
+                            f"{chain['owner']}); {len(chains)} executions wrote this session id")
+    return findings, chains
 
 
 def program_path(program: str) -> str | None:
@@ -785,9 +923,16 @@ def _lint_trials(runbook: Runbook, at: str, step: dict[str, Any], bound: dict[st
                 for index, item in enumerate(compare):
                     where = f"{at}.replay.compare[{index}]"
                     keys = {"file", "pointers"} if mode == "fields" else {"file"}
-                    if not isinstance(item, dict) or set(item) != keys:
-                        out.append(f"{where}: keys are {sorted(keys)}")
+                    optional = {"tolerance"} if mode == "fields" else set()
+                    if not isinstance(item, dict) or not keys <= set(item) <= keys | optional:
+                        out.append(f"{where}: keys are {sorted(keys)}"
+                                   + (f", optionally {sorted(optional)}" if optional else ""))
                         continue
+                    if "tolerance" in item:
+                        try:
+                            parse_tolerance(item["tolerance"])
+                        except RunbookError as exc:
+                            out.append(f"{where}.tolerance: {exc}")
                     if any(item["file"] not in artifacts.get(t, []) for t in ids):
                         out.append(f"{where}: {item['file']!r} is not an artifact of every trial")
                     if mode == "fields" and (not isinstance(item["pointers"], list) or not item["pointers"]
@@ -912,6 +1057,81 @@ def _same(a: Any, b: Any) -> bool:
     if isinstance(a, bool) or isinstance(b, bool):
         return type(a) is type(b) and a == b
     return a == b
+
+
+def parse_tolerance(value: Any) -> dict[str, float]:
+    """A float tolerance: {rel_tol, abs_tol}, either or both, finite and >= 0.
+    The CLI form `rel_tol=1e-9,abs_tol=1e-12` is accepted as a string."""
+    if isinstance(value, str):
+        parsed: dict[str, Any] = {}
+        for part in value.split(","):
+            name, sep, number = part.partition("=")
+            if not sep:
+                raise RunbookError(f"{part!r} is not name=value")
+            try:
+                parsed[name.strip()] = float(number)
+            except ValueError:
+                raise RunbookError(f"{part!r}: {number!r} is not a number") from None
+        value = parsed
+    if not isinstance(value, dict) or not value or set(value) - set(TOLERANCE_KEYS):
+        raise RunbookError(f"a tolerance is a mapping with rel_tol and/or abs_tol, got {value!r}")
+    out = {}
+    for name, number in value.items():
+        if isinstance(number, bool) or not isinstance(number, (int, float)) \
+                or not math.isfinite(number) or number < 0:
+            raise RunbookError(f"{name} is a finite non-negative number, got {number!r}")
+        out[name] = float(number)
+    return out
+
+
+def compare_tolerant(a: Any, b: Any, tolerance: dict[str, float] | None) -> dict[str, Any]:
+    """Compare two JSON values for an audit replay.
+
+    Without a tolerance the verdict is `_same`, exactly as before. With one, an
+    exactly equal value is still `equal`; otherwise the two values must have
+    the same structure (key sets, list lengths and order) and the same leaf
+    types, every non-float leaf must be equal, and only float leaves may differ,
+    each within math.isclose(rel_tol, abs_tol). An int on one side and a float
+    on the other is a mismatch. Returns the result (equal, within_tolerance or
+    mismatch), the float leaves that differ, the largest absolute and relative
+    differences, and the first non-float difference when there is one."""
+    if _same(a, b):
+        return {"result": "equal", "float_leaves_differing": 0, "max_abs_diff": 0.0, "max_rel_diff": 0.0}
+    stats = {"float_leaves_differing": 0, "max_abs_diff": 0.0, "max_rel_diff": 0.0, "outside": 0}
+    problems: list[str] = []
+
+    def walk(x: Any, y: Any, where: str) -> None:
+        if type(x) is not type(y):
+            problems.append(f"{where or '/'}: type {type(x).__name__} vs {type(y).__name__}")
+        elif isinstance(x, dict):
+            if set(x) != set(y):
+                problems.append(f"{where or '/'}: keys differ ({sorted(set(x) ^ set(y))[:5]})")
+            else:
+                for key in sorted(x):
+                    walk(x[key], y[key], f"{where}/{key}")
+        elif isinstance(x, list):
+            if len(x) != len(y):
+                problems.append(f"{where or '/'}: length {len(x)} vs {len(y)}")
+            else:
+                for index, (u, v) in enumerate(zip(x, y)):
+                    walk(u, v, f"{where}/{index}")
+        elif isinstance(x, float):
+            if x != y:
+                diff = abs(x - y)
+                scale = max(abs(x), abs(y))
+                stats["float_leaves_differing"] += 1
+                stats["max_abs_diff"] = max(stats["max_abs_diff"], diff)
+                stats["max_rel_diff"] = max(stats["max_rel_diff"], diff / scale if scale else 0.0)
+                if tolerance is None or not math.isclose(x, y, rel_tol=tolerance.get("rel_tol", 0.0),
+                                                         abs_tol=tolerance.get("abs_tol", 0.0)):
+                    stats["outside"] += 1
+        elif not _same(x, y):
+            problems.append(f"{where or '/'}: {json.dumps(x)[:60]} vs {json.dumps(y)[:60]}")
+
+    walk(a, b, "")
+    outside = stats.pop("outside")
+    result = "mismatch" if problems or outside or tolerance is None else "within_tolerance"
+    return {"result": result, **stats, **({"non_float_differences": problems[:5]} if problems else {})}
 
 
 def check_assertion(item: dict[str, Any], data: Any, *, unit: dict[str, Any] | None = None,
@@ -1144,6 +1364,12 @@ class Runner:
     def run(self) -> dict[str, Any]:
         runbook = self.runbook
         journal_path = self.session / "journal.jsonl"
+        # Before anything is written: a session id belongs to one execution
+        # (RBS-ICPERF-b7e41c had two). Read-only git; never fetches.
+        collisions = session_id_collisions(self.repo, rel(self.repo, journal_path),
+                                           journal_path.read_bytes() if journal_path.exists() else None)
+        if collisions:
+            raise RunbookError("refusing to write this session:\n  " + "\n  ".join(collisions))
         if journal_path.exists():
             journal = Journal(journal_path)
             problems = chain_findings(journal.entries)
@@ -2001,10 +2227,46 @@ def challenge_order(seed: str, population: list[str]) -> list[str]:
     return sorted(population, key=lambda trial_id: sha256_bytes(f"{seed}\n{trial_id}".encode()))
 
 
+def probe_interpreter(program: str, env: dict[str, str], cwd: Path) -> dict[str, Any]:
+    """The interpreter a replay's argv[0] runs: sys.version, executable and
+    the bare version string, as that program reports them."""
+    code = ("import json,platform,sys;print(json.dumps({'version':sys.version,"
+            "'executable':sys.executable,'python_version':platform.python_version()}))")
+    try:
+        done = subprocess.run([program, "-c", code], capture_output=True, text=True, env=env, cwd=cwd,
+                              timeout=60, check=False)
+        return json.loads(done.stdout.strip().splitlines()[-1])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return {"program": program, "error": "the interpreter did not report its version"}
+
+
+def _replay_interpreter(runbook: Runbook, trial: dict[str, Any], cache: dict[str, Any]) -> dict[str, Any]:
+    program = trial["argv"][0] if trial.get("argv") else "python3"
+    if not Path(program).name.startswith("python"):
+        program = "python3"
+    if program not in cache:
+        cache[program] = {"program": program,
+                          **probe_interpreter(program, _subprocess_env(runbook), runbook.repo)}
+    return cache[program]
+
+
+def _recorded_python(run_dir: Path) -> str | None:
+    """/run/environment/python_version of a unit's manifest, when present."""
+    try:
+        manifest = yaml.safe_load((run_dir / "manifest.yaml").read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return None
+    found, value = pointer_get(manifest, "/run/environment/python_version")
+    return str(value) if found and value is not None else None
+
+
 def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce: str | None = None,
-          out_dir: str | None = None, auditor: str = "unspecified") -> tuple[dict[str, Any], Path]:
+          out_dir: str | None = None, auditor: str = "unspecified",
+          float_tolerance: dict[str, float] | str | None = None) -> tuple[dict[str, Any], Path]:
     repo = repo.resolve()
     path, entries, runbook = load_session(repo, session)
+    if float_tolerance is not None:
+        float_tolerance = parse_tolerance(float_tolerance)
     nonce = nonce or secrets.token_hex(16)
     if not HEX.match(nonce):
         raise RunbookError("--nonce must be lowercase hex")
@@ -2015,9 +2277,19 @@ def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce:
         resolve(repo, f"{runbook.base_dir}/audits/AUD-{stamp}-{secrets.token_hex(3)}")
     target.mkdir(parents=True, exist_ok=False)
     findings = verify(repo, path, rerun_checks=True)
+    starts = [e for e in entries if e.get("type") == "session_started"]
+    if len(starts) > 1:
+        findings.append(f"journal has {len(starts)} session_started entries; a session id belongs to "
+                        "one execution")
+    journal_rel = rel(repo, path / "journal.jsonl")
+    chain_problems, journal_chains = journal_chain_findings(repo, journal_rel,
+                                                            (path / "journal.jsonl").read_bytes())
+    findings += chain_problems
     units = latest_units(entries)
     replays = []
     not_covered = []
+    interpreters: dict[str, Any] = {}
+    pinned = (runbook.doc.get("environment") or {}).get("python")
     for step in runbook.doc["steps"]:
         if step["kind"] != "trials":
             continue
@@ -2032,7 +2304,26 @@ def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce:
         plan = read_json_file(plan_path)
         for trial_id in chosen:
             trial = next(t for t in plan["trials"] if t["id"] == trial_id)
-            replays.append(replay_unit(repo, runbook, step, plan, trial, units[(step["id"], trial_id)], target))
+            interpreter = _replay_interpreter(runbook, trial, interpreters)
+            have = interpreter.get("python_version")
+            if pinned and (have is None or ".".join(have.split(".")[:2]) != pinned):
+                not_covered.append(f"{step['id']}/{trial_id}: the runbook pins python {pinned} and the audit "
+                                   f"interpreter {interpreter.get('executable', interpreter['program'])} is "
+                                   f"{have}; not replayed")
+                continue
+            unit = units[(step["id"], trial_id)]
+            record = replay_unit(repo, runbook, step, plan, trial, unit, target, float_tolerance=float_tolerance)
+            recorded = _recorded_python(resolve(repo, unit["run_dir"]))
+            record["interpreter"] = {"version": interpreter.get("version"),
+                                     "executable": interpreter.get("executable"),
+                                     "python_version": have, "recorded_python_version": recorded}
+            if recorded is not None and recorded != have:
+                record["environment_drift"] = {
+                    "kind": "interpreter_version", "recorded_python_version": recorded,
+                    "replay_python_version": have,
+                    "note": f"recorded under python {recorded}, replayed under {have}; reported beside the "
+                            "replay result, never in place of it"}
+            replays.append(record)
         for r in replays:
             if r["step_id"] == step["id"]:
                 r["population"] = len(population)
@@ -2054,7 +2345,7 @@ def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce:
                      "semantic_review": "pending: the statement-fidelity screen is the auditor's"})
         if not ok:
             findings.append(f"{entry['step_id']}: the Lean receipt no longer satisfies its obligation")
-    mismatched = [r for r in replays if not r["matched"]]
+    mismatched = [r for r in replays if r["result"] == "mismatch"]
     findings += [f"replay {r['step_id']}/{r['trial_id']}: {r['detail']}" for r in mismatched]
     k_total = len(replays)
     report = {
@@ -2071,6 +2362,16 @@ def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce:
         "challenge_seed": seed,
         "findings": findings,
         "replays": replays,
+        "replay_results": {result: sum(r["result"] == result for r in replays)
+                           for result in ("matched", "matched_within_tolerance", "mismatch")},
+        # A tolerance given at audit time (for a runbook frozen without one)
+        # applies to every fields pointer the runbook declares no tolerance for.
+        "float_tolerance": ({"source": "audit_option", **float_tolerance} if float_tolerance else None),
+        "audit_interpreter": {"version": sys.version, "executable": sys.executable},
+        "replay_interpreters": sorted(interpreters.values(), key=lambda i: i["program"]),
+        "environment_drift": [{"step_id": r["step_id"], "trial_id": r["trial_id"], **r["environment_drift"]}
+                              for r in replays if r.get("environment_drift")],
+        "journal_chains": journal_chains,
         "lean": lean,
         "not_covered": not_covered,
         # What the sample can and cannot say: if a fraction f of replayable
@@ -2090,12 +2391,16 @@ def audit(repo: Path, session: str | Path, *, samples: int | None = None, nonce:
 
 
 def replay_unit(repo: Path, runbook: Runbook, step: dict[str, Any], plan: dict[str, Any],
-                trial: dict[str, Any], unit: dict[str, Any], audit_dir: Path) -> dict[str, Any]:
+                trial: dict[str, Any], unit: dict[str, Any], audit_dir: Path, *,
+                float_tolerance: dict[str, float] | None = None) -> dict[str, Any]:
     """Re-execute one trial into the audit directory and compare.
 
     A replay is a verification, not a trial: it writes only under the audit
     directory, is never committed as a run, and its outputs say only whether
-    the recorded ones were reproduced."""
+    the recorded ones were reproduced. `result` is matched (every compared
+    value exactly equal), matched_within_tolerance (only float leaves differ,
+    each within the pointer's declared tolerance or the audit's
+    float_tolerance) or mismatch; `matched` is true only for matched."""
     directory = audit_dir / "replay" / trial["run_id"]
     directory.mkdir(parents=True)
     run_dir = rel(repo, directory)
@@ -2104,7 +2409,7 @@ def replay_unit(repo: Path, runbook: Runbook, step: dict[str, Any], plan: dict[s
     timeout = trial.get("watchdog_seconds") or step["timeout_seconds"]
     env = _subprocess_env(runbook)
     record: dict[str, Any] = {"step_id": step["id"], "trial_id": trial["id"], "run_id": trial["run_id"],
-                              "argv": argv, "matched": False, "compared": []}
+                              "argv": argv, "matched": False, "result": "mismatch", "compared": []}
     code, timed_out = run_process(argv, cwd=repo, env=env, timeout=timeout, stdout=directory / "stdout.log",
                                   stderr=directory / "stderr.log", memory_mb=trial.get("memory_mb"))
     if code != 0 or timed_out:
@@ -2117,6 +2422,7 @@ def replay_unit(repo: Path, runbook: Runbook, step: dict[str, Any], plan: dict[s
         return record
     original = resolve(repo, unit["run_dir"])
     problems = []
+    toleranced = False
     for item in step["replay"]["compare"]:
         a, b = original / item["file"], directory / item["file"]
         if not b.is_file():
@@ -2129,15 +2435,32 @@ def replay_unit(repo: Path, runbook: Runbook, step: dict[str, Any], plan: dict[s
                 problems.append(f"{item['file']} bytes differ")
             continue
         left, right = read_json_file(a), read_json_file(b)
+        if "tolerance" in item:
+            tolerance, source = parse_tolerance(item["tolerance"]), "runbook"
+        else:
+            tolerance, source = float_tolerance, "audit_option" if float_tolerance else None
         for pointer in item["pointers"]:
             fa, va = pointer_get(left, pointer)
             fb, vb = pointer_get(right, pointer)
-            same = fa and fb and _same(va, vb)
-            record["compared"].append({"file": item["file"], "pointer": pointer, "equal": bool(same)})
-            if not same:
-                problems.append(f"{item['file']}{pointer}: recorded {json.dumps(va)[:80]}, replay {json.dumps(vb)[:80]}")
-    record["matched"] = not problems
-    record["detail"] = "; ".join(problems) if problems else "reproduced"
+            outcome = compare_tolerant(va, vb, tolerance) if fa and fb else {"result": "mismatch"}
+            row = {"file": item["file"], "pointer": pointer, "equal": outcome["result"] == "equal",
+                   "result": outcome["result"]}
+            if tolerance:
+                row["tolerance"] = {"source": source, **tolerance}
+            if outcome.get("float_leaves_differing"):
+                row.update({k: outcome[k] for k in ("float_leaves_differing", "max_abs_diff", "max_rel_diff")})
+            record["compared"].append(row)
+            if outcome["result"] == "within_tolerance":
+                toleranced = True
+            elif outcome["result"] == "mismatch":
+                extra = f" (non-float: {outcome['non_float_differences'][0]})" \
+                    if outcome.get("non_float_differences") else ""
+                problems.append(f"{item['file']}{pointer}: recorded {json.dumps(va)[:80]}, "
+                                f"replay {json.dumps(vb)[:80]}{extra}")
+    record["matched"] = not problems and not toleranced
+    record["result"] = "mismatch" if problems else ("matched_within_tolerance" if toleranced else "matched")
+    record["detail"] = "; ".join(problems) if problems else \
+        ("reproduced within the declared float tolerance" if toleranced else "reproduced")
     return record
 
 
@@ -2482,6 +2805,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--nonce", help="auditor-chosen hex; default: fresh randomness")
     p.add_argument("--out", help="audit directory (default: <experiment>/audits/AUD-...)")
     p.add_argument("--auditor", default="unspecified", help="who ran this audit (role and model)")
+    p.add_argument("--float-tolerance", metavar="rel_tol=R,abs_tol=A",
+                   help="compare float leaves of fields pointers the runbook gives no tolerance under "
+                        "math.isclose with these bounds; recorded in audit.json (default: exact)")
     p = sub.add_parser("pending-audits")
     p.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -2537,9 +2863,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "audit":
             result, target = audit(repo, args.session, samples=args.samples, nonce=args.nonce,
-                                   out_dir=args.out, auditor=args.auditor)
+                                   out_dir=args.out, auditor=args.auditor,
+                                   float_tolerance=args.float_tolerance)
             print(json.dumps({"verdict": result["verdict"], "audit_dir": rel(repo, target),
                               "findings": result["findings"], "replayed_units": len(result["replays"]),
+                              "replay_results": result["replay_results"],
+                              "environment_drift": result["environment_drift"],
                               "not_covered": result["not_covered"]}, indent=2))
             return 0 if result["verdict"] == "clean" else 1
         rows = pending_audits(repo)
