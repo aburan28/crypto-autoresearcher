@@ -61,15 +61,12 @@ CODE_EXT = {
     ".bib", ".cfg", ".ini", ".mk", ".cmake", ".go", ".swift", ".m", ".gp",
     ".mag", ".sql", ".nix", ".ipynb", ".v", ".sv", ".tcl", ".xdc", ".json5",
 }
-# Stay in Git at any size. Owner decision (2026-10-26): papers and reports
-# are read from the tree; they are not store data.
-GIT_EXT = {".pdf"}
 DATA_EXT = {
     ".jsonl", ".ndjson", ".gz", ".zst", ".xz", ".bz2", ".lz4", ".tar", ".zip", ".7z",
     ".npy", ".npz", ".pkl", ".pickle", ".h5", ".hdf5", ".parquet", ".arrow",
     ".feather", ".bin", ".dat", ".raw", ".rsp", ".csv", ".tsv", ".log", ".out",
     ".stdout", ".stderr", ".trace", ".prof", ".perf", ".png", ".jpg", ".jpeg",
-    ".gif", ".webp", ".svgz", ".sqlite", ".db", ".dylib", ".so", ".a",
+    ".gif", ".webp", ".pdf", ".svgz", ".sqlite", ".db", ".dylib", ".so", ".a",
     ".o", ".exe", ".wasm", ".safetensors", ".pt", ".onnx", ".ckpt",
 }
 
@@ -99,31 +96,6 @@ def git(root: Path, *args: str, input: bytes | None = None) -> bytes:
     return p.stdout
 
 
-def retarget_actions_origin(root: Path) -> None:
-    """Point remotes at GITHUB_REPOSITORY so partial clones can lazy-fetch blobs.
-
-    After a repository transfer the checkout still names the old URL. GitHub then
-    403s ('repository is disabled') on `cat-file` for blobs not in the sparse tree.
-    """
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        return
-    repo = os.environ.get("GITHUB_REPOSITORY")
-    if not repo:
-        return
-    want = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com').rstrip('/')}/{repo}.git"
-    p = subprocess.run(["git", "-C", str(root), "remote"], capture_output=True, text=True)
-    if p.returncode != 0:
-        return
-    for name in p.stdout.split():
-        cur = subprocess.run(["git", "-C", str(root), "remote", "get-url", name],
-                             capture_output=True, text=True)
-        if cur.returncode != 0:
-            continue
-        url = cur.stdout.strip()
-        if "github.com" in url and repo not in url:
-            subprocess.run(["git", "-C", str(root), "remote", "set-url", name, want], check=False)
-
-
 def repo_root() -> Path:
     p = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     if p.returncode != 0:
@@ -143,7 +115,6 @@ class Config:
 
     @classmethod
     def load(cls, root: Path) -> "Config":
-        retarget_actions_origin(root)
         raw: dict = {}
         cfg_path = root / CONFIG
         if cfg_path.exists():
@@ -181,7 +152,7 @@ def belongs_in_store(path: str, size: int, policy: dict) -> bool:
     if any(fnmatch.fnmatchcase(path, pat) for pat in policy.get("keep", [])):
         return False
     ext = suffix(path)
-    if ext in CODE_EXT or ext in GIT_EXT:
+    if ext in CODE_EXT:
         return False
     if size > policy["max_bytes"]:
         return True
@@ -657,14 +628,6 @@ def cmd_status(cfg: Config, args) -> int:
     return 0
 
 
-def blob_sizes(root: Path, blobs: list[str]) -> list[int]:
-    """Object sizes, fetching from the (retargeted) promisor remote if needed."""
-    if not blobs:
-        return []
-    out = git(root, "cat-file", "--batch-check=%(objectsize)", input="\n".join(blobs).encode() + b"\n")
-    return [int(s) for s in out.decode().split()]
-
-
 def cmd_check(cfg: Config, args) -> int:
     """Fail when BASE..HEAD adds or grows a tracked file the policy assigns to the store."""
     offenders = changed_candidates(cfg, args.base, args.head)
@@ -686,17 +649,14 @@ def changed_candidates(cfg: Config, base: str, head: str) -> list[tuple[str, int
     # 7-character raw id is not a valid object name when that blob is absent.
     out = git(cfg.root, "diff", "--raw", "--no-abbrev", "-z", "--no-renames", "--diff-filter=AM", base, head)
     fields = out.decode(errors="surrogateescape").split("\0")
-    entries: list[tuple[str, str]] = []
+    offenders = []
     for meta, path in zip(fields[0::2], fields[1::2]):
         if not meta:
             continue
         _, mode, _, blob, _ = meta.lstrip(":").split()
         if mode == "160000":
             continue
-        entries.append((path, blob))
-    sizes = blob_sizes(cfg.root, [b for _, b in entries])
-    offenders = []
-    for (path, _), size in zip(entries, sizes):
+        size = int(git(cfg.root, "cat-file", "-s", blob))
         if belongs_in_store(path, size, cfg.policy):
             offenders.append((path, size))
     return offenders
