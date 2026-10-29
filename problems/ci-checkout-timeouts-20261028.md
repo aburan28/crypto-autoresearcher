@@ -1,7 +1,7 @@
-# Validation checks cancelled during checkout
+# Validation checks cancelled by checkout and shared startup timeouts
 
 - **Status:** investigating
-- **Kind:** CI checkout infrastructure; no checker result
+- **Kind:** CI checkout/startup infrastructure; missing or incomplete checker result
 - **Affected work:** [PR #2662](https://github.com/isogeny-labs/crypto-autoresearcher/pull/2662) and [PR #2629](https://github.com/isogeny-labs/crypto-autoresearcher/pull/2629)
 - **Next action owner:** author of PR #2662
 - **Last updated:** 2026-10-28
@@ -55,3 +55,38 @@ unchanged checkers passed: 31 skills on both surfaces, seven locked files.
 Removing a tracked skill and, separately, a locked source file made the input
 guard fail; each was restored before the positive check. Hosted results on the
 new PR revision remain pending.
+
+## Follow-up: ledger and full-archive harness shard
+
+At the scheduled 17:56 UTC check, head
+`52a24c4e92af547a0947912bdf52a5a8419b453e` had 16 successful checks,
+two cancellations and one failing aggregate. Parity, merge hygiene, the formal
+workspace, kernel controls, both runtime versions and harness shards 2–4 passed.
+The original repairs therefore have hosted evidence on this revision; the
+PR still cannot merge with its other applicable checks incomplete.
+
+- [Ledger job 122973073101](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40732517858/job/122973073101)
+  started at 17:07:56, completed its blobless history fetch at 17:08:22,
+  and remained in full checkout until cancellation at 17:27:57. The ledger
+  validator did not run and no ledger diagnostics existed to upload.
+- [Harness shard 1 job 122973073212](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40732517858/job/122973073212)
+  started at 17:07:56. Checkout and setup preceded test selection at 17:19:32;
+  59 files were selected at 17:19:49. Pytest output reached 66% at 17:28:03,
+  then the job was cancelled at 17:28:09 without a completed JUnit report.
+  The partial dots do not establish a passing test suite.
+- Both had a 20-minute whole-job limit. The cancellation times are consistent
+  with exhaustion of that allowance. The aggregate correctly failed.
+
+The follow-up grants only ledger and the full-archive harness shard 1 a bounded
+45-minute whole-job allowance: up to roughly 20 minutes already observed in
+checkout, a separate 20-minute validation/test step, and startup margin.
+Sparse harness shards retain 20 minutes total. All full archive inputs, test
+selection, validators, fixture verification, failure propagation and aggregate
+requirements remain. The validation and pytest steps now each have an explicit
+20-minute cap; a hang still fails. This does not change experiment deadlines
+or add cloud resources. A new exact-head run must establish successful
+completion; the budget change itself is not passing evidence.
+
+Local follow-up validation: existing CI scope and workflow gate controls plus
+YAML parsing and a comparison of the before/after workflow confirm that only
+these job/step time allowances changed. Hosted completion remains required.
