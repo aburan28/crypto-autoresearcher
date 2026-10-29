@@ -17,7 +17,7 @@ TOOL = Path(__file__).resolve().parent / "artifacts.py"
 sys.path.insert(0, str(TOOL.parent))
 import artifacts  # noqa: E402
 import wire_workflows  # noqa: E402
-from wire_workflows import explicitly_pulled_and_verified  # noqa: E402
+from wire_workflows import explicitly_pulled_and_verified, metadata_only  # noqa: E402
 
 
 def sh(cwd, *argv, check=True, env=None):
@@ -246,6 +246,10 @@ class WorkflowWiring(unittest.TestCase):
     def test_pull_in_one_job_does_not_cover_another_consumer(self):
         other = f"  second-consumer:\n    steps:\n      - run: cat {self.PATH}/records.jsonl\n"
         self.assertFalse(explicitly_pulled_and_verified(self.workflow() + other, [self.PATH]))
+
+    def test_only_documented_metadata_workflows_skip_private_hydration(self):
+        self.assertTrue(metadata_only("# artifact-store: no-pull (metadata-only checks)\n"))
+        self.assertFalse(metadata_only(self.workflow()))
 
 
 

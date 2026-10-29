@@ -75,27 +75,6 @@ jobs:
             /docs/reports/
             /tools/artifacts/
             /tools/report_publication_files.py
-      - name: Pull store data this workflow reads (tools/artifacts)
-        if: steps.creds.outputs.mode != 'none'
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: |
-          if ! command -v aws >/dev/null; then
-            python3 -m venv "$RUNNER_TEMP/artifacts-awscli"
-            artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/bin/python"
-            artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/bin/aws"
-            if [ -d "$RUNNER_TEMP/artifacts-awscli/Scripts" ]; then
-              artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/Scripts/python.exe"
-              artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/Scripts/aws.exe"
-            fi
-            "$artifacts_cli_python" -m pip install --disable-pip-version-check awscli==1.46.2
-            export ARTIFACTS_AWS="$artifacts_cli_aws"
-          fi
-          python3 tools/artifacts/artifacts.py pull --jobs 16 docs experiments research
       - uses: aws-actions/configure-aws-credentials@v4
         if: steps.creds.outputs.mode == 'role'
         with:
@@ -116,8 +95,8 @@ jobs:
           AWS_REGION: us-east-2
           AWS_DEFAULT_REGION: us-east-2
         run: |
-          python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research docs/reports
-          python3 tools/artifacts/artifacts.py verify experiments research docs/reports
+          python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research docs
+          python3 tools/artifacts/artifacts.py verify experiments research docs
 
       - name: Upload this push's reports
         if: steps.creds.outputs.mode != 'none'

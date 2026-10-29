@@ -55,13 +55,24 @@ jobs:
             **/*.blob.json
             /tools/artifacts/
             /.artifacts/
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'role'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.creds.outputs.mode == 'keys'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Pull store data this workflow reads (tools/artifacts)
         if: steps.creds.outputs.mode != 'none'
         shell: bash
         working-directory: ${{ github.workspace }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
         run: |
           if ! command -v aws >/dev/null; then
@@ -76,19 +87,8 @@ jobs:
             export ARTIFACTS_AWS="$artifacts_cli_aws"
           fi
           python3 tools/artifacts/artifacts.py pull --jobs 16 docs
+          python3 tools/artifacts/artifacts.py verify docs
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        if: steps.creds.outputs.mode == 'role'
-        with:
-          role-to-assume: ${{ env.ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        if: steps.creds.outputs.mode == 'keys'
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Check this merge's pointers resolve
         if: steps.creds.outputs.mode != 'none'
