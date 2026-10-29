@@ -41,6 +41,19 @@ def normalize(vector, rhs, modulus):
     return [(v*pow(first, -1, modulus)) % modulus for v in affine] if first else [0]*len(affine)
 
 
+def canonical_cubic(coefficients, modulus):
+    """Orbit under v(X) -> sign*v(deck*X) on the existing even sextic.
+
+    This is a function-grouping key, not a relation or cache-validity proof.
+    In particular it intentionally does not erase source-specific obligations.
+    """
+    if modulus <= 3 or modulus % 2 == 0 or not 1 <= len(coefficients) <= 4:
+        raise ValueError('odd characteristic >3 and degree at most three required')
+    padded = list(coefficients)+[0]*(4-len(coefficients))
+    return min(tuple(sign*c*pow(deck,j,modulus) % modulus for j,c in enumerate(padded))
+               for sign in (1,-1) for deck in (1,-1))
+
+
 def build(catalog_path, fixture_path, run_dirs, output):
     if output.exists():
         raise ValueError('database output must be fresh')
@@ -128,12 +141,20 @@ def build(catalog_path, fixture_path, run_dirs, output):
                     if not any((run_dir/f['path']).resolve() == path.resolve() for f in export['files']):
                         raise ValueError('result absent from export file hashes')
                     result = load(path)
+                    if (result.get('curve_uid') != fixture_uid or
+                            result.get('include_zero') is not (arm == 'completed_zero') or
+                            result.get('inputs_sha256') != expected or
+                            result.get('source_order') != fixture_map[fixture_uid]['width_binding']['source_order']):
+                        raise ValueError('raw result identity differs from fixture/arm/input binding')
                     if result['projection']['unknown_points'] != base['ordered_projected_points']:
                         raise ValueError('base columns differ; a new base identity is required')
                     verification_path = run_dir/'raw'/(stem+'.verification.json')
                     if verification_path.is_file() and verification_path.resolve() not in bound_paths:
                         raise ValueError('verification absent from export file hashes')
                     verification = load(verification_path) if verification_path.is_file() else {}
+                    if verification.get('checked') and (verification.get('attempts_replayed') != result['attempts'] or
+                            any(verification.get(k) != result['quality'][k] for k in ('rows','rank','nullity','columns','unique_affine_equations'))):
+                        raise ValueError('source verification summary differs from result')
                     scope = ('Source reports complete separate branch replay' if verification.get('checked')
                              else 'Collected source only; no completed separate replay')
                     observation_id = execution_id+':'+stem
@@ -144,20 +165,28 @@ def build(catalog_path, fixture_path, run_dirs, output):
                          str(path.resolve().relative_to(ROOT))))
                     connection.executemany('INSERT INTO statuses VALUES (?,?,?)',
                         [(observation_id,k,v) for k,v in result['statuses'].items()])
+                    if len(result['kernel']) != q['nullity'] or any(len(v) != q['columns'] for v in result['kernel']):
+                        raise ValueError('kernel shape differs from source quality')
+                    connection.executemany('INSERT INTO kernels VALUES (?,?,?)',
+                        [(observation_id,i,encode(vector)) for i,vector in enumerate(result['kernel'])])
                     syndromes = result.get('old_kernel_syndromes')
                     if syndromes is not None and len(syndromes) != len(result['rows']):
                         raise ValueError('syndrome count mismatch')
                     for index,row in enumerate(result['rows']):
                         vector,rhs = project(row,result['projection'],int(base['r']))
-                        connection.execute('INSERT INTO equations VALUES (?,?,?,?,?,?,?,?,?)',
+                        cubic = canonical_cubic(row['v_coefficients'],int(base['p']))
+                        function_id = sha256(encode(dict(curve_uid=base['curve_uid'],cubic=cubic)).encode()).hexdigest()
+                        connection.execute('INSERT OR IGNORE INTO principal_functions VALUES (?,?,?)',
+                            (function_id,base['curve_uid'],encode(cubic)))
+                        connection.execute('INSERT INTO equations VALUES (?,?,?,?,?,?,?,?,?,?)',
                             (observation_id,index,encode(normalize(vector,rhs,int(base['r']))),encode(vector),str(rhs),
                              int(row['constraints'][0][0] == 0),int(any(p[0] == 0 for p in row['constraints'][1:])),
-                             None if syndromes is None else encode(syndromes[index]),encode(row)))
+                             None if syndromes is None else encode(syndromes[index]),encode(row),function_id))
         if connection.execute('PRAGMA foreign_key_check').fetchall():
             raise ValueError('foreign key failure')
         connection.commit()
         return {table:connection.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]
-                for table in ('curves','bases','atoms','actions','executions','observations','equations','sources')}
+                for table in ('curves','bases','atoms','actions','executions','observations','equations','kernels','principal_functions','sources')}
     except BaseException:
         connection.close()
         output.unlink(missing_ok=True)

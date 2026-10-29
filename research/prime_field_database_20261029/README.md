@@ -42,12 +42,28 @@ SELECT observation_id,COUNT(*) FROM new_completed_equations
 GROUP BY observation_id;
 SELECT base_sha256,name,known_constraint_rank,additional_rank_after_constraints
 FROM actions;
+SELECT * FROM cubic_reuse_summary;
 ```
 
 The new-equation view compares normalized affine rows only within the same
 physical execution and exact base. More equations are distinct from more
 rank. `old_kernel_syndrome_json` retains B1's old-space test separately.
+The `kernels` table retains each fresh cell's checked right-kernel basis for
+later target-identifiability tests `v*N=0`; it does not require full base rank.
+It does not invent kernels missing from the retained historical catalog.
 No SQL view estimates collision probabilities, total attack cost or speedup.
+
+The cubic reuse view is exploratory derived archive analysis. On the existing
+even sextic, the already-valid deck/negation actions transform `v(X)` to
+`sign*v(deck*X)`. The builder stores a canonical key over these four cubics,
+with the curve identity included in its digest. Equal keys group functions;
+each source, interpolation witness, projected equation and sign obligation
+remains separately available. A function key alone cannot authorize dropping
+branches or reusing source-specific residuals. This view measures a candidate
+for a separately frozen caching experiment; no cache is enabled in B1.
+This view covers accepted witnesses only. It does not count cubic duplication
+among rejected candidates, which must be instrumented before assessing total
+collection savings.
 
 Sources checked before implementation: `docs/curve-identities.md` (exact
 representation versus base identity), `docs/artifacts.md`, the merged

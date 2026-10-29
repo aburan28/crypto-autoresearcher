@@ -43,11 +43,23 @@ CREATE TABLE statuses (
   observation_id TEXT NOT NULL REFERENCES observations, status TEXT NOT NULL,
   count INTEGER NOT NULL, PRIMARY KEY(observation_id, status)
 );
+CREATE TABLE kernels (
+  observation_id TEXT NOT NULL REFERENCES observations,
+  basis_index INTEGER NOT NULL, vector_json TEXT NOT NULL,
+  PRIMARY KEY(observation_id,basis_index)
+);
+-- Coarse function grouping only. Source bindings remain in each witness;
+-- an equal function key is not authority to drop a row or a source branch.
+CREATE TABLE principal_functions (
+  function_id TEXT PRIMARY KEY, curve_uid TEXT NOT NULL REFERENCES curves,
+  canonical_cubic_json TEXT NOT NULL
+);
 CREATE TABLE equations (
   observation_id TEXT NOT NULL REFERENCES observations, row_index INTEGER NOT NULL,
   normalized_affine_json TEXT NOT NULL, coefficients_json TEXT NOT NULL,
   rhs TEXT NOT NULL, source_zero INTEGER NOT NULL, constraint_zero INTEGER NOT NULL,
   old_kernel_syndrome_json TEXT, witness_json TEXT NOT NULL,
+  function_id TEXT NOT NULL REFERENCES principal_functions,
   PRIMARY KEY(observation_id, row_index)
 );
 CREATE INDEX equations_affine ON equations(normalized_affine_json);
@@ -67,3 +79,7 @@ CREATE VIEW new_completed_equations AS
    WHERE oo.arm='historical_nonzero' AND oo.execution_id=no.execution_id
      AND oo.base_sha256=no.base_sha256 AND old.normalized_affine_json=n.normalized_affine_json
  );
+CREATE VIEW cubic_reuse_summary AS
+ SELECT observation_id,COUNT(*) AS witnesses,COUNT(DISTINCT function_id) AS cubic_orbits,
+        COUNT(DISTINCT normalized_affine_json) AS distinct_equations
+ FROM equations GROUP BY observation_id;

@@ -63,3 +63,20 @@ def test_affine_normalization_preserves_rhs_and_public_anchor_sign():
     assert database.normalize([0],0,7) == [0,0]
     with pytest.raises(ValueError):
         database.project(dict(coefficients=[1],source_scalar=0),projection,7)
+
+
+def test_cubic_grouping_preserves_existing_deck_and_negation_orbit():
+    from itertools import product
+    p = 101
+    for coefficients in product((0,1,2),repeat=4):
+        key = database.canonical_cubic(coefficients,p)
+        for sign,deck in product((1,-1),repeat=2):
+            transformed = [sign*c*pow(deck,j,p) % p for j,c in enumerate(coefficients)]
+            assert database.canonical_cubic(transformed,p) == key
+            for x in (0,1,7,p-1):
+                y = sum(c*pow(x,j,p) for j,c in enumerate(coefficients)) % p
+                # C's even sextic is unchanged by deck, while negation flips y.
+                assert sum(c*pow(deck*x,j,p) for j,c in enumerate(transformed)) % p == sign*y % p
+    assert database.canonical_cubic([3],p) == database.canonical_cubic([3,0,0,0],p)
+    with pytest.raises(ValueError):database.canonical_cubic([0]*5,p)
+    with pytest.raises(ValueError):database.canonical_cubic([1],2)
