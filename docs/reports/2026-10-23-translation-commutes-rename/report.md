@@ -119,3 +119,45 @@ axiom audit. They do not re-verify those two modules on this host. They do not
 formalize the commutation-to-descent step. They do not supply the pending
 independent semantic review. The `lean-verification` workflow is still
 disabled, so no hosted CI built this.
+
+## 2026-10-28 addendum: hosted gate result and merge
+
+The sections above record what was true on 2026-10-23 and stay as written. Two
+of their statements are now out of date.
+
+- **`lean-verification` is no longer disabled.** The workflow is `active` (last
+  updated 2026-10-23 17:37 PDT), so the Boundary section's "still disabled, so
+  no hosted CI built this" no longer holds.
+- **The full gate has now run, on a hosted runner.** Item 4 above could not
+  complete on the 15 GiB container because the whole-workspace `lake build`
+  was OOM-killed. The hosted job `formal workspace (lake build + axiom audit)`
+  of `lean-verification` run
+  [40713787875](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40713787875)
+  ([job 122905972990](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40713787875/job/122905972990))
+  ran the same plain `lake build` and then `tools/verify_formal_targets.py` on
+  `ubuntu-latest` at PR head `b0e03a1620237b135d3bbf81ad826f9a9e41532c` (the
+  PR #2496 head with `main` at `6e86a2ddeb` merged in), 15:13:54 to 15:36:44
+  UTC. It concluded `success` with:
+
+  ```
+  verified   quotient-translation-descent  (CryptoResearch.Quotient.translation_commutes_iff_two_torsion)
+  87 verified, 0 not verified, 0 infrastructure, 0 undischarged
+  OK: 87 target(s) machine-verified (independent semantic-fidelity review still required).
+  ```
+
+  The 87 receipts are in the run's `formal-verification-receipts` artifact (ID
+  12828902787, 87 files). The same job also passed on the three earlier heads of
+  the PR the same day (`f6372f1e70`, `e040f506f8`, `edd834c742`).
+
+PR #2496 merged on 2026-10-28 at 15:43:48 UTC as merge commit
+`cdd2150922211f180ab3d8c3f3b248356c78f025`, after 19 of 19 checks passed on the
+head. The `main` ruleset requires its three checks to be strict, so earlier
+merge attempts on heads that were behind `main` were refused with "3 of 3
+required status checks are expected" (HTTP 405); nothing was bypassed.
+
+Still not established: independent semantic review of the target (pending, as
+before), the commutation-to-descent step (prose only), and why the whole
+workspace builds on the hosted runner but not in the 15 GiB container (see
+`problems/formal-workspace-build-exceeds-16gb.md`, now `investigating`). This
+report's local receipts are not replaced by the hosted ones: the local scoped
+receipt covers 41 of 43 modules, the hosted receipt covers the whole workspace.
