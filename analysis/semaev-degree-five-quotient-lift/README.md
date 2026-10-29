@@ -76,3 +76,20 @@ producer remains a small-fixture correctness reference.
 
 The argument above is a written construction rationale, not a Lean theorem
 or an external expert review.
+
+## Native candidate
+
+`quotient_lift.cpp` implements the same construction using M4RI multiplication
+and elimination in the provisional coordinate space. It has an explicit
+allocation envelope and emits `projection_kills_one` rather than claiming a
+refutation when the constant vanishes. Its output uses the unchanged original
+certificate format. Small fixtures compare it with the reference implementation
+at three chunk sizes, including multiword coordinates. Four native Semaev
+outputs also passed the original independent checker; transcripts and certificate
+bytes are retained in `validation/native-checker-20261029/`.
+
+The structural profile completed on all 13 historical seeds under frozen
+`profile-protocol-v2.json`: both enumeration directions agree. The validated
+unified export and graph/PDF are in `reports/profile-001/`. These profiles are
+not degree-five closure runs. A separately frozen and checkpointed execution
+is still required before using the native candidate on historical/frontier inputs.

@@ -175,6 +175,34 @@ class QuotientLift(unittest.TestCase):
         with self.assertRaises(ValueError):
             seed_representatives(4, 2, bad, len(identity) - 1)
 
+    @unittest.skipUnless(os.environ.get('SEMAEV_LIFT_BINARY'), 'native lift not configured')
+    def test_native_lift_against_reference_and_word_boundaries(self):
+        fixtures = [(5, 2, [{3, 4, 8}]), (7, 3, [{3, 12, 16}]),
+                    (9, 3, [{3, 12, 16}]), (10, 4, [{3, 12, 16}, {5, 32}])]
+        with tempfile.TemporaryDirectory() as tmp:
+            for i, (n,d,polys) in enumerate(fixtures):
+                seed,sq,_ = oracle(n,d,polys)
+                expected,eq,_ = lift(n,d,seed,sq)
+                path = Path(tmp)/('seed-'+str(i))
+                write_certificate(path,n,d,seed,sq)
+                for chunk in [1,7,4096]:
+                    output = Path(tmp)/('out-'+str(i)+'-'+str(chunk))
+                    run = subprocess.run([os.environ['SEMAEV_LIFT_BINARY'],str(path),str(output),str(chunk),str(2**30)],capture_output=True,text=True,check=True)
+                    summary=json.loads(run.stdout)
+                    self.assertEqual(summary['status'],'candidate_certificate')
+                    data=output.read_bytes(); nn,dd,c,q=struct.unpack_from('<4q',data)
+                    self.assertEqual((nn,dd,q),(n,d+1,eq))
+                    masks=struct.unpack_from('<'+str(c)+'Q',data,32)
+                    width=8*max(1,(q+63)//64); offset=32+8*c
+                    rows={m:int.from_bytes(data[offset+j*width:offset+(j+1)*width],'little') for j,m in enumerate(masks)}
+                    independent_conditions(n,d+1,rows,q,polys)
+                    # Same declared coordinate and echelon order yields identical maps.
+                    self.assertEqual(rows,expected)
+                denied=Path(tmp)/('denied-'+str(i))
+                refusal=subprocess.run([os.environ['SEMAEV_LIFT_BINARY'],str(path),str(denied),'7','128'],capture_output=True)
+                self.assertNotEqual(refusal.returncode,0)
+                self.assertFalse(denied.exists())
+
     @unittest.skipUnless(os.environ.get('SEMAEV_DENSE_BINARY'), 'native reference not configured')
     def test_native_seed_and_original_independent_checker(self):
         dossier = Path(__file__).resolve().parent.parent / 'semaev-m2-last-fall-degree'
