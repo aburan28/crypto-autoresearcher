@@ -30,7 +30,7 @@ for ax in axs[1]: ax.set_xlabel("split primes 3 ≤ ℓ ≤ 691 (124 odd primes)
 for ax in axs[:, 0]: ax.set_ylabel("null probability")
 axs[0, 0].plot([], [], "v", color=OM, label="omitted (11)"); axs[0, 0].plot([], [], "o", color=PU, label="published (8)")
 axs[0, 0].legend(fontsize=7, loc="upper left", frameon=False)
-fig.tight_layout(); fig.savefig("fig_null.svg"); fig.savefig("fig_null.png", dpi=150)
+fig.tight_layout(); fig.savefig("fig_null.svg")
 
 g = le["grid"]; fig, (a1, a2) = plt.subplots(2, 1, figsize=(7.2, 5.0), sharex=True)
 a1.step(g, [x / 25 for x in pm["observed"]], where="post", color="k", lw=1, label="all 25 pairs")
@@ -47,7 +47,7 @@ for i, (n, lab) in enumerate(zip(le["names"], le["labels"])):
 a2.set_yscale("log"); a2.set_ylim(0.001, 100); a2.axvline(691, color="#c00", lw=0.6)
 a2.set_ylabel("published curve mid-percentile (%)\nunder prime-order null"); a2.set_xlabel("cutoff B (odd primes 3 ≤ ℓ ≤ B), log scale")
 a2.legend(fontsize=7, frameon=False); a2.grid(lw=0.3)
-fig.tight_layout(); fig.savefig("fig_sweep.svg"); fig.savefig("fig_sweep.png", dpi=150)
+fig.tight_layout(); fig.savefig("fig_sweep.svg")
 
 # Figure 3: frozen held-out test (runs/heldout.json)
 ho = json.load(open("runs/heldout.json"))
@@ -66,4 +66,4 @@ pr = ho["primary"]
 ax.set_title(f"Frozen held-out test: held-out > published in {pr['observed']:.3f} of {pr['pairs']} within-field pairs "
              f"(permutation p = {pr['perm_p_one_sided']:.2f}; does not replicate)", fontsize=8)
 ax.legend(fontsize=7, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3); ax.set_ylim(40, 73)
-fig.tight_layout(); fig.savefig("fig_heldout.svg"); fig.savefig("fig_heldout.png", dpi=150)
+fig.tight_layout(); fig.savefig("fig_heldout.svg")
