@@ -175,3 +175,97 @@ and projection map. Then freeze a controlled comparison before changing the
 certified implementation or running data. The original requirement remains:
 a lower stated invariant is only one step toward a matched general ECDLP
 algorithm with setup, solve, reconstruction, verification and memory charged.
+
+## C. Replace a dense membership table by one certified forbidden word
+
+Additional unreviewed corollary, discovered after the grouped lead was frozen
+at5c163305b4. It is outside both the current membership proof snapshot and the
+future grouped-only review scope; it inherits no review verdict automatically.
+
+For each two-summand coordinate domain, suppose a single Boolean word c_i is
+known whose coordinate has nonsquare curve right-hand side. Use the predicate
+
+    D_i(z)= product_(j:c_ij=1) z_ij * product_(j:c_ij=0) (1-z_ij).
+
+It equals1 exactly at this rejected coordinate word and0 everywhere else.
+The two-summand rational-lifting theorem shows D_i vanishes on every baseline
+solution. The same split Boolean function-ring argument proves equality of
+affine ideals after adjoining D_1,D_2. Each highest part is a nonzero scalar
+multiple of the full block monomial Omega_i, irrespective of the other table
+entries. Therefore the exact tensor Hilbert calculation gives
+
+    d_reg(F_0 union {D_1,D_2}) = d_reg(F_0)-1
+                              = s+floor((s+1)/2).
+
+Unlike a complete membership polynomial, these predicates do not need the
+whole truth table. Their factored representation has sizeO(s). To retain a
+sparse expanded polynomial, flip each bit with c_ij=0; then the rejected word
+becomes the all-one word and D_i becomes the single monomial product_j z_ij.
+The affine coordinate map updates its offset and signs of weights. This
+bijection preserves the exact original coordinate domain, unlike shifting
+a fixed interval. Its homogeneous action is diagonal with nonzero signs, so
+the original regularity calculation is unchanged.
+
+In SAT, D_i=0 is the single clause forbidding c_i, of length s. A certificate
+that the coordinate is invalid consists of the evaluated cubic value and its
+Euler-criterion computation; it is checked from the public coordinate/curve
+and costsO(log p) field multiplications with ordinary exponentiation. Semantic
+redundancy also relies on the separately reviewed rational S3 lift, not on the
+residuosity computation alone. No enumeration of the other domain values is
+needed to check the clause. Point/witness reconstruction remains charged.
+
+Finding the word is a separate cost. For a fixed domain with an invalid word,
+a deterministic search can require up to2^s character tests; no constant-time
+bound for arbitrary fixed domains is asserted. For prospective new windows on
+an odd-prime-order curve, choose an invalid global coordinate a_bad using the
+Hasse-density argument, and set h=a_bad-sum_j weights so the all-one word maps
+to it. Expected search is bounded by1/(1/2-1/sqrt(p)) global samples forp>3.
+This chooses a new domain and is never presented as an equivalent change to
+an existing one. Once a rejected word is known, extra construction isO(s),
+with only two clause certificates for the two blocks.
+
+This removes the exponential full-membership-table cost from the particular
+one-degree reduction. It does not give the full membership predicate's pruning:
+only one coordinate word per block is excluded. The difference between a
+strict regularity change and actual solver work is particularly visible here.
+It is an attractive cheap certified control arm, not an ECDLP speedup claim.
+
+## D. Why the raw grouped regularity can be independent of the problem
+
+Additional unreviewed algebraic observation, not part of the frozen grouped
+review target. This is useful as a warning against treating the new degree
+number by itself as an attack result.
+
+Partition any Boolean variable list into G groups, each of width w>=2. Replace
+that group's bits by linear projections of q-1=2^w-1 mutually exclusive
+indicators as in SectionA, and include all local Boolean/pairwise equations.
+Substitute the bit-linear projections into every original nonconstant
+polynomial, without reducing the resulting polynomial by the local equations.
+Assume there is no nonzero constant generator. Then the leading-form regularity
+of this raw generating list is exactly G+1, regardless of the original system.
+
+The upper bound is the same pigeonhole argument. For the lower bound, the
+local top quotient is A_j=k plus V_j, with dim(V_j)=2^w-1 and V_j^2=0.
+Quotient it further by all w bit-projection linear forms. Their rank is w:
+the indicator columns indexed by the unit bit words give an identity matrix.
+The remaining degree-one dimension is 2^w-1-w>=1. Linear substitution from
+all original bits into the indicators is injective (the same identity columns
+give a left inverse), so every nonconstant original polynomial keeps its
+original degree and its highest part is the corresponding substituted highest
+part. In the further quotient every original bit projection is zero; hence
+all these homogeneous parts vanish. The top quotient of the full generating
+list therefore surjects onto the tensor product of local rings with nonzero
+degree-one spaces. Its degree-G component is nonzero. Thus d_reg=G+1.
+
+This theorem includes inconsistent affine systems with no explicitly constant
+generator; it is a statement about a chosen highest-part presentation, not
+about hardness or the common affine ideal. A degree-reduced input list, a
+constant generator, singleton groups, or a different auxiliary encoding needs
+its own analysis. It does not guarantee a strict reduction relative to an
+arbitrary original list whose regularity might already be small.
+
+The concrete S3 comparison is informative because its original regularity is
+computed exactly, so strict reduction follows there. Broader ECDLP claims
+still need the full input-degree, variable/constraint, multiplication-closure,
+model reconstruction and resource analysis. This general observation explains
+why a regularity number alone cannot settle the user's algorithmic objective.
