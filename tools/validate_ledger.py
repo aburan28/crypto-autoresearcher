@@ -149,6 +149,17 @@ DRAFT_DECISION_TARGETS = {
          "894c4855b64fdd2ec63915f88d6c668dcb95f40a108eba4f07a701b12bf6ccb6"),
 }
 
+# This placed specification is byte-identical to the frozen design-stage
+# draft. It has not been approved and must never enter ctx.ids as an experiment.
+# Both copies are pinned so a changed contract, a moved file, or a later
+# approval cannot silently acquire the draft classification.
+AUXIN_SUCCESSOR_DRAFT = (
+    "experiments/EXP-AUXIN-339fb0/specification.yaml",
+    "coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-ad00c6/design/"
+    "TASK-20260929-d519f6/draft-contract.yaml",
+    "6a1dca32c109d5badf4ba143c31f9d4d9a49e18ae287c8bb4fc604526bf02ecc",
+)
+
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
 #
 #   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
@@ -1008,6 +1019,43 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     ctx.register(str(rec_id), path, body, rec_type)
 
 
+def is_frozen_successor_draft(path: str, doc: object) -> bool:
+    """Classify only the unapproved, hash-bound AUXIN design-stage copy."""
+    specification, source, expected_sha256 = AUXIN_SUCCESSOR_DRAFT
+    if os.path.relpath(path, REPO) != specification:
+        return False
+    if not isinstance(doc, dict) or set(doc) != {"successor_contract"}:
+        return False
+    contract = doc["successor_contract"]
+    if not isinstance(contract, dict):
+        return False
+    fresh = contract.get("fresh")
+    if not isinstance(fresh, dict):
+        return False
+    approval = fresh.get("approval")
+    if not isinstance(approval, dict):
+        return False
+    if (fresh.get("id") != "EXP-AUXIN-339fb0"
+            or fresh.get("status") != "draft"
+            or fresh.get("approved_by") is not None
+            or fresh.get("approval_decision") is not None
+            or fresh.get("batch_id") != "BATCH-ad00c6"
+            or fresh.get("producer_task") != "TASK-20260929-d519f6"
+            or fresh.get("goal_id") != "GOAL-AUXIN-a93442"
+            or approval.get("id") != "F-APPROVAL"
+            or approval.get("status") != "draft"
+            or approval.get("approved_by") is not None):
+        return False
+    try:
+        for relative in (specification, source):
+            with open(os.path.join(REPO, relative), "rb") as handle:
+                if hashlib.sha256(handle.read()).hexdigest() != expected_sha256:
+                    return False
+    except OSError:
+        return False
+    return True
+
+
 def check_experiment(path: str, ctx: Ctx):
     supersession = ctx.schema_supersession(path)
     if supersession and supersession.get("redirect_id"):
@@ -1015,6 +1063,12 @@ def check_experiment(path: str, ctx: Ctx):
         return
     doc = load_yaml(path, ctx)
     if doc is None:
+        return
+    if is_frozen_successor_draft(path, doc):
+        # Preserve reference resolution to a real placed draft, without
+        # registering it as an approved or executable experiment record.
+        ctx.legacy_aliases.add("EXP-AUXIN-339fb0")
+        ctx.advise(path, "hash-bound successor contract is a draft, not an approved experiment")
         return
     if not isinstance(doc, dict) or "experiment" not in doc:
         ctx.err(path, "expected top-level key 'experiment'")
