@@ -1039,6 +1039,50 @@ def test_launcher_arm_b_chi_patterns_are_recorded(tmp_path, kernel):
     record("L3-arm-B-kat-tally", "q=13,n=3 (60 tuples)", {"tally_keys": sorted(tally)})
 
 
+def test_launcher_approval_gate_refuses_empty_or_non_object_lock(tmp_path):
+    spec = tmp_path / "specification.yaml"
+    lock = tmp_path / "approval.lock"
+    plan = tmp_path / "plan.json"
+    plan.write_text("{}")
+    spec.write_text("experiment:\n  status: approved\n  approved_by: someone\n")
+    for content in ("{}", "[]", "null", "0", '""'):
+        lock.write_text(content)
+        ok, reasons = launcher.check_approval(str(spec), str(lock), str(plan))
+        assert not ok and any("empty or not a JSON object" in r for r in reasons), content
+        assert any("approved_by" in r for r in reasons) and any("code_sha256" in r for r in reasons), content
+
+
+def test_launcher_empty_tuple_list_yields_complete_zero_tally():
+    F, E, _ = kat_curve(13, 2, "empty-tally")
+    tally = launcher._analyse_all(F, E, [], [], 1)
+    assert all(tally[k] == 0 for k in launcher.TALLY_KEYS)
+    assert tally["chi_patterns"] == {}
+    record("L4-empty-tally", "q=13,n=2 (0 tuples)", {"tally_keys": sorted(tally)})
+
+
+def test_launcher_b1_runs_the_aa_tuple_sample(tmp_path, kernel):
+    cell = {"arm": "B1", "cell_id": "B1-synthetic", "n": 3, "q": 13, "tuple_size_m": 4, "tuples": 30,
+            "group_law_subsample_fraction": 0.1, "tuple_seed": {"seed_string": "kat|tuples|aa|0"},
+            "tuple_seed_aa": {"seed_string": "kat|tuples|aa|1"},
+            "identity": {"curve_seed": {"seed_string": "kat|aa"}}}
+    spec = launcher.spec_from_plan_cell(cell)[0]
+    assert spec["tuple_seed_aa"] == "kat|tuples|aa|1"
+    spec["cell_id"] = "KAT-B1-aa"
+    spec["instances"] = [{"q": 13, "curve_seed": "kat|aa"}]                # no contract identity to check
+    man = launcher.run_cell(spec, str(tmp_path / "aa"), kat=True, kernel=kernel)
+    assert man["status"] == "completed"
+    inst = json.load(open(tmp_path / "aa" / "raw-result.json"))["instances"]
+    assert [i["sample"] for i in inst] == ["primary", "aa"]
+    assert [i["tuple_seed"] for i in inst] == ["kat|tuples|aa|0", "kat|tuples|aa|1"]
+    assert all(i["tally"]["tuples"] == 30 for i in inst)
+    summary = json.load(open(tmp_path / "aa" / "summary.json"))
+    assert [i["sample"] for i in summary["instances"]] == ["primary", "aa"]
+    no_aa = dict(cell)
+    del no_aa["tuple_seed_aa"]
+    assert launcher.spec_from_plan_cell(no_aa)[0]["tuple_seed_aa"] is None
+    record("L5-b1-aa-sample", "q=13,n=3 (30 tuples x 2 seeds)", {"samples": [i["sample"] for i in inst]})
+
+
 @pytest.mark.parametrize("q,n,tuple_len", [(13, 2, 3), (5, 3, 3), (13, 3, 4), (101, 1, 4)])
 def test_analyse_fibre_fast_path_agrees_with_detailed_path(q, n, tuple_len):
     F, E, _ = kat_curve(q, n, "fast")
