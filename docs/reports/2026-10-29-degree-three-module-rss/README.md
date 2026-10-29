@@ -30,6 +30,31 @@ is unmeasured, because the run never completed.
 | Command | `LEAN_NUM_THREADS=1 python3 -I measure.py threads1 <dir> -- lake env lean CryptoResearch/Semaev/BooleanParityDegreeThreeRankCertificate.lean` (from `formal/`) |
 | Host | [host.txt](host.txt): 4 CPUs, MemTotal 16,477,352 kB, no swap, memcg limit 14,341,885,952 B |
 
+## Protocol and export: deviation
+
+AGENTS.md ("Experiment protocol, export and review") asks every measurement
+for a frozen `experiment.protocol/v1` and an `experiment.export/v1` bundle.
+**No protocol was frozen before this run.** The run was a one-off diagnostic
+for the problem record, and it was planned in conversation, not in a record.
+
+- [protocol.json](protocol.json) is a **retrospective draft**, written after
+  the data. `tools/experiment_protocol.py validate` passes it with 0 findings.
+  It states its claims (C1: the lower bound; C2: a heuristic explanation),
+  the arms (this run; the hosted job logs as a reference), and the confounded
+  comparison between them.
+- `tools/experiment_protocol.py freeze` **refuses** it, because
+  `analysis_plan.frozen_before_data` is `false`. That is true: the reading
+  (max anon-rss plus the kernel record) was fixed after the data. An
+  `experiment.export/v1` binds a frozen protocol only, so **no export is
+  filed**. Marking the analysis as frozen before the data, to get past the
+  tool, would misstate the record.
+- [rows.jsonl](rows.jsonl) holds the run table that an export would have
+  carried: this run, plus the two hosted job observations.
+
+A rerun under a protocol frozen beforehand would remove this deviation. The
+best place for one is the hosted runner, where the run can finish and give the
+full peak (see the problem record's next step).
+
 ## Files
 
 - [measure.py](measure.py) samples the process tree's `VmRSS` and Lean's
