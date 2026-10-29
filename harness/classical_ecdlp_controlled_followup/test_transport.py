@@ -1,5 +1,8 @@
 """Fixed disclosed F11 byte fixtures only. SDK is mocked; no fresh draw."""
+import ast
 import copy
+import enum
+import types
 import io
 import json
 import os
@@ -35,18 +38,47 @@ def fixture():
     return files,plan,interface
 
 
-class Writer(io.BytesIO):
-    def __init__(self,store,name):super().__init__();self.store=store;self.name=name
-    def close(self):self.store[self.name]=self.getvalue();super().close()
+class FileType(enum.Enum):
+    FILE = 'file'
+    DIRECTORY = 'directory'
+    SYMLINK = 'symlink'
+
+
+class Filesystem:
+    # Exact installed SDK1.6.2 positional signatures; no Sandbox.open escape.
+    def __init__(self, sandbox):
+        self.sandbox = sandbox
+        self.info_mutant = None
+        self.copy_mutant = None
+        self.metadata = b'{}'
+    def stat(self, remote_path):
+        self.sandbox.events.append(('stat', remote_path))
+        directories = {'/', '/opt', '/opt/study', '/work', '/work/result', '/work/result/raw'}
+        kind = FileType.DIRECTORY if remote_path in directories else FileType.FILE
+        size = 0 if kind == FileType.DIRECTORY else len(self.blob(remote_path))
+        info = types.SimpleNamespace(type=kind, size=size, symlink_target=None)
+        if self.info_mutant: self.info_mutant(remote_path, info)
+        return info
+    def blob(self, remote_path):
+        return self.metadata if remote_path.startswith('/opt/study/') else self.sandbox.files[remote_path.removeprefix('/work/result/')]
+    def read_bytes(self, remote_path):
+        self.sandbox.events.append(('read_bytes', remote_path))
+        return self.blob(remote_path)
+    def write_bytes(self, data, remote_path):
+        assert isinstance(data, bytes) and remote_path.startswith('/')
+        self.sandbox.events.append(('write_bytes', remote_path))
+        self.sandbox.stage[remote_path] = data
+    def copy_to_local(self, remote_path, local_path):
+        self.sandbox.events.append(('copy_to_local', remote_path))
+        if self.copy_mutant: return self.copy_mutant(remote_path, Path(local_path))
+        Path(local_path).write_bytes(self.blob(remote_path))
 
 
 class Sandbox:
     object_id='sb-MOCK-F11'
-    def __init__(self,files):self.files=files;self.stage={};self.events=[];self.fail_terminate=False
-    def open(self,name,mode):
-        self.events.append(('open',name))
-        if mode=='wb':return Writer(self.stage,name)
-        return io.BytesIO(b'{}' if name.startswith('/opt/study/') else self.files[name.removeprefix('/work/result/')])
+    def __init__(self,files):
+        self.files=files;self.stage={};self.events=[];self.fail_terminate=False
+        self.filesystem = Filesystem(self)
     def exec(self,*argv,**kwargs):
         self.events.append(('exec',argv[0]))
         entries=[{'path':p,'sha256':c.sha_bytes(b),'size':len(b)} for p,b in self.files.items()]
@@ -64,8 +96,9 @@ def sdk_for(sb):
         'Sandbox':type('SandboxFactory',(),{'create':staticmethod(lambda *a,**kw:sb)})})
 
 
-def mocked_run(root,termination_failure=False):
+def mocked_run(root,termination_failure=False, configure=None):
     files,hplan,interface=fixture();sb=Sandbox(files);sb.fail_terminate=termination_failure
+    if configure: configure(sb)
     limits={'max_total_bytes':1<<26,'max_file_bytes':1<<25,'max_jsonl_line_bytes':1<<20,'command_seconds':30,'sandbox_seconds':120}
     config={'inputs':{'protocol':{'sha256':'00'*32}},'seed_rules':{'fixture_only':'fixed00_no_entropy'}}
     inputs={'image_receipt':{'app_name':'fixture','environment_name':'fixture',**{k:c.sha_bytes(b'{}') for k in ['build_info_sha256','adapter_manifest_sha256','build_provenance_sha256']}},'engine_plan':{**hplan,'sampler':{}},'engine_interface':interface,
@@ -91,6 +124,81 @@ class TransportTests(unittest.TestCase):
             self.assertEqual({Path(p).name for p in sb.stage if '/source/' in p},c.WORKER)
             self.assertEqual(sb.events[-1],('terminate',True))
             self.assertEqual(record['vm_creates'],1);self.assertEqual(record['engine_execs'],1)
+    def test_pinned_installed_sdk_ast_contract_no_import(self):
+        sdk = Path(os.environ.get('CONTROLLED_SDK_FILESYSTEM_SOURCE', '/workspace/classical-ecdlp-endpoint-reuse/runtime-20261028/lib/python3.12/site-packages/modal/sandbox/_filesystem.py'))
+        data = sdk.read_bytes()
+        self.assertEqual(c.sha_bytes(data), '19d90c3556a13e95297ee634e07c165b06723080f76dcbadecf1d7356388a588')
+        tree = ast.parse(data)
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == '_SandboxFilesystem')
+        methods = {n.name:n for n in cls.body if isinstance(n, ast.AsyncFunctionDef)}
+        expected = {'stat':['self','remote_path'], 'read_bytes':['self','remote_path'],
+                    'write_bytes':['self','data','remote_path'], 'copy_to_local':['self','remote_path','local_path']}
+        fake = ast.parse(Path(__file__).read_bytes())
+        fake_cls = next(n for n in fake.body if isinstance(n, ast.ClassDef) and n.name == 'Filesystem')
+        fake_methods = {n.name:n for n in fake_cls.body if isinstance(n, ast.FunctionDef)}
+        for name, args in expected.items():
+            self.assertEqual([a.arg for a in methods[name].args.args], args)
+            self.assertEqual([a.arg for a in fake_methods[name].args.args], args)
+        self.assertIn('not the target', ast.get_docstring(methods['stat']))
+        copy_tree = methods['copy_to_local']
+        self.assertTrue(any(isinstance(n, ast.AsyncFor) for n in ast.walk(copy_tree)))
+        self.assertFalse(hasattr(Sandbox({}), 'open'))
+        controller = ast.parse(Path(c.__file__).read_bytes())
+        self.assertFalse(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                             and n.func.attr == 'open' and isinstance(n.func.value, ast.Name)
+                             and n.func.value.id in {'sb','sandbox'} for n in ast.walk(controller)))
+
+    def test_metadata_bounds_type_length_and_hash_refuse_before_engine(self):
+        def size_mutant(remote, info):
+            if remote.endswith('build-info.json'): info.size = (1 << 20) + 1
+        def type_mutant(remote, info):
+            if remote.endswith('build-info.json'): info.type = FileType.DIRECTORY
+        def link_mutant(remote, info):
+            if remote == '/opt': info.type = FileType.SYMLINK; info.symlink_target = '/elsewhere'
+        configurations = [lambda sb:setattr(sb.filesystem,'info_mutant',size_mutant),
+                          lambda sb:setattr(sb.filesystem,'info_mutant',type_mutant),
+                          lambda sb:setattr(sb.filesystem,'info_mutant',link_mutant),
+                          lambda sb:setattr(sb.filesystem,'metadata',b'[]'),
+                          lambda sb:setattr(sb.filesystem,'read_bytes',lambda remote_path:b'{} '),
+                          lambda sb:setattr(sb.filesystem,'read_bytes',None),
+                          lambda sb:setattr(sb.filesystem,'write_bytes',lambda remote_path:None)]
+        for configure in configurations:
+            with self.subTest(configure=configure), tempfile.TemporaryDirectory() as root:
+                out, record, sb = mocked_run(root, configure=configure)
+                self.assertEqual(record['status'], 'failed')
+                self.assertEqual(record['engine_execs'], 0)
+                self.assertFalse(record['collection_complete'])
+                self.assertIsNone(record['termination_ack'])
+
+    def test_collection_streams_and_refuses_remote_type_size_partial_and_hash(self):
+        for mutant in ['oversize','size','type','symlink','ancestor','partial','hash','short','local-symlink','copy-error']:
+            with self.subTest(mutant=mutant), tempfile.TemporaryDirectory() as root:
+                files = {'raw/traces.jsonl':b'disclosed F11 fixture\n'}
+                sb = Sandbox(files); fs = sb.filesystem
+                entry = {'path':'raw/traces.jsonl','sha256':c.sha_bytes(files['raw/traces.jsonl']), 'size':len(files['raw/traces.jsonl'])}
+                def info_mutant(remote, info):
+                    if remote == '/work/result/raw' and mutant == 'ancestor':
+                        info.type = FileType.SYMLINK; info.symlink_target='/elsewhere'
+                    if remote.endswith('traces.jsonl'):
+                        if mutant == 'oversize': info.size = 1 << 32
+                        if mutant == 'size': info.size += 1
+                        if mutant == 'type': info.type = FileType.DIRECTORY
+                        if mutant == 'symlink': info.type = FileType.SYMLINK; info.symlink_target='/elsewhere'
+                fs.info_mutant = info_mutant
+                def bad_copy(remote, local):
+                    if mutant == 'local-symlink': local.symlink_to(Path(root)/'truth'); return
+                    if mutant == 'copy-error': raise OSError('fixed copy failure')
+                    local.write_bytes(b'x' if mutant in {'partial','short'} else b'x' * entry['size'])
+                    if mutant == 'partial': raise OSError('fixed partial copy failure')
+                if mutant in {'partial','hash','short','local-symlink','copy-error'}: fs.copy_mutant = bad_copy
+                # Collection must never use the buffering API, even for tiny fixtures.
+                fs.read_bytes = lambda remote: (_ for _ in ()).throw(AssertionError('buffered collection'))
+                with self.assertRaises((ValueError, OSError)):
+                    c.collect_stream(sb, Path(root)/'collected', [entry], {'max_file_bytes':1024,'max_total_bytes':1024})
+                self.assertFalse((Path(root)/'collected/raw/traces.jsonl').exists())
+                self.assertTrue((Path(root)/'collected.partial').is_dir())
+                self.assertNotIn(('terminate',True), sb.events)
+
     def test_hash_mutant(self):
         with tempfile.TemporaryDirectory() as root:
             out,record,sb=mocked_run(root)
@@ -108,7 +216,23 @@ class TransportTests(unittest.TestCase):
             files,_,_=fixture();entries=[{'path':p,'sha256':c.sha_bytes(b),'size':len(b)} for p,b in files.items()]
             entries[1]['sha256']='ff'*32
             with self.assertRaises(ValueError):c.collect_stream(Sandbox(files),Path(root)/'partial',entries,{'max_file_bytes':1<<24,'max_total_bytes':1<<26})
-            self.assertTrue(any((Path(root)/'partial').rglob('*.jsonl')))
+            self.assertTrue((Path(root)/'partial.partial').is_dir())
+    def test_failed_copy_retains_partial_and_never_claims_termination_ack(self):
+        def configure(sb):
+            def copy(remote, target):
+                Path(target).write_bytes(b'fixed partial')
+                raise OSError('fixed collection refusal')
+            sb.filesystem.copy_mutant = copy
+        with tempfile.TemporaryDirectory() as root:
+            out, record, sb = mocked_run(root, configure=configure)
+            self.assertEqual(record['status'], 'failed')
+            self.assertEqual(record['engine_execs'], 1)
+            self.assertFalse(record['collection_complete'])
+            self.assertTrue(record['remote_preserved_for_collection'])
+            self.assertIsNone(record['termination_ack'])
+            self.assertTrue((out/'collected.partial').is_dir())
+            self.assertNotIn(('terminate', True), sb.events)
+
     def test_paths_duplicates_schema_resource_bounds(self):
         with tempfile.TemporaryDirectory() as root:
             for p in ['../truth','/truth','a/../b','a//b','a\\b']:

@@ -14,6 +14,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import stat
 import sys
 
 PREFIX = 'harness/classical_ecdlp_controlled_followup'
@@ -254,22 +255,61 @@ def validate_entries(entries, limits):
     return sorted(entries, key=lambda e: e['path'])
 
 
+def remote_regular(filesystem, remote, limit, expected_size=None):
+    """Stat is lstat-like in pinned SDK1.6.2; reject symlink ancestors too.
+
+    Root-owned, quiescent sealed outputs supply the immutability boundary.
+    Stat/read/stat alone does not protect an actively mutating remote tree.
+    """
+    path = PurePosixPath(remote)
+    need(path.is_absolute() and '..' not in path.parts, 'absolute remote path required')
+    for parent in reversed(path.parents):
+        info = filesystem.stat(str(parent))
+        need(getattr(info.type, 'value', None) == 'directory' and info.symlink_target is None,
+             'remote ancestor is not a regular directory')
+    info = filesystem.stat(remote)
+    need(getattr(info.type, 'value', None) == 'file' and info.symlink_target is None,
+         'remote regular file required')
+    need(type(info.size) is int and 0 <= info.size <= limit, 'remote file resource cap exceeded')
+    need(expected_size is None or info.size == expected_size, 'remote sealed size differs')
+    return info.size
+
+
+def metadata_bytes(sandbox, remote, digest):
+    limit = 1 << 20
+    size = remote_regular(sandbox.filesystem, remote, limit)
+    blob = sandbox.filesystem.read_bytes(remote)
+    need(type(blob) is bytes and len(blob) == size and len(blob) <= limit and sha_bytes(blob) == digest,
+         'actual B2 image metadata differs')
+    remote_regular(sandbox.filesystem, remote, limit, size)
+    return blob
+
+
 def collect_stream(sandbox, output, entries, limits):
     entries = validate_entries(entries, limits)
     output = Path(output); output.mkdir()
-    for e in entries:
+    # A private staging directory keeps partial or unverified copies out of the
+    # custody tree; retain it on refusal for diagnosis, never retry implicitly.
+    partial = output.parent / (output.name + '.partial')
+    partial.mkdir(mode=0o700)
+    for ordinal, e in enumerate(entries):
+        remote = '/work/result/' + e['path']
+        remote_regular(sandbox.filesystem, remote, limits['max_file_bytes'], e['size'])
         dest = safe(output, e['path']); dest.parent.mkdir(parents=True, exist_ok=True)
-        h = hashlib.sha256(); size = 0
-        with sandbox.open('/work/result/' + e['path'], 'rb') as source, dest.open('xb') as target:
-            while True:
-                block = source.read(1 << 20)
-                if not block: break
-                size += len(block)
-                need(size <= e['size'], 'stream exceeds sealed size')
-                h.update(block); target.write(block)
-            target.flush(); os.fsync(target.fileno())
-        need(size == e['size'] and h.hexdigest() == e['sha256'] and sha_file(dest) == e['sha256'], 'stream/readback mismatch')
-        dest.chmod(0o444)
+        target = safe(partial, str(ordinal))
+        need(not target.exists() and not dest.exists(), 'collection destination already exists')
+        sandbox.filesystem.copy_to_local(remote, target)
+        info = target.lstat()
+        need(stat.S_ISREG(info.st_mode) and not target.is_symlink() and info.st_size == e['size'],
+             'copy type/size differs')
+        need(sha_file(target) == e['sha256'], 'stream/readback mismatch')
+        remote_regular(sandbox.filesystem, remote, limits['max_file_bytes'], e['size'])
+        with target.open('rb') as stream:
+            os.fsync(stream.fileno())
+        target.chmod(0o444)
+        target.rename(dest)
+        need(sha_file(dest) == e['sha256'], 'stream/readback mismatch')
+    partial.rmdir()
     return entries
 
 
@@ -339,8 +379,7 @@ def run(repo, config_path, out, sdk=None, supervisor_identity=None):
             include_oidc_identity_token=False, timeout=plan['limits']['sandbox_seconds'], workdir='/work')
         record['sandbox_id'] = sb.object_id
         for remote,key in [('build-info.json','build_info_sha256'),('adapter-manifest.json','adapter_manifest_sha256'),('modal-image-build.json','build_provenance_sha256')]:
-            with sb.open('/opt/study/'+remote,'rb') as source: blob=source.read((1<<20)+1)
-            need(len(blob)<=1<<20 and sha_bytes(blob)==image[key], 'actual B2 image metadata differs')
+            blob = metadata_bytes(sb, '/opt/study/' + remote, image[key])
             with (out/remote).open('xb') as target: target.write(blob)
         # Only public data and the exact worker source closure enter this VM.
         request = {'schema': SCHEMA+'worker-request/v1', 'engine_plan': inputs['engine_plan'],
@@ -351,7 +390,7 @@ def run(repo, config_path, out, sdk=None, supervisor_identity=None):
                    'command_seconds': plan['limits']['command_seconds']}
         sb.exec('mkdir','-p','/work/source','/work/stage').wait()
         for name, blob in {**{'/work/source/'+Path(k).name:v for k,v in workers.items()}, '/work/stage/request.json': canonical(request)}.items():
-            with sb.open(name,'wb') as target: target.write(blob)
+            sb.filesystem.write_bytes(blob, name)
         record['engine_execs'] = 1; write(out/'engine-intent.json', record)
         proc = sb.exec('python3','-c',BOOTSTRAP, timeout=plan['limits']['command_seconds']+60)
         rc = proc.wait()
