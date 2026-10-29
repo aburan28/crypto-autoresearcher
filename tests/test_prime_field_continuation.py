@@ -15,7 +15,7 @@ STUDY = ROOT/'research/prime_field_factor_base_20261028'
 def f1(monkeypatch):
     monkeypatch.syspath_prepend(str(F1))
     # Frozen scripts use short imports; isolate them from other research tests.
-    for name in ('core', 'exterior', 'reference'):
+    for name in ('core', 'exterior', 'reference', 'profiled'):
         spec = importlib.util.spec_from_file_location(name, F1/(name+'.py'))
         dependency = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(dependency)
@@ -76,6 +76,39 @@ def test_f1_arity_four_all_partitions(f1):
     result = f1.arity_four_control(parameters, 2, 0)
     assert len(result) == 5
     assert all(record['solutions'] for record in result)
+
+
+@pytest.mark.parametrize('depth', [2, 4])
+def test_stage_instrumentation_preserves_frozen_arithmetic(f1, depth):
+    pytest.importorskip('flint')
+    from profiled import Stages
+    parameters, case = toy_case(f1, depth)
+    events = []
+    result = f1.solve_case(parameters, case, stages=Stages(events.append))
+    assert result == f1.solve_case(parameters, case)
+    assert f1.check_case(parameters, case, result)['checked']
+    phases = {row['phase'] for row in events}
+    assert {'scalar_chain', 'relation_operator', 'kernel_elimination', 'operator_restriction',
+            'character_extraction', 'cubic_factoring', 'curve_lifting',
+            'subgroup_verification', 'sign_enumeration'} <= phases
+    assert all(row['wall_ns'] >= 0 and row['cpu_ns'] >= 0 and row['status'] == 'complete'
+               for row in events)
+    assert {row['stratum'] for row in events} == {'distinct', 'twoequal', 'allequal'}
+
+
+def test_stage_failure_is_retained_and_resource_guard_precedes_allocation(f1):
+    from profiled import Stages
+    events = []
+    stages = Stages(events.append)
+    def fail():
+        raise RuntimeError('software failure control')
+    with pytest.raises(RuntimeError):
+        stages.call('failure_control', fail)
+    assert events[0]['status'] == 'failed' and events[0]['error_type'] == 'RuntimeError'
+    parameters, case = toy_case(f1, 4)
+    with pytest.raises(f1.ExtractionUnknown, match='dimension'):
+        f1.solve_case(parameters, case, max_dimension=559, stages=stages)
+    assert len(events) == 1
 
 
 @pytest.fixture
@@ -150,6 +183,51 @@ def test_scientific_collect_has_no_unadmitted_path(prym):
     fixture.pop('software_control')
     with pytest.raises(ValueError, match='admission'):
         module.collect(fixture, [1], lambda record: pytest.fail('executed'))
+
+
+def test_target_collector_labels_and_fixed_projection(prym, monkeypatch):
+    module, fixture = prym
+    monkeypatch.setitem(sys.modules, 'prym_completion', module)
+    spec = importlib.util.spec_from_file_location('prime_field_target_completion', STUDY/'target_completion.py')
+    target_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(target_module)
+    from crypto_autoresearcher.index_calculus.curve import Curve
+    from crypto_autoresearcher.index_calculus.target_relations import hash_public_target
+    from collect_width import project
+    curve = Curve(fixture['p'], fixture['a'], fixture['b'])
+    recipe = hash_public_target(curve, fixture['r'], fixture['uid'], 0)
+    Q = tuple(recipe['point'])
+    # Different source/multiplier schedules catch accidental target anchors.
+    baseline = module.collect(fixture, [1, 2], lambda row: None)
+    events = []
+    result = target_module.collect(fixture, [1, 2], baseline['rows'], Q, [1, 3], events.append)
+    assert result['complete'] and result['attempts'] == 2*56*64
+    assert sum(result['statuses'].values()) == result['attempts']
+    assert result['projection'] == baseline['projection']
+    assert result['rows']
+    for row in result['rows']:
+        assert row['source_scalar'] == 0 and row['target_coefficient'] in [1, 3]
+        assert module.verify_row(fixture, row, target=Q)
+        vector, offset = project(row, result['projection'], fixture['r'])
+        # Direct point sum verifies the projection sign independently of logs.
+        lhs = None
+        for c, point in zip(vector, result['projection']['unknown_points']):
+            lhs = curve.add(lhs, curve.mul(c, tuple(point)))
+        assert lhs == curve.add(curve.mul(offset, tuple(fixture['P'])),
+                                curve.mul(row['target_coefficient'], Q))
+        corrupted = deepcopy(row)
+        corrupted['target_coefficient'] = (row['target_coefficient']+1) % fixture['r']
+        with pytest.raises(ValueError):
+            module.verify_row(fixture, corrupted, target=Q)
+    certificate = result['final_target_certificate']
+    if certificate is not None:
+        assert curve.mul(certificate['scalar'], tuple(fixture['P'])) == Q
+    with pytest.raises(ValueError, match='independent of target'):
+        target_module.prepare(fixture, [1, 2], result['rows'][:1])
+    assert len([row for row in events if row['kind'] == 'verified_witness']) == len(result['rows'])
+    fixture.pop('software_control')
+    with pytest.raises(ValueError, match='admission'):
+        target_module.collect(fixture, [1, 2], [], Q, [1], lambda row: pytest.fail('executed'))
 
 
 def test_gate_rejects_parameters_before_any_checkpoint(tmp_path):
