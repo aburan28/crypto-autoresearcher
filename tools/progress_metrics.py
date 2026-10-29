@@ -21,6 +21,8 @@ Sources (committed, read at --ref):
                                              fixed NG screen counts, including covariance views
   experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/observations.json
                                              fresh transfer counts, events and distinct target-arm pairs
+  docs/reports/classical-ecdlp-controlled-followup-20261029/observations/observations.json
+                                             source-bound failed-run operational/coverage counts
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -30,6 +32,7 @@ Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 import argparse
 import datetime as dt
 import json
+import hashlib
 import math
 import os
 import subprocess
@@ -479,6 +482,98 @@ def transfer_study_observations(ref, since):
              label=f"RUN-ECDLP-994f70: {labels[name]}", source=f"{path}@{ref}")
 
 
+def controlled_followup_observations(ref, since):
+    """Source-bound operational counts from the retained failed attempt.
+
+    A failed infrastructure attempt is an observation. Missing scientific
+    measurements are never zero recoveries, predicate calls, or solver results.
+    Read each payload at the same committed ref, even with a dirty checkout.
+    """
+    path = "docs/reports/classical-ecdlp-controlled-followup-20261029/observations/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    run = "experiments/EXP-ECDLP-956f81/runs/RUN-ECDLP-c8d9b0/"
+    post = "experiments/EXP-ECDLP-956f81/postrun/"
+    roles = {
+        "receipt": run + "execution-receipt.json",
+        "raw": run + "raw-result.json",
+        "postrun": post + "postrun-result.json",
+        "export": post + "export.canonical-paths.json",
+        "validation": post + "export.validation.json",
+        "protocol": "experiments/EXP-ECDLP-956f81/protocol.json",
+    }
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.controlled-followup.failed-observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-956f81"
+                or data.get("run_id") != "RUN-ECDLP-c8d9b0"
+                or data.get("native_status") != "infrastructure_error"
+                or data.get("postrun_status") != "incomplete"
+                or data.get("scientific_validity") != "not_assessed"
+                or data.get("wall_valid") is not False
+                or data.get("counter_replay_qualified") is not False or date < since):
+            return
+        bindings = data["metric_source_sha256"]
+        if set(bindings) != set(roles.values()):
+            return
+        docs = {}
+        for role, source_path in roles.items():
+            blob = show(ref, source_path)
+            if (blob is None or not isinstance(bindings[source_path], str)
+                    or hashlib.sha256(blob.encode()).hexdigest() != bindings[source_path]):
+                return
+            docs[role] = json.loads(blob)
+        receipt, raw, postrun = docs["receipt"], docs["raw"], docs["postrun"]
+        export, validation = docs["export"], docs["validation"]
+        controller = raw["controller"]
+        if (bindings[roles["protocol"]] != "0b6e90a9cf9d79dd40fc43966c8aefd15cd6007feeb8ebf76f5ced3bb3149636"
+                or receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                or receipt.get("run_id") != data["run_id"]
+                or receipt.get("status") != data["native_status"]
+                or type(receipt.get("returncode")) is not int or receipt.get("returncode") != 1
+                or receipt.get("check_returncode") is not None
+                or receipt["artifact_sha256"].get("raw-result.json") != bindings[roles["raw"]]
+                or raw.get("experiment_id") != data["experiment_id"] or raw.get("run_id") != data["run_id"]
+                or raw.get("operational_status") != "failed" or controller.get("status") != "failed"
+                or controller.get("collection_complete") is not False or controller.get("files") != []
+                or raw.get("scientific_validity") != "not_assessed"
+                or postrun.get("status") != "incomplete" or postrun.get("wall_valid") is not False
+                or postrun.get("scientific_validity") != "not_assessed"
+                or postrun.get("counter_replay_qualified") is not False
+                or export.get("schema") != "experiment.export/v1" or not isinstance(export.get("runs"), list)
+                or validation.get("schema_compliant") is not True
+                or validation.get("protocol_qualified") is not False
+                or not isinstance(validation.get("findings"), list)
+                or not all(isinstance(x, str) for x in validation["findings"])
+                or validation["findings"] != postrun.get("export_findings")):
+            return
+        values = {
+            "attempted_trials": 1,  # One actual native receipt, not protocol.planned.
+            "completed_trials": 0,  # Retained native infrastructure_error terminal status.
+            "failed_infrastructure_trials": 1,
+            "timed_out_trials": 0,
+            "vm_creates_recorded": controller["vm_creates"],
+            "candidate_engine_execs_recorded": controller["engine_execs"],
+            "retained_logical_evaluator_rows": len(export["runs"]),
+            "missing_coverage_findings": len(validation["findings"]),
+        }
+        if (any(type(v) is not int or v < 0 for v in values.values())
+                or values["candidate_engine_execs_recorded"] > values["vm_creates_recorded"]
+                or values["retained_logical_evaluator_rows"] != 0
+                or data["measured_counts"] != values
+                or any(type(v) is not int for v in data["measured_counts"].values())):
+            return
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    for name, value in values.items():
+        emit(f"controlled.c8d9b0.{name}", value, date=date,
+             problem="ecdlp-controlled-followup", unit="count", better="neutral",
+             label=f"RUN-ECDLP-c8d9b0: {name.replace('_', ' ')} (operational/coverage only)",
+             source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -557,6 +652,7 @@ def main():
     endpoint_reuse_sweep_observations(a.ref, a.since)
     nongeneric_screen_observations(a.ref, a.since)
     transfer_study_observations(a.ref, a.since)
+    controlled_followup_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
