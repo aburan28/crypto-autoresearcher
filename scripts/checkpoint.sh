@@ -184,9 +184,14 @@ state_hash() {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
-      [ -f "$f" ] && stat -f '%N %z %m' "$f" 2>/dev/null || stat -c '%n %s %Y' "$f" 2>/dev/null || true
-    done
+    while IFS= read -r f; do
+      [ -f "$f" ] || continue
+      if stat -c '%n %s %Y' "$f" >/dev/null 2>&1; then
+        stat -c '%n %s %Y' "$f"
+      else
+        stat -f '%N %z %m' "$f"
+      fi
+    done < <(git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' || true)
   } | shasum -a 256 | cut -d' ' -f1
 }
 
@@ -293,7 +298,11 @@ cmd_push() {
   : > "$stage/untracked.list"; : > "$stage/skipped-untracked.txt"
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    sz="$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")"
+    if stat -c %s "$f" >/dev/null 2>&1; then
+      sz="$(stat -c %s "$f")"
+    else
+      sz="$(stat -f %z "$f")"
+    fi
     if [ "$sz" -gt "$maxb" ] || [ $((total + sz)) -gt "$capb" ]; then
       printf '%s\t%s bytes\n' "$f" "$sz" >> "$stage/skipped-untracked.txt"
     else
