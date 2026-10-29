@@ -199,9 +199,11 @@ state_hash() {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
+    # No untracked files (or only excluded ones) is a valid clean state.
+    # Keep the filtering pipeline out of the hash producer's pipefail path;
+    # file_stat failures inside the loop still propagate normally.
     while IFS= read -r f; do
-      [ -f "$f" ] || continue
-      file_stat "$f"
+      if [ -f "$f" ]; then file_stat "$f"; fi
     done < <(git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' || true)
   } | shasum -a 256 | cut -d' ' -f1
 }
