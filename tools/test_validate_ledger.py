@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import yaml
@@ -316,3 +319,59 @@ class ConfoundControlTests(unittest.TestCase):
         self.module.check_confound_assessments(ctx)
         self.assertTrue(any("does not grade comparison C-aa" in e for e in ctx.errors), ctx.errors)
         self.assertTrue(any("capped at preliminary" in e for e in ctx.errors), ctx.errors)
+
+
+class FrozenSuccessorDraftTests(unittest.TestCase):
+    """A placed design draft is visible, but never admitted as an experiment."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(REPO / "tools"))
+        import validate_ledger
+        self.module = validate_ledger
+        self.specification, self.source, self.digest = validate_ledger.AUXIN_SUCCESSOR_DRAFT
+
+    def test_exact_frozen_draft_is_classified_without_experiment_admission(self) -> None:
+        path = REPO / self.specification
+        doc = yaml.safe_load(path.read_bytes())
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), self.digest)
+        self.assertTrue(self.module.is_frozen_successor_draft(str(path), doc))
+        ctx = self.module.Ctx(set())
+        self.module.check_experiment(str(path), ctx)
+        self.assertEqual(ctx.errors, [])
+        self.assertIn("EXP-AUXIN-339fb0", ctx.legacy_aliases)
+        self.assertNotIn("EXP-AUXIN-339fb0", ctx.ids)
+        self.assertEqual(len(ctx.advisories), 1)
+
+    def test_changed_approval_or_identity_cannot_use_draft_classification(self) -> None:
+        path = REPO / self.specification
+        doc = yaml.safe_load(path.read_bytes())
+        fresh = doc["successor_contract"]["fresh"]
+        for field, value in (("status", "approved"),
+                             ("approved_by", "DEC-20261028-abcdef"),
+                             ("id", "EXP-AUXIN-000001")):
+            original = fresh[field]
+            fresh[field] = value
+            self.assertFalse(self.module.is_frozen_successor_draft(str(path), doc), field)
+            fresh[field] = original
+
+    def test_changed_copy_or_path_retains_shape_error(self) -> None:
+        with tempfile.TemporaryDirectory(dir="/var/tmp") as root:
+            base = Path(root)
+            for relative in (self.specification, self.source):
+                target = base / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(REPO / relative, target)
+            with patch.object(self.module, "REPO", root):
+                path = base / self.specification
+                doc = yaml.safe_load(path.read_bytes())
+                self.assertTrue(self.module.is_frozen_successor_draft(str(path), doc))
+                source = base / self.source
+                source.write_bytes(source.read_bytes() + b"\n")
+                self.assertFalse(self.module.is_frozen_successor_draft(str(path), doc))
+                ctx = self.module.Ctx(set())
+                self.module.check_experiment(str(path), ctx)
+                self.assertTrue(any("expected top-level key 'experiment'" in e
+                                    for e in ctx.errors), ctx.errors)
+                self.assertNotIn("EXP-AUXIN-339fb0", ctx.ids)
+                self.assertFalse(self.module.is_frozen_successor_draft(
+                    str(base / "experiments/EXP-AUXIN-000001/specification.yaml"), doc))
