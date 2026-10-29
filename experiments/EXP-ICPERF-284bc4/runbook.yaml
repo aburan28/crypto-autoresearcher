@@ -1,0 +1,564 @@
+# Runbook for EXP-ICPERF-284bc4 (version-2 successor of EXP-ICPERF-e467a5). New session RBS-ICPERF-8cdc92; the version-1 session RBS-ICPERF-b7e41c is terminal.
+# Runs only after a committed decision names this file's sha256 (runbook_sha256).
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-ICPERF-284bc4
+session_id: RBS-ICPERF-8cdc92
+title: Evaluate the integer price ratio, its consistency checks and two planted negatives,
+  and record each
+purpose: Six deterministic trials. The primary trial computes the reduced Bernstein-Lange
+  price ratio and the online ratios at three frozen (r, A) cells. Three arithmetic-consistency
+  checks and two planted negative controls run beside it. The assertions decide the frozen
+  success criterion (925, 4, true, true). Observations only. The n=83 host arm is not an input.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+- path: experiments/EXP-ICPERF-284bc4/specification.yaml
+  sha256: 8634d68c3fe46bb51179ba27ccc0a182e1a7da1aff165033d9ac0915d99e000e
+- path: experiments/EXP-ICPERF-284bc4/trial-plan.json
+  sha256: 7da0779a57de530fb8ce1b04edb30e98c5054b8b1b4611f985b9dc638a7ee752
+- path: experiments/EXP-ICPERF-284bc4/implementation/run.py
+  sha256: ef13257e9973f7a447f37e1991fec948c5a8eb3a12395e510a7b8678cd5c434f
+- path: experiments/EXP-ICPERF-284bc4/implementation/check.py
+  sha256: ed49e34915ce372fd0ee7e64b2f291d8074751abc079ce490537ed9c5cfe7425
+spec_bindings:
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/c_probe_ns
+  equals: 370
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/c_state_ns
+  equals: 2100
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/c_step_ns
+  equals: 40
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/bl_num
+  equals: 21
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/bl_den
+  equals: 10
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/states
+  equals: 10
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/precomputation_steps
+  equals: 525
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/cells/0
+  equals:
+    name: r1000_a2
+    r: 1000
+    A: 2
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/cells/1
+  equals:
+    name: r4000_a2
+    r: 4000
+    A: 2
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/cells/2
+  equals:
+    name: r1000_a4
+    r: 1000
+    A: 4
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/negative_controls/perturbed_price/c_probe_ns
+  equals: 371
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/inputs/negative_controls/wrong_precomputation_model/precomputation_steps
+  equals: 10
+- file: experiments/EXP-ICPERF-284bc4/specification.yaml
+  pointer: /experiment/runbook/session_id
+  equals: RBS-ICPERF-8cdc92
+environment:
+  programs:
+  - python3
+  env:
+    PYTHONHASHSEED: '0'
+steps:
+- id: S01-probe-python
+  kind: command
+  purpose: probe
+  title: Record the interpreter that runs the trials
+  explain: Writes the python3 version, implementation and executable path to environment.json
+    in this step output directory.
+  argv:
+  - python3
+  - -c
+  - 'import json, platform, sys; json.dump({''python'': platform.python_version(), ''major'':
+    sys.version_info[0], ''implementation'': platform.python_implementation(), ''executable'':
+    sys.executable}, open(sys.argv[1], ''w''))'
+  - '{out}/environment.json'
+  timeout_seconds: 60
+  validity:
+    exit_code: 0
+    outputs:
+    - path: '{out}/environment.json'
+      json: true
+      assertions:
+      - pointer: /major
+        equals: 3
+      - pointer: /implementation
+        equals: CPython
+      - pointer: /python
+        type: string
+      - pointer: /executable
+        type: string
+  on_failure:
+  - when:
+      timed_out: true
+    class: resource_exhaustion
+    action: retry
+    max_attempts: 2
+  tell_on_failure: python3 did not run. The session has stopped. Report this step stderr log
+    path.
+- id: S02-trials
+  kind: trials
+  title: Run every preregistered trial and record each unit
+  explain: Runs run.py then check.py for each frozen trial in its own write-once directory;
+    the assertions record the success criterion and each control.
+  plan: experiments/EXP-ICPERF-284bc4/trial-plan.json
+  engine: supervisor
+  claim:
+    ttl_minutes: 30
+  timeout_seconds: 360
+  validity:
+    files:
+    - path: raw-result.json
+      json: true
+      assertions:
+      - pointer: /schema
+        equals: crypto.autoresearch.exp-icperf-284bc4.stage0.v2
+      - pointer: /trial_id
+        equals: '{trial_id}'
+      - pointer: /run_id
+        equals: '{run_id}'
+      - pointer: /experiment_id
+        equals: EXP-ICPERF-284bc4
+      - pointer: /hypothesis_id
+        equals: H-ICPERF-2f52d1
+      - pointer: /attack_claimed
+        equals: false
+      - pointer: /matches_preregistered
+        type: boolean
+      - pointer: /interpreter/implementation
+        type: string
+      - pointer: /interpreter/version
+        type: string
+      - pointer: /c_state_ns
+        equals: 2100
+      - pointer: /c_step_ns
+        equals: 40
+      - pointer: /bl_num
+        equals: 21
+      - pointer: /bl_den
+        equals: 10
+      - pointer: /states
+        equals: 10
+    - path: manifest.yaml
+      json: true
+      assertions:
+      - pointer: /run/id
+        equals: '{run_id}'
+      - pointer: /run/trial_id
+        equals: '{trial_id}'
+      - pointer: /run/experiment_id
+        equals: EXP-ICPERF-284bc4
+      - pointer: /run/task_id
+        equals: TASK-20261029-65798b
+      - pointer: /run/approved_by
+        equals: DEC-20261029-ca33b3
+      - pointer: /run/attack_claimed
+        equals: false
+      - pointer: /run/result/certificate/kind
+        equals: none
+      - pointer: /run/result/raw_result
+        equals: raw-result.json
+  by_trial:
+    price-ratio-identity:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: price-ratio-identity
+        - pointer: /role
+          equals: primary
+        - pointer: /c_probe_ns
+          equals: 370
+        - pointer: /precomputation_steps
+          equals: 525
+        - pointer: /price_ratio_num
+          equals: 925
+        - pointer: /price_ratio_den
+          equals: 4
+        - pointer: /ratios_agree
+          equals: true
+        - pointer: /all_match_bsgs
+          equals: true
+        - pointer: /matches_preregistered
+          equals: true
+        - pointer: /cells
+          length: 3
+        - pointer: /cells/0/name
+          equals: r1000_a2
+        - pointer: /cells/0/r
+          equals: 1000
+        - pointer: /cells/0/A
+          equals: 2
+        - pointer: /cells/0/probes
+          equals: 50
+        - pointer: /cells/0/bsgs_probes
+          equals: 50
+        - pointer: /cells/0/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/0/bl_steps
+          equals: 2
+        - pointer: /cells/0/bl_online_ns
+          equals: 80
+        - pointer: /cells/0/ic_online_ns
+          equals: 18500
+        - pointer: /cells/0/ratio_num
+          equals: 925
+        - pointer: /cells/0/ratio_den
+          equals: 4
+        - pointer: /cells/0/matches_price_ratio
+          equals: true
+        - pointer: /cells/1/name
+          equals: r4000_a2
+        - pointer: /cells/1/r
+          equals: 4000
+        - pointer: /cells/1/A
+          equals: 2
+        - pointer: /cells/1/probes
+          equals: 200
+        - pointer: /cells/1/bsgs_probes
+          equals: 200
+        - pointer: /cells/1/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/1/bl_steps
+          equals: 8
+        - pointer: /cells/1/bl_online_ns
+          equals: 320
+        - pointer: /cells/1/ic_online_ns
+          equals: 74000
+        - pointer: /cells/1/ratio_num
+          equals: 925
+        - pointer: /cells/1/ratio_den
+          equals: 4
+        - pointer: /cells/1/matches_price_ratio
+          equals: true
+        - pointer: /cells/2/name
+          equals: r1000_a4
+        - pointer: /cells/2/r
+          equals: 1000
+        - pointer: /cells/2/A
+          equals: 4
+        - pointer: /cells/2/probes
+          equals: 25
+        - pointer: /cells/2/bsgs_probes
+          equals: 25
+        - pointer: /cells/2/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/2/bl_steps
+          equals: 1
+        - pointer: /cells/2/bl_online_ns
+          equals: 40
+        - pointer: /cells/2/ic_online_ns
+          equals: 9250
+        - pointer: /cells/2/ratio_num
+          equals: 925
+        - pointer: /cells/2/ratio_den
+          equals: 4
+        - pointer: /cells/2/matches_price_ratio
+          equals: true
+    ctl-consistency-a-change:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-consistency-a-change
+        - pointer: /role
+          equals: arithmetic_consistency
+        - pointer: /cells
+          length: 2
+        - pointer: /cells/0/name
+          equals: r1000_a2
+        - pointer: /cells/0/r
+          equals: 1000
+        - pointer: /cells/0/A
+          equals: 2
+        - pointer: /cells/0/probes
+          equals: 50
+        - pointer: /cells/0/bsgs_probes
+          equals: 50
+        - pointer: /cells/0/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/0/bl_steps
+          equals: 2
+        - pointer: /cells/0/bl_online_ns
+          equals: 80
+        - pointer: /cells/0/ic_online_ns
+          equals: 18500
+        - pointer: /cells/0/ratio_num
+          equals: 925
+        - pointer: /cells/0/ratio_den
+          equals: 4
+        - pointer: /cells/0/matches_price_ratio
+          equals: true
+        - pointer: /cells/1/name
+          equals: r1000_a4
+        - pointer: /cells/1/r
+          equals: 1000
+        - pointer: /cells/1/A
+          equals: 4
+        - pointer: /cells/1/probes
+          equals: 25
+        - pointer: /cells/1/bsgs_probes
+          equals: 25
+        - pointer: /cells/1/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/1/bl_steps
+          equals: 1
+        - pointer: /cells/1/bl_online_ns
+          equals: 40
+        - pointer: /cells/1/ic_online_ns
+          equals: 9250
+        - pointer: /cells/1/ratio_num
+          equals: 925
+        - pointer: /cells/1/ratio_den
+          equals: 4
+        - pointer: /cells/1/matches_price_ratio
+          equals: true
+        - pointer: /same_reduced_ratio
+          equals: true
+        - pointer: /matches_preregistered
+          equals: true
+    ctl-consistency-r-change:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-consistency-r-change
+        - pointer: /role
+          equals: arithmetic_consistency
+        - pointer: /cells
+          length: 2
+        - pointer: /cells/0/name
+          equals: r1000_a2
+        - pointer: /cells/0/r
+          equals: 1000
+        - pointer: /cells/0/A
+          equals: 2
+        - pointer: /cells/0/probes
+          equals: 50
+        - pointer: /cells/0/bsgs_probes
+          equals: 50
+        - pointer: /cells/0/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/0/bl_steps
+          equals: 2
+        - pointer: /cells/0/bl_online_ns
+          equals: 80
+        - pointer: /cells/0/ic_online_ns
+          equals: 18500
+        - pointer: /cells/0/ratio_num
+          equals: 925
+        - pointer: /cells/0/ratio_den
+          equals: 4
+        - pointer: /cells/0/matches_price_ratio
+          equals: true
+        - pointer: /cells/1/name
+          equals: r4000_a2
+        - pointer: /cells/1/r
+          equals: 4000
+        - pointer: /cells/1/A
+          equals: 2
+        - pointer: /cells/1/probes
+          equals: 200
+        - pointer: /cells/1/bsgs_probes
+          equals: 200
+        - pointer: /cells/1/matches_bsgs_probes
+          equals: true
+        - pointer: /cells/1/bl_steps
+          equals: 8
+        - pointer: /cells/1/bl_online_ns
+          equals: 320
+        - pointer: /cells/1/ic_online_ns
+          equals: 74000
+        - pointer: /cells/1/ratio_num
+          equals: 925
+        - pointer: /cells/1/ratio_den
+          equals: 4
+        - pointer: /cells/1/matches_price_ratio
+          equals: true
+        - pointer: /same_reduced_ratio
+          equals: true
+        - pointer: /matches_preregistered
+          equals: true
+    ctl-bsgs-enumeration:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-bsgs-enumeration
+        - pointer: /role
+          equals: arithmetic_consistency
+        - pointer: /cells
+          length: 3
+        - pointer: /cells/0/name
+          equals: r1000_a2
+        - pointer: /cells/0/formula_probes
+          equals: 50
+        - pointer: /cells/0/enumerated_probes
+          equals: 50
+        - pointer: /cells/0/match
+          equals: true
+        - pointer: /cells/1/name
+          equals: r4000_a2
+        - pointer: /cells/1/formula_probes
+          equals: 200
+        - pointer: /cells/1/enumerated_probes
+          equals: 200
+        - pointer: /cells/1/match
+          equals: true
+        - pointer: /cells/2/name
+          equals: r1000_a4
+        - pointer: /cells/2/formula_probes
+          equals: 25
+        - pointer: /cells/2/enumerated_probes
+          equals: 25
+        - pointer: /cells/2/match
+          equals: true
+        - pointer: /all_match
+          equals: true
+        - pointer: /matches_preregistered
+          equals: true
+    ctl-neg-perturbed-price:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-neg-perturbed-price
+        - pointer: /role
+          equals: negative_control
+        - pointer: /c_probe_ns
+          equals: 371
+        - pointer: /price_ratio_num
+          equals: 1855
+        - pointer: /price_ratio_den
+          equals: 8
+        - pointer: /online_ratio_num
+          equals: 1855
+        - pointer: /online_ratio_den
+          equals: 8
+        - pointer: /matches_preregistered
+          equals: false
+    ctl-neg-precomputation-model:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-neg-precomputation-model
+        - pointer: /role
+          equals: negative_control
+        - pointer: /c_probe_ns
+          equals: 370
+        - pointer: /precomputation_steps
+          equals: 10
+        - pointer: /online_ratio_num
+          equals: 185
+        - pointer: /online_ratio_den
+          equals: 42
+        - pointer: /matches_preregistered
+          equals: false
+  controls:
+  - ctl-consistency-a-change
+  - ctl-consistency-r-change
+  - ctl-bsgs-enumeration
+  - ctl-neg-perturbed-price
+  - ctl-neg-precomputation-model
+  replay:
+    mode: fields
+    sample: 6
+    compare:
+    - file: raw-result.json
+      pointers:
+      - /matches_preregistered
+      - /cells
+      - /price_ratio_num
+      - /price_ratio_den
+      - /ratios_agree
+      - /all_match_bsgs
+      - /precomputation_steps
+      - /same_reduced_ratio
+      - /all_match
+      - /online_ratio_num
+      - /online_ratio_den
+  on_invalid: stop
+  on_failure:
+  - when:
+      timed_out: true
+    class: resource_exhaustion
+    action: retry
+    max_attempts: 2
+  tell_on_failure: The trial stopped. Report the run directory named by the plan and do not
+    edit the specification.
+metrics:
+- name: price_ratio_num
+  unit: count
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /price_ratio_num
+  aggregate:
+  - min
+  - max
+- name: price_ratio_den
+  unit: count
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /price_ratio_den
+  aggregate:
+  - min
+  - max
+- name: ratios_agree
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /ratios_agree
+  aggregate:
+  - fraction_true
+- name: all_match_bsgs
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /all_match_bsgs
+  aggregate:
+  - fraction_true
+- name: matches_preregistered
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /matches_preregistered
+  aggregate:
+  - fraction_true
+- name: elapsed_seconds
+  unit: seconds
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /elapsed_seconds
+  aggregate:
+  - max
+report:
+  graph_metric: price_ratio_num
