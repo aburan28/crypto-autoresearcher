@@ -164,3 +164,5 @@ Coordinator decision and evidence.
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
 
 | [Controlled-followup Modal filesystem failure](classical-ecdlp-controlled-followup-modal-filesystem-20261029.md) | Open transport/reconciliation obstruction; 1 VM, 0 candidate executions; C4 API repair and additive native envelope. |
+
+| [Native YAML / JSON compatibility](classical-ecdlp-native-yaml-json-compatibility-20261029.md) | Open representation-only bridge before host labels; original native invalid_output and sealed data preserved. |
