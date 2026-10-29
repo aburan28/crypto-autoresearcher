@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Native snapshot artifact-manifest resolution](native-snapshot-artifact-manifest-resolution.md) | open | Native raw-snapshot completion for declared outputs published through `.artifacts.json` | Commit-bound manifest resolution, corruption controls and an unchanged-receipt publication/retrieval fixture |
 | [Formal workspace build does not fit in 16 GB of RAM](formal-workspace-build-exceeds-16gb.md) | investigating | Whole-workspace `lake build` in one 15 GiB container: `Semaev.BooleanParityDegreeThreeRankCertificate` was OOM-killed (exit 137); the hosted `ubuntu-latest` gate built it and verified 87 targets on 2026-10-28, so the cause is unknown | Peak-RSS measurement on the hosted runner and on a larger host, and a comparison of RAM, swap and cgroup limits with the killed container |
 | [EXP-ECDLP-a98ea9 stage-two run manifests do not parse](ecdlp-a98ea9-stage2-manifest-parse.md) | open | Machine-readable adjudication of three archived stage-two runs, including one textually marked valid | SHA-bound additive parse corrections, independent raw-output and artifact validation, and explicit consumer selection |
 | [Formal workspace CI ends before target audits finish](formal-workspace-ci-timeout.md) | investigating | Formal runtime gate passed on ccee4e1; final current-main merge checks remain | Complete current-main integration CI with all existing checks and the validated 60-minute envelope |
