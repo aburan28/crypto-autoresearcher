@@ -22,6 +22,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from .lean_worker import LeanWorker
@@ -219,6 +220,34 @@ def _check_verification_pins(workspace: Path) -> None:
             raise ValueError("verification requires every dependency pinned to an exact Git commit")
 
 
+def _probe_pinned_lean_version(workspace: Path, *, runner=subprocess.run,
+                               pause=time.sleep) -> str:
+    """Require the frozen Lean release, allowing bounded toolchain fetch retries.
+
+    Only a failed process launch is retried. A completed probe reporting the
+    wrong version is a pin violation and fails immediately.
+    """
+    expected = (workspace / "lean-toolchain").read_text().strip().split(":v")[-1]
+    for attempt in range(3):
+        version = runner(["lake", "env", "lean", "--version"], cwd=workspace,
+                         capture_output=True, text=True, timeout=30, check=False)
+        lean_version = version.stdout.strip()
+        if version.returncode == 0:
+            observed = re.search(r"version ([^, ]+)", lean_version)
+            if observed is None or observed.group(1) != expected:
+                actual = observed.group(1) if observed else "unreported"
+                raise RuntimeError(
+                    f"running Lean version does not match the frozen toolchain "
+                    f"(expected {expected}, observed {actual})")
+            return lean_version
+        if attempt == 2:
+            detail = (version.stderr.strip() or lean_version or "no diagnostic")[:400]
+            raise RuntimeError(
+                f"pinned Lean version probe failed after 3 attempts: {detail}")
+        pause(2 ** (attempt + 1))
+    raise AssertionError("unreachable")
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """Verify an existing proof without requiring a proof-generation service."""
     from .targets import load_spec, task_from_spec
@@ -247,13 +276,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     software_inputs = verifier_inputs()
     result, failure, lean_version = None, None, None
     try:
-        version = subprocess.run(["lake", "env", "lean", "--version"], cwd=workspace,
-                                 capture_output=True, text=True, timeout=30, check=False)
-        lean_version = version.stdout.strip()
-        expected = (workspace / "lean-toolchain").read_text().strip().split(":v")[-1]
-        observed = re.search(r"version ([^, ]+)", lean_version)
-        if version.returncode or observed is None or observed.group(1) != expected:
-            raise RuntimeError("running Lean version does not match the frozen toolchain")
+        lean_version = _probe_pinned_lean_version(workspace)
         result = LeanWorker(repo, timeout_seconds=args.build_timeout).verify(task)
     except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
         failure = f"{type(exc).__name__}: {exc}"
