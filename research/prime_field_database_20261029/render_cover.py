@@ -56,6 +56,8 @@ Run #raw({q(args.run.name)}). The original two E curves and sixteen-atom bases r
 )
 {lists}
 
+Exploratory subset readout from the retained masks: the best nonzero shift covers15/16 atoms for b=13 (h=3437), and14/16 for b=16 (h=3279,3343,3437,3769). These are all coverage-maximizing ties; no relation yield was measured or used to choose them. A same-subset h=0 versus h collector comparison remains unrun.
+
 #image("admissibility.svg",width:100%)
 Histogram counts are derived by counting recorded membership bits. Zero means no observed shift in that exact bin; no broader curve-population model or interval is implied. Source-point counts include a zero lift once and are not signed deck-lift multiplicities.
 

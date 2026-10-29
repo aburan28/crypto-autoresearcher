@@ -83,3 +83,9 @@ and the B1 native result/checker format. Provenance is internal/retrieved.
 Canonical historical graphs remain unchanged; the new B1 report graphs new
 observations and records this database's actual coverage. No scientific
 status transition is made by the import.
+
+The published combined snapshot is
+`../prime_field_b1_execution_20261029/database/prime-fields-with-covers.sqlite.gz`;
+its adjacent generation-v2.json binds original/archived byte hashes. Hydrate
+the artifact, then `gzip -dk` to reconstruct the ignored local SQLite file.
+The membership-only all-tie subset candidates are retained in cover-subsets.json.
