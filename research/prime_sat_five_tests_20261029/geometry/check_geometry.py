@@ -31,6 +31,45 @@ def point_sum(points, p, a):
     return out
 
 
+def is_prime(n):
+    return n >= 2 and all(n % q for q in range(2, math.isqrt(n)+1))
+
+
+def expected_curve(p, cap):
+    tested = 0
+    for a in range(1, p):
+        for b in range(1, p):
+            tested += 1
+            if tested > cap:
+                return {"status": "selector_cap", "tested_curve_candidates": cap}
+            if (4*a**3+27*b*b) % p == 0:
+                continue
+            points = [[x, y] for x, y in itertools.product(range(p), repeat=2)
+                      if (y*y-x**3-a*x-b) % p == 0]
+            order = len(points)+1
+            if order != p and is_prime(order):
+                return {"status": "selected", "p": p, "a": a, "b": b,
+                        "order": order, "cofactor": 1, "points": points,
+                        "tested_curve_candidates": tested}
+    return {"status": "no_curve", "tested_curve_candidates": tested}
+
+
+def expected_coset(curve, d, require_five):
+    p = curve["p"]
+    if (p-1) % d or d & (d-1):
+        return {"status": "unsupported_divisor"}
+    xs = {point[0] for point in curve["points"]}
+    tested = []
+    for c in sorted({pow(t, d, p) for t in range(1, p)}):
+        roots = [x for x in range(p) if pow(x, d, p) == c]
+        usable = [x for x in roots if x in xs]
+        tested.append({"c": c, "usable_x": len(usable)})
+        if not require_five or len(usable) >= 5:
+            return {"status": "selected", "c": c, "roots": roots,
+                    "usable_x": usable, "tested_cosets": tested}
+    return {"status": "ineligible_no_five_usable_x", "tested_cosets": tested}
+
+
 def check(result):
     import sympy as sp
     result = json.loads(json.dumps(result))
@@ -44,8 +83,24 @@ def check(result):
     def poly(coeffs):
         return sum(int(c)*X**i for i, c in enumerate(coeffs))
 
+    cfg = result["config"]["graeffe"]
     for row in result["graeffe"]["cells"]:
-        if row["status"] != "complete":
+        expected = expected_curve(row["input"]["p"], cfg["maximum_curve_candidates"])
+        require(row["curve"].get("status") == expected["status"], ["curve_eligibility", row["input"]])
+        for key, value in expected.items():
+            require(row["curve"].get(key) == value, ["curve_selection", row["input"], key])
+        if expected["status"] == "selected":
+            negative = row["kind"] == "empty_squarefree_control"
+            coset = expected_coset(expected, row["input"]["d"], not negative)
+        else:
+            coset = {"status": "curve_unavailable"}
+        status = "complete" if coset["status"] == "selected" else "ineligible_retained"
+        require(row["status"] == status, ["graeffe_eligibility", row["input"]])
+        require(row["coset"].get("status") == coset["status"], ["coset_eligibility", row["input"]])
+        for key in ("c", "roots", "usable_x", "tested_cosets"):
+            if key in coset:
+                require(row["coset"].get(key) == coset[key], ["coset_selection", row["input"], key])
+        if row["status"] != status or status != "complete":
             continue
         curve = row["curve"]
         p, a, b = (curve[k] for k in ("p", "a", "b"))
@@ -95,9 +150,13 @@ def check(result):
             require(row["inverse"]["counts"]["coefficient_assignments"] == p**4, ["inverse_exhaustive_count", row["input"]])
 
     for row in result["saturation"]["cells"]:
-        if row["status"] != "complete":
-            continue
         p, a, b = (row["input"][k] for k in ("p", "a", "b"))
+        singular = (4*a**3+27*b*b) % p == 0
+        expected_status = "singular_ineligible" if singular else "complete"
+        require(row["status"] == expected_status,
+                ["saturation_eligibility", row["input"]])
+        if singular or row["status"] != expected_status:
+            continue
         census = row["addition_census"]
         expected_points = [None]+[[x, y] for x, y in itertools.product(range(p), repeat=2)
                                  if (y*y-x**3-a*x-b) % p == 0]

@@ -180,35 +180,59 @@ def lift_check(metadata, bits):
             "witness": pairs[0] if pairs else None, "target_point": R}
 
 
-def run(config=None):
+def run(config=None, checkpoint=None):
     config = config or {}
     rows = []
     for p, s, target, membership in itertools.product(config.get("primes", [17,97,257]),
             config.get("digits", config.get("digit_bits", [2,3])), config.get("targets", [0,1,2]), [False,True]):
-        instance = generate_s3(p, s, target, **config.get("curve", {"a":1,"b":1}), curve_membership=membership)
-        ring, polys = instance["ring"], instance["polynomials"]
-        ring.counts = dict.fromkeys(ring.counts, 0)
-        learned = learned_solve(ring, polys, config.get("degree_cap", 2), config.get("row_cap",4096))
-        solver_counts = dict(ring.counts)
-        checked = verify_learning(ring, polys, learned)
-        # Enumerative oracle comes after the candidate solver and does not
-        # modify any solver policy or parameter.
-        solutions = [bits for bits in range(1 << ring.n) if all(ring.eval(f,bits)==0 for f in polys)]
-        expected = "sat" if solutions else "unsat"
-        z3_result, ff_result = z3_solve(ring,polys), cvc5_solve(ring,polys)
-        for backend in (z3_result,ff_result):
-            if backend["status"] in ("sat","unsat") and backend["status"] != expected:
-                raise AssertionError("backend/oracle disagreement")
-            if backend["status"] == "sat" and backend["model"] not in solutions:
-                raise AssertionError("invalid backend witness")
-        if learned["status"] != expected or not checked:
-            raise AssertionError("certificate learner failed exact cell")
-        rows.append({"instance":instance["metadata"], "generators":polys,
-                     "learner":learned, "solver_counts":solver_counts,
-                     "verified":checked, "oracle_solution_count":len(solutions),
-                     "oracle_assignments":1 << ring.n, "z3":z3_result,"cvc5":ff_result,
-                     "lift":lift_check(instance["metadata"],learned["model"])
-                              if learned["status"]=="sat" else None})
+        current = {"input": {"p": p, "s": s, "target": target,
+                              "curve_membership": membership}}
+        stage = "construct_instance"
+        try:
+            instance = generate_s3(p, s, target, **config.get("curve", {"a":1,"b":1}), curve_membership=membership)
+            ring, polys = instance["ring"], instance["polynomials"]
+            current.update({"instance": instance["metadata"], "generators": polys})
+            ring.counts = dict.fromkeys(ring.counts, 0)
+            stage = "learn"
+            learned = learned_solve(ring, polys, config.get("degree_cap", 2), config.get("row_cap",4096))
+            current["learner"] = learned
+            solver_counts = dict(ring.counts)
+            current["solver_counts"] = solver_counts
+            stage = "verify_learner"
+            checked = verify_learning(ring, polys, learned)
+            current["verified"] = checked
+            # Enumerative oracle comes after the candidate solver and does not
+            # modify any solver policy or parameter.
+            stage = "enumerative_oracle"
+            solutions = [bits for bits in range(1 << ring.n) if all(ring.eval(f,bits)==0 for f in polys)]
+            expected = "sat" if solutions else "unsat"
+            current.update({"oracle_solution_count": len(solutions),
+                            "oracle_assignments": 1 << ring.n})
+            stage = "independent_backends"
+            z3_result, ff_result = z3_solve(ring,polys), cvc5_solve(ring,polys)
+            current.update({"z3": z3_result, "cvc5": ff_result})
+            for backend in (z3_result,ff_result):
+                if backend["status"] in ("sat","unsat") and backend["status"] != expected:
+                    raise AssertionError("backend/oracle disagreement")
+                if backend["status"] == "sat" and backend["model"] not in solutions:
+                    raise AssertionError("invalid backend witness")
+            if learned["status"] != expected or not checked:
+                raise AssertionError("certificate learner failed exact cell")
+            current["lift"] = (lift_check(instance["metadata"], learned["model"])
+                                if learned["status"] == "sat" else None)
+            rows.append({k: v for k, v in current.items() if k != "input"})
+        except Exception as exc:
+            if checkpoint is not None:
+                checkpoint({"schema": "prime-five-sat-progress/v1", "status": "failed",
+                            "config": config, "completed_rows": rows,
+                            "failing_cell": {**current, "stage": stage,
+                                "error": str(exc), "exception_type": type(exc).__name__}})
+            raise
+        if checkpoint is not None:
+            checkpoint({"schema": "prime-five-sat-progress/v1", "status": "running",
+                        "config": config, "completed_rows": rows,
+                        "next_cell": {"p": p, "s": s, "target": target,
+                                      "curve_membership": membership}})
     control_ring = BoolRing(2,17)
     controls=[]
     for name,polys in (("positive_sat", [{1:1}]),
@@ -242,6 +266,14 @@ def verify(data):
         instance=generate_s3(m["p"],m["s"],m["target"],a=m["a"],b=m["b"],curve_membership=m["curve_membership"])
         saved=[instance["ring"].clean(f) for f in row["generators"]]
         if saved != instance["polynomials"] or not verify_learning(instance["ring"],saved,row["learner"]):
+            return False
+        assignments = 1 << instance["ring"].n
+        solution_count = sum(all(instance["ring"].eval(f, bits) == 0 for f in saved)
+                             for bits in range(assignments))
+        if (type(row.get("oracle_assignments")) is not int or
+                row["oracle_assignments"] != assignments or
+                type(row.get("oracle_solution_count")) is not int or
+                row["oracle_solution_count"] != solution_count):
             return False
     if [c["name"] for c in data["controls"]]!=["positive_sat","negative_unsat"]:
         return False

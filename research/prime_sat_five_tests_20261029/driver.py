@@ -120,15 +120,25 @@ def execute(config_path, output):
     for name,function in (("geometry",geometry_run),("sat",sat_run),("algebra",algebra_run)):
         print(json.dumps({"event":"package_started","package":name}),flush=True)
         try:
-            payload=function(config[name])
+            if name == "sat":
+                payload=function(config[name], checkpoint=lambda progress: atomic_json(output/"sat-progress.json", progress))
+                (output/"sat-progress.json").unlink(missing_ok=True)
+            else:
+                payload=function(config[name])
             path=output/(name+".json")
             atomic_json(path,payload)
             result["packages"][name]={"status":"completed","artifact":path.name,
                                        "sha256":digest(path),"bytes":path.stat().st_size}
         except Exception as exc:
             # Failure in one new mechanism must not erase the other four.
-            result["packages"][name]={"status":"failed","error":str(exc),
-                                       "traceback":traceback.format_exc()}
+            failure={"status":"failed","error":str(exc),
+                     "traceback":traceback.format_exc()}
+            progress=output/"sat-progress.json"
+            if name == "sat" and progress.exists():
+                failure.update({"partial_artifact":progress.name,
+                                "partial_sha256":digest(progress),
+                                "partial_bytes":progress.stat().st_size})
+            result["packages"][name]=failure
             atomic_json(output/(name+".json"),result["packages"][name])
         atomic_json(output/"raw-result.json",result)
         print(json.dumps({"event":"package_finished","package":name,
