@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 8 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8107 |
-| — with a resolvable external identifier | 2493 |
+| Literature entries (`KN-LIT-*`) | 8108 |
+| — with a resolvable external identifier | 2494 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 182, eprint 837, url 131. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1343, doi 182, eprint 837, url 132. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page)` 1, `abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check)` 1, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 3, `partial` 5, `read` 7529, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 525.
+`citation_verified` distribution: `False` 23, `True` 10, `abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page)` 1, `abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check)` 1, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 3, `partial` 5, `read` 7530, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 525.
 
 ## 1. Frozen source packages
 
@@ -243,7 +243,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2493 of 8107 `KN-LIT-*` entries carry an
+2494 of 8108 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2033,6 +2033,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-63884a | Key-recovery fault injection attack on the Classic McEliece KEM | 2022 | `eprint:2022/1529` | web |
 | KN-LIT-639 | Round Optimal Black-Box “Commit-and-Prove” | 2018 | `eprint:2018/921` | read |
 | KN-LIT-63a5c5 | Breaking Elliptic Curve Cryptosystems Using Reconfigurable Hardware | 2010 | `doi:10.1109/fpl.2010.34` | web |
+| KN-LIT-63f33d | The Enormous Theorem, formalized (Axiom Math) -- agent-swarm Lean formalization of the Classification of Finite Simple Groups; lessons for the formal research lane | 2026 | `url:axiommath.ai/research/the-enormous-theorem-formalized` | read |
 | KN-LIT-640 | Semisimple pointed isogeny graphs for abelian varieties | 2018 | `arxiv:1803.05194` | read |
 | KN-LIT-641 | Simulations of Optical Emissions for Attacking | 2018 | `eprint:2018/291` | read |
 | KN-LIT-642 | SINGULAR UNITS AND ISOGENIES BETWEEN CM ELLIPTIC CURVES | 2018 | `arxiv:1810.13214` | read |
