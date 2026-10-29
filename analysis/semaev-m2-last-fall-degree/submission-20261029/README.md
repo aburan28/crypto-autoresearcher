@@ -44,6 +44,12 @@ PY
 The checker uses the Python standard library. Rebuilding the producer requires
 M4RI. This run used release-20240729 at
 `d0a1ee18511714a2c33cc0920a068c05c1f0f8fb`, with its 15 tests passing.
+The same release also hosts `runtime-source.tar.gz`, an exact Git archive of
+the frozen execution source at `fdd9cb0b730b3f18ab64d745bd32aa57e4cd1103`,
+and `runtime-binaries.tar.gz`. The latter preserves the native x86_64
+executables used in this campaign; `runtime-provenance.json` records their
+hashes, compiler and host architecture. Source is provided for rebuilding on
+other platforms. See `runtime/publication.json` for download/readback hashes.
 The native counter can be built on x86 with CLMUL/SSE4.1 as follows:
 
 ```sh
