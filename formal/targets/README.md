@@ -8,6 +8,17 @@ A target is a **pointer plus a claim, not an approval**. Writing one here
 queues nothing and approves nothing; the Coordinator decides what runs, and a
 machine-verified result is still pending semantic-fidelity review.
 
+A target that builds on other targets, or takes a statement as given without
+proving it, records that in an optional `proof_map` block
+(`docs/formal-research-lane.md`, "Hypothesis deltas, proof maps and errata"):
+
+```yaml
+proof_map:
+  depends_on: [semaev-frobenius-collapse.yaml]   # sibling specs, checked to exist
+  prerequisites:                                  # copied into the stanza's constraints
+    - "Semaev S3 vanishes exactly on x-coordinates of collinear triples"
+```
+
 Every `claim` here is quoted or tightly paraphrased from a committed theory
 note, and `source` names the note it came from. Do not write a claim that is
 not traceable to one: a formalization of a claim nobody made proves nothing
