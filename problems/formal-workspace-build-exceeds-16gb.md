@@ -1,7 +1,8 @@
 # Formal workspace build does not fit in 16 GB of RAM
 
-- **Status:** `investigating`
-- **Kind:** resource limit (observed on one 15 GiB container only); cause unknown
+- **Status:** `investigating` (narrowed 2026-10-29: does not affect the CI gate)
+- **Kind:** resource limit on ~16 GB hosts **without swap** (the cloud
+  containers); not on the `ubuntu-latest` gate runner. Cause unknown
 - **Affected work:** the `formal-workspace` proof gate
   (`tools/verify_formal_targets.py`, `.github/workflows/lean-verification.yml`,
   active as of 2026-10-28; it was disabled when this record was opened); every `autoresearch formal verify` run, which starts
@@ -9,7 +10,7 @@
   (`lean-verification` never built the Quotient target);
   [the 2026-10-23 rename report](../docs/reports/2026-10-23-translation-commutes-rename/report.md)
 - **Next action owner:** unassigned (formal lane maintainer)
-- **Last updated:** 2026-10-28
+- **Last updated:** 2026-10-29
 
 ## Problem
 
@@ -65,6 +66,39 @@ established for the standard runner; why the two differ is unknown.
   and `edd834c742` (05:15 to 05:39).
 - **Not observed:** peak memory on either host, runner RAM and swap, and any
   lake or Lean thread setting that differs between the two.
+- **Observed, 2026-10-29, both hosted job logs read** (job
+  [122905972990](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40713787875/job/122905972990),
+  head `b0e03a16`, #2496; job
+  [123070123680](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40760275078/job/123070123680),
+  head `d75b7d47`, #2654). Both ran on runner image `ubuntu-26.04`
+  `20261025.179.1` (Azure), with the plain `lake build` step and no `-j`.
+  `LEAN_NUM_THREADS` was not in the step environment. In both, the module built
+  **alone**: it started when `BooleanParitySemanticRankCertificate` finished,
+  and every other module had already finished.
+
+  | | module time | lake jobs running at once |
+  | --- | --- | --- |
+  | #2496 hosted | 579 s, success (15:20:39 to 15:30:18) | 1 |
+  | #2654 hosted | 671 s, success (20:13:00 to 20:24:11) | 1 |
+  | 2026-10-23 container, full build | killed (137) at 471 s | 1 (its predecessors were done) |
+  | 2026-10-23 container, retry | killed (137) at 500 s | 1 (only it and its dependants left) |
+
+  The logs do **not** print RAM, swap or CPU count. GitHub documents 4 vCPU
+  and 16 GB for standard Linux runners on public repositories, and this
+  repository is public. A cloud container of the same class, inspected on
+  2026-10-29, has `MemTotal` 16,477,352 kB (15.7 GiB), **`SwapTotal` 0**,
+  4 CPUs and an ext4 root, not tmpfs. So cached Mathlib oleans do not count
+  against RAM there.
+- **Derived, 2026-10-29:** lake's parallelism is **not** the cause. In every
+  case, failed or successful, the module was the only lake job running, and
+  the hosts have the same nominal RAM and CPU count. A `-j` / serialized-build
+  fix is therefore not supported by the evidence, and no `-j` setting is
+  recommended. The remaining differences are untested: swap (none in the
+  container; not logged on the runner), the cgroup or VM memory limit, and
+  Lean's own thread count inside one file (`LEAN_NUM_THREADS`, default = cores
+  on both hosts). The container also ran slower: `SemanticRank` took 261 s
+  there against 92 s and 137 s hosted. So it was killed before reaching the
+  579 to 671 s the module needs even on the hosted runner.
 - **What this evidence does not establish:** nothing about the module's
   correctness (it was audited elsewhere), nothing about any other theorem, and
   nothing about why the container and the hosted runner differ.
@@ -73,8 +107,8 @@ established for the standard runner; why the two differ is unknown.
 
 - [ ] `lake build` of the committed `formal/` workspace exits 0 on the host
   class the gate runs on (16 GB, or a declared larger runner), with peak RSS
-  recorded. The exit-0 half is met by the hosted run of 2026-10-28; the peak-RSS
-  half is not; or
+  recorded. The exit-0 half is met by the hosted runs of 2026-10-28 (two job
+  logs read on 2026-10-29); the peak-RSS half is not; or
 - [ ] the gate builds the requested module and its closure (`lake build
   +Module`) and runs the axiom audit on a root restricted to built modules,
   and records which modules it did not build. That is a verifier change, and
@@ -91,10 +125,14 @@ per-target.
   (`/usr/bin/time -v`) on the hosted runner, for example in a throwaway
   workflow run, and on a host with more than 16 GB; compare runner RAM, swap
   and cgroup limit with the container that was killed.
-- **Outcomes:** if it is above about 14 GB, the module needs restructuring (a
-  smaller certificate per declaration, or `decide` split across lemmas) or the
-  gate needs a larger runner. If it is below that, the out-of-memory kill came
-  from lake's parallel scheduling, and a serialized build is the fix.
+- **Also:** on a swapless container, try `LEAN_NUM_THREADS=1 lake env lean
+  <module>`. This is the one per-process thread setting still untested. Do not
+  use `-j`: the module was already the only lake job.
+- **Outcomes:** if peak RSS is above about 14 GB, the module needs
+  restructuring (a smaller certificate per declaration, or `decide` split
+  across lemmas), and swapless 16 GB hosts cannot build it. If it is below
+  that, look at swap and the cgroup limit, and at `LEAN_NUM_THREADS`, not at
+  lake scheduling. Lake scheduling is ruled out (see 2026-10-29 above).
 - **Recheck trigger:** any change to that module, to the toolchain pin, or to
   `lean-verification.yml` runner sizing.
 
@@ -106,3 +144,14 @@ per-target.
   standard runners would fail is withdrawn. Kept open: the cause of the
   container OOM is unknown, no peak memory was measured anywhere, and a repeat
   on a 16 GB host could still fail. Unresolved.
+- 2026-10-29: both hosted job logs read (#2496 `b0e03a16`, #2654
+  `d75b7d47`). Plain `lake build`, no `-j`, no `LEAN_NUM_THREADS`; the module
+  built alone in 579 s and 671 s. The container was killed while the module
+  was alone too, so lake parallelism is ruled out and no `-j` setting is
+  recommended. The workflow is `active` (GitHub API, 2026-10-29), so the
+  re-enable question is moot. The gate is not blocked by this record: it has
+  built the full workspace on `ubuntu-latest` on both heads read. Still
+  `investigating` only for swapless ~16 GB containers. On such a host, use
+  `tools/verify_formal_targets.py` results with care until peak RSS is
+  measured: a `formalization_blocked` from this module's OOM says nothing
+  about the target.
