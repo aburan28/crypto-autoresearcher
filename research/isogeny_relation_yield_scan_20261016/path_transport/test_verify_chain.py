@@ -18,10 +18,18 @@ class CheckpointVerifierTests(unittest.TestCase):
     def test_fixed_first_check_vertices(self):
         for stratum, edges, points in (("P29", 8, 4096), ("P37", 4, 12800)):
             with self.subTest(stratum=stratum):
-                result = verify(stratum, CONTROLS / f"{stratum.lower()}-twoedge-attempt1")
-                self.assertEqual(result["status"], "pass")
-                self.assertEqual(result["edges_checked"], edges)
-                self.assertEqual(result["points_replayed"], points)
+                source = CONTROLS / f"{stratum.lower()}-twoedge-attempt1"
+                with tempfile.TemporaryDirectory(prefix="isogeny-chain-prefix-") as temporary:
+                    directory = Path(temporary) / "chain"
+                    directory.mkdir()
+                    shutil.copy2(source / "manifest.json", directory / "manifest.json")
+                    for index in range(edges + 1):
+                        name = f"edge-{index:04d}.json"
+                        shutil.copy2(source / name, directory / name)
+                    result = verify(stratum, directory)
+                    self.assertEqual(result["status"], "pass")
+                    self.assertEqual(result["edges_checked"], edges)
+                    self.assertEqual(result["points_replayed"], points)
 
     def test_prior_pointwise_digests(self):
         prior = {row["stratum"]: row for row in json.loads(PRIOR.read_text())["results"]}
@@ -36,7 +44,11 @@ class CheckpointVerifierTests(unittest.TestCase):
         source = CONTROLS / "p29-twoedge-attempt1"
         with tempfile.TemporaryDirectory(prefix="isogeny-chain-tamper-") as temporary:
             directory = Path(temporary) / "chain"
-            shutil.copytree(source, directory)
+            directory.mkdir()
+            shutil.copy2(source / "manifest.json", directory / "manifest.json")
+            for index in range(9):
+                name = f"edge-{index:04d}.json"
+                shutil.copy2(source / name, directory / name)
             path = directory / "edge-0008.json"
             record = json.loads(path.read_text())
             record["base"][0][1] = (record["base"][0][1] + 1) % 320092037
