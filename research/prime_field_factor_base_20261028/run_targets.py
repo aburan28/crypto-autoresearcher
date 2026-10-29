@@ -13,6 +13,7 @@ import target_completion as producer
 from crypto_autoresearcher.index_calculus.curve import Curve
 from crypto_autoresearcher.index_calculus.execution_gate import admit
 from crypto_autoresearcher.index_calculus.target_relations import hash_public_target
+from check_targets import check
 
 
 def main():
@@ -25,7 +26,10 @@ def main():
     root, old = producer.producer.ROOT, producer.producer.OLD
     here = Path(__file__).resolve().parent
     admit(root, args.protocol, args.inputs,
-          [Path(__file__), here/'target_completion.py', here/'prym_completion.py',
+          [Path(__file__), here/'target_completion.py', here/'prym_completion.py', here/'check_targets.py',
+           here/'check_prym.py', old/'census.py',
+           root/'research/prym_rank_census_20261025/check_census.py',
+           root/'research/prym_factor_base_width_20261025/check_inputs.py',
            old/'relations.py', old/'arithmetic.py', old/'independent.py',
            root/'research/prym_factor_base_width_20261025/collect_width.py',
            root/'src/crypto_autoresearcher/index_calculus/target_relations.py',
@@ -56,6 +60,8 @@ def main():
                     event(dict(kind='target_generated', recipe=recipe))
                     result = producer.collect(fixture, cell['source_order'], cell['preprocessing_rows'],
                         recipe['point'], data['multipliers'], event, capability=producer._NATIVE_CAPABILITY)
+                    result['verification'] = check(fixture, cell['source_order'], cell['preprocessing_rows'],
+                                                   recipe['point'], data['multipliers'], result)
                     result.update(target_recipe=recipe, inputs_sha256=sha256(args.inputs.read_bytes()).hexdigest())
                     with (args.out/(stem+'.json')).open('x') as stream:
                         json.dump(result, stream, indent=2)

@@ -1,7 +1,8 @@
 # Prime-field checkpoint transport and remaining execution bindings
 
 - Status: transport verified on 2026-10-29 using session-only credentials;
-  prospective native execution bindings remain outstanding. All four research
+  C1 bindings completed and its first fixed panel executed; B1/A1/D1 bindings
+  remain outstanding. All four research
   directions remain open.
 - Observed: 2026-10-28, managed workspace `/workspace/crypto-autoresearcher`.
 - Scope: the next Prym x=0, Dickson fixed-case, partial-relation and natural-target
@@ -72,3 +73,23 @@ native source/input/interpreter, supervision, ownership and release bindings
 remain required; the target branch-completeness replay also remains unfinished.
 The earlier refusal records are preserved as historical observations. PR #2665
 has merged at `305ebfd6d5d47c23138dc443c6564ac80a619585`.
+
+## 29 October first fixed C1 execution
+
+The C1 administrative package, frozen prospective protocol and explicit root
+release now supply the original Phase B bindings. A fresh real S3 push/gate
+succeeded; the unchanged admitted driver ran under an exclusive owner and
+2GiB/3600s process guards. Source `6164ec00d419cbe43520fbdda19f85f6bbde44cf`,
+protocol `da415e25dd20cae3d33abe90b1c6c9b6500063cfd7f7ad6dd78c97c49e7399d8`,
+data snapshot `e925f22610577ceae34ff0e9cff59b3b40de277a`.
+
+One physical seven-case P-256 panel completed, exit0, source unchanged, no
+timeout and no unknown cases. Both depth3/4 positives returned one signed
+solution; both fixed public-generator queries returned zero, with complete
+finite oracle equality. All arity-four/control cases passed. The validated
+export, source locks, raw data and fresh inspected report are linked from
+the [symmetry continuation](../research/prime_field_symmetries_20261029/README.md).
+This is an observation within those fixed finite cases, not an attack-cost,
+novelty or broad unsolvability claim. Natural-target, Prym paired and partial-row
+experiments still need their own prospective native bindings; no blanket
+execution release or scientific status promotion is inferred from C1.

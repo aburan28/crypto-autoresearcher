@@ -12,6 +12,31 @@ SCRIPT = ROOT / "scripts/checkpoint.sh"
 
 
 class CheckpointQuoting(unittest.TestCase):
+    def test_clean_and_only_excluded_untracked_files_have_a_state_hash(self):
+        source = SCRIPT.read_text()
+        functions = '\n'.join(re.search(r'(?ms)^'+name+r'\(\) \{.*?^\}', source).group()
+                              for name in ('file_stat', 'state_hash'))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(['git','init','-q'],cwd=root,check=True)
+            (root/'tracked.txt').write_text('fixed input\n')
+            subprocess.run(['git','add','tracked.txt'],cwd=root,check=True)
+            subprocess.run(['git','-c','user.name=Checkpoint test','-c','user.email=test@example.invalid',
+                            'commit','-qm','fixture'],cwd=root,check=True)
+            code = ('set -euo pipefail\nEXCLUDE_RE="(^|/)(target|node_modules|\\.git)/"\n'
+                    +functions+'\nstate_hash\n')
+            values = []
+            for relative in (None, '.resume/untracked-note', 'node_modules/untracked-build'):
+                if relative:
+                    path=root/relative
+                    path.parent.mkdir(parents=True,exist_ok=True)
+                    path.write_text('excluded from checkpoint state\n')
+                result=subprocess.run(['bash','-c',code],cwd=root,text=True,capture_output=True)
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertRegex(result.stdout,r'^[0-9a-f]{64}\n$')
+                values.append(result.stdout)
+            self.assertEqual(len(set(values)),1)
+
     def test_metadata_size_is_one_integer_with_quoted_path(self):
         function = re.search(r"(?ms)^file_stat\(\) \{.*?^\}", SCRIPT.read_text()).group()
         with tempfile.TemporaryDirectory() as tmp:
