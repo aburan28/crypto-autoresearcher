@@ -1,7 +1,16 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status: implementation research toward the degree-six search. No frontier run
-or degree-six bound is claimed. The existing frozen data campaign is unchanged.
+Status (2026-10-29): the degree-six search is running; no degree-six bound has
+been obtained. The retained [high-memory report](reports/highmem-progress-001/report.md)
+records one terminal D5 attempt (inconclusive projection_kills_one) and 46
+pending inputs. Its accepted D4 certificate retains LFD at least 5. The live
+worker continues under its frozen protocol. The separate remote D4 panel has
+verified [n42-rand03](reports/panel-v2-pilot/report.md) and
+[n42-rand04](reports/panel-v2-n42-rand04/report.md), both with LFD at least 5.
+
+The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
+software equivalence controls but has not replaced the running instrument
+or established a measured speed advantage.
 
 The dense producer works in every monomial of degree at most five. This
 prototype first rewrites degree-five monomials using a triangular, checked
