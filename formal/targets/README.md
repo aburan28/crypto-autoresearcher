@@ -141,6 +141,15 @@ admissible-dimension files. It proves their product is `X^17+1` over
 that the field Frobenius has the asserted normal-basis module structure,
 or that the listed dimensions exhaust all invariant subspaces.
 
+`binstd-encoded-divisors.yaml` kernel-checks the archived integer masks
+131081, 313 and 471 against every monic bitmask divisor through half their
+degrees, using the exact XOR-and-shift remainder function in its Lean source.
+The three concrete Boolean equalities use `decide` and depend only on
+`propext`. This certifies the finite encoded computation; it does not prove
+the remainder function correct for `(ZMod 2)[X]` or that the masks denote the
+polynomials in `Factorization.lean`. The irreducibility and Frobenius-model
+obligations remain open.
+
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
 `KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
 arm cannot exceed the target count, its tau/open ratio is strictly below the
@@ -152,6 +161,17 @@ All three NCP targets come from one note that was read end to end. Do not add ta
 skimming a note for a quotable sentence — the surrounding definitions are the
 part the engine has to get right, and a claim detached from them formalizes
 into something that is not the claim.
+
+## Quotient translation commutation
+
+`quotient-translation-descent.yaml` proves the group-law identity of
+`THM_QUOTIENT_DESCENT1`: τ_T commutes with ι_S = [−1] ∘ τ_S, for every S,
+exactly when 2T = 0. It is stated in any additive commutative group. The
+[independent semantic review of 2026-10-29](../../docs/reports/2026-10-29-quotient-translation-descent-review/review.md)
+finds it faithful to the target's claim (`faithful_scoped`, `validated_scoped`
+for that claim only). It does **not** support the note's descent Lemma as
+titled: degree-2 maps as quotients by ι_S, and descent ⟺ commutation, are
+prose. It does not support the summation-polynomial Corollary either.
 
 ## Natural follow-ups, deliberately not specced yet
 
