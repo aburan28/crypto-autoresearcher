@@ -1,0 +1,11 @@
+# Prior source review and scope
+
+- Accepted grouped source: `research/prime_sat_regularity_20261029/grouped-proof.md`, `ledger/decisions/DEC-20261029-0857a9.yaml`. Even-s raw lists, explicit highest-part invariant, p>max(3,s), nonzero weights, exact d_reg values, and Salizzoni mutant-closure upper bound. The source does not prove actual matrix work or runtime advantage.
+- Accepted two-summand source: `research/prime_sat_regularity_20261029/proof.md`, `ledger/decisions/DEC-20261029-ce5c57.yaml`, especially its rational line identity at t!=0. This is the rational completeness premise; Kosters-Yeo Proposition 2.1 alone concerns algebraic-closure equivalence and must not be overread as rational completeness.
+- Salizzoni, https://arxiv.org/html/2304.13485 , Definitions2.4-2.5 and Propositions3.10/3.13. Closure bounds and an ambient-monomial upper-bound construction do not force actual F4/F5 or SAT rows/columns. Retrieved earlier by root/reviewers; producer must check the exact used statement.
+- RFC9380 AppendixI.1/I.4, https://www.rfc-editor.org/rfc/rfc9380.html#appendix-I . Root retrieved the square-root shortcut and general Tonelli-Shanks procedure; Coordinator opened the primary RFC on2026-10-29. A nonsquare is supplied or constructed with separately charged search. No authenticated constant-time or side-channel property of this research implementation is claimed.
+- Old `research/prime_sat_followup_20261029/encoding.py` is a historical implementation donor only. Root inspection found full-field y scanning and point-pair enumeration; the new reference must remove those loops without reinterpreting earlier counts.
+
+No new paper implementation, benchmark or scientific sample has run for this task. Exact primary-source hashes are unknown unless captured later. General prime-field unknown-scalar recovery with complete accounting remains the objective; no excluded attack family is introduced by this baseline.
+
+- RFC9380 F.2.1.1, https://www.rfc-editor.org/rfc/rfc9380.html#appendix-F.2.1.1 , retrieved by root before implementation: sqrt_ratio returns a root of u/v or Z*u/v according to quadratic character. A global certified nonsquare plus per-row w²=Z*f(x) is a permitted standard nonroot certificate; generation and setup remain charged, with ordinary Euler fallback. No novelty or performance claim.
