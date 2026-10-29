@@ -1,7 +1,16 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status: implementation research toward the degree-six search. No frontier run
-or degree-six bound is claimed. The existing frozen data campaign is unchanged.
+Status (2026-10-29): the degree-six search is running; no degree-six bound has
+been obtained. The retained [high-memory report](reports/highmem-progress-001/report.md)
+records one terminal D5 attempt (inconclusive projection_kills_one) and 46
+pending inputs. Its accepted D4 certificate retains LFD at least 5. The live
+worker continues under its frozen protocol. The separate remote D4 panel has
+verified [n42-rand03](reports/panel-v2-pilot/report.md) and
+[n42-rand04](reports/panel-v2-n42-rand04/report.md), both with LFD at least 5.
+
+The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
+software equivalence controls but has not replaced the running instrument
+or established a measured speed advantage.
 
 The dense producer works in every monomial of degree at most five. This
 prototype first rewrites degree-five monomials using a triangular, checked
@@ -119,3 +128,9 @@ The completed n49 degree-four candidate was retained without claiming acceptance
 The separate `highmem-protocol.json` continues47 inputs: all17 capped cases plus30 unfinished/unattempted cases. It pins18 retained seeds, always rechecks them against the original independent checker, and uses the separately validated blockwise exporter under a standalone64 GiB cap. Its detached owner and exact command are recorded in `runs/frontier-highmem-001.launch.json`; outputs are `/home/ec2-user/fall-degree-data-20261029/frontier-highmem-001`. The old two40 GiB workers remain stopped during this placement.
 
 The original50 records remain authoritative for their attempts. Continuation outputs must be joined by `prior_id`, preserving old outcomes and taking only justified lower bounds. They are not47 additional independent inputs, and20+47 must not be reported as67 distinct instances. The three original no-certificate outcomes remain visible. The rest of the original expanded campaign is still outstanding.
+
+## High-memory continuation: first terminal result
+
+The immutable [second progress snapshot](reports/highmem-progress-002/report.md) records one terminal input out of47. The first n47 polynomial-basis input retained its accepted D4 map (codimension21428, exact count0, LFD>=5). Its D5 construction killed the constant and produced no usable D5 certificate. This gives neither an upper bound nor a conclusion about membership in the true W5 closure. The remaining46 inputs include the live second input; no degree-six bound is recorded.
+
+The continuation-specific [publication linkage](highmem-archive/fresh-n47-poly-00-D5-cascade01-highmem01-D4.publication.json) binds the retained certificate and fresh checker/count evidence to the already-public original certificate. A fresh anonymous GET verified all three original assets, and gzip decompression reproduced the continuation certificate hash. The original public receipt still describes the original attempt; the linkage records the continuation provenance separately. The new snapshot has no missing publication acknowledgement for its completed stage. This changes evidence availability, not the mathematical bound or sample count.
