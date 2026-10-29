@@ -22,7 +22,7 @@ def run_item(item,args,plan_hash,lockfd):
                 raise ValueError('retained certificate changed')
             return old
     attempt=root/('attempt-%03d'%(len(list(root.glob('attempt-*')))+1));attempt.mkdir()
-    record=item['record'];seed=args.seed_data/item['id']/'attempt-001/certificate.bin'
+    record=item['record'];seed=args.seed_data/item['seed_id']/'attempt-001/certificate.bin'
     result=dict(schema='semaev.quotient-lift-result/v1',id=item['id'],parameters=item,
         plan_sha256=plan_hash,source_commit=args.source_commit,status='started',steps={},
         last_fall_degree_lower_bound=None,scope='Exact named presentation only; a killed constant in an over-approximating quotient does not prove membership in W5.')
