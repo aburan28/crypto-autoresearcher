@@ -229,6 +229,16 @@ for that claim only). It does **not** support the note's descent Lemma as
 titled: degree-2 maps as quotients by ι_S, and descent ⟺ commutation, are
 prose. It does not support the summation-polynomial Corollary either.
 
+## Nagao 2015/984 Lemma 4 counterexample
+
+`nagao-lemma4-inside-counterexample-20261029.yaml` (`formal_counterexample`) is the
+Lean twin of the Python certificate of `KN-FIND-936151`: for two finite `F_2`
+systems (N <= 3) the kernel-`decide` theorems give `d_F = 3 > 2 = d'_F` in the
+inside form under the equality reading of condition (1). It is a new spec and
+carries a `proof_map` naming the unformalized transcription of Nagao's
+definitions. See the [report](../../docs/reports/2026-10-29-nagao-lemma4-lean/report.md)
+(hypothesis-delta table, receipt). It says nothing about Proposition 5.
+
 ## Natural follow-ups, deliberately not specced yet
 
 `THM_INCBARRIER1` §8 states three open gaps (G1, G2, G3) in precise form, and
