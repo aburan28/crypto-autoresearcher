@@ -162,6 +162,12 @@ def test_completed_small_stream_retains_old_rows_and_verifies_new(prym):
     assert old['attempts'] == new['attempts'] == 2*56*64
     assert sum(new['statuses'].values()) == new['attempts']
     assert new['quality']['rows'] == len(new['rows'])
+    assert len(new['status_blocks']) == 2
+    assert all(len(block['statuses']) == 56*64 for block in new['status_blocks'])
+    from collections import Counter
+    retained = Counter(new['status_legend'][code] for block in new['status_blocks']
+                       for code in block['statuses'])
+    assert retained == new['statuses']
     assert new['quality']['rank'] >= old['quality']['rank']
     canonical = lambda row: tuple(row['coefficients'])+(row['source_scalar'],)
     assert {canonical(row) for row in old['rows']} <= {canonical(row) for row in new['rows']}
@@ -172,7 +178,10 @@ def test_completed_small_stream_retains_old_rows_and_verifies_new(prym):
     assert check(fixture, [1, 2], new)['checked']
     assert check(fixture, [1, 2], old)['checked']
     for mutate in [lambda v: v['rows'].pop(), lambda v: v.update(branch_sha256='0'*64),
-                   lambda v: v['quality'].update(rank=0), lambda v: v['statuses'].update(accepted=0)]:
+                   lambda v: v['quality'].update(rank=0), lambda v: v['statuses'].update(accepted=0),
+                   lambda v: v['status_blocks'][0].update(statuses='+'*3584),
+                   lambda v: v['status_blocks'][0].update(branch_sha256='0'*64),
+                   lambda v: v['status_legend'].update(S='accepted')]:
         corrupted = deepcopy(new)
         mutate(corrupted)
         with pytest.raises(ValueError):
@@ -184,6 +193,24 @@ def test_scientific_collect_has_no_unadmitted_path(prym):
     fixture.pop('software_control')
     with pytest.raises(ValueError, match='admission'):
         module.collect(fixture, [1], lambda record: pytest.fail('executed'))
+
+
+def test_prym_phase_failure_is_journaled(prym, monkeypatch, tmp_path):
+    module, fixture = prym
+    monkeypatch.setitem(sys.modules, 'prym_completion', module)
+    spec = importlib.util.spec_from_file_location('phase_control', STUDY/'run_prym.py')
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    def fail():
+        raise RuntimeError('marked software failure')
+    import json
+    journal = tmp_path/'phases.jsonl'
+    with pytest.raises(RuntimeError, match='marked software failure'):
+        runner.phase(journal, fixture, 'software_control', 'verification', fail)
+    retained = json.loads(journal.read_text())
+    assert retained['status'] == 'failed' and retained['error_type'] == 'RuntimeError'
+    assert retained['cpu_seconds'] >= 0 and retained['wall_seconds'] >= 0
+    assert retained['wall_valid'] is False
 
 
 @pytest.mark.parametrize('target_index', [0, None])
