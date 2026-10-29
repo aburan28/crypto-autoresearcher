@@ -1,0 +1,735 @@
+{
+  "clock_qualified": false,
+  "command_template": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\n<reproduction_source>\nPY",
+  "counter_execution_replay_qualified": false,
+  "execution_result": {
+    "actual_wrapper": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nREVIEW_REPRO_SOURCE = <JSON-encoded reproduction_source>\nexec(compile(REVIEW_REPRO_SOURCE, '<source-review-known-fixtures>', 'exec'))\nPY",
+    "interpretation": "17 deterministic source/fixture check groups; not scientific trials, timing or complete counter replay",
+    "reproduction_source_sha256": "1630ff60252f101d6d31a02b6cae4d35cabee8d4bdf47a73a4286c2bd8fdf123",
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"failed_groups\": 0, \"passed_groups\": 17, \"scientific_runs\": 0, \"total_groups\": 17}\n{\"name\": \"snapshot-26-source-path-bindings\", \"passed\": true}\n{\"name\": \"original-ungated-exact-AST-embedding\", \"passed\": true}\n{\"name\": \"independent-public-arithmetic-full-traces-and-six-cells\", \"passed\": true}\n{\"name\": \"independent-Laurent-seed-scaling\", \"passed\": true}\n{\"name\": \"identity-vertical-tangent-primary-boundaries\", \"passed\": true}\n{\"name\": \"undefined-continuation-and-early-stop-mutant\", \"passed\": true}\n{\"name\": \"wrong-transport-sign-mutant\", \"passed\": true}\n{\"name\": \"zero-seed-and-free-correct-seed-mutants\", \"passed\": true}\n{\"name\": \"complete-unique-exact-word-count-on-fixed-trace-mutants\", \"passed\": true}\n{\"name\": \"omitted-duplicate-and-truncated-list-mutants\", \"passed\": true}\n{\"name\": \"erasure-caps-all-six-cells-and-erased-cap-mutant\", \"passed\": true}\n{\"name\": \"strict-upper-inequivalent-mutant-and-leq-equivalence\", \"passed\": true}\n{\"name\": \"nontrivial-a-b-conversion-and-wrong-conversion-mutant\", \"passed\": true}\n{\"name\": \"zero-costed-both-equations-and-distinct-nonzero-M\", \"passed\": true}\n{\"name\": \"normalization-intermediate-values-and-wrong-beta-control\", \"passed\": true}\n{\"name\": \"readiness-zero-anchor-zero-seed-and-unsupported-domain\", \"passed\": true}\n{\"name\": \"missing-query-trace-rejected\", \"passed\": true}\n"
+  },
+  "failed_groups": 0,
+  "fixture_scope": [
+    "F11 p11 a1 b6 r13 P(2,7)",
+    "F23 p23 a11 b5 r17 P(5,22)"
+  ],
+  "fresh_entropy_draws": 0,
+  "passed_groups": 17,
+  "probe": null,
+  "python": "3.12.14",
+  "recorded_at": "2026-10-29T19:02:39.852149+00:00",
+  "reproduction_source": "import sys\nsys.dont_write_bytecode=True\nimport ast, copy, hashlib, inspect, itertools, json, math, platform, traceback\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom unittest.mock import patch\nroot=Path('/workspace/classical-ecdlp-validation-ready')\nsys.path.insert(0,str(root/'harness/classical_ecdlp_controlled_followup'))\nimport engine as E\nfrom constructor import prepare, normalized_miller_coefficient\nfrom curve import Curve\nout=Path('/workspace/classical-ecdlp-endpoint-reuse/controlled-followup-20261029/source-review-package/coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-2fe40f/reviews/TASK-20261029-182d42/checks.json')\nF11={'p':11,'a':1,'b':6,'r':13};P11=(2,7)\nF23={'p':23,'a':11,'b':5,'r':17};P23=(5,22)\nrecords=[]\ndef run(name,f):\n    try:\n        detail=f()\n        records.append({'name':name,'passed':True,'observed':detail})\n    except Exception as exc:\n        records.append({'name':name,'passed':False,'exception':type(exc).__name__,'message':str(exc),'traceback':traceback.format_exc()})\ndef clean(v):\n    if isinstance(v,dict):return {k:clean(x) for k,x in v.items() if k not in ('counts','counters')}\n    if isinstance(v,(list,tuple)):return [clean(x) for x in v]\n    return v\ndef add(m,A,B):\n    p=m['p']\n    if A is None or B is None:return (B if A is None else A),0\n    x,y=A;u,v=B\n    if x==u and (y+v)%p==0:return None,0\n    s=((3*x*x+m['a'])*pow(2*y,-1,p) if A==B else (v-y)*pow(u-x,-1,p))%p\n    X=(s*s-x-u)%p\n    return (X,(s*(x-X)-y)%p),s\ndef mul(m,n,A):\n    if n<0:return mul(m,-n,None if A is None else (A[0],-A[1]%m['p']))\n    B=None\n    while n:\n        if n&1:B=add(m,B,A)[0]\n        A=add(m,A,A)[0];n//=2\n    return B\ndef raw_coefficient(m,R):\n    # Independently derived Laurent coefficient; recursive addition chain.\n    def chain(n):\n        if n==0:return None,0\n        if n==1:return R,0\n        T,c=chain(n//2)\n        U,l=add(m,T,T);c=(2*c+l)%m['p']\n        if n%2:U,l=add(m,U,R);c=(c+l)%m['p']\n        return U,c\n    T,C=chain(m['r'])\n    assert T is None\n    return C\ndef zref(m,R):\n    return 0 if R is None else -raw_coefficient(m,R)*pow(m['r'],-1,m['p'])%m['p']\ndef result(status,bit=None,reason=None,**kw):\n    d=dict(status=status,bit=bit,reason=reason,z=None,g=None,anchor=None,normalized=None);d.update(kw);return d\ndef answer(m,B,R,arm):\n    p=m['p'];r=m['r']\n    if p%4!=3 or r<=2 or r%2==0 or r==p:return result('UNDEFINED',reason='DOMAIN_UNSUPPORTED')\n    zb=zref(m,B)\n    if arm['kind']=='wrong_root':\n        root=pow((B[0]**3+m['a']*B[0]+m['b'])%p,(p+1)//4,p)\n        if R is None:return result('BIT',bit=0,z=0,anchor=root)\n        fac=B[1]*pow(root,-1,p)%p\n        sig=fac*pow((R[0]**3+m['a']*R[0]+m['b'])%p,(p+1)//4,p)%p\n        return result('BIT',bit=0 if R[1]==sig else 1,anchor=root,root=sig)\n    if zb==0:return result('UNDEFINED',reason='ZERO_BASE_Z')\n    c=zb*pow(B[1],-1,p)%p;anchor=(1+arm['alpha'])*zb%p\n    if anchor==0:return result('UNDEFINED',reason='ZERO_ANCHOR',anchor=anchor)\n    if R is None:return result('BIT',bit=0,z=0,anchor=anchor)\n    z=zref(m,R);g=(z+c*R[1]*(arm['alpha']+arm['beta']*c*(R[0]-B[0])))%p\n    if g==0:return result('UNDEFINED',reason='ZERO_NUMERATOR',z=z,g=0,anchor=anchor)\n    norm=g*pow(anchor,-1,p)%p;chi=pow(norm,(p-1)//2,p)\n    assert chi in (1,p-1)\n    return result('BIT',bit=0 if chi==1 else 1,z=z,g=g,anchor=anchor,normalized=norm)\ndef attempt_ref(m,G,Q,a,b,arm):\n    L=m['r'].bit_length()+1;D=1<<L;r=m['r'];B=mul(m,a,G);T=mul(m,b,Q);R=T\n    trace=[];V=0;reasons=[]\n    for i in range(L):\n        ans=answer(m,B,R,arm)\n        trace.append(dict(index=i,target=None if R is None else list(R),answer=ans))\n        if ans['status']!='BIT':reasons.append(ans['reason'])\n        V=2*V+(ans['bit'] if ans['status']=='BIT' else 0)\n        R=add(m,R,R)[0]\n    fully=not reasons;k=(r*V+D-1)//D if fully else None\n    legal=bool(fully and 0<=k<r and D*k<r*(V+1))\n    x=a*pow(b,-1,r)*k%r if legal else None\n    ck1=mul(m,k,B)==T if legal else None;ck2=mul(m,x,G)==Q if legal else None\n    recovered=legal and ck1 and ck2\n    status='RECOVERED' if recovered else 'UNDEFINED' if not fully else 'EMPTY_INTERVAL' if not legal else 'REJECTED_FINAL_VERIFICATION'\n    reason=None if recovered else ','.join(sorted(set(reasons))) if not fully else 'EMPTY_BINARY_INTERVAL' if not legal else 'FINAL_VERIFICATION_FAILED'\n    return dict(status=status,reason=reason,L=L,candidate_scalar_prime=k,candidate_scalar=x,\n        scalar_prime=k if recovered else None,scalar=x if recovered else None,target_multiplier_inverse=pow(b,-1,r),\n        interval=dict(value=V if fully else None,denominator=D,lower_numerator=r*V if fully else None,\n          upper_numerator=r*(V+1) if fully else None,nonempty=legal),predicate_evaluations=L,retained_bit_reads=0,\n        predicate_trace=trace,public_checks=dict(transformed=ck1,original=ck2))\ndef prepared(m,G,a,arm):\n    return prepare(m,mul(m,a,G),arm)\ndef values_ref(bits,t):\n    L=len(bits)\n    # Brute-force validator for only the two fixed lengths. Candidate never uses this.\n    candidates=[]\n    for V in range(1<<L):\n        v=[(V>>(L-1-i))&1 for i in range(L)]\n        flips=tuple(i for i,b in enumerate(bits) if b is not None and b!=v[i])\n        if len(flips)<=t:\n            erasure=tuple(v[i] for i,b in enumerate(bits) if b is None)\n            candidates.append(((erasure,len(flips),flips),V,v))\n    return [(V,v) for _,V,v in sorted(candidates)]\ndef cell_ref(m,G,Q,a,b,attempt,t,cap):\n    bits=[q['answer']['bit'] if q['answer']['status']=='BIT' else None for q in attempt['predicate_trace']]\n    L=len(bits);r=m['r'];D=1<<L;e=bits.count(None);capped=e>cap\n    words=[];nonzero=set();recoveries=set();zero=0;B=mul(m,a,G);T=mul(m,b,Q)\n    for V,v in ([] if capped else values_ref(bits,t)):\n        k=(r*V+D-1)//D;legal=0<=k<r and D*k<r*(V+1);x=None;c1=c2=None\n        if legal:\n            x=a*pow(b,-1,r)*k%r;c1=mul(m,k,B)==T;c2=mul(m,x,G)==Q\n            if x:nonzero.add(x)\n            else:zero+=1\n            if c1 and c2:recoveries.add(x)\n        words.append(dict(value=V,bits=v,erasure_assignment=[v[i] for i,b0 in enumerate(bits) if b0 is None],\n          flipped_indices=[i for i,b0 in enumerate(bits) if b0 is not None and b0!=v[i]],\n          candidate_scalar_prime=k,legal=legal,candidate_scalar=x,public_checks=dict(transformed=c1,original=c2),\n          status='RECOVERED' if c1 and c2 else 'REJECTED_FINAL_VERIFICATION' if legal else 'EMPTY_INTERVAL'))\n    status='CAPPED_ERASURES' if capped else 'RECOVERED' if recoveries else 'EMPTY_INTERVAL' if words and all(w['status']=='EMPTY_INTERVAL' for w in words) else 'REJECTED_FINAL_VERIFICATION'\n    if t==0 and cap==0:status=attempt['status']\n    return dict(radius=t,erasure_cap=cap,L=L,erasures=e,capped=capped,status=status,word_count=len(words),\n      expected_word_count=0 if capped else (1<<e)*sum(math.comb(L-e,j) for j in range(min(t,L-e)+1)),\n      words=words,M=len(nonzero),distinct_nonzero_candidates=sorted(nonzero),zero_candidate_checks=zero,\n      recovered_scalars=sorted(recoveries),scalar=min(recoveries) if recoveries else None,\n      memory=dict(retained_word_records=len(words),retained_word_bits=L*len(words),distinct_nonzero_scalars=len(nonzero),metric='abstract_payload_not_RSS'))\ndef check_cell(m,G,Q,a,b,arm,attempt,t,cap,fn=None):\n    p=prepared(m,G,a,arm)\n    c=(fn or E.decode_cell)(p,G,Q,a,b,attempt,t,cap)\n    want=cell_ref(m,G,Q,a,b,attempt,t,cap)\n    assert clean(c)==want,(clean(c),want)\n    legal=sum(w['legal'] for w in c['words'])\n    assert c['counts']['verification'].get('scalar_multiply_call',0)==2*legal\n    assert c['counts']['wrapper'].get('decoder_word_construct',0)==c['word_count']\n    assert c['counts']['wrapper'].get('integer_word_bit',0)==c['word_count']*attempt['L']\n    return c\ndef changed_attempt(attempt,bits):\n    a=copy.deepcopy(attempt)\n    for q,b in zip(a['predicate_trace'],bits):\n        q['answer'].update(status='UNDEFINED' if b is None else 'BIT',bit=b,reason='ZERO_NUMERATOR' if b is None else None)\n    a['status']='UNDEFINED' if None in bits else 'REJECTED_FINAL_VERIFICATION'\n    return a\ndef mutant_decode(old,new):\n    src=inspect.getsource(E.decode_cell)\n    assert old in src\n    ns=dict(E.__dict__);exec(compile(src.replace(old,new),'<deterministic-decoder-mutant>','exec'),ns)\n    return ns['decode_cell']\narm1={'kind':'candidate','alpha':1,'beta':-4}\narm2={'kind':'candidate','alpha':-2,'beta':-1}\nzeroarm={'kind':'candidate','alpha':2,'beta':0}\ncases=[('F11-legacy',F11,P11,(7,2),5,1,arm1),\n       ('F11-blinded',F11,P11,(7,2),5,3,arm1),\n       ('F11-base',F11,P11,P11,1,1,arm2),\n       ('F11-zero-numerator',F11,P11,(5,2),1,1,zeroarm),\n       ('F11-zero-anchor',F11,P11,P11,1,1,{'kind':'candidate','alpha':-1,'beta':1}),\n       ('F11-wrong-root',F11,P11,(8,3),1,1,{'kind':'wrong_root'}),\n       ('F23-primary',F23,P23,P23,1,1,arm2)]\ndef snapshot():\n    rp=root/'coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-2fe40f/archives/TASK-20261029-b039c4/snapshot-receipt.json'\n    receipt=json.loads(rp.read_text());d=receipt['archive_binding']['path_sha256']\n    actual={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in d}\n    assert actual==d\n    return dict(matched_paths=len(d),receipt_sha256=hashlib.sha256(rp.read_bytes()).hexdigest(),source_commit=receipt['archive_binding']['commit_sha'],code_revision=receipt['code_revision_c'],hashes=actual)\nrun('snapshot-26-source-path-bindings',snapshot)\ndef original_ast():\n    old=root/'harness/classical_ecdlp_transfer_successor/compute.py'\n    def node(p):return next(n for n in ast.parse(p.read_text()).body if isinstance(n,ast.FunctionDef) and n.name=='ungated_attempt')\n    assert ast.dump(node(old),include_attributes=False)==ast.dump(node(root/'harness/classical_ecdlp_controlled_followup/engine.py'),include_attributes=False)\n    return {'AST_equal':True,'old_compute_sha256':hashlib.sha256(old.read_bytes()).hexdigest(),'old_function_lines':[114,171]}\nrun('original-ungated-exact-AST-embedding',original_ast)\ndef independent_traces():\n    details=[]\n    for name,m,G,Q,a,b,arm in cases:\n        p=prepared(m,G,a,arm);want=attempt_ref(m,G,Q,a,b,arm)\n        _,o=E.ungated_attempt(p,G,Q,a,b,True);_,n=E.incremental_ungated_attempt(p,G,Q,a,b,True)\n        assert clean(o)==want,(name,'original')\n        assert clean(n)==want,(name,'incremental')\n        pair=E.paired_attempt(p,G,Q,a,b)\n        assert len(pair['cells'])==6\n        for t,cap in E.CELL_SPECS:check_cell(m,G,Q,a,b,arm,n,t,cap)\n        if p.setup_reason or arm['kind']=='wrong_root':\n            assert not n['counts']['evaluate'].get('miller_coefficient_call',0)\n            assert n['counts']['state_updates']=={}\n        else:\n            assert n['counts']['evaluate']['miller_coefficient_call']==1\n            assert o['counts']['evaluate']['miller_coefficient_call']==want['L']\n            assert n['counts']['state_updates']['incremental_z_update']==want['L']-1\n        details.append(dict(case=name,status=n['status'],scalar=n['scalar'],L=n['L'],\n          z=[q['answer']['z'] for q in n['predicate_trace']],bits=[q['answer']['bit'] for q in n['predicate_trace']],\n          cell_counts=[c['word_count'] for c in pair['cells']]))\n    return details\nrun('independent-public-arithmetic-full-traces-and-six-cells',independent_traces)\ndef seeds():\n    rows=[]\n    for m,G,points in [(F11,P11,[P11,(5,2),(8,3),(7,2)]),(F23,P23,[P23,(22,19),(18,20),(11,10),(5,1),(22,4)])]:\n        for R in [None]+points:\n            C=raw_coefficient(m,R);z=zref(m,R)\n            actual=normalized_miller_coefficient(Curve(m['p'],m['a'],m['b']),R,m['r'])\n            assert z==actual\n            rows.append(dict(p=m['p'],point=R,raw_C=C,normalized_Z=z))\n    assert zref(F11,P11)==3\n    return rows\nrun('independent-Laurent-seed-scaling',seeds)\ndef exceptions():\n    c=Curve(11,1,6)\n    assert c.add_with_slope(None,P11)==(P11,0)\n    assert c.add_with_slope(P11,None)==(P11,0)\n    assert c.add_with_slope(None,None)==(None,0)\n    assert c.add_with_slope(P11,(2,4))==(None,0)\n    assert c.add_with_slope(P11,P11)==((5,2),8)\n    assert zref(F11,(2,4))==8 and (3+8)%11==0\n    p=prepared(F11,P11,1,arm1)\n    for fn in [E.ungated_attempt,E.incremental_ungated_attempt]:\n        for Q in (None,(0,0)):\n            try:fn(p,P11,Q,1,1)\n            except ValueError:pass\n            else:raise AssertionError('invalid primary target accepted')\n    return dict(identity=True,vertical=True,tangent_point=[5,2],tangent_slope=8,inverse_Z=8,\n      invalid_primary_rejected=True,order_two_tangent='unreachable on the two valid odd-order fixtures; source branch only')\nrun('identity-vertical-tangent-primary-boundaries',exceptions)\ndef zero_continuation():\n    p=prepared(F11,P11,1,zeroarm)\n    _,n=E.incremental_ungated_attempt(p,P11,(5,2),1,1,True)\n    assert n['predicate_trace'][0]['answer']['reason']=='ZERO_NUMERATOR'\n    assert len(n['predicate_trace'])==5\n    assert n['counts']['state_updates']['incremental_z_update']==4\n    src=inspect.getsource(E.incremental_ungated_attempt)\n    old='fully_defined = False\\n            reasons.append(answer[\"reason\"])'\n    assert old in src\n    ns=dict(E.__dict__);exec(compile(src.replace(old,old+'\\n            break'),'<early-undefined-mutant>','exec'),ns)\n    _,bad=ns['incremental_ungated_attempt'](p,P11,(5,2),1,1,True)\n    assert len(bad['predicate_trace'])==1 and bad['predicate_evaluations']==5\n    assert clean(bad)!=attempt_ref(F11,P11,(5,2),1,1,zeroarm)\n    return dict(valid_calls=5,valid_updates=4,mutant_actual_calls=1,mutant_declared_calls=5,mutant_detected=True)\nrun('undefined-continuation-and-early-stop-mutant',zero_continuation)\ndef signs():\n    p=prepared(F11,P11,1,arm1)\n    _,good=E.incremental_ungated_attempt(p,P11,P11,1,1,True)\n    def wrong(f,z,l):return f.sub(f.mul(2,z),l)\n    with patch.object(E,'_next_z',wrong):\n        _,bad=E.incremental_ungated_attempt(p,P11,P11,1,1,True)\n        try:E.paired_attempt(p,P11,P11,1,1)\n        except AssertionError:paired_reject=True\n        else:paired_reject=False\n    assert good['predicate_trace'][1]['answer']['z']==3\n    assert bad['predicate_trace'][1]['answer']['z']==9 and paired_reject\n    return dict(correct_second_Z=3,wrong_sign_second_Z=9,paired_rejected=True)\nrun('wrong-transport-sign-mutant',signs)\ndef free_seed():\n    p=prepared(F11,P11,1,arm1)\n    _,good=E.incremental_ungated_attempt(p,P11,P11,1,1,True)\n    with patch.object(E,'normalized_miller_coefficient',return_value=0):\n        _,bad=E.incremental_ungated_attempt(p,P11,P11,1,1,True)\n    assert clean(bad)!=clean(good)\n    with patch.object(E,'normalized_miller_coefficient',side_effect=lambda c,R,r,iv:zref(F11,R)):\n        _,free=E.incremental_ungated_attempt(p,P11,P11,1,1,True)\n    assert clean(free)==clean(good)\n    assert good['counts']['evaluate']['miller_coefficient_call']==1\n    assert free['counts']['evaluate'].get('miller_coefficient_call',0)==0\n    return dict(zero_seed_semantics_rejected=True,correct_but_uncharged_seed_semantics_equal=True,\n      correct_seed_calls=1,free_seed_calls=0,missing_seed_cost_detected=True)\nrun('zero-seed-and-free-correct-seed-mutants',free_seed)\ndef exhaustive_words():\n    total=0;by=[]\n    for m,G in [(F11,P11),(F23,P23)]:\n        _,a=E.ungated_attempt(prepared(m,G,1,arm2),G,G,1,1,True)\n        original=[q['answer']['bit'] if q['answer']['status']=='BIT' else 0 for q in a['predicate_trace']]\n        L=len(original);n=0\n        for e in range(3):\n            for erased in itertools.combinations(range(L),e):\n                bits=[None if i in erased else b for i,b in enumerate(original)]\n                for t in range(3):\n                    actual=list(E.enumerate_words(bits,t));want=values_ref(bits,t)\n                    assert [(x['value'],x['bits']) for x in actual]==want\n                    assert len(actual)==len({x['value'] for x in actual})\n                    assert len(actual)==(1<<e)*sum(math.comb(L-e,j) for j in range(min(t,L-e)+1))\n                    n+=1\n        total+=n;by.append(dict(p=m['p'],L=L,deterministic_erasure_radius_cases=n))\n    return dict(cases=total,by_fixture=by,reference='all binary words of only fixed L=5,6 traces; no curve/log candidate fallback')\nrun('complete-unique-exact-word-count-on-fixed-trace-mutants',exhaustive_words)\nlegacy_p=prepared(F11,P11,5,arm1)\n_,legacy=E.ungated_attempt(legacy_p,P11,(7,2),5,1,True)\ndef list_mutants():\n    real=E.enumerate_words\n    def omitted(bits,t):\n        allwords=list(real(bits,t));yield from allwords[:-1]\n    def duplicate(bits,t):\n        allwords=list(real(bits,t));allwords[-1]=copy.deepcopy(allwords[0]);yield from allwords\n    results={}\n    for name,fn in [('omitted',omitted),('duplicate-preserving-count',duplicate)]:\n        with patch.object(E,'enumerate_words',fn):\n            try:c=E.decode_cell(legacy_p,P11,(7,2),5,1,legacy,2,0)\n            except AssertionError as ex:results[name]=dict(engine_rejected=True,reason=str(ex))\n            else:\n                assert clean(c)!=cell_ref(F11,P11,(7,2),5,1,legacy,2,0)\n                results[name]=dict(engine_rejected=False,independent_complete_list_rejected=True,\n                                  word_count=c['word_count'],unique_values=len({w['value'] for w in c['words']}))\n    c=E.decode_cell(legacy_p,P11,(7,2),5,1,legacy,2,0)\n    first=next(i for i,w in enumerate(c['words']) if w['status']=='RECOVERED')\n    truncated=copy.deepcopy(c);truncated['words']=truncated['words'][:first+1];truncated['word_count']=len(truncated['words'])\n    assert clean(truncated)!=cell_ref(F11,P11,(7,2),5,1,legacy,2,0)\n    results['stop-after-first-success']=dict(valid_words=c['word_count'],first_success_index=first,mutant_words=truncated['word_count'],independently_rejected=True)\n    return results\nrun('omitted-duplicate-and-truncated-list-mutants',list_mutants)\ndef caps():\n    rows=[]\n    for e in (1,2,3):\n        bits=[None if i<e else 0 for i in range(legacy['L'])]\n        a=changed_attempt(legacy,bits)\n        for t,cap in E.CELL_SPECS:\n            c=check_cell(F11,P11,(7,2),5,1,arm1,a,t,cap)\n            rows.append(dict(e=e,t=t,cap=cap,capped=c['capped'],words=c['word_count'],status=c['status']))\n    bad=mutant_decode('capped=e>erasure_cap','capped=False')\n    a=changed_attempt(legacy,[None,None,None,0,0])\n    c=bad(legacy_p,P11,(7,2),5,1,a,1,2)\n    assert c['capped'] is False and c['word_count']>0\n    assert clean(c)!=cell_ref(F11,P11,(7,2),5,1,a,1,2)\n    return dict(cases=rows,erased_cap_mutant_detected=True,mutant_word_count=c['word_count'])\nrun('erasure-caps-all-six-cells-and-erased-cap-mutant',caps)\ndef upper():\n    a=changed_attempt(legacy,[0,0,0,0,1])\n    good=E.decode_cell(legacy_p,P11,(7,2),5,1,a,0,0)\n    badfn=mutant_decode('0<=k<r and D*k<r*(V+1)','0<=k<r')\n    bad=badfn(legacy_p,P11,(7,2),5,1,a,0,0)\n    assert good['words'][0]['candidate_scalar_prime']==1\n    assert good['words'][0]['legal'] is False and bad['words'][0]['legal'] is True\n    assert good['M']==0 and bad['M']==1\n    equivalent=[]\n    for r,L in [(13,5),(17,6)]:\n        for V in range(1<<L):\n            D=1<<L;k=(r*V+D-1)//D\n            assert (0<=k<r and D*k<r*(V+1))==(0<=k<r and D*k<=r*(V+1))\n        equivalent.append(dict(r=r,L=L,words=1<<L))\n    return dict(V=1,raw_k=1,correct_legal=False,removed_upper_legal=True,correct_M=0,mutant_M=1,\n      removed_upper_mutant_rejected=True,leq_mutant_expected_equivalent=equivalent,\n      algebra='gcd(r,2^L)=1 and equality implies r divides k; canonical 0<=k<r makes positive endpoint equality impossible')\nrun('strict-upper-inequivalent-mutant-and-leq-equivalence',upper)\ndef conversion():\n    a,b,x=5,3,7;r=13;L=5;s=b*x*pow(a,-1,r)%r;V=(1<<L)*s//r\n    _,actual=E.ungated_attempt(prepared(F11,P11,a,arm1),P11,(7,2),a,b,True)\n    attempt=changed_attempt(actual,[(V>>(L-1-i))&1 for i in range(L)])\n    attempt['status']='RECOVERED'\n    p=prepared(F11,P11,a,arm1)\n    good=check_cell(F11,P11,(7,2),a,b,arm1,attempt,0,0)\n    badfn=mutant_decode('x=(a*inverse_b%r)*k%r','x=(b*pow(a,-1,r)%r)*k%r')\n    bad=badfn(p,P11,(7,2),a,b,attempt,0,0)\n    assert good['scalar']==7 and good['words'][0]['public_checks']==dict(transformed=True,original=True)\n    assert bad['words'][0]['public_checks']==dict(transformed=True,original=False)\n    assert bad['words'][0]['candidate_scalar']==2 and bad['scalar'] is None\n    assert bad['counts']['verification']['scalar_multiply_call']==2\n    return dict(a=a,b=b,transformed_scalar=s,V=V,correct_original_scalar=7,wrong_scalar=2,\n      wrong_conversion_public_checks=bad['words'][0]['public_checks'],both_checks_executed=True)\nrun('nontrivial-a-b-conversion-and-wrong-conversion-mutant',conversion)\ndef zero_M():\n    a=changed_attempt(legacy,[0]*5)\n    c=check_cell(F11,P11,(7,2),5,1,arm1,a,0,0)\n    assert c['M']==0 and c['zero_candidate_checks']==1\n    assert c['words'][0]['public_checks']==dict(transformed=False,original=False)\n    assert c['counts']['verification']['scalar_multiply_call']==2\n    # Every actual nonzero submitted candidate, rather than only recoveries, enters M.\n    full=check_cell(F11,P11,(7,2),5,1,arm1,legacy,2,0)\n    legal_nonzero={w['candidate_scalar'] for w in full['words'] if w['legal'] and w['candidate_scalar']}\n    assert full['M']==len(legal_nonzero)\n    return dict(zero_checks=1,zero_M=0,zero_scalar_multiplications=2,full_cell_M=full['M'],\n      full_cell_word_count=full['word_count'],full_cell_distinct_candidates=full['distinct_nonzero_candidates'])\nrun('zero-costed-both-equations-and-distinct-nonzero-M',zero_M)\ndef normalization():\n    p=11;z=zref(F11,(5,2));zb=zref(F11,P11);c=zb*pow(7,-1,p)%p\n    g=(z+c*2*(1-4*c*(5-2)))%p;anchor=2*zb%p;norm=g*pow(anchor,-1,p)%p\n    assert (zb,c,z,g,anchor,norm)==(3,2,3,10,6,9)\n    u=2;cp=c*pow(u*u,-1,p)%p;xp=4*5%p;xb=4*2%p;yp=8*2%p\n    gp=(u*z+cp*yp*(1-4*cp*(xp-xb)))%p;ap=u*anchor%p\n    wrong=(u*z+cp*yp*(1-4*u*u*cp*(xp-xb)))%p*pow(ap,-1,p)%p\n    assert gp*pow(ap,-1,p)%p==9 and wrong==5\n    assert pow(norm,5,p)==pow(wrong,5,p)==1\n    return dict(original=dict(Zbase=zb,c=c,Ztarget=z,g=g,anchor=anchor,normalized=norm),\n      weight_u2_normalized=9,wrong_beta_normalized=5,equal_bits_miss_mutant=True,\n      scope='field-weight arithmetic from disclosed F11 control; no transformed curve was generated or sampled')\nrun('normalization-intermediate-values-and-wrong-beta-control',normalization)\ndef readiness():\n    p=prepared(F11,P11,1,{'kind':'candidate','alpha':-1,'beta':1})\n    assert p.setup_reason=='ZERO_ANCHOR'\n    with patch('constructor.normalized_miller_coefficient',return_value=0):\n        z=prepared(F11,P11,1,arm1)\n    assert z.setup_reason=='ZERO_BASE_Z'\n    mutated={**F11,'r':11};p2=prepared(mutated,P11,1,arm1)\n    _,n=E.incremental_ungated_attempt(p2,P11,P11,1,1,True)\n    assert len(n['predicate_trace'])==5 and all(q['answer']['reason']=='DOMAIN_UNSUPPORTED' for q in n['predicate_trace'])\n    return dict(zero_anchor=True,injected_zero_base_Z_setup_retained=True,\n      unsupported_r_equals_p_all_calls=5,ZERO_BASE_Y='source branch unreachable for valid nonidentity odd-order fixtures')\nrun('readiness-zero-anchor-zero-seed-and-unsupported-domain',readiness)\ndef invalid_trace():\n    short=copy.deepcopy(legacy);short['predicate_trace'].pop()\n    try:E.decode_cell(legacy_p,P11,(7,2),5,1,short,0,0)\n    except ValueError as exc:assert 'incomplete' in str(exc)\n    else:raise AssertionError('truncated trace accepted')\n    return dict(incomplete_trace_rejected=True)\nrun('missing-query-trace-rejected',invalid_trace)\nsummary=dict(schema='classical.ecdlp.controlled-followup.source-review-checks/v1',task_id='TASK-20261029-182d42',\n    recorded_at=datetime.now(timezone.utc).isoformat(),python=platform.python_version(),\n    command_template=\"PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\\n<reproduction_source>\\nPY\",\n    reproduction_source=globals().get('REVIEW_REPRO_SOURCE'),\n    scientific_runs=0,fresh_entropy_draws=0,fixture_scope=['F11 p11 a1 b6 r13 P(2,7)','F23 p23 a11 b5 r17 P(5,22)'],\n    clock_qualified=False,counter_execution_replay_qualified=False,\n    tests=records,total_groups=len(records),passed_groups=sum(x['passed'] for x in records),\n    failed_groups=sum(not x['passed'] for x in records),serving_model=None,serving_backend=None,usage=None,probe=None)\nout.write_text(json.dumps(summary,sort_keys=True,indent=2)+'\\n')\nprint(json.dumps({k:summary[k] for k in ['total_groups','passed_groups','failed_groups','scientific_runs']},sort_keys=True))\nfor row in records:\n    print(json.dumps({k:v for k,v in row.items() if k not in ('observed','traceback')},sort_keys=True))\nsys.exit(1 if summary['failed_groups'] else 0)\n",
+  "schema": "classical.ecdlp.controlled-followup.source-review-checks/v1",
+  "scientific_runs": 0,
+  "serving_backend": null,
+  "serving_model": null,
+  "task_id": "TASK-20261029-182d42",
+  "tests": [
+    {
+      "name": "snapshot-26-source-path-bindings",
+      "observed": {
+        "code_revision": "1b41962f1ae578b452319f1bf4b92f5388294093",
+        "hashes": {
+          "docs/reports/classical-ecdlp-controlled-followup-20261029/engine-source.md": "64ce55350d027806692c19ddb572ec114a67f45059012fa4e097962012b25e1f",
+          "docs/reports/classical-ecdlp-controlled-followup-20261029/transport-source.md": "1b34179e4361d8496c1635d3c90c3dfde928059ead41d2f8e5caa875d8b016a4",
+          "docs/reports/classical-ecdlp-controlled-followup-20261029/verifier-source.md": "df51ac9f5bbd5df35267513bbbde3b193bf76d8380bd0f90915a57d83bb0fe8b",
+          "harness/classical_ecdlp_controlled_followup/cohort.py": "cd5896f63f52351d499104ea14e36ddf66a4bd586efaba8e651ebce2053a8ff3",
+          "harness/classical_ecdlp_controlled_followup/constructor.py": "31e58db07649df4e61ec2cbcaa1969789bc2c7f229c21f8555daaaaad8fdc451",
+          "harness/classical_ecdlp_controlled_followup/controller.py": "a14e8d6074715d5524b4e0c4485b0a11b38ed4ee4fcaf03a84a771e8a880b2c9",
+          "harness/classical_ecdlp_controlled_followup/curve.py": "6ce0b50fcc78287de7091c36383b5ccefb5dbe208ba3d1ab1c80b1ddbc326400",
+          "harness/classical_ecdlp_controlled_followup/driver.py": "af60c59bae4218cfb5fc3696a9c8edc5ab1ac3bd46a4efa3a86c3792a63eeec1",
+          "harness/classical_ecdlp_controlled_followup/engine-delivery.json": "36513fcdb919a9f2fc861fda32a19f03145c90d9720267e03c6876b7fb317be5",
+          "harness/classical_ecdlp_controlled_followup/engine-interface.json": "3a7be27cbc28d1e0ddc062b640dbddac23b233bbfa8de3343b0963cb1e3e3cec",
+          "harness/classical_ecdlp_controlled_followup/engine.py": "22da83d6494ea66c520b0e58eaa4b54e621c822d8f0275deda8822c7179915fb",
+          "harness/classical_ecdlp_controlled_followup/host-source-manifest.json": "e2ad570f06991960b2d2b89e872505ab4e45e7882790420db831427f0cd2e340",
+          "harness/classical_ecdlp_controlled_followup/host/reference.py": "ee58b639fecbed063e74d6e825ca5a6d0e19dc79816c3713092defc8dcfa3ce2",
+          "harness/classical_ecdlp_controlled_followup/host/test_verify.py": "f7c0934bd364a5fbcb082572f28eb0493334dc919363c377f0641d96a8f763aa",
+          "harness/classical_ecdlp_controlled_followup/host/verifier-delivery.json": "af30b4fa41bea292e5d39c6c8fa16f76ebd70a6983569f21e1d3634ecc383121",
+          "harness/classical_ecdlp_controlled_followup/host/verifier-interface.json": "3d14cb7073ddbbe18a15575e987523a3e94a5686ac3e3c2c3f5ad2eabf3e3926",
+          "harness/classical_ecdlp_controlled_followup/host/verify.py": "36ac222a98ba5567c7c050b13196ccf9b7cc0ba6ae8258c9f69c387b3c29b407",
+          "harness/classical_ecdlp_controlled_followup/postrun/analysis.py": "5397a6c40519524b7109e7c99296b49a0d1b3c22b4b5ce938ac3bc8041c07ae8",
+          "harness/classical_ecdlp_controlled_followup/postrun/render_report.py": "044a5ad1a927f9f64ead4959ce0d071eb1281ac1c3b6b7b5c946410011c8528b",
+          "harness/classical_ecdlp_controlled_followup/postrun/run_postrun.py": "1b63fe6953a835438514be377120c84a654791044446651ffb7594e0968d66b4",
+          "harness/classical_ecdlp_controlled_followup/postrun/test_postrun.py": "3c3ee0445297be7c08d0649c0a5d3b1906d6674ad8b90d5779653b08bbd0b184",
+          "harness/classical_ecdlp_controlled_followup/test_engine.py": "f0fd1b89c55309421fe04eb59c08fdf6f4d777198d98082180eae1cb4ece0c16",
+          "harness/classical_ecdlp_controlled_followup/test_transport.py": "def26a9e2aec694e9f029b6e6b67b6b06fc3aefe8a4845565e2507152502fa24",
+          "harness/classical_ecdlp_controlled_followup/transport-delivery.json": "e11cb58aa6c6111ee693787f2c1d2714e04fb2ae57edc3bd09059ee1fd5d7211",
+          "harness/classical_ecdlp_controlled_followup/worker-source-manifest.json": "f87dbbc1489214fca654c7aa678b96a4f6772b02d415bc15c544d5dd98deaaff",
+          "harness/classical_ecdlp_controlled_followup/worker_runtime.py": "1a342283c81bf39d8a2dfde5924cfde53d9a9b5c66ae038a22b213d19c8156ed"
+        },
+        "matched_paths": 26,
+        "receipt_sha256": "2c37b1860bce933f63b4529fedba2e8cbf5748b54c8a0187babdce4e105b110f",
+        "source_commit": "d9e9ce106cdfbbf32a16120f84b028c21529d258"
+      },
+      "passed": true
+    },
+    {
+      "name": "original-ungated-exact-AST-embedding",
+      "observed": {
+        "AST_equal": true,
+        "old_compute_sha256": "1a1a87ff84bfc748f6b86f893e53ea86979383c0adb0a68550c27eb9e8befad2",
+        "old_function_lines": [
+          114,
+          171
+        ]
+      },
+      "passed": true
+    },
+    {
+      "name": "independent-public-arithmetic-full-traces-and-six-cells",
+      "observed": [
+        {
+          "L": 5,
+          "bits": [
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          "case": "F11-legacy",
+          "cell_counts": [
+            1,
+            1,
+            6,
+            6,
+            16,
+            16
+          ],
+          "scalar": 7,
+          "status": "RECOVERED",
+          "z": [
+            5,
+            3,
+            3,
+            3,
+            7
+          ]
+        },
+        {
+          "L": 5,
+          "bits": [
+            1,
+            1,
+            1,
+            0,
+            1
+          ],
+          "case": "F11-blinded",
+          "cell_counts": [
+            1,
+            1,
+            6,
+            6,
+            16,
+            16
+          ],
+          "scalar": 7,
+          "status": "RECOVERED",
+          "z": [
+            7,
+            8,
+            6,
+            8,
+            8
+          ]
+        },
+        {
+          "L": 5,
+          "bits": [
+            0,
+            1,
+            0,
+            null,
+            1
+          ],
+          "case": "F11-base",
+          "cell_counts": [
+            0,
+            2,
+            0,
+            10,
+            0,
+            22
+          ],
+          "scalar": null,
+          "status": "UNDEFINED",
+          "z": [
+            3,
+            3,
+            3,
+            7,
+            8
+          ]
+        },
+        {
+          "L": 5,
+          "bits": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ],
+          "case": "F11-zero-numerator",
+          "cell_counts": [
+            0,
+            4,
+            0,
+            16,
+            0,
+            28
+          ],
+          "scalar": null,
+          "status": "UNDEFINED",
+          "z": [
+            3,
+            3,
+            7,
+            8,
+            6
+          ]
+        },
+        {
+          "L": 5,
+          "bits": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "case": "F11-zero-anchor",
+          "cell_counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "scalar": null,
+          "status": "UNDEFINED",
+          "z": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "L": 5,
+          "bits": [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "case": "F11-wrong-root",
+          "cell_counts": [
+            1,
+            1,
+            6,
+            6,
+            16,
+            16
+          ],
+          "scalar": null,
+          "status": "EMPTY_INTERVAL",
+          "z": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "L": 6,
+          "bits": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            1
+          ],
+          "case": "F23-primary",
+          "cell_counts": [
+            1,
+            1,
+            7,
+            7,
+            22,
+            22
+          ],
+          "scalar": null,
+          "status": "REJECTED_FINAL_VERIFICATION",
+          "z": [
+            22,
+            1,
+            6,
+            13,
+            1,
+            22
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "independent-Laurent-seed-scaling",
+      "observed": [
+        {
+          "normalized_Z": 0,
+          "p": 11,
+          "point": null,
+          "raw_C": 0
+        },
+        {
+          "normalized_Z": 3,
+          "p": 11,
+          "point": [
+            2,
+            7
+          ],
+          "raw_C": 5
+        },
+        {
+          "normalized_Z": 3,
+          "p": 11,
+          "point": [
+            5,
+            2
+          ],
+          "raw_C": 5
+        },
+        {
+          "normalized_Z": 8,
+          "p": 11,
+          "point": [
+            8,
+            3
+          ],
+          "raw_C": 6
+        },
+        {
+          "normalized_Z": 5,
+          "p": 11,
+          "point": [
+            7,
+            2
+          ],
+          "raw_C": 1
+        },
+        {
+          "normalized_Z": 0,
+          "p": 23,
+          "point": null,
+          "raw_C": 0
+        },
+        {
+          "normalized_Z": 22,
+          "p": 23,
+          "point": [
+            5,
+            22
+          ],
+          "raw_C": 17
+        },
+        {
+          "normalized_Z": 1,
+          "p": 23,
+          "point": [
+            22,
+            19
+          ],
+          "raw_C": 6
+        },
+        {
+          "normalized_Z": 6,
+          "p": 23,
+          "point": [
+            18,
+            20
+          ],
+          "raw_C": 13
+        },
+        {
+          "normalized_Z": 13,
+          "p": 23,
+          "point": [
+            11,
+            10
+          ],
+          "raw_C": 9
+        },
+        {
+          "normalized_Z": 1,
+          "p": 23,
+          "point": [
+            5,
+            1
+          ],
+          "raw_C": 6
+        },
+        {
+          "normalized_Z": 22,
+          "p": 23,
+          "point": [
+            22,
+            4
+          ],
+          "raw_C": 17
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "identity-vertical-tangent-primary-boundaries",
+      "observed": {
+        "identity": true,
+        "invalid_primary_rejected": true,
+        "inverse_Z": 8,
+        "order_two_tangent": "unreachable on the two valid odd-order fixtures; source branch only",
+        "tangent_point": [
+          5,
+          2
+        ],
+        "tangent_slope": 8,
+        "vertical": true
+      },
+      "passed": true
+    },
+    {
+      "name": "undefined-continuation-and-early-stop-mutant",
+      "observed": {
+        "mutant_actual_calls": 1,
+        "mutant_declared_calls": 5,
+        "mutant_detected": true,
+        "valid_calls": 5,
+        "valid_updates": 4
+      },
+      "passed": true
+    },
+    {
+      "name": "wrong-transport-sign-mutant",
+      "observed": {
+        "correct_second_Z": 3,
+        "paired_rejected": true,
+        "wrong_sign_second_Z": 9
+      },
+      "passed": true
+    },
+    {
+      "name": "zero-seed-and-free-correct-seed-mutants",
+      "observed": {
+        "correct_but_uncharged_seed_semantics_equal": true,
+        "correct_seed_calls": 1,
+        "free_seed_calls": 0,
+        "missing_seed_cost_detected": true,
+        "zero_seed_semantics_rejected": true
+      },
+      "passed": true
+    },
+    {
+      "name": "complete-unique-exact-word-count-on-fixed-trace-mutants",
+      "observed": {
+        "by_fixture": [
+          {
+            "L": 5,
+            "deterministic_erasure_radius_cases": 48,
+            "p": 11
+          },
+          {
+            "L": 6,
+            "deterministic_erasure_radius_cases": 66,
+            "p": 23
+          }
+        ],
+        "cases": 114,
+        "reference": "all binary words of only fixed L=5,6 traces; no curve/log candidate fallback"
+      },
+      "passed": true
+    },
+    {
+      "name": "omitted-duplicate-and-truncated-list-mutants",
+      "observed": {
+        "duplicate-preserving-count": {
+          "engine_rejected": false,
+          "independent_complete_list_rejected": true,
+          "unique_values": 15,
+          "word_count": 16
+        },
+        "omitted": {
+          "engine_rejected": true,
+          "reason": "enumeration count mismatch"
+        },
+        "stop-after-first-success": {
+          "first_success_index": 0,
+          "independently_rejected": true,
+          "mutant_words": 1,
+          "valid_words": 16
+        }
+      },
+      "passed": true
+    },
+    {
+      "name": "erasure-caps-all-six-cells-and-erased-cap-mutant",
+      "observed": {
+        "cases": [
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 1,
+            "status": "UNDEFINED",
+            "t": 0,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 1,
+            "status": "REJECTED_FINAL_VERIFICATION",
+            "t": 0,
+            "words": 2
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 1,
+            "status": "CAPPED_ERASURES",
+            "t": 1,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 1,
+            "status": "REJECTED_FINAL_VERIFICATION",
+            "t": 1,
+            "words": 10
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 1,
+            "status": "CAPPED_ERASURES",
+            "t": 2,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 1,
+            "status": "RECOVERED",
+            "t": 2,
+            "words": 22
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 2,
+            "status": "UNDEFINED",
+            "t": 0,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 2,
+            "status": "REJECTED_FINAL_VERIFICATION",
+            "t": 0,
+            "words": 4
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 2,
+            "status": "CAPPED_ERASURES",
+            "t": 1,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 2,
+            "status": "RECOVERED",
+            "t": 1,
+            "words": 16
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 2,
+            "status": "CAPPED_ERASURES",
+            "t": 2,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": false,
+            "e": 2,
+            "status": "RECOVERED",
+            "t": 2,
+            "words": 28
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 3,
+            "status": "UNDEFINED",
+            "t": 0,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": true,
+            "e": 3,
+            "status": "CAPPED_ERASURES",
+            "t": 0,
+            "words": 0
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 3,
+            "status": "CAPPED_ERASURES",
+            "t": 1,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": true,
+            "e": 3,
+            "status": "CAPPED_ERASURES",
+            "t": 1,
+            "words": 0
+          },
+          {
+            "cap": 0,
+            "capped": true,
+            "e": 3,
+            "status": "CAPPED_ERASURES",
+            "t": 2,
+            "words": 0
+          },
+          {
+            "cap": 2,
+            "capped": true,
+            "e": 3,
+            "status": "CAPPED_ERASURES",
+            "t": 2,
+            "words": 0
+          }
+        ],
+        "erased_cap_mutant_detected": true,
+        "mutant_word_count": 24
+      },
+      "passed": true
+    },
+    {
+      "name": "strict-upper-inequivalent-mutant-and-leq-equivalence",
+      "observed": {
+        "V": 1,
+        "algebra": "gcd(r,2^L)=1 and equality implies r divides k; canonical 0<=k<r makes positive endpoint equality impossible",
+        "correct_M": 0,
+        "correct_legal": false,
+        "leq_mutant_expected_equivalent": [
+          {
+            "L": 5,
+            "r": 13,
+            "words": 32
+          },
+          {
+            "L": 6,
+            "r": 17,
+            "words": 64
+          }
+        ],
+        "mutant_M": 1,
+        "raw_k": 1,
+        "removed_upper_legal": true,
+        "removed_upper_mutant_rejected": true
+      },
+      "passed": true
+    },
+    {
+      "name": "nontrivial-a-b-conversion-and-wrong-conversion-mutant",
+      "observed": {
+        "V": 29,
+        "a": 5,
+        "b": 3,
+        "both_checks_executed": true,
+        "correct_original_scalar": 7,
+        "transformed_scalar": 12,
+        "wrong_conversion_public_checks": {
+          "original": false,
+          "transformed": true
+        },
+        "wrong_scalar": 2
+      },
+      "passed": true
+    },
+    {
+      "name": "zero-costed-both-equations-and-distinct-nonzero-M",
+      "observed": {
+        "full_cell_M": 6,
+        "full_cell_distinct_candidates": [
+          3,
+          7,
+          8,
+          9,
+          11,
+          12
+        ],
+        "full_cell_word_count": 16,
+        "zero_M": 0,
+        "zero_checks": 1,
+        "zero_scalar_multiplications": 2
+      },
+      "passed": true
+    },
+    {
+      "name": "normalization-intermediate-values-and-wrong-beta-control",
+      "observed": {
+        "equal_bits_miss_mutant": true,
+        "original": {
+          "Zbase": 3,
+          "Ztarget": 3,
+          "anchor": 6,
+          "c": 2,
+          "g": 10,
+          "normalized": 9
+        },
+        "scope": "field-weight arithmetic from disclosed F11 control; no transformed curve was generated or sampled",
+        "weight_u2_normalized": 9,
+        "wrong_beta_normalized": 5
+      },
+      "passed": true
+    },
+    {
+      "name": "readiness-zero-anchor-zero-seed-and-unsupported-domain",
+      "observed": {
+        "ZERO_BASE_Y": "source branch unreachable for valid nonidentity odd-order fixtures",
+        "injected_zero_base_Z_setup_retained": true,
+        "unsupported_r_equals_p_all_calls": 5,
+        "zero_anchor": true
+      },
+      "passed": true
+    },
+    {
+      "name": "missing-query-trace-rejected",
+      "observed": {
+        "incomplete_trace_rejected": true
+      },
+      "passed": true
+    }
+  ],
+  "total_groups": 17,
+  "usage": null
+}
