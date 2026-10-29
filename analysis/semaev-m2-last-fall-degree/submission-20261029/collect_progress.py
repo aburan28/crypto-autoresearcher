@@ -34,8 +34,11 @@ def main():
     for path in sorted((args.data / 'expansion/counts').glob('*/attempt-*/result.json')):
         value = json.loads(path.read_text())
         counts[value['parameters']['name']] = (value, path)
-    publications = {p.stem.removesuffix('.publication'): json.loads(p.read_text())
-                    for p in (args.study / 'archive').glob('*.publication.json')}
+    publications = {}
+    for path in (args.study / 'archive').glob('*.publication.json'):
+        value = json.loads(path.read_text())
+        if value.get('schema') == 'semaev.publication-readback/v1':
+            publications[value['id']] = value
     rows = []
     for item in plan['items']:
         name = item['id']

@@ -92,6 +92,9 @@ def main():
                     last = state
             # Owners may have completed while publishing: recheck on next turn
             # before declaring terminal, so the last certificate is collected.
+            if failures:
+                time.sleep(max(10, args.interval))
+                continue
             if not any(owners):
                 current = (len({p.parent.parent.name for p in (args.data / 'replay').glob('*/attempt-*/result.json')}),
                            len({p.parent.parent.name for p in (args.data / 'expansion').glob('*/attempt-*/result.json')}),
