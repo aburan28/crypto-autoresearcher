@@ -48,11 +48,12 @@ def moved_paths(root: Path) -> set[str]:
 def needed(text: str, moved: set[str], dirs: set[str]) -> list[str]:
     """Paths the workflow names that are, or contain, moved files; minimal cover."""
     found = set()
-    for m in PATH_RE.finditer(text):
+    # Documentation comments do not make a job consume the referenced path.
+    active_text = "\n".join(line for line in text.splitlines()
+                            if not line.lstrip().startswith("#"))
+    for m in PATH_RE.finditer(active_text):
         p = m.group(1).split("*", 1)[0].rstrip("/.")
-        while p and p not in moved and p not in dirs:
-            p = p.rsplit("/", 1)[0] if "/" in p else ""
-        if p:
+        if p in moved or p in dirs:
             found.add(p)
     return sorted(p for p in found if not any(p.startswith(q + "/") for q in found))
 
@@ -154,6 +155,12 @@ def wire(text: str, paths: list[str]) -> tuple[str, list[str]]:
             continue
         if any(re.match(rf"^{indent}    path: ", b) for b in block):
             notes.append("checkout into a `path:` left unwired")
+            out.extend(block)
+            i = j
+            continue
+        # CI scope detection checks out only .github/scripts and never reads
+        # moved data. A hydration step there cannot even access artifacts.py.
+        if any(b.strip() == "sparse-checkout: .github/scripts" for b in block):
             out.extend(block)
             i = j
             continue

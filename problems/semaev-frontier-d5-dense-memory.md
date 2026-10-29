@@ -47,3 +47,9 @@ warn that rank-dependent dense-memory extrapolations are not proved resource
 requirements. The current engine's `mzd_init` allocations and frozen admission
 formula were inspected directly. This assessment introduces no novelty claim,
 new closure measurement or asymptotic inference.
+
+## Native construction follow-up, 2026-10-29
+
+A [native quotient-lift producer](../analysis/semaev-degree-five-quotient-lift/README.md) is now implemented and has passed full-space software comparisons and unchanged-checker integration controls. The frozen thirteen-input historical D5 trial is running under a separate protocol and a 16 GiB per-process limit. Two accepted maps for Q35a and Q35b have been published with anonymous and object-store hash readbacks. Their checked codimensions are 6 and 2 respectively, equal to their fresh exact solution counts; neither proves a degree-six lower bound. Quotients killing the constant remain inconclusive, because the seed kernel is only certified to contain W4.
+
+This addresses the implementation step, but does not close the frontier obstruction. The next mathematical step is to apply the validated producer to independently checked D4 seeds from the frozen frontier inputs when available, with a new frozen plan. Original capped requests remain immutable. A bounded infrastructure-only lab probe, `semaev-runtime-probe-20261029-0633`, was submitted to inspect the default runtime; it is not a mathematical trial. Pool configuration or probe success cannot establish frontier feasibility.
