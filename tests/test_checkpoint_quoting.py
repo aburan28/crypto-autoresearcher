@@ -12,6 +12,21 @@ SCRIPT = ROOT / "scripts/checkpoint.sh"
 
 
 class CheckpointQuoting(unittest.TestCase):
+    def test_metadata_size_is_one_integer_with_quoted_path(self):
+        function = re.search(r"(?ms)^file_stat\(\) \{.*?^\}", SCRIPT.read_text()).group()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "a ' quoted file.txt"
+            path.write_bytes(b"three")
+            result = subprocess.run(
+                ["bash", "-c", function+'\nfile_stat "$1" size', "checkpoint-test", str(path)],
+                text=True, capture_output=True, check=True)
+            self.assertEqual(result.stdout, "5\n")
+            self.assertEqual(result.stderr, "")
+            fingerprint = subprocess.run(
+                ["bash", "-c", function+'\nfile_stat "$1"', "checkpoint-test", str(path)],
+                text=True, capture_output=True, check=True)
+            self.assertEqual(fingerprint.stdout.strip(), f"{path} 5 {path.stat().st_mtime_ns}")
+
     def test_share_preserves_literal_reference_components(self):
         source = SCRIPT.read_text()
         function = re.search(r"(?ms)^cmd_share\(\) \{.*?^\}", source).group()

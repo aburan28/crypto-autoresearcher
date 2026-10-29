@@ -109,3 +109,13 @@ The consecutive D3-to-D4-to-D5 controls now pass: all nine maps from three fixtu
 `cascade-plan.json` retains all fifty n47–51 inputs from the original panel. `cascade-protocol.json` was frozen and checkpointed before launching `run_cascade.py`, one worker with a16 GiB cap. Outputs live at `/home/ec2-user/fall-degree-data-20261029/frontier-cascade-001`; each input keeps all accepted intermediate maps and logs. Original dense-panel attempts remain unchanged.
 
 At initial observation, the first n47 input has an accepted D3 certificate with codimension10093 and fresh exact count0; this supports only LFD>=4. Its D4 lift was admitted under the allocation envelope and is running. No completed frontier D5 map or LFD>=6 is claimed. Resource refusal and quotients killing the constant remain explicit unknown outcomes for later stages.
+
+## Retained frontier bounds and separate continuation
+
+At reconciliation on2026-10-29 15:00 UTC, the original frontier owner was absent and its lock was free. Twenty attempts were terminal:17 resource-capped and3 without a degree-three certificate. Seven accepted degree-four maps support LFD>=5: n47 polynomial-basis indices00–04 and n48 polynomial-basis indices00 and04. The n47 checked codimensions are21428 (indices00–03) and21430 (04); their exact solution counts are0,2,2,0,2. The two n48 checked codimensions are26570, against counts2 and0. No degree-six bound follows from a memory refusal.
+
+The completed n49 degree-four candidate was retained without claiming acceptance. The original expanded panel also stopped after108 outcomes. Cause of owner loss is unknown; missing processes are not mathematical evidence.
+
+The separate `highmem-protocol.json` continues47 inputs: all17 capped cases plus30 unfinished/unattempted cases. It pins18 retained seeds, always rechecks them against the original independent checker, and uses the separately validated blockwise exporter under a standalone64 GiB cap. Its detached owner and exact command are recorded in `runs/frontier-highmem-001.launch.json`; outputs are `/home/ec2-user/fall-degree-data-20261029/frontier-highmem-001`. The old two40 GiB workers remain stopped during this placement.
+
+The original50 records remain authoritative for their attempts. Continuation outputs must be joined by `prior_id`, preserving old outcomes and taking only justified lower bounds. They are not47 additional independent inputs, and20+47 must not be reported as67 distinct instances. The three original no-certificate outcomes remain visible. The rest of the original expanded campaign is still outstanding.
