@@ -34,3 +34,14 @@ After both original reviews complete, execute source-repair card [TASK-20261029-
 ## Resolution and history
 
 Unresolved. This record and prospective technical revise [DEC-20261029-e49bbc](../ledger/decisions/DEC-20261029-e49bbc.yaml) must be published before repair dispatch; final ledger332f28 owns their eventual exact archive custody. No future commit/hash or passing repair is asserted.
+
+
+## Additional full-protocol export coverage blocker discovered after source03 dispatch
+
+Status: unresolved. The original C2 D1-D6 recheck holds in its exact source scope, but its skeletal fixture protocol was never a complete protocol qualification. Active readiness03 subsequently found protocol schema arms minItems2 versus C2 single composite row; lint_export requires actual arms x instances x replicates coverage. This is a source/export compatibility obstruction, not mathematical negative evidence.
+
+Prospective resolution: confirmation_original and confirmation_incremental are actual paired evaluator aggregates over the same frozen cohort instance/replicate. Unique export IDs derive from allocated parent RUN plus .original/.incremental; both share actual physical parent/worker. Calibration/common/six-cell work remains separate; no fictitious extra VM or padded arm. Full test-only frozen F11/F23 protocol and genuine check-export --protocol --verify-files must pass, including failure/partial/no-start/missing-arm and previous D1/D2 controls.
+
+The new source card is TASK-20261029-b9f48c, snapshot TASK-20261029-b5a89f, fresh xhigh review TASK-20261029-489ab1 under technical revise DEC-20261029-3f0c21. Only run_postrun.py/test_postrun.py and both manifests may change; real C3 then separate M3 then later inventory/delivery avoids self-reference. Old C2 inventory remains historical. Original cards/reviews/proofs/error receipts remain unchanged.
+
+This was discovered AFTER03 epoch1 dispatch. Its dispatch dependencies/live ownership remain unchanged; a documented STATICLOCK final-completion gate requires the new chain, and final332 directly depends on snapshot/review. No final03 locks or release are accepted before that actual gate. The obsolete arbitrary32GiB rule is replaced by a prospective execution-only sparse-profile route, with actual >=13GiB overlay and>=6GiB /tmp tmpfs gates after full admission; staged cache only after postrun quiesces and within16GiB RAM, never with high-RSS verification. No storage change/free-space pass is asserted now. Source repair resolves neither scientific admission nor performance/counter/VM/clock qualifications.
