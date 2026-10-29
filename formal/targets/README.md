@@ -153,6 +153,17 @@ skimming a note for a quotable sentence — the surrounding definitions are the
 part the engine has to get right, and a claim detached from them formalizes
 into something that is not the claim.
 
+## Quotient translation commutation
+
+`quotient-translation-descent.yaml` proves the group-law identity of
+`THM_QUOTIENT_DESCENT1`: τ_T commutes with ι_S = [−1] ∘ τ_S, for every S,
+exactly when 2T = 0. It is stated in any additive commutative group. The
+[independent semantic review of 2026-10-29](../../docs/reports/2026-10-29-quotient-translation-descent-review/review.md)
+finds it faithful to the target's claim (`faithful_scoped`, `validated_scoped`
+for that claim only). It does **not** support the note's descent Lemma as
+titled: degree-2 maps as quotients by ι_S, and descent ⟺ commutation, are
+prose. It does not support the summation-polynomial Corollary either.
+
 ## Natural follow-ups, deliberately not specced yet
 
 `THM_INCBARRIER1` §8 states three open gaps (G1, G2, G3) in precise form, and

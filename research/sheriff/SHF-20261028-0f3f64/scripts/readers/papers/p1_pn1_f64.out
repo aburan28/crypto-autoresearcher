@@ -1,0 +1,50 @@
+commit 669809d5c6110796b36b32fe26073376a605911d
+f64::MAX = (2^53-1)*2^971 = 1.7976931348623157e+308; log2 = 1024.00000000000000000
+
+== 1-2. curve orders, n^4 against f64::MAX ==
+curve            n_bits order ok    log2(n^4) n^4>MAX exact   f64(n)^4 k_bits 3n/4 table k
+secp192k1           192     True   768.000000         False     finite         144     144
+secp224k1           225     True   896.000000         False     finite         168     168
+secp256k1           256     True  1024.000000          True        inf         192     192
+P-256               256     True  1024.000000         False     finite         192     192
+brainpoolP256r1     256     True  1021.636946         False     finite         192     192
+P-384               384     True  1536.000000          True        inf         288     288
+brainpoolP384r1     384     True  1532.546862          True        inf         288     288
+P-521               521     True  2084.000000          True        inf         390     384
+
+Claims: only secp256k1 among the 256-bit curves has n^4 > f64::MAX; every 384-bit curve does.
+  256-bit curves with n^4 > MAX: ['secp256k1']
+  384-bit curves with n^4 > MAX: ['P-384', 'brainpoolP384r1']
+  P-521 floor(3*521/4) = 390; probes use 384 = 3/4*512: True
+  2^256 - n(secp256k1): log2 = 128.346; 2^256 - n(P-256): log2 = 224.000
+  n(secp256k1) - n(P-256): log2 = 224.000   (analysis §10.1 says '~2^192')
+  log2(f64::MAX) = 1024.000000   (analysis §10.1 says 'f64::MAX ~ 2^1023')
+  P-256 n^4 / f64::MAX = 0.999999999069 (below 1 by ~2^-30.0)
+
+== 3. P-521 scaled diagonal and the first GS subtraction (row m against rows 0..m-1) ==
+bits(n^2) = 1042; scale_shift = max_bits - 500 = 542
+exact n^2 / 2^542 = 2^500 * (1 - 1.917e-79)
+  round-to-nearest (num-bigint 0.5.1 to_f64): diag == 2^500: True; diag = 2^500*(1 - 0.000e+00); max |b*_m[l]| after subtracting mu*b*_l over 64 random a_l: 0.0
+  truncation (hypothetical): diag == 2^500: False; diag = 2^500*(1 - 1.110e-16); max |b*_m[l]| after subtracting mu*b*_l over 64 random a_l: 3.6341936214780345e+134 (= 2^447.0)
+  true scaled b*_m[m] = 2^384 / 2^542 = 2^-158
+
+== 4. residual-dominates condition: true component 2^k_bits/2^shift below one ulp of the scaled n*a entries ==
+  P-256            shift= 12  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^180  dominated: True
+  brainpoolP256r1  shift= 11  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^181  dominated: True
+  brainpoolP384r1  shift=267  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^21  dominated: True
+  P-384            shift=268  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^20  dominated: True
+  secp256k1        shift= 12  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^180  dominated: True
+  P-521            shift=542  scaled n*a ~ 2^500  ulp ~ 2^447  true b*_m[m] = 2^-158  dominated: True
+
+== 5. re-run table recount from committed probe logs (P-N2) ==
+  curve            GS                     k_bits rec/distinct runs rec/total
+  P-384            scaled f64                288     3 / 3         4 / 4    
+  brainpoolP384r1  scaled f64                288     3 / 3         4 / 4    
+  secp192k1        scaled f64                144     2 / 2         3 / 3    
+  secp224k1        scaled f64                168     2 / 2         3 / 3    
+  secp256k1        scaled f64                192     3 / 3         6 / 6    
+  P-256            scaled f64                192     3 / 3         6 / 6    
+  brainpoolP256r1  scaled f64                192     1 / 1         1 / 1    
+  P-521            scaled f64                384     0 / 3         0 / 4    
+  P-521            2048-bit fixed point      384     3 / 3         3 / 3    
+  probe times at n_bits 256: 13-17 ms (13 probes); at 384: 25-27 ms (8 probes)
