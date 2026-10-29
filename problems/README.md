@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Controlled follow-up source integrity](classical-ecdlp-controlled-followup-source-integrity-repair.md) | open | Technical readiness/source admission: D1-D6 supervisor/provenance/schedule/parser/export/report gaps | Additive unchanged-math source repair, real C2/manifests snapshot and fresh independent recheck |
 | [Transfer analysis-script binding](classical-ecdlp-transfer-analysis-script-binding.md) | resolved for observed defects | Versioned v4 separates registered analysis and verifier; actual102828-row verification/export passed | Original v2/v3 refusals and postprocessing provenance retained |
 | [Transfer Modal proxy dependency](classical-ecdlp-transfer-modal-proxy-dependency.md) | resolved for observed route | Fresh successor completed genuine VM and independent checks | Original0create/0science failure and export gap retained |
 | [Exact-small transfer sampling collision](classical-ecdlp-transfer-small-order-exclusion-collision.md) | original v1 infeasible; v2 repair achieved | Complete40-curve distinct(p,j) cohort uses pre-data r29 replacement | Original frozen v1/collision proof assumptions preserved |
