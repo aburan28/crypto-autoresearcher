@@ -9,6 +9,7 @@ from tools.claim_evidence_matrix import digest, git
 AUTO = '1896454c43bede18d19fb51362d748ed3246227e'
 FORMAL = '0b353c9bf78e9340c3c100b71175127bb7d91d44'
 COVER = 'ed98ccabd60f6ba149a4c218d8241fe0b7132403'
+ARCHIVE = '615b6d34e3636bf3745ac5c74d5de408f1934233'
 
 
 def main():
@@ -18,8 +19,6 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     repos = vars(args)
-    # Resolve this unique published archive prefix once, and record its full ID.
-    archive = git(args.cryptanalysis, 'rev-parse', '615b6d34e^{commit}').decode().strip()
     sources, content = [], {}
 
     def bind(sid, repo, commit, path):
@@ -53,7 +52,7 @@ def main():
                       ('math-review', 'reviewers/TASK-20261028-32bc7d/report.md'),
                       ('fidelity-review', 'reviewers/TASK-20261028-a07ed4/report.md'),
                       ('gate-review', 'reviewers/TASK-20261028-68d1a5/report.md')]:
-        bind(sid, 'cryptanalysis', archive, packet+path)
+        bind(sid, 'cryptanalysis', ARCHIVE, packet+path)
     sources.append(dict(id='elaborated-types-missing', kind='unavailable',
                         locator='KnownLabelLeads four declarations at '+FORMAL,
                         reason='The archived packet lacks an explicit elaborated-type printout; source fidelity is narrower.'))

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools import claim_evidence_matrix as matrix
 
@@ -85,6 +86,21 @@ class EvidenceIntegrityTests(unittest.TestCase):
         replacement = self.git('hash-object', '-w', 'replacement').strip()
         self.git('replace', original, replacement)
         self.assertEqual(self.check()['integrity_status'], 'passed')
+
+    def test_aggregate_cap_refuses_before_fetching_next_blob(self):
+        self.record['sources'].append({**self.source, 'id': 'second'})
+        with patch.object(matrix, 'MAX_TOTAL', len(self.data)*2-1), patch.object(matrix, 'git', wraps=matrix.git) as calls:
+            with self.assertRaisesRegex(matrix.MatrixError, 'total reader limit'):
+                self.check()
+        fetches = [call for call in calls.call_args_list if call.args[1:3] == ('cat-file', 'blob')]
+        self.assertEqual(len(fetches), 1)
+
+    def test_cli_refuses_oversized_matrix_before_git_reads(self):
+        path = self.repo / 'oversized.json'
+        path.write_text(json.dumps(self.record))
+        with patch.object(matrix, 'MAX_MATRIX', 8), patch.object(matrix, 'git') as calls:
+            self.assertEqual(matrix.main([str(path)]), 2)
+            calls.assert_not_called()
 
     def test_changed_excerpt_or_range_refused(self):
         original = copy.deepcopy(self.claim['excerpt'])

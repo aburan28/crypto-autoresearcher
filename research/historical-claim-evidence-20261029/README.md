@@ -38,10 +38,14 @@ new scientific mechanism is asserted by this implementation.
 
 ## Reader contract
 
-The reader loads explicit local Git objects, disables replace objects and
-lazy fetching, rejects symbolic refs, symlinks, noncanonical paths, changed
+The reader loads explicit local Git objects, disables replace objects,
+lazy fetching and all Git transports, rejects symbolic refs, symlinks, noncanonical paths, changed
 hashes, changed excerpts, duplicate JSON keys/IDs/references, and dangling
-evidence links. Reads are capped at 16 MiB per blob and 64 MiB total. Large or
+evidence links. Source reads are capped at 16 MiB per blob and 64 MiB total,
+with the remaining allowance checked before fetching the next blob. The CLI
+matrix input is capped at 16 MiB before JSON parsing. These are raw-byte caps,
+not process-RSS limits: JSON objects, decoded Unicode and line splitting use
+additional RAM. Large or
 unavailable evidence must have an explicit unavailable record; it is not
 silently skipped. No cloud fetch, build, proof run, or experiment is launched.
 
@@ -83,11 +87,19 @@ the checker does not fetch them. A future register revision is additive.
 
 ## Validation and communication
 
-Eleven real-Git unit tests cover positive identity and adversarial refusal,
+The initial eleven real-Git unit tests cover positive identity and adversarial refusal,
 working-tree edits, replacement objects, unavailable evidence, role-complete
 nonpromotion, and write-once receipts. The local seed check is retained in
-`integrity.json`. Hosted CI and independent code review remain pending at
-initial publication.
+`integrity.json`. The independent implementation review identified an aggregate
+read-cap bug: the original checker rejected a source only after reading bytes
+beyond its total allowance. The successor checks the allowance before fetching
+the blob. Thirteen tests now pass (`unit-tests-v2.txt`), including pre-fetch
+aggregate refusal and oversized matrix refusal. `integrity-v2.json` preserves
+the successor reader's result; the original receipt remains unchanged. The
+seed builder now uses the archive's full commit literal. Hosted CI and final
+review of these fixes remain pending. The original PDF records the initial
+publication stage and is preserved; these implementation fixes do not change
+the evidence-flow diagram or claim/evidence contents.
 
 `render_report.py` generates the companion diagram and one-page PDF from
 the exact matrix and integrity receipt. This is an evidence-flow diagram,

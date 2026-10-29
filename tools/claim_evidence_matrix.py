@@ -32,6 +32,7 @@ REQUIRED = {
 }
 MAX_BLOB = 16 * 1024 * 1024
 MAX_TOTAL = 64 * 1024 * 1024
+MAX_MATRIX = 16 * 1024 * 1024
 
 
 class MatrixError(ValueError):
@@ -81,14 +82,14 @@ def git(repo, *args):
         return subprocess.run(
             ['git', '--literal-pathspecs', '-C', str(repo), *args],
             env={**os.environ, 'GIT_NO_LAZY_FETCH': '1', 'GIT_TERMINAL_PROMPT': '0',
-                 'GIT_NO_REPLACE_OBJECTS': '1'},
+                 'GIT_NO_REPLACE_OBJECTS': '1', 'GIT_ALLOW_PROTOCOL': ''},
             check=True, capture_output=True, timeout=20,
         ).stdout
     except (subprocess.SubprocessError, OSError) as exc:
         raise MatrixError(f'local Git object unavailable ({args[0]}): {exc}') from exc
 
 
-def read_source(source, repositories):
+def read_source(source, repositories, remaining=MAX_TOTAL):
     fields(source, ('id', 'kind', 'repo', 'commit', 'path', 'blob_oid', 'sha256'), 'Git source')
     require(source['repo'] in repositories, f"repository not supplied: {source['repo']}")
     repo = repositories[source['repo']]
@@ -109,6 +110,7 @@ def read_source(source, repositories):
     require(actual_path.decode('utf-8') == path and oid == source['blob_oid'], 'Git blob binding mismatch')
     size = int(git(repo, 'cat-file', '-s', oid))
     require(size <= MAX_BLOB, 'source exceeds bounded reader limit; use an explicit unavailable record')
+    require(size <= remaining, 'matrix exceeds bounded total reader limit')
     data = git(repo, 'cat-file', 'blob', oid)
     require(len(data) == size and digest(data) == source['sha256'], 'source SHA-256 mismatch')
     return data
@@ -136,7 +138,7 @@ def check(matrix, repositories):
             unavailable.append(sid)
         else:
             require(source.get('kind') == 'git', 'unknown source kind')
-            blobs[sid] = read_source(source, repositories)
+            blobs[sid] = read_source(source, repositories, MAX_TOTAL - total)
             total += len(blobs[sid])
             require(total <= MAX_TOTAL, 'matrix exceeds bounded total reader limit')
         sources[sid] = source
@@ -200,7 +202,9 @@ def main(argv=None):
             name, path = pair.split('=', 1)
             require(name not in repositories and name and path, 'invalid/duplicate repository mapping')
             repositories[name] = Path(path)
-        matrix_bytes = args.matrix.read_bytes()
+        with args.matrix.open('rb') as matrix_file:
+            matrix_bytes = matrix_file.read(MAX_MATRIX + 1)
+        require(len(matrix_bytes) <= MAX_MATRIX, 'matrix JSON exceeds bounded input limit')
         record = json.loads(matrix_bytes.decode('utf-8'), object_pairs_hook=no_duplicate_keys)
         result = check(record, repositories)
         result['matrix_sha256'] = digest(matrix_bytes)
