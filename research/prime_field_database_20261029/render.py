@@ -50,18 +50,20 @@ def main():
     axes[0].legend(loc='upper left',fontsize=7)
     fig.suptitle(f"{args.run.name}: two fixed curves over F4099; one full census per arm",fontsize=10)
     fig.tight_layout();fig.savefig(args.out/'observations.svg');plt.close(fig)
+    svg=args.out/'observations.svg'
+    svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
     diagram = '''digraph archive {
-      rankdir=LR; graph [bgcolor="transparent",fontname="Helvetica"];
+      rankdir=LR; ranksep=0.18; nodesep=0.15; graph [bgcolor="transparent",fontname="Helvetica"];
       node [shape=box,style="rounded,filled",fillcolor="#edf3f8",fontname="Helvetica",fontsize=10];
-      inputs [label="Frozen two-curve inputs\n16 atoms; 64 sources"];
-      collect [label="Paired full collection\nnonzero / completed zero"];
-      replay [label="Separate full replay\nrows + statuses + rank + kernel"];
-      analysis [label="Frozen descriptive analysis\nnew equations / old-kernel action"];
-      database [label="Derived SQLite archive\nEC1 + base + source hashes"];
-      functions [label="Accepted cubic-orbit grouping\nexploratory; no cache enabled"];
-      shifted [label="Shifted cover algebra\nsoftware checked; survey unrun",fillcolor="#fff1d9"];
+      inputs [label="Frozen inputs\n16 atoms; 64 sources"];
+      collect [label="Full collection\ntwo arms"];
+      replay [label="Separate replay\ncomplete stream"];
+      analysis [label="Old-kernel test\nnew equations"];
+      database [label="SQLite archive\nsource hashes"];
+      functions [label="Cubic groups\ncache unmeasured"];
+      shifted [label="Shifted algebra\nsurvey unrun",fillcolor="#fff1d9"];
       inputs -> collect -> replay -> analysis -> database -> functions;
-      analysis -> shifted [style=dashed,label="proposed successor",fontsize=9];
+      analysis -> shifted [style=dashed,label="proposed",fontsize=9];
     }'''
     (args.out/'pipeline.dot').write_text(diagram+'\n')
     subprocess.run(['dot','-Tsvg',str(args.out/'pipeline.dot'),'-o',str(args.out/'pipeline.svg')],check=True)
@@ -80,6 +82,11 @@ def main():
     differences = '\n'.join(f"- b={fixture_map[c['curve_uid']]['b']}: {c.get('new_distinct_equations')} new distinct equations; rank increment {c.get('span_rank_gain')}; {c.get('nonzero_old_kernel_syndromes')} witness rows with nonzero old-kernel syndrome. Source-zero witnesses {c.get('source_zero_witnesses')}; constraint-zero witnesses {c.get('constraint_zero_witnesses')}." for c in cells if c['arm']==arms[1])
     phase_text = '\n'.join(f"- b={fixture_map[p['curve_uid']]['b']}, {p['arm']}, {p['phase']}: {p['status']}; CPU {p['cpu_seconds']:.3f}s, wall {p['wall_seconds']:.3f}s." for p in export['backend_record']['phase_records'])
     reuse_text = '\n'.join(f"- b={r['b']}, {r['arm']}: {r['witnesses']} accepted witnesses, {r['cubic_orbits']} cubic orbits, {r['distinct_equations']} distinct affine equations." for r in reuse)
+    reencoding_path=args.database.parent/'reencodings.json'
+    reencoding_note=''
+    if reencoding_path.is_file():
+        links=json.loads(reencoding_path.read_text())
+        reencoding_note=f"Exploratory exact re-encoding check: {links['same_source_cubic_native_coefficients']} of {links['constraint_zero_witnesses']} constraint-zero witnesses share the same public source, full cubic and native coefficient vector with a historical witness. Original-row links are in database/reencodings.json. This is stronger than matching a coarse orbit key, within these accepted rows only."
     protocol_hash = export['protocol']['sha256']
     source = f'''#set page(paper: "a4", margin: 16mm)
 #set text(size: 9pt)
@@ -118,6 +125,8 @@ Coverage: {tables['curves']} curves, {tables['bases']} exact bases, {tables['ato
 On the even sextic, the existing deck/negation action transforms a cubic to sign * v(deck * X). These are accepted-witness grouping counts derived after collection, separate from the frozen primary analysis:
 
 {reuse_text}
+
+{reencoding_note}
 
 An equal cubic key does not erase source-specific obligations or certify reuse of a residual computation. Rejected candidates are not covered by these counts. The next caching study must preserve all branches, charge interpolation/setup, compare identical outputs and separately measure validation. B1 itself has no cache enabled.
 
