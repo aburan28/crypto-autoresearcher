@@ -37,3 +37,12 @@ changes. No repeated polling of missing credentials and no bypass is proposed.
 While waiting, retained-data analysis and implementation/design work can proceed;
 the plan and source hashes make the handoff resumable. No unattended trial or
 future schedule was installed.
+
+29 October continuation: managed readiness still reports no secret/runtime
+variable/outbound-identity bindings. Presence-only checks still find no
+checkpoint environment token, default token file or AWS CLI. The gate was not
+retried on unchanged readiness. Target-combination collection and Dickson stage
+instrumentation advanced as software work; their source, tests and outstanding
+native bindings are recorded in the additive
+[continuation report](../research/prime_field_execution_20261029/README.md).
+No new scientific process, target panel or checkpoint upload occurred.

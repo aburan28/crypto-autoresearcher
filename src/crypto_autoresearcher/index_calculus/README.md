@@ -9,6 +9,11 @@ multiplication, and counts the cost of every stage.
 Nothing here threatens a deployed curve. The point is to measure, honestly,
 how the classical prime-field index calculus scales.
 
+The [October 29 continuation](../../../research/prime_field_execution_20261029/README.md)
+adds target-row combination certificates without full base rank, a gated
+target-aware Prym collector, and optional Dickson stage diagnostics. These are
+software-tested interfaces; the proposed scientific panels remain unexecuted.
+
 ## Layout
 
 | module | what it does |

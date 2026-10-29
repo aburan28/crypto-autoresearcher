@@ -38,5 +38,6 @@ fig.savefig(HERE/'retained-diagnostics.svg')
 # Matplotlib emits spaces at SVG path line endings; normalize text for Git.
 svg = HERE/'retained-diagnostics.svg'
 svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
-fig.savefig(HERE/'retained-diagnostics.png', dpi=140)
+# Lightweight preview; the vector rendering and report retain full detail.
+fig.savefig(HERE/'retained-diagnostics.png', dpi=90)
 plt.close(fig)
