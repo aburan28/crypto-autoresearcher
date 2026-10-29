@@ -100,15 +100,18 @@ def check_approval(spec_path: str = SPEC_PATH, lock_path: str = LOCK_PATH, plan_
         except Exception as e:  # noqa: BLE001
             lock = {}
             reasons.append(f"approval lock unreadable: {e}")
-        if lock:
-            if not lock.get("approved_by"):
-                reasons.append("approval lock has no approved_by")
-            if lock.get("specification_sha256") != sha256_file(spec_path):
-                reasons.append("approval lock specification_sha256 differs from the specification on disk")
-            if lock.get("code_sha256") != code_sha256():
-                reasons.append("approval lock code_sha256 differs from the code on disk (invalid build)")
-            if plan_path is not None and lock.get("trial_plan_sha256") != sha256_file(plan_path):
-                reasons.append("approval lock trial_plan_sha256 differs from the trial plan passed")
+        # Every field is checked unconditionally: an empty or non-object lock binds nothing and must refuse.
+        if not isinstance(lock, dict) or not lock:
+            reasons.append("approval lock is empty or not a JSON object")
+            lock = {}
+        if not lock.get("approved_by"):
+            reasons.append("approval lock has no approved_by")
+        if lock.get("specification_sha256") != sha256_file(spec_path):
+            reasons.append("approval lock specification_sha256 differs from the specification on disk")
+        if lock.get("code_sha256") != code_sha256():
+            reasons.append("approval lock code_sha256 differs from the code on disk (invalid build)")
+        if plan_path is not None and lock.get("trial_plan_sha256") != sha256_file(plan_path):
+            reasons.append("approval lock trial_plan_sha256 differs from the trial plan passed")
     return (not reasons), reasons
 
 
@@ -316,6 +319,11 @@ def run_arm_c(spec: dict, kernel, derived: bool, log):
     return raw, summary, cdf
 
 
+TALLY_KEYS = ("tuples", "zero_poly", "degree_deficient", "not_squarefree", "any_chi_zero", "eligible",
+              "eligible_split", "eligible_all_chi_equal", "disagree", "gl_checked", "gl_checked_generic",
+              "gl_mismatch_generic", "gl_mismatch_nongeneric", "gl_inf_sums")
+
+
 def _analyse_block(args):
     """Worker: analyse a block of x-tuples (list of lists of code tuples). Returns tallies."""
     (q, n, g, a, b, xs_block, do_group_law_mask) = args
@@ -323,9 +331,7 @@ def _analyse_block(args):
     E = curves.Curve(F, tuple(a), tuple(b))
     F2 = fqn.FQ2(F)
     patterns: dict = {}
-    t = dict(tuples=0, zero_poly=0, degree_deficient=0, not_squarefree=0, any_chi_zero=0, eligible=0,
-             eligible_split=0, eligible_all_chi_equal=0, disagree=0, gl_checked=0, gl_checked_generic=0,
-             gl_mismatch_generic=0, gl_mismatch_nongeneric=0, gl_inf_sums=0)
+    t = dict.fromkeys(TALLY_KEYS, 0)
     for tup, do_gl in zip(xs_block, do_group_law_mask):
         xs = [tuple(x) for x in tup]
         res = semaev.analyse_fibre(F, E, xs, detail=bool(do_gl))
@@ -368,7 +374,8 @@ def _analyse_block(args):
 
 
 def _sum_tallies(ts):
-    out: dict = {}
+    # Start from zero counters so an instance with no tuples still yields a complete tally.
+    out: dict = dict.fromkeys(TALLY_KEYS, 0)
     for t in ts:
         for k, v in t.items():
             if isinstance(v, dict):
@@ -403,43 +410,49 @@ def _analyse_all(F, E, tuples, gl_mask, workers: int):
 
 def run_arm_b(spec: dict, kernel, derived: bool, log, workers: int = 1):
     out_inst = []
+    # B1 cells that carry tuple_seed_aa also run the independent A/A sample (CTL-aa, C-aa-tupleseed).
+    samples = [("primary", spec["tuple_seed"])]
+    if spec["arm"] == "B1" and spec.get("tuple_seed_aa"):
+        samples.append(("aa", spec["tuple_seed_aa"]))
     for inst in spec["instances"]:
         q, n = inst["q"], spec["n"]
         F, E, info = build_instance(q, n, inst["curve_seed"], inst.get("identity"))
         D, X, t2 = E.factor_base()
-        rng = curves.make_rng(spec["tuple_seed"])
-        if spec["arm"] == "B1":
-            T = spec["tuples"]
-            xs = rng.integers(0, q, size=(T, n, n))
-            step = max(int(round(1 / spec["group_law_subsample_fraction"])), 1)
-            gl = [(i % step == 0) for i in range(T)]          # subsample rule: every step-th tuple
-            tuples = xs
-        else:
-            maxT = spec["max_tuples_per_instance"]
-            nx = len(X)
-            if nx < n:
-                tuples = []
-            elif math.comb(nx, n) <= maxT:
-                tuples = [[X[i] for i in c] for c in itertools.combinations(range(nx), n)]
+        for sample, seed in samples:
+            rng = curves.make_rng(seed)
+            if spec["arm"] == "B1":
+                T = spec["tuples"]
+                xs = rng.integers(0, q, size=(T, n, n))
+                step = max(int(round(1 / spec["group_law_subsample_fraction"])), 1)
+                gl = [(i % step == 0) for i in range(T)]          # subsample rule: every step-th tuple
+                tuples = xs
             else:
-                tuples = []
-                for _ in range(maxT):
-                    idx = sorted(int(i) for i in rng.choice(nx, size=n, replace=False))
-                    tuples.append([X[i] for i in idx])
-            gl = [True] * len(tuples)
-        t0 = time.perf_counter()
-        tally = _analyse_all(F, E, tuples, gl, workers)
-        el = time.perf_counter() - t0
-        log(f"  {spec['cell_id']} q={q}: {tally['tuples']} tuples in {el:.1f}s")
-        entry = {"q": q, "n": n, "B": len(D), "t2": t2, "size_X": len(X), "tally": tally, "wall_seconds": el,
-                 "curve_generation": info}
-        if derived:
-            el_n = tally["eligible"]
-            entry["derived"] = {"split_fraction_of_eligible": (tally["eligible_split"], el_n),
-                                "disagreements": tally["disagree"]}
-        out_inst.append(entry)
+                maxT = spec["max_tuples_per_instance"]
+                nx = len(X)
+                if nx < n:
+                    tuples = []
+                elif math.comb(nx, n) <= maxT:
+                    tuples = [[X[i] for i in c] for c in itertools.combinations(range(nx), n)]
+                else:
+                    tuples = []
+                    for _ in range(maxT):
+                        idx = sorted(int(i) for i in rng.choice(nx, size=n, replace=False))
+                        tuples.append([X[i] for i in idx])
+                gl = [True] * len(tuples)
+            t0 = time.perf_counter()
+            tally = _analyse_all(F, E, tuples, gl, workers)
+            el = time.perf_counter() - t0
+            log(f"  {spec['cell_id']} q={q} [{sample}]: {tally['tuples']} tuples in {el:.1f}s")
+            entry = {"q": q, "n": n, "sample": sample, "tuple_seed": seed, "B": len(D), "t2": t2,
+                     "size_X": len(X), "tally": tally, "wall_seconds": el, "curve_generation": info}
+            if derived:
+                el_n = tally["eligible"]
+                entry["derived"] = {"split_fraction_of_eligible": (tally["eligible_split"], el_n),
+                                    "disagreements": tally["disagree"]}
+            out_inst.append(entry)
     raw = {"arm": spec["arm"], "cell_id": spec["cell_id"], "instances": out_inst}
-    return raw, {"cell_id": spec["cell_id"], "instances": [{"q": i["q"], "tally": i["tally"]} for i in out_inst]}, None
+    return raw, {"cell_id": spec["cell_id"],
+                 "instances": [{"q": i["q"], "sample": i["sample"], "tally": i["tally"]} for i in out_inst]}, None
 
 
 def _install_limits(timeout_seconds, memory_gb):
@@ -541,9 +554,11 @@ def spec_from_plan_cell(cell: dict) -> list[dict]:
                  "identity": cell["identity"], "base_seeds": seeds, "s": cell["sample_size_s"],
                  "target_seed": cell["target_seed"]["seed_string"]}]
     if arm == "B1":
+        aa = cell.get("tuple_seed_aa")
         return [{"arm": "B1", "cell_id": cell["cell_id"], "n": cell["n"], "m": cell["tuple_size_m"],
                  "tuples": cell["tuples"], "group_law_subsample_fraction": cell["group_law_subsample_fraction"],
                  "tuple_seed": cell["tuple_seed"]["seed_string"],
+                 "tuple_seed_aa": aa["seed_string"] if aa else None,
                  "instances": [{"q": cell["q"], "curve_seed": cell["identity"]["curve_seed"]["seed_string"],
                                 "identity": cell["identity"]}]}]
     if arm == "B2":
