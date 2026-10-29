@@ -403,7 +403,8 @@ function opsPanel(ops) {
         h('div', { class: 'kicker' }, 'Distinguished-point database'),
         h('h2', {}, db.id || 'rho-dp'),
         h('p', { class: 'faint' },
-          [db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
+          [db.account_id ? `AWS account ${db.account_id}` : 'AWS account unavailable',
+            db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
       freshness),
     h('div', { class: 'ops-windows' },
       opsWindow(hour.basis === 'latest_sample' ? 'Hour at latest sample' : 'Last hour',
@@ -423,7 +424,8 @@ function opsPanel(ops) {
       'Object store ', h('span', { class: 'mono' }, ops.object_store.bucket), ' · ',
       fmtBytes(ops.object_store.bytes),
       ops.object_store.objects != null ? ` · ${fmtCount(ops.object_store.objects)} objects` : '',
-      ops.object_store.as_of ? ` · as of ${relative(ops.object_store.as_of)}` : '') : null,
+      ops.object_store.as_of ? ` · as of ${relative(ops.object_store.as_of)}` : '')
+      : h('p', { class: 'ops-store faint' }, 'Object store metrics unavailable for this snapshot'),
     h('p', { class: 'ops-meta faint' },
       cpuLine(ops.cpu_percent, ops.connections)));
 }
