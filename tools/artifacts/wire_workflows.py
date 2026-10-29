@@ -46,13 +46,19 @@ def moved_paths(root: Path) -> set[str]:
 
 
 def needed(text: str, moved: set[str], dirs: set[str]) -> list[str]:
-    """Paths the workflow names that are, or contain, moved files; minimal cover."""
+    """Paths the workflow names that are, or contain, moved files; minimal cover.
+
+    A mention of a sibling under a shared ancestor (``docs/ci-tiers.md`` next
+    to ``docs/reports/.../report.pdf``) does not count: walking up to ``docs``
+    made every workflow that named any docs path pull the store.
+    """
+    del dirs  # kept on the call site; matching uses moved-file prefixes only
     found = set()
     for m in PATH_RE.finditer(text):
         p = m.group(1).split("*", 1)[0].rstrip("/.")
-        while p and p not in moved and p not in dirs:
-            p = p.rsplit("/", 1)[0] if "/" in p else ""
-        if p:
+        if not p:
+            continue
+        if p in moved or any(mv.startswith(p + "/") for mv in moved):
             found.add(p)
     return sorted(p for p in found if not any(p.startswith(q + "/") for q in found))
 
