@@ -4,7 +4,7 @@ CREATE TABLE sources (
   path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, bytes INTEGER NOT NULL,
   kind TEXT NOT NULL
 );
--- Decimal text preserves field/subgroup integers beyond SQLite's signed u64.
+-- Decimal text preserves field/subgroup integers beyond SQLite's signed 64-bit integer.
 CREATE TABLE curves (
   curve_uid TEXT PRIMARY KEY, p TEXT NOT NULL, a TEXT NOT NULL,
   b TEXT NOT NULL, subgroup_order TEXT NOT NULL, generator_json TEXT NOT NULL

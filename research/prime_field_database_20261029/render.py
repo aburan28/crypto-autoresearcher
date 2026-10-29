@@ -59,7 +59,9 @@ def main():
       analysis [label="Frozen descriptive analysis\nnew equations / old-kernel action"];
       database [label="Derived SQLite archive\nEC1 + base + source hashes"];
       functions [label="Accepted cubic-orbit grouping\nexploratory; no cache enabled"];
+      shifted [label="Shifted cover algebra\nsoftware checked; survey unrun",fillcolor="#fff1d9"];
       inputs -> collect -> replay -> analysis -> database -> functions;
+      analysis -> shifted [style=dashed,label="proposed successor",fontsize=9];
     }'''
     (args.out/'pipeline.dot').write_text(diagram+'\n')
     subprocess.run(['dot','-Tsvg',str(args.out/'pipeline.dot'),'-o',str(args.out/'pipeline.svg')],check=True)
@@ -121,6 +123,11 @@ An equal cubic key does not erase source-specific obligations or certify reuse o
 
 == Limits and next measurements
 The paired finite result concerns only the exact two retained curves, bases, source order and cubic law. More witnesses, more equations and more information are different quantities. Full rank is not required by the separate natural-target criterion vN=0. Eight independent natural targets remain ungenerated in this panel; D1, natural partial relations and native many-target operator reuse remain separate measurements. Original C1/Prym reports and their historical graphs remain unchanged.
+
+== Shifted-cover algebra: implemented, not collected
+The new ShiftedCover software interface keeps the same E and uses C_h: y²=f(x²+h), with coefficients c4=3h, c2=3h²+a, c0=f(h). The maps (x,y) to (x²+h,y) and, for nonzero x, (c0/x²,c0*y/x³), satisfy their quotient equations by substitution. The latter auxiliary curve has coefficients (c2,c4*c0,c0²), including the term absent at h=0. The software rejects a singular base or f(h)=0 and deduplicates the x=0 lift. Fixed p101 software controls exercise h=0,1,2,3; there is no shift search on the retained p4099 curves here.
+
+A prospective common-atom survey would retain only h for which every original atom coordinate u has u-h square or zero, freezing selection before relation yields. A later collector must preserve original E/base/log columns, source schedule, poles and signs. This is a genus-two cover interface; no elliptic isogeny, subgroup eigenvalue, Jacobian certificate or advantage is asserted. See shifted-covers.md for the derived identities and exact successor boundary.
 
 Sources (internal/retrieved): original Context/Census and fixed inputs; B1 literature.md and frozen protocol; database schema.sql/build.py and source-bound generation receipt; Petit, Kosters, Messeng, PKC2016, sections 3.1-3.2, primary PDF SHA256 a53030a6cde720c354aebfb65b1eb01e07766ce2d26e543d77f2516c0a49ef5b. Solver and linear-algebra costs stay charged. No novelty, complete ECDLP recovery or asymptotic claim.
 '''
