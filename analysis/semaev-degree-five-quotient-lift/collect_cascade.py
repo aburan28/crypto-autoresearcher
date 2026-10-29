@@ -13,21 +13,27 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     for name in ('raw','out','archive'):
         ap.add_argument('--'+name,type=Path,required=True)
+    ap.add_argument('--plan',type=Path)
+    ap.add_argument('--protocol',type=Path)
     args=ap.parse_args()
     study=Path(__file__).resolve().parent
     sys.path.insert(0,str(study.parent.parent))
     from tools import experiment_protocol as ep
-    plan=json.loads((study/'cascade-plan.json').read_text())
-    protocol=json.loads((study/'cascade-protocol.json').read_text())
+    args.plan=args.plan or study/'cascade-plan.json'
+    args.protocol=args.protocol or study/'cascade-protocol.json'
+    plan=json.loads(args.plan.read_text())
+    protocol=json.loads(args.protocol.read_text())
     args.out.mkdir(parents=True,exist_ok=False)
     out=args.out.resolve()
-    shutil.copyfile(study/'cascade-protocol.json',out/'protocol.json')
-    shutil.copyfile(study/'cascade-plan.json',out/'plan.json')
+    shutil.copyfile(args.protocol,out/'protocol.json')
+    shutil.copyfile(args.plan,out/'plan.json')
     e=ep.export_skeleton(protocol,'protocol.json','local','SEMAEV-CASCADE-FRONTIER-001')
     e['producer'].update(runtime='codex',role='executor')
     e['source'].update(commit=protocol['arms'][0]['instrument']['commit'],dirty=True)
     e['host']['summary']['isolation_tier_max']='L0'
-    shutil.copyfile(study/'run_cascade.py',out/'analysis.py')
+    analysis=study/protocol['analysis_plan']['script']['path']
+    assert ep.sha256_file(analysis)==protocol['analysis_plan']['script']['sha256']
+    shutil.copyfile(analysis,out/'analysis.py')
     e['analysis']['script']=ep.file_entry(out,'analysis.py','analysis')
     for a,p in zip(e['arms'],protocol['arms']):
         a['commit']=p['instrument']['commit'];a['binary_sha256']=p['instrument']['binary_sha256']
@@ -38,7 +44,7 @@ def main():
         row=dict(id=item['id'],n=item['record']['n'],status='pending',stages=[],bound=None,count=None)
         if paths:
             path=paths[-1];r=json.loads(path.read_text())
-            assert r['plan_sha256']==ep.sha256_file(study/'cascade-plan.json')
+            assert r['plan_sha256']==ep.sha256_file(args.plan)
             for name,entry in r['artifacts'].items():
                 source=path.parent/name
                 assert source.stat().st_size==entry['bytes'] and ep.sha256_file(source)==entry['sha256'], str(source)
@@ -94,13 +100,13 @@ def main():
     svg.append('</g></svg>');(out/'outcomes.svg').write_text('\n'.join(svg)+'\n')
     escaped=lambda x:'['+x.replace('_','\\_')+']'
     table=', '.join(map(escaped,['Input','Outcome','Count','Degrees','LFD bound']+cells))
-    typ='#set page(paper: "a4", margin: 15mm)\n#set text(size: 8pt)\n= Frontier cascade progress\n\n'+str(progress['terminal'])+' / 50 inputs terminal. LFD >= 6 bounds recorded: '+str(progress['lfd_ge6'])+'.\n\nPending includes live, unfinished inputs. Refusal and killed-constant outcomes give no upper bound. Bounds require an accepted certificate and strictly smaller exact count.\n\n#image("outcomes.svg", width: 100%)\n\n#table(columns: (2fr, 1.3fr, auto, auto, auto), inset: 3pt, '+table+')\n\nRaw terminal records and publication acknowledgements accompany `progress.json`; `protocol.json` and `plan.json` preserve the frozen scope. No clock or population inference.\n'
+    typ='#set page(paper: "a4", margin: 15mm)\n#set text(size: 8pt)\n= Frontier cascade progress\n\n'+str(progress['terminal'])+' / '+str(len(rows))+' inputs terminal. LFD >= 6 bounds recorded: '+str(progress['lfd_ge6'])+'.\n\nPending includes live, unfinished inputs. Refusal and killed-constant outcomes give no upper bound. Bounds require an accepted certificate and strictly smaller exact count.\n\n#image("outcomes.svg", width: 100%)\n\n#table(columns: (2fr, 1.3fr, auto, auto, auto), inset: 3pt, '+table+')\n\nRaw terminal records and publication acknowledgements accompany `progress.json`; `protocol.json` and `plan.json` preserve the frozen scope. No clock or population inference.\n'
     (out/'report.typ').write_text(typ)
     import typst
     typst.compile(str(out/'report.typ'),output=str(out/'report.pdf'))
     if progress['terminal']==len(rows) and not missing_publications:
         e['flow']=ep.compute_flow(e['runs'])
-        e['notes']=[dict(kind='observation',by='Codex',text='All50 attempts terminal. Lift stages conditional on prior accepted map; only accepted D5 maps populate the D5 codimension metric.')]
+        e['notes']=[dict(kind='observation',by='Codex',text=f'All{len(rows)} attempts terminal. Lift stages conditional on prior accepted map; only accepted D5 maps populate the D5 codimension metric.')]
         e['files'].append(ep.file_entry(out,'progress.json','summary'))
         for name in ('report.md','report.typ','report.pdf','outcomes.svg'):
             e['analysis']['outputs'].append(ep.file_entry(out,name,'report'))
