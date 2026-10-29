@@ -1,0 +1,148 @@
+# Executor return for TASK-20261029-1bcf80 (runbook tool repairs from the PR
+# #2671 audits). Harness code only. No trial ran, no real session was audited,
+# and no committed audit, journal, session or ledger record was edited.
+task_return:
+  task_id: TASK-20261029-1bcf80
+  opened_by_decision: [DEC-20261029-5554ee, DEC-20261029-9bc3ff]
+  role: executor
+  returned_at: '2026-10-29'
+  base_commit: 7e45528b29 (origin/main when the branch was cut)
+  runs_used: 0
+  changed_paths:
+    - {path: tools/runbook.py, sha256: fb4c4bbcd319137da1a36e7726a89f48a1f41cab2e071ce2753acb9efe741178}
+    - {path: tests/test_runbook_audit_tolerance.py, sha256: 9a0e144f62aa5ef31324fec7c726b012e8cc4ce16b891a321fbf09e8bf79a3a0}
+    - {path: tests/test_runbook_session_collision.py, sha256: 5e123850755315fbb1988906823795fc791df0b041e1d21f10a6680fd4d83f11}
+    - {path: docs/runbook-execution.md, sha256: 40fd4479d3a46556ae4fe2e0829251c62071e526740c1e8f2497656927074da1}
+    - {path: templates/runbook.yaml, sha256: 4eac015d996ded8f89bfa45a1f3e7b73fac1b33a35215e8d7021a62ced7c9223}
+    - {path: coordination/tasks/TASK-20261029-1bcf80/return.yaml, sha256: "this file"}
+  changes:
+    C-1: >-
+      replay.compare items in fields mode take an optional tolerance
+      {rel_tol, abs_tol}. Lint checks that each value is finite and
+      non-negative, that no other keys appear, and that bytes mode carries no
+      tolerance. `audit --float-tolerance rel_tol=R,abs_tol=A` (or
+      audit(float_tolerance=...)) applies to every fields pointer the runbook
+      gives no tolerance. audit.json records it as float_tolerance with
+      source audit_option. compare_tolerant keeps the old _same verdict when
+      the values are exactly equal. Otherwise the structure must match (key
+      sets, list lengths and order) and so must the leaf types, so int versus
+      float is a mismatch. Non-float leaves must be equal, and float leaves
+      must agree under math.isclose. Each replay has a result: matched,
+      matched_within_tolerance or mismatch. `matched` stays true only for an
+      exact match. Each compared pointer records its result, the tolerance
+      and its source, the number of differing float leaves, and the largest
+      absolute and relative difference. replay_results counts the outcomes.
+      Only a mismatch is a finding. With no tolerance the result is the exact
+      verdict, so a float drift stays a finding. The audit schema moved to
+      crypto.autoresearch.runbook_audit.v2, because `matched: false` no
+      longer always means a mismatch (C-5).
+    C-2: >-
+      Each replay records the interpreter its argv[0] runs, probed under the
+      replay environment: sys.version, executable and platform version.
+      audit.json also records audit_interpreter and replay_interpreters. When
+      the unit's manifest.yaml has /run/environment/python_version and it
+      differs, the replay carries an environment_drift note naming both
+      versions, collected in the top-level environment_drift. The note does
+      not change the result. When the runbook pins environment.python and the
+      interpreter's major.minor differs, the unit is reported not_covered and
+      not replayed.
+    C-3: >-
+      Runner.run calls session_id_collisions before anything else. It finds
+      <session_dir>/journal.jsonl on every refs/heads and refs/remotes ref
+      (for-each-ref plus a single cat-file --batch-check; read-only, no
+      fetch). With no local journal, any hit refuses as an impediment naming
+      the ref and the blob, and nothing is written. With a local journal,
+      each ref's journal must be a byte prefix or an extension of it. If the
+      blob ids are equal the contents are not read. Outside a git work tree
+      root the check is a no-op.
+    C-4: >-
+      audit calls journal_chain_findings. It takes every distinct
+      journal.jsonl blob at the session path in git log --all --full-history,
+      plus the working-tree journal. A blob that is a byte prefix of another
+      joins its chain. Each maximal blob heads one chain. More than one chain
+      gives one finding per chain, naming the blob, first commit, first entry
+      time and owner. audit.json lists them all as journal_chains. A journal
+      with more than one session_started entry is also a finding.
+    C-5: >-
+      The new audit.json fields are additive. The schema id is bumped as
+      described under C-1, and committed v1 audits are untouched. The default
+      verdict did not loosen. Every test from before the change passes
+      unchanged.
+    C-6: >-
+      All tests use synthetic sessions in temporary directories and temporary
+      git repositories. No trial ran and no real session was audited.
+  tests:
+    command: python3 -m pytest tests/test_runbook.py tests/test_runbook_audit_tolerance.py tests/test_runbook_session_collision.py -q -p no:cacheprovider
+    interpreter: Python 3.13.17
+    exit_code: 0
+    output_verbatim: |
+      ........................................................................ [ 48%]
+      ........................................................................ [ 97%]
+      ...                                                                      [100%]
+      147 passed in 99.06s (0:01:39)
+    gate_coverage:
+      float_drift_without_tolerance_is_a_mismatch: tests/test_runbook_audit_tolerance.py::test_float_drift_without_tolerance_is_a_mismatch_finding
+      float_drift_with_tolerance_is_matched_within_tolerance: >-
+        test_float_drift_under_a_declared_tolerance_is_matched_within_tolerance,
+        test_the_audit_time_tolerance_is_recorded_and_applies_to_a_frozen_runbook,
+        test_the_cli_takes_the_float_tolerance
+      non_float_difference_is_a_mismatch_under_any_tolerance: >-
+        test_a_non_float_difference_is_a_mismatch_even_under_a_tolerance and the
+        parametrized test_a_non_float_or_out_of_tolerance_difference_is_a_mismatch_under_any_tolerance
+        (int, string, flag, null, key set, list length, list order, int versus float)
+      interpreter_difference_gives_environment_drift: test_the_replay_interpreter_is_recorded_and_a_difference_is_an_environment_drift_note
+      pinned_interpreter_difference_gives_not_covered: test_a_pinned_interpreter_that_differs_is_not_covered_and_not_replayed
+      second_journal_on_another_ref_refuses_a_new_session: >-
+        tests/test_runbook_session_collision.py::test_a_journal_on_another_local_branch_refuses_a_new_session,
+        test_a_journal_on_a_fetched_remote_tracking_ref_refuses_a_new_session,
+        test_the_cli_reports_the_collision_as_an_impediment
+      append_only_resume_is_accepted: >-
+        test_an_append_only_resume_is_accepted,
+        test_a_resume_behind_a_ref_that_extends_it_is_accepted
+        (refusal of an unrelated ref journal: test_a_resume_is_refused_when_a_ref_holds_an_unrelated_journal)
+      two_unrelated_journal_chains_give_an_audit_finding: >-
+        test_two_unrelated_journal_chains_in_history_are_an_audit_finding,
+        test_an_uncommitted_second_execution_is_a_chain_of_its_own
+        (append-only history audits clean: test_an_append_only_history_is_one_chain_and_audits_clean)
+    sum_drift_fixture: >-
+      The synthetic driver takes the mean of 45 floats from random.Random(2),
+      where the large terms cancel. A strict left fold (CPython 3.11 sum)
+      gives -0.26666666666668687 and a Neumaier sum (CPython 3.12+ sum) gives
+      -0.26666666666666544. That is 386 ulps, relative 8.0e-14. Real
+      python3.11 and python3.13 give these same two values.
+      test_the_real_3_11_versus_3_13_drift records under python3.11, replays
+      under 3.13, and ran here (it is not skipped when both interpreters are
+      present). The PFDR pair from DEC-20261029-5554ee (416 ulps) is also
+      checked: it fails the exact compare and passes under rel_tol 1e-9,
+      abs_tol 1e-12.
+  lint_sweep:
+    command: for each git ls-files runbook.yaml outside templates/, python3 tools/runbook.py --repo . lint <runbook>, with the origin/main tool and with the changed tool
+    before: 8 pass, 2 fail
+    after: 8 pass, 2 fail (identical per-file results)
+    passing: [examples/runbooks/toy-ecdlp-bsgs, EXP-ICPERF-b2f2d0, EXP-ICPERF-e467a5, EXP-PFDR-bb0d26, EXP-PFDR-ca5e01, EXP-SEMBIN-24ec56, EXP-SEMBIN-d9767f, EXP-XEDN-0c0182]
+    failing_before_and_after:
+      - experiments/EXP-IC-95a3a7/runbook.yaml
+      - experiments/EXP-IC-b75e3a/runbook.yaml
+    failing_note: >-
+      Both bind docs/runbook-execution.md at sha256 24567643..., but on
+      origin/main that file is eca7a4db... (changed at 5e02103d80). They
+      already failed lint before this task, and this task's doc edit does not
+      change that.
+  merge_hygiene:
+    command: python3 tools/check_merge_hygiene.py --base origin/main
+    exit_code: 0
+    output: "PASS: no conflict markers, no unparseable records, no duplicate registry keys, no schema-failing new run manifests, no identifier collisions, no new legacy GOAL identifiers"
+  validate_ledger:
+    command: python3 tools/validate_ledger.py
+    exit_code: 1
+    note: >-
+      FAIL: 65 new validation error(s). origin/main without this change gives
+      the identical sorted error list (in experiments/EXP-AUXIN-339fb0,
+      EXP-BINSTD-591d28, EXP-ECDLP-381959, EXP-FROB-91ee9c, EXP-ICPERF-b2f2d0,
+      EXP-ICPERF-e467a5, ledger/handoffs and ledger/proposals). This change
+      touches none of those paths. The failure is already on main and is not
+      repaired here, because it is outside write_scope.
+  outside_write_scope: none
+  open_items:
+    - The Coordinator reads this diff at TASK-20261029-c0d4cd before any audit under the new contract is relied on (card review_note).
+    - validate_ledger is red on main (65 errors above). That needs its own task.
