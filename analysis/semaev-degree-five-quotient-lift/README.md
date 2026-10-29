@@ -93,3 +93,11 @@ The structural profile completed on all 13 historical seeds under frozen
 unified export and graph/PDF are in `reports/profile-001/`. These profiles are
 not degree-five closure runs. A separately frozen and checkpointed execution
 is still required before using the native candidate on historical/frontier inputs.
+
+## Completed historical trial
+
+The frozen historical lift trial completed all thirteen inputs and all thirteen fresh exact counts. Q35a and Q35b yielded maps accepted by the original independent checker, with checked codimensions6 and2 equal to their exact solution counts. The other eleven constructed quotients killed the constant; these outcomes remain inconclusive for the true W5 closure. No degree-six lower bound or new upper bound follows from this batch.
+
+The [complete report](reports/native-lift-historical-001/report.md), graph, PDF, immutable raw records and validated unified export are retained. Both accepted certificates have public download and object-store readback receipts in `archive/`. The native implementation PR2696 merged.
+
+The n47–51 frontier requirement remains open. One prospective alternative is a checked D3 seed followed by successive D4 and D5 lifts, avoiding a prerequisite dense D4 seed calculation. The native primitive supports these degrees and has single-stage software comparisons; a complete two-stage control and new frozen protocol are required before scientific execution. No frontier feasibility or scientific outcome is inferred from this proposal.
