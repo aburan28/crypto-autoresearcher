@@ -162,3 +162,5 @@ Coordinator decision and evidence.
 - [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
 
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
+
+| [Controlled-followup Modal filesystem failure](classical-ecdlp-controlled-followup-modal-filesystem-20261029.md) | Open transport/reconciliation obstruction; 1 VM, 0 candidate executions; C4 API repair and additive native envelope. |
