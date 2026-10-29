@@ -1,97 +1,108 @@
-# Actual-output follow-up, 27 October 2026
+# Zero-run A/A fixture producer implementation
 
-The first real public101 A/A pair exposed a total-time footer that the original semantic filter retained. The producer now omits only explicitly parsed elapsed-time fields and retains normalized checker step index, discriminant and acceptance values. Four retained output fixtures reproduce the mismatch; a changed checker result and an unknown time-like event remain distinguishable. All six mocked/fixture methods, including the JSON schema checks, pass. The corrected producer also replays two retained actual controls successfully without starting a new VM.
+This is the five-artifact implementation package for `TASK-20261025-ad9d68`.
+It is engineering support for a future approved non-cohort control only. It is
+not a scientific run, readiness determination, result, or conclusion.
 
-The separate full-cohort investigation is in `research/nist_seed_ecpp_full_cohort_20261027/REPORT.txt`. Its frozen source commit is4c7298e5212f523642c782483cd28f4bd5000d66, before this producer correction. The complete evidence archive preserves that snapshot, all original failures and both full-cohort format diagnostics. It does not identify the historical selection criterion. Earlier source-only task/archive statements below describe their original dated scope.
+## Implementation
 
-# TASK-20261025-ad9d68 corrected-v3 source-only implementation report
+`aa_fixture_producer.py` exposes only `build_pair(left_output, right_output,
+binding_manifest, legacy_boundary=None)`. It accepts the fixed public fixture
+`public-prime101-default` with decimal bytes `101\n` only. Before an injected
+future boundary can run, it verifies the ten frozen input source hashes, exact
+configuration and limits, binding-manifest bytes, hydrated runtime payloads,
+kernel, and every original Data inventory byte. Runtime payload reading first
+uses the public artifact-store candidate-form interface to accept exactly one
+local, regular raw or `.gz` form. It refuses absent, ambiguous, symlink, and
+all `.blob.json` pointer forms before it can call `read_bytes`; therefore this
+task cannot trigger `fetch`, a network read, storage upload, or retry. It
+creates distinct private `runtime-cache/images` paths below two fresh output
+directories.
 
-`named_orders_executed: 0`
-`legacy_program_executed: false`
-`VM calls: 0`
-`storage attempts: 0`
+The module has no execution CLI and has no default legacy boundary: omission of
+the injected future boundary refuses. It never calls `cohort_runner.run_trial`
+or `cohort_case.execute_case`.
 
-## Observed input availability
+Each document is derived from retained raw prover/checker `started.json`,
+`result.json`, `serial.raw`, `qemu.stderr`, and `program.stdout` files, rather
+than constructed as a ready-made A/A JSON fixture. Admission requires valid
+framing, zero child exits, exactly one prime label, one complete root-101
+certificate with its parsed step count, a second fresh checker framing and
+acceptance, fixed identity bindings, and raw-byte hashes. The prover raw tree
+must contain exactly the five `qemu_controls.vm` files plus
+`certificate.cformat`; the checker tree must contain exactly its five files and
+no certificate. The producer normalizes CRLF exactly as the archived
+`cohort_checker.serial_parts` interface does, requires the normalized retained
+`program.stdout`, and requires the prover `certificate.cformat` bytes to equal
+the normalized serial-envelope certificate. It recomputes `valid_frame` from
+each raw serial and requires the source-written boolean `result.vm_valid` to
+match before either control can reach A/A equality. Only then does the
+module load and call the archived real `cohort_checker.aa_compare` function.
 
-The earlier candidate observed that the four uncompressed payload paths were
-absent and therefore refused before the deferred boundary. That prior absence
-is retained as an observation. It is now cleared: the root operator
-materialized the exact public uncompressed bytes from existing `.gz` inputs,
-read-only, with size/hash verification recorded in
-`runtime-payload-materialization-v2.json`. This task reread the four paths and
-observed the runtime-bindings sizes and SHA-256 values match. It performed no
-decompression, network, storage, or execution operation.
+Before equality, the producer writes and checks the exact `101\n` bytes at
+`input/public-input.dec`, derives the certificate from the raw serial envelope,
+and writes/checks it at `certificate/certificate.cformat`. It writes a checked
+`custody/raw-artifact-sha256.json` for all retained prover/checker raw files.
+For both the prover and the second fresh checker, it validates the public
+`qemu_controls.vm` started-record interface: program/init/input/stdin hashes,
+data mode, guest/host limits, initrd digest, and full fixed QEMU command with
+the control's private kernel and image paths. It verifies that the private
+kernel and `{initramfs_sha256}.cpio.gz` image are local regular non-symlink
+files and match their recorded digests.
 
-## Raw helper-identity gate
+The A/A document retains location-independent semantic started identities.
+The complete raw `started.json` records and their hashes remain in each control
+directory and are validated before comparison; their private output paths are
+not copied into the compared document because two intentionally fresh controls
+must use different private paths and the archived `aa_compare` normalizes only
+its documented incidental fields.
 
-Before an explicit future boundary may run, `binding()` rehashes the ten source
-bindings, four payloads, kernel, and complete original Data inventory. The
-producer then derives expected prover/checker initramfs bytes via the frozen
-`qemu_controls.image()` pure byte-construction function: full Data and 300
-seconds for the prover; no Data and 30 seconds for the checker; empty stdin for
-both. It validates each retained `started.json` against the exact frozen helper
-command vector, private cache kernel, private image path/digest, program/init/
-input/stdin hashes, data mode, limits, and nonempty UTC field. It also validates
-finite nonnegative elapsed status, helper `vm_valid`, exact raw framing,
-certificate custody/root/grammar, every checker row, and raw result hashes.
+Any timeout, crash, missing/empty/malformed certificate, invalid framing,
+checker rejection, status inconsistency, raw-artifact loss, semantic mismatch,
+or reused destination raises `CONTROL_INVALID/INDETERMINATE`; the existing
+control directory is retained and A/A equality is not established.
 
-Raw file custody hashes remain outside the semantic A/A documents, so different
-allowed elapsed/UTC/private-path material retains different custody hashes while
-the archived comparator normalizes its documented incidental fields only.
+## Frozen-source and interface review
 
-The deferred default boundary remains source only. When later explicitly called,
-it uses unchanged `qemu_controls.vm`, a distinct private cache/images directory
-per control, fixed101, full original prover arguments, and a second fresh
-checker VM only when a prover certificate exists. No code path invoked it here.
+The task’s ten bound repository inputs were reviewed before implementation and
+their SHA-256 values matched the handoff: the runner/checker supplied the
+preserved-artifact and real `aa_compare` contract; `certificate_admission.py`
+and `guest_framing.py` supplied the validity gates; `cohort_case.py` and
+`qemu_controls.py` defined the future boundary that this task must not execute;
+`runtime-bindings.json` and the protocol supplied fixed runtime/configuration
+identities; `artifact_store.py` supplied the existing local read interface; and
+the public push record supplied the unresolved access condition.
 
-## Retained review history and current test observation
+No external literature claim is made by this implementation-only task. The
+repository protocol is the task-specific source review; its stated evidence gap
+remains a future approved execution under the frozen conditions.
 
-The initial v1 five-test pass is retained. `aa-candidate-review-v1` found the
-elapsed raw-digest, unchecked second checker-row, and duplicate-exit defects;
-v2 corrected them. `aa-candidate-review-v2` then found that helper-format
-command/data-mode/initramfs/stdin identities were not gated. The current
-mock-only test receipt is in `test-report.txt`: actual `binding()` succeeds,
-pure source reconstruction creates mock cache images, and command, mode, stdin,
-initramfs, payload/init hash, limits, result status, labels, rejection, framing,
-certificate, raw custody, cache, destination, and runtime input mutations are
-refused at their intended stages.
+## Mock-only verification
 
-The complete cohort experiment remains unapproved. This source/test work makes
-no scientific readiness assertion or scientific conclusion.
+See [test-report.txt](test-report.txt). The test injects an in-process writer
+of synthetic retained raw artifacts and calls the real archived `aa_compare`.
+Eight mocked tests passed in 0.051s, including a source-faithful CRLF VM serial
+case, absent/mismatched raw prover certificate-file refusals, and a refusal for
+a stored `vm_valid` inconsistent with raw framing. The suite also includes a pointer form whose fake
+artifact-store helper recorded zero `read_bytes` calls, and table-driven
+started-record/private-cache identity mutations for both controls. It records
+`named_orders_executed: 0` and `legacy_program_executed: false`.
+No original/legacy program, boundary, VM, QEMU, Docker, subprocess, cohort
+order, storage upload, artifact-store fetch, or retry was executed.
 
-## Schema repair
+## Unresolved access condition and limits
 
-Outer `aa-v3-independent-checks.json` exercised 21 synthetic full-pipeline
-mock scenarios with the expected outcomes; these are not the curve cohort and
-no program executed. Its producer binding remains
-`d481423ee4562c345d575f1dbd8f57a1dd5184e2c599c813a2f91154e790ef18`.
-The separate `aa-schema-validation-v1.json` found eight Draft 2020-12 schema
-errors because nested trace, status, and runtime objects declared strict
-additional-property behavior without declaring their actual properties.
+The public canonical-store `HeadObject` 403 from
+`BATCH-08d006/artifact-store-push-v1.json` remains unresolved. This task made
+no account, credential, alternate-store, pointer, upload, or retry attempt.
+Existing hydrated bytes are only future input bindings. Static mocked tests do
+not prove that the unexecuted real branch, runtime bytes, or any scientific
+comparison is ready or produces a result.
 
-`aa_fixture_schema.json` now describes the complete `build_pair` result,
-strict A/A result, both eight-key semantic documents, separate raw custody,
-trace event rows, status fields, parsed certificate-step array, and fixed
-runtime configuration. The optional `jsonschema` test dependency is required
-for the recorded schema test and is supplied only by the task-local
-`schema-check-venv`; no global dependency or configuration was changed. The
-source producer was not altered during this schema repair.
-
-## Sources read
-
-The committed handoff; `runtime-bindings.json`; materialized payload hashes;
-frozen `qemu_controls.py`, `certificate_admission.py`, `guest_framing.py`, and
-`cohort_case.py`; retained public prime-101 helper artifacts; and archived
-`cohort_checker.aa_compare` were inspected. The canonical storage HTTP 403
-remains unresolved and was not retried.
-
-## Nonrecursive SHA-256 values
-
-| File | SHA-256 |
-| --- | --- |
-| `aa_fixture_producer.py` | `d481423ee4562c345d575f1dbd8f57a1dd5184e2c599c813a2f91154e790ef18` |
-| `test_aa_fixture_producer.py` | `e0dc3abcd3519e54f3cc8d00ee34da4d595b6714c9827a26f648fcb33a21ccc9` |
-| `aa_fixture_schema.json` | `c8f4f81ef3a092b3ea9360d568802b0b7e346245d02cae7e4f7a01e4af3d3087` |
-| `test-report.txt` | `2af104d75aa50ae09562ff7c02e5ec924b0ce42f6dc1ea20e016d198cde2eecb` |
-
-This report has no self-hash.
+The frozen public interface fixes the QEMU command path (`/opt/homebrew/bin/
+qemu-system-i386`) but does not publish a digest for that host executable.
+This implementation binds that exact path and every command argument, kernel,
+initrd, payload, input, and Data identity available from the public interface;
+it does not claim an unprovided QEMU executable-content hash. A future real
+path missing any required public identity, private cache artifact, or retained
+raw artifact refuses before A/A equality.
