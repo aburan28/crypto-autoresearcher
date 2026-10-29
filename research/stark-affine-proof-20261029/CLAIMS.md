@@ -1,7 +1,9 @@
 # Affine STARK transition: retrospective mathematical obligations
 
-Status: candidate proof source; not yet machine verified or independently
-reviewed. Conductor T-781 / formal task TASK-20261029-4cdb4c.
+Status: revised candidate proof source. The original six declarations have
+historical native evidence and an independent source/type review. The new
+seventh declaration and current negative controls await native validation and
+review. See `J2-response.md`. Conductor T-781 / formal task TASK-20261029-4cdb4c.
 
 ## Existing claim and tested behavior
 
@@ -41,9 +43,14 @@ Let R be any commutative ring and define E(a,b,c,x,y) = a*x + b*y + c.
    disagree at `(0,1)`.
 6. **Zero-ring control.** Over ZMod 1, the zero affine transition agrees with
    multiplication everywhere; claim 4 therefore needs nontriviality.
+7. **Exact four-probe obstruction.** If R is nontrivial, for every a,b,c,
+   the conjunction of E(a,b,c,x,y)=x*y at the four pairs
+   `(0,0)`, `(1,0)`, `(0,1)`, `(1,1)` is false. This exports the precise
+   finite-point assertion in the Rust comment, uniformly over R.
 
-Claims 1–3 formalize the source's exact determination statement. Claim 4
-generalizes its tested four-point control with the necessary nontriviality
+Claims 1–3 formalize the source's exact determination statement. Claim 4 is
+global nonagreement; it does not by itself identify four points of obstruction.
+Claim 7 formalizes the exact four-point control with the necessary nontriviality
 assumption. Claims 5–6 test the proof boundary. The Lean source uses genuine
 Mathlib ring instances; no custom axioms or assumed conclusion are introduced.
 
@@ -66,7 +73,7 @@ in the full historical validation goal.
 ## Machine evidence required
 
 Use the unchanged `formal/lean-toolchain` and `formal/lake-manifest.json`,
-explicitly build `CryptoResearch.Stark.AffineTransition`, retain all six
+explicitly build `CryptoResearch.Stark.AffineTransition`, retain all seven
 elaborated type prints and axiom audits, and verify the registered target with
 the repository's existing verifier. Check the three-probe and zero-ring
 controls. No source inspection or passing schema substitutes for native Lean.

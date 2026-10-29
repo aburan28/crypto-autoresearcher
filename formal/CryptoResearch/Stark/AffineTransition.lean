@@ -47,7 +47,7 @@ theorem three_probe_extensionality (a b c a' b' c' : R)
   intro x y
   simp only [evaluate, ha, hb, hc]
 
-/-- The historical four-point multiplication control, uniformly over R. -/
+/-- Global nonagreement, proved using the historical four designated points. -/
 theorem multiplication_not_affine [Nontrivial R] (a b c : R) :
     ¬ (∀ x y : R, evaluate a b c x y = x * y) := by
   intro h
@@ -55,6 +55,19 @@ theorem multiplication_not_affine [Nontrivial R] (a b c : R) :
   have ha : a = 0 := by simpa [evaluate, hc] using h 1 0
   have hb : b = 0 := by simpa [evaluate, hc] using h 0 1
   have hbad : (0 : R) = 1 := by simpa [evaluate, ha, hb, hc] using h 1 1
+  exact zero_ne_one hbad
+
+/-- The exact finite-point obstruction asserted by the historical Rust test. -/
+theorem multiplication_not_affine_on_four_probes [Nontrivial R] (a b c : R) :
+    ¬ (evaluate a b c 0 0 = 0 * 0 ∧
+       evaluate a b c 1 0 = 1 * 0 ∧
+       evaluate a b c 0 1 = 0 * 1 ∧
+       evaluate a b c 1 1 = 1 * 1) := by
+  intro h
+  have hc : c = 0 := by simpa [evaluate] using h.1
+  have ha : a = 0 := by simpa [evaluate, hc] using h.2.1
+  have hb : b = 0 := by simpa [evaluate, hc] using h.2.2.1
+  have hbad : (0 : R) = 1 := by simpa [evaluate, ha, hb, hc] using h.2.2.2
   exact zero_ne_one hbad
 
 /-- Removing the third probe permits distinct affine transitions. -/
@@ -77,6 +90,7 @@ set_option pp.explicit true
 #check @multiplication_not_affine
 #check @two_probes_insufficient
 #check @zero_ring_product_control
+#check @multiplication_not_affine_on_four_probes
 
 -- Native negative control: this application would prove False in the zero ring
 -- if the multiplication obstruction did not require Nontrivial R.
@@ -85,11 +99,17 @@ set_option pp.explicit true
   (multiplication_not_affine (R := ZMod 1) 0 0 0
     (fun x y => zero_ring_product_control x y) : False)
 
+#check_failure
+  (multiplication_not_affine_on_four_probes (R := ZMod 1) 0 0 0
+    ⟨zero_ring_product_control 0 0, zero_ring_product_control 1 0,
+     zero_ring_product_control 0 1, zero_ring_product_control 1 1⟩ : False)
+
 #print axioms recover_coefficients
 #print axioms coefficients_eq_of_probes
 #print axioms three_probe_extensionality
 #print axioms multiplication_not_affine
 #print axioms two_probes_insufficient
 #print axioms zero_ring_product_control
+#print axioms multiplication_not_affine_on_four_probes
 
 end CryptoResearch.Stark.AffineTransition
