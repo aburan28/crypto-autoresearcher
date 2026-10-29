@@ -1,6 +1,8 @@
-# Prime-field lead experiments cannot checkpoint on this executor
+# Prime-field checkpoint transport and remaining execution bindings
 
-- Status: investigating; all four research directions remain open.
+- Status: transport verified on 2026-10-29 using session-only credentials;
+  prospective native execution bindings remain outstanding. All four research
+  directions remain open.
 - Observed: 2026-10-28, managed workspace `/workspace/crypto-autoresearcher`.
 - Scope: the next Prym x=0, Dickson fixed-case, partial-relation and natural-target
   trials. This is an operational record, not negative mathematical evidence.
@@ -46,3 +48,27 @@ instrumentation advanced as software work; their source, tests and outstanding
 native bindings are recorded in the additive
 [continuation report](../research/prime_field_execution_20261029/README.md).
 No new scientific process, target panel or checkpoint upload occurred.
+
+## 29 October authenticated upload
+
+The user subsequently supplied credentials explicitly for S3 upload. They were
+entered through hidden terminal input and held only in the upload process and
+its child environments. No credential file, repository content or checkpoint
+contains those values. AWS CLI 1.46.2 was installed outside the repository in
+`/workspace/checkpoint-aws-venv`; proxy and TLS verification remained enabled.
+
+The unchanged canonical `bash scripts/checkpoint.sh gate` exited 0. Its archive,
+resume note, metadata and LATEST pointer were uploaded. A subsequent authenticated
+download of the archive also exited 0: 318,387 bytes, SHA-256
+`d5c3e350862a54ba87f24ce27ca21b38676953dfa18346f3a856d6a742026ffa`.
+The archive was opened and its resume note, metadata, thirteen spec/lead files
+and branch bundle were inspected. The exact S3 location and sanitized command
+receipt are in [upload-receipt.json](../research/prime_field_checkpoint_20261029/upload-receipt.json).
+This clears the observed transport impediment for that authenticated session;
+it does not establish persistent credentials on this or another executor.
+
+No scientific trial or target generation occurred. New exact protocols and
+native source/input/interpreter, supervision, ownership and release bindings
+remain required; the target branch-completeness replay also remains unfinished.
+The earlier refusal records are preserved as historical observations. PR #2665
+has merged at `305ebfd6d5d47c23138dc443c6564ac80a619585`.
