@@ -1,10 +1,12 @@
 # THM_QUOTIENT_DESCENT1 — Only 2-torsion translations descend through a degree-2 quotient of E
 
 - **Status:** PROVED (elementary). The Lemma's group-law identity is formalized as
-  `CryptoResearch.Quotient.translation_descends_iff_two_torsion`
+  `CryptoResearch.Quotient.translation_commutes_iff_two_torsion`
   (`formal/CryptoResearch/Quotient/TranslationDescent.lean`, target
   `formal/targets/quotient-translation-descent.yaml`); see "Formal target" below.
-  Despite its name, the theorem proves commutation with ι_S; descent follows as stated in the file header (sheriff SHF-20261017-e4d7f6 L-N9).
+  The theorem proves commutation with ι_S; descent follows by the prose argument, as stated
+  in the file header. Named `translation_descends_iff_two_torsion` until 2026-10-23
+  (sheriff SHF-20261017-e4d7f6 L-N9; see the correction of that date below).
   Companion to `IDEA-20260920-0490f5`.
 - **Closes:** the "Larger group actions?" question on Galbraith's ECC 2015 slides, for every
   x-type coordinate.
@@ -77,8 +79,8 @@ summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
 
 ## Formal target
 
-    theorem_name: CryptoResearch.Quotient.translation_descends_iff_two_torsion
-    name_note: proves commutation with ι_S; descent follows as stated in the file header (sheriff L-N9)
+    theorem_name: CryptoResearch.Quotient.translation_commutes_iff_two_torsion
+    former_name: CryptoResearch.Quotient.translation_descends_iff_two_torsion (until 2026-10-23, sheriff L-N9)
     statement: ∀ (S T : E), (∀ P, -(P+S)+T = -(P+T+S)) ↔ (2:ℕ)•T = 0
     file:      formal/CryptoResearch/Quotient/TranslationDescent.lean
     target:    formal/targets/quotient-translation-descent.yaml
@@ -125,3 +127,17 @@ stays as it is.
   Part D checks every T on two curves, over F_1009 and F_211, with S = 2R not 2-torsion.
   The Lemma agrees for 1008/1008 and 228/228 translations, and the translations that
   descend are exactly the 2-torsion ones (4 and 2).
+
+## Correction (2026-10-23): theorem renamed to what it proves
+
+*Sheriff case SHF-20261017-e4d7f6, finding L-N9.* The Lean theorem was named
+`translation_descends_iff_two_torsion`, but it proves that τ_T commutes with ι_S, not that
+τ_T descends; the step from commutation to descent is the prose argument above. It is now
+`CryptoResearch.Quotient.translation_commutes_iff_two_torsion`, with the same statement and
+proof; its docstring no longer says "descends", and the two unreachable `first` fallbacks
+that raised linter warnings are removed. The Status line and the "Formal target" block
+above now give the new name. Earlier text that quotes the old name (the 2026-10-17
+correction) is left as written, and so are the immutable records that cite it:
+`ledger/decisions/DEC-20260920-11b44c.yaml`, the sheriff case files, and the dated
+verification logs under `docs/reports/`. Build and axiom-audit evidence:
+`docs/reports/2026-10-23-translation-commutes-rename/`.
