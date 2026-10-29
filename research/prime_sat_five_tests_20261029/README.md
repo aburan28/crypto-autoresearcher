@@ -3,7 +3,11 @@
 This implementation follows the five proposals from PR2673. It tests finite
 mechanisms, correctness, certificates, and counted work on fixed tiny inputs.
 It does not assert a cryptographic ECDLP improvement or a new intrinsic degree
-of regularity bound. The frozen contract is EXP-PFIVE-3ca920.
+of regularity bound. The original frozen contract is EXP-PFIVE-3ca920; its
+interrupted trial is retained. Corrective EXP-PFIVE-e26798 completed the same
+78 algebra fixtures and added all-target point validation on two tiny
+prime-order curves. Its native receipt is `output_validated`, with all four
+independent package checks valid.
 
 1. `geometry/`: shared coefficient Graeffe membership, forward correspondence,
    and blind four-coefficient search with explicit exceptional charts.
@@ -35,6 +39,25 @@ No source file contains a solution-dependent policy. Exhaustive model sets
 are generated after candidate solving and used for verification or explicitly
 charged root extraction. The published Multi-homogeneous XL algorithm is not
 reproduced by the block-filtration prototype. Its transfer remains open.
+
+The [completed finite-test report](../../experiments/EXP-PFIVE-e26798/reports/run-20261029T0454Z/report.md)
+records all five leads, retained UNKNOWN outcomes, exact model checks and
+instrument limits. The [original interruption report](../../experiments/EXP-PFIVE-3ca920/reports/run-20261029T0421Z/report.md)
+remains a separate historical record. The corrective checker validated
+44,460 basis certificates, all 1,560 branch assignments, 22 actual point
+decompositions and 31 factor-base UNSAT target cells. These are tiny finite
+correctness results; no regularity reduction or ECDLP speedup is established.
+
+A separate [two-summand lifting derivation](../../experiments/EXP-PFIVE-e26798/reports/run-20261029T0454Z/two-summand-lift-lemma.md)
+gives exact rational witnesses from S3 when the rational target is not
+two-torsion. Its two polynomial identities were checked symbolically. This
+does not amend the frozen experiment or establish a solver improvement.
+
+Raw large artifacts were published and independently downloaded with matching
+hashes. Native snapshot verification still lacks support for policy manifests;
+the [custody integration gap](../../problems/native-snapshot-artifact-manifest-resolution.md)
+and independent scientific review remain open. Reports do not change official
+hypothesis status.
 
 Primary implementation references:
 
