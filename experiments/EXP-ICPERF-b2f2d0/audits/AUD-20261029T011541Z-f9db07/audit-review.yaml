@@ -1,0 +1,325 @@
+# Sweep-tier review of one runbook session. A screen: never a validation_report,
+# never evidence about H-ICPERF-5adc9b, never an execution proof, never a review gate.
+audit_review:
+  audit_id: AUD-20261029T011541Z-f9db07
+  session_dir: experiments/EXP-ICPERF-b2f2d0/runbook-sessions/RBS-ICPERF-c4a91e
+  journal_tip: f8b72cbcdf8b097e0a2792c7254aa21f2187eebd3eb14d0b8fbf468166f3e513
+  auditor_model: claude-sonnet-5-5
+  reviewed_on: '2026-10-29'
+  independence: >-
+    I did not produce this run. Read: AGENTS.md (runbook lines), agents/validator.md,
+    .claude/agents/validator-sweep.md, audit.json, specification.yaml, runbook.yaml,
+    trial-plan.json, the session journal and step logs, the run directory
+    RUN-ICPERF-b09be8, and (read-only, for the sibling comparison) the audit.json and
+    step logs of EXP-ICPERF-e467a5 / RBS-ICPERF-b7e41c and the LGN-8 line of the sheriff
+    REPORT.md. implementation/run.py and check.py were read AFTER the blind script
+    was written and run; see blind_rederivation.
+  deterministic_audit_recap:
+    verdict: clean
+    findings: []
+    replayed_units: 0
+    miss_probability: {0.01: 1.0, 0.05: 1.0, 0.1: 1.0, 0.25: 1.0, 0.5: 1.0}
+    meaning: >-
+      A clean deterministic verdict here means chain, digests and checkers passed on a
+      session with zero valid units. It carries no replay assurance at all: a miss
+      probability of 1.0 at every rate is the audit saying it sampled nothing.
+
+  specification_fidelity:
+    summary: >-
+      The session implements the single sampling arm and the stopping rule but not
+      the preregistered-prediction comparison, not three of the five primary metrics
+      as summarised quantities, and not either control as a runbook control. Under
+      this runbook the session could not have recorded a success or falsification
+      of the frozen prediction by itself; that comparison would be made by a reader.
+    items:
+      - spec_item: "arm: one seeded sample (seed 20261017, p_den 50, n 64, xorshift32)"
+        runbook_counterpart: >-
+          spec_bindings pin /experiment/inputs/{seed,p_den,n_targets}; S02-trials runs
+          trial-plan.json trial geometric-probe-sample; validity asserts seed, n_targets,
+          p_den, trial_id, schema, experiment_id in raw-result.json.
+        status: implemented
+      - spec_item: "primary metric sample_sum"
+        runbook_counterpart: "metrics[sample_sum] (aggregate min,max); replay compare /sample_sum"
+        status: implemented
+      - spec_item: "primary metric sum_squares"
+        runbook_counterpart: "replay compare only; no metrics entry, no validity assertion"
+        status: partial
+      - spec_item: "primary metric median"
+        runbook_counterpart: "replay compare only; no metrics entry, no validity assertion"
+        status: partial
+      - spec_item: "primary metric cv_in_band"
+        runbook_counterpart: "metrics[cv_in_band] (fraction_true); validity asserts type boolean; replay compare"
+        status: implemented
+      - spec_item: "primary metric median_ratio_in_band"
+        runbook_counterpart: "replay compare only; no metrics entry, no validity assertion"
+        status: partial
+      - spec_item: "secondary metric elapsed_seconds"
+        runbook_counterpart: "none (field is in raw-result.json but not summarised)"
+        status: missing
+        note: Secondary and non-load-bearing; recorded for completeness.
+      - spec_item: "control 1: CV^2 against sqrt(1-1/50) via integer band [0.81,1.21]"
+        runbook_counterpart: >-
+          runbook controls: [] . The band test exists only inside run.py as the
+          cv_in_band output field. It is a derived metric, not an independent control,
+          and no control unit or control_validity is defined.
+        status: missing_as_control
+      - spec_item: "control 2: median/mean against ln 2 via integer band [0.6,0.8]"
+        runbook_counterpart: "same: median_ratio_in_band output field only; controls: []"
+        status: missing_as_control
+      - spec_item: "preregistered_prediction / success_criterion: 2943, 289567, 28, both flags true"
+        runbook_counterpart: >-
+          none. No validity assertion or metric equals 2943, 289567 or 28; sample_sum is
+          asserted only as type integer. The summary reports min/max of sample_sum, not
+          agreement with the prediction. Replay would compare a re-run against the
+          first run, not against the frozen integers.
+        status: missing
+      - spec_item: "stopping rule: stop after the single preregistered sample"
+        runbook_counterpart: "trial-plan has one trial; replay sample: 1; on_invalid: stop"
+        status: implemented
+      - spec_item: "invalidation: crash/timeout/median split invalidates the run"
+        runbook_counterpart: >-
+          watchdog 60 s matches wall_clock_seconds_per_run; run.py raises on a median
+          split. Note S02 on_failure retries a timeout up to max_attempts 2 while
+          budget.maximum_runs is 1 (budget enforcement is advisory).
+        status: implemented_with_note
+      - spec_item: "required_artifacts: manifest.yaml, raw-result.json, RESULTS.md in RUN-ICPERF-b09be8"
+        runbook_counterpart: "trial-plan artifacts list; all three present and digest-bound in the unit_recorded entry"
+        status: implemented
+    additional_observations:
+      - >-
+        The run manifest is the point at which this session failed. execution-receipt.json
+        (status invalid_output, published false) records that manifest.yaml fails the
+        run schema of tools/validate_ledger.py: missing code, environment, inputs,
+        timing, result; run.code.commit and run.code.command missing; and
+        run.result.certificate.kind outside discrete_log|decomposition|none. The
+        manifest is a nine-line stub written by run.py. The frozen check.py tests only
+        that the three file names exist and that the manifest names the run, so the
+        instrument's own checker could not catch this. The runbook's file validity
+        assertions cover raw-result.json only, which is why both validity entries read
+        passed:true while the supervisor receipt is invalid_output. The two are
+        consistent in the journal (valid:false, receipt_status invalid_output); I found
+        no discrepancy, only a gap between what the runbook asserts and what the
+        ledger gate requires.
+      - >-
+        This is the LGN-8 pattern (schema-failing run manifests reaching main). The
+        cause here is instrument design (run.py, frozen with specification and
+        runbook hashes), not tampering and not a tool fault. Nothing in the
+        specification or runbook required a ledger-schema-valid manifest, so the
+        design was never checked against that gate before freeze. run.py and check.py
+        are hash-bound by the runbook, so a repair needs an amendment, not an edit.
+      - >-
+        Failure classes differ between records: the unit is invalid_measurement, the
+        step and session are implementation_error (supervisor exit 3). Accurate at
+        each level; a reader should not take implementation_error as a statement about
+        the sampler.
+      - >-
+        preflight.tracked_dirty is true at session start (commit 39d6edf631); the
+        authority commit in the run receipt is 4d49d3ef94, the claim-publication
+        commit named in the claim step's stdout. Both commits exist in the repository.
+        What was dirty was not recorded, so I cannot say whether it touched anything
+        bound. The four bound files do hash to their bound digests now
+        (specification, trial-plan, run.py, check.py, runbook all re-hashed equal).
+      - >-
+        reports/run-20261021T1428Z (generated by tools/runbook.py report) was not
+        part of this audit. Its data.json shows an empty graph (points: []) and the
+        same null summary, consistent with 0 valid units.
+
+  blind_rederivation:
+    primary_metric: >-
+      The specification lists five primary metrics. I took the first, sample_sum,
+      and computed the other four from the same draws as a by-product, because they
+      cost nothing extra.
+    script: experiments/EXP-ICPERF-b2f2d0/audits/AUD-20261029T011541Z-f9db07/scripts/blind_rederive.py
+    inputs_read_by_script: >-
+      specification.yaml only, for the definition; runs/RUN-ICPERF-b09be8/raw-result.json
+      only to print the producer's claimed values next to mine, after the computation.
+    blind_from_respected: true
+    underspecification_found: >-
+      The specification does not give the xorshift32 shift triple, whether the count
+      includes the stopping draw, or whether draw i+1 continues from the state at
+      which draw i stopped. I used the standard Marsaglia triple (13,17,5), counted
+      steps including the stopping step (support {1,2,...}), and tried both
+      continuation conventions. The specification is therefore not strictly sufficient
+      to derive the number blind: only one of my two readings reproduces it. Because
+      the preregistered integers (2943, 289567, 28) are also in the specification, my
+      selection of the matching variant was informed by them. This is an
+      identification of the convention, not an independent confirmation of the
+      sampler's correctness.
+    results:
+      variant_A_continue_state_from_previous_stop:
+        sample_sum: 2943
+        sum_squares: 289567
+        median: 28
+        median_split: false
+        cv_in_band: true
+        median_ratio_in_band: true
+      variant_B_restart_from_seed_each_draw:
+        sample_sum: 448
+        sum_squares: 3136
+        median: 7
+        cv_in_band: false
+        median_ratio_in_band: false
+      session_summary_and_raw_result:
+        sample_sum: 2943
+        sum_squares: 289567
+        median: 28
+        cv_in_band: true
+        median_ratio_in_band: true
+    comparison: >-
+      Variant A equals the producer's raw-result.json in all five primary fields.
+      The session summary itself reports sample_sum min/max = null and cv_in_band
+      fraction_true = null (n = 0, trial excluded as invalid), so there is no
+      summary value to compare against; the comparison is to the unit's raw output,
+      which the summary excluded.
+    caveats:
+      - >-
+        Agreement shows that raw-result.json holds the values the frozen xorshift32
+        reading yields. It does not rescue the unit: the unit is recorded invalid and
+        is excluded from the summary.
+      - >-
+        The script's median_ratio test line contains a vestigial `3*n*1 <= 0 or`
+        guard (always False, so inert). It does not alter the result; noted so a
+        later reader is not misled.
+      - >-
+        The statistical meaning (whether the CV band is the right test of a
+        geometric law) is not examined here; the sweep tier does not assess
+        inference.
+
+  certificate_checks:
+    applicable: false
+    reason: >-
+      This experiment has no certificate. There is no [k]P = Q, relation or
+      decomposition; the unit's output is a set of moments of a seeded sample.
+      Separately, audit.json lists replays: [] and the summary shows 0 valid
+      units, so the requested "two replayed units" do not exist, and the single
+      unit is the only unreplayed unit.
+    what_i_did_instead:
+      - >-
+        Unit geometric-probe-sample (unreplayed, invalid): re-derived all five fields
+        from first principles with arithmetic that shares no code with run.py
+        (blind_rederive.py, own xorshift32 and own moment code). Matches; see above.
+      - >-
+        Unit geometric-probe-sample, band flags: recomputed with integer
+        arithmetic from 64 * 289567 - 2943^2 over 2943^2 against [81/100, 121/100]
+        and median * 64 / 2943 against [3/5, 4/5]; both hold, matching the
+        specification's own formula.
+      - >-
+        No second unit exists to check. I did not check the only certificate-like
+        object, the execution receipt, beyond hash agreement (below).
+    could_not_do:
+      - Two replayed units: none exist (replayed_units 0).
+      - Two unreplayed units: only one unit exists.
+      - >-
+        Any statement about the unit being reproducible by the tool's own replay,
+        since the replay mode (fields, sample 1) never ran on an invalid unit.
+
+  integrity_spot_checks:
+    note: >-
+      Beyond the deterministic audit, as a cross-check for the sibling-session
+      pattern requested by the dispatcher. Not a re-run of the audit.
+    step_log_digests:
+      method: >-
+        sha256 of each file in steps/ computed independently and compared with the
+        digest in the journal, and compared with the blob committed in HEAD.
+      result: >-
+        All eight step logs match both the journal digest and the committed blob.
+        Five are empty (digest e3b0c442...); claim.stdout, release.stdout and
+        supervisor.stdout are small ASCII/JSON. Line endings are lf in index and
+        worktree (git ls-files --eol), and .gitattributes does not rewrite them.
+    run_directory_digests:
+      result: >-
+        All eleven files in RUN-ICPERF-b09be8 hash equal to the values in
+        execution-receipt.json artifact_sha256 and the unit_recorded artifacts
+        (RESULTS.md, manifest.yaml, raw-result.json). The worktree is clean
+        for the experiment directory apart from the new audits/ folder.
+    sibling_comparison_RBS_ICPERF_b7e41c:
+      sibling_finding: >-
+        EXP-ICPERF-e467a5 audit flagged steps/S02-trials.attempt-1.supervisor.stderr
+        as differing from its recorded digest. The journal records the empty-file
+        digest (e3b0c442...) for that log, while the file on disk is 96 bytes
+        (sha256 85aab135...) and reads: "execution impediment: claim is not visible in
+        origin tracking refs; publish/fetch before launch". I did not modify it.
+      this_session: >-
+        The same log, S02-trials.attempt-1.supervisor.stderr, is empty here (0 bytes)
+        and matches its recorded digest. The same pattern, a supervisor message
+        written after, or not captured in, the digest, is NOT present in this
+        session. The digests match for each of the eight logs.
+      inference_limit: >-
+        This tells me nothing about why the sibling's stderr differs. Possibly the
+        sibling's launch hit a claim-visibility failure and the tool wrote its
+        message to the file after the digest was taken. The present session's claim
+        step stdout records "published 4d49d3ef94 and pushed", so its claim was
+        visible and the impediment does not arise. That difference between the two
+        sessions is an observation, not a diagnosis.
+
+  lean_statement_fidelity:
+    obligations: []
+    result: >-
+      audit.json lean: [] and the summary lean_obligations: []; the runbook declares
+      no Lean step. Nothing to review. semantic_review is not applicable.
+
+  not_covered:
+    from_audit_json: []
+    added_by_reviewer:
+      - >-
+        Zero valid units: no unit was replayed, no unit contributes to a summary
+        metric, and execution_proofs show verified_units 0 / failed_units 0 /
+        unavailable_units 0 with the chain marked "incomplete: docs/execution-proof-chain.md
+        milestones are open". No execution proof exists for this session.
+      - >-
+        The replay of the single trial (mode fields, sample 1) never ran. Detection
+        power of the audit against a falsified unit is nil for this session (miss
+        probability 1.0 at every rate).
+      - >-
+        The preregistered-prediction comparison (2943, 289567, 28, both flags true) is
+        not encoded in the runbook, so the session did not itself establish success or
+        falsification; only my out-of-band blind script and a reader's manual reading
+        of raw-result.json do.
+      - >-
+        Neither control in the specification is a runbook control; no negative control
+        of the sampler exists (nothing shows that a wrong sampler would be detected).
+      - >-
+        sum_squares, median, median_ratio_in_band and elapsed_seconds are not summarised
+        metrics. Only sample_sum and cv_in_band are, and both read null (n 0).
+      - >-
+        The manifest.yaml schema failure (validate_ledger) was read from
+        execution-receipt.json detail; I did not re-run tools/validate_ledger.py.
+      - >-
+        The nature of the tracked_dirty:true preflight state is unrecorded.
+      - >-
+        The report in reports/run-20261021T1428Z, the claim/release files under
+        coordination/design/TASK-20261017-054f82, and ledger/decisions/DEC-20261017-f2d04c.yaml
+        contents were not audited (the last only checked for existence).
+      - >-
+        Whether 64 geometric draws or the CV and median bands say anything about
+        probe counts or host latency. Specifically out of scope: the specification
+        itself says no transfer to the 8 GiB table, n=83, or cross-host ratios.
+
+  verdict: flagged
+  verdict_reason: >-
+    Integrity of the session records is clean: chain tip, step-log digests, run
+    directory digests, bound-file digests and journal-versus-receipt consistency all
+    check out, and the sibling's log-digest mismatch does not recur. The flag is for
+    two reader-level reasons. (1) The only unit is invalid, so the audit has no
+    substance beyond bookkeeping, and its "clean" verdict must not be read as
+    assurance on the sampler; the cause is a stub run manifest that fails the ledger
+    run schema (LGN-8 pattern), which the frozen runbook and check.py cannot catch
+    and which needs an amendment. (2) The runbook does not implement the
+    preregistered prediction, either control, or three of the five primary metrics,
+    so even a valid unit could not have settled the specification's success
+    criterion without a reader. Not "broken": nothing contradicts the records, and
+    my blind re-derivation reproduces the raw values (convention-dependent, see
+    underspecification_found).
+  escalate: true
+  escalate_to: validator (full validation) and the Experiment Director for the manifest and runbook gap
+  follow_up_suggestions:
+    - >-
+      Amendment (not an edit): make run.py emit a ledger-schema-valid manifest and
+      add assertions for 2943, 289567, 28 and both flags, plus summarised metrics for
+      all five primary fields. Re-run only under the amendment.
+    - >-
+      Do not cite RBS-ICPERF-c4a91e or RUN-ICPERF-b09be8 as a pass of the instrument
+      cell: the unit is invalid_output and unpublished.
+    - >-
+      Investigate the sibling RBS-ICPERF-b7e41c stderr digest separately; this
+      session gives no evidence on its cause.

@@ -206,7 +206,7 @@ test('a live hour shows writes and reads per second, not a zero placeholder', ()
     available: true,
     stale: false,
     latest_point: new Date().toISOString(),
-    database: {id: 'rho-dp', status: 'available', engine: 'postgres', region: 'us-west-2'},
+    database: {id: 'rho-dp', account_id: '104186811093', status: 'available', engine: 'postgres', region: 'us-west-2'},
     last_hour: {basis: 'wall', empty: false, samples: 60,
                 write_iops: 1720, read_iops: 11600,
                 write_bytes_per_sec: 25 * 1024 * 1024,
@@ -218,6 +218,8 @@ test('a live hour shows writes and reads per second, not a zero placeholder', ()
               allocated_bytes: 400 * (1024 ** 3)},
   });
   assert.match(el.textContent, /Last hour/);
+  assert.match(el.textContent, /AWS account 104186811093/);
+  assert.match(el.textContent, /Object store metrics unavailable for this snapshot/);
   assert.match(el.querySelector('.ops-head').textContent, /snapshot/);
   assert.doesNotMatch(el.querySelector('.ops-head').textContent, /live/);
   assert.match(el.textContent, /1\.7k\/s/);
