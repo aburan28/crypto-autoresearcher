@@ -77,6 +77,14 @@ set_option pp.explicit true
 #check @multiplication_not_affine
 #check @two_probes_insufficient
 #check @zero_ring_product_control
+
+-- Native negative control: this application would prove False in the zero ring
+-- if the multiplication obstruction did not require Nontrivial R.
+-- #check_failure itself fails elaboration if the term is accepted.
+#check_failure
+  (multiplication_not_affine (R := ZMod 1) 0 0 0
+    (fun x y => zero_ring_product_control x y) : False)
+
 #print axioms recover_coefficients
 #print axioms coefficients_eq_of_probes
 #print axioms three_probe_extensionality
