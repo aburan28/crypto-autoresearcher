@@ -97,7 +97,9 @@ degree-two first fall, but its theorem proves only a trace identity
    names no existing spec. Each prerequisite is copied into the dispatch
    stanza's constraints, so the executor and reviewer see the hole. Write the
    map before formalizing. A hidden prerequisite found mid-attempt is
-   recorded there, not proved silently in a helper lemma.
+   recorded there, not proved silently in a helper lemma. Add the block only
+   to new specs. Receipts bind a committed spec's hash, so the map of an
+   existing chain goes in `formal/targets/README.md`.
 3. **Errata.** When a formalization shows that a source note or published
    lemma is false or under-hypothesized, the counterexample becomes a
    correction record or a `KN-OPEN`/`KN-LIT`. Do this even when the attempt

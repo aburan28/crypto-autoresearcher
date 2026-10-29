@@ -19,6 +19,12 @@ proof_map:
     - "Semaev S3 vanishes exactly on x-coordinates of collinear triples"
 ```
 
+Add `proof_map` only to **new** targets. A committed spec is frozen: its
+verification receipts bind its SHA-256 (`orchestration/formal/receipts.py`,
+"spec hash"), so adding the block to an old spec would make every receipt for
+it stale. Record the dependency map of an existing chain in this README
+instead, as the Semaev S₃ chain does below.
+
 Every `claim` here is quoted or tightly paraphrased from a committed theory
 note, and `source` names the note it came from. Do not write a claim that is
 not traceable to one: a formalization of a claim nobody made proves nothing
@@ -72,6 +78,37 @@ confirmed the finite degree-three first fall and the narrower trace theorem.
 Its [dated target correction](corrections/2026-10-25-semaev-s3-degree-two.md)
 withdraws the frozen target's uniform degree-two inference while preserving
 the original target bytes.
+
+### Proof map of the Semaev S₃ first-fall chain (recorded 2026-10-29)
+
+The finite chain was split into these targets after a hidden prerequisite
+surfaced: the map from equations to row space. The arrows follow the Lean
+`import` graph. The prerequisites are what each step takes as given without
+a Lean proof.
+
+```text
+semaev-s3-degree2-fall-witness          (DegreeTwoFall; standalone trace identity)
+  prerequisite: the descended degree-two coefficients have the form t^2 + t*x_R
+                (FFD_SEMAEV_MEASUREMENT1; a model of the S_3 descent, not formalized)
+  prerequisite: a vanishing degree-two part gives a new class outside V_1
+                (refuted as a uniform statement: corrections/2026-10-25-semaev-s3-degree-two.md)
+
+semaev-s3-boolean-parity-finite-20261022        (BooleanParityFiniteCertificate)
+  prerequisite: the transcribed equations are the archived n=n'=4, x_R=1 draw
+                (bound by source-binding receipts, not by Lean)
+├── semaev-s3-finite-equation-semantics-20261022   (FiniteEquationSemantics)
+└── semaev-s3-semantic-rank-degree2-20261022       (BooleanParitySemanticRankCertificate)
+    └── semaev-s3-semantic-rank-degree3-20261022   (BooleanParityDegreeThreeRankCertificate)
+        └── semaev-s3-finite-filtration-20261022   (BooleanParityFiltrationCertificate)
+            └── semaev-s3-concrete-first-fall-20261023 (ConcreteFirstFallWitness)
+```
+
+What is still open is a generic descent from abstract `S₃` and a general
+first-fall statement (`problems/semaev-degree-two-fall-nonzero-bridge.md`).
+That statement would also need Semaev's correspondence: `S₃` vanishes exactly
+on the x-coordinates of collinear triples. No target here proves that
+correspondence. `semaev-decomposition-certificate` checks the group law
+directly instead.
 
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)

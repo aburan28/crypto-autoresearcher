@@ -97,7 +97,8 @@ advice, Bernstein–Lange rho is 53–317x faster online.
 6. **Optimal Coppersmith shift set** (`LEAD-ICP-coppersmith-smallroot-semaev`). The
    recorded closure "by 0.048" used one Jochemsz–May strategy, with 0.159 of slack
    unused. Ryan's (EUROCRYPT 2025) optimal shifts at (m, w) = (4, 2) are a calculator
-   run with a decisive outcome.
+   run with a decisive outcome. *Superseded 2026-10-29: done, and the lead is closed
+   (`docs/reports/ecdlp-lead-atlas-20261029/`).*
 7. **Joux–Vitse sieve on the GF(p^6) weak class, with full accounting**
    (`LEAD-TRF-jv-sieve-fp6-weak-class`). This is the only transfer ever measured
    below strong rho (0.011x including the walk), but its comparisons were withheld
