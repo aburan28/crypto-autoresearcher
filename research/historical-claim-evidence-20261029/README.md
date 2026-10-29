@@ -96,8 +96,10 @@ beyond its total allowance. The successor checks the allowance before fetching
 the blob. Thirteen tests now pass (`unit-tests-v2.txt`), including pre-fetch
 aggregate refusal and oversized matrix refusal. `integrity-v2.json` preserves
 the successor reader's result; the original receipt remains unchanged. The
-seed builder now uses the archive's full commit literal. Hosted CI and final
-review of these fixes remain pending. The original PDF records the initial
+seed builder now uses the archive's full commit literal. The independent
+focused review confirmed the fixes at `4e43502d0dfd9493120e98d832f0bee1084fa117`;
+both original and fix reviews are preserved byte-for-byte under `code-review/`.
+Hosted checks for the final PR head remain pending. The original PDF records the initial
 publication stage and is preserved; these implementation fixes do not change
 the evidence-flow diagram or claim/evidence contents.
 
