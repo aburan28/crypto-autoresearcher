@@ -1,0 +1,373 @@
+# Runbook for EXP-ICPERF-283a70 (version-2 successor of EXP-ICPERF-b2f2d0). New session RBS-ICPERF-67df7d; the version-1 session RBS-ICPERF-c4a91e is terminal.
+# Runs only after a committed decision names this file's sha256 (runbook_sha256).
+schema: crypto.autoresearch.runbook.v1
+experiment_id: EXP-ICPERF-283a70
+session_id: RBS-ICPERF-67df7d
+title: Draw the frozen geometric sample and two wrong-sampler controls, and record each
+purpose: Three deterministic trials. The primary trial draws 64 geometric counts at success
+  probability 1/50 from seed 20261017 and records the sample moments. Two wrong samplers run
+  beside it. The assertions decide the frozen success criterion by exact match with 2943,
+  289567 and 28; the band flags are descriptive. Observations only. Host latency is not an
+  input.
+executor_tier: mechanical
+approval:
+  mode: decision_record
+binds:
+- path: experiments/EXP-ICPERF-283a70/specification.yaml
+  sha256: 3b36b0f86e465f181ef516ded689a8e79d7821b4277f3306fad613d6fc97fc47
+- path: experiments/EXP-ICPERF-283a70/trial-plan.json
+  sha256: e8344b194d0278fb523fe804a0d8d536705279d9f866674afbd05737311759a9
+- path: experiments/EXP-ICPERF-283a70/implementation/run.py
+  sha256: 53965863abfea9c7cf326bc8d24546eb4889654f9c4dc5e2344b662000bf9a38
+- path: experiments/EXP-ICPERF-283a70/implementation/check.py
+  sha256: 3168dc51a5074ed4b688889043e996db0e03576b17c178b0106c2b608708ad7f
+spec_bindings:
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/seed
+  equals: 20261017
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/p_den
+  equals: 50
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/n_targets
+  equals: 64
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/shifts
+  equals:
+  - 13
+  - 17
+  - 5
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/support_min
+  equals: 1
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/cv_band
+  equals:
+  - 0.9
+  - 1.1
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/median_ratio_band
+  equals:
+  - 0.6
+  - 0.8
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/preregistered/sample_sum
+  equals: 2943
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/preregistered/sum_squares
+  equals: 289567
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/preregistered/median
+  equals: 28
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/negative_controls/wrong_triple
+  equals:
+    shifts:
+    - 1
+    - 2
+    - 14
+    support_min: 1
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/inputs/negative_controls/support_zero
+  equals:
+    shifts:
+    - 13
+    - 17
+    - 5
+    support_min: 0
+- file: experiments/EXP-ICPERF-283a70/specification.yaml
+  pointer: /experiment/runbook/session_id
+  equals: RBS-ICPERF-67df7d
+environment:
+  programs:
+  - python3
+  env:
+    PYTHONHASHSEED: '0'
+steps:
+- id: S01-probe-python
+  kind: command
+  purpose: probe
+  title: Record the interpreter that runs the trials
+  explain: Writes the python3 version, implementation and executable path to environment.json
+    in this step output directory.
+  argv:
+  - python3
+  - -c
+  - 'import json, platform, sys; json.dump({''python'': platform.python_version(), ''major'':
+    sys.version_info[0], ''implementation'': platform.python_implementation(), ''executable'':
+    sys.executable}, open(sys.argv[1], ''w''))'
+  - '{out}/environment.json'
+  timeout_seconds: 60
+  validity:
+    exit_code: 0
+    outputs:
+    - path: '{out}/environment.json'
+      json: true
+      assertions:
+      - pointer: /major
+        equals: 3
+      - pointer: /implementation
+        equals: CPython
+      - pointer: /python
+        type: string
+      - pointer: /executable
+        type: string
+  on_failure:
+  - when:
+      timed_out: true
+    class: resource_exhaustion
+    action: retry
+    max_attempts: 2
+  tell_on_failure: python3 did not run. The session has stopped. Report this step stderr log
+    path.
+- id: S02-trials
+  kind: trials
+  title: Run every preregistered trial and record each unit
+  explain: Runs run.py then check.py for each frozen trial in its own write-once directory;
+    the assertions record the success criterion and each control.
+  plan: experiments/EXP-ICPERF-283a70/trial-plan.json
+  engine: supervisor
+  claim:
+    ttl_minutes: 30
+  timeout_seconds: 180
+  validity:
+    files:
+    - path: raw-result.json
+      json: true
+      assertions:
+      - pointer: /schema
+        equals: crypto.autoresearch.exp-icperf-283a70.stage0.v2
+      - pointer: /trial_id
+        equals: '{trial_id}'
+      - pointer: /run_id
+        equals: '{run_id}'
+      - pointer: /experiment_id
+        equals: EXP-ICPERF-283a70
+      - pointer: /hypothesis_id
+        equals: H-ICPERF-5adc9b
+      - pointer: /attack_claimed
+        equals: false
+      - pointer: /exact_match
+        type: boolean
+      - pointer: /interpreter/implementation
+        type: string
+      - pointer: /interpreter/version
+        type: string
+      - pointer: /seed
+        equals: 20261017
+      - pointer: /p_den
+        equals: 50
+      - pointer: /n_targets
+        equals: 64
+      - pointer: /preregistered
+        equals:
+          sample_sum: 2943
+          sum_squares: 289567
+          median: 28
+      - pointer: /sample_sum
+        type: integer
+      - pointer: /sum_squares
+        type: integer
+      - pointer: /median
+        type: integer
+      - pointer: /cv_in_band
+        type: boolean
+      - pointer: /median_ratio_in_band
+        type: boolean
+    - path: manifest.yaml
+      json: true
+      assertions:
+      - pointer: /run/id
+        equals: '{run_id}'
+      - pointer: /run/trial_id
+        equals: '{trial_id}'
+      - pointer: /run/experiment_id
+        equals: EXP-ICPERF-283a70
+      - pointer: /run/task_id
+        equals: TASK-20261029-f370f1
+      - pointer: /run/approved_by
+        equals: DEC-20261029-0e40f3
+      - pointer: /run/attack_claimed
+        equals: false
+      - pointer: /run/result/certificate/kind
+        equals: none
+      - pointer: /run/result/raw_result
+        equals: raw-result.json
+  by_trial:
+    geometric-probe-sample:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: geometric-probe-sample
+        - pointer: /role
+          equals: primary
+        - pointer: /shifts
+          equals:
+          - 13
+          - 17
+          - 5
+        - pointer: /support_min
+          equals: 1
+        - pointer: /sample_sum
+          equals: 2943
+        - pointer: /sum_squares
+          equals: 289567
+        - pointer: /median
+          equals: 28
+        - pointer: /median_split
+          equals: false
+        - pointer: /exact_match
+          equals: true
+        - pointer: /cv_sq_num
+          equals: 9871039
+        - pointer: /cv_sq_den
+          equals: 8661249
+        - pointer: /median_ratio_num
+          equals: 1792
+        - pointer: /median_ratio_den
+          equals: 2943
+    ctl-neg-wrong-triple:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-neg-wrong-triple
+        - pointer: /role
+          equals: negative_control
+        - pointer: /shifts
+          equals:
+          - 1
+          - 2
+          - 14
+        - pointer: /support_min
+          equals: 1
+        - pointer: /sample_sum
+          equals: 2938
+        - pointer: /sum_squares
+          equals: 290138
+        - pointer: /median
+          equals: 29
+        - pointer: /median_split
+          equals: false
+        - pointer: /exact_match
+          equals: false
+    ctl-neg-support-zero:
+      files:
+      - path: raw-result.json
+        json: true
+        assertions:
+        - pointer: /trial_id
+          equals: ctl-neg-support-zero
+        - pointer: /role
+          equals: negative_control
+        - pointer: /shifts
+          equals:
+          - 13
+          - 17
+          - 5
+        - pointer: /support_min
+          equals: 0
+        - pointer: /sample_sum
+          equals: 2879
+        - pointer: /sum_squares
+          equals: 283745
+        - pointer: /median
+          equals: 27
+        - pointer: /median_split
+          equals: false
+        - pointer: /exact_match
+          equals: false
+  controls:
+  - ctl-neg-wrong-triple
+  - ctl-neg-support-zero
+  replay:
+    mode: fields
+    sample: 3
+    compare:
+    - file: raw-result.json
+      pointers:
+      - /sample_sum
+      - /sum_squares
+      - /median
+      - /median_split
+      - /exact_match
+      - /cv_sq_num
+      - /cv_sq_den
+      - /median_ratio_num
+      - /median_ratio_den
+      - /cv_in_band
+      - /median_ratio_in_band
+  on_invalid: stop
+  on_failure:
+  - when:
+      timed_out: true
+    class: resource_exhaustion
+    action: retry
+    max_attempts: 2
+  tell_on_failure: The trial stopped. Report the run directory named by the plan and do not
+    edit the specification.
+metrics:
+- name: sample_sum
+  unit: count
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /sample_sum
+  aggregate:
+  - min
+  - max
+- name: sum_squares
+  unit: count
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /sum_squares
+  aggregate:
+  - min
+  - max
+- name: median
+  unit: count
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /median
+  aggregate:
+  - min
+  - max
+- name: cv_in_band
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /cv_in_band
+  aggregate:
+  - fraction_true
+- name: median_ratio_in_band
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /median_ratio_in_band
+  aggregate:
+  - fraction_true
+- name: exact_match
+  unit: fraction
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /exact_match
+  aggregate:
+  - fraction_true
+- name: elapsed_seconds
+  unit: seconds
+  label: measured
+  step: S02-trials
+  file: raw-result.json
+  pointer: /elapsed_seconds
+  aggregate:
+  - max
+report:
+  graph_metric: sample_sum
