@@ -17,7 +17,7 @@ TOOL = Path(__file__).resolve().parent / "artifacts.py"
 sys.path.insert(0, str(TOOL.parent))
 import artifacts  # noqa: E402
 import wire_workflows  # noqa: E402
-from wire_workflows import explicitly_pulled_and_verified  # noqa: E402
+from wire_workflows import explicitly_pulled_and_verified, wire  # noqa: E402
 
 
 def sh(cwd, *argv, check=True, env=None):
@@ -220,6 +220,31 @@ class S3Argv(unittest.TestCase):
 
 class WorkflowWiring(unittest.TestCase):
     PATH = "examples/experiment-protocol/ecbench-l2-smoke-subset/session"
+
+    def test_comment_only_data_path_does_not_require_pull(self):
+        from wire_workflows import needed
+        text = "# See docs/ci-tiers.md for the policy.\nrun: echo checked\n"
+        moved = {"docs/reports/one/figure.png"}
+        dirs = {"docs", "docs/reports", "docs/reports/one"}
+        self.assertEqual(needed(text, moved, dirs), [])
+        self.assertEqual(needed("run: echo docs/reports-s3.md\n", moved, dirs), [])
+        self.assertEqual(needed("run: cat docs/reports/one/figure.png\n", moved, dirs),
+                         ["docs/reports/one/figure.png"])
+
+    def test_scope_only_checkout_stays_unwired(self):
+        workflow = ("jobs:\n  changes:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "        with:\n          sparse-checkout: .github/scripts\n"
+                    "      - run: python3 .github/scripts/ci_scope.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertEqual(wired, workflow)
+
+    def test_data_reading_checkout_still_gets_pull(self):
+        workflow = ("jobs:\n  ledger:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "      - run: python3 tools/check_merge_hygiene.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertIn("artifacts.py pull --jobs 16 coordination docs", wired)
 
     def workflow(self):
         return ("jobs:\n"
