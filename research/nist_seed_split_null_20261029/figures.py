@@ -67,3 +67,9 @@ ax.set_title(f"Frozen held-out test: held-out > published in {pr['observed']:.3f
              f"(permutation p = {pr['perm_p_one_sided']:.2f}; does not replicate)", fontsize=8)
 ax.legend(fontsize=7, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3); ax.set_ylim(40, 73)
 fig.tight_layout(); fig.savefig("fig_heldout.svg")
+
+# Typst renders SVG text with its own fonts; name the serif it already embeds so a
+# report PDF does not carry a second font (keeps report.pdf under the 64 KiB data limit).
+import pathlib
+for name in ("fig_null.svg", "fig_sweep.svg", "fig_heldout.svg"):
+    p = pathlib.Path(name); p.write_text(p.read_text().replace("font-family: 'DejaVu Sans'", "font-family: 'Libertinus Serif', 'DejaVu Sans'"))
