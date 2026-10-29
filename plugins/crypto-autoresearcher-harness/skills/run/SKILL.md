@@ -126,6 +126,13 @@ the run records: commit and push those first (below), then the report. If no
 renderer can be installed, commit the report source and graphs and state the
 blocker; do not skip the report.
 
+When `experiments/<EXP-ID>/protocol.json` exists, also write the unified
+export beside the run records: `python3 tools/experiment_protocol.py
+from-rows|from-taskq ... --protocol experiments/<EXP-ID>/protocol.json --out
+experiments/<EXP-ID>/export.json`, then `check-export --verify-files` until it
+passes (`docs/experiment-protocol.md`). The export carries rows and hashes
+only; its `notes` are observations.
+
 ## Publish the run records
 
 Run records left only in a working tree are not evidence and are invisible to

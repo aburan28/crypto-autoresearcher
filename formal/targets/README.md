@@ -56,6 +56,11 @@ of the latter at nonzero `x_R`. Thus the trace identity does not certify the
 historical uniform first-fall wording. The new finite target checks one
 transcribed counterexample's executable ranks; its semantic limits are stated
 in that target and the [open problem](../../problems/semaev-degree-two-fall-nonzero-bridge.md).
+The [independent semantic review](../../docs/reports/2026-10-25-semaev-semantic-review/composition.md)
+confirmed the finite degree-three first fall and the narrower trace theorem.
+Its [dated target correction](corrections/2026-10-25-semaev-s3-degree-two.md)
+withdraws the frozen target's uniform degree-two inference while preserving
+the original target bytes.
 
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
@@ -64,6 +69,16 @@ bases, degree-compatible term orders and row-echelon Macaulay matrices.
 
 Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
 a **lower** bound for the solving degree, not an upper one.
+
+## Batch-five discriminant wording
+
+The frozen `endosweep-dk-exact-batch5-discriminants.yaml` target proves exact
+integer and abstract-order statements. Its notes call the listed-factor
+product the squarefree part unconditionally; the theorem makes factor
+primality an explicit premise for fundamentality. The [dated correction](corrections/2026-10-25-endosweep-batch5-squarefree.md)
+records the conditional wording and named-curve model boundary without
+changing the frozen target or its Lean proposition. The [independent review](https://github.com/aburan28/crypto-autoresearcher/blob/c613c3b2173a05e46fbd3cf8e967581b9878e5fa/docs/reports/2026-10-25-batch5-semantic-review/composition.md)
+binds the source, theorem and blind arithmetic.
 
 ## FROB C4 conditional order arithmetic
 
@@ -126,6 +141,15 @@ admissible-dimension files. It proves their product is `X^17+1` over
 that the field Frobenius has the asserted normal-basis module structure,
 or that the listed dimensions exhaust all invariant subspaces.
 
+`binstd-encoded-divisors.yaml` kernel-checks the archived integer masks
+131081, 313 and 471 against every monic bitmask divisor through half their
+degrees, using the exact XOR-and-shift remainder function in its Lean source.
+The three concrete Boolean equalities use `decide` and depend only on
+`propext`. This certifies the finite encoded computation; it does not prove
+the remainder function correct for `(ZMod 2)[X]` or that the masks denote the
+polynomials in `Factorization.lean`. The irreducibility and Frobenius-model
+obligations remain open.
+
 `binstd-yield-ceiling.yaml` targets the conditional arithmetic in
 `KN-FIND-48f0ae`: if a positive-count open arm hit every target and the tau
 arm cannot exceed the target count, its tau/open ratio is strictly below the
@@ -137,6 +161,17 @@ All three NCP targets come from one note that was read end to end. Do not add ta
 skimming a note for a quotable sentence — the surrounding definitions are the
 part the engine has to get right, and a claim detached from them formalizes
 into something that is not the claim.
+
+## Quotient translation commutation
+
+`quotient-translation-descent.yaml` proves the group-law identity of
+`THM_QUOTIENT_DESCENT1`: τ_T commutes with ι_S = [−1] ∘ τ_S, for every S,
+exactly when 2T = 0. It is stated in any additive commutative group. The
+[independent semantic review of 2026-10-29](../../docs/reports/2026-10-29-quotient-translation-descent-review/review.md)
+finds it faithful to the target's claim (`faithful_scoped`, `validated_scoped`
+for that claim only). It does **not** support the note's descent Lemma as
+titled: degree-2 maps as quotients by ι_S, and descent ⟺ commutation, are
+prose. It does not support the summation-polynomial Corollary either.
 
 ## Natural follow-ups, deliberately not specced yet
 

@@ -1,0 +1,41 @@
+# Local Prym width preparation — updated 2026-10-26
+
+No new scientific attempts were launched. The phase checker passes 148 local tests, the separate software reviewer retains seven repaired/retested findings and 38 independent probes, the width/storage/export/cache implementation passes 53 planted tests, and the daily exporter passes five tests. Experiment EXP-ECDLP-a9b6a5 remains review_required, unapproved and scientifically unauthorized. No hypothesis or goal transition is recorded.
+
+Fixed proposal: same ordinary toy curves over p=4099, A=2, B=13 and 16, r=4021 and 4111, original P/EC1 identities, first eight atoms/lifts and public sources 1..64. Append the next eight norm classes by the unchanged lexicographic rule, preserving the inherited x=0 atom and explicit interpolation rejection. Copy original source order independently of the new base UID.
+
+Derived workload: C(16,3)*4^3=35,840 branches/source; 2*64*35,840=4,587,520 new m16 attempts. The archived m8 full reference contributes 458,752 prior attempts and is not rerun. Its known zero-row/rank0/U7 cases motivated selection. No new m16 acceptance or rank labels are observed. Historical instrumentation and execution contexts prevent a matched-performance conclusion.
+
+The cross-repository protocol is content-frozen and validates with zero findings; canonical protocol hash 6e88a562c9a1a53c20bbbfca346b3583da9bf23ae28bf5fbe80d33ab087a9163. Frozen analysis/export helper, exact counted metrics, clock-invalid diagnostics, protective 86400-second watchdog and 1500-minute claim TTL are bound. A content freeze is not experiment approval or source-publication authority.
+
+Repository access is restored at isogeny-labs/crypto-autoresearcher, stable ID 1301963193. Root fetched main 0e8723243 and ordinarily merged it at c9a1b7d1. The earlier GitHub 404/fetch 403 and stale e5f46a59 are historical. Local runtime revision 108 still has no configured artifact identity. Root found a candidate existing Actions ARTIFACTS selector; its old failure was missing sparse config/order, not observed AWS authorization. The declared probe-only CI route remains unverified until real Put/Get/readback and old-object hydration pass.
+
+Controls: old8 prefix and native-lift identity; independent public fixture/order/generator/EC1 and signed-anchor projection; every complete attempted status including rejections/aliases; old8 tuple/options inclusion; planted positive embedding because historical accepted-witness embedding is vacuous; transported-encoding A/A; false-source, altered lift/U/pivot/kernel/status/digest negatives. Collection never stops at full rank.
+
+Runnable package: final manifest binds 56 sources and 15 inputs, with manifest-self and frozen protocol added separately to the native plan. Exact native 19 outputs plus outside-seal export.json and export-analysis.json give 21 required task outputs. A write-once helper reconstructs ignored, hash-checked export-input caches from canonical native bytes without changing old seals. Actual observed commits/seeds/raw bytes are required; missing hydration or identity refuses export. No actual target export exists.
+
+Actual dated preapproval, admission-20261026T005445Z, exits 2 and reports approvable:false with 30 source-publication/lawful-lane blockers. It reports no structural/hash/coverage/route defect. Original 20-blocker attempt is preserved unchanged. Director retains executor-implementation because the mechanical runner ignores supervisor_execution and would bypass the required preseal Publisher. No incomplete runbook/card is supplied.
+
+Fresh scientific review TASK-20261025-2fe077 remains reserved and undispatched. The exact sealed-blind-review/v1 plan binds handoff, blind derivation, Coordinator seal, deliberate release and complete ordered relevant repository reads. Archive derivation+seal before release while reviewer yields its lease and archives run alone. Keep the generic experiment.review/v1 companion, native joint findings and all custody limitations. New software checks do not repair historical missing first-unblind timing.
+
+Raw field/group/hash/matrix/checker/storage vectors remain partial S. No complete weighted S, matched IC/rho advantage, ECDLP speedup, general rank obstruction, population inference, blind target recovery or prescribed-computation proof is claimed. Every zero/nonzero/deficient/full-rank or censored outcome must be retained.
+
+Validation limits: focused new-record shapes pass with zero errors/warnings; full ledger validation refused this sparse checkout rather than certify missing records. Required current-head CI/merge gates are not asserted. Automatic approval review separately rejected enabling auto-merge for PR 2560 for lack of recognized specific protected-default-branch authorization; no bypass or merge-gate pass. Normal source publication remains authorized.
+
+Next gate: root publishes exact source preparation, performs the declared engineering CI probe and canonical hydration/readback, then completes a lawful lane and exact native preapproval. Technical approval, ordinary ready-state/live claim and science remain separate later gates. Prior canonical scientific graphs stay unchanged because this preparation has no new measured scientific result.
+
+![Design and current gates](diagram.svg)
+
+## Sources and provenance
+
+[internal, retrieved] EXP-ECDLP-d6d8e8 immutable report/review; conditioned m8 reference and unresolved formal chronology.
+
+[internal, retrieved] BATCH-49720f/engineering-verification.json and code-review/TASK-20261025-a58a22/report.json; 148 tests, 38 probes, seven repaired findings.
+
+[internal, retrieved] research/prym_factor_base_width_20261025/export-input-engineering-status.json and source-bindings.json; 53 planted tests,56 sources / 15 inputs,zero target constructor calls.
+
+[internal, retrieved] BATCH-49720f/progress-metrics-verification.json; five tests,committed old census gauges only.
+
+[internal, retrieved] EXP-ECDLP-a9b6a5/protocol.json, current dated admission/preapproval and packaging/director-compile.json; frozen content, 30 blockers,implementation route.
+
+[internal, retrieved] BATCH-49720f/final/access-status.json and authorization-update-20261026.json; direct runtime 108 and explicitly attributed root repository/Actions/auto-merge observations.
