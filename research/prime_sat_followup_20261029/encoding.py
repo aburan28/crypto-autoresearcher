@@ -68,7 +68,8 @@ def build(cell, arm):
                     xx = (mask >> start) & ((1 << s)-1)
                     rhs = (xx**3 + a*xx + b) % p
                     values.append(int(rhs != 0 and pow(rhs, (p-1)//2, p) != 1))
-                ring.counts["legendre_pow_calls"] = ring.counts.get("legendre_pow_calls", 0) + len(values)
+                    ring.counts["legendre_pow_calls"] = ring.counts.get("legendre_pow_calls", 0) + int(rhs != 0)
+                ring.counts["membership_curve_tests"] = ring.counts.get("membership_curve_tests", 0) + len(values)
                 polys.append(ring.from_values(values))
     domain = []
     for value in range(p, 1 << width) if lifted else ():
@@ -223,6 +224,7 @@ def census(cell, ring, polys, domain):
 
 
 def verify_search(cell, ring, polys, domain, answer, expected):
+    before = dict(ring.counts)
     cost = Counter(); learned = answer["learned"]
     for item in learned:
         depth, prefix = item["depth"], item["prefix"]
@@ -250,6 +252,7 @@ def verify_search(cell, ring, polys, domain, answer, expected):
             raise AssertionError("complete solver projected set mismatch")
     elif answer["status"] != "censored":
         raise AssertionError("unknown status")
+    cost.update(delta(before,ring.counts))
     return dict(cost)
 
 
@@ -323,9 +326,19 @@ def verify(payload):
             raise AssertionError("reference or arm mismatch")
         for arm in row["arms"]:
             ring,polys,domain = build(row["input"],arm["arm"])
+            if dict(ring.counts) != arm["construction_cost"]:
+                raise AssertionError("construction counters mismatch")
             got = census(row["input"],ring,polys,domain)
-            if got["complete_models"] != arm["census"]["complete_models"] or got["projected_models"] != refs:
+            if (got["complete_models"] != arm["census"]["complete_models"]
+                    or got["projected_models"] != refs
+                    or got["projected_models"] != [tuple(x) for x in arm["census"]["projected_models"]]
+                    or got["costs"] != arm["census"]["costs"]):
                 raise AssertionError("full assignment census mismatch")
+            events = arm["search"]["costs"]["search_events"]
+            if (events.get("sat_candidates",0) > cfg["limits"]["sat_candidates"]
+                    or events.get("pc_calls",0) > cfg["limits"]["pc_calls"]
+                    or events.get("sat_candidates",0) < len(arm["search"]["models"])+len(arm["search"]["learned"])):
+                raise AssertionError("search budget/counter contradiction")
             verify_search(row["input"],ring,polys,domain,arm["search"],refs)
             witnesses,cost = reconstruct(row["input"],refs)
             s = row["input"]["s"]
