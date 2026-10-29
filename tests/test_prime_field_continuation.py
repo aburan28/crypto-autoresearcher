@@ -124,6 +124,7 @@ def prym(monkeypatch):
         'check_census': ROOT/'research/prym_rank_census_20261025',
         'collect_width': ROOT/'research/prym_factor_base_width_20261025',
         'check_prym': STUDY,
+        'check_targets': STUDY,
     }
     for name, directory in directories.items():
         spec = importlib.util.spec_from_file_location(name, directory/(name+'.py'))
@@ -185,7 +186,8 @@ def test_scientific_collect_has_no_unadmitted_path(prym):
         module.collect(fixture, [1], lambda record: pytest.fail('executed'))
 
 
-def test_target_collector_labels_and_fixed_projection(prym, monkeypatch):
+@pytest.mark.parametrize('target_index', [0, None])
+def test_target_collector_labels_and_fixed_projection(prym, monkeypatch, target_index):
     module, fixture = prym
     monkeypatch.setitem(sys.modules, 'prym_completion', module)
     spec = importlib.util.spec_from_file_location('prime_field_target_completion', STUDY/'target_completion.py')
@@ -196,7 +198,7 @@ def test_target_collector_labels_and_fixed_projection(prym, monkeypatch):
     from collect_width import project
     curve = Curve(fixture['p'], fixture['a'], fixture['b'])
     recipe = hash_public_target(curve, fixture['r'], fixture['uid'], 0)
-    Q = tuple(recipe['point'])
+    Q = tuple(recipe['point']) if target_index is not None else tuple(fixture['P'])
     # Different source/multiplier schedules catch accidental target anchors.
     baseline = module.collect(fixture, [1, 2], lambda row: None)
     events = []
@@ -222,6 +224,25 @@ def test_target_collector_labels_and_fixed_projection(prym, monkeypatch):
     certificate = result['final_target_certificate']
     if certificate is not None:
         assert curve.mul(certificate['scalar'], tuple(fixture['P'])) == Q
+    if target_index is None:
+        assert certificate is not None and certificate['scalar'] == 1  # software positive only
+    from check_targets import check
+    assert check(fixture, [1, 2], baseline['rows'], Q, [1, 3], result)['complete_branch_replay']
+    mutations = [lambda v: v['rows'].pop(), lambda v: v.update(branch_sha256='0'*64),
+                 lambda v: v['statuses'].update(accepted=0),
+                 lambda v: v['preprocessing'].update(rank=0),
+                 lambda v: v['projection'].update(U=0),
+                 lambda v: v.update(target_is_public_anchor=not v['target_is_public_anchor']),
+                 lambda v: v['target_identification'].update(augmented_rank=-1)]
+    if certificate is not None:
+        mutations += [lambda v: v['final_target_certificate'].update(value=-1),
+                      lambda v: v['final_target_certificate'].update(row_weights=[])]
+        mutations += [lambda v: v['first_combined_recovery'].update(attempt=-1)]
+    for mutate in mutations:
+        corrupt = deepcopy(result)
+        mutate(corrupt)
+        with pytest.raises(ValueError):
+            check(fixture, [1, 2], baseline['rows'], Q, [1, 3], corrupt)
     with pytest.raises(ValueError, match='independent of target'):
         target_module.prepare(fixture, [1, 2], result['rows'][:1])
     assert len([row for row in events if row['kind'] == 'verified_witness']) == len(result['rows'])

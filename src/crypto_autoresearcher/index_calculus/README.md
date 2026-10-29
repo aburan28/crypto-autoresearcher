@@ -12,7 +12,10 @@ how the classical prime-field index calculus scales.
 The [October 29 continuation](../../../research/prime_field_execution_20261029/README.md)
 adds target-row combination certificates without full base rank, a gated
 target-aware Prym collector, and optional Dickson stage diagnostics. These are
-software-tested interfaces; the proposed scientific panels remain unexecuted.
+software-tested interfaces. The [symmetry iteration](../../../research/prime_field_symmetries_20261029/README.md)
+now records the first admitted fixed P-256 C1 panel (all seven cases complete),
+a typed base/action catalog, complete target-branch replay, affine translation
+frames and a reusable operator prototype. The B1/A1/D1 panels remain unexecuted.
 
 ## Layout
 
