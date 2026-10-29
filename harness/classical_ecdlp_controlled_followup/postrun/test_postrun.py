@@ -216,11 +216,300 @@ class PostrunTests(unittest.TestCase):
             repo=Path(os.environ.get('CONTROLLED_REPO','/workspace/classical-ecdlp-validation-ready'))
             ep=c.module(repo/'tools/experiment_protocol.py','_test_export_real')
             bundle,findings=run_postrun.make_export(ep,out,destination,record,{'status':'complete'},outer)
-            self.assertEqual(bundle['runs'][0]['run_id'],'RUN-FIXTURE')
+            self.assertEqual(bundle['runs'],[])  # Original-only calibration is no paired observation.
             self.assertEqual(bundle['protocol']['protocol_id'],'TEST-F11')
             linked={Path(item['path']).name for item in bundle['files']}
             self.assertTrue({'manifest.yaml','raw-result.json','modal-evidence.tar.gz','modal-evidence-manifest.json'}<=linked)
             self.assertTrue(findings)  # Deliberate skeletal fixture remains unqualified.
+
+
+
+
+
+def full_fixture_protocol():
+    """Complete test-only contract; never the future scientific protocol."""
+    return {'amendments': [],
+     'analysis_plan': {'blinded': False,
+                       'frozen_before_data': True,
+                       'inputs': ['raw/traces.jsonl'],
+                       'outputs': ['analysis.json'],
+                       'script': None},
+     'arms': [{'description': 'Actually retained original strict evaluator',
+               'id': 'confirmation_original',
+               'instrument': {'binary_sha256': None,
+                              'build': [],
+                              'commit': None,
+                              'env': {},
+                              'flags': {},
+                              'repo': 'fixture-only',
+                              'threads': 1},
+               'parameters': {'method': 'original'},
+               'role': 'baseline'},
+              {'description': 'Actually retained incremental strict evaluator',
+               'id': 'confirmation_incremental',
+               'instrument': {'binary_sha256': None,
+                              'build': [],
+                              'commit': None,
+                              'env': {},
+                              'flags': {},
+                              'repo': 'fixture-only',
+                              'threads': 1},
+               'parameters': {'method': 'incremental'},
+               'role': 'candidate'}],
+     'authors': ['TASK-20261029-b9f48c'],
+     'claims': [{'class': 'out_of_scope',
+                 'decided_by': [],
+                 'id': 'C1',
+                 'text': 'Export format and retained counts only; no scientific or performance claim.'}],
+     'controls': {'aa': {'comparison': None,
+                         'not_applicable_reason': 'No stochastic or timing inference; deterministic byte/count '
+                                                  'custody fixture.',
+                         'present': False},
+                  'negative': {'arm': None,
+                               'not_applicable_reason': 'No null population inference; '
+                                                        'malformed/missing/duplicate export controls are unit '
+                                                        'tests.',
+                               'null_population': None,
+                               'present': False},
+                  'positive': {'arm': None,
+                               'expected_detection': None,
+                               'not_applicable_reason': 'No detection claim; actual strict recovery and shared '
+                                                        'decoder outcomes are asserted separately.',
+                               'present': False}},
+     'created': '2026-10-29',
+     'decision_rule': {'comparison_ids': ['format-pair'],
+                       'effect_size_measure': 'none',
+                       'interval': 'none',
+                       'multiple_comparison_correction': 'none',
+                       'statistic': 'Actual retained counts',
+                       'text': 'Report actual format validation observations only.',
+                       'threshold': 'No scientific criterion',
+                       'verdict_vocabulary': ['inconclusive', 'invalid_measurement']},
+     'execution': {'backend': 'local',
+                   'checkpoint': {'after_restore': {'counted_units': 'valid', 'wall_time': 'invalid'},
+                                  'grace_seconds': None,
+                                  'interval_seconds': None,
+                                  'policy': 'none',
+                                  'restore_validation': 'none'},
+                   'measurement_class': 'throughput',
+                   'placement': {},
+                   'queue': None,
+                   'retries': {'infrastructure_only': True, 'max_attempts': 1},
+                   'timeout_seconds': 120},
+     'extensions': {'controlled_followup': {'export_arms': {'incremental': 'confirmation_incremental',
+                                                            'original': 'confirmation_original'},
+                                            'export_instance_id': 'candidate-vm',
+                                            'export_observation_unit': 'paired-confirmation evaluator aggregate; '
+                                                                       'both share one physical supervisor/VM',
+                                            'export_row_id_rule': 'allocated_parent_RUN + .original / '
+                                                                  '.incremental',
+                                            'fixture_only': 'disclosed F11/F23 injected/export seam; not '
+                                                            'production validation'}},
+     'freeze': {'commit': None,
+                'filed_before_affected_data': False,
+                'frozen_at': None,
+                'protocol_sha256': None,
+                'status': 'draft'},
+     'hypotheses': [],
+     'inadmissible': ['Inventing method observations, successes, VM runs or counts.',
+                      'Interpreting disclosed fixtures as production confirmation tiers.'],
+     'invalidation_rules': ['Missing or partial paired method remains absent or excluded; no planned counts.',
+                            'No wall-clock or worker counter replay qualification.'],
+     'links': {'scope': 'Test-only disclosed deterministic F11/F23, no production tier or scientific protocol'},
+     'literature': [{'claim': 'Export schema coverage, frozen source and failure retention contract',
+                     'provenance': 'internal',
+                     'ref': 'docs/experiment-protocol.md',
+                     'verified_by': 'TASK-20261029-b9f48c'}],
+     'measurement': {'clock': 'counted',
+                     'counters': ['actual method primitive families'],
+                     'isolation_required': 'none',
+                     'order': 'sequential',
+                     'record': ['source hash', 'actual retained counts'],
+                     'timed_primary_justification': None,
+                     'warmups': 0},
+     'metrics': {'primary': [{'aggregation': 'sum',
+                              'definition': 'Number of nonempty retained original/incremental strict attempt '
+                                            'records, excluding calibration.',
+                              'id': 'retained_attempts',
+                              'kind': 'counted',
+                              'name': 'actual paired attempts',
+                              'resolution': '1',
+                              'source': 'traces.jsonl method predicate_trace',
+                              'uncertainty': 'none_exact',
+                              'unit': 'retained attempt'}],
+                 'secondary': []},
+     'protocol_id': 'TEST-PAIRED-F11-F23',
+     'question': 'Can actual paired evaluator observations be exported without duplicating a physical '
+                 'invocation?',
+     'randomization': {'arm_order': 'fixed',
+                       'arm_order_reason': 'Deterministic source test, clocks invalid; original then incremental '
+                                           'on identical public inputs.',
+                       'blinding': {'analysis_labels_masked': False,
+                                    'how': 'Source fixture has named methods, no inference.',
+                                    'unmasked_at': None},
+                       'instance_sampling': {'independent_of_arm': True,
+                                             'rule': 'One fixed paired aggregate over disclosed F11/F23 targets, '
+                                                     'no population sampling.'},
+                       'seed_derivation': {'method': 'harness_drawn',
+                                           'nonce': None,
+                                           'note': 'Explicit fixture-only fixed00 nonce; no entropy. Production '
+                                                   'public cohort nonce rule is unchanged.',
+                                           'seeds': []}},
+     'reporting': {'export_schema': 'experiment.export/v1',
+                   'graphs': ['No scientific inference; raw count record'],
+                   'report_dir': 'derived',
+                   'review_schema': 'experiment.review/v1'},
+     'repository': 'other',
+     'sample_size': {'instances': 1,
+                     'power': {'alpha': 0.05,
+                               'correction': 'none',
+                               'method': 'exact',
+                               'min_attainable_two_sided_p': None,
+                               'note': 'Format regression only; no power or scientific inference.',
+                               'passes': True,
+                               'rank_test_n': None,
+                               'tests_in_family': 1},
+                     'preflight_runtime': {'estimated_total_seconds': 1,
+                                           'fixed_seconds': 0,
+                                           'measured_on': 'Advisory test timeout estimate only; no benchmark.',
+                                           'per_sample_seconds': 0,
+                                           'threads': 1},
+                     'replicates': 1,
+                     'warmups': 0},
+     'schema': 'experiment.protocol/v1',
+     'stopping_rules': [{'kind': 'fixed_n',
+                         'preregistered': True,
+                         'rule': 'Stop after the disclosed two paired fixture attempts; retain missing/partial '
+                                 'failures.'}],
+     'study_dir': 'disclosed-fixture-only',
+     'variable_ledger': {'aa_not_applicable': 'Deterministic format fixture; no timing inference.',
+                         'comparisons': [{'id':'format-pair','arms':['confirmation_original','confirmation_incremental'],'differs_in':['method'],'design':'one_factor'}],
+                         'crosses_map': False,
+                         'factors': [{'how': 'Same actual paired confirmation traces and nonce00; no new targets '
+                                             'or entropy.',
+                                      'name': 'public inputs',
+                                      'treatment': 'fixed',
+                                      'value': 'disclosed F11/F23'}],
+                         'independent': [{'levels': ['original', 'incremental'], 'name': 'method'}]},
+     'version': 1}
+
+
+def paired_export_fixture(root):
+    """Actual disclosed arithmetic only, fixed public inputs, no SDK or draw.
+
+    This direct exporter seam is not production host verification. Production
+    still requires its authenticated 48-curve frozen workload before labels.
+    """
+    import engine
+    from constructor import prepare
+    from curve import Curve
+    root=Path(root);out=root/'paired';raw=out/'collected/raw';raw.mkdir(parents=True)
+    destination=root/'derived';destination.mkdir()
+    ep=c.module(Path(os.environ.get('CONTROLLED_REPO','/workspace/classical-ecdlp-validation-ready'))/'tools/experiment_protocol.py','_paired_export_protocol')
+    protocol=full_fixture_protocol()
+    script=Path(run_postrun.__file__).with_name('analysis.py')
+    protocol['analysis_plan']['script']={'path':str(script),'sha256':c.sha_file(script)}
+    c.write(out/'protocol.json',protocol)
+    ep.freeze(out/'protocol.json',None,False)
+    traces=[];cells=[];setups=[];public=[]
+    for name,model,base,target,alpha,beta,a in [
+        ('F11',{'p':11,'a':1,'b':6,'r':13},(2,7),(7,2),1,-4,5),
+        ('F23',{'p':23,'a':11,'b':5,'r':17},(5,22),(5,22),-2,-1,1)]:
+        curve=Curve(model['p'],model['a'],model['b']);prepared=prepare(model,curve.multiply(base,a),{'kind':'candidate','alpha':alpha,'beta':beta})
+        pair=engine.paired_attempt(prepared,base,target,a,1);tid='disclosed-'+name+'/paired'
+        traces.append(engine.record('trace',trace_id=tid,curve_id='disclosed-'+name,target_id='target',target=list(target),arm_id='fixture',base_multiplier=a,target_multiplier=1,draw=None,original=pair['original'],incremental=pair['incremental'],equal=True))
+        cells.extend(engine.record('decoder-cell',trace_id=tid,cell_id=tid+f"/t{x['radius']}.e{x['erasure_cap']}",**x) for x in pair['cells'])
+        setups.append({'curve_id':'disclosed-'+name,'arm_id':'fixture','setup_reason':prepared.setup_reason,'counts':{'common':curve.counter.snapshot(),'setup':prepared.setup_counts}})
+        public.append({'curve_id':'disclosed-'+name,'model':model,'base':list(base),'targets':[{'target_id':'target','point':list(target)}]})
+    # Actual original-only calibration work stays separate from paired totals.
+    _,calibration=engine.ungated_attempt(prepared,base,target,a,1,True)
+    traces.append({**traces[-1],'trace_id':'disclosed-F23/calibration','original':calibration,'incremental':None,'equal':None})
+    for name,values in [('traces',traces),('decoder-cells',cells),('setups',setups),('single-points',[])]:
+        (raw/(name+'.jsonl')).write_bytes(b''.join(c.canonical(x)+b'\n' for x in values))
+    c.write(out/'collected/public-cohort.json',{'nonce':'00'*32,'curves':public})
+    c.write(out/'collected/host-plan.json',{'paired_trace_ids':[t['trace_id'] for t in traces[:2]]})
+    record={'status':'complete','engine_execs':1,'vm_creates':1,'sandbox_id':'sb-DISCLOSED-ONLY','files':[],
+        'supervisor_identity':{'experiment_id':protocol['protocol_id'],'run_id':'RUN-DISCLOSED-ONLY'},
+        'plan':{'limits':{'max_jsonl_line_bytes':1<<20}}}
+    c.write(out/'controller-receipt.json',record)
+    c.write(destination/'analysis.json',run_postrun.analysis.summarize(raw))
+    return ep,out,destination,record,traces
+
+
+class PairedExportTests(unittest.TestCase):
+    def test_complete_frozen_protocol_actual_paired_f11_f23(self):
+        with tempfile.TemporaryDirectory() as root:
+            ep,out,dest,record,traces=paired_export_fixture(root)
+            protocol=c.read(out/'protocol.json')
+            self.assertEqual(ep.schema_errors(protocol,'experiment.protocol/v1'),[])
+            self.assertEqual(ep.lint_protocol(protocol,out),[])
+            bundle,findings=run_postrun.make_export(ep,out,dest,record,{'status':'complete'})
+            self.assertEqual(findings,[])
+            self.assertEqual(ep.schema_errors(bundle,'experiment.export/v1'),[])
+            self.assertEqual(ep.lint_export(bundle,protocol,dest,True),[])
+            self.assertEqual(len(bundle['runs']),2);self.assertEqual(record['vm_creates'],1)
+            self.assertEqual(bundle['flow']['completed'],2)
+            self.assertEqual({r['backend_ref'] for r in bundle['runs']},{'RUN-DISCLOSED-ONLY'})
+            self.assertEqual({r['worker'] for r in bundle['runs']},{'sb-DISCLOSED-ONLY'})
+            for row,method in zip(bundle['runs'],('original','incremental')):
+                self.assertEqual(row['run_id'],'RUN-DISCLOSED-ONLY.'+method)
+                self.assertEqual(row['seed'],'00'*32)
+                counted=row['measurements']['counted'];self.assertEqual(counted['retained_attempts'],2)
+                self.assertEqual(counted['retained_predicate_queries'],sum(len(t[method]['predicate_trace']) for t in traces[:2]))
+                self.assertEqual(counted['strict_recovered_events'],sum(t[method]['status']=='RECOVERED' for t in traces[:2]))
+                self.assertEqual(counted['unique_targets_retained'],2)
+                self.assertEqual(counted['unique_targets_recovered'],len({(t['curve_id'],t['target_id']) for t in traces[:2] if t[method]['status']=='RECOVERED'}))
+                self.assertFalse(row['measurements']['wall_valid'])
+                for family in traces[0][method]['counts']:
+                    for primitive in traces[0][method]['counts'][family]:
+                        self.assertEqual(row['measurements']['counters'][family+'/'+primitive],sum(t[method]['counts'].get(family,{}).get(primitive,0) for t in traces[:2]))
+                self.assertFalse(any(k.startswith(('setup/','common/','wrapper/')) for k in row['measurements']['counters']))
+            self.assertEqual(len(run_postrun.analysis.summarize(out/'collected/raw')['per_curve_six_cell']),12)
+            self.assertNotEqual(traces[1]['original']['status'],'RECOVERED')
+            cells=list(run_postrun.analysis.rows(out/'collected/raw/decoder-cells.jsonl',1<<20))
+            self.assertEqual(next(x for x in cells if x['cell_id']=='disclosed-F23/paired/t2.e2')['status'],'RECOVERED')
+            c.write(dest/'export.json',bundle)
+            tool=Path(os.environ.get('CONTROLLED_REPO','/workspace/classical-ecdlp-validation-ready'))/'tools/experiment_protocol.py'
+            for args in [('validate',str(out/'protocol.json')),('check-export',str(dest/'export.json'),'--protocol',str(out/'protocol.json'),'--verify-files')]:
+                checked=subprocess.run([sys.executable,str(tool),*args],capture_output=True,text=True)
+                self.assertEqual(checked.returncode,0,checked.stdout+checked.stderr)
+
+    def test_missing_partial_zero_and_duplicate_actual_work(self):
+        import copy
+        for mutant in ('missing-method','unexecuted','partial-query','missing-trace','duplicate-trace','zero-start'):
+            with self.subTest(mutant=mutant),tempfile.TemporaryDirectory() as root:
+                ep,out,dest,record,traces=paired_export_fixture(root)
+                if mutant=='missing-method':
+                    for t in traces[:2]:t['incremental']=None
+                if mutant=='unexecuted':
+                    for t in traces[:2]:t['incremental']['predicate_trace']=[]
+                if mutant=='partial-query':traces[0]['incremental']['predicate_trace'].pop()
+                if mutant=='missing-trace':traces.pop(0)
+                if mutant=='duplicate-trace':traces.append(copy.deepcopy(traces[0]))
+                if mutant=='zero-start':record['engine_execs']=0
+                (out/'collected/raw/traces.jsonl').write_bytes(b''.join(c.canonical(t)+b'\n' for t in traces))
+                bundle,findings=run_postrun.make_export(ep,out,dest,record,{'status':'incomplete'})
+                self.assertTrue(findings,mutant)
+                self.assertFalse(any(r['status']=='succeeded' for r in bundle['runs']))
+                if mutant in ('missing-method','unexecuted'):self.assertEqual([r['arm'] for r in bundle['runs']],['confirmation_original'])
+                if mutant=='zero-start':self.assertEqual(bundle['runs'],[])
+                if mutant=='partial-query':self.assertEqual(bundle['runs'][1]['measurements']['counted']['retained_predicate_queries'],10)
+
+    def test_unchanged_checker_rejects_duplicate_missing_padded_cells_and_file_mutant(self):
+        import copy
+        with tempfile.TemporaryDirectory() as root:
+            ep,out,dest,record,_=paired_export_fixture(root);protocol=c.read(out/'protocol.json')
+            correct,findings=run_postrun.make_export(ep,out,dest,record,{'status':'complete'});self.assertEqual(findings,[])
+            for mutant,reason in [('duplicate-id','duplicate run_id'),('duplicate-cell','duplicate execution cell'),('missing-method','protocol arms with no run'),('padded','measured rows')]:
+                value=copy.deepcopy(correct)
+                if mutant=='duplicate-id':value['runs'][1]['run_id']=value['runs'][0]['run_id']
+                if mutant=='duplicate-cell':value['runs'][1]['arm']=value['runs'][0]['arm']
+                if mutant=='missing-method':value['runs'].pop()
+                if mutant=='padded':value['runs'].append(copy.deepcopy(value['runs'][0]))
+                value['flow']=ep.compute_flow(value['runs'])
+                self.assertTrue(any(reason in x for x in ep.lint_export(value,protocol,dest,True)),mutant)
+            (out/'collected/raw/traces.jsonl').write_bytes(b'changed\n')
+            self.assertTrue(any('file changed since export' in x for x in ep.lint_export(correct,protocol,dest,True)))
 
 
 if __name__=='__main__':unittest.main()

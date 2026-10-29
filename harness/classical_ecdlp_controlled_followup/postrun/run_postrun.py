@@ -218,6 +218,63 @@ def entry(path,base,kind='raw'):
     return {'path':os.path.relpath(path,base),'sha256':c.sha_file(path),'bytes':path.stat().st_size,'kind':kind}
 
 
+def method_observations(out,max_line):
+    """Read only retained paired confirmation work, with bounded strict JSONL.
+
+    The independently authenticated host plan identifies paired traces. Its
+    planned cardinality is only a completeness check, never an observed count.
+    Calibration traces have no paired ID and cannot enter either method total.
+    """
+    from collections import Counter
+    raw=out/'collected/raw';plan=c.read(out/'collected/host-plan.json')
+    expected=plan.get('paired_trace_ids',[])
+    c.need(len(expected)==len(set(expected)) and len(expected)<=24576,'paired trace ID resource/uniqueness bound')
+    wanted=set(expected);seen=set();issues=[];observations={}
+    try:
+        for trace in analysis.rows(raw/'traces.jsonl',max_line):
+            ident=trace['trace_id']
+            c.need(ident not in seen,'duplicate trace ID');seen.add(ident)
+            c.need(len(seen)<=36864,'trace metadata resource cap')
+            if ident not in wanted:
+                c.need(trace.get('incremental') is None,'unplanned paired confirmation trace')
+                continue
+            for method in ('original','incremental'):
+                attempt=trace.get(method)
+                if attempt is None or not attempt.get('predicate_trace'):
+                    issues.append(ident+': missing/unexecuted '+method);continue
+                item=observations.setdefault(method,{'counted':Counter(),'counters':Counter(),'outcomes':Counter(),'targets':set(),'recovered':set(),'trace_ids':[],'complete':True})
+                queries=attempt['predicate_trace'];n=len(queries)
+                complete=(type(attempt['L']) is int and n==attempt['L'] and attempt['predicate_evaluations']==n
+                          and [q['index'] for q in queries]==list(range(n)))
+                if not complete:issues.append(ident+': partial '+method)
+                item['complete'] &= complete
+                item['trace_ids'].append(ident);item['counted']['retained_attempts']+=1
+                item['counted']['retained_predicate_queries']+=n
+                target=(trace['curve_id'],trace['target_id']);item['targets'].add(target)
+                status=attempt['status'];item['outcomes'][status]+=1
+                recovered=(status=='RECOVERED' and type(attempt.get('scalar')) is int
+                           and attempt.get('scalar_prime') is not None
+                           and attempt.get('public_checks')=={'transformed':True,'original':True})
+                c.need(status!='RECOVERED' or recovered,'inconsistent strict recovery')
+                if recovered:item['counted']['strict_recovered_events']+=1;item['recovered'].add(target)
+                for family,vector in attempt['counts'].items():
+                    c.need(isinstance(vector,dict),'counter family must be an object')
+                    for primitive,value in vector.items():
+                        c.need(type(value) is int and value>=0,'nonnegative integer primitive counter required')
+                        item['counters'][family+'/'+primitive]+=value
+        missing=wanted-seen
+        if missing:issues.append('missing paired traces: '+str(len(missing)))
+    except (OSError,KeyError,ValueError,TypeError) as error:
+        issues.append('paired observation parse failure: '+str(error))
+    for method,item in observations.items():
+        item['complete'] &= set(item['trace_ids'])==wanted
+        item['counted']['strict_recovered_events']+=0
+        item['counted']['unique_targets_retained']=len(item.pop('targets'))
+        item['counted']['unique_targets_recovered']=len(item.pop('recovered'))
+        for field in ('counted','counters','outcomes'):item[field]=dict(item[field])
+    return observations,issues
+
+
 def make_export(ep,out,destination,record,result,supervisor=None):
     protocol=c.read(out/'protocol.json')
     bundle=ep.export_skeleton(protocol,os.path.relpath(out/'protocol.json',destination),'modal',protocol['protocol_id']+'.controlled-export')
@@ -226,21 +283,36 @@ def make_export(ep,out,destination,record,result,supervisor=None):
     receipt=out/'controller-receipt.json' if (out/'controller-receipt.json').is_file() else out/'controller-error.json'
     bundle['host']['path']=os.path.relpath(receipt,destination) if receipt.is_file() else None
     bundle['host']['sha256']=c.sha_file(receipt) if receipt.is_file() else None
-    arm=protocol['extensions']['controlled_followup']['export_arm']
-    c.need(arm in {a['id'] for a in protocol['arms']},'composite export arm absent from protocol')
+    extension=protocol['extensions']['controlled_followup']
+    arms=extension.get('export_arms')
+    # Historical skeletal fixtures remain inspectable but cannot qualify a
+    # complete frozen protocol. No single composite row is manufactured.
+    observation_findings=[]
+    if arms is None:
+        observation_findings.append('paired export_arms missing; historical composite fixture is unqualified')
+        arms={'original':'confirmation_original','incremental':'confirmation_incremental'}
+    c.need(arms=={'original':'confirmation_original','incremental':'confirmation_incremental'}, 'paired export arm identities')
     actual=record.get('engine_execs',0)>0
     if actual:
-        summary_path=destination/('analysis.json' if (destination/'analysis.json').exists() else 'partial-analysis.json')
-        summary=c.read(summary_path) if summary_path.exists() else {}
-        rows=summary.get('per_curve_six_cell',[])
         identity=record.get('supervisor_identity',{})
         c.need(identity.get('experiment_id')==protocol['protocol_id'] and str(identity.get('run_id','')).startswith('RUN-'),'allocated supervisor identity required for export')
-        bundle['runs']=[ep.run_row(run_id=identity['run_id'],arm=arm,instance_id='candidate-vm',replicate=0,seed=None,
-            status='succeeded' if record['status']=='complete' else 'infra_error',attempts=1,resumed=0,
-            measurements={'counted':{'retained_decoder_cells':sum(r['attempts'] for r in rows),'retained_success_events':sum(r['successes'] for r in rows)},
-                'counters':{'per_curve_six_cell_json':json.dumps(rows,sort_keys=True),'counter_replay_qualified':'false','unmetered':'native RSS,interpreter allocations,I/O,integer internals'},'wall_valid':False},
-            verification={'status':'verified' if result['status']=='complete' else 'error','verifier':'source-bound independent host verify_bundle' if result['status']=='complete' else None},
-            exclusion={'excluded':result['status']!='complete','rule':'operationally incomplete or independent verification failed' if result['status']!='complete' else None},worker=record.get('sandbox_id'))]
+        observations,issues=method_observations(out,record['plan']['limits']['max_jsonl_line_bytes'])
+        observation_findings.extend(issues)
+        public=out/'collected/public-cohort.json'
+        nonce=c.read(public).get('nonce') if public.is_file() else None
+        for method,item in observations.items():
+            valid=result['status']=='complete' and record['status']=='complete' and item['complete'] and not issues
+            row=ep.run_row(run_id=identity['run_id']+'.'+method,arm=arms[method],
+                instance_id=extension.get('export_instance_id','candidate-vm'),replicate=0,seed=nonce,
+                status='succeeded' if valid else 'failed',attempts=1,resumed=0,
+                measurements={'counted':item['counted'], 'counters':{
+                    **item['counters'], 'strict_outcomes_json':json.dumps(item['outcomes'],sort_keys=True),
+                    'observed_trace_ids_json':json.dumps(item['trace_ids']),
+                    'counter_replay_qualified':'false','unmetered':'native RSS,interpreter allocations,I/O,integer internals'},'wall_valid':False},
+                verification={'status':'verified' if valid else 'error','verifier':'source-bound independent host verify_bundle' if valid else None},
+                exclusion={'excluded':not valid,'rule':'operationally incomplete, paired workload shortfall or independent verification failed' if not valid else None},
+                worker=record.get('sandbox_id'),backend_ref=identity['run_id'])
+            bundle['runs'].append(row)
     bundle['flow']=ep.compute_flow(bundle['runs'])
     # The complete heterogeneous schedule remains data, never padded rows.
     files=[entry(p,destination,'raw') for p in sorted((out/'collected').rglob('*')) if p.is_file()] if (out/'collected').exists() else []
@@ -250,9 +322,11 @@ def make_export(ep,out,destination,record,result,supervisor=None):
         files.extend(entry(supervisor/name,destination,'receipt') for name in ['manifest.yaml','raw-result.json','modal-evidence.tar.gz','modal-evidence-manifest.json'])
     files.extend(outputs);bundle['files']=files
     bundle['analysis']={'script':entry(Path(__file__).with_name('analysis.py'),destination,'analysis'),'outputs':outputs,'blinded':False,'blinding_key_sha256':None,'unmasked_at':None}
-    bundle['notes']=[{'kind':'observation','by':'controlled postrun','text':'One actual composite supervisor execution row; raw calibration/confirmation schedules and shared six-cell outcomes retained. No padded observations. Wall clocks and counter replay unqualified; no scientific conclusion.'}]
+    bundle['notes']=[{'kind':'observation','by':'controlled postrun','text':'Logical original/incremental evaluator observations share one actual parent RUN, instance and physical VM invocation; derived row IDs are not RUN ledgers. Flow counts logical observations only; physical invocation counts remain once in backend/supervisor custody. Calibration original-only traces, setup/common, six shared decoder cells and host references stay separate in linked artifacts. No padded observations. Wall clocks and counter replay unqualified; no scientific conclusion.'}]
     bundle['backend_record']=result
-    findings=ep.schema_errors(bundle,'experiment.export/v1') or ep.lint_export(bundle,protocol,destination,True)
+    findings=observation_findings + ep.schema_errors(bundle,'experiment.export/v1')
+    if not ep.schema_errors(bundle,'experiment.export/v1'):
+        findings.extend(ep.lint_export(bundle,protocol,destination,True))
     return bundle,findings
 
 
