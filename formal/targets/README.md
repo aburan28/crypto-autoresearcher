@@ -8,6 +8,17 @@ A target is a **pointer plus a claim, not an approval**. Writing one here
 queues nothing and approves nothing; the Coordinator decides what runs, and a
 machine-verified result is still pending semantic-fidelity review.
 
+A target that builds on other targets, or takes a statement as given without
+proving it, records that in an optional `proof_map` block
+(`docs/formal-research-lane.md`, "Hypothesis deltas, proof maps and errata"):
+
+```yaml
+proof_map:
+  depends_on: [semaev-frobenius-collapse.yaml]   # sibling specs, checked to exist
+  prerequisites:                                  # copied into the stanza's constraints
+    - "Semaev S3 vanishes exactly on x-coordinates of collinear triples"
+```
+
 Every `claim` here is quoted or tightly paraphrased from a committed theory
 note, and `source` names the note it came from. Do not write a claim that is
 not traceable to one: a formalization of a claim nobody made proves nothing
@@ -137,9 +148,17 @@ Sage refinement, execution-source custody and independent review remain open.
 `binstd-x17-factorization.yaml` checks the exact product of the three
 polynomials recorded as bitmasks 3, 313 and 471 in the n=17 Stage-1
 admissible-dimension files. It proves their product is `X^17+1` over
-`ZMod 2`. It does not prove that the degree-eight factors are irreducible,
-that the field Frobenius has the asserted normal-basis module structure,
-or that the listed dimensions exhaust all invariant subspaces.
+`ZMod 2`. `binstd-x17-degree-eight-irreducible.yaml` uses that product,
+the seventeenth cyclotomic polynomial, and the order of 2 modulo 17 to
+prove both archived degree-eight factors irreducible. These targets do
+not prove that the field Frobenius has the asserted normal-basis module
+structure or that the listed dimensions exhaust all invariant subspaces.
+
+`binstd-canonical-frobenius-minpoly.yaml` proves that the Frobenius on
+Mathlib's canonical `GaloisField 2 17` has order 17 and minimal polynomial
+equal to the source-bound three-factor product. It does not identify the
+archived runner's polynomial-basis field or subspace constructor with
+this canonical model; the exhaustive dimension classification is still open.
 
 `binstd-encoded-divisors.yaml` kernel-checks the archived integer masks
 131081, 313 and 471 against every monic bitmask divisor through half their
