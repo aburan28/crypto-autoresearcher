@@ -1,0 +1,406 @@
+schema: sheriff.reader/v1
+case: SHF-20261028-0f3f64
+joint: "B2 verifier soundness and mutation controls: crypto:src/zk/stark_v2.rs (DEEP-ALI) and the helpers it imports from src/zk/stark.rs, merkle.rs and polynomial.rs"
+reader:
+  role: validator
+  model: claude-opus-5-5
+  independence: "Did not produce anything under audit. Judged from code at crypto 669809d5c6 only. PR descriptions were not read. Commit messages and prior-case texts are not used as evidence."
+target:
+  repo: isogeny-labs/crypto
+  path: /home/user/crypto
+  head: 669809d5c6110796b36b32fe26073376a605911d
+  head_tree: 0764b77a14b98ae877a62379bc6465cef09910aa
+  at_origin_main: true
+  dirty_paths: 0
+  binding_evidence: "research/sheriff/SHF-20261028-0f3f64/sweep.json repos.crypto (canary.passed: true); git -C /home/user/crypto rev-parse HEAD == 669809d5c6...; HEAD's stark_v2.rs equals the f118a24b3 merge (git diff f118a24b3 HEAD -- src/zk/ is empty)"
+  history: "1861cbaf7 (DEEP added) -> a232be6a8 (second DEEP term changed) -> a444ade50 (unused w, w*z removed) on branch claude/stark-deep-ood; 1c784d902 (AffineTransition) on main; both joined at merge f118a24b3, which is an ancestor of HEAD"
+
+sources_read:
+  crypto-autoresearcher:
+    - CLAUDE.md (auto-loaded)
+    - docs/agent-runtime-core.md
+    - agents/validator.md
+    - .claude/skills/sheriff/SKILL.md
+    - docs/sheriff.md (lines 1-158 and 436-465; heading list)
+    - AGENTS.md (heading list; lines 323-335 "Review architecture")
+    - research/sheriff/SHF-20261028-0f3f64/sweep.json (keys repos, canary, target, scopes, deep; the two zk leads for groth16.rs and plonk.rs)
+    - research/sheriff/SHF-20261016-3caa6f/findings.yaml (lines 205-250, S1 and S2, for what was claimed only)
+    - research/sheriff/SHF-20261017-e4d7f6/findings.yaml (lines 28-34 and 208-260, S1/S2 re-verdicts and V1-V3, for what was claimed only)
+    - research/sheriff/SHF-20261024-46b7da/findings.yaml (lines 92-101 C7 and 321-333 F-STARK-API, for what was claimed only)
+    - knowledge/literature/KN-LIT-3873.md (grep hits only; it does not state the ethSTARK conjecture, so nothing is cited from it)
+  crypto_at_669809d5c6:
+    - src/zk/stark_v2.rs (all 1585 lines)
+    - src/zk/stark.rs (all 1190 lines)
+    - src/zk/merkle.rs (lines 40-214 and grep)
+    - src/zk/polynomial.rs (fr_* helpers, lines 12-35)
+    - src/zk/plonk.rs (lines 30-50, 74-95, 224-240, 300-370, 524-580; test names)
+    - src/zk/groth16.rs (lines 1-80, 515-542; grep for tests and verify)
+    - src/bls12_381/fq.rs (lines 19-25; test lines 123-134 shown in the same grep)
+    - README.md (line 494 via grep)
+    - docs/integration/20261012-open-pr-batch/receipts/* (grep hits only; old test logs that predate HEAD, not evidence)
+    - "git show 1861cbaf7 / a232be6a8 / a444ade50 / 1c784d902 (diffs; git show also printed the commit messages, which are not used as evidence)"
+    - "git diff 1c784d902 HEAD -- src/zk/stark_v2.rs (first 150 lines); git log and git merge-base ancestry checks"
+blind_from:
+  - research/sheriff/SHF-20261028-0f3f64/prior.md (not read)
+  - research/sheriff/SHF-20261028-0f3f64/readers/* other than this file (the directory was empty when this report was written; nothing read)
+  - "research/sheriff/SHF-20261028-0f3f64/scripts/readers/* other than stark/ (sibling directories exist, not read; a final `git status --short` displayed the file NAMES under scripts/readers/cryptanalysis/, but no contents were opened)"
+  - research/sheriff/SHF-20261028-0f3f64/sweep.md and checks/ (not read)
+  - prior cases' readers/*.yaml, scripts/ and REPORT.md (not read)
+  - PR descriptions (not read); commit messages (displayed by git show, not used as evidence)
+blind_from_respected: true
+read_sibling_reports: false
+
+checks:
+  - id: K1-bind
+    command: "git -C /home/user/crypto rev-parse HEAD; git -C /home/user/crypto status --short; python3 read of sweep.json repos/canary"
+    output: inline (target block above)
+    result: pass. HEAD is 669809d5c6, the tree is clean, at origin/main, and the sweep canary passed (15 caught, 0 missed, 0 false positives).
+  - id: K2-cargo-test
+    command: "cargo test --lib zk::stark  (NOT RUN)"
+    output: none
+    result: "not_covered. The session's permission policy blocks executing code from /home/user/crypto and /home/user/cryptanalysis, so no Rust test or mutant was executed. Every statement below about which test catches which mutant comes from reading the code. Old test logs under crypto docs/integration/20261012-* predate HEAD and are not evidence."
+  - id: K3-transcript-order
+    command: "line-by-line read of prove_with (stark_v2.rs:572-723) against check (stark_v2.rs:752-829), and of fri_commit_to (stark.rs:360-429) against fri_transcript_after (stark.rs:466-479) and fri_verify (stark.rs:529-535)"
+    output: inline (findings, C-STARK-1)
+    result: "pass. Both sides absorb in the same order. Statement first: tag, AIR fingerprint, n, beta, q, folds, final size, #boundaries and each (p_k, v_k) (stark_v2.rs:373-397). Then the trace root, then alpha1 and alpha2 (400-406). Then the composition root, then z by rejection sampling (436-445). Then canonical f(z), f(wz), Comp(z), then gamma1-3, lambda0, lambda1 (473-481). Then each FRI layer root before its challenge, then the last root and the final constant (stark.rs:380-383, 418-422 / 473-477), then the q positions (stark.rs:483-496). z is drawn after both commitments, and lambda after the OOD values. No proof value is read without being absorbed or checked: proof.fri.layers and layer_trees are carried in the proof but never read by the verifier; MerkleProof directions are bound to leaf_index bits (merkle.rs:193-198) and path length to depth (stark.rs:176)."
+  - id: K4-deep-recompute
+    command: "read check() stark_v2.rs:789-818 and deep_at 493-512; algebra in scripts/readers/stark/stark_rederive.py (deep_algebra)"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.out
+    result: "pass. D(x) is recomputed from the opened f(x), f(wx), Comp(x) and the OOD values (810) and compared with FRI layer-0 eval_main at fri_pos == p (811-816). fri_verify Merkle-checks that value at init_position = p (stark.rs:561). f(wx) is opened at (p + beta) mod L in the trace tree (796). The script confirms w_L^beta = w_n and that table[(i+beta) mod L] = f(w * x_i) on the coset (n,beta) = (8,4) and (16,8). It also confirms (f(wX) - f(wz))/(X - z) is a polynomial of degree n-2, while a wrong claim leaves a pole (full degree L-1 on the coset). The pre-a232be6a8 form (f(X) - f(wz))/(X - wz) is also a polynomial; the mixed form (f(X) - f(wz))/(X - z) is not."
+  - id: K5-degrees
+    command: "python3 -I research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.py (degree_checks at (8,4), (8,8), (16,8))"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.json
+    result: "pass. Honest Comp has degree n-2. Derivation: affine C has degree <= n-1, so C/Z (Z of degree n-1) has degree 0, and each boundary quotient has degree <= n-2. Each DEEP bracket has degree <= n-2 (< n-1). The adjusted D has degree n-1 (< n). Folding log2 n times gives a constant layer of beta values, and the evaluation-domain fold equals the coefficient fold pe + alpha*po. For f' = f + X^n - 1 (equal to the trace on H): Comp' has degree n-1, the adjusted D' has degree n (fails < n), and with lambda1 = 0 D' has degree n-1 (passes). A broken transition gives Comp of degree L-1. Aside: a quadratic transition gives Comp of degree n-1, so the degree-one restriction is conservative; the C7 defect was non-polynomial closures."
+  - id: K6-epsilon-rederivation
+    command: "same script (soundness)"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.json
+    result: "pass as arithmetic of the stated formula. log2 r = 254.857; two-adicity 32 (hence L <= 2^32); 7 generates F_r* (r-1 factored independently with sympy). Query term: 8^-80 = 2^-240 and 4^-20 = 2^-40. Worst stated eps_field over n*beta <= 2^32 with k <= n is 2^-217.61 (at n = 2^31, L = 2^32, where the (5 + log2 n) L/r term dominates). My blind terms are max(1,k-1)/r, (2n+k-2)/(r-n-L) (2n+k-1 if lambda1 = 0) and the same 5 + log2 n challenge count; they give the same 2^-217.61. The stated bound fails only for k >= ~2^38.6 boundaries, which the code does not bound. SHA-256-mod-r challenge bias is at most x1.36 (0.44 bits), which is immaterial. Sensitivity: L^2/r per challenge would give 2^-185.7."
+  - id: K7-negative-test-map
+    command: "for each verifier gate, delete it in thought and trace each test in stark_v2.rs:950-1584 (and stark.rs:880-1189 for the shared FRI) to the first gate that would then fire"
+    output: inline (negative_test_map below)
+    result: "partial. Exact-gate assertions or attack-controlled tests pin the OOD canonicity, AIR-at-z, D vs layer 0, OOD binding, boundary binding (frozen heart), q binding, transcript-derived positions, the gamma2 and gamma3 terms and the degree adjustment. No test fails on deleting the FRI fold-consistency check (stark.rs:576-594) or the FRI layer-count gate (stark_v2.rs:766). Several other gates are covered only in combination. See S2N-1..S2N-5."
+  - id: K8-prior-findings
+    command: "compare the prior-case claims (S1, S2, V1, V2, V3, F-STARK-API/C7) with code at HEAD"
+    output: inline (prior_finding_verdicts)
+    result: see prior_finding_verdicts
+  - id: K9-sweep-leads
+    command: "read groth16.rs:1-80, 447-542; plonk.rs:300-370, 524-580"
+    output: inline (lead_dispositions)
+    result: both leads confirmed (S2N-9, S2N-10)
+  - id: K10-proves-too-much
+    command: "the instruments run on objects whose conclusion is known false"
+    output: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.out
+    result: "pass. The coset-degree instrument does not report low degree for everything: a wrong OOD claim gives L-1, a broken transition gives L-1, the degree-n trace gives n, and a random table folded log2 n + 1 times is not constant. The mixed DEEP form is reported as not a polynomial. Deletion-analysis control: applied to gates known to be pinned (OodValue, asserted exactly at stark_v2.rs:1578; the frozen-heart binding with its attack control at 1240), the procedure reports them detected, so it does not flag every gate as untested."
+
+negative_test_map:
+  - check: OOD canonicity (absorb_ood_draw_deep 473-481 -> Reject::OodValue)
+    tests: [rejects_non_canonical_ood_values 1568-1584]
+    fails_if_deleted: "yes. The test asserts Err(Reject::OodValue) exactly; without the gate the value reaches OodAir or Deep."
+  - check: AIR at z (780-783 -> Reject::OodAir)
+    tests: [rejects_wrong_ood_comp_z_and_air_inconsistent_at_z 1450-1475]
+    fails_if_deleted: "yes. It asserts Err(OodAir) for wrong Comp(z), composition_zero and alpha1_zero (true statement) and the false statement. Without the gate these reach Fri or Composition."
+  - check: D(x) equals FRI layer 0 at the same position (808-817 -> Reject::Deep)
+    tests: [rejects_deep_quotient_not_low_degree 1537-1565 (deep_offset, fri_on_composition, trace_degree_n+skip_degree_adjust)]
+    fails_if_deleted: "yes. deep_offset yields a low-degree table that FRI accepts, and the test asserts Err(Deep). Sub-check fri_pos == p (812) is not isolated: swapped and duplicated queries are caught first by the f(x) opening check (795)."
+  - check: OOD values bound before gamma/lambda
+    tests: [rejects_ood_values_not_bound_to_transcript 1481-1502]
+    fails_if_deleted: "yes, by the ood_unbound prover: if the shared absorb were dropped, that proof would verify. The swapped-OOD sub-case would still be rejected (Deep) without binding."
+  - check: verifier's own z, outside H_trace and the coset
+    tests: [rejects_ood_point_inside_the_domains 1507-1528]
+    fails_if_deleted: "yes for ood_point_ok and draw_accepted (unit asserts). The forced-z prover is rejected at OodAir or Deep. The proof carries no z, so 'take z from the proof' is not a possible mutation."
+  - check: wrong f(z) / f(wz)
+    tests: [rejects_wrong_ood_f_z 1422-1444, deep_uses_transformed_trace_at_same_x 1397-1416]
+    fails_if_deleted: "The gamma2 term is pinned by the formula unit test. The gamma1 term is NOT isolated (S2N-4): the ood_wrong_f_z prover's Comp(z) claim also misses Comp(z), so the gamma3 pole still yields Err(Fri). Tampering after proving is caught at OodAir."
+  - check: wrong Comp(z) / gamma3 term
+    tests: [rejects_wrong_ood_comp_z_and_air_inconsistent_at_z 1450-1475, rejects_deep_quotient_not_low_degree 1540-1543, rejects_trace_with_broken_transition 1020-1037]
+    fails_if_deleted: "yes. Without gamma3, the false statement 1 -> 12345 has a low-degree D and would verify, and the test asserts Err(Fri)."
+  - check: degree adjustment (lambda0 + lambda1 x)
+    tests: [rejects_deep_quotient_not_low_degree 1553-1564]
+    fails_if_deleted: "yes. Without it the trace_degree_n prover's D is low degree, so assert!(!fri_input_low_degree) fails. This pins degree discipline on a TRUE statement, not soundness."
+  - check: trace polynomial of degree >= n
+    tests: [rejects_deep_quotient_not_low_degree (trace_degree_n, degree exactly n)]
+    fails_if_deleted: "as for the degree adjustment. Degree > n is not tested, but the same argument rejects it (it fails < n with or without lambda)."
+  - check: deep_offset
+    tests: [rejects_deep_quotient_not_low_degree 1545-1552]
+    fails_if_deleted: yes (asserts Err(Deep))
+  - check: FRI on the composition instead of D
+    tests: [rejects_deep_quotient_not_low_degree 1545-1552]
+    fails_if_deleted: yes (asserts Err(Deep))
+  - check: FRI layer count == log2 n + 1 (766 -> Reject::Shape)
+    tests: [rejects_truncated_fri 1042-1062]
+    fails_if_deleted: "NO (S2N-2). The popped root is still rejected at Opening, because the transcript and positions move. Folding to 2*beta is still rejected by fri_verify's constant final-layer root (stark.rs:526). The dangerous direction, final_size < beta (e.g. 1, which enforces no degree bound), has no test."
+  - check: FRI per-query opening count == folds (stark.rs:540)
+    tests: [rejects_truncated_fri N5b 1049-1053]
+    fails_if_deleted: "no. A shortened opening then compares a non-constant intermediate fold with final_constant and is rejected anyway."
+  - check: FRI fold consistency (stark.rs:576-594)
+    tests: []
+    fails_if_deleted: "NO (S2N-1). Every proof that expects Reject::Fri (1442, 1543, 1556, and the false-statement tests) comes from the honest folding code and is rejected at the final-layer root check (stark.rs:526). The only hand-tampered intermediate value (1316) is also rejected by layer-1 canonicity. The same holds for the v1 tests."
+  - check: FRI Merkle paths / canonical openings (stark.rs:561-565)
+    tests: [rejects_non_canonical_values 1288-1290, oversized_values_return_false_without_panic 1315-1317]
+    fails_if_deleted: "yes for the sibling +r case (fr arithmetic reduces it, so the proof would verify)."
+  - check: truncated query vector (Shape, 758-764)
+    tests: [rejects_empty_proof 1005-1015, rejects_query_count_or_blowup_mismatch 1117-1140]
+    fails_if_deleted: "yes, but by panic (index out of bounds at 791), not by rejection. A proof made under another q is rejected through the transcript, since q is absorbed."
+  - check: swapped queries
+    tests: [rejects_swapped_queries 1089-1100]
+    fails_if_deleted: "yes for 'positions from the transcript'. Taking positions from the proof would accept the consistently swapped proof."
+  - check: duplicated queries
+    tests: [rejects_duplicated_query 1103-1114]
+    fails_if_deleted: yes, as for swapped queries
+  - check: wrong public input / proof of another statement
+    tests: [rejects_wrong_public_values 969-981, rejects_proof_reused_for_another_boundary 959-966]
+    fails_if_deleted: "These pin that the AIR checks use the verifier's boundary values. They would still be rejected (OodAir/Composition) without statement binding, so they do not pin the binding; the frozen-heart tests do."
+  - check: wrong AIR
+    tests: [rejects_wrong_air 985-1002]
+    fails_if_deleted: "Tripling is rejected at OodAir with or without the fingerprint in the transcript, and 16 rows at Shape. AIR-fingerprint binding is not isolated (S2N-5)."
+  - check: frozen heart (statement absorbed before alpha)
+    tests: [rejects_frozen_heart_forged_input 1232-1244, rejects_frozen_heart_forged_row6 1247-1256, frozen_heart_control_v_plus_one_is_not_low_degree 1260-1268]
+    fails_if_deleted: "yes. With boundary values unabsorbed the forgery verifies, and the attack control `low` guards the test itself."
+  - check: Composition Merkle opening (797) and per-query AIR recompute (801-807)
+    tests: [rejects_non_canonical_values 1284-1287, oversized_values_return_false_without_panic 1312-1314]
+    fails_if_deleted: "no for either alone (S2N-3). Each masks the other's deletion. No test asserts Reject::Composition."
+checks_with_no_isolating_test:
+  - "FRI fold consistency, stark.rs:576-594 (soundness-critical)"
+  - "FRI layer count / over-folding, stark_v2.rs:766 (soundness-critical: the only guard against final_size < beta)"
+  - "fri_pos == p, stark_v2.rs:812"
+  - "Composition Merkle check 797 and AIR recompute 801-807 (mutually masking; neither is needed for soundness while the other and the OOD/DEEP checks stand)"
+  - "gamma1 DEEP term, stark_v2.rs:503"
+  - "AIR fingerprint, n and beta in the transcript (stark_v2.rs:379-381); boundary values and q are pinned"
+  - "boundary position < n (387-389): bad_pos is rejected anyway, because composition_at returns None"
+  - "FRI opening count == folds, stark.rs:540"
+
+findings:
+  - id: S2N-1
+    severity: major
+    claim_ids: [C-STARK-5]
+    what: "The FRI fold-consistency check in fri_verify (next layer's eval == folded value; last fold == final_constant) has no negative test, in stark_v2 or stark v1, that would fail if it were deleted. Every v2 proof expected to fail FRI comes from the honest folding code, so its non-constant last layer is caught first by the final-layer root check. The check is soundness-critical. Without it, a prover could commit the true, non-low-degree D of a false statement as layer 0 (passing the Deep gate) and constant layers from layer 1 onward (passing the root check), and verify would accept. Reasoned from code; not executed (cargo blocked)."
+    evidence:
+      - crypto:src/zk/stark.rs:576-594
+      - crypto:src/zk/stark.rs:522-528
+      - crypto:src/zk/stark_v2.rs:1338-1343
+      - crypto:src/zk/stark_v2.rs:1442
+      - crypto:src/zk/stark_v2.rs:1543
+      - crypto:src/zk/stark_v2.rs:1556
+      - crypto:src/zk/stark_v2.rs:1316
+    fix: "Add a negative test whose FRI commitment keeps the real layer 0 of the false statement 1 -> 12345 and replaces layers 1..log2 n with a constant table (Merkle roots recomputed, transcript re-derived). Assert Err(Reject::Fri), plus a control that its last root equals the constant-layer root. Add a second variant that changes one intermediate value with a re-committed root."
+  - id: S2N-2
+    severity: major
+    claim_ids: [C-STARK-5, C-STARK-3]
+    what: "The verifier-fixed FRI depth (layer_roots.len() == log2 n + 1) is the only guard against over-folding. With final_size < beta (e.g. 1), FRI enforces no degree bound: any table folds to a single value, as the script control shows. The prover knob allows any power-of-two final size and the statement absorbs beta and log2 n from the verifier's config. So with line 766 deleted, a false statement proved with fri_final_size = 1 would pass every other gate. No test exercises that direction. The tests that target the gate (popped root; final_size = 2*beta) are rejected for other reasons (transcript-moved positions; non-constant final layer)."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:765-768
+      - crypto:src/zk/stark_v2.rs:694-698
+      - crypto:src/zk/stark_v2.rs:1042-1062
+      - crypto:src/zk/stark.rs:517-528
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.out (fri.control_any_table_folds_to_one_value_with_log2_L_folds)
+    fix: "Add a test with fri_final_size in {1, beta/2} on false_output_air that asserts Err(Reject::Shape). Add a control calling fri_verify directly on the final_size = 1 proof that returns true, showing only the depth gate stops it."
+  - id: S2N-3
+    severity: minor
+    claim_ids: [C-STARK-5]
+    what: "The composition Merkle opening (797) and the per-query AIR recompute of Comp(x) (801-807) each mask the other's deletion in every test, and no test asserts Reject::Composition. Neither alone is soundness-critical: with the recompute in place the composition commitment is decorative, and without the recompute this is standard DEEP-ALI. Deleting both would leave the tests to catch it only incidentally."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:795-807
+      - crypto:src/zk/stark_v2.rs:1284-1287
+      - crypto:src/zk/stark_v2.rs:1312-1314
+    fix: "Add one test per gate, asserting Err(Reject::Opening) for a valid-path composition opening at the wrong leaf and Err(Reject::Composition) for a re-committed composition table that differs from the AIR at queried points."
+  - id: S2N-4
+    severity: minor
+    claim_ids: [C-STARK-5]
+    what: "The gamma1 term (f(x) - f(z))/(x - z) is not isolated. In rejects_wrong_ood_f_z the cheating prover's Comp(z) claim is computed from f(z)+1, so it differs from the composition polynomial at z, and the gamma3 term's pole yields Err(Fri) even without gamma1. Within this verifier gamma1 is not soundness-critical, because Comp(x) is recomputed from f at every query; it is in the standard DEEP-ALI the docs describe."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:503
+      - crypto:src/zk/stark_v2.rs:635-655
+      - crypto:src/zk/stark_v2.rs:1433-1443
+    fix: "Add a formula unit test with gamma = [1,0,0], like deep_uses_transformed_trace_at_same_x, or a cheating prover whose wrong f(z) leaves Comp(z) correct (e.g. an AIR whose composition does not depend on f at z)."
+  - id: S2N-5
+    severity: minor
+    claim_ids: [C-STARK-5, C-STARK-1]
+    what: "Binding of the AIR fingerprint, n and beta into the transcript has no isolating test. The wrong-AIR and blow-up-mismatch tests are rejected by the AIR checks or the opening depth whether or not these values are absorbed. Boundary values (frozen heart) and q (prefix test) are pinned. A prover choosing transition coefficients after seeing alpha is the AIR analogue of the frozen-heart forgery and is not tested."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:378-382
+      - crypto:src/zk/stark_v2.rs:985-1002
+      - crypto:src/zk/stark_v2.rs:1135-1139
+    fix: "Port the frozen_heart helper to choose the affine constant c after alpha so the pole cancels, and assert rejection with the attack control."
+  - id: S2N-6
+    severity: minor
+    claim_ids: [C-STARK-2, C-STARK-3]
+    what: "Stale or loose module text. The docs and the check() comment say D(x) is recomputed 'from f(x), Comp(x) and the OOD values'; the code also uses f(wx), as item 4 states. Item 3 and ood_point_ok's doc justify 'w*z outside both / x - w*z never vanishes', which only the pre-a232be6a8 term needed. Item 2's 'Comp is far from every degree-< n polynomial' holds only up to agreement on 2n+k-2 coset points (relative ~2/beta). It is not implied for beta = 2, which StarkConfig accepts; soundness then rests on the OOD check, not on that distance."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:79-82
+      - crypto:src/zk/stark_v2.rs:808-810
+      - crypto:src/zk/stark_v2.rs:31-34
+      - crypto:src/zk/stark_v2.rs:410-414
+      - crypto:src/zk/stark_v2.rs:24-29
+      - crypto:src/zk/stark_v2.rs:375
+    fix: "Say 'from f(x), f(wx), Comp(x)'; drop the w*z justification or keep it as harmless; qualify item 2 with the agreement bound or require beta >= 4."
+  - id: S2N-7
+    severity: minor
+    claim_ids: [C-STARK-2]
+    what: "Commit a232be6a8 is titled a fix, but the term it replaced, (f(x) - f(wz))/(x - wz), was already a valid DEEP quotient: it vanishes at X = wz, and the script confirms it is a degree n-2 polynomial. The change swaps one valid form for another and removed no soundness defect. The new unit test deep_uses_transformed_trace_at_same_x pins the formula, not a soundness property."
+    evidence:
+      - "crypto:git show a232be6a8 -- src/zk/stark_v2.rs"
+      - crypto:src/zk/stark_v2.rs:1397-1416
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.out (deep.term2_old_(f(X)-f(wz))/(X-wz)_is_also_polynomial)
+    fix: "When citing the history, describe a232be6a8 as an equivalent reformulation, not a soundness fix."
+  - id: S2N-8
+    severity: minor
+    claim_ids: [C-STARK-4]
+    what: "eps_field is arithmetically right for the stated formula: the worst case is 2^-217.6 < 2^-215 for k <= n, and the query terms are 2^-240 and 2^-40. But the formula is not tied to a specific theorem or conjecture statement. The (5 + log2 n) L/r term uses L/r per challenge, which is the unique-decoding proximity-gap form, while the text invokes proximity up to the list-decoding radius. The ALI and OOD terms carry no list-size factor; that this factor is needed in the list-decoding regime is recalled, not retrieved, and is not load-bearing here. With L^2/r per challenge the field term would be about 2^-185.7, so 'below about 2^-215' depends on that form. The code also does not bound k (number of boundaries); the figure fails at k >= ~2^38.6. None of this affects the stated position that no security level is claimed, or the 128-bit SHA-256 cap."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:86-112
+      - crypto:src/zk/stark_v2.rs:385-394
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.json (soundness)
+    fix: "Cite the exact conjecture (e.g. the ethSTARK or BCIKS20 statement) with its constants and list-size factor, or replace 'below about 2^-215' with 'negligible next to the query term for L <= 2^32 and k <= n'."
+  - id: S2N-9
+    severity: minor
+    claim_ids: []
+    what: "Sweep lead groth16.rs zk.no_negative_test confirmed. The three tests are two positive R1CS/QAP checks and one #[ignore] end-to-end prove/verify, which the module docs say returns false even for the honest proof. No forged or tampered proof is ever shown rejected, so groth16::verify is unverified in both directions. No claim in this joint cites it."
+    evidence:
+      - crypto:src/zk/groth16.rs:55-69
+      - crypto:src/zk/groth16.rs:447-542
+    fix: "Add tampered-proof negative tests once the pairing is fixed. Until then, state that verify is non-functional."
+  - id: S2N-10
+    severity: major
+    claim_ids: []
+    what: "Sweep lead plonk.rs:368 zk.discarded_value (omega) confirmed in substance. omega is computed by the verifier, but discarding it marks the missing check z_zeta_omega == z_poly(zeta*omega). The verifier also never checks a_zeta, b_zeta and c_zeta against the a_poly, b_poly and c_poly it was sent; none of the four evaluations is absorbed. The permutation term is linear in the unbound z_zw, so for any polynomials a forger can solve for z_zw and the identity holds. By algebra, not executed, plonk::verify accepts forged proofs for any circuit. The docs call verify an 'educational identity checker' but also say the zeta identity 'is the actual soundness-relevant check'. No claim in this joint cites it."
+    evidence:
+      - crypto:src/zk/plonk.rs:318
+      - crypto:src/zk/plonk.rs:328-330
+      - crypto:src/zk/plonk.rs:352
+      - crypto:src/zk/plonk.rs:368
+      - crypto:src/zk/plonk.rs:576-578
+      - crypto:src/zk/plonk.rs:42-47
+    fix: "Check each opened evaluation against the sent polynomial (a_poly(zeta), ..., z_poly(zeta*omega)) or absorb and KZG-open them, add a forged-evaluation negative test, and correct the docs."
+  - id: S2N-11
+    severity: minor
+    claim_ids: [C-STARK-1]
+    what: "The module says 'Malformed input returns false; it never panics'. But check() calls coset(n*beta), which asserts n*beta <= 2^32 inside primitive_nth_root, and statement_transcript does not bound n*beta. A verifier-side AirV2 or StarkConfig with n*beta > 2^32 panics, and so does deleting the Shape length check (index at 791). Proof bytes alone cannot trigger it."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:83-84
+      - crypto:src/zk/stark_v2.rs:373-377
+      - crypto:src/zk/stark_v2.rs:771
+      - crypto:src/zk/plonk.rs:77
+    fix: "Reject n*beta > 2^32 in statement_transcript."
+
+prior_finding_verdicts:
+  - id: S1
+    source: research/sheriff/SHF-20261016-3caa6f/findings.yaml
+    verdict: fixed
+    why: "Code-read at 669809d5c6; execution not_covered. Every cause S1 lists is addressed. v1 checks the transition at each queried row and its successor, and both boundary rows. v2 recomputes Comp(x) from the opened trace with alpha1, alpha2 and every boundary, checks the AIR at z, and runs FRI on the DEEP quotient over a beta >= 2 coset LDE. q and positions come from the verifier and the transcript in both modules, and the empty proof fails the length gate. All four original mutants have negative tests. Residual by design: v1 is a documented spot-check, not a STARK, which accepts a false statement with probability (1 - k/n)^q (6.9% for one bad row at n = 8, q = 20); carried under V1."
+    evidence:
+      - crypto:src/zk/stark.rs:719-780
+      - crypto:src/zk/stark.rs:41-84
+      - crypto:src/zk/stark_v2.rs:752-829
+      - crypto:src/zk/stark_v2.rs:957-1037
+      - crypto:src/zk/stark.rs:908-969
+  - id: S2
+    source: research/sheriff/SHF-20261016-3caa6f/findings.yaml
+    verdict: fixed
+    why: "The (q/beta)^q formula is gone. The docs state a conjectured eps <~ rho^q 2^-g + eps_field + eps_hash, with rho = 1/beta, g = 0, k, r ~ 2^254.86, L <= 2^32 and the SHA-256 128-bit cap. No security level is claimed and no proven bound is stated. The arithmetic re-derives (K6); the residual nuance is S2N-8."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:86-115
+      - crypto:README.md:494
+      - research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.json
+  - id: V1
+    source: research/sheriff/SHF-20261017-e4d7f6/findings.yaml
+    verdict: partially_fixed
+    why: "Fixed for stark_v2. statement_transcript absorbs the AIR fingerprint, n, beta, q, folds, final size and every (p_k, v_k) before the trace root and alpha1, and three frozen-heart negative tests have an attack control. Fixed for the three v1 defects: q is the verifier's argument (lengths checked) and is absorbed, so a prefix fails; the fold count is fixed at log2 n; zero folds are rejected; layer 0 must be the trace root. Not fixed, by design: v1 grinding at a caller-chosen q. The verifier has no floor on q, and at q = 20, n = 8 a two-row forgery escapes with probability 0.0032 (about 315 attempts). This is now documented, sized by spot_check_queries and tested both ways, and v1 disclaims any research use."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:373-397
+      - crypto:src/zk/stark_v2.rs:1192-1268
+      - crypto:src/zk/stark.rs:268-288
+      - crypto:src/zk/stark.rs:726-740
+      - crypto:src/zk/stark.rs:70-84
+      - crypto:src/zk/stark.rs:1163-1189
+  - id: V2
+    source: research/sheriff/SHF-20261017-e4d7f6/findings.yaml
+    verdict: fixed
+    why: "No bit figure is claimed: the docs say 'no security level is claimed for this code', and StarkConfig calls 8^-80 'not a security level'. The 128-bit SHA-256 collision cap and the T-query Fiat-Shamir factor are stated. 'Proven bounds are about half' was replaced by 'Proven ... bounds are weaker ...; this module does not state one'. The frozen-heart forgeries the bound ignored are closed (V1)."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:86-112
+      - crypto:src/zk/stark_v2.rs:156-173
+  - id: V3
+    source: research/sheriff/SHF-20261017-e4d7f6/findings.yaml
+    verdict: fixed
+    why: "The v1 text now gives escape (1 - k/n)^q with a verifier-fixed q and catch probability 1 - (1 - 1/n)^q, which is at most 1. No 'q/n' remains. The last FRI root and final constant are absorbed (absorb_fri_final) and checked. Non-canonical v+r is rejected (canonical_bytes in leaf_ok/absorb_scalar), and 2^300 returns false. v2 has an OOD sample. README:494 marks both modules as 'educational, unaudited ... no stated security level; must not back a research claim'. Tests now cover frozen heart, wrong AIR, duplicated query and the v1 query count."
+    evidence:
+      - crypto:src/zk/stark.rs:70-84
+      - crypto:src/zk/stark.rs:111-138
+      - crypto:src/zk/stark.rs:326-330
+      - crypto:src/zk/stark.rs:919-957
+      - crypto:README.md:494
+  - id: F-STARK-API (C7)
+    source: research/sheriff/SHF-20261024-46b7da/findings.yaml
+    verdict: fixed
+    why: "1c784d902 (an ancestor of HEAD via merge f118a24b3) replaced the public transition closure with AffineTransition. Its fields are private (constructor new(previous, next, constant) only), and AirV2.transition has that type, so a non-polynomial or higher-degree transition cannot be represented. The fingerprint at (0,0), (1,0), (0,1) is then exact. The verifier never calls the remaining generate_trace closure, since check() uses only n, boundary and transition. v1's Air keeps a closure, but v1 evaluates it directly at queried rows and makes no degree assumption, so C7 does not apply there. quadratic_transition_is_outside_the_air_type only shows an affine map differs from prev*next at (1,1); the real guarantee is the type."
+    evidence:
+      - crypto:src/zk/stark_v2.rs:176-220
+      - crypto:src/zk/stark_v2.rs:348-366
+      - crypto:src/zk/stark_v2.rs:752-829
+      - crypto:src/zk/stark_v2.rs:910-923
+      - crypto:src/zk/stark.rs:196-208
+
+lead_dispositions:
+  - lead: "crypto src/zk/groth16.rs zk.no_negative_test"
+    disposition: confirmed
+    one_line: "No test shows a forged or tampered proof rejected; the only verify test is #[ignore] and documented to fail on honest proofs (groth16.rs:55-69, 447-542); see S2N-9."
+  - lead: "crypto src/zk/plonk.rs:368 zk.discarded_value (omega)"
+    disposition: confirmed
+    one_line: "omega is verifier-computed, but its discard marks the unchecked z_zeta_omega == z_poly(zeta*omega); a_zeta, b_zeta and c_zeta are also unbound, so forgeries pass by algebra (plonk.rs:328-330, 352, 368, 576-578); see S2N-10."
+
+suggested_verdicts:
+  - claim: C-STARK-1
+    text: the OOD values are transcript-bound
+    verdict: upheld_scoped
+    scoped_to: "By code reading at crypto 669809d5c6. f(z), f(wz) and Comp(z) are absorbed (canonical) after z and before gamma/lambda, the FRI challenges and the queries. z is drawn after both commitments, the statement is absorbed first, and the verifier replays the prover's order exactly (K3). The ood_unbound negative test pins the binding. cargo test is not_covered, and AIR-fingerprint, n and beta binding is untested (S2N-5)."
+    findings: [S2N-5, S2N-11]
+  - claim: C-STARK-2
+    text: the verifier recomputes D(x)
+    verdict: upheld_scoped
+    scoped_to: "By code reading. D(x) is recomputed from the Merkle-bound f(x), f(wx) (opened at (p + beta) mod L) and Comp(x) plus the OOD values, and compared with the Merkle-bound FRI layer-0 value at the same position. The second term (f(wX) - f(wz))/(X - z) is a valid quotient (script). The Deep gate is pinned by tests; fri_pos == p is not isolated, and the doc text omits f(wx). cargo test is not_covered."
+    findings: [S2N-6, S2N-7]
+  - claim: C-STARK-3
+    text: the degree bound and lambda-adjustment are correct
+    verdict: upheld_scoped
+    scoped_to: "Derived and checked numerically at (n,beta) = (8,4), (8,8), (16,8). Honest Comp has degree n-2 (< n). Each bracket has degree n-2 (< n-1), and (lambda0 + lambda1 x) lifts it to n-1 (< n). log2 n folds to a constant beta-value layer enforce < n, given the verifier's depth gate (766). lambda is drawn after the OOD values. lambda1 = 0 (probability at most 1.36/r) only lets a degree-n trace that equals a valid witness on H pass, so no false statement is accepted. cargo test is not_covered, and the depth gate itself is untested (S2N-2)."
+    findings: [S2N-2, S2N-6]
+  - claim: C-STARK-4
+    text: the stated conjectured eps
+    verdict: upheld_scoped
+    scoped_to: "The arithmetic follows from the stated conjectural formula: 2^-240 (default), 2^-40 (fast), and eps_field <= 2^-217.6 < 2^-215 for k <= n and L <= 2^32. The 128-bit SHA-256 cap and the T-query factor are stated, and no security level is claimed (module docs and README:494). The formula is uncited to an exact conjecture, its field terms use the unique-decoding L/r form without list-size factors, and k is unbounded in code."
+    findings: [S2N-8]
+  - claim: C-STARK-5
+    text: the negative tests exercise each check
+    verdict: overclaimed
+    scoped_to: "Tests pin the OOD canonicity, AIR-at-z, D vs layer 0, OOD binding, boundary binding (frozen heart), q binding, transcript-derived positions, the gamma2 and gamma3 terms, the degree adjustment, deep_offset and FRI-on-composition. They do not isolate FRI fold consistency (soundness-critical), the FRI depth / over-fold gate (soundness-critical), fri_pos == p, the composition opening/recompute pair, the gamma1 term, or AIR/n/beta binding. None of the tests was executed here (cargo blocked)."
+    findings: [S2N-1, S2N-2, S2N-3, S2N-4, S2N-5]
+
+not_covered:
+  - what: "Execution of cargo test (zk::stark, zk::stark_v2) and of any Rust mutant"
+    why: "The session's permission policy blocked executing code from /home/user/crypto and /home/user/cryptanalysis"
+    command_that_would_cover: "cd /home/user/crypto && cargo test --release --lib zk::stark -- --include-ignored (plus the S2N-1/S2N-2 controls added as tests or as a case-side harness)"
+  - what: "Mutation controls on the real verifier for the gaps in S2N-1 and S2N-2"
+    why: "Could not run Rust; the deletion analysis is by code reading"
+    command_that_would_cover: "a case-side harness crate under scripts/readers/stark/ linking crypto at 669809d5c6, with the two forgeries described in the fixes"
+
+limitations:
+  - "This file is a sheriff reader record (.claude/skills/sheriff/SKILL.md). It is never a validation_report and satisfies no review gate. If projected onto the agents/validator.md template, its verdict would be `incomplete`, because execution of the producer's tests and mutants is not_covered."
+  - "The 'fails if deleted' column is reasoning from code, not an executed mutant run."
+  - "The blind re-derivation script re-implements the construction from the module-doc statement. It confirms the algebra and the arithmetic, not the Rust code's behaviour."
+  - "The remarks on list-size and polynomial factors in the conjectured field terms are recalled, not retrieved, and are not load-bearing (S2N-8 rests on the docs citing no exact statement and on the sensitivity arithmetic)."
+
+artifact_paths:
+  - path: research/sheriff/SHF-20261028-0f3f64/readers/stark.yaml
+  - path: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.py
+    sha256: 69770966b8b5413c938717de77423bab1fde17c2e5c57285731679d21465c5c8
+  - path: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.out
+    sha256: f44bc6f681a34e8bcbedb5c182e6dc0922f937c231d09129d82e7d19ab47abf8
+  - path: research/sheriff/SHF-20261028-0f3f64/scripts/readers/stark/stark_rederive.json
+    sha256: 5f9eb55001bed0e52c0bbc0133f917af855147a46da50a8a63059ecb95015813
+
+review_attestation:
+  joints_owned: ["B2 stark_v2 DEEP-ALI verifier soundness and its negative tests; prior findings S1, S2, V1, V2, V3, F-STARK-API; sweep leads groth16 zk.no_negative_test and plonk.rs:368 zk.discarded_value"]
+  sources_read: "see sources_read above (complete)"
+  read_sibling_reports: false
+  blind_from_respected: true
+  joint_result: "holds on transcript binding, D(x) recomputation, degree bounds and the stated eps arithmetic, all scoped to code reading. Breaks on C-STARK-5 (negative-test coverage: two soundness-critical gates have no test that fails on their deletion). Inconclusive on execution (cargo test not_covered)."
