@@ -46,7 +46,7 @@ def main():
     source=f'''#set page(paper:"a4",margin:16mm)
 #set text(size:9.5pt)
 = Common-atom shifted-cover survey
-Observations only. One physical complete admissibility survey, not relation collection, an ECDLP experiment, a speedup claim or a scientific-state promotion.
+Observations only. One physical complete admissibility survey; relation-collection attempts: zero. No performance claim or scientific-state transition is made.
 
 Run #raw({q(args.run.name)}). The original two E curves and sixteen-atom bases remain fixed: p=4099,a=2,b=13,r=4021,P=(0,264), and b=16,r=4111,P=(0,4). For C_h: y²=f(x²+h), an atom (u,y) lifts exactly when u-h is square or zero. Every h=0 through4098 is retained; singular f(h)=0 is excluded from admissibility. All64 original public sources are assessed without selecting by relation yield. h=0 is the historical positive control.
 

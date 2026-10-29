@@ -20,6 +20,11 @@ CREATE TABLE atoms (
   x TEXT NOT NULL, y TEXT NOT NULL,
   PRIMARY KEY(base_sha256, column_index)
 );
+CREATE TABLE native_atoms (
+  base_sha256 TEXT NOT NULL REFERENCES bases, atom_index INTEGER NOT NULL,
+  x TEXT NOT NULL, y TEXT NOT NULL, original_lift_x TEXT NOT NULL,
+  original_lift_y TEXT NOT NULL, PRIMARY KEY(base_sha256,atom_index)
+);
 CREATE TABLE actions (
   base_sha256 TEXT NOT NULL REFERENCES bases, name TEXT NOT NULL,
   eigenvalue TEXT NOT NULL, known_constraint_rank INTEGER NOT NULL,
@@ -83,3 +88,21 @@ CREATE VIEW cubic_reuse_summary AS
  SELECT observation_id,COUNT(*) AS witnesses,COUNT(DISTINCT function_id) AS cubic_orbits,
         COUNT(DISTINCT normalized_affine_json) AS distinct_equations
  FROM equations GROUP BY observation_id;
+CREATE TABLE cover_sources (
+  execution_id TEXT NOT NULL REFERENCES executions, base_sha256 TEXT NOT NULL REFERENCES bases,
+  source_index INTEGER NOT NULL, public_scalar TEXT NOT NULL, x TEXT NOT NULL,y TEXT NOT NULL,
+  PRIMARY KEY(execution_id,base_sha256,source_index)
+);
+CREATE TABLE cover_frames (
+  execution_id TEXT NOT NULL REFERENCES executions, base_sha256 TEXT NOT NULL REFERENCES bases,
+  h TEXT NOT NULL,c4 TEXT NOT NULL,c2 TEXT NOT NULL,c0 TEXT NOT NULL,
+  singular INTEGER NOT NULL,eligible INTEGER NOT NULL,
+  base_square_mask TEXT NOT NULL,base_zero_mask TEXT NOT NULL,
+  source_square_mask TEXT NOT NULL,source_zero_mask TEXT NOT NULL,
+  PRIMARY KEY(execution_id,base_sha256,h)
+);
+CREATE VIEW cover_admissibility AS
+ SELECT f.execution_id,f.base_sha256,c.curve_uid,c.b,f.h,f.eligible,f.singular,
+        LENGTH(REPLACE(f.base_square_mask,'0','')) AS atoms_with_lifts,
+        LENGTH(REPLACE(f.source_square_mask,'0','')) AS source_points_with_lifts
+ FROM cover_frames f JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid);

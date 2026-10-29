@@ -24,10 +24,11 @@ The database contains public witnesses and no secret scalar labels.
 ```sh
 python3 research/prime_field_database_20261029/build.py \
   --run research/prime_field_b1_execution_20261029/runs/FRESH_RUN \
+  --cover-survey research/prime_field_cover_survey_20261029/runs/FRESH_SURVEY \
   --out research/prime_field_b1_execution_20261029/database/prime-fields.sqlite
 ```
 
-Omit `--run` to import only the retained catalog. Outputs must be fresh.
+Omit both run flags to import only the retained catalog. Outputs must be fresh.
 Hydrate S3-backed raw files before building. The generated SQLite file follows
 the repository artifact policy; keep its manifest and a generation receipt
 binding builder/schema/input/output hashes. Rebuild from those exact bytes.
@@ -43,6 +44,8 @@ GROUP BY observation_id;
 SELECT base_sha256,name,known_constraint_rank,additional_rank_after_constraints
 FROM actions;
 SELECT * FROM cubic_reuse_summary;
+SELECT b,h,atoms_with_lifts,source_points_with_lifts
+FROM cover_admissibility WHERE eligible=1;
 ```
 
 The new-equation view compares normalized affine rows only within the same
@@ -52,6 +55,14 @@ The `kernels` table retains each fresh cell's checked right-kernel basis for
 later target-identifiability tests `v*N=0`; it does not require full base rank.
 It does not invent kernels missing from the retained historical catalog.
 No SQL view estimates collision probabilities, total attack cost or speedup.
+
+Version2 adds `native_atoms` with the original sixteen-atom indexing,
+`cover_sources` in the exact source order and all `cover_frames` masks and
+coefficients. The sixteen-bit cover masks index `native_atoms`, not the
+fifteen projected unknowns in `atoms`. Cover survey costs occupy their own
+physical execution row. Existing version1 database artifacts are preserved;
+their receipts bind the earlier source/schema bytes. The new combined file
+is a separate artifact and never overwrites the earlier database.
 
 The cubic reuse view is exploratory derived archive analysis. On the existing
 even sextic, the already-valid deck/negation actions transform `v(X)` to

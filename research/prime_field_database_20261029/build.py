@@ -54,7 +54,7 @@ def canonical_cubic(coefficients, modulus):
                for sign in (1,-1) for deck in (1,-1))
 
 
-def build(catalog_path, fixture_path, run_dirs, output):
+def build(catalog_path, fixture_path, run_dirs, output, cover_runs=()):
     if output.exists():
         raise ValueError('database output must be fresh')
     catalog, fixtures = load(catalog_path), load(fixture_path)
@@ -73,7 +73,7 @@ def build(catalog_path, fixture_path, run_dirs, output):
                 raise ValueError('source path has changed during import')
             connection.execute('INSERT OR IGNORE INTO sources VALUES (?,?,?,?)', row)
             return relative
-        for key, value in {'schema':'prime-field-database/v1', 'derived_only':True,
+        for key, value in {'schema':'prime-field-database/v2', 'derived_only':True,
                            'new_collection_performed':False, 'schema_sha256':sha256((HERE/'schema.sql').read_bytes()).hexdigest(),
                            'builder_sha256':sha256(Path(__file__).read_bytes()).hexdigest()}.items():
             connection.execute('INSERT INTO metadata VALUES (?,?)', (key, encode(value)))
@@ -99,6 +99,9 @@ def build(catalog_path, fixture_path, run_dirs, output):
                  base['projected_columns'], 'ordered signed canonical unknowns after public-anchor removal', catalog_source))
             connection.executemany('INSERT INTO atoms VALUES (?,?,?,?)',
                 [(base['base_sha256'], i, str(x), str(y)) for i,(x,y) in enumerate(points)])
+            connection.executemany('INSERT INTO native_atoms VALUES (?,?,?,?,?,?)',
+                [(base['base_sha256'],i,*map(str,atom['point']),*map(str,atom['lift']))
+                 for i,atom in enumerate(fixture['factor_base'])])
             audit = base['negation_action_audit']
             action = audit['action']
             connection.execute('INSERT INTO actions VALUES (?,?,?,?,?,?)',
@@ -182,11 +185,52 @@ def build(catalog_path, fixture_path, run_dirs, output):
                             (observation_id,index,encode(normalize(vector,rhs,int(base['r']))),encode(vector),str(rhs),
                              int(row['constraints'][0][0] == 0),int(any(p[0] == 0 for p in row['constraints'][1:])),
                              None if syndromes is None else encode(syndromes[index]),encode(row),function_id))
+        for run_dir in cover_runs:
+            export_path=run_dir/'export.json'
+            export=load(export_path)
+            if export['schema']!='experiment.export/v1':raise ValueError('cover unified export required')
+            source(export_path,'unified_export')
+            bound_paths=set()
+            for item in export['files']:
+                path=(run_dir/item['path']).resolve();path.relative_to(run_dir.resolve())
+                data=path.read_bytes()
+                if sha256(data).hexdigest()!=item['sha256'] or len(data)!=item['bytes']:
+                    raise ValueError('cover export file hash mismatch')
+                source(path,'export_bound_file');bound_paths.add(path)
+            raw_paths=[p for p in (run_dir/'raw/survey.json',run_dir/'raw/survey.json.gz') if p.is_file()]
+            if len(raw_paths)!=1 or raw_paths[0].resolve() not in bound_paths:
+                raise ValueError('unambiguous export-bound cover survey required')
+            for p in (run_dir/'execution.json',run_dir/'raw/verification.json'):
+                if p.resolve() not in bound_paths:raise ValueError('cover execution/verification unbound')
+            execution=load(run_dir/'execution.json');raw=load(raw_paths[0]);verification=load(run_dir/'raw/verification.json')
+            if raw.get('schema')!='prime-field-shifted-cover-survey/v1' or raw.get('inputs_sha256')!=expected or raw.get('complete') is not True:
+                raise ValueError('cover schema/input mismatch')
+            if not verification.get('checked') or verification.get('frames_checked')!=sum(f['p'] for f in fixtures['fixtures']):
+                raise ValueError('complete cover verification absent')
+            if len(raw['cells'])!=len(base_map) or {c['fixture_uid'] for c in raw['cells']}!=set(base_map):
+                raise ValueError('cover fixture coverage differs')
+            execution_id=str(run_dir.resolve().relative_to(ROOT))
+            connection.execute('INSERT INTO executions VALUES (?,?,?,?,?,?,?)',
+                (execution_id,execution['source_commit'],export['protocol']['sha256'],1,0,encode(execution),
+                 str(export_path.resolve().relative_to(ROOT))))
+            for cell in raw['cells']:
+                base=base_map[cell['fixture_uid']];fixture=fixture_map[cell['fixture_uid']]
+                if cell['curve_uid']!=base['curve_uid'] or cell['source_order']!=fixture['width_binding']['source_order'] or any(cell[k]!=fixture[k] for k in ('p','a','b','r')):
+                    raise ValueError('cover curve/source identity differs')
+                if len(cell['rows'])!=cell['p'] or [row['h'] for row in cell['rows']]!=list(range(cell['p'])):
+                    raise ValueError('cover frame coverage differs')
+                connection.executemany('INSERT INTO cover_sources VALUES (?,?,?,?,?,?)',
+                    [(execution_id,base['base_sha256'],i,str(s),str(point[0]),str(point[1]))
+                     for i,(s,point) in enumerate(zip(cell['source_order'],cell['source_points'],strict=True))])
+                connection.executemany('INSERT INTO cover_frames VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [(execution_id,base['base_sha256'],str(row['h']),str(row['c4']),str(row['c2']),str(row['c0']),
+                      int(row['singular']),int(row['eligible']),row['base_square_mask'],row['base_zero_mask'],
+                      row['source_square_mask'],row['source_zero_mask']) for row in cell['rows']])
         if connection.execute('PRAGMA foreign_key_check').fetchall():
             raise ValueError('foreign key failure')
         connection.commit()
         return {table:connection.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]
-                for table in ('curves','bases','atoms','actions','executions','observations','equations','kernels','principal_functions','sources')}
+                for table in ('curves','bases','atoms','native_atoms','actions','executions','observations','equations','kernels','principal_functions','cover_frames','cover_sources','sources')}
     except BaseException:
         connection.close()
         output.unlink(missing_ok=True)
@@ -200,9 +244,10 @@ def main():
     parser.add_argument('--catalog',type=Path,default=ROOT/'research/prime_field_symmetries_20261029/catalog.json')
     parser.add_argument('--fixtures',type=Path,default=ROOT/'research/prym_factor_base_width_20261025/fixtures.json')
     parser.add_argument('--run',type=Path,action='append',default=[])
+    parser.add_argument('--cover-survey',type=Path,action='append',default=[])
     parser.add_argument('--out',type=Path,required=True)
     args = parser.parse_args()
-    print(encode(build(args.catalog,args.fixtures,args.run,args.out)))
+    print(encode(build(args.catalog,args.fixtures,args.run,args.out,args.cover_survey)))
 
 
 if __name__ == '__main__':
