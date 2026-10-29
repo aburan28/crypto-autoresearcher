@@ -1,0 +1,21 @@
+# Controlled transport filesystem repair — TASK-20261029-a82bb1
+
+Actual code C4: `dd8f7318ad05d291bdbc9b659df739a7d697d345`. Actual manifest metadata M4: `a69df290effbddcd19a5dec86f5f19b263860caa`. Both were committed and pushed by root before this inventory was generated; the immutable inventory helper passed using read-only Git checks of actual C4/M4, live aliases/mirrors, both source-manifest closures and all 20 protected source hashes.
+
+All three unsupported Sandbox.open sites now use the installed Modal 1.6.2 filesystem API. Metadata uses stat/type/ancestor checks and a 1 MiB cap before read_bytes, then exact length/hash and post-stat checks. Upload uses write_bytes(data, remote_path). Sealed collection uses stat plus copy_to_local streaming into a private partial directory; local regular-file/type/size and streaming hash/readback checks precede promotion, with no 2 GiB Python byte buffer. Failed/partial copies remain outside the custody tree, collection stays incomplete, and no termination ACK is fabricated. The existing sealed root-owned/quiescent boundary supplies remote immutability.
+
+20 transport tests passed;7 focused custody/postrun regressions passed, using disclosed F11 mocks and early-refusal checks. Initial host-test imports failed because PYTHONPATH omitted host; exact failure and corrected PYTHONPATH=host:. command/output are retained in checks.json and outside history. No paired-export engine fixtures were run. The AST contract checks the pinned installed SDK file digest, method argument order, vendor streaming implementation and the absence of Sandbox.open in the realistic fake/controller.
+
+Only controller.py and test_transport.py code changed. Both manifests bind actual C4. All20 protected source hashes are unchanged. No worker math, sampling, protocol, exporter, controls or qualification change occurred. Source fixtures are not SDK/VM/provider qualification; no new VM, SDK call/import, scientific entropy/nonce/curve/target, candidate invocation, benchmark or old-target analysis occurred. No scientific conclusion or hypothesis transition is asserted.
+
+Source review (internal/retrieved, static read only)
+
+Read AGENTS.md, agents/executor.md, the literature-first and observation-first sections of docs/agent-contract-extended.md; actual TASK-20261029-a82bb1 and recovery control files; current controller/test_transport/manifest source; the existing endpoint-reuse controller's filesystem write/stat/copy sequence; pinned Modal 1.6.2 _filesystem.py and FileInfo/FileType definitions in modal/types.py. The installed vendor implementation is the relevant official primary API source for this transport repair. No online documentation search or SDK import/call was performed under this task's prohibition. The pinned source digest is checked by AST fixture.
+
+The vendor stat returns FileInfo.type as FileType enum (file/directory/symlink), size and symlink_target, describing the link itself. write_bytes takes data then remote_path. copy_to_local takes remote_path then local_path, writes stdout chunks to a temporary local file and atomically replaces after success; the controller uses it for sealed collection rather than read_bytes. Metadata alone uses read_bytes after cap/type checks. The root-owned sealed/quiescent remote result tree remains the immutability assumption; stat/read/stat is not a defense against a live writer.
+
+Committed failed-capture and cleanup metadata are historical observations: original 1 VM/0 candidate engine/0fresh scientific draws; original failure occurred at Sandbox.open. Later cleanup probes used filesystem and fixed constant-print exec on the same existing VM; ACK true/provider 137 is separate historical cleanup evidence and is not transplanted into the failed native receipt. No old candidate rows were analyzed.
+
+The checks validate fixed disclosed F11 bytes and mocked filesystem transport/refusal paths only. They provide no new VM/provider/counter/clock qualification or scientific verdict. Worker and all 20 protected source bytes remain unchanged. No canonical source, claim, Git, credential, storage or publication writes were made by this producer.
+
+Artifact hashes are in source-inventory.json, checks.json and filesystem-delivery-a82bb1.json. Canonical publication, Git and claims remain root-owned.
