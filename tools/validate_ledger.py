@@ -399,14 +399,56 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
                       "known-false object or the control cannot fail")
     rederivation = plan.get("blind_rederivation")
     if isinstance(rederivation, dict) and rederivation.get("required"):
-        for field in ("quantity", "assigned_to"):
-            if not str(rederivation.get(field) or "").strip():
-                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
-                              f"required when required is true")
-        if not (rederivation.get("blind_from") or []):
-            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
-                          "required; name the producer's implementation, notes "
-                          "and report, or the independence is not checkable")
+        def check_blind_from(quantity: dict, prefix: str) -> None:
+            if not (quantity.get("blind_from") or []):
+                ctx.err(path, f"{prefix}.blind_from is required; name the producer's "
+                              "implementation, notes and report, or the independence "
+                              "is not checkable")
+
+        def check_quantity(quantity: dict, prefix: str) -> None:
+            for field in ("quantity", "assigned_to"):
+                if not str(quantity.get(field) or "").strip():
+                    ctx.err(path, f"{prefix}.{field} is required when required is true")
+            check_blind_from(quantity, prefix)
+
+        prefix = "review_plan.blind_rederivation"
+        if "quantities" not in rederivation:
+            check_quantity(rederivation, prefix)
+        else:
+            quantities = rederivation["quantities"]
+            if not isinstance(quantities, list) or not quantities:
+                ctx.err(path, f"{prefix}.quantities must be a nonempty list")
+            else:
+                # Archived shared assignments describe subquantities by name
+                # and statement. Their complete parent contract assigns the
+                # whole review; each detail retains its own forbidden inputs.
+                # Explicit quantity/assigned_to rows are independent contracts
+                # and must never borrow missing fields from that parent.
+                named_details = all(
+                    isinstance(quantity, dict)
+                    and "name" in quantity and "statement" in quantity
+                    and "quantity" not in quantity and "assigned_to" not in quantity
+                    for quantity in quantities
+                )
+                if named_details:
+                    check_quantity(rederivation, prefix)
+                for index, quantity in enumerate(quantities):
+                    scoped = f"{prefix}.quantities[{index}]"
+                    if not isinstance(quantity, dict):
+                        ctx.err(path, f"{scoped} must be a mapping")
+                    elif named_details:
+                        for field in ("name", "statement"):
+                            if not isinstance(quantity[field], str) or not quantity[field].strip():
+                                ctx.err(path, f"{scoped}.{field} must be nonempty text")
+                        check_blind_from(quantity, scoped)
+                    else:
+                        # Each quantity keeps its own reader restrictions. Never
+                        # merge scopes or borrow a missing field from a parent.
+                        check_quantity(quantity, scoped)
+            if (not isinstance(quantities, list) or not quantities or not named_details) and any(
+                field in rederivation for field in ("quantity", "assigned_to", "blind_from")
+            ):
+                check_quantity(rederivation, prefix)
 
 
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
@@ -933,13 +975,40 @@ def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
 
 
 # A declared run artifact may be stored compressed or as a blob-store pointer
-# (tools/artifact_store.py, docs/artifact-storage.md); any one form satisfies it.
+# (tools/artifact_store.py, docs/artifact-storage.md) or the canonical
+# .artifacts.json manifest (docs/artifacts.md); any one form satisfies presence.
+# This does not download or verify remote bytes: native replay still does that.
 ARTIFACT_STORED_FORMS = ("", ".gz", ".blob.json", ".gz.blob.json")
 
 
 def _artifact_stored(run_dir: str, name: str) -> bool:
-    return any(os.path.isfile(os.path.join(run_dir, name + suffix))
-               for suffix in ARTIFACT_STORED_FORMS)
+    if any(os.path.isfile(os.path.join(run_dir, name + suffix))
+           for suffix in ARTIFACT_STORED_FORMS):
+        return True
+
+    def unique_fields(pairs):
+        fields = {}
+        for key, value in pairs:
+            if key in fields:
+                raise ValueError("duplicate artifact manifest key")
+            fields[key] = value
+        return fields
+
+    try:
+        with open(os.path.join(run_dir, ".artifacts.json"), encoding="utf-8") as handle:
+            manifest = json.load(handle, object_pairs_hook=unique_fields)
+    except (OSError, ValueError):
+        return False
+    if not isinstance(manifest, dict) or manifest.get("schema") != "artifacts.manifest/v1":
+        return False
+    files = manifest.get("files")
+    entry = files.get(name) if isinstance(files, dict) else None
+    if not isinstance(entry, dict):
+        return False
+    digest, size = entry.get("sha256"), entry.get("bytes")
+    return (isinstance(digest, str)
+            and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+            and type(size) is int and size >= 0)
 
 
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):

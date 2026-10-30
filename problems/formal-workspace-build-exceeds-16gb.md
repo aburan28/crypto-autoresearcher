@@ -1,8 +1,10 @@
 # Formal workspace build does not fit in 16 GB of RAM
 
 - **Status:** `investigating` (narrowed 2026-10-29: does not affect the CI gate)
-- **Kind:** resource limit on ~16 GB hosts **without swap** (the cloud
-  containers); not on the `ubuntu-latest` gate runner. Cause unknown
+- **Kind:** resource limit. The module needs **more than 13.5 GB** of
+  anonymous memory (measured 2026-10-29). The cloud containers cap Bash
+  commands at a 13.36 GiB memory cgroup, so they cannot build it; the
+  `ubuntu-latest` gate runner can
 - **Affected work:** the `formal-workspace` proof gate
   (`tools/verify_formal_targets.py`, `.github/workflows/lean-verification.yml`,
   active as of 2026-10-28; it was disabled when this record was opened); every `autoresearch formal verify` run, which starts
@@ -49,8 +51,27 @@ established for the standard runner; why the two differ is unknown.
   `set_option maxHeartbeats 0` and checks a large finite rank certificate by
   kernel reduction. Peak elaboration memory grows with the certificate. Peak
   RSS was not measured.
-- **Missing capability:** a peak-memory measurement of the module, and a
-  runner sized for it.
+- **Missing capability:** the module's full peak memory (only a lower
+  bound, 13.5 GB, is measured), and a container with more than ~16 GB
+  available to commands.
+- **Observed, 2026-10-29, peak memory on the container**
+  ([evidence](../docs/reports/2026-10-29-degree-three-module-rss/README.md)).
+  `LEAN_NUM_THREADS=1 lake env lean` on the module at `main` `1896454c`,
+  with its dependencies already built. The kernel **OOM-killed it at 339 s**
+  with `anon-rss:13520596kB` (13.52 GB, 12.89 GiB), still growing about
+  0.12 GiB/s. `dmesg` says `constraint=CONSTRAINT_MEMCG`: the limit was the
+  session's command cgroup, `memory.limit_in_bytes` = 14,341,885,952
+  (13.36 GiB), not the 15.7 GiB of physical RAM. Lean still ran 8 OS
+  threads. So `LEAN_NUM_THREADS=1` does **not** bring the module under the
+  limit. The mapped Mathlib `.olean` pages (up to 6.5 GiB `RssFile`) were
+  reclaimed before the kill. Only the anonymous heap counts.
+- **Derived, 2026-10-29:** this explains both the container OOM and the
+  hosted success. The module's peak heap is above 13.5 GB. The container's
+  commands get at most 13.36 GiB (14.34 GB) including page cache, while the
+  hosted runner gives its process ~16 GB. The earlier "15 GiB container"
+  description was the RAM, not the limit that applied. The hosted margin is
+  unknown and may be thin: the run here was killed at about 340 s, and the
+  module takes 579 to 671 s hosted.
 - **Observed, 2026-10-28, hosted runner:** `lean-verification` run
   [40713787875](https://github.com/isogeny-labs/crypto-autoresearcher/actions/runs/40713787875),
   job `formal workspace (lake build + axiom audit)`
@@ -120,19 +141,18 @@ per-target.
 
 ## Next discriminating step
 
-- **Action:** record peak resident memory of
+- **Action:** record the full peak of
   `lake env lean CryptoResearch/Semaev/BooleanParityDegreeThreeRankCertificate.lean`
   (`/usr/bin/time -v`) on the hosted runner, for example in a throwaway
-  workflow run, and on a host with more than 16 GB; compare runner RAM, swap
-  and cgroup limit with the container that was killed.
-- **Also:** on a swapless container, try `LEAN_NUM_THREADS=1 lake env lean
-  <module>`. This is the one per-process thread setting still untested. Do not
-  use `-j`: the module was already the only lake job.
-- **Outcomes:** if peak RSS is above about 14 GB, the module needs
-  restructuring (a smaller certificate per declaration, or `decide` split
-  across lemmas), and swapless 16 GB hosts cannot build it. If it is below
-  that, look at swap and the cgroup limit, and at `LEAN_NUM_THREADS`, not at
-  lake scheduling. Lake scheduling is ruled out (see 2026-10-29 above).
+  workflow run, together with the runner's `MemTotal`, `SwapTotal` and cgroup
+  limit. That gives the gate's real margin. The container cannot measure it,
+  because its 13.36 GiB command cgroup kills the run first (2026-10-29).
+- **Outcomes:** if the hosted peak is within about 1 GB of the runner's
+  available memory, the gate is fragile. Then restructure the module (a
+  smaller certificate per declaration, or `decide` split across lemmas) or
+  declare a larger runner. Otherwise the gate is safe, and the containers stay
+  unable to build the whole workspace. `-j` and `LEAN_NUM_THREADS=1` are both
+  ruled out as fixes (2026-10-29).
 - **Recheck trigger:** any change to that module, to the toolchain pin, or to
   `lean-verification.yml` runner sizing.
 
@@ -155,3 +175,10 @@ per-target.
   `tools/verify_formal_targets.py` results with care until peak RSS is
   measured: a `formalization_blocked` from this module's OOM says nothing
   about the target.
+- 2026-10-29 (later): peak memory measured on the container with
+  `LEAN_NUM_THREADS=1`. It was OOM-killed by the 13.36 GiB command memcg at
+  339 s, with 13.52 GB of anonymous memory and still growing. The cause of the
+  container failure is now known: a lower bound of 13.5 GB on the module's
+  heap against a 13.36 GiB cgroup cap. `LEAN_NUM_THREADS=1` is not a fix.
+  Still `investigating`, now about the hosted margin and the true peak.
+  Unresolved.

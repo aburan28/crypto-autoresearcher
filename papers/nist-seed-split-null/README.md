@@ -29,9 +29,10 @@ All of it is in `crypto-autoresearcher:research/nist_seed_split_null_20261029/`:
   `protocol.json`;
 - `DEVIATIONS.md`, which records D1–D3:
   - D1: runs launched without a resume checkpoint;
-  - D2: the 48-bit validation kept no rows;
+  - D2: the 48-bit validation kept no rows (resolved 2026-10-30: rerun with rows, exact reproduction, audited);
   - D3: there is no frozen `experiment.protocol/v1` record and no conforming
-    export.
+    export;
+  - D4: that rerun itself had no frozen protocol record or export (a repeat of D3).
 
 **Change class:** analysis (no advance, engineering, relabelling or
 accounting change to any method's cost).
@@ -46,8 +47,11 @@ toolchain was not available in the session that wrote the draft.
 
 - [ ] Typeset in LaTeX through `paper.mk`; `make check` passes; commit the PDF.
 - [ ] Clear D1: push a resume checkpoint before any rerun.
-- [ ] Rerun the 48-bit validation with per-curve rows retained (clears D2).
+- [x] Rerun the 48-bit validation with per-curve rows retained (clears D2; done 2026-10-30).
 - [ ] Run a real-field SEA null, at least 10,000 prime-order curves per field.
+- [x] Weighted statistic and L(1, χ) for prime239v1 against the same null:
+      `research/nist_seed_lvalue_20261030/` (L̂ = 0.246, 0.25th percentile,
+      lowest of 61; §6).
 - [ ] Novelty audit: prior analyses of NIST seed curves and of Elkies-prime
       distributions (Shparlinski–Sutherland; Castryck–Hubrechts).
 - [ ] Independent review (`review-run`) of `runs/heldout.json` and

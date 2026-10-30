@@ -1,6 +1,6 @@
 # Small-prime splitting of the NIST/ANSI prime-field curves: a prime-order null, a cutoff sweep, and a held-out test
 
-Anonymous. Draft of 29 October 2026 (Markdown, not typeset).
+Anonymous. Draft of 29 October 2026, revised 30 October 2026 (Markdown, not typeset).
 
 Every number below cites a committed artefact in
 `crypto-autoresearcher:research/nist_seed_split_null_20261029/` (abbreviated
@@ -112,10 +112,13 @@ Source: `S/runs/results.json`.
 - *48-bit sample.* PARI SEA counts of 1,500 prime-order curves
   y² = x³ − 3x + b over each of two random 48-bit primes matched the model:
   means 60.11 and 60.08 against 60.20 and 60.30, KS distances 0.023 against a
-  5% critical value of 0.035. Only these aggregates were kept
-  (`S/runs/validation48_stdout.log`); the per-curve rows were not saved
-  (deviation D2 in `S/DEVIATIONS.md`), so this check is unauditable.
-- *Real fields.* The auditable check is the 42 held-out curves over the real
+  5% critical value of 0.035 (`S/runs/validation48_stdout.log`). The
+  first run kept only aggregates (deviation D2 in `S/DEVIATIONS.md`). A
+  rerun with the same seed reproduced both output lines exactly and saved all
+  3,000 rows (`S/runs/validation48_rows.jsonl.gz`). An independent audit
+  recomputed every statistic from the rows and re-counted 100 curves with
+  PARI, with 0 mismatches (`S/runs/validation48_audit.json`).
+- *Real fields.* The 42 held-out curves give a second check, over the real
   fields (§5).
 - *Not done.* A 10,000-curve SEA sample per real field remains open.
 
@@ -211,12 +214,60 @@ correction for B. An unpublished 192-bit curve reaches 44.
   designer avoiding slow counts would therefore favour *more* splits, the
   opposite of the observed direction.
 
+**The CM field.** The only process story with any traction goes through the
+CM field K. Write Δ = f_π² D_K with D_K fundamental. For ℓ ∤ f_π,
+(Δ/ℓ) = χ_{D_K}(ℓ), so S counts the primes ℓ ≤ 691 that split in K. One might
+read a low S as a small L(1, χ_{D_K}), and so a small class number, of the
+kind a CM-method generator would produce. The L-value is in fact low, but
+not in a way that supports the generator story.
+
+- *The direct test is |D_K|, and it fails.* A CM-method generator yields
+  |D_K| of a few million at most. The exact conductor census
+  (`crypto-autoresearcher:research/nist_seed_exact_conductor_census_20261023/`)
+  factors Δ for all nineteen curves. It finds f_π ∈ {1, 3, 5} and a smallest
+  |D_K| of about 2^192.4 (an omitted 192-bit curve). prime239v1 has f_π = 1,
+  so D_K = Δ and |D_K| ≈ 4p ≈ 2^241. An L-value cannot close this gap. Under
+  GRH, L(1, χ) lies within a factor of about (log log|D_K|)^{±1} of 1
+  (Littlewood). That is roughly 0.1 to 18 here, so
+  h = √|D_K|·L(1, χ)/π stays within about 2^5 of √|D_K|/π. A gap of about
+  2^200 is out of reach. The class-group 2-ranks of the same nineteen fields
+  overlap between published and omitted curves
+  (`crypto-autoresearcher:research/nist_seed_genus_rank_20261023/`).
+- *S is not an Euler product.* log L(1, χ) ≈ Σ_ℓ χ(ℓ)/ℓ is weighted by 1/ℓ,
+  so the smallest primes dominate it. S is an unweighted count, so the primes
+  near the cutoff dominate it. Across the 61 eligible curves,
+  corr(S(691), log L̂) = 0.46, while the weighted partial log-Euler product
+  E(691) = −Σ_{3≤ℓ≤691} log(1 − χ(ℓ)/ℓ) has corr(E(691), log L̂) = 0.95.
+- *prime239v1's L-value is low (measured).* A follow-up study
+  (`crypto-autoresearcher:research/nist_seed_lvalue_20261030/`, protocol
+  frozen before data) estimates L(1, χ_{D_K}) by the Euler product to
+  x = 10⁸. Against exact class numbers of 20 random fundamental
+  discriminants of 80–110 bits, this estimator is within 4 × 10⁻⁵ in log L.
+  Under GRH the truncation error at |D_K| ≈ 2^241 is expected to be about
+  10⁻³; this is not a proved bound. For prime239v1, L̂ = 0.246, at the
+  0.25th percentile of the prime-order null and the lowest of the 61 curves.
+  Its partial log-Euler product is −0.998 over 3 ≤ ℓ ≤ 691 and only +0.002
+  over ℓ > 691, so the first 124 odd primes carry essentially all of it.
+  E(B) stays between the 0.22nd and 0.25th percentile for 691 ≤ B ≤ 5003.
+  Over the same range, the split-count percentile rises from 0.06 to 11
+  (§4). That rise is an artefact of the unweighted count, not a sign of an
+  ordinary L-value.
+- *It is the same anomaly, not new evidence.* prime239v1 was singled out
+  because its S was extreme, and E(691) tracks log L̂ closely. If nothing had
+  been selected, some curve among 61 would reach the 0.25th percentile with
+  probability 1 − (1 − 0.0025)^61 ≈ 0.14 (about 0.02 among the 8 published
+  curves). The median log-L percentiles are 39 for the 8 published curves,
+  49 for the 11 omitted and 52 for the 42 held-out curves. The 42 held-out
+  percentiles fit the null (KS D = 0.066). The implied class number,
+  h ≈ 2^116.8, is within a factor of 2 of the null median. No known ECDLP
+  method depends on L(1, χ) or on h.
+
 **Limitations.**
 
 - The null assumes independence across ℓ and exact equidistribution.
-- The 48-bit validation is unauditable (D2).
 - The eight published curves are shared between the exploration and the test.
 - Monte Carlo p-values carry binomial error.
+- L̂ is a truncated Euler product, conditional on GRH for its expected accuracy; exact class numbers at 2^241 were infeasible (§6).
 
 ## References
 
@@ -224,4 +275,5 @@ correction for B. An unpublished 192-bit curve reaches 44.
 - R. Schoof. Counting points on elliptic curves over finite fields. *J. Théor. Nombres Bordeaux* 7 (1995) 219–254.
 - I. E. Shparlinski, A. V. Sutherland. On the distribution of Atkin and Elkies primes. *Found. Comput. Math.* (2014).
 - D. Jao, S. D. Miller, R. Venkatesan. Expander graphs based on GRH with an application to elliptic curve cryptography. *J. Number Theory* 129 (2009) 1491–1504.
+- J. E. Littlewood. On the class-number of the corpus P(√−k). *Proc. London Math. Soc.* (2) 27 (1928) 358–372.
 - ANSI X9.62 working draft, 17 November 1997, §F.3.2.

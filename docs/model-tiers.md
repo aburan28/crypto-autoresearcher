@@ -203,6 +203,16 @@ batch registry (it resolves to `director-runbook`, Sonnet 5.5 at high).
 - Kind `runbook` cards are not compiled in this lane: a runbook is written and
   linted against files.
 
+## Measuring which models can be the director
+
+Which model fills the director tier is a measured choice, not a fixed one.
+`evals/calibration/` holds two Delphi calibration suites, `card-compile` and `assess`,
+whose prompts are exactly what `task_card.py request` prints and whose grader is
+`task_card.py ingest` plus a field-by-field check against the design. `delphi calibrate`
+runs one against a model and `delphi registry table` compares models with intervals and
+an equivalence verdict (`evals/calibration/README.md`). The results are evidence about
+models, never about ECDLP.
+
 ## One card format in every repository
 
 crypto-autoresearcher, crypto and cryptanalysis each define an

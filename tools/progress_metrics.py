@@ -502,6 +502,64 @@ def prime_field_residual_panels(ref, since):
             emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
 
 
+def prime_field_direct_panel(ref, since):
+    """A3 exact relation equivalence; enumerate descriptors and table queries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a3_execution_20261030/runs/a3-fixed-panel-0cddd8/analysis.json'
+    raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells']
+        expected={(b,a) for b in ('b13','b16') for a in ('enumeration','pair_table')}
+        if data['panel_complete']is not True or len(cells)!=4 or {(c['cell_id'],c['arm']) for c in cells}!=expected:return
+        for cell in cells:
+            if cell['verified']is not True or cell['status']!='verified':return
+            for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain','attempts'):
+                if type(cell[key])is not int or cell[key]<0:return
+            if (cell['distinct_equations']>cell['accepted_witnesses'] or cell['new_rank']>15 or cell['combined_rank']>15 or
+                cell['rank_gain']>cell['combined_rank'] or cell['attempts']!=(286720 if cell['arm']=='enumeration' else 2048)):return
+        for case in ('b13','b16'):
+            selected=[c for c in cells if c['cell_id']==case]
+            if any(selected[0][key]!=selected[1][key] for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain')):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+    prefix='prym.prime_field.a3'
+    for arm,unit in (('enumeration','descriptors'),('pair_table','queries')):
+        emit(prefix+'.'+arm+'.collection_'+unit,sum(c['attempts'] for c in cells if c['arm']==arm),unit=unit,
+             label='Complete direct collection; enumeration descriptors and table queries are different units',**common)
+    emit(prefix+'.verified_cells',len(cells),unit='cells',label='Four matched arm/curve observations in one physical execution',**common)
+    for cell in cells:
+        for key,unit in (('distinct_equations','equations'),('rank_gain','dimensions')):
+            emit(prefix+'.'+cell['cell_id']+'.'+cell['arm']+'.'+key,cell[key],unit=unit,label='Exact original-base direct relation observation',**common)
+
+
+def prime_field_holdout_panel(ref, since):
+    """A4 verified holdouts; shared collection once, prefix recoveries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a4_execution_20261030/runs/a4-holdout-panel-c47bc8/analysis.json';raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells'];ids=[f'p{p}-i{i}' for p in (8191,65537) for i in (0,1)]
+        expected={(i,n) for i in ids for n in (0,16,64)}
+        if data['panel_complete']is not True or len(cells)!=12 or {(c['cell_id'],c['prefix']) for c in cells}!=expected:return
+        for c in cells:
+            if c['verified']is not True or c['status']!='verified':return
+            for k in ('base_columns','base_rank','base_nullity','single_targets','joint_targets','early_joint_targets','source_queries','target_queries','pair_entries'):
+                if type(c[k])is not int or c[k]<0:return
+            n=16 if c['cell_id'].startswith('p8191-') else 32
+            if (c['base_rank']+c['base_nullity']!=c['base_columns'] or c['base_columns']>n or max(c['single_targets'],c['joint_targets'])>8 or
+                c['early_joint_targets']>c['joint_targets'] or (c['source_queries'],c['target_queries'],c['pair_entries'])!=(64*n*2,8*n*2,n*(n-1)*2)):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}');prefix='prym.prime_field.a4'
+    for k,unit in (('source_queries','queries'),('target_queries','queries'),('pair_entries','entries')):
+        emit(prefix+'.'+k,sum(c[k] for c in cells if c['prefix']==0),unit=unit,label='Shared physical collection counted once, not once per prefix',**common)
+    for c in cells:
+        for k,unit in (('base_rank','dimensions'),('single_targets','targets'),('joint_targets','targets'),('early_joint_targets','targets')):
+            emit(prefix+'.'+c['cell_id']+'.prefix'+str(c['prefix'])+'.'+k,c[k],unit=unit,label='Exact held-out curve/prefix observation',**common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -516,6 +574,8 @@ def main():
     p256_factor_base_pass2_preparation(a.ref, a.since)
     prime_field_fixed_panels(a.ref, a.since)
     prime_field_residual_panels(a.ref, a.since)
+    prime_field_direct_panel(a.ref, a.since)
+    prime_field_holdout_panel(a.ref, a.since)
 
 
 if __name__ == "__main__":
