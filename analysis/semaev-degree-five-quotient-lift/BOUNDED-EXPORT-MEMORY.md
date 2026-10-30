@@ -21,3 +21,9 @@ Before a frontier run: retain software controls and source/binary hashes; packag
 ## References and limits
 
 Internal source review: `quotient_lift_batched.cpp` export and admission paths; `test_batched_export.py`; `validate_cascade.py`; `reports/native-envelope-001/report.md`. The change reuses existing batched multiplication and certificate validation, with no literature novelty or performance claim. Qualification receipts live in `validation/bounded-export-20261030/`.
+
+## Worker qualification and publication
+
+`run_lift_worker.py` and `runtime/bounded-lift-worker-manifest-002.json` define the portable worker. The request pins the exact manifest, and the manifest pins every executable, checker, fixture and driver. The local end-to-end control in `validation/lift-worker-20261030-v2/` passed all 47 artifact hashes; its degree-five codimension and exact count both equal 3, with no spurious LFD >= 6 field. A mismatched manifest was rejected before child execution.
+
+The published archive is bound by `runtime/bounded-lift-publication-002.json`, including an anonymous download/hash verification. `runtime/bounded-lift-request-002.json` selects the retained n47 input and caps the child at 96 GiB within a prospective 112 GiB pod. This request is prepared, not a launch or a frozen scientific protocol. The worker checks finite cgroup headroom for cloud execution, reruns three candidate/checker fixtures, rechecks the D4 seed, recomputes the exact count, runs the D5 producer, and accepts a bound only after the original checker. It uploads closed stages, but cannot resume within native elimination. Actual cloud qualification and the one-input frozen protocol remain outstanding. Version001 is retained; version002 adds mandatory request-to-manifest binding.
