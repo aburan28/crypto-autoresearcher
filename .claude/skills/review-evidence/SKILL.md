@@ -41,6 +41,11 @@ the research claim. Existing experiment and official-promotion rules remain.
    - re-verify validity before interpreting anything (run count, schema,
      seeds, raw/summary agreement, controls). Invalid or incomplete run
      sets go back to the Executor with concrete defects — stop there;
+   - read `experiments/<EXP-ID>/export.json` (`experiment.export/v1`) and
+     every `experiment.review/v1` record other runners filed under its
+     `reviews/` directory (`review-run`): their checks, observations and
+     judgments are inputs the evidence record cites, never the decision;
+     an export whose `check-export` fails is an invalid run set;
    - write `experiments/<EXP-ID>/analysis.md` strictly separated into
      Observation / Comparison / Inference / Limitation;
    - verify certificates: any run claiming a solve/relation must carry a

@@ -149,6 +149,17 @@ DRAFT_DECISION_TARGETS = {
          "894c4855b64fdd2ec63915f88d6c668dcb95f40a108eba4f07a701b12bf6ccb6"),
 }
 
+# This placed specification is byte-identical to the frozen design-stage
+# draft. It has not been approved and must never enter ctx.ids as an experiment.
+# Both copies are pinned so a changed contract, a moved file, or a later
+# approval cannot silently acquire the draft classification.
+AUXIN_SUCCESSOR_DRAFT = (
+    "experiments/EXP-AUXIN-339fb0/specification.yaml",
+    "coordination/goals/GOAL-AUXIN-a93442/batches/BATCH-ad00c6/design/"
+    "TASK-20260929-d519f6/draft-contract.yaml",
+    "6a1dca32c109d5badf4ba143c31f9d4d9a49e18ae287c8bb4fc604526bf02ecc",
+)
+
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
 #
 #   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
@@ -388,14 +399,56 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
                       "known-false object or the control cannot fail")
     rederivation = plan.get("blind_rederivation")
     if isinstance(rederivation, dict) and rederivation.get("required"):
-        for field in ("quantity", "assigned_to"):
-            if not str(rederivation.get(field) or "").strip():
-                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
-                              f"required when required is true")
-        if not (rederivation.get("blind_from") or []):
-            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
-                          "required; name the producer's implementation, notes "
-                          "and report, or the independence is not checkable")
+        def check_blind_from(quantity: dict, prefix: str) -> None:
+            if not (quantity.get("blind_from") or []):
+                ctx.err(path, f"{prefix}.blind_from is required; name the producer's "
+                              "implementation, notes and report, or the independence "
+                              "is not checkable")
+
+        def check_quantity(quantity: dict, prefix: str) -> None:
+            for field in ("quantity", "assigned_to"):
+                if not str(quantity.get(field) or "").strip():
+                    ctx.err(path, f"{prefix}.{field} is required when required is true")
+            check_blind_from(quantity, prefix)
+
+        prefix = "review_plan.blind_rederivation"
+        if "quantities" not in rederivation:
+            check_quantity(rederivation, prefix)
+        else:
+            quantities = rederivation["quantities"]
+            if not isinstance(quantities, list) or not quantities:
+                ctx.err(path, f"{prefix}.quantities must be a nonempty list")
+            else:
+                # Archived shared assignments describe subquantities by name
+                # and statement. Their complete parent contract assigns the
+                # whole review; each detail retains its own forbidden inputs.
+                # Explicit quantity/assigned_to rows are independent contracts
+                # and must never borrow missing fields from that parent.
+                named_details = all(
+                    isinstance(quantity, dict)
+                    and "name" in quantity and "statement" in quantity
+                    and "quantity" not in quantity and "assigned_to" not in quantity
+                    for quantity in quantities
+                )
+                if named_details:
+                    check_quantity(rederivation, prefix)
+                for index, quantity in enumerate(quantities):
+                    scoped = f"{prefix}.quantities[{index}]"
+                    if not isinstance(quantity, dict):
+                        ctx.err(path, f"{scoped} must be a mapping")
+                    elif named_details:
+                        for field in ("name", "statement"):
+                            if not isinstance(quantity[field], str) or not quantity[field].strip():
+                                ctx.err(path, f"{scoped}.{field} must be nonempty text")
+                        check_blind_from(quantity, scoped)
+                    else:
+                        # Each quantity keeps its own reader restrictions. Never
+                        # merge scopes or borrow a missing field from a parent.
+                        check_quantity(quantity, scoped)
+            if (not isinstance(quantities, list) or not quantities or not named_details) and any(
+                field in rederivation for field in ("quantity", "assigned_to", "blind_from")
+            ):
+                check_quantity(rederivation, prefix)
 
 
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
@@ -707,6 +760,15 @@ def load_yaml(path: str, ctx: Ctx):
         return None
 
 
+def _yaml_document_is_empty(source: str) -> bool:
+    """True when `source` parses cleanly to None (empty, comments, `null`)."""
+    try:
+        with open(source, encoding="utf-8") as handle:
+            return _safe_load(handle) is None
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return False
+
+
 EXTERNAL_VERIFICATION_VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
 EXTERNAL_VERIFICATION_REQUIRED = ("network", "objective_id", "claim_id", "verdict", "node")
 
@@ -999,6 +1061,43 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     ctx.register(str(rec_id), path, body, rec_type)
 
 
+def is_frozen_successor_draft(path: str, doc: object) -> bool:
+    """Classify only the unapproved, hash-bound AUXIN design-stage copy."""
+    specification, source, expected_sha256 = AUXIN_SUCCESSOR_DRAFT
+    if os.path.relpath(path, REPO) != specification:
+        return False
+    if not isinstance(doc, dict) or set(doc) != {"successor_contract"}:
+        return False
+    contract = doc["successor_contract"]
+    if not isinstance(contract, dict):
+        return False
+    fresh = contract.get("fresh")
+    if not isinstance(fresh, dict):
+        return False
+    approval = fresh.get("approval")
+    if not isinstance(approval, dict):
+        return False
+    if (fresh.get("id") != "EXP-AUXIN-339fb0"
+            or fresh.get("status") != "draft"
+            or fresh.get("approved_by") is not None
+            or fresh.get("approval_decision") is not None
+            or fresh.get("batch_id") != "BATCH-ad00c6"
+            or fresh.get("producer_task") != "TASK-20260929-d519f6"
+            or fresh.get("goal_id") != "GOAL-AUXIN-a93442"
+            or approval.get("id") != "F-APPROVAL"
+            or approval.get("status") != "draft"
+            or approval.get("approved_by") is not None):
+        return False
+    try:
+        for relative in (specification, source):
+            with open(os.path.join(REPO, relative), "rb") as handle:
+                if hashlib.sha256(handle.read()).hexdigest() != expected_sha256:
+                    return False
+    except OSError:
+        return False
+    return True
+
+
 def check_experiment(path: str, ctx: Ctx):
     supersession = ctx.schema_supersession(path)
     if supersession and supersession.get("redirect_id"):
@@ -1006,6 +1105,12 @@ def check_experiment(path: str, ctx: Ctx):
         return
     doc = load_yaml(path, ctx)
     if doc is None:
+        return
+    if is_frozen_successor_draft(path, doc):
+        # Preserve reference resolution to a real placed draft, without
+        # registering it as an approved or executable experiment record.
+        ctx.legacy_aliases.add("EXP-AUXIN-339fb0")
+        ctx.advise(path, "hash-bound successor contract is a draft, not an approved experiment")
         return
     if not isinstance(doc, dict) or "experiment" not in doc:
         ctx.err(path, "expected top-level key 'experiment'")
@@ -1223,6 +1328,12 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
                     force=True)
     doc = load_yaml(path, ctx)
     if doc is None:
+        # load_yaml has already reported a parse error; an empty, comment-only
+        # or `null` document parses cleanly to None and must not pass as a
+        # run record with no findings (SHF-20261028-0f3f64, LGN-3).
+        if _yaml_document_is_empty(ctx.source_path(path)):
+            ctx.err(path, "run manifest is empty (no YAML document); "
+                          "expected top-level key 'run'")
         return
     body = doc.get("run") if isinstance(doc, dict) else None
     if not isinstance(body, dict):
@@ -1548,7 +1659,7 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = _safe_load(handle)
+        doc = yaml.load(handle, Loader=_RunRegistryLoader)
     if not isinstance(doc, dict) or doc.get("schema") != RUN_SUPERSESSION_SCHEMA:
         raise ValueError("invalid run supersession registry schema")
     records = doc.get("records") or []
@@ -1681,13 +1792,53 @@ def _schema_supersession_kind_for_path(relative: str) -> str | None:
     return None
 
 
+def _unique_key_loader(label: str) -> type:
+    """A SafeLoader that refuses duplicate mapping keys, naming `label`.
+
+    yaml.safe_load keeps the LAST value of a repeated key. In a routing index
+    that is silent corruption: a merge that dropped one entry's `- kind:` line
+    folded its keys into the previous entry, which then routed only the second
+    record (sheriff case SHF-20261028-0f3f64, LGN-1). Used for the mutable
+    routing indexes and for driver manifests, never for archived records.
+    """
+
+    class Loader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            self.flatten_mapping(node)
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                try:
+                    duplicate = key in seen
+                    seen.add(key)
+                except TypeError:
+                    # Preserve SafeLoader's normal error for unhashable keys.
+                    return super().construct_mapping(node, deep=deep)
+                if duplicate:
+                    raise ValueError(
+                        f"duplicate YAML key in {label}: "
+                        f"{key!r} at line {key_node.start_mark.line + 1}")
+            return super().construct_mapping(node, deep=deep)
+
+    return Loader
+
+
+_SchemaRegistryLoader = _unique_key_loader("schema supersession registry")
+_RunRegistryLoader = _unique_key_loader("run supersession registry")
+
+
+def load_yaml_unique_keys(source, label: str):
+    """yaml.safe_load that raises ValueError on a duplicate mapping key."""
+    return yaml.load(source, Loader=_unique_key_loader(label))
+
+
 def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
     """Load immutable-record schema replacements keyed by original path."""
     path = path or SCHEMA_SUPERSESSION_REGISTRY
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as handle:
-        doc = _safe_load(handle)
+        doc = yaml.load(handle, Loader=_SchemaRegistryLoader)
     if (not isinstance(doc, dict)
             or doc.get("schema") != SCHEMA_SUPERSESSION_SCHEMA):
         raise ValueError("invalid schema supersession registry schema")

@@ -30,7 +30,11 @@ for the failures below, each of which slipped past it for its own reason:
      merge, while renumbering is still cheap.
 
 Checks 1 and 2 are absolute and offline. Check 3 needs a ref to compare
-against and is skipped, loudly, when none is available.
+against and is skipped, loudly, when none is available. Runbook-session
+directories are also immutable (`check_session_files`): against ``--base`` and
+against each parent of a merge, no existing session file is deleted or changed,
+the journal grows only by append, and every touched session still hashes to its
+own journal.
 
     python3 tools/check_merge_hygiene.py                    # 1 and 2
     python3 tools/check_merge_hygiene.py --base origin/main # 1, 2 and 3
@@ -587,6 +591,81 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     return bad
 
 
+# Mutable routing indexes. A duplicate key in either silently reroutes or
+# drops a supersession (yaml keeps the last value): merge 21acbaab63 folded two
+# registry entries into a third this way and validate_ledger loaded it without
+# complaint (sheriff case SHF-20261028-0f3f64, LGN-1). Checked absolutely: the
+# files are small and a clean main is the invariant.
+ROUTING_REGISTRIES = (
+    ("tools/schema_supersession_registry.yaml", "schema supersession registry"),
+    ("tools/run_supersession_registry.yaml", "run supersession registry"),
+)
+
+
+def check_registry_duplicate_keys() -> list[str]:
+    import yaml
+    bad = []
+    for rel, label in ROUTING_REGISTRIES:
+        full = os.path.join(REPO, rel)
+        if not os.path.isfile(full):
+            continue
+        try:
+            with open(full, "r", encoding="utf-8") as fh:
+                vl.load_yaml_unique_keys(fh, label)
+        except ValueError as exc:
+            bad.append(f"{rel}: {exc}. Restore each entry as its own list "
+                       f"item ('- kind: ...'); never let a merge fold two "
+                       f"entries into one.")
+        except yaml.YAMLError:
+            continue                   # unparseable: reported by validate_ledger
+    return bad
+
+
+def check_new_run_manifests(paths: list[str]) -> list[str]:
+    """Run manifests this branch adds or changes must pass check_run.
+
+    validate_ledger's CI gate is relative and lives in the `ledger` job, and
+    run records that fail the schema reached main through PRs merged while
+    that job was red or still running (#2452, #2579; SHF-20261028-0f3f64,
+    LGN-8: 26 of 67 errors on main). This is the same schema check, scoped to
+    the run records the branch introduces, in the cheap gate every PR runs. A
+    defect in a record already on main is not this branch's: it is never
+    reported here, and it is repaired by supersession, not by an edit. A
+    manifest routed through tools/run_supersession_registry.yaml is checked
+    through its superseding record, exactly as validate_ledger does.
+    """
+    try:
+        supersessions = vl.load_run_supersessions(
+            os.path.join(REPO, "tools", "run_supersession_registry.yaml"))
+    except ValueError as exc:
+        return [f"tools/run_supersession_registry.yaml: {exc}"]
+    superseding = {}
+    for entry in supersessions.values():
+        rel = os.path.relpath(entry["superseding_path"], vl.REPO)
+        superseding[rel] = os.path.relpath(entry["superseded_path"], vl.REPO)
+    manifests = set()
+    for rel in paths:
+        if vl.RUN_MANIFEST_PATH.match(rel):
+            manifests.add(rel)
+        elif rel in superseding:
+            manifests.add(superseding[rel])
+    bad = []
+    for rel in sorted(manifests):
+        full = os.path.join(REPO, rel)
+        if not os.path.isfile(full):
+            continue                   # deleted: check_run_immutability's job
+        ctx = vl.Ctx(set())
+        vl.check_run(full, ctx, supersessions)
+        for error in ctx.errors:
+            bad.append(f"{rel}: {error.split(': ', 1)[-1]}")
+    if bad:
+        bad.append("A run record that fails the run schema is never published "
+                   "as-is: publish a schema-valid envelope (a failed run as "
+                   "status failed_infrastructure), or a faithful superseding "
+                   "manifest registered in tools/run_supersession_registry.yaml.")
+    return bad
+
+
 def check_collisions(base: str) -> list[str]:
     """Identifiers this branch adds that `base` already spends differently.
 
@@ -634,6 +713,319 @@ def check_collisions(base: str) -> list[str]:
                 f"(tools/allocate_id.py --next ...) and file a CORR recording "
                 f"the alias. Do not resolve this by choosing a side.")
     return bad
+
+
+# Runbook-session directories are written only by tools/runbook.py
+# (docs/runbook-execution.md, "The session directory"), and the journal binds
+# every file in them by digest. Merge 0186e97db6 spliced two executions of
+# RBS-ICPERF-b7e41c into one directory: the journal conflicts were resolved to
+# execution B, while B's empty supervisor.stderr merged cleanly against an
+# empty merge base and git kept execution A's 96 bytes. Every check passed and
+# the splice reached main through PR #2416 (DEC-20261029-9bc3ff). So a file
+# already present on the comparison side may never be deleted or changed, the
+# journal may only be appended to, and every session the change touches must
+# still hash to its own journal (TASK-20261029-583a07).
+SESSION_FILE = re.compile(
+    r"^((?:experiments/[^/]+/|examples/(?:[^/]+/)*)runbook-sessions/[^/]+)/(.+)$")
+SESSION_ROOTS = ("experiments", "examples")
+
+# Historical mismatches already on main, each annotated by a correction record.
+# They still fail, but only when a change touches their session, and the
+# message points at the record rather than inviting a repair.
+KNOWN_SESSION_MISMATCHES = {
+    "experiments/EXP-ICPERF-e467a5/runbook-sessions/RBS-ICPERF-b7e41c/steps/"
+    "S02-trials.attempt-1.supervisor.stderr":
+        "ledger/corrections/CORR-20261029-892bca.yaml",
+}
+
+
+def _session_of(path: str) -> str | None:
+    match = SESSION_FILE.match(path)
+    return match.group(1) if match else None
+
+
+def _session_blobs_at(ref: str) -> dict[str, str]:
+    """Session path -> blob id in one committed tree, read from Git only."""
+    result = _run("git", "ls-tree", "-r", "-z", ref, "--", *SESSION_ROOTS)
+    blobs = {}
+    for entry in result.stdout.split("\0"):
+        if "\t" not in entry:
+            continue
+        metadata, path = entry.split("\t", 1)
+        if _session_of(path) is not None:
+            blobs[path] = metadata.split()[2]
+    return blobs
+
+
+def _session_blobs_in_index() -> dict[str, str]:
+    """The candidate: the index, so a staged merge is judged before it is
+    committed and a sparse CI checkout is judged on what it will merge."""
+    result = _run("git", "ls-files", "--stage", "-z", "--", *SESSION_ROOTS)
+    blobs = {}
+    for entry in result.stdout.split("\0"):
+        if "\t" not in entry:
+            continue
+        metadata, path = entry.split("\t", 1)
+        _mode, blob, stage = metadata.split()
+        if stage == "0" and _session_of(path) is not None:
+            blobs[path] = blob
+    return blobs
+
+
+def _blob_bytes(blob: str) -> bytes:
+    return subprocess.run(("git", "cat-file", "blob", blob), cwd=REPO,
+                          capture_output=True, check=True).stdout
+
+
+def _short(sha: str) -> str:
+    return sha[:12] if sha else "?"
+
+
+def _session_failure(path: str, text: str) -> str:
+    session = _session_of(path) or path
+    message = f"{session.rsplit('/', 1)[-1]}: {path[len(session) + 1:]}: {text}"
+    record = KNOWN_SESSION_MISMATCHES.get(path)
+    if record:
+        message += (f". Known historical mismatch annotated by {record}; this "
+                    "change touches its session. Do not repair it: leave the "
+                    "session's bytes as they are on the base.")
+    return message
+
+
+def _preservation_findings(before: dict[str, str], after: dict[str, str],
+                           before_label: str, after_label: str, *,
+                           deletions: bool) -> dict[str, str]:
+    """Session files of ``before`` that ``after`` deletes or rewrites.
+
+    ``journal.jsonl`` alone may change, and only by append: the bytes of
+    ``before`` must be a byte prefix of the bytes of ``after``.
+    """
+    bad: dict[str, str] = {}
+    for path, blob in sorted(before.items()):
+        new = after.get(path)
+        if new == blob:
+            continue
+        old_bytes = _blob_bytes(blob)
+        old_sha = hashlib.sha256(old_bytes).hexdigest()
+        if new is None:
+            if deletions:
+                bad[path] = _session_failure(
+                    path, f"present on {before_label} (sha256 {old_sha}) and "
+                    f"deleted on {after_label}. Session files are immutable.")
+            continue
+        new_bytes = _blob_bytes(new)
+        new_sha = hashlib.sha256(new_bytes).hexdigest()
+        if path.endswith("/journal.jsonl") and path == _session_of(path) + "/journal.jsonl":
+            if new_bytes.startswith(old_bytes):
+                continue
+            what = "journal rewritten, not appended to"
+        else:
+            what = "session file changed"
+        bad[path] = _session_failure(
+            path, f"{what}: sha256 {old_sha} on {before_label}, sha256 "
+            f"{new_sha} on {after_label}. Session files are immutable "
+            "(journal.jsonl may only be appended to); a merge must never pick "
+            "one execution's file over another's.")
+    return bad
+
+
+def _recorded_digests(entries: list[dict]) -> list[tuple[str, str | None, tuple[str, ...]]]:
+    """(path, recorded sha256, alternative paths) for every file the journal binds.
+
+    Step logs and outputs from ``step_finished``/``step_interrupted``; for the
+    latest unit of each trial, its artifacts and receipt, and for a local unit
+    inside the session the files its receipt binds are added by the caller.
+    """
+    recorded: list[tuple[str, str | None, tuple[str, ...]]] = []
+    units: dict[tuple, dict] = {}
+    for entry in entries:
+        if entry.get("type") in ("step_finished", "step_interrupted"):
+            for item in [*(entry.get("outputs") or []), *(entry.get("logs") or [])]:
+                if isinstance(item, dict) and isinstance(item.get("path"), str):
+                    recorded.append((item["path"], item.get("sha256"), ()))
+        elif entry.get("type") == "unit_recorded":
+            units[(entry.get("step_id"), entry.get("trial_id"))] = entry
+    for unit in units.values():
+        run_dir = unit.get("run_dir")
+        if not isinstance(run_dir, str):
+            continue
+        for name, digest in sorted((unit.get("artifacts") or {}).items()):
+            if digest:
+                recorded.append((f"{run_dir}/{name}", digest, ()))
+        if unit.get("receipt_sha256"):
+            recorded.append((f"{run_dir}/local-receipt.json", unit["receipt_sha256"],
+                             (f"{run_dir}/execution-receipt.json",)))
+        for name, digest in sorted((unit.get("unreceipted_files") or {}).items()):
+            recorded.append((f"{run_dir}/{name}", digest, ()))
+    return recorded
+
+
+class _Candidate:
+    """Read-only view of the candidate index, including store pointers."""
+
+    def __init__(self, ref_label: str) -> None:
+        self.label = ref_label
+        result = _run("git", "ls-files", "--stage", "-z")
+        self.blobs = {}
+        for entry in result.stdout.split("\0"):
+            if "\t" in entry:
+                metadata, path = entry.split("\t", 1)
+                if metadata.split()[2] == "0":
+                    self.blobs[path] = metadata.split()[1]
+
+    def read(self, path: str) -> bytes | None:
+        blob = self.blobs.get(path)
+        return None if blob is None else _blob_bytes(blob)
+
+    def digest(self, path: str) -> str | None:
+        """sha256 of a file, or the digest its artifact-store pointer declares."""
+        data = self.read(path)
+        if data is not None:
+            return hashlib.sha256(data).hexdigest()
+        pointer = self.read(path + ".blob.json")
+        if pointer is not None:
+            try:
+                doc = json.loads(pointer)
+                return doc.get("content_sha256") or doc.get("sha256")
+            except ValueError:
+                return None
+        directory, name = os.path.split(path)
+        manifest = self.read(f"{directory}/.artifacts.json")
+        if manifest is not None:
+            try:
+                entry = (json.loads(manifest).get("files") or {}).get(name)
+            except ValueError:
+                return None
+            if isinstance(entry, dict):
+                return entry.get("sha256")
+        return None
+
+
+def _journal_findings(session: str, candidate: _Candidate, commits: str) -> list[str]:
+    """Every file the candidate journal records must hash to its digest."""
+    journal_path = f"{session}/journal.jsonl"
+    data = candidate.read(journal_path)
+    if data is None:
+        return [_session_failure(journal_path, f"the session has no journal on "
+                                 f"{candidate.label} ({commits})")]
+    entries = []
+    for number, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            entries.append(json.loads(line))
+        except ValueError as exc:
+            return [_session_failure(journal_path, f"line {number} does not "
+                                     f"parse ({exc}) on {candidate.label} ({commits})")]
+    recorded = _recorded_digests(entries)
+    for entry in list(recorded):
+        run_dir = entry[0].rsplit("/", 1)[0]
+        if entry[0].endswith("/local-receipt.json") and run_dir.startswith(session + "/"):
+            try:
+                files = json.loads(candidate.read(entry[0]) or b"{}").get("files_sha256") or {}
+            except ValueError:
+                files = {}
+            recorded += [(f"{run_dir}/{name}", digest, ())
+                         for name, digest in sorted(files.items())]
+    bad, seen = [], set()
+    for path, expected, alternatives in recorded:
+        if (path, expected) in seen:
+            continue
+        seen.add((path, expected))
+        found = [(p, candidate.digest(p)) for p in (path, *alternatives)]
+        present = [(p, d) for p, d in found if d is not None]
+        if not present:
+            bad.append(_session_failure(
+                path if _session_of(path) == session else journal_path,
+                f"{path} is recorded by the journal (sha256 {expected}) but is "
+                f"missing on {candidate.label} ({commits})"))
+        elif not any(d == expected for _p, d in present):
+            where, actual = present[0]
+            inside = _session_of(where) == session
+            bad.append(_session_failure(
+                where if inside else journal_path,
+                f"{'file' if inside else where} is off its journal digest: the "
+                f"journal records sha256 {expected}, {candidate.label} holds "
+                f"sha256 {actual} ({commits})"))
+    return bad
+
+
+def _merge_parents() -> list[str]:
+    """Parents the candidate merges: a staged merge's HEAD and MERGE_HEAD,
+    or a committed merge's parents. Empty for an ordinary commit."""
+    merge_head = _run("git", "rev-parse", "--verify", "--quiet", "MERGE_HEAD")
+    if merge_head.returncode == 0:
+        head = _run("git", "rev-parse", "HEAD").stdout.strip()
+        return [head, *merge_head.stdout.split()]
+    parents = _run("git", "rev-list", "--parents", "-n", "1", "HEAD").stdout.split()[1:]
+    return parents if len(parents) > 1 else []
+
+
+def check_session_files(base: str | None) -> list[str]:
+    """Runbook-session bytes this change deletes, rewrites or leaves off-journal.
+
+    Against ``base`` (PR scope): files at the merge base may not be deleted or
+    changed, and files on ``base`` that the candidate also holds may not
+    differ. Against each merge parent (any scope): no parent's session file is
+    deleted or changed, which catches the side that silently loses a
+    conflict-free merge. Every session touched by either comparison is then
+    checked against its own journal's digests. Reads Git objects only.
+    """
+    head = _run("git", "rev-parse", "--verify", "--quiet", "HEAD").stdout.strip()
+    if not head:
+        return []
+    candidate_blobs = _session_blobs_in_index()
+    head_label = f"head {_short(head)}"
+    bad: dict[str, str] = {}
+    touched: set[str] = set()
+    base_sha = ""
+
+    def compare(before: dict[str, str], label: str, *, deletions: bool) -> None:
+        for path in set(before) | set(candidate_blobs):
+            if before.get(path) != candidate_blobs.get(path) and \
+                    (deletions or path in candidate_blobs):
+                touched.add(_session_of(path))
+        found = _preservation_findings(before, candidate_blobs, label, head_label,
+                                       deletions=deletions)
+        for path, message in found.items():
+            bad.setdefault(path, message)
+
+    if base:
+        if _run("git", "rev-parse", "--verify", "--quiet",
+                base + "^{commit}").returncode:
+            return [f"SKIPPED: no such ref {base!r}; runbook-session files unchecked"]
+        base_sha = _run("git", "rev-parse", base + "^{commit}").stdout.strip()
+        merge_base = _run("git", "merge-base", "HEAD", base).stdout.strip()
+        if not merge_base:
+            return [f"SKIPPED: no merge base with {base!r}; runbook-session files unchecked"]
+        compare(_session_blobs_at(merge_base),
+                f"merge base {_short(merge_base)}", deletions=True)
+        base_blobs = _session_blobs_at(base_sha)
+        # Files the base has that the merge base lacks: an add/add the
+        # candidate must not resolve to different bytes.
+        compare({p: b for p, b in base_blobs.items() if p in candidate_blobs},
+                f"base {_short(base_sha)}", deletions=False)
+    for parent in _merge_parents():
+        compare(_session_blobs_at(parent), f"merge parent {_short(parent)}",
+                deletions=True)
+
+    findings = [bad[p] for p in sorted(bad)]
+    if touched:
+        candidate = _Candidate(head_label)
+        commits = (f"base {_short(base_sha)}, head {_short(head)}" if base_sha
+                   else f"head {_short(head)}")
+        for session in sorted(s for s in touched if s):
+            if not any(p.startswith(session + "/") for p in candidate_blobs):
+                continue                   # wholly deleted: reported above
+            for message in _journal_findings(session, candidate, commits):
+                if message not in findings:
+                    findings.append(message)
+    if findings:
+        findings.append("Runbook-session directories are written only by "
+                        "tools/runbook.py and are never edited or spliced. Restore "
+                        "the base's bytes; a second execution needs its own "
+                        "session id (docs/runbook-execution.md).")
+    return findings
 
 
 def main() -> int:
@@ -692,7 +1084,15 @@ def main() -> int:
         ("unresolved conflict markers", check_markers(parse_paths)),
         ("unparseable records", check_parses(parse_paths,
                                              report_stale=scoped is None)),
+        ("duplicate keys in routing registries", check_registry_duplicate_keys()),
     ]
+    if scoped is not None and not trusted_prefix_problems:
+        # PR-scoped only: records already on main keep their rulings.
+        groups.append(("run manifests failing the run schema",
+                       check_new_run_manifests(scoped)))
+    if not trusted_prefix_problems:
+        groups.append(("runbook-session files changed, deleted or off-journal",
+                       check_session_files(None if args.absolute else args.base)))
     if args.base and not trusted_prefix_problems:
         groups.append(("identifier collisions", check_collisions(args.base)))
         groups.append(("new legacy GOAL identifiers",
@@ -712,7 +1112,9 @@ def main() -> int:
 
     if failed:
         return 1
-    print("PASS: no conflict markers, no unparseable records"
+    print("PASS: no conflict markers, no unparseable records, no duplicate "
+          "registry keys, no changed runbook-session files"
+          + (", no schema-failing new run manifests" if scoped is not None else "")
           + (", no identifier collisions, no new legacy GOAL identifiers"
              if args.base else ""))
     return 0

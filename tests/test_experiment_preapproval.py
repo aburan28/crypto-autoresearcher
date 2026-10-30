@@ -204,3 +204,67 @@ def test_prospective_packet_refuses_broken_bindings(tmp_path, damage, fragment):
     result = probe.assess(tmp_path, packet)
     assert not result["approvable"]
     assert any(fragment in item for item in result["blockers"]), result["blockers"]
+
+
+def _artifact_trial(artifacts):
+    return {
+        'experiment_id': 'EXP-ECDLP-aabbcc',
+        'source_sha256': {'driver.py': '0' * 64},
+        'trials': [{'id': 'nested', 'run_id': 'RUN-ECDLP-a1b2c3',
+                    'argv': ['python3', 'driver.py'],
+                    'check_argv': ['python3', 'driver.py'],
+                    'memory_mb': 256, 'artifacts': artifacts}],
+    }
+
+
+def test_nested_artifacts_require_complete_archive_coverage(tmp_path):
+    artifacts = ['manifest.yaml', 'raw-result.json', 'transcripts/proof.json',
+                 'rows/cell.json', 'logs/worker.stdout.txt']
+    blockers = []
+    required = probe._trials(_artifact_trial(artifacts), tmp_path, blockers)
+    assert blockers == []
+    parent = 'experiments/EXP-ECDLP-aabbcc/runs/RUN-ECDLP-a1b2c3'
+    assert required == {f'{parent}/{name}' for name in (*execution.GENERATED, *artifacts)}
+    assert not (tmp_path / 'experiments').exists()  # Probe is read-only.
+
+
+@pytest.mark.parametrize('name', [
+    '/tmp/escape.json', '../escape.json', 'logs/../../escape.json',
+    './proof.json', 'logs//proof.json', 'logs/./proof.json',
+    'logs/proof.json/', '.', 'logs/line\n.json', 'logs/line\r.json',
+    'logs/line\t.json', 'logs/null\x00.json', 'logs\\proof.json',
+    'launch.json', '', None, {},
+])
+def test_invalid_or_reserved_artifacts_remain_rejected(tmp_path, name):
+    blockers = []
+    required = probe._trials(_artifact_trial(['manifest.yaml', 'raw-result.json', name]),
+                             tmp_path, blockers)
+    assert required == set()
+    assert any('invalid declared trial artifacts' in item for item in blockers)
+
+
+@pytest.mark.parametrize('artifacts', [
+    ['manifest.yaml'], ['raw-result.json'], [],
+    ['manifest.yaml', 'raw-result.json', 'logs/x', 'logs/x'],
+])
+def test_missing_or_duplicate_artifacts_remain_rejected(tmp_path, artifacts):
+    blockers = []
+    assert probe._trials(_artifact_trial(artifacts), tmp_path, blockers) == set()
+    assert any('invalid declared trial artifacts' in item for item in blockers)
+
+
+@pytest.mark.parametrize('symlink_parent', [False, True])
+def test_artifact_symlinks_remain_rejected(tmp_path, symlink_parent):
+    run = tmp_path / 'experiments/EXP-ECDLP-aabbcc/runs/RUN-ECDLP-a1b2c3'
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    run.mkdir(parents=True)
+    if symlink_parent:
+        (run / 'logs').symlink_to(outside, target_is_directory=True)
+    else:
+        (run / 'logs').mkdir()
+        (run / 'logs/proof.json').symlink_to(outside / 'proof.json')
+    blockers = []
+    plan = _artifact_trial(['manifest.yaml', 'raw-result.json', 'logs/proof.json'])
+    assert probe._trials(plan, tmp_path, blockers) == set()
+    assert any('symlink not allowed' in item for item in blockers)

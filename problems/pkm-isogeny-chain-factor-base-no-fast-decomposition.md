@@ -136,3 +136,8 @@ linear algebra and S_7 construction remain).
 - 2026-10-19: EXP-ECDLP-20a588 (m = 3) and EXP-ECDLP-8c41d7 (m = 4, preliminary) test the chain-first block order: it removes the growing plain-DRL penalty but leaves a roughly constant factor of about 2 over dense at m = 3 (paired intervals exclude parity; both solvers) and 1.1-1.2x (msolve) at m = 4, L = 2, 3; DEC-20261019-b01514 and DEC-20261019-624f64 widen the scoped rejection. The matrix-size accounting experiment remains the next step. Unresolved.
 
 - 2026-10-19 PR review: retain the coprimality condition in the coset conclusion and classify the solution-count estimate as unresolved. Original report and research records preserved; no status transition or execution authorization.
+
+
+### 2026-10-25: actual-field construction certificates
+
+The new [F2 package](../research/p256_factor_base_parallel_20261025/tracks/f2/report.md) constructs 16 rational degree-two edges over the published P-256 field and checks duals, compact full-fibre completeness and enumerated target incidence through 4,096 raw coordinates. Its 121,228 exact assertions, independent Jacobian replay and constructed point-sum controls validate the construction interface at the stated parameters. They supply no natural decomposition solver, ordinary-target yield, solving-degree bound or complete-cost result. The existing problem remains open; no historical run or scientific status is changed.
