@@ -1,14 +1,15 @@
 name: blobstore
 
 # A committed blob pointer (`*.blob.json`, tools/artifact_store.py) is only as
-# good as the object it names. After each push to main that adds pointers,
+# good as the object it names. After each merged PR that adds pointers,
 # confirm every object exists in S3 at its recorded size. The PR gate
 # (tools/repo_size.py) already refused pointers that do not address the shared
 # store; this proves the upload happened. docs/artifact-storage.md.
 
 on:
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
     paths:
       - '**/*.blob.json'
       - '.github/workflows/blobstore.yml'
@@ -24,6 +25,7 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.merged }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -51,7 +53,8 @@ jobs:
           sparse-checkout: |
             /tools/artifact_store.py
             **/*.blob.json
-
+            /tools/artifacts/
+            /.artifacts/
       - uses: aws-actions/configure-aws-credentials@v4
         if: steps.creds.outputs.mode == 'role'
         with:
@@ -65,16 +68,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check this push's pointers resolve
+      - name: Pull store data this workflow reads (tools/artifacts)
         if: steps.creds.outputs.mode != 'none'
+        shell: bash
+        working-directory: ${{ github.workspace }}
         env:
-          BEFORE: ${{ github.event.before }}
+          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
+        run: |
+          if ! command -v aws >/dev/null; then
+            python3 -m venv "$RUNNER_TEMP/artifacts-awscli"
+            artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/bin/python"
+            artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/bin/aws"
+            if [ -d "$RUNNER_TEMP/artifacts-awscli/Scripts" ]; then
+              artifacts_cli_python="$RUNNER_TEMP/artifacts-awscli/Scripts/python.exe"
+              artifacts_cli_aws="$RUNNER_TEMP/artifacts-awscli/Scripts/aws.exe"
+            fi
+            "$artifacts_cli_python" -m pip install --disable-pip-version-check awscli==1.46.2
+            export ARTIFACTS_AWS="$artifacts_cli_aws"
+          fi
+          python3 tools/artifacts/artifacts.py pull --jobs 16 docs
+          python3 tools/artifacts/artifacts.py verify docs
+
+
+      - name: Check this merge's pointers resolve
+        if: steps.creds.outputs.mode != 'none'
         run: |
           set -euo pipefail
           pip install --quiet boto3
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "${BEFORE:-}" ] \
-             && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            git diff -z --name-only --diff-filter=AM "$BEFORE" "$GITHUB_SHA" -- ':(glob)**/*.blob.json' > pointers.z
+          if [ "$GITHUB_EVENT_NAME" = pull_request_target ]; then
+            before=$(git rev-parse HEAD^)
+            git diff -z --name-only --diff-filter=AM "$before" "$GITHUB_SHA" -- ':(glob)**/*.blob.json' > pointers.z
           else
             git ls-files -z -- ':(glob)**/*.blob.json' > pointers.z
           fi

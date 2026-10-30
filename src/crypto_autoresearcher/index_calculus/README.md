@@ -9,6 +9,22 @@ multiplication, and counts the cost of every stage.
 Nothing here threatens a deployed curve. The point is to measure, honestly,
 how the classical prime-field index calculus scales.
 
+The [October 29 continuation](../../../research/prime_field_execution_20261029/README.md)
+adds target-row combination certificates without full base rank, a gated
+target-aware Prym collector, and optional Dickson stage diagnostics. These are
+software-tested interfaces. The [symmetry iteration](../../../research/prime_field_symmetries_20261029/README.md)
+now records the first admitted fixed P-256 C1 panel (all seven cases complete),
+a typed base/action catalog, complete target-branch replay, affine translation
+frames and a reusable operator prototype. Completed fixed prime-field panels
+include [B1 zero completion](../../../research/prime_field_b1_execution_20261029/RESULTS.md),
+[B2 matched shifted covers and D1 targets](../../../research/prime_field_b2_execution_20261030/RESULTS.md),
+[A1 residual cancellation](../../../research/prime_field_a1_execution_20261030/RESULTS.md),
+and [A2 norm completion](../../../research/prime_field_a2_execution_20261030/RESULTS.md).
+The [A3 direct three-sum comparison](../../../research/prime_field_a3_execution_20261030/RESULTS.md)
+now records exact enumeration/pair-table agreement on both original p4099 curves,
+with complete separate replay and stage accounting. These small fixed panels
+do not establish larger-field transfer or a complete attack-cost advantage.
+
 ## Layout
 
 | module | what it does |
@@ -630,3 +646,15 @@ measurements; they do not imply a production-curve attack or a change in
 asymptotic complexity.
 
 The held-out balanced experiment [EXP-ICPERF-6c546e](../../../experiments/EXP-ICPERF-6c546e/reports/review-DEC-20261023-122e32/report.md) independently verified a **1.1606×** geometric complete-solve speedup (clustered95% interval approximately1.1268–1.1977×) on nine12/14/16-bit public curves, with two solver seeds and three repetitions. All162 executions include per-solve setup and final verification; arms cross every execution slot. This is one CPython/scalar-mitm host/session, with five slower candidate pairs, not a universal or vectorized result. The [structured claim](../../../claims/ic-target-balanced-6c546e.json) retains raw paired evidence, timing boundaries and uncertainty. Matched rho and Bernstein–Lange gaps were not measured.
+
+## Exact relation-quality diagnostics
+
+`relation_quality.AffineRelations` identifies target combinations from a
+consistent affine system without requiring individual base logs or full rank.
+It supplies original-row certificates and complete right kernels.
+`cancel_outside` scores partial relations only after eliminating their outside
+columns. `python -m crypto_autoresearcher.index_calculus.quality_cli INPUT.json`
+analyzes retained, already verified rows without collecting new data. See the
+[prime-field continuation](../../../research/prime_field_factor_base_20261028/README.md)
+for the input shape, zero-completion collector, Dickson extractor, validation
+scope and execution boundaries. These interfaces add no performance claim.

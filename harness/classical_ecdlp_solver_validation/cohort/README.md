@@ -1,0 +1,25 @@
+# Fresh larger solver-validation inputs
+
+The final input-only preparation contains 48 fresh ordinary non-anomalous curves at subgroup bit lengths 12, 14, 16 and 18, with six unrestricted `ordinary` and six `power5` curves per size. The power5 stratum forces p=1 modulo5; both strata reject j=0/1728 and trace zero. Each curve has16 independently generated uniform-with-replacement target scalars, giving768 public targets. No candidate or baseline scientific measurement was performed by this preparation.
+
+`public/fixtures.tsv` retains the existing10-column interface; `public/public-targets.tsv` retains the5-column public-Q interface. `public/target-subsets.tsv` prospectively tags core192 targets (curve index0..2 per stratum/size, target ordinal0..7) and extension576 targets. Three balanced disjoint input shards contain16 curves and256 targets each, with two curves per size/stratum; their union hashes bind the full manifests.
+
+`src/prepare_cohort.cpp` uses a fixed public SplitMix64 hash stream, seed `0x20261025ec4816`, to generate candidate curve parameters. Every acceptance/rejection is retained in five row-preserving history parts of at most60KiB, with exact logical-stream reconstruction SHA-256. Accepted curves have prime p/r, a nonsingular non-special-j ordinary curve, coprime cofactor, nonidentity P and [r]P=O. A complete quadratic-root frequency census and an Euler-criterion census agree. `prepare.py` independently rechecks primality, accepted cardinalities and point orders using Python integers, modular pow and affine group arithmetic; it also checks every public target's curve/subgroup membership without scalar labels.
+
+Freshness is stronger than full-fixture identity: the key is `(p,a,b)`. The32 curves in the completed pilot/follow-up are included in `public/excluded-fixtures.tsv`. A further34 curves are excluded as development:24 from the superseded input preparation below and10 fixed arithmetic-development curves supplied by the candidate implementer. Parameters are copied locally; no old branch or external registry is needed to check these exclusions. These are local synthetic input certificates, not canonical registry UIDs or solver-validation result records.
+
+Before any private target scalar is drawn, the wrapper writes `fixture-certificate.json` and `fixture-freeze-before-targets.json`, binding the exact source and fixture bytes at that checkpoint. Target generation then seeds C++ `mt19937_64` with eight OS `random_device` words and uses `uniform_int_distribution` with replacement. The public custody record commits to the withheld truth and seed hashes. Private labels/seeds remain in `private/` and are not candidate or verifier inputs. This is source-enforced input separation, not formal OS isolation. Only after solver outputs are sealed may labels/seeds be archived separately against the commitments.
+
+`development/` contains four fixed known-label fixtures and16 forced edge controls: identity, generator, last canonical scalar and k=7. Its intentionally public labels are excluded from the scientific confirmation cohort. Strict compiler self-tests passed1,985 checks, and the same checks passed ASan/UBSan with leak detection disabled for the host limitation; see `development-notes.md`.
+
+## Preparation history and publication
+
+The first prospective size was24 curves×32 targets. That input preparation finished before a later user-directed expansion to48 independent curves×16 targets, but no solver trial or repository scientific admission occurred. Its exact source, public manifests, private commitments and working files are retained in `superseded-preparation-01/`. Final generation uses a different public seed and excludes all24 of those curves. `preparation-history.json` records this change; no history was discarded or relabeled as an experiment.
+
+`publication-handoff.json` lists only public/source/provenance files and their exact hashes. Exclude every `private/`, `work/`, and `__pycache__/` directory from publication. In particular, the unpartitioned working history files are not needed: the public history parts reconstruct them exactly. The earlier target labels remain private as well.
+
+The completed prior study fixtures can be located at immutable snapshot `68f1b0406cb4a497aa943aef6d55736b4c0d4123` in `aburan28/crypto-autoresearcher`, under `harness/classical_ecdlp_pilot/protocol/fixtures.tsv` and `harness/classical_ecdlp_followup/protocol/fixtures.tsv`. Those pointers explain provenance; the exclusion data and hashes are self-contained.
+
+## Reproduction
+
+Copy `src/`, `prepare.py` and the two public exclusion TSVs into a fresh empty preparation directory preserving the layout, then run `python3 prepare.py`. It refuses existing cohort outputs. Curve selection is deterministic and can be reproduced independently; target draws intentionally use new private OS seed words. The exact current target manifests, their commitments and the later permitted seed/label reveal identify this cohort. This command prepares inputs and performs no solver study.

@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""Render the local Lean gate addendum's proof-boundary diagram."""
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SVG = '''<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520">
+<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#172331}.head{font-size:23px;font-weight:bold}.box{font-size:17px;font-weight:bold}.small{font-size:14px}.line{fill:none;stroke:#41566c;stroke-width:3}.good{fill:#ddf4e8;stroke:#24734c;stroke-width:2}.open{fill:#fff1d9;stroke:#a46816;stroke-width:2}.input{fill:#e7eff8;stroke:#456987;stroke-width:2}</style>
+<rect width="1100" height="520" fill="#fff"/>
+<text x="42" y="43" class="head">BINSTD encoded theorem: local full-gate addendum</text>
+<text x="42" y="69" class="small">Exact reviewed source · Lean 4.35.0-rc1 · independent finite semantics unchanged</text>
+<path d="M320 159 H410 M320 317 H410 M695 159 H777 M695 317 H777" class="line"/>
+<rect x="42" y="111" width="278" height="96" rx="10" class="input"/>
+<text x="59" y="144" class="box">Frozen source and target</text><text x="59" y="171" class="small">same SHA-256 as producer</text>
+<rect x="42" y="270" width="278" height="96" rx="10" class="input"/>
+<text x="59" y="303" class="box">Sealed J1/J2 review</text><text x="59" y="330" class="small">1,110 finite candidate rows</text>
+<rect x="410" y="111" width="285" height="96" rx="10" class="good"/>
+<text x="428" y="144" class="box">Full local Lean gate</text><text x="428" y="171" class="small">8,980 jobs; 707 axiom checks</text>
+<rect x="410" y="270" width="285" height="96" rx="10" class="good"/>
+<text x="428" y="303" class="box">Blind finite validation</text><text x="428" y="330" class="small">five masks; controls reject</text>
+<rect x="777" y="111" width="280" height="96" rx="10" class="good"/>
+<text x="794" y="144" class="box">Encoded theorem</text><text x="794" y="171" class="small">machine verified, scoped</text>
+<rect x="777" y="270" width="280" height="96" rx="10" class="open"/>
+<text x="794" y="303" class="box">Hosted required checks</text><text x="794" y="330" class="small">runner blocked by billing</text>
+<rect x="777" y="405" width="280" height="77" rx="10" class="open"/>
+<text x="794" y="438" class="box">Concrete runner bridge</text><text x="794" y="465" class="small">not proved by this target</text>
+<path d="M695 159 C735 159 736 159 777 159 M695 317 C735 317 736 159 777 159" class="line"/>
+<text x="42" y="502" class="small">Green = locally checked within scope. Amber = operational or mathematical obligation still open. No performance claim.</text>
+</svg>'''
+(HERE / "diagram.svg").write_text(SVG + "\n", encoding="utf-8")
+print(HERE / "diagram.svg")
