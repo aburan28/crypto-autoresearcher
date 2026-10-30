@@ -4,8 +4,8 @@ Status (2026-10-30): the degree-six search continues; no degree-six bound has
 been obtained. Six of 47 high-memory continuation inputs are terminal, all
 retaining LFD at least 5. The other 41 include the live n47 random input 01.
 Degree-five codimension equality and killed-constant projections establish no
-upper bound. The separate remote D4 continuation has 20 of 32 inputs completed,
-including 13 certified LFD at least 5 bounds; see the
+upper bound. The separate remote D4 continuation has 21 of 32 inputs completed,
+including 14 certified LFD at least 5 bounds; see the
 [new n44 random-input report](reports/panel-v3-n44-rand00/report.md).
 The remaining frozen cloud inputs continue in order as worker slots become free.
 
@@ -149,3 +149,5 @@ The [retained-seed capacity calculation](reports/native-envelope-001/report.md) 
 The separate [bounded-export allocation candidate](BOUNDED-EXPORT-MEMORY.md) passed generic byte-equivalence and nine independently checked Semaev stages. It removes a full-output-map reservation left over after blockwise export, giving a calculated 85.791 GiB envelope for this seed. Runtime placement and a frozen frontier continuation are still required; no large input has run on it.
 
 The [n44 random03 report](reports/panel-v3-n44-rand03/report.md) retains an accepted D4 codimension 31,780 against exact count zero, establishing LFD >= 5; all 47 artifact hashes and public archive readback verified.
+
+The [n44 random02 report](reports/panel-v3-n44-rand02/report.md) adds accepted D4 codimension 31,780 against exact count 2, establishing LFD >= 5. The separate bounded-export D5 job was submitted after both panel jobs finished; see [submission receipt](runs/bounded-lift-submission-001.json). Submission alone establishes no new mathematical result.
