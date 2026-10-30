@@ -1,0 +1,339 @@
+{
+  "schema": "experiment.protocol/v1",
+  "protocol_id": "SEMAEV-CERT-ARCHIVE-20261029",
+  "version": 1,
+  "created": "2026-10-29",
+  "repository": "crypto-autoresearcher",
+  "study_dir": "analysis/semaev-m2-last-fall-degree/submission-20261029",
+  "authors": [
+    "Codex, owner-authorized data preparation"
+  ],
+  "links": {
+    "plan": "replay-plan.json",
+    "plan_sha256": "ada78f6d6a3541db4d8b0c0798605ad2b8dedf028c3e0ea84dcda9ef6c566057",
+    "kind": "Prospective replay of 13 historical records; historical results were already seen."
+  },
+  "question": "Do the 13 historical closure certificates reproduce byte-for-byte and pass the independent checker, with retained archive bytes?",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Each accepted certificate establishes 1 not in W4 and its stated codimension lower bound on exactly the recorded input.",
+      "class": "exact_computation",
+      "decided_by": []
+    }
+  ],
+  "hypotheses": [],
+  "arms": [
+    {
+      "id": "replay",
+      "role": "candidate",
+      "description": "Historical exact input replay; independent checker uses separate arithmetic.",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": "6b73c23e8f9fa288fb8a98678bee0dd9b3b2e8da",
+        "build": [
+          [
+            "gcc",
+            "-O3",
+            "-march=native",
+            "-fopenmp",
+            "lfdclose2.c",
+            "libm4ri.a",
+            "-lm"
+          ]
+        ],
+        "binary_sha256": "f7f920e697b263129e91b44814e18c32b228392496770c29869ab4d00a9e6f04",
+        "flags": {
+          "m4ri_commit": "d0a1ee18511714a2c33cc0920a068c05c1f0f8fb"
+        },
+        "env": {
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "degree": 4,
+        "chunk": 60000
+      }
+    },
+    {
+      "id": "historical-reference",
+      "role": "reference",
+      "description": "Read-only historical certificates.txt digests; no new execution attributed to this arm.",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": "6b73c23e8f9fa288fb8a98678bee0dd9b3b2e8da",
+        "build": [
+          [
+            "gcc",
+            "-O3",
+            "-march=native",
+            "-fopenmp",
+            "lfdclose2.c",
+            "libm4ri.a",
+            "-lm"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {
+          "m4ri_commit": "d0a1ee18511714a2c33cc0920a068c05c1f0f8fb"
+        },
+        "env": {
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "degree": 4,
+        "chunk": 60000
+      }
+    }
+  ],
+  "controls": {
+    "aa": {
+      "present": false,
+      "comparison": null,
+      "not_applicable_reason": "Exact replay compares each complete certificate SHA256 with the historical digest; no stochastic timing claim."
+    },
+    "positive": {
+      "present": false,
+      "arm": null,
+      "expected_detection": null,
+      "not_applicable_reason": "All 13 historical accepted certificates are positive correctness controls; every one must reproduce and independently verify."
+    },
+    "negative": {
+      "present": false,
+      "arm": null,
+      "null_population": null,
+      "not_applicable_reason": "Truncation and corruption rejection are software checks, not a statistical null population. No inference from absence of a certificate."
+    }
+  },
+  "variable_ledger": {
+    "independent": [],
+    "factors": [
+      {
+        "name": "input",
+        "treatment": "fixed",
+        "how": "Exact historical parameters and plan hash."
+      },
+      {
+        "name": "instrument",
+        "treatment": "fixed",
+        "how": "C source, M4RI commit and binary SHA256 retained."
+      },
+      {
+        "name": "host",
+        "treatment": "measured",
+        "how": "CPU, kernel, process memory ceiling and L0 wall-valid=false; no timing inference."
+      },
+      {
+        "name": "order",
+        "treatment": "fixed",
+        "how": "Plan order, two workers; independent exact computations."
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "acceptance",
+        "arms": [
+          "replay",
+          "historical-reference"
+        ],
+        "differs_in": [],
+        "design": "absolute",
+        "threshold": "Regenerated digest equals historical reference AND independent checker accepts."
+      }
+    ],
+    "aa_not_applicable": "Exact equality against historical digest.",
+    "crosses_map": false
+  },
+  "randomization": {
+    "arm_order": "fixed",
+    "arm_order_reason": "Exact named-input replay has no arm-dependent clock inference.",
+    "seed_derivation": {
+      "method": "explicit_list",
+      "seeds": [
+        20261029
+      ],
+      "nonce": null,
+      "note": "No new random inputs; seed is a run identifier only."
+    },
+    "instance_sampling": {
+      "rule": "All 13 certificates in results/certificates.txt, without selection.",
+      "independent_of_arm": true
+    },
+    "blinding": {
+      "analysis_labels_masked": false,
+      "how": "Historical outcomes known; no statistical comparison.",
+      "unmasked_at": null
+    }
+  },
+  "sample_size": {
+    "instances": 13,
+    "replicates": 1,
+    "warmups": 0,
+    "power": {
+      "method": "exact",
+      "alpha": 0.05,
+      "tests_in_family": 1,
+      "correction": "none",
+      "passes": true,
+      "note": "Exhaustive historical list, deterministic verification, no population or power claim."
+    },
+    "preflight_runtime": {
+      "fixed_seconds": 0,
+      "per_sample_seconds": 7000,
+      "threads": 1,
+      "estimated_total_seconds": 91000,
+      "measured_on": "Conservative scheduling allowance based on historical certificates.txt; old P45a closure ~6000s and check 787s. Not measured on current host."
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "id": "codimension_lower_bound",
+        "name": "certified codimension lower bound",
+        "unit": "F2 dimension",
+        "kind": "exact",
+        "definition": "nq from an independently accepted surjective closure-separating map; not equality with closure codimension.",
+        "source": "result.json certified_codimension_lower_bound",
+        "aggregation": "per_row",
+        "resolution": "1",
+        "uncertainty": "none_exact"
+      }
+    ],
+    "secondary": []
+  },
+  "measurement": {
+    "isolation_required": "L0",
+    "warmups": 0,
+    "order": "sequential",
+    "clock": "counted",
+    "counters": [],
+    "record": [
+      "cpu_model",
+      "kernel_release",
+      "binary_sha256",
+      "source_commit",
+      "argv",
+      "input_sha256"
+    ],
+    "timed_primary_justification": null
+  },
+  "execution": {
+    "backend": "local",
+    "queue": "owner-authorized-host",
+    "placement": {
+      "max_workers": 2,
+      "memory_per_worker_bytes": 42949672960,
+      "observed_available_gib": 114,
+      "checkpoint_detail": "Completed per-instance results are durable checkpoints; running M4RI state has no checkpoint. Restart interrupted instance into a new attempt, never claim CRIU recovery."
+    },
+    "measurement_class": "throughput",
+    "timeout_seconds": 21600,
+    "checkpoint": {
+      "policy": "application",
+      "interval_seconds": 60,
+      "grace_seconds": 10,
+      "restore_validation": "manifest_sha256",
+      "after_restore": {
+        "wall_time": "invalid",
+        "counted_units": "valid"
+      }
+    },
+    "retries": {
+      "infrastructure_only": true,
+      "max_attempts": 2
+    }
+  },
+  "stopping_rules": [
+    {
+      "kind": "fixed_n",
+      "rule": "Attempt the 13 exact historical entries once; infrastructure-only retries are explicit new attempts.",
+      "preregistered": true
+    },
+    {
+      "kind": "invalidation",
+      "rule": "Hash mismatch, checker failure, missing completion or timeout leaves a failed record and retained bytes.",
+      "preregistered": true
+    }
+  ],
+  "invalidation_rules": [
+    "Unverified certificate yields no certified lower bound.",
+    "No public archive claim until anonymous download and SHA256 readback."
+  ],
+  "decision_rule": {
+    "text": "Accept each replay only on historical byte identity and independent checker success.",
+    "comparison_ids": [
+      "acceptance"
+    ],
+    "threshold": "exact equality and checker exit 0 with explicit VALID marker",
+    "statistic": "none",
+    "interval": "none, exact",
+    "multiple_comparison_correction": "none",
+    "effect_size_measure": "none",
+    "verdict_vocabulary": [
+      "certificate_verified",
+      "closure_contains_one",
+      "failed",
+      "resource_capped"
+    ]
+  },
+  "analysis_plan": {
+    "script": {
+      "path": "certificate_campaign.py",
+      "sha256": "d00fb15692709a1450c9a16c06ca36f51afb18158b16ffbeb2527b2cf52c08eb"
+    },
+    "inputs": [
+      "replay-plan.json",
+      "attempt-*/result.json"
+    ],
+    "outputs": [
+      "per-instance exact acceptance and retained hashes"
+    ],
+    "blinded": false,
+    "frozen_before_data": true
+  },
+  "reporting": {
+    "export_schema": "experiment.export/v1",
+    "review_schema": "experiment.review/v1",
+    "graphs": [
+      "per-instance certificate status, no timing graph"
+    ],
+    "report_dir": "reports"
+  },
+  "inadmissible": [
+    "Equating ker(pi) and W4 solely from checker acceptance.",
+    "Calling nonmembership alone an unsatisfiability proof.",
+    "Claiming an F4 trace establishes an exact LFD.",
+    "Claiming a private object store is a public archive."
+  ],
+  "literature": [
+    {
+      "ref": "../theorem-dossier.md",
+      "provenance": "internal",
+      "claim": "Proposition 1.5 certificate semantics.",
+      "verified_by": "Codex 2026-10-29"
+    },
+    {
+      "ref": "../results/verification-correction-20261019.md",
+      "provenance": "internal",
+      "claim": "Closure codimension inequality, not equality.",
+      "verified_by": "Codex 2026-10-29"
+    },
+    {
+      "ref": "https://arxiv.org/html/1906.05594",
+      "provenance": "retrieved",
+      "claim": "Prior empirical degree five and distinct first-fall definition.",
+      "verified_by": "Codex full text 2026-10-29"
+    }
+  ],
+  "amendments": [],
+  "freeze": {
+    "status": "frozen",
+    "protocol_sha256": "a9f908b284f625ceb41aca891f405cfcc73c4266c0057742f3b4e90d687f3afc",
+    "commit": "6b73c23e8f9fa288fb8a98678bee0dd9b3b2e8da",
+    "frozen_at": "2026-10-29T04:02:57Z",
+    "filed_before_affected_data": true
+  }
+}

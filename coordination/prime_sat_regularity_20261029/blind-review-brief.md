@@ -1,0 +1,11 @@
+# Independent initial problem brief
+
+Do not read the producer's proof, proof-status, diagram, report, producer handoff, numerical candidate formula, or parent conversation before writing your independent derivation. Begin a fresh session without inherited producer context. Primary papers are public inputs, not producer work.
+
+Let k be a field of characteristic p, let B_s=k[z_1,...,z_s]/(z_1^2,...,z_s^2), and give every z_i degree1. Work with m disjoint copies of B_s and weighted linear forms L_i whose weights are all nonzero. Assume s>=1, m>=1, 1<=e<=s and characteristic0 or p>s. Derive the largest nonzero degree in the quotient by the product of the L_i^e, including both its vanishing and nonvanishing sides. Then derive a justified upper bound after adjoining one nonzero homogeneous squarefree block polynomial in each block. Handle constant1 separately. Do not infer affine solution equivalence merely from this graded statement.
+
+For the elliptic application take m=2, e=2, s>=2, p>max(3,s), a nonsingular short-Weierstrass curve over F_p, a finite rational target R=(r,t) with t!=0, and digit coordinates x_i=h_i+sum_j w_j z_ij. Define the actual polynomial systems including z_ij^2-z_ij before discussing highest parts. Determine when adjoining exact multilinear curve-membership predicates preserves the same affine Boolean solutions and the same ideal. The nonzero predicate premise must be explicit; an identically zero predicate must not receive an unconditional strict-reduction claim.
+
+Independently assess a construction of new windows with guaranteed nonzero membership predicate on any odd-prime-order curve: use a nonresidue starting coordinate and 2^s<=p. Distinguish constructing a new factor base from changing a pre-existing problem. Account for finding that coordinate, constructing the Boolean table, the transform and storage. No sampling or numerical trial is permitted.
+
+Write and hash blind-rederivation.md first. Root archives that initial artifact before revealing the producer's proof at an immutable commit. Then compare proofs, attack all assumptions and return holds, breaks, or inconclusive for each proof joint. Record exact files and commit hashes read, independent-session provenance, and the point at which blindness was lifted. No proof-assistant verification is assumed.
