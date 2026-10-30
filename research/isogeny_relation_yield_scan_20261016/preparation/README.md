@@ -31,6 +31,11 @@ triple collector. It does **not** launch that collector or estimate a DLP cost.
   requires the checkpoint manifest and terminal hashes in the commitment.
   Output directories are
   exclusive; an interrupted write remains visible and is never overwritten.
+- Solve-stage manifests also contain the public source-generator and
+  source-target coordinates, bound by a digest. The scalar and verifier root
+  are never written. The independent prepared-input checker validates the
+  archived source curve and group membership; a separate path-transfer checker
+  verifies that these points map to the exact finalist G,Q.
 
 `prepare_graph_input.py` exposes a small-count `prepare` function for
 implementation controls. Its CLI is for later admitted preparation only;
@@ -86,8 +91,10 @@ relation-yield comparison. The original 22-case receipt remains historical.
    fixed target roots and all output paths in a runnable versioned contract.
    Coordinator approval under the standing user authorization follows only
    when the execution-state checker reports ready.
-3. Build and validate the complete same-point IC solve path: relation
-   collection, rank/linear algebra, individual log, independent scalar
+3. The source G,Q point binding now supports rootless finalist path-transfer
+   measurement. The new transfer runner and checker still need bounded
+   controls and study admission. Complete the same-point IC solve path with
+   relation collection, rank/linear algebra, individual log, independent scalar
    replay, all costs, and matched source/destination rho. Compare any
    completed improvement with the best frozen end-to-end IC baseline for
    that curve and size, reporting the remaining rho and Bernstein–Lange gaps.

@@ -58,3 +58,11 @@ builds one discovery trial per scheduled arm and passes the repository's trial
 plan loader in an integration control. This adapter and compiler do not yet
 implement the fresh confirmation and finalist solve schedules, and their
 approval/admission sequence remains unresolved.
+
+The additive `path_transfer.py` runner times saved-edge map setup and maps the
+custodian-prepared public source G,Q pair to a finalist. It accepts no seed,
+verifier root, or scalar. `check_path_transfer.py` independently replays every
+edge through Sage's isogeny map and checks that the output matches the exact
+prepared finalist G,Q pair. The solve-plan compiler binds one transfer trial
+per finalist; these files provide implementation controls only and contain no
+scientific path-transfer run.

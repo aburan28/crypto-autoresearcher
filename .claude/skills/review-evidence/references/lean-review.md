@@ -107,6 +107,18 @@ For every cited declaration, compare its elaborated type with the source claim:
   isogenies, abstract additive structures to actual groups/Jacobians, and
   symbol-level operations to implementation code.
 
+Write a **hypothesis-delta table** for every cited declaration: one row per
+binder, instance, `Fact`, fixed parameter or side condition in the elaborated
+type that the source claim does not state, each marked `implied` (with the
+proof or proof reference that the claim's own hypotheses discharge it),
+`scoping` (the claim must be narrowed to carry it) or `unjustified`. An empty
+table is a finding to state, not a row to omit. Any `scoping` or
+`unjustified` row caps fidelity at `partial`. Every record that cites the
+theorem, such as a finding, frontier row, leaderboard row or paper sentence,
+must then state the narrowed scope. This is the failure Axiom's CFSG
+formalization reports guarding against at scale (`KN-LIT-63f33d`): a result
+proved under an added assumption type-checks, and an axiom audit cannot see it.
+
 List missing bridges individually. A conditional theorem may be faithful to a
 conditional claim; it cannot certify an unconditional or concrete claim whose
 assumptions were never established. A theorem about a formula does not prove
@@ -160,6 +172,18 @@ Reviewers provide `review_attestation` with their own `joints_owned`, complete
 That tool checks the declarations, not the truthfulness of session isolation.
 Retain failures. A correction is a new producer version and a new verification
 and affected-joint re-review, never an edit to an earlier signed-off artifact.
+
+**Formalization errata.** When a formalization or review shows that a source
+statement is false or under-hypothesized, record it with its smallest explicit
+counterexample. A source statement here means our own note or a published
+lemma. Record it even when the target is then narrowed or abandoned:
+- for an internal note: a dated record under `formal/targets/corrections/`;
+- for a published result: a `KN-OPEN` or a superseding `KN-LIT` through
+  `curate-knowledge`.
+
+The record names every finding, frontier row and lead that cites the
+statement. Without the record, the defect lives only in an attempt directory
+nobody reads. The CFSG effort found its 34 errata this way (`KN-LIT-63f33d`).
 
 ## 6. Archive and report
 
