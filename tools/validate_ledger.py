@@ -399,14 +399,33 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
                       "known-false object or the control cannot fail")
     rederivation = plan.get("blind_rederivation")
     if isinstance(rederivation, dict) and rederivation.get("required"):
-        for field in ("quantity", "assigned_to"):
-            if not str(rederivation.get(field) or "").strip():
-                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
-                              f"required when required is true")
-        if not (rederivation.get("blind_from") or []):
-            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
-                          "required; name the producer's implementation, notes "
-                          "and report, or the independence is not checkable")
+        def check_quantity(quantity: dict, prefix: str) -> None:
+            for field in ("quantity", "assigned_to"):
+                if not str(quantity.get(field) or "").strip():
+                    ctx.err(path, f"{prefix}.{field} is required when required is true")
+            if not (quantity.get("blind_from") or []):
+                ctx.err(path, f"{prefix}.blind_from is required; name the producer's "
+                              "implementation, notes and report, or the independence "
+                              "is not checkable")
+
+        prefix = "review_plan.blind_rederivation"
+        if "quantities" not in rederivation:
+            check_quantity(rederivation, prefix)
+        else:
+            quantities = rederivation["quantities"]
+            if not isinstance(quantities, list) or not quantities:
+                ctx.err(path, f"{prefix}.quantities must be a nonempty list")
+            else:
+                for index, quantity in enumerate(quantities):
+                    scoped = f"{prefix}.quantities[{index}]"
+                    if not isinstance(quantity, dict):
+                        ctx.err(path, f"{scoped} must be a mapping")
+                    else:
+                        # Each quantity keeps its own reader restrictions. Never
+                        # merge scopes or borrow a missing field from a parent.
+                        check_quantity(quantity, scoped)
+            if any(field in rederivation for field in ("quantity", "assigned_to", "blind_from")):
+                check_quantity(rederivation, prefix)
 
 
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
