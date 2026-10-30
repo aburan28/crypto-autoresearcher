@@ -1,86 +1,52 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 19:08 UTC): the degree-six search remains open. Seven of
-47 original high-memory inputs have terminal records; 40 remain unfinished.
-No independently checked LFD-at-least-6 result exists. The independent n47
-random02 D4 recovery certifies only LFD at least 5 and is published; it does
-not complete its D5 cascade.
+Status (2026-10-30 20:50 UTC): the separate D4 panel has 24 terminal inputs
+of 32, including 17 certified LFD-at-least-5 results. The latest completed
+input, n45 polynomial01, has independently accepted codimension 12,742 and
+fresh exact count zero. Its certificate is published with full public and
+object-store readback. See the [report](reports/panel-local-n45-poly01-002/report.md),
+[publication receipt](panel-local-archive-001/fresh-n45-poly-01-local02.publication.json),
+and [inventory](runtime/panel-remaining-after-local003.json). The report
+records the frozen protocol's stale analysis-input paths explicitly.
 
-The checkpoint-enabled n47 random00 attempt failed before D4 checking
-completed. Four durable records remain, no D5 checkpoint exists, and the
-specific failure cause is unknown; see [the failure report](reports/checkpoint-frontier-failure-001/report.md).
-A new continuation, `semaev-n47-rand00-d5-reuse-20261030-1600`, was submitted
-at 15:58:22 UTC (job UID `dba14261-18f7-4262-a5e9-cdb051f4240b`). It verifies
-byte identity and reuses the earlier original checker's acceptance of the
-identical D4 seed and target. This is explicitly historical acceptance,
-not fresh algebra checking. Fresh solution counting and the original D5
-certificate checker remain mandatory. See the [frozen protocol](seed-reuse-frontier-protocol-001.json)
-and [launch receipt](runs/seed-reuse-frontier-launch-001.json).
-The worker verified the 1,632,838,224 seed bytes and recorded historical
-acceptance with codimension 61,196. Fresh exact enumeration subsequently
-completed successfully at zero solutions, and the D5 producer started.
-Closed stage receipts are in `validation/seed-reuse-frontier-progress-001/`
-and `validation/seed-reuse-frontier-progress-002/`. No completed D5 certificate
-or checkpoint is established by these receipts. A positive independently
-accepted D5 codimension would exceed the fresh zero count and certify LFD
-at least 6 for this exact input.
+The next original input, n45 polynomial02, is running as local04. Its
+bounded admission wait succeeded after 91.28 seconds with the unchanged
+40 GiB child cap and 2 GiB reserve. All three software controls passed and
+fresh exact enumeration completed with six solutions. The D4 closure is
+in progress; [closed records](validation/panel-local-n45-poly02-progress-005/manifest.json)
+retain all ten admission samples, controls, and count. The three earlier
+admission refusals remain preserved. Eight original panel inputs, including
+this active one, remain unfinished.
 
-The reuse path passed both local worker configurations on one retained n6
-fixture; both reproduced the reference certificate, original D5 acceptance
-and fresh count 3. All twelve altered evidence bindings were rejected.
-The [two-row export and report](reports/seed-reuse-001/report.md) make no new
-mathematical claim. The unchanged checkpoint worker's nine real-cloud controls
-and nonempty-matrix recovery controls remain in
-[worker report 002](reports/checkpoint-worker-cloud-002/report.md) and
-[matrix report 001](reports/checkpoint-matrix-cloud-001/report.md).
-The earlier native producer's four-arm registration mismatch remains
-unresolved in [producer report 002](reports/checkpoint-producer-002/report.md).
+The n47 random00 degree-five attempt freshly counted zero solutions and
+verified byte identity and historical acceptance of its D4 seed. Its pod
+was terminated in response to imminent node shutdown at 20:43:47 UTC,
+with exit code 137 and zero restarts. Ten durable objects remain, but no
+native checkpoint, D5 certificate, or final result. The
+[interruption report](reports/seed-reuse-frontier-interruption-001/report.md)
+retains the exact job, pod, and object hashes. This is a terminal interruption;
+no replacement frontier job or restore has launched. An accepted positive
+D5 codimension on this zero-solution input would establish LFD at least six.
 
-The separate D4 panel now has 23 of 32 terminal inputs, including 16
-certified LFD-at-least-5 results. The original `fresh-n45-poly-00` input
-completed with independently accepted D4 codimension 12,747 and fresh
-exact solution count 4. All 47 recorded artifact hashes and the frozen
-request identity were verified. The [report](reports/panel-local-n45-poly00-001/report.md)
-discloses stale descriptive text in the frozen protocol; exact input and
-checker bindings remain correct. The [publication receipt](panel-local-archive-001/fresh-n45-poly-00-local01.publication.json)
-records anonymous and object-store full readback and certificate decompression.
-The [reconciled inventory](runtime/panel-remaining-after-local002.json) retains
-nine original n45 inputs. The next input, `fresh-n45-poly-01`, has a frozen
-local protocol. Its first admission returned 73 before worker creation:
-35.68 GB available was below the 40 GiB cap plus 2 GiB reserve. The
-[refusal report](reports/panel-local-n45-poly01-refusal-001/report.md) retains
-the outcome. After headroom returned, a separately frozen continuation
-`fresh-n45-poly-01-local02` passed the unchanged cap and reserve, acquired
-both locks, passed controls and freshly counted zero solutions. Its D4
-producer is active; [closed startup records](validation/panel-local-n45-poly01-progress-002/manifest.json)
-do not constitute a completed certificate. No new draw is made.
+The blocked rewrite with bounded export and native checkpoints has passed
+28 native configurations and nine actual local-worker controls; see the
+[native](reports/blocked-checkpoint-001/report.md) and
+[local worker](reports/blocked-checkpoint-worker-001/report.md) reports.
+Its first cloud source job reached its scheduling deadline without executing
+controls. Following the frontier interruption and capacity reconciliation,
+a [second cloud-control protocol](blocked-checkpoint-worker-cloud-protocol-002.json)
+is frozen with the same three fixtures, package, checker, limits, and placement
+guards. All six source controls and three distinct-pod restore controls must
+pass before its large-input execution. Candidate checkpoints remain bound
+to the candidate binary; they cannot restore the original binary's state.
 
-The next original unfinished high-memory item is n47 random02. Its
-[read-only dimension profile](reports/rand02-envelope-001/report.md) gives
-187,583 working coordinates by both enumeration methods and a calculated
-bounded-export allocation envelope of 92,117,754,292 bytes at chunk 60,000.
-This fits the planned 96 GiB child cap but does not establish runtime admission.
-Its next request and draft protocol are prepared; no second frontier job has
-launched. The current n47 random00 continuation retains priority.
-Neither producer progress nor a killed-constant projection establishes a new
-bound. Degree-five codimension equality, resource refusal and interruption
-also establish no upper bound.
-
-The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
-software equivalence controls but has not replaced the running instrument
-or established a measured speed advantage. A separate integration of that
-rewrite with bounded export and native checkpoints passed all 28 fixed
-configurations: seven reference, seven fresh, seven deliberately stopped and
-seven restored. All 21 completed certificates reproduce retained hashes and
-pass independent checks; a rank-4 checkpoint is covered. The
-[integration report](reports/blocked-checkpoint-001/report.md) is small-fixture
-software evidence only. The candidate has not replaced the frontier worker
-and cannot restore the old binary's checkpoints. The combined candidate
-also passed all nine [actual local worker controls](reports/blocked-checkpoint-worker-001/report.md),
-including six independently checked certificates and three restored paths.
-Those controls use local storage emulation; they do not establish frontier
-admission or a cloud execution result. Its versioned cloud package has a
-separate [publication receipt](runtime/blocked-checkpoint-worker-cloud-001/publication-readback.json).
+Seven of 47 original high-memory inputs have terminal records; 40 remain
+unfinished. The next original input, n47 random02, has a published accepted
+D4 seed and a [dimension profile](reports/rand02-envelope-001/report.md).
+Its D5 cascade remains unfinished. The calculated blocked allocation envelope
+is recorded in runtime/rand02-blocked-envelope-arithmetic-001.json; this is
+allocation arithmetic, not observed memory use. No independently checked
+LFD-at-least-six result has yet been obtained.
 
 The dense producer works in every monomial of degree at most five. This
 prototype first rewrites degree-five monomials using a triangular, checked
