@@ -9,6 +9,8 @@ Sources (committed, read at --ref):
   experiments/*/runs/*/manifest.json         run manifests by status
   coordination/portfolio_health/latest.json  funnel KPIs (approved-unrun, conversions); history via git log
   claims/*.json                              structured speedup claims (progress-fidelity)
+  analysis/semaev-degree-five-quotient-lift/reports/highmem-progress-*/progress.json
+                                             reported continuation input/stage counts
   experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/verification.json
                                              completed finite Prym census counts/ranks
   experiments/EXP-ECDLP-a9b6a5/runs/RUN-ECDLP-967315/verification.json
@@ -560,6 +562,84 @@ def prime_field_holdout_panel(ref, since):
             emit(prefix+'.'+c['cell_id']+'.prefix'+str(c['prefix'])+'.'+k,c[k],unit=unit,label='Exact held-out curve/prefix observation',**common)
 
 
+def degree_five_continuation(ref, since):
+    """Latest committed high-memory snapshot per day, including capped inputs.
+
+    Count reported records only: this does not replay certificates, infer a
+    solving-degree result from a cap, or turn pending work into an observation.
+    """
+    root = "analysis/semaev-degree-five-quotient-lift/reports/"
+    latest = {}
+    for path in ls(ref, root):
+        if not re.fullmatch(re.escape(root) + r"highmem-progress-\d+/progress\.json", path):
+            continue
+        try:
+            data = json.loads(show(ref, path))
+            stamp = dt.datetime.fromisoformat(data["created_at"])
+            if stamp.tzinfo is None:
+                return
+            stamp = stamp.astimezone(dt.timezone.utc)
+        except (ValueError, TypeError, KeyError):
+            return
+        date = stamp.date().isoformat()
+        if date < since:
+            continue
+        old = latest.get(date)
+        if old is not None and stamp == old[0] and data != old[2]:
+            return  # Ambiguous same-time snapshots are not a choice of evidence.
+        if old is None or stamp > old[0]:
+            latest[date] = (stamp, path, data)
+    terminal_statuses = {"certificate_verified", "projection_kills_one", "resource_capped"}
+    for date, (_, path, data) in sorted(latest.items()):
+        try:
+            rows = data["rows"]
+            if not isinstance(rows, list) or data["missing_publications"] != []:
+                continue
+            if type(data["planned"]) is not int or data["planned"] != len(rows):
+                continue
+            if (any(not isinstance(row["id"], str) or not row["id"] for row in rows)
+                    or len({row["id"] for row in rows}) != len(rows)):
+                continue
+            counts = collections.Counter(row["status"] for row in rows)
+            if set(counts) - terminal_statuses - {"pending"}:
+                continue
+            if (any(type(v) is not int for v in data["statuses"].values())
+                    or dict(counts) != data["statuses"]
+                    or type(data["terminal"]) is not int
+                    or data["terminal"] != sum(counts[s] for s in terminal_statuses)):
+                continue
+            stages = []
+            for row in rows:
+                if not isinstance(row["stages"], list):
+                    raise ValueError("invalid stage records")
+                if row["status"] == "pending" and row["stages"]:
+                    raise ValueError("pending input has reported stages")
+                for stage in row["stages"]:
+                    if (type(stage["degree"]) is not int or stage["degree"] < 0
+                            or type(stage["certified_codimension"]) is not int
+                            or stage["certified_codimension"] < 0
+                            or type(stage["exact_solutions"]) is not int
+                            or stage["exact_solutions"] < 0
+                            or not isinstance(stage["certificate_sha256"], str)
+                            or re.fullmatch(r"[0-9a-f]{64}", stage["certificate_sha256"]) is None):
+                        raise ValueError("invalid reported certificate record")
+                    stages.append(stage)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+        common = dict(date=date, problem="semaev-degree-five-quotient-lift", better="neutral",
+                      source=f"{path}@{ref}")
+        prefix = "semaev.degree_five.highmem."
+        emit(prefix + "terminal_inputs", data["terminal"], unit="inputs",
+             label="Reported terminal inputs, including resource caps", **common)
+        for status in sorted(terminal_statuses | {"pending"}):
+            emit(prefix + status + "_inputs", counts[status], unit="inputs",
+                 label=f"Reported continuation inputs: {status}", **common)
+        for degree in (4, 5):
+            emit(prefix + f"degree{degree}_certificate_records",
+                 sum(stage["degree"] == degree for stage in stages), unit="stage records",
+                 label=f"Reported degree-{degree} certificate records; not a fresh replay", **common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -576,6 +656,7 @@ def main():
     prime_field_residual_panels(a.ref, a.since)
     prime_field_direct_panel(a.ref, a.since)
     prime_field_holdout_panel(a.ref, a.since)
+    degree_five_continuation(a.ref, a.since)
 
 
 if __name__ == "__main__":
