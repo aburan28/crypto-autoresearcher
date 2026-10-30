@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 06:05 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 06:30 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
 The independent n47 random02 D4 recovery certifies LFD at least 5 and is
 published, but does not complete its D5 cascade. The cloud n47 random00 D5
@@ -9,15 +9,18 @@ attempt ended during node shutdown with no D5 certificate; see
 No frontier worker is currently active. Degree-five codimension equality,
 killed-constant projections, and interrupted runs establish no upper bound.
 
-The completed local checkpoint producer suite reports 150 fixture descriptions,
-including three zero-codomain cases outside the native interface; its full
-archive and export audit remain pending. The two retention configurations
-passed all 28 local mock-storage controls with a validated export; see
-[the transport report](reports/checkpoint-transport-002/report.md).
-Actual cloud publication and restoration in a replacement worker, followed by
-independent certificate checking, remain required before the frontier retry.
-The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
-LFD-at-least-5 results. Its 11 unfinished inputs remain in scope.
+The local checkpoint producer suite is archived and reported:150fixture
+descriptions,147native cases and3zero-codomain cases outside the interface.
+Its original four-arm registration remains incomplete; the corrected status
+projection is in [producer report002](reports/checkpoint-producer-002/report.md).
+All28 mock-storage controls passed with a valid export. Actual S3 publication
+and restoration across distinct pods also passed all6rows on3small Semaev
+fixtures, with original checker and paired exact-count agreement; see
+[cloud report002](reports/checkpoint-cloud-002/report.md). Those checkpoints
+have relation rank0. Nonempty matrix cloud recovery and frontier resource
+admission remain required before retrying D5. No cloud worker remains active.
+The separate D4 panel remains at21of32terminal inputs, with14certified
+LFD-at-least-5 results; its11unfinished inputs remain in scope.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
