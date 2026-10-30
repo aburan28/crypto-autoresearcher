@@ -71,6 +71,30 @@ def check_weights(record, matrix, rhs, unit, scalar, p):
         raise ValueError('false original-row target certificate')
 
 
+def check_recipe(fixture,curve_uid,domain,index,max_counters,recipe,attempt_records):
+    """Replay the public hash recipe through roots-set/separate group arithmetic."""
+    field,r=fixture['p'],fixture['r']
+    roots={}
+    for y in range(field):roots.setdefault(y*y%field,y)
+    rejected=[];attempts=[];expected=None
+    for counter in range(max_counters):
+        digest=sha256(f'{domain}|{curve_uid}|{index}|{counter}'.encode('utf-8')).digest()
+        x=int.from_bytes(digest,'big')%field
+        y=roots.get((x**3+fixture['a']*x+fixture['b'])%field)
+        point=None if y is None else (x,y)
+        reason='not_rational' if point is None else 'outside_subgroup' if multiply(field,0,fixture['a'],r,point) is not None else None
+        record=dict(counter=counter,sha256=digest.hex(),x=x)
+        attempts.append(dict(record,status=reason or 'selected'))
+        if reason:rejected.append(dict(record,reason=reason));continue
+        expected=dict(curve_uid=curve_uid,domain=domain,index=index,
+                      encoding='UTF-8 domain|curve_uid|decimal_index|decimal_counter; SHA256 big-endian mod p',
+                      point=list(point),selected=record,rejected=rejected,subgroup_order=r,scalar_label_generated=False)
+        break
+    if expected is None:raise ValueError('public target hash counter bound exhausted in replay')
+    if recipe!=expected or attempt_records!=attempts:raise ValueError('public hash target recipe/attempts differ')
+    return dict(hash_recipe_checked=True,hash_attempts_replayed=len(attempts))
+
+
 def check(fixture, source_order, preprocessing_rows, target, multipliers, result):
     verify_fixture(fixture)
     p, Q, P = fixture['r'], tuple(target), tuple(fixture['P'])
@@ -122,15 +146,18 @@ def check(fixture, source_order, preprocessing_rows, target, multipliers, result
                    A='canonical_alias', **{'+': 'accepted'})
     seen, counts, digest, rows = set(), Counter(), sha256(), []
     attempts, first_single, first_combined = 0, None, None
+    blocks=[];codes={v:k for k,v in reasons.items()}
     for t in multipliers:
+        statuses=[];source_digest=sha256()
         for triple in combinations(range(len(fixture['factor_base'])), 3):
             for options in product(range(4), repeat=3):
                 attempts += 1
                 status, identity, row = outcome(reference, t, triple, options, seen)
                 reason = reasons[status]
                 counts[reason] += 1
-                digest.update(json.dumps([t, list(triple), list(options), identity, reason],
-                                         separators=(',', ':')).encode()+b'\n')
+                statuses.append(codes[reason])
+                encoded=json.dumps([t, list(triple), list(options), identity, reason],separators=(',', ':')).encode()+b'\n'
+                digest.update(encoded);source_digest.update(encoded)
                 if row is None:
                     continue
                 row.update(source_scalar=0, target_coefficient=t)
@@ -146,9 +173,12 @@ def check(fixture, source_order, preprocessing_rows, target, multipliers, result
                 if scalar is not None and first_combined is None:
                     first_combined = dict(attempt=attempts, scalar=scalar, A=list(A), b=list(b),
                                           target_rows=len(rows), rank=len(pivots))
+        blocks.append(dict(multiplier=t,attempts=attempts,statuses=''.join(statuses),branch_sha256=source_digest.hexdigest()))
     if (result['attempts'] != attempts or result['rows'] != rows or result['statuses'] != dict(counts) or
             result['branch_sha256'] != digest.hexdigest()):
         raise ValueError('complete target branch/row replay differs')
+    if result.get('status_blocks')!=blocks or result.get('status_legend')!=reasons:
+        raise ValueError('target per-multiplier status coverage differs')
     if result['first_single_recovery'] != first_single:
         raise ValueError('first single-row recovery differs')
     first = result['first_combined_recovery']

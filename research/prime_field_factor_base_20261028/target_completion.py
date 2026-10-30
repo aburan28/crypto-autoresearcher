@@ -56,7 +56,10 @@ def collect(fixture, source_order, witnesses, target, multipliers, event, *, cap
     context = producer.CompletionContext(fixture)
     counts, digest, seen, rows = Counter(), sha256(), set(), []
     attempts, first_single, first_combined = 0, None, None
+    legend={k:producer.STATUS_LEGEND[k] for k in ('S','D','P','R','X','B','A','+')}
+    codes={v:k for k,v in legend.items()};blocks=[]
     for multiplier in multipliers:
+        statuses=[];source_digest=sha256()
         for triple in combinations(range(len(context.base)), 3):
             for options in product(range(4), repeat=3):
                 attempts += 1
@@ -90,10 +93,15 @@ def collect(fixture, source_order, witnesses, target, multipliers, event, *, cap
                                        target_identifiable=certificate is not None))
                 status = reason or 'accepted'
                 counts[status] += 1
-                digest.update(json.dumps([multiplier, list(triple), list(options), identity, status],
-                                         separators=(',', ':')).encode()+b'\n')
+                statuses.append(codes[status])
+                encoded=json.dumps([multiplier, list(triple), list(options), identity, status],
+                                   separators=(',', ':')).encode()+b'\n'
+                digest.update(encoded);source_digest.update(encoded)
+        block=dict(multiplier=multiplier,attempts=attempts,statuses=''.join(statuses),branch_sha256=source_digest.hexdigest())
+        blocks.append(block)
         event(dict(kind='multiplier_complete', multiplier=multiplier, attempts=attempts,
-                   accepted=len(rows), augmented_rank=system.augmented.rank, counts=dict(counts)))
+                   accepted=len(rows), augmented_rank=system.augmented.rank, counts=dict(counts),
+                   statuses=block['statuses'],branch_sha256=block['branch_sha256']))
     base_points = [tuple(atom['point']) for atom in fixture['factor_base']]
     public_points = [tuple(anchor['point']) for anchor in projection['public_derivations']]
     return dict(schema='prym-natural-target-completion/v1', curve_uid=fixture['uid'],
@@ -103,8 +111,10 @@ def collect(fixture, source_order, witnesses, target, multipliers, event, *, cap
                 preprocessing=base.summary(), projection=projection, complete=True,
                 stopping_rule='full census regardless of recovery', attempts=attempts,
                 statuses=dict(counts), branch_sha256=digest.hexdigest(), rows=rows,
+                status_legend=legend,status_blocks=blocks,
                 first_single_recovery=first_single, first_combined_recovery=first_combined,
                 final_target_certificate=system.verify(curve, P, Q),
                 target_identification=system.identify(), operation_vector=dict(context.f.counts),
-                cost_scope='producer field/group counters only; excludes replay/linear algebra/hash costs',
+                target_validation_group_ops=curve.ops.group_ops,
+                cost_scope='producer field/group counters and separate Curve validation group calls only; excludes inline independent row verification/replay/linear algebra/hash costs and complete S',
                 scientific_promotion=False)
