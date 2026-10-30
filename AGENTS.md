@@ -364,8 +364,9 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 - **Generated artifacts are never committed**: `knowledge/INDEX.md`,
   `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
-  rebuilt on demand; only `main-health.yml` writes the committed
-  `coordination/portfolio_health/latest.json`.
+  rebuilt on demand. `main-health.yml` retains a generated
+  `coordination/portfolio_health/latest.json` as a workflow artifact for review;
+  the checked-in cache remains historical until a separately reviewed PR updates it.
 - **`main` takes merge commits only** (repository setting; never squash or
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
