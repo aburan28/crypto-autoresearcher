@@ -73,6 +73,23 @@ degree-four quotient map, then imposes multiplication consistency on a smaller
 coordinate space. The numerical size of that space is not assumed in advance.
 This is not a claim that all frontier instances fit the present host.
 
+## Next original frontier seed
+
+The next original input after active n47 random02 is n47 random03. Its saved
+D3 certificate and system hashes were verified against the recovery plan;
+the previous D4 lift was resource-capped. The separately frozen
+`rand03-d4-local-protocol-001.json` prepares direct D4 closure using the
+qualified RREF exporter, fresh exact counting, and the original checker.
+Its calculated admission envelope is 21,372,163,527 bytes under the unchanged
+40 GiB child limit; this is allocation arithmetic, not measured RSS.
+
+This request has **not executed**. Run it only after the active local n45
+polynomial03 attempt terminates, using the existing launcher and both locks.
+An accepted D4 seed prepares the original D5 continuation; it neither completes
+that frontier input nor adds an input to the separate 32-input D4 panel.
+The remaining original panel inputs stay pending and resume after this seed
+preparation. No field, target, subspace, or sample was redrawn.
+
 ## Soundness argument to review
 
 Write B for the Boolean polynomial ring and B_d for its degree-at-most-d
