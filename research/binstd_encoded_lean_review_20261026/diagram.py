@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Render the review's evidence paths as editable SVG."""
+
+from pathlib import Path
+
+here = Path(__file__).resolve().parent
+svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="540" viewBox="0 0 1100 540">
+<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#172331}.head{font-size:23px;font-weight:bold}.box{font-size:17px;font-weight:bold}.small{font-size:14px}.line{fill:none;stroke:#41566c;stroke-width:3}.dash{stroke-dasharray:9 7}.good{fill:#ddf4e8;stroke:#24734c;stroke-width:2}.open{fill:#fff1d9;stroke:#a46816;stroke-width:2}.input{fill:#e7eff8;stroke:#456987;stroke-width:2}</style>
+<rect width="1100" height="540" fill="#fff"/>
+<text x="42" y="46" class="head">BINSTD encoded theorem: independent review boundary</text>
+<text x="42" y="73" class="small">Frozen producer 6409590d · two sealed reviewer tasks · no official scientific transition</text>
+<path d="M320 160 H410 M320 320 H410 M695 160 H777 M695 320 H777 M927 210 V253 M927 368 V405" class="line"/>
+<rect x="42" y="112" width="278" height="96" rx="10" class="input"/>
+<text x="59" y="145" class="box">Frozen Lean source + target</text><text x="59" y="172" class="small">eight encoded conjuncts; exact pins</text>
+<rect x="42" y="273" width="278" height="95" rx="10" class="input"/>
+<text x="59" y="307" class="box">Blind mathematical statement</text><text x="59" y="333" class="small">five masks, XOR/shift algorithm</text>
+<rect x="410" y="112" width="285" height="96" rx="10" class="good"/>
+<text x="428" y="145" class="box">J1: direct pinned Lean</text><text x="428" y="172" class="small">types, axioms, false control pass</text>
+<rect x="410" y="273" width="285" height="95" rx="10" class="good"/>
+<text x="428" y="307" class="box">J2: blind recomputation</text><text x="428" y="333" class="small">1,110 rows; two reducible controls</text>
+<rect x="777" y="112" width="280" height="96" rx="10" class="good"/>
+<text x="794" y="145" class="box">Encoded finite claim</text><text x="794" y="172" class="small">validated on exact named masks</text>
+<rect x="777" y="273" width="280" height="95" rx="10" class="open"/>
+<text x="794" y="307" class="box">Full Mathlib/Lake gate</text><text x="794" y="333" class="small">not verified; hosted CI did not start</text>
+<rect x="777" y="405" width="280" height="95" rx="10" class="open"/>
+<text x="794" y="439" class="box">Polynomial/Frobenius bridge</text><text x="794" y="466" class="small">not proved by reviewed declaration</text>
+<path d="M695 160 C735 160 736 160 777 160 M695 320 C735 320 736 160 777 160" class="line"/>
+<text x="42" y="520" class="small">Green = checked within stated scope. Amber = open obligation. The graph is a proof-boundary diagram, not a performance claim.</text>
+</svg>'''
+(here / "diagram.svg").write_text(svg + "\n")
+print(here / "diagram.svg")

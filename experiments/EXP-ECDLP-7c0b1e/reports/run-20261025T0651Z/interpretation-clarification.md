@@ -1,0 +1,15 @@
+# Working algorithms and improvement against a baseline
+
+25 October 2026, following the user's clarification. This is an additive correction to the interpretation and future research objective. It changes no measurement, frozen contract, certificate or hypothesis disposition.
+
+The objective is to establish a correct classical public-input algorithm, identify its working baseline, and improve on that baseline. Correctness, relative performance and novelty are separate questions. A correct implementation, a useful component improvement or a measured improvement over the previous version counts as progress without a novelty claim or a world-best result.
+
+The repeated headline about "no novel ECDLP solver" came from agent-authored report wording, including [HEADER.md](HEADER.md), introduced in commit `fee743bb37fe9eb74e6fc00fb82179494c17bd50`. It combined the earlier request for novelty with repository rules against unsupported quantitative claims. Those rules require comparable evidence; they do not impose novelty as a prerequisite for recognizing improvement. See [AGENTS.md](../../../../AGENTS.md#mandatory-progress-fidelity-gate) and [progress fidelity](../../../../docs/progress-fidelity.md).
+
+For this batch, the precise performance statement is: **runtime improvement against a named algorithm baseline was not measured**. The decoder has checked public per-instance recoveries, with its partial success rates and costs recorded. Its constant/hash controls and guessing references do not constitute a runtime comparison with an existing solver. A missing comparison is not a measured negative comparison, and neither interpretation closes the candidate family.
+
+The repositories already document a possible cube-root baseline: [Bernstein–Lange precomputation in cryptanalysis](https://github.com/aburan28/cryptanalysis/blob/main/README.md), approximately n^(2/3) one-time setup, n^(1/3) online work per target and n^(1/3) memory for repeated targets in a fixed group. This is a baseline family to identify explicitly, not a measured baseline of the present batch. The [prime-field programme](https://github.com/aburan28/crypto/blob/main/RESEARCH_PRIME_FIELD_BREAKTHROUGH_PROGRAM.md) records the corresponding tradeoff. Here n denotes subgroup order; the existing point notation P is unchanged.
+
+Under the same problem, success target and cost regime, improving n^(1/3) work to n^(1/4) work is an exponent improvement, with work ratio n^(1/12). Setup, memory and reuse over multiple targets must be reported beside online work. Constant-factor gains and gains at the tested sizes should also be credited at their measured scope. No exponent for the current candidate is inferred from that example.
+
+The next comparison should name the executable baseline and candidate revision, define the problem-size parameter and success target, and report construction, recovery, verification, memory and preprocessing reuse consistently. Report what works and the measured difference first. Record novelty separately when there is evidence to assess it.

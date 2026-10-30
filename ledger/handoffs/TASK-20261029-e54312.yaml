@@ -1,0 +1,164 @@
+handoff:
+  id: TASK-20261029-e54312
+  from: coordinator
+  to: validator
+  role: validator
+  recorded_at: '2026-10-29'
+  opened_by_decision: DEC-20261029-8b2734
+  goal_id: GOAL-PFDR-fd09e0
+  lane: BATCH-924d2c
+  experiment_id: EXP-PFDR-bb0d26
+  hypothesis_id: H-PFDR-727bfc
+  joints_owned:
+  - J2a
+  - J2b
+  objective: >-
+    Validate execution integrity, reproducibility and measurement fidelity of the five EXP-PFDR-bb0d26 runs: replay
+    analyze-main and analyze-final (and the selftest) under CPython 3.11 with the interpreter recorded and under 3.13
+    with a declared float tolerance; verify digests, manifests, run count, seeds, raw/summary agreement and arm
+    comparability; spot-check the kernel and curve orders; recount a pre-registered sample of jobs including n >= 1024
+    and the planted arm with disjoint code; certify the four degenerate jobs. Report verdicts on J2a and J2b only.
+  uncertainty_reduced: >-
+    Whether the recorded run records are what the bound code produces from the recorded inputs on the recorded
+    interpreter family, and whether the recorded counts are the exact counts of the sets the contract defines. It does
+    not decide the hypothesis.
+  review_plan: coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/review-plan.yaml
+  review_plan_parts_for_this_task: joints J2a and J2b (attack_plan, breaking_artifact), report_contract, gaps G-4 and G-6
+  inputs:
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/review-plan.yaml
+  - experiments/EXP-PFDR-bb0d26/specification.yaml
+  - experiments/EXP-PFDR-bb0d26/trial-plan.json
+  - experiments/EXP-PFDR-bb0d26/runbook.yaml
+  - experiments/EXP-PFDR-bb0d26/implementation/
+  - experiments/EXP-PFDR-bb0d26/runs/RUN-PFDR-e44a19/
+  - experiments/EXP-PFDR-bb0d26/runs/RUN-PFDR-4d8c71/
+  - experiments/EXP-PFDR-bb0d26/runs/RUN-PFDR-243425/
+  - experiments/EXP-PFDR-bb0d26/runs/RUN-PFDR-cd03e2/
+  - experiments/EXP-PFDR-bb0d26/runs/RUN-PFDR-089edc/
+  - experiments/EXP-PFDR-bb0d26/runbook-sessions/RBS-PFDR-bb0d26/
+  - experiments/EXP-PFDR-bb0d26/reports/run-20261023T2211Z/
+  - experiments/EXP-PFDR-bb0d26/reports/run-20261022T1218Z/
+  - experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/audit.json
+  - experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/audit-review.yaml
+  - experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/scripts/
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-8d6d84/dispatch_queue.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-8d6d84/archives/TASK-20261022-207893/ledger-receipt.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-8d6d84/archives/TASK-20261022-b6532d/snapshot-receipt.json
+  - ledger/hypotheses/H-PFDR-727bfc.yaml
+  - ledger/decisions/DEC-20261022-f1efde.yaml
+  - ledger/decisions/DEC-20261022-9aec2b.yaml
+  - ledger/decisions/DEC-20261029-5554ee.yaml
+  - AGENTS.md
+  - agents/validator.md
+  inputs_note: >-
+    The audit files are an earlier screen, not a sibling of this round; use its not_covered list as attack input and
+    do not adopt its conclusions. Interpreters on the host: /usr/bin/python3.11 and python3.13 (the default python3 is
+    3.13). The runs were recorded under CPython 3.11.15 (manifest.yaml /run/environment python_version).
+  attack_plan_J2a: >-
+    (1) Replay analyze-main and analyze-final under /usr/bin/python3.11 -B -I, recording sys.version and sys.executable,
+    reading the recorded census jobs files; route either the bound driver's trial entry point with a run directory
+    inside your outputs/ or the bound analyze path in-process, and state which. Compare the produced analysis files
+    byte for byte with runs/RUN-PFDR-243425/analysis-main.json and runs/RUN-PFDR-089edc/analysis.json and raw-result
+    /summary leaf by leaf; also compare analysis /cells (cls, S, kappa and every float) which the session replay never
+    compared. (2) Repeat under python3.13 with a declared tolerance: float leaves rel_tol 1e-9 and abs_tol 1e-12; ints,
+    strings, bools, nulls, key sets and list lengths exact; label the outcome matched_within_tolerance, never matched.
+    The known 2-leaf calibration float difference under 3.13 is interpreter drift (DEC-20261029-5554ee): do not treat it
+    as a fabrication signal and do not require a 3.13 exact match. (3) Replay the selftest (never replayed) under 3.11
+    into outputs/ and compare selftest.json and design.json. (4) Re-run check.py on each of the five run directories
+    under both interpreters, read-only, and record the exit codes. (5) Recompute sha256 of every file of the five run
+    directories against each execution-receipt.json artifact_sha256 and against the TASK-20261022-207893 ledger receipt
+    and BATCH-8d6d84 dispatch_queue path_sha256; recompute implementation sources against trial-plan.json source_sha256
+    and each manifest code_sha256; check trial_plan_sha256 and python_version in every manifest and schema-completeness
+    against specification.yaml artifact_schema.manifest. (6) Run count exactly five with the planned run ids in the
+    planned order per the session journal; seeds (every main record c in [0, n_curves), block main, curve seed 8,100,000
+    + c, no replication or selftest record in the main file); raw/summary agreement (raw-result /summary against analysis
+    top-level fields; flags.json against flagged_cells; census /summary counts against a recount of the jobs file);
+    arm comparability (gap, null and plant arms of one record on the same p, a, b_coef, N and n). (7) Extract page 1
+    text of reports/run-20261023T2211Z/report.pdf (pdftotext or an equivalent) and check run ids, outcome, headline and
+    calibration against analysis.json; note reports/run-20261022T1218Z/RENDER-BLOCKED.txt.
+  attack_plan_J2b: >-
+    (1) Sample by the rule fixed in the plan, before looking at any count: for every (bits, r) and every n in {1024, 2048,
+    4096}, the ok main record whose curve index c comes first in the order of sha256("BATCH-924d2c|J2b|" + cell + "|" +
+    str(c)) hex digest; plus the same rule for n in {256, 512} at r = (bits mod 3) + 1 for each bits; 33 jobs. For each,
+    regenerate the curve (bits, seed 8,100,000 + c), the base points and the gap, null (all 20) and planted sets from the
+    seeding convention, reading run.py and vendor/curve.py for RNG consumption order only, with your own builders and
+    group-law code; count C and D with your own pair-sum counter that does not call labelsum.c; compare gap_C, gap_D,
+    null_C, null_D, plant_m, plant_internal, plant_C, plant_D, plant_feasible and gap_meta field by field. (2) Kernel
+    adversarial inputs: compile labelsum.c the way the driver does, and compare its output with your counter on an
+    arithmetic progression of length n (closed-form C), a symmetric set {x, -x}, sets packed in [p - n, p) (wrap-around
+    sums), primes just below 2^28 and just below 2^31, and random sets at n = 4096. (3) Curve orders: on 10 curves per
+    bits from the sample, verify #E(F_p) = N independently (exhaustive Legendre-symbol point count at 20 bits and on 2
+    curves at 24 bits; at 28 bits sympy or pari if installed, else N prime with N > 4 sqrt(p), the Hasse bound and [N]P
+    = O for 3 random points), and say which method served each. (4) The four degenerate main records: regenerate their
+    base points and either exhibit a certificate of exhaustion (a short relation v in [-2T, 2T]^r with v . (P_1..P_r) = O,
+    or the full list of label collisions) or report that the regenerated set does not exhaust.
+  constraints:
+  - >-
+    maximum_runs 0 scientific runs: replays, recounts and kernel spot-checks are checks, not trials. They are never
+    written under experiments/, never get a RUN id and are never cited as run records. No new curve block is touched;
+    only main-block curves of recorded jobs are regenerated.
+  - >-
+    Use python -B so no __pycache__ lands in implementation/. Do not edit any file under experiments/, ledger/ or any
+    other lane. Build the kernel into a temporary directory inside your outputs/ or a scratch path, never into
+    implementation/.
+  - >-
+    Do not read any sibling report of this round (TASK-20261029-2c7b52, TASK-20261029-11526b) or the blind owner's tree;
+    read_sibling_reports must be false.
+  - >-
+    A crash, timeout or memory kill of a replay or recount is an infrastructure note, never a mathematical result and
+    never evidence about H-PFDR-727bfc. A difference is reported with the interpreter, the pointer and both values.
+  - >-
+    Verdicts on J2a and J2b only, never on the whole claim or the hypothesis; no status change; no commit.
+  deliverables:
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/report.yaml
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/scripts/
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/interpreters.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/replay-py311/
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/replay-py313/
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/replay-compare.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/digests.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/integrity-checks.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/report-page1.txt
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/recount-sample.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/kernel-spotcheck.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/curve-orders.json
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/degenerate-certificates.json
+  artifact_paths:
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/report.yaml
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/scripts/
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/outputs/
+  artifact_paths_note: >-
+    Directory entries are staged file by file from the artifact inventory in report.yaml (path and sha256 of each
+    file). Compiled binaries and temporary build directories are not staged; record their sha256 in the inventory
+    instead.
+  write_scope:
+  - coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-924d2c/reviews/TASK-20261029-e54312/**
+  write_scope_exclusive: true
+  archived_by: TASK-20261029-d7284b
+  depends_on: []
+  dispatch_preconditions:
+  - DP-1 to DP-3 of DEC-20261029-8b2734 (opening committed and pushed with a PR, lane claimed, fresh independent session)
+  - DP-5 of DEC-20261029-8b2734 (resume checkpoint first if the hooks gate the replay as a run launcher)
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    delivery: interactive
+  budget:
+    wall_clock_seconds: 28800
+    memory_gb: 4
+    maximum_runs: 0
+    maximum_workers: 2
+  completion_gate:
+  - interpreters.json records sys.version and sys.executable of every interpreter used and the manifest python_version it is compared against.
+  - replay-compare.json gives, per replayed unit and interpreter, byte equality of the analysis files and a leaf-by-leaf result (exact or matched_within_tolerance with the tolerance, or the differing pointers with both values).
+  - digests.json covers every file of the five run directories and every implementation source; integrity-checks.json covers run count, order, schema, seeds, raw/summary and arm comparability with counts of checks and failures.
+  - recount-sample.json lists the 33 sampled job keys with the selection hash order and a field-by-field result; degenerate-certificates.json covers all four degenerate records; kernel-spotcheck.json and curve-orders.json state inputs, method and result.
+  - report.yaml carries a top-level review_attestation with task_id TASK-20261029-e54312, joints_owned [J2a, J2b], sources_read (repo-relative, complete), read_sibling_reports false, verdicts {J2a, J2b each holds|breaks|inconclusive}, procedure_deviations and the served inference binding, plus the artifact inventory.
+  - No verdict on the whole claim, no status change, no commit, no file outside the write_scope.
+  state: queued
+  return_format: >-
+    report.yaml path and sha256; the J2a and J2b verdicts each with a one-paragraph basis; every defect with its pointer
+    and both values (or none); the interpreters used; the read-set attestation; every deviation.

@@ -1,0 +1,100 @@
+# HYPOTHESIS -- H-SLHDSA-8727f8, specified from IDEA-20261018-eef811. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-8727f8
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-eef811
+  added: '2026-10-18'
+  statement: >-
+    An adversary holding one WOTS+ signature (chain positions b) forges by grinding message
+    digests until the encoded position vector dominates b elementwise. At reduced parameters
+    (w in {4,16}, len1 in {8,16}) the per-query domination probability under the FIPS 205
+    base-w-plus-checksum encoding exceeds that under a constant-sum encoding of equal signature
+    length by at least a factor of 2 for the worst-quartile signature, and the gap is predicted
+    exactly by the lattice-point counts of the two encodings. If the measured ratio stays
+    within the A/A band, the encoding choice is security-neutral at equal size and only the
+    size argument of KN-LIT-6265 remains.
+  mechanism: >-
+    Domination needs every coordinate of the new vector to be at least the revealed one. The
+    checksum restores this defence only on average: signatures whose message part is near-maximal
+    have a small checksum, and the checksum digits are then easiest to dominate. A constant-sum
+    encoding fixes the total, so a vector dominating b must equal b, making single-signature
+    domination impossible except by digest collision, while two-signature max-vectors behave
+    differently. The difference is a counting fact over integer vectors, computable exactly,
+    and the grinding experiment checks that the hash behaves like the count predicts.
+  assumptions:
+  - Truncated SHAKE256 digests behave as uniform over the encoding domain
+  - >-
+    Domination probability scales with w and len1 as the exact count predicts, so the ratio
+    transfers
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Truncated SHAKE256 digests behave as uniform over the encoding domain
+    random_model_justification: standard random-oracle heuristic
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-9d3ed1
+    falsification_condition: chi-square test of digit marginals on 2^20 digests per seed block
+  - id: HEUR-002
+    formal_statement: >-
+      Domination probability scales with w and len1 as the exact count predicts, so the ratio
+      transfers
+    random_model_justification: exact combinatorics for the encoding; transfer is about the
+      hash only
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-9d3ed1
+    falsification_condition: compare w=4 and w=16 ratios against the DP prediction
+  predictions:
+  - metric: domination probability ratio checksum/constant-sum at q=1, worst quartile
+    direction: higher
+    minimum_effect: '>= 2x and outside the A/A 95% band'
+  - metric: measured minus exact-count domination probability
+    direction: different
+    minimum_effect: '|log2 ratio| <= 0.1 for every cell (agreement)'
+  - metric: q=4 max-vector domination probability ratio
+    direction: lower
+    minimum_effect: ratio shrinks toward 1 by at least 30% relative to q=1
+  test_boundary:
+    instances:
+    - >-
+      w in {4,16}; len1 in {8,16}; constant-sum target chosen so total chain count matches
+      len1+len2 of the checksum arm; 512 revealed vectors per cell; 2^22 grinding queries
+      per vector; q in {1,2,4}
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        w and len1 reduced; transfer assumption: ratio is a property of the encoding counts,
+        not of n
+    implementation: >-
+      Python 3 + NumPy, hashlib SHAKE256, exact DP counter in Python; harness writes per-cell
+      JSON
+    budget:
+      wall_clock_seconds_per_run: 1800
+      total_cpu_hours: 4
+      maximum_memory_gb: 4
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - ratio within A/A band or below 1
+  - any cell deviates by more than 0.1 bit beyond Monte Carlo error
+  - ratio at q=4 not smaller than at q=1
+  falsification_conditions:
+  - >-
+    measured domination probabilities disagree with the exact DP count beyond 0.1 bit in any
+    cell
+  - worst-quartile ratio checksum/constant-sum lies inside the A/A band
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - >-
+    Measures one-time-layer extension probability only; it does not by itself give a hypertree
+    forgery cost.
+  status: specified
+  proposed_by: idea-generator

@@ -1,0 +1,115 @@
+# IDEA RECORD -- IDEA-20261018-4940b7
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-4940b7
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Implicit rejection leaves only a noisy key-confirmation oracle: a channel-capacity bound
+    on failure-attack query cost, checked by simulation
+  class: control
+  claim: >-
+    Under FIPS 203 implicit rejection, a decryption failure is visible to a remote attacker
+    only as a protocol-level key mismatch, which is confounded by benign errors at rate epsilon.
+    When epsilon exceeds the per-query failure probability p, the number of queries to collect
+    F true failures grows by a factor at least (1 + epsilon/p) times the repetitions needed
+    to confirm each candidate. Simulation at elevated-DFR parameters with epsilon in {0, 1e-4,
+    1e-3, 1e-2} matches the bound within a factor 2. Defensive: it prices the oracle realism
+    that 7c1ae4's conjunction leaves unpriced.
+  mechanism: >-
+    Decapsulation is deterministic, so a candidate failure can be retested; benign errors
+    are independent across retries. Confirmation then requires about log(1/delta)/log(1/epsilon)
+    retries per alarm, and alarms arrive at rate p + epsilon. The binary asymmetric channel
+    with crossover epsilon has capacity that bounds the information per query about the failure
+    set. Comparing simulated query counts with the bound checks whether the confirmation strategy
+    is near-optimal.
+  tracked_object: >-
+    Queries per confirmed true failure versus benign-error rate epsilon at fixed filtered-ciphertext
+    failure probability p.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-119
+    provenance: kb
+    claim: assumes a clean failure oracle; this prices oracle noise
+    verified_by: knowledge/literature/KN-LIT-119.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: queries per true failure at epsilon=1e-2, p=2^-14
+    direction: higher
+    minimum_effect: '>= 100x the epsilon=0 cost'
+    falsified_by: < 20x
+  - id: P2
+    metric: simulated/bound ratio
+    direction: different
+    minimum_effect: within [0.5, 2]
+    falsified_by: outside [0.25, 4]
+  minimal_test:
+    design: >-
+      Elevated-DFR reduced ML-KEM (p ~ 2^-14 for filtered ciphertexts). Simulate a remote
+      handshake oracle that returns mismatch on failure or with independent probability epsilon.
+      Run the confirm-by-retry strategy until 50 true failures; count queries.
+    controls:
+    - 'null: epsilon=0 (direct oracle) reproduces the plain failure-boosting count'
+    - 'positive: planted epsilon >> p where the bound predicts a specific large multiplier'
+    - 'A/A: epsilon=1e-3 arm with two oracle-noise seed blocks'
+  falsification_conditions:
+  - 'P2 violated: simulation far from bound'
+  - null not matching plain boosting count
+  confounders:
+  - retry policy choice
+  - correlated benign errors (bursty networks) are not modeled
+  interpretation_limits:
+  - >-
+    Elevated DFR, simulated oracle; at FIPS DFR p << any realistic epsilon so the multiplier
+    is enormous - the bound is the transferable object
+  - no protocol implementation is tested
+  heuristic_assumptions:
+  - id: H1
+    statement: Benign errors are i.i.d. per query.
+    rigorous_support: Modeling choice.
+    validation_plan: Add a Gilbert-Elliott bursty arm as sensitivity.
+  target_complexity:
+    time_exponent: queries x (1+epsilon/p) x O(log 1/delta)
+    memory_exponent: negligible
+    best_known: failure boosting with a perfect oracle
+    hidden_overhead: protocol round trips
+    tradeoff_note: defensive cost multiplier
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: low
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-119
+      provenance: kb
+      relation: adjacent
+      delta: assumes a clean failure oracle; this prices oracle noise
+    internal_neighbours:
+    - IDEA-20260806-7c1ae4
+    - IDEA-20260828-5b7795
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-db49d8
+    experiment_id: EXP-MLKEM-3559f0

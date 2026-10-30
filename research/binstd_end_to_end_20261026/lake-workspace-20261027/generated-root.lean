@@ -1,0 +1,56 @@
+/-
+GENERATED FILE -- do not edit, and do not commit.
+
+Rebuild with `python3 tools/rebuild_formal_root.py`.  It lists every module
+under CryptoResearch/ so that `lake build` compiles them and AxiomAudit.lean can
+see their theorems.
+-/
+
+import CryptoResearch.Binstd.EncodedDivisors
+import CryptoResearch.Binstd.Factorization
+import CryptoResearch.Binstd.YieldCeiling
+import CryptoResearch.Endosweep.AlphaAdic
+import CryptoResearch.Endosweep.BinaryGLS
+import CryptoResearch.Endosweep.Blinding
+import CryptoResearch.Endosweep.ChainEigen
+import CryptoResearch.Endosweep.Discriminant
+import CryptoResearch.Endosweep.DkExact
+import CryptoResearch.Endosweep.DkExactBatch2
+import CryptoResearch.Endosweep.DkExactBatch3
+import CryptoResearch.Endosweep.DkExactBatch4
+import CryptoResearch.Endosweep.DkExactBatch5
+import CryptoResearch.Endosweep.FrobeniusSplit
+import CryptoResearch.Endosweep.Koblitz
+import CryptoResearch.Endosweep.LambdaCoordinates
+import CryptoResearch.Endosweep.NativeChains
+import CryptoResearch.Endosweep.NistCertificates
+import CryptoResearch.Endosweep.Pippenger
+import CryptoResearch.Endosweep.RMGoldenNorm
+import CryptoResearch.Endosweep.SubgroupIndex
+import CryptoResearch.Endosweep.XOnlyConjugate
+import CryptoResearch.FallDegree.FirstFallBounded
+import CryptoResearch.FallDegree.LastFall
+import CryptoResearch.FrobTrace.CharacteristicFive
+import CryptoResearch.FrobTrace.FactorKernel
+import CryptoResearch.FrobTrace.FiniteFieldTrace
+import CryptoResearch.FrobTrace.NullCurveOrder
+import CryptoResearch.FrobTrace.OrderFive
+import CryptoResearch.FrobTrace.QuotientFrobeniusMap
+import CryptoResearch.FrobTrace.QuotientKernelTransport
+import CryptoResearch.FrobTrace.QuotientMatrices
+import CryptoResearch.FrobTrace.QuotientMatrixKernels
+import CryptoResearch.NCP.AffineNormalForm
+import CryptoResearch.NCP.CommutatorIdeal
+import CryptoResearch.NCP.Reachability
+import CryptoResearch.Quotient.TranslationDescent
+import CryptoResearch.Runbook.BsgsCoverage
+import CryptoResearch.Semaev.BooleanParityDegreeThreeRankCertificate
+import CryptoResearch.Semaev.BooleanParityFiltrationCertificate
+import CryptoResearch.Semaev.BooleanParityFiniteCertificate
+import CryptoResearch.Semaev.BooleanParitySemanticRankCertificate
+import CryptoResearch.Semaev.Certificate
+import CryptoResearch.Semaev.ConcreteFirstFallWitness
+import CryptoResearch.Semaev.DegreeTwoFall
+import CryptoResearch.Semaev.FiniteEquationSemantics
+import CryptoResearch.Semaev.FrobeniusCollapse
+import CryptoResearch.Semaev.Symmetrization

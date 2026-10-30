@@ -1,0 +1,171 @@
+# IDEA RECORD -- IDEA-20261018-6a1f41
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-6a1f41
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Decryption failures as approximate DDGR hints: measured block-size drop per observed failure
+    on reduced ML-KEM
+  class: mechanism
+  claim: >-
+    Each decryption failure observed for an attacker-generated ML-KEM ciphertext conditions
+    the secret (s,e) to satisfy |<(s,e),c> + known| > q/4 along a public direction c built
+    from (r,e1,e2). Integrated as approximate hints (truncated-Gaussian posterior along c)
+    in the DDGR distorted-BDD framework, F failures lower the measured success block size
+    of progressive BKZ on reduced instances by at least 2 per failure over the first 4 failures,
+    and the DDGR leaky-LWE estimator predicts the measured success beta within +-3. If the
+    measured drop is within the A/A noise floor, or the estimator misses by more than 5, the
+    claim is false.
+  mechanism: >-
+    Failure-boosting literature (D'Anvers et al.) uses failures to estimate a secret direction
+    and then argues a lattice gain informally. DDGR shows any linear hint with a known posterior
+    can be folded into the BDD ellipsoid, shrinking the volume along c. A failure is a one-sided
+    inequality on a projection, whose posterior has variance reduced and mean shifted away
+    from 0; the variance reduction along c is the information gained. Because the conditioning
+    is along F nearly independent directions, the lattice dimension effectively loses roughly
+    a fraction of a dimension per failure. Measuring this directly closes the gap between
+    the failure-oracle cost (query count) and the lattice cost that follows.
+  tracked_object: >-
+    Success block size beta* (smallest progressive-BKZ/G6K pump block size at which the planted
+    secret is recovered and verified) on the hint-integrated DBDD instance, as a function
+    of the number F of integrated failures.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-118
+    provenance: kb
+    claim: >-
+      DDGR give the integration framework; this measures it for one-sided failure-conditioned
+      hints, which DDGR did not instantiate, against real reduction
+    verified_by: knowledge/literature/KN-LIT-118.md (opened by the drafting session)
+  - ref: KN-LIT-119
+    provenance: kb
+    claim: replaces their heuristic post-failure lattice gain with a measured beta* curve
+    verified_by: knowledge/literature/KN-LIT-119.md (opened by the drafting session)
+  - ref: KN-LIT-1974
+    provenance: kb
+    claim: they estimate direction quality; this measures the downstream lattice block size
+    verified_by: knowledge/literature/KN-LIT-1974.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: mean beta*(F=0) - beta*(F=4)
+    direction: higher
+    minimum_effect: '>= 8 block-size units at n=64,k=2'
+    falsified_by: drop below the AA1 noise floor or below 4 units
+  - id: P2
+    metric: '|beta*_measured - beta*_DDGR_predicted| at F in {1,2,4,8}'
+    direction: lower
+    minimum_effect: <= 3 units at every F
+    falsified_by: any F with absolute miss > 5 units
+  - id: P3
+    metric: beta* drop for non-failure hints (null arm)
+    direction: lower
+    minimum_effect: <= 1 unit at matched hint count
+    falsified_by: null arm drop >= 3 units, meaning the pipeline leaks secret information
+  minimal_test:
+    design: >-
+      Generate 30 reduced ML-KEM keys (n=64,k=2,q=3329,eta1=eta2=3 to make failures reachable).
+      For each, harvest F in {0,1,2,4,8} failing ciphertexts from honestly generated encapsulations
+      filtered by ||(r,e1)|| (simulated oracle using the self-generated secret key). Integrate
+      the failures as approximate hints with the leaky-LWE-estimator framework, build the
+      reduced embedding, and run G6K progressive pumps until the secret verifies; record beta*.
+    controls:
+    - >-
+      null: integrate the same number of NON-failing ciphertexts (true but weak conditioning)
+      of matched ||(r,e1)||; predicted drop ~0
+    - >-
+      positive: integrate F perfect hints <(s,e),c> = exact value along the same directions;
+      DDGR predicts ~1 dimension per hint and the pipeline must reproduce it
+    - >-
+      A/A: the no-hint arm run twice on the same instances with different BKZ randomization
+      seed blocks
+  falsification_conditions:
+  - 'P1 fails: failure-hint arm beta* within noise of the no-hint arm at F=4'
+  - >-
+    positive control fails to show >= 0.7 dimension per perfect hint (pipeline broken; the
+    batch is invalid, not negative)
+  - null arm shows a material drop (leakage in the harness)
+  confounders:
+  - eta raised to 3 changes the failure geometry relative to FIPS eta2=2
+  - >-
+    the filtered ciphertext population has larger ||(r,e1)||, changing the hint directions'
+    norms
+  - progressive BKZ success is stochastic; per-instance variance can mask small effects
+  interpretation_limits:
+  - >-
+    Reduced n=64 and raised eta: the result is a calibration of the hint-integration step,
+    not an ML-KEM failure attack cost; at FIPS 203 the dominant cost remains finding the first
+    failure (2^100+ queries by published DFR), which this test does not touch
+  - Simulated oracle only; no implementation or deployed key is queried
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      The posterior of <(s,e),c> conditioned on failure is well approximated by a truncated
+      Gaussian.
+    rigorous_support: CLT over n*k CBD terms; DDGR use the same approximation for approximate
+      hints.
+    validation_plan: >-
+      Compare empirical conditioned moments from 10^6 simulated failures at n=64 against the
+      truncated-Gaussian moments (KS test).
+  - id: H2
+    statement: Failures from different ciphertexts give nearly independent directions.
+    rigorous_support: Random r,e1 directions are nearly orthogonal in dimension 2kn.
+    validation_plan: Report the Gram matrix of the F normalized directions; max off-diagonal
+      |cos| logged.
+  target_complexity:
+    time_exponent: unchanged 0.292*beta sieve exponent; beta lowered by ~delta(F)
+    memory_exponent: 0.2075*beta
+    best_known: failure-boosting attacks (D'Anvers et al.) with heuristic direction estimation
+    hidden_overhead: query cost to find failures dominates at FIPS DFR; filter cost per candidate
+      ciphertext
+    tradeoff_note: constant/linear beta reduction per failure; no exponent change in the lattice
+      step itself
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-118
+      provenance: kb
+      relation: generalizes
+      delta: >-
+        DDGR give the integration framework; this measures it for one-sided failure-conditioned
+        hints, which DDGR did not instantiate, against real reduction
+    - ref: KN-LIT-119
+      provenance: kb
+      relation: adjacent
+      delta: replaces their heuristic post-failure lattice gain with a measured beta* curve
+    - ref: KN-LIT-1974
+      provenance: kb
+      relation: adjacent
+      delta: they estimate direction quality; this measures the downstream lattice block size
+    internal_neighbours:
+    - IDEA-20260808-4854f8
+    - IDEA-20260828-5b7795
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-03171d
+    experiment_id: EXP-MLKEM-641142

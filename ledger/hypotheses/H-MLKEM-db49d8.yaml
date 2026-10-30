@@ -1,0 +1,72 @@
+# HYPOTHESIS -- H-MLKEM-db49d8, specified from IDEA-20261018-4940b7. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLKEM-db49d8
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  derived_from_idea: IDEA-20261018-4940b7
+  added: '2026-10-18'
+  statement: >-
+    Under FIPS 203 implicit rejection, a decryption failure is visible to a remote attacker
+    only as a protocol-level key mismatch, which is confounded by benign errors at rate epsilon.
+    When epsilon exceeds the per-query failure probability p, the number of queries to collect
+    F true failures grows by a factor at least (1 + epsilon/p) times the repetitions needed
+    to confirm each candidate. Simulation at elevated-DFR parameters with epsilon in {0, 1e-4,
+    1e-3, 1e-2} matches the bound within a factor 2. Defensive: it prices the oracle realism
+    that 7c1ae4's conjunction leaves unpriced.
+  mechanism: >-
+    Decapsulation is deterministic, so a candidate failure can be retested; benign errors
+    are independent across retries. Confirmation then requires about log(1/delta)/log(1/epsilon)
+    retries per alarm, and alarms arrive at rate p + epsilon. The binary asymmetric channel
+    with crossover epsilon has capacity that bounds the information per query about the failure
+    set. Comparing simulated query counts with the bound checks whether the confirmation strategy
+    is near-optimal.
+  assumptions:
+  - Benign errors are i.i.d. per query.
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Benign errors are i.i.d. per query.
+    random_model_justification: Modeling choice.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-3559f0
+    falsification_condition: Add a Gilbert-Elliott bursty arm as sensitivity.
+  predictions:
+  - metric: queries per true failure at epsilon=1e-2, p=2^-14
+    direction: higher
+    minimum_effect: '>= 100x the epsilon=0 cost'
+  - metric: simulated/bound ratio
+    direction: different
+    minimum_effect: within [0.5, 2]
+  test_boundary:
+    instances:
+    - >-
+      n=64, k=2, q=3329, eta=3, d_v=3; p ~ 2^-14; epsilon in {0,1e-4,1e-3,1e-2}; 50 true failures
+      per run; 5 keys
+    parameters:
+      scale_tier: toy
+      scale_justification: the multiplier depends only on epsilon/p and delta; reduced params
+        set p
+    implementation: Python + C reference ML-KEM (parameterized)
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 10
+      maximum_memory_gb: 4
+      maximum_runs: 40
+  distinguishable_outcomes:
+  - < 20x
+  - outside [0.25, 4]
+  falsification_conditions:
+  - 'P2 violated: simulation far from bound'
+  - null not matching plain boosting count
+  interpretation_limits:
+  - >-
+    Elevated DFR, simulated oracle; at FIPS DFR p << any realistic epsilon so the multiplier
+    is enormous - the bound is the transferable object
+  - no protocol implementation is tested
+  status: specified
+  proposed_by: idea-generator

@@ -5,6 +5,21 @@ description: Produce evidence-linked diagrams, graphs, reports, and PDFs for eve
 
 # Research visuals and reports
 
+## Report progress at the working scope
+
+Owner instruction, 2026-10-30: lead with the construction, implementation,
+verified identity, or measured improvement and its supporting checks.
+State the relevant assumptions and costs. Name a material remaining dependency
+once and give the next technical step.
+
+Routine reports and updates do not need an overall ECDLP verdict or a rho
+comparison. Include those in an explicitly scoped evaluation, a required
+comparison table, or a specific factual correction. Describe limitations as
+the particular construction's domain, costs, and open dependencies. Recognize
+completed components as progress at their stated scope.
+
+## When to use this skill
+
 Use this skill at three points (AGENTS.md "Visual research record"):
 
 - **every experiment run**: the `run` skill finishes each experiment it ran
@@ -46,10 +61,10 @@ trials alike. A launch refused before any run directory exists gets no report;
   status; missing data stated as missing. Label every number measured or
   derived (a ratio or mean computed from recorded values) and show how a
   derived one was computed.
-- **Observations only.** No verdict, support or weaken language, significance
-  or priority: those belong to the evidence review. Say so in the report's
-  first paragraph. A failed process is an operational fact, not a mathematical
-  refutation.
+- **Describe the run.** Lead with its recorded outcomes and checks. Official
+  support/weaken decisions and research-priority changes belong to the
+  evidence review. A failed process is an operational fact; state the actual
+  failure and the next diagnostic step.
 - **Graph.** At least one quantitative graph of the run's recorded data
   (per-trial values, arms side by side, a quantity against a parameter, or
   progress over time) with units, sample size, uncertainty where recorded,
