@@ -9,8 +9,11 @@ is public, with anonymous download, decompression and object-store readback
 verified. See its [report](reports/panel-local-n45-poly02-004/report.md),
 [publication receipt](panel-local-archive-001/fresh-n45-poly-02-local04.publication.json),
 and [inventory](runtime/panel-remaining-after-local004.json). Seven original
-panel inputs remain, beginning with n45 polynomial03; no new panel worker
-has launched. The three earlier admission refusals and the successful
+panel inputs remain. The original n45 polynomial03 input launched locally at
+21:51:10 UTC with the separately qualified RREF exporter. Its three worker
+controls and fresh exact count have passed; certificate production is active.
+The frozen protocol is `panel-local-n45-poly03-protocol-001.json` and closed
+startup records are in `validation/panel-local-n45-poly03-progress-001`. The three earlier admission refusals and the successful
 bounded admission wait remain preserved.
 
 The n47 random02 degree-five job was submitted at 21:15:56 UTC and is
