@@ -36,3 +36,20 @@ checker and scripts are pinned in `rref-export-plan-001.json`. The protocol
 must be frozen before execution. A 1 GiB child cap and 180-second stage
 watchdog apply. No running instrument is replaced, and no scientific input
 uses this candidate until the required controls and a separate freeze.
+
+## Collection of the first panel result
+
+The original n45 polynomial03 run uses a separately frozen protocol and bundle.
+`collect_panel_result.py` accepts `--plan`, `--protocol`, and optional `--out`.
+Without `--out` it only verifies existing terminal evidence. With `--out` it
+writes a fresh collection directory and archives all closed files except the
+main certificate, whose hash and original path remain recorded. Small control
+certificates are included. It does not update the inventory or publish assets.
+
+The collector requires a terminal wrapper receipt, the frozen request and
+plan identity, matching worker metadata, hashed required evidence, the original
+checker arguments and acceptance, fresh counter arguments/count, and passing
+controls before recovering a bound. Other terminal outcomes retain no bound.
+The validation record is `validation/panel-collector-001/result.json`: retained
+polynomial02 passed47hashes; the live polynomial03 attempt and an omitted
+count hash were rejected. No scientific trial was repeated for these checks.
