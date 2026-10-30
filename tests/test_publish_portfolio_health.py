@@ -222,14 +222,13 @@ def test_workflow_scope_forces_manual_sweep_and_rejects_missing_history(repo, tm
     assert out.read_text() == "run_sweep=true\n"
 
 
-def test_workflow_retains_artifact_before_publication_and_never_uploads_old_cache():
+def test_workflow_retains_artifact_without_automatic_publication():
     workflow = yaml.safe_load((ROOT / ".github/workflows/main-health.yml").read_text())
     job = workflow["jobs"]["absolute-sweep"]
     steps = job["steps"]
     archive = next(i for i, s in enumerate(steps) if s.get("id") == "health_archive")
-    publish_step = next(i for i, s in enumerate(steps) if "tools/publish_portfolio_health.py" in s.get("run", ""))
-    assert archive < publish_step
     assert "steps.health_cache.outcome == 'success'" in steps[archive]["if"]
-    assert "steps.health_archive.outcome == 'success'" in steps[publish_step]["if"]
+    assert all("tools/publish_portfolio_health.py" not in s.get("run", "") for s in steps)
+    assert job["permissions"] == {"contents": "read", "issues": "write"}
     assert "HEAD:main" not in json.dumps(workflow)
     assert job["needs"] == "scope"
