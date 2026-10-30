@@ -91,3 +91,22 @@ row exists, otherwise0. Bind the actual cancellation/certificate files in the
 database's source registry with repeated `--derived-source PATH`, and check
 the view against the retained dense-oracle result before publishing the
 generation receipt. These derived checks add no physical native execution.
+
+`generate.py` performs the complete publication generation into a fresh
+directory after both native panels are sealed. It requires committed,
+unchanged analysis sources, produces isolated certificates and target-partial
+cancellations, builds the v3 database, compares the SQL views with those checked
+certificates/dense scores, verifies the parent bytes and SQLite integrity, and
+losslessly encodes large outputs. Its generation receipt binds source commit,
+dependencies, exports, inputs, original/archive bytes and all coincidence checks.
+The ignored hydrated SQLite stays available for the report renderer. Store the
+returned explicit paths through the official artifact tool before publication.
+
+```sh
+PYTHONPATH=src:.:research/prime_field_progress_20261030 python3 \
+  research/prime_field_progress_20261030/generate.py \
+  --base research/prime_field_b1_execution_20261029/database/prime-fields-with-covers.sqlite \
+  --b2-run research/prime_field_b2_execution_20261030/runs/b2-fixed-panel-802e2a \
+  --d1-run research/prime_field_d1_execution_20261030/runs/d1-fixed-panel-a91d96 \
+  --out research/prime_field_b2_execution_20261030/database/FRESH_V3_DIRECTORY
+```
