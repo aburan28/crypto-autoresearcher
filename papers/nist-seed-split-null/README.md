@@ -31,7 +31,8 @@ All of it is in `crypto-autoresearcher:research/nist_seed_split_null_20261029/`:
   - D1: runs launched without a resume checkpoint;
   - D2: the 48-bit validation kept no rows (resolved 2026-10-30: rerun with rows, exact reproduction, audited);
   - D3: there is no frozen `experiment.protocol/v1` record and no conforming
-    export.
+    export;
+  - D4: that rerun itself had no frozen protocol record or export (a repeat of D3).
 
 **Change class:** analysis (no advance, engineering, relabelling or
 accounting change to any method's cost).

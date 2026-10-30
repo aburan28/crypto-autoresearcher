@@ -19,7 +19,7 @@
 | --- | --- |
 | [PROTOCOL.md](PROTOCOL.md), [AMENDMENT.md](AMENDMENT.md) | held-out test as Markdown, pushed in `bd5d146bb` before data; post-run count-typo note |
 | [protocol.json](protocol.json) | `experiment.protocol/v1` transcription; validates, but not frozen (D3) |
-| [DEVIATIONS.md](DEVIATIONS.md) | D1 no resume checkpoint; D2 48-bit rows not kept (resolved: rows rerun and audited); D3 no frozen protocol record or conforming export |
+| [DEVIATIONS.md](DEVIATIONS.md) | D1 no resume checkpoint; D2 48-bit rows not kept (resolved: rows rerun and audited); D3 no frozen protocol record or conforming export; D4 the same for the 48-bit rerun |
 | [analysis_lib.py](analysis_lib.py), [analysis.py](analysis.py) | null model; percentiles and coarse sweep → `runs/results.json` |
 | [lookelsewhere.py](lookelsewhere.py), [permute.py](permute.py) | fine grid, look-elsewhere MC (n=20000, seed 20261029), exact permutation (4,480) |
 | [heldout.py](heldout.py) | held-out test → `runs/heldout.json`; per-curve rows in `runs/rows.jsonl` |

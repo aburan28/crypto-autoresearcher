@@ -57,3 +57,21 @@ are arm, instance_id, field_bits, split_count, mid_pct and kind, and the
 analysis outputs are in `runs/heldout.json`. The exploratory analyses
 (`analysis.py`, `lookelsewhere.py`, `permute.py`) had no protocol at all and
 are reported as exploratory.
+
+## D4. The 48-bit rerun had no frozen protocol record or export (recorded 2026-10-30)
+
+The rerun that resolved D2 (`validate48_rows.py`, 2026-10-30) is itself an
+experiment run. AGENTS.md requires such a run to be designed from a frozen
+`experiment.protocol/v1` record and to leave an `experiment.export/v1`
+bundle. Neither exists for it. What it had:
+
+- a pushed checkpoint and a passing gate;
+- a Markdown pre-run note (`RERUN_48BIT.md`, commit `3531bd1b`) fixing the
+  success criterion before the run.
+
+That is a repeat of D3, not an exception to it. The rerun is **not** frozen
+retroactively. Its rows (`runs/validation48_rows.jsonl.gz`) and audit
+(`runs/validation48_audit.json`) are auditable as files, but they cannot
+enter the `review-run` export path. Any later rerun of this validation
+starts from a frozen `experiment.protocol/v1` record and leaves a
+conforming export.
