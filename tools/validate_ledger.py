@@ -399,14 +399,17 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
                       "known-false object or the control cannot fail")
     rederivation = plan.get("blind_rederivation")
     if isinstance(rederivation, dict) and rederivation.get("required"):
-        def check_quantity(quantity: dict, prefix: str) -> None:
-            for field in ("quantity", "assigned_to"):
-                if not str(quantity.get(field) or "").strip():
-                    ctx.err(path, f"{prefix}.{field} is required when required is true")
+        def check_blind_from(quantity: dict, prefix: str) -> None:
             if not (quantity.get("blind_from") or []):
                 ctx.err(path, f"{prefix}.blind_from is required; name the producer's "
                               "implementation, notes and report, or the independence "
                               "is not checkable")
+
+        def check_quantity(quantity: dict, prefix: str) -> None:
+            for field in ("quantity", "assigned_to"):
+                if not str(quantity.get(field) or "").strip():
+                    ctx.err(path, f"{prefix}.{field} is required when required is true")
+            check_blind_from(quantity, prefix)
 
         prefix = "review_plan.blind_rederivation"
         if "quantities" not in rederivation:
@@ -416,15 +419,35 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
             if not isinstance(quantities, list) or not quantities:
                 ctx.err(path, f"{prefix}.quantities must be a nonempty list")
             else:
+                # Archived shared assignments describe subquantities by name
+                # and statement. Their complete parent contract assigns the
+                # whole review; each detail retains its own forbidden inputs.
+                # Explicit quantity/assigned_to rows are independent contracts
+                # and must never borrow missing fields from that parent.
+                named_details = all(
+                    isinstance(quantity, dict)
+                    and "name" in quantity and "statement" in quantity
+                    and "quantity" not in quantity and "assigned_to" not in quantity
+                    for quantity in quantities
+                )
+                if named_details:
+                    check_quantity(rederivation, prefix)
                 for index, quantity in enumerate(quantities):
                     scoped = f"{prefix}.quantities[{index}]"
                     if not isinstance(quantity, dict):
                         ctx.err(path, f"{scoped} must be a mapping")
+                    elif named_details:
+                        for field in ("name", "statement"):
+                            if not isinstance(quantity[field], str) or not quantity[field].strip():
+                                ctx.err(path, f"{scoped}.{field} must be nonempty text")
+                        check_blind_from(quantity, scoped)
                     else:
                         # Each quantity keeps its own reader restrictions. Never
                         # merge scopes or borrow a missing field from a parent.
                         check_quantity(quantity, scoped)
-            if any(field in rederivation for field in ("quantity", "assigned_to", "blind_from")):
+            if (not isinstance(quantities, list) or not quantities or not named_details) and any(
+                field in rederivation for field in ("quantity", "assigned_to", "blind_from")
+            ):
                 check_quantity(rederivation, prefix)
 
 
