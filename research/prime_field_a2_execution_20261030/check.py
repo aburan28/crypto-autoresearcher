@@ -124,5 +124,3 @@ def check(cell,result):
         raise ValueError('complete norm branch replay differs')
     return dict(checked=True,complete_branch_replay=True,attempts_replayed=attempts,rows_verified=len(rows),arms=check_arms(cell,result),
         scope='Separate complete branch/arithmetic/rank implementation check, not independent staffed scientific review or counter audit.')
-
-
