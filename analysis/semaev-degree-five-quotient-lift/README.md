@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 15:58 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 16:20 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
 No independently checked LFD-at-least-6 result exists. The independent n47
 random02 D4 recovery certifies only LFD at least 5 and is published; it does
@@ -36,9 +36,22 @@ and nonempty-matrix recovery controls remain in
 The earlier native producer's four-arm registration mismatch remains
 unresolved in [producer report 002](reports/checkpoint-producer-002/report.md).
 
-The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
-LFD-at-least-5 results. Its 11 unfinished inputs remain in scope; one is the
-active local `fresh-n44-rand-04` worker and ten are unstarted n45 inputs.
+The separate D4 panel now has 22 of 32 terminal inputs, with 15 certified
+LFD-at-least-5 results. The local `fresh-n44-rand-04` run completed with
+independently accepted D4 codimension 31,780 and fresh exact count 0. Its
+[report and export](reports/panel-local-n44-rand04-001/report.md) and
+[verified public/store publication](panel-local-archive-001/fresh-n44-rand-04-local01.publication.json)
+are retained. The [reconciled inventory](runtime/panel-remaining-after-local001.json)
+binds all 22 terminal result records and preserves the ten unfinished n45 inputs.
+No local panel solver remains active at this snapshot.
+
+The next original unfinished high-memory item is n47 random02. Its
+[read-only dimension profile](reports/rand02-envelope-001/report.md) gives
+187,583 working coordinates by both enumeration methods and a calculated
+bounded-export allocation envelope of 92,117,754,292 bytes at chunk 60,000.
+This fits the planned 96 GiB child cap but does not establish runtime admission.
+Its next request and draft protocol are prepared; no second frontier job has
+launched. The current n47 random00 continuation retains priority.
 Neither producer progress nor a killed-constant projection establishes a new
 bound. Degree-five codimension equality, resource refusal and interruption
 also establish no upper bound.
