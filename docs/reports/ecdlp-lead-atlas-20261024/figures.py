@@ -6,12 +6,15 @@
 """
 import os
 import sys
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 matplotlib.rcParams["svg.fonttype"] = "path"  # glyphs as paths: no font substitution
+matplotlib.rcParams["svg.hashsalt"] = "ecdlp-lead-atlas-20261024"
+SVG_METADATA = {"Date": "2026-10-24"}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "tools"))
@@ -39,7 +42,7 @@ ax.set_title(f"ECDLP lead atlas, 2026-10-24: {len(rows)} leads by family "
 ax.legend(fontsize=7, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=4,
           frameon=False)
 fig.tight_layout()
-fig.savefig(os.path.join(HERE, "dispositions.svg"))
+fig.savefig(os.path.join(HERE, "dispositions.svg"), metadata=SVG_METADATA)
 
 # Table A, one target: published x reference vs rho at the canonical step.
 # Sources: crypto docs/ic/LEADERBOARD.md (Table A, 2026-10-24) and
@@ -63,7 +66,7 @@ ax.set_title("Koblitz Table A, one target per process, 64 targets per size;\n"
              "all rows unvalidated (pre-gate)", fontsize=10)
 ax.legend(fontsize=8)
 fig.tight_layout()
-fig.savefig(os.path.join(HERE, "table_a_gap.svg"))
+fig.savefig(os.path.join(HERE, "table_a_gap.svg"), metadata=SVG_METADATA)
 
 # The harness loop.
 fig, ax = plt.subplots(figsize=(9, 3.6))
@@ -90,5 +93,14 @@ ax.annotate("", xy=(0.56, 0.56), xytext=(0.47, 0.25),
             arrowprops=dict(arrowstyle="->", lw=1.0, ls="--"))
 ax.set_title("How a fresh clone learns it has already examined everything",
              fontsize=10)
-fig.savefig(os.path.join(HERE, "harness_loop.svg"), bbox_inches="tight")
+fig.savefig(os.path.join(HERE, "harness_loop.svg"), bbox_inches="tight",
+            metadata=SVG_METADATA)
+
+# Matplotlib leaves spaces at the ends of multiline SVG path attributes.
+# They have no drawing meaning; normalize them for stable, clean diffs.
+for name in ("dispositions.svg", "table_a_gap.svg", "harness_loop.svg"):
+    path = Path(HERE) / name
+    path.write_text("\n".join(line.rstrip() for line in
+                              path.read_text(encoding="utf-8").splitlines())
+                    + "\n", encoding="utf-8")
 print("ok")
