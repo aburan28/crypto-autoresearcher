@@ -68,6 +68,8 @@ def main():
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=False)
     req = json.loads(a.request.read_text())
+    if sha(a.bundle/'manifest.json') != req['worker_manifest_sha256']:
+        raise ValueError('request does not bind this worker manifest')
     manifest = json.loads((a.bundle/'manifest.json').read_text())
     for name, expected in manifest['files'].items():
         if sha(a.bundle/name) != expected:
