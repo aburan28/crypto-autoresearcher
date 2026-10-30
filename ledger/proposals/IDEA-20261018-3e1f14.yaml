@@ -1,0 +1,152 @@
+# IDEA RECORD -- IDEA-20261018-3e1f14
+# RQ-MLDSA-001 / GOAL-MLDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-3e1f14
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Hedged entropy is load-bearing only if rho'' drops K or mu: signatures-to-s1 vs rnd entropy
+    h for three derivations
+  class: control
+  claim: >-
+    With the FIPS 204 derivation rho'' = H(K || rnd || mu), signatures-to-key-recovery is
+    infinite at every rnd entropy h from 0 to 256 bits: degraded rnd costs nothing against
+    a passive observer. If K is dropped (rho'' = H(rnd || mu)), one signature plus 2^h ExpandMask
+    evaluations recovers s1; if mu is dropped (rho'' = H(K || rnd)), a mask collision between
+    different messages appears after about 2^{h/2} signatures and one colliding pair gives
+    s1 = (c1 - c2)^{-1}(z1 - z2). Both defective arms verify under a conformant verifier.
+  mechanism: >-
+    y = ExpandMask(rho'', kappa) is fully determined by rho''. With K inside, an observer
+    cannot evaluate y even when rnd is known; with mu inside, equal rnd on different messages
+    gives unrelated masks. Dropping K makes y a public function of a low-entropy rnd and a
+    known message, so z - y = c s1 and c is invertible mod q with overwhelming probability.
+    Dropping mu makes y depend only on (K, rnd), so equal rnd across messages reuses y with
+    kappa equal whenever both signatures accept on the same iteration, and z1 - z2 = (c1 -
+    c2) s1 exactly. This turns the RQ's hedged-vs-deterministic question into three measured
+    curves.
+  tracked_object: >-
+    number of signatures and ExpandMask work until exact s1 recovery, as a function of rnd
+    entropy h, for three rho'' derivations
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-4dadec
+    provenance: kb
+    claim: >-
+      the algorithms under test; body text not read by this program, so every algorithm detail
+      used is re-derived from the PQClean reference and recorded
+    verified_by: knowledge/literature/KN-LIT-4dadec.md (opened by the drafting session)
+  - ref: KN-LIT-056
+    provenance: kb
+    claim: >-
+      specification baseline; the scheme's rejection sampling argument assumes exactly uniform
+      y, which this idea perturbs
+    verified_by: knowledge/literature/KN-LIT-056.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Bruinderink, Pessl, Differential Fault Attacks on Deterministic Lattice Signatures,
+      TCHES 2018 (recalled, hedged)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: signatures to recovery, mu-dropped arm
+    direction: lower
+    minimum_effect: median within factor 2 of sqrt(2 ln 2 * 2^h) / p_same_kappa over h in
+      {8,12,16,20}
+    falsified_by: median off by more than factor 4 at two h levels
+  - id: P2
+    metric: work to recovery, K-dropped arm
+    direction: lower
+    minimum_effect: 1 signature and at most 2^h ExpandMask calls, 100 percent of keys at h
+      <= 24
+    falsified_by: any failure at h <= 24
+  - id: P3
+    metric: conformant arm
+    direction: different
+    minimum_effect: zero recoveries and zero mask reuses in 2^20 signatures at h = 8
+    falsified_by: any recovery or reuse
+  minimal_test:
+    design: >-
+      Real ML-DSA-44 signing with a rnd source of exactly h bits of entropy; three derivations;
+      passive attacker sees (M, sigma, pk) and knows the rnd distribution.
+    controls:
+    - 'null: conformant derivation at h = 8 (must show nothing)'
+    - 'positive: K-dropped at h = 8 (must recover from one signature)'
+    - 'A/A: mu-dropped at h = 12 under two seed blocks'
+  falsification_conditions:
+  - conformant derivation shows any mask reuse
+  - mu-dropped arm recovery count does not follow birthday scaling
+  - colliding pairs exist but the difference system fails to give s1
+  confounders:
+  - >-
+    kappa alignment: collisions only help when both signatures accept on the same iteration;
+    measured, not assumed
+  - rnd source modelled as uniform on 2^h values; real RNG failures are non-uniform
+  interpretation_limits:
+  - >-
+    real parameters are used, but rnd entropy is reduced by construction; the result concerns
+    implementations with the stated derivation defects, not FIPS 204 itself
+  - passive observer only; fault adversaries are a separate idea
+  heuristic_assumptions:
+  - id: H1
+    statement: c1 - c2 is invertible in R_q for independent challenges
+    rigorous_support: >-
+      q = 1 mod 512, so R_q splits into 256 fields; c1 - c2 nonzero in each slot with probability
+      about 1 - 256/q
+    validation_plan: count non-invertible differences among all colliding pairs
+  target_complexity:
+    time_exponent: 'K-dropped: 2^h; mu-dropped: 2^{h/2} signatures; conformant: no attack'
+    memory_exponent: K-dropped O(1); mu-dropped 2^{h/2} stored signatures
+    best_known: MLWE key recovery
+    hidden_overhead: >-
+      kappa-alignment probability p_same_kappa = p/(2 - p), about 0.13 at ML-DSA-44 with per-attempt
+      acceptance p about 0.235, divides the mu-dropped yield
+    tradeoff_note: >-
+      the defective arms show where hedged entropy carries weight; the conformant arm shows
+      it carries none against passive observers
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-4dadec
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        the algorithms under test; body text not read by this program, so every algorithm
+        detail used is re-derived from the PQClean reference and recorded
+    - ref: KN-LIT-056
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        specification baseline; the scheme's rejection sampling argument assumes exactly uniform
+        y, which this idea perturbs
+    internal_neighbours:
+    - IDEA-20260821-4d4e5f
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLDSA-cfbda2
+    experiment_id: EXP-MLDSA-b675fd

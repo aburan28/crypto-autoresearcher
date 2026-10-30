@@ -1,0 +1,152 @@
+# IDEA RECORD -- IDEA-20261018-045269
+# RQ-FNDSA-001 / GOAL-FNDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-045269
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Floating-point conversion leak as a learning curve: signatures-to-key vs channel noise
+    and tree level, simulated oracle, n=16..128
+  class: mechanism
+  claim: >-
+    KN-LIT-7909ee reports Falcon key recovery from tens of power traces that leak the signed
+    exponent of each ffSampling center at integer-to-float conversion. Abstract that leak
+    as a noisy channel (exponent bucket of each center, flipped to a neighbouring bucket with
+    probability eps) on a self-built toy Falcon. The claim: the median number of signatures
+    to certified key recovery N*(n, eps) scales as C * n^b / I(eps), with I(eps) the per-center
+    mutual information of the channel, b in [0, 1.5], and leaks restricted to the top half
+    of the tree carry at least twice the key information per leaked bit of leaf-only leaks.
+    Falsified if N* is not monotone in I(eps) or the log-log fit in n leaves residuals above
+    0.3 in log2 N*.
+  mechanism: >-
+    Each center c_i is an affine function of the target and of previously drawn integers through
+    the secret ffLDL tree, so an exponent bucket is a two-sided interval constraint on a secret-dependent
+    linear form. Many signatures give many intervals; maximum-likelihood over the bucket observations
+    turns them into approximate linear hints, and lattice reduction finishes the key, which
+    is the reported pipeline. The information per observation is bounded by the bucket entropy
+    times the channel capacity, so signature count should track 1/I(eps). Top-level centers
+    are larger dense combinations of more secret coordinates, so a bit there should constrain
+    more of the key than a leaf bit.
+  tracked_object: >-
+    N*(n, eps, level): median over 10 self-generated keys of the number of simulated-leak
+    signatures needed until the recovered (f, g) satisfies h = g/f mod q and reproduces a
+    verifying signature.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-7909ee
+    provenance: kb
+    claim: >-
+      turns one physical attack into a parametric signatures-to-key curve over channel noise
+      and tree level
+    verified_by: knowledge/literature/KN-LIT-7909ee.md (opened by the drafting session)
+  - ref: KN-LIT-4425
+    provenance: kb
+    claim: physical-trace attack; here only a simulated leak channel with no hardware
+    verified_by: knowledge/literature/KN-LIT-4425.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: N*(eps=0.2)/N*(eps=0)
+    direction: higher
+    minimum_effect: ratio >= 2 at n = 64
+    falsified_by: ratio below 1.3 at n = 64 with 10 keys
+  - id: P2
+    metric: N*(leaf_only)/N*(top_half) at matched leaked bits
+    direction: higher
+    minimum_effect: ratio >= 2 at n = 64 and n = 128
+    falsified_by: ratio at or below 1 at both n
+  - id: P3
+    metric: log-log slope b of N* in n at eps = 0
+    direction: different
+    minimum_effect: b in [0, 1.5] with 95% CI width < 0.6
+    falsified_by: b outside [0, 1.5] or residual > 0.3 log2 units
+  minimal_test:
+    design: >-
+      Python port of a toy Falcon (q = 12289, n in {16, 32, 64, 128}) with an exponent-leak
+      oracle wrapped around ffSampling; attacker: bucket MLE then BKZ (fpylll) on the hint-embedded
+      lattice; sweep eps and leaked level.
+    controls:
+    - >-
+      null: leak oracle returns exponents of centers computed under an independent random
+      key with the same public key format; recovery must fail up to 5x the predicted N*
+    - >-
+      positive: eps = 0 and full-precision center values leaked; recovery must succeed within
+      a handful of signatures
+    - >-
+      A/A: identical configuration run on two disjoint key/seed blocks; N* ratio sets the
+      noise floor
+  falsification_conditions:
+  - N* not monotone in I(eps) across the 4 noise levels at n = 64
+  - null-oracle arm recovers the key in any trial (pipeline leaks the key by another path)
+  - positive control fails, so the attack harness is not able to see a leak
+  confounders:
+  - BKZ block size cap limits recovery independently of hint count
+  - the toy port's tree depth differs from the reference implementation at small n
+  - MLE initialization quality dominating the hint information
+  interpretation_limits:
+  - >-
+    Scale and transfer: toy n up to 128 with a simulated channel; transfer to n = 512/1024
+    assumes the fitted n^b law holds and is not a statement about any physical device or deployed
+    implementation
+  - >-
+    The channel model is an abstraction of KN-LIT-7909ee, whose own counts were not reproduced
+    here
+  heuristic_assumptions:
+  - id: H1
+    statement: Exponent buckets of distinct centers are conditionally independent given the
+      key
+    rigorous_support: none; centers within one signature are correlated through the recursion
+    validation_plan: >-
+      measure empirical mutual information between sibling-center buckets under a fixed key
+      at n = 32
+  target_complexity:
+    time_exponent: polynomial in signatures; BKZ block size grows with remaining entropy
+    memory_exponent: polynomial
+    best_known: reported 20-100 traces for Falcon-512/1024 with physical leakage (KN-LIT-7909ee)
+    hidden_overhead: profiling and classification of physical traces, not modelled
+    tradeoff_note: 'defensive measurement: maps channel quality to signature budget, no exponent
+      claim'
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-7909ee
+      provenance: kb
+      relation: special_case
+      delta: >-
+        turns one physical attack into a parametric signatures-to-key curve over channel noise
+        and tree level
+    - ref: KN-LIT-4425
+      provenance: kb
+      relation: adjacent
+      delta: physical-trace attack; here only a simulated leak channel with no hardware
+    internal_neighbours:
+    - IDEA-20260816-1b4b7d
+    - IDEA-20260816-5dd256
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-FNDSA-baa8da
+    experiment_id: EXP-FNDSA-ab833e

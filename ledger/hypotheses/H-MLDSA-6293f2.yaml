@@ -1,0 +1,76 @@
+# HYPOTHESIS -- H-MLDSA-6293f2, specified from IDEA-20261018-417012. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-6293f2
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-417012
+  added: '2026-10-18'
+  statement: >-
+    A naive T-party threshold signer that sums per-party uniform masks y = sum y_i and applies
+    the FIPS rejection bound produces accepted z whose conditional mean is E[z_j | u_j] =
+    g_T * u_j with g_T >= 0.8 for T >= 3, so least-squares on public signatures recovers s1
+    with about 16 sigma_z^2/(tau g_T^2) signatures. At toyDSA(64,2,2) with gamma1 = 2^10 this
+    is predicted at about 1.4*10^5 signatures for T = 4 with per-party range gamma1/T, while
+    T = 1 (uniform) shows no recovery at 10^6.
+  mechanism: >-
+    Rejection sampling hides u only if the mask density is flat over the acceptance window;
+    a sum of T uniforms is piecewise polynomial with density falling toward the box edge,
+    so truncating y + u to the box barely changes the mean shift u. The gain g_T = 1 - 2B
+    p_T(B)/P_T(|Y| < B) approaches 1 as the density at the edge vanishes. Threshold designs
+    that rescale per-party ranges or use boundary-clearance techniques exist precisely to
+    avoid this; measuring the naive leak quantifies what they protect.
+  assumptions:
+  - regression variance formula holds with non-uniform z
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: regression variance formula holds with non-uniform z
+    random_model_justification: least squares
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-7e639e
+    falsification_condition: compare empirical variance
+  predictions:
+  - metric: gain g_T measured vs closed form
+    direction: different
+    minimum_effect: within 5 percent for T in {2,3,4,8}
+  - metric: N* at T = 4
+    direction: lower
+    minimum_effect: within factor 2 of 1.4*10^5
+  - metric: T = 1
+    direction: different
+    minimum_effect: zero recoveries at 10^6
+  test_boundary:
+    instances:
+    - >-
+      toyDSA(64,2,2), gamma1 = 2^10, T in {1,2,3,4,8}, per-party range {gamma1/T, gamma1};
+      up to 10^6 signatures; 5 keys
+    parameters:
+      scale_tier: toy
+      scale_justification: toy gamma1; gain is shape-determined
+    implementation: >-
+      Python/NumPy; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with
+      the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta
+      = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44
+      reference at n = 256 on 1000 KAT vectors before any reduced run
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - deviation over 15 percent
+  - above 6*10^5
+  - any recovery
+  falsification_conditions:
+  - gain far from closed form
+  - T = 1 recovers
+  interpretation_limits:
+  - toy n and gamma1; transfer via the closed-form gain which is parameter-free in shape
+  - no published threshold scheme is claimed vulnerable
+  status: specified
+  proposed_by: idea-generator

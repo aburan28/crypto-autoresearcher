@@ -1,0 +1,173 @@
+# EXPERIMENT CONTRACT -- EXP-QLWE-19a604 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-QLWE-19a604
+  hypothesis_id: H-QLWE-6c067d
+  derived_from_idea: IDEA-20261018-7ef7dc
+  question_id: RQ-QLWE-d2d713
+  goal_id: GOAL-QLWE-291164
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Faulty-sample DHSP sieve simulation
+  objective: Maximum fault rate at which known DHSP sieves still succeed, per N
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: Python/NumPy or Rust label simulator
+    parameters: >-
+      log N in {16,24,32,40}; fault rates {0, 1/256, 1/64, 1/16, 1/8, 1/4, 1}; variants Kuperberg-1,
+      Regev poly-memory; 500 runs per cell
+    procedure: >-
+      1. Implement label sieve. 2. Validate against statevector at log N=8. 3. Sweep. 4. Fit
+      decay. 5. Record queries/memory.
+  controls:
+  - 'null/negative: all samples faulty (f=1): success must be 0.5'
+  - 'positive: f=0: success must reach >= 0.95 with the published query count'
+  - 'A/A: same cell with two RNG streams'
+  independent_variables:
+  - sieve_variant
+  - fault_rate
+  metrics:
+    primary:
+    - success probability
+    - max tolerable fault rate
+    secondary:
+    - queries
+    - peak memory
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: max fault rate at log N=32
+    formula: < 1/64
+    source: contamination grows with depth ~ sqrt(log N)
+  scale_relevance:
+    tier: toy
+    justification: 'log N <= 40; transfer: fitted decay vs depth'
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 10
+    maximum_memory_gb: 16
+    maximum_runs: 60
+  stopping_rules:
+  - stop cells with success at 0.5 +/- 0.02 for three consecutive fault rates
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - positive control < 0.95 invalidates
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C2 gives tolerance < 1/64 at log N = 32 (P1) and C1 exponents within 20% (P2), AA1 noise
+    floor
+  falsification_criterion: C2 tolerance >= 1/8 at log N=32 (P1 falsified)
+  decision_impact:
+    on_positive: 'Lane 3 obstruction entry: noise-tolerance ceiling of known DHSP sieves quantified'
+    on_negative: Sieves tolerate more noise than believed; open costing of LWE->DCP->Kuperberg
+      composition
+  variable_ledger:
+    independent:
+    - name: sieve_variant
+      levels:
+      - kuperberg1
+      - regev_polymem
+    - name: fault_rate
+      levels:
+      - '0'
+      - 1/256
+      - 1/64
+      - 1/16
+      - 1/8
+      - 1/4
+      - '1'
+    factors:
+    - name: rng_stream
+      treatment: randomized
+      value: 2 streams
+      how: PCG64 seeds
+    - name: log_N
+      treatment: crossed
+      value: 16,24,32,40
+      how: full cross
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - kuperberg1
+      - regev_polymem
+      differs_in:
+      - sieve_variant
+      design: one_factor
+    - id: C2
+      arms:
+      - kuperberg1 fault sweep
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - stream A
+      - stream B
+      differs_in:
+      - rng_stream
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-7ef7dc.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-7ef7dc.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml (frozen protocol, tool versions, seeds, git commit)
+  - raw-result.json (per-trial records)
+  - success_table.csv
+  - tradeoff_table.csv
+  - report.pdf
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-QLWE-19a604/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-7ef7dc.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.
