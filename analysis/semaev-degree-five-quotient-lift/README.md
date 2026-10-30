@@ -16,10 +16,14 @@ identical D4 seed and target. This is explicitly historical acceptance,
 not fresh algebra checking. Fresh solution counting and the original D5
 certificate checker remain mandatory. See the [frozen protocol](seed-reuse-frontier-protocol-001.json)
 and [launch receipt](runs/seed-reuse-frontier-launch-001.json).
-The worker has since verified the 1,632,838,224 seed bytes, recorded historical
-acceptance with codimension 61,196, and started the fresh count. These closed
-stage receipts are in `validation/seed-reuse-frontier-progress-001/`; neither
-count completion nor D5 start is established by them.
+The worker verified the 1,632,838,224 seed bytes and recorded historical
+acceptance with codimension 61,196. Fresh exact enumeration subsequently
+completed successfully at zero solutions, and the D5 producer started.
+Closed stage receipts are in `validation/seed-reuse-frontier-progress-001/`
+and `validation/seed-reuse-frontier-progress-002/`. No completed D5 certificate
+or checkpoint is established by these receipts. A positive independently
+accepted D5 codimension would exceed the fresh zero count and certify LFD
+at least 6 for this exact input.
 
 The reuse path passed both local worker configurations on one retained n6
 fixture; both reproduced the reference certificate, original D5 acceptance
