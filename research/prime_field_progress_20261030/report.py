@@ -4,6 +4,7 @@ import gzip
 from hashlib import sha256
 import json
 from pathlib import Path
+import sqlite3
 
 import matplotlib
 matplotlib.use('Agg')
@@ -60,7 +61,7 @@ Sources (internal/retrieved): prior B1 and complete cover-survey RESULTS.md; ori
 '''
 
 
-def build_d1(run,inputs,analysis,execution,export,out):
+def build_d1(run,inputs,analysis,execution,export,out,supplements):
     cases=analysis['cells'];definitions={c['fixture']['uid']:c for c in inputs['cells']}
     prefix_ranks={}
     for c in cases:
@@ -73,34 +74,44 @@ def build_d1(run,inputs,analysis,execution,export,out):
         prefix_ranks[(c['curve_uid'],c['target_index'])]=None if first is None else first['certificate']['augmented_rank']
     labels=[f"b={definitions[c['curve_uid']]['fixture']['b']}\nj={c['target_index']}" for c in cases]
     fig,axes=plt.subplots(1,2,figsize=(9,2.8))
-    for ax,key,title in zip(axes,['witnesses','first_combined_attempt'],['Accepted natural target witnesses','First combined recovery prefix (branches)']):
-        values=[c.get(key) for c in cases];ax.bar(range(8),[v or 0 for v in values],color='#2166ac')
-        for i,v in enumerate(values):ax.annotate('none / unknown' if v is None else str(v),(i,v or 0),xytext=(0,3),textcoords='offset points',ha='center',fontsize=6,rotation=30 if v is None else 0)
+    for ax,key,title in zip(axes,['witnesses','first_combined_attempt'],['Accepted natural target witnesses','First recovery prefix (branches)']):
+        series=[(key,'combined stream','#2166ac')]
+        if key=='first_combined_attempt':series.append(('first_single_attempt','isolated natural row','#c85e18'))
+        maximum=0
+        for j,(field,label,color) in enumerate(series):
+            values=[c.get(field) for c in cases];x=[i+(j-.5)*.36 if len(series)>1 else i for i in range(8)]
+            ax.bar(x,[v or 0 for v in values],width=.34 if len(series)>1 else .7,color=color,label=label)
+            for position,v in zip(x,values):ax.annotate('none' if v is None else str(v),(position,v or 0),xytext=(0,3),textcoords='offset points',ha='center',fontsize=5,rotation=90 if len(series)>1 else 0)
+            maximum=max(maximum,max(v or 0 for v in values))
+        if len(series)>1:ax.legend(fontsize=6,loc='upper left');ax.set_ylim(0,max(1,maximum)*1.65)
         ax.set_xticks(range(8),labels,fontsize=7);ax.set_title(title);ax.spines[['top','right']].set_visible(False)
-        ax.set_ylim(0,max(1,ax.get_ylim()[1])*1.25)
+        if len(series)==1:ax.set_ylim(0,max(1,ax.get_ylim()[1])*1.25)
     fig.suptitle(run.name+': eight frozen public hash indices',fontsize=10)
     fig.tight_layout();fig.savefig(out/'observations.svg');plt.close(fig)
-    table='\n'.join(','.join('['+text(v)+']' for v in (definitions[c['curve_uid']]['fixture']['b'],c['target_index'],c['base_rank'],c['witnesses'],c['identified_target'],c['augmented_rank'],prefix_ranks[(c['curve_uid'],c['target_index'])],c['first_single_attempt'],c['first_combined_attempt'],c['status']))+',' for c in cases)
-    points='\n'.join(f"- b={definitions[c['curve_uid']]['fixture']['b']}, j={c['target_index']}: Q={c['target']}, base coincidence {c['target_is_signed_base_point']}, projected public-anchor coincidence {c['target_is_public_anchor']}." for c in cases)
+    isolated={(c['fixture_uid'],c['target_index']):c['isolated'] for c in supplements['certificates']['cases']}
+    table='\n'.join(','.join('['+text(v)+']' for v in (definitions[c['curve_uid']]['fixture']['b'],c['target_index'],c['base_rank'],c['witnesses'],c['identified_target'],c['augmented_rank'],prefix_ranks[(c['curve_uid'],c['target_index'])],None if isolated[(c['curve_uid'],c['target_index'])] is None else isolated[(c['curve_uid'],c['target_index'])]['augmented_rank'],None if isolated[(c['curve_uid'],c['target_index'])] is None else isolated[(c['curve_uid'],c['target_index'])]['remaining_base_nullity'],c['status']))+',' for c in cases)
+    points='\n'.join(f"- b={definitions[c['curve_uid']]['fixture']['b']}, j={c['target_index']}: Q={c['target']}; base coincidence {c['target_is_signed_base_point']}; projected anchor {c['target_is_public_anchor']}; broader known-source matches {supplements['matches'][(c['curve_uid'],c['target_index'])][0]}; earlier-target matches {supplements['matches'][(c['curve_uid'],c['target_index'])][1]}." for c in cases)
     return f'''= Independent natural-target recovery
 Observations only. Eight fixed public hash indices, four per full EC1 curve identity, were frozen before any p4099 target generation. Domain prime-field-leads/20261028/target/v1; SHA256 of UTF-8 domain|curveUID|decimal index|decimal counter, big-endian mod p, first rational canonical-y point in the subgroup, counter bound10000. No target scalar label or manufactured known-log point was provided. All coincidences and unsuccessful cases remain; every target runs the full64-multiplier census regardless of first recovery.
 
 The exact original E curves, sixteen atoms, fifteen unknown columns, public source order and old rank13/9 preprocessing are fixed independently of B2 outcomes. A target form is determined by vN=0; combinations are checked by whether the target unit vector lies in the augmented row space. Final and first-prefix row-combination weights are checked against original rows and recovered scalars are checked by multiplication on E. Full base rank is not required.
 
-Complete panel: {analysis['panel_complete']}; unknown cases {analysis['unknown_cases']}. The native exporter holds eight candidate and eight integrated reference method records over ONE physical panel; duplicate method counts and clocks must not be added. Complete branch replay and the independent hash/root/group recipe check are separate implementations, not independent scientific review.
+Complete panel: {analysis['panel_complete']}; unknown cases {analysis['unknown_cases']}; collection branches {analysis['collection_attempts_observed']}; separate replay branches {analysis['verification_attempts_observed']}. The native exporter holds eight candidate and eight integrated reference method records over ONE physical panel; duplicate method counts and clocks must not be added. Complete branch replay and the independent hash/root/group recipe check are separate implementations, not independent scientific review.
 
 #table(columns:(auto,auto,auto,auto,auto,auto,auto,auto,auto,auto),inset:2pt,
-[b],[j],[M rank],[rows],[identified],[final rank],[first rank],[first single],[first combined],[status],
+[b],[j],[M rank],[rows],[identified],[final rank],[first combined rank],[isolated rank],[base nullity],[status],
 {table}
 )
 #image("observations.svg",width:100%)
-Prefix positions count scheduled branches, including misses. They are not elapsed costs. Missing recoveries have no zero-prefix success. Final rank and first rank refer to the augmented sixteen-column system. At an identified target's first recovery, a rank below16 certifies remaining base uncertainty; rank16 identifies the full augmented system. The old M alone remains rank13/9, but this alone does not establish recovery before full augmented rank.
+Prefix positions count scheduled branches, including misses; they are not elapsed costs. Final rank and first combined rank refer to the full stream's augmented sixteen-column system. A first rank below16 leaves base uncertainty; rank16 identifies the whole augmented system. The isolated columns instead use the original M plus ONE natural target row, with explicit unit-vector weights and a separate public-point check. Their rank is derived as rank(M)+1; remaining base nullity is15-rank(M). Thus a later isolated row can identify a target with base uncertainty even if the earlier combined stream first recovered it at full rank. Every case remains in both comparisons.
 
 #pagebreak()
 == Frozen targets and retained scope
 {points}
 
 The projected public-anchor flag covers anchors actually used in the base projection. The broader known-public-source comparison and cross-target coincidences are retained separately by the pre-generation reporting policy; no target is filtered or replaced. All raw hash attempts, generated recipes, native rows, statuses/digests, source blocks, first/final certificates and failure prefixes survive. Counted successes describe this finite panel, not an inferred distribution of target-descent costs.
+
+Full hash curve identities: {', '.join(c['target_curve_uid'] for c in inputs['cells'])}. Supplementary isolated certificates and database are bound in report-inputs.json; these are labelled derived analyses, not changes to frozen primary metrics.
 
 Run #raw({json.dumps(run.name)}), source #raw({json.dumps(execution['source_commit'])}); protocol canonical SHA256 #raw({json.dumps(export['protocol']['sha256'])}). Source/input/interpreter/release locks, actual S3 gate, ownership/PIDs, host and native phase journal are retained. Data were committed/pushed before this report. Exit {execution['returncode']}, timeout {execution['timeout']}, source unchanged {execution['source_unchanged_after']}. Wall {execution['diagnostic_wall_seconds']:.3f}s, user CPU {execution['cpu_user_seconds']:.3f}s, system CPU {execution['cpu_sys_seconds']:.3f}s, peak RSS {execution['max_rss_bytes']}bytes. Shared-host wall_valid=false. Partial field/group/hash/validation counters omit complete linear algebra, replay, serialization/storage and complete S. There is no calibrated IC/rho, cold/online or attack-cost comparison.
 
@@ -112,11 +123,22 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kind',choices=['b2','d1'],required=True);parser.add_argument('--run',type=Path,required=True)
     parser.add_argument('--inputs',type=Path,required=True);parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--target-certificates',type=Path);parser.add_argument('--database',type=Path)
     args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=False)
     load=lambda p:json.loads(p.read_text())
     inputs,analysis,execution,export=(load(p) for p in (args.inputs,args.run/'analysis.json',args.run/'execution.json',args.run/'export.json'))
     plt.rcParams.update({'font.size':9,'svg.fonttype':'none'})
-    source=(build_b2 if args.kind=='b2' else build_d1)(args.run,inputs,analysis,execution,export,args.out)
+    paths=[args.inputs,args.run/'analysis.json',args.run/'execution.json',args.run/'export.json',Path(__file__)]
+    if args.kind=='d1':
+        if args.target_certificates is None or args.database is None:raise ValueError('D1 needs explicit derived certificate/database inputs')
+        certificates=load(args.target_certificates)
+        if certificates['source_export_sha256']!=sha256((args.run/'export.json').read_bytes()).hexdigest():raise ValueError('supplement export differs')
+        with sqlite3.connect('file:'+str(args.database.resolve())+'?mode=ro',uri=True) as connection:
+            matches={(uid,index):(public,other) for uid,index,public,other in connection.execute('SELECT b.fixture_uid,t.target_index,t.public_source_matches_json,t.intertarget_matches_json FROM target_cases t JOIN bases b USING(base_sha256)')}
+        source=build_d1(args.run,inputs,analysis,execution,export,args.out,dict(certificates=certificates,matches=matches))
+        paths.extend([args.target_certificates,args.database])
+    else:source=build_b2(args.run,inputs,analysis,execution,export,args.out)
+    (args.out/'report-inputs.json').write_text(json.dumps([dict(path=str(p),bytes=p.stat().st_size,sha256=sha256(p.read_bytes()).hexdigest()) for p in paths],indent=2)+'\n')
     svg=args.out/'observations.svg';svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
     (args.out/'plotted-data.json').write_text(json.dumps(analysis['cells'],indent=2)+'\n')
     header='#set page(paper:"a4",margin:16mm)\n#set text(size:9pt)\n'
