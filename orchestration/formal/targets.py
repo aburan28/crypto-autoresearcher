@@ -42,7 +42,33 @@ def load_spec(path: str | Path) -> dict[str, Any]:
         FormalTaskKind(spec["kind"])
     except ValueError:
         raise TargetError(f"{path}: unknown kind {spec['kind']!r}") from None
+    _check_proof_map(Path(path), spec.get("proof_map"))
     return dict(spec)
+
+
+def _check_proof_map(path: Path, proof_map: Any) -> None:
+    """Optional dependency record for a multi-lemma target (KN-LIT-63f33d).
+
+    `depends_on` names sibling target specs this theorem builds on;
+    `prerequisites` states, in words, what it takes as given without a formal
+    proof.  Both are pointers, never evidence: a listed prerequisite is a hole
+    in the argument that the semantic reviewer must see, not one it may skip.
+    """
+
+    if proof_map is None:
+        return
+    if not isinstance(proof_map, Mapping):
+        raise TargetError(f"{path}: proof_map must be a mapping")
+    unknown = set(proof_map) - {"depends_on", "prerequisites"}
+    if unknown:
+        raise TargetError(f"{path}: proof_map has unknown keys: {', '.join(sorted(unknown))}")
+    for key in ("depends_on", "prerequisites"):
+        items = proof_map.get(key) or []
+        if not isinstance(items, list) or not all(isinstance(i, str) and i.strip() for i in items):
+            raise TargetError(f"{path}: proof_map.{key} must be a list of non-empty strings")
+    for dep in proof_map.get("depends_on") or []:
+        if Path(dep).is_absolute() or not (path.parent / dep).is_file():
+            raise TargetError(f"{path}: proof_map.depends_on names no sibling spec: {dep}")
 
 
 def task_from_spec(spec: Mapping[str, Any]) -> FormalProofTask:
@@ -124,6 +150,10 @@ def dispatch_stanza(
                 "infrastructure fact and is never negative evidence about the claim.",
                 "A machine-verified proof is NOT a research claim: it is pending "
                 "independent semantic-fidelity review.",
+                *(
+                    f"Unformalized prerequisite, taken as given: {item}"
+                    for item in ((spec.get("proof_map") or {}).get("prerequisites") or [])
+                ),
             ],
             "deliverables": ["formal_proof.json"],
             "completion_gate": [

@@ -111,6 +111,7 @@ def test_describe_does_not_publish_the_hostname(monkeypatch):
         ("DBInstanceStatus", "available"),
         ("AllocatedStorage", "400"),
         ("StorageType", "gp3"),
+        ("DBInstanceArn", "arn:aws:rds:us-west-2:104186811093:db:rho-dp"),
         ("Address", "rho-dp.internal.us-west-2.rds.amazonaws.com"),
         ("Endpoint", "rho-dp.internal.us-west-2.rds.amazonaws.com"),
     ):
@@ -129,12 +130,51 @@ def test_describe_does_not_publish_the_hostname(monkeypatch):
     payload = collect_payload()
     assert payload["available"] is True
     assert payload["database"]["id"] == "rho-dp"
+    assert payload["database"]["account_id"] == "104186811093"
     assert payload["database"]["class"] == "db.r7g.xlarge"
     assert payload["database"]["allocated_bytes"] == 400 * (1024 ** 3)
+    assert payload["latest_point"] is None
+    assert payload["stale"] is True
     blob = str(payload)
     assert "rds.amazonaws.com" not in blob
     assert "internal" not in blob
     assert "Address" not in blob
+
+
+def test_describe_rejects_account_from_wrong_database_arn(monkeypatch):
+    from ui.ops import AwsQuery, _describe_instance
+
+    response = Element("DescribeDBInstancesResponse")
+    arn = Element("DBInstanceArn")
+    arn.text = "arn:aws:rds:us-west-2:590183823895:db:some-other-db"
+    response.append(arn)
+    monkeypatch.setattr(AwsQuery, "call", lambda *args, **kwargs: response)
+    assert _describe_instance(AwsQuery("test", "test", RDS_REGION))["account_id"] is None
+
+
+def test_stopped_database_with_no_samples_is_stale(monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIATEST")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    describe = Element("DescribeDBInstancesResponse")
+    status = Element("DBInstanceStatus")
+    status.text = "stopped"
+    describe.append(status)
+
+    def fake_call(self, service, host, action, version, params):  # noqa: ARG001
+        if action == "DescribeDBInstances":
+            return describe
+        if params.get("Namespace") == "AWS/S3":
+            raise RuntimeError("s3-stop")
+        return Element("GetMetricStatisticsResponse")
+
+    monkeypatch.setattr("ui.ops.AwsQuery.call", fake_call)
+    payload = collect_payload()
+    assert payload["available"] is True
+    assert payload["database"]["status"] == "stopped"
+    assert payload["latest_point"] is None
+    assert payload["stale"] is True
+    assert payload["last_hour"]["write_iops"] is None
+    assert payload["last_hour"]["read_iops"] is None
 
 
 def test_s3_storage_metrics_try_the_instance_region_then_us_east_1(monkeypatch):

@@ -1,4 +1,5 @@
 name: kb
+# artifact-store: no-pull (the frozen corpus checks do not read stored report bytes)
 
 # The retrieval layer, kept separate from validate.yml on purpose.
 #
@@ -18,6 +19,7 @@ name: kb
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'kb/**'
@@ -26,8 +28,9 @@ on:
       - 'docs/**'
       - '.mcp.json'
       - '.github/workflows/kb.yml'
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
     paths:
       - 'kb/**'
       - 'knowledge/**'
@@ -36,15 +39,14 @@ on:
       - '.mcp.json'
       - '.github/workflows/kb.yml'
 
-# One run per pull request (or per branch on push): a newer push cancels the run it
-# supersedes, so the shared runner pool is not spent on commits nobody will look at.
+# Supersede obsolete open-PR checks, and retain a distinct check for each merge.
 concurrency:
-  group: kb-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: kb-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   kb:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
@@ -52,13 +54,6 @@ jobs:
         with:
           fetch-depth: 0        # so the base ref is resolvable for the diff below
           filter: blob:none
-      - name: Pull store data this workflow reads (tools/artifacts)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 docs
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -96,6 +91,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            base=$(git rev-parse HEAD^)
           else
             base="${{ github.event.before }}"
           fi

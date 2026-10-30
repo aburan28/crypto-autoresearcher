@@ -1,3 +1,4 @@
+# artifact-store: no-pull (reviews tracked source and pull-request diffs, not stored report bytes)
 name: claude-pr-review
 
 # Agentic review of every pull request.
@@ -10,6 +11,7 @@ name: claude-pr-review
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, ready_for_review, reopened]
 
 # A rapid series of pushes should produce one review of the final state, not a
@@ -44,14 +46,6 @@ jobs:
         with:
           fetch-depth: 0 # full history so "did this record already exist?" resolves
           filter: blob:none
-      - name: Pull store data this workflow reads (tools/artifacts)
-        if: ${{ env.ANTHROPIC_API_KEY != '' }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 docs
-
       - name: Report unavailable review service
         if: ${{ env.ANTHROPIC_API_KEY == '' }}
         run: |

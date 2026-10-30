@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from experiment_execution import GENERATED, RUN_ID, safe_path  # noqa: E402
 from goal_lanes import load_lanes  # noqa: E402
-from research_dispatch import DispatchError, paths_within_scopes, validate_queue  # noqa: E402
+from research_dispatch import DispatchError, GitRepositoryVerifier, paths_within_scopes, validate_queue  # noqa: E402
 
 SCHEMA = "crypto.autoresearch.preapproval_packet.v1"
 PLAN_SCHEMA = "crypto.autoresearch.trial_plan.v1"
@@ -171,7 +171,7 @@ def _trials(plan: dict[str, Any], root: Path, blockers: list[str]) -> set[str]:
                 blockers.append(f"{label}: {command} must name a bound source and exclude Bedrock")
         artifacts = trial.get("artifacts")
         if (not isinstance(artifacts, list)
-                or any(not isinstance(x, str) or not x or x in GENERATED or "/" in x for x in artifacts)
+                or any(not isinstance(x, str) or not x or x in GENERATED for x in artifacts)
                 or len(artifacts) != len(set(artifacts))
                 or not {"manifest.yaml", "raw-result.json"} <= set(artifacts)):
             blockers.append(f"{label}: invalid declared trial artifacts")
@@ -183,6 +183,15 @@ def _trials(plan: dict[str, Any], root: Path, blockers: list[str]) -> set[str]:
         if not isinstance(exp, str):
             continue
         parent = f"experiments/{exp}/runs/{rid}"
+        try:
+            # Use the supervisor's canonical-path and symlink checks, including
+            # nested certificate/log paths, before counting archive coverage.
+            directory = safe_path(root, parent)
+            for name in artifacts:
+                safe_path(directory, name)
+        except (ValueError, OSError) as error:
+            blockers.append(f"{label}: invalid declared trial artifacts: {error}")
+            continue
         for name in (*GENERATED, *artifacts):
             required.add(f"{parent}/{name}")
     return required
@@ -270,7 +279,7 @@ def assess(root: Path, packet: dict[str, Any]) -> dict[str, Any]:
     tasks = queue.get("tasks") if isinstance(queue.get("tasks"), list) else []
     if tasks:
         try:
-            validate_queue(queue)
+            validate_queue(queue, repository_verifier=GitRepositoryVerifier(root))
         except (DispatchError, ValueError, TypeError) as error:
             blockers.append(f"prospective queue: dispatcher structural validation refused: {error}")
     task = next((t for t in tasks if isinstance(t, dict) and t.get("id") == task_id), None)
