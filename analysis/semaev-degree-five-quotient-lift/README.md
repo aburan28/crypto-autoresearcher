@@ -1,28 +1,43 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 06:50 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 15:58 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
-The independent n47 random02 D4 recovery certifies LFD at least 5 and is
-published, but does not complete its D5 cascade. The cloud n47 random00 D5
-attempt ended during node shutdown with no D5 certificate; see
-[the interruption report](reports/bounded-lift-attempt-002/report.md).
-No frontier worker is currently active. Degree-five codimension equality,
-killed-constant projections, and interrupted runs establish no upper bound.
+No independently checked LFD-at-least-6 result exists. The independent n47
+random02 D4 recovery certifies only LFD at least 5 and is published; it does
+not complete its D5 cascade.
 
-The local checkpoint producer suite is archived and reported:150 fixture
-descriptions,147 native cases and3 zero-codomain cases outside the interface.
-Its original four-arm registration remains incomplete; the corrected status
-projection is in [producer report 002](reports/checkpoint-producer-002/report.md).
-All 28 mock-storage controls passed with a valid export. Actual S3 publication
-and restoration across distinct pods also passed all 6 rows on3 small Semaev
-fixtures, with original checker and paired exact-count agreement; see
-[cloud report 002](reports/checkpoint-cloud-002/report.md). Those checkpoints
-have relation rank 0. The additional [nonempty matrix controls](reports/checkpoint-matrix-cloud-001/report.md)
-now pass all four actual rows across distinct pods at ranks 2 and 12, including
-independent generic checks. Frontier disk admission and worker integration
-remain required before retrying D5. No cloud worker remains active.
+The checkpoint-enabled n47 random00 attempt failed before D4 checking
+completed. Four durable records remain, no D5 checkpoint exists, and the
+specific failure cause is unknown; see [the failure report](reports/checkpoint-frontier-failure-001/report.md).
+A new continuation, `semaev-n47-rand00-d5-reuse-20261030-1600`, was submitted
+at 15:58:22 UTC (job UID `dba14261-18f7-4262-a5e9-cdb051f4240b`). It verifies
+byte identity and reuses the earlier original checker's acceptance of the
+identical D4 seed and target. This is explicitly historical acceptance,
+not fresh algebra checking. Fresh solution counting and the original D5
+certificate checker remain mandatory. See the [frozen protocol](seed-reuse-frontier-protocol-001.json)
+and [launch receipt](runs/seed-reuse-frontier-launch-001.json).
+The worker has since verified the 1,632,838,224 seed bytes, recorded historical
+acceptance with codimension 61,196, and started the fresh count. These closed
+stage receipts are in `validation/seed-reuse-frontier-progress-001/`; neither
+count completion nor D5 start is established by them.
+
+The reuse path passed both local worker configurations on one retained n6
+fixture; both reproduced the reference certificate, original D5 acceptance
+and fresh count 3. All twelve altered evidence bindings were rejected.
+The [two-row export and report](reports/seed-reuse-001/report.md) make no new
+mathematical claim. The unchanged checkpoint worker's nine real-cloud controls
+and nonempty-matrix recovery controls remain in
+[worker report 002](reports/checkpoint-worker-cloud-002/report.md) and
+[matrix report 001](reports/checkpoint-matrix-cloud-001/report.md).
+The earlier native producer's four-arm registration mismatch remains
+unresolved in [producer report 002](reports/checkpoint-producer-002/report.md).
+
 The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
-LFD-at-least-5 results; its 11 unfinished inputs remain in scope.
+LFD-at-least-5 results. Its 11 unfinished inputs remain in scope; one is the
+active local `fresh-n44-rand-04` worker and ten are unstarted n45 inputs.
+Neither producer progress nor a killed-constant projection establishes a new
+bound. Degree-five codimension equality, resource refusal and interruption
+also establish no upper bound.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
