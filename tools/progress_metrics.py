@@ -574,6 +574,163 @@ def controlled_followup_observations(ref, since):
              source=f"{path}@{ref}")
 
 
+def controlled_followup_080f41_observations(ref, since):
+    """Retained successor counts, with native failure and two shared rows.
+
+    Resolve every source at the same committed ref. Large export payloads are
+    identity blob pointers in Git: authenticate their identities and the plain
+    verification/report/review facts, without a GET or pretending the payload
+    is a plain Git JSON blob. This is descriptive custody, not reference replay.
+    """
+    path = "docs/reports/classical-ecdlp-controlled-followup-20261029/observations-080f41/observations.json"
+    run = "experiments/EXP-ECDLP-080f41/runs/RUN-ECDLP-939237/"
+    post = "experiments/EXP-ECDLP-080f41/postrun-from-view-346631/"
+    reviews = "coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-cbf9d7/reviews/"
+    roles = {
+        "receipt": run + "execution-receipt.json",
+        "raw": run + "raw-result.json",
+        "verification": post + "verification.json",
+        "postrun": post + "postrun-result.json",
+        "validation": post + "export.validation.json",
+        "protocol": "experiments/EXP-ECDLP-080f41/protocol.json",
+        "native_report": "experiments/EXP-ECDLP-080f41/reports/run-20261029T2258Z/observations.json",
+        "source_export_pointer": post + "export.json.blob.json",
+        "root_export_pointer": "experiments/EXP-ECDLP-080f41/export.json.blob.json",
+        "integrity_review": reviews + "TASK-20261029-830629/experiment.review.json",
+        "blind_review": reviews + "TASK-20261029-fe803f/experiment.review.json",
+        "integrity_checks": reviews + "TASK-20261029-830629/checks.json",
+    }
+    try:
+        text = show(ref, path)
+        if text is None:
+            return
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.controlled-followup.reviewed-observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-080f41"
+                or data.get("run_id") != "RUN-ECDLP-939237" or date < since
+                or data.get("native_status") != "invalid_output"
+                or data.get("postrun_status") != "complete"
+                or data.get("scientific_validity") != "not_assessed"
+                or data.get("wall_valid") is not False
+                or data.get("counter_replay_qualified") is not False):
+            return
+        bindings = data["metric_source_sha256"]
+        if set(bindings) != set(roles.values()):
+            return
+        docs = {}
+        for role, source in roles.items():
+            blob = show(ref, source)
+            if (blob is None or not isinstance(bindings[source], str)
+                    or hashlib.sha256(blob.encode()).hexdigest() != bindings[source]):
+                return
+            docs[role] = json.loads(blob)
+        receipt, raw = docs["receipt"], docs["raw"]
+        verify, postrun, valid = docs["verification"], docs["postrun"], docs["validation"]
+        native, integrity = docs["native_report"], docs["integrity_checks"]
+        controller = raw["controller"]
+        if (receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                or receipt.get("run_id") != data["run_id"]
+                or receipt.get("status") != "invalid_output"
+                or type(receipt.get("returncode")) is not int or receipt["returncode"] != 0
+                or type(receipt.get("check_returncode")) is not int or receipt["check_returncode"] != 1
+                or receipt.get("published") is not False
+                or receipt["artifact_sha256"].get("raw-result.json") != bindings[roles["raw"]]
+                or raw.get("run_id") != data["run_id"]
+                or raw.get("experiment_id") != data["experiment_id"]
+                or controller.get("status") != "complete"
+                or controller.get("collection_complete") is not True
+                or controller.get("vm_creates") != 1 or controller.get("engine_execs") != 1
+                or native.get("run_id") != data["run_id"]
+                or native.get("experiment_id") != data["experiment_id"]
+                or native["controller"] != {k: controller[k] for k in (
+                    "collection_complete", "engine_execs", "engine_returncode", "sandbox_id",
+                    "status", "termination_ack", "uid1000_quiescent", "vm_creates")}
+                or native.get("host_postrun_status") != "complete"
+                or native.get("host_postrun_errors") != []
+                or verify.get("status") != "checked"
+                or verify.get("observed") != integrity["raw"]["counts"]
+                or postrun.get("status") != "complete" or postrun.get("errors") != []
+                or postrun.get("scientific_validity") != "not_assessed"
+                or postrun.get("export_findings") != []
+                or postrun.get("wall_valid") is not False
+                or postrun.get("counter_replay_qualified") is not False
+                or verify.get("wall_valid") is not False
+                or verify.get("counter_replay_qualified") is not False
+                or valid != {"findings": [], "protocol_qualified": True, "schema_compliant": True}
+                or docs["protocol"].get("protocol_id") != data["experiment_id"]
+                or docs["protocol"].get("freeze", {}).get("status") != "frozen"
+                or docs["protocol"]["freeze"].get("protocol_sha256") != data["protocol_semantic_sha256"]):
+            return
+        views = data["export_views"]
+        for view, role, review in (("source", "source_export_pointer", "integrity_review"),
+                                   ("root_derivative", "root_export_pointer", "blind_review")):
+            pointer, binding = docs[role], views[view]
+            if (pointer.get("schema") != "crypto.autoresearch.blob_pointer.v1"
+                    or pointer.get("encoding") != "identity"
+                    or pointer.get("sha256") != binding["payload_sha256"]
+                    or pointer.get("content_sha256") != binding["payload_sha256"]
+                    or type(pointer.get("size")) is not int
+                    or pointer["size"] != binding["payload_bytes"]
+                    or pointer.get("content_size") != pointer["size"]
+                    or pointer.get("uri") != ("s3://setec-astronomy-artifacts/store/sha256/"
+                        + binding["payload_sha256"][:2] + "/" + binding["payload_sha256"])
+                    or docs[review].get("schema") != "experiment.review/v1"
+                    or docs[review]["export"]["sha256"] != binding["payload_sha256"]
+                    or docs[review]["protocol_sha256"] != data["protocol_semantic_sha256"]):
+                return
+        rows = native["logical_evaluator_rows"]
+        if (len(rows) != 2 or {row["run_id"] for row in rows} !=
+                {data["run_id"] + ".original", data["run_id"] + ".incremental"}
+                or any(row["instance_id"] != "candidate-vm" or row["replicate"] != 0
+                       or row["status"] != "succeeded" for row in rows)):
+            return
+        by_arm = {row["arm"]: row["measurements"]["counted"] for row in rows}
+        for arm, method in (("confirmation_original", "original"),
+                            ("confirmation_incremental", "incremental")):
+            if by_arm[arm] != integrity["raw"]["methods"][method]:
+                return
+        coverage, counted = native["coverage"], verify["observed"]
+        summaries = native["recorded_summaries"]
+        primary = next(x for x in summaries["six_cell_totals"] if x["cell"] == "t1.e2")
+        if (coverage["retained_decoder_cells"] != counted["cells"]
+                or coverage["retained_physical_trace_records"] != counted["traces"]
+                or primary["candidate_events"] != integrity["raw"]["cell_summary"]["t1.e2"]["successes"]):
+            return
+        values = {
+            "native_attempts": len([receipt]),
+            "native_invalid_output_trials": int(receipt["status"] == "invalid_output"),
+            "native_completed_trials": int(receipt["status"] == "output_validated"),
+            "vm_creates_recorded": controller["vm_creates"],
+            "candidate_engine_execs_recorded": controller["engine_execs"],
+            "logical_evaluator_rows": len(rows),
+            "retained_curves": coverage["retained_curves"],
+            "retained_decoder_cells": counted["cells"],
+            "retained_physical_traces": counted["traces"],
+            "retained_single_records": counted["singles"],
+            "retained_setups": counted["setups"],
+            "paired_confirmation_attempts": integrity["raw"]["paired"],
+            "original_strict_recovery_events": by_arm["confirmation_original"]["strict_recovered_events"],
+            "incremental_strict_recovery_events": by_arm["confirmation_incremental"]["strict_recovered_events"],
+            "primary_t1e2_recovery_events": primary["candidate_events"],
+            "primary_t1e2_recovered_targets": primary["candidate_curve_target_pairs"],
+            "primary_t1e2_recorded_uniform_events": primary["uniform_events"],
+            "calibration_arm_records": summaries["calibration_summary"]["arm_records"],
+            "calibration_undefined_draws": summaries["calibration_summary"]["undefined_draws"],
+        }
+        if (any(type(v) is not int or v < 0 for v in values.values())
+                or data["measured_counts"] != values
+                or any(type(v) is not int for v in data["measured_counts"].values())):
+            return
+    except (KeyError, TypeError, ValueError, AttributeError, StopIteration):
+        return
+    for name, value in values.items():
+        emit(f"controlled.939237.{name}", value, date=date,
+             problem="ecdlp-controlled-followup", unit="count", better="neutral",
+             label=f"RUN-ECDLP-939237: {name.replace('_', ' ')} (retained observations; shared population)",
+             source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -653,6 +810,7 @@ def main():
     nongeneric_screen_observations(a.ref, a.since)
     transfer_study_observations(a.ref, a.since)
     controlled_followup_observations(a.ref, a.since)
+    controlled_followup_080f41_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
