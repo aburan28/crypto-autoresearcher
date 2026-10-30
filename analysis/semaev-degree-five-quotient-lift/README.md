@@ -4,9 +4,9 @@ Status (2026-10-30): the degree-six search continues; no degree-six bound has
 been obtained. Five of 47 high-memory continuation inputs are terminal, all
 retaining LFD at least 5. The other 42 include the live n47 random input 00.
 Degree-five codimension equality and killed-constant projections establish no
-upper bound. The separate remote D4 continuation has 18 of 32 inputs completed,
-including 11 certified LFD at least 5 bounds; see the
-[new n44 random-input report](reports/panel-v3-n44-rand01/report.md).
+upper bound. The separate remote D4 continuation has 19 of 32 inputs completed,
+including 12 certified LFD at least 5 bounds; see the
+[new n44 random-input report](reports/panel-v3-n44-rand00/report.md).
 The remaining frozen cloud inputs continue in order as worker slots become free.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
