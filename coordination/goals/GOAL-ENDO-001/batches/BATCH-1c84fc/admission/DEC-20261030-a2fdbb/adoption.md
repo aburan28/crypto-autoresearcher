@@ -1,0 +1,13 @@
+**Conditional PASS for the three exact draft bytes.** I recomputed the manifest SHA256 (`c534ba623030f77bafdc4b81c6ecfbff6ca1b14e07451d6a8dd44b921d9c6b8b`) and adopt these hashes for an **administrative enable packet**, subject to the DEC’s prearchive gates:
+
+| Draft | Bytes | SHA256 |
+| --- | ---: | --- |
+| [DEC-20261030-a2fdbb.yaml](/home/ec2-user/coordinate-runtime-admission-20261028/endo-review-enable-packet-001/ledger/decisions/DEC-20261030-a2fdbb.yaml:4) | 8,271 | `e7919c1b9f5d7d6c8605926f562fce2f9b6f249f1675bbd56ace329ee5a5fa3c` |
+| [Review-enable checkpoint](/home/ec2-user/coordinate-runtime-admission-20261028/endo-review-enable-packet-001/ledger/goals/GOAL-ENDO-001/checkpoints/BATCH-1c84fc-20261030-review-enable.yaml:19) | 2,192 | `daf2d462ba7d28fdb9014bb8fb0b251e30c0d64e99abb07c7277da3c779b994d` |
+| [Dispatch queue](/home/ec2-user/coordinate-runtime-admission-20261028/endo-review-enable-packet-001/coordination/goals/GOAL-ENDO-001/batches/BATCH-1c84fc/dispatch_queue.json:1) | 14,947 | `9dfde4319381273d75aae86eba8a559d20ca5cee93284e778de7a0be882a51d9` |
+
+Against published head `25b63f37756c4ae938e840e217415884343cfd1c`, the queue diff **only** changes reviewer `TASK-20261030-d95835` from `blocked` to `queued` and removes its `blocked_reason`; the dependent archive and all task limits remain unchanged. The published receipt002 blob matches SHA256 `50c407c63860fbdd590f6a7bfc7bfaa94a88156baf72c20e2ab0ee7d1461a3c8` and verifies the one exact independent session. It grants no claim or global backend verification. I also confirmed the stated main commit `a08ce6fd36031fa46cafe76accea23e6602d8360` is an ancestor of the published authoring head.
+
+The [DEC’s prearchive gates](/home/ec2-user/coordinate-runtime-admission-20261028/endo-review-enable-packet-001/ledger/decisions/DEC-20261030-a2fdbb.yaml:8) still require the parent’s **exact prospective-tree refs-aware validation**, current source and all-ref fence, and Conductor scope check, including the reviewer scope. The 06:11 zero-live scan is time-bound; the reported outside-queue structural check is not that prospective-tree check. Sparse local full-ledger refusal is not a PASS, and hosted exact-head CI remains a merge gate. If any prearchive gate fails or the pinned queue changes, keep the reviewer blocked.
+
+**Next action:** parent completes those scoped checks, then archives, pushes, and remotely reads back these three unchanged bytes if clear. Only after publication may it separately re-fence and claim the reviewer, then publish an actual-epoch owner-writer note pinning the helper, launcher, renderer, sources, and deadline **before any reviewer turn**. This enable does not authorize a JINV host effect, scientific run, or J3 approval.
