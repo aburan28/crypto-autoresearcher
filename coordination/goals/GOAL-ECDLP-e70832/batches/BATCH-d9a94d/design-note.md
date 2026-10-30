@@ -1,0 +1,13 @@
+# Full-cohort production-source design
+
+Source-only BATCH-d9a94d at actual merged ce848a8592f78e9995c11a62c335ab14f9a20cb9. This task applies coordinate in goal/design mode. The user authorizes sustained classical-only execution; standing authorization does not manufacture readiness. PR2590 remains OPEN/unmerged/noauto per user.
+
+Read primary repository source and actual archived records before choosing this approach: cohort.plan/build_public, engine.run_public/decode_cell, unchanged BSGS, v3 driver/interface, native experiment_execution/protocol/preapproval, original48protocol/trialplan, conditional fresh-next-cohort plan and final census review. The new work is runtime/format/custody infrastructure, not a new mathematical algorithm or novelty claim. No external source is asserted as read; external official docs were not fetched under root-only network policy. Existing complete independently sealed mathematical review remains the authority for unchanged five-file math.
+
+The actionable gap is that archived v3 refuses nonfixture launches. Five tasks now cover source implementation/snapshot, independent technical source review, Coordinator readiness composition and isolated ledger archive. This avoids replaying the census or adding generic audit gates. Original full48sampling and calibration/confirmation counts remain the target; unit controls use only the pre-existing F11/F23 groups and frozen zero nonce.
+
+Full retained-byte feasibility is not inferred from observed compression. The executor must produce an explicit conservative resource envelope and safe complete/partial output custody under actual limits. No silent math monkeypatch or dropped records. Production entrypoint requires actual allocated native identities and source publication pins; fixture IDs cannot leak into production.
+
+The full-ledger check exposed exact confound IDs missing from frozen EV78ed38 despite its successful structural check. The same-ID schema replacement adds those two grades and preserves all original fields, rows and limitations. Native registry support pins both old/new files; old source/archives remain immutable. The original four unrelated errors are not repaired here.
+
+Mutable problem and registry indexes are represented by exact fulltext snapshot artifacts; root alone publishes them after predecessor checks, and source receipt binds actual publicationcommit/blobOID/size/SHA. Source/admin records are prospectively owned by TASK-20261030-29dff8 and archived by TASK-20261030-88d0e5; this outside planning session is not retroactively claimed. No final readiness DEC or approval is authored before evidence.

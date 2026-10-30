@@ -185,3 +185,5 @@ Coordinator decision and evidence.
 - [ECDLP lead atlas source and validation gap](ecdlp-lead-atlas-unmerged-evidence.md) — crypto study files now match merged main, while source CI, full replay, the open ecc-challenges PR and four-repository validation remain pending.
 
 | [Exact-density frozen protocol/export conformance](classical-ecdlp-exact-density-export-conformance.md) | open | Actual one-bundle/analytical-reference row semantics, execution-commit pin and analysis metadata fail unchanged export check (7 findings); no scientific rerun. |
+
+| [Full-cohort classical ECDLP production route](classical-ecdlp-full-cohort-production-route.md) | open | Archived v3 is fixed-fixture only; full schedule/native authority/resource custody and independent source readiness precede fresh3x48 cohorts. |
