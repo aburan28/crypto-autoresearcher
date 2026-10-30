@@ -1,0 +1,137 @@
+# IDEA RECORD -- IDEA-20261018-373b94
+# RQ-MLKEM-001 / GOAL-MLKEM-005; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-373b94
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Noisy NTT-domain hints as extra MLWE samples: the hint-noise threshold below which they
+    lower beta (simulated, defensive)
+  class: mechanism
+  claim: >-
+    A simulated side channel that yields noisy estimates of NTT-domain secret coefficients,
+    s_hat_i + noise mod q with noise std sigma_h, is equivalent to T extra LWE samples on
+    s with public vectors given by NTT rows. Integrating them in the primal embedding lowers
+    the success block size only when sigma_h is below a threshold sigma* that we predict lies
+    between 2 and 20 at n=64,k=2; above sigma* the drop is within A/A noise. The measured
+    threshold and slope are the defensive deliverable: how accurate an NTT-output leakage
+    must be before it matters to a lattice attacker.
+  mechanism: >-
+    NTT outputs are q-ary linear combinations of all secret coefficients, so a noisy reading
+    is a modular approximate hint that DDGR's framework (which takes approximate hints over
+    Z or exact modular hints) does not directly handle. Rewriting the reading as an LWE sample
+    with error sigma_h makes it integrable: it is a new row in the q-ary embedding with error
+    column scaled by sigma_h/sigma_e. Primal gain depends on the ratio sigma_h/sigma_e and
+    on how many such rows are added, giving a sharp threshold.
+  tracked_object: >-
+    Measured success block size beta* versus (number of hinted NTT slots T, hint noise sigma_h),
+    and the fitted threshold sigma*.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-118
+    provenance: kb
+    claim: noisy modular hints recast as LWE rows; measured beta
+    verified_by: knowledge/literature/KN-LIT-118.md (opened by the drafting session)
+  - ref: KN-LIT-1815
+    provenance: kb
+    claim: >-
+      SASCA recovers coefficients by belief propagation; this asks how much residual NTT noise
+      a lattice step can absorb
+    verified_by: knowledge/literature/KN-LIT-1815.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: beta* drop at T=64 hints, sigma_h=1
+    direction: higher
+    minimum_effect: '>= 15 units'
+    falsified_by: drop < 5
+  - id: P2
+    metric: beta* drop at T=64, sigma_h=100
+    direction: lower
+    minimum_effect: within AA1 noise
+    falsified_by: drop >= 3
+  - id: P3
+    metric: estimator-predicted sigma* vs measured
+    direction: different
+    minimum_effect: within factor 2
+    falsified_by: off by > 4x
+  minimal_test:
+    design: >-
+      Reduced ML-KEM keys (n=64, k=2, q=3329, CBD(2)); simulate hints on T in {16,32,64,128}
+      NTT coefficients with Gaussian noise sigma_h in {0.5,1,2,5,10,20,50,100}; build weighted
+      primal embedding; run G6K progressive reduction to verified recovery.
+    controls:
+    - >-
+      null: hints computed from an independent random secret (wrong secret) - must not lower
+      beta (and should raise failures)
+    - >-
+      positive: sigma_h=0 exact hints where beta* must drop to the analytically predicted
+      dimension reduction
+    - 'A/A: no-hint arm with two reduction seed blocks'
+  falsification_conditions:
+  - no threshold behavior (monotone flat curve)
+  - positive control fails
+  - null arm lowers beta*
+  confounders:
+  - weighting of hint rows in the embedding
+  - reduced n changes the number of NTT slots (32 quadratic slots at n=64)
+  interpretation_limits:
+  - >-
+    Simulated hints only, no device or implementation; reduced n=64; the threshold in sigma_h/sigma_e
+    is the transferable object, with T scaled by n
+  - defensive calibration, not an attack
+  heuristic_assumptions:
+  - id: H1
+    statement: Hint noise is Gaussian and independent across slots.
+    rigorous_support: Simulation choice.
+    validation_plan: Repeat with uniform and Laplace noise of equal variance.
+  target_complexity:
+    time_exponent: 0.292*beta(T,sigma_h)
+    memory_exponent: 0.2075*beta
+    best_known: SASCA belief propagation on NTT; DDGR integration of coefficient-domain hints
+    hidden_overhead: obtaining hints (not modeled)
+    tradeoff_note: defensive threshold measurement
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-118
+      provenance: kb
+      relation: generalizes
+      delta: noisy modular hints recast as LWE rows; measured beta
+    - ref: KN-LIT-1815
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        SASCA recovers coefficients by belief propagation; this asks how much residual NTT
+        noise a lattice step can absorb
+    internal_neighbours:
+    - IDEA-20260813-28cf9c
+    - IDEA-20260821-019d2f
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLKEM-e3175d
+    experiment_id: EXP-MLKEM-0a97f8

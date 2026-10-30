@@ -1,0 +1,71 @@
+# HYPOTHESIS -- H-MLDSA-d6ec3a, specified from IDEA-20261018-8b411e. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-MLDSA-d6ec3a
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20261018-8b411e
+  added: '2026-10-18'
+  statement: >-
+    R_q splits into 256 slots because q = 1 mod 512. If ExpandA returns A whose NTT-domain
+    entries vanish in a set S of slots (a plausible rejection-sampling or buffer-offset bug),
+    then t_hat = A_hat s1_hat + s2_hat gives s2_hat exactly in S, and the MLWE instance restricted
+    to the complement has dimension (256 - |S|) per polynomial. Measured at toyDSA(64,2,2)
+    with true q, key recovery by primal BKZ needs a block size that drops linearly in |S|
+    with slope matching the estimator's dimension reduction within 15 percent, and full recovery
+    at |S| = n needs no lattice reduction.
+  mechanism: >-
+    Each zero slot is a linear constraint on s2's NTT coordinates; since s2 is short in the
+    coefficient domain, |S| known NTT coordinates of s2 are |S| perfect linear hints on a
+    short vector, which DDGR integrates as dimension reduction. The partial-NTT projection
+    idea in the lane studies homomorphic images of the verification equation; here the defect
+    is in A itself and the leak is from the public key without any signature.
+  assumptions:
+  - known NTT coordinates of s2 act as perfect hints
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: known NTT coordinates of s2 act as perfect hints
+    random_model_justification: linear algebra
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLDSA-1e2b4d
+    falsification_condition: verify DDGR dimension count vs measured
+  predictions:
+  - metric: slope of beta vs |S|
+    direction: lower
+    minimum_effect: measured slope within 15 percent of DDGR/estimator slope
+  - metric: '|S| = 0 control'
+    direction: different
+    minimum_effect: no recovery at block sizes below estimator prediction minus 5
+  test_boundary:
+    instances:
+    - toyDSA(64,2,2) true q; |S| in {0, 8, 16, 32, 64}; 5 keys per seed block
+    parameters:
+      scale_tier: toy
+      scale_justification: n = 64; slope transfer by estimator
+    implementation: >-
+      SageMath, fpylll/G6K, DDGR toolkit; toyDSA(n,k,l): a NumPy re-implementation of FIPS
+      204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta,
+      tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked
+      against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced
+      run
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 8
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - slope differs by more than 30 percent
+  - recovery more than 5 below prediction
+  falsification_conditions:
+  - slope mismatch beyond 30 percent
+  - '|S| = 0 recovery far below prediction'
+  interpretation_limits:
+  - toy n = 64 lattice; transfer via estimator slope only
+  - defect is constructed
+  status: specified
+  proposed_by: idea-generator

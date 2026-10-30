@@ -12,20 +12,20 @@
 
 **Provenance:**
 - Inputs `internal`: the 19-curve record SHA-256 `4a0df1de…48fe`, the 69-position acceptance classification, and 82 certified branches.
-- Null model `derived` from GL₂(F_ℓ) counts. Checked against the 42 real-field held-out curves, with rows retained (KS D = 0.153, 5% critical value 0.210). A 2 × 1,500-curve PARI SEA check at 48 bits kept only aggregates, so it is unauditable (D2).
+- Null model `derived` from GL₂(F_ℓ) counts. Checked against the 42 real-field held-out curves, with rows retained (KS D = 0.153, 5% critical value 0.210). A 2 × 1,500-curve PARI SEA check at 48 bits matches too (KS D = 0.023 against a 5% critical value of 0.035). Its rerun with rows kept reproduces the original output exactly and passes an independent audit (D2 resolved).
 - No hypothesis status changes. The [selection-rule problem](../../problems/nist-seed-selection-rule-unexplained.md) stays open. No ECDLP frontier graph changes, because no attack, map or cost edge is involved.
 
 | File | What |
 | --- | --- |
 | [PROTOCOL.md](PROTOCOL.md), [AMENDMENT.md](AMENDMENT.md) | held-out test as Markdown, pushed in `bd5d146bb` before data; post-run count-typo note |
 | [protocol.json](protocol.json) | `experiment.protocol/v1` transcription; validates, but not frozen (D3) |
-| [DEVIATIONS.md](DEVIATIONS.md) | D1 no resume checkpoint; D2 48-bit rows not kept; D3 no frozen protocol record or conforming export |
+| [DEVIATIONS.md](DEVIATIONS.md) | D1 no resume checkpoint; D2 48-bit rows not kept (resolved: rows rerun and audited); D3 no frozen protocol record or conforming export; D4 the same for the 48-bit rerun |
 | [analysis_lib.py](analysis_lib.py), [analysis.py](analysis.py) | null model; percentiles and coarse sweep → `runs/results.json` |
 | [lookelsewhere.py](lookelsewhere.py), [permute.py](permute.py) | fine grid, look-elsewhere MC (n=20000, seed 20261029), exact permutation (4,480) |
 | [heldout.py](heldout.py) | held-out test → `runs/heldout.json`; per-curve rows in `runs/rows.jsonl` |
 | [validate48.py](validate48.py) | 48-bit SEA check of the null → `runs/validation48_stdout.log` (aggregates only) |
+| [validate48_rows.py](validate48_rows.py), [RERUN_48BIT.md](RERUN_48BIT.md), [audit48.py](audit48.py) | rerun with rows → `runs/validation48_rows.jsonl.gz`, `runs/validation48_summary.json`; audit → `runs/validation48_audit.json` |
 | [figures.py](figures.py) | `fig_null.svg`, `fig_sweep.svg`, `fig_heldout.svg` |
 
 **Not done:**
 - A real-field SEA null of at least 10,000 curves per field. Without PARI's `seadata` package, no prime-order count over these fields finished in 10 minutes on 4 cores; the run needs `isolab-eks`.
-- Any rerun, including the 48-bit validation with rows kept. All reruns wait until `scripts/checkpoint.sh gate` passes (D1).
