@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Controlled follow-up report destination collision](classical-ecdlp-controlled-followup-report-destination-collision-20261030.md) | open | Unclaimed successor composition/archive points at immutable old failed-attempt reports | Publish prospective observations-080f41 destination and separate source-reader assignment, then verify old report/reader preservation |
 | [Controlled follow-up full-protocol export coverage](classical-ecdlp-controlled-followup-source-integrity-repair.md#additional-full-protocol-export-coverage-blocker-discovered-after-source03-dispatch) | open | Active03 STATICLOCK: two-arm schema versus single composite exporter | Actual paired evaluator C3/M3 export, full frozen fixture protocol and fresh independent recheck |
 | [Controlled follow-up source integrity](classical-ecdlp-controlled-followup-source-integrity-repair.md) | open | Technical readiness/source admission: D1-D6 supervisor/provenance/schedule/parser/export/report gaps | Additive unchanged-math source repair, real C2/manifests snapshot and fresh independent recheck |
 | [Transfer analysis-script binding](classical-ecdlp-transfer-analysis-script-binding.md) | resolved for observed defects | Versioned v4 separates registered analysis and verifier; actual102828-row verification/export passed | Original v2/v3 refusals and postprocessing provenance retained |
