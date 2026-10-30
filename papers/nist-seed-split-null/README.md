@@ -48,8 +48,9 @@ toolchain was not available in the session that wrote the draft.
 - [ ] Clear D1: push a resume checkpoint before any rerun.
 - [ ] Rerun the 48-bit validation with per-curve rows retained (clears D2).
 - [ ] Run a real-field SEA null, at least 10,000 prime-order curves per field.
-- [ ] Compute the 1/ℓ-weighted statistic Σ_{ℓ≤B} χ(ℓ)/ℓ against the same
-      null, the proper test of the L(1, χ) reading (§6).
+- [x] Weighted statistic and L(1, χ) for prime239v1 against the same null:
+      `research/nist_seed_lvalue_20261030/` (L̂ = 0.246, 0.25th percentile,
+      lowest of 61; §6).
 - [ ] Novelty audit: prior analyses of NIST seed curves and of Elkies-prime
       distributions (Shparlinski–Sutherland; Castryck–Hubrechts).
 - [ ] Independent review (`review-run`) of `runs/heldout.json` and
