@@ -796,6 +796,126 @@ def p256_factor_base_pass2_preparation(ref, since):
          source=f"{path}@{ref}")
 
 
+def host_reference_audit_observations(ref, since):
+    """Neutral retained-audit coverage, authenticated entirely at one Git ref.
+
+    Read the small law/truth counts directly. Authenticate the large cost
+    payload through its completed release and committed identity pointer plus
+    modern manifest; never fetch or fall back to hydrated/worktree bytes.
+    Coverage describes inspected records, never algorithm performance.
+    """
+    base = "coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-128d4e/"
+    path = "experiments/EXP-ECDLP-080f41/reports/review-DEC-20261030-c55f30/observations.json"
+    owners = {"law": "TASK-20261030-3393bd", "truth": "TASK-20261030-88d5bd", "cost": "TASK-20261030-f55ebb"}
+    def record(name, expected_sha):
+        text = show(ref, name)
+        if text is None or hashlib.sha256(text.encode("utf-8")).hexdigest() != expected_sha:
+            raise ValueError("missing or changed committed source")
+        return json.loads(text)
+    def count(value):
+        if type(value) is not int or value < 0:
+            raise ValueError("coverage must be a measured integer")
+        return value
+    try:
+        text = show(ref, path)
+        if text is None:
+            return
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.host-reference-audit.observations/v1"
+                or data.get("run_id") != "RUN-ECDLP-939237"
+                or data.get("experiment_id") != "EXP-ECDLP-080f41"
+                or data.get("batch_id") != "BATCH-128d4e" or date < since
+                or data.get("source_launch_status") != "invalid_output"
+                or data.get("check_returncode") != 1 or data.get("published") is not False
+                or data.get("wall_valid") is not False
+                or data.get("native_counter_replay_qualified") is not False
+                or data.get("scientific_status_changed") is not False):
+            return
+        sources = data["metric_sources"]
+        if set(sources) != set(owners):
+            return
+        plain = {}
+        for role, task in owners.items():
+            source = sources[role]
+            logical = base + "reviews/" + task + "/checks.json"
+            if source.get("task_id") != task or source.get("joint_id") != "J-" + role or source.get("path") != logical:
+                return
+            release_path = source["release_path"]
+            prefix = base + "claims/" + task + "."
+            epoch = release_path[len(prefix):-len(".release.json")] if release_path.startswith(prefix) and release_path.endswith(".release.json") else ""
+            if not epoch.isdigit() or int(epoch) < 1:
+                return
+            release = record(release_path, source["release_sha256"])
+            if (release.get("task_id") != task or release.get("outcome") != "completed"
+                    or release.get("epoch") != int(epoch)
+                    or release.get("artifact_sha256", {}).get(logical) != source["payload_sha256"]):
+                return
+            stored = source["stored_path"]
+            if stored == logical:
+                value = record(stored, source["stored_sha256"])
+                if source["stored_sha256"] != source["payload_sha256"]:
+                    return
+                if value.get("task_id") != task:
+                    return
+                plain[role] = value
+            elif stored == logical + ".blob.json":
+                pointer = record(stored, source["stored_sha256"])
+                digest = source["payload_sha256"]
+                if (pointer.get("schema") != "crypto.autoresearch.blob_pointer.v1"
+                        or pointer.get("encoding") != "identity"
+                        or pointer.get("sha256") != digest or pointer.get("content_sha256") != digest
+                        or pointer.get("size") != source["payload_bytes"]
+                        or pointer.get("content_size") != source["payload_bytes"]
+                        or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)
+                        or pointer.get("uri") != "s3://setec-astronomy-artifacts/store/sha256/" + digest[:2] + "/" + digest):
+                    return
+                modern_path = base + "reviews/" + task + "/.artifacts.json"
+                if source.get("modern_manifest_path") != modern_path:
+                    return
+                modern = record(modern_path, source["modern_manifest_sha256"])
+                entry = modern.get("files", {}).get("checks.json", {})
+                if modern.get("schema") != "artifacts.manifest/v1" or entry.get("sha256") != digest or entry.get("bytes") != source["payload_bytes"]:
+                    return
+            else:
+                return
+        if not {"law", "truth"} <= set(plain):
+            return
+        law = plain["law"]["phase2_retained_audit"]["totals"]
+        truth = plain["truth"]["coverage"]
+        checks = {
+            "curves_checked": count(truth["curves"]),
+            "orientation_draws_checked": count(law["null_draws"]),
+            "uniform_rows_checked": count(truth["uniform_rows"]),
+            "decoder_word_records_checked": count(truth["decoder_words"]),
+            "decoder_public_equations_checked": count(truth["decoder_public_equations"]),
+            "bsgs_final_equations_checked": count(truth["BSGS_targets"]),
+            "prepared_setup_equations_checked": count(truth["setup_base_equations"]),
+            "zero_budget_rows_checked": count(truth["uniform_M0_rows"]),
+        }
+        if (checks["uniform_rows_checked"] != count(law["uniform_rows"])
+                or checks["decoder_word_records_checked"] != count(law["reconstructed_decoder_words"])
+                or checks["zero_budget_rows_checked"] != count(law["uniform_zero_M"])):
+            return
+        values = data["audit_coverage"]
+        if not isinstance(values, dict) or set(values) - set(checks):
+            return
+        output = []
+        for name, expected in checks.items():
+            actual = values.get(name)
+            if actual is None:
+                continue  # Unknown or missing is omitted, never zero-filled.
+            if count(actual) != expected:
+                return
+            output.append((name, actual))
+    except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+        return
+    for name, value in output:
+        emit("audit.939237." + name, value, date=date, problem="ecdlp-host-reference-audit",
+             unit="count", better="neutral", kind="gauge",
+             label="RUN-ECDLP-939237: inspected " + name.replace("_", " "), source=path + "@" + ref)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -811,6 +931,7 @@ def main():
     transfer_study_observations(a.ref, a.since)
     controlled_followup_observations(a.ref, a.since)
     controlled_followup_080f41_observations(a.ref, a.since)
+    host_reference_audit_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
 
