@@ -21,7 +21,7 @@ def main():
     for name in ('run','out'): parser.add_argument('--'+name,type=Path,required=True)
     args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=False)
     analysis=load(args.run/'analysis.json');execution=load(args.run/'execution.json');export=load(args.run/'export.json');generated=load(args.run/'raw/generated.json')
-    cells=analysis['cells'];definitions=generated['cells'];native={c['id']:load(args.run/'raw'/(c['id']+'.json')) for c in definitions}
+    cells=analysis['cells'];definitions=generated['cells'];release=load(args.run.parent.parent/'release.json');native={c['id']:load(args.run/'raw'/(c['id']+'.json')) for c in definitions}
     plt.rcParams.update({'svg.fonttype':'none','font.size':9});fig,axes=plt.subplots(2,2,figsize=(8.8,4.2))
     for ax,definition in zip(axes.flat,definitions):
         values=[c for c in cells if c['cell_id']==definition['id']];width=values[0]['base_columns']
@@ -77,7 +77,7 @@ Fp, Fr, group and logical units overlap and are not a scalar total. Inversion in
 
 #pagebreak()
 == Execution, source and retained scope
-Exact scientific source #raw({json.dumps(execution['source_commit'])}); canonical protocol SHA256 #raw({json.dumps(export['protocol']['sha256'])}). Rules-only inputs and exact22source/interpreter/package bindings, frozen prospective protocol, explicit root release, actual canonical S3 checkpoint/gate and exclusive ownership all preceded generation.
+Exact scientific source #raw({json.dumps(execution['source_commit'])}); canonical protocol SHA256 #raw({json.dumps(export['protocol']['sha256'])}). Rules-only inputs and exact{len(release['source_sha256'])}source plus one rules file and interpreter/package bindings, frozen prospective protocol, explicit root release, actual canonical S3 checkpoint/gate and exclusive ownership all preceded generation.
 
 Exit {execution['returncode']}; timeout {execution['timeout']}; source unchanged {execution['source_unchanged_after']}; panel complete {analysis['panel_complete']}; unknown cells {analysis['unknown_cells']}. Diagnostic wall {execution['diagnostic_wall_seconds']:.3f}s, userCPU {execution['cpu_user_seconds']:.3f}s, systemCPU {execution['cpu_sys_seconds']:.3f}s, RSS {execution['max_rss_bytes']}bytes; wall_valid=false. Oneprocess/thread,2GiB/21600s protective watchdog;2048row/4096pair/128candidate gates refuse with retained prefixes, never truncation or rank/recovery stops.
 
