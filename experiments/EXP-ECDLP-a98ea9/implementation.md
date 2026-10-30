@@ -27,3 +27,13 @@ element `[p^{r-1}]P̃` required by the contract.
 
 No `ADV`, no comparator table, no planted ladder, no multiplicative arm.
 Certificate kind is `none`.
+
+## Archived stage-two record parsing
+
+The later S2, S2b, and S2c run manifests have a [named YAML parseability
+obstruction](../../problems/ecdlp-a98ea9-stage2-manifest-parse.md). Their
+original bytes are retained. A text field in S2c says `valid`, but no
+machine-readable stage-two verdict is promoted from these manifests until an
+additive correction and independent validation meet that problem's exit
+criteria. The run-record writer now escapes future multiline string values;
+that change does not rewrite these archived records.

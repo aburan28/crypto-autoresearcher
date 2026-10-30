@@ -1,0 +1,19 @@
+# Local solver CPU comparison evidence
+
+These six records are derived from the sealed successful `EXP-ECDLP-9f7772 / RUN-ECDLP-dba66e` measurements. They cover BL versus rho, BSGS versus BL, and the fixed hybrid versus BL, each for the full 48-curve/m16 panel and the nested 24-curve/m8 core. The core and full records overlap and are not independent replications.
+
+The `claims/` directory contains only validator-compatible comparison inputs. Copy only those six JSON files into the repository's `claims/` directory if publishing them as claim records. `record-manifest.json`, `validation-results.json`, this note and `build_records.py` are supporting handoff files, not inputs to `progress_fidelity portfolio claims/`.
+
+All records use the conservative `local` level. They measure required solver API construction plus solving/internal checks on prevalidated inputs. They explicitly exclude parsing, shared input membership validation, JSON formatting, orchestration, final table teardown and independent replay. Measured memory is limited to payload/CA estimates; per-arm RSS and CPU-model/affinity/frequency metadata are not available. No attack projection or asymptotic exponent is asserted.
+
+One observation is the arithmetic mean CPU cost for a whole curve batch: `(setup + sum(target work))/m`. Outcome counts therefore use curve batches: 48/48 complete full-panel batches or 24/24 complete core batches. Each arm also carries the separate 768/768 or 192/192 checked target counts. Algorithm RNG domains are not falsely declared identical: inputs are matched; rho and hybrid fallback additionally share a target-specific rho stream.
+
+The unmodified validator's local `speedup` is `median(baseline observations) / median(candidate observations)`. It is **not** the report's equal-curve geometric mean of paired candidate/baseline ratios, and it is **not** the ratio of CPU sums. Each record names and retains all three statistics. Compare reciprocal directions carefully. BL and BSGS are established baseline implementations; an observed CPU difference does not establish a new algorithm or exponent. The hybrid records explicitly retain three full-panel prefix hits and 765 rho fallbacks (one prefix hit and 191 fallbacks in the nested core).
+
+`qualified_schema:true` means structurally admissible measurement evidence. Public witnesses were checked by distinct Jacobian arithmetic and recompilation/replay; independent scientific review remains pending. The validator checks declared strings and structure, not linked artifact contents. No independent reviewer, power calculation or certificate is invented.
+
+The study preregistered geometric means, ranges and A/A observations, without bootstrap or an asymptotic fit. The existing dashboard automatically computes a posthoc local median-ratio bootstrap. If CI emits those intervals, they are outside this study's preregistered report and do not replace its estimators or independent review. The comparison metric includes the baseline method name so the dashboard does not rank results against different baselines as the same reference.
+
+BL/rho is a frozen named-baseline comparison. BSGS/BL and hybrid/BL are explicitly additional descriptive pairwise arithmetic from the same prospectively frozen arm matrix, not new preregistered gain criteria. No additional solver measurement, private-label read, sampling, inference or repository mutation was performed to build these records.
+
+Reproduce the evidence files with `python3 -B build_records.py --repo-root /path/to/crypto-autoresearcher --data-dir /path/to/report/data --out-dir /tmp/fresh-comparison-records`. The code reads the raw verification/environment artifacts and the hash-bound per-curve cost extracts. It does not run a solver or open withheld scalar labels. Validate only the resulting `claims/` subdirectory with the unchanged `python3 -B -m tools.progress_fidelity portfolio /tmp/fresh-comparison-records/claims`.

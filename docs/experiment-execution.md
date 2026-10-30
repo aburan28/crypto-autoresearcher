@@ -102,6 +102,9 @@ contain unique canonical relative paths already named in `artifacts`; reserved
 supervisor paths, wildcard exemptions, and missing files are not allowed.
 Listed files may also be nonempty. The independent `check_argv` still runs and
 must validate the scientific meaning of their contents, including emptiness.
+`manifest.yaml` and `raw-result.json` are run records and can never be listed:
+an empty manifest is refused at completion and reported by `check_run`
+(SHF-20261028-0f3f64, LGN-3).
 Empty files receive ordinary SHA-256 bindings, so later modification or deletion
 still requires reconciliation. Adding this field changes the frozen plan hash
 and requires the normal additive approval and claim bindings.
@@ -158,15 +161,48 @@ The driver should write a complete run envelope (`run:` with every field
 `tools/validate_ledger.py` requires). Frozen drivers that write a partial one
 (RUN-SEMBIN-9ecb77 and the runs in DEC-20261017-0fab25) are completed by the
 supervisor after the driver exits 0 and before the checker runs, so the checker
-sees the bytes that get published. Completion only adds missing keys, from the
-plan, the launch authority, `environment.json`, `command.txt` and the
-supervisor's clock; a driver value is never changed, and one that contradicts
-the plan is refused. The only derived value is `certificate.kind: none`, and
-only where the driver recorded `attack_claimed: false`. The result must then
+sees the bytes that get published. Completion only adds missing keys; a driver
+value is never changed. Every driver value with a
+publish-time source is checked against it type-strictly (`1.0`, `true` and `"1"`
+are not `1`), on complete envelopes too, and a contradiction is refused:
+run/experiment/task/trial/hypothesis ids and `approved_by` (plan and trial);
+`code.commit` (launch authority); `code.command` and `code.check_command` (the
+launched argv, as its JSON array, the array itself or shell-quoted);
+the launch binding in `environment.json` (`commit`, source and specification
+hashes, runtime lock; `environment.python` only when the driver ran under the
+supervisor's interpreter, and only that it names that version; never
+`platform`); `inputs.trial_plan`, `plan_sha256`,
+`trial_id`, `seed`, `parameters`, `curve_id` (plan and trial); `timing`
+(started/finished inside the supervisor's driver interval, wall seconds at
+most its duration, 1 s slack for truncated clocks; a time without a zone
+cannot be checked and is refused); `result.metrics` against `run.metrics`; and
+`attack_claimed` against `raw-result.json`. A driver manifest with a duplicate
+key is refused (SHF-20261028-0f3f64, LGN-2 and LGN-5). `command.txt` must equal
+the launched argv, or completion is refused.
+
+Each added key's source is recorded in `run.envelope_completion.sources`
+(`ADDED_FIELD_SOURCES` in `tools/experiment_execution.py`; SHF-20261028-0f3f64,
+LGN-4). There are three kinds. Publish-time facts: ids and `approved_by` from
+the plan and trial, `code.commit` from the launch authority, `code.command` and
+`check_command` from the launched argv (held in memory and checked equal to
+`command.txt`), `environment` from `environment.json`, `inputs` from the plan
+and trial, `timing` from the supervisor clock, and `result.metrics` copied from
+the driver's `run.metrics`. Derived values: `status: completed` (with its
+`status_note`) from exit code 0, and `certificate.kind: none` only where the
+driver itself recorded `attack_claimed: false`. Supervisor constants:
+`code.commit_meaning`, `code.command_file`, `environment.file`,
+`timing.source`, `result.raw_result`, `result.executor_receipt` and
+`artifacts.*`. Three of those pointers name files that do not exist yet when
+the manifest is written: `execution-receipt.json`, `check.stdout.log` and
+`check.stderr.log` are written by the supervisor after completion. The
+published `manifest.yaml` is a `yaml.safe_dump` re-serialisation. Comments
+and source formatting are not kept, and `envelope_completion.representation`
+says so. The driver's exact bytes stay in the receipt. The result must then
 pass `validate_ledger.check_run`; otherwise the trial is `invalid_output`, the
 driver's manifest stays as written, and the refusal is printed to stderr and
 kept in the receipt's `detail`. A completed manifest carries
-`run.envelope_completion` (the driver bytes' SHA-256 and the added keys), and
+`run.envelope_completion` (the driver bytes' SHA-256, the added keys and their
+sources), and
 the receipt's `manifest_completion` keeps the driver's exact text.
 Run and experiment identity checks apply to already complete envelopes too.
 A claimed attack cannot use `certificate.kind: none`; malformed envelope

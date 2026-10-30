@@ -1,0 +1,9 @@
+# Selected implementation scope
+
+DEC-20261030-722a2d supports the exact cold source implication, not actual implementation or cost gain. The first ranked action is the literal active-support multiplication change with fixed correctness controls and the existing prefix interface. It addresses the prior observed unchanged PC work without adding warm reuse or bookkeeping factors. Shared signed charts remain the separate next lane.
+
+The private engine namespace is necessary because frozen `_try_prefix` reads module-global `legacy.refute`; no per-instance callable seam exists. A shallow private legacy namespace overriding only that callable preserves every frozen callback and avoids changing a shared module. Both modes pay the same bridge/common validation; support extraction is candidate-only and charged. No alternative backend or copied callback implementation is needed.
+
+Root-retrieved source notes and their exact read scopes are embedded in source-inputs.json. CCC2015 restriction preservation is established prior art, not proof of literal FIFO/cap behavior; the latter has the separate reviewed source argument. The LPAR2024 incremental-SAT paper motivates retaining both arithmetic proofs and interaction/model coverage, not installed proof-system support or ECDLP performance. The 2024 JACM page returned403; an older mirror404; neither is represented as read. No new literature search or novelty inference occurred here.
+
+The software contract fixes14 cold cases, malformed/source controls and24 synthetic native slots per suite. Assertions of exact expected attempts certify source behavior only. They are not runtime, sample-population or speedup evidence. The future whole-search comparison retains all four encodings, complete projected/signed witness checks and every cost phase.

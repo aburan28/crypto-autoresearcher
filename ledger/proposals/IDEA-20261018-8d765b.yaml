@@ -1,0 +1,143 @@
+# IDEA RECORD -- IDEA-20261018-8d765b
+# RQ-SLHDSA-001 / GOAL-SLHDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-8d765b
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Grafting-tree fault forgery simulated at reduced h and d: faulty signatures needed for
+    a verified universal forgery, by faulted layer
+  class: measurement
+  claim: >-
+    At reduced parameters (h in {8,12}, d in {2,3,4}, w=16, n=16 bytes), a single transient
+    fault in the computation of a non-top-layer subtree root causes the parent WOTS+ key to
+    sign an attacker-useful wrong root; the number of faulty signatures needed until a grafted
+    subtree yields a verified universal forgery is predicted by the WOTS domination count
+    and is at most 8 for faults on layer d-2 at w=16. The number grows with layer height in
+    a way set by how many signatures reuse the parent one-time key, and an implementation
+    that recomputes and compares roots needs zero-false-negative detection to reach parity
+    with the unfaulted scheme.
+  mechanism: >-
+    Upper-layer WOTS+ keys sign the same subtree root every time a signature passes through
+    them, so they are used many times by design and expose one fixed chain-position vector.
+    A fault that corrupts the root being signed makes that key sign a second value, granting
+    the elementwise max of two position vectors. Once the attacker can sign an arbitrary root
+    of their own subtree by domination, they graft a fresh subtree and forge for any message.
+    The layer chosen sets how often a faulted signature hits the same parent key and therefore
+    how many faults are needed.
+  tracked_object: >-
+    Count of faulty signatures until a verified forgery, per faulted layer, plus the per-fault
+    probability that the max-vector dominates a grinding target within 2^24 tries.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Castelnovi, Martinelli, Prest, 'Grafting trees: a fault attack against the SPHINCS framework',
+      PQCrypto 2018 (recalled)
+    verified_by: null
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Genet, Kannwischer, Pelletier, McLauchlan, 'Practical fault injection attacks on SPHINCS',
+      2018 (recalled, hedged)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: median faulty signatures to verified forgery at layer d-2, w=16
+    direction: lower
+    minimum_effect: <= 8
+    falsified_by: median above 8
+  - id: P2
+    metric: faulty signatures needed, layer 0 vs layer d-2
+    direction: higher
+    minimum_effect: '>= 4x more at layer 0'
+    falsified_by: ratio below 4
+  - id: P3
+    metric: forgery rate with recompute-and-compare countermeasure
+    direction: lower
+    minimum_effect: 0 forgeries in 10^4 fault trials
+    falsified_by: any forgery
+  minimal_test:
+    design: >-
+      Toy SLH-DSA signer in Python with tweakable hash = truncated SHAKE256; inject a single
+      random bit flip into the subtree-root register at a chosen layer per signature; adversary
+      grinds to find a dominated root and grafts; every forgery verified by an independent
+      verifier.
+    controls:
+    - 'null: unfaulted signer, same query budget, forgery rate must be 0'
+    - >-
+      positive: fault always on the same parent key with attacker-chosen flip, where the forgery
+      must arrive in the minimal count
+    - 'A/A: layer d-2 arm under two seed blocks'
+  falsification_conditions:
+  - median count at layer d-2 exceeds 8 at w=16
+  - null arm produces any verified forgery (instrument broken)
+  confounders:
+  - grinding budget truncation
+  - independence of fault location
+  - toy hash truncation causing accidental collisions
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - >-
+    Fault class only: deployment-level failure, not a statement about the hash assumption;
+    simulated faults, no hardware.
+  heuristic_assumptions:
+  - id: H1
+    statement: A transient bit flip in the root register is uniformly located
+    rigorous_support: modelling choice
+    validation_plan: sweep fault location as nuisance and report per-location
+  - id: H2
+    statement: Grinding success follows the domination count
+    rigorous_support: exact combinatorics
+    validation_plan: compare measured vs DP prediction
+  target_complexity:
+    time_exponent: faults ~ domination-limited; grinding 2^{O(len)} small at w=16 after 2-3
+      signatures
+    memory_exponent: O(q*len) stored vectors
+    best_known: grafting-tree fault attack on SPHINCS
+    hidden_overhead: verification and grafting cost per attempt
+    tradeoff_note: 'countermeasure cost: one extra subtree recomputation per layer'
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    none_found_after:
+    - >-
+      grep of knowledge/literature for the scheme name and mechanism keywords (drafting session,
+      2026-10-18)
+    - ledger/.index/proposals.jsonl titles and claims for RQ-SLHDSA-001
+    internal_neighbours:
+    - IDEA-20260816-698819
+    - IDEA-20260816-f061f1
+    - IDEA-20260813-7f8d6e
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-SLHDSA-6b5a76
+    experiment_id: EXP-SLHDSA-e9b016
