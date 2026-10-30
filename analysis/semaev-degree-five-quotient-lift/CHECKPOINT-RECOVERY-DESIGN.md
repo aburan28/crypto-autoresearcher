@@ -1,6 +1,6 @@
 # Degree-five producer recovery: implementation design
 
-Status: prospective design, not implemented or qualified. No frontier retry is authorized by this document alone; freeze its exact instrument and inputs after qualification.
+Status: design with an initial compiled candidate; restore and cloud qualification remain outstanding. No frontier retry is authorized by this document alone; freeze its exact instrument and inputs after qualification.
 
 The second bounded-export attempt was interrupted by node shutdown during degree-five production. See `runs/bounded-lift-terminal-002.json`. Stage-start receipts survive, but contain no matrix state. The current general job tool has no on-demand placement selector. The resumable tool accepts only native ecbench specifications on c8a.2xlarge, not an arbitrary Semaev producer. Do not mislabel this computation as an ecbench workload to pass that interface.
 
@@ -23,3 +23,9 @@ Required qualification: uninterrupted versus stop/restore byte equality on exist
 ## Deployment gate and scope
 
 First qualify local restore with an explicit frozen control protocol. Then qualify cloud checkpoint publication, complete GET/hash restoration in a new pod, and original-checker acceptance on a bounded fixture. Only then freeze a new frontier continuation with new request/job identity, inherited exact n47 random00 input, retained failed attempts, resource admission, checkpoint interval, and finite interruption handling. If these gates fail, preserve the degree-six objective and report the exact gap. Forty unfinished local inputs and eleven unfinished panel inputs remain in scope; this recovery work does not replace them.
+
+## Initial candidate interface
+
+`quotient_lift_checkpoint.cpp` includes `quotient_checkpoint.hpp` and retains the ordinary seed/output/chunk/memory arguments. `SEMAEV_CHECKPOINT_DIR` enables immutable numbered snapshots. `SEMAEV_CHECKPOINT_RESTORE` selects one verified snapshot; each binary rejects snapshots from a different executable or seed. `SEMAEV_CHECKPOINT_STOP_AFTER` exits75 after a chosen number of completed snapshots for qualification. `SEMAEV_CHECKPOINT_PUBLISH` optionally names a synchronous executable hook receiving the snapshot path as its only argument, with no shell interpolation. A nonzero hook status stops production. The durable publication/retention hook is not yet implemented; without it, snapshots accumulate locally. Do not launch this candidate at frontier scale in that mode.
+
+The initial candidate checkpoints each completed seed chunk and completed closure round, plus the ready-to-export state. Serialization streams active echelon rows; content SHA256 is stored as a footer. Atomic rename and file/directory fsync complete before a publication hook. The build record is runtime/checkpoint-producer-build-001.json. Compilation is the only validation so far. Qualification must cover the full design gates above before scientific use.
