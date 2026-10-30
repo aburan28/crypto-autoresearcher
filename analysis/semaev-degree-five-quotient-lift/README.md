@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 06:30 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 06:50 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
 The independent n47 random02 D4 recovery certifies LFD at least 5 and is
 published, but does not complete its D5 cascade. The cloud n47 random00 D5
@@ -17,8 +17,10 @@ All 28 mock-storage controls passed with a valid export. Actual S3 publication
 and restoration across distinct pods also passed all 6 rows on3 small Semaev
 fixtures, with original checker and paired exact-count agreement; see
 [cloud report 002](reports/checkpoint-cloud-002/report.md). Those checkpoints
-have relation rank 0. Nonempty matrix cloud recovery and frontier resource
-admission remain required before retrying D5. No cloud worker remains active.
+have relation rank 0. The additional [nonempty matrix controls](reports/checkpoint-matrix-cloud-001/report.md)
+now pass all four actual rows across distinct pods at ranks 2 and 12, including
+independent generic checks. Frontier disk admission and worker integration
+remain required before retrying D5. No cloud worker remains active.
 The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
 LFD-at-least-5 results; its 11 unfinished inputs remain in scope.
 

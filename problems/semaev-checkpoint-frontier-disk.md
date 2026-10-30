@@ -7,3 +7,9 @@ Two maximum snapshots plus the uncompressed seed occupy 10429731008 bytes, leavi
 Next implementation: bind the disk allowance to the worker request; account for runtime files and restore/download staging; preserve a verified phase 2 checkpoint before export; calculate exact certificate size from its relation rank and refuse/defer export if it will not fit. Any refusal retains state and remains inconclusive for LFD. Qualify the allow/refuse boundaries before frontier use. Do not enlarge a Kubernetes limit through an unsupported tool parameter or let an unchecked output trigger eviction.
 
 Exit: checked arithmetic and actual runtime admission, qualified durable phase 2 export refusal, then a frozen frontier attempt with exact original input and independent final checker.
+
+## Implementation boundary discovered in source
+
+The existing producer saves a phase-2 checkpoint immediately before export, so its publication hook can preserve the completed state and refuse an oversized export. However, restoring a phase-2 checkpoint skips the save/hook path and proceeds directly to export. The worker must apply the same exact output-size admission before launching a restored phase-2 child. Qualify both paths; testing only the publication hook is insufficient.
+
+Retain the native binary unchanged if possible. A wrapper can bind policy to the frozen request and protocol, use verified checkpoint metadata to compute output bytes, account for actual work-directory files plus declared overhead, and emit an explicit deferred-export result after verified publication. A deferred export establishes no lower bound until a final certificate is independently accepted. Existing local case000 checkpoint23 is a small phase-2 fixture suitable for both allow and refuse boundary controls. This guard is not implemented or qualified yet.
