@@ -28,3 +28,16 @@ This closes local guard qualification only. End-to-end frontier worker
 integration, startup accounting of seed plus two snapshots plus runtime and
 reserve, and cloud qualification remain open. No frontier job was launched
 by these controls and no new mathematical lower bound was obtained.
+
+## Integrated worker ready for a bounded frontier attempt
+
+Nine real-cloud worker controls passed across distinct source and restore
+pods, with original checker acceptance and exact reference output for all
+completed fixtures. See [report](../analysis/semaev-degree-five-quotient-lift/reports/checkpoint-worker-cloud-002/report.md).
+The retained n47 request uses streamed seed decoding, event checkpoints,
+startup accounting, and exact export admission; its native binary is unchanged.
+After the two-snapshot-plus-seed allowance, 256 MiB reserve, measured bundle
+files (6,685,871 bytes) and archive (2,521,934 bytes), the declared 10 GiB
+capacity has 30,043,971 bytes left before small request/protocol files. This
+is arithmetic, not observed frontier disk use. The worker must admit actual
+filesystem and cgroup state at runtime; an export deferral remains inconclusive.
