@@ -11,39 +11,57 @@ exotic or statistical ideas). They read the summaries in all four repositories:
 decision and evidence records, findings, problem records, study READMEs and
 conclusions, leaderboards and benchmark indexes. Each survey drafted lead rows and
 mapped every ECDLP-area ledger record to a lead. I merged the rows and resolved
-cross-family duplicates. I checked every row with `tools/lead_atlas.py --check
---strict-paths`: every evidence path exists, and every ledger and KR id resolves. I
-then folded in the cryptanalysis `main` work that the first pass could not see (its
-cloned default branch is a stale lineage; see Limitations).
+cross-family duplicates. The original survey ran `tools/lead_atlas.py --check
+--strict-paths` in its checkouts. A later check against published crypto main
+found six study citations then present only on crypto PR #2495 and two walk
+citations still present only on open ecc-challenges PR #56, plus one symlink alias
+that is corrected in the lead row. Crypto PR #2495 has since merged; its four
+distinct study files match current crypto main by Git blob hash. All eight
+citations retain immutable source pins. The [provenance problem](../../../problems/ecdlp-lead-atlas-unmerged-evidence.md)
+tracks the remaining replay and four-repository verification. The original survey also
+folded in cryptanalysis `main` work that its first pass could not see (its cloned
+default branch is a stale lineage; see Limitations).
 
-**Status of each statement.** Dispositions are *derived* from committed evidence and
-cite it. They are not new measurements and change no hypothesis, experiment or goal
-status. Numbers are *measured* values copied from the cited records. Rankings are
-this review's *proposal*.
+**Status of each statement.** Dispositions summarize the cited records. Six
+crypto citations now exist on main, while two walk citations remain on an open
+source PR. All eight remain provisional pending complete controlled replay.
+This report makes no new measurement and changes no hypothesis, experiment or
+goal status. The scoped raw audits described below do not establish the reported
+algorithms' soundness. Rankings are this review's *proposal*.
 
 ![Leads by family and disposition](dispositions.svg)
 
+The chart counts filed dispositions. It does not certify their cited experiments.
+The typeset report is reproducible from `report.typ` with
+`typst compile report.typ report.pdf`; the generated PDF stays out of Git under
+the repository's artifact policy. The coverage table stays in Git because
+`tools/lead_atlas.py --check` reads it by path.
+
 ## Result
 
-- **147 leads**: 72 closed, each with a named obstruction (43 obstructed, 18 known,
-  5 dominated, 6 exhausted at scale), 50 open with a decided next step, 16
-  blocked and 9 unexamined.
-- **Coverage 2049/2049**: every hypothesis and idea in an ECDLP area of the ledger
+- **149 leads**: 72 closed, each with a named obstruction (43 obstructed, 18 known,
+  5 dominated, 6 exhausted at scale), 53 open with a decided next step, 16
+  blocked and 8 unexamined.
+- **Coverage 2078/2078**: every hypothesis and idea in an ECDLP area of the ledger
   maps to a lead (`knowledge/leads/ecdlp/coverage.tsv`). 264 rows are mapped
   `NONE` because they are not about the discrete log: rank records, code-based
   and PQC strays, and arithmetic trivia.
-- **Review pinned**: `REVIEW_STATE.json` records the default-branch commit of each
-  repository: autoresearcher `4fa15469d`, crypto `da3a1b5d5`, cryptanalysis
-  `9760a763d`, ecc-challenges `3a71596ba`. `--delta` is empty, so the session-start
-  brief now says that nothing has changed since the review.
+- **Current coverage reconciliation**: 29 records added after the original review are mapped in [`coverage-20261024-mapping-review.json`](coverage-20261024-mapping-review.json). Two separate transfer questions are open: the approved n=7 GHS cover-floor trial and a proposed Weil-restriction Jacobian-class census. Their proofs, census results, and transfer cost are not yet validated. Coverage is complete for this ledger snapshot; the full cross-repository delta review and review stamp remain open.
+- **Review pinned**: `REVIEW_STATE.json` records the original review's
+  default-branch commits: autoresearcher `4fa15469d`, crypto `da3a1b5d5`,
+  cryptanalysis `9760a763d`, ecc-challenges `3a71596ba`. Its 50/9 tally is
+  historical. The committed rows now tally 53/8 after the hybrid
+  guess-and-determine lead advanced. At this regeneration, `--delta` reports
+  changed watched paths in autoresearcher; the three sibling repositories
+  were not checked out here, so their later changes remain unverified.
 
 | family | leads | closed | open, next step | blocked | unexamined |
 |:--|--:|--:|--:|--:|--:|
 | generic (rho, kangaroo, BSGS, pool) | 26 | 10 | 11 | 2 | 3 |
 | ic-binary | 21 | 11 | 9 | 1 | 0 |
-| ic-engine | 19 | 5 | 7 | 5 | 2 |
+| ic-engine | 19 | 5 | 8 | 5 | 1 |
 | ic-prime | 24 | 10 | 8 | 4 | 2 |
-| transfer | 21 | 14 | 3 | 2 | 2 |
+| transfer | 23 | 14 | 5 | 2 | 2 |
 | structure | 17 | 14 | 3 | 0 | 0 |
 | exotic | 19 | 8 | 9 | 2 | 0 |
 
@@ -108,9 +126,10 @@ advice, Bernstein–Lange rho is 53–317x faster online.
    four-list O2 kernel (`LEAD-EXO-four-list-ktree-join`), and claims K1 and K2 of
    the Miller cocycle (`LEAD-EXO-miller-pairing-cocycle`).
 
-New leads added by this review (`open_unexamined`):
+New leads added by the original review:
 `LEAD-ICE-linearization-excess-fb-prior`, `LEAD-ICE-hybrid-guess-determine-l7` and
-`LEAD-TRF-teske-trapdoor-fp6-weak-class`. The surveys proposed nine more
+`LEAD-TRF-teske-trapdoor-fp6-weak-class`. The hybrid lead now has measured
+evidence and an `open_next_step` disposition. The surveys proposed nine more
 candidates; `--match` found each one already present as a lead or a KR row. That
 is the gate doing its job.
 
@@ -164,8 +183,9 @@ is the gate doing its job.
 - **Review.** The `lead-atlas` skill folds a non-empty delta into leads, then runs
   `--check` and `--stamp`. CI and `make check-ledger` run `--check`.
 - **Saturation.** No unexamined lead, no unmapped record, and nothing new since
-  review. Today two of the three gates hold: every record is mapped and nothing has
-  changed since the review. Nine leads remain unexamined. Saturation is reported,
+  review. At this regeneration, only the mapping gate holds in this checkout:
+  eight leads remain unexamined and `--delta` reports changed watched paths.
+  Sibling-repository changes were not checked here. Saturation is reported,
   never used to pause a goal.
 
 ## Limitations
@@ -180,7 +200,25 @@ is the gate doing its job.
   Tooling-only changes were not.
 - **Unvalidated sources.** Every gap figure is copied from unvalidated (pre-gate)
   rows.
+- **Source and validation gap.** Six study citations retain the immutable
+  [crypto PR #2495](https://github.com/aburan28/crypto/pull/2495) pin
+  `1397a09db5fb48edc2f9c2edca78035a2e4da5ca`. The PR merged as
+  `19ecb8d37f8d8523a14e5014ba9a7172e02111aa`, and its four distinct cited
+  study files are byte-identical on crypto main `5cb553810e5bbfbd8691ec614ffcaacefc625757`
+  ([merged-source check](crypto-merged-source-check.json)). Scoped raw audits
+  reproduced [Table B cost fields](tableb-ledger-audit.json),
+  [six rule-v4 paired ratios](v4-pair-audit.json) and
+  [ten hybrid minimum guess counts](hybrid-raw-audit.json)
+  ([recompute script](audit-crypto-hybrid.py)); they did not rerun the algorithms
+  or close current-main CI. Two walk citations are pinned to open
+  [ecc-challenges PR #56](https://github.com/aburan28/ecc-challenges/pull/56)
+  at `1f49962624b13fbed4a3e9ad980d757f5fa5bc59`, which is currently
+  conflicted. The four cryptanalysis branch-ref paths and the eight
+  `ecc-challenges` paths were verified through the GitHub content API at their
+  cited commits ([16-file path receipt](source-path-check.json)), but not
+  through a complete local four-repository replay.
 
 Sources: the lead rows (`knowledge/leads/ecdlp/<family>/`), each citing its own
-records; the snapshot of all rows (`atlas-snapshot.md`); figures (`figures.py`,
-drawn only from committed rows and the cited leaderboard and sweep values).
+records; the snapshot of all rows (`atlas-snapshot.md`); the scoped source-path
+receipt (`source-path-check.json`); figures (`figures.py`, drawn only from
+committed rows and the cited leaderboard and sweep values).
