@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 20:50 UTC): the separate D4 panel has 24 terminal inputs
+Status (2026-10-30 21:15 UTC): the separate D4 panel has 24 terminal inputs
 of 32, including 17 certified LFD-at-least-5 results. The latest completed
 input, n45 polynomial01, has independently accepted codimension 12,742 and
 fresh exact count zero. Its certificate is published with full public and
@@ -33,11 +33,16 @@ The blocked rewrite with bounded export and native checkpoints has passed
 [native](reports/blocked-checkpoint-001/report.md) and
 [local worker](reports/blocked-checkpoint-worker-001/report.md) reports.
 Its first cloud source job reached its scheduling deadline without executing
-controls. Following the frontier interruption and capacity reconciliation,
-a [second cloud-control protocol](blocked-checkpoint-worker-cloud-protocol-002.json)
-is frozen with the same three fixtures, package, checker, limits, and placement
-guards. All six source controls and three distinct-pod restore controls must
-pass before its large-input execution. Candidate checkpoints remain bound
+controls. The second cloud qualification completed all nine controls: three fresh
+certificates, three deliberate checkpoint stops, and three restored certificates
+in a distinct pod. All six completed certificates match their references and
+pass the original checker; all 556 archived file hashes verify. The
+[report and export](reports/blocked-checkpoint-worker-cloud-002/report.md)
+retain the results; export validation returned zero findings and the PDF was
+inspected. The next large input is n47 random02, with a
+[frozen blocked protocol](rand02-blocked-frontier-protocol-001.json) pinning
+that qualification. Its actual memory/disk admission and fresh exact count
+remain part of the worker execution. Candidate checkpoints remain bound
 to the candidate binary; they cannot restore the original binary's state.
 
 Seven of 47 original high-memory inputs have terminal records; 40 remain
