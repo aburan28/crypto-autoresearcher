@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 16:20 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 16:52 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
 No independently checked LFD-at-least-6 result exists. The independent n47
 random02 D4 recovery certifies only LFD at least 5 and is published; it does
@@ -43,7 +43,10 @@ independently accepted D4 codimension 31,780 and fresh exact count 0. Its
 [verified public/store publication](panel-local-archive-001/fresh-n44-rand-04-local01.publication.json)
 are retained. The [reconciled inventory](runtime/panel-remaining-after-local001.json)
 binds all 22 terminal result records and preserves the ten unfinished n45 inputs.
-No local panel solver remains active at this snapshot.
+The original `fresh-n45-poly-00` input is now running locally under the
+[frozen local plan](panel-local-n45-poly00-protocol-001.json). Fresh exact
+enumeration returned four solutions; D4 production remains unfinished.
+The ten unfinished inputs include this active item.
 
 The next original unfinished high-memory item is n47 random02. Its
 [read-only dimension profile](reports/rand02-envelope-001/report.md) gives
@@ -58,7 +61,14 @@ also establish no upper bound.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
-or established a measured speed advantage.
+or established a measured speed advantage. A separate integration of that
+rewrite with bounded export and native checkpoints passed all 28 fixed
+configurations: seven reference, seven fresh, seven deliberately stopped and
+seven restored. All 21 completed certificates reproduce retained hashes and
+pass independent checks; a rank-4 checkpoint is covered. The
+[integration report](reports/blocked-checkpoint-001/report.md) is small-fixture
+software evidence only. The candidate has not replaced the frontier worker
+and cannot restore the old binary's checkpoints.
 
 The dense producer works in every monomial of degree at most five. This
 prototype first rewrites degree-five monomials using a triangular, checked
