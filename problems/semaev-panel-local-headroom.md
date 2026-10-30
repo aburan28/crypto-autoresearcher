@@ -1,5 +1,13 @@
 # Original n45 panel inputs need local memory headroom
 
+Update 2026-10-30 20:31 UTC: local03 also refused before worker launch,
+available39,264,284,672bytes. The [third refusal](../analysis/semaev-degree-five-quotient-lift/validation/panel-local-n45-poly02-refusal-003/result.json)
+preserves the measurement. Two earlier sufficient readings did not persist
+through preparation. Next construction: a bounded pre-worker admission wait,
+with every sample retained, unchanged cap/reserve and both ownership locks,
+rather than another immediate attempt based on stale headroom. This needs
+implementation checks and a new prospective execution record.
+
 Update 2026-10-30 20:21 UTC: separately frozen polynomial02 local02 was
 also refused, with available39,073,169,408bytes below45,097,156,608required.
 Headroom had temporarily recovered during preparation but fell before
