@@ -76,6 +76,35 @@ candidate left in `formal/` would mark every later task in that workspace
 
 A successful result sets `needs_semantic_review=true`. `verification_outcome_from_formal_result` therefore reports a mechanically successful proof as `INCONCLUSIVE` until a separate reviewer confirms semantic fidelity. The reviewer must compare the Lean proposition with the original `claim` and reject vacuous statements, weakened quantifiers, hidden assumptions, or claims proved only from impossible premises.
 
+### Hypothesis deltas, proof maps and errata
+
+These three rules are adopted from Axiom Math's agent-built Lean proof of the
+classification of finite simple groups (`KN-LIT-63f33d`). At 43 million lines,
+that project reports these as the failure modes that mattered. This lane has
+already hit the first one: the frozen Semaev target was cited for a uniform
+degree-two first fall, but its theorem proves only a trace identity
+(`formal/targets/corrections/2026-10-25-semaev-s3-degree-two.md`).
+
+1. **Hypothesis delta.** The semantic reviewer lists every hypothesis of the
+   elaborated Lean type that the claim lacks. Each row is marked `implied`,
+   `scoping` or `unjustified`. Any non-`implied` row narrows every record
+   that cites the theorem
+   (`.claude/skills/review-evidence/references/lean-review.md` §3).
+2. **Proof map.** A target that builds on other targets, or takes a statement
+   as given without proving it, says so in an optional `proof_map` block:
+   `depends_on` lists sibling target specs, and `prerequisites` lists the
+   unformalized statements in words. `load_spec` rejects a dependency that
+   names no existing spec. Each prerequisite is copied into the dispatch
+   stanza's constraints, so the executor and reviewer see the hole. Write the
+   map before formalizing. A hidden prerequisite found mid-attempt is
+   recorded there, not proved silently in a helper lemma. Add the block only
+   to new specs. Receipts bind a committed spec's hash, so the map of an
+   existing chain goes in `formal/targets/README.md`.
+3. **Errata.** When a formalization shows that a source note or published
+   lemma is false or under-hypothesized, the counterexample becomes a
+   correction record or a `KN-OPEN`/`KN-LIT`. Do this even when the attempt
+   is abandoned (lean-review.md §5).
+
 A valid `formally_refuted` result is not classified as infrastructure or verifier failure. It is recorded as contradictory evidence requiring review, preserving the Research Loop v2 invariant that scientific falsification and broken execution are distinct outcomes.
 
 ## Successor generation

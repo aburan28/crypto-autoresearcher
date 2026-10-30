@@ -18,7 +18,11 @@ wins over a skill, a runtime file or a generated block.
 
 ## Observe first; interpret later
 
-Before planning or reporting research, read and follow the complete [observation-first rule](docs/agent-contract-extended.md#observe-first-interpret-later). Its observation, interpretation, ownership, performance-scope, and evidence requirements are binding; they supersede an improvement-only definition of research success.
+Lead with scoped results and checks, recognize component progress, and pursue
+the next technical step. Follow the
+[observation and communication rule](docs/agent-contract-extended.md#observe-first-interpret-later)
+for evidence, ownership, comparison scope, and the 2026-10-30 rule against
+repeated overall-goal verdicts.
 
 ## Name the obstruction
 
@@ -362,10 +366,9 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 ## Concurrency: many agents, many worktrees
 
-- **Generated artifacts are never committed**: `knowledge/INDEX.md`,
-  `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
-  rebuilt on demand; only `main-health.yml` writes the committed
-  `coordination/portfolio_health/latest.json`.
+- **Generated artifacts**: `knowledge/INDEX.md`, `coordination/**/dispatch_plan.*`,
+  and `ledger/.index/` are gitignored. `main-health.yml` archives its cache;
+  checked-in `coordination/portfolio_health/latest.json` is historical pending review.
 - **`main` takes merge commits only** (repository setting; never squash or
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).

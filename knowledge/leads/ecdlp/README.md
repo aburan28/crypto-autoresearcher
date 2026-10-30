@@ -23,11 +23,17 @@ python3 tools/lead_atlas.py --stamp <session> # close a review: pin every repo's
 
 ## Why it exists
 
-By 2026-10-24 the ledger held 2,049 ECDLP-area hypotheses and ideas. 971 of its
+At the first 2026-10-24 review the ledger held 2,049 ECDLP-area hypotheses and ideas. 971 of its
 1,031 hypotheses (94%) had no terminal status. Every new session re-surveyed the same ground, and idea generation
 re-proposed mechanisms that an earlier lane had already measured or closed. The
 known-results map stops re-derivation of *published* results. Nothing stopped
 re-derivation of *our own*.
+
+The later 2026-10-24 coverage reconciliation maps 2,078 current records. Its
+29 new mappings and two open transfer leads are recorded in
+`docs/reports/ecdlp-lead-atlas-20261024/coverage-20261024-mapping-review.json`.
+`REVIEW_STATE.json` still identifies the earlier four-repository review; coverage
+alone does not certify a fresh review of every changed sibling path.
 
 ## What "already done" means
 

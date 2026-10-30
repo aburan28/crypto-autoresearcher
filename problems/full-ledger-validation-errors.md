@@ -4,7 +4,7 @@
 - **Kind:** archived-record integrity gap, review-provenance gap, and a zero-compute classification gap; the cause of each individual error needs separate adjudication
 - **Affected work:** [full corpus audit](../docs/reports/2026-10-21-ledger-integrity-audit/report.md), [`validate_ledger.py`](../tools/validate_ledger.py), and repository-wide claims that the archived experiment and decision corpus has a clean integrity gate
 - **Next action owner:** Coordinator for scoped record corrections and source-reader assignments; validator maintainers for any schema change
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-10-28
 
 ## Problem
 
@@ -17,6 +17,16 @@ unsuppressed errors include missing provenance, incomplete review plans,
 malformed or incomplete experiment/run records, and unresolved cross-record
 references. These are mechanical failures requiring record-by-record review,
 not 162 established false scientific conclusions.
+
+The newer [2026-10-28 hosted-job inventory](../docs/reports/2026-10-28-ledger-validation/REPORT.md)
+compares two complete-tree `ledger` CI jobs on heads `64da2f50560c3565c36880fc86b0aad8addeb223`
+and `a94a304f1e76d81e4a9899e8bcb709b8fdb0e21c`. Each fails with the same
+**65 unsuppressed errors in 22 paths**: 30 handoff review-plan messages, 30
+run-manifest schema messages, four proposal prior-art messages, and one
+experiment-specification classification message. The exact normalized error
+sets match with zero added or removed messages. This is the current observed
+hosted gate, not a local rerun on the later `main` merge commit. The earlier
+162-error count above remains bound to its named October 21 commit.
 
 One special case is a hand-derivation Stage 0 filed in the run namespace.
 [`RUN-QSP-33b442-S0`](../experiments/EXP-QSP-33b442/runs/RUN-QSP-33b442-S0/manifest_v2.yaml)
@@ -114,6 +124,13 @@ historical archives need their own scoped checks before an all-corpus claim.
   then a full current-head ledger run and local dashboard integrity check.
 
 ## Resolution and history
+
+- 2026-10-28: Two hosted `ledger` jobs fail with identical 65-message sets
+  across 22 paths. The [current inventory and chart](../docs/reports/2026-10-28-ledger-validation/REPORT.md)
+  preserve each path and message plus source job URLs and log hashes. No
+  archived data, validator code, baseline, numerical result, or canonical
+  performance graph was changed. The full-ledger gate and this problem remain
+  open.
 
 - 2026-10-21: Opened after two byte-identical full-checkout validator runs.
   No baseline entry, archived record, hypothesis, or numerical result was
@@ -239,3 +256,7 @@ historical archives need their own scoped checks before an all-corpus claim.
   SHA-256 is `fcfd4769d535c68be0a84d74dfb9a3f775d9cd9c740491cbf463b2ad30f06590`;
   this is a new current-tree check, not a revision of the frozen 118-to-88
   source correction receipt.
+
+- 2026-10-30: Complete original post-merge job `41001067477` contained **38**, not six, errors. PR #2764 repaired six focused errors; subsequent complete job `41013419479` reports 32. The [remaining schema repair](../reports/ci-remaining-ledger-schema-20261030/README.md) reproduces those 32 and removes 31 in focused native validation, preserving all archived originals. The [last run capture gap](binstd-f7ca97-original-execution-captures-missing.md) remains open. This is a dated correction to the earlier focused count, not a clean whole-corpus claim.
+
+- 2026-10-30 follow-up: Complete #2771 CI reveals16new parser regressions outside its14-record focused set, leaving17whole-corpus errors (16shared-quantity-layout errors plus the original missing RUN-BINSTD-f7ca97 captures). The [shared-quantity correction](../reports/ci-shared-blind-quantity-repair-20261030/README.md) reproduces17affected findings and reduces them to1 with44focused controls and all7320archived plan paths checked. No baseline, frozen plan or capture requirement changes; fresh complete hosted checks remain required.

@@ -10,7 +10,15 @@
   RQ-ECDLP-002, GOAL-ECDLP-001 and GOAL-ICEX-001 (existing goal states unchanged;
   design-only work is recorded under BATCH-c406ea)
 - **Next action owner:** Coordinator, for mechanism selection and runnable design
-- **Last updated:** 2026-10-26
+- **Last updated:** 2026-10-27
+
+## Retained-equation diagnosis and new leads — 2026-10-27
+
+The [new search report](../research/prym_leads_20261027/README.md) examines nine mechanism branches and files five falsifiable adaptations under DEC-20261027-918bc2. This round reuses sealed data; it ran no new scientific trial or target. The97/67 native witnesses contain exactly13/9 distinct projected affine equations, all independent. Every duplicate multiplicity is explained by choosing admissible interpolation triples from the same complete six-zero principal divisor. Thus the finite deficiency is insufficient distinct equation diversity, with no additional dependency among the distinct rows.
+
+No individual unknown atom log is identifiable from either retained matrix, but one weighted two-atom functional is identifiable in each. This supports target-row-space certification without resolving natural prescribed-Q descent. The first new collector comparison is [isolatedx=0 source/interpolation completion](../ledger/proposals/IDEA-20261027-d5c1ee.yaml), keeping the original base, source order and cubic law. Existing projectivepi2 and independent witness verification already handle residualx=0; the excluded source/constraint guards are the specific changed ingredient. Acceptance/rank for that change remain unseen. Pole completion, partial cycles and aligned same-E covers are separate proposals. None is approved for execution by this update; complete costs and the public target-return interface remain open.
+
+The earlier [PR2560](https://github.com/isogeny-labs/crypto-autoresearcher/pull/2560) is now merged atfd387705. The original32covers catalogue is still unidentified. All historical evidence and scientific statuses below remain as recorded.
 
 ## Current checked state — 2026-10-26
 
