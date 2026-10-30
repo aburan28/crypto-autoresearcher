@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import traceback
 
 HERE = Path(__file__).resolve().parent
@@ -19,6 +20,7 @@ sys.path.insert(0, str(HERE))
 def suite():
     import engine
     import check
+    import driver
     limits = {"degree": 2, "rows": 256, "pc_calls": 512, "native_conflicts_per_call": 20000,
               "native_decisions_per_call": 20000, "outer_calls": 9}
     cases = [
@@ -27,15 +29,29 @@ def suite():
         ("empty", 2, 2, [{0: 1}], [], None, [], [0, 1, 2]),
         ("fiber", 3, 1, [{1: 1}], [[-2, -3]], 3, [0], [0, 1, 3]),
     ]
-    assertions, transcripts = [], {}
+    assertions, transcripts, worker_records = [], {}, {}
     def demand(name, value):
         assertions.append({"name": name, "passed": bool(value)})
         if not value:
             raise AssertionError(name)
     for name, n, m, polys, domain, bound, expected, schedule in cases:
         for strategy in engine.STRATEGIES:
-            ring = engine.legacy.CountedRing(n, 5)
-            answer = engine.solve(ring, polys, domain, m, limits, strategy, schedule)
+            inp = {"p": 5, "n": n, "projected_bits": m, "polynomials": polys,
+                   "domain": domain, "prefix_depths": schedule, "expected_models": expected}
+            if bound is not None:
+                inp["aux_bound"] = bound
+            job = {"id": name + "-" + strategy, "cell_id": name, "input": inp,
+                   "encoding": "synthetic", "strategy": strategy, "limits": limits}
+            with tempfile.TemporaryDirectory(prefix="psearch-software-") as directory:
+                output = Path(directory)
+                row = driver.bounded_arm(job, output, 5)
+                demand(job["id"] + "/worker", row["worker"]["returncode"] == 0)
+                answer = json.loads((output / row["transcript"]["artifact"]).read_text())
+                partial = json.loads((output / "transcripts" / (job["id"] + ".partial.json")).read_text())
+                demand(job["id"] + "/durable_partial", partial == answer)
+                worker_records[job["id"]] = {"row": row,
+                    "stdout": (output / row["worker"]["stdout"]["artifact"]).read_text(),
+                    "stderr": (output / row["worker"]["stderr"]["artifact"]).read_text()}
             checked = engine.adapter.verify_transcript(5, n, m, polys, domain, answer, aux_bound=bound)
             key = name + "/" + strategy
             demand(key + "/complete", answer["status"] == "complete" and checked["projected_model_set_complete"])
@@ -81,7 +97,8 @@ def suite():
     mutations = check.mutation_controls()
     for name, result in mutations.items():
         demand("mutation/" + name, result["rejected"])
-    print(json.dumps({"assertions": assertions, "transcripts": transcripts, "environment": engine.environment()},
+    print(json.dumps({"assertions": assertions, "transcripts": transcripts, "worker_records": worker_records,
+                     "environment": engine.environment()},
                      sort_keys=True), flush=True)
     return 0
 
@@ -106,6 +123,9 @@ def main():
             raise ValueError("frozen source mismatch before suite: " + name)
     argv = [sys.executable, "-B", str(Path(__file__).resolve()), "--child"]
     attempt = {"started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "argv": argv,
+               "parent_argv": [sys.executable, "-B", str(Path(__file__).resolve()), *sys.argv[1:]],
+               "reason": "Initial native solver controls" if not prior["attempts"] else
+                         "Validate durable subprocess path and strengthened offline/censor accounting on the same fixed controls",
                "sources": {str(p.relative_to(ROOT)): {"sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
                                                        "text": p.read_text()} for p in paths},
                "frozen_sources": frozen}
@@ -120,8 +140,10 @@ def main():
     attempt["finished_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     attempt["frozen_sources_unchanged"] = all(hashlib.sha256((ROOT / p).read_bytes()).hexdigest() == h
                                              for p, h in frozen.items())
+    attempt["local_sources_unchanged"] = all(hashlib.sha256((ROOT / p).read_bytes()).hexdigest() == data["sha256"]
+                                            for p, data in attempt["sources"].items())
     prior["attempts"].append(attempt)
-    prior["valid"] = attempt["returncode"] == 0 and attempt["frozen_sources_unchanged"]
+    prior["valid"] = attempt["returncode"] == 0 and attempt["frozen_sources_unchanged"] and attempt["local_sources_unchanged"]
     from driver import write
     write(args.receipt, prior)
     print(json.dumps({"attempt": len(prior["attempts"]), "returncode": attempt["returncode"],

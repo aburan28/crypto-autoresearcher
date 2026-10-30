@@ -73,6 +73,8 @@ def counters_check(answer, n, limits):
     require(events["pc_attempted_rows"] == sum(a["attempted_rows"] for a in attempts), "PC row accounting")
     require(events["pc_field_inverse_calls"] == sum(a["rank"] for a in attempts), "PC inverse accounting")
     require(events["pc_unknown"] == sum(a["status"] == "unknown" for a in attempts), "UNKNOWN accounting")
+    require(events["partial_attempts"] == sum(a["trigger"] == "partial" for a in attempts), "partial attempt accounting")
+    require(events["model_attempts"] == sum(a["trigger"] == "model" for a in attempts), "model attempt accounting")
     require(events["pc_capped_calls"] == sum(a["resource_capped"] for a in attempts), "row cap accounting")
     require(events["accepted_models"] == len(answer["models"]), "model accounting")
     require(events["partial_refutations"] == sum(x["trigger"] == "partial" for x in answer["learned"]), "partial proof accounting")
@@ -91,6 +93,11 @@ def counters_check(answer, n, limits):
             require(0 <= a["depth"] <= a["contiguous_depth"] <= a["assigned_count"] < n,
                     "fully assigned work mislabeled as partial")
     require(answer["certificate_bytes"] == len(engine._compact(answer["learned"])), "certificate size accounting")
+    require(answer["limits"]["degree"] == limits["degree"] and answer["limits"]["rows"] == limits["rows"] and
+            answer["limits"]["pc_calls"] == limits["pc_calls"], "declared PC limits differ")
+    require(events["sat_calls"] <= answer["limits"]["outer_calls"], "outer call bound exceeded")
+    for name in ("native_conflicts_per_call", "native_decisions_per_call"):
+        require(answer["limits"][name] == limits[name], "native budget mismatch")
     total = Counter()
     for phase in costs["arithmetic_breakdown"].values():
         total.update(phase)
@@ -161,17 +168,24 @@ def verify(raw_path):
                 if checked["projected_model_set_complete"]:
                     require(projected == expected, "complete projected set differs from reference")
                 if not row["censoring"]["watchdog"]:
+                    require(row["environment"] == answer["environment"] == raw["environment"], "environment mismatch")
                     n = job["input"]["n"] if category == "controls" else 2 * job["input"]["s"] + (
                         job["input"]["p"].bit_length() if job["encoding"] in ("quadratic", "quadratic_aa") else 0)
                     counters_check(answer, n, config["limits"])
                     for phase in ("search_arithmetic", "search_events", "online_certificate_check", "sat_native"):
                         require(row["phases"][phase] == answer["costs"][phase], "phase provenance mismatch")
+                    require(Counter(answer["costs"]["online_certificate_check"]) == Counter(checked["costs"]["identity_check"]),
+                            "online identity work differs from independent term-pair count")
                     for field in ("declared_status", "projected_models", "cover_complete", "projected_model_set_complete"):
                         require(row["result"][field] == checked[field], "reported result differs from checker")
                     require(row["result"]["stop_reason"] == answer["stop_reason"], "stop reason mismatch")
                     if category == "search":
                         require(row["phases"]["construction"] == checked["costs"]["construction"], "construction cost mismatch")
                         require(row["phases"]["reconstruction"] == checked["costs"]["witness_reconstruction_and_check"], "reconstruction cost mismatch")
+                        expected_offline = {k: v for k, v in checked["costs"].items() if k != "witness_reconstruction_and_check"}
+                    else:
+                        expected_offline = checked["costs"]
+                    require(row["phases"]["offline_verification"] == expected_offline, "offline verification cost mismatch")
                 if category == "controls":
                     require(checked["projected_model_set_complete"], "censored control is inconclusive")
                     early = [x for x in answer["learned"] if x["trigger"] == "partial" and x["depth"] < job["input"]["n"]]
@@ -182,10 +196,13 @@ def verify(raw_path):
                 answers[(row["cell_id"], row["encoding"], row["strategy"])] = answer
                 checks.append({"id": row["id"], "valid": True, "status": checked["declared_status"],
                                "projected_count": len(projected), "cover_complete": checked["cover_complete"]})
-        aa_pairs = 0
+        aa_pairs, aa_censored = 0, []
         for (cell, encoding, strategy), answer in answers.items():
             if strategy == "partial_prefix":
                 repeat = answers[(cell, encoding, "partial_prefix_aa")]
+                if answer["status"] != "complete" or repeat["status"] != "complete":
+                    aa_censored.append({"cell_id": cell, "encoding": encoding, "decision": "inconclusive"})
+                    continue
                 # Same source and native seed: exact deterministic work identity.
                 for field in ("status", "models", "learned", "attempts", "costs", "certificate_bytes", "stop_reason"):
                     require(answer[field] == repeat[field], "A/A mismatch: " + cell + "/" + encoding + "/" + field)
@@ -193,7 +210,7 @@ def verify(raw_path):
         expected_mutations = mutation_controls()
         require(controls["mutations"] == expected_mutations and all(x["rejected"] for x in expected_mutations.values()),
                 "mutation controls failed")
-        return {"valid": True, "findings": [], "rows": checks, "aa_pairs": aa_pairs,
+        return {"valid": True, "findings": [], "rows": checks, "aa_pairs": aa_pairs, "aa_censored": aa_censored,
                 "reference_cells": len(refs), "execution_counters_independently_replayed": False,
                 "scope": "checked identities, projected completeness, references and counter consistency; no speedup claim"}
     except (ValueError, KeyError, TypeError, OSError, AssertionError) as error:

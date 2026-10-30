@@ -128,6 +128,7 @@ def worker(job, output):
 
 
 def bounded_arm(job, output, watchdog):
+    started = time.monotonic()
     for directory in ("transcripts", "rows", "logs"):
         (output / directory).mkdir(exist_ok=True)
     stdout = output / "logs" / (job["id"] + ".stdout.txt")
@@ -154,7 +155,9 @@ def bounded_arm(job, output, watchdog):
                    phases=None, environment=engine.environment(),
                    censoring={"watchdog": timed_out, "native_limit": False})
     row["worker"] = {"argv": argv, "returncode": returncode, "timed_out": timed_out,
-                      "stdout": artifact(output, stdout), "stderr": artifact(output, stderr)}
+                      "stdout": artifact(output, stdout), "stderr": artifact(output, stderr),
+                      "parent_observed_wall_seconds": time.monotonic() - started,
+                      "includes_process_startup": True, "wall_comparison_valid": False}
     write(row_path, row)
     return row
 
