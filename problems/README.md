@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Legacy ledger YAML parse debt remains in 15 records](legacy-ledger-yaml-parse-debt.md) | open | An unqualified full-ledger parseability claim and downstream validation of 15 baselined records | Immutable, semantically reviewed schema successors for all 15, shrink the baseline, pass absolute hygiene and ledger validation |
 | [Native snapshot artifact-manifest resolution](native-snapshot-artifact-manifest-resolution.md) | open | Native raw-snapshot completion for declared outputs published through `.artifacts.json` | Commit-bound manifest resolution, corruption controls and an unchanged-receipt publication/retrieval fixture |
 | [Formal workspace build does not fit in 16 GB of RAM](formal-workspace-build-exceeds-16gb.md) | investigating | Whole-workspace `lake build` in one 15 GiB container: `Semaev.BooleanParityDegreeThreeRankCertificate` was OOM-killed (exit 137); the hosted `ubuntu-latest` gate built it and verified 87 targets on 2026-10-28, so the cause is unknown | Peak-RSS measurement on the hosted runner and on a larger host, and a comparison of RAM, swap and cgroup limits with the killed container |
 | [EXP-ECDLP-a98ea9 stage-two run manifests do not parse](ecdlp-a98ea9-stage2-manifest-parse.md) | open | Machine-readable adjudication of three archived stage-two runs, including one textually marked valid | SHA-bound additive parse corrections, independent raw-output and artifact validation, and explicit consumer selection |
@@ -155,3 +156,7 @@ Coordinator decision and evidence.
 - [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
 
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
+
+| [BINSTD f7ca97 original execution captures are missing](binstd-f7ca97-original-execution-captures-missing.md) | investigating | Complete native envelope and clean full-ledger claim for a real invalid-output run | Recover run-bound original command/environment captures, add a source-bound envelope preserving failure, and pass unchanged native/full checks |
+
+- [ECDLP lead atlas source and validation gap](ecdlp-lead-atlas-unmerged-evidence.md) — crypto study files now match merged main, while source CI, full replay, the open ecc-challenges PR and four-repository validation remain pending.
