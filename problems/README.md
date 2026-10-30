@@ -12,6 +12,7 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Semaev degree-five lift exceeds the frozen 64 GiB envelope](semaev-degree-five-lift-exceeds-64gib.md) | open | n47 random00 D4 certificate accepted, but D5 allocation refused; LFD >= 5 retained and degree six unknown | Derive exact capacity from the accepted seed, then qualify a prospective instrument and host placement |
 | [Formal workspace build does not fit in 16 GB of RAM](formal-workspace-build-exceeds-16gb.md) | investigating | Whole-workspace `lake build` in one 15 GiB container: `Semaev.BooleanParityDegreeThreeRankCertificate` was OOM-killed (exit 137); the hosted `ubuntu-latest` gate built it and verified 87 targets on 2026-10-28, so the cause is unknown | Peak-RSS measurement on the hosted runner and on a larger host, and a comparison of RAM, swap and cgroup limits with the killed container |
 | [EXP-ECDLP-a98ea9 stage-two run manifests do not parse](ecdlp-a98ea9-stage2-manifest-parse.md) | open | Machine-readable adjudication of three archived stage-two runs, including one textually marked valid | SHA-bound additive parse corrections, independent raw-output and artifact validation, and explicit consumer selection |
 | [Formal workspace CI ends before target audits finish](formal-workspace-ci-timeout.md) | investigating | Formal runtime gate passed on ccee4e1; final current-main merge checks remain | Complete current-main integration CI with all existing checks and the validated 60-minute envelope |

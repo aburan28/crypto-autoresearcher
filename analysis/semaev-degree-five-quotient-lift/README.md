@@ -1,8 +1,8 @@
 # Degree-five closure through a checked degree-four quotient
 
 Status (2026-10-30): the degree-six search continues; no degree-six bound has
-been obtained. Five of 47 high-memory continuation inputs are terminal, all
-retaining LFD at least 5. The other 42 include the live n47 random input 00.
+been obtained. Six of 47 high-memory continuation inputs are terminal, all
+retaining LFD at least 5. The other 41 include the live n47 random input 01.
 Degree-five codimension equality and killed-constant projections establish no
 upper bound. The separate remote D4 continuation has 19 of 32 inputs completed,
 including 12 certified LFD at least 5 bounds; see the
@@ -139,3 +139,7 @@ The continuation-specific [publication linkage](highmem-archive/fresh-n47-poly-0
 ## High-memory continuation: five terminal results
 
 The [fourth immutable snapshot](reports/highmem-progress-004/report.md) adds polynomial-basis inputs02–04 at n47. All retained D4 certificates and fresh checker/count transcripts were verified. Inputs02 and04 have accepted D5 codimension2 equal to their exact count2; input03 killed the constant at D5. All retain LFD>=5, with no degree-six or upper bound. Five newly archived stages passed anonymous public and canonical-store readback verification. The continuation now has five terminal and42 unfinished inputs; the live random input00 remains unfinished. These are continuations of original named inputs, not additional independent draws.
+
+## n47 random input 00: accepted D4, capped D5
+
+The [fifth immutable snapshot](reports/highmem-progress-005/report.md) records six terminal inputs and no degree-six bound. The original independent checker accepts the D4 certificate with codimension lower bound 61,196 and exact solution count 0, establishing LFD >= 5. The following D5 lift was refused by the frozen 64 GiB allocation gate. This leaves degree six and upper bounds unknown. The [resource obstruction record](../../problems/semaev-degree-five-lift-exceeds-64gib.md) preserves the next capacity and qualification requirements; the active driver continues the remaining frozen inputs unchanged.
