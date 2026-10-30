@@ -235,14 +235,19 @@ reading.
   near the cutoff dominate it. The two are only loosely correlated. A test of
   the L-value reading would use the weighted partial sum
   Σ_{ℓ≤B} χ(ℓ)/ℓ against the same null. We did not compute it.
-- *Cutoffs this small cannot estimate L(1, χ).* Under GRH, the truncated
-  Euler product approximates L(1, χ) to within a bounded factor only once
-  B ≳ (log|D_K|)^{2+ε} (Littlewood; Granville–Soundararajan). That is about
-  2.8 × 10⁴ for |D_K| ≈ 2^241, above every cutoff in §4. Partial products
-  below this range fluctuate freely around L(1, χ). prime239v1's percentile
-  rises from 0.06 at B = 691 to 11 at B = 5003 (§4). This is what an
-  ordinary L-value looks like when its first few hundred Euler factors happen
-  to be low, especially after selecting the most extreme of 61 curves.
+- *These cutoffs lie below the uniform guarantee.* Under GRH, a truncation
+  at B ≳ (log|D_K|)^{2+ε} suffices for the Euler product to approximate
+  L(1, χ) to within a bounded factor uniformly in χ (Littlewood;
+  Granville–Soundararajan). That is about 2.8 × 10⁴ for |D_K| ≈ 2^241,
+  above every cutoff in §4. The bound is sufficient, not necessary, so the
+  approximation error at B ≤ 5003 for these particular characters is not
+  determined here. *Observation:* prime239v1's split-count percentile rises
+  from 0.06 at B = 691 to 11 at B = 5003 (§4). *Possible explanation, not
+  established:* the curve's L-value is ordinary and its low early count is a
+  fluctuation, made more conspicuous by selecting the most extreme of 61
+  curves. S is unweighted, so this observation bears on neither the Euler
+  factors nor L(1, χ) directly. The check is to compute the weighted partial
+  sum, or L(1, χ) itself from h(D_K), for prime239v1 and the null.
 
 **Limitations.**
 
