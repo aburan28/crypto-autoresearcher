@@ -46,7 +46,10 @@ checker bindings remain correct. The [publication receipt](panel-local-archive-0
 records anonymous and object-store full readback and certificate decompression.
 The [reconciled inventory](runtime/panel-remaining-after-local002.json) retains
 nine original n45 inputs. The next input, `fresh-n45-poly-01`, has a frozen
-local protocol but has not launched at this snapshot. No new draw is made.
+local protocol. Its first admission returned 73 before worker creation:
+35.68 GB available was below the 40 GiB cap plus 2 GiB reserve. The
+[refusal report](reports/panel-local-n45-poly01-refusal-001/report.md) retains
+the outcome; the original input remains uncomputed. No new draw is made.
 
 The next original unfinished high-memory item is n47 random02. Its
 [read-only dimension profile](reports/rand02-envelope-001/report.md) gives
