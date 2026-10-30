@@ -112,10 +112,13 @@ Source: `S/runs/results.json`.
 - *48-bit sample.* PARI SEA counts of 1,500 prime-order curves
   y² = x³ − 3x + b over each of two random 48-bit primes matched the model:
   means 60.11 and 60.08 against 60.20 and 60.30, KS distances 0.023 against a
-  5% critical value of 0.035. Only these aggregates were kept
-  (`S/runs/validation48_stdout.log`); the per-curve rows were not saved
-  (deviation D2 in `S/DEVIATIONS.md`), so this check is unauditable.
-- *Real fields.* The auditable check is the 42 held-out curves over the real
+  5% critical value of 0.035 (`S/runs/validation48_stdout.log`). The
+  first run kept only aggregates (deviation D2 in `S/DEVIATIONS.md`). A
+  rerun with the same seed reproduced both output lines exactly and saved all
+  3,000 rows (`S/runs/validation48_rows.jsonl.gz`). An independent audit
+  recomputed every statistic from the rows and re-counted 100 curves with
+  PARI, with 0 mismatches (`S/runs/validation48_audit.json`).
+- *Real fields.* The 42 held-out curves give a second check, over the real
   fields (§5).
 - *Not done.* A 10,000-curve SEA sample per real field remains open.
 
@@ -262,7 +265,6 @@ not in a way that supports the generator story.
 **Limitations.**
 
 - The null assumes independence across ℓ and exact equidistribution.
-- The 48-bit validation is unauditable (D2).
 - The eight published curves are shared between the exploration and the test.
 - Monte Carlo p-values carry binomial error.
 - L̂ is a truncated Euler product, conditional on GRH for its expected accuracy; exact class numbers at 2^241 were infeasible (§6).
