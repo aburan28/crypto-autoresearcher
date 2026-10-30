@@ -144,6 +144,21 @@ branch_key() {
   printf '%s' "$b" | sed 's#/#__#g; s#[^A-Za-z0-9._=-]#-#g'
 }
 
+# GNU stat -f prints filesystem information before failing on BSD format flags.
+# Its stdout contaminates a shell fallback, so use the already-required Python
+# runtime for both GNU/Linux and macOS metadata without probing either syntax.
+file_stat() {
+  python3 - "$1" "${2:-fingerprint}" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+info = path.stat()
+if sys.argv[2] == "size":
+    print(info.st_size)
+else:
+    print(str(path), info.st_size, info.st_mtime_ns)
+PY
+}
+
 # Files that differ from what any remote already has: changed in unpushed
 # commits, changed in the worktree or index, or untracked.
 changed_files() {
@@ -184,9 +199,12 @@ state_hash() {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
-      [ -f "$f" ] && stat -f '%N %z %m' "$f" 2>/dev/null || stat -c '%n %s %Y' "$f" 2>/dev/null || true
-    done
+    # No untracked files (or only excluded ones) is a valid clean state.
+    # Keep the filtering pipeline out of the hash producer's pipefail path;
+    # file_stat failures inside the loop still propagate normally.
+    while IFS= read -r f; do
+      if [ -f "$f" ]; then file_stat "$f"; fi
+    done < <(git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' || true)
   } | shasum -a 256 | cut -d' ' -f1
 }
 
@@ -293,7 +311,7 @@ cmd_push() {
   : > "$stage/untracked.list"; : > "$stage/skipped-untracked.txt"
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    sz="$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")"
+    sz="$(file_stat "$f" size)"
     if [ "$sz" -gt "$maxb" ] || [ $((total + sz)) -gt "$capb" ]; then
       printf '%s\t%s bytes\n' "$f" "$sz" >> "$stage/skipped-untracked.txt"
     else

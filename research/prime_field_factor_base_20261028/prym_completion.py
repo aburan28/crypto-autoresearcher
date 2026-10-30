@@ -19,6 +19,16 @@ from independent import verify_row
 from crypto_autoresearcher.index_calculus.relation_quality import AffineRelations
 
 _NATIVE_CAPABILITY = object()
+STATUS_LEGEND = {
+    'S': 'source_no_nonzero_rational_lift',
+    'Z': 'exceptional_interpolation_x_zero',
+    'D': 'duplicate_interpolation_x',
+    'P': 'exceptional_pole_order',
+    'R': 'residual_not_two_distinct_rational_roots',
+    'X': 'intersection_not_squarefree',
+    'B': 'residual_endpoint_outside_factor_base',
+    'A': 'canonical_alias', '+': 'accepted',
+}
 
 
 class CompletionContext(Context):
@@ -71,8 +81,10 @@ def collect(fixture, sources, event, *, include_zero=True, capability=None):
     projection = public_projection(context, sources)
     relations = AffineRelations(fixture['r'], projection['U'])
     seen, rows, counts, digest = set(), [], Counter(), sha256()
-    attempts = 0
+    attempts, status_blocks = 0, []
+    status_codes = {value: key for key, value in STATUS_LEGEND.items()}
     for scalar in sources:
+        source_statuses, source_digest = [], sha256()
         for triple in combinations(range(len(context.base)), 3):
             for options in product(range(4), repeat=3):
                 attempts += 1
@@ -92,16 +104,26 @@ def collect(fixture, sources, event, *, include_zero=True, capability=None):
                             rows.append(row)
                             event(dict(kind='accepted', attempt=attempts, row=row,
                                        independent=independent, rank=relations.rank,
-                                       touches_zero=any(x == 0 for x, y in descriptor['points'])))
+                                       touches_zero=any(x == 0 for x, y in descriptor['points']),
+                                       source_zero=descriptor['points'][0][0] == 0,
+                                       constraint_zero=any(x == 0 for x, y in descriptor['points'][1:])))
                 status = reason or 'accepted'
                 counts[status] += 1
+                source_statuses.append(status_codes[status])
                 record = [scalar, list(triple), list(options), identity, status]
-                digest.update(json.dumps(record, separators=(',', ':')).encode()+b'\n')
+                encoded = json.dumps(record, separators=(',', ':')).encode()+b'\n'
+                digest.update(encoded)
+                source_digest.update(encoded)
+        block = dict(scalar=scalar, attempts=attempts, statuses=''.join(source_statuses),
+                     branch_sha256=source_digest.hexdigest())
+        status_blocks.append(block)
         event(dict(kind='source_complete', scalar=scalar, attempts=attempts,
-                   accepted=len(rows), rank=relations.rank, counts=dict(counts)))
+                   accepted=len(rows), rank=relations.rank, counts=dict(counts),
+                   statuses=block['statuses'], branch_sha256=block['branch_sha256']))
     return dict(schema='prym-zero-completion/v1', curve_uid=fixture['uid'],
                 include_zero=include_zero, source_order=list(sources), complete=True,
                 attempts=attempts, statuses=dict(counts), branch_sha256=digest.hexdigest(),
+                status_legend=STATUS_LEGEND, status_blocks=status_blocks,
                 rows=rows, projection=projection, quality=relations.summary(),
                 kernel=relations.kernel(), operation_vector=dict(context.f.counts),
                 cost_scope='field/group counters only; no complete S or timing claim',

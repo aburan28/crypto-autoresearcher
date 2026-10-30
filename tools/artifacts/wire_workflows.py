@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifacts  # noqa: E402
 
 STEP_NAME = "Pull store data this workflow reads (tools/artifacts)"
+NO_PULL_ANNOTATION = "# artifact-store: no-pull"
 PATH_RE = re.compile(r"(?<![A-Za-z0-9_./-])((?:[A-Za-z0-9_+-][A-Za-z0-9_.+-]*/)+[A-Za-z0-9_.+*-]*)")
 
 
@@ -98,6 +99,11 @@ def explicitly_pulled_and_verified(text: str, paths: list[str]) -> bool:
                        for verb in ("pull", "verify")):
                 return False
     return seen == set(paths)
+
+
+def metadata_only(text: str) -> bool:
+    """Whether the workflow documents that it never reads stored file bytes."""
+    return any(line.strip().startswith(NO_PULL_ANNOTATION) for line in text.splitlines())
 
 
 def step_lines(indent: str, paths: list[str]) -> list[str]:
@@ -229,6 +235,10 @@ def main() -> int:
     missing = 0
     for f in files:
         text = f.read_text()
+        # Keep metadata-only checks usable on fork PRs without private S3
+        # credentials. Content consumers still require a pull and verify.
+        if metadata_only(text):
+            continue
         paths = needed(text, moved, dirs)
         if not paths:
             continue
