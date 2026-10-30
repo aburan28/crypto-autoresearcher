@@ -1,0 +1,193 @@
+# EXPERIMENT CONTRACT -- EXP-MLKEM-343bfe (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-MLKEM-343bfe
+  hypothesis_id: H-MLKEM-8c0a2a
+  derived_from_idea: IDEA-20261018-957273
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: CBD-tuned versus ternary representations in Meet-LWE, n=32..64
+  objective: Measure whether CBD-aware representations lower the combinatorial exponent.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: C++/Python Meet-LWE implementation with counters; NumPy
+    parameters: >-
+      n in {32,40,48,56,64}, m=n, q=3329, CBD(2) and CBD(3), depth 2 and 3; 10 instances per
+      n; memory cap 32 GB
+    procedure: >-
+      1) Freeze. 2) Generate instances. 3) Run both representation arms. 4) Record list sizes,
+      collisions, time, success, verify secret. 5) Fit log2 time vs n.
+  controls:
+  - 'null: uniform secrets on {-2..2} (no CBD skew) where the tuned split should lose its
+    edge'
+  - >-
+    positive: ternary secrets where the published Meet-LWE analysis applies and must be reproduced
+    within factor 2
+  - 'A/A: ternary-representation arm with two hash-seed blocks for the near-collision buckets'
+  independent_variables:
+  - representation
+  - secret_law
+  metrics:
+    primary:
+    - fitted time exponent c
+    secondary:
+    - level list sizes
+    - success rate
+    - peak memory
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: c_tuned/c_ternary on CBD(2)
+    formula: ratio of representation-count-optimized exponents
+    source: May 2021 analysis extended (derived before data)
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n<=64; transfer assumption: the exponent ratio, not absolute time, informs hybrid models
+      at n=256
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    - 2026101803
+    - 2026101804
+    - 2026101805
+    - 2026101806
+    - 2026101807
+    - 2026101808
+    - 2026101809
+    independent_instances: 10
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 30
+    maximum_memory_gb: 32
+    maximum_runs: 400
+  stopping_rules:
+  - drop n level when memory cap hit; record censored
+  invalidation_rules:
+  - timeout/crash/OOM is failed_infrastructure, never negative evidence
+  - >-
+    any instance whose recovered secret fails the independent check (A*s+e == t mod q, CBD
+    support) is discarded and logged, never counted as a success
+  - >-
+    protocol, seeds and analysis script frozen and hashed in manifest.yaml before the first
+    timed run; any change voids the batch
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C1 exponent ratio <= 0.9 with CI below 0.97 (P1), P2 list-size agreement within 2x, and
+    C2 shows the gain shrinks on uniform5_null; all beyond AA1 noise floor.
+  falsification_criterion: C1 exponent ratio CI includes 0.97 or above, or list sizes exceed
+    predictions by > 4x.
+  decision_impact:
+    on_positive: >-
+      Plug the CBD-tuned exponent into the hybrid-attack cost lane and re-run the hybrid estimate
+      at ML-KEM parameters as a conditional.
+    on_negative: >-
+      Record that CBD skew gives no representation advantage; hybrid models keep the ternary-style
+      combinatorial exponent.
+  variable_ledger:
+    independent:
+    - name: representation
+      levels:
+      - ternary_style
+      - cbd_tuned
+    - name: secret_law
+      levels:
+      - cbd2
+      - cbd3
+      - uniform5_null
+      - ternary_positive
+    factors:
+    - name: hash_seed_block
+      treatment: randomized
+      value: A,B
+      how: seed of the locality-sensitive bucketing
+    - name: instance_seed
+      treatment: randomized
+      value: 10 per n
+      how: paired
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - cbd_tuned
+      - ternary_style
+      differs_in:
+      - representation
+      design: one_factor
+    - id: C2
+      arms:
+      - cbd_tuned on cbd2 vs uniform5_null
+      differs_in:
+      - secret_law
+      design: one_factor
+    - id: AA1
+      arms:
+      - ternary_style block A
+      - ternary_style block B
+      differs_in:
+      - hash_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-957273.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-957273.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - >-
+    manifest.yaml with frozen protocol hash, tool versions (fpylll/G6K/Sage commit ids), host
+    and seeds
+  - raw-result.json with one row per (arm, instance, seed) including verification flag
+  - analysis.json with effect sizes, bootstrap CIs and the AA noise floor
+  - report.md plus graph (SVG/PNG) and PDF per the research-visuals skill
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-MLKEM-343bfe/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-957273.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

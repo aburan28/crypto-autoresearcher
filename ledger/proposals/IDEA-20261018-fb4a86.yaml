@@ -1,0 +1,128 @@
+# IDEA RECORD -- IDEA-20261018-fb4a86
+# RQ-MLDSA-001 / GOAL-MLDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-fb4a86
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Hedging priced against faults: differential recovery needs 2^{h/2} same-message queries
+    with h-bit rnd; census of mode-independent faults
+  class: composition
+  claim: >-
+    For single-bit faults on c (or on mu before the challenge hash), differential recovery
+    z - z' = (c - c') s1 needs two signatures of the same message with the same mask. In deterministic
+    mode this needs 2 signing queries; with an rnd source of h bits it needs about 2^{h/2}
+    same-message queries; with caller-supplied rnd (an API exposing it) it collapses to 2.
+    Measured on real ML-DSA-44 with simulated faults, median queries to recovery fit 2^{h/2}
+    within factor 2 for h in {8..24}, and a census of fault positions shows which positions
+    are mode-independent (attack works in hedged mode at h = 256).
+  mechanism: >-
+    rho'' = H(K || rnd || mu): equal masks need equal (rnd, mu). A fault after rho'' (e.g.
+    on c) with the mask reused gives an exact linear relation. Hedging thus converts a 2-query
+    attack into a birthday search over rnd. Faults that do not need mask reuse (e.g. zeroing
+    y, skipping the addition) are unaffected by hedging; the census separates the two classes,
+    which is a mode-dependent fault boundary.
+  tracked_object: same-message signing queries to s1 recovery, per fault position and per
+    rnd entropy h
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-340675
+    provenance: kb
+    claim: >-
+      a DFA with public fault identification; this prices the hedged-mode defence per fault
+      class
+    verified_by: knowledge/literature/KN-LIT-340675.md (opened by the drafting session)
+  - ref: KN-LIT-4f3b80
+    provenance: kb
+    claim: >-
+      a single-faulty-signature attack that is mode-independent by construction; populates
+      the mode-independent class
+    verified_by: knowledge/literature/KN-LIT-4f3b80.md (opened by the drafting session)
+  predictions:
+  - id: P1
+    metric: log2 median queries vs h
+    direction: different
+    minimum_effect: slope 0.5 +- 0.1
+    falsified_by: slope outside [0.35, 0.65]
+  - id: P2
+    metric: mode-independent positions
+    direction: different
+    minimum_effect: >-
+      the census assigns each of 12 fault positions to exactly one class with 100 percent
+      agreement across seeds
+    falsified_by: a position whose class changes across seeds
+  minimal_test:
+    design: >-
+      Real ML-DSA-44 with simulated single faults at 12 positions in Sign; vary h; attacker
+      queries the same message until a usable pair.
+    controls:
+    - 'null: fault-free signing, no recovery'
+    - 'positive: deterministic mode with fault on c'
+    - 'A/A: h = 16 under two seed blocks'
+  falsification_conditions:
+  - slope not 0.5
+  - census inconsistent
+  confounders:
+  - fault model idealized (exact bit flip, chosen position)
+  interpretation_limits:
+  - simulated faults only; real fault success rates are not measured
+  - real parameters
+  heuristic_assumptions:
+  - id: H1
+    statement: rnd is uniform over 2^h values
+    rigorous_support: construction
+    validation_plan: chi-square of rnd values
+  target_complexity:
+    time_exponent: 2^{h/2} queries
+    memory_exponent: 2^{h/2} stored signatures
+    best_known: 2 queries deterministic
+    hidden_overhead: none
+    tradeoff_note: query complexity, not computation
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-340675
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        a DFA with public fault identification; this prices the hedged-mode defence per fault
+        class
+    - ref: KN-LIT-4f3b80
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        a single-faulty-signature attack that is mode-independent by construction; populates
+        the mode-independent class
+    internal_neighbours:
+    - IDEA-20260805-818196
+    - IDEA-20260901-1c87ca
+    - IDEA-20260828-6e79b4
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLDSA-651c54
+    experiment_id: EXP-MLDSA-0a3ffb
