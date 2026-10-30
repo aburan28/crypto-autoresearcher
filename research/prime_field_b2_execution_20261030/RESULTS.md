@@ -71,3 +71,15 @@ Translated covers and the explanation of repeated divisors are prior work:
 see the previous B1/cover reports, prym_leads_20261027 README and matrix review,
 and PKM2016 sections3.1–3.2. No historical graph or official research status is
 changed by these observations. The graph here covers this exact new panel.
+
+## Combined archive index
+
+The fresh [v3 generation receipt](database/v3-fixed-panel/generation.json)
+binds the original v2 parent, this panel and the completed independent-target
+panel. It preserves8198 cover frames and all historical rows, adds487 subset
+rows and807 target rows, and retains4 isolated-target certificates with their
+public-multiple collision explanations. SQLite integrity, foreign keys and
+certificate/dense-score cross-checks pass. The original parent is unchanged;
+large database bytes are losslessly archived through the sibling S3 manifest.
+See [D1 observations](../prime_field_d1_execution_20261030/RESULTS.md) for the
+target and post-hoc partial-relation scopes.
