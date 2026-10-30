@@ -1,5 +1,11 @@
 # Original n45 panel inputs need local memory headroom
 
+Update 2026-10-30 20:21 UTC: separately frozen polynomial02 local02 was
+also refused, with available39,073,169,408bytes below45,097,156,608required.
+Headroom had temporarily recovered during preparation but fell before
+launch. No worker started. Preserve the [second refusal](../analysis/semaev-degree-five-quotient-lift/validation/panel-local-n45-poly02-refusal-002/result.json)
+and wait for sustained headroom before preparing another attempt.
+
 Update 2026-10-30 20:14 UTC: polynomial01 subsequently completed and its
 certificate was independently accepted and published (q12742 > count0).
 The next original input, polynomial02, was refused before worker launch:
