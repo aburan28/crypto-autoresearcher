@@ -1,0 +1,2 @@
+#include "decoder.hpp"
+int main(int argc,char**argv){try{if(argc==2&&std::string(argv[1])=="--self-test"){dec::self_test();return 0;}if(argc==5&&std::string(argv[1])=="--run")return dec::run(argv[2],argv[3],argv[4]);std::cerr<<"usage: decoder --self-test | --run FIXTURES_TSV PUBLIC_TARGETS_TSV FRESH_OUTPUT_JSONL\n";return 2;}catch(const std::exception&e){std::cerr<<"decoder refused: "<<e.what()<<'\n';return 1;}}

@@ -1,0 +1,8 @@
+import CryptoResearch.Binstd.EncodedDivisors
+#print axioms CryptoResearch.Binstd.EncodedDivisors.modulus17_no_small_monic_divisor
+#print axioms CryptoResearch.Binstd.EncodedDivisors.factor8a_no_small_monic_divisor
+#print axioms CryptoResearch.Binstd.EncodedDivisors.factor8b_no_small_monic_divisor
+#print axioms CryptoResearch.Binstd.EncodedDivisors.archived_trial_counts
+#print axioms CryptoResearch.Binstd.EncodedDivisors.reducible_control_witnesses
+#print axioms CryptoResearch.Binstd.EncodedDivisors.reducible_controls_rejected
+#print axioms CryptoResearch.Binstd.EncodedDivisors.archived_no_small_monic_divisors

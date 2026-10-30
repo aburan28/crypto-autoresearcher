@@ -1,3 +1,24 @@
+# Current execution record — 2026-10-25
+
+The fixed census completed as [RUN-ECDLP-ea49a6](../../experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/manifest.yaml): **1,867,776 attempts**, native `output_validated`, with all 16 cells passing the independent checker. The sampled arm recorded **97 rows in 32,768 attempts**; exhaustive coverage recorded **4,160 rows in 1,835,008 attempts**. These are finite observations; no attack advantage was measured.
+
+| Field p | Sampled rank/U, two curves | Exhaustive rank/U, same curves |
+| --- | --- | --- |
+| 101 | 0/0, 0/0 (all public) | 0/0, 0/0 (all public) |
+| 211 | 2/2, 3/3 | 2/2, 3/3 |
+| 431 | 2/4, 1/3 | 4/4, 3/3 |
+| 4099 | 0/7, 0/7; zero rows | 0/7, 0/7; zero rows |
+
+The [session report and current graph](../../experiments/EXP-ECDLP-d6d8e8/reports/run-20261025T0327Z/report.md) record every cell, costs and limits. Producer wall time was 97.490447 s; checker wall time was 73.964993 s. Operation vectors remain partial, with no complete weighted S or prescribed-computation proof. Actual runtime was Python 3.12.14 with the frozen PyYAML 6.0.3 and reportlab 4.4.9 versions. Canonical-store objects, native pointers, fresh producer readback and archive digest bridges were retained. Historical W2 run files were preserved.
+
+A separate [observation-integrity review](../../experiments/EXP-ECDLP-d6d8e8/reviews/TASK-20261025-5145ac/report.json) reproduced all 1,867,776 statuses, 4,257 E1 equations and 16 matrices. It checked 144 principal/E2 witnesses and rejected 11 negative controls. **The generic formal independence checker did not pass**: its whole-session source union flags six phase-2 reads permitted after the recorded phase-1 seal. The exact first-unblind timestamp is bounded rather than independently recorded. Complete read disclosures, findings and limits are preserved. No tool/plan exception, hypothesis transition or evidence promotion is claimed.
+
+The next proposal is a **new prospective factor-base width m=8 versus m=16** test on the same p=4099, a=2 curves with constants b=13 and b=16. It would use nested lexicographic atoms, the same 64 public sources, complete `C(m,3) × 64` branch support, actual U/rank and all costs. This is an outline; no second experiment was approved or executed. The [current checkpoint](../../coordination/goals/GOAL-ECDLP-001/batches/BATCH-61781b/final/checkpoint.json) gives the controls and phase-aware validation gap.
+
+The original design below and its diagram/PDF are preserved as historical prospective material. Their “not run/storage unavailable” statements no longer describe current execution.
+
+---
+
 # Prym relation-rank census — prospective implementation, 2026-10-25
 
 Implemented, with six passing planted software controls. **No scientific census trial has run.**
