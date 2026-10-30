@@ -13,3 +13,18 @@ Exit: checked arithmetic and actual runtime admission, qualified durable phase 2
 The existing producer saves a phase-2 checkpoint immediately before export, so its publication hook can preserve the completed state and refuse an oversized export. However, restoring a phase-2 checkpoint skips the save/hook path and proceeds directly to export. The worker must apply the same exact output-size admission before launching a restored phase-2 child. Qualify both paths; testing only the publication hook is insufficient.
 
 Retain the native binary unchanged if possible. A wrapper can bind policy to the frozen request and protocol, use verified checkpoint metadata to compute output bytes, account for actual work-directory files plus declared overhead, and emit an explicit deferred-export result after verified publication. A deferred export establishes no lower bound until a final certificate is independently accepted. Existing local case000 checkpoint23 is a small phase-2 fixture suitable for both allow and refuse boundary controls. This guard is not implemented or qualified yet.
+
+## Export guard controls, 2026-10-30
+
+The request-bound export guard passes all 20 frozen local software controls
+(ten fresh, ten restored). See
+[report](../analysis/semaev-degree-five-quotient-lift/reports/export-guard-001/report.md).
+Fresh refusal preserves a verified published phase-2 checkpoint; restored
+refusal prevents native launch. Exact-capacity and one-byte-short arithmetic
+use the common prelaunch path, as frozen. All 169 raw file hashes verify; the
+twenty-row export validates with zero findings.
+
+This closes local guard qualification only. End-to-end frontier worker
+integration, startup accounting of seed plus two snapshots plus runtime and
+reserve, and cloud qualification remain open. No frontier job was launched
+by these controls and no new mathematical lower bound was obtained.
