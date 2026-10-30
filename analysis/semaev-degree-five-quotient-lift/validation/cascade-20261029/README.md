@@ -1,0 +1,1 @@
+Initial software fixture stopped at the D4-to-D5 stage because it had only four Boolean variables. The native producer correctly refuses seed degree >= number of variables. Raw outputs are preserved. The revised fixture uses six Boolean variables; no native guard was changed. This is a fixture-domain correction, not mathematical frontier evidence.

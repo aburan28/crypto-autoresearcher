@@ -47,6 +47,7 @@ than 1 MiB goes to the store; a data-suffixed file (`.jsonl`, `.gz`, `.npy`,
 does too. Source, build and config text (`CODE_EXT`) never moves. `policy.keep`
 lists globs that stay in Git whatever their size: data files that code or CI
 outside the data trees name by path (inputs PDFs, `knowledge/sources.json`,
+`knowledge/leads/ecdlp/coverage.tsv` (read by `tools/lead_atlas.py --check`),
 `research_digest/manifest.jsonl`, two experiment summaries) and the generated
 `ledger/.index/*.jsonl`.
 

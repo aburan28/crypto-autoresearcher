@@ -7,6 +7,7 @@ description: "Assess benchmark receipts, cost models, throughput claims, rank/re
 
 Read `docs/bounds-and-frontiers.md` and the producing tool's measurement contract. Consult `groebner_compare/relation_metrics.py`, `harness/efficiency.py`, `harness/bench_rho_throughput.py` and `ui/comparisons.py` as applicable.
 
+0. When the run has an `export.json` (`experiment.export/v1`), start there: `python3 tools/experiment_protocol.py check-export <export> --protocol <protocol>` first, and read rows with `wall_valid: false` as counts only.
 1. Match exact curve/subgroup, candidate, workload, instance selection, controls, seeds, output validity, units and timing boundaries. Incompatible rows remain incomparable.
 2. Separate setup and online work; charge failed searches, timeouts, duplicates, verification, independent rank updates, conversion and recovery. Amortize only reusable setup with a stated target count.
 3. Retain CPU core/NUMA pinning, OS, CPU generation, DDR type, GPU model, compiler/dependencies, resources and calibration. Distinguish field bits from subgroup bits and iterations from useful steps.
