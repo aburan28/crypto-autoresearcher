@@ -1,6 +1,6 @@
 # Formal target pointer coverage at `2165804a`
 
-Date: 2026-10-30 UTC. This is a navigation audit of one immutable Git tree, not an evidence review, experiment replay, theorem audit, or scientific decision. [Inventory](inventory.json), [drawing source](draw_coverage.py), [SVG graph](coverage.svg), and [inspected PDF](report.pdf) are retained together.
+Date: 2026-10-30 UTC. This is a navigation audit of one immutable Git tree, not an evidence review, experiment replay, theorem audit, or scientific decision. [Inventory](inventory.json), [drawing source](draw_coverage.py), and [SVG graph](coverage.svg) are retained here. The inspected PDF is content-addressed by [.artifacts.json](.artifacts.json); hydrate it with `python3 tools/artifacts/artifacts.py pull docs/reports/2026-10-30-formal-pointer-coverage`.
 
 ## Observation
 
