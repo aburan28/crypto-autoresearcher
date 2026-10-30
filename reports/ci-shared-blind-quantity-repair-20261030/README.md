@@ -1,0 +1,15 @@
+# Shared blind-quantity regression correction
+
+The complete hosted validator on merged main `956606d1a2e5e77d388eab190d59d433ca0f226b` reports **17 errors**. Sixteen are a regression introduced in PR #2771: three archived plans explicitly assign the whole rederivation at the parent and enumerate named statements below it. Requiring a new owner/quantity pair for each descriptive item rejects those existing contracts. The seventeenth is the previously documented real run-capture gap.
+
+The corrected validator distinguishes those named details from independent per-quantity contracts. Named details require the complete explicit parent quantity/assignment/forbidden-input contract and each retains its own nonempty name, statement and forbidden inputs. Independent quantity/assignment rows still require every own field; a parent cannot supply missing restrictions or owners. Mixed/partial forms fail. No plan, reviewer, forbidden-input list, result, baseline or archived byte is changed.
+
+Validation: **44 focused tests pass**, including the three actual frozen shared plans and the independent/malformed/parent-borrowing controls. The exact native checker reproduces all17current hosted findings on the affected records before the fix and **one** afterward. The remaining error is `RUN-BINSTD-f7ca97`'s original missing captures; no exception or fabricated capture is added.
+
+A read-only scan follows every archived handoff/review-plan reference from the complete Git tree: **7,320 YAML paths**, five required multi-quantity plans, zero unavailable objects. Two pre-existing YAML parse defects are reported unchanged. An initial scan lacked113objects; Git fetching failed, then the GitHub blob connector supplied all113 and every restored byte matched its original Git blob hash. This audit uses the actual old and corrected native review-plan functions; all five layouts pass and no previously valid layout regresses. It is not a full local ledger sweep or sparse-guard override.
+
+Correction to the earlier report: the 31-error reduction in #2771 was true only for its focused14-record set; complete CI also exposed16new errors outside that set. Those original logs and dated receipts remain intact. The complete current affected-set delta is17to1, with full hosted corpus/harness checks still mandatory. Auto-merge landed #2771 despite its failed applicable ledger checks; the required-check configuration needs correction. This follow-up is held for all applicable current-head checks before merge.
+
+References: [native before/after](native17-before-after.json), [complete plan audit](complete-7320-plan-layout-audit.json), [unresolved run-capture problem](../../problems/binstd-f7ca97-original-execution-captures-missing.md). This is archive/CI maintenance with no new scientific trial, claim or graph change.
+
+The retained complete post-merge transcript contains every one of the17native reproduced error strings. Full pre-merge and post-merge transcripts are preserved in lossless gzip; no filtered summary substitutes for the original evidence.

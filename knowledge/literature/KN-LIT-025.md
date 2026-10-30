@@ -13,7 +13,7 @@ tags: [petit-kosters-messeng, index-calculus, prime-field, point-decomposition, 
 confidence: reported
 citation_verified: web
 added: 2026-07-21
-superseded_by: null
+superseded_by: KN-LIT-10b0fa
 ---
 
 ## Contribution

@@ -1,0 +1,687 @@
+{
+  "schema": "local-engineering-code-review/v1",
+  "task_id": "TASK-20261025-a58a22",
+  "publication_state": "unpublished_local_draft",
+  "reviewer_session": "/root/prym_phase_code_review",
+  "review_type": "independent_local_software_adversarial_review",
+  "independence": {
+    "separate_session": true,
+    "authored_reviewed_validator": false,
+    "reviewer_changed_producer_or_validator_code": false,
+    "received_author_fix_notifications": true,
+    "scientific_review": false
+  },
+  "authorization": {
+    "local_engineering": true,
+    "official_scientific_dispatch": false,
+    "scientific_runs": 0,
+    "commits": 0,
+    "pushes": 0,
+    "credential_reads": false
+  },
+  "repository": {
+    "path": "/workspace/crypto-autoresearcher",
+    "branch": "lane/prym-rank-census",
+    "head": "6fb7608d19660a6482fbbde756f613aa0da8ac04",
+    "dirty_scope": "Pre-existing local drafts were present. Reviewer writes are restricted to the two assigned report artifacts."
+  },
+  "summary": {
+    "status": "no_remaining_reproduced_blocker_in_tested_software_scope",
+    "reported_findings": 7,
+    "findings_repaired_and_retested": 7,
+    "focused_tests": 148,
+    "focused_test_failures": 0,
+    "independent_probe_cases": 38,
+    "independent_probe_failures": 0,
+    "historical_review_still_fails": true
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "python_path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "bytecode_writes_disabled": true,
+    "setup_attempts": [
+      {
+        "command": "/usr/local/bin/python3 -m unittest discover -s <tests|tools> -p <focused_test_file> -v",
+        "result": "All four initial launches exited 127: /usr/local/bin/python3 does not exist. Used the managed Python 3.12.14 runtime found by command -v python3; did not use /usr/bin/python3."
+      }
+    ]
+  },
+  "sources_sha256": {
+    "tools/review_phase_seals.py": "849453c6ff57d9401063e58b503600d99f85e02c3a7bd78d7b16defc90e49e83",
+    "tools/check_review_independence.py": "76cb7ec685eada14970eef8d88280766c9fd9bdf186df82f7ec276cfd7fb3780",
+    "tests/test_review_phase_seals.py": "3ef39b1a1a5d18248f3b42dfb4307aa61022b26cbcbb93f6819fc4d93238577f",
+    "docs/review-phase-seals.md": "d5b4f3c32231ac9619ef08bb827b05a5fde1e4fe62f4b25287c3a5d2c2ae6ce5",
+    "tests/test_review_independence.py": "53341b9c7f54db7bf2338cc40f241e71a9c1c875a13cf064020bf45f5a2c733d",
+    "tools/test_review_independence_addenda.py": "91b6e68d2a72171a88a51ab4bf2cfe6644799f8d39a24304cfc51b88c62c1bba",
+    "tools/test_check_review_independence.py": "3862f4adc97ef185c89a27500f82c9c2d8d7fb07ce5e75a4d46b26c0a6273ff5",
+    "ledger/handoffs/TASK-20261025-a58a22.yaml": "d98db4058e362365e7634730411f01560fb15fc6f382d8eb1cb6f1dbfe73030f"
+  },
+  "hashes_stable_during_final_tests": true,
+  "source_provenance": "internal; repository paths were read directly and commands executed locally",
+  "findings": [
+    {
+      "id": "F1",
+      "priority": "P1",
+      "title": "Hardlink allowed a declared protected read before sealing",
+      "initial_result": "{\"case\": \"hardlink_alias_to_protected_read_before_seal\", \"samefile\": true, \"errors\": []}\n",
+      "repro": "os.link(x.root/'producer/result.json', x.root/'inputs/alias.json'); replace phase1 input event, derivation.sources_read and attestation.sources_read with 'inputs/alias.json'; x.write_evidence(); x.errors() returned []. Path.samefile confirmed the same inode.",
+      "expected": "Reject a phase-one alias of a protected file.",
+      "repair": "Phase-one sources with st_nlink != 1 are rejected conservatively.",
+      "probe": "premature_protected_hardlink_alias",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "premature_protected_hardlink_alias",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: multiply linked phase1 input could alias a protected source",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    },
+    {
+      "id": "F2",
+      "priority": "P1",
+      "title": "Duplicate raw report fields were silently shadowed",
+      "initial_result": "{\"case\": \"duplicate_report_event_source_masks_premature_protected_read\", \"parsed_second_source\": \"inputs/statement.json\", \"errors\": [], \"source_key_count\": 4}\n",
+      "repro": "In json.dumps({\"review_attestation\":x.attestation}), replace the first '\"source\": \"inputs/statement.json\"' with '\"source\": \"producer/result.json\", \"source\": \"inputs/statement.json\"'. C._load selected the last source and C.check returned [].",
+      "expected": "Reject ambiguous duplicated fields in a phased transcript before choosing a value.",
+      "repair": "The parser inspects the decoded YAML/JSON AST and uses the unique-key loader for phased documents; CLI returns a diagnostic exit 2 on malformed reports.",
+      "probe": "duplicate_raw_report_source_cli",
+      "followup": {
+        "initial_result": "{\"case\": \"escaped_phase_key_bypasses_whole_doc_duplicate_strictness\", \"raw_literal_phase_key_present\": false, \"decoded_phase_key_present\": true, \"duplicate_sibling_field_count\": 2, \"errors\": []}\n",
+        "repro": "Encode the key as literal JSON \"phased\\\\u005frelease\", prepend duplicate \"read_sibling_reports\":true before the existing false field, then load/check. The initial repair gated strict loading on a raw-text substring; the decoded key existed but the substring did not, so this follow-up returned [].",
+        "expected": "Detect the decoded phase directive independent of serialized key spelling.",
+        "probe": "escaped_phase_key_duplicate_report_cli",
+        "final_result": {
+          "name": "escaped_phase_key_duplicate_report_cli",
+          "expected": "reject",
+          "accepted": false,
+          "passed": true,
+          "errors": [
+            "CLI exit 2: FAIL: invalid review report: /tmp/tmp4glxvi71/review/report.json: duplicate YAML key: read_sibling_reports"
+          ]
+        }
+      },
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "duplicate_raw_report_source_cli",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "CLI exit 2: FAIL: invalid review report: /tmp/tmpx6xa3dad/review/report.json: duplicate blind-phase directive/field source"
+        ]
+      }
+    },
+    {
+      "id": "F3",
+      "priority": "P2",
+      "title": "Duplicate bound YAML plan keys were accepted",
+      "initial_result": "{\"case\": \"duplicate_yaml_review_plan\", \"errors\": [], \"accepted\": true, \"detail\": {\"review_plan_keys\": 2}}",
+      "repro": "Write yaml.safe_dump({'review_plan':old_legacy_plan}) + yaml.safe_dump({'review_plan':x.plan}) to the bound plan file, then recompute the seal/release hashes and boundary event hashes. x.errors() returned [].",
+      "expected": "Reject ambiguous bound plan mappings.",
+      "repair": "UniqueSafeLoader rejects duplicate YAML mappings in the bound prospective plan.",
+      "probe": "duplicate_bound_yaml_plan",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "duplicate_bound_yaml_plan",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: duplicate YAML key: review_plan",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    },
+    {
+      "id": "F4",
+      "priority": "P2",
+      "title": "Python equality accepted a differently typed bound plan",
+      "initial_result": "{\"case\": \"wrong_bound_plan_boolean_integer\", \"errors\": [], \"accepted\": true, \"detail\": {\"checked_required_type\": \"bool\", \"bound_required_type\": \"int\", \"python_plans_equal\": true}}",
+      "repro": "Keep the checked plan's required=True; write a copy with required=1 to plan.yaml; rebind seal/release hashes and boundary event hashes. on_disk == checked_plan was True and x.errors() returned [].",
+      "expected": "Bind the exact plan, including scalar types.",
+      "repair": "_same_tree compares structure and scalar types recursively.",
+      "probe": "wrong_bound_boolean_integer_type",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "wrong_bound_boolean_integer_type",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: checked plan differs from the bound prospective plan file",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    },
+    {
+      "id": "F5",
+      "priority": "P2",
+      "title": "A symlink cycle escaped the consistency-error boundary",
+      "initial_result": "{\"case\": \"symlink_loop\", \"exception\": \"RuntimeError\", \"message\": \"Symlink loop from '/tmp/tmp7vom09t4/loop'\"}",
+      "repro": "(x.root/'loop').symlink_to('loop'); x.contract['plan_path']='loop'; x.errors() raised RuntimeError.",
+      "expected": "Return an explicit consistency error instead of an uncaught path-resolution exception.",
+      "repair": "_path converts resolution OSError/RuntimeError into InvalidPhase.",
+      "probe": "cyclic_symlink",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "cyclic_symlink",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: cannot resolve repository path: 'loop'",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    },
+    {
+      "id": "F6",
+      "priority": "P2",
+      "title": "Consistently future timestamps were accepted",
+      "initial_result": "{\"case\": \"future_2099\", \"errors\": [], \"accepted\": true}",
+      "repro": "Move plan, derivation, seal, release and every event timestamp to 2099 while preserving their relative order; recompute all affected hashes. x.errors() returned [].",
+      "expected": "Reject future-dated evidence relative to the checking host clock.",
+      "repair": "_time compares each timestamp against the checking host's current UTC clock. This is a sanity check, not authentication.",
+      "probe": "consistently_future_2099",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "consistently_future_2099",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: plan.recorded_at is in the future relative to the checking host's UTC clock",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    },
+    {
+      "id": "F7",
+      "priority": "P3",
+      "title": "A read at the derivation boundary contradicted strict-before documentation",
+      "initial_result": "{\"case\": \"read_at_derivation_boundary\", \"errors\": []}\n",
+      "repro": "x.events[1]['at']=x.derivation['generated_at']; x.errors() returned [].",
+      "expected": "Require phase-one reads to strictly precede derivation generation, as documented.",
+      "repair": "The read comparison is now moment < generated.",
+      "probe": "exact_derivation_read_boundary",
+      "status": "repaired_and_independently_retested",
+      "final_result": {
+        "name": "exact_derivation_read_boundary",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: phase1 read occurs after derivation or seal",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      }
+    }
+  ],
+  "baseline_tests": {
+    "result": "137 tests passed before repairs",
+    "output": "PASS: 1 report(s), every joint owned and attested, blindness respected, controls declared\n{\"command\": \"python3 -m unittest discover -s tests -p test_review_phase_seals.py -v\", \"testsRun\": 41, \"failures\": 0, \"errors\": 0, \"successful\": true, \"output\": \".........................................\\n----------------------------------------------------------------------\\nRan 41 tests in 0.178s\\n\\nOK\\n\"}\n{\"command\": \"python3 -m unittest discover -s tests -p test_review_independence.py -v\", \"testsRun\": 29, \"failures\": 0, \"errors\": 0, \"successful\": true, \"output\": \".............................\\n----------------------------------------------------------------------\\nRan 29 tests in 0.005s\\n\\nOK\\n\"}\n{\"command\": \"python3 -m unittest discover -s tools -p test_review_independence_addenda.py -v\", \"testsRun\": 58, \"failures\": 0, \"errors\": 0, \"successful\": true, \"output\": \"..........................................................\\n----------------------------------------------------------------------\\nRan 58 tests in 1.228s\\n\\nOK\\n\"}\n{\"command\": \"python3 -m unittest discover -s tools -p test_check_review_independence.py -v\", \"testsRun\": 9, \"failures\": 0, \"errors\": 0, \"successful\": true, \"output\": \".........\\n----------------------------------------------------------------------\\nRan 9 tests in 0.002s\\n\\nOK\\n\"}\n"
+  },
+  "final_focused_tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nimport contextlib, hashlib, io, json, platform, unittest\nfrom pathlib import Path\npaths=[\"tools/review_phase_seals.py\",\"tools/check_review_independence.py\",\"tests/test_review_phase_seals.py\",\"docs/review-phase-seals.md\",\"tests/test_review_independence.py\",\"tools/test_review_independence_addenda.py\",\"tools/test_check_review_independence.py\",\"ledger/handoffs/TASK-20261025-a58a22.yaml\"]\nbefore={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}\nout=[]\nfor directory,pattern in [(\"tests\",\"test_review_phase_seals.py\"),(\"tests\",\"test_review_independence.py\"),(\"tools\",\"test_review_independence_addenda.py\"),(\"tools\",\"test_check_review_independence.py\")]:\n    stream=io.StringIO()\n    suite=unittest.defaultTestLoader.discover(directory,pattern=pattern,top_level_dir=directory)\n    with contextlib.redirect_stdout(stream),contextlib.redirect_stderr(stream):\n        result=unittest.TextTestRunner(stream=stream,verbosity=1).run(suite)\n    out.append({\"equivalent_command\":f\"PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s {directory} -p {pattern} -v\",\"testsRun\":result.testsRun,\"failures\":len(result.failures),\"errors\":len(result.errors),\"successful\":result.wasSuccessful(),\"output\":stream.getvalue()})\nafter={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}\nprint(json.dumps({\"python\":platform.python_version(),\"sources_sha256\":after,\"hashes_stable_during_tests\":before==after,\"suites\":out,\"total\":sum(x[\"testsRun\"] for x in out),\"all_successful\":all(x[\"successful\"] for x in out)},indent=2))\nPY",
+    "exit_code": 0,
+    "python": "3.12.14",
+    "sources_sha256": {
+      "tools/review_phase_seals.py": "849453c6ff57d9401063e58b503600d99f85e02c3a7bd78d7b16defc90e49e83",
+      "tools/check_review_independence.py": "76cb7ec685eada14970eef8d88280766c9fd9bdf186df82f7ec276cfd7fb3780",
+      "tests/test_review_phase_seals.py": "3ef39b1a1a5d18248f3b42dfb4307aa61022b26cbcbb93f6819fc4d93238577f",
+      "docs/review-phase-seals.md": "d5b4f3c32231ac9619ef08bb827b05a5fde1e4fe62f4b25287c3a5d2c2ae6ce5",
+      "tests/test_review_independence.py": "53341b9c7f54db7bf2338cc40f241e71a9c1c875a13cf064020bf45f5a2c733d",
+      "tools/test_review_independence_addenda.py": "91b6e68d2a72171a88a51ab4bf2cfe6644799f8d39a24304cfc51b88c62c1bba",
+      "tools/test_check_review_independence.py": "3862f4adc97ef185c89a27500f82c9c2d8d7fb07ce5e75a4d46b26c0a6273ff5",
+      "ledger/handoffs/TASK-20261025-a58a22.yaml": "d98db4058e362365e7634730411f01560fb15fc6f382d8eb1cb6f1dbfe73030f"
+    },
+    "hashes_stable_during_tests": true,
+    "suites": [
+      {
+        "equivalent_command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_review_phase_seals.py -v",
+        "testsRun": 52,
+        "failures": 0,
+        "errors": 0,
+        "successful": true,
+        "output": "......PASS: 1 report(s), every joint owned and attested, blindness respected, controls declared\n.FAIL: invalid review plan: /tmp/tmprr5fijfw/plan.yaml: duplicate blind-phase directive/field review_plan\n.............................................\n----------------------------------------------------------------------\nRan 52 tests in 0.209s\n\nOK\n"
+      },
+      {
+        "equivalent_command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_review_independence.py -v",
+        "testsRun": 29,
+        "failures": 0,
+        "errors": 0,
+        "successful": true,
+        "output": ".............................\n----------------------------------------------------------------------\nRan 29 tests in 0.004s\n\nOK\n"
+      },
+      {
+        "equivalent_command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools -p test_review_independence_addenda.py -v",
+        "testsRun": 58,
+        "failures": 0,
+        "errors": 0,
+        "successful": true,
+        "output": "..........................................................\n----------------------------------------------------------------------\nRan 58 tests in 1.231s\n\nOK\n"
+      },
+      {
+        "equivalent_command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools -p test_check_review_independence.py -v",
+        "testsRun": 9,
+        "failures": 0,
+        "errors": 0,
+        "successful": true,
+        "output": ".........\n----------------------------------------------------------------------\nRan 9 tests in 0.002s\n\nOK\n"
+      }
+    ],
+    "total": 148,
+    "all_successful": true
+  },
+  "independent_probes": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nimport contextlib, copy, importlib.util, io, json, os, sys\nfrom unittest.mock import patch\nimport yaml\nspec=importlib.util.spec_from_file_location(\"phasefixtures\",\"tests/test_review_phase_seals.py\")\nm=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\nresults=[]\ndef rebind(x):\n    for value in (x.seal,x.release): value[\"plan_sha256\"]=x.sha(\"plan.yaml\")\n    x.write_json(\"review/seal.json\",x.seal)\n    x.release[\"seal_sha256\"]=x.sha(\"review/seal.json\"); x.write_json(\"review/release.json\",x.release)\n    x.events[2][\"sha256\"]=x.sha(\"review/seal.json\"); x.events[3][\"sha256\"]=x.sha(\"review/release.json\")\ndef probe(name,mutate,expected=\"reject\",checker=None):\n    x=m.SealedPhaseTests(); x.setUp()\n    try:\n        mutate(x)\n        try:\n            errors=x.errors() if checker is None else checker(x)\n            accepted=errors==[]\n            result={\"name\":name,\"expected\":expected,\"accepted\":accepted,\"passed\":accepted==(expected==\"accept\"),\"errors\":errors}\n        except Exception as e:\n            result={\"name\":name,\"expected\":expected,\"exception\":type(e).__name__,\"message\":str(e),\"passed\":False}\n        results.append(result)\n    finally:x.doCleanups()\ndef noop(x):pass\ndef repeat(x):\n    x.events.insert(2,{\"seq\":3,\"kind\":\"read\",\"at\":\"2026-10-25T00:00:02.5Z\",\"source\":\"inputs/statement.json\"})\n    for i,event in enumerate(x.events,1):event[\"seq\"]=i\ndef premature(x):\n    x.events[1][\"source\"]=\"producer/result.json\";x.derivation[\"sources_read\"][1]=\"producer/result.json\";x.write_evidence()\ndef symlink(x):\n    (x.root/\"inputs/alias.json\").symlink_to(\"../producer/result.json\")\n    alias_source(x)\ndef hardlink(x):\n    os.link(x.root/\"producer/result.json\",x.root/\"inputs/alias.json\")\n    alias_source(x)\ndef alias_source(x):\n    x.events[1][\"source\"]=\"inputs/alias.json\";x.derivation[\"sources_read\"][1]=\"inputs/alias.json\";x.attestation[\"sources_read\"][1]=\"inputs/alias.json\";x.write_evidence()\ndef loop(x):\n    (x.root/\"loop\").symlink_to(\"loop\");x.contract[\"plan_path\"]=\"loop\"\ndef future(x):\n    x.plan[\"recorded_at\"]=\"2099-10-25T00:00:00Z\";x.derivation[\"generated_at\"]=\"2099-10-25T00:00:03Z\";x.write_evidence()\n    x.seal[\"recorded_at\"]=\"2099-10-25T00:00:04Z\";x.write_json(\"review/seal.json\",x.seal)\n    x.release.update(recorded_at=\"2099-10-25T00:00:05Z\",seal_sha256=x.sha(\"review/seal.json\"));x.write_json(\"review/release.json\",x.release)\n    for event in x.events:event[\"at\"]=event[\"at\"].replace(\"2026\",\"2099\")\n    x.events[2][\"sha256\"]=x.sha(\"review/seal.json\");x.events[3][\"sha256\"]=x.sha(\"review/release.json\")\ndef wrong_type(x):\n    on_disk=copy.deepcopy(x.plan);on_disk[\"blind_rederivation\"][\"required\"]=1\n    (x.root/\"plan.yaml\").write_text(yaml.safe_dump({\"review_plan\":on_disk}));rebind(x)\ndef duplicate_plan(x):\n    old=copy.deepcopy(x.plan);del old[\"blind_rederivation\"][\"phased_release\"]\n    (x.root/\"plan.yaml\").write_text(yaml.safe_dump({\"review_plan\":old})+yaml.safe_dump({\"review_plan\":x.plan}));rebind(x)\ndef duplicate_report(x):\n    content=json.dumps({\"review_attestation\":x.attestation}).replace('\"source\": \"inputs/statement.json\"','\"source\": \"producer/result.json\", \"source\": \"inputs/statement.json\"',1)\n    (x.root/\"review/report.json\").write_text(content)\ndef cli_report(x):\n    output=io.StringIO()\n    with patch.object(m.C,\"REPO\",str(x.root)),patch.object(sys,\"argv\",[\"check_review_independence.py\",\"--no-addenda\",\"--plan\",str(x.root/\"plan.yaml\"),\"--reports\",str(x.root/\"review/report.json\")]),contextlib.redirect_stdout(output),contextlib.redirect_stderr(output):\n        rc=m.C.main()\n    return [] if rc==0 else [f\"CLI exit {rc}: \"+output.getvalue().strip()]\ndef remove_boundary(x,index):\n    x.events.pop(index)\n    for i,event in enumerate(x.events,1):event[\"seq\"]=i\ndef stale_addendum(x):\n    composed,_=m.C.compose_plan(x.plan,[(\"addendum.yaml\",{\"proves_too_much_objects_added\":[\"n+2\"]})]);x.plan=composed\ndef retro_addendum(x):\n    base=copy.deepcopy(x.plan);del base[\"blind_rederivation\"][\"phased_release\"]\n    x.plan,_=m.C.compose_plan(base,[(\"addendum.yaml\",{\"blind_rederivation\":{\"phased_release\":x.contract}})])\ndef sibling(x):\n    task2=\"TASK-20261025-123456\"; source=f\"review/{task2}/report.json\";(x.root/f\"review/{task2}\").mkdir()\n    other={\"task_id\":task2,\"joints_owned\":[\"J2\"],\"verdicts\":{\"J2\":\"holds\"},\"read_sibling_reports\":False,\"sources_read\":[\"inputs/statement.json\"]}\n    x.write_json(source,{\"review_attestation\":other});x.plan[\"joints\"].append({\"joint\":\"J2\",\"assigned_to\":task2,\"attack_plan\":\"derive alternate n\"})\n    x.contract[\"phase2_allowed\"].append(\"review/\");x.attestation[\"sources_read\"].append(source)\n    x.events.append({\"seq\":6,\"kind\":\"read\",\"at\":m.at(7),\"source\":source});x.write_evidence();x.other=(str(x.root/source),other)\ndef check_sibling(x):\n    with patch.object(m.C,\"REPO\",str(x.root)):return m.C.check(x.plan,[(str(x.root/\"review/report.json\"),x.attestation),x.other])\ndef legacy_prose(x):\n    del x.plan[\"blind_rederivation\"][\"phased_release\"]\n    x.plan[\"blind_rederivation\"][\"phase2_allowed\"]=[\"producer/\"]\n    x.plan[\"blind_rederivation\"][\"phase_description\"]=\"Blind first; compare later.\"\n    del x.attestation[\"phased_release\"]\nfor name,change,expect in [\n(\"valid_content_bound\",noop,\"accept\"),(\"declared_repeated_read\",repeat,\"accept\"),\n(\"omitted_undeclared_repeat_indistinguishable\",noop,\"accept\"),\n(\"premature_protected_repeated_after_release\",premature,\"reject\"),\n(\"premature_protected_symlink_alias\",symlink,\"reject\"),(\"premature_protected_hardlink_alias\",hardlink,\"reject\"),\n(\"cyclic_symlink\",loop,\"reject\"),(\"consistently_future_2099\",future,\"reject\"),\n(\"wrong_bound_boolean_integer_type\",wrong_type,\"reject\"),(\"duplicate_bound_yaml_plan\",duplicate_plan,\"reject\"),\n(\"exact_derivation_read_boundary\",lambda x:x.events[1].update(at=x.derivation[\"generated_at\"]),\"reject\"),\n(\"non_utc_event\",lambda x:x.events[-1].update(at=\"2026-10-25T01:00:06+01:00\"),\"reject\"),\n(\"naive_event\",lambda x:x.events[-1].update(at=\"2026-10-25T00:00:06\"),\"reject\"),\n(\"numeric_event_time\",lambda x:x.events[-1].update(at=1),\"reject\"),\n(\"boolean_sequence\",lambda x:x.events[0].update(seq=True),\"reject\"),\n(\"float_sequence\",lambda x:x.events[0].update(seq=1.0),\"reject\"),\n(\"extra_event_field\",lambda x:x.events[0].update(ignore=True),\"reject\"),\n(\"unknown_attestation_schema\",lambda x:x.attestation[\"phased_release\"].update(schema=\"v999\"),\"reject\"),\n(\"unknown_contract_field\",lambda x:x.contract.update(ignore_early=True),\"reject\"),\n(\"missing_seal_event\",lambda x:remove_boundary(x,2),\"reject\"),\n(\"missing_unblind_event\",lambda x:remove_boundary(x,3),\"reject\"),\n(\"read_at_unblind_boundary\",lambda x:x.events[-1].update(at=m.at(5)),\"reject\"),\n(\"missing_unique_read\",lambda x:x.events.pop(),\"reject\"),\n(\"missing_attested_source\",lambda x:x.attestation[\"sources_read\"].pop(),\"reject\"),\n(\"missing_sealed_source\",lambda x:(x.derivation[\"sources_read\"].pop(),x.write_evidence()),\"reject\"),\n(\"wrong_derivation_bytes\",lambda x:(x.derivation[\"quantities\"].update(n=4),x.write_json(\"review/derivation.json\",x.derivation)),\"reject\"),\n(\"wrong_seal_event_digest\",lambda x:x.events[2].update(sha256=\"0\"*64),\"reject\"),\n(\"wrong_actual_plan\",lambda x:x.plan.update(coordinator_prior=\"Changed plan\"),\"reject\"),\n(\"duplicate_canonical_sources\",lambda x:x.attestation[\"sources_read\"].append(\"inputs/./statement.json\"),\"reject\"),\n(\"absolute_plan_path\",lambda x:x.contract.update(plan_path=str(x.root/\"plan.yaml\")),\"reject\"),\n(\"parent_plan_path\",lambda x:x.contract.update(plan_path=\"../plan.yaml\"),\"reject\"),\n(\"missing_phase_attestation\",lambda x:x.attestation.pop(\"phased_release\"),\"reject\"),\n(\"legacy_prose_no_opt_in\",legacy_prose,\"reject\"),(\"retroactive_addendum\",retro_addendum,\"reject\"),\n(\"stale_plan_after_addendum\",stale_addendum,\"reject\")]:probe(name,change,expect)\nprobe(\"duplicate_raw_report_source_cli\",duplicate_report,checker=cli_report)\nprobe(\"phase_exception_does_not_lift_sibling_blindness\",sibling,checker=check_sibling)\ndef escaped_duplicate_report(x):\n    obj=json.dumps(x.attestation).replace('\"phased_release\"','\"phased\\\\u005frelease\"')\n    obj=obj.replace(\"{\",'{\"read_sibling_reports\":true,',1)\n    (x.root/\"review/report.json\").write_text('{\"review_attestation\":'+obj+'}')\nprobe(\"escaped_phase_key_duplicate_report_cli\",escaped_duplicate_report,checker=cli_report)\nprint(json.dumps({\"probes\":results,\"total\":len(results),\"passed\":sum(item[\"passed\"] for item in results),\"failed\":sum(not item[\"passed\"] for item in results)},indent=2))\n\nPY",
+    "exit_code": 0,
+    "probes": [
+      {
+        "name": "valid_content_bound",
+        "expected": "accept",
+        "accepted": true,
+        "passed": true,
+        "errors": []
+      },
+      {
+        "name": "declared_repeated_read",
+        "expected": "accept",
+        "accepted": true,
+        "passed": true,
+        "errors": []
+      },
+      {
+        "name": "omitted_undeclared_repeat_indistinguishable",
+        "expected": "accept",
+        "accepted": true,
+        "passed": true,
+        "errors": []
+      },
+      {
+        "name": "premature_protected_repeated_after_release",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: protected or unauthorized pre-seal read: producer/result.json",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "premature_protected_symlink_alias",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: protected or unauthorized pre-seal read: inputs/alias.json",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "premature_protected_hardlink_alias",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: multiply linked phase1 input could alias a protected source",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "cyclic_symlink",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: cannot resolve repository path: 'loop'",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "consistently_future_2099",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: plan.recorded_at is in the future relative to the checking host's UTC clock",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "wrong_bound_boolean_integer_type",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: checked plan differs from the bound prospective plan file",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "duplicate_bound_yaml_plan",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: duplicate YAML key: review_plan",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "exact_derivation_read_boundary",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: phase1 read occurs after derivation or seal",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "non_utc_event",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: event5.at must be an aware UTC timestamp",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "naive_event",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: event5.at must be an aware UTC timestamp",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "numeric_event_time",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: event5.at must be an aware UTC timestamp",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "boolean_sequence",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: timeline must have exact event fields and contiguous unique seq1..N",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "float_sequence",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: timeline must have exact event fields and contiguous unique seq1..N",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "extra_event_field",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: timeline must have exact event fields and contiguous unique seq1..N",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "unknown_attestation_schema",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: missing or unknown attested phase schema",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "unknown_contract_field",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: phased_release has missing or unknown contract fields",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "missing_seal_event",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: duplicate or disordered seal/unblind event",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "missing_unblind_event",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: read occurs before unblind release or at its boundary",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "read_at_unblind_boundary",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: read occurs before unblind release or at its boundary",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "missing_unique_read",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: timeline read coverage differs from sources_read",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "missing_attested_source",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: timeline read coverage differs from sources_read"
+        ]
+      },
+      {
+        "name": "missing_sealed_source",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: phase1 read coverage differs from sealed derivation",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "wrong_derivation_bytes",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: seal derivation path/hash mismatch",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "wrong_seal_event_digest",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: seal event timestamp/path/hash mismatch",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "wrong_actual_plan",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: checked plan differs from the bound prospective plan file",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "duplicate_canonical_sources",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: attestation.sources_read contains duplicate paths",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "absolute_plan_path",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: unsafe repository path: '/tmp/tmpos126lt0/plan.yaml'",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "parent_plan_path",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: unsafe repository path: '../plan.yaml'",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "missing_phase_attestation",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: missing or unknown attested phase schema",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "legacy_prose_no_opt_in",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "retroactive_addendum",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "addendum.yaml: REFUSED attempted to replace protected blind_rederivation.phased_release; original declarations remain enforced",
+          "attested phased_release has no matching prospective blind task contract",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "stale_plan_after_addendum",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "sealed review: checked plan differs from the bound prospective plan file",
+          "review/report.json: re-deriver TASK-20261025-abcdef read 1 blind_from path(s) -- producer/; the re-derivation is not independent of the implementation it was meant to check"
+        ]
+      },
+      {
+        "name": "duplicate_raw_report_source_cli",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "CLI exit 2: FAIL: invalid review report: /tmp/tmpx6xa3dad/review/report.json: duplicate blind-phase directive/field source"
+        ]
+      },
+      {
+        "name": "phase_exception_does_not_lift_sibling_blindness",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "review/report.json: TASK-20261025-abcdef sources_read includes sibling artifact without an authorized blindness lift -- review/TASK-20261025-123456/report.json"
+        ]
+      },
+      {
+        "name": "escaped_phase_key_duplicate_report_cli",
+        "expected": "reject",
+        "accepted": false,
+        "passed": true,
+        "errors": [
+          "CLI exit 2: FAIL: invalid review report: /tmp/tmp4glxvi71/review/report.json: duplicate YAML key: read_sibling_reports"
+        ]
+      }
+    ],
+    "total": 38,
+    "passed": 38,
+    "failed": 0
+  },
+  "historical_regression": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 tools/check_review_independence.py --no-addenda --plan ledger/handoffs/TASK-20261025-5145ac.yaml --reports experiments/EXP-ECDLP-d6d8e8/reviews/TASK-20261025-5145ac/report.json",
+    "exit_code": 1,
+    "output": "FAIL: experiments/EXP-ECDLP-d6d8e8/reviews/TASK-20261025-5145ac/report.json: re-deriver TASK-20261025-5145ac read 6 blind_from path(s) -- experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/, research/prym_experiment_design_20261019/implementation/independent.py, research/prym_experiment_design_20261019/implementation/projection.py, research/prym_experiment_design_20261019/implementation/relations.py, research/prym_rank_census_20261025/check_census.py, research/prym_rank_census_20261025/rank_census.py; the re-derivation is not independent of the implementation it was meant to check\n\n1 independence problem(s) across 1 report(s)\n",
+    "interpretation": "Expected failure retained; no retrospective phase opt-in or scientific verdict."
+  },
+  "checked_scope": [
+    "Premature protected reads and repeated protected reads after release",
+    "Source coverage, omitted unique reads and repeated-read declaration limit",
+    "Actual plan, derivation, seal and release hashes and scalar-type binding",
+    "Unsafe paths, canonical duplicates, symlink alias/escape/cycle and hardlink alias",
+    "Naive/non-UTC/numeric/future times; boolean/float sequence numbers; exact phase boundaries",
+    "Missing/duplicate/unordered boundaries and unknown/extra schema fields",
+    "Duplicate bound YAML and raw JSON/YAML report keys, including escaped directive spelling",
+    "Legacy union-of-sources semantics, stale/composed plans, retrospective addenda and sibling blindness"
+  ],
+  "limitations": [
+    "This is an unpublished local engineering review. GitHub publication and artifact-store custody were not established; no commit, push, scientific dispatch, experiment run, gate repair or scientific-state transition is asserted.",
+    "The checker establishes consistency of the declared plan, derivation, seal/release bytes and event chronology. It does not authenticate people, session identity, actual read activity, signed time, independent archive publication or prescribed computation.",
+    "The host-clock future check rejects plainly future dates but cannot authenticate historical timestamps or prove the seal was committed before release.",
+    "Read coverage compares declared source sets. Explicit repeated events are accepted and sequenced. Removing an undisclosed repeat leaves an indistinguishable source union; missing reads omitted consistently from both declarations are not detectable. Missing unique declared source/read mismatches are rejected.",
+    "Phase-one hardlinks are conservatively rejected at validation time. Arbitrary copied or embedded protected content, prior filesystem changes, and actual input provenance require independent custody controls.",
+    "The seal hashes bind plan/derivation and seal/release records. Read events require current actual source files but do not establish their historical content at the claimed read time.",
+    "The review did not evaluate any derivation's mathematics, target labels, experiment outcomes, observation acceptance or scientific claims. Historical TASK-20261025-5145ac remains a failed independence check.",
+    "Finite synthetic controls and source inspection cannot prove absence of all bypasses. No remaining reproduced blocker was found in the tested software scope."
+  ],
+  "artifacts": [
+    "coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/code-review/TASK-20261025-a58a22/report.md",
+    "coordination/goals/GOAL-ECDLP-001/batches/BATCH-49720f/code-review/TASK-20261025-a58a22/report.json"
+  ],
+  "archived_by": "TASK-20261025-c7c93f"
+}

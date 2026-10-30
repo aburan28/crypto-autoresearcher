@@ -105,12 +105,15 @@ def registry_document(**over) -> dict:
 
 
 class SchemaRegistryLoaderTests(unittest.TestCase):
-    def load(self, document) -> dict[str, dict]:
+    def load_text(self, text) -> dict[str, dict]:
         tmp = Path(tempfile.mkdtemp(prefix="schema-registry-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         path = tmp / "registry.yaml"
-        path.write_text(yaml.safe_dump(document, sort_keys=False))
+        path.write_text(text)
         return vl.load_schema_supersessions(str(path))
+
+    def load(self, document) -> dict[str, dict]:
+        return self.load_text(yaml.safe_dump(document, sort_keys=False))
 
     def test_valid_registry_is_keyed_by_original_absolute_path(self) -> None:
         entries = self.load(registry_document())
@@ -137,6 +140,17 @@ class SchemaRegistryLoaderTests(unittest.TestCase):
         document["records"].append(dict(document["records"][0]))
         with self.assertRaises(ValueError):
             self.load(document)
+
+    def test_missing_list_marker_cannot_silently_replace_previous_record(self) -> None:
+        document = yaml.safe_dump(registry_document(), sort_keys=False)
+        document += "  superseded_path: ledger/handoffs/TASK-TST-fedcba.yaml\n"
+        with self.assertRaisesRegex(ValueError, "duplicate YAML key.*superseded_path"):
+            self.load_text(document)
+
+    def test_duplicate_registry_header_is_refused(self) -> None:
+        document = yaml.safe_dump(registry_document(), sort_keys=False)
+        with self.assertRaisesRegex(ValueError, "duplicate YAML key.*records"):
+            self.load_text(document + "records: []\n")
 
     def test_redirect_must_target_same_discovered_kind(self) -> None:
         with self.assertRaises(ValueError):

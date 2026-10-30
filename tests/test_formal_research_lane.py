@@ -89,16 +89,21 @@ def test_requested_theorem_audit_failure_cannot_pass(tmp_path):
     formal.mkdir()
     (formal / 'Theorem.lean').write_text('theorem other : True := True.intro\n')
     (formal / 'AxiomAudit.lean').write_text('-- a project audit may cover no target\n')
+    target_paths = []
     def runner(command, **kwargs):
         is_target = 'TargetAudit-' in command[-1]
         if is_target:
-            assert 'let target := `missing' in Path(command[-1]).read_text()
+            target = Path(command[-1])
+            target_paths.append(target)
+            assert formal not in target.parents
+            assert 'let target := `missing' in target.read_text()
         return subprocess.CompletedProcess(command, 1 if is_target else 0, 'missing theorem' if is_target else '', '')
     task = FormalProofTask(task_id='test', kind=FormalTaskKind.FORMALIZE_CLAIM,
                           claim_id='test', claim='True', theorem_name='missing', theorem_file='Theorem.lean')
     result = LeanWorker(tmp_path, runner=runner).verify(task)
     assert not result.machine_verified
     assert 'missing theorem' in result.audit_log
+    assert target_paths and not target_paths[0].exists()
 
 
 @pytest.mark.parametrize('toolchain,packages', [
@@ -113,3 +118,54 @@ def test_direct_verification_refuses_moving_pins(tmp_path, toolchain, packages):
     (tmp_path / 'lake-manifest.json').write_text(json.dumps({'packages': packages}))
     with pytest.raises(ValueError):
         _check_verification_pins(tmp_path)
+
+
+def test_pinned_version_probe_retries_failed_toolchain_fetch(tmp_path):
+    from orchestration.formal.cli import _probe_pinned_lean_version
+    (tmp_path / 'lean-toolchain').write_text('leanprover/lean4:v4.22.0\n')
+    calls, waits = [], []
+    responses = iter((
+        subprocess.CompletedProcess([], 1, '', 'SSL connect error'),
+        subprocess.CompletedProcess([], 0, 'Lean (version 4.22.0, Release)\n', ''),
+    ))
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return next(responses)
+
+    assert _probe_pinned_lean_version(tmp_path, runner=runner, pause=waits.append) == \
+        'Lean (version 4.22.0, Release)'
+    assert len(calls) == 2
+    assert calls[0][0] == ['lake', 'env', 'lean', '--version']
+    assert calls[0][1]['cwd'] == tmp_path
+    assert waits == [2]
+
+
+def test_pinned_version_probe_never_retries_wrong_version(tmp_path):
+    from orchestration.formal.cli import _probe_pinned_lean_version
+    (tmp_path / 'lean-toolchain').write_text('leanprover/lean4:v4.22.0\n')
+    calls, waits = [], []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, 'Lean (version 4.21.0, Release)', '')
+
+    with pytest.raises(RuntimeError, match='expected 4.22.0, observed 4.21.0'):
+        _probe_pinned_lean_version(tmp_path, runner=runner, pause=waits.append)
+    assert len(calls) == 1
+    assert not waits
+
+
+def test_pinned_version_probe_preserves_failure_after_bounded_retries(tmp_path):
+    from orchestration.formal.cli import _probe_pinned_lean_version
+    (tmp_path / 'lean-toolchain').write_text('leanprover/lean4:v4.22.0\n')
+    calls, waits = [], []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 1, '', 'TLS connect error')
+
+    with pytest.raises(RuntimeError, match='failed after 3 attempts: TLS connect error'):
+        _probe_pinned_lean_version(tmp_path, runner=runner, pause=waits.append)
+    assert len(calls) == 3
+    assert waits == [2, 4]

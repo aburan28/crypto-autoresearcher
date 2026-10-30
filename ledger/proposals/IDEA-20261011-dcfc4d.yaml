@@ -1,0 +1,115 @@
+# IDEA RECORD -- IDEA-20261011-dcfc4d (retrospective lead 4 of 5, ECDLP retrospective 2026-10-09)
+# Proposal only: no status change, approval or run. WRITE-ONCE. Matrix figures are the crypto repo's
+# own reports read at bbd330a9d, NOT replayed. Notes: IDEA-20261011-dcfc4d.notes.md
+idea:
+  id: IDEA-20261011-dcfc4d
+  added: '2026-10-26'
+  recorded_at: '2026-10-26'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator (session 01REawMsbuhFUXFGcf9m86jS)
+  question_id: RQ-ICPERF-94c86e
+  question_ids:
+  - RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  title: Solver selection by total verified-relation cost - does the solver-stage ranking of the m=83 matrix survive charging construction, failed searches, lifting, verification and rank updates
+  class: measurement
+  claim: |-
+    On the m=83 Koblitz quotient workload (E0: y^2+xy=x^3+1 over F_{2^83}, cofactor 4, Frobenius order 83; fixed-phase S4 inputs and the nested normal-subspace payload sweep s in {2, 3, 4}), ranking FES, CryptoMiniSat-XOR, Boolean F5B, Boolean F4-style and Z3 by total charged cost per completed attempt, divided by the engine's completion fraction (equation build, solver stage, unsuccessful searches, lifting, verification, rank updates, timeouts charged at their cap), differs from the ranking by solver-stage median seconds in at least one engine pair at some payload, or the non-solver share of total cost is at least half. H0 (solver-stage ranking is a valid selection rule): identical order at every payload and a solver share above half.
+  mechanism: |-
+    OBJECT FRAME. R1; Sigma = the pipeline stages around one decomposition oracle; Class I partial-action; no new projection, an accounting change. With exact engines the number of attempts per relation is engine-independent, so total cost per relation = (C_build + C_engine + C_lift + C_verify) / (yield x completion fraction). Solver-stage seconds see only C_engine; completion fraction differs by engine (reported: F4-style and F5B time out at payload s >= 3, FES grows 64 to 4096 assignments, CryptoMiniSat stays flat). Priced number: the non-solver share. Stage: whole relation phase. F2 is the lens; added: a selection rule from complete cost.
+  novelty_status: unverified
+  citations:
+  - ref: research/notes/ecc2k130/m83_solver_matrix_20260927/RESULTS.md
+    provenance: internal
+    claim: 12/12 verified; median solver-stage s FES 0.000335, CMS 0.0281, F5B 0.1497, F4-style 0.1710, Z3 0.2121; 0 natural relations from 8 natural targets, also under a full 83-phase search; F4/F5 time out at s >= 3; the note says it does not rank complete m=83 algorithms
+    verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS read it at crypto bbd330a9d (reported, not replayed)
+  - ref: research/notes/ecc2k130/m83_solver_matrix_20260927/results/validated_summary.json
+    provenance: internal
+    claim: phase-choice inline probe, 95 variables, boolean_terms 195951 (line 343)
+    verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS read it at crypto bbd330a9d
+  - ref: KN-LIT-102cdb
+    provenance: kb
+    claim: Trimoska-Ionica-Dequen, XOR reasoning speeds the point-decomposition step on binary curves
+    verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS (corpus entry header only)
+  assumptions:
+  - 'Reported, not located by git grep: DAG factor-base decomposition at degree 31, 1.6% shared pair-sum nodes, about 15% more index memory, no reliable speedup. Boolean F5 reuse, graded caching and sibling-pivot lack a validated improvement; the October correctness workflows were red (CI state unverifiable here).'
+  - 'Branch (crypto, not present locally at filing): claude/solver-total-relation-cost-20261011. PR #874 merge not verified; RESULTS.md present at bbd330a9d.'
+  proof_search_map:
+    not_applicable_reason: Cost-accounting measurement; the identity above is bookkeeping, checked by summing per-stage receipts.
+  predictions:
+  - metric: kendall_tau_stage_rank_vs_total_cost_rank_per_payload
+    direction: lower
+    minimum_effect: below 1 at some payload with a rank flip between two engines
+  - metric: non_solver_share_of_total_cost
+    direction: different
+    minimum_effect: reported per engine and payload; at least half is the H1 reading
+  - metric: total_cost_ratio_slowest_over_fastest_completing_engine
+    direction: lower
+    minimum_effect: <= 1.5 (overhead-dominated) against >= 3 (solver-dominated)
+  minimal_test:
+    design: |-
+      Reuse the frozen m=83 inputs and receipts; add per-stage wall and operation counters for build, solve, lift, verify and rank update, with timeouts charged at cap and censoring reported. Planted controls give finite cost per verified relation; natural targets (zero relations reported) give cost per attempt and a rule-of-three upper bound on yield, never a per-relation figure. Interleaved order, one thread, every setup failure kept.
+    controls:
+    - FES exhaustive reference for every root set
+    - planted positive controls
+    - identical inputs across engines per payload
+    required_metrics:
+    - per-stage seconds and operation counts
+    - completion fraction
+    - verified relations, rank
+    - upper bound on natural yield
+  falsification_conditions:
+  - Identical order at every payload and non-solver share below half for all engines (solver-stage ranking stands at this scope).
+  - Per-stage costs do not sum to the engine total within 5% (accounting defect).
+  confounders:
+  - Python prototypes, not Magma F4/F5 or msolve; WDSat, msolve, Sage unavailable in the original run.
+  - Setup failures hit all engines on the same target.
+  - Natural yield zero, so per-relation costs rest on planted controls.
+  interpretation_limits:
+  - Fixed-phase six-variable S4 and tiny payloads; no end-to-end m=83 claim, no rho-relative S.
+  heuristic_assumptions:
+  - id: H1
+    statement: Engine-independent costs (build, lift, verify) are at least comparable to solver-stage time at s <= 4.
+    rigorous_support: none; the original run excluded build, lifting and set-up from its medians.
+    validation_plan: measure the stages on the frozen inputs; the share is the result, not an input.
+  target_complexity:
+    time_exponent: not claimed (measurement)
+    memory_exponent: not claimed
+    best_known: Pollard rho with Frobenius and negation classes (KR-RHO-037e22)
+    hidden_overhead: exponential squarefree layout for F4/F5 at 95 or 347 variables (preflight unsupported_memory, reported)
+    tradeoff_note: null
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  dominated_by: |-
+    FES at six variables dominates every engine at s=2 (reported); matched rho dominates all. Siblings IDEA-20260926-c98e92, IDEA-20260926-d1adfc, IDEA-20260915-3476de and H-ICPERF-cc4847 measure one stage or the PDP step on other instances.
+  sota_delta: |-
+    Exponent delta 0. Counted delta: a selection rule from complete cost with per-stage receipts, in place of solver-stage medians.
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+    - KR-IC-5765d2
+    - KR-IC-f3da82
+    - KR-IC-0d2021
+    - KR-IC-e847d1
+    - KR-IC-fbdb61
+    - KR-IC-cd159a
+    - KR-RHO-037e22
+    - KR-RHO-825bca
+    - KR-RHO-1c2928
+    nearest:
+    - ref: KR-IC-5765d2
+      provenance: internal
+      relation: adjacent
+      delta: The row reports SAT beating Magma F4 up to 300x on the PDP step; this charges every other stage and the completion fraction before ranking.
+    - ref: KR-IC-f3da82
+      provenance: internal
+      relation: adjacent
+      delta: F4 trace reuse cuts symbolic work; here reuse claims are priced inside total cost, not stage time.
+    searched:
+      corpus_grep:
+      - ledger/.index at 85e1d32b7 (solver, F5, graded, per relation); crypto git grep at bbd330a9d
+      blocked:
+      - no external search
