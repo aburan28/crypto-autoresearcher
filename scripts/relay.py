@@ -416,6 +416,12 @@ def takeover_prompt(root: Path, h: dict, task: str = "") -> str:
     return s
 
 
+def launch_argv(runtime: str, interactive: bool, prompt: str) -> list[str]:
+    # "--" ends option parsing, so a configured command that ends in a
+    # multi-value flag (claude -p --allowedTools A B) cannot swallow the prompt.
+    return [*runtime_cmd(runtime, interactive), "--", prompt]
+
+
 def runtime_cmd(runtime: str, interactive: bool) -> list[str]:
     key = f"RELAY_{runtime.upper()}_{'TUI' if interactive else 'CMD'}"
     default = runtime if interactive else {"claude": "claude -p", "codex": "codex exec"}[runtime]
@@ -502,7 +508,7 @@ def cmd_out(args) -> int:
         print(f"relay: {len(h['git']['unpushed'])} unpushed commit(s): push them, or restore from the checkpoint elsewhere")
     if not args.quiet:
         print("\nStart the other runtime here with:\n")
-        print("  " + shlex.join(runtime_cmd(to, True) + [takeover_prompt(root, h)]))
+        print("  " + shlex.join(launch_argv(to, True, takeover_prompt(root, h))))
     return 0
 
 
@@ -511,7 +517,7 @@ def cmd_switch(args) -> int:
     cmd_out(args)
     root = toplevel()
     h = load(root)
-    argv = runtime_cmd(h["to"], True) + [takeover_prompt(root, h)]
+    argv = launch_argv(h["to"], True, takeover_prompt(root, h))
     if args.exec:
         if not shutil.which(argv[0]):
             sys.exit(f"relay: {argv[0]} is not on PATH")
@@ -597,7 +603,7 @@ def cmd_run(args) -> int:
     prompt, i, hops, exhausted, missing = task, 0, 0, set(), set()
     while hops <= args.max_hops:
         rt = order[i % len(order)]
-        argv = runtime_cmd(rt, False) + [prompt]
+        argv = launch_argv(rt, False, prompt)
         if not shutil.which(argv[0]):
             print(f"relay: {argv[0]} not on PATH; skipping {rt}", file=sys.stderr)
             missing.add(rt)
@@ -607,7 +613,7 @@ def cmd_run(args) -> int:
         else:
             started = now()
             log = logdir / f"{started.replace(':', '')}-{rt}.log"
-            print(f"relay: [{hops}] {rt}: {shlex.join(argv[:-1])} <prompt>  (log {log})", file=sys.stderr)
+            print(f"relay: [{hops}] {rt}: {shlex.join(argv[:-2])} -- <prompt>  (log {log})", file=sys.stderr)
             env = {**os.environ, "RELAY_RUNTIME": rt}
             with log.open("w") as fh:
                 proc = subprocess.Popen(argv, cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
