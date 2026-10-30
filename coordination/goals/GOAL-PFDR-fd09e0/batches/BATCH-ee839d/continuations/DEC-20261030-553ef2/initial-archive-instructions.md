@@ -1,0 +1,9 @@
+# Initial prospective packet — DEC-20261030-553ef2
+
+Archive only exact declared files from actual parent 2dc1804c82d9e0f2af5d55d3128cc17c93d7c9f4. Root owns all Git/push/PR/claims. Initial archive task TASK-20261030-86f2a2 is control-plane only, outside nativequeue. No producer work is asserted. Root verifies exactpaths/hash/bytes/IDs/remote and records publication-verification under archives/TASK-20261030-86f2a2/, separately from this frozeninitialpackage. Then normalgoalclaim TASK-20261030-6394ed and publish before freshresearchrole dispatch. Queueis ownershipqueued; publication/nativeprovenance remain dispatchpreconditions, no more admissiontaskcycle.
+
+No newgoal/batch/lane/canonicalcheckpoint or takeoverofotherlane. Existing terminalQ4cards/failedreviewgate stay unchanged. Freshmathplan is prospective, notretroactiverepair. Root maybindqueue routing/nextaction within existingauthorizedgoalcontrol after initialpublication; do not rewritehistoricalcheckpoints.
+
+Producer must freeze nine outputs and consent normalreportingrelease; TASK-20261030-a09435 snapshots exactnine+receipt and rootverifies/publishes before the twoindependent sessions. Blindvalidator TASK-20261030-0cd7c6 maynot readproducer/snapshot/adversarialoutputs even afteritsseal. Adversarialreviewer TASK-20261030-4c1898 maynotreadblindoutput. Both correctjoints_owned attestations; no futurepass. Coordinator TASK-20261030-685c7c compares reports, runs unchangedcanonicalchecker and createsreservedfutureDEC-20261030-5d1573 onlythen; exact17pathledgerincludesreview8+composition9. Preservefailures/departures, no waivers.
+
+Source PDFs stay externalURL/hash, notGit. AllactualoutputPDFs require source+SVG andeverypageinspection; graphmathematicalchanges onlywithappropriate evidence. Finalarchive selfdigest/futurecommit excluded recursively; actualrootpublicationverification separately.
