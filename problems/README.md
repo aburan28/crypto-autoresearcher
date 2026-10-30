@@ -156,3 +156,5 @@ Coordinator decision and evidence.
 - [Compact candidate selection and incomplete certificate instance](compact-isogeny-candidate-selection.md) — M8191 raw rejection retained; fresh M44497 native gate pending.
 
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
+
+| [BINSTD f7ca97 original execution captures are missing](binstd-f7ca97-original-execution-captures-missing.md) | investigating | Complete native envelope and clean full-ledger claim for a real invalid-output run | Recover run-bound original command/environment captures, add a source-bound envelope preserving failure, and pass unchanged native/full checks |
