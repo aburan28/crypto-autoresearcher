@@ -48,6 +48,11 @@ CREATE VIEW target_recovery_summary AS
  SELECT c.b,t.target_index,t.status,t.attempts,t.witnesses,t.old_rank,t.old_nullity,t.augmented_rank,t.identified,
  t.first_combined_attempt,t.first_combined_rank,t.public_source_matches_json
  FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid);
+CREATE VIEW isolated_target_summary AS
+ SELECT c.b,t.target_index,t.first_single_attempt,t.old_rank+1 AS isolated_augmented_rank,
+ t.old_nullity AS remaining_base_nullity
+ FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid)
+ WHERE t.status='verified' AND t.first_single_attempt IS NOT NULL;
 '''
 
 
@@ -63,7 +68,15 @@ def project(row,projection,r):
 def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out):
     if out.exists():raise ValueError('fresh derived database required')
     original=sqlite3.connect('file:'+str(base_path.resolve())+'?mode=ro',uri=True)
-    c=sqlite3.connect(out);original.backup(c);original.close();c.execute('PRAGMA foreign_keys=ON');c.executescript(SCHEMA)
+    c=sqlite3.connect(out)
+    try:
+        original.backup(c)
+        if c.execute("SELECT value FROM metadata WHERE key='schema'").fetchone()!=(encode('prime-field-database/v2'),):
+            raise ValueError('original v2 parent required')
+        c.execute('PRAGMA foreign_keys=ON');c.executescript(SCHEMA)
+    except BaseException:
+        c.close();out.unlink(missing_ok=True);raise
+    finally:original.close()
     def source(path,kind):
         path=path.resolve();name=str(path.relative_to(ROOT));data=path.read_bytes();value=(name,sha256(data).hexdigest(),len(data),kind)
         prior=c.execute('SELECT sha256,bytes FROM sources WHERE path=?',(name,)).fetchone()
@@ -93,8 +106,15 @@ def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out):
         return row[0]
     try:
         source(base_path,'parent_database');source(Path(__file__),'builder')
+        for key in ('builder_sha256','schema_sha256'):
+            prior=c.execute('SELECT value FROM metadata WHERE key=?',(key,)).fetchone()
+            if prior:c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('parent_'+key,prior[0]))
         c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('schema',encode('prime-field-database/v3')))
         c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('progress_builder_sha256',encode(digest(Path(__file__)))))
+        c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('builder_sha256',encode(digest(Path(__file__)))))
+        schema_sql=encode(c.execute("SELECT name,sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name").fetchall())
+        c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('schema_sha256',encode(sha256(schema_sql.encode()).hexdigest())))
+        c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('schema_digest_recipe',encode('SHA256 of canonical JSON [[name,sql],...] from sqlite_master WHERE sql IS NOT NULL ORDER BY name')))
         if b2_run is not None:
             definitions=load(b2_inputs);source(b2_inputs,'frozen_subset_inputs');execution,analysis,bound=bind(b2_run)
             summaries={(x['cell_id'],x['arm']):x for x in analysis['cells']}
