@@ -16,13 +16,13 @@ The input is the fixed n=47, k=24 random subspace recorded in the high-memory pl
 
 - **Observed:** The [verified terminal record](../analysis/semaev-degree-five-quotient-lift/runs/highmem-rand00-readback-001.json) binds 24 checked artifacts. The original independent checker accepts the D4 map with codimension lower bound 61196; exhaustive counting gives zero solutions. This establishes LFD >= 5. The following D5 producer exits 2 with `refused: lift allocation gate refused` under 68719476736 bytes. Frozen source revision: `0fe0e3ac2cca6b6b00d0f9de64e1ea06a6d88cf3`.
 - **Derived or proved:** The refusal occurs at the native producer's conservative allocation-envelope check. The producer also rejects resource arguments above 64 GiB, so merely supplying a larger limit to this binary is not an executable continuation.
-- **Suspected explanation:** No additional failure mechanism is inferred. The precise envelope for this seed was not printed by the refusing instrument and has not yet been independently derived.
+- **Suspected explanation:** No additional failure mechanism is inferred. The refusing instrument did not print its envelope. A subsequent SHA-bound calculation reproduces it: 152,976,386,232 bytes at chunk 60000; both border enumerations agree on 126,387 coordinates.
 - **Missing capability:** An exact retained capacity calculation, followed by either a separately qualified producer using less memory or a separately qualified larger-limit instrument and actual suitable host placement.
 - **What this evidence does not establish:** No measured peak RSS, proof of minimum memory, degree-five acceptance, LFD upper bound, or evidence that LFD >= 6 is impossible. The original capped attempt remains immutable. Other frozen inputs continue independently.
 
 ## What would unblock it
 
-- [ ] Derive the next-stage border-coordinate count and the exact instrument envelope from the accepted D4 certificate; bind its SHA256 `3bdad807113e43ec41ac6e9edcb2a282ffa486c7a694eba0dd3e0e9b0fa5162f`, source formula, and independent count control.
+- [x] Derive the next-stage border-coordinate count and the exact instrument envelope from the accepted D4 certificate; bind its SHA256 `3bdad807113e43ec41ac6e9edcb2a282ffa486c7a694eba0dd3e0e9b0fa5162f`, source formula, and independent count control.
 - [ ] Qualify and freeze a prospective instrument/resource placement that admits this seed, preserves all original checker conditions, and passes reference-byte and small Semaev cascade controls before a new attempt.
 - [ ] Complete that distinct attempt and retain its certificate/checker/count evidence or its explicit terminal failure. Only original-checker acceptance with codimension strictly greater than zero establishes the sought LFD >= 6 bound on this input.
 
@@ -39,3 +39,5 @@ The first two conditions remove this execution obstruction, not the scientific u
 ## Resolution and history
 
 2026-10-30: D4 independently accepted; D5 allocation refused. The sequential driver advanced to the next frozen input. Unresolved; this record preserves the original degree-six requirement and does not establish a new theorem.
+
+2026-10-30: [Exact capacity calculation](../analysis/semaev-degree-five-quotient-lift/reports/native-envelope-001/report.md) completed under its new frozen protocol. Even chunk 1 needs 144,752,755,295 bytes under the source formula, exceeding this host total memory. Next action is prospective implementation/host qualification; no new LFD bound.

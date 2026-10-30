@@ -143,3 +143,5 @@ The [fourth immutable snapshot](reports/highmem-progress-004/report.md) adds pol
 ## n47 random input 00: accepted D4, capped D5
 
 The [fifth immutable snapshot](reports/highmem-progress-005/report.md) records six terminal inputs and no degree-six bound. The original independent checker accepts the D4 certificate with codimension lower bound 61,196 and exact solution count 0, establishing LFD >= 5. The following D5 lift was refused by the frozen 64 GiB allocation gate. This leaves degree six and upper bounds unknown. The [resource obstruction record](../../problems/semaev-degree-five-lift-exceeds-64gib.md) preserves the next capacity and qualification requirements; the active driver continues the remaining frozen inputs unchanged.
+
+The [retained-seed capacity calculation](reports/native-envelope-001/report.md) reproduces a 152,976,386,232-byte native envelope for this D5 lift. Both border enumerations agree. Even chunk 1 exceeds this host total memory, so reducing the batch alone cannot admit the existing representation. A separately qualified larger-memory instrument/host or reduced representation remains necessary. No new LFD bound follows.
