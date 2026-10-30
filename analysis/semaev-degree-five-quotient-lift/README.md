@@ -9,18 +9,18 @@ attempt ended during node shutdown with no D5 certificate; see
 No frontier worker is currently active. Degree-five codimension equality,
 killed-constant projections, and interrupted runs establish no upper bound.
 
-The local checkpoint producer suite is archived and reported:150fixture
-descriptions,147native cases and3zero-codomain cases outside the interface.
+The local checkpoint producer suite is archived and reported:150 fixture
+descriptions,147 native cases and3 zero-codomain cases outside the interface.
 Its original four-arm registration remains incomplete; the corrected status
-projection is in [producer report002](reports/checkpoint-producer-002/report.md).
-All28 mock-storage controls passed with a valid export. Actual S3 publication
-and restoration across distinct pods also passed all6rows on3small Semaev
+projection is in [producer report 002](reports/checkpoint-producer-002/report.md).
+All 28 mock-storage controls passed with a valid export. Actual S3 publication
+and restoration across distinct pods also passed all 6 rows on3 small Semaev
 fixtures, with original checker and paired exact-count agreement; see
-[cloud report002](reports/checkpoint-cloud-002/report.md). Those checkpoints
-have relation rank0. Nonempty matrix cloud recovery and frontier resource
+[cloud report 002](reports/checkpoint-cloud-002/report.md). Those checkpoints
+have relation rank 0. Nonempty matrix cloud recovery and frontier resource
 admission remain required before retrying D5. No cloud worker remains active.
-The separate D4 panel remains at21of32terminal inputs, with14certified
-LFD-at-least-5 results; its11unfinished inputs remain in scope.
+The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
+LFD-at-least-5 results; its 11 unfinished inputs remain in scope.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
