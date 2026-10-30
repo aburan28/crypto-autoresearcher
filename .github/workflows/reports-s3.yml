@@ -25,6 +25,7 @@ on:
     paths:
       - 'experiments/*/reports/**'
       - 'research/**/*.pdf'
+      - 'research/**/.artifacts.json'
       - 'docs/reports/**'
       - '.github/workflows/reports-s3.yml'
   workflow_dispatch:
@@ -67,18 +68,13 @@ jobs:
           filter: blob:none
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            /.artifacts/
             /experiments/*/reports/
             /research/**/*.pdf
+            /research/**/.artifacts.json
             /docs/reports/
             /tools/artifacts/
-      - name: Pull store data this workflow reads (tools/artifacts)
-        if: steps.creds.outputs.mode != 'none'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.ARTIFACTS_AWS_REGION || 'us-west-2' }}
-        run: python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research
-
+            /tools/report_publication_files.py
       - uses: aws-actions/configure-aws-credentials@v4
         if: steps.creds.outputs.mode == 'role'
         with:
@@ -92,13 +88,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Pull store data this workflow reads (tools/artifacts)
+        if: steps.creds.outputs.mode != 'none'
+        env:
+          ARTIFACTS_REMOTE: s3://setec-astronomy-artifacts/store
+          AWS_REGION: us-east-2
+          AWS_DEFAULT_REGION: us-east-2
+        run: |
+          python3 tools/artifacts/artifacts.py pull --jobs 16 experiments research docs
+          python3 tools/artifacts/artifacts.py verify experiments research docs
+
       - name: Upload this push's reports
         if: steps.creds.outputs.mode != 'none'
         env:
           BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          specs=(':(glob)experiments/*/reports/**' ':(glob)research/**/*.pdf' ':(glob)docs/reports/**')
+          specs=(':(glob)experiments/*/reports/**' ':(glob)research/**/*.pdf' ':(glob)research/**/.artifacts.json' ':(glob)docs/reports/**')
           # A push lists what it added or changed; a manual run, a new branch
           # or an unreachable "before" commit lists every report on main.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "${BEFORE:-}" ] \
@@ -107,6 +113,9 @@ jobs:
           else
             git ls-files -z -- "${specs[@]}" > files.z
           fi
+          # Expand changed manifests to verified logical report files after
+          # hydration. Only this workflow publishes under the reports prefix.
+          python3 tools/report_publication_files.py --files files.z
           : > manifest.jsonl
           echo "### Reports uploaded to s3://$BUCKET/$PREFIX/" >> "$GITHUB_STEP_SUMMARY"
           while IFS= read -r -d '' f; do

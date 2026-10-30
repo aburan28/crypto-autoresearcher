@@ -8,10 +8,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import resource
+import signal
 import time
 import subprocess
 import sys
 from pathlib import Path
+
+import psutil
 
 STUDY = Path(__file__).resolve().parents[1]
 WRAPPER = STUDY / "preparation/execute_graph_prepared.py"
@@ -28,6 +33,52 @@ def write_once(path: Path, value: object) -> None:
     with path.open("x", encoding="utf-8") as stream:
         json.dump(value, stream, indent=2, sort_keys=True)
         stream.write("\n")
+
+
+def run_measured(command: list[str], stdout, stderr, timeout: int) -> tuple[object, dict, bool]:
+    """Run a child with bounded wall time and retain its CPU and sampled RSS."""
+    started = time.monotonic()
+    cpu_before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stdout,
+                               stderr=stderr, start_new_session=True)
+    observed_cpu = 0.0
+    peak_rss = 0
+    timed_out = False
+    process_handle = psutil.Process(process.pid)
+    try:
+        while process.poll() is None:
+            watched = [process_handle]
+            try:
+                watched.extend(process_handle.children(recursive=True))
+            except (psutil.Error, PermissionError, OSError):
+                pass
+            current_cpu = 0.0
+            current_rss = 0
+            for child in watched:
+                try:
+                    times = child.cpu_times()
+                    current_cpu += times.user + times.system
+                    current_rss += child.memory_info().rss
+                except (psutil.Error, PermissionError, OSError):
+                    continue
+            observed_cpu = max(observed_cpu, current_cpu)
+            peak_rss = max(peak_rss, current_rss)
+            if time.monotonic() - started >= timeout:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                timed_out = True
+                break
+            time.sleep(0.02)
+        elapsed = time.monotonic() - started
+        cpu_after = resource.getrusage(resource.RUSAGE_CHILDREN)
+        # RUSAGE_CHILDREN catches short-lived children; sampled tree CPU is a cross-check.
+        child_cpu = cpu_after.ru_utime + cpu_after.ru_stime - cpu_before.ru_utime - cpu_before.ru_stime
+        return process, {"wall_seconds": elapsed, "peak_sampled_rss_bytes": peak_rss,
+                         "child_process_cpu_seconds": max(child_cpu, observed_cpu)}, timed_out
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
 
 
 def main() -> int:
@@ -173,6 +224,7 @@ def main() -> int:
     checker_status = "not_started"
     solver_wall_seconds = 0.0
     checker_wall_seconds = 0.0
+    solver_resources = checker_resources = None
     if args.stage == "solve" and process.returncode == 0 and receipt is not None:
         solve_dir.mkdir(mode=0o700)
         prepared = json.loads(paths["prepared-manifest"].read_text())
@@ -189,10 +241,10 @@ def main() -> int:
         solver_started = time.monotonic()
         with (solve_dir / "solver.stdout").open("xb") as stdout, (solve_dir / "solver.stderr").open("xb") as stderr:
             try:
-                solver_process = subprocess.run(solver_command, stdin=subprocess.DEVNULL,
-                                                stdout=stdout, stderr=stderr, check=False,
-                                                timeout=args.watchdog_seconds)
-                solver_status = "completed" if solver_process.returncode == 0 else "failed"
+                solver_process, solver_resources, timed_out = run_measured(
+                    solver_command, stdout, stderr, args.watchdog_seconds)
+                solver_status = ("timeout" if timed_out else
+                                 "completed" if solver_process.returncode == 0 else "failed")
             except subprocess.TimeoutExpired:
                 solver_process = None
                 solver_status = "timeout"
@@ -208,10 +260,10 @@ def main() -> int:
             checker_started = time.monotonic()
             with (solve_dir / "checker.stdout").open("xb") as stdout, (solve_dir / "checker.stderr").open("xb") as stderr:
                 try:
-                    checker_process = subprocess.run(checker_command, stdin=subprocess.DEVNULL,
-                                                     stdout=stdout, stderr=stderr, check=False,
-                                                     timeout=args.watchdog_seconds)
-                    checker_status = "completed" if checker_process.returncode == 0 else "failed"
+                    checker_process, checker_resources, timed_out = run_measured(
+                        checker_command, stdout, stderr, args.watchdog_seconds)
+                    checker_status = ("timeout" if timed_out else
+                                      "completed" if checker_process.returncode == 0 else "failed")
                 except subprocess.TimeoutExpired:
                     checker_process = None
                     checker_status = "timeout"
@@ -250,8 +302,10 @@ def main() -> int:
             "solver_status": solve_result.get("status") if solve_result else None,
             "solver_process_status": solver_status,
             "solver_wall_seconds": solver_wall_seconds,
+            "solver_resources": solver_resources,
             "checker_process_status": checker_status,
             "checker_wall_seconds": checker_wall_seconds,
+            "checker_resources": checker_resources,
             "checker": solve_check, "commands": solve_commands,
             "artifacts_sha256": solve_artifacts,
             "solver_sha256": sha(SOLVER), "checker_sha256": sha(SOLVE_CHECKER),

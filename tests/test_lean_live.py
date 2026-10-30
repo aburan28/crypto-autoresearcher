@@ -30,6 +30,25 @@ def test_real_lean_accepts_proof_and_keeps_review_pending(workspace):
     assert result.machine_verified, result.build_log + result.audit_log
     assert result.needs_semantic_review
     assert 'CryptoResearch.Smoke.add_zero' in result.audit_log
+    assert 'CryptoResearch.Smoke.add_zero (n : Nat) : n + 0 = n' in result.audit_log
+    assert "'CryptoResearch.Smoke.add_zero' does not depend on any axioms" in result.audit_log
+
+
+def test_batch_shared_audit_still_checks_each_requested_theorem(workspace):
+    from orchestration.formal.lean_worker import verification_session
+    with verification_session():
+        worker = LeanWorker(workspace)
+        assert worker.verify(task()).machine_verified
+        absent = worker.verify(task('CryptoResearch.Smoke.missing'))
+        assert not absent.machine_verified
+        assert 'not a theorem' in absent.audit_log
+        final = worker.verify(task())
+        assert final.machine_verified, final.build_log + final.audit_log
+        assert final.needs_semantic_review
+        assert 'Reused fresh project axiom audit' in final.audit_log
+    fresh = worker.verify(task())
+    assert fresh.machine_verified
+    assert 'Reused fresh' not in fresh.audit_log
 
 
 @pytest.mark.parametrize('name', ['CryptoResearch.Smoke.missing', 'Nat.add'])

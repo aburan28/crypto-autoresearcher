@@ -1,0 +1,68 @@
+joint: B2_published_main_STARK_verifier
+reader:
+  role: validator
+  model: "Codex GPT-6 (exact runtime variant not exposed)"
+prior: "Expect an unenforced AIR or transcript precondition in the educational in-house verifier."
+source_commit: 84a97980d47765c8cd7722a4763f59b0d63c9e91
+sources_read:
+  - /home/ec2-user/crypto-autoresearcher/.claude/skills/sheriff/SKILL.md
+  - /home/ec2-user/crypto-autoresearcher/docs/sheriff.md (B2, B9)
+  - /home/ec2-user/crypto/AGENTS.md
+  - "crypto@84a97980:README.md:484"
+  - "crypto@84a97980:src/zk/stark.rs"
+  - "crypto@84a97980:src/zk/stark_v2.rs"
+  - "crypto@84a97980:src/zk/merkle.rs"
+blind_from:
+  - "Prior sheriff case reports, findings, and reader files; only historical IDs in source test comments were seen."
+  - "Pending PR diffs and producer changes."
+test_equivalence:
+  checkout: /var/tmp/pr2452-full-20261023
+  note: "Tested against its prebuilt release rlib; not a native build of published main. The current test-checkout blobs for stark.rs, stark_v2.rs, polynomial.rs, merkle.rs, plonk.rs, bls12_381/fq.rs, and hash/sha256.rs equal published-main blobs. The rlib was built after source mtimes."
+  main_blob_ids:
+    stark_rs: b7471fede9885829d59f30865599cb81750526d4
+    stark_v2_rs: 9a350350052014d4392e3da5be92eebd1cd1fb3d
+  rlib_sha256: c1dd672a61e1367c69444c9820bd35f0244f4a5078bff94e7d4be4764d25ba46
+checks:
+  - id: false_statement_closure
+    command: >-
+      rustc --edition=2021 /var/tmp/sheriff-b2-closure-control.rs --crate-name sheriff_b2_closure_control --extern crypto_lib=target/release/deps/libcrypto_lib-529c5d64c73c5866.rlib --extern num_bigint=target/release/deps/libnum_bigint-55328cacea398f24.rlib -L dependency=target/release/deps -o /var/tmp/sheriff-b2-closure-control; /var/tmp/sheriff-b2-closure-control
+    source_path: /var/tmp/sheriff-b2-closure-control.rs
+    source_sha256: 07df412ea5fe4eb62bfff62937375062340ef0d99617300822ff339afa438340
+    output_path: /var/tmp/sheriff-b2-closure-control.stdout
+    output_sha256: 75da4a4eae94bf24beaab2c9859edd9ab394f04e45b9597439b7ef1b71d01ce5
+    result: "At n=8, both beta=4/q=20 and beta=8/q=80: fingerprint_equal=true, false_air_row0_constraint=1, honest_accepted=true, false_accepted=true, false_self_accepted=true."
+  - id: degree_one_controls
+    command: >-
+      rustc --edition=2021 /var/tmp/sheriff-b2-standard-controls.rs --crate-name sheriff_b2_standard_controls --extern crypto_lib=target/release/deps/libcrypto_lib-529c5d64c73c5866.rlib --extern num_bigint=target/release/deps/libnum_bigint-55328cacea398f24.rlib -L dependency=target/release/deps -o /var/tmp/sheriff-b2-standard-controls; /var/tmp/sheriff-b2-standard-controls
+    source_path: /var/tmp/sheriff-b2-standard-controls.rs
+    source_sha256: b67e81825476b7b11e9b1706b2f60b0f96430ab46ba16b786d18fd8bb0a849a6
+    output_path: /var/tmp/sheriff-b2-standard-controls.stdout
+    output_sha256: 711d542d89db9054eb19179017a140e633256f77338375d41572d217f5827c18
+    result: "Honest proof accepted; wrong input, wrong output, tripling AIR, truncated FRI, and reordered query rejected."
+  - id: v1_spot_check_rederivation
+    command: "python3: compute (1-1/8)^q for q=20 and q=ceil(64/-log2(7/8))"
+    result: "q=20: 0.06920875877393026 escape per fixed bad transition; q=333: 4.8829430198015043e-20. Matches stated spot-check interpretation."
+findings:
+  - id: B2-closure-precondition
+    severity: major
+    suggested_verdict: broken
+    applies_to: "Public unrestricted AirV2 transition-closure verification, if used as proof of arbitrary closure AIR."
+    evidence: "At boundary row 0 value 1, false transition C(a,b)=b-2a+1 only for (a,b)=(1,2), otherwise b-2a. For a=1 no canonical b satisfies C=0: b=2 is the sole zero of b-2 and is changed to 1. Yet a proof for this false statement is accepted. The closure matches the honest affine transition at all fixed fingerprint probes and on queried coset pairs."
+    scope_limit: "The mutant is non-polynomial and violates the explicit degree-1 transition precondition in stark_v2 module docs; it does not break the documented degree-1 case."
+    cause: "AirV2.transition is an unrestricted public closure. Its claimed degree is not enforced, and a finite-point fingerprint cannot bind arbitrary closures."
+    suggested_fix: "Represent transition constraints as validated degree-bounded polynomial coefficients or an authenticated AST, and bind the exact representation into the transcript. Reject unsupported closure constraints."
+suggested_verdicts:
+  - claim: "Unrestricted public closure API verifies arbitrary AIR statements"
+    verdict: broken
+  - claim: "Documented educational degree-1 verifier mechanics in tested n=8 examples"
+    verdict: upheld_scoped
+  - claim: "General cryptographic soundness level for v2"
+    verdict: not_covered
+    reason: "Main explicitly claims none; no reduction or bound was supplied or established here."
+  - claim: "Research result or execution proof backed by these modules"
+    verdict: not_applicable
+    reason: "README says they must not back a research claim; no tracked main caller outside the module was located."
+remaining_not_covered:
+  - "Native published-main Cargo rebuild and full test suite; scratch tests used a pending-PR checkout with identical relevant source blobs."
+  - "Formal soundness proof for all degree-1 AIRs, query grinding and field terms; no security level is stated."
+  - "All malformed-input/panic behavior and arbitrary-size configurations."
