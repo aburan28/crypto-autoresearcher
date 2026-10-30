@@ -1,0 +1,17 @@
+# Git-addressed reviewer sources fail exact path-scope comparison
+
+Status: open; narrow infrastructure repair authorized, corrected native check pending. Observed 2026-10-29 after comparison TASK-20261029-160be6 returned, before DEC-20261029-ce5c57 was written. This record resolves no scientific or independence claim by itself.
+
+The unchanged comparison attestation reports its own archived blind files using both ordinary paths and immutable `git:<commit>:<path>` citations. The scoped lift authorizes those exact two repository-relative files. The current checker joins the entire Git citation to the repository path, so it reports two unauthorized sibling reads. Its documented canonical-path comparison does not currently understand Git-blob source identity.
+
+The [preserved initial native-check receipt](../coordination/prime_sat_regularity_20261029/amendment-03-git-source-identity/initial-native-check.json) records returncode1, exactly two findings, and unchanged checker SHA256 before/after the invocation. No other native finding was returned. This is a checker observation, not a mathematical verdict.
+
+The [independent content check](../coordination/prime_sat_regularity_20261029/amendment-03-git-source-identity/authorized-blind-alias-content.json) used read-only `git show` at ccff5e6e1cc0b804df97c812b689f517a00b8eb1. Both Git blobs exactly match the authorized blind files: derivation SHA256 309f7b28579851b0518351363edb880d98cc845352ab4cb1cc7d0dc8d213f35b; attestation SHA256 492aa6561895783ea2450012301c9120ddf6d9561307c91b9053293964fbf58b. No broader read permission follows.
+
+The [Coordinator technical authorization](../coordination/prime_sat_regularity_20261029/amendment-03-git-source-identity/technical-scope-authorization.yaml) permits a narrow native path-identity repair and focused regressions. It does not amend the sealed attestations or scientific plan. Valid immutable citations must be canonicalized consistently for both prohibited reads and scoped grants, while malformed/escaping/unresolved aliases fail closed. The actual attestation also contains the uniquely resolved producer abbreviation cdd6a164cb; supported short hexadecimal identities require read-only unambiguous resolution, not acceptance of arbitrary refs.
+
+The next test is a positive/negative parser-and-independence regression suite: exact authorized blind alias accepted; forbidden producer and unauthorized sibling aliases rejected; malformed path, symbolic/missing/ambiguous commit and traversal cases rejected. Then rerun the native checker on the exact unchanged reports. Preserve both original failure and corrected result with the checker source identities.
+
+Exit criterion: focused and existing independence tests pass; corrected native invocation returns0 with no findings; archive/content identities remain intact. Until then the decision stays pending. Even afterward, the tool verifies declared source-scope consistency, not truthful reporting, independently authenticated model identity, the exact first-reveal wall-clock instant, formal proof correctness or cryptanalytic performance. The comparison report explicitly did not record the exact first-read timestamp separately; retain that limitation instead of inventing a time.
+
+No scientific run was performed, and this issue does not alter the previous PNEXT invalid_output receipt, old evidence/hypothesis statuses, or the active persistent goal.

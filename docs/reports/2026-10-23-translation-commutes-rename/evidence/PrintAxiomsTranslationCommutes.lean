@@ -1,0 +1,4 @@
+import CryptoResearch.Quotient.TranslationDescent
+
+#check @CryptoResearch.Quotient.translation_commutes_iff_two_torsion
+#print axioms CryptoResearch.Quotient.translation_commutes_iff_two_torsion

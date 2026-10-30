@@ -110,23 +110,8 @@ def scan_area(root: Path, area: str, root_key: str, *, keep: bool = False) -> di
 def scan_experiments(root: Path) -> dict[str, Any]:
     """Experiment specifications by status, and run manifests by terminal status."""
     specs: collections.Counter[str] = collections.Counter()
-    runs: collections.Counter[str] = collections.Counter()
+    runs = portfolio_kpis.run_statuses(root)
     in_flight: list[dict[str, Any]] = []
-    run_by_exp: collections.Counter[str] = collections.Counter()
-
-    for manifest in (root / "experiments").rglob("manifest.json"):
-        try:
-            doc = json.loads(manifest.read_text())
-        except Exception:  # noqa: BLE001
-            runs["unparseable"] += 1
-            continue
-        run = doc.get("run", doc)
-        if not isinstance(run, dict):
-            runs["unparseable"] += 1
-            continue
-        runs[str(run.get("status") or "—")] += 1
-        if run.get("experiment_id"):
-            run_by_exp[str(run["experiment_id"])] += 1
 
     for spec_path in sorted((root / "experiments").rglob("specification.yaml")):
         record = load_record(spec_path, "experiment")
@@ -138,7 +123,7 @@ def scan_experiments(root: Path) -> dict[str, Any]:
         # "In flight" is the lifecycle gap /research-status step 4 asks about:
         # approved to run, but no run recorded yet.
         exp_id = str(record.get("id") or spec_path.parent.name)
-        if status in {"approved", "running"} and run_by_exp[exp_id] == 0:
+        if status in {"approved", "running"} and not portfolio_kpis.runs_present(spec_path.parent):
             in_flight.append({"id": exp_id, "status": status,
                               "hypothesis_id": record.get("hypothesis_id"),
                               "runs": 0})
