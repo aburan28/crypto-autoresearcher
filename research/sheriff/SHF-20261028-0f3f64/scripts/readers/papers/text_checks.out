@@ -1,0 +1,598 @@
+
+===== binding
+669809d5c6110796b36b32fe26073376a605911d
+669809d5c6110796b36b32fe26073376a605911d
+669809d5c6110796b36b32fe26073376a605911d 2026-10-27T19:15:03-07:00 Merge pull request #2735 from isogeny-labs/codex/ghs-triangle-quartic-family-20261027
+
+===== P1/P-N1/P-N2: note sources and PDF currency
+b615f0019 2026-10-17T05:39:29+00:00 Fix sheriff re-audit minor findings L-N1, L-N2, L-N7, P-N1, P-N2, P-N4..P-N7 (SHF-20261017-e4d7f6)
+6b86609e2 2026-10-16T21:00:14+00:00 papers: correct the LLL degeneracy note (sheriff blocker P1)
+36a1f9d45 2026-10-11T15:16:13+00:00 Collect manuscripts under papers/ in the shared layout
+CreationDate:    Sat Oct 17 05:36:29 2026 UTC
+Pages:           3
+13:     a reason we have not isolated. Both fixes (scaling, and a 2048-bit fixed-point Gram–Schmidt) were
+40:Correction (2026-10-17)
+42:10-16 version. (i) It asserted a mechanism for the P-521 failure on the scaled f64 path: “catastrophic
+105:fixed-point Gram–Schmidt (lll reduce hp) recovers it (3 of 3). We have not isolated where the scaled
+128:not ⌊3 · 521/4⌋ = 390. Each recovered probe returned the planted key. Source: logs/probes.log and
+144:have not isolated, while 2048-bit fixed point succeeds. An HNP experiment that reports an LLL failure
+\begin{abstract}
+An earlier version of this note (PDF of 2026-10-11) reported two LLL
+failure modes for the Boneh--Venkatesan Hidden-Number-Problem lattice
+on deployed ECDSA curves: a ``curve-specific'' failure for secp256k1
+at 256 bits and a uniform failure at $\geq 384$ bits attributed to an
+undersized iteration cap. \textbf{Both were bugs in our floating-point
+Gram--Schmidt orthogonalisation, not properties of the curves or of
+LLL.} For secp256k1, and for every 384-bit curve, the squared
+Gram--Schmidt norms overflow IEEE double precision ($n^4 >$
+\texttt{f64::MAX}). P-521 still fails on the scaled \texttt{f64}
+path, for a reason we have not isolated. Both fixes (scaling, and a
+2048-bit fixed-point Gram--Schmidt) were in the companion code before
+that version was built. With them, a re-run on 2026-10-16 recovers the
+key for every distinct seed pair at 256 and 384 bits, secp256k1
+included (3 of 3 distinct seed pairs, 6 probe runs), and on P-521 with
+2048-bit fixed-point Gram--Schmidt (3 of 3; at
+$k_{\text{bits}} = 384$). We withdraw the curve-specificity claim and every conclusion
+drawn from it. What remains is a numerical lesson: an
+$\texttt{f64}$ Gram--Schmidt step silently fails once the group order
+passes about $2^{256}$ (basis entries about $2^{512}$).
+\end{abstract}
+\section*{Correction (2026-10-17)}
+
+A re-audit (\texttt{sheriff} case \texttt{SHF-20261017-e4d7f6},
+findings P-N1 and P-N2) found two defects in the 2026-10-16 version.
+(i) It asserted a mechanism for the P-521 failure on the scaled
+\texttt{f64} path: ``catastrophic cancellation'', in which
+orthogonalising a row ``subtracts nearly equal 53-bit quantities, and
+the residual swamps the true component''. That mechanism is
+unsupported. With our scaling, the P-521 diagonal $n^2/2^{542}$ rounds
+to exactly $2^{500}$ in \texttt{f64}, so the subtraction described is
+exact on the initial basis, and the residual-dominates condition also
+holds for P-256, brainpoolP256r1 and brainpoolP384r1, which recover.
+The sentence is withdrawn; the measured result (scaled \texttt{f64}
+0 of 3 distinct seed pairs at P-521, 2048-bit fixed point 3 of 3)
+stands. (ii) Table~\ref{tab:rerun} counted probe runs of deterministic,
+overlapping test functions as if they were distinct instances, and
+said $k_{\text{bits}} = 3n_{\text{bits}}/4$ throughout, whereas every
+P-521 probe ran at $k_{\text{bits}} = 384$ ($3/4$ of 512, not of 521).
+The table now gives distinct seed pairs, runs and $k_{\text{bits}}$.
+\paragraph{Failure B: overflow, and an unexplained P-521 failure.} At
+384 bits, $n^4$ overflows for every curve, which explains the
+``uniform'' failure there; the same scaling fixes P-384 and
+brainpoolP384r1, so the iteration cap was not the cause. P-521 still
+fails after scaling (0 of 3 distinct seed pairs), and a 2048-bit
+fixed-point Gram--Schmidt (\texttt{lll\_reduce\_hp}) recovers it
+(3 of 3). We have not isolated where the scaled \texttt{f64} path
+loses precision at P-521; the cancellation argument of \S10.2 of the
+analysis does not apply to the initial basis (correction of
+2026-10-17 above), and locating the failing step would need the
+Gram--Schmidt instrumented during the probe.
+\caption{Re-run, $m = 8$, $\delta = 0.75$. ``Distinct'' counts
+distinct $(d_{\text{seed}}, k_{\text{seed}})$ pairs; the probes are
+deterministic, and overlapping test functions repeat pairs, so
+``Runs'' counts probe executions (the 2026-10-16 version reported
+runs only). $k_{\text{bits}} = 3 n_{\text{bits}}/4$ except at P-521,
+where the probes use $384 = 3/4 \cdot 512$, not
+$\lfloor 3 \cdot 521/4 \rfloor = 390$. Each recovered probe returned
+the planted key. Source: \texttt{logs/probes.log} and
+\texttt{logs/p521\_hp.log} in the re-run directory (corrected
+2026-10-17).}
+\label{tab:rerun}
+\end{table}
+
+Every probe at 256 and 384 bits finished in 13--27~ms on an
+unisolated 4-vCPU virtual machine, against the roughly 10~s and 20~s
+cap hits of the earlier version. These timings are single runs, not a
+benchmark.
+
+===== probe source and lattice.rs unchanged since the re-run commit (empty stat = unchanged)
+97d89f0fd52a7ecb667ac5212494bb91906b9d1f
+
+===== num-bigint versions locked by crypto
+686:name = "num-bigint"
+687-version = "0.4.8"
+--
+698:name = "num-bigint"
+699-version = "0.5.1"
+
+===== analysis note cited by the LLL note (RESEARCH_LLL_GS_ANALYSIS.md §10.1-10.2)
+## 10. RESOLUTION (2026-05-22): Both failures were numerical artifacts
+
+### 10.1 Failure A → Overflow (resolved 2026-05-21)
+
+The secp256k1 vs P-256 LLL discrepancy (§5, §7) was **not** a
+genuine lattice-theoretic phenomenon.  It was a floating-point
+overflow bug: `secp256k1.n ≈ 2^256`, so `n^4 ≈ 2^1024 > f64::MAX
+≈ 2^1023`.  The GS norm computation produced `Inf → NaN`,
+causing LLL to hit the iteration cap.  P-256 escaped only because
+its `n` is smaller by `~2^192`, putting `P-256.n^4` just under
+`f64::MAX`.  Fix: global scaling by `2^(max_bits − 500)`.  All
+256-bit and 384-bit curves now recover 3/3 seeds.  The §5
+μ-oscillation hypothesis, §4 Gram-matrix eigenvalue analysis, and
+§7 r-distribution analysis are **refuted as root causes**.
+
+### 10.2 Failure B → Catastrophic cancellation (resolved 2026-05-22)
+
+P-521 LLL still failed after the overflow fix.  Root cause:
+**catastrophic cancellation** in the f64 GS orthogonalization step.
+
+The P-521 HNP basis has entries spanning `2^384` to `2^1042`
+(658-bit dynamic range).  For the initial basis:
+
+```
+Row i:   n² × e_i   (i = 0..m-1)        [entries ~ 2^1042]
+Row m:   (n·a₀, ..., n·a_{m-1}, 2^384, 0)
+```
+
+The GS orthogonalization must compute:
+```
+b*_m[l] = n·a_l - (a_l/n) × n²  =  n·a_l - n·a_l  =  0
+```
+Both terms are `~2^499` in scaled f64.  IEEE 754 subtraction of
+two nearly-equal 53-bit values leaves a residual `~2^446`.  The
+true `b*_m[m] = 2^384 ≈ 2^{-158}` (scaled) is `2^604` times
+smaller than the phantom residual.  LLL's Lovász condition sees
+`||b*_m||² ≈ m × 2^892` instead of `2^{-316}`, causing
+pathological swap behavior.
+
+f24aeef4d 2026-09-19T05:25:44+00:00 Move every research note out of the repository root into research/notes/<theme>/
+
+===== P3/P4/P5/P-N4/P-N5/P-N6: structural-completeness
+nothing about algorithms outside this family.
+
+The theorem is argued by case analysis over seven structural blocks
+(Section~\ref{sec:blocks}; proof sketches in
+Section~\ref{sec:theorem}, not yet independently reviewed) under
+standing assumptions: Tate's
+isogeny theorem, Howe's gluing theorem, Gaudry's and Diem--Thom\'e's
+complexity bounds for hyperelliptic index calculus, and the
+assumption that prime-field hyperelliptic DLP is not
+sub-exponentially solvable (Section~\ref{sec:theorem}).
+The empirical checks are bounded: the structural conditions are
+computed for the four deployed curves only
+(Section~\ref{sec:empirical}); the twist $\ell$-rank lemma is
+checked numerically for $\ell \in \{3,5,7,11,13\}$ on $j = 0$ curves over
+$\FF_p$ with $p < 500$; the split-Jacobian toy sweep covers primes
+$p \equiv 1 \pmod 6$ with $p \le 1000$, and the CM-73 sweep those with
+$p \le 5000$. A surprising
+The result is, predictably, a null: every direction is closed.
+The value lies in the \emph{completeness} of the closure~--- the
+theorem turns a folklore claim (``ECDLP is hard for prime-field
+ECC'') into a rigorously decomposable, mechanically verifiable
+$p \not\equiv 0 \pmod \ell$ (both scripts skip $r = 0$, which drops one
+instance, $(\ell,p,b) = (7,7,5)$ with $\#E = 7$).
+For $\ell \in \{3,5,7\}$
+(script \texttt{exp\_zprime2\_generalized\_lemma.py}; the $\ell \in \{3,5\}$
+rows also in \texttt{exp\_zprime\_l\_residue.py}) there are 24\,476
+instances: 8\,734 on ordinary curves ($p \equiv 1 \pmod 3$) and 15\,742 on
+supersingular ones ($p \equiv 2 \pmod 3$).  All 8\,156 instances in the
+lemma's hypothesis classes $r = p \bmod \ell \notin \{0, \ell{-}1\}$ are
+ordinary, and none has $\ell \mid \#E^t$.  The hypothesis classes that
+contain any instance are $r = 1$ for $\ell \in \{3,5\}$ and
+$r \in \{1,\ldots,5\}$ for $\ell = 7$; for $\ell = 5$ the classes $r \in \{2,3\}$ contain none, so
+they are not tested.  All 16\,320 instances in the excluded class
+$r = \ell{-}1$ (578 ordinary, 15\,742 supersingular) have $\ell \mid \#E^t$,
+as the tightness remark predicts.
+The check was extended to $\ell \in \{11,13\}$ on ordinary curves only
+(1\,802 instances, script \texttt{exp\_zdoubleprime\_lemma\_extended.py}).
+For $\ell = 11$ only $r = 1$ contains instances (198); for $\ell = 13$, all
+11 valid residue classes $r \in \{1,\ldots,11\}$ are represented
+(1\,510 instances) with $0$ failures, and $r = 12 = \ell{-}1$ yields 94
+failures as predicted.  Total for $\ell \in \{3,5,7,11,13\}$: 26\,278
+instances, of which 10\,536 are ordinary; the 9\,864 ordinary instances that
+satisfy the lemma's hypothesis give $0$ violations.  The lemma depends on
+$(\ell, p, \#E)$ only, so these are 336 and 249 distinct
+$(\ell, p, \#E)$ checks respectively (for $\ell \in \{3,5,7\}$: 292 and,
+in the hypothesis classes, 209).  The counts and the
+\noindent\textbf{CM-73 primes confirmed finite: $\{19, 37, 79, 109\}$ up to $p \le 5000$.}
+The primes giving $a_2 - 2p = -73$ (the ``CM-73'' cluster identified in
+Threads~9--10) are confirmed to be $\{19, 37, 79, 109\}$ in $[7, 5000]$:
+an extended PARI sweep (\texttt{thread12\_cm73\_sweep.gp}, 32\,MB stack) over
+all 330 primes $p \equiv 1 \pmod{6}$ with $7 \le p \le 5000$ (of the 669 primes
+$p \le 5000$; \texttt{recount/count.txt},
+\texttt{recount/thread12\_cm73\_sweep.txt}) finds no CM-73 prime
+beyond $p = 109$.  Among the 11 primes satisfying the necessary norm form
+$4p = 73 + 3k^2$ in this range (with $k \in \{1,5,9,11,21,25,31,35,41,55,65\}$),
+only $k \le 11$ produce a CM-73 Weil polynomial; the seven with $k \ge 21$
+All scripts are PARI/GP 2.17+ scripts with committed expected
+outputs. Total runtime approximately 3 minutes on an M-series Mac.
+
+148:ECC'') into a rigorously decomposable, mechanically verifiable
+986:\textbf{Total} & \textbf{$\approx 3533$} \\
+21:     sketches in Section 8, not yet independently reviewed) under standing assumptions: Tate’s
+73:into a rigorously decomposable, mechanically verifiable structural statement.
+219:exp zprime l residue.py) there are 24 476 instances: 8 734 on ordinary curves (p ≡ 1
+232:ℓ ∈ {3, 5, 7, 11, 13}: 26 278 instances, of which 10 536 are ordinary; the 9 864 ordinary instances
+234:only, so these are 336 and 249 distinct (ℓ, p, #E) checks respectively (for ℓ ∈ {3, 5, 7}: 292
+266:stack) over all 330 primes p ≡ 1 (mod 6) with 7 ≤ p ≤ 5000 (of the 669 primes p ≤ 5000;
+657:                            Total                              ≈ 3533
+CreationDate:    Sat Oct 17 05:39:09 2026 UTC
+b615f0019 2026-10-17T05:39:29+00:00 Fix sheriff re-audit minor findings L-N1, L-N2, L-N7, P-N1, P-N2, P-N4..P-N7 (SHF-20261017-e4d7f6)
+11aa00591 2026-10-16T22:47:02+00:00 Fix sheriff major findings L5, L6, P3, P4, P5 (SHF-20261016-3caa6f)
+36a1f9d45 2026-10-11T15:16:13+00:00 Collect manuscripts under papers/ in the shared layout
+
+===== recount provenance (P-N5)
+-- exp_zprime_l_residue.py: last commits
+0654c7dd1 2026-09-12T18:23:51+02:00 Merge pull request #227 from aburan28/codex/koblitz-stage42-build-validation-20260912
+-- exp_zprime2_generalized_lemma.py: last commits
+0654c7dd1 2026-09-12T18:23:51+02:00 Merge pull request #227 from aburan28/codex/koblitz-stage42-build-validation-20260912
+-- thread12_cm73_sweep.gp: last commits
+0654c7dd1 2026-09-12T18:23:51+02:00 Merge pull request #227 from aburan28/codex/koblitz-stage42-build-validation-20260912
+-- exp_zdoubleprime_lemma_extended.py: last commits
+11aa00591 2026-10-16T22:47:02+00:00 Fix sheriff major findings L5, L6, P3, P4, P5 (SHF-20261016-3caa6f)
+0654c7dd1 2026-09-12T18:23:51+02:00 Merge pull request #227 from aburan28/codex/koblitz-stage42-build-validation-20260912
+-- diff 8b6b8c8ba..669809d5c6110796b36b32fe26073376a605911d of the four scripts (stat)
+ secp256k1_cm_audit/exp_zdoubleprime_lemma_extended.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+-- regenerated output diff 11aa00591..669809d5c6110796b36b32fe26073376a605911d
+diff --git a/papers/structural-completeness/recount/exp_zdoubleprime_lemma_extended.txt b/papers/structural-completeness/recount/exp_zdoubleprime_lemma_extended.txt
+index 9eedda513..26af7a856 100644
+--- a/papers/structural-completeness/recount/exp_zdoubleprime_lemma_extended.txt
++++ b/papers/structural-completeness/recount/exp_zdoubleprime_lemma_extended.txt
+@@ -60,7 +60,7 @@ COVERAGE SUMMARY
+ ============================================================================
+ 
+   Enhanced Lemma verified numerically for ell in {3,5,7} (Exp Z')
+-  and now for ell in {11,13} (Exp Z'').  Grand total: 16562 + 1,802 = 18,364 instances.
++  and now for ell in {11,13} (Exp Z''): 1,802 instances.
+ 
+   Residue coverage per ell:
+    ell    Valid residues (not 0,ell-1)    Coverage
+Raw outputs behind three numbers in `../structural_completeness.tex`, re-run on
+2026-10-16 at commit `f25d5e520` (branch `claude/sheriff-major-findings`).
+~~the four scripts are unchanged since `8b6b8c8ba`~~ Three of the four cited
+scripts (`exp_zprime_l_residue.py`, `exp_zprime2_generalized_lemma.py`,
+`thread12_cm73_sweep.gp`) are unchanged since `8b6b8c8ba`. The fourth,
+`exp_zdoubleprime_lemma_extended.py`, was edited in `11aa00591` (the commit
+that added this directory) to stop printing the stale `16562` total, after its
+2026-10-16 output had been captured; that output therefore came from the
+`8b6b8c8ba` version. It was regenerated on 2026-10-17 with the current script
+(Python 3.13.16, `python3 -I -B exp_zdoubleprime_lemma_extended.py`, exit 0,
+3.4 s, at `b59187e55`); the only change is line 63, which now reads
+`(Exp Z''): 1,802 instances.` instead of `Grand total: 16562 + 1,802 = 18,364
+instances.` (Correction 2026-10-17, sheriff case SHF-20261017-e4d7f6, finding
+P-N5.)
+
+===== Markdown twin (P-N6)
+The theorem is argued by case analysis over seven structural blocks
+(§4; proof sketches in §8, not yet independently reviewed) under
+standing assumptions (Tate's isogeny theorem, Howe's gluing
+theorem, Gaudry's and Diem–Thomé's hyperelliptic index-calculus bounds,
+and no sub-exponential prime-field hyperelliptic DLP). The empirical
+checks are bounded: structural conditions are computed for the four
+deployed curves only (§7); the twist ℓ-rank lemma is checked for
+ℓ ∈ {3,5,7,11,13} on j = 0 curves with p < 500; the split-Jacobian sweep
+covers p ≡ 1 (mod 6), p ≤ 1000, and the CM-73 sweep p ≤ 5000.
+(Corrected 2026-10-16, sheriff case SHF-20261016-3caa6f P5; the LaTeX
+paper `papers/structural-completeness/` is the reference version, and its
+instance and prime counts are recomputed in `recount/`. Corrected again
+2026-10-17, sheriff case SHF-20261017-e4d7f6 P-N6: "proven" became "argued
+(proof sketches in §8)", and a stale paragraph calling the proof
+"unconditional", conditional only on no sub-exponential algorithm being
+*known*, was deleted; it contradicted the standing assumptions above.)
+
+A surprising auxiliary finding: the **Howe-gluing genus-2 cover
+exists for every such curve** (we verify the three Howe (1996)
+conditions hold uniformly), but the cover does not yield a DLP
+speedup because genus-2 prime-field DLP costs `O(p)` while ECDLP
+costs `O(√p)`.
+44:2026-10-17, sheriff case SHF-20261017-e4d7f6 P-N6: "proven" became "argued
+46:"unconditional", conditional only on no sub-exponential algorithm being
+110:ECC") into a rigorously decomposable, mechanically verifiable
+664:families*.  It is not a proof of ECDLP's unconditional hardness.
+
+===== L3/L4/L-N1/P-N7/L-N7: TreeSplit
+# Theorems allowed to rely on `native_decide` (compiler trust, not a kernel
+# proof). The proof gate reports each as TRUST instead of ok. Add an entry only
+# when the study itself records the trust decision; never for a reported
+# theorem of a paper or result (AGENTS.md "Mathematical results should include
+# Lean proofs"). Format: fully qualified name  # reason and where it is recorded.
+TreeSplit.Replay.replay_ok      # registered compiler-trusted replay: research/ic_tree_split_structured_v_20261011/PREREGISTRATION.md §7
+exactly when `g | t^7 − 1`. This file records which of the ten `g` the run
+used do: `23`, `29` and `127` (`t^4+t^2+t+1`, `t^4+t^3+t^2+1`,
+`t^6+…+1`). Those are the `n = 21` cells at `ℓ = 4` (both seeds) and
+`ℓ = 6` (seed 20261012), and they are the only `frob` cells whose gap is
+`−1`. None divides `t^3 − 1`.
+
+**Trust.** Both theorems are closed by `decide +kernel`: the kernel itself
+evaluates `polyMod` on these ten small numbers (its `Nat` arithmetic is
+built in), so they are kernel-checked and depend on no axiom outside
+`propext` and `Quot.sound` (`../AxiomAudit.lean`). Plain `decide` gets stuck
+because the elaborator will not unfold `Nat.log2`; they were first closed by
+`native_decide`, which trusts the compiler (sheriff case
+SHF-20261016-3caa6f, finding L3).
+-/
+
+namespace TreeSplit.Leak
+open TreeSplit.Replay
+
+/-- `g` values of the registered `frob` cells at `n = 21`, in run order. -/
+def gs : List Nat := [23, 35, 101, 159, 421, 29, 49, 127, 249, 331]
+
+theorem in_gf2_7 : gs.filter (fun g => polyMod 129 g == 0) = [23, 29, 127] := by decide +kernel
+theorem not_in_gf2_3 : gs.all (fun g => polyMod 9 g != 0) = true := by decide +kernel
+| `frob` (`n = 21`) | 4 | 20/20 | ~~14 × 0, 6 × −1~~ 15 × 0, 5 × −1 (corrected 2026-10-16) | 0.9, 0.9, 1.1, 1.0 | **CLOSED** |
+> **Correction (2026-10-16, sheriff case SHF-20261016-3caa6f, finding L4).** The registered
+> readout has **five** `frob` (`n = 21`) cells at gap −1 and **fifteen** at gap 0, not six
+> and fourteen as first written here and in the run report
+> ([`runs/registered/readout.txt`](runs/registered/readout.txt), lines 19, 26, 51, 56, 58:
+> `a = 0` seed 20261011 `ℓ = 4`; `a = 0` seed 20261012 `ℓ = 6`; `a = 1` seed 20261011
+> `ℓ = 4`; `a = 1` seed 20261012 `ℓ = 4` and `ℓ = 6`). Six `frob` cells have `V` inside
+> `GF(2^7)`; one of them (`a = 0`, seed 20261012, `ℓ = 4`, `|T2| = 1`) is degenerate at gap 0,
+> as the section below already says, so five, not six, are at −1. The miscount is in the
+> prose only: the records, `Data.lean` and the registered verdict (`Verdict.lean`, CLOSED)
+> are unchanged. The original wording is kept, struck through, where it was wrong.
+
+### The ~~six~~ five `frob` cells at gap −1 are subfield leakage (post hoc; count corrected 2026-10-16)
+
+The registered `frob` arm excluded `g = t^d − 1`, which is a subfield itself. It did not
+exclude a proper Frobenius-stable subspace of a subfield. Three of the ten `g` the run used
+divide `t^7 − 1`: `23`, `29` and `127`. So their `V` lies inside `GF(2^7)`. This is proved
+in [`lean/TreeSplit/Leak.lean`](lean/TreeSplit/Leak.lean), by kernel evaluation
+(`decide +kernel`; corrected 2026-10-16: it was first closed ~~with `native_decide`~~, which
+trusts the compiler and is not a kernel proof, sheriff case SHF-20261016-3caa6f, finding L3).
+For such a `V`, `F ⊂ E(GF(2^7))` and `T2 ⊆ GF(2^7)`, which is a 7-dimensional linear subspace.
+
+- **The gap −1 cells are exactly the five non-degenerate subfield cells.** Six `frob` cells
+  have `g` dividing `t^7 − 1`, and five of them are at gap −1: `ℓ = 4` for both seeds and
+  `ℓ = 6` for seed 20261012 (`|T2|` = 29, 28, 70, 29, 35). The sixth subfield cell, `a = 0`,
+  seed 20261012, `ℓ = 4`, is degenerate: `|F| = 2`, `|T2| = 1`, gap 0. (Corrected
+  2026-10-17, sheriff case SHF-20261017-e4d7f6, finding P-N7: this bullet used to begin
+  ~~"They are exactly the gap −1 cells"~~, which the sixth, gap-0 cell contradicts. Checked
+  against `runs/registered/cells.jsonl` `v_info.g` and `runs/registered/readout.txt`.)
+  [frob (n = 21)], [4], [20], [#strike[14 × 0, 6 × −1] 15 × 0, 5 × −1 (corrected 2026-10-16)], [0.9 – 1.1], [*CLOSED*],
+Gaps and slopes are derived from the recorded `D_s` by the registered rule (ALIVE needs gap ≤ −2 at top ℓ in every series and lower-median slope ≤ 0.15). #strike[The five `frob` cells at −1 are exactly those whose `g` divides `t^7 − 1`.] Six `frob` cells have a `g` dividing `t^7 − 1` (g = 23, 29, 127), so `V ⊂ GF(2^7)` — subfield leakage, identified post hoc (`lean/TreeSplit/Leak.lean`). The five `frob` cells at −1 are exactly the five non-degenerate ones among them; the sixth (a = 0, seed 20261012, ℓ = 4, |T2| = 1) is degenerate at gap 0, and every other `frob` cell has gap 0 (corrected 2026-10-17, sheriff case SHF-20261017-e4d7f6, P-N7).
+# Axiom audit of research/ic_tree_split_structured_v_20261011/lean (TreeSplit), copied from a green CI run.
+# Source: workflow "Tree-split structured-V Lean checks" (.github/workflows/tree-split-structured-v-lean.yml), job `lean`
+#   run  https://github.com/aburan28/crypto/actions/runs/38981755356
+#   job  https://github.com/aburan28/crypto/actions/runs/38981755356/job/117243990692 (conclusion: success)
+#   PR   https://github.com/aburan28/crypto/pull/2033, checkout ref = PR head 22bd479dad938d1d090e3f643bd891f5d2f9b2b1
+#   date 2026-10-17T00:07:58Z (audit step), Lean v4.34.1 (lean/lean-toolchain)
+#   artifact tree-split-axiom-audit, id 12083120333, zip sha256 8d0a8ce3f6f0f1158a2f6477560086742c1dd4fd316f0648db1e796c64d3c689
+# The lean/ sources are identical at 22bd479da and at the commit that adds this log.
+# Committed for finding L-N7 of sheriff case SHF-20261017-e4d7f6.
+# Steps (all success): forbidden-construct grep (native_decide only in replay_ok); lake build;
+#   lake env lean AxiomAudit.lean (5 kernel lines with standard axioms only, 1 compiler line);
+#   lake env leanchecker --fresh TreeSplit.Verdict; lake env leanchecker --fresh TreeSplit.Leak (both exit 0, no output).
+-- lean/ diff since the CI-audited commit 22bd479da (stat)
+ .../lean/axiom-audit.log                           | 30 ++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+===== L5/L-N2/L6/L-N7: conductor_gap
+# Conductor-gap CM pairs: crater vs floor curves with a certified large gap
+
+**Status: constructed, Sage-verified, measured (five ecbench sessions,
+2026-10-10). Result: no implemented method sees the gap; see §5.**
+
+Reading, by the decision rule of `PROTOCOL.md`:
+
+- Two intervals excluded 1 in the first three sessions: ic at ℓ = 263
+  and rho at ℓ = 8209, which was 1.22 [1.005, 1.46]. Each rested on four
+  crater workloads, and they had opposite signs across ℓ. **The rho
+  interval is unexplained.** Correction (2026-10-16, SHF-20261016-3caa6f
+  L5): this bullet used to call it "noise by theorem". It is not. The
+  generic-invariance theorem does not cover ecbench's rho, which hashes the
+  point representation (§4). The `ell8209_q29_ic16` session put rho at
+  1.04 [0.91, 1.19], with a fresh target seed (20261011) and 16 targets
+  per curve, so the deviation did not reproduce there. All five sessions,
+  though, used the same walk seed (`measurement.seed = 1`). Still open: a
+  rho-only re-test at ℓ = 8209 under a fresh measurement seed. The A/A
+  arm `rho-neg-aa` matches `rho-neg` row for row in
+  `results/crater_vs_floor.md`, so it does not act as an independent
+  control for this question. The ic lead was followed up first.
+- The follow-up with 16 targets per curve and a fresh target seed puts
+  `ic.pipeline` at 0.998 [0.970, 1.026] at ℓ = 263 and 0.96 [0.87, 1.07] at
+  ℓ = 8209, with the control arm at 1 in both. **No implemented method
+  shows a reproducible conductor effect**, at gaps of 2^8, 2^13 and 2^17,
+  on curves that share q, N, t and the Frobenius discriminant and differ
+  only in `End(E)`, pending the rho re-test at ℓ = 8209 under a fresh
+  measurement seed (above). Correction (2026-10-17, sheriff case
+  SHF-20261017-e4d7f6, L-N2): this line used to read "No implemented method
+  sees the conductor gap", which the still-unexplained ℓ = 8209 rho
+  interval does not yet allow.
+- This is the honest negative the falsifiers section predicted: it extends
+## 6. Falsifiers
+
+- A BSGS-type arm with `log₂ S` excluding 0: re-sample, then check the
+  harness against the control arm before calling it a harness fault. The
+  theorem gives `E[S] = 1` for BSGS-type arms, not `S = 1` on every finite
+  sample: `S` is a bootstrap statistic over independently drawn workloads,
+  and the recorded BSGS ratios are 0.84, 0.98 and 1.25 (§5), so a 95%
+  interval can exclude 1 by chance (corrected 2026-10-17, sheriff case
+  SHF-20261017-e4d7f6, L-N2; earlier text said "harness fault (check the
+  control arm first)"). A rho or kangaroo arm with `log₂ S` excluding 0:
+  unexplained until re-tested under a fresh measurement seed. These
+  methods hash the representation, so generic invariance does not rule out
+The solver need not be generic: it may be structural, it may read the curve
+equation, the endomorphism ring, anything. It must be a `Solver`: a
+deterministic `run` that is correct on every instance (`Solver.correct`),
+with a self-reported cost. Beyond that, the only things used are that `φ`
+is injective and preserves `one` and `mul`. The algorithm model of
+`GenericInvariance.lean` is not needed here; the two files are independent,
+and together they say: methods in Nechaev's model (BSGS-type) cannot see
+the conductor at all (that file), and for always-correct solvers the best
+cost on the two levels differs by at most the cost of the isogeny between
+them (this file).
+
+**Scope (correction, 2026-10-17, sheriff case SHF-20261017-e4d7f6, L-N2).**
+An earlier version of this comment said "generic methods cannot see the
+conductor at all (that file)", unqualified; in this study's vocabulary
+generic methods include `rho.*` and `kangaroo.*`, which hash the point
+representation and are not instances of the first file's model. This file
+bounds the best cost across levels over always-correct solvers. It says
+nothing about the measured `S` of a given method, and a step-capped
+randomized walk is a `Solver` only once its tape is fixed and only if it
+never fails. No theorem in this file is changed.
+# Axiom audit of research/conductor_gap_cm_pairs_20261010/lean, copied from a green CI run.
+# Source: workflow "Conductor-gap Lean proofs" (.github/workflows/conductor-gap-lean.yml), job `lean`
+#   run  https://github.com/aburan28/crypto/actions/runs/38984047520
+#   job  https://github.com/aburan28/crypto/actions/runs/38984047520/job/117251254820 (conclusion: success)
+#   PR   https://github.com/aburan28/crypto/pull/2026, checkout ref e5a8842272b3efbfdd53bc1b8f65bf4c644e3948
+#   date 2026-10-17T00:56:24Z (audit step), Lean v4.34.1 (lean-toolchain)
+#   artifact conductor-gap-axiom-audit, id 12084680520, zip sha256 2112012a2c47569353f1c77363baf4c65f277cd4c751d96eedfe03f687a7575e
+# The four .lean files in this directory are byte-identical at e5a884227 and at the commit that adds
+# this log, apart from comment-only docstring edits to TransferBound.lean in that same commit
+# (sheriff case SHF-20261017-e4d7f6, L-N2). Committed for finding L-N7 of that case.
+# Commands (from the job log): grep for sorry/admit/native_decide/axiom (none found); lake build;
+#   set -o pipefail; lake env lean AxiomAudit.lean | tee /tmp/axioms.txt (exactly 9 lines, allow-list);
+#   lake env leanchecker --fresh GenericInvariance; lake env leanchecker --fresh TransferBound (both exit 0, no output).
+# Lines below are the job's stdout of the audit step, timestamps stripped.
+-- .lean files in the project
+3
+-- diff since CI-audited commit e5a884227 (stat, then TransferBound code lines changed outside the /-! -/ header)
+ .../conductor_gap_cm_pairs_20261010/lean/README.md | 21 ++++++++++---
+ .../lean/TransferBound.lean                        | 27 ++++++++++++-----
+ .../lean/axiom-audit.log                           | 35 ++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 11 deletions(-)
+@@ -12,7 +12,20 @@ to base `φ(g)` is a logarithm of `h` to base `g`.
+-- cited code line generic.rs:275
+   at 669809d5c6110796b36b32fe26073376a605911d:
+309:            let h = mix(g.key(&pos));
+   at 11aa00591:
+275:            let h = mix(g.key(&pos));
+   files citing generic.rs:275 at 669809d5c6110796b36b32fe26073376a605911d:
+   research/conductor_gap_cm_pairs_20261010/README.md: 1
+   research/conductor_gap_cm_pairs_20261010/PROTOCOL.md: 1
+   research/conductor_gap_cm_pairs_20261010/lean/README.md: 1
+   research/conductor_gap_cm_pairs_20261010/lean/GenericInvariance.lean: 2
+2060:        ((mix(self.g.key(x)) >> 24) % self.jumps.len() as u64) as usize
+
+===== L6/L-N7/L7: S3Roots and program abstract
+# Axiom audit of papers/rootfinding-decomposition/lean (S3Roots), copied from a green CI run.
+# Source: workflow "Root-finding S3Roots Lean proof" (.github/workflows/rootfinding-s3roots-lean.yml), job `lean-proof`
+#   run  https://github.com/aburan28/crypto/actions/runs/38984047507
+#   job  https://github.com/aburan28/crypto/actions/runs/38984047507/job/117251255336 (conclusion: success)
+#   PR   https://github.com/aburan28/crypto/pull/2026, head e5a8842272b3efbfdd53bc1b8f65bf4c644e3948
+#        (actions/checkout default ref, i.e. the PR merge ref; the lean/ sources are identical at e5a884227 and main)
+#   date 2026-10-17T01:06:17Z (audit step), Lean toolchain per lean-toolchain, Mathlib per lake-manifest.json
+#   artifact rootfinding-s3roots-axiom-audit, id 12083579716, zip sha256 0c2f7a7319df8fd74d067f3762a5decb7c5a775fd418fc66fe55a0f4d1d63160
+# Committed for finding L-N7 of sheriff case SHF-20261017-e4d7f6.
+# Commands (from the job log): grep for sorry/admit/native_decide/axiom (none found);
+#   lean-action build S3Roots; leanchecker --fresh --verbose S3Roots (success);
+#   set -o pipefail; lake env lean AxiomAudit.lean | tee /tmp/axioms.txt (exactly 3 lines, allow-list).
+# Lines below are the job's stdout, timestamps stripped.
+-- lean/ diff since e5a884227 (stat)
+ .../rootfinding-decomposition/lean/axiom-audit.txt | 24 ++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+The measurements come from a sixteen-week engineering programme that we also
+document: root-finding decomposition oracles (a known mechanism; its root
+identity, Proposition~\ref{prop:s3}, is proved in Lean, and the oracle is
+engineered to $383$--$1{,}535\times$ over matrix F4 per decomposition),
+-- Lean workflows present
+.github/workflows/conductor-gap-lean.yml
+.github/workflows/rootfinding-s3roots-lean.yml
+.github/workflows/tree-split-structured-v-lean.yml
+
+===== E1/E2/E1-R: ecbench workflow, scope rule, audit script, audit.rs
+#
+# PRs validate every historical session hash/seal/answer without rerunning
+# expensive historical solvers. Fresh smoke sessions replay eight runs.
+# The weekly/manual lane retains exhaustive all-run replay and historical
+# independent-receipt/claim reconstruction. PR correctness receipts
+# are CI diagnostics, never full independent-replay certificates for claims.
+#
+# Every committed ecbench session is found by its schema, not by where it
+# lives: a directory whose session.json has schema `ecbench.session/v1`,
+# wherever it is in the tree (sheriff case SHF-20261016-3caa6f, E2: 167
+# sessions outside research/ecbench_*/sessions/ were never re-verified).
+# Each complete or interrupted session is integrity-audited (hashes, seals,
+# plan, answers, derived figures, grading; --replay 0) on ecbench pull
+# requests and in the weekly/manual lane, and is evidence that is never
+# edited. Four scratch sessions lacking spec/host capsules are hash-pinned in
+# docs/ecbench/INCOMPLETE_SESSIONS.tsv and reported separately. An interrupted session,
+# including one whose runner was killed before it could mark it (still
+# `running`), is accepted by --allow-interrupted as evidence of the
+# interruption: every per-record check still applies.
+#
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+-- schedule/cron triggers in ecbench.yml:
+0
+      - name: Check out and list every committed ecbench session
+        run: |
+          list="$RUNNER_TEMP/ecbench-sessions.txt"
+          mapfile -t candidates < <(git ls-tree -r --name-only HEAD | sed -n 's#/session\.json$##p')
+          test "${#candidates[@]}" -gt 0 || { echo '::error::no session.json in the tree'; exit 1; }
+          printf '/%s/\n' "${candidates[@]}" | git sparse-checkout add --stdin
+          : > "$list"
+          for d in "${candidates[@]}"; do
+            test -f "$d/session.json" || { echo "::error::$d/session.json was not checked out"; exit 1; }
+            if jq -e '.schema == "ecbench.session/v1"' "$d/session.json" > /dev/null; then
+              echo "$d" >> "$list"
+            fi
+          done
+          test -s "$list" || { echo '::error::no committed ecbench sessions found'; exit 1; }
+          echo "$(wc -l < "$list") committed ecbench sessions (by schema)" | tee -a "$GITHUB_STEP_SUMMARY"
+59:    if: ${{ !github.event.pull_request.draft }}
+103:    if: always() && !cancelled() && !github.event.pull_request.draft && (needs.scope.result != 'success' || needs.scope.outputs.ecbench_replay != 'false')
+177:    if: always() && !cancelled() && !github.event.pull_request.draft && (needs.scope.result != 'success' || needs.scope.outputs.ecbench_replay != 'false')
+263:        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+300:        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+327:        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+345:        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+364:        if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+370:        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+382:        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+452:        if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+534:        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+    result.ecbench_replay ||= root
+      || /^research\/factor_base_shape_leads_20261018\//.test(file) && !prose.test(file)
+      || /^docs\/(ecbench|bounds)\//.test(file) && !prose.test(file)
+      || /^research\/(ecbench_[^/]+|ghs_curve_comparison_20261009)\//.test(file) && (!prose.test(file) || file.includes('/sessions/'))
+      || /^research\/notes\/ecc2k130\/(cold_compact_orbit_ic_20261003|full_rank_compact_orbit_ic_20261003)\//.test(file) && (!prose.test(file) || file.includes('/sessions/'))
+      // ecbench.yml audits every committed session by schema, wherever it
+      // lives; a session directory always holds these two files.
+      || /(^|\/)(session\.json|records\.jsonl)$/.test(file) && /^research\//.test(file);
+  fi
+  if ! "$ecbench" verify --dir "$dir" --replay 0 --allow-interrupted --exit-code > "$out.json" 2> "$out.err"; then
+    msg=$(echo "$1"; { jq -r ".problems[]" "$out.json" 2> /dev/null || true; cat "$out.err"; } | sed "s/^/    /")
+    printf "%s\n" "$msg" >> "$failed"
+  fi
+  rm -rf "$out.json" "$out.err" "$out.session"
+' audit < "$audit_list"
+fi
+rm -f "$audit_list"
+if [ -s "$failed" ]; then
+  echo "::error::committed ecbench sessions failing integrity:" >&2
+  cat "$failed" >&2
+  rm -f "$failed"
+  exit 1
+fi
+rm -f "$failed"
+echo "shard $shard: $audited of $index committed ecbench sessions pass integrity (--replay 0 --allow-interrupted); $incomplete_count hash-pinned scratch sessions remain incomplete"
+    pub interruption: Option<String>,
+    /// Whether `records.jsonl` was checked against the whole-file hash
+    /// the runner wrote (`session.records_sha256`) when it finalised the
+    /// session.  `false` for a never-finalised session
+    /// (`interruption: never_finalised`): the runner never wrote that
+    /// hash, so nothing binds the file as a whole.  Its records carry
+    /// only their own per-record seals, which are unkeyed hashes, so a
+    /// truncated file, or one with valid-looking records appended, is not
+    /// detected by any whole-file check.  **An unbound session must not
+    /// be cited as complete**: cite it, if at all, as an interrupted,
+    /// unbound prefix of its plan.  `None` only in receipts written
+    /// before this field existed.
+    #[serde(default)]
+pub fn never_finalised(session: &crate::cryptanalysis::ecbench::runner::Session) -> bool {
+    session.status == "running"
+        && session.finished_unix_ms.is_none()
+        && session.records_sha256.is_none()
+}
+    let killed = allow_interrupted && never_finalised(&session);
+    let accepted_interruption = allow_interrupted && (session.status == "interrupted" || killed);
+    check(
+        "records_hash",
+        !(complete || accepted_interruption) || killed || rec_sha == session.records_sha256,
+        "records.jsonl does not hash to session.records_sha256".into(),
+        // and it was compared (`records_hash` above).
+        records_bound: Some(
+            !killed && session.records_sha256.is_some() && rec_sha == session.records_sha256,
+        ),
+-- records_bound / interruption surfaced by CI script or workflow:
+0

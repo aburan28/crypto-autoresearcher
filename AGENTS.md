@@ -362,10 +362,9 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 ## Concurrency: many agents, many worktrees
 
-- **Generated artifacts are never committed**: `knowledge/INDEX.md`,
-  `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
-  rebuilt on demand; only `main-health.yml` writes the committed
-  `coordination/portfolio_health/latest.json`.
+- **Generated artifacts**: `knowledge/INDEX.md`, `coordination/**/dispatch_plan.*`,
+  and `ledger/.index/` are gitignored. `main-health.yml` archives its cache;
+  checked-in `coordination/portfolio_health/latest.json` is historical pending review.
 - **`main` takes merge commits only** (repository setting; never squash or
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
@@ -584,5 +583,6 @@ resume the effort are checked into S3**, and kept current while it runs.
   worktree next to this checkout and puts `RESUME.md` in it. `share` prints a
   presigned URL that `restore <url>` accepts anywhere.
 A checkpoint is a safety net, not the record: the spec, protocol and results
-still land in a PR under the rules above.
+still land in a PR under the rules above. Switching runtimes:
+[docs/runtime-relay.md](docs/runtime-relay.md).
 When changing tracked results, follow the binding [daily progress-metrics rule](docs/agent-contract-supplement.md#progress-metrics-daily-lab-report): extend the exporter in the same PR, retain stable metric ids and emit only measured, committed values.

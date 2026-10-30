@@ -25,6 +25,7 @@ stderr in --json mode, so the --json stdout stays a plain list of open rows.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import glob
 import json
 import os
@@ -392,6 +393,71 @@ def _taken_idea_ids(repo: Path = REPO) -> set[str]:
 PROPOSAL_DIRS = ("proposals", "ideas")
 
 
+def _verified_idea_redirects(repo: Path, *, warn=warn) -> set[str]:
+    """Return proposal paths with valid, hash-pinned IDEA redirects.
+
+    A redirect only affects scheduling when both immutable records still match
+    the registry and the target record carries the registered redirect ID.
+    Invalid entries fail open: the original proposal remains visible.
+    """
+    registry_path = repo / "tools" / "schema_supersession_registry.yaml"
+    try:
+        document = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+        if not isinstance(document, dict) or document.get("schema") != \
+                "schema-supersession-registry-v1":
+            raise ValueError("invalid schema supersession registry schema")
+        records = document.get("records")
+        if not isinstance(records, list):
+            raise ValueError("schema supersession records must be a list")
+    except FileNotFoundError:
+        # Fixture repositories used by callers may not model the registry.
+        # With no registry there are no applicable redirects to apply.
+        return set()
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        warn(f"cannot read schema supersession registry ({error}); no IDEA "
+             "redirects are applied")
+        return set()
+
+    redirected = set()
+    root = repo.resolve()
+    for entry in records:
+        if not isinstance(entry, dict) or not entry.get("redirect_id"):
+            continue
+        source_rel = entry.get("superseded_path")
+        target_rel = entry.get("superseding_path")
+        if (entry.get("kind") != "ledger" or not isinstance(source_rel, str)
+                or not isinstance(target_rel, str)
+                or not source_rel.startswith("ledger/proposals/")
+                or not target_rel.startswith("ledger/proposals/")
+                or ".." in Path(source_rel).parts or ".." in Path(target_rel).parts):
+            continue
+        source, target = (root / source_rel).resolve(), (root / target_rel).resolve()
+        if root not in source.parents or root not in target.parents:
+            continue
+        try:
+            source_bytes, target_bytes = source.read_bytes(), target.read_bytes()
+            source_hash = hashlib.sha256(source_bytes).hexdigest()
+            target_hash = hashlib.sha256(target_bytes).hexdigest()
+            if (source_hash != entry.get("superseded_sha256") or
+                    target_hash != entry.get("superseding_sha256")):
+                warn(f"schema redirect for {source_rel} has a hash mismatch; "
+                     "original remains in the open-idea queue")
+                continue
+            target_doc = yaml.safe_load(target_bytes)
+            target_idea = (target_doc or {}).get("idea") or target_doc or {}
+            if (not isinstance(target_idea, dict) or
+                    target_idea.get("id") != entry["redirect_id"]):
+                warn(f"schema redirect for {source_rel} has a target ID mismatch; "
+                     "original remains in the open-idea queue")
+                continue
+        except (OSError, UnicodeError, yaml.YAMLError) as error:
+            warn(f"cannot verify schema redirect for {source_rel} ({error}); "
+                 "original remains in the open-idea queue")
+            continue
+        redirected.add(source_rel)
+    return redirected
+
+
 def _proposal_paths(repo: Path = REPO) -> list[str]:
     paths: list[str] = []
     for sub in PROPOSAL_DIRS:
@@ -413,9 +479,12 @@ def open_ecc_ideas(policy: dict | None = None, area: str | None = None,
     rq_area = _rq_area_index(repo)
     taken = _taken_idea_ids(repo)
     disposals = idea_disposition_state(repo) if honour_dispositions else {}
+    schema_redirects = _verified_idea_redirects(repo)
     disposed = []
     out = []
     for p in _proposal_paths(repo):
+        if os.path.relpath(p, repo) in schema_redirects:
+            continue
         try:
             with open(p) as fh:
                 d = fast_yaml.safe_load(fh)

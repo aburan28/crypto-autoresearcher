@@ -415,6 +415,25 @@ class NoRegistryEntryTests(SupersessionFixture):
         )
         self.assertIn("RUN-SUP-001", without.ids)
 
+    def test_empty_or_null_manifest_is_an_error(self) -> None:
+        """A document that loads as None is not a run record with no findings
+        (SHF-20261028-0f3f64, LGN-3)."""
+        for text in ("", "# comment only\n", "null\n", "---\n"):
+            with self.subTest(text=text):
+                self.superseded.write_text(text, encoding="utf-8")
+                ctx = vl.Ctx(set())
+                vl.check_run(str(self.superseded), ctx, {})
+                self.assertEqual([e.split(": ", 1)[1] for e in ctx.errors],
+                                 ["run manifest is empty (no YAML document); "
+                                  "expected top-level key 'run'"])
+
+    def test_unparseable_manifest_is_reported_once(self) -> None:
+        self.superseded.write_text("run: [unclosed\n", encoding="utf-8")
+        ctx = vl.Ctx(set())
+        vl.check_run(str(self.superseded), ctx, {})
+        self.assertEqual(len(ctx.errors), 1)
+        self.assertIn("invalid YAML", ctx.errors[0])
+
     def test_unregistered_clean_run_still_passes(self) -> None:
         clean_dir = self.tmp / "experiments" / "EXP-SUP-002" / "runs" / "RUN-SUP-002"
         clean_dir.mkdir(parents=True)
@@ -700,6 +719,28 @@ class RegistryLoaderTests(unittest.TestCase):
     def test_absent_registry_is_empty_not_fatal(self) -> None:
         self.assertEqual(vl.load_run_supersessions("/nonexistent/registry.yaml"),
                          {})
+
+    def load_text(self, text) -> dict[str, dict]:
+        tmp = Path(tempfile.mkdtemp(prefix="run-supersession-registry-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = tmp / "registry.yaml"
+        path.write_text(text, encoding="utf-8")
+        return vl.load_run_supersessions(str(path))
+
+    def test_missing_list_marker_cannot_silently_replace_previous_record(self) -> None:
+        """A merge that drops a `- run_id:` line folds the next entry's keys
+        into the previous one; yaml keeps the last value, so the earlier route
+        vanishes (SHF-20261028-0f3f64, LGN-1)."""
+        text = yaml.safe_dump(registry_document(), sort_keys=False)
+        text += ("  superseded_path: experiments/EXP-SUP-002/runs/RUN-SUP-002/manifest.yaml\n")
+        with self.assertRaisesRegex(ValueError,
+                                    "duplicate YAML key in run supersession registry.*superseded_path"):
+            self.load_text(text)
+
+    def test_duplicate_registry_header_is_refused(self) -> None:
+        text = yaml.safe_dump(registry_document(), sort_keys=False)
+        with self.assertRaisesRegex(ValueError, "duplicate YAML key.*records"):
+            self.load_text(text + "records: []\n")
 
     def test_non_execution_requires_exact_source_bindings(self) -> None:
         bound = {
