@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 import platform
 import re
+import resource
+import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -54,7 +57,7 @@ def main():
     save(a.out/'environment.json', dict(role=a.role, source_prefix=source,
          destination=target, hostname=platform.node(), uname=list(platform.uname()),
          request_sha256=sha(a.request), protocol_sha256=protocol['freeze']['protocol_sha256'],
-         manifest_sha256=sha(a.bundle/'manifest.json'), wall_valid=False))
+         manifest_sha256=sha(a.bundle/'manifest.json'), prlimit_path=shutil.which('prlimit'), wall_valid=False))
     rows = []
     uploaded = set()
 
@@ -81,17 +84,21 @@ def main():
              seed_sha256=sha(seed), binary_sha256=manifest['files']['bin/quotient_lift_checkpoint']))
 
         def run(label, argv, extra=None, expected=0):
-            argv = ['prlimit','--as='+str(req['child_memory_bytes']),'--',*map(str,argv)]
+            argv = list(map(str,argv))
+            def limits():
+                resource.setrlimit(resource.RLIMIT_AS, (req['child_memory_bytes'],req['child_memory_bytes']))
             start = time.monotonic()
             with (root/(label+'.stdout')).open('xb') as out, (root/(label+'.stderr')).open('xb') as err:
                 try:
-                    p = subprocess.run(argv, env=dict(env, **(extra or {})), stdout=out,
-                                       stderr=err, timeout=req['child_timeout_seconds'])
-                    rc = p.returncode
+                    p = subprocess.Popen(argv, env=dict(env, **(extra or {})), stdout=out,
+                                         stderr=err, preexec_fn=limits, start_new_session=True)
+                    rc = p.wait(timeout=req['child_timeout_seconds'])
                 except subprocess.TimeoutExpired:
+                    os.killpg(p.pid,signal.SIGKILL)
+                    p.wait()
                     rc = 'timeout'
             step = dict(label=label, argv=argv, returncode=rc, expected=expected,
-                        elapsed_seconds=time.monotonic()-start, wall_valid=False)
+                        elapsed_seconds=time.monotonic()-start, memory_bytes=req['child_memory_bytes'], wall_valid=False)
             save(root/(label+'.step.json'),step); row['steps'].append(step)
             upload()
             assert rc == expected, (label, rc, expected)
@@ -128,6 +135,7 @@ def main():
             row.update(passed=True, certificate_sha256=sha(certificate))
         except Exception as error:
             row['error'] = repr(error)
+            row['error_filename'] = getattr(error,'filename',None)
         save(root/'result.json',row); rows.append(row); upload()
     result = dict(role=a.role, rows=rows, passed=all(r['passed'] for r in rows),
                   request_sha256=sha(a.request), protocol_sha256=protocol['freeze']['protocol_sha256'],
