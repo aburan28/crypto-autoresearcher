@@ -111,6 +111,7 @@ def test_describe_does_not_publish_the_hostname(monkeypatch):
         ("DBInstanceStatus", "available"),
         ("AllocatedStorage", "400"),
         ("StorageType", "gp3"),
+        ("DBInstanceArn", "arn:aws:rds:us-west-2:104186811093:db:rho-dp"),
         ("Address", "rho-dp.internal.us-west-2.rds.amazonaws.com"),
         ("Endpoint", "rho-dp.internal.us-west-2.rds.amazonaws.com"),
     ):
@@ -129,6 +130,7 @@ def test_describe_does_not_publish_the_hostname(monkeypatch):
     payload = collect_payload()
     assert payload["available"] is True
     assert payload["database"]["id"] == "rho-dp"
+    assert payload["database"]["account_id"] == "104186811093"
     assert payload["database"]["class"] == "db.r7g.xlarge"
     assert payload["database"]["allocated_bytes"] == 400 * (1024 ** 3)
     assert payload["latest_point"] is None
@@ -137,6 +139,17 @@ def test_describe_does_not_publish_the_hostname(monkeypatch):
     assert "rds.amazonaws.com" not in blob
     assert "internal" not in blob
     assert "Address" not in blob
+
+
+def test_describe_rejects_account_from_wrong_database_arn(monkeypatch):
+    from ui.ops import AwsQuery, _describe_instance
+
+    response = Element("DescribeDBInstancesResponse")
+    arn = Element("DBInstanceArn")
+    arn.text = "arn:aws:rds:us-west-2:590183823895:db:some-other-db"
+    response.append(arn)
+    monkeypatch.setattr(AwsQuery, "call", lambda *args, **kwargs: response)
+    assert _describe_instance(AwsQuery("test", "test", RDS_REGION))["account_id"] is None
 
 
 def test_stopped_database_with_no_samples_is_stale(monkeypatch):

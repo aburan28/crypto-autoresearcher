@@ -133,3 +133,7 @@ Neither is the fully Boolean system's general degree-five ceiling.
 
 No asymptotic growth, ECDLP attack-cost, timing advantage, submission, public
 DOI, human review, or complete Lean formalization is claimed here.
+
+## Frontier capacity follow-up
+
+The frozen D5 requests exceed the current dense-engine admission formula. See the [resource obstruction](../../../problems/semaev-frontier-d5-dense-memory.md) and [reproducible planning arithmetic](frontier-capacity.json). These are planning estimates, not trial results or a bound on all algorithms.
