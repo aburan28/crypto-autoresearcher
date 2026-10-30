@@ -26,15 +26,18 @@ SOLVER = STUDY / "graph_solve_candidate_20261023/solve.py"
 SOLVE_CHECKER = STUDY / "graph_solve_candidate_20261023/check.py"
 RHO_DRIVER = STUDY / "graph_trial_adapter_20261023/matched_rho.py"
 RHO_CHECKER = STUDY / "graph_trial_adapter_20261023/check_matched_rho.py"
+TRANSFER_DRIVER = STUDY / "graph_trial_adapter_20261023/path_transfer.py"
+TRANSFER_CHECKER = STUDY / "graph_trial_adapter_20261023/check_path_transfer.py"
 RUN_ID = re.compile(r"^RUN-ECTD-[0-9a-f]{6}$")
 ARMS = ("low_x", "mid_x", "random_x")
 SOURCE_PATHS = (
     DRIVER, CHECKER, WRAPPER, MATERIALIZER, SOLVE_PREPARER,
-    RHO_DRIVER, RHO_CHECKER,
+    RHO_DRIVER, RHO_CHECKER, TRANSFER_DRIVER, TRANSFER_CHECKER,
     SOLVER, SOLVE_CHECKER,
     HERE / "study_admission.py", HERE / "prepared_worker.py",
     HERE / "prepare_worker_catalog.py", HERE / "build_confirmation_plan.py",
     HERE / "build_solve_plan.py", HERE / "finalist_solve_contract.yaml",
+    HERE / "aggregate_solve_costs.py",
     STUDY / "preparation/prepare_graph_input.py",
     STUDY / "preparation/verify_prepared_graph.py",
     ROOT / "research/conductor_relation_yield_20261014/prepare_input.py",
@@ -255,12 +258,86 @@ def make_rho_trials(rows: list[dict], rho_run_ids: list[str],
     return trials
 
 
+def make_transfer_trials(rows: list[dict], transfer_run_ids: list[str], *,
+                         experiment_id: str,
+                         relation_run_ids: dict[str, str],
+                         prepared_arms: dict[str, dict] | None = None,
+                         sage_path: str | None = None) -> list[dict]:
+    """Map the same public source G,Q pair to each finalist and retain path costs."""
+    finalists = sorted({(row["stratum"], row["path_index"], row["model"]["j"])
+                        for row in rows})
+    if not finalists or len(transfer_run_ids) != len(finalists):
+        raise ValueError("one transfer trial id is required for each finalist")
+    if sage_path is None or not Path(sage_path).is_file():
+        raise ValueError("Sage executable is required for path transfer")
+    trials = []
+    source_points_by_stratum: dict[str, str] = {}
+    target_vectors_by_stratum: dict[str, str] = {}
+    for (family, index, _), run_id in zip(finalists, transfer_run_ids):
+        low_id = f"{family}-v{index:04d}-low_x"
+        if prepared_arms is None:
+            manifest = (f"experiments/{experiment_id}/runs/"
+                        f"{relation_run_ids[low_id]}/prepared/manifest.json")
+            dependencies = [low_id]
+        else:
+            low_manifest_path = Path(prepared_arms[low_id]["manifest"])
+            low_manifest = json.loads(low_manifest_path.read_text())
+            manifest = rel(low_manifest_path)
+            dependencies = []
+            source_digest = low_manifest.get("source_points_sha256")
+            if not isinstance(source_digest, str) or len(source_digest) != 64:
+                raise ValueError("prepared solve manifest lacks public source G,Q points")
+            if family in source_points_by_stratum and source_points_by_stratum[family] != source_digest:
+                raise ValueError("solve finalists do not share the stratum source G,Q pair")
+            source_points_by_stratum[family] = source_digest
+            target_digest = low_manifest.get("target_vector_sha256")
+            if not isinstance(target_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", target_digest):
+                raise ValueError("prepared solve manifest lacks a valid target-vector digest")
+            if family in target_vectors_by_stratum and target_vectors_by_stratum[family] != target_digest:
+                raise ValueError("solve finalists do not share the stratum target vector")
+            target_vectors_by_stratum[family] = target_digest
+            for arm in ARMS:
+                arm_manifest = json.loads(Path(prepared_arms[
+                    f"{family}-v{index:04d}-{arm}"]["manifest"]).read_text())
+                for key in ("source_points_sha256", "source_generator", "source_Q",
+                            "generator", "Q", "target_vector_sha256"):
+                    if arm_manifest.get(key) != low_manifest.get(key):
+                        raise ValueError("finalist treatments do not share exact G,Q and targets")
+        transfer = f"{family}-v{index:04d}-path-transfer"
+        output = "{output_dir}/transfer.json"
+        argv = [sage_path, "-python", rel(TRANSFER_DRIVER), "--stratum", family,
+                "--index", str(index), "--source-manifest", manifest,
+                "--endpoint-manifest", manifest, "--out", output]
+        check_argv = [sage_path, "-python", rel(TRANSFER_CHECKER), "--stratum", family,
+                      "--index", str(index), "--source-manifest", manifest,
+                      "--endpoint-manifest", manifest, "--result", output,
+                      "--out", "{output_dir}/transfer-check.json"]
+        trials.append({
+            "id": transfer, "run_id": run_id,
+            "argv": argv, "check_argv": check_argv,
+            "artifacts": ["transfer.json", "transfer-check.json"],
+            "allow_empty_artifacts": [],
+            "memory_mb": 4096 if family == "P29" else 8192,
+            "watchdog_seconds": 1830,
+            "watchdog_reason": "Saved-path transfer covers the finalist's exact source-to-endpoint edge prefix.",
+            "parameters": {"stage": "solve", "phase": "path_transfer",
+                           "stratum": family, "index": index,
+                           "edge_count": index,
+                           "source_arm": "low_x",
+                           "same_public_G_Q_as_all_treatments": True,
+                           "scalar_or_seed_in_worker_argv": False},
+            "depends_on": dependencies,
+        })
+    return trials
+
+
 def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
                     selection_path: Path, analysis_path: Path,
                     prior_confirmation_admission_path: Path, root_files: dict,
                     commitments: dict, collector_path: str,
                     count_verifier_path: str, sage_path: Path,
-                    relation_run_ids_path: Path, rho_run_ids_path: Path,
+                    relation_run_ids_path: Path, transfer_run_ids_path: Path,
+                    rho_run_ids_path: Path,
                     rho_seeds_path: Path, output_path: Path,
                     source_commit: str | None = None,
                     prepared_catalog: Path | None = None) -> dict:
@@ -340,6 +417,7 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
     collector = repo_file(collector_path)
     count_verifier = repo_file(count_verifier_path)
     relation_ids = read_run_ids(relation_run_ids_path, len(rows))
+    transfer_ids = read_run_ids(transfer_run_ids_path, len(rows) // 3)
     rho_count = 10 * (len(rows) // 3)
     rho_ids = read_run_ids(rho_run_ids_path, rho_count)
     seed_values = [int(line.strip()) for line in rho_seeds_path.read_text().splitlines()
@@ -373,6 +451,10 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
     rho_trials = make_rho_trials(rows, rho_ids, relation_run_by_id, seed_values,
                                  experiment_id=experiment_id,
                                  prepared_arms=prepared_arms)
+    transfer_trials = make_transfer_trials(
+        rows, transfer_ids, experiment_id=experiment_id,
+        relation_run_ids=relation_run_by_id, prepared_arms=prepared_arms,
+        sage_path=str(sage_path))
     body = {
         "schema": "crypto.autoresearch.trial_plan.v1",
         "experiment_id": experiment_id, "task_id": task_id,
@@ -382,6 +464,8 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
         "specification_sha256": sha(specification_path), "queue": queue_path,
         "source_commit": source_commit, "source_sha256": sources,
         "stage": "solve", "execution_stage": 2,
+        "cost_aggregator": {"path": rel(HERE / "aggregate_solve_costs.py"),
+                            "sha256": sha(HERE / "aggregate_solve_costs.py")},
         "schedule_sha256": sha(SCHEDULE_DIR / "discovery-arms.jsonl"),
         "selection": {"path": rel(selection_path), "sha256": sha(selection_path)},
         "finalist_analysis": {"path": rel(analysis_path), "sha256": sha(analysis_path)},
@@ -403,16 +487,18 @@ def build_candidate(specification_path: Path, *, task_id: str, queue_path: str,
            if prepared_catalog is not None else {}),
         "target_count_per_arm": 32768,
         "relation_trial_count": len(relation_trials),
+        "transfer_trial_count": len(transfer_trials),
         "rho_trial_count": len(rho_trials),
-        "trials": relation_trials + rho_trials,
-        "scope_note": "Candidate finalist relation/solver and matched-rho workload from fresh solve roots. Path-map transfer timing still requires the frozen path-transfer phase before this stage is complete.",
+        "trials": relation_trials + transfer_trials + rho_trials,
+        "scope_note": "Candidate finalist relation/solver, public-point path transfer, and matched-rho workload from fresh solve roots. Path transfer never receives a scalar or verifier root.",
     }
     encoded = (json.dumps(body, indent=2, sort_keys=True) + "\n").encode()
     with output_path.open("xb") as stream:
         stream.write(encoded)
     return {"schema": "ectd.graph-solve-candidate-plan-build.v1",
             "status": "candidate_only", "relation_trials": len(relation_trials),
-            "rho_trials": len(rho_trials), "candidate_plan_sha256": hashlib.sha256(encoded).hexdigest(),
+            "transfer_trials": len(transfer_trials), "rho_trials": len(rho_trials),
+            "candidate_plan_sha256": hashlib.sha256(encoded).hexdigest(),
             "output": str(output_path)}
 
 
@@ -558,20 +644,33 @@ def build_approved(candidate_path: Path, admission_path: Path,
 
     original_trials = candidate.get("trials", [])
     relation_count = candidate.get("relation_trial_count")
+    transfer_count = candidate.get("transfer_trial_count")
     rho_count = candidate.get("rho_trial_count")
-    if (not isinstance(relation_count, int) or not isinstance(rho_count, int) or
-            relation_count != len(rows) or rho_count != 10 * (len(rows) // 3) or
-            len(original_trials) != relation_count + rho_count):
+    if (not isinstance(relation_count, int) or not isinstance(transfer_count, int) or
+            not isinstance(rho_count, int) or relation_count != len(rows) or
+            transfer_count != len(rows) // 3 or rho_count != 10 * (len(rows) // 3) or
+            len(original_trials) != relation_count + transfer_count + rho_count):
         raise ValueError("solve candidate trial counts differ from the frozen finalist workload")
     relation_source = original_trials[:relation_count]
-    rho_source = original_trials[relation_count:]
+    transfer_source = original_trials[relation_count:relation_count + transfer_count]
+    rho_source = original_trials[relation_count + transfer_count:]
     relation_ids = [trial.get("run_id") for trial in relation_source]
+    transfer_ids = [trial.get("run_id") for trial in transfer_source]
     rho_ids = [trial.get("run_id") for trial in rho_source]
     relation_by_arm = {row["arm_key"]: run_id for row, run_id in zip(rows, relation_ids)}
     if ([trial.get("id") for trial in relation_source] != [row["arm_key"] for row in rows] or
             any(not isinstance(run_id, str) or not RUN_ID.fullmatch(run_id)
-                for run_id in (*relation_ids, *rho_ids))):
+                for run_id in (*relation_ids, *transfer_ids, *rho_ids))):
         raise ValueError("solve candidate run IDs or finalist order differ")
+    if len(set((*relation_ids, *transfer_ids, *rho_ids))) != len(
+            relation_ids + transfer_ids + rho_ids):
+        raise ValueError("solve candidate run ids must be unique across every phase")
+    if ([trial.get("parameters", {}).get("phase") for trial in transfer_source] !=
+            ["path_transfer"] * transfer_count or
+            [trial.get("id") for trial in transfer_source] != [
+                f"{row['stratum']}-v{row['path_index']:04d}-path-transfer"
+                for row in rows[::3]]):
+        raise ValueError("solve candidate path-transfer rows differ from finalist identities")
     repetitions = sorted({trial.get("parameters", {}).get("repetition") for trial in rho_source})
     if repetitions != list(range(10)):
         raise ValueError("solve candidate matched-rho repetitions differ")
@@ -589,14 +688,16 @@ def build_approved(candidate_path: Path, admission_path: Path,
         count_verifier_path=candidate["binaries"]["count_verifier"]["path"],
         sage_path=candidate["binaries"]["sage"]["path"],
         prepared_catalog=prepared_catalog)
+    expected_transfer = make_transfer_trials(
+        rows, transfer_ids, experiment_id=experiment_id,
+        relation_run_ids=relation_by_arm, prepared_arms=prepared_arms,
+        sage_path=candidate["binaries"]["sage"]["path"])
     expected_rho = make_rho_trials(
         rows, rho_ids, relation_by_arm, seeds, experiment_id=experiment_id,
         prepared_arms=prepared_arms)
-    expected_trials = expected_relations + expected_rho
-    stable_fields = ("id", "run_id", "memory_mb", "watchdog_seconds", "watchdog_reason")
-    if (len(expected_trials) != len(original_trials) or any(
-            any(actual.get(field) != expected.get(field) for field in stable_fields)
-            for actual, expected in zip(original_trials, expected_trials))):
+    expected_trials = expected_relations + expected_transfer + expected_rho
+    if (len(expected_trials) != len(original_trials) or
+            original_trials != expected_trials):
         raise ValueError("solve candidate trial identities or resource guards differ")
     from build_confirmation_plan import SOURCE_PATHS as confirmation_sources
     from execute_graph_prepared import check_frozen_sources, source_paths
@@ -624,9 +725,10 @@ def build_approved(candidate_path: Path, admission_path: Path,
     body["stage_admission"] = {"sha256": sha(admission_path),
                                "decision_sha256": sha(decision_path)}
     body["scope_note"] = (
-        "Coordinator-approved finalist relation and solver trials plus ten matched plain-rho "
-        "trials per finalist on the same prepared target input. Worker argv contains only "
-        "custodian-prepared inputs, public bindings, and rootless admission documents.")
+        "Coordinator-approved finalist relation/solver trials, source-to-finalist transfer "
+        "trials on public G,Q points, and ten matched plain-rho trials per finalist on the "
+        "same prepared target input. Worker argv contains only custodian-prepared points, "
+        "public bindings, and rootless admission documents.")
     output_path = output_path.resolve()
     if not output_path.is_relative_to(ROOT / "experiments" / experiment_id):
         raise ValueError("approved solve plan output must stay inside the experiment directory")

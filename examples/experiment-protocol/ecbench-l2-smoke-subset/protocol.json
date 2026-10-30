@@ -1,0 +1,450 @@
+{
+  "schema": "experiment.protocol/v1",
+  "protocol_id": "EXAMPLE-ecbench-l2-smoke-subset",
+  "version": 1,
+  "created": "2026-10-22",
+  "repository": "crypto-autoresearcher",
+  "study_dir": "examples/experiment-protocol/ecbench-l2-smoke-subset",
+  "authors": [
+    "experiment-protocol skill (worked example)"
+  ],
+  "links": {
+    "source_session": "crypto:research/eks_crypto_validation_20261019/artifacts/session (ECBS1hc931106fd275)",
+    "spec": "crypto:docs/ecbench/specs/smoke-prime.json",
+    "note": "A worked example on a committed public fixture session, written after the session ran. It demonstrates the record shapes; it is not a preregistration of that run and licenses no claim."
+  },
+  "question": "On the registered 20-bit prime-order fixture curve, does negation-map BSGS cost more counted group operations (S) than the negation-map rho reference, and what is the rho A/A spread the difference must exceed?",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Every row recovers the planted scalar (exact computation, verified by the harness).",
+      "class": "exact_computation",
+      "decided_by": []
+    },
+    {
+      "id": "C2",
+      "text": "bsgs.negation costs more S than rho.negation on these two workloads, by more than the rho A/A spread.",
+      "class": "comparative",
+      "decided_by": [
+        "C-method"
+      ],
+      "if_supported": "a descriptive statement about this fixture only; no scaling or speed claim",
+      "if_not_supported": "the two methods are within the A/A spread on this fixture"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "On a 20-bit prime-order curve BSGS with the negation map pays its table setup in counted operations and lands above rho.negation in S.",
+      "mechanism": "BSGS charges sqrt(r)-scale table construction before the first lookup; rho's expected cost is sqrt(pi r / 4) with the negation map.",
+      "predictions": [
+        {
+          "id": "P1",
+          "metric": "s",
+          "direction": "higher",
+          "minimum_effect": "median S of bsgs-neg above the upper end of the rho A/A interval",
+          "provenance": {
+            "written_at": "2026-10-22",
+            "data_seen": [
+              {
+                "path": "crypto:research/eks_crypto_validation_20261019/README.md",
+                "measured": "the same session's verified counts; this example is in-sample by construction"
+              }
+            ],
+            "sample_status": "in_sample"
+          },
+          "role": "calibration"
+        }
+      ]
+    }
+  ],
+  "arms": [
+    {
+      "id": "rho-neg",
+      "role": "reference",
+      "description": "rho.negation, the reference arm of the smoke spec",
+      "instrument": {
+        "repo": "crypto",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "ecbench"
+          ]
+        ],
+        "binary_sha256": "583e62f0836eae43330c4b36bbe3d145dacb01de3132436c71f6924445c6a5a9",
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation"
+      }
+    },
+    {
+      "id": "bsgs-neg",
+      "role": "candidate",
+      "description": "bsgs.negation on the same workloads",
+      "instrument": {
+        "repo": "crypto",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "ecbench"
+          ]
+        ],
+        "binary_sha256": "583e62f0836eae43330c4b36bbe3d145dacb01de3132436c71f6924445c6a5a9",
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "bsgs.negation"
+      },
+      "same_instrument_as": "rho-neg"
+    },
+    {
+      "id": "rho-neg-aa",
+      "role": "control_aa",
+      "description": "rho.negation repeated under a second arm name: the A/A noise floor",
+      "instrument": {
+        "repo": "crypto",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "ecbench"
+          ]
+        ],
+        "binary_sha256": "583e62f0836eae43330c4b36bbe3d145dacb01de3132436c71f6924445c6a5a9",
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation"
+      },
+      "same_instrument_as": "rho-neg"
+    }
+  ],
+  "controls": {
+    "aa": {
+      "present": true,
+      "comparison": "C-aa",
+      "not_applicable_reason": null
+    },
+    "positive": {
+      "present": false,
+      "arm": null,
+      "expected_detection": null,
+      "not_applicable_reason": "every workload carries a planted scalar and the harness checks [k]G = Q on every row; a miss is a wrong_answer row, so detector power is exercised on every run rather than on a separate planted arm"
+    },
+    "negative": {
+      "present": false,
+      "arm": null,
+      "null_population": null,
+      "not_applicable_reason": "a cost comparison between two methods on the same instances asserts nothing about a null population"
+    }
+  },
+  "variable_ledger": {
+    "independent": [
+      {
+        "name": "method",
+        "levels": [
+          "rho.negation",
+          "bsgs.negation"
+        ]
+      }
+    ],
+    "factors": [
+      {
+        "name": "curve",
+        "treatment": "fixed",
+        "value": "icv1-fp20-t727-cd198a38",
+        "how": "one registered curve from the frozen spec"
+      },
+      {
+        "name": "targets",
+        "treatment": "fixed",
+        "value": "target_seed 20261002, 2 targets",
+        "how": "the spec's uniform_scalar_sha256_v1 law, independent of arm"
+      },
+      {
+        "name": "binary",
+        "treatment": "fixed",
+        "value": "ecbench 583e62f0",
+        "how": "one binary, sha256 pinned, execs /proc/self/exe per child"
+      },
+      {
+        "name": "threads",
+        "treatment": "fixed",
+        "value": 1,
+        "how": "RAYON_NUM_THREADS=1 OMP_NUM_THREADS=1 in the child environment"
+      },
+      {
+        "name": "algorithm_seed",
+        "treatment": "randomized",
+        "how": "drawn per execution by the harness plan, independent of arm"
+      },
+      {
+        "name": "arm_order",
+        "treatment": "randomized",
+        "how": "measurement.order alternate: arms interleave within every round"
+      },
+      {
+        "name": "host_load",
+        "treatment": "measured",
+        "how": "steal, PSI, foreign busy ticks recorded per row; affects wall time only"
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "C-method",
+        "arms": [
+          "rho-neg",
+          "bsgs-neg"
+        ],
+        "differs_in": [
+          "method"
+        ],
+        "design": "one_factor"
+      },
+      {
+        "id": "C-aa",
+        "arms": [
+          "rho-neg",
+          "rho-neg-aa"
+        ],
+        "differs_in": [],
+        "design": "aa"
+      }
+    ],
+    "aa_not_applicable": null,
+    "crosses_map": false
+  },
+  "randomization": {
+    "arm_order": "interleaved",
+    "arm_order_reason": null,
+    "seed_derivation": {
+      "method": "harness_drawn",
+      "seeds": [],
+      "nonce": null,
+      "note": "ecbench derives algorithm_seed per execution from the frozen spec's measurement.seed (1) and the plan; every row's seed is in records.jsonl algorithm_seed and in the export"
+    },
+    "instance_sampling": {
+      "rule": "two targets per curve from target_seed 20261002 under uniform_scalar_sha256_v1",
+      "independent_of_arm": true
+    },
+    "blinding": {
+      "analysis_labels_masked": false,
+      "how": "not masked: a three-arm smoke fixture whose arms are named by method in the harness output",
+      "unmasked_at": null
+    }
+  },
+  "sample_size": {
+    "instances": 2,
+    "replicates": 3,
+    "warmups": 1,
+    "power": {
+      "method": "paired_bootstrap",
+      "alpha": 0.05,
+      "tests_in_family": 1,
+      "correction": "none",
+      "rank_test_n": null,
+      "min_attainable_two_sided_p": null,
+      "passes": true,
+      "note": "six paired (workload, round) observations per arm; ecbench compare resamples workloads for its interval; a smoke fixture, sized to exercise the pipeline, not to resolve a small effect"
+    },
+    "preflight_runtime": {
+      "fixed_seconds": 0.1,
+      "per_sample_seconds": 0.01,
+      "threads": 1,
+      "estimated_total_seconds": 2.0,
+      "measured_on": "crypto:research/eks_crypto_validation_20261019 (pod wall 1.5 s for 72 executions)"
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "id": "s",
+        "name": "S",
+        "unit": "total group-addition equivalents / sqrt(r)",
+        "kind": "counted",
+        "definition": "every phase of the method charged in ecbench.gae, setup included, divided by sqrt(r)",
+        "source": "records.jsonl cost.s",
+        "aggregation": "paired_ratio",
+        "resolution": "1 GAE / sqrt(r)",
+        "uncertainty": "paired_bootstrap_ci95"
+      },
+      {
+        "id": "total_gae",
+        "name": "total GAE",
+        "unit": "ecbench.gae",
+        "kind": "counted",
+        "definition": "adds + doubles + scalar multiplications charged by the harness over setup, solve and verification",
+        "source": "records.jsonl cost.total_gae",
+        "aggregation": "median",
+        "resolution": "1",
+        "uncertainty": "bootstrap_ci95"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "solve_wall_seconds",
+        "name": "solve wall time",
+        "unit": "s",
+        "kind": "timed",
+        "definition": "the harness's solve interval, first target-dependent operation to verified answer",
+        "source": "records.jsonl time.solve_wall_ns",
+        "aggregation": "median",
+        "resolution": "1 us",
+        "uncertainty": "paired_bootstrap_ci95"
+      }
+    ]
+  },
+  "measurement": {
+    "isolation_required": "L2",
+    "warmups": 1,
+    "order": "alternate",
+    "clock": "counted",
+    "counters": [
+      "steps",
+      "walk_operations",
+      "canonicalisations_uncharged",
+      "field_ops.muls",
+      "field_ops.sqrs",
+      "field_ops.invs"
+    ],
+    "record": [
+      "cpu_model",
+      "kernel_release",
+      "binary_sha256",
+      "env_class_id",
+      "isolation.level",
+      "isolation.blockers",
+      "steal_ticks",
+      "psi",
+      "run_cpu",
+      "threads"
+    ],
+    "timed_primary_justification": null
+  },
+  "execution": {
+    "backend": "isolab-k8s",
+    "queue": "isolab",
+    "placement": {
+      "instance_type": "c8in.xlarge (observed)",
+      "cpus": 2,
+      "spot": true
+    },
+    "measurement_class": "measurement",
+    "timeout_seconds": 120,
+    "checkpoint": {
+      "policy": "none",
+      "interval_seconds": null,
+      "grace_seconds": null,
+      "restore_validation": "none",
+      "after_restore": {
+        "wall_time": "invalid",
+        "counted_units": "valid"
+      }
+    },
+    "retries": {
+      "infrastructure_only": true,
+      "max_attempts": 1
+    }
+  },
+  "stopping_rules": [
+    {
+      "rule": "fixed design: 3 arms x 2 workloads x (1 warmup + 3 rounds) = 24 executions, then stop",
+      "kind": "fixed_n",
+      "preregistered": true
+    },
+    {
+      "rule": "a row whose answer does not verify stops nothing and is recorded as wrong_answer",
+      "kind": "invalidation",
+      "preregistered": true
+    }
+  ],
+  "invalidation_rules": [
+    "a row with outcome.status other than verified is excluded from the decisive comparison and reported",
+    "a wall-time value on a row below L2 is descriptive only (wall_valid false); counted units stand at any level"
+  ],
+  "decision_rule": {
+    "text": "C2 is supported when the paired ratio of S (bsgs-neg over rho-neg, summed over the six (workload, round) pairs) has a 95% bootstrap interval excluding 1 and the median difference exceeds the C-aa spread; otherwise within the A/A spread.",
+    "comparison_ids": [
+      "C-method"
+    ],
+    "threshold": "ratio interval excludes 1 and |median difference| > A/A half-width",
+    "statistic": "sum of S over pairs, ratio candidate/reference (ecbench compare)",
+    "interval": "paired bootstrap over workloads, 95%",
+    "multiple_comparison_correction": "none",
+    "effect_size_measure": "ratio of summed S, and median S difference in GAE/sqrt(r)",
+    "verdict_vocabulary": [
+      "supported_within_scope",
+      "within_control_distribution",
+      "invalid_measurement",
+      "inconclusive"
+    ]
+  },
+  "analysis_plan": {
+    "script": null,
+    "inputs": [
+      "session/records.jsonl"
+    ],
+    "outputs": [
+      "ecbench compare --a rho-neg --b bsgs-neg",
+      "ecbench compare --a rho-neg --b rho-neg-aa"
+    ],
+    "blinded": false,
+    "frozen_before_data": true
+  },
+  "reporting": {
+    "export_schema": "experiment.export/v1",
+    "review_schema": "experiment.review/v1",
+    "graphs": [
+      "S per arm per workload with the A/A interval"
+    ],
+    "report_dir": "reports"
+  },
+  "inadmissible": [
+    "changing the workloads, seeds, unit or accounting after seeing results",
+    "quoting wall time from rows below L2 as a result",
+    "reading this fixture as a scaling or speed claim about either method"
+  ],
+  "literature": [
+    {
+      "ref": "crypto:docs/ecbench/README.md",
+      "provenance": "internal",
+      "claim": "the counted unit, isolation levels L0-L3 and the paired comparison this protocol uses",
+      "verified_by": "experiment-protocol worked example, 2026-10-22"
+    }
+  ],
+  "amendments": [],
+  "freeze": {
+    "status": "frozen",
+    "protocol_sha256": "a5833daf530cfc045e03bcaab76a9ac8e367288c71ffc7dd17cf45186e542edb",
+    "commit": "b2ed5a74ed052ebd1c5ffc624602d47bb5ed6632",
+    "frozen_at": "2026-10-22T07:27:38Z",
+    "filed_before_affected_data": false
+  }
+}

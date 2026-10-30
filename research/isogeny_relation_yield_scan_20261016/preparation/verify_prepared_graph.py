@@ -11,6 +11,7 @@ import hashlib
 import json
 from math import isqrt
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -20,6 +21,39 @@ from harness.toycurve import EllipticCurve
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def source_generator_from_header(header):
+    """Independently apply the archived source-model scaling to its generator."""
+    p = header["p"]
+    expressions = header["source_isomorphism"].strip()[1:-1].split(",")
+    if len(expressions) != 2:
+        raise ValueError("invalid archived source isomorphism")
+    scales = []
+    for variable, expression in zip(("x", "y"), expressions):
+        expression = expression.strip()
+        if expression == variable:
+            scale = 1
+        elif expression == "-" + variable:
+            scale = p - 1
+        elif expression.startswith(variable + "/"):
+            denominator = int(expression.split("/", 1)[1])
+            scale = pow(denominator, -1, p)
+        else:
+            match = re.fullmatch(r"(-?\d+)\*" + variable, expression)
+            if not match:
+                raise ValueError("unexpected archived source isomorphism")
+            scale = int(match.group(1)) % p
+        scales.append(scale)
+    sx, sy = scales
+    if (sy * sy - sx * sx * sx) % p:
+        raise ValueError("archived source isomorphism scaling is invalid")
+    original, canonical = header["original_source"], header["canonical_source"]
+    if (canonical["a"] != original["a"] * sx * sx % p or
+            canonical["b"] != original["b"] * sy * sy % p):
+        raise ValueError("archived source models disagree")
+    gx, gy = header["source_generator"]
+    return [gx * sx % p, gy * sy % p]
 
 
 def read_prepared(path):
@@ -95,6 +129,28 @@ def verify(prepared_path, manifest_path, base_root_path=None, target_root_path=N
     G, Q = tuple(manifest["generator"]), tuple(manifest["Q"])
     if not E.is_on_curve(G) or not E.is_on_curve(Q) or E.mul(r, G) is not None or E.mul(r, Q) is not None:
         raise ValueError("generator or Q certificate failed")
+    if manifest.get("stage") == "solve":
+        study = Path(__file__).resolve().parents[1]
+        walk = study / ("walk-p29-2048-attempt2.jsonl" if manifest.get("stratum") == "P29"
+                        else "walk-p37-256.jsonl")
+        with walk.open(encoding="utf-8") as stream:
+            walk_header = json.loads(next(stream))
+        source_generator = source_generator_from_header(walk_header)
+        source_model = walk_header.get("canonical_source")
+        source_q = manifest.get("source_Q")
+        source_curve = EllipticCurve(p, source_model["a"], source_model["b"])
+        source_points = {"G": source_generator, "Q": source_q}
+        source_digest = hashlib.sha256(json.dumps(
+            source_points, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if (manifest.get("source_model") != source_model or
+                manifest.get("source_generator") != source_generator or
+                manifest.get("source_points_sha256") != source_digest or
+                not source_curve.is_on_curve(tuple(source_generator)) or
+                source_curve.mul(r, tuple(source_generator)) is not None or
+                not isinstance(source_q, list) or len(source_q) != 2 or
+                not source_curve.is_on_curve(tuple(source_q)) or
+                source_curve.mul(r, tuple(source_q)) is not None):
+            raise ValueError("public source G,Q point binding failed")
     if abs(r - (p + 1)) > isqrt(4 * p) or 2 * r <= p + 1 + isqrt(4 * p):
         raise ValueError("Hasse uniqueness failed")
     if len(base) != 2 * manifest["base_abscissae"] or len(targets) != manifest["target_count"]:
