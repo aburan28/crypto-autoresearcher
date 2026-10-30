@@ -1,6 +1,6 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 16:50 UTC): the degree-six search remains open. Seven of
+Status (2026-10-30 19:08 UTC): the degree-six search remains open. Seven of
 47 original high-memory inputs have terminal records; 40 remain unfinished.
 No independently checked LFD-at-least-6 result exists. The independent n47
 random02 D4 recovery certifies only LFD at least 5 and is published; it does
@@ -36,17 +36,17 @@ and nonempty-matrix recovery controls remain in
 The earlier native producer's four-arm registration mismatch remains
 unresolved in [producer report 002](reports/checkpoint-producer-002/report.md).
 
-The separate D4 panel now has 22 of 32 terminal inputs, with 15 certified
-LFD-at-least-5 results. The local `fresh-n44-rand-04` run completed with
-independently accepted D4 codimension 31,780 and fresh exact count 0. Its
-[report and export](reports/panel-local-n44-rand04-001/report.md) and
-[verified public/store publication](panel-local-archive-001/fresh-n44-rand-04-local01.publication.json)
-are retained. The [reconciled inventory](runtime/panel-remaining-after-local001.json)
-binds all 22 terminal result records and preserves the ten unfinished n45 inputs.
-The original `fresh-n45-poly-00` input is now running locally under the
-[frozen local plan](panel-local-n45-poly00-protocol-001.json). Fresh exact
-enumeration returned four solutions; D4 production remains unfinished.
-The ten unfinished inputs include this active item.
+The separate D4 panel now has 23 of 32 terminal inputs, including 16
+certified LFD-at-least-5 results. The original `fresh-n45-poly-00` input
+completed with independently accepted D4 codimension 12,747 and fresh
+exact solution count 4. All 47 recorded artifact hashes and the frozen
+request identity were verified. The [report](reports/panel-local-n45-poly00-001/report.md)
+discloses stale descriptive text in the frozen protocol; exact input and
+checker bindings remain correct. The [publication receipt](panel-local-archive-001/fresh-n45-poly-00-local01.publication.json)
+records anonymous and object-store full readback and certificate decompression.
+The [reconciled inventory](runtime/panel-remaining-after-local002.json) retains
+nine original n45 inputs. The next input, `fresh-n45-poly-01`, has a frozen
+local protocol but has not launched at this snapshot. No new draw is made.
 
 The next original unfinished high-memory item is n47 random02. Its
 [read-only dimension profile](reports/rand02-envelope-001/report.md) gives
@@ -213,3 +213,10 @@ The separate [bounded-export allocation candidate](BOUNDED-EXPORT-MEMORY.md) pas
 The [n44 random03 report](reports/panel-v3-n44-rand03/report.md) retains an accepted D4 codimension 31,780 against exact count zero, establishing LFD >= 5; all 47 artifact hashes and public archive readback verified.
 
 The [n44 random02 report](reports/panel-v3-n44-rand02/report.md) adds accepted D4 codimension 31,780 against exact count 2, establishing LFD >= 5. The separate bounded-export D5 job was submitted after both panel jobs finished; see [submission receipt](runs/bounded-lift-submission-001.json). Submission alone establishes no new mathematical result.
+
+The blocked candidate's small cloud source job
+`semaev-blocked-worker-source-20261030-1700` was submitted at 18:58:52 UTC.
+It is Pending with scheduler-reported affinity/selector/taint constraints;
+no controls have run and no dependent restore has launched. See the
+[scheduling problem record](../../problems/semaev-blocked-worker-cloud-scheduling.md).
+The original large n47 job is still active and has not been replaced.
