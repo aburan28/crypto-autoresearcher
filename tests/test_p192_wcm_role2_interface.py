@@ -2756,42 +2756,26 @@ def test_fixed_child_fd_abi_is_an_admission_gate() -> None:
         )
 
 
-def test_full_role1_replay_rejects_near_valid_forgery_classes() -> None:
+def test_historical_role1_replay_rejects_near_valid_forgery_classes() -> None:
     predecessor = ROOT / "experiments/EXP-SCURVE-1a8daf/runs/RUN-SCURVE-561a96"
-    historical_receipt = checker.decode_canonical_json(
-        (predecessor / "independent-verifier-receipt.json").read_bytes()
-    )
-    historical_protocol = historical_receipt["protocol_commit"]
-    historical_decision = historical_receipt["decision_binding"]["decision_commit"]
-
-    def historical_unit_replay(path: Path, errors: list[str]) -> dict | None:
-        """Keep the old archive only as a semantic fixture, not admissible lineage."""
-        original = checker._raw_commit_parents
-
-        def direct_parents(
-            repository: Path, commit: str, label: str, target: list[str],
-        ) -> list[str] | None:
-            if label == "Role-1 predecessor decision":
-                return [historical_protocol]
-            if label == "Role-1 predecessor archive":
-                return [historical_decision]
-            return original(repository, commit, label, target)
-
-        checker._raw_commit_parents = direct_parents
-        try:
-            return checker._role1_predecessor_binding(path, ROOT, errors)
-        finally:
-            checker._raw_commit_parents = original
-
+    # The archive binds a different checkout. Role-2 must reject that identity
+    # before it reads Git state, even though the Role-1 run itself is valid.
     errors: list[str] = []
-    binding = historical_unit_replay(predecessor, errors)
-    assert errors == [] and binding is not None
-    assert binding["receipt"] == checker.decode_canonical_json(
-        (predecessor / "independent-verifier-receipt.json").read_bytes()
-    )
-    assert len(binding["artifact_inventory"]) == len(checker.ROLE1_REQUIRED_PATHS) == 20
+    assert checker._role1_predecessor_binding(predecessor, ROOT, errors) is None
+    assert errors == ["Role-1 predecessor receipt/admitted repository differs from frozen value"]
+
+    role1 = checker._load_role1_checker(ROOT)
+    assert role1.validate_run_directory(predecessor) == []
+    assert len(checker.ROLE1_REQUIRED_PATHS) == 20
 
     mutations = ("wrong_verifier_commit", "wrong_verifier_binary", "shallow_receipt", "malformed_inventory", "duplicate_comparison")
+    expected_errors = {
+        "wrong_verifier_commit": "command.txt verifier commit",
+        "wrong_verifier_binary": "environment verifier binary",
+        "shallow_receipt": "independent-verifier-receipt.json: schema:",
+        "malformed_inventory": "independent-verifier-receipt.json: schema:",
+        "duplicate_comparison": "agreement field order",
+    }
     for mutation in mutations:
         with tempfile.TemporaryDirectory() as temporary:
             forged = Path(temporary) / predecessor.name
@@ -2815,15 +2799,10 @@ def test_full_role1_replay_rejects_near_valid_forgery_classes() -> None:
                 else:
                     document["producer_artifacts_before"] = []
             _canonical(path, document)
-            forgery_errors: list[str] = []
-            historical_unit_replay(forged, forgery_errors)
-            assert forgery_errors, mutation
-            if mutation != "shallow_receipt":
-                assert any(
-                    "Role-1 run replay" in error
-                    or "receipt/run-directory identity" in error
-                    for error in forgery_errors
-                ), mutation
+            forgery_errors = role1.validate_run_directory(forged)
+            assert any(
+                expected_errors[mutation] in error for error in forgery_errors
+            ), mutation
 
 
 def test_directory_fd_handoff_and_runtime_mode_are_admission_gates() -> None:

@@ -146,3 +146,8 @@ cost advantage simultaneously.
 
 
 2026-10-16 actual terminal update: EXP-IC-9f9a4b/RUN-IC-fe080b ended with infrastructure_error/driver1/checker null. Durable scientific-body return was followed by write_artifacts MemoryError in shared core recursive serialization. No raw/manifest or separately checked observation exists; this is neither a new HNF defect nor a mathematical negative. The distinct [serialization-memory obstruction](lattice-ic-artifact-serialization-memory.md) owns prospective exact core/test-only repair after separate actual8+ownreceipt9 custody. Original scientific archive TASK-20261015-3047d1/local TASK-20261015-9403cb and all dependent independent reviews stay uncompleted. All three retained failures must accompany eventual four-success review inputs; prior source and runtime evidence remain unchanged.
+
+
+### 2026-10-25: P-256 interval and digit sufficient-bound screen
+
+The new [F6 package](../research/p256_factor_base_parallel_20261025/tracks/f6/report.md) derives and exactly checks 28 rectangular and nine digit parameter cases for explicit shifts over P-256. Its sufficient window does not reach the necessary factor-base capacity in this tested family. The constructed known-offset lattice supplies eight norm-qualified zero polynomials and an exact zero-dimensional extraction certificate, solely as correctness evidence. Other shift families and ordinary-target multivariate extraction remain open. No general small-root impossibility or cost advantage is inferred, and no scientific state changes.
