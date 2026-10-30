@@ -26,7 +26,7 @@ def dimensions(depth):
     return dict(distinct=comb(S, 3), twoequal=S*S, allequal=S)
 
 
-def solve_case(parameters, case, max_dimension=560):
+def solve_case(parameters, case, max_dimension=560, *, stages=None):
     sizes = dimensions(case['depth'])
     if max(sizes.values()) > max_dimension:
         raise ExtractionUnknown('declared operator dimension exceeds configured resource guard')
@@ -45,9 +45,16 @@ def solve_case(parameters, case, max_dimension=560):
         raise ValueError('target must lie on the stated subgroup')
     strata, solutions = [], set()
     for name, pattern in [('distinct', (1, 1, 1)), ('twoequal', (2, 1)), ('allequal', (3,))]:
-        result = solve_stratum(parameters, case['depth'], case['terminal'], target, name)
-        signed, recovery, counts = signed_recovery(
-            result['states'], case['depth'], case['terminal'], target, parameters, pattern)
+        if stages is None:
+            result = solve_stratum(parameters, case['depth'], case['terminal'], target, name)
+            signed, recovery, counts = signed_recovery(
+                result['states'], case['depth'], case['terminal'], target, parameters, pattern)
+        else:
+            import profiled
+            stratum_stages = stages.scoped(stratum=name)
+            result = profiled.solve_stratum(parameters, case['depth'], case['terminal'], target, name, stratum_stages)
+            signed, recovery, counts = profiled.signed_recovery(
+                result['states'], case['depth'], case['terminal'], target, parameters, pattern, stratum_stages)
         solutions.update(signed)
         result.update(recovery=recovery, recovery_counters=counts)
         strata.append(result)
@@ -98,33 +105,56 @@ def main():
     parser.add_argument('--release', required=True, type=Path)
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--max-dimension', type=int, default=560)
+    parser.add_argument('--profile-stages', action='store_true')
     args = parser.parse_args()
     from crypto_autoresearcher.index_calculus.execution_gate import admit
     if args.out.exists():
         raise ValueError('output directory already exists')
-    admit(ROOT, args.protocol, args.inputs, [HERE/'core.py', HERE/'exterior.py',
-                                           HERE/'driver.py', HERE/'reference.py',
-          ROOT/'research/p256_factor_base_parallel_20261025/baseline/s4-symmetric.json',
-          ROOT/'src/crypto_autoresearcher/index_calculus/curve.py'],
-          {'max_dimension': args.max_dimension}, args.release)
+    sources = [HERE/'core.py', HERE/'exterior.py',
+               HERE/'driver.py', HERE/'reference.py',
+               ROOT/'research/p256_factor_base_parallel_20261025/baseline/s4-symmetric.json',
+               ROOT/'src/crypto_autoresearcher/index_calculus/curve.py']
+    parameters = {'max_dimension': args.max_dimension}
+    if args.profile_stages:
+        sources.append(HERE/'profiled.py')
+        parameters['profile_stages'] = True
+    admit(ROOT, args.protocol, args.inputs, sources, parameters, args.release)
     data = json.loads(args.inputs.read_text())
     results = []
     for case in data['cases']:
         if Path(case['id']).name != case['id']:
             raise ValueError('case IDs must be plain file names')
+        stage_file = None
+        stages = None
+        if args.profile_stages:
+            from profiled import Stages
+            args.out.mkdir(parents=True, exist_ok=True)
+            stage_file = (args.out/(case['id']+'.stages.jsonl')).open('x')
+            def emit(record):
+                stage_file.write(json.dumps(dict(case_id=case['id'], **record), sort_keys=True)+'\n')
+                stage_file.flush()
+            stages = Stages(emit)
+        call = stages.call if stages is not None else lambda phase, function, *a, **kw: function(*a, **kw)
         try:
             if case['kind'] == 'triple':
-                result = solve_case(data['parameters'], case, args.max_dimension)
-                result['finite_reference'] = check_case(data['parameters'], case, result)
+                if stages is None:
+                    result = solve_case(data['parameters'], case, args.max_dimension)
+                    result['finite_reference'] = check_case(data['parameters'], case, result)
+                else:
+                    result = stages.call('solver_total', solve_case, data['parameters'], case,
+                                         args.max_dimension, stages=stages)
+                    result['finite_reference'] = stages.call('finite_oracle', check_case,
+                                                             data['parameters'], case, result)
             elif case['kind'] == 'arity4':
                 result = dict(case_id=case['id'], status='complete',
                               method='explicit finite enumeration control',
-                              controls=arity_four_control(data['parameters'], case['depth'], case['terminal']))
+                              controls=call('arity_four_oracle_control', arity_four_control,
+                                            data['parameters'], case['depth'], case['terminal']))
             elif case['kind'] == 'nonseparable':
                 rejected = False
                 try:
-                    solve_stratum(data['parameters'], case['depth'], case['terminal'],
-                                  tuple(data['cases'][0]['target']), 'distinct')
+                    call('nonseparable_rejection_control', solve_stratum, data['parameters'],
+                         case['depth'], case['terminal'], tuple(data['cases'][0]['target']), 'distinct')
                 except ValueError:
                     rejected = True
                 if not rejected:
@@ -139,7 +169,7 @@ def main():
                     corrupted = deepcopy(results[source_index])
                     corrupted['solutions'] = []  # completeness corruption
                     try:
-                        check_case(data['parameters'], source, corrupted)
+                        call('corruption_rejection_control', check_case, data['parameters'], source, corrupted)
                     except ValueError:
                         result = dict(case_id=case['id'], status='control_passed', expected_rejection=True)
                     else:
@@ -152,6 +182,9 @@ def main():
             write_once(args.out/(case['id']+'.json'), dict(case_id=case['id'], status='failed',
                        error_type=type(error).__name__, reason=str(error)))
             raise
+        finally:
+            if stage_file is not None:
+                stage_file.close()
         results.append(result)
         # Each finished case survives a later failure; existing evidence is never replaced.
         write_once(args.out/(case['id']+'.json'), result)

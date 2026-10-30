@@ -308,7 +308,7 @@ void self_test(){
  check(wide.scalar(large.P,13120)==lab::Point{13979,21173,false},"fixed larger-group inverse witness");
  Random wide_rng(0x7711U,wide.cost);
  for(unsigned i=0;i<32;++i){auto q=sample(large,wide,wide_rng);check(wide.valid(q)&&wide.scalar(q,static_cast<U>(large.r)).inf,"larger unlabelled sample membership");}
- for(U r:{13121U,131071U,262139U}){Cost c;auto b=backwards(constant,r,0,c);check(b.at(0,false,0)==r,"larger constant root prior");auto q=search(constant,r,{{0,0},{0,0},{0,0},{0,0}},8,0x1711U,c);check(q.candidates.size()==8,"larger constant beam size");for(U k:q.candidates)check(k<r,"larger canonical beam member");}
+ for(U r:{13121U,131071U,262139U}){Cost c;auto root_prior=backwards(constant,r,0,c);check(root_prior.at(0,false,0)==r,"larger constant root prior");auto q=search(constant,r,{{0,0},{0,0},{0,0},{0,0}},8,0x1711U,c);check(q.candidates.size()==8,"larger constant beam size");for(U k:q.candidates)check(k<r,"larger canonical beam member");}
  rejects([&]{auto wrong=large;wrong.c.p=1048583;Ops o(wrong.c);validate_fixture(wrong,o);},"larger public field guard");
  rejects([&]{auto wrong=large;wrong.r=524309;Ops o(wrong.c);validate_fixture(wrong,o);},"larger public subgroup guard");
  // Diagnostics do not change training, public views or returned candidates.

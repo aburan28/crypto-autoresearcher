@@ -53,7 +53,14 @@ def check(fixture, sources, result):
     seen, counts, digest = set(), Counter(), sha256()
     rows, M, rhs, equations = [], [], [], set()
     attempts = 0
+    blocks = []
+    legend = dict(S='source_no_nonzero_rational_lift', Z='exceptional_interpolation_x_zero',
+                  D='duplicate_interpolation_x', P='exceptional_pole_order',
+                  R='residual_not_two_distinct_rational_roots', X='intersection_not_squarefree',
+                  B='residual_endpoint_outside_factor_base', A='canonical_alias', **{'+': 'accepted'})
+    codes = {value: key for key, value in legend.items()}
     for source in sources:
+        source_statuses, source_digest = [], sha256()
         for triple in combinations(range(len(fixture['factor_base'])), 3):
             for options in product(range(4), repeat=3):
                 attempts += 1
@@ -67,8 +74,11 @@ def check(fixture, sources, result):
                 else:
                     reason = reasons[status]
                 counts[reason] += 1
-                digest.update(json.dumps([source, list(triple), list(options), identity, reason],
-                                         separators=(',', ':')).encode()+b'\n')
+                encoded = json.dumps([source, list(triple), list(options), identity, reason],
+                                     separators=(',', ':')).encode()+b'\n'
+                digest.update(encoded)
+                source_digest.update(encoded)
+                source_statuses.append(codes[reason])
                 if row is not None:
                     verify_row(fixture, row)
                     rows.append(row)
@@ -86,9 +96,13 @@ def check(fixture, sources, result):
                     nonzero = next((v for v in affine if v), None)
                     equations.add(tuple(v*pow(nonzero, -1, fixture['r']) % fixture['r'] for v in affine)
                                   if nonzero else tuple(affine))
+        blocks.append(dict(scalar=source, attempts=attempts, statuses=''.join(source_statuses),
+                           branch_sha256=source_digest.hexdigest()))
     if (result['attempts'] != attempts or result['statuses'] != dict(counts) or result['rows'] != rows or
             result['branch_sha256'] != digest.hexdigest()):
         raise ValueError('complete branch/row replay differs')
+    if (result.get('status_blocks') != blocks or result.get('status_legend') != legend):
+        raise ValueError('per-source branch statuses differ')
     r, U = fixture['r'], projection['U']
     rank = dense_rank(M, r)
     quality = dict(rows=len(rows), unique_affine_equations=len(equations),
@@ -99,4 +113,5 @@ def check(fixture, sources, result):
             dense_rank(kernel, r) != U-rank or
             any(sum(x*y for x, y in zip(row, v)) % r for row in M for v in kernel)):
         raise ValueError('affine rank/kernel certificate differs')
-    return dict(attempts_replayed=attempts, rows_verified=len(rows), **quality, checked=True)
+    return dict(attempts_replayed=attempts, rows_verified=len(rows), **quality, checked=True,
+                source_statuses_checked=True)
