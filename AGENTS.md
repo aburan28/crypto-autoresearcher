@@ -18,7 +18,11 @@ wins over a skill, a runtime file or a generated block.
 
 ## Observe first; interpret later
 
-Before planning or reporting research, read and follow the complete [observation-first rule](docs/agent-contract-extended.md#observe-first-interpret-later). Its observation, interpretation, ownership, performance-scope, and evidence requirements are binding; they supersede an improvement-only definition of research success.
+Lead with scoped results and checks, recognize component progress, and pursue
+the next technical step. Follow the
+[observation and communication rule](docs/agent-contract-extended.md#observe-first-interpret-later)
+for evidence, ownership, comparison scope, and the 2026-10-30 rule against
+repeated overall-goal verdicts.
 
 ## Name the obstruction
 

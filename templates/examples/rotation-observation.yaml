@@ -1,0 +1,217 @@
+# Worked example: saved observations only; original statuses remain literal.
+schema: crypto.autoresearch.experiment_observation.v1
+report_kind: reanalysis
+question: How does the saved rotation-predicate point density vary with c at m=4, alongside recorded
+  controls?
+scope: Retrospective aggregation only. Two displayed endpoints, c=13 and c=61, of the saved five-c
+  grid; no curve/solver rerun. The original 90-cell table remains intact.
+method:
+  description: Sum saved density_hits and density_n across the six (curve,seed) cells per c. Transcribe
+    the integer reference from the pinned analysis. The producer invocation is preserved separately
+    in the command artifact.
+  command: null
+  parameters:
+    m: 4
+    displayed_c:
+    - 13
+    - 61
+    full_saved_c:
+    - 13
+    - 17
+    - 19
+    - 31
+    - 61
+    curves_per_c: 2
+  seeds:
+  - 1
+  - 2
+  - 3
+  sampling_unit: Point-density draw nested within a curve/seed cell; 20,000 draws per arm per cell.
+  stopping_rule: Reanalysis uses all six saved cells per displayed c; it generates no new samples.
+runs:
+- experiment_id: EXP-ECDLP-ad27ad
+  run_id: RUN-ECDLP-a5281a
+  native_status: invalid_output
+  evidence:
+  - artifact: receipt
+    selector: /status; /detail records the legacy manifest missing top-level run
+observations:
+- id: rotation-density
+  description: Saved point-density aggregates for the rotation predicate at two endpoints of the
+    recorded c grid.
+  kind: derived
+  value:
+  - c: 13
+    cells: 6
+    hits: 45917
+    draws: 120000
+    density: 0.38264166666666666
+    cell_density_min: 0.3778
+    cell_density_max: 0.3917
+  - c: 61
+    cells: 6
+    hits: 107150
+    draws: 120000
+    density: 0.8929166666666667
+    cell_density_min: 0.891
+    cell_density_max: 0.89545
+  unit: accepted fraction of sampled points
+  sample:
+    n: 240000
+    unit: density draws across the two displayed c strata
+    dependence: 'Six cells per c: two curves by three seeds; draws are not independent curve replicates.
+      No independence estimate is supplied.'
+  uncertainty: Cell minima/maxima are descriptive spread, not confidence intervals. No uncertainty
+    interval for the pooled fraction was estimated.
+  evidence:
+  - artifact: raw
+    selector: /cells filtered by c in [13,61], m=4; rot.density_hits and density_n
+  - artifact: aggregates
+    selector: /rotation filtered by c in [13,61], m=4, arm=rot
+  - artifact: analysis
+    selector: 'main(): sum density_hits and density_n within (c,m,arm)'
+- id: hash-density
+  description: Saved hash-control aggregates on the same curves and seeds.
+  kind: derived
+  value:
+  - c: 13
+    cells: 6
+    hits: 7324
+    draws: 120000
+    density: 0.061033333333333335
+    cell_density_min: 0.0572
+    cell_density_max: 0.06285
+  - c: 61
+    cells: 6
+    hits: 7514
+    draws: 120000
+    density: 0.06261666666666667
+    cell_density_min: 0.0596
+    cell_density_max: 0.06565
+  unit: accepted fraction of sampled points
+  sample:
+    n: 240000
+    unit: density draws across the two displayed c strata
+    dependence: 'Six cells per c: two curves by three seeds; draws are not independent curve replicates.
+      No independence estimate is supplied.'
+  uncertainty: Cell minima/maxima are descriptive spread, not confidence intervals. No uncertainty
+    interval for the pooled fraction was estimated.
+  evidence:
+  - artifact: raw
+    selector: /cells filtered by c in [13,61], m=4; hash.density_hits and density_n
+  - artifact: aggregates
+    selector: /rotation filtered by c in [13,61], m=4, arm=hash
+  - artifact: analysis
+    selector: 'main(): sum density_hits and density_n within (c,m,arm)'
+- id: integer-reference
+  description: Exact cyclic-zero-block density on integer representatives, a different domain from
+    curve points.
+  kind: derived
+  value:
+  - c: 13
+    numerator: 3121
+    denominator: 8191
+    density: 0.38102795751434504
+  - c: 61
+    numerator: 2062897217631747463
+    denominator: 2305843009213693951
+    density: 0.8946390579882573
+  unit: accepted fraction of 0 <= x < 2^c - 1
+  sample: null
+  uncertainty: Exact counting identity, not a sampling interval; not an exact point-density model.
+  evidence:
+  - artifact: analysis
+    selector: 'accepted_binary_words(): 2^c - trace(A_m^c)'
+  - artifact: aggregates
+    selector: /rotation filtered by c in [13,61], m=4, arm=rot; exact_x_density fields
+- id: process-codes
+  description: Program and built-in checker exit codes copied separately from the native status.
+  kind: measured
+  value:
+    returncode: 0
+    check_returncode: 0
+  unit: process exit code
+  sample: null
+  uncertainty: Literal receipt values; they do not change the native invalid_output status.
+  evidence:
+  - artifact: receipt
+    selector: /returncode and /check_returncode
+controls:
+- id: hash-reference
+  description: Recorded nominal-density hash arm.
+  observation_ids:
+  - hash-density
+  matching: Same c, m, curves, seeds and per-cell draw count. Different membership predicate; not
+    matched actual subset cardinality.
+  limitations:
+  - The arm targets nominal density 2^-m = 0.0625; it does not match the larger observed rotation-subset
+    density.
+- id: integer-domain
+  description: Exact cyclic-zero-block integer reference.
+  observation_ids:
+  - integer-reference
+  matching: Same bit width c and zero-run length m; uniform integers instead of the producer point
+    sampler.
+  limitations:
+  - Curve points weight x according to the curve. The point sampler excludes O and y=0; integer
+    representatives do not have this sampling domain.
+patterns:
+- id: density-shape
+  kind: exploratory_pattern
+  description: 'This pattern is worth inspecting: rotation point density is 0.3826416667 at c=13
+    and 0.8929166667 at c=61, while the displayed hash densities are 0.0610333333 and 0.0626166667.'
+  observation_ids:
+  - rotation-density
+  reference_ids:
+  - hash-reference
+  - integer-domain
+  uncertainty: Endpoint description selected retrospectively, with no fitted exponent or significance
+    test. The complete five-c grid is in the pinned aggregate table.
+  alternative_explanations:
+  - The rotation predicate accepts a union of cyclic zero-block positions, whose integer density
+    also grows with c.
+  - Point-sampler weighting and variation between curves/seeds may contribute to differences from
+    the integer reference.
+limitations:
+- This report intentionally illustrates a bounded subset of one saved run; it does not summarize
+  all arms or all leads.
+- 'Native invalid_output is preserved: the receipt attributes it to a legacy manifest schema mismatch,
+  although both saved process codes are zero.'
+- The new aggregation is a descriptive reanalysis, not independent scientific review.
+- No fitted point-density model, confidence interval or independence assessment is supplied.
+missing:
+- field: /method/command
+  reason: The exact historical reanalysis invocation was not saved in the cited analysis source;
+    producer command bytes are preserved in the command artifact.
+- field: /observations/2/sample
+  reason: 'Not applicable: this is an exact finite-domain count, not a sample.'
+- field: /observations/3/sample
+  reason: 'Not applicable: these are literal process receipt fields.'
+next_checks:
+- question: How do actual subset cardinality and the point-sampling domain account for the displayed
+    density curves?
+  method: In a separately scoped follow-up, enumerate small-c subsets on the same domain and use
+    separate calibration and measurement draws; report all c values.
+  control: Use consistent treatment of O and y=0 and compare cardinality-matched reference subsets.
+  status: proposed
+artifacts:
+- id: raw
+  path: experiments/EXP-ECDLP-ad27ad/runs/RUN-ECDLP-a5281a/raw-result.json
+  commit: ba753d2521c9fedacf9f35148f60da5da29cf7e1
+  sha256: f19394ca0ca231b2b04c399f4bee06c5c14954d106a03961e48cf8fc5b9812b2
+- id: receipt
+  path: experiments/EXP-ECDLP-ad27ad/runs/RUN-ECDLP-a5281a/execution-receipt.json
+  commit: ba753d2521c9fedacf9f35148f60da5da29cf7e1
+  sha256: fe2e5693afeaed8405479d93e95763a6a774f32b5984d1e6325ad0f8fdbe9956
+- id: aggregates
+  path: research/snfs_observation_cards_20261017/observations.json
+  commit: 2a449505a11cfa4e9ab2e82932599cd342f05a69
+  sha256: 0f2546dd3f6e66278c779db449de571250f6e0fb9bbd9e845c659d2f4d4a1246
+- id: analysis
+  path: research/snfs_observation_cards_20261017/analyze_archived.py
+  commit: 2a449505a11cfa4e9ab2e82932599cd342f05a69
+  sha256: b7ddd76d87e0f23c9a58517e8815735265e51f88455ef0240d1ce3872739f1d1
+- id: command
+  path: experiments/EXP-ECDLP-ad27ad/runs/RUN-ECDLP-a5281a/command.txt
+  commit: ba753d2521c9fedacf9f35148f60da5da29cf7e1
+  sha256: 86343a64bd8e4c293433388047e95705c6b124aa5c33acd82c3163f81f69e69a
