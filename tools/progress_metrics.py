@@ -645,6 +645,7 @@ def semaev_panel_snapshots(ref, since):
     """Report hash-bound panel inventories; never replay or infer upper bounds."""
     root = "analysis/semaev-degree-five-quotient-lift/"
     latest = {}
+    ambiguous = set()
     for path in ls(ref, root + "runtime/"):
         if not re.fullmatch(re.escape(root) + r"runtime/panel-remaining-after-local\d+\.json", path):
             continue
@@ -658,12 +659,15 @@ def semaev_panel_snapshots(ref, since):
             if date < since:
                 continue
             if date in latest and stamp == latest[date][0]:
-                return  # Ambiguous same-time evidence, do not choose a winner.
+                ambiguous.add(date)  # Refuse a tie only if it remains newest.
             if date not in latest or stamp > latest[date][0]:
                 latest[date] = (stamp, path, d)
+                ambiguous.discard(date)
         except (ValueError, TypeError, KeyError):
             continue
     for date, (_, path, d) in sorted(latest.items()):
+        if date in ambiguous:
+            continue
         try:
             parent = show(ref, root + d["parent_inventory"])
             if hashlib.sha256(parent.encode()).hexdigest() != d["parent_sha256"]:
