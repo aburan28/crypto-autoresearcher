@@ -171,7 +171,7 @@ def _trials(plan: dict[str, Any], root: Path, blockers: list[str]) -> set[str]:
                 blockers.append(f"{label}: {command} must name a bound source and exclude Bedrock")
         artifacts = trial.get("artifacts")
         if (not isinstance(artifacts, list)
-                or any(not isinstance(x, str) or not x or x in GENERATED or "/" in x for x in artifacts)
+                or any(not isinstance(x, str) or not x or x in GENERATED for x in artifacts)
                 or len(artifacts) != len(set(artifacts))
                 or not {"manifest.yaml", "raw-result.json"} <= set(artifacts)):
             blockers.append(f"{label}: invalid declared trial artifacts")
@@ -183,6 +183,15 @@ def _trials(plan: dict[str, Any], root: Path, blockers: list[str]) -> set[str]:
         if not isinstance(exp, str):
             continue
         parent = f"experiments/{exp}/runs/{rid}"
+        try:
+            # Use the supervisor's canonical-path and symlink checks, including
+            # nested certificate/log paths, before counting archive coverage.
+            directory = safe_path(root, parent)
+            for name in artifacts:
+                safe_path(directory, name)
+        except (ValueError, OSError) as error:
+            blockers.append(f"{label}: invalid declared trial artifacts: {error}")
+            continue
         for name in (*GENERATED, *artifacts):
             required.add(f"{parent}/{name}")
     return required
