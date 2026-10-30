@@ -22,6 +22,7 @@ Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 # problem, unit, better (higher|lower|neutral), kind (gauge|event), label, source.
 # Reads committed state at --ref via `git show`; never the working tree. stdlib only.
 import argparse
+import hashlib
 import datetime as dt
 import json
 import math
@@ -640,6 +641,73 @@ def degree_five_continuation(ref, since):
                  label=f"Reported degree-{degree} certificate records; not a fresh replay", **common)
 
 
+def semaev_panel_snapshots(ref, since):
+    """Report hash-bound panel inventories; never replay or infer upper bounds."""
+    root = "analysis/semaev-degree-five-quotient-lift/"
+    latest = {}
+    for path in ls(ref, root + "runtime/"):
+        if not re.fullmatch(re.escape(root) + r"runtime/panel-remaining-after-local\d+\.json", path):
+            continue
+        try:
+            d = json.loads(show(ref, path))
+            stamp = dt.datetime.fromisoformat(d["created_at"])
+            if stamp.tzinfo is None:
+                continue
+            stamp = stamp.astimezone(dt.timezone.utc)
+            date = stamp.date().isoformat()
+            if date < since:
+                continue
+            if date in latest and stamp == latest[date][0]:
+                return  # Ambiguous same-time evidence, do not choose a winner.
+            if date not in latest or stamp > latest[date][0]:
+                latest[date] = (stamp, path, d)
+        except (ValueError, TypeError, KeyError):
+            continue
+    for date, (_, path, d) in sorted(latest.items()):
+        try:
+            parent = show(ref, root + d["parent_inventory"])
+            if hashlib.sha256(parent.encode()).hexdigest() != d["parent_sha256"]:
+                continue
+            planned = [x["prior_id"] for x in json.loads(parent)["items"]]
+            pending = [x["prior_id"] for x in d["items"]]
+            terminal = d["terminal_inputs"]
+            if (len(set(planned)) != len(planned) or len(set(pending)) != len(pending)
+                    or set(pending) & set(terminal)
+                    or set(planned) != set(pending) | set(terminal)):
+                continue
+            certified = 0
+            for name, entry in terminal.items():
+                raw = show(ref, root + entry["path"])
+                if hashlib.sha256(raw.encode()).hexdigest() != entry["result_sha256"]:
+                    raise ValueError("result hash mismatch")
+                result = json.loads(raw)
+                if result["prior_id"] != name or result["status"] != entry["status"]:
+                    raise ValueError("result identity mismatch")
+                if result["status"] not in {"certificate_verified", "producer_contains_one", "resource_capped"}:
+                    raise ValueError("not a terminal panel result")
+                bound = result.get("last_fall_degree_lower_bound")
+                if bound != entry.get("last_fall_degree_lower_bound"):
+                    raise ValueError("bound mismatch")
+                if bound is not None:
+                    q, count = result["certified_codimension_lower_bound"], result["exact_solutions"]
+                    if (bound != 5 or result["status"] != "certificate_verified"
+                            or type(q) is not int or type(count) is not int or not q > count >= 0):
+                        raise ValueError("reported lower bound is unsupported")
+                    certified += 1
+            if d["terminal_count"] != len(terminal) or d["certified_lfd_at_least5"] != certified:
+                continue
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+        for suffix, value, label in [
+            ("terminal_inputs", len(terminal), "Reported terminal original panel inputs, including caps"),
+            ("pending_inputs", len(pending), "Original panel inputs without terminal records"),
+            ("certified_lfd_at_least5_inputs", certified, "Reported checked named-instance lower bounds; not a fresh certificate replay"),
+        ]:
+            emit("semaev.degree_four.panel." + suffix, value, date=date,
+                 problem="semaev-degree-five-quotient-lift", unit="inputs", better="neutral",
+                 label=label, source=f"{path}@{ref}")
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -657,6 +725,7 @@ def main():
     prime_field_direct_panel(a.ref, a.since)
     prime_field_holdout_panel(a.ref, a.since)
     degree_five_continuation(a.ref, a.since)
+    semaev_panel_snapshots(a.ref, a.since)
 
 
 if __name__ == "__main__":
