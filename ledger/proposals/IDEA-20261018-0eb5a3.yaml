@@ -1,0 +1,152 @@
+# IDEA RECORD -- IDEA-20261018-0eb5a3
+# RQ-MLDSA-001 / GOAL-MLDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-0eb5a3
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    One signature gives s1 mod 2^b from an exact b-bit LSB leak of y: c is a unit mod 2^b
+    iff tau is odd (ML-DSA-44/65, not 87)
+  class: mechanism
+  claim: >-
+    If the low b bits of every mask coefficient y_j leak (for example from a table-indexed
+    ExpandMask unpack), then z - y_low = 2^b y_high + c s1 gives c s1 mod 2^b exactly, and
+    since c(1), the sum of tau signs, is congruent to tau mod 2, c is invertible in Z_{2^b}[X]/(X^n+1)
+    whenever tau is odd (39 and 49 at ML-DSA-44/65), so ONE signature yields s1 mod 2^b; at
+    b >= ceil(log2(2 eta + 1)) that is s1 itself. At ML-DSA-87 (tau = 60) c is never a unit
+    mod 2 and one signature leaves a kernel. With with partial leakage (a fraction rho of
+    coefficients) the remaining unknowns are finished with DDGR modular hints plus BKZ.
+  mechanism: >-
+    X^n + 1 = (X + 1)^n mod 2, so an element of Z_2[X]/(X^n+1) is a unit iff its value at
+    X = 1 is odd, and Hensel lifting extends units to Z_{2^b}. c in B_tau has c(1) congruent
+    to tau mod 2; tau = 39, 49, 60 at ML-DSA-44/65/87, so ML-DSA-87's c is NOT invertible
+    mod 2 and needs a different finish (prediction P3). The z-bound rejection does not alter
+    z = y + c s1 for accepted signatures, so the leak is exact through rejection. Partial
+    leakage turns each known LSB into a modular hint on one linear form of s1, and DDGR's
+    modular-hint integration predicts the remaining block size.
+  tracked_object: >-
+    the exact recovered s1 mod 2^b from k signatures, and the BKZ block size needed to finish
+    s1 as a function of leak fraction rho
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-118
+    provenance: kb
+    claim: >-
+      supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints
+      and measures prediction vs actual block size
+    verified_by: knowledge/literature/KN-LIT-118.md (opened by the drafting session)
+  - ref: KN-LIT-106
+    provenance: kb
+    claim: lattice-reduction instrument used for the finishing step and for block-size measurements
+    verified_by: knowledge/literature/KN-LIT-106.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Marzougui, Ulitzsch, Tibouchi, Seifert, Profiling Side-Channel Attacks on Dilithium:
+      A Small Bit-Fiddling Leak Breaks It All, SAC 2022 (recalled, hedged)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: signatures needed for s1 mod 2^b at rho = 1
+    direction: lower
+    minimum_effect: exactly 1 signature for tau odd, 100 percent of 50 keys
+    falsified_by: any key with tau odd needing more than 1 signature
+  - id: P2
+    metric: finishing block size vs rho at toyDSA(128,2,2)
+    direction: lower
+    minimum_effect: >-
+      beta_finish falls by at least 20 between rho = 0.25 and rho = 1 and matches the DDGR
+      prediction within +-5
+    falsified_by: measured beta outside +-8 of prediction at two or more rho levels
+  - id: P3
+    metric: tau-parity dependence
+    direction: different
+    minimum_effect: >-
+      tau even: one signature leaves a kernel mod 2 whose dimension equals the (X+1)-adic
+      valuation of c mod 2, and at most 3 signatures give s1 mod 2^b on 95 percent of keys
+    falsified_by: >-
+      tau-even arm recovering s1 mod 2 from one signature on any key, or needing more than
+      5 signatures
+  minimal_test:
+    design: >-
+      Simulate the leak oracle on toyDSA and real-n ML-DSA-44/87 shapes; solve mod 2^b by
+      Hensel-lifted inversion; for rho < 1 integrate modular hints into the primal lattice
+      and run G6K BKZ.
+    controls:
+    - >-
+      null: leak bits replaced by independent uniform bits (same format), solver must return
+      inconsistent systems
+    - 'positive: rho = 1, b = 3 at n = 256 where one-signature recovery is algebraically forced'
+    - 'A/A: rho = 0.5 run under two seed blocks'
+  falsification_conditions:
+  - one-signature recovery fails for tau odd at rho = 1
+  - measured finishing block size deviates from DDGR by more than 8 at most rho levels
+  confounders:
+  - noise-free leak model overstates a real side channel
+  - toy n changes BKZ cost but not the algebra
+  - >-
+    ExpandMask packing differs between gamma1 = 2^17 and 2^19; leak model is on y coefficients
+    not bytes
+  interpretation_limits:
+  - >-
+    the algebraic one-signature statement is exact at real n = 256; the rho < 1 lattice finish
+    is measured only at n <= 128 with transfer via DDGR predictions
+  - leak is simulated, no physical side channel is measured
+  - no deployed implementation is claimed to leak
+  heuristic_assumptions:
+  - id: H1
+    statement: DDGR modular-hint integration predicts the finishing BKZ block size for these
+      hints
+    rigorous_support: DDGR validated on LWE instances with hints, not on ML-DSA rotations
+    validation_plan: compare predicted vs measured beta at 5 rho levels
+  target_complexity:
+    time_exponent: 'rho = 1: polynomial, O(n^2 l) per key from one signature; rho < 1: 2^{0.292
+      beta(rho)}'
+    memory_exponent: poly / 2^{0.2075 beta(rho)}
+    best_known: MLWE key recovery at full dimension (no leak)
+    hidden_overhead: Hensel inversion cost is negligible; the finish dominates
+    tradeoff_note: >-
+      trade signatures for leak fraction: k signatures with rho each roughly equal one with
+      k*rho until saturation
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-118
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived
+        hints and measures prediction vs actual block size
+    - ref: KN-LIT-106
+      provenance: kb
+      relation: adjacent
+      delta: lattice-reduction instrument used for the finishing step and for block-size measurements
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLDSA-88e591
+    experiment_id: EXP-MLDSA-20961f

@@ -1,0 +1,3984 @@
+[
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Floating-point conversion leak as a learning curve: signatures-to-key vs channel noise and tree level, simulated oracle, n=16..128",
+  "class": "mechanism",
+  "claim": "KN-LIT-7909ee reports Falcon key recovery from tens of power traces that leak the signed exponent of each ffSampling center at integer-to-float conversion. Abstract that leak as a noisy channel (exponent bucket of each center, flipped to a neighbouring bucket with probability eps) on a self-built toy Falcon. The claim: the median number of signatures to certified key recovery N*(n, eps) scales as C * n^b / I(eps), with I(eps) the per-center mutual information of the channel, b in [0, 1.5], and leaks restricted to the top half of the tree carry at least twice the key information per leaked bit of leaf-only leaks. Falsified if N* is not monotone in I(eps) or the log-log fit in n leaves residuals above 0.3 in log2 N*.",
+  "mechanism": "Each center c_i is an affine function of the target and of previously drawn integers through the secret ffLDL tree, so an exponent bucket is a two-sided interval constraint on a secret-dependent linear form. Many signatures give many intervals; maximum-likelihood over the bucket observations turns them into approximate linear hints, and lattice reduction finishes the key, which is the reported pipeline. The information per observation is bounded by the bucket entropy times the channel capacity, so signature count should track 1/I(eps). Top-level centers are larger dense combinations of more secret coordinates, so a bit there should constrain more of the key than a leaf bit.",
+  "tracked_object": "N*(n, eps, level): median over 10 self-generated keys of the number of simulated-leak signatures needed until the recovered (f, g) satisfies h = g/f mod q and reproduces a verifying signature.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N*(eps=0.2)/N*(eps=0)",
+    "direction": "higher",
+    "minimum_effect": "ratio >= 2 at n = 64",
+    "falsified_by": "ratio below 1.3 at n = 64 with 10 keys"
+   },
+   {
+    "id": "P2",
+    "metric": "N*(leaf_only)/N*(top_half) at matched leaked bits",
+    "direction": "higher",
+    "minimum_effect": "ratio >= 2 at n = 64 and n = 128",
+    "falsified_by": "ratio at or below 1 at both n"
+   },
+   {
+    "id": "P3",
+    "metric": "log-log slope b of N* in n at eps = 0",
+    "direction": "different",
+    "minimum_effect": "b in [0, 1.5] with 95% CI width < 0.6",
+    "falsified_by": "b outside [0, 1.5] or residual > 0.3 log2 units"
+   }
+  ],
+  "minimal_test": {
+   "design": "Python port of a toy Falcon (q = 12289, n in {16, 32, 64, 128}) with an exponent-leak oracle wrapped around ffSampling; attacker: bucket MLE then BKZ (fpylll) on the hint-embedded lattice; sweep eps and leaked level.",
+   "controls": [
+    "null: leak oracle returns exponents of centers computed under an independent random key with the same public key format; recovery must fail up to 5x the predicted N*",
+    "positive: eps = 0 and full-precision center values leaked; recovery must succeed within a handful of signatures",
+    "A/A: identical configuration run on two disjoint key/seed blocks; N* ratio sets the noise floor"
+   ]
+  },
+  "falsification_conditions": [
+   "N* not monotone in I(eps) across the 4 noise levels at n = 64",
+   "null-oracle arm recovers the key in any trial (pipeline leaks the key by another path)",
+   "positive control fails, so the attack harness is not able to see a leak"
+  ],
+  "confounders": [
+   "BKZ block size cap limits recovery independently of hint count",
+   "the toy port's tree depth differs from the reference implementation at small n",
+   "MLE initialization quality dominating the hint information"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: toy n up to 128 with a simulated channel; transfer to n = 512/1024 assumes the fitted n^b law holds and is not a statement about any physical device or deployed implementation",
+   "The channel model is an abstraction of KN-LIT-7909ee, whose own counts were not reproduced here"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Exponent buckets of distinct centers are conditionally independent given the key",
+    "rigorous_support": "none; centers within one signature are correlated through the recursion",
+    "validation_plan": "measure empirical mutual information between sibling-center buckets under a fixed key at n = 32"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "polynomial in signatures; BKZ block size grows with remaining entropy",
+   "memory_exponent": "polynomial",
+   "best_known": "reported 20-100 traces for Falcon-512/1024 with physical leakage (KN-LIT-7909ee)",
+   "hidden_overhead": "profiling and classification of physical traces, not modelled",
+   "tradeoff_note": "defensive measurement: maps channel quality to signature budget, no exponent claim"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-7909ee",
+    "provenance": "kb",
+    "citation_text": "Zhou, Wang, Sun, Yu, Every Signing Leaks: Breaking Falcon via Floating-Point Conversion Leakage, ePrint 2026/2124",
+    "relation": "special_case",
+    "delta": "turns one physical attack into a parametric signatures-to-key curve over channel noise and tree level"
+   },
+   {
+    "ref": "KN-LIT-4425",
+    "provenance": "kb",
+    "citation_text": "Improved Power Analysis Attacks on Falcon (title-level KB entry)",
+    "relation": "adjacent",
+    "delta": "physical-trace attack; here only a simulated leak channel with no hardware"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-1b4b7d",
+   "IDEA-20260816-5dd256"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Simulated exponent-leak learning curve on toy Falcon",
+   "objective": "Reduce uncertainty in how the signature count for key recovery depends on leak noise, tree level and dimension.",
+   "instrument": "Python 3, NumPy, fpylll (BKZ 2.0), toy Falcon port with exact-rational verification of recovered keys",
+   "parameters": "n in {16, 32, 64, 128}; q = 12289; eps in {0, 0.05, 0.2, 0.4}; leak level in {all, top_half, leaf_only}; 10 keys per cell; signature cap 2000 per trial; BKZ block size up to 40",
+   "procedure": "1. Generate keys with fixed seeds. 2. Sign random messages through the oracle-wrapped sampler, logging bucket leaks. 3. After every 5 signatures run bucket MLE and embed hints; run BKZ-20 then BKZ-40. 4. Stop at first certified recovery (h = g/f mod q and a fresh signature verifies). 5. Record N*. 6. Repeat for null and positive oracles.",
+   "independent_variables": [
+    {
+     "name": "leak_noise_eps",
+     "levels": [
+      "0",
+      "0.05",
+      "0.2",
+      "0.4"
+     ]
+    },
+    {
+     "name": "leak_level",
+     "levels": [
+      "all",
+      "top_half",
+      "leaf_only"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "16",
+      "32",
+      "64",
+      "128"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two disjoint blocks of 5 keys",
+     "how": "keys and message streams drawn from block-specific SHAKE seeds"
+    },
+    {
+     "name": "bkz_schedule",
+     "treatment": "fixed",
+     "value": "BKZ-20 then BKZ-40, 8 tours",
+     "how": "frozen in manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "eps=0.2",
+      "eps=0"
+     ],
+     "differs_in": [
+      "leak_noise_eps"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "leaf_only",
+      "top_half"
+     ],
+     "differs_in": [
+      "leak_level"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "eps=0 across n"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "eps=0 n=64 seed-block A",
+      "eps=0 n=64 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N* median and IQR per cell"
+   ],
+   "secondary_metrics": [
+    "BKZ block size at success",
+    "MLE hint error variance",
+    "null-arm recovery count"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N* ratio eps=0.2 vs eps=0 at n=64",
+    "formula": "N*(eps)/N*(0) ~ I(0)/I(eps) with I the bucket-channel mutual information",
+    "source": "channel-capacity argument in mechanism"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 128 with simulated leak; transfer to 512/1024 only through the fitted slope b, reported with its CI",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 60
+   },
+   "stopping_rules": [
+    "stop a cell after 2000 signatures without recovery and record censored",
+    "stop the sweep if the positive control fails at n = 32"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "any recovery in the null-oracle arm invalidates the whole run",
+    "recovered key not passing exact verification counts as failure"
+   ],
+   "success_criterion": "P1 holds in C1 (ratio >= 2 at n=64) and P3 holds in C3, each exceeding the AA1 noise floor.",
+   "falsification_criterion": "C1 ratio below 1.3 or C3 slope outside [0, 1.5]; either rejects the channel-capacity scaling model.",
+   "decision_impact": {
+    "on_positive": "Use the fitted law to state a signatures-per-noise budget at reduced n and propose F8-style estimator transfer to n = 512.",
+    "on_negative": "Drop the capacity model; the leak's value is not summarised by mutual information and needs per-level modelling."
+   },
+   "required_artifacts": [
+    "manifest.yaml with seeds, eps grid and BKZ schedule",
+    "raw-result.json with per-trial N* and censoring",
+    "recovery certificates (f, g, verifying signature) per success",
+    "learning-curve plot and PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Float-free integer Gram-root sampler vs ffSampling: is the integer sampler's covariance error aligned with the secret basis?",
+  "class": "measurement",
+  "claim": "The float-free perturbation sampler (KN-LIT-4528, built on Peikert's perturbation approach, KN-LIT-2472) replaces a real square root of a key-dependent covariance by an integral approximation. Its output covariance error E = Cov(s) - sigma^2 I is therefore a function of the key Gram matrix. Claim: E's mass concentrates on the subspace spanned by the shortest secret rotations with an alignment z-score >= 3 against random subspaces of equal dimension, while float64 ffSampling at the same n has z < 2. Falsified if the integer sampler's alignment is within noise of random subspaces.",
+  "mechanism": "The perturbation covariance is s^2 I minus a multiple of B^T B, so the matrix whose integral root is approximated carries the secret Gram explicitly. Approximation residuals of a matrix root are concentrated along that matrix's eigenvectors, which here are built from secret directions. ffSampling's rounding errors enter through many tree nodes and largely average into an isotropic-looking error. So the two float-free versus float designs can differ in leak geometry even at equal total divergence.",
+  "tracked_object": "Alignment score a = ||P_K E P_K||_F / ||E||_F with P_K the projector onto span of the n rotations of (g, -f), reported as a z-score against 1000 random n-dimensional subspaces.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "alignment z-score, integer Gram-root arm",
+    "direction": "higher",
+    "minimum_effect": "z >= 3 at n = 32 and 64",
+    "falsified_by": "z < 2 at both n"
+   },
+   {
+    "id": "P2",
+    "metric": "alignment z difference integer minus ffSampling",
+    "direction": "higher",
+    "minimum_effect": ">= 2",
+    "falsified_by": "difference < 1"
+   }
+  ],
+  "minimal_test": {
+   "design": "Compute E analytically from each sampler's exact construction where possible and confirm empirically with 10^6 signatures per key at n in {16, 32, 64}.",
+   "controls": [
+    "null: exact-rational root sampler (E = 0 up to sampling noise) and random subspaces",
+    "positive: planted E = eps * B^T B with known eps",
+    "A/A: same arm on two disjoint key-seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "integer-root alignment z < 2 at n = 32 and 64",
+   "positive control not detected at eps = 1e-3",
+   "exact-root null shows z > 2"
+  ],
+  "confounders": [
+   "finite-sample covariance noise at 10^6 signatures",
+   "the toy integer-root construction differing from the published one",
+   "basis choice for P_K when rotations are not orthogonal"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 64 toy keys; transfer assumes the root-approximation residual structure is dimension-independent",
+   "Alignment is a geometry statement, not a recovery; the signatures-to-key cost is not measured here"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Root approximation residuals align with the dominant eigenvectors of the target matrix",
+    "rigorous_support": "standard perturbation theory for matrix functions",
+    "validation_plan": "check residual-eigenvector overlap directly on the computed roots"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(n^3) per key for exact covariance",
+   "memory_exponent": "O(n^2)",
+   "best_known": "no published measurement of leak geometry for float-free samplers (as far as recalled)",
+   "hidden_overhead": "none",
+   "tradeoff_note": "measurement of a structural property; constant-level, defensive"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4528",
+    "provenance": "kb",
+    "citation_text": "Integral Matrix Gram Root and Lattice Gaussian Sampling without Floats (KB entry; recalled authors Ducas, Galbraith, Prest, Yu, Eurocrypt 2020)",
+    "relation": "adjacent",
+    "delta": "measures where the integer sampler's residual error points, not just its size"
+   },
+   {
+    "ref": "KN-LIT-2472",
+    "provenance": "kb",
+    "citation_text": "Peikert, An Efficient and Parallel Gaussian Sampler for Lattices",
+    "relation": "adjacent",
+    "delta": "the perturbation template whose covariance contains the key Gram"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-c7ddc2",
+   "IDEA-20260808-e7ba81"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Covariance-error alignment for float vs float-free samplers",
+   "objective": "Decide whether the float-free sampler's deviation is key-aligned where ffSampling's is not.",
+   "instrument": "SageMath/NumPy, toy ffSampling port with float64, integer Gram-root perturbation sampler, exact rational reference",
+   "parameters": "n in {16, 32, 64}; q = 12289; root precision bits in {8, 16, 32}; 20 keys per cell; 10^6 signatures per key for empirical check",
+   "procedure": "1. Generate keys. 2. Build each sampler. 3. Compute analytic E where available. 4. Sample 10^6 outputs, estimate E. 5. Compute alignment and z against 1000 random subspaces. 6. Repeat for controls.",
+   "independent_variables": [
+    {
+     "name": "sampler_arm",
+     "levels": [
+      "ffsampling_float64",
+      "integer_gram_root",
+      "exact_rational"
+     ]
+    },
+    {
+     "name": "root_precision_bits",
+     "levels": [
+      "8",
+      "16",
+      "32"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "key_seed_block",
+     "treatment": "randomized",
+     "value": "two blocks of 10 keys",
+     "how": "separate SHAKE seeds"
+    },
+    {
+     "name": "sample_count",
+     "treatment": "fixed",
+     "value": "10^6",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "integer_gram_root",
+      "ffsampling_float64"
+     ],
+     "differs_in": [
+      "sampler_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "integer_gram_root 8 bits",
+      "integer_gram_root 32 bits"
+     ],
+     "differs_in": [
+      "root_precision_bits"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "integer_gram_root block A",
+      "integer_gram_root block B"
+     ],
+     "differs_in": [
+      "key_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "alignment z-score"
+   ],
+   "secondary_metrics": [
+    "||E||_F",
+    "empirical vs analytic E discrepancy"
+   ],
+   "preregistered_prediction": {
+    "quantity": "alignment z at n = 32",
+    "formula": "z_int >= 3, z_ff < 2",
+    "source": "perturbation-theory argument in mechanism"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 64; transfer assumes residual structure independent of n, tested across 16/32/64",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 12,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop if the positive control is not detected at n = 16"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "analytic and empirical E disagree beyond 5 sigma: implementation bug, rerun"
+   ],
+   "success_criterion": "C1 shows P1 and P2 at n = 32 and 64, above the AA1 noise floor.",
+   "falsification_criterion": "C1 gives integer-root z < 2 at both n, rejecting key-aligned residual geometry.",
+   "decision_impact": {
+    "on_positive": "Prioritise a signatures-to-key run against the float-free sampler with the aligned statistic.",
+    "on_negative": "Treat float-free and float samplers as equivalent leak geometry and compare only by divergence size."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json with per-key E summaries",
+    "alignment z table",
+    "plot and PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Weakest-key census at n=512/1024: how close does the smallest ffLDL leaf width of accepted keys come to the base sampler floor?",
+  "class": "measurement",
+  "claim": "Sampler deviation depends on per-key leaf widths sigma_i = sigma / ||b~_i||, and analyses quote the worst case allowed by keygen acceptance. Key generation is cheap, so the per-key distribution of the minimum leaf width can be measured at deployed dimension on self-generated keys. Claim: the minimum leaf width over accepted keys has a lower tail reaching within 1% of the base sampler's declared floor sigma_min (RECALLED about 1.2778 for n = 512) for at least 1 key in 10^4, and the argmin falls in the last eighth of the tree order in at least 80% of keys. Falsified if no key in 10^5 comes within 3% of the floor, or the argmin is spread uniformly.",
+  "mechanism": "Leaf widths are sigma over Gram-Schmidt norms of the secret basis in ffLDL order. Keygen accepts on norm bounds that limit, but do not pin, the largest Gram-Schmidt norm. Gram-Schmidt norms decay along the basis, so the largest b~_i (smallest leaf width) sits at a predictable position. Base-sampler approximation error grows as width approaches its floor, so the keys near the floor are the ones where any arithmetic defect is largest: risk is a tail property of the key population, not an average.",
+  "tracked_object": "Per-key m = min_i sigma_i / sigma_min and argmin position, over accepted keys.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "fraction of keys with m < 1.01",
+    "direction": "higher",
+    "minimum_effect": ">= 1e-4 at n = 512",
+    "falsified_by": "zero keys with m < 1.03 in 10^5"
+   },
+   {
+    "id": "P2",
+    "metric": "fraction of argmin in last eighth of tree order",
+    "direction": "higher",
+    "minimum_effect": ">= 0.8",
+    "falsified_by": "< 0.3"
+   }
+  ],
+  "minimal_test": {
+   "design": "Run reference keygen 10^5 times per n with logged tree constants; compute m and argmin; compare with an idealised keygen without rejection and with planted degraded keys.",
+   "controls": [
+    "null: keygen without the acceptance rejection (shows what rejection removes)",
+    "positive: keys with (F, G) left unreduced by adding k(f, g), which must show m near or below 1",
+    "A/A: two disjoint seed blocks of 5x10^4 keys"
+   ]
+  },
+  "falsification_conditions": [
+   "no key within 3% of floor in 10^5 at n = 512",
+   "argmin position uniform (chi-square p > 0.05)"
+  ],
+  "confounders": [
+   "the declared sigma_min value is recalled, not read from the standard",
+   "different reference implementations computing tree constants differently (see F4)"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: runs at deployed n but measures only key-population tree constants of self-generated keys; it says nothing about leakage of any fielded key",
+   "A low margin is not a measured divergence; that needs a leaf-level divergence model"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Base-sampler approximation error is monotone decreasing in width over its admissible range",
+    "rigorous_support": "plausible from the Bernoulli-exponential and table construction; not proven here",
+    "validation_plan": "compute exact leaf output divergence at 10 widths across the range"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "linear in key count",
+   "memory_exponent": "O(n) per key",
+   "best_known": "worst-case bound from keygen acceptance",
+   "hidden_overhead": "none",
+   "tradeoff_note": "measurement; replaces a worst-case bound with an empirical tail"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-057",
+    "provenance": "kb",
+    "citation_text": "Fouque et al., Falcon specification (FN-DSA draft)",
+    "relation": "adjacent",
+    "delta": "measures the tail of leaf widths that the spec bounds only in the worst case"
+   },
+   {
+    "ref": "KN-LIT-7672",
+    "provenance": "kb",
+    "citation_text": "Jia, Zhang, Yu, Tang, Revisiting the Concrete Security of Falcon-type Signatures, ePrint 2026/096",
+    "relation": "adjacent",
+    "delta": "concrete-security analysis; this adds an empirical per-key margin distribution"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-cb0828",
+   "IDEA-20260816-fa2fe6"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Leaf-width margin census over accepted keys",
+   "objective": "Measure the per-key minimum leaf margin distribution and argmin position at n = 64..1024.",
+   "instrument": "C reference keygen (self-built from a public reference implementation) instrumented to dump ffLDL leaves; Python analysis",
+   "parameters": "n in {64, 256, 512, 1024}; 10^5 keys per n for reference arm, 10^4 for null and planted arms",
+   "procedure": "1. Instrument keygen to emit leaves. 2. Generate keys under each arm. 3. Compute m and argmin. 4. Fit tail (empirical quantiles and GPD). 5. Report per n.",
+   "independent_variables": [
+    {
+     "name": "keygen_arm",
+     "levels": [
+      "reference_accepting",
+      "no_rejection_ideal",
+      "degraded_fg_planted"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "64",
+      "256",
+      "512",
+      "1024"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "rng_seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "compiler_build",
+     "treatment": "fixed",
+     "value": "gcc -O2 strict fp",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "reference_accepting",
+      "no_rejection_ideal"
+     ],
+     "differs_in": [
+      "keygen_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "reference_accepting n=512 tail"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "reference block A",
+      "reference block B"
+     ],
+     "differs_in": [
+      "rng_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "fraction m < 1.01, 1.03",
+    "argmin position histogram"
+   ],
+   "secondary_metrics": [
+    "GPD tail index",
+    "acceptance rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "P(m < 1.01) at n=512",
+    "formula": ">= 1e-4",
+    "source": "mechanism"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "keygen at deployed n on self-generated keys; no signatures and no attack, so no transfer gap for the tracked object itself",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "stop when 10^5 keys per n are logged"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "instrumented keygen producing keys that fail sign/verify invalidates that block"
+   ],
+   "success_criterion": "C2 shows P1 at n=512 and P2, with C1 showing rejection shifts the tail beyond the AA1 noise floor.",
+   "falsification_criterion": "C2 finds no key within 3% of the floor in 10^5 at n=512, or argmin uniform.",
+   "decision_impact": {
+    "on_positive": "Condition every sampler-divergence experiment on the weakest-key tail rather than the median key.",
+    "on_negative": "Treat the floor as non-binding and use median-key widths in divergence experiments."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json per-key m and argmin",
+    "tail plot",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Tower NTRUSolve vs exact rational Babai on the same (f,g): does approximate field-norm reduction leave slack in (F,G)?",
+  "class": "measurement",
+  "claim": "NTRUSolve (KN-LIT-4954) lifts a solution of fG - gF = q up the power-of-two tower via the field norm and size-reduces (F, G) against (f, g) at every level with approximate arithmetic. Two correct solvers can return (F, G) differing by k(f, g). Claim: on identical (f, g) at n = 512, the tower solver and an exact-rational Babai reduction disagree on (F, G) for at least 1% of keys; when they disagree, the largest Gram-Schmidt norm of the full basis differs by at least 0.5%, and at least 1 key in 10^3 is accepted by one solver and rejected by the other. Falsified if outputs are identical on 10^4 keys.",
+  "mechanism": "Size reduction computes k = round((F f* + G g*)/(f f* + g g*)) in approximate precision; near-half fractional parts round differently under truncated precision, and errors at a lower tower level propagate through the lift. The final basis quality sets leaf widths, so solver choice changes the per-key leaf margins of F3 and the acceptance set of keygen without changing correctness.",
+  "tracked_object": "Per-key indicator of (F, G) disagreement and Delta = log max_i ||b~_i|| (tower) minus log max_i ||b~_i|| (exact).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "disagreement fraction at n=512",
+    "direction": "higher",
+    "minimum_effect": ">= 0.01",
+    "falsified_by": "0 disagreements in 10^4 keys"
+   },
+   {
+    "id": "P2",
+    "metric": "median Delta among disagreeing keys",
+    "direction": "higher",
+    "minimum_effect": ">= 0.005",
+    "falsified_by": "median |Delta| < 0.001"
+   }
+  ],
+  "minimal_test": {
+   "design": "Run both solvers on the same 10^4 (f, g) per n; compare outputs and basis quality.",
+   "controls": [
+    "null: same solver run twice (A/A) must agree bitwise",
+    "positive: tower solver with reduction skipped at one level must show large Delta",
+    "A/A: tower solver on two seed blocks for the population statistics"
+   ]
+  },
+  "falsification_conditions": [
+   "no disagreements at any n",
+   "positive control indistinguishable from reference"
+  ],
+  "confounders": [
+   "exact solver choosing a different but equally reduced representative",
+   "floating build flags"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: run at n = 64..1024 on self-generated keys; implications for leakage pass through F3's margin model and are not measured here",
+   "Slack in (F, G) is not itself a leak"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Exact rational Babai gives the canonical reference reduction",
+    "rigorous_support": "deterministic given rounding convention",
+    "validation_plan": "fix the half-integer convention and test both"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "quasi-linear (tower) vs cubic (exact) in n",
+   "memory_exponent": "linear vs quadratic",
+   "best_known": "KN-LIT-4954 tower algorithm",
+   "hidden_overhead": "exact arithmetic cost at n = 1024",
+   "tradeoff_note": "tooling and measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4954",
+    "provenance": "kb",
+    "citation_text": "Pornin, Prest, More Efficient Algorithms for the NTRU Key Generation using the Field Norm",
+    "relation": "adjacent",
+    "delta": "compares the tower solver's output basis quality with an exact reference key by key"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-cb0828",
+   "IDEA-20260816-c7ddc2"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Tower vs exact NTRUSolve output comparison",
+   "objective": "Measure whether NTRUSolve's approximate reduction changes basis quality and acceptance.",
+   "instrument": "C tower solver from a public reference implementation; SageMath exact Babai over Q; Python comparison",
+   "parameters": "n in {64, 256, 512, 1024}; 10^4 (f, g) per n; q = 12289",
+   "procedure": "1. Sample (f, g) with fixed seeds. 2. Solve with each arm. 3. Verify fG - gF = q. 4. Compare (F, G) and Gram-Schmidt profiles. 5. Apply acceptance test to both.",
+   "independent_variables": [
+    {
+     "name": "solver_arm",
+     "levels": [
+      "tower_reference",
+      "exact_rational_babai",
+      "tower_skip_level_planted"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "64",
+      "256",
+      "512",
+      "1024"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "half_integer_rounding",
+     "treatment": "fixed",
+     "value": "round half to even",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "tower_reference",
+      "exact_rational_babai"
+     ],
+     "differs_in": [
+      "solver_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "tower_reference",
+      "tower_skip_level_planted"
+     ],
+     "differs_in": [
+      "solver_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "tower block A",
+      "tower block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "disagreement fraction",
+    "Delta distribution"
+   ],
+   "secondary_metrics": [
+    "acceptance flip count",
+    "solver time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "disagreement fraction n=512",
+    "formula": ">= 0.01",
+    "source": "mechanism"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "deployed n for keygen only, self-generated keys",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 10,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 16
+   },
+   "stopping_rules": [
+    "stop when 10^4 keys per n compared"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "any output failing fG - gF = q invalidates that solver run"
+   ],
+   "success_criterion": "C1 shows P1 and P2 at n=512, with C2 confirming detection and AA1 as noise floor.",
+   "falsification_criterion": "C1 records zero disagreement at all n while C2 detects the planted slack.",
+   "decision_impact": {
+    "on_positive": "Index F3 margins and every sampler experiment by solver implementation.",
+    "on_negative": "Treat NTRUSolve as canonical and drop solver as a factor."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json per key",
+    "Delta histogram",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Same fixed-KL planted defect in ffSampling, Mitaka and Antrag-keyed Mitaka: how many signatures until the basis leaks?",
+  "class": "composition",
+  "claim": "Mitaka (KN-LIT-4936) replaces Falcon's ffSampling by a hybrid sampler and Antrag (KN-LIT-2565) changes keygen to make Mitaka's quality close to Falcon's. Plant the same defect family (one-leaf width miscalibration) scaled to an identical per-signature KL divergence delta in each. Claim: the number of signatures for a second-moment learner to estimate a secret direction to angle < 10 degrees differs between ffSampling and Mitaka by at least 2x at n = 32 and 64, and Antrag keys move Mitaka at least halfway toward ffSampling. Falsified if all three are within 1.5x at every delta.",
+  "mechanism": "Equal KL does not mean equal information about the basis: the defect enters the output law through the sampler's own decomposition (ffLDL tree vs per-embedding hybrid sampling), which rotates where the defect lands relative to secret directions. A learner reads only the key-dependent part, so the Fisher information about the basis per signature can differ at matched KL.",
+  "tracked_object": "N_theta: signatures until the learned top eigenvector of the residual covariance lies within 10 degrees of a true secret rotation, per sampler and delta.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N_theta(Mitaka)/N_theta(ffSampling) at matched delta",
+    "direction": "different",
+    "minimum_effect": "ratio >= 2 or <= 0.5 at n = 32, 64",
+    "falsified_by": "ratio within [0.67, 1.5] at all delta"
+   },
+   {
+    "id": "P2",
+    "metric": "fraction of gap closed by Antrag keys",
+    "direction": "higher",
+    "minimum_effect": ">= 0.5",
+    "falsified_by": "< 0.2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Toy implementations of the three samplers at n in {16, 32, 64}; planted width miscalibration tuned to delta in {1e-3, 1e-2, 1e-1} by exact KL computation; second-moment learner on residuals.",
+   "controls": [
+    "null: delta = 0 in each sampler (learner angle must stay at the random-direction distribution)",
+    "positive: delta = 0.3",
+    "A/A: same sampler on two key-seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "ratio within [0.67, 1.5] for all delta at n = 32 and 64",
+   "null arm reaches 10 degrees"
+  ],
+  "confounders": [
+   "different sigma per sampler changes baseline variance",
+   "KL tuning error"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: toy n <= 64 and a planted defect family; deployed samplers' real defects are not measured",
+   "learner is second-moment only; higher-order learners may reorder samplers"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Second-moment learner sample complexity tracks Fisher information",
+    "rigorous_support": "asymptotic efficiency of moment estimators under Gaussian-like noise",
+    "validation_plan": "compare with numeric Fisher information at n = 16"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "polynomial",
+   "memory_exponent": "O(n^2)",
+   "best_known": "NTRUSign parallelepiped learning (KN-LIT-4703)",
+   "hidden_overhead": "none",
+   "tradeoff_note": "comparative measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4936",
+    "provenance": "kb",
+    "citation_text": "Espitau et al., Mitaka: A Simpler, Parallelizable, Maskable Variant of Falcon",
+    "relation": "adjacent",
+    "delta": "compares defect-to-information conversion across samplers"
+   },
+   {
+    "ref": "KN-LIT-2565",
+    "provenance": "kb",
+    "citation_text": "Espitau et al., Antrag: Annular NTRU Trapdoor Generation Making Mitaka As Secure As Falcon",
+    "relation": "adjacent",
+    "delta": "tests whether Antrag's quality fix also fixes defect sensitivity"
+   },
+   {
+    "ref": "KN-LIT-4703",
+    "provenance": "kb",
+    "citation_text": "Nguyen, Regev, Learning a Parallelepiped",
+    "relation": "adjacent",
+    "delta": "moment learner reused on Gaussian residuals"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-637a3b",
+   "IDEA-20260816-5dd256"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Cross-sampler signatures-to-direction at matched KL",
+   "objective": "Decide whether sampler design changes how fast a fixed-size defect reveals the basis.",
+   "instrument": "Python/NumPy toy samplers, exact KL by enumeration at n=16 and by numerical integration otherwise",
+   "parameters": "n in {16, 32, 64}; q = 12289; delta in {0, 1e-3, 1e-2, 1e-1, 0.3}; 10 keys per cell; up to 10^6 signatures",
+   "procedure": "1. Generate keys (Falcon-style and Antrag-style). 2. Tune planted defect per sampler to delta. 3. Sample, update residual covariance, track angle. 4. Record N_theta.",
+   "independent_variables": [
+    {
+     "name": "sampler_arm",
+     "levels": [
+      "falcon_ffsampling",
+      "mitaka_hybrid",
+      "mitaka_antrag_keys"
+     ]
+    },
+    {
+     "name": "planted_kl",
+     "levels": [
+      "0",
+      "1e-3",
+      "1e-2",
+      "1e-1",
+      "0.3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "key_seed_block",
+     "treatment": "randomized",
+     "value": "two blocks of 5",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "defect_leaf_index",
+     "treatment": "fixed",
+     "value": "last leaf",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "mitaka_hybrid",
+      "falcon_ffsampling"
+     ],
+     "differs_in": [
+      "sampler_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "mitaka_antrag_keys",
+      "mitaka_hybrid"
+     ],
+     "differs_in": [
+      "sampler_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "falcon block A",
+      "falcon block B"
+     ],
+     "differs_in": [
+      "key_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N_theta"
+   ],
+   "secondary_metrics": [
+    "numeric Fisher information",
+    "learner angle curves"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N_theta ratio Mitaka/Falcon at delta=1e-2, n=32",
+    "formula": "outside [0.5, 2]",
+    "source": "mechanism"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 64; transfer assumes ratio stable across n, checked over 16/32/64",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 45
+   },
+   "stopping_rules": [
+    "censor at 10^6 signatures"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "measured KL off target by more than 20% invalidates the cell"
+   ],
+   "success_criterion": "C1 gives P1 at n=32 and 64 beyond the AA1 noise floor, and C2 gives P2.",
+   "falsification_criterion": "C1 ratio within [0.67, 1.5] at all delta and n.",
+   "decision_impact": {
+    "on_positive": "Report defect budgets per sampler; matched-KL is not a sufficient comparison.",
+    "on_negative": "Use KL alone as the cross-sampler currency for this goal."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "angle-vs-signatures plots",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Are FN-DSA's norm-bound and fixed-length-encoding restarts key-independent, and do they select on a defective sampler's leak?",
+  "class": "control",
+  "claim": "Signing restarts when ||(s1, s2)||^2 exceeds the bound or (RECALLED, padded format) when compressed s2 overflows its fixed slot. Under the ideal law both events are functions of a key-independent distribution, so accepted signatures stay key-independent. Claim A: with an exact sampler, per-key restart rates over 200 keys are homogeneous (chi-square p > 0.01). Claim B: under a planted defect whose width error depends on the key, the restart rate becomes key-dependent (p < 1e-3) and the accepted law's divergence from ideal differs from the unconditioned law's by a factor kappa with |log kappa| >= 0.1. Distinct from the encoding-nullspace audit: the object is the selection induced by restarts.",
+  "mechanism": "Rejection on a public function conditions the output law. If the pre-rejection law is key-independent, conditioning cannot create key dependence. If it is defective in a key-dependent way, rejection reweights the defect: tail-heavy defects are partly removed (kappa < 1), others can be concentrated. Restart counts are an extra observable for anyone timing signing, so key-dependent rates are a leak independent of signature values.",
+  "tracked_object": "Per-key restart rate r_k and kappa = KL(accepted || ideal accepted) / KL(pre-rejection || ideal).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "homogeneity p-value of r_k, exact sampler",
+    "direction": "higher",
+    "minimum_effect": "p > 0.01",
+    "falsified_by": "p < 1e-3 with an exact sampler"
+   },
+   {
+    "id": "P2",
+    "metric": "|log kappa| under planted defect",
+    "direction": "higher",
+    "minimum_effect": ">= 0.1",
+    "falsified_by": "|log kappa| < 0.02"
+   }
+  ],
+  "minimal_test": {
+   "design": "n = 512 restart rates on 200 self-generated keys with 10^5 signatures each (cheap), plus toy n = 64 with scaled bound for kappa by exact computation.",
+   "controls": [
+    "null: high-precision sampler",
+    "positive: planted width error proportional to a key feature (max leaf GS norm)",
+    "A/A: exact sampler on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "exact sampler shows heterogeneous restart rates (instrument or implementation flaw)",
+   "planted defect leaves rates homogeneous"
+  ],
+  "confounders": [
+   "restart rates near zero needing very large samples",
+   "slot size recalled, not read from standard"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: rates measured at n = 512 on self-generated keys with a planted defect; kappa computed at toy n = 64; nothing is claimed about deployed implementations",
+   "Timing observability of restarts is assumed, not measured"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Restart probability is small enough that conditioning is a perturbation",
+    "rigorous_support": "standard tail bounds on chi-square norms",
+    "validation_plan": "measure restart rate directly"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "linear in signatures",
+   "memory_exponent": "O(1)",
+   "best_known": "none recalled",
+   "hidden_overhead": "none",
+   "tradeoff_note": "control"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-057",
+    "provenance": "kb",
+    "citation_text": "Fouque et al., Falcon specification",
+    "relation": "adjacent",
+    "delta": "tests a property the spec assumes for restart conditions"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-d984ac",
+   "IDEA-20260816-724cc9"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Restart-rate homogeneity and conditioning factor",
+   "objective": "Check whether restarts can carry key information under exact and defective samplers.",
+   "instrument": "C reference signer instrumented for restart counting; Python exact KL at toy n",
+   "parameters": "n = 512: 200 keys x 10^5 signatures; n = 64 toy: 20 keys, exact KL; planted defect size 1e-2 relative width",
+   "procedure": "1. Instrument restarts. 2. Run exact and planted arms. 3. Chi-square homogeneity test. 4. Compute kappa at toy n.",
+   "independent_variables": [
+    {
+     "name": "sampler_arm",
+     "levels": [
+      "exact_high_precision",
+      "planted_key_dependent_width"
+     ]
+    },
+    {
+     "name": "restart_condition",
+     "levels": [
+      "norm_bound_only",
+      "norm_plus_slot"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "message_stream",
+     "treatment": "randomized",
+     "value": "SHAKE-derived",
+     "how": "per seed"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "planted_key_dependent_width",
+      "exact_high_precision"
+     ],
+     "differs_in": [
+      "sampler_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "norm_plus_slot",
+      "norm_bound_only"
+     ],
+     "differs_in": [
+      "restart_condition"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "exact block A",
+      "exact block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "homogeneity p-value",
+    "kappa"
+   ],
+   "secondary_metrics": [
+    "mean restart rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "homogeneity p under exact sampler",
+    "formula": "p > 0.01",
+    "source": "conditioning argument"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "rates at n = 512 on self-generated keys; kappa at toy n = 64",
+   "seeds_count": 2,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "stop when 200 keys x 10^5 signatures logged"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "signatures failing verification invalidate the block"
+   ],
+   "success_criterion": "Exact arm satisfies P1 and C1 shows P2 with planted-arm heterogeneity p < 1e-3, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 shows no rate heterogeneity under the planted defect, or the exact arm is heterogeneous.",
+   "decision_impact": {
+    "on_positive": "Add restart counts as a secondary observable in every FN-DSA detector.",
+    "on_negative": "Exclude restarts from the observation model."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json per-key rates",
+    "kappa table",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Subfield-trace projections of signatures as public detectors: does power peak at the degree matching a defect's tree level?",
+  "class": "representation",
+  "claim": "In Z[x]/(x^n + 1) the relative trace to the index-2 subfield returns twice the even part, the same split ffSampling recurses on. Claim: for a defect planted at ffLDL tree depth l, a quadratic statistic on the public relative trace of (s1, s2) to degree n/2^l reaches 80% power with at least 2x fewer signatures than the same statistic on the full 2n-dimensional signature, at n = 64 and l in {3, 5}. Falsified if the full-dimensional statistic is never worse than the best trace statistic.",
+  "mechanism": "A deep-level defect perturbs a low-dimensional component; a statistic over all 2n coordinates pays noise in every dimension. If the trace maps keep most of the defect while discarding dimensions, power per signature rises. Because the secret basis has entries in the top field, the trace does not commute with the secret frame, so whether the defect survives the projection is exactly what is tested.",
+  "tracked_object": "Signatures to 80% power at alpha = 0.01 for each statistic family and defect level.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N80(full)/N80(best trace)",
+    "direction": "higher",
+    "minimum_effect": ">= 2 for l = 5",
+    "falsified_by": "<= 1 for all l"
+   },
+   {
+    "id": "P2",
+    "metric": "degree of best trace statistic",
+    "direction": "different",
+    "minimum_effect": "equals n/2^l within one tower step",
+    "falsified_by": "best degree independent of l"
+   }
+  ],
+  "minimal_test": {
+   "design": "Toy ffSampling at n = 64 with planted center bias at depth l; compute statistics for trace degrees 1..64; 500 replicate experiments per cell for power.",
+   "controls": [
+    "null: exact sampler, all statistics",
+    "positive: planted defect at top level (l = 0)",
+    "A/A: exact sampler on two seed blocks to calibrate false-positive rate"
+   ]
+  },
+  "falsification_conditions": [
+   "full statistic as good or better at every l",
+   "best degree uncorrelated with l"
+  ],
+  "confounders": [
+   "statistic dimension changing the null distribution shape",
+   "multiple-testing over degrees"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n = 64 toy with planted defects; transfer assumes tower structure scales unchanged to 512/1024",
+   "Power on planted defects says nothing about whether the real sampler has a defect"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Planted center bias at depth l is representative of real deep-level defects",
+    "rigorous_support": "none",
+    "validation_plan": "repeat with width-miscalibration defect family"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(n log n) per signature",
+   "memory_exponent": "O(n^2)",
+   "best_known": "full-dimensional goodness-of-fit",
+   "hidden_overhead": "none",
+   "tradeoff_note": "constant-factor detection gain at best"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-112",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Bai, Ducas, A subfield lattice attack on overstretched NTRU assumptions",
+    "relation": "orthogonal",
+    "delta": "uses subfield maps for statistics on signatures rather than for key recovery"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-8bdc64",
+   "IDEA-20260805-4a6dc7"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Trace-projected detectors vs full detector",
+   "objective": "Measure whether subfield trace projections concentrate defect power.",
+   "instrument": "Python/NumPy toy Falcon, power by replicate simulation",
+   "parameters": "n = 64; q = 12289; l in {0, 3, 5}; trace degree d in {1, 2, 4, 8, 16, 32, 64}; 500 replicates; signature counts on a log grid up to 10^6",
+   "procedure": "1. Plant defect. 2. Generate signatures. 3. Compute statistics per degree. 4. Calibrate thresholds on exact arm. 5. Estimate power curves and N80.",
+   "independent_variables": [
+    {
+     "name": "statistic_family",
+     "levels": [
+      "full_dimension_quadratic",
+      "relative_trace_degree_d"
+     ]
+    },
+    {
+     "name": "defect_level",
+     "levels": [
+      "0",
+      "3",
+      "5"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "alpha",
+     "treatment": "fixed",
+     "value": "0.01 Bonferroni over degrees",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "relative_trace_degree_d best",
+      "full_dimension_quadratic"
+     ],
+     "differs_in": [
+      "statistic_family"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "defect_level 3",
+      "defect_level 5"
+     ],
+     "differs_in": [
+      "defect_level"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "exact block A",
+      "exact block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N80 per statistic"
+   ],
+   "secondary_metrics": [
+    "false-positive rate under exact sampler"
+   ],
+   "preregistered_prediction": {
+    "quantity": "argmax-power degree",
+    "formula": "n/2^l",
+    "source": "tower-split argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n = 64; transfer assumes per-level geometry identical at larger n",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 15,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop if exact-arm false-positive rate exceeds 2 alpha"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "miscalibrated null invalidates the power estimates"
+   ],
+   "success_criterion": "C1 shows P1 at l = 5 and C2 shows P2, with false-positive rate set by the AA1 noise floor.",
+   "falsification_criterion": "C1 finds the full statistic at least as powerful as every trace statistic at all levels.",
+   "decision_impact": {
+    "on_positive": "Adopt tower-matched statistics as the lane's default public detector family.",
+    "on_negative": "Keep full-dimensional or dual-lattice statistics; the tower gives no handle on public data."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "power curves",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Score the LWE-with-hints estimator on center-exponent hints: predicted vs measured BKZ block size at n=32..128",
+  "class": "control",
+  "claim": "Extrapolating any leak-to-key curve to n = 512/1024 will go through a hint-integration estimator (recalled: Dachman-Soled, Ducas, Gong, Rossi framework). Center-exponent buckets map to approximate hints with variance set by bucket width. Claim: the estimator's predicted block size is within +-5 of the measured minimal successful block size at n = 64 and 128 for 20 to 200 signatures of hints; if errors exceed 10 or are one-sided across n, the estimator cannot carry the curve to deployed n.",
+  "mechanism": "The framework updates the lattice volume and the secret's covariance ellipsoid with each hint and predicts block size from a GSA-style model. Bucket hints are interval constraints, not Gaussian, and they are correlated within a signature; both break the framework's assumptions in measurable ways that scale with the hint count.",
+  "tracked_object": "beta_pred - beta_meas per (n, signature count), where beta_meas is the smallest BKZ block size that yields certified recovery in at least 50% of 10 keys.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "|beta_pred - beta_meas| at n = 64, 128",
+    "direction": "lower",
+    "minimum_effect": "<= 5",
+    "falsified_by": "> 10 in any cell"
+   },
+   {
+    "id": "P2",
+    "metric": "sign consistency of error across cells",
+    "direction": "different",
+    "minimum_effect": "mixed signs (no systematic bias)",
+    "falsified_by": "all cells same sign with |error| > 5"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate exponent hints as in F1 (eps = 0); run estimator; measure beta_meas by increasing BKZ block size until recovery.",
+   "controls": [
+    "null: hints from an independent key (estimator predicts no gain; measured gain must be absent)",
+    "positive: perfect hints (exact center values)",
+    "A/A: same cell on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "any cell error > 10",
+   "null hints produce measured gain"
+  ],
+  "confounders": [
+   "estimator implementation version",
+   "progressive BKZ variance"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 128 with simulated hints; the estimator's validity at 512/1024 is inferred, not measured",
+   "Says nothing about physical leakage fidelity"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Bucket hints can be modelled as approximate Gaussian hints",
+    "rigorous_support": "none",
+    "validation_plan": "compare against an interval-constrained enumeration at n = 32"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-beta cost",
+   "memory_exponent": "polynomial",
+   "best_known": "hint framework as recalled",
+   "hidden_overhead": "none",
+   "tradeoff_note": "calibration of an extrapolation tool"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020 (recalled)",
+    "relation": "adjacent",
+    "delta": "scores the framework on a new hint type with certified recoveries"
+   },
+   {
+    "ref": "KN-LIT-7909ee",
+    "provenance": "kb",
+    "citation_text": "Zhou et al., Every Signing Leaks, ePrint 2026/2124",
+    "relation": "adjacent",
+    "delta": "source of the leak type whose extrapolation is calibrated"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-2976d8"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Hint estimator calibration on exponent hints",
+   "objective": "Decide whether the hints estimator can extrapolate exponent-leak recovery costs.",
+   "instrument": "Python, fpylll progressive BKZ, a public implementation of the hints framework (recalled availability), toy Falcon",
+   "parameters": "n in {32, 64, 128}; hint signature counts in {20, 50, 100, 200}; 10 keys per cell; BKZ beta 10..60",
+   "procedure": "1. Produce hints. 2. Run estimator. 3. Embed hints and run BKZ with increasing beta. 4. Record beta_meas. 5. Compare.",
+   "independent_variables": [
+    {
+     "name": "hint_type",
+     "levels": [
+      "exponent_bucket",
+      "perfect_center",
+      "independent_key_null"
+     ]
+    },
+    {
+     "name": "hint_signature_count",
+     "levels": [
+      "20",
+      "50",
+      "100",
+      "200"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "estimator_version",
+     "treatment": "fixed",
+     "value": "pinned commit",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "exponent_bucket",
+      "perfect_center"
+     ],
+     "differs_in": [
+      "hint_type"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "exponent_bucket across counts"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "block A",
+      "block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "beta_pred - beta_meas"
+   ],
+   "secondary_metrics": [
+    "recovery rate at beta_pred"
+   ],
+   "preregistered_prediction": {
+    "quantity": "abs error",
+    "formula": "<= 5",
+    "source": "framework accuracy as recalled"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 128; the experiment exists to quantify the transfer step",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 48
+   },
+   "stopping_rules": [
+    "stop a cell at beta = 60 without recovery (censored)"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "estimator crash is infrastructure"
+   ],
+   "success_criterion": "C2 shows P1 and P2 in every cell with C1 perfect hints within +-3, beyond AA1 noise floor.",
+   "falsification_criterion": "C2 shows any cell error > 10 or one-sided bias, rejecting the estimator for this hint type.",
+   "decision_impact": {
+    "on_positive": "Use the estimator to extrapolate F1's curve to n = 512/1024 with stated error.",
+    "on_negative": "Do not extrapolate; report toy-n curves only and build a corrected hint model."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "pred-vs-meas plot",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Maximum-likelihood trapdoor recovery from a defective sampler vs moment learners and the Cramer-Rao bound",
+  "class": "algorithm",
+  "claim": "Detection is not recovery. For a planted defect of known functional form, the signature likelihood given the basis is computable up to normalisation at toy n. Claim: a gradient-based MLE over basis parameters recovers a secret direction to 10 degrees with at most one third of the signatures needed by second- and fourth-moment learners (the NTRUSign-attack family) at n in {8, 16, 32}, and reaches within 2x of the Cramer-Rao bound. Falsified if MLE needs at least as many signatures as the best moment method at any n.",
+  "mechanism": "Moment learners use only a few low-order statistics, which carry a fraction of the Fisher information when the defect is non-Gaussian (centre bias, truncation). MLE uses the full law. The surrogate is a smooth relaxation of the discrete Gaussian with planted defect, differentiable in the basis; Riemannian ascent on the orthogonal-like parameterisation avoids symmetry traps by multiple restarts.",
+  "tracked_object": "N_theta for MLE and moment learners, and the ratio to the numerically computed Cramer-Rao lower bound.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N_theta(moment)/N_theta(MLE)",
+    "direction": "higher",
+    "minimum_effect": ">= 3 at n = 16, 32",
+    "falsified_by": "<= 1 at any n"
+   },
+   {
+    "id": "P2",
+    "metric": "N_theta(MLE)/N_CR",
+    "direction": "lower",
+    "minimum_effect": "<= 2",
+    "falsified_by": "> 5"
+   }
+  ],
+  "minimal_test": {
+   "design": "Planted centre-bias defect at delta in {1e-2, 1e-1}; PyTorch surrogate likelihood; 20 restarts; compare with second- and fourth-moment learners.",
+   "controls": [
+    "null: delta = 0 (MLE angle distribution must match random)",
+    "positive: delta = 0.3",
+    "A/A: same arm with two initialisation-seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "MLE no better than moment methods",
+   "MLE converges to the true basis under the null"
+  ],
+  "confounders": [
+   "surrogate misspecification",
+   "optimisation failure counted as sample inefficiency"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 32 and a known defect form; at deployed n the likelihood is intractable without this structure",
+   "assumes the attacker knows the defect family"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Surrogate likelihood is close to the true one",
+    "rigorous_support": "none",
+    "validation_plan": "compare surrogate and exact log-likelihood on enumerated support at n = 8"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "polynomial per iteration",
+   "memory_exponent": "O(n^2)",
+   "best_known": "moment methods (KN-LIT-4703, KN-LIT-4704)",
+   "hidden_overhead": "restarts",
+   "tradeoff_note": "constant-factor sample reduction; no exponent claim"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4703",
+    "provenance": "kb",
+    "citation_text": "Nguyen, Regev, Learning a Parallelepiped",
+    "relation": "generalizes",
+    "delta": "likelihood-based learner replacing moment learner"
+   },
+   {
+    "ref": "KN-LIT-4704",
+    "provenance": "kb",
+    "citation_text": "Learning a Zonotope and More: Cryptanalysis of NTRUSign Countermeasures",
+    "relation": "adjacent",
+    "delta": "higher-moment learner used as baseline"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-5dd256",
+   "IDEA-20260805-637a3b"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "MLE vs moment learners on planted-defect signatures",
+   "objective": "Quantify the detection-to-recovery gap a full-likelihood learner closes.",
+   "instrument": "PyTorch surrogate, NumPy samplers, exact enumeration at n=8",
+   "parameters": "n in {8, 16, 32}; delta in {0, 1e-2, 1e-1, 0.3}; 10 keys; 20 restarts; up to 10^6 signatures",
+   "procedure": "1. Plant defect. 2. Sample. 3. Fit MLE and moment learners on growing prefixes. 4. Record N_theta. 5. Compute Cramer-Rao bound numerically.",
+   "independent_variables": [
+    {
+     "name": "learner_arm",
+     "levels": [
+      "mle_surrogate",
+      "second_moment",
+      "fourth_moment"
+     ]
+    },
+    {
+     "name": "planted_kl",
+     "levels": [
+      "0",
+      "1e-2",
+      "1e-1",
+      "0.3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "init_seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "restart_count",
+     "treatment": "fixed",
+     "value": "20",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "mle_surrogate",
+      "fourth_moment"
+     ],
+     "differs_in": [
+      "learner_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "mle_surrogate vs CR bound"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "mle block A",
+      "mle block B"
+     ],
+     "differs_in": [
+      "init_seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N_theta"
+   ],
+   "secondary_metrics": [
+    "N_CR",
+    "restart success fraction"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N_theta ratio moment/MLE",
+    "formula": ">= 3",
+    "source": "information argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 32; transfer only as a ratio claim",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 36
+   },
+   "stopping_rules": [
+    "censor at 10^6 signatures"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "optimiser NaN is infrastructure"
+   ],
+   "success_criterion": "C1 gives P1 at n = 16 and 32 and C2 gives P2, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 shows MLE no better than the fourth-moment learner at any n.",
+   "decision_impact": {
+    "on_positive": "Use MLE learner as the recovery instrument for the signatures-to-leak curve.",
+    "on_negative": "Keep moment learners; the cheaper instrument loses nothing."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "learning curves",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "Annular (Antrag) keys flatten the embedding spectrum: are they farther from the dense-sublattice regime than Falcon keys?",
+  "class": "mechanism",
+  "claim": "Antrag (KN-LIT-2565) samples (f, g) so that |f(z)|^2 + |g(z)|^2 lies in an annulus at every embedding z. Gram of the rotation orbit in canonical coordinates is diagonal with those values, so by AM-GM a flat spectrum maximises the orbit covolume at a given norm: the dense sublattice is less dense. Claim: at n in {32, 64} and matched ||(f, g)||, the dense-sublattice transition modulus q* for Antrag-style keys is higher than for Falcon-accepted keys by at least 0.1 in log2 q, and keys with planted skewed spectra sit lower. Falsified if the shift is within the A/A noise.",
+  "mechanism": "Covolume of the rank-n orbit equals the product of sqrt(|f(z)|^2 + |g(z)|^2) over embeddings, up to a ring constant. Fixed sum (norm), product maximal when values equal. The fatigue event is driven by orbit density relative to q^n, so flattening the spectrum pushes the event to larger q, and conversely Falcon's rejection only on norms leaves spectral spread.",
+  "tracked_object": "log2 q* (50% DSD-event point by profile detection plus certified recovery) per key family at matched norm.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 q*(Antrag) - log2 q*(Falcon)",
+    "direction": "higher",
+    "minimum_effect": ">= 0.1",
+    "falsified_by": "<= 0 or within AA noise"
+   },
+   {
+    "id": "P2",
+    "metric": "log2 q*(skewed) - log2 q*(Falcon)",
+    "direction": "lower",
+    "minimum_effect": "<= -0.1",
+    "falsified_by": ">= 0"
+   }
+  ],
+  "minimal_test": {
+   "design": "Three key families at n = 32, 64 with norms matched by rescaling; sweep q on a log grid; BKZ to beta = 30; detect event and certify recovery.",
+   "controls": [
+    "null: Gaussian keys conditioned on norm only",
+    "positive: planted skewed-spectrum keys",
+    "A/A: Falcon family on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no shift between Antrag and Falcon families beyond noise",
+   "skewed family not lower"
+  ],
+  "confounders": [
+   "matching norm vs matching coefficient distribution",
+   "ternary vs Gaussian coefficients"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 64; FN-DSA q = 12289 is far below fatigue at n = 512, so this is a direction-of-effect claim",
+   "Not a security statement for Antrag or FN-DSA"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "The event location is a monotone function of orbit covolume at fixed n",
+    "rigorous_support": "Ducas-van Woerden analysis in KN-LIT-114 (as reported)",
+    "validation_plan": "regress q* on log covolume across all keys"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-30 at dim 128",
+   "memory_exponent": "polynomial",
+   "best_known": "fatigue law KN-LIT-114",
+   "hidden_overhead": "none",
+   "tradeoff_note": "constant shift; defensive"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2565",
+    "provenance": "kb",
+    "citation_text": "Espitau et al., Antrag",
+    "relation": "adjacent",
+    "delta": "measures a lattice-attack consequence of the annular condition"
+   },
+   {
+    "ref": "KN-LIT-114",
+    "provenance": "kb",
+    "citation_text": "Ducas, van Woerden, NTRU Fatigue",
+    "relation": "adjacent",
+    "delta": "tests whether key spectrum shifts the fatigue point"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-cb0828",
+   "IDEA-20260816-6e6f2e"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Fatigue point by key-spectrum family",
+   "objective": "Measure whether embedding-spectrum flatness moves the dense-sublattice transition.",
+   "instrument": "SageMath, fpylll BKZ 2.0, profile detector, certificate checker",
+   "parameters": "n in {32, 64}; ring x^n + 1; q on log2 grid step 0.25 around predicted q*; 20 keys per family per q; BKZ beta <= 30",
+   "procedure": "1. Generate families with matched norm. 2. Compute orbit covolume. 3. Reduce per q. 4. Detect event and certify recovery. 5. Fit logistic q*.",
+   "independent_variables": [
+    {
+     "name": "key_family",
+     "levels": [
+      "falcon_accepted",
+      "antrag_annular",
+      "skewed_planted",
+      "norm_only_gaussian"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "32",
+      "64"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "bkz_beta",
+     "treatment": "fixed",
+     "value": "30",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "antrag_annular",
+      "falcon_accepted"
+     ],
+     "differs_in": [
+      "key_family"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "skewed_planted",
+      "falcon_accepted"
+     ],
+     "differs_in": [
+      "key_family"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "falcon block A",
+      "falcon block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 q* with bootstrap CI"
+   ],
+   "secondary_metrics": [
+    "orbit log-covolume",
+    "recovery beta"
+   ],
+   "preregistered_prediction": {
+    "quantity": "Delta log2 q*",
+    "formula": "proportional to Delta log covolume / n",
+    "source": "AM-GM covolume argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 64; claim is direction of shift",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 64
+   },
+   "stopping_rules": [
+    "stop a family when q* CI width < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recoveries are not counted"
+   ],
+   "success_criterion": "C1 gives P1 and C2 gives P2 with CIs excluding 0, beyond AA1 noise floor.",
+   "falsification_criterion": "C1 CI contains 0 while C2 detects the skewed shift.",
+   "decision_impact": {
+    "on_positive": "Report key-spectrum as a fatigue covariate; FN-DSA margin analyses should include it.",
+    "on_negative": "Treat norm as sufficient key statistic for fatigue location."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "q* plot",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "One randomness tape, three conforming builds: signature disagreement rates for emulated, strict and FMA-contracted FN-DSA",
+  "class": "measurement",
+  "claim": "Reference Falcon code (RECALLED) ships an integer-emulated floating-point backend and a native one, and compilers may contract a*b + c into FMA, changing rounding. Claim: on self-generated keys and identical RNG tapes, emulated and strict-native builds produce bit-identical signatures on 10^6 signatures, while FMA-contracted builds disagree on a fraction >= 1e-5 of signatures at n = 512. Each disagreement is a real-world arithmetic defect instance at deployed dimension; its first-differing tree node locates it.",
+  "mechanism": "IEEE-754 binary64 with correct rounding is deterministic, so a faithful emulation matches strict native. FMA rounds once instead of twice, so it changes some centres by one ulp; a one-ulp centre change flips the sampled integer only when the centre sits near a decision boundary, which happens at a rate set by width and precision. The flip rate measured here is the empirical counterpart of the p-bit flip-set model.",
+  "tracked_object": "Disagreement rate per build pair and the histogram of first-differing tree nodes.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "disagreement rate emulated vs strict",
+    "direction": "lower",
+    "minimum_effect": "0 in 10^6",
+    "falsified_by": "any disagreement"
+   },
+   {
+    "id": "P2",
+    "metric": "disagreement rate strict vs FMA",
+    "direction": "higher",
+    "minimum_effect": ">= 1e-5",
+    "falsified_by": "0 in 10^6"
+   }
+  ],
+  "minimal_test": {
+   "design": "Build three variants of one public reference signer; replay identical seeded tapes; log first divergence.",
+   "controls": [
+    "null: strict build vs itself (A/A, run twice)",
+    "positive: one operation forced to float32 must disagree often",
+    "A/A: strict vs strict across two run orders"
+   ]
+  },
+  "falsification_conditions": [
+   "emulated vs strict disagree (emulation not faithful)",
+   "FMA build never disagrees"
+  ],
+  "confounders": [
+   "compiler version",
+   "CPU microarchitecture",
+   "library math functions not covered by emulation"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: deployed n on self-generated keys; disagreement does not imply leakage; no fielded device or key is involved",
+   "Results are for the tested builds only"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Disagreement rate approximates the flip-set measure for one-ulp errors",
+    "rigorous_support": "follows from coupling definition",
+    "validation_plan": "compare with e5c333-style simulation at the same precision"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "linear in signatures",
+   "memory_exponent": "O(n)",
+   "best_known": "none recalled",
+   "hidden_overhead": "none",
+   "tradeoff_note": "measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Pornin, New Efficient, Constant-Time Implementations of Falcon, ePrint 2019 (recalled)",
+    "relation": "adjacent",
+    "delta": "measures cross-backend signature agreement the emulation is designed to provide"
+   },
+   {
+    "ref": "KN-LIT-3841",
+    "provenance": "kb",
+    "citation_text": "Faster Gaussian Lattice Sampling using Lazy Floating-Point Arithmetic",
+    "relation": "adjacent",
+    "delta": "precision theory; this is an empirical build-level measurement"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-d50a10",
+   "IDEA-20260816-e5c333",
+   "IDEA-20260816-c7ddc2"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Build-pair signature disagreement census",
+   "objective": "Measure real compiler-induced arithmetic divergence at deployed n.",
+   "instrument": "C reference signer, gcc and clang, deterministic seeded RNG, Python diff tool",
+   "parameters": "n in {512, 1024}; 20 self-generated keys; 5x10^4 signatures per key per build",
+   "procedure": "1. Build variants. 2. Fix tapes. 3. Sign. 4. Compare bytes; on difference, rerun with node tracing to find first divergence. 5. Tabulate.",
+   "independent_variables": [
+    {
+     "name": "build_pair",
+     "levels": [
+      "strict_vs_emulated",
+      "strict_vs_fma_contracted",
+      "strict_vs_float32_planted"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "512",
+      "1024"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "run_order",
+     "treatment": "randomized",
+     "value": "two orders",
+     "how": "shuffle build execution"
+    },
+    {
+     "name": "host_cpu",
+     "treatment": "measured",
+     "value": "recorded",
+     "how": "cpuid in manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "strict_vs_fma_contracted",
+      "strict_vs_emulated"
+     ],
+     "differs_in": [
+      "build_pair"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "strict_vs_float32_planted",
+      "strict_vs_emulated"
+     ],
+     "differs_in": [
+      "build_pair"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "strict order A",
+      "strict order B"
+     ],
+     "differs_in": [
+      "run_order"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "disagreement rate with exact binomial CI"
+   ],
+   "secondary_metrics": [
+    "first-divergence node histogram"
+   ],
+   "preregistered_prediction": {
+    "quantity": "FMA disagreement rate n=512",
+    "formula": ">= 1e-5",
+    "source": "one-ulp boundary argument"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "deployed n, self-generated keys, no attack",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 2,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "stop when 10^6 signatures per pair compared"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "any build failing KAT vectors invalidates that build"
+   ],
+   "success_criterion": "P1 holds for strict_vs_emulated and C1 shows P2, with AA1 at zero as noise floor; C2 confirms detection.",
+   "falsification_criterion": "C1 shows zero FMA disagreements in 10^6 signatures, or strict_vs_emulated disagrees.",
+   "decision_impact": {
+    "on_positive": "Pin floating-point build flags as a nuisance factor in every FN-DSA run and report the measured flip rate.",
+    "on_negative": "Treat conforming builds as interchangeable for this lane."
+   },
+   "required_artifacts": [
+    "manifest.yaml with compiler flags",
+    "raw-result.json",
+    "divergence traces",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-FNDSA-001",
+  "title": "A shared positive-control ladder: five planted sampler defect types at exact KL, and each detector's minimum detectable KL",
+  "class": "tooling",
+  "claim": "Each detector in this lane brings its own positive control, so sensitivities cannot be compared. Build a shared ladder at n in {8, 16}: five defect types (leaf width scale, centre bias, tail truncation, sibling copula, p-bit rounding) at six exactly computed KL levels. Claim: for a fixed generic quadratic detector, the minimum detectable KL at 10^5 signatures differs by at least 10x between defect types, so a single power number per detector is meaningless; the ladder yields a detector-by-defect sensitivity matrix. Falsified if minimum detectable KL is within 3x across types.",
+  "mechanism": "KL is an average; detectors see the defect through particular statistics, and defect types put their divergence in different places (tails, means, dependence). Exact KL at n <= 16 is computable by support enumeration, so rungs are known without sampling error.",
+  "tracked_object": "Minimum detectable KL (80% power, alpha 0.01, 10^5 signatures) per detector x defect type.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "max/min MDK across defect types for quadratic detector",
+    "direction": "higher",
+    "minimum_effect": ">= 10",
+    "falsified_by": "<= 3"
+   },
+   {
+    "id": "P2",
+    "metric": "rank agreement of detectors across defect types (Kendall tau)",
+    "direction": "lower",
+    "minimum_effect": "tau <= 0.5",
+    "falsified_by": "tau >= 0.9"
+   }
+  ],
+  "minimal_test": {
+   "design": "Enumerate supports, plant defects, compute exact KL, tune to rungs; run three generic detectors (quadratic, leaf goodness-of-fit, copula statistic).",
+   "controls": [
+    "null: zero-defect rung",
+    "positive: top rung (KL 0.1)",
+    "A/A: zero rung on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "MDK within 3x across types",
+   "null rung rejected above 2 alpha"
+  ],
+  "confounders": [
+   "KL tuning tolerance",
+   "detector implementation choices"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 16; the ladder ranks instruments, it does not measure the real sampler",
+   "defect types are a chosen basis, not exhaustive"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Detector ranking at n <= 16 predicts ranking at larger n",
+    "rigorous_support": "none",
+    "validation_plan": "re-run two rungs at n = 64 with sampled KL"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "exponential in n for enumeration, fine at n <= 16",
+   "memory_exponent": "support size",
+   "best_known": "ad hoc per-idea positive controls",
+   "hidden_overhead": "none",
+   "tradeoff_note": "tooling"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-057",
+    "provenance": "kb",
+    "citation_text": "Fouque et al., Falcon specification",
+    "relation": "orthogonal",
+    "delta": "tooling to calibrate tests of the specified sampler"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-0e6599",
+   "IDEA-20260813-2d839b",
+   "IDEA-20260808-e7ba81",
+   "IDEA-20260801-010"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Shared defect ladder and sensitivity matrix",
+   "objective": "Produce comparable sensitivities for all FN-DSA detectors.",
+   "instrument": "Python exact enumeration, NumPy, detector library",
+   "parameters": "n in {8, 16}; KL rungs {0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1}; 300 replicates per cell; 10^5 signatures",
+   "procedure": "1. Enumerate support. 2. Build defect families. 3. Tune to rungs. 4. Simulate replicates. 5. Estimate MDK per detector and type.",
+   "independent_variables": [
+    {
+     "name": "defect_type",
+     "levels": [
+      "leaf_width_scale",
+      "centre_bias",
+      "tail_truncation",
+      "sibling_copula",
+      "p_bit_rounding"
+     ]
+    },
+    {
+     "name": "detector",
+     "levels": [
+      "quadratic",
+      "leaf_gof",
+      "copula_stat"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "kl_tolerance",
+     "treatment": "fixed",
+     "value": "5% relative",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "centre_bias",
+      "sibling_copula"
+     ],
+     "differs_in": [
+      "defect_type"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "quadratic",
+      "copula_stat"
+     ],
+     "differs_in": [
+      "detector"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "zero rung block A",
+      "zero rung block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "MDK matrix"
+   ],
+   "secondary_metrics": [
+    "false-positive rates"
+   ],
+   "preregistered_prediction": {
+    "quantity": "MDK spread",
+    "formula": ">= 10x",
+    "source": "mechanism"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "exact KL needs n <= 16",
+   "seeds_count": 5,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 10,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop after full matrix"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "rungs outside tolerance invalidate the cell"
+   ],
+   "success_criterion": "C1 shows P1 and C2 shows P2 beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 finds MDK within 3x across all defect types.",
+   "decision_impact": {
+    "on_positive": "Require every FN-DSA detector to report its row of the ladder before any power claim.",
+    "on_negative": "Allow a single KL-power number per detector."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "ladder definition json",
+    "raw-result.json",
+    "MDK heatmap",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Measured hybrid MITM vs primal BKZ on NTRU Prime-shaped rings, p=61..113: does the hybrid gain vanish past the transition?",
+  "class": "algorithm",
+  "claim": "On Z[x]/(x^p - x - 1) with fixed-weight ternary secrets and q below the fatigue point, Howgrave-Graham's hybrid (KN-LIT-2084) with a measured optimal guess dimension r beats plain primal BKZ in total measured work by at least 2x for p >= 89, and r grows linearly in p. Once q passes the measured dense-sublattice transition, the hybrid advantage falls to at most 1.2x. So distance from fatigue and hybrid distance are different coordinates and must both be reported.",
+  "mechanism": "Below fatigue the lattice behaves like LWE; guessing a sparse ternary tail via MITM removes dimensions at a combinatorial cost lower than BKZ's for those dimensions. Above fatigue the dense sublattice makes BKZ succeed at small block size, so the reduction half becomes cheap and guessing no longer pays.",
+  "tracked_object": "Measured total work (BKZ node count plus MITM table operations, converted to CPU-seconds on one pinned core) at optimal r, versus primal BKZ alone, per (p, q).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "work(primal)/work(hybrid best r) below transition",
+    "direction": "higher",
+    "minimum_effect": ">= 2 at p >= 89",
+    "falsified_by": "<= 1.2 at all p"
+   },
+   {
+    "id": "P2",
+    "metric": "same ratio above transition",
+    "direction": "lower",
+    "minimum_effect": "<= 1.2",
+    "falsified_by": ">= 2"
+   }
+  ],
+  "minimal_test": {
+   "design": "p in {61, 73, 89, 101, 113}; weight w scaled as in the deployed ratio (RECALLED w/p about 0.38); q at three levels relative to measured transition; r swept.",
+   "controls": [
+    "null: matched random lattice of same dimension and determinant with no planted secret (both attacks must fail)",
+    "positive: very low weight secrets where the hybrid must win",
+    "A/A: primal arm on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "hybrid never beats primal by 2x below transition",
+   "hybrid advantage persists above transition"
+  ],
+  "confounders": [
+   "MITM memory limits truncating r",
+   "BKZ implementation choice",
+   "weight scaling"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: p <= 113; sntrup761 is far larger, so only slopes are transferred with stated CI",
+   "no claim about any deployed instance"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Babai nearest-plane success in the hybrid follows the standard probability model",
+    "rigorous_support": "Wunderer's analysis (recalled)",
+    "validation_plan": "measure Babai success per guess directly"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^(c p) with c measured",
+   "memory_exponent": "3^(r/2) table",
+   "best_known": "primal BKZ and hybrid estimators",
+   "hidden_overhead": "MITM memory",
+   "tradeoff_note": "time-memory tradeoff in r"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2084",
+    "provenance": "kb",
+    "citation_text": "Howgrave-Graham, A hybrid lattice-reduction and meet-in-the-middle attack against NTRU",
+    "relation": "special_case",
+    "delta": "measured on NTRU Prime ring shape with transition interaction"
+   },
+   {
+    "ref": "KN-LIT-2598",
+    "provenance": "kb",
+    "citation_text": "Bernstein, Asymptotics of hybrid primal lattice attacks",
+    "relation": "adjacent",
+    "delta": "measured exponents at toy scale"
+   },
+   {
+    "ref": "KN-LIT-5247",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., NTRU Prime: reducing attack surface at low cost",
+    "relation": "adjacent",
+    "delta": "ring shape used"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-263751",
+   "IDEA-20260809-2976d8"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "high"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Hybrid vs primal across the transition on x^p - x - 1",
+   "objective": "Measure hybrid gain below and above the measured fatigue transition.",
+   "instrument": "SageMath, fpylll BKZ 2.0, C MITM table, certificate checker",
+   "parameters": "p in {61, 73, 89, 101, 113}; q levels {0.5x, 1x, 2x measured q*}; r in 0..30; 10 instances per cell",
+   "procedure": "1. Generate instances. 2. Locate q* per p (reuse goal's sweep). 3. Run primal BKZ to success. 4. Run hybrid for each r. 5. Certify recovery. 6. Compare work.",
+   "independent_variables": [
+    {
+     "name": "attack_arm",
+     "levels": [
+      "primal_bkz",
+      "hybrid_mitm_best_r"
+     ]
+    },
+    {
+     "name": "q_level",
+     "levels": [
+      "below",
+      "near",
+      "above"
+     ]
+    },
+    {
+     "name": "ring_degree_p",
+     "levels": [
+      "61",
+      "73",
+      "89",
+      "101",
+      "113"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "core_pinning",
+     "treatment": "fixed",
+     "value": "one isolated core",
+     "how": "taskset"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "hybrid_mitm_best_r",
+      "primal_bkz"
+     ],
+     "differs_in": [
+      "attack_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "hybrid gain below",
+      "hybrid gain above"
+     ],
+     "differs_in": [
+      "q_level"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "primal block A",
+      "primal block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "work ratio"
+   ],
+   "secondary_metrics": [
+    "optimal r",
+    "Babai success rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "work ratio at p=101 below transition",
+    "formula": ">= 2",
+    "source": "KN-LIT-2084 cost model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "p <= 113; slopes transferred with CI only",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 120,
+    "maximum_memory_gb": 32,
+    "maximum_runs": 150
+   },
+   "stopping_rules": [
+    "censor cells at 2 hours"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recovery not counted"
+   ],
+   "success_criterion": "C1 gives P1 below transition and C2 gives P2, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 ratio below 1.2 at every p below transition.",
+   "decision_impact": {
+    "on_positive": "Report hybrid distance alongside fatigue distance for NTRU Prime shapes.",
+    "on_negative": "Report fatigue distance only; hybrid adds nothing at these shapes."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "work curves",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Scaling-collapse test for matrix NTRU: is the transition a function of flattened dimension and dense-sublattice rank ratio only?",
+  "class": "mechanism",
+  "claim": "For matrix NTRU with invertible secret F (d x d over R) and G (m x d), the lattice has dimension (d + m)n and a dense sublattice of rank dn, ratio rho = d/(d + m). Claim: log2 q* collapses onto a single function of N = (d + m)n and rho across (d, m) in {(1,1), (1,2), (2,1), (2,2), (1,3)}, with residuals below 0.15 in log2 q; the ring rank-1 case sits on the curve. Distinct from IDEA-20260809-2866e0, which locates the transition per rank: here a specific collapse law is tested and the rectangular lever varies rho independently of N.",
+  "mechanism": "The dense-sublattice event depends on the sublattice's rank and covolume relative to the full lattice's determinant and dimension. If ring or module structure only enters through those, all variants with equal (N, rho) and secret norm behave alike. A failure of collapse would indicate structure beyond geometry, e.g., module automorphisms.",
+  "tracked_object": "log2 q* per (d, m, n) with bootstrap CI and residual from the fitted collapse function.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "max residual from collapse fit",
+    "direction": "lower",
+    "minimum_effect": "<= 0.15 log2 q",
+    "falsified_by": "> 0.3"
+   },
+   {
+    "id": "P2",
+    "metric": "d log2 q*/d rho at fixed N",
+    "direction": "different",
+    "minimum_effect": "nonzero with CI excluding 0",
+    "falsified_by": "CI includes 0"
+   }
+  ],
+  "minimal_test": {
+   "design": "Variants above with n chosen so N in {96, 128, 160}; q swept on 0.25 log2 grid; BKZ to beta 30; event detection plus certified recovery.",
+   "controls": [
+    "null: matched random lattices",
+    "positive: planted dense sublattice of controlled rank ratio in an unstructured lattice",
+    "A/A: one variant on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "residuals above 0.3",
+   "rank ratio has no effect at fixed N"
+  ],
+  "confounders": [
+   "secret norm differences across shapes",
+   "BKZ block-size cap"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: N <= 160; collapse at toy scale may break at larger N",
+   "no claim about deployed module-NTRU schemes"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Transition is governed by the densest sublattice's rank and covolume",
+    "rigorous_support": "KN-LIT-114 analysis as reported",
+    "validation_plan": "regress q* on covolume"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-30 in dim <= 160",
+   "memory_exponent": "polynomial",
+   "best_known": "rank-1 fatigue law",
+   "hidden_overhead": "none",
+   "tradeoff_note": "law test"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5365",
+    "provenance": "kb",
+    "citation_text": "On Module Unique-SVP and NTRU",
+    "relation": "adjacent",
+    "delta": "measures the module case empirically"
+   },
+   {
+    "ref": "KN-LIT-114",
+    "provenance": "kb",
+    "citation_text": "Ducas, van Woerden, NTRU Fatigue",
+    "relation": "generalizes",
+    "delta": "tests the law beyond rank 1"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-2866e0",
+   "IDEA-20260816-49b818"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "high"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Matrix NTRU collapse sweep",
+   "objective": "Test whether transition location collapses on (N, rho).",
+   "instrument": "SageMath, fpylll, profile detector, certificate checker",
+   "parameters": "(d, m) in {(1,1),(1,2),(2,1),(2,2),(1,3)}; N in {96, 128, 160}; 20 instances per q; ring x^n + 1",
+   "procedure": "1. Generate variants. 2. Sweep q. 3. Reduce. 4. Detect and certify. 5. Fit collapse.",
+   "independent_variables": [
+    {
+     "name": "shape_dm",
+     "levels": [
+      "1x1",
+      "1x2",
+      "2x1",
+      "2x2",
+      "1x3"
+     ]
+    },
+    {
+     "name": "flattened_dimension",
+     "levels": [
+      "96",
+      "128",
+      "160"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "bkz_beta",
+     "treatment": "fixed",
+     "value": "30",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "1x2",
+      "2x1"
+     ],
+     "differs_in": [
+      "shape_dm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "all shapes collapse fit"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "1x1 block A",
+      "1x1 block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "collapse residuals"
+   ],
+   "secondary_metrics": [
+    "q* CIs"
+   ],
+   "preregistered_prediction": {
+    "quantity": "residual",
+    "formula": "<= 0.15",
+    "source": "geometric argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "N <= 160",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 100,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 120
+   },
+   "stopping_rules": [
+    "stop a variant when q* CI < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recoveries excluded"
+   ],
+   "success_criterion": "C2 shows P1 and C1 shows P2 beyond the AA1 noise floor.",
+   "falsification_criterion": "C2 residuals exceed 0.3 for any shape.",
+   "decision_impact": {
+    "on_positive": "Use one law for all module/matrix NTRU distance statements.",
+    "on_negative": "Fit per-shape laws; module structure matters beyond geometry."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "collapse plot",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Symplectic BKZ vs plain BKZ on NTRU lattices of dimension 128..220: measured speedup and dense-sublattice event location",
+  "class": "algorithm",
+  "claim": "NTRU lattices are proportional to symplectic lattices (KN-LIT-6918), and reduction that preserves the symplectic form only needs to reduce half the basis, recalled as about a 2x LLL speedup. Claim: a symplectic BKZ variant gives a measured work speedup in [1.5, 2.5]x for full BKZ-beta tours at dimension 128..220, and the block size at which the dense-sublattice event triggers is unchanged within +-2. Falsified if speedup < 1.2 or > 4, or if the event block size shifts by more than 4.",
+  "mechanism": "The symplectic form pairs basis vector i with 2n+1-i; reducing the first half determines the second via the dual. BKZ on the full basis does redundant work. The profile of a symplectic reduced basis is anti-symmetric around its midpoint, which may change how the dense-sublattice's projection appears in the middle of the profile.",
+  "tracked_object": "Work ratio (node counts and CPU-seconds on pinned core) and event block size beta_event per instance.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "work(plain)/work(symplectic)",
+    "direction": "higher",
+    "minimum_effect": "in [1.5, 2.5]",
+    "falsified_by": "< 1.2"
+   },
+   {
+    "id": "P2",
+    "metric": "|beta_event(symp) - beta_event(plain)|",
+    "direction": "lower",
+    "minimum_effect": "<= 2",
+    "falsified_by": "> 4"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement symplectic size reduction and BKZ per KN-LIT-6918 on top of fpylll; run on NTRU lattices at 2n in {128, 160, 192, 220} with q near the transition.",
+   "controls": [
+    "null: random symplectic lattice of matched determinant without dense sublattice",
+    "positive: overstretched q where event is certain",
+    "A/A: plain BKZ on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "speedup outside [1.2, 4]",
+   "event block size shift > 4"
+  ],
+  "confounders": [
+   "implementation quality differences",
+   "floating-point precision for symplectic updates"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: dimension <= 220; speedup is a constant, not an exponent change",
+   "does not change deployed distance unless the event shifts"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Symplectic BKZ preserves BKZ output quality",
+    "rigorous_support": "KN-LIT-6918 (as reported) for LLL",
+    "validation_plan": "compare root Hermite factors"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "same exponent as BKZ",
+   "memory_exponent": "same",
+   "best_known": "plain BKZ",
+   "hidden_overhead": "symplectic bookkeeping",
+   "tradeoff_note": "constant-factor engineering"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-6918",
+    "provenance": "kb",
+    "citation_text": "Gama, Howgrave-Graham, Nguyen, Symplectic Lattice Reduction and NTRU",
+    "relation": "special_case",
+    "delta": "measures BKZ-level speedup and event location"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-24eec3",
+   "IDEA-20260816-cc82fa"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Symplectic vs plain BKZ on NTRU",
+   "objective": "Measure symplectic speedup and event invariance.",
+   "instrument": "fpylll plus custom symplectic BKZ in Python/C, profile detector",
+   "parameters": "2n in {128, 160, 192, 220}; q at 1x and 2x measured q*; beta 10..40; 10 instances",
+   "procedure": "1. Generate. 2. Run both reducers with same schedule. 3. Record work and profile per tour. 4. Detect event. 5. Certify recovery.",
+   "independent_variables": [
+    {
+     "name": "reducer_arm",
+     "levels": [
+      "plain_bkz",
+      "symplectic_bkz"
+     ]
+    },
+    {
+     "name": "lattice_dimension",
+     "levels": [
+      "128",
+      "160",
+      "192",
+      "220"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "core_pinning",
+     "treatment": "fixed",
+     "value": "isolated core",
+     "how": "taskset"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "symplectic_bkz",
+      "plain_bkz"
+     ],
+     "differs_in": [
+      "reducer_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "speedup across dimensions"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "plain block A",
+      "plain block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "work ratio",
+    "beta_event"
+   ],
+   "secondary_metrics": [
+    "root Hermite factor"
+   ],
+   "preregistered_prediction": {
+    "quantity": "speedup",
+    "formula": "about 2",
+    "source": "KN-LIT-6918 (recalled)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "dimension <= 220",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 80
+   },
+   "stopping_rules": [
+    "stop if symplectic output fails form check"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "basis not preserving symplectic form invalidates the run"
+   ],
+   "success_criterion": "C1 shows P1 and P2 at all dimensions in C2, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 speedup below 1.2 or event shift above 4.",
+   "decision_impact": {
+    "on_positive": "Adopt symplectic BKZ as the goal's default reducer (engineering improvement).",
+    "on_negative": "Keep plain BKZ; record the null."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "profiles",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Subfield norm attack vs direct dense-sublattice reduction at n=64..256: does NTRU Prime's lack of subfields buy any distance?",
+  "class": "measurement",
+  "claim": "KN-LIT-113 reports that the mechanism is the dense sublattice, not subfields. Claim: on x^n + 1 at fixed BKZ block size, the minimal q for certified recovery by direct reduction is lower than by the subfield norm attack (KN-LIT-112) to every proper subfield, with log q_sub / log q_dsd >= 1.05 in every (n, beta) cell. Then the subfield-free design of x^p - x - 1 removes only a dominated attack and contributes zero fatigue distance by this route. Falsified if the subfield attack succeeds at lower q in any cell.",
+  "mechanism": "Norming to an index-k subfield raises secret norm to the k-th power while dividing dimension by k; it helps only when q grows faster than that norm. Direct reduction exploits the full dense sublattice without paying norm growth, so it should dominate.",
+  "tracked_object": "Minimal log2 q for 50% certified recovery per attack, n and beta.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log q_sub/log q_dsd",
+    "direction": "higher",
+    "minimum_effect": ">= 1.05 in all cells",
+    "falsified_by": "< 1 in any cell"
+   },
+   {
+    "id": "P2",
+    "metric": "best subfield index",
+    "direction": "different",
+    "minimum_effect": "index 2 best among subfields",
+    "falsified_by": "deeper index better"
+   }
+  ],
+  "minimal_test": {
+   "design": "n in {64, 128, 256}; beta in {20, 30}; q grid; subfield attack to index 2, 4, 8; direct reduction; certify.",
+   "controls": [
+    "null: matched random lattice",
+    "positive: q far overstretched where both succeed",
+    "A/A: direct arm on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "subfield attack wins any cell"
+  ],
+  "confounders": [
+   "lifting step failures in subfield attack",
+   "secret distribution"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 256 cyclotomic; the inference about x^p - x - 1 is by dominance, not measured on that ring",
+   "no deployed claim"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Subfield attack success is limited by norm growth",
+    "rigorous_support": "KN-LIT-112 analysis",
+    "validation_plan": "measure normed secret norms"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-beta",
+   "memory_exponent": "polynomial",
+   "best_known": "direct DSD attack (KN-LIT-113)",
+   "hidden_overhead": "lifting",
+   "tradeoff_note": "ablation"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-112",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Bai, Ducas, subfield attack",
+    "relation": "adjacent",
+    "delta": "measured head-to-head"
+   },
+   {
+    "ref": "KN-LIT-113",
+    "provenance": "kb",
+    "citation_text": "Revisiting Lattice Attacks on Overstretched NTRU Parameters",
+    "relation": "same",
+    "delta": "reproduces dominance with certificates at fixed beta"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-263751",
+   "IDEA-20260816-f5ceb4"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Subfield vs direct DSD ablation",
+   "objective": "Decide whether subfields add anything beyond the dense sublattice.",
+   "instrument": "SageMath number fields, fpylll, certificate checker",
+   "parameters": "n in {64, 128, 256}; beta in {20, 30}; q grid 0.25 log2; 10 instances per point",
+   "procedure": "1. Generate. 2. Run direct reduction. 3. Run subfield attack per index. 4. Certify. 5. Fit minimal q.",
+   "independent_variables": [
+    {
+     "name": "attack_arm",
+     "levels": [
+      "direct_dsd",
+      "subfield_index2",
+      "subfield_index4",
+      "subfield_index8"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "64",
+      "128",
+      "256"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "bkz_beta",
+     "treatment": "fixed",
+     "value": "per cell 20 or 30",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "subfield_index2",
+      "direct_dsd"
+     ],
+     "differs_in": [
+      "attack_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "subfield_index8",
+      "subfield_index2"
+     ],
+     "differs_in": [
+      "attack_arm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "direct block A",
+      "direct block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "minimal log2 q"
+   ],
+   "secondary_metrics": [
+    "normed secret norm"
+   ],
+   "preregistered_prediction": {
+    "quantity": "log q ratio",
+    "formula": ">= 1.05",
+    "source": "KN-LIT-113"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 256",
+   "seeds_count": 10,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 96
+   },
+   "stopping_rules": [
+    "stop when minimal q CIs < 0.25"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified lift not counted"
+   ],
+   "success_criterion": "C1 shows P1 in all cells and C2 shows P2, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 finds the subfield attack needs lower q in any cell.",
+   "decision_impact": {
+    "on_positive": "State that subfield-freeness gives no fatigue distance; focus ring-shape work on DSD.",
+    "on_negative": "Measure subfield attacks as a separate axis in the ring-shape comparison."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "NTRU Prime's unbalanced secret (3f,g): how the dense-sublattice transition moves with block-norm ratio, with and without rescaling",
+  "class": "mechanism",
+  "claim": "In Streamlined NTRU Prime (RECALLED) h = g/(3f), so the short vector in the NTRU lattice is (3f, g) with block norms differing by a ratio r (about 3 sqrt(w) / sqrt(2p/3), RECALLED shapes). The fatigue law assumes balanced blocks. Claim: without rescaling, log2 q* shifts by at least 0.5 log2 r relative to balanced; with the optimal diagonal rescaling of one block, the shift is at most 0.1 log2 r. So the deployed distance must be quoted after rescaling. Falsified if the unrescaled shift is absent.",
+  "mechanism": "Lattice reduction sees Euclidean norms; an unbalanced secret is longer than necessary in one block and the dense orbit's covolume rises. Scaling the first block by 1/r (a standard primal-attack trick) restores balance and the dense-sublattice event should return to the balanced location.",
+  "tracked_object": "log2 q* versus r, rescaled and unrescaled.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "shift unrescaled / log2 r",
+    "direction": "higher",
+    "minimum_effect": ">= 0.5",
+    "falsified_by": "< 0.1"
+   },
+   {
+    "id": "P2",
+    "metric": "shift rescaled / log2 r",
+    "direction": "lower",
+    "minimum_effect": "<= 0.1",
+    "falsified_by": ">= 0.3"
+   }
+  ],
+  "minimal_test": {
+   "design": "Ring x^p - x - 1 and x^n + 1 at dims 2n in {122, 146, 178}; secrets (c f, g) with c in {1, 2, 3, 5}; rescale arm.",
+   "controls": [
+    "null: matched random lattice",
+    "positive: c = 1 balanced",
+    "A/A: c = 3 on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no unrescaled shift",
+   "rescaling fails to remove shift"
+  ],
+  "confounders": [
+   "fixed weight vs ternary",
+   "rounding the scale factor to integers"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: toy dimension; deployed distance correction transferred as a shift in log2 q with CI",
+   "no claim about sntrup761 safety"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Optimal rescaling is the norm-ratio factor",
+    "rigorous_support": "standard primal embedding argument",
+    "validation_plan": "sweep scale factor and find empirical optimum"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-30",
+   "memory_exponent": "polynomial",
+   "best_known": "balanced fatigue law",
+   "hidden_overhead": "none",
+   "tradeoff_note": "accounting for deployed shape"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5247",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., NTRU Prime",
+    "relation": "adjacent",
+    "delta": "source of the 3f shape (detail recalled)"
+   },
+   {
+    "ref": "KN-LIT-114",
+    "provenance": "kb",
+    "citation_text": "Ducas, van Woerden, NTRU Fatigue",
+    "relation": "adjacent",
+    "delta": "balanced-law assumption tested"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-263751",
+   "IDEA-20260809-2b4624"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Unbalanced-secret transition shift",
+   "objective": "Quantify the balance correction to the fatigue point.",
+   "instrument": "SageMath, fpylll, detector, certificate checker",
+   "parameters": "p in {61, 73, 89}; c in {1, 2, 3, 5}; rescale none/optimal; q grid; 20 instances",
+   "procedure": "1. Generate. 2. Sweep q. 3. Reduce both embeddings. 4. Detect and certify. 5. Fit q*.",
+   "independent_variables": [
+    {
+     "name": "block_ratio_c",
+     "levels": [
+      "1",
+      "2",
+      "3",
+      "5"
+     ]
+    },
+    {
+     "name": "rescaling",
+     "levels": [
+      "none",
+      "optimal"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "ring_shape",
+     "treatment": "crossed",
+     "value": "x^p-x-1 and x^n+1",
+     "how": "full cross"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "c=3 none",
+      "c=1 none"
+     ],
+     "differs_in": [
+      "block_ratio_c"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "c=3 optimal",
+      "c=3 none"
+     ],
+     "differs_in": [
+      "rescaling"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "c x rescaling x ring"
+     ],
+     "differs_in": [
+      "block_ratio_c",
+      "rescaling",
+      "ring_shape"
+     ],
+     "design": "factorial"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "c=3 block A",
+      "c=3 block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 q* shift"
+   ],
+   "secondary_metrics": [
+    "empirical optimal scale"
+   ],
+   "preregistered_prediction": {
+    "quantity": "shift unrescaled",
+    "formula": ">= 0.5 log2 r",
+    "source": "covolume argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "2n <= 178",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 96
+   },
+   "stopping_rules": [
+    "stop when q* CI < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recovery excluded"
+   ],
+   "success_criterion": "C1 shows P1 and C2 shows P2, with C3 consistent across rings, beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 finds no shift for c = 3 or 5 without rescaling.",
+   "decision_impact": {
+    "on_positive": "Quote deployed distance with rescaling applied and record the correction.",
+    "on_negative": "Balance is irrelevant; use the balanced law directly."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Is the measured fatigue point a lattice property or a reducer property? BKZ 2.0 vs G6K vs progressive sieve at matched work",
+  "class": "control",
+  "claim": "This goal will report a measured q*. Claim: the location log2 q* measured with three reducers at matched work budget differs by less than its CI width (target < 0.1 log2 q); if it differs more, the fatigue point must be reported per reducer. Distinct from IDEA-20260809-2976d8, which scores an estimator: this compares reducers on identical instances.",
+  "mechanism": "The event is defined by the reduction reaching the dense sublattice; different reducers at equal cost reach different profile shapes (sieving has dimensions for free, BKZ 2.0 uses pruned enumeration). If the event depends on profile shape near the middle, location may move with reducer.",
+  "tracked_object": "log2 q* per reducer at equal CPU-second budget on identical instances.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "max pairwise |Delta log2 q*|",
+    "direction": "lower",
+    "minimum_effect": "< 0.1",
+    "falsified_by": "> 0.25"
+   },
+   {
+    "id": "P2",
+    "metric": "work at event, G6K/BKZ2.0",
+    "direction": "lower",
+    "minimum_effect": "<= 0.7",
+    "falsified_by": ">= 1.2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Same instance sets at n in {64, 96, 128}; budgets matched; event detection identical.",
+   "controls": [
+    "null: matched random lattice",
+    "positive: overstretched q",
+    "A/A: BKZ 2.0 on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "reducer differences exceed 0.25 log2 q"
+  ],
+  "confounders": [
+   "budget matching across implementations",
+   "parallelism"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 128; invariance may fail at larger n where sieving dominates",
+   "matched work defined on one machine"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "CPU-seconds on one pinned core is a fair common unit",
+    "rigorous_support": "none",
+    "validation_plan": "also report node counts"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "n/a",
+   "memory_exponent": "sieve memory",
+   "best_known": "BKZ 2.0",
+   "hidden_overhead": "sieve memory",
+   "tradeoff_note": "control"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Albrecht, Ducas, Herold, Kirshanova, Postlethwaite, Stevens, The General Sieve Kernel and New Records in Lattice Reduction, Eurocrypt 2019 (recalled)",
+    "relation": "adjacent",
+    "delta": "uses G6K as a third reducer for event location"
+   },
+   {
+    "ref": "KN-LIT-114",
+    "provenance": "kb",
+    "citation_text": "Ducas, van Woerden, NTRU Fatigue",
+    "relation": "adjacent",
+    "delta": "reducer dependence of measured fatigue"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-2976d8",
+   "IDEA-20260816-cc82fa"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Reducer invariance of q*",
+   "objective": "Decide if q* is reducer-indexed.",
+   "instrument": "fpylll BKZ 2.0, G6K, profile detector",
+   "parameters": "n in {64, 96, 128}; ring x^n + 1 and x^p - x - 1 nearby; 20 instances per q",
+   "procedure": "1. Generate shared instances. 2. Run each reducer to budget. 3. Detect event. 4. Fit q* per reducer.",
+   "independent_variables": [
+    {
+     "name": "reducer",
+     "levels": [
+      "bkz20",
+      "g6k_pump_bkz",
+      "progressive_sieve"
+     ]
+    },
+    {
+     "name": "dimension_n",
+     "levels": [
+      "64",
+      "96",
+      "128"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "thread_count",
+     "treatment": "fixed",
+     "value": "1",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "g6k_pump_bkz",
+      "bkz20"
+     ],
+     "differs_in": [
+      "reducer"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "progressive_sieve",
+      "bkz20"
+     ],
+     "differs_in": [
+      "reducer"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "bkz20 block A",
+      "bkz20 block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "Delta log2 q*"
+   ],
+   "secondary_metrics": [
+    "work at event"
+   ],
+   "preregistered_prediction": {
+    "quantity": "Delta log2 q*",
+    "formula": "< 0.1",
+    "source": "lattice-property hypothesis"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 128",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 80,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 90
+   },
+   "stopping_rules": [
+    "stop when CIs < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "budget overrun beyond 10% invalidates the comparison"
+   ],
+   "success_criterion": "C1 and C2 both show P1 beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 or C2 shows Delta log2 q* > 0.25.",
+   "decision_impact": {
+    "on_positive": "Report one q* per (ring, n).",
+    "on_negative": "Report q* per reducer and use the minimum for distance statements."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Does hybrid guessing destroy the dense sublattice? Projected NTRU residuals vs matched random uSVP after fixing k coefficients",
+  "class": "mechanism",
+  "claim": "Hybrid attacks guess k coordinates and reduce a projected lattice of dimension 2n - k. Claim: the residual retains a dense sublattice of rank about n - k, so its transition q*(k) falls as k grows; at k = n/8, log2 q* drops by at least 5% relative to k = 0. If instead the residual is indistinguishable from a matched random uSVP instance (event signature absent), guessing destroys the dense sublattice and hybrid and fatigue attacks cannot be combined.",
+  "mechanism": "Rotations x^i (f, g) that avoid guessed coordinates survive projection intact; others are perturbed by known amounts. The surviving orbit is a dense sublattice in fewer dimensions with the same q, which is relatively more overstretched. Whether enough rotations survive depends on which coordinates are guessed (contiguous windows preserve more).",
+  "tracked_object": "log2 q*(k) in the projected lattice and profile event signature against matched random uSVP.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "relative drop of log2 q* at k = n/8",
+    "direction": "lower",
+    "minimum_effect": ">= 5%",
+    "falsified_by": "< 1%"
+   },
+   {
+    "id": "P2",
+    "metric": "event signature presence in residual",
+    "direction": "different",
+    "minimum_effect": "present in >= 80% at q above q*(k)",
+    "falsified_by": "absent (matches random uSVP)"
+   }
+  ],
+  "minimal_test": {
+   "design": "n in {48, 64, 80} on x^n + 1 with correct guesses (oracle) of k in {0, n/16, n/8, n/4}, contiguous vs scattered positions.",
+   "controls": [
+    "null: random uSVP of same dimension and gap",
+    "positive: unprojected overstretched NTRU",
+    "A/A: k = 0 on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no drop in q* with k",
+   "event absent in residual"
+  ],
+  "confounders": [
+   "oracle guesses hide MITM cost (deliberate here)",
+   "position pattern"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: n <= 80 with oracle guesses; the full hybrid cost is not measured here",
+   "no deployed claim"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Surviving rotation count controls residual density",
+    "rigorous_support": "none",
+    "validation_plan": "count surviving rotations and regress q*"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ in 2n - k",
+   "memory_exponent": "polynomial",
+   "best_known": "hybrid and DSD separately",
+   "hidden_overhead": "guess cost excluded",
+   "tradeoff_note": "mechanism test enabling a composite attack"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2084",
+    "provenance": "kb",
+    "citation_text": "Howgrave-Graham hybrid attack",
+    "relation": "adjacent",
+    "delta": "checks interaction with the dense sublattice"
+   },
+   {
+    "ref": "KN-LIT-113",
+    "provenance": "kb",
+    "citation_text": "Revisiting Lattice Attacks on Overstretched NTRU Parameters",
+    "relation": "adjacent",
+    "delta": "dense-sublattice mechanism under projection"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-00b29e",
+   "IDEA-20260809-24eec3"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Residual density after oracle guessing",
+   "objective": "Decide whether guessing preserves the dense sublattice.",
+   "instrument": "SageMath, fpylll, detector",
+   "parameters": "n in {48, 64, 80}; k in {0, n/16, n/8, n/4}; positions contiguous/scattered; q grid; 20 instances",
+   "procedure": "1. Generate. 2. Project with oracle guesses. 3. Sweep q. 4. Detect event and certify. 5. Fit q*(k).",
+   "independent_variables": [
+    {
+     "name": "guess_count_k",
+     "levels": [
+      "0",
+      "n/16",
+      "n/8",
+      "n/4"
+     ]
+    },
+    {
+     "name": "guess_pattern",
+     "levels": [
+      "contiguous",
+      "scattered"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "bkz_beta",
+     "treatment": "fixed",
+     "value": "30",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "k=n/8",
+      "k=0"
+     ],
+     "differs_in": [
+      "guess_count_k"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "contiguous",
+      "scattered"
+     ],
+     "differs_in": [
+      "guess_pattern"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "k=0 block A",
+      "k=0 block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 q*(k)"
+   ],
+   "secondary_metrics": [
+    "surviving rotations",
+    "event presence rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "relative drop at k=n/8",
+    "formula": ">= 5%",
+    "source": "surviving-orbit argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 80",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 50,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 96
+   },
+   "stopping_rules": [
+    "stop when CIs < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recovery excluded"
+   ],
+   "success_criterion": "C1 shows P1 and P2 beyond the AA1 noise floor.",
+   "falsification_criterion": "C1 shows no drop and residual matches random uSVP.",
+   "decision_impact": {
+    "on_positive": "Design a guess-then-DSD composite and measure its full cost.",
+    "on_negative": "Treat hybrid and DSD as non-composable."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "certificates",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-NTRU-9015ee",
+  "title": "Rotations in x^p-x-1 are not isometries: norm growth, orbit covolume excess, and predicted vs measured transition shift",
+  "class": "mechanism",
+  "claim": "Multiplication by x in Z[x]/(x^p - x - 1) sends the top coefficient to two positions, so ||x^i f|| grows with i instead of staying constant as in x^n + 1. Claim: the rotation orbit's covolume exceeds the anticyclic orbit's at matched secret norm by a measurable factor, a best-window choice of k consecutive rotations gives the densest rank-k sublattice, and the predicted transition shift from covolume ratio matches the measured shift within 50% with correct sign. Distinct from IDEA-20260809-263751 (black-box comparison) and IDEA-20260816-6e6f2e (correlation factor with constant diagonal), which assume or ignore the diagonal: here the diagonal itself is the mechanism.",
+  "mechanism": "Each wrap adds a coefficient, so norms grow roughly as sqrt(1 + i/p)-type factors over a full orbit (to be measured). Larger diagonal in the Gram matrix means larger covolume, a less dense sublattice and a higher q*. The densest sublattice may be a window of low-growth rotations of rank below p.",
+  "tracked_object": "Orbit log-covolume ratio NTRU-Prime/anticyclic, best-window rank, predicted and measured Delta log2 q*.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log covolume ratio per dimension",
+    "direction": "higher",
+    "minimum_effect": ">= 0.01 nats",
+    "falsified_by": "<= 0"
+   },
+   {
+    "id": "P2",
+    "metric": "|measured - predicted| / |predicted| Delta log2 q*",
+    "direction": "lower",
+    "minimum_effect": "<= 0.5",
+    "falsified_by": "> 1 or sign wrong"
+   }
+  ],
+  "minimal_test": {
+   "design": "p in {61, 73, 89, 101} vs nearest power-of-two-like anticyclic dims; exact covolume computation; transition sweep.",
+   "controls": [
+    "null: matched random lattice",
+    "positive: anticyclic ring (no growth)",
+    "A/A: x^p - x - 1 on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no covolume excess",
+   "measured shift opposite in sign to prediction"
+  ],
+  "confounders": [
+   "dimension mismatch between prime p and anticyclic n",
+   "secret distribution"
+  ],
+  "interpretation_limits": [
+   "Scale and transfer: p <= 101; transfer to 761 via the computed covolume ratio (exact at any p) times the measured calibration",
+   "no safety verdict"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Transition shift is linear in log covolume per dimension",
+    "rigorous_support": "KN-LIT-114 heuristics as reported",
+    "validation_plan": "regress across p"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "BKZ-30 at dim <= 202",
+   "memory_exponent": "polynomial",
+   "best_known": "cyclotomic fatigue law",
+   "hidden_overhead": "none",
+   "tradeoff_note": "explains ring-shape difference"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5247",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., NTRU Prime",
+    "relation": "adjacent",
+    "delta": "ring shape whose rotation geometry is quantified"
+   },
+   {
+    "ref": "KN-LIT-114",
+    "provenance": "kb",
+    "citation_text": "Ducas, van Woerden, NTRU Fatigue",
+    "relation": "adjacent",
+    "delta": "law calibrated on isometric rotations"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260809-263751",
+   "IDEA-20260816-6e6f2e",
+   "IDEA-20260816-2f344d"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Rotation norm growth and transition shift",
+   "objective": "Test whether non-isometric rotations explain any ring-shape shift.",
+   "instrument": "SageMath exact Gram determinants, fpylll, detector",
+   "parameters": "p in {61, 73, 89, 101}; comparison ring x^n + 1 with n in {64, 128} and dimension-matched interpolation; window ranks k in 1..p; 20 instances per q",
+   "procedure": "1. Compute rotation norms and covolumes for windows. 2. Predict Delta q*. 3. Sweep q on both rings. 4. Measure q*. 5. Compare.",
+   "independent_variables": [
+    {
+     "name": "ring_shape",
+     "levels": [
+      "x^p-x-1",
+      "x^n+1"
+     ]
+    },
+    {
+     "name": "ring_degree",
+     "levels": [
+      "61",
+      "73",
+      "89",
+      "101"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two blocks",
+     "how": "distinct seeds"
+    },
+    {
+     "name": "secret_distribution",
+     "treatment": "fixed",
+     "value": "fixed-weight ternary w/p = 0.38",
+     "how": "manifest"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "x^p-x-1",
+      "x^n+1"
+     ],
+     "differs_in": [
+      "ring_shape"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "predicted vs measured across p"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "x^p-x-1 block A",
+      "x^p-x-1 block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "covolume ratio",
+    "Delta log2 q*"
+   ],
+   "secondary_metrics": [
+    "best window rank"
+   ],
+   "preregistered_prediction": {
+    "quantity": "Delta log2 q*",
+    "formula": "proportional to log covolume ratio per dimension",
+    "source": "covolume argument"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "p <= 101; covolume part exact at p = 761",
+   "seeds_count": 20,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 60,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 80
+   },
+   "stopping_rules": [
+    "stop when q* CIs < 0.1"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "uncertified recovery excluded"
+   ],
+   "success_criterion": "C1 shows P1 and C2 shows P2, beyond the AA1 noise floor.",
+   "falsification_criterion": "C2 measured shift has opposite sign to prediction or C1 shows no covolume excess.",
+   "decision_impact": {
+    "on_positive": "Use the exact covolume ratio at p = 761 to place sntrup761 with a mechanism-based correction.",
+    "on_negative": "Ring-shape differences, if any, are not explained by rotation norms; look to correlations or modulus splitting."
+   },
+   "required_artifacts": [
+    "manifest.yaml",
+    "raw-result.json",
+    "covolume table",
+    "certificates",
+    "PDF report"
+   ]
+  }
+ }
+]
