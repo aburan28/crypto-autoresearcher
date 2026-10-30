@@ -24,6 +24,10 @@ The [A3 direct three-sum comparison](../../../research/prime_field_a3_execution_
 now records exact enumeration/pair-table agreement on both original p4099 curves,
 with complete separate replay and stage accounting. These small fixed panels
 do not establish larger-field transfer or a complete attack-cost advantage.
+The [A4 holdout and target panel](../../../research/prime_field_a4_execution_20261030/RESULTS.md)
+adds four prospectively selected curves over8191/65537 and32public targets:
+one full-rank base, three deficient bases, and no target recovery while base
+uncertainty remains. Full checks, costs and all misses are retained.
 
 ## Layout
 

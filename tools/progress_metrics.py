@@ -534,6 +534,32 @@ def prime_field_direct_panel(ref, since):
             emit(prefix+'.'+cell['cell_id']+'.'+cell['arm']+'.'+key,cell[key],unit=unit,label='Exact original-base direct relation observation',**common)
 
 
+def prime_field_holdout_panel(ref, since):
+    """A4 verified holdouts; shared collection once, prefix recoveries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a4_execution_20261030/runs/a4-holdout-panel-c47bc8/analysis.json';raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells'];ids=[f'p{p}-i{i}' for p in (8191,65537) for i in (0,1)]
+        expected={(i,n) for i in ids for n in (0,16,64)}
+        if data['panel_complete']is not True or len(cells)!=12 or {(c['cell_id'],c['prefix']) for c in cells}!=expected:return
+        for c in cells:
+            if c['verified']is not True or c['status']!='verified':return
+            for k in ('base_columns','base_rank','base_nullity','single_targets','joint_targets','early_joint_targets','source_queries','target_queries','pair_entries'):
+                if type(c[k])is not int or c[k]<0:return
+            n=16 if c['cell_id'].startswith('p8191-') else 32
+            if (c['base_rank']+c['base_nullity']!=c['base_columns'] or c['base_columns']>n or max(c['single_targets'],c['joint_targets'])>8 or
+                c['early_joint_targets']>c['joint_targets'] or (c['source_queries'],c['target_queries'],c['pair_entries'])!=(64*n*2,8*n*2,n*(n-1)*2)):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}');prefix='prym.prime_field.a4'
+    for k,unit in (('source_queries','queries'),('target_queries','queries'),('pair_entries','entries')):
+        emit(prefix+'.'+k,sum(c[k] for c in cells if c['prefix']==0),unit=unit,label='Shared physical collection counted once, not once per prefix',**common)
+    for c in cells:
+        for k,unit in (('base_rank','dimensions'),('single_targets','targets'),('joint_targets','targets'),('early_joint_targets','targets')):
+            emit(prefix+'.'+c['cell_id']+'.prefix'+str(c['prefix'])+'.'+k,c[k],unit=unit,label='Exact held-out curve/prefix observation',**common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -549,6 +575,7 @@ def main():
     prime_field_fixed_panels(a.ref, a.since)
     prime_field_residual_panels(a.ref, a.since)
     prime_field_direct_panel(a.ref, a.since)
+    prime_field_holdout_panel(a.ref, a.since)
 
 
 if __name__ == "__main__":
