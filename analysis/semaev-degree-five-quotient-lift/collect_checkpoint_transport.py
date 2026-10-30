@@ -39,14 +39,14 @@ def main():
         arm.update(commit=pinned['instrument']['commit'],binary_sha256=pinned['instrument']['binary_sha256'])
     artifact=ep.file_entry(out,'result.json','raw')
     for row in r['cases']:
-        export['runs'].append(ep.run_row(run_id=row['case'],arm='candidate',instance_id=row['case'],
+        export['runs'].append(ep.run_row(run_id=row.get('retention','candidate')+'-'+row['case'],arm=row.get('retention','candidate'),instance_id=row.get('instance_id',row['case']),seed=row.get('seed'),
             status='succeeded' if row['passed'] else 'failed',measurements={'counted':{'controls_passed':int(row['passed'])}},
             isolation={'tier':'L0','contended':True,'blockers':['Shared host; no timing comparison']},
             verification={'status':'verified' if row['passed'] else 'error','verifier':'Frozen local fake-AWS assertion harness'},artifacts=[artifact]))
     export['flow']=ep.compute_flow(export['runs'])
     export['analysis']['script']=ep.file_entry(out,'analysis.py','analysis')
     export['files']=[ep.file_entry(out,name,'raw') for name in ('result.json','raw-manifest.json','raw-evidence.tar.gz','plan.json')]
-    export['notes']=[dict(kind='observation',by='Codex',text='Exactly one composite case per candidate row. No copied reference, positive or negative rows. Fake-S3 software evidence only; no real cloud or frontier inference.')]
+    export['notes']=[dict(kind='observation',by='Codex',text='Exactly one composite case per actually executed configuration row. No copied control rows. Fake-S3 software evidence only; no real cloud or frontier inference.')]
     findings=ep.lint_export(export,protocol,out,verify_files=True)
     save=lambda name,obj:(out/name).write_text(json.dumps(obj,indent=2,sort_keys=True)+'\n')
     save('export-validation.json',dict(valid=not findings,findings=findings))
@@ -54,14 +54,14 @@ def main():
     scope=f'{passed} of {total} fixed local fake-S3 controls passed. The archive contains {len(manifest)} hash-verified files. This is not actual cloud permission or durability evidence and establishes no LFD bound.'
     gap=('Export validation passed for the composite case rows.' if not findings else
          'Export is incomplete: the frozen protocol declares separate arms but the harness recorded composite candidate cases. Missing arm rows are not fabricated. A prospective corrected-protocol replay is required for a valid export.')
-    lines=['# Checkpoint transport controls','',scope,'',gap,'','| Case | Passed | Child steps |','|---|---:|---:|']
-    for row in r['cases']:lines.append(f'| {row["case"]} | {row["passed"]} | {row["steps"]} |')
+    lines=['# Checkpoint transport controls','',scope,'',gap,'','| Configuration | Case | Passed | Child steps |','|---|---|---:|---:|']
+    for row in r['cases']:lines.append(f'| {row.get("retention","candidate")} | {row["case"]} | {row["passed"]} | {row["steps"]} |')
     detail='The workload uses a filesystem-only fake AWS executable. Controls cover interrupted PUT/GET, corruption, idempotence, verified pruning, fallback, context mismatch, incomplete listing, and native replay against retained reference certificate bytes. Child commands and their original stdout/stderr are in the evidence archive. Each child has a 1 GiB cap and 120-second watchdog; timings are L0 telemetry only. Inputs, code and native binary hashes are in plan.json. The source revision is pinned in protocol.json. Actual cloud publish, replacement-worker restore and independent certificate checking remain required. No canonical mathematical graph changes; this diagram records software-control status only.'
     (out/'report.md').write_text('\n'.join(lines)+'\n\n'+detail+'\n\n![Control outcome](outcomes.svg)\n')
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="900" height="150"><rect width="900" height="150" fill="white"/><g font-family="sans-serif" font-size="20"><text x="20" y="35">Local fake-S3 controls: {passed}/{total} passed</text><rect x="20" y="55" width="{passed*40}" height="30" fill="#468763"/><text x="20" y="125">Actual cloud recovery and frontier bound: not established</text></g></svg>'
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="900" height="150"><rect width="900" height="150" fill="white"/><g font-family="sans-serif" font-size="20"><text x="20" y="35">Local fake-S3 controls: {passed}/{total} passed</text><rect x="20" y="55" width="{min(800,passed*25)}" height="30" fill="#468763"/><text x="20" y="125">Actual cloud recovery and frontier bound: not established</text></g></svg>'
     (out/'outcomes.svg').write_text(svg)
-    cells=', '.join('['+str(v).replace('_','\\_')+']' for row in r['cases'] for v in (row['case'],row['passed'],row['steps']))
-    (out/'report.typ').write_text('#set page(paper:"a4",margin:18mm)\n#set text(size:9pt)\n= Checkpoint transport controls\n\n'+scope+'\n\n'+gap+'\n\n#image("outcomes.svg",width:100%)\n\n#table(columns:(3fr,auto,auto),[Case],[Passed],[Steps],'+cells+')\n\n'+detail+'\n')
+    cells=', '.join('['+str(v).replace('_','\\_')+']' for row in r['cases'] for v in (row.get('retention','candidate'),row['case'],row['passed'],row['steps']))
+    (out/'report.typ').write_text('#set page(paper:"a4",margin:18mm)\n#set text(size:9pt)\n= Checkpoint transport controls\n\n'+scope+'\n\n'+gap+'\n\n#image("outcomes.svg",width:100%)\n\n#table(columns:(auto,3fr,auto,auto),[Mode],[Case],[Passed],[Steps],'+cells+')\n\n'+detail+'\n')
     import typst
     typst.compile(str(out/'report.typ'),output=str(out/'report.pdf'))
     for name in ('report.md','report.typ','report.pdf','outcomes.svg','export-validation.json'):
