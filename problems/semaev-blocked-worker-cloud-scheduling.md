@@ -47,3 +47,6 @@ verified checkpoints for the separate restore pod. The degree-six search
 still requires an accepted D5 codimension strictly exceeding the exact
 solution count on a frontier input; cloud qualification alone is not that
 result. Forty unfinished original high-memory inputs remain in scope.
+
+## 2026-10-30 continuation after capacity reconciliation
+The priority n47 job terminated on node shutdown at20:43:47UTC; the cloud overview shows no active Semaev jobs. Version2 of the cloud-control protocol is separately frozen with the same bundle, three fixtures, original checker, 2CPU/4GiB limits, one-hour watchdog and zero retries. Source job semaev-blocked-worker-source-v2-20261030-2055 is prepared, not yet submitted. Its independent output identity preserves version1; all six source controls must pass before a distinct restore pod. Scheduler admission remains an observation to obtain.

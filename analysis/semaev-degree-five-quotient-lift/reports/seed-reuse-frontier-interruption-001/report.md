@@ -1,0 +1,11 @@
+# n47 random00: exact count retained, closure interrupted
+
+The fresh exact count completed at zero and the worker verified the retained D4 seed and its historical checker acceptance. The degree-five producer started at 15:59:54 UTC. Kubernetes then terminated its pod at 20:43:47 UTC in response to imminent node shutdown, with exit code 137 and zero restarts. The job failed with BackoffLimitExceeded. The recorded cause is node shutdown; this record does not establish an out-of-memory failure.
+
+All ten surviving objects were downloaded from the exact job/pod S3 prefix and hashed in validation/seed-reuse-frontier-terminal-001/manifest.json. They retain environment, disk admission, seed transfer and acceptance, completed count, and producer start. No native checkpoint, D5 certificate, or final worker result was present. Bounded log retrieval returned empty. This attempt cannot supply a D5 restore state or an LFD lower bound of six.
+
+Job: semaev-n47-rand00-d5-reuse-20261030-1600. Job UID dba14261-18f7-4262-a5e9-cdb051f4240b; pod UID 8fddc9ec-1853-4f63-95bf-596fab2f9bd5. Limits: 2 CPUs, 112 GiB pod, 96 GiB child, 21600-second job watchdog, zero retries. Frozen protocol: seed-reuse-frontier-protocol-001.json. Terminal Kubernetes evidence: runs/seed-reuse-frontier-terminal-001.json.
+
+Next computation: finish the blocked implementation's cloud source and distinct-pod restore controls, retaining its existing native and local-worker checks. A new large-input run requires those completed controls and its own frozen request. The separate n45 polynomial02 D4 producer remains active with fresh exact count six and all three software controls passed. The original 40 unfinished high-memory inputs and eight unfinished panel inputs remain in scope.
+
+![Recorded stages](flow.svg)

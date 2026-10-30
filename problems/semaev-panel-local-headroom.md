@@ -47,3 +47,6 @@ checker to finish with retained evidence. A passing admission alone does
 not resolve the scientific work. Repeated capacity refusals remain
 charged infrastructure outcomes, never population evidence or an upper
 bound on LFD.
+
+## 2026-10-30 bounded admission succeeded
+Attemptlocal04 retained ten admission samples and admitted after91.2846seconds when available memory reached48251219968bytes, above the unchanged45097156608byte requirement. All three controls passed and fresh exactcount6 completed. Native producerPID1136402 remains active; closed records are in validation/panel-local-n45-poly02-progress-005. Prior immediate refusals remain unchanged.
