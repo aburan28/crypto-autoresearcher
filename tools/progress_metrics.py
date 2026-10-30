@@ -502,6 +502,38 @@ def prime_field_residual_panels(ref, since):
             emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
 
 
+def prime_field_direct_panel(ref, since):
+    """A3 exact relation equivalence; enumerate descriptors and table queries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a3_execution_20261030/runs/a3-fixed-panel-0cddd8/analysis.json'
+    raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells']
+        expected={(b,a) for b in ('b13','b16') for a in ('enumeration','pair_table')}
+        if data['panel_complete']is not True or len(cells)!=4 or {(c['cell_id'],c['arm']) for c in cells}!=expected:return
+        for cell in cells:
+            if cell['verified']is not True or cell['status']!='verified':return
+            for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain','attempts'):
+                if type(cell[key])is not int or cell[key]<0:return
+            if (cell['distinct_equations']>cell['accepted_witnesses'] or cell['new_rank']>15 or cell['combined_rank']>15 or
+                cell['rank_gain']>cell['combined_rank'] or cell['attempts']!=(286720 if cell['arm']=='enumeration' else 2048)):return
+        for case in ('b13','b16'):
+            selected=[c for c in cells if c['cell_id']==case]
+            if any(selected[0][key]!=selected[1][key] for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain')):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+    prefix='prym.prime_field.a3'
+    for arm,unit in (('enumeration','descriptors'),('pair_table','queries')):
+        emit(prefix+'.'+arm+'.collection_'+unit,sum(c['attempts'] for c in cells if c['arm']==arm),unit=unit,
+             label='Complete direct collection; enumeration descriptors and table queries are different units',**common)
+    emit(prefix+'.verified_cells',len(cells),unit='cells',label='Four matched arm/curve observations in one physical execution',**common)
+    for cell in cells:
+        for key,unit in (('distinct_equations','equations'),('rank_gain','dimensions')):
+            emit(prefix+'.'+cell['cell_id']+'.'+cell['arm']+'.'+key,cell[key],unit=unit,label='Exact original-base direct relation observation',**common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -516,6 +548,7 @@ def main():
     p256_factor_base_pass2_preparation(a.ref, a.since)
     prime_field_fixed_panels(a.ref, a.since)
     prime_field_residual_panels(a.ref, a.since)
+    prime_field_direct_panel(a.ref, a.since)
 
 
 if __name__ == "__main__":
