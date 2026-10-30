@@ -122,3 +122,72 @@ curve is weak, and it does not show that none is. The 30-bit bound assumes
 that the published provenance is the actual generation process. The
 unexplained skip rule is itself freedom that the bound covers only through
 the "first 16 accepted candidates" allowance.
+
+## Addendum (2026-10-22): base-point and B-163 follow-up, and the scope of the earlier scan; a disclosure, not a correction of this summary
+
+Added by the Coordinator under DEC-20261022-4e7b19. The text above is
+unchanged, and it remains a faithful account of the two posts as read on
+2026-10-16.
+
+**What the posts tested.** This entry records from the posts only that the
+P-192, prime192v2/v3 and prime239v1-3 base points come from FreeLIP
+`zrandom`, and that the base points of P-224, P-256, P-384 and P-521 and the
+B-163 seed are unexplained. It does not record whether either post discusses
+the binary-curve base points, or which generators either post tried on the
+unexplained base points or on B-163. This addendum cannot tell, and it
+attributes no such test to Anthropic or to Valsorda. Everything below comes
+from aburan28/crypto, not from the posts.
+
+**Scope of the earlier scan.** The last bullet under "Internal reproduction"
+reports a negative seed-agnostic generator scan of the unexplained values. On
+the binary curves that scan tested the published `Gx` and `Gy`. The follow-up
+reads X9.62-1998 A.3.1 as building the base point as `G = hR` from a random
+`R`, with cofactor `h = 2` or `4`, so the random draw is `x(R)`. The scan
+therefore did not test the draw, and its negative says nothing about it. The
+K-curve base points were probably not among its 19 targets.
+CORR-20261022-b3c8a5 records this. The prime-curve and B-163 parts of that
+bullet are unaffected.
+
+**Follow-up searches (unvalidated observations).** aburan28/crypto PR #2410
+(branch `claude/nist-basepoint-tests`, open and unmerged; head `2275ed6e` as
+read on 2026-10-22), `research/nist_basepoint_provenance_20261017/`:
+- On the binary curves it tests every `R` with `hR = G` (2 halvings for the
+  B-curves and K-163, 4 quarter points for K-233 to K-571), each coordinate in
+  the polynomial and the normal basis: 137 targets.
+- 14 searches with planted positive controls found no informative target hit:
+  FreeLIP with small, timestamp and date seeds; the FreeLIP lattice for any
+  seed; drand48 continuing the seed run and with un-reduced chunks; GMP 2.0.2;
+  MIRACL; PARI; SHA-1 expansion of the curve seed; small multiples of
+  small-`x` points; the FreeLIP and drand48 lattice and PARI patterns on the
+  137 binary targets; C `rand()`/`random()` with 1997-98 time seeds, and any
+  one-byte edit of a drand48-family output, for the B-163 seed.
+- Blind cells, untested rather than negative: the FreeLIP lattice on P-224 and
+  P-256 (controls missed); P-384 at NBITS = 62 (no specificity: it flags 126
+  of 200 random values); Maple V `rand` (control missed).
+- Eight of the 14 searches (T3-T5, T8, T9, T11, T12, T14) were computed in
+  Python in a standalone session. aburan28/crypto forbids Python for results,
+  keeps their sources as a frozen snapshot, and treats them as observations
+  until a native port reproduces them. The other six are C or PARI/GP.
+- Side checks: FreeLIP `zsqrtmod` for `p = 3 (mod 4)` returns `a^((p+1)/4)`
+  with no seed input, so the negated `Gy` on 3 of the 6 FreeLIP points was
+  chosen by the calling code. A CM-discriminant screen of the skip rule,
+  whose protocol was self-dated and not committed first, found no split (8 of
+  10 published and 10 of 11 skipped have conductor proxy `f = 1`). The
+  separate, merged skip-filter study `research/nist_seed_skip_filter_20261017`
+  (H7-H11, 21 features) found none either.
+
+**Status of these results here.** None of this has been independently
+validated. It is not an evidence record in this repository, and it changes
+no `KN-FIND`: the base points and B-163 stay outside KN-FIND-cee88d. A bounded
+search with found controls excludes only what it ran. It does not show that
+these base points or this seed are not generator output. The follow-up names
+two remaining hypotheses, a generator not covered and a choice that is not a
+function of a recoverable seed, and says neither can be tested from public
+data. Open problems: problems/nist-base-points-generation-unexplained.md,
+problems/nist-b163-seed-generation-unexplained.md, and, for the skip rule,
+problems/nist-seed-selection-rule-unexplained.md.
+
+**Limits.** Provenance, not cryptanalysis. Any point of order `n` is an
+equally good generator. Nothing here changes the ECDLP on any curve, any
+attack cost, any hypothesis status or any SafeCurves cell. This entry's
+confidence stays `reported`.

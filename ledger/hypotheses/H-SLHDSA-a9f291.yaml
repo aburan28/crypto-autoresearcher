@@ -1,0 +1,86 @@
+# HYPOTHESIS -- H-SLHDSA-a9f291, specified from IDEA-20261018-007845. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-a9f291
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-007845
+  added: '2026-10-18'
+  statement: >-
+    In the SHA2 instantiation the 32-byte ADRS is compressed to 22 bytes and PK.seed is padded
+    to one block so every call shares a precomputed midstate; in SHAKE the full ADRS is absorbed.
+    Over every address a reduced-parameter signer can reach (h in {8,12}, d in {2,4}, k up
+    to 14, a up to 6, len up to 35), the compressed encoding is injective on reachable addresses
+    with zero collisions, but there exist (type, field) combinations whose compressed images
+    coincide with images from other types when unreachable fields are populated; the reachable/unreachable
+    boundary is the whole safety argument and can be checked exhaustively.
+  mechanism: >-
+    Domain separation in tweakable hashing is only as good as the injectivity of the tweak
+    encoding over the addresses the signer actually uses. Compression drops high bytes of
+    layer and tree address and keeps type; if a field exceeds its compressed width in some
+    parameter set, two distinct logical calls share a tweak. The shared midstate means the
+    PK.seed block contributes nothing per call, so domain separation rests entirely on the
+    compressed ADRS bytes. An exhaustive census at reduced sizes and an analytic width check
+    at FIPS 205 sizes decide whether any set is near the boundary.
+  assumptions:
+  - >-
+    Enumeration of keygen plus 2^12 signatures covers all address types and field ranges up
+    to the reduced tree sizes
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: >-
+      Enumeration of keygen plus 2^12 signatures covers all address types and field ranges
+      up to the reduced tree sizes
+    random_model_justification: full keygen enumerates every tree node
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-8ada4e
+    falsification_condition: coverage table by type and field
+  predictions:
+  - metric: collisions among reachable compressed tweaks
+    direction: lower
+    minimum_effect: 0 at every reduced set
+  - metric: minimum headroom bits over FIPS 205 sets (analytic)
+    direction: higher
+    minimum_effect: '>= 8 bits for every field'
+  - metric: collisions when unreachable fields are populated
+    direction: higher
+    minimum_effect: '>= 1 cross-type collision found'
+  test_boundary:
+    instances:
+    - h in {8,12}; d in {2,4}; k in {8,14}; a in {4,6}; w=16; 2^12 signatures per cell
+    parameters:
+      scale_tier: toy
+      scale_justification: >-
+        exhaustive at reduced sizes; analytic at FIPS 205; transfer assumption: field ranges
+        grow as the analytic formula states
+    implementation: >-
+      Python 3 toy signer instrumented to log every (type, layer, tree, keypair, chain, hash,
+      height, index) tuple
+    budget:
+      wall_clock_seconds_per_run: 1200
+      total_cpu_hours: 2
+      maximum_memory_gb: 8
+      maximum_runs: 16
+  distinguishable_outcomes:
+  - any collision
+  - a field with headroom under 8 bits
+  - none found in exhaustive sweep
+  falsification_conditions:
+  - any reachable collision under the standard encoding
+  - positive control fails to produce collisions
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate. Headroom check at FIPS 205 sizes is analytic,
+    not exhaustive.
+  - >-
+    Addresses domain separation only; says nothing about the compression-function security
+    of SHA-256.
+  status: specified
+  proposed_by: idea-generator
