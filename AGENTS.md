@@ -362,11 +362,9 @@ not one). Reviewers report on their joints and the Coordinator composes;
 
 ## Concurrency: many agents, many worktrees
 
-- **Generated artifacts are never committed**: `knowledge/INDEX.md`,
-  `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
-  rebuilt on demand. `main-health.yml` retains a generated
-  `coordination/portfolio_health/latest.json` as a workflow artifact for review;
-  the checked-in cache remains historical until a separately reviewed PR updates it.
+- **Generated artifacts**: `knowledge/INDEX.md`, `coordination/**/dispatch_plan.*`,
+  and `ledger/.index/` are gitignored. `main-health.yml` archives its cache;
+  checked-in `coordination/portfolio_health/latest.json` is historical pending review.
 - **`main` takes merge commits only** (repository setting; never squash or
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
