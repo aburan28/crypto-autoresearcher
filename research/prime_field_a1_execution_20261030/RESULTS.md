@@ -93,3 +93,11 @@ sparse checkout and is not claimed. The independent arithmetic/branch/hash/
 cancellation implementation is not a staffed independent scientific review.
 No scientific status or historical graph is changed; sources checked are in
 literature.md, including PKM2016 sections3.1–3.4 and the earlier Prym records.
+
+## Follow-up pointer
+
+The completed [A2 norm-pair study](../prime_field_a2_execution_20261030/RESULTS.md)
+subsequently enumerated a separately frozen full census. It reaches rank15
+on both original bases with no outside pool or unknown columns. Its exact
+new acceptance case, separate source/protocol and scope are recorded there.
+The new v5 database preserves this v4 artifact unchanged.
