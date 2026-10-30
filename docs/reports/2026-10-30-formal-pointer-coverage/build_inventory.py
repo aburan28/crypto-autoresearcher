@@ -59,7 +59,12 @@ def main(repo: Path, revision: str) -> dict:
                 missing_sources.append({"target": target, "kind": kind, "path": path})
                 continue
             if kind == "theorem_source":
-                path = "formal/" + path.lstrip("/")
+                workspace = spec.get("workspace")
+                if not isinstance(workspace, str) or not workspace.startswith("formal"):
+                    missing_sources.append({"target": target, "kind": kind,
+                                            "path": path, "reason": "missing formal workspace"})
+                    continue
+                path = workspace.rstrip("/") + "/" + path.lstrip("/")
             data = blob(repo, commit, path)
             if data is None:
                 missing_sources.append({"target": target, "kind": kind, "path": path})
