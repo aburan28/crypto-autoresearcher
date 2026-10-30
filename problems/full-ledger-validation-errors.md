@@ -256,3 +256,7 @@ historical archives need their own scoped checks before an all-corpus claim.
   SHA-256 is `fcfd4769d535c68be0a84d74dfb9a3f775d9cd9c740491cbf463b2ad30f06590`;
   this is a new current-tree check, not a revision of the frozen 118-to-88
   source correction receipt.
+
+- 2026-10-30: Complete original post-merge job `41001067477` contained **38**, not six, errors. PR #2764 repaired six focused errors; subsequent complete job `41013419479` reports 32. The [remaining schema repair](../reports/ci-remaining-ledger-schema-20261030/README.md) reproduces those 32 and removes 31 in focused native validation, preserving all archived originals. The [last run capture gap](binstd-f7ca97-original-execution-captures-missing.md) remains open. This is a dated correction to the earlier focused count, not a clean whole-corpus claim.
+
+- 2026-10-30 follow-up: Complete #2771 CI reveals16new parser regressions outside its14-record focused set, leaving17whole-corpus errors (16shared-quantity-layout errors plus the original missing RUN-BINSTD-f7ca97 captures). The [shared-quantity correction](../reports/ci-shared-blind-quantity-repair-20261030/README.md) reproduces17affected findings and reduces them to1 with44focused controls and all7320archived plan paths checked. No baseline, frozen plan or capture requirement changes; fresh complete hosted checks remain required.

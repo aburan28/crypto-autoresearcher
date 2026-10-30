@@ -473,6 +473,35 @@ def prime_field_fixed_panels(ref, since):
                  label='Identified targets in frozen eight-target census; includes all coincidences', **common)
 
 
+def prime_field_residual_panels(ref, since):
+    """Completed A1/A2 observations; charge shared streams once per panel."""
+    date='2026-10-30'
+    if date<since:return
+    for study,run,arms in [('a1','a1-fixed-panel-8e34c5',('smooth','pool16','pool32')),
+                           ('a2','a2-fixed-panel-56d50d',('smooth','norm_completed'))]:
+        path=f'research/prime_field_{study}_execution_20261030/runs/{run}/analysis.json';raw=show(ref,path)
+        if raw is None:continue
+        try:
+            data=json.loads(raw);cells=data['cells'];expected={(b,a) for b in ('b13','b16') for a in arms}
+            if data['panel_complete'] is not True or len(cells)!=len(expected) or {(c['cell_id'],c['arm']) for c in cells}!=expected:continue
+            if any(c['verified'] is not True or c['status']!='verified' for c in cells):continue
+            collection=data['physical_collection_attempts_observed'];replay=data['physical_replay_attempts_observed']
+            if type(collection) is not int or type(replay) is not int or collection!=4587520 or replay!=collection:continue
+            gain_key='delta' if study=='a1' else 'rank_gain'
+            if any(type(c[gain_key]) is not int or not 0<=c[gain_key]<=15 for c in cells):continue
+            if study=='a1' and any(type(c['direct_base_gain']) is not int or type(c['cross_row_cancellation_gain']) is not int or
+                c['direct_base_gain']<0 or c['cross_row_cancellation_gain']<0 or c['direct_base_gain']+c['cross_row_cancellation_gain']!=c['delta'] or
+                c['stacked_rank']-c['outside_rank']-c['base_rank_before']!=c['delta'] for c in cells):continue
+        except (ValueError,KeyError,TypeError):continue
+        common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+        prefix='prym.prime_field.'+study
+        emit(prefix+'.collection_branches',collection,unit='branches',label='Shared complete physical collection, not sum of nested arm counts',**common)
+        emit(prefix+'.replay_branches',replay,unit='branches',label='Separate complete branch replay',**common)
+        emit(prefix+'.verified_cells',len(cells),unit='cells',label='Verified fixed arm/curve observations, not physical executions',**common)
+        for c in cells:
+            emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -486,6 +515,7 @@ def main():
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
     prime_field_fixed_panels(a.ref, a.since)
+    prime_field_residual_panels(a.ref, a.since)
 
 
 if __name__ == "__main__":
