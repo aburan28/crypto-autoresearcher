@@ -55,14 +55,16 @@ def check_panel(root: Path, run_id: str, tag: str, expected_hits: tuple[int, int
 
     result = raw["result"]
     require(result["experiment_id"] == EXPERIMENT, f"{run_id}: experiment ID")
-    require(result["stage"] == 1 and result["status"] == "completed_valid", f"{run_id}: stage/status")
+    require(type(result["stage"]) is int and result["stage"] == 1
+            and result["status"] == "completed_valid", f"{run_id}: stage/status")
     require(result["outcome"] == "E-TAU-NOT-RICHER", f"{run_id}: outcome")
     pins = result["artifact_sha256"]
     require(pins["stage1/yield-matrix.json"] == matrix_hash, f"{run_id}: yield matrix digest")
     require(pins["stage1/admissible-phi-dims.json"] == dims_hash, f"{run_id}: dimensions digest")
     require(receipt["run_id"] == run_id, f"{run_id}: receipt run ID")
     require(receipt["status"] == "output_validated", f"{run_id}: receipt status")
-    require(receipt["returncode"] == 0 and receipt["check_returncode"] == 0,
+    require(type(receipt["returncode"]) is int and type(receipt["check_returncode"]) is int
+            and receipt["returncode"] == 0 and receipt["check_returncode"] == 0,
             f"{run_id}: producer/checker exit codes")
     require(receipt["artifact_sha256"]["raw-result.json"] == raw_hash,
             f"{run_id}: raw result digest")
