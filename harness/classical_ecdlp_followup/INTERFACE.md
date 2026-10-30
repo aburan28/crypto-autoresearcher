@@ -1,0 +1,11 @@
+# Frozen interface proposal: second classical study
+
+Root owns common.hpp, fixture and public-target generation. Module collaborators own only their named sources/notes. The shared header is copied from the previous pilot and remains its standard `lab` namespace. The decoder must use its own light public-parameter parser and must not call orbit(), points(), read_fixtures() or certify() in its measurement path; those census/reference operations are legitimate only in preparation, exact projection instrumentation or tests.
+
+Fixture TSV: `id stratum p a b Px Py r N seed` (tab header). Strata: `ordinary` (unrestricted), `power5` (p=1 mod5). All are ordinary, non-anomalous, non-special-j curves with prime subgroup order and gcd(N/r,r)=1. Four fresh curves per stratum at each of8,10,12subgroup bits:24curves. Preparation certifies full curve order by independent residue-root enumeration and Euler-criterion census, then[r]P=O and primality.
+
+Public target TSV: `fixture_id target_id Qx Qy Qinf`,192unique target IDs,8iid uniform scalars with replacement percurve. Forcededge cases stay in developer tests. Custodian-only scalar labels are not candidate inputs and not passed to the decoder. The public equation[k]P=Q independently validates every proposed output. This is source-enforced separation, not OS-enforced blind execution; no cryptographic-cost or formal blind-solver claim.
+
+Module CLI: projection_scale/basis_audit `--self-test` or `--run FIXTURES_TSV OUTPUT_JSONL`; decoder `--self-test` or `--run FIXTURES_TSV PUBLIC_TARGETS_TSV OUTPUT_JSONL`. All scientific runs byroot only after source/protocol hash freeze and genuine repository admission. Unit tests byauthors are development checks. Rows must be valid finite JSON, under60KiB, with explicit track, fixture(or namedglobal), scope=`exploratory_toy_followup`, outcome and actual counters. Do not claim an exact hidden-state Markov property, new solver advantage, new published theorem or novelty.
+
+Tracks: L9-scale, L9-decoder, L4-audit. Initial processwatchdog3600s forprotectinghost,4GiB per-module target envelope/12GiB batch, three module workers and no nested module threads. All failed/NA/null rows remain; a timeout is not a mathematical negative.

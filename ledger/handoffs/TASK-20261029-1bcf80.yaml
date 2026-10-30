@@ -1,0 +1,148 @@
+# TASK-20261029-1bcf80: runbook tool repairs from the PR #2671 audits. The
+# replay contract comes from RBS-PFDR-bb0d26 and session-id collision handling
+# from RBS-ICPERF-b7e41c. Harness code only. No trial, no record edit.
+handoff:
+  id: TASK-20261029-1bcf80
+  from: coordinator
+  to: executor
+  role: executor
+  recorded_at: '2026-10-29'
+  kind: tooling_repair
+  opened_by_decision: [DEC-20261029-5554ee, DEC-20261029-9bc3ff]
+  objective: >-
+    Change tools/runbook.py so that (a) an audit replay can compare float
+    leaves under a declared tolerance, and records and compares the replay
+    interpreter; (b) a session cannot start when its session_id already has a
+    journal on another fetched ref; and (c) `audit` reports when a session
+    path has more than one distinct journal in full git history. Document the
+    contract and test it.
+  uncertainty_reduced: >-
+    Whether a future runbook audit can tell interpreter-level float drift from
+    a real replay mismatch, and whether two executions can again write one
+    session id unseen. Both were behind the two PR #2671 flags
+    (DEC-20261029-5554ee, DEC-20261029-9bc3ff).
+  rank_rationale: >-
+    Ranked ahead of doing nothing. Part (b) removes the root cause of the
+    RBS-ICPERF-b7e41c splice. A frozen session_id plus two unseen executions
+    is a mechanism that can recur for any runbook. Part (a) lets every future
+    float-valued runbook audit come back clean or flagged on the merits, and it
+    gives the DEC-20261022-9aec2b NA-1 validator a toleranced compare. The
+    change is a bounded code repair with tests and zero runs. All three parts
+    touch tools/runbook.py, so they share one task: separate tasks would have
+    overlapping write scopes.
+  inputs:
+    - ledger/decisions/DEC-20261029-5554ee.yaml (replay_contract_ruling; your context)
+    - ledger/decisions/DEC-20261029-9bc3ff.yaml (facts_relied_on.splice; your context)
+    - experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/audit-review.yaml (replay_mismatch_analysis.d_replay_contract.recommendations_not_applied; your context)
+    - experiments/EXP-ICPERF-e467a5/audits/AUD-20261029T011541Z-d57860/audit-review.yaml (digest_finding, not_covered session-id collision; your context)
+    - tools/runbook.py (_same at 910, audit at 2004, replay_unit at 2092, preflight, session start, the journal discovery glob at 2156)
+    - tests/test_runbook.py (existing suite; must keep passing)
+    - docs/runbook-execution.md
+    - templates/runbook.yaml
+  constraints:
+    - id: C-1
+      text: >-
+        Tolerance is opt-in. The default stays exact equality, as now. It
+        applies only to JSON float leaves. Ints, strings, bools, nulls, key
+        sets, list lengths and list order stay exact, and an int-versus-float
+        type change is a mismatch. A runbook declares it prospectively per
+        replay.compare pointer (rel_tol, abs_tol), and lint validates the
+        declaration. An audit-time option for frozen runbooks (for example
+        --float-tolerance rel_tol=1e-9,abs_tol=1e-12) is recorded in audit.json.
+        A replay that matches only under a tolerance is reported as
+        matched_within_tolerance, never matched, together with the largest
+        observed absolute and relative difference per pointer.
+    - id: C-2
+      text: >-
+        Record each replay's interpreter (sys.version and executable) in
+        audit.json, and compare it with the replayed unit's manifest
+        /run/environment/python_version when present. A difference is reported
+        as an environment_drift note naming both versions. It does not replace
+        the mismatch or match result. When the runbook pins environment.python
+        and the audit interpreter differs, report the unit not_covered and do
+        not replay it.
+    - id: C-3
+      text: >-
+        In `run`, before writing session_started: if the session directory has
+        no local journal, but any local branch or fetched remote-tracking ref
+        holds <session_dir>/journal.jsonl, refuse as an impediment and write
+        nothing. Also refuse a resume when a ref holds a journal that is
+        neither a byte prefix nor an extension of the local journal. The
+        message names the ref and the journal blob. Use read-only git commands
+        only, and never fetch implicitly.
+    - id: C-4
+      text: >-
+        In `audit`, list every distinct journal.jsonl blob at the session path
+        in git log --all --full-history. Two blobs are the same session when
+        one is a byte prefix of the other, because resumes append. Report each
+        unrelated chain (blob, first commit, first entry time, owner) as a
+        finding, so a spliced or doubled session can no longer audit clean.
+    - id: C-5
+      text: >-
+        Rewrite no committed audit.json, journal or session. Existing audits
+        stay as they are. Changes to audit.json fields are additive, and if a
+        reader would misparse them, bump the schema id. Verdicts never
+        loosen silently: an exact mismatch with no declared tolerance stays a
+        finding.
+    - id: C-6
+      text: Write only inside write_scope. Run no experiment trial and no audit of a real session. Tests use synthetic sessions in temporary directories.
+  deliverables:
+    - tools/runbook.py (the changes above)
+    - tests/test_runbook_audit_tolerance.py (new)
+    - tests/test_runbook_session_collision.py (new)
+    - docs/runbook-execution.md (replay tolerance, interpreter parity, the session-id collision refusal, the multi-journal audit finding)
+    - templates/runbook.yaml (optional per-pointer tolerance and environment.python guidance)
+    - coordination/tasks/TASK-20261029-1bcf80/return.yaml (test outputs verbatim, the change list, the commands run)
+  artifact_paths:
+    - tools/runbook.py
+    - tests/test_runbook_audit_tolerance.py
+    - tests/test_runbook_session_collision.py
+    - docs/runbook-execution.md
+    - templates/runbook.yaml
+    - coordination/tasks/TASK-20261029-1bcf80/return.yaml
+  write_scope:
+    - tools/runbook.py
+    - tests/test_runbook_audit_tolerance.py
+    - tests/test_runbook_session_collision.py
+    - docs/runbook-execution.md
+    - templates/runbook.yaml
+    - coordination/tasks/TASK-20261029-1bcf80/**
+  write_scope_note: >-
+    The top-level session proposed tools/test_runbook*.py. This repository
+    keeps the runbook suite in tests/test_runbook.py, so the two new test files
+    go in tests/. tests/test_runbook.py itself stays unedited, to keep the
+    scope minimal.
+  archived_by: TASK-20261029-c0d4cd
+  depends_on: []
+  dispatch_preconditions:
+    - TASK-20261029-087ab5 committed and pushed, its receipt recorded
+    - no other open task holds tools/runbook.py, docs/runbook-execution.md or templates/runbook.yaml in its write_scope (checked with tools/research_dispatch.py)
+  review_required: false
+  review_note: >-
+    Harness change, not a research claim. PR checks and the tests are the gate.
+    The Coordinator reads the diff at TASK-20261029-c0d4cd before any audit
+    under the new contract is relied on.
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    delivery: interactive
+  budget:
+    maximum_runs: 0
+  completion_gate:
+    - python3 -m pytest tests/test_runbook.py tests/test_runbook_audit_tolerance.py tests/test_runbook_session_collision.py passes, with output saved in return.yaml.
+    - >-
+      The tests cover these cases. A float drift of a few ulps gives a
+      mismatch without a tolerance, and matched_within_tolerance with one. A
+      non-float difference is a mismatch under any tolerance. An interpreter
+      difference gives an environment_drift note. A pinned-interpreter
+      difference gives not_covered. A second journal on another ref refuses a
+      new session. An append-only resume is accepted. Two unrelated journal
+      chains in history give an audit finding.
+    - python3 tools/runbook.py lint passes on every committed runbook that passed before the change (the command and its summary go in return.yaml).
+    - python3 tools/check_merge_hygiene.py --base origin/main passes.
+    - No byte outside write_scope changed.
+  return_format: Changed paths and sha256, test outputs verbatim, the lint sweep summary and the hygiene result.
+  state: queued

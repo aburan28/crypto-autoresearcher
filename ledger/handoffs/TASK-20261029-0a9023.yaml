@@ -1,0 +1,184 @@
+# TASK-20261029-0a9023: Coordinator ledger archive of the v2 approvals
+# DEC-20261029-ca33b3 (EXP-ICPERF-284bc4) and DEC-20261029-0e40f3
+# (EXP-ICPERF-283a70), with the approval-time specification, runbook and lint
+# bytes, the canonical executor handoffs, the hypothesis status edit, the goal
+# impediment clearance and the batch checkpoint. The top-level session runs the
+# commit. It runs no trial.
+handoff:
+  id: TASK-20261029-0a9023
+  from: coordinator
+  to: coordinator
+  role: coordinator
+  recorded_at: '2026-10-29'
+  kind: ledger_archive
+  opened_by_decision: [DEC-20261029-ca33b3, DEC-20261029-0e40f3]
+  goal_ids: [GOAL-ICPERF-e6b6a4]
+  lane_id: BATCH-38f344
+  objective: >-
+    Apply the approval-time byte operations named in DEC-20261029-ca33b3 and
+    DEC-20261029-0e40f3 approved_bytes. Confirm that execution_state is ready
+    for both experiments. Commit the declared paths as one ledger archive on
+    branch claude/icperf-v2-approvals-20261029, and record a receipt binding
+    the commit, its parent, the base origin/main commit and the exact paths
+    with their sha256. Then push, open the PR against main naming the
+    records, and enable auto-merge.
+  uncertainty_reduced: >-
+    Whether the approvals are durable and bind exactly the bytes the probe
+    and the runbook gate check. Until this archive is on main,
+    tools/runbook.py find_approval finds no committed approval and neither
+    executor task may be dispatched.
+  inputs:
+    - ledger/decisions/DEC-20261029-ca33b3.yaml
+    - ledger/decisions/DEC-20261029-0e40f3.yaml
+    - coordination/design/TASK-20261029-038368/EXP-ICPERF-284bc4/specification.preview.yaml
+    - coordination/design/TASK-20261029-038368/EXP-ICPERF-283a70/specification.preview.yaml
+    - coordination/design/TASK-20261029-f8b6eb/EXP-ICPERF-284bc4/handoff.preview.yaml
+    - coordination/design/TASK-20261029-f8b6eb/EXP-ICPERF-283a70/handoff.preview.yaml
+  byte_operations:
+    # Each operation is done by the top-level session. Each result must
+    # equal the sha256 named in the approving decision, or the task stops.
+    - >-
+      BO-1. cp coordination/design/TASK-20261029-038368/EXP-ICPERF-284bc4/specification.preview.yaml
+      experiments/EXP-ICPERF-284bc4/specification.yaml (expect 704b0f99...).
+    - >-
+      BO-2. cp coordination/design/TASK-20261029-038368/EXP-ICPERF-283a70/specification.preview.yaml
+      experiments/EXP-ICPERF-283a70/specification.yaml (expect 491106df...).
+    - >-
+      BO-3. In experiments/EXP-ICPERF-284bc4/runbook.yaml, change only the
+      specification bind sha256 from 8634d68c... to 704b0f99... (expect
+      runbook e5850bc6...). Run python3 tools/runbook.py lint on it and write
+      the stdout verbatim to runbook-lint.txt (expect 54fd22da...).
+    - >-
+      BO-4. In experiments/EXP-ICPERF-283a70/runbook.yaml, change only the
+      specification bind sha256 from 3b36b0f8... to 491106df... (expect
+      runbook 2d5aa752...). Lint it and write runbook-lint.txt (expect
+      4708293b...).
+    - >-
+      BO-5. cp coordination/design/TASK-20261029-f8b6eb/EXP-ICPERF-284bc4/handoff.preview.yaml
+      ledger/handoffs/TASK-20261029-65798b.yaml, byte-exact (expect
+      3d7c2e9e...).
+    - >-
+      BO-6. cp coordination/design/TASK-20261029-f8b6eb/EXP-ICPERF-283a70/handoff.preview.yaml
+      ledger/handoffs/TASK-20261029-f370f1.yaml, byte-exact (expect
+      6be4c826...).
+    - >-
+      BO-7. Copy the saved probe outputs, which are session-local scratch
+      files and not repository paths
+      (/tmp/claude-0/-home-user-crypto-autoresearcher/c16ead9b-c0d1-5a73-a16e-6151a3c27c39/scratchpad/probe/284bc4.json
+      and /tmp/claude-0/-home-user-crypto-autoresearcher/c16ead9b-c0d1-5a73-a16e-6151a3c27c39/scratchpad/probe/283a70.json),
+      byte-exact to
+      coordination/design/TASK-20261029-0a9023/EXP-ICPERF-284bc4/preapproval-report.json
+      and coordination/design/TASK-20261029-0a9023/EXP-ICPERF-283a70/preapproval-report.json.
+  constraints:
+    - >-
+      Run alone in the worktree. Before committing, fetch origin/main and merge
+      it into the branch (merge, never rebase). Record the base commit and the
+      merge outcome in the receipt. If the merge changes any byte that the
+      probe hashed (trial plans, shared queue, handoff previews,
+      specification previews, goal.yaml campaign_budget or the lane file),
+      or opens a fourth lane on the goal, stop and return to the Coordinator.
+      Re-run both probes before any further step.
+    - >-
+      Change no trial plan, implementation file, queue or lane file. The
+      runbook changes only in the specification bind. The specification
+      changes only by the byte copy. The goal.yaml change is limited to
+      status, cleared_at, cleared_by and cleared_note on
+      IMP-ICPERF-V2-LANE-20261029. The hypothesis change is limited to
+      status, approved_by_decision and status_note on H-ICPERF-2f52d1.
+    - >-
+      Before commit, run python3 tools/validate_ledger.py and
+      python3 tools/check_merge_hygiene.py --base origin/main. The package must
+      add no error over the main baseline. Record any advisory, and never
+      silence one.
+    - >-
+      Before opening the PR, run python3 tools/newest_experiments.py
+      --experiment EXP-ICPERF-284bc4 --json and the same for
+      EXP-ICPERF-283a70, and record both outputs in the receipt. Each must
+      report execution_state ready. On a mismatch, stop, open no PR and
+      return the output to the Coordinator, who records an additive
+      correction. Never edit an approval record to make it pass.
+    - >-
+      Write the receipt after the commit. It is excluded from its own
+      content-hash set and committed in a follow-up commit, with no future
+      sha claimed. This archive launches no trial, dispatches no executor
+      task and promotes no knowledge.
+  deliverables:
+    - coordination/tasks/TASK-20261029-0a9023/ledger-receipt.json
+  artifact_paths:
+    - ledger/decisions/DEC-20261029-ca33b3.yaml
+    - ledger/decisions/DEC-20261029-0e40f3.yaml
+    - ledger/hypotheses/H-ICPERF-2f52d1.yaml
+    - ledger/handoffs/TASK-20261029-65798b.yaml
+    - ledger/handoffs/TASK-20261029-f370f1.yaml
+    - ledger/handoffs/TASK-20261029-0a9023.yaml
+    - experiments/EXP-ICPERF-284bc4/specification.yaml
+    - experiments/EXP-ICPERF-284bc4/runbook.yaml
+    - experiments/EXP-ICPERF-284bc4/runbook-lint.txt
+    - experiments/EXP-ICPERF-283a70/specification.yaml
+    - experiments/EXP-ICPERF-283a70/runbook.yaml
+    - experiments/EXP-ICPERF-283a70/runbook-lint.txt
+    - ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml
+    - ledger/goals/GOAL-ICPERF-e6b6a4/checkpoints/TASK-20261029-0a9023.yaml
+    - coordination/design/TASK-20261029-0a9023/EXP-ICPERF-284bc4/preapproval-report.json
+    - coordination/design/TASK-20261029-0a9023/EXP-ICPERF-283a70/preapproval-report.json
+  write_scope:
+    - ledger/decisions/DEC-20261029-ca33b3.yaml
+    - ledger/decisions/DEC-20261029-0e40f3.yaml
+    - ledger/hypotheses/H-ICPERF-2f52d1.yaml
+    - ledger/handoffs/TASK-20261029-65798b.yaml
+    - ledger/handoffs/TASK-20261029-f370f1.yaml
+    - ledger/handoffs/TASK-20261029-0a9023.yaml
+    - experiments/EXP-ICPERF-284bc4/specification.yaml
+    - experiments/EXP-ICPERF-284bc4/runbook.yaml
+    - experiments/EXP-ICPERF-284bc4/runbook-lint.txt
+    - experiments/EXP-ICPERF-283a70/specification.yaml
+    - experiments/EXP-ICPERF-283a70/runbook.yaml
+    - experiments/EXP-ICPERF-283a70/runbook-lint.txt
+    - ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml
+    - ledger/goals/GOAL-ICPERF-e6b6a4/checkpoints/TASK-20261029-0a9023.yaml
+    - coordination/design/TASK-20261029-0a9023/
+    - coordination/tasks/TASK-20261029-0a9023/ledger-receipt.json
+  archived_by: TASK-20261029-0a9023
+  depends_on: []
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: high
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    delivery: interactive
+  budget:
+    maximum_runs: 0
+  completion_gate:
+    - >-
+      Every byte operation BO-1 to BO-7 yields the sha256 named in the
+      approving decision. Both lint outputs read LINT OK with the approved
+      runbook sha256.
+    - >-
+      tools/newest_experiments.py --experiment <EXP> --json reports
+      execution_state ready for both EXP-ICPERF-284bc4 and EXP-ICPERF-283a70
+      before the PR is opened. Both outputs are recorded in the receipt. On a
+      mismatch, stop and record it.
+    - >-
+      The archive commit contains exactly the sixteen declared artifact
+      paths. It is reachable from main through a merge commit (never squash
+      or rebase).
+    - >-
+      After the commit, the top-level session writes
+      coordination/tasks/TASK-20261029-0a9023/ledger-receipt.json. It records
+      the commit, the parent, the base origin/main commit, the merge outcome,
+      the sixteen paths with their path_sha256, both newest_experiments
+      outputs, and the record ids DEC-20261029-ca33b3, DEC-20261029-0e40f3,
+      H-ICPERF-2f52d1, EXP-ICPERF-284bc4, EXP-ICPERF-283a70,
+      TASK-20261029-65798b, TASK-20261029-f370f1, TASK-20261029-0a9023 and
+      GOAL-ICPERF-e6b6a4 (impediment IMP-ICPERF-V2-LANE-20261029 cleared).
+    - >-
+      validate_ledger adds no error over the main baseline, and
+      check_merge_hygiene --base origin/main passes. The PR is open against
+      main with auto-merge enabled. The goal checkpoint carries exactly one
+      next_action.
+  return_format: >-
+    Both newest_experiments outputs, the byte-operation sha256 table, the
+    receipt path and contents, the PR number, and the merge commit once
+    merged.
+  state: queued

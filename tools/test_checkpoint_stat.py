@@ -53,6 +53,17 @@ class CheckpointStatTests(unittest.TestCase):
         path.write_text(source)
         path.chmod(0o755)
 
+    def stub_python_metadata_failure(self):
+        real_python = shutil.which("python3")
+        self.assertIsNotNone(real_python)
+        self.stub("python3", f"""#!/bin/sh
+if [ "$1" = "-" ] && [ "$2" = "untracked payload.txt" ]; then
+  echo failed-stat-output
+  exit 1
+fi
+exec {real_python} "$@"
+""")
+
     def git(self, *args):
         return subprocess.run(["git", *args], cwd=self.repo, env=self.env,
                               check=True, capture_output=True, text=True)
@@ -72,12 +83,11 @@ class CheckpointStatTests(unittest.TestCase):
         self.assertNotIn("failed-stat-output", result.stdout + result.stderr)
         self.assertFalse((self.repo / ".resume/.last-push").exists())
 
-    @unittest.skipUnless(shutil.which("stat"), "requires system stat")
-    def test_native_stat_reaches_auth_refusal_with_untracked_files(self):
+    def test_native_python_metadata_reaches_auth_refusal_with_untracked_files(self):
         self.assert_auth_refusal(self.gate())
 
-    def test_bsd_fallback_discards_failed_gnu_stdout(self):
-        # Simulate a BSD-only stat that writes before rejecting GNU arguments.
+    def test_metadata_does_not_depend_on_stat_command(self):
+        # A noisy external stat shim must not contaminate metadata or the receipt.
         self.stub("stat", """#!/usr/bin/env python3
 import os, sys
 if sys.argv[1] != '-f':
@@ -94,8 +104,8 @@ else:
 """)
         self.assert_auth_refusal(self.gate())
 
-    def test_failed_stat_refuses_without_accepting_partial_output(self):
-        self.stub("stat", "#!/bin/sh\necho failed-stat-output\nexit 1\n")
+    def test_failed_metadata_read_refuses_without_accepting_partial_output(self):
+        self.stub_python_metadata_failure()
         result = self.gate()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("cannot hash the current worktree", result.stderr)
@@ -118,7 +128,7 @@ else:
         receipt = self.repo / ".resume/.last-push"
         receipt.write_text(prior)
         payload.write_bytes(b"new payload\n")
-        self.stub("stat", "#!/bin/sh\necho failed-stat-output\nexit 1\n")
+        self.stub_python_metadata_failure()
         for command in ("gate", "status"):
             with self.subTest(command=command):
                 result = subprocess.run(["bash", "checkpoint.sh", command],

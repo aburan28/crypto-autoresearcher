@@ -1,0 +1,78 @@
+# HYPOTHESIS -- H-FNDSA-a151c7, specified from IDEA-20261018-7e72aa. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-a151c7
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-7e72aa
+  added: '2026-10-18'
+  statement: >-
+    The float-free perturbation sampler (KN-LIT-4528, built on Peikert's perturbation approach,
+    KN-LIT-2472) replaces a real square root of a key-dependent covariance by an integral
+    approximation. Its output covariance error E = Cov(s) - sigma^2 I is therefore a function
+    of the key Gram matrix. Claim: E's mass concentrates on the subspace spanned by the shortest
+    secret rotations with an alignment z-score >= 3 against random subspaces of equal dimension,
+    while float64 ffSampling at the same n has z < 2. Falsified if the integer sampler's alignment
+    is within noise of random subspaces.
+  mechanism: >-
+    The perturbation covariance is s^2 I minus a multiple of B^T B, so the matrix whose integral
+    root is approximated carries the secret Gram explicitly. Approximation residuals of a
+    matrix root are concentrated along that matrix's eigenvectors, which here are built from
+    secret directions. ffSampling's rounding errors enter through many tree nodes and largely
+    average into an isotropic-looking error. So the two float-free versus float designs can
+    differ in leak geometry even at equal total divergence.
+  assumptions:
+  - Root approximation residuals align with the dominant eigenvectors of the target matrix
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Root approximation residuals align with the dominant eigenvectors of
+      the target matrix
+    random_model_justification: standard perturbation theory for matrix functions
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-d9c29d
+    falsification_condition: check residual-eigenvector overlap directly on the computed roots
+  predictions:
+  - metric: alignment z-score, integer Gram-root arm
+    direction: higher
+    minimum_effect: z >= 3 at n = 32 and 64
+  - metric: alignment z difference integer minus ffSampling
+    direction: higher
+    minimum_effect: '>= 2'
+  test_boundary:
+    instances:
+    - >-
+      n in {16, 32, 64}; q = 12289; root precision bits in {8, 16, 32}; 20 keys per cell;
+      10^6 signatures per key for empirical check
+    parameters:
+      scale_tier: toy
+      scale_justification: n <= 64; transfer assumes residual structure independent of n,
+        tested across 16/32/64
+    implementation: >-
+      SageMath/NumPy, toy ffSampling port with float64, integer Gram-root perturbation sampler,
+      exact rational reference
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 12
+      maximum_memory_gb: 8
+      maximum_runs: 30
+  distinguishable_outcomes:
+  - z < 2 at both n
+  - difference < 1
+  falsification_conditions:
+  - integer-root alignment z < 2 at n = 32 and 64
+  - positive control not detected at eps = 1e-3
+  - exact-root null shows z > 2
+  interpretation_limits:
+  - >-
+    Scale and transfer: n <= 64 toy keys; transfer assumes the root-approximation residual
+    structure is dimension-independent
+  - >-
+    Alignment is a geometry statement, not a recovery; the signatures-to-key cost is not measured
+    here
+  status: specified
+  proposed_by: idea-generator

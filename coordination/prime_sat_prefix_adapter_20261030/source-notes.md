@@ -1,0 +1,14 @@
+# Source and applicability notes
+
+The immediate implementation sources are the hash-bound unchanged files `research/prime_sat_followup_20261029/encoding.py` (build, solve, certificate_check, verify_search and reconstruct), `research/prime_sat_five_tests_20261029/core.py` (Boolean quotient arithmetic and multiplier certificates), and `research/prime_sat_costbridge_controls_20261029/prefix_cover.py`. Coordinator read these sources before this contract. The old verifier checks every learned identity and model, then enumerates 2^n assignments to check exhaustion. The new interface must preserve the arithmetic checks and replace only that last coverage phase. It does not authenticate historical telemetry or repair old output.
+
+Root reports retrieval and inspection of the following primary sources during this continuation; Coordinator records that provenance rather than claiming another retrieval. Full-PDF/page-content SHA256 is unknown and not invented.
+
+- Saccomani et al., *Proof Production for Satisfiability Modulo Finite Fields with Proof Checking in Pacheck and Lean*, [author PDF](https://hanielbarbosa.com/papers/2026fmcad-ffproofs.pdf), Sections III.C–D and IV.B: algebraic identity checking and branch/root completeness are separate obligations. This motivates separate arithmetic and coverage interfaces. No installation, benchmark or scalable Lean reconstruction claim follows.
+- [PySAT IPASIR-UP engines documentation](https://pysathq.github.io/docs/html/api/engines.html), `add_clause`, `provide_reason`, `on_assignment`: a later partial-assignment engine may supply arbitrary clauses, and a propagation reason must include its propagated literal. Such clauses need not describe LSB prefixes. This contract does not import or invoke that solver interface.
+
+Current source comparison supports only the specific prefix shape produced by the existing learner. A verified model licenses a projection cylinder for projected-set completeness: every actual root outside refuted cylinders has a returned projection. It does not assert all auxiliary assignments within that cylinder are roots. This is standard proof composition, not novelty.
+
+Root also inspected `coefficients.py::prefix_proof` and `check_coefficients.py::certificate_check`: their dense X^p−X and scalar root scans motivate an unadmitted modular-gcd/linear-factor direction. The FLINT documentation request returned403, so no FLINT API claim was verified. Saccomani IV.B supports the architecture only. This has no effect on the current adapter implementation scope.
+
+The existing auxiliary exclusion list may itself contain 2^w−p clauses, and membership build still constructs truth tables. Validating supplied input without enumerating the remaining cube does not make those constructions scalable. A compact comparator domain requires its own future supported interface; arbitrary CNF is rejected here.
