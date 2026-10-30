@@ -94,9 +94,16 @@ import argparse
 import glob
 import os
 import re
+import subprocess
 import sys
+from functools import lru_cache
 
 import yaml
+
+try:
+    from review_phase_seals import InvalidPhase, check_sealed_phases, load_phase_yaml
+except ImportError:
+    from tools.review_phase_seals import InvalidPhase, check_sealed_phases, load_phase_yaml
 
 try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
     import fast_yaml
@@ -145,9 +152,57 @@ def _valid_task(value, *, native=False):
     return isinstance(value, str) and bool(pattern.fullmatch(value))
 
 
+class InvalidGitSource(ValueError):
+    """A Git source must not silently become an unrelated filesystem path."""
+
+
+@lru_cache(maxsize=128)
+def _git_source_commit(repo, abbreviation):
+    """Resolve only hexadecimal object identities, never branch/tag names."""
+    def git(*args):
+        try:
+            result = subprocess.run(
+                ["git", "-C", repo, *args], capture_output=True, text=True,
+                timeout=10, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"})
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise InvalidGitSource(f"cannot resolve Git commit {abbreviation!r}: {error}") from error
+        if result.returncode:
+            raise InvalidGitSource(f"cannot resolve Git commit {abbreviation!r}")
+        return result.stdout.strip()
+
+    objects = git("rev-parse", "--disambiguate="+abbreviation).splitlines()
+    if (len(objects) != 1 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", objects[0])
+            or not objects[0].startswith(abbreviation)):
+        raise InvalidGitSource(f"unknown or ambiguous Git commit {abbreviation!r}")
+    if git("cat-file", "-t", objects[0]) != "commit":
+        raise InvalidGitSource(f"Git identity {abbreviation!r} is not a commit")
+    return objects[0]
+
+
 def _read_path(value):
-    """Canonical comparison only; this does not read the declared artifact."""
-    return os.path.realpath(os.path.join(REPO, str(value).strip().replace("\\", "/")))
+    """Compare path scopes across Git revisions; do not authenticate blob bytes.
+
+    A Git citation is an existing commit (or unambiguous hexadecimal prefix)
+    plus an exact repository-relative path. Version custody is checked by the
+    archive verifier, separately. All revisions obey the same read restrictions.
+    """
+    raw = str(value)
+    source = raw.strip()
+    if source.lower().startswith("git:"):
+        match = re.fullmatch(r"git:([0-9a-f]{7,40}|[0-9a-f]{64}):(.+)", source)
+        if not match or source != raw:
+            raise InvalidGitSource(f"malformed Git citation {raw!r}")
+        revision, path = match.groups()
+        if (os.path.isabs(path) or any(c in path for c in "\\*?[]:")
+                or any(ord(c) < 32 or ord(c) == 127 for c in path)
+                or any(part in ("", ".", "..") for part in path.split("/"))):
+            raise InvalidGitSource(f"invalid Git source path {path!r}")
+        _git_source_commit(REPO, revision)
+        canonical = os.path.realpath(os.path.join(REPO, path))
+        if not _within(canonical, os.path.realpath(REPO)):
+            raise InvalidGitSource(f"Git source path escapes repository: {path!r}")
+        return canonical
+    return os.path.realpath(os.path.join(REPO, source.replace("\\", "/")))
 
 
 def _within(path, directory):
@@ -295,15 +350,18 @@ def _joint_label(name: str) -> str:
 
 
 def _joint_name(entry: dict) -> str:
-    """A plan joint's label under either spelling.
+    """Use an explicit joint ID for matching, retaining legacy joint-only plans.
 
-    The ICPERF plans name a joint `joint:` and its owner `assigned_to:`; the
-    SEMBIN plans name them `id:` and `owner:`. Both are committed and immutable,
-    so the tool reads both rather than holding one round to the other's keys --
-    an addendum that matched only `joint` silently reassigned nothing on a plan
-    written with `id`.
+    A plan may carry both an ID such as P3 and a full-sentence ``joint``
+    statement. The ID is the reviewer's attested label; the statement remains
+    in the plan for the attack and breaking-artifact obligations. An explicit
+    malformed ID must not silently fall back to the statement: ``check``
+    reports it as a plan defect.
     """
-    return str(entry.get("joint") or entry.get("id") or "")
+    if "id" in entry:
+        identifier = entry["id"]
+        return identifier.strip() if isinstance(identifier, str) else ""
+    return str(entry.get("joint") or "")
 
 
 def _owner_key(entry: dict) -> str:
@@ -372,29 +430,37 @@ def _load(path: str):
         with open(path, encoding="utf-8") as handle:
             content = handle.read()
         # The normal legacy loader keeps the last duplicate YAML key.
-        # Explicit replacement authority must never silently shadow one,
-        # including a duplicate wrapper containing the directive.
+        # Explicit phase/replacement authority must never silently shadow one,
+        # including a duplicate wrapper containing either directive.
         def inspect(node, replacement=False, ancestors=frozenset()):
             if id(node) in ancestors:
-                return False
+                return set()
             ancestors = ancestors | {id(node)}
-            contains = False
+            contains = set()
             if isinstance(node, yaml.MappingNode):
                 seen = {}
                 for key, value in node.value:
                     name = key.value if isinstance(key, yaml.ScalarNode) else None
-                    child_contains = inspect(value, replacement or name == "blind_phase_replacement", ancestors)
-                    special = name == "blind_phase_replacement" or child_contains
+                    directive = name in {"blind_phase_replacement", "phased_release"}
+                    child_contains = inspect(value, replacement or directive, ancestors)
+                    special = directive or bool(child_contains)
                     if name in seen and (replacement or special or seen[name]):
-                        raise ValueError(f"{path}: duplicate blind-phase replacement directive/field {name}")
+                        raise ValueError(f"{path}: duplicate blind-phase directive/field {name}")
                     seen[name] = special
-                    contains |= special
+                    contains.update(child_contains)
+                    if directive:
+                        contains.add(name)
             elif isinstance(node, yaml.SequenceNode):
                 for value in node.value:
-                    contains |= inspect(value, replacement, ancestors)
+                    contains.update(inspect(value, replacement, ancestors))
             return contains
-        inspect(yaml.compose(content, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader)))
+        directives = inspect(yaml.compose(content, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader)))
+        if "phased_release" in directives:
+            return load_phase_yaml(content)
         return fast_yaml.safe_load(content)
+    except InvalidPhase as exc:
+        # A malformed phased report must not disappear from directory scans.
+        raise ValueError(f"{path}: {exc}") from exc
     except (OSError, yaml.YAMLError) as exc:
         return {"__error__": str(exc).splitlines()[0]}
 
@@ -606,7 +672,7 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
         blind_before = blind_before if isinstance(blind_before, dict) else {}
         replacement = addendum.get("blind_rederivation")
         if isinstance(replacement, dict):
-            for key in ("required", "quantity", "parameters", "assigned_to"):
+            for key in ("required", "quantity", "parameters", "assigned_to", "phased_release"):
                 if key in replacement and replacement[key] != blind_before.get(key):
                     refused.append(f"attempted to replace protected blind_rederivation.{key}")
             if "blind_from" in replacement and replacement["blind_from"] != (blind_before.get("blind_from") or []):
@@ -806,6 +872,16 @@ def _rel(path: str) -> str:
 
 
 def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
+    # Recheck abbreviations on every invocation: Git may have gained objects
+    # since an earlier check in this process, changing their uniqueness.
+    _git_source_commit.cache_clear()
+    try:
+        return _check(plan, reports)
+    except InvalidGitSource as error:
+        return [f"invalid Git source identity: {error}"]
+
+
+def _check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
     problems: list[str] = list(plan.get("_composition_errors") or [])
     if _replacement_locations(plan):
         problems.append("blind_phase_replacement belongs only at review_plan_addendum top level")
@@ -842,6 +918,8 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         if not isinstance(entry, dict):
             problems.append(f"review_plan.joints[{index}] must be a mapping")
             continue
+        if "id" in entry and (not isinstance(entry["id"], str) or not entry["id"].strip()):
+            problems.append(f"review_plan.joints[{index}].id must be a nonempty string")
         name = _joint_name(entry).strip() or f"joints[{index}]"
         owner = _joint_owner(entry)
         if not owner:
@@ -881,6 +959,13 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
                             f"joint means another joint has none")
     rederivation = plan.get("blind_rederivation")
     rederivation = rederivation if isinstance(rederivation, dict) else {}
+    if "phased_release" in rederivation and rederivation.get("required") is not True:
+        problems.append("phased_release requires blind_rederivation.required=true")
+    for _, attestation in reports:
+        if "phased_release" in attestation and (
+                "phased_release" not in rederivation
+                or attestation.get("task_id") != rederivation.get("assigned_to")):
+            problems.append("attested phased_release has no matching prospective blind task contract")
     declared_tasks = set(task_joints)
     if rederivation.get("required"):
         declared_tasks.add(str(rederivation.get("assigned_to") or "").strip())
@@ -895,6 +980,11 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         read = attestation.get("sources_read", [])
         if not isinstance(read, list) or any(not isinstance(value, str) or not value.strip() for value in read):
             problems.append(f"{task_id}: sources_read must be a list of nonempty paths/source strings")
+        elif read:
+            # Validate even a broadly lifted/non-blind reviewer's Git reads.
+            # Malformed citations cannot bypass the later scope comparisons.
+            for value in read:
+                _read_path(value)
 
     # --- blindness ----------------------------------------------------------
     blindness = plan.get("blindness")
@@ -1017,6 +1107,13 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
             path, attestation = by_task[owner]
             raw_read = attestation.get("sources_read") or []
             read = [value.strip() for value in raw_read if isinstance(value, str)] if isinstance(raw_read, list) else []
+            if owner == rederivation.get("assigned_to") and "phased_release" in rederivation:
+                phase_errors = check_sealed_phases(plan, attestation, REPO)
+                problems.extend(phase_errors)
+                if not phase_errors:
+                    # Only a complete prospective content/timeline check may
+                    # replace the legacy union-of-all-reads restriction.
+                    continue
             leaked = sorted({b for b in protected_sources
                              for r in read if _within(_read_path(r), _read_path(b))
                              or (r.endswith(("/", "\\")) and _within(_read_path(b), _read_path(r)))})
@@ -1170,7 +1267,11 @@ def main() -> int:
               file=sys.stderr)
         return 2
 
-    plan = _plan_of(_load(plan_path))
+    try:
+        plan = _plan_of(_load(plan_path))
+    except ValueError as error:
+        print(f"FAIL: invalid review plan: {error}", file=sys.stderr)
+        return 2
     if plan is None:
         print(f"{plan_path}: no review_plan block", file=sys.stderr)
         return 2
@@ -1194,7 +1295,11 @@ def main() -> int:
             if not composition:
                 print("  (no joint added or reassigned)")
 
-    reports = _collect_reports(report_targets)
+    try:
+        reports = _collect_reports(report_targets)
+    except ValueError as error:
+        print(f"FAIL: invalid review report: {error}", file=sys.stderr)
+        return 2
     if not reports:
         print("no review_attestation blocks found in the given reports",
               file=sys.stderr)

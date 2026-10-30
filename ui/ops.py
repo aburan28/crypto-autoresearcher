@@ -245,13 +245,21 @@ def _describe_instance(client: AwsQuery) -> dict[str, Any]:
         tag = node.tag.split("}", 1)[-1]
         if tag in ("Engine", "EngineVersion", "DBInstanceClass", "DBInstanceStatus",
                    "AllocatedStorage", "MaxAllocatedStorage", "StorageType",
-                   "PerformanceInsightsEnabled", "MonitoringInterval"):
+                   "PerformanceInsightsEnabled", "MonitoringInterval", "DBInstanceArn"):
             if node.text and tag not in fields:
                 fields[tag] = node.text.strip()
     allocated = int(fields.get("AllocatedStorage") or 0)
     maximum = int(fields.get("MaxAllocatedStorage") or 0)
+    arn = (fields.get("DBInstanceArn") or "").split(":", 5)
+    account_id = None
+    if (len(arn) == 6 and arn[:3] == ["arn", "aws", "rds"]
+            and arn[3] == client.region and len(arn[4]) == 12
+            and arn[4].isascii() and arn[4].isdecimal()
+            and arn[5] == f"db:{RDS_INSTANCE}"):
+        account_id = arn[4]
     return {
         "id": RDS_INSTANCE,
+        "account_id": account_id,
         "engine": fields.get("Engine") or "postgres",
         "engine_version": fields.get("EngineVersion"),
         "class": fields.get("DBInstanceClass"),
@@ -388,7 +396,7 @@ def collect_payload(*, now: int | None = None) -> dict[str, Any]:
         "sampled_at": _iso(now),
         "latest_point": _iso(latest),
         "latest_point_age_seconds": age,
-        "stale": bool(age is not None and age > STALE_AFTER_SECONDS),
+        "stale": age is None or age > STALE_AFTER_SECONDS or instance.get("status") != "available",
         "last_hour": {
             "basis": hour_basis,
             "empty": hour_write["samples"] == 0 and hour_read["samples"] == 0,

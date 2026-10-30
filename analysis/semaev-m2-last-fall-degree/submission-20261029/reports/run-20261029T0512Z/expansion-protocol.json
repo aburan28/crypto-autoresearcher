@@ -1,0 +1,344 @@
+{
+  "schema": "experiment.protocol/v1",
+  "protocol_id": "SEMAEV-PANEL-20261029",
+  "version": 1,
+  "created": "2026-10-29",
+  "repository": "crypto-autoresearcher",
+  "study_dir": "analysis/semaev-m2-last-fall-degree/submission-20261029",
+  "authors": [
+    "Codex, owner-authorized data preparation"
+  ],
+  "links": {
+    "historical_protocol": "replay-protocol.json",
+    "sampling_driver": "expand_instances.py",
+    "sampling_driver_sha256": "ad44a25be54b068cc915a3e960ab64b938887f478b82c577ecdfe5fac1d1d71f",
+    "counter_source_sha256": "bd36e7acc58b97d6fb7b29d494a14502e68e5cd069429eb54531da6b717ba78c",
+    "counter_binary_sha256": "b2d16d8a27b6133443671af1bcc297af225827af1bbd192aa1cb09a2644f6638",
+    "closure_driver_sha256": "d00fb15692709a1450c9a16c06ca36f51afb18158b16ffbeb2527b2cf52c08eb"
+  },
+  "question": "What certified LFD bounds hold on a preregistered panel of 190 fresh presentations at n=33..45 and n=47..51, including a separate trace-zero n=33 stratum?",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "When the independently checked codimension lower bound exceeds the exact exhaustive solution count, the named presentation has last fall degree at least D+1.",
+      "class": "exact_computation",
+      "decided_by": []
+    }
+  ],
+  "hypotheses": [],
+  "arms": [
+    {
+      "id": "fresh-panel",
+      "role": "candidate",
+      "description": "190 fresh inputs; degree four on all, degree five on the 50 frontier inputs if memory admission permits.",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": "6b73c23e8f9fa288fb8a98678bee0dd9b3b2e8da",
+        "build": [
+          [
+            "gcc",
+            "-O3",
+            "-march=native",
+            "-fopenmp",
+            "lfdclose2.c",
+            "libm4ri.a",
+            "-lm"
+          ]
+        ],
+        "binary_sha256": "f7f920e697b263129e91b44814e18c32b228392496770c29869ab4d00a9e6f04",
+        "flags": {
+          "m4ri_commit": "d0a1ee18511714a2c33cc0920a068c05c1f0f8fb"
+        },
+        "env": {
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "degrees": [
+          4,
+          5
+        ],
+        "chunk": 60000
+      }
+    },
+    {
+      "id": "reference-checker",
+      "role": "reference",
+      "description": "Independent checker and exhaustive count, correctness reference without repeated closure execution.",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": "6b73c23e8f9fa288fb8a98678bee0dd9b3b2e8da",
+        "build": [
+          [
+            "gcc",
+            "-O3",
+            "-march=native",
+            "-fopenmp",
+            "lfdclose2.c",
+            "libm4ri.a",
+            "-lm"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {
+          "m4ri_commit": "d0a1ee18511714a2c33cc0920a068c05c1f0f8fb"
+        },
+        "env": {
+          "OMP_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "degree": 4,
+        "chunk": 60000
+      }
+    }
+  ],
+  "controls": {
+    "aa": {
+      "present": false,
+      "comparison": null,
+      "not_applicable_reason": "Deterministic exact certificates, no runtime or frequency inference; historical digest replay measures exact reproducibility."
+    },
+    "positive": {
+      "present": false,
+      "arm": null,
+      "expected_detection": null,
+      "not_applicable_reason": "Historical 13-certificate replay is the positive correctness control, with hash identity and independent checking; software counter validation covers 188 full enumerations and four batch-boundary cross-checks."
+    },
+    "negative": {
+      "present": false,
+      "arm": null,
+      "null_population": null,
+      "not_applicable_reason": "No stochastic null inference. Corrupted certificate rejection and small all-pairs solution counts test false acceptance in software validation."
+    }
+  },
+  "variable_ledger": {
+    "independent": [],
+    "factors": [
+      {
+        "name": "input",
+        "treatment": "randomized",
+        "how": "Per-instance seed from SHA256 of SEMAEV-PANEL-20261029-v1 plus newline plus stable instance id; Python Random and exact generator source frozen."
+      },
+      {
+        "name": "instrument",
+        "treatment": "fixed",
+        "how": "C source, M4RI commit and binary SHA256 retained."
+      },
+      {
+        "name": "host",
+        "treatment": "measured",
+        "how": "CPU, kernel, process memory ceiling and L0 wall-valid=false; no timing inference."
+      },
+      {
+        "name": "order",
+        "treatment": "fixed",
+        "how": "Plan order, two workers; independent exact computations."
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "acceptance",
+        "arms": [
+          "fresh-panel",
+          "reference-checker"
+        ],
+        "differs_in": [],
+        "design": "absolute",
+        "threshold": "Checker accepts and exact count < certified codimension; otherwise no LFD lower bound."
+      }
+    ],
+    "aa_not_applicable": "Exact equality against historical digest.",
+    "crosses_map": false
+  },
+  "randomization": {
+    "arm_order": "fixed",
+    "arm_order_reason": "Exact named-input replay has no arm-dependent clock inference.",
+    "seed_derivation": {
+      "method": "harness_drawn",
+      "seeds": [],
+      "nonce": null,
+      "note": "seed = first 8 big-endian bytes of SHA256(UTF8(SEMAEV-PANEL-20261029-v1 + newline + fresh-n{n}-{family}-{rep:02d})); generator expand_instances.py is source-hashed."
+    },
+    "instance_sampling": {
+      "rule": "For every integer n=33..45 and 47..51, five polynomial-subspace and five independently random-subspace draws; plus ten trace-zero subspaces at n=33. k=ceil(n/2); random nonsingular binary curve; z a nonzero rational point abscissa. No filtering for solvability, degree or trivial trace refutation. All draws retained.",
+      "independent_of_arm": true
+    },
+    "blinding": {
+      "analysis_labels_masked": false,
+      "how": "Exact deterministic verification; labels required to reconstruct inputs, no blinded statistical analysis.",
+      "unmasked_at": null
+    }
+  },
+  "sample_size": {
+    "instances": 190,
+    "replicates": 1,
+    "warmups": 0,
+    "power": {
+      "method": "exact",
+      "alpha": 0.05,
+      "tests_in_family": 1,
+      "correction": "none",
+      "passes": true,
+      "note": "Descriptive ten-per-n panel requested by owner, plus separate trace-zero stratum. Not powered for population-frequency or asymptotic conclusions."
+    },
+    "preflight_runtime": {
+      "fixed_seconds": 0,
+      "per_sample_seconds": 21600,
+      "threads": 1,
+      "estimated_total_seconds": 4104000,
+      "measured_on": "Per-command watchdog scheduling envelope, not runtime prediction. Historical certificates.txt supplies only lower-n planning observations."
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "id": "codimension_lower_bound",
+        "name": "certified codimension lower bound",
+        "unit": "F2 dimension",
+        "kind": "exact",
+        "definition": "nq from an independently accepted surjective closure-separating map; not equality with closure codimension.",
+        "source": "result.json certified_codimension_lower_bound",
+        "aggregation": "per_row",
+        "resolution": "1",
+        "uncertainty": "none_exact"
+      }
+    ],
+    "secondary": []
+  },
+  "measurement": {
+    "isolation_required": "L0",
+    "warmups": 0,
+    "order": "sequential",
+    "clock": "counted",
+    "counters": [],
+    "record": [
+      "cpu_model",
+      "kernel_release",
+      "binary_sha256",
+      "source_commit",
+      "argv",
+      "input_sha256"
+    ],
+    "timed_primary_justification": null
+  },
+  "execution": {
+    "backend": "local",
+    "queue": "owner-authorized-host",
+    "placement": {
+      "max_workers": 2,
+      "memory_per_worker_bytes": 42949672960,
+      "observed_available_gib": 114,
+      "checkpoint_detail": "Per-instance retained results; no in-progress algebra checkpoint. Infra retry uses new attempt and reconciles locks."
+    },
+    "measurement_class": "throughput",
+    "timeout_seconds": 21600,
+    "checkpoint": {
+      "policy": "application",
+      "interval_seconds": 60,
+      "grace_seconds": 10,
+      "restore_validation": "manifest_sha256",
+      "after_restore": {
+        "wall_time": "invalid",
+        "counted_units": "valid"
+      }
+    },
+    "retries": {
+      "infrastructure_only": true,
+      "max_attempts": 2
+    }
+  },
+  "stopping_rules": [
+    {
+      "kind": "fixed_n",
+      "rule": "190 fixed fresh input draws, 190 degree-four attempts and 50 degree-five admission requests; six-hour watchdog per child command; memory refusals and failures retained without replacement.",
+      "preregistered": true
+    },
+    {
+      "kind": "invalidation",
+      "rule": "Hash mismatch, checker failure, missing completion or timeout leaves a failed record and retained bytes.",
+      "preregistered": true
+    }
+  ],
+  "invalidation_rules": [
+    "Unverified certificate yields no certified lower bound.",
+    "No public archive claim until anonymous download and SHA256 readback."
+  ],
+  "decision_rule": {
+    "text": "For each input and D, infer LFD >= D+1 only if the checker accepts and exact solution count is smaller than certified codimension. Resource refusal, timeout or absent certificate is unknown.",
+    "comparison_ids": [
+      "acceptance"
+    ],
+    "threshold": "exact count < checked codimension",
+    "statistic": "none",
+    "interval": "none, exact",
+    "multiple_comparison_correction": "none",
+    "effect_size_measure": "per-instance lower bound, no population inference",
+    "verdict_vocabulary": [
+      "certificate_verified",
+      "closure_contains_one",
+      "failed",
+      "resource_capped"
+    ]
+  },
+  "analysis_plan": {
+    "script": {
+      "path": "expand_instances.py",
+      "sha256": "ad44a25be54b068cc915a3e960ab64b938887f478b82c577ecdfe5fac1d1d71f"
+    },
+    "inputs": [
+      "plan.json",
+      "counts/*/attempt-*/result.json",
+      "*/attempt-*/result.json"
+    ],
+    "outputs": [
+      "per-instance inference-<digest>.json"
+    ],
+    "blinded": false,
+    "frozen_before_data": true
+  },
+  "reporting": {
+    "export_schema": "experiment.export/v1",
+    "review_schema": "experiment.review/v1",
+    "graphs": [
+      "per-instance certificate status, no timing graph"
+    ],
+    "report_dir": "reports"
+  },
+  "inadmissible": [
+    "Equating ker(pi) and W4 solely from checker acceptance.",
+    "Calling nonmembership alone an unsatisfiability proof.",
+    "Claiming an F4 trace establishes an exact LFD.",
+    "Claiming a private object store is a public archive."
+  ],
+  "literature": [
+    {
+      "ref": "../theorem-dossier.md",
+      "provenance": "internal",
+      "claim": "Proposition 1.5 certificate semantics.",
+      "verified_by": "Codex 2026-10-29"
+    },
+    {
+      "ref": "../results/verification-correction-20261019.md",
+      "provenance": "internal",
+      "claim": "Closure codimension inequality, not equality.",
+      "verified_by": "Codex 2026-10-29"
+    },
+    {
+      "ref": "https://arxiv.org/html/1906.05594",
+      "provenance": "retrieved",
+      "claim": "Prior empirical degree five and distinct first-fall definition.",
+      "verified_by": "Codex full text 2026-10-29"
+    }
+  ],
+  "amendments": [],
+  "freeze": {
+    "status": "frozen",
+    "protocol_sha256": "995442c591b3d41a10af214bfd27e6ef186ae16816f24762f42af729cc2c715a",
+    "commit": "a084a6417cdd4bed187f07479333aa4285547c1b",
+    "frozen_at": "2026-10-29T04:10:13Z",
+    "filed_before_affected_data": true
+  }
+}

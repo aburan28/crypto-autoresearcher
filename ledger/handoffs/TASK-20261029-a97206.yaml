@@ -1,0 +1,110 @@
+# Proof-of-concept implementation card for EXP-MONO-1a1be2 (review_required; NOT
+# approved). It builds and tests the toolchain only. It runs no cell of the contract and
+# computes no quantity the contract predicts on any grid, arm-B or arm-C cell.
+handoff:
+  id: TASK-20261029-a97206
+  from: coordinator
+  to: executor
+  batch_id: BATCH-c53152
+  goal_id: GOAL-PATH-001
+  objective: >-
+    Implement and test the EXP-MONO-1a1be2 toolchain: F_{q^n} arithmetic for n up to 7,
+    the seeded curve generator and point counter, the four-convention exhaustive
+    histogrammer, the target-sampled arm-C counter with a compiled inner loop, numeric
+    S_{n+1}(x_1..x_n, T) by the resultant recursion with distinct-degree factorisation,
+    the group-law cross-check, a cell launcher and a deterministic trial-plan generator,
+    each with known-answer tests against independent naive implementations.
+  uncertainty_reduced: >-
+    Readiness blockers B1 and B2 of EXP-MONO-1a1be2: whether a correct, testable
+    instrument for the contract exists. Nothing about the mathematics.
+  inputs:
+    - experiments/EXP-MONO-1a1be2/specification.yaml
+    - ledger/hypotheses/H-MONO-23d347.yaml
+    - ledger/handoffs/TASK-20261029-a97206.yaml
+    - experiments/EXP-SMON-e5cbe6/code/semaev_cover.py
+    - src/crypto_autoresearcher/index_calculus/semaev.py
+    - src/crypto_autoresearcher/index_calculus/decompose.py
+    - src/crypto_autoresearcher/index_calculus/tails.py
+    - src/crypto_autoresearcher/index_calculus/curve.py
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/stats.py
+    - agents/executor.md
+    - docs/curve-identities.md
+  inputs_note: >-
+    The specification's arms, scope, seeds, metrics, invalidation rules and
+    required_artifacts are the context; its predictions are context for what must be
+    measurable, never assertions for a test. The src/ and EXP-SMON-e5cbe6 files are
+    reusable by import or copy; they are read-only here.
+  constraints:
+    - IM-1 Write only the declared artifact paths. src/, other experiments and the specification are read-only. A need for any other file is a scope finding; stop and report it.
+    - IM-2 No cell of the contract is computed. Do not compute T_A, T_M, T_S, T_X, coverage, kappa_rel, split frequencies or rule agreement on any arm-A, arm-B or arm-C cell. The launcher is tested only on KAT cells.
+    - IM-3 KAT cells are disjoint from every contract cell. Field and curve KATs may use any q with q in {5, 13} at n <= 3, plus prime fields. Every counter KAT compares the optimised counter with a naive enumeration written directly from the definition on the same KAT cell; no KAT asserts an identity between different conventions, a predicted ratio, a split frequency or any value from the specification's predictions. Record raw KAT outputs; compute no convention ratio, coverage or frequency from them.
+    - IM-4 Point counting is exhaustive for Q < 2^27 and baby-step giant-step on the Hasse interval otherwise; the KAT suite cross-checks the two on every KAT curve and on 20 random curves with Q < 2^27 of your choosing outside the contract cells.
+    - IM-5 S_{n+1} is computed by the resultant recursion; the KAT checks the defining property on at least 200 random point tuples per n = 2..5 over KAT fields, and agreement of its roots with the group-law signed sums of lifts over F_{Q^2}.
+    - IM-6 The seed rules of the specification are implemented exactly (SHA-256 of the seed string, first 16 bytes big-endian, numpy PCG64). make_trial_plan.py derives every cell, curve, base seed, tuple seed, target seed, q_n by the arm-C rule and s_n by the sample-size rule, and writes the preview trial plan with each cell's identity fields (q, n, g, a, b, N, t2, B, |X|, seed). Computing these identity fields is allowed; they are inputs, not outcomes.
+    - IM-7 code/kernel.c holds the compiled inner loops (multiset enumeration with point addition in F_{q^n}); the launcher builds it at run time into a temporary directory; no binary is committed. Record compiler and flags in environment.json.
+    - IM-8 The launcher writes, per cell, a manifest with every identity field, every seed, the code sha256 and the environment, raw per-target histograms, a summary, and the independent recount, under experiments/EXP-MONO-1a1be2/runs/<run_id>/; it refuses to start unless the specification status is approved and an approval lock exists, and on KAT cells only through an explicit --kat flag that writes under a temporary directory, never runs/.
+    - IM-9 Zero experiment runs. Unit and KAT invocations are tests, not runs. AGENTS.md "Resume checkpoints in S3 before every run" binds any later run; if a repository hook treats a KAT invocation as a run launch, follow the hook's instruction (scripts/checkpoint.sh init) before retrying; .resume/ is session state, not an artifact of this task.
+    - IM-10 No commit, no push. The snapshot archive TASK-20261029-02a714 stages the artifacts. No value from the specification's predictions, and no KAT output, appears in any message.
+    - IM-11 Never select, configure or contact Amazon Bedrock.
+  deliverables:
+    - "code/fqn.py: F_q[t]/(g) arithmetic, g the lexicographically least monic irreducible of degree n, n <= 7; square roots and chi"
+    - "code/curves.py: seeded curve generation with the singular and j-in-F_q rejections, group law, point counting, factor base, lifts, 2-torsion"
+    - "code/semaev.py: numeric S_{n+1} by resultants, squarefreeness, degree, distinct-degree factorisation and complete-split test"
+    - "code/counters.py: exhaustive T_A, T_M, T_S, T_X over all targets with the independent recount; matched random and twin bases; the target-sampled arm-C counter"
+    - "code/kernel.c: compiled inner loops"
+    - "code/launcher.py: per-cell runner as IM-8"
+    - "code/make_trial_plan.py: deterministic trial-plan generator as IM-6"
+    - "code/tests/test_kat.py: the KAT suite"
+    - "code/README.md: module map, build and test commands, reuse provenance"
+    - "implementation/kat-report.md: what each KAT checks, pass or fail, KAT cells used, deviations"
+    - "implementation/kat-log.json: raw KAT outputs as text"
+    - "implementation/trial-plan.preview.json: the generated preview trial plan with identity fields"
+    - "implementation/environment.json: interpreter, libraries and versions, compiler and flags, host"
+  artifact_paths:
+    - experiments/EXP-MONO-1a1be2/code/fqn.py
+    - experiments/EXP-MONO-1a1be2/code/curves.py
+    - experiments/EXP-MONO-1a1be2/code/semaev.py
+    - experiments/EXP-MONO-1a1be2/code/counters.py
+    - experiments/EXP-MONO-1a1be2/code/kernel.c
+    - experiments/EXP-MONO-1a1be2/code/launcher.py
+    - experiments/EXP-MONO-1a1be2/code/make_trial_plan.py
+    - experiments/EXP-MONO-1a1be2/code/tests/test_kat.py
+    - experiments/EXP-MONO-1a1be2/code/README.md
+    - experiments/EXP-MONO-1a1be2/implementation/kat-report.md
+    - experiments/EXP-MONO-1a1be2/implementation/kat-log.json
+    - experiments/EXP-MONO-1a1be2/implementation/trial-plan.preview.json
+    - experiments/EXP-MONO-1a1be2/implementation/environment.json
+  write_scope:
+    - experiments/EXP-MONO-1a1be2/code
+    - experiments/EXP-MONO-1a1be2/implementation
+  archived_by: TASK-20261029-02a714
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    reasoning_effort_note: null means the policy default.
+    fallback_allowed: true
+    fallback_note: Backend or model substitution only, recorded as fallback_used. Never Bedrock.
+    degraded_allowed: false
+    independent_session_required: false
+    independence_note: Must not be the session of the blind re-deriver TASK-20261029-3ac467.
+    delivery: interactive
+  budget:
+    wall_clock_seconds: 28800
+    memory_gb: 8
+    maximum_runs: 0
+  dispatch_preconditions:
+    - {id: IP-1, text: "archived_by TASK-20261029-02a714 is bound."}
+    - {id: IP-2, text: "TASK-20261029-37675c is completed and verified, its commit pushed, and lane BATCH-c53152 open."}
+    - {id: IP-3, text: "Claim after git fetch: python3 tools/goal_lanes.py claim coordination/goals/GOAL-PATH-001/batches/BATCH-c53152/dispatch_queue.json TASK-20261029-a97206 --as <addr> --ttl-minutes 600 --publish. Release with --outcome completed and --artifact <path>=<64-hex sha256> once per declared artifact; confirm thirteen non-empty digests."}
+    - {id: IP-4, text: "May run concurrently with TASK-20261029-3ac467: write scopes are disjoint and neither commits."}
+  completion_gate:
+    - All thirteen artifact paths exist; nothing else is written.
+    - python3 -m pytest experiments/EXP-MONO-1a1be2/code/tests/test_kat.py passes in full, and kat-report.md records each KAT, its cells and its result.
+    - make_trial_plan.py regenerates trial-plan.preview.json byte-identically on a second invocation.
+    - launcher.py refuses a non-KAT cell while the specification is not approved (tested).
+    - No contract cell was computed (IM-2), and no KAT asserts a predicted value (IM-3).
+    - Zero experiment runs.
+  return_format: The thirteen paths with sha256, the KAT pass count, any scope finding, and the q_n and s_n values the generator produced for arm C. No KAT output values in the message beyond pass counts.
+  review_plan: null
+  runs_launched: 0

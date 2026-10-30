@@ -1,0 +1,5 @@
+import SplitPrime12211NearestSelector
+
+#print axioms SplitPrime12211NearestDigits.selected_le_candidate
+#print axioms SplitPrime12211NearestDigits.candidate_congruent
+#print axioms SplitPrime12211NearestDigits.selected_congruent
