@@ -249,6 +249,11 @@ not in a way that supports the generator story.
   Its partial log-Euler product is −0.998 over 3 ≤ ℓ ≤ 691 and only +0.002
   over ℓ > 691, so the first 124 odd primes carry essentially all of it.
   E(B) stays between the 0.22nd and 0.25th percentile for 691 ≤ B ≤ 5003.
+  An independent study with separate code and a frozen protocol record
+  (`crypto-autoresearcher:research/nist_seed_l1chi_20261030/`) reproduces
+  it: on the 61 shared curves log L̂ at x = 10⁶ agrees to 3 × 10⁻¹⁴, and
+  prime239v1 is again at the 0.25th percentile and the lowest
+  (`CROSSCHECK.md` there).
   Over the same range, the split-count percentile rises from 0.06 to 11
   (§4). That rise is an artefact of the unweighted count, not a sign of an
   ordinary L-value.
