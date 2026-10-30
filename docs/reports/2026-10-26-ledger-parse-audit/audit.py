@@ -8,6 +8,7 @@ parse and identity checks, and agreement with the repository merge gate.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -67,6 +68,13 @@ def verified_replacement(original: Path, rows: list[dict[str, str]]) -> str | No
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path,
+                        help="create a separate new replay JSON; default: stdout")
+    args = parser.parse_args()
+    if args.output is not None and args.output.resolve() == OUT.resolve():
+        parser.error("the committed evidence path is reserved; choose a new output")
+
     sys.path.insert(0, str(ROOT))
     from tools.check_merge_hygiene import _baseline, _retired_by_supersession
 
@@ -105,9 +113,17 @@ def main() -> None:
               "scope": "tracked and materialized ledger/**/*.yaml in the exact-main checkout",
               "baseline_entries_all_paths": len(baseline), "counts": counts,
               "malformed_originals": rows}
-    OUT.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n",
-                   encoding="utf-8")
-    print(commit, len(rows), counts)
+    text = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if args.output is None:
+        sys.stdout.write(text)
+    else:
+        try:
+            # Exclusive creation protects earlier replays and symlink targets.
+            with args.output.open("x", encoding="utf-8") as output:
+                output.write(text)
+        except OSError as exc:
+            parser.error(f"cannot create new replay output: {exc}")
+        print(commit, len(rows), counts, file=sys.stderr)
 
 
 if __name__ == "__main__":

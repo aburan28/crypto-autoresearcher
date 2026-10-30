@@ -14,7 +14,10 @@ Are these untracked current-main failures, verified retired originals, or
 disclosed legacy defects?
 
 Run `python3 docs/reports/2026-10-26-ledger-parse-audit/audit.py` from the
-repository root with PyYAML installed. The script exactly parses every ledger
+repository root with PyYAML installed. Replay JSON goes to stdout. To retain a
+new sweep separately, add `--output /path/to/new-replay.json`; that path must
+not already exist. The committed `evidence.json` is reserved and never written
+by replay. The script exactly parses every ledger
 YAML file. For each failure, it reads
 `tools/schema_supersession_registry.yaml`, checks that original and replacement
 SHA-256 digests match their pins, checks that the replacement parses and names
@@ -68,3 +71,9 @@ remains a separate, much larger obligation.
 
 This report is a derived communication artifact. Its `report.pdf` includes the
 same graph and was rendered from `report.typ`.
+
+**Replay custody correction (2026-10-30).** The original replay overwrote its
+committed evidence with current-HEAD results. The corrected script emits stdout
+or exclusively creates a separate output. The committed evidence, SVG, PDF and
+Typst source retain their original bytes and exact 2026-10-26 snapshot scope;
+new replay results do not revise those historical observations.
