@@ -42,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from orchestration.formal.cli import main as formal_main
+from orchestration.formal.lean_worker import verification_session
 from orchestration.formal.targets import load_spec, task_from_spec
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -105,35 +106,36 @@ def main(argv: list[str] | None = None) -> int:
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     outcomes: list[tuple[str, str, str]] = []
-    for spec_path in targets:
-        name = spec_path.stem
-        try:
-            task = task_from_spec(load_spec(spec_path))
-        except Exception as exc:  # a malformed spec is this gate's business
-            outcomes.append((name, NOT_VERIFIED, f"unreadable spec: {exc}"))
-            continue
+    with verification_session():
+        for spec_path in targets:
+            name = spec_path.stem
+            try:
+                task = task_from_spec(load_spec(spec_path))
+            except Exception as exc:  # a malformed spec is this gate's business
+                outcomes.append((name, NOT_VERIFIED, f"unreadable spec: {exc}"))
+                continue
 
-        theorem = REPO_ROOT / task.workspace / task.theorem_file
-        if not theorem.is_file():
-            outcomes.append((name, UNDISCHARGED, task.theorem_file))
-            continue
+            theorem = REPO_ROOT / task.workspace / task.theorem_file
+            if not theorem.is_file():
+                outcomes.append((name, UNDISCHARGED, task.theorem_file))
+                continue
 
-        receipt = artifact_dir / f"{name}.json"
-        print(f"\n=== verifying {name} ({task.theorem_name}) ===", flush=True)
-        code = formal_main(["verify", "--task-file", str(spec_path),
-                            "--artifact-out", str(receipt),
-                            "--build-timeout", str(args.build_timeout)])
-        if code == 0:
-            outcomes.append((name, VERIFIED, task.theorem_name))
-            continue
-        # The verifier puts WHY it failed in the receipt, which is an uploaded
-        # artifact nobody reads while triaging a red build. Print it.
-        reason = _explain(receipt)
-        if code == 3:
-            outcomes.append((name, INFRASTRUCTURE, reason
-                             or "toolchain failed; no mathematical conclusion"))
-        else:
-            outcomes.append((name, NOT_VERIFIED, reason or f"verifier exit {code}"))
+            receipt = artifact_dir / f"{name}.json"
+            print(f"\n=== verifying {name} ({task.theorem_name}) ===", flush=True)
+            code = formal_main(["verify", "--task-file", str(spec_path),
+                                "--artifact-out", str(receipt),
+                                "--build-timeout", str(args.build_timeout)])
+            if code == 0:
+                outcomes.append((name, VERIFIED, task.theorem_name))
+                continue
+            # The verifier puts WHY it failed in the receipt, which is an uploaded
+            # artifact nobody reads while triaging a red build. Print it.
+            reason = _explain(receipt)
+            if code == 3:
+                outcomes.append((name, INFRASTRUCTURE, reason
+                                 or "toolchain failed; no mathematical conclusion"))
+            else:
+                outcomes.append((name, NOT_VERIFIED, reason or f"verifier exit {code}"))
 
     verified = [o for o in outcomes if o[1] == VERIFIED]
     failed = [o for o in outcomes if o[1] == NOT_VERIFIED]

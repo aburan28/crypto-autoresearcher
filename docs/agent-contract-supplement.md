@@ -1,6 +1,6 @@
 # Binding specialized agent rules
 
-These rules were moved verbatim from `AGENTS.md` on 2026-10-25 to keep the always-loaded instruction and skill wake budgets within their checked limits. `AGENTS.md` links to each section and explicitly keeps it binding. If wording conflicts, `AGENTS.md` wins.
+These rules were moved from `AGENTS.md` on 2026-10-25, with relative links adjusted for this directory, to keep the always-loaded instruction and skill wake budgets within their checked limits. `AGENTS.md` links to each section and explicitly keeps it binding. If wording conflicts, `AGENTS.md` wins.
 
 ## Name the obstruction
 
@@ -8,8 +8,8 @@ When substantial research, cryptanalysis, or audit work cannot meet a proof,
 implementation, experiment, or validation requirement, **name the specific
 problem**. Before repeating the same blocked approach or handing it off, create
 or update `problems/<descriptive-slug>.md` using
-[the problem template](problems/TEMPLATE.md), add it to
-[the problem index](problems/README.md), and link it from the affected work.
+[the problem template](../problems/TEMPLATE.md), add it to
+[the problem index](../problems/README.md), and link it from the affected work.
 
 - State exactly what is blocked, under which parameters and assumptions, and
   why that gap prevents the requested conclusion. Track major or recurring

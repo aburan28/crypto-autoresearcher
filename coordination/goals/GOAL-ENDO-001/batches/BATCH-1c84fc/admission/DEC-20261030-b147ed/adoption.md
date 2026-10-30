@@ -1,0 +1,8 @@
+**PASS for candidate002’s exact bytes.** The manifest SHA256 is `060004a34566efb6edfc0b95a8e1f800ce23b09b998bd9cb2fa4391ab4b05bcd`. Both files match their declared sizes and hashes:
+
+- [DEC-20261030-b147ed.yaml](/home/ec2-user/coordinate-runtime-admission-20261028/endo-jinv-review-probe-recovery-002/ledger/decisions/DEC-20261030-b147ed.yaml:66): 6,935 bytes; SHA256 `7c87dd9946cd033297679139d99047bcbd7bb5d42a0927931a74f2f19afe11e4`.
+- [Recovery checkpoint](/home/ec2-user/coordinate-runtime-admission-20261028/endo-jinv-review-probe-recovery-002/ledger/goals/GOAL-ENDO-001/checkpoints/BATCH-1c84fc-20261030-review-probe-recovery.yaml:24): 1,971 bytes; SHA256 `c6df686beee0ff9a13612c8c414b9e2cb6cea89ec19608f4a3d0d8469bf0ce88`.
+
+The byte diff confirms exactly the two requested corrections: the DEC note now describes candidate preparation historically, and the checkpoint no longer carries `publication_status_at_record_time`. The recorded drafting timestamps and substantive one-attempt authority are unchanged. I adopt these two hashes for the bounded administrative correction; this does not admit a reviewer or verify serving capacity.
+
+**Next action:** parent publishes and reads back this exact DEC/checkpoint, refreshes source, all-ref ownership, Conductor, bindings, and no-duplicate gates, then performs at most one new 300-second task-specific independent fixed `PROBE_OK` attempt002. Receipt001’s session remains unadmitted and unusable for review. A verified attempt002 would still require a separate queue-enable and claim decision before task work.
