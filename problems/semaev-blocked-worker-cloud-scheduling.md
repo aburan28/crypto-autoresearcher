@@ -1,4 +1,18 @@
-# Blocked producer cloud source is waiting for a schedulable node
+# Blocked producer cloud source reached its scheduling deadline
+
+Update at 2026-10-30 19:59 UTC: the exact job below is terminal with
+`DeadlineExceeded` (Failed condition at 19:58:53 UTC). The
+[terminal status](../analysis/semaev-degree-five-quotient-lift/runs/blocked-worker-cloud-source-terminal-001.json)
+and [output check](../analysis/semaev-degree-five-quotient-lift/runs/blocked-worker-cloud-source-output-check-001.json)
+retain the evidence. No pod remains; the bounded log query returned empty,
+and recursive listing of this job's S3 prefix returned no objects. All
+observed pre-terminal states were unschedulable. The frozen cloud protocol
+is unfulfilled; no successful source or restore controls are claimed.
+
+The next action is capacity reconciliation after the priority frontier job
+finishes, followed by a separately frozen attempt if an admissible slot is
+available. Do not resubmit the terminal job name or remove placement guards.
+The following records the original pending state and preserves its scope.
 
 Observed 2026-10-30 after submission at 18:58:52 UTC. Job
 `semaev-blocked-worker-source-20261030-1700` has UID
