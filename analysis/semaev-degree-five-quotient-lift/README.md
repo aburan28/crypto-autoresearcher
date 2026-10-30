@@ -68,7 +68,12 @@ seven restored. All 21 completed certificates reproduce retained hashes and
 pass independent checks; a rank-4 checkpoint is covered. The
 [integration report](reports/blocked-checkpoint-001/report.md) is small-fixture
 software evidence only. The candidate has not replaced the frontier worker
-and cannot restore the old binary's checkpoints.
+and cannot restore the old binary's checkpoints. The combined candidate
+also passed all nine [actual local worker controls](reports/blocked-checkpoint-worker-001/report.md),
+including six independently checked certificates and three restored paths.
+Those controls use local storage emulation; they do not establish frontier
+admission or a cloud execution result. Its versioned cloud package has a
+separate [publication receipt](runtime/blocked-checkpoint-worker-cloud-001/publication-readback.json).
 
 The dense producer works in every monomial of degree at most five. This
 prototype first rewrites degree-five monomials using a triangular, checked
