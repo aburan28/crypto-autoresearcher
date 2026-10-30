@@ -1036,6 +1036,175 @@ def prime_field_residual_panels(ref, since):
             emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
 
 
+
+def exact_density_787704_observations(ref, since):
+    """Exact fixed-population census; neutral counts, not an attack-cost claim.
+
+    Only the two committed, small summaries are read. Missing, malformed or
+    inconsistent sources emit no gauges (unknown), never fabricated zeroes.
+    """
+    import gzip
+    import io
+    from fractions import Fraction
+
+    raw_path = "experiments/EXP-ECDLP-787704/runs/RUN-ECDLP-53b08d/summary.json.gz"
+    review_path = ("coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-f7bbdf/"
+                   "reviews/TASK-20261030-cd89e7/independent-summary.json")
+    day = "2026-10-30"
+    if day < since:
+        return
+
+    def read_committed(path, compressed=False):
+        result = subprocess.run(["git", "-C", str(REPO), "show", f"{ref}:{path}"],
+                                capture_output=True, timeout=10)
+        if result.returncode or len(result.stdout) > 2 * 1024 * 1024:
+            raise ValueError("missing/oversized committed source")
+        data = result.stdout
+        if compressed:
+            with gzip.GzipFile(fileobj=io.BytesIO(data)) as stream:
+                data = stream.read(2 * 1024 * 1024 + 1)
+        if len(data) > 2 * 1024 * 1024:
+            raise ValueError("oversized decoded source")
+        def unique(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError("duplicate JSON key")
+                value[key] = item
+            return value
+        def finite(value):
+            raise ValueError("non-finite JSON")
+        return json.loads(data, object_pairs_hook=unique, parse_constant=finite)
+
+    def count(value):
+        return type(value) is int and value >= 0
+
+    try:
+        raw = read_committed(raw_path, True)
+        review = read_committed(review_path)
+        if (not isinstance(raw, dict) or raw.get("status") != "complete"
+                or raw.get("mode") != "census" or raw.get("attack_claimed") is not False
+                or raw.get("wall_valid") is not False
+                or review.get("schema") != "independent.exact-density.full-review-summary/v1"
+                or review.get("run_id") != "RUN-ECDLP-53b08d"
+                or review.get("experiment_id") != "EXP-ECDLP-787704"
+                or review.get("no_advantage_cost_family_or_status_claim") is not True
+                or review.get("joint_verdicts") != {"J-predicate": "holds",
+                    "J-list-density-reference": "holds", "J-blinding": "holds", "J-integrity": "breaks"}):
+            return
+        curves = raw["curves"]
+        certificates = review["curve_certificates"]
+        if not isinstance(curves, list) or len(curves) != 48 or len(certificates) != 48:
+            return
+        domains = {}
+        for i, (curve, certificate) in enumerate(zip(curves, certificates)):
+            if (curve["curve_index"] != i or certificate["curve_index"] != i
+                    or not isinstance(curve["curve_id"], str) or curve["curve_id"] in domains
+                    or not count(curve["states"]) or curve["states"] == 0
+                    or certificate["curve_id"] != curve["curve_id"]
+                    or certificate["orbit_points"] != curve["states"] + 1
+                    or certificate["python_native_query_equations"] != curve["states"] + 1
+                    or not re.fullmatch(r"[0-9a-f]{64}", curve["sha256"])
+                    or certificate["state_stream_sha256"] != curve["sha256"]):
+                return
+            domains[curve["curve_id"]] = (i, curve["states"])
+        if len(raw["rows"]) != 288 or len(review["rows"]) != 288:
+            return
+        checked = {}
+        totals = {(t, e): {"successes": 0, "positive": 0, "zero": 0, "M": 0}
+                  for t in (0, 1, 2) for e in (0, 2)}
+        raw_rows = {}
+        for row in raw["rows"]:
+            key = (row["curve_id"], row["radius"], row["erasure_cap"])
+            if key in raw_rows:
+                return
+            raw_rows[key] = row
+        for row in review["rows"]:
+            key = (row["curve_id"], row["radius"], row["erasure_cap"])
+            if key in checked or key not in raw_rows or key[1:] not in totals:
+                return
+            source = raw_rows[key]
+            i, states = domains[key[0]]
+            success = row["success_numerator"]
+            size = row["sum_M"]
+            if (not count(success) or success > states or not count(size)
+                    or row["curve_index"] != i or row["states"] != states
+                    or source["states"] != states or row["arm_id"] != "circuit2.a1"
+                    or source["arm_id"] != "circuit2.a1"
+                    or row["success_denominator"] != states
+                    or row["uniform_numerator"] != size
+                    or row["uniform_denominator"] != states ** 2
+                    or source["q"] != [success, states]
+                    or source["uniform_reference"] != [size, states ** 2]
+                    or list(Fraction(success, states).as_integer_ratio()) != row["q_reduced"]
+                    or list(Fraction(size, states ** 2).as_integer_ratio()) != row["uniform_reduced"]
+                    or source["histograms"] != row["histograms"]):
+                return
+            fields = {"word_count": "words", "legal_count": "legal", "empty_count": "empty",
+                      "zero_candidate_checks": "zero_checks", "M": "sumM", "success": "successes"}
+            if any(not count(row["totals"][a]) or row["totals"][a] != source["totals"][b]
+                   for a, b in fields.items()):
+                return
+            status = row["histograms"]["status"]
+            if (any(not count(n) for n in status.values()) or sum(status.values()) != states
+                    or status.get("RECOVERED", 0) != success):
+                return
+            checked[key] = (success, states, size)
+            cell = totals[key[1:]]
+            cell["successes"] += success
+            cell["M"] += size
+            cell["positive"] += int(success > 0)
+            cell["zero"] += int(success == 0)
+        if set(checked) != {(c, t, e) for c in domains for t, e in totals}:
+            return
+        states = sum(n for _, n in domains.values())
+        if review["new_counts"] != {"new_states": states, "new_scalar_cells": states * 6,
+                                     "orbit_points_including_identity": states + len(domains)}:
+            return
+        descriptive = review["descriptive_cell_totals"]
+        if len(descriptive) != 6:
+            return
+        seen = set()
+        for cell in descriptive:
+            key = (cell["radius"], cell["erasure_cap"])
+            if key in seen or key not in totals:
+                return
+            seen.add(key)
+            exact = totals[key]
+            if (cell["curves_with_zero_q"] != exact["zero"]
+                    or cell["sum_successes"] != exact["successes"] or cell["sum_M"] != exact["M"]):
+                return
+        integrity = review["integrity"]
+        if (integrity["native_returncode"] != 0 or integrity["native_check_returncode"] != 0
+                or integrity["frozen_protocol_export_returncode"] != 1
+                or len(integrity["findings"]) != 7):
+            return
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError,
+            EOFError, subprocess.TimeoutExpired):
+        return
+
+    common = dict(date=day, problem="ecdlp-coordinate-predicate", better="neutral",
+                  source=f"{raw_path}@{ref}; {review_path}@{ref}")
+    prefix = "ecdlp.exact_density.787704"
+    for suffix, value, unit, label in [
+        ("curves", len(domains), "curves", "Fixed functions enumerated and independently reconciled"),
+        ("nonzero_states", states, "states", "Complete nonzero scalar domain; identity excluded"),
+        ("scalar_cells", states * 6, "scalar/cells", "Six dependent cells, not independent trials"),
+        ("orbit_points", states + len(domains), "points", "Orbit/query equations including all identities"),
+        ("per_curve_cell_rows", len(checked), "rows", "Exact separate q and conditional-reference laws"),
+        ("export_findings", len(integrity["findings"]), "findings", "Open historical frozen export defects; no mathematical verdict")]:
+        emit(prefix + "." + suffix, value, unit=unit, label=label, **common)
+    for (radius, cap), cell in sorted(totals.items()):
+        cell_id = f"t{radius}.e{cap}"
+        for suffix, value, unit, label in [
+            ("curves_positive_q", cell["positive"], "curves", "Curves with exact q > 0; no transfer claim"),
+            ("curves_zero_q", cell["zero"], "curves", "Curves with exact q = 0; tested functions only"),
+            ("successful_states_sum", cell["successes"], "states", "Descriptive sum; not a pooled probability"),
+            ("list_sizes_sum", cell["M"], "scalars", "Sum of retained nonzero list sizes; not primitive work")]:
+            emit(prefix + "." + cell_id + "." + suffix, value, unit=unit,
+                 label=f"{cell_id}: {label}", **common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -1057,6 +1226,7 @@ def main():
     p256_factor_base_pass2_preparation(a.ref, a.since)
     prime_field_fixed_panels(a.ref, a.since)
     prime_field_residual_panels(a.ref, a.since)
+    exact_density_787704_observations(a.ref, a.since)
 
 
 if __name__ == "__main__":
