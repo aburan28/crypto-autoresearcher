@@ -49,7 +49,11 @@ nine original n45 inputs. The next input, `fresh-n45-poly-01`, has a frozen
 local protocol. Its first admission returned 73 before worker creation:
 35.68 GB available was below the 40 GiB cap plus 2 GiB reserve. The
 [refusal report](reports/panel-local-n45-poly01-refusal-001/report.md) retains
-the outcome; the original input remains uncomputed. No new draw is made.
+the outcome. After headroom returned, a separately frozen continuation
+`fresh-n45-poly-01-local02` passed the unchanged cap and reserve, acquired
+both locks, passed controls and freshly counted zero solutions. Its D4
+producer is active; [closed startup records](validation/panel-local-n45-poly01-progress-002/manifest.json)
+do not constitute a completed certificate. No new draw is made.
 
 The next original unfinished high-memory item is n47 random02. Its
 [read-only dimension profile](reports/rand02-envelope-001/report.md) gives
