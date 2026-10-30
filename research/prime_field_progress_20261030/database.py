@@ -41,6 +41,11 @@ CREATE TABLE target_rows (
  case_id TEXT NOT NULL REFERENCES target_cases,row_index INTEGER NOT NULL,coefficients_json TEXT NOT NULL,
  offset TEXT NOT NULL,target_coefficient TEXT NOT NULL,witness_json TEXT NOT NULL,PRIMARY KEY(case_id,row_index)
 );
+CREATE TABLE target_isolated_certificates (
+ case_id TEXT PRIMARY KEY REFERENCES target_cases,multiplier TEXT NOT NULL,augmented_rank INTEGER NOT NULL,
+ remaining_base_nullity INTEGER NOT NULL,public_multiplier_source_matches_json TEXT NOT NULL,
+ certificate_json TEXT NOT NULL,source_path TEXT NOT NULL REFERENCES sources
+);
 CREATE VIEW subset_rank_summary AS
  SELECT c.b,s.case_id,s.arm,s.h,s.status,s.attempts,s.witnesses,s.unique_equations,s.new_rank,s.old_rank,s.combined_rank,s.rank_gain
  FROM subset_cells s JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid);
@@ -50,8 +55,9 @@ CREATE VIEW target_recovery_summary AS
  FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid);
 CREATE VIEW isolated_target_summary AS
  SELECT c.b,t.target_index,t.first_single_attempt,t.old_rank+1 AS isolated_augmented_rank,
- t.old_nullity AS remaining_base_nullity
+ t.old_nullity AS remaining_base_nullity,i.multiplier,i.public_multiplier_source_matches_json
  FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid)
+ LEFT JOIN target_isolated_certificates i ON i.case_id=t.id
  WHERE t.status='verified' AND t.first_single_attempt IS NOT NULL;
 CREATE VIEW target_partial_score_summary AS
  SELECT c.b,t.target_index,t.old_rank,t.augmented_rank,
@@ -164,10 +170,22 @@ def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out,derived_sources=()):
                         for i,row in enumerate(value['rows']):
                             v,b=project(row,value['projection'],fixture['r'])
                             c.execute('INSERT INTO target_rows VALUES (?,?,?,?,?,?)',(ident,i,encode(v),str(b),str(row['target_coefficient']),encode(row)))
+        for path in derived_sources:
+            record=load(path)
+            if record.get('schema')!='prime-field-derived-isolated-target-certificates/v1':continue
+            if d1_run is None or record['source_export_sha256']!=digest(d1_run/'export.json') or record['inputs_sha256']!=digest(d1_inputs):
+                raise ValueError('isolated certificate provenance differs')
+            for item in record['cases']:
+                certificate=item['isolated']
+                if certificate is None:continue
+                case_id,scalar,rank,nullity=c.execute('SELECT t.id,t.scalar,t.old_rank,t.old_nullity FROM target_cases t JOIN bases b USING(base_sha256) WHERE b.fixture_uid=? AND t.target_index=?',(item['fixture_uid'],item['target_index'])).fetchone()
+                if str(certificate['scalar'])!=scalar or certificate['augmented_rank']!=rank+1 or certificate['remaining_base_nullity']!=nullity:
+                    raise ValueError('isolated certificate/native result differs')
+                c.execute('INSERT INTO target_isolated_certificates VALUES (?,?,?,?,?,?,?)',(case_id,str(certificate['multiplier']),certificate['augmented_rank'],nullity,encode(certificate['public_multiplier_source_matches']),encode(certificate),str(path.resolve().relative_to(ROOT))))
         if c.execute('PRAGMA foreign_key_check').fetchall():raise ValueError('derived database foreign key failure')
         c.commit()
         if c.execute('PRAGMA integrity_check').fetchone()!=('ok',):raise ValueError('derived database integrity failure')
-        return {table:c.execute('SELECT COUNT(*) FROM '+table).fetchone()[0] for table in ('curves','bases','executions','equations','cover_frames','subset_cells','subset_rows','target_cases','target_rows','sources')}
+        return {table:c.execute('SELECT COUNT(*) FROM '+table).fetchone()[0] for table in ('curves','bases','executions','equations','cover_frames','subset_cells','subset_rows','target_cases','target_rows','target_isolated_certificates','sources')}
     except BaseException:
         c.close();out.unlink(missing_ok=True);raise
     finally:c.close()

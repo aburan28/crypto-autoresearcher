@@ -58,6 +58,14 @@ def build(run,inputs):
                 if multiply(fixture['p'],0,fixture['a'],certificate['scalar'],tuple(fixture['P']))!=tuple(value['target']):
                     raise ValueError('target scalar fails separate public point multiplication')
                 certificate.update(target_row_index=j,attempt=accepted[j],old_kernel_syndrome=list(base.identify(vector).syndrome),public_point_checked=True)
+                t=row['target_coefficient'];multiple=multiply(fixture['p'],0,fixture['a'],t,tuple(value['target']));matches=[]
+                for s in definition['source_order']:
+                    public=multiply(fixture['p'],0,fixture['a'],s,tuple(fixture['P']))
+                    if multiple==public:matches.append(dict(public_source_scalar=s,sign=1))
+                    if multiple==(public[0],-public[1]%fixture['p']):matches.append(dict(public_source_scalar=s,sign=-1))
+                certificate.update(multiplier=t,public_multiple=None if multiple is None else list(multiple),
+                    public_multiplier_source_matches=matches,
+                    multiplier_match_scope='Post-hoc public-point diagnostic; target recipe/primary result unchanged, no target filtering. A known-source collision is not evidence of a new descent mechanism.')
                 result['isolated']=certificate;break
             if (result['isolated'] is None)!=(value['first_single_recovery'] is None):raise ValueError('native isolated result differs')
             if result['isolated'] is not None and any(result['isolated'][k]!=value['first_single_recovery'][k] for k in ('attempt','scalar')):

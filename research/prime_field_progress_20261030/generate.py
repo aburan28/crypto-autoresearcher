@@ -74,6 +74,7 @@ def main():
         sql_isolated_ranks_equal_unit_certificates=True,target_coincidences=target_summary,
         files=[info(path) for path in files],database=db_encoding,partial_encoding=partial_encoding,
         isolated_certificates=sum(v['isolated'] is not None for v in isolated['cases']),
+        isolated_cases_with_public_multiplier_collision=sum(bool(v['isolated'] and v['isolated']['public_multiplier_source_matches']) for v in isolated['cases']),
         scope='Two fixed p4099 curves; original v2 history preserved, one new B2 and one D1 native panel. Post-hoc certificates/cancellation add no native execution or scientific review. No complete S, novelty, holdout result, speedup or official status promotion.')
     write(out/'generation.json',receipt)
     store=[str(path.relative_to(ROOT)) for path in (archive,isolated_path,partial_path) if path.stat().st_size>65536]

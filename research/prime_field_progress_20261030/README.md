@@ -92,6 +92,16 @@ database's source registry with repeated `--derived-source PATH`, and check
 the view against the retained dense-oracle result before publishing the
 generation receipt. These derived checks add no physical native execution.
 
+An additional post-hoc diagnostic compares the successful isolated row's
+public multiple [t]Q directly with all signed known sources [s]P. It uses public
+point multiplication, not a recovered scalar, and retains every target. A
+collision explains that individual recovery as an elementary public-multiple
+match; the certificate alone is not evidence of a new descent method or cost
+advantage. This diagnostic was added after individual successes were observed,
+and is separate from the prospective target/base/direct-source coincidence
+policy. `target_isolated_certificates` retains its full certificate and matches;
+`isolated_target_summary` exposes them alongside remaining base nullity.
+
 `generate.py` performs the complete publication generation into a fresh
 directory after both native panels are sealed. It requires committed,
 unchanged analysis sources, produces isolated certificates and target-partial
