@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifacts  # noqa: E402
 
 STEP_NAME = "Pull store data this workflow reads (tools/artifacts)"
+NO_PULL_ANNOTATION = "# artifact-store: no-pull"
 PATH_RE = re.compile(r"(?<![A-Za-z0-9_./-])((?:[A-Za-z0-9_+-][A-Za-z0-9_.+-]*/)+[A-Za-z0-9_.+*-]*)")
 
 
@@ -48,11 +49,12 @@ def moved_paths(root: Path) -> set[str]:
 def needed(text: str, moved: set[str], dirs: set[str]) -> list[str]:
     """Paths the workflow names that are, or contain, moved files; minimal cover."""
     found = set()
-    for m in PATH_RE.finditer(text):
+    # Documentation comments do not make a job consume the referenced path.
+    active_text = "\n".join(line for line in text.splitlines()
+                            if not line.lstrip().startswith("#"))
+    for m in PATH_RE.finditer(active_text):
         p = m.group(1).split("*", 1)[0].rstrip("/.")
-        while p and p not in moved and p not in dirs:
-            p = p.rsplit("/", 1)[0] if "/" in p else ""
-        if p:
+        if p in moved or p in dirs:
             found.add(p)
     return sorted(p for p in found if not any(p.startswith(q + "/") for q in found))
 
@@ -97,6 +99,11 @@ def explicitly_pulled_and_verified(text: str, paths: list[str]) -> bool:
                        for verb in ("pull", "verify")):
                 return False
     return seen == set(paths)
+
+
+def metadata_only(text: str) -> bool:
+    """Whether the workflow documents that it never reads stored file bytes."""
+    return any(line.strip().startswith(NO_PULL_ANNOTATION) for line in text.splitlines())
 
 
 def step_lines(indent: str, paths: list[str]) -> list[str]:
@@ -154,6 +161,12 @@ def wire(text: str, paths: list[str]) -> tuple[str, list[str]]:
             continue
         if any(re.match(rf"^{indent}    path: ", b) for b in block):
             notes.append("checkout into a `path:` left unwired")
+            out.extend(block)
+            i = j
+            continue
+        # CI scope detection checks out only .github/scripts and never reads
+        # moved data. A hydration step there cannot even access artifacts.py.
+        if any(b.strip() == "sparse-checkout: .github/scripts" for b in block):
             out.extend(block)
             i = j
             continue
@@ -222,6 +235,10 @@ def main() -> int:
     missing = 0
     for f in files:
         text = f.read_text()
+        # Keep metadata-only checks usable on fork PRs without private S3
+        # credentials. Content consumers still require a pull and verify.
+        if metadata_only(text):
+            continue
         paths = needed(text, moved, dirs)
         if not paths:
             continue
