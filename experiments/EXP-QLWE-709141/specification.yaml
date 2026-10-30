@@ -1,0 +1,186 @@
+# EXPERIMENT CONTRACT -- EXP-QLWE-709141 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-QLWE-709141
+  hypothesis_id: H-QLWE-384be7
+  derived_from_idea: IDEA-20261018-be26e5
+  question_id: RQ-QLWE-1c4a3b
+  goal_id: GOAL-QLWE-291164
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Exact toy enumeration of Simon's Lemma-3 amplitude gap
+  objective: Whether the signed C terms cancel at toy size and whether any bias toward d_n
+    survives
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: Python/NumPy exact enumeration; optional Qiskit statevector cross-check at
+      n=6
+    parameters: >-
+      n in {6,8,10}; c in {1,2,3}; groups a = ceil(n/log2 n); 200 random secrets per cell;
+      faulty-sample rate 0
+    procedure: >-
+      1. Freeze transcription of steps 1-5 of the erasure procedure. 2. Enumerate subset sums
+      per group. 3. Compute C_z and A-side counts. 4. Compute R and exact h* bias. 5. Run
+      random-sign null and Regev-oracle positive control.
+  controls:
+  - >-
+    null/negative: replace the C weights with i.i.d. random signs of the same magnitudes (pure
+    cancellation baseline)
+  - >-
+    positive: Regev's oracle erasure (subset-sum preimage known), which must give bias near
+    1/2 toward d_n i.e. Pr ~ 1
+  - 'A/A: same configuration with two independent secret-sampling seed blocks'
+  independent_variables:
+  - erasure_rule
+  - bit_length_n
+  metrics:
+    primary:
+    - mean R
+    - bias of h* toward d_n
+    secondary:
+    - bias vs c trend
+    - post-selection success probability
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: bias at n=10
+    formula: '|Pr[h*=d_n]-1/2| <= 0.05'
+    source: no-go claim in KN-LIT-3b271a
+  scale_relevance:
+    tier: toy
+    justification: 'n<=10 bits, c<=3; transfer assumption: sign structure of C is not reversed
+      by larger c'
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 6
+    maximum_memory_gb: 16
+    maximum_runs: 27
+  stopping_rules:
+  - stop when all 9 (n,c) cells done
+  - stop at n where enumeration exceeds 16 GB; record ceiling
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - Positive control Pr < 0.9 invalidates
+  - A/A bias difference > 0.03 invalidates the n=10 reading
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    C1 shows Simon bias <= 0.05 while oracle bias >= 0.4 and C2 shows Simon indistinguishable
+    from random-sign null (P1, P2), with AA1 as noise floor
+  falsification_criterion: C2 shows Simon bias exceeds the null by >= 0.15 at n=10 and R >=
+    0.5 (P1 and P2 falsified)
+  decision_impact:
+    on_positive: >-
+      Record Lemma 3 as not established as written at toy size with the measured R, citing
+      KN-LIT-3b271a as consistent
+    on_negative: >-
+      Record that toy evidence does not contradict Lemma 3 and escalate the step to full proof
+      reading before any verdict
+  variable_ledger:
+    independent:
+    - name: erasure_rule
+      levels:
+      - simon_hadamard_postselect
+      - regev_subset_sum_oracle
+      - random_sign_null
+    - name: bit_length_n
+      levels:
+      - '6'
+      - '8'
+      - '10'
+    factors:
+    - name: secret_seed_block
+      treatment: randomized
+      value: two blocks of 100 secrets
+      how: rng seeds 100-199 vs 200-299
+    - name: group_exponent_c
+      treatment: crossed
+      value: 1,2,3
+      how: full cross
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - simon_hadamard_postselect
+      - regev_subset_sum_oracle
+      differs_in:
+      - erasure_rule
+      design: one_factor
+    - id: C2
+      arms:
+      - simon_hadamard_postselect
+      - random_sign_null
+      differs_in:
+      - erasure_rule
+      design: one_factor
+    - id: AA1
+      arms:
+      - simon block A
+      - simon block B
+      differs_in:
+      - secret_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-be26e5.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-be26e5.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml (frozen protocol, tool versions, seeds, git commit)
+  - raw-result.json (per-trial records)
+  - R_and_bias_table.csv
+  - transcription.md
+  - report.pdf with R histogram and bias-vs-n plot
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-QLWE-709141/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-be26e5.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

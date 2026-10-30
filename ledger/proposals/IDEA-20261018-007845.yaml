@@ -1,0 +1,137 @@
+# IDEA RECORD -- IDEA-20261018-007845
+# RQ-SLHDSA-001 / GOAL-SLHDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-007845
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Compressed ADRS and shared SHA-256 midstate: exhaustive tweak-injectivity census of SHA2
+    versus SHAKE over every reachable address
+  class: control
+  claim: >-
+    In the SHA2 instantiation the 32-byte ADRS is compressed to 22 bytes and PK.seed is padded
+    to one block so every call shares a precomputed midstate; in SHAKE the full ADRS is absorbed.
+    Over every address a reduced-parameter signer can reach (h in {8,12}, d in {2,4}, k up
+    to 14, a up to 6, len up to 35), the compressed encoding is injective on reachable addresses
+    with zero collisions, but there exist (type, field) combinations whose compressed images
+    coincide with images from other types when unreachable fields are populated; the reachable/unreachable
+    boundary is the whole safety argument and can be checked exhaustively.
+  mechanism: >-
+    Domain separation in tweakable hashing is only as good as the injectivity of the tweak
+    encoding over the addresses the signer actually uses. Compression drops high bytes of
+    layer and tree address and keeps type; if a field exceeds its compressed width in some
+    parameter set, two distinct logical calls share a tweak. The shared midstate means the
+    PK.seed block contributes nothing per call, so domain separation rests entirely on the
+    compressed ADRS bytes. An exhaustive census at reduced sizes and an analytic width check
+    at FIPS 205 sizes decide whether any set is near the boundary.
+  tracked_object: >-
+    Set of (encoding, reachable address) pairs mapped to encoded tweak bytes; number of collisions
+    and minimum headroom (bits) between field values used and field width, per parameter set.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-7077
+    provenance: kb
+    claim: >-
+      framework defines tweakable hashes and ADRS; this checks encoding injectivity over reachable
+      addresses for both instantiations
+    verified_by: knowledge/literature/KN-LIT-7077.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      NIST FIPS 205 (2024), Stateless Hash-Based Digital Signature Standard (recalled, not
+      read by this program)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: collisions among reachable compressed tweaks
+    direction: lower
+    minimum_effect: 0 at every reduced set
+    falsified_by: any collision
+  - id: P2
+    metric: minimum headroom bits over FIPS 205 sets (analytic)
+    direction: higher
+    minimum_effect: '>= 8 bits for every field'
+    falsified_by: a field with headroom under 8 bits
+  - id: P3
+    metric: collisions when unreachable fields are populated
+    direction: higher
+    minimum_effect: '>= 1 cross-type collision found'
+    falsified_by: none found in exhaustive sweep
+  minimal_test:
+    design: >-
+      Enumerate every hash call of a full keygen plus 2^12 signatures at reduced parameters
+      for both encodings; hash the encoded tweak bytes into a set and count duplicates; compute
+      headroom analytically for all 12 FIPS 205 sets.
+    controls:
+    - 'null: full uncompressed ADRS with SHAKE, where collisions must be zero by construction'
+    - 'positive: planted bug truncating tree address to 4 bytes, where collisions must appear'
+    - 'A/A: SHA2 census under two seed blocks of signed messages'
+  falsification_conditions:
+  - any reachable collision under the standard encoding
+  - positive control fails to produce collisions
+  confounders:
+  - incomplete enumeration of reachable addresses
+  - implementation of compression from secondary sources
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate. Headroom check at FIPS 205 sizes is analytic,
+    not exhaustive.
+  - >-
+    Addresses domain separation only; says nothing about the compression-function security
+    of SHA-256.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      Enumeration of keygen plus 2^12 signatures covers all address types and field ranges
+      up to the reduced tree sizes
+    rigorous_support: full keygen enumerates every tree node
+    validation_plan: coverage table by type and field
+  target_complexity:
+    time_exponent: enumeration O(2^h * len * d)
+    memory_exponent: O(set size)
+    best_known: no known attack; domain separation assumed in proofs
+    hidden_overhead: none
+    tradeoff_note: none
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-7077
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        framework defines tweakable hashes and ADRS; this checks encoding injectivity over
+        reachable addresses for both instantiations
+    internal_neighbours:
+    - IDEA-20260816-466631
+    - IDEA-20260813-945a67
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-SLHDSA-a9f291
+    experiment_id: EXP-SLHDSA-8ada4e
