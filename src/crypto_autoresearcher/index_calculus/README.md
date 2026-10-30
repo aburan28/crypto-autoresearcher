@@ -15,7 +15,15 @@ target-aware Prym collector, and optional Dickson stage diagnostics. These are
 software-tested interfaces. The [symmetry iteration](../../../research/prime_field_symmetries_20261029/README.md)
 now records the first admitted fixed P-256 C1 panel (all seven cases complete),
 a typed base/action catalog, complete target-branch replay, affine translation
-frames and a reusable operator prototype. The B1/A1/D1 panels remain unexecuted.
+frames and a reusable operator prototype. Completed fixed prime-field panels
+include [B1 zero completion](../../../research/prime_field_b1_execution_20261029/RESULTS.md),
+[B2 matched shifted covers and D1 targets](../../../research/prime_field_b2_execution_20261030/RESULTS.md),
+[A1 residual cancellation](../../../research/prime_field_a1_execution_20261030/RESULTS.md),
+and [A2 norm completion](../../../research/prime_field_a2_execution_20261030/RESULTS.md).
+The [A3 direct three-sum comparison](../../../research/prime_field_a3_execution_20261030/RESULTS.md)
+now records exact enumeration/pair-table agreement on both original p4099 curves,
+with complete separate replay and stage accounting. These small fixed panels
+do not establish larger-field transfer or a complete attack-cost advantage.
 
 ## Layout
 
