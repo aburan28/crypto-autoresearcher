@@ -1,13 +1,39 @@
 """Run a source-bound paired zero-completion stream after canonical admission."""
 import argparse
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
+from time import perf_counter, process_time
 
 import prym_completion as producer
 from check_prym import check
 from crypto_autoresearcher.index_calculus.execution_gate import admit
 from crypto_autoresearcher.index_calculus.relation_quality import AffineRelations
+
+
+def write_once(path, value):
+    with path.open('x') as stream:
+        json.dump(value, stream, indent=2)
+        stream.write('\n')
+
+
+def phase(journal, fixture, arm, name, operation):
+    """Keep diagnostic collection/replay cost and every failure separately."""
+    started = datetime.now(timezone.utc).isoformat()
+    wall, cpu = perf_counter(), process_time()
+    record = dict(curve_uid=fixture['uid'], arm=arm, phase=name, started_at=started,
+                  wall_valid=False, status='complete')
+    try:
+        return operation()
+    except BaseException as error:
+        record.update(status='failed', error_type=type(error).__name__, error=str(error))
+        raise
+    finally:
+        record.update(finished_at=datetime.now(timezone.utc).isoformat(),
+                      wall_seconds=perf_counter()-wall, cpu_seconds=process_time()-cpu)
+        with journal.open('a') as stream:
+            stream.write(json.dumps(record, sort_keys=True)+'\n')
 
 
 def main():
@@ -20,7 +46,7 @@ def main():
     if args.out.exists():
         raise ValueError('output directory already exists')
     here = Path(__file__).resolve().parent
-    admit(producer.ROOT, args.protocol, args.inputs,
+    admission = admit(producer.ROOT, args.protocol, args.inputs,
           [Path(__file__), here/'prym_completion.py', producer.OLD/'relations.py',
            producer.OLD/'arithmetic.py', producer.OLD/'independent.py',
            producer.OLD/'census.py',
@@ -32,6 +58,7 @@ def main():
           {'arms': ['historical_nonzero', 'completed_zero']}, args.release)
     data = json.loads(args.inputs.read_text())
     args.out.mkdir(parents=True)
+    write_once(args.out/'admission.json', admission)
     for fixture in data['fixtures']:
         sources = fixture['width_binding']['source_order']
         baseline = None
@@ -42,8 +69,9 @@ def main():
                     events.write(json.dumps(record, sort_keys=True)+'\n')
                     events.flush()
                 try:
-                    result = producer.collect(fixture, sources, event, include_zero=zero,
-                                              capability=producer._NATIVE_CAPABILITY)
+                    result = phase(args.out/'phases.jsonl', fixture, arm, 'collection',
+                        lambda: producer.collect(fixture, sources, event, include_zero=zero,
+                                                 capability=producer._NATIVE_CAPABILITY))
                 except BaseException as error:
                     event(dict(kind='failure', error_type=type(error).__name__, error=str(error), complete=False))
                     raise
@@ -57,11 +85,13 @@ def main():
                     old.add(*project(row, baseline['projection'], fixture['r']))
                 result['old_kernel_syndromes'] = [list(old.identify(project(row, result['projection'], fixture['r'])[0]).syndrome)
                                                  for row in result['rows']]
-            result['verification'] = check(fixture, sources, result)
             result['inputs_sha256'] = sha256(args.inputs.read_bytes()).hexdigest()
-            with (args.out/(stem+'.json')).open('x') as stream:
-                json.dump(result, stream, indent=2)
-                stream.write('\n')
+            # Replay can fail or be interrupted: the complete collected stream
+            # already exists, independently of a later verification artifact.
+            write_once(args.out/(stem+'.json'), result)
+            verification = phase(args.out/'phases.jsonl', fixture, arm, 'verification',
+                                 lambda: check(fixture, sources, result))
+            write_once(args.out/(stem+'.verification.json'), verification)
     return 0
 
 

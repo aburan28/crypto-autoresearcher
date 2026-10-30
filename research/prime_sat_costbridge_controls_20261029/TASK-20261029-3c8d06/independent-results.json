@@ -1,0 +1,3714 @@
+{
+  "schema": "prime-controls-independent-execution/v1",
+  "actor": "independent_reviewer",
+  "task_id": "TASK-20261029-3c8d06",
+  "recorded_at": "2026-10-30T00:48:27.840906+00:00",
+  "attempts": [
+    {
+      "cwd": "/home/ec2-user/crypto-prime-sat-ideas-20261029",
+      "environment": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "source_sha256_before": {
+        "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+        "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+        "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+        "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+        "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+      },
+      "invocation": 1,
+      "kind": "independent_fixed_suite",
+      "argv": [
+        "/home/ec2-user/prime-sat-research-venv/bin/python",
+        "-B",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py",
+        "--receipt",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/independent-results.json"
+      ],
+      "started_at": "2026-10-30T00:48:27.121677+00:00",
+      "harness_source_sha256": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733",
+      "harness_source_text": "\"\"\"Independent, fixed software assertions for TASK-20261029-3c8d06.\n\nNo solver, experiment, benchmark, sweep, or arithmetic UNSAT certification.\nThe permitted tiny exhaustive oracles apply only to frozen fixtures.\n\"\"\"\nimport argparse\nimport contextlib\nimport copy\nimport datetime\nimport hashlib\nimport importlib.util\nimport io\nimport json\nimport os\nfrom pathlib import Path\nimport platform\nimport subprocess\nimport sys\nimport unittest\n\n\nTASK = \"TASK-20261029-3c8d06\"\nROOT = Path(__file__).resolve().parents[3]\nSELF = Path(__file__).resolve()\nPYTHON = \"/home/ec2-user/prime-sat-research-venv/bin/python\"\nOLD = \"research/prime_sat_costbridge_20261029/\"\nNEW = \"research/prime_sat_costbridge_controls_20261029/\"\nEXPECTED = {\n    OLD + \"reference.py\": \"a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad\",\n    OLD + \"check_reference.py\": \"af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e\",\n    OLD + \"test_reference.py\": \"7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883\",\n    OLD + \"unit-test-results.json\": \"10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3\",\n    NEW + \"prefix_cover.py\": \"10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c\",\n}\nREGRESSION = [PYTHON, \"-B\", \"-m\", \"unittest\", \"discover\", \"-s\",\n              OLD.rstrip(\"/\"), \"-p\", \"test_reference.py\", \"-v\"]\nASSERTIONS = []\nOBSERVATIONS = []\nMUTANTS = []\nreference = checker = cover = None\n\n\ndef sha_bytes(value):\n    return hashlib.sha256(value).hexdigest()\n\n\ndef canonical_digest(value):\n    return sha_bytes(json.dumps(value, separators=(\",\", \":\"), sort_keys=True).encode(\"utf-8\"))\n\n\ndef source_hashes():\n    return {name: sha_bytes((ROOT / name).read_bytes())\n            for name in [*EXPECTED, str(SELF.relative_to(ROOT))]}\n\n\ndef utc():\n    return datetime.datetime.now(datetime.timezone.utc).isoformat()\n\n\ndef load_target(name, relative):\n    spec = importlib.util.spec_from_file_location(name, ROOT / relative)\n    module = importlib.util.module_from_spec(spec)\n    spec.loader.exec_module(module)\n    return module\n\n\ndef on_curve(point, spec):\n    x, y = point\n    return (y * y - (x * x + spec[\"a\"]) * x - spec[\"b\"]) % spec[\"p\"] == 0\n\n\ndef elementary_add(left, right, spec):\n    \"\"\"Ordinary group law, independently written; inversion uses Fermat.\"\"\"\n    p = spec[\"p\"]\n    if left is None:\n        return right\n    if right is None:\n        return left\n    x1, y1 = left\n    x2, y2 = right\n    if x1 == x2 and (y1 + y2) % p == 0:\n        return None\n    if left == right:\n        numerator, denominator = 3 * x1 * x1 + spec[\"a\"], 2 * y1\n    else:\n        numerator, denominator = y2 - y1, x2 - x1\n    slope = numerator * pow(denominator % p, p - 2, p) % p\n    third_x = (slope ** 2 - x1 - x2) % p\n    third_y = (y1 + slope * (third_x - x1)) % p\n    return third_x, (-third_y) % p\n\n\ndef fixed_group_oracle(spec):\n    \"\"\"Used only for the single fixed p=17 case; no parameter sweep.\"\"\"\n    left = [(x, y) for x in spec[\"D1\"] for y in range(spec[\"p\"])\n            if on_curve((x, y), spec)]\n    right = [(x, y) for x in spec[\"D2\"] for y in range(spec[\"p\"])\n             if on_curve((x, y), spec)]\n    target = tuple(spec[\"target\"])\n    return sorted({(P[0], Q[0]) for P in left for Q in right\n                   if elementary_add(P, Q, spec) == target})\n\n\nclass FixedAssertions(unittest.TestCase):\n    def same(self, name, actual, expected):\n        passed = actual == expected\n        ASSERTIONS.append({\"test\": self.id(), \"assertion\": name,\n                           \"outcome\": \"holds\" if passed else \"breaks\",\n                           \"actual\": actual, \"expected\": expected})\n        self.assertEqual(actual, expected, name)\n\n    def truth(self, name, actual):\n        self.same(name, bool(actual), True)\n\n    def accepted(self, name, spec, result):\n        outcome = checker.verify(spec, result)\n        self.same(name, outcome[\"valid\"], True)\n        OBSERVATIONS.append({\"name\": name, \"mutant\": False, \"checker\": outcome})\n        return outcome\n\n    def rejected(self, name, spec, result, finding):\n        outcome = checker.verify(spec, result)\n        self.same(name + \".valid\", outcome[\"valid\"], False)\n        self.same(name + \".exact_finding\", outcome[\"findings\"], [finding])\n        OBSERVATIONS.append({\"name\": name, \"mutant\": False, \"checker\": outcome,\n                             \"artifact_sha256\": canonical_digest(result)})\n        return outcome\n\n    def test_01_false_nonroot_isolation(self):\n        spec = dict(p=5, a=1, b=1, target=[0, 1], D1=[2], D2=[])\n        result = reference.solve(spec)\n        self.accepted(\"false_nonroot.positive\", spec, result)\n        self.same(\"false_nonroot.f2\", (2 ** 3 + 2 + 1) % 5, 1)\n        self.same(\"false_nonroot.positive_pairs\", result[\"projected_pairs\"], [])\n        self.same(\"false_nonroot.positive_witnesses\", result[\"witnesses\"], [])\n        self.same(\"false_nonroot.root_row\", result[\"lift_records\"],\n                  [{\"x\": 2, \"kind\": \"square\", \"roots\": [1, 4]}])\n        self.same(\"false_nonroot.Z\", result[\"setup\"][\"nonresidue\"], 2)\n        bad = copy.deepcopy(result)\n        bad[\"lift_records\"] = [{\"x\": 2, \"kind\": \"nonsquare\", \"twisted_root\": 1}]\n        self.same(\"false_nonroot.digest_unchanged\", bad[\"input_sha256\"], canonical_digest(spec))\n        self.same(\"false_nonroot.projected_equality_cannot_distinguish\",\n                  (bad[\"projected_pairs\"], bad[\"witnesses\"], spec[\"D2\"]), ([], [], []))\n        self.rejected(\"false_nonroot.original_rejection\", spec, bad, \"invalid nonroot certificate\")\n        source = (ROOT / (OLD + \"check_reference.py\")).read_text()\n        before = '_require(value != 0 and w != 0 and w*w % p == z*value % p, \"invalid nonroot certificate\")'\n        after = '_require(True, \"invalid nonroot certificate\")'\n        self.same(\"false_nonroot.mutant_exactly_one_guard\", source.count(before), 1)\n        weakened = source.replace(before, after)\n        namespace = {\"__name__\": \"independent_nonroot_guard_mutant\"}\n        exec(compile(weakened, \"<mutant_nonroot_guard_only>\", \"exec\"), namespace)\n        mutant_outcome = namespace[\"verify\"](spec, bad)\n        patch = \"-\" + before + \"\\n+\" + after + \"\\n\"\n        MUTANTS.append({\"id\": \"nonroot_guard_only\", \"mutant\": True,\n                        \"original_source_sha256\": sha_bytes(source.encode()),\n                        \"mutant_source_sha256\": sha_bytes(weakened.encode()),\n                        \"patch_text\": patch, \"patch_sha256\": sha_bytes(patch.encode()),\n                        \"negative_artifact_sha256\": canonical_digest(bad),\n                        \"observed_checker_output\": mutant_outcome,\n                        \"certification\": False,\n                        \"meaning\": \"Guard-necessity control only; weakened acceptance is not certification.\"})\n        self.same(\"false_nonroot.mutant_only_acceptance\", mutant_outcome[\"valid\"], True)\n\n    def test_02_rehashed_input_guards(self):\n        base = dict(p=5, a=1, b=1, target=[0, 1], D1=[], D2=[])\n        zero_base = dict(p=7, a=1, b=0, target=[1, 3], D1=[], D2=[])\n        cases = [\n            (\"duplicate\", base, {\"D1\": [0, 0]}, \"duplicate domain coordinate\"),\n            (\"singular\", base, {\"a\": 0, \"b\": 0}, \"singular curve\"),\n            (\"offcurve\", base, {\"target\": [0, 2]}, \"point off curve\"),\n            (\"zero_ordinate\", zero_base, {\"target\": [0, 0]}, \"target has zero ordinate\"),\n        ]\n        for label, valid_spec, mutation, finding in cases:\n            with self.subTest(case=label):\n                result = reference.solve(valid_spec)\n                self.accepted(\"rehash.\" + label + \".base\", valid_spec, result)\n                malformed = copy.deepcopy(valid_spec)\n                malformed.update(mutation)\n                result[\"input_sha256\"] = canonical_digest(malformed)\n                independent_encoding = json.dumps(malformed, sort_keys=True, separators=(\",\", \":\")).encode()\n                self.same(\"rehash.\" + label + \".digest_matches\",\n                          result[\"input_sha256\"], hashlib.sha256(independent_encoding).hexdigest())\n                self.rejected(\"rehash.\" + label, malformed, result, finding)\n                raised = None\n                try:\n                    reference.solve(malformed)\n                except ValueError as error:\n                    raised = str(error)\n                self.truth(\"rehash.\" + label + \".producer_rejects\", raised is not None)\n                OBSERVATIONS.append({\"name\": \"rehash.\" + label + \".producer_error\",\n                                     \"mutant\": False, \"exception_type\": \"ValueError\", \"message\": raised})\n\n    def test_03_oncurve_sum_guards(self):\n        spec = dict(p=5, a=1, b=1, target=[0, 1], D1=[0], D2=[4])\n        result = reference.solve(spec)\n        self.accepted(\"sum.positive\", spec, result)\n        self.same(\"sum.positive_projection\", result[\"projected_pairs\"], [[0, 4]])\n        self.same(\"sum.positive_witness\", result[\"witnesses\"], [{\"P\": [0, 4], \"Q\": [4, 2]}])\n        self.same(\"sum.positive_elementary_sum\", elementary_add((0, 4), (4, 2), spec), (0, 1))\n        cases = [\n            (\"abscissa\", [0, 4], [4, 3], \"witness sum has wrong abscissa\"),\n            (\"ordinate\", [0, 1], [4, 3], \"witness sum has wrong ordinate\"),\n        ]\n        for label, P, Q, finding in cases:\n            with self.subTest(case=label):\n                self.truth(\"sum.\" + label + \".P_on_curve\", on_curve(P, spec))\n                self.truth(\"sum.\" + label + \".Q_on_curve\", on_curve(Q, spec))\n                self.same(\"sum.\" + label + \".same_projection\", [P[0], Q[0]], [0, 4])\n                self.truth(\"sum.\" + label + \".same_domains\", P[0] in spec[\"D1\"] and Q[0] in spec[\"D2\"])\n                bad = copy.deepcopy(result)\n                bad[\"witnesses\"] = [{\"P\": P, \"Q\": Q}]\n                self.same(\"sum.\" + label + \".digest\", bad[\"input_sha256\"], canonical_digest(spec))\n                self.same(\"sum.\" + label + \".unchanged_projected_set\", bad[\"projected_pairs\"], [[0, 4]])\n                total = elementary_add(tuple(P), tuple(Q), spec)\n                if label == \"abscissa\":\n                    self.truth(\"sum.abscissa.elementary_wrong_x\", total is not None and total[0] != 0)\n                else:\n                    self.same(\"sum.ordinate.negates_both_summands\",\n                              (P, Q), ([0, (-4) % 5], [4, (-2) % 5]))\n                    self.same(\"sum.ordinate.elementary_minus_R\", total, (0, 4))\n                self.rejected(\"sum.\" + label, spec, bad, finding)\n\n    def test_04_order_three_exception(self):\n        spec = dict(p=7, a=0, b=1, target=[0, 1], D1=[0], D2=[0])\n        R = (0, 1)\n        self.truth(\"order3.R_on_curve\", on_curve(R, spec))\n        twice = elementary_add(R, R, spec)\n        self.same(\"order3.2R_is_minus_R\", twice, (0, 6))\n        self.same(\"order3.3R_is_infinity\", elementary_add(twice, R, spec), None)\n        self.same(\"order3.minus_R_pair_sum\", elementary_add((0, 6), (0, 6), spec), R)\n        result = reference.solve(spec)\n        self.accepted(\"order3.positive\", spec, result)\n        self.same(\"order3.unique_exceptional_projection\", result[\"projected_pairs\"], [[0, 0]])\n        self.same(\"order3.minus_R_witness\", result[\"witnesses\"], [{\"P\": [0, 6], \"Q\": [0, 6]}])\n        bad = copy.deepcopy(result)\n        bad[\"projected_pairs\"], bad[\"witnesses\"] = [], []\n        self.same(\"order3.lift_coverage_retained\", bad[\"lift_records\"], result[\"lift_records\"])\n        self.same(\"order3.input_digest_retained\", bad[\"input_sha256\"], canonical_digest(spec))\n        self.rejected(\"order3.omission\", spec, bad, \"projected set incomplete or spurious\")\n\n    def test_05_high_valuation_root_path(self):\n        spec = dict(p=17, a=1, b=1, target=[0, 1], D1=list(range(17)), D2=list(range(17)))\n        odd, valuation = 16, 0\n        while odd % 2 == 0:\n            odd //= 2\n            valuation += 1\n        self.same(\"p17.v2_p_minus_1\", valuation, 4)\n        self.same(\"p17.Euler2\", pow(2, 8, 17), 1)\n        self.same(\"p17.Euler3\", pow(3, 8, 17), 16)\n        result = reference.solve(spec)\n        self.same(\"p17.setup\", result[\"setup\"],\n                  {\"method\": \"deterministic_scan\", \"nonresidue\": 3, \"euler_probes\": 2})\n        checked = self.accepted(\"p17.original_checker\", spec, result)\n        self.same(\"p17.no_authenticated_execution_counts\", checked[\"execution_counts_verified\"], False)\n        oracle = fixed_group_oracle(spec)\n        self.same(\"p17.projected_set_independent_group_oracle\",\n                  [tuple(pair) for pair in result[\"projected_pairs\"]], oracle)\n        self.same(\"p17.exact_lift_coordinate_coverage\", [row[\"x\"] for row in result[\"lift_records\"]], list(range(17)))\n        for row in result[\"lift_records\"]:\n            x = row[\"x\"]\n            value = (x ** 3 + x + 1) % 17\n            roots = [y for y in range(17) if y * y % 17 == value]\n            if roots:\n                self.same(\"p17.x%d.both_signs\" % x, row[\"roots\"], roots)\n                self.same(\"p17.x%d.classification\" % x, row[\"kind\"], \"zero\" if value == 0 else \"square\")\n            else:\n                self.same(\"p17.x%d.nonsquare_classification\" % x, row[\"kind\"], \"nonsquare\")\n                self.truth(\"p17.x%d.nonzero_twisted_root\" % x, type(row[\"twisted_root\"]) is int and 0 < row[\"twisted_root\"] < 17)\n                self.same(\"p17.x%d.twisted_certificate\" % x, row[\"twisted_root\"] ** 2 % 17, 3 * value % 17)\n        for index, witness in enumerate(result[\"witnesses\"]):\n            self.truth(\"p17.witness%d.P_on_curve\" % index, on_curve(witness[\"P\"], spec))\n            self.truth(\"p17.witness%d.Q_on_curve\" % index, on_curve(witness[\"Q\"], spec))\n            self.same(\"p17.witness%d.elementary_sum\" % index,\n                      elementary_add(tuple(witness[\"P\"]), tuple(witness[\"Q\"]), spec), (0, 1))\n        root = reference._sqrt_square(9, 17, 3)\n        self.same(\"p17.direct_general_root_squares_to_9\", root * root % 17, 9)\n        OBSERVATIONS.append({\"name\": \"p17.fixed_outputs\", \"mutant\": False,\n                             \"result\": result, \"independent_projected_oracle\": oracle,\n                             \"direct_root_9\": root, \"setup_count_scope\": \"setup probes only; no total-operation or timing claim\"})\n\n    def test_06_fixed_prefix_coverage(self):\n        cases = [\n            (\"large_cover\", dict(n=256, prefixes=[(1, 0), (1, 1)]), True, None),\n            (\"large_hole\", dict(n=256, prefixes=[(1, 0)]), False, 1),\n            (\"overlap_duplicates\", dict(n=4, prefixes=[(1, 0), (3, 0), (1, 0), (1, 1)]), True, None),\n            (\"empty_prefix\", dict(n=256, prefixes=[(0, 0)]), True, None),\n            (\"empty_zero_cube\", dict(n=0, prefixes=[]), False, 0),\n            (\"aux_boundary\", dict(n=4, projected_bits=1, aux_bound=3,\n                                   prefixes=[(3, i) for i in (0, 1, 2, 3, 4, 5)]), True, None),\n            (\"aux_hole\", dict(n=4, projected_bits=1, aux_bound=3,\n                               prefixes=[(3, i) for i in (0, 1, 2, 3, 4)]), False, 5),\n            (\"empty_aux_domain\", dict(n=4, projected_bits=1, aux_bound=0, prefixes=[]), True, None),\n            (\"censored_cover\", dict(n=4, prefixes=[(2, 0), (2, 1)]), False, None),\n        ]\n        for label, kwargs, expected_cover, exact_gap in cases:\n            with self.subTest(case=label):\n                result = cover.verify_cover(**kwargs)\n                name = \"prefix.\" + label\n                self.same(name + \".covered\", result[\"covered\"], expected_cover)\n                self.truth(name + \".covered_is_bool\", type(result[\"covered\"]) is bool)\n                self.truth(name + \".arithmetic_verified_stays_false\", result[\"arithmetic_verified\"] is False)\n                self.truth(name + \".trie_nodes_canonical\", type(result[\"trie_nodes\"]) is int and result[\"trie_nodes\"] >= 1)\n                self.truth(name + \".symbolic_node_bound\", result[\"trie_nodes\"] <= 1 + sum(d for d, _ in kwargs[\"prefixes\"]))\n                n = kwargs[\"n\"]\n                m = kwargs.get(\"projected_bits\", n)\n                bound = kwargs.get(\"aux_bound\")\n                gap = result[\"uncovered\"]\n                if expected_cover:\n                    self.same(name + \".no_gap\", gap, None)\n                else:\n                    self.truth(name + \".gap_canonical\", type(gap) is int and 0 <= gap < (1 << n))\n                    self.truth(name + \".gap_in_aux_domain\", bound is None or gap >> m < bound)\n                    self.truth(name + \".gap_matches_no_prefix\",\n                               all(gap % (1 << d) != prefix for d, prefix in kwargs[\"prefixes\"]))\n                    if exact_gap is not None:\n                        self.same(name + \".specified_exact_gap\", gap, exact_gap)\n                tiny_holes = None\n                if n <= 4:\n                    tiny_holes = [b for b in range(1 << n)\n                                  if (bound is None or b >> m < bound)\n                                  and all(b % (1 << d) != prefix for d, prefix in kwargs[\"prefixes\"])]\n                    self.same(name + \".independent_tiny_oracle\", result[\"covered\"], not tiny_holes)\n                    if not expected_cover:\n                        self.truth(name + \".gap_in_tiny_oracle\", gap in tiny_holes)\n                OBSERVATIONS.append({\"name\": name, \"mutant\": False, \"input\": kwargs,\n                                     \"output\": result, \"tiny_oracle_holes\": tiny_holes,\n                                     \"cube_enumerated\": n <= 4,\n                                     \"scope\": \"Boolean coverage only; no arithmetic SAT/UNSAT conclusion\"})\n\n    def test_07_fixed_prefix_input_rejections(self):\n        cases = [\n            (\"bool_n\", dict(n=True, prefixes=[])),\n            (\"bool_depth\", dict(n=4, prefixes=[(True, 0)])),\n            (\"bool_prefix\", dict(n=4, prefixes=[(1, True)])),\n            (\"negative_depth\", dict(n=4, prefixes=[(-1, 0)])),\n            (\"depth_above_n\", dict(n=4, prefixes=[(5, 0)])),\n            (\"prefix_at_2powerdepth\", dict(n=4, prefixes=[(1, 2)])),\n            (\"negative_prefix\", dict(n=4, prefixes=[(1, -1)])),\n            (\"projected_bits_above_n\", dict(n=4, prefixes=[], projected_bits=5)),\n            (\"negative_aux_bound\", dict(n=4, prefixes=[], projected_bits=1, aux_bound=-1)),\n            (\"aux_bound_above_capacity\", dict(n=4, prefixes=[], projected_bits=1, aux_bound=9)),\n            (\"bool_aux_bound\", dict(n=4, prefixes=[], projected_bits=1, aux_bound=True)),\n        ]\n        for label, kwargs in cases:\n            with self.subTest(case=label):\n                message = None\n                try:\n                    cover.verify_cover(**kwargs)\n                except ValueError as error:\n                    message = str(error)\n                self.truth(\"prefix.invalid.\" + label + \".rejected\", message is not None)\n                OBSERVATIONS.append({\"name\": \"prefix.invalid.\" + label, \"mutant\": False,\n                                     \"input\": kwargs, \"exception_type\": \"ValueError\", \"message\": message})\n\n\nclass CapturedResult(unittest.TextTestResult):\n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n        self.outcomes = []\n\n    def addSuccess(self, test):\n        super().addSuccess(test)\n        self.outcomes.append({\"test\": test.id(), \"outcome\": \"holds\"})\n\n    def addFailure(self, test, error):\n        super().addFailure(test, error)\n        self.outcomes.append({\"test\": test.id(), \"outcome\": \"breaks\", \"diagnostics\": self._exc_info_to_string(error, test)})\n\n    def addError(self, test, error):\n        super().addError(test, error)\n        self.outcomes.append({\"test\": test.id(), \"outcome\": \"inconclusive\", \"diagnostics\": self._exc_info_to_string(error, test)})\n\n    def addSubTest(self, test, subtest, error):\n        super().addSubTest(test, subtest, error)\n        outcome = \"holds\" if error is None else \"breaks\"\n        row = {\"test\": test.id(), \"subtest\": str(subtest), \"outcome\": outcome}\n        if error is not None:\n            row[\"diagnostics\"] = self._exc_info_to_string(error, test)\n        self.outcomes.append(row)\n\n\ndef main():\n    global reference, checker, cover\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument(\"--receipt\", required=True)\n    args = parser.parse_args()\n    receipt_path = Path(args.receipt).resolve()\n    required = SELF.parent / \"independent-results.json\"\n    if receipt_path != required:\n        raise SystemExit(\"receipt must be the declared task output\")\n    if Path.cwd().resolve() != ROOT:\n        raise SystemExit(\"run from the contracted working directory\")\n    if not sys.dont_write_bytecode or os.environ.get(\"PYTHONDONTWRITEBYTECODE\") != \"1\":\n        raise SystemExit(\"-B and PYTHONDONTWRITEBYTECODE=1 are required\")\n    before = source_hashes()\n    mismatches = {p: {\"expected\": expected, \"actual\": before[p]}\n                  for p, expected in EXPECTED.items() if before[p] != expected}\n    if mismatches:\n        raise SystemExit(\"Frozen target mismatch before import: \" + json.dumps(mismatches))\n    if receipt_path.exists():\n        previous = json.loads(receipt_path.read_text())\n        attempts = previous[\"attempts\"]\n    else:\n        attempts = []\n    if len(attempts) + 2 > 4:\n        raise SystemExit(\"four suite invocation budget would be exceeded\")\n    reference = load_target(\"independent_target_reference\", OLD + \"reference.py\")\n    checker = load_target(\"independent_target_checker\", OLD + \"check_reference.py\")\n    cover = load_target(\"independent_target_cover\", NEW + \"prefix_cover.py\")\n    common = {\"cwd\": str(ROOT), \"environment\": {\"PYTHONDONTWRITEBYTECODE\": \"1\"},\n              \"source_sha256_before\": before}\n    new_attempt = {**common, \"invocation\": len(attempts) + 1, \"kind\": \"independent_fixed_suite\",\n                   \"argv\": [PYTHON, \"-B\", *sys.argv], \"started_at\": utc(),\n                   \"harness_source_sha256\": before[str(SELF.relative_to(ROOT))],\n                   \"harness_source_text\": SELF.read_text()}\n    stdout, stderr = io.StringIO(), io.StringIO()\n    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n        suite = unittest.defaultTestLoader.loadTestsFromTestCase(FixedAssertions)\n        result = unittest.TextTestRunner(stream=stderr, verbosity=2, resultclass=CapturedResult).run(suite)\n    new_attempt.update(ended_at=utc(), stdout=stdout.getvalue(), stderr=stderr.getvalue(),\n                       returncode=0 if result.wasSuccessful() else 1,\n                       tests_run=result.testsRun, assertion_outcomes=ASSERTIONS,\n                       test_outcomes=result.outcomes, observations=OBSERVATIONS,\n                       mutant_guard_transformations=MUTANTS, source_sha256_after=source_hashes())\n    attempts.append(new_attempt)\n    old_before = source_hashes()\n    regression_attempt = {\"invocation\": len(attempts) + 1, \"kind\": \"exact_old_regression\",\n                          \"argv\": REGRESSION, \"cwd\": str(ROOT),\n                          \"environment\": {\"PYTHONDONTWRITEBYTECODE\": \"1\"},\n                          \"started_at\": utc(), \"source_sha256_before\": old_before}\n    completed = subprocess.run(REGRESSION, cwd=ROOT, env={**os.environ, \"PYTHONDONTWRITEBYTECODE\": \"1\"},\n                               capture_output=True, text=True, check=False)\n    regression_attempt.update(ended_at=utc(), stdout=completed.stdout, stderr=completed.stderr,\n                              returncode=completed.returncode, source_sha256_after=source_hashes(),\n                              assertion_outcomes=[{\"name\": \"exact_old_regression_exit_zero\",\n                                                   \"outcome\": \"holds\" if completed.returncode == 0 else \"breaks\"}])\n    attempts.append(regression_attempt)\n    after = source_hashes()\n    immutable = all(a[\"source_sha256_before\"] == a[\"source_sha256_after\"] for a in attempts)\n    receipt = {\n        \"schema\": \"prime-controls-independent-execution/v1\", \"actor\": \"independent_reviewer\",\n        \"task_id\": TASK, \"recorded_at\": utc(), \"attempts\": attempts,\n        \"source_sha256_before\": before, \"source_sha256_after\": after,\n        \"frozen_expected_sha256\": EXPECTED, \"original_sources_unchanged\": immutable,\n        \"runtime\": {\"python_executable\": sys.executable, \"python_version\": platform.python_version(),\n                    \"python_dont_write_bytecode\": sys.dont_write_bytecode,\n                    \"canonical_agent_name\": \"/root/costbridge_controls_reviewer\",\n                    \"requested_model\": \"gpt-6.1-sol\", \"requested_reasoning_effort\": \"xhigh\",\n                    \"requested_runtime\": \"native_codex\", \"requested_fork_turns\": \"none\",\n                    \"authenticated_model\": None, \"authenticated_reasoning_effort\": None,\n                    \"opaque_session_uuid\": None, \"unknown_reason\": \"No provider probe or opaque session UUID exposed.\",\n                    \"model_verified\": False, \"provider_probe_run\": False, \"opus_execution\": False},\n        \"administrative_continuation\": [\n            \"Epoch1 dispatch ended at provider usage-limit failure before outputs or suite invocations; release 0758a12082 reported by coordinator.\",\n            \"Availability-only turn confirmed execution and waited without new scientific reads, writes or suites.\",\n            \"Epoch2 renewed claim 32b0f64120 reported published by coordinator; owner reviewer-prime-controls; session prime-controls-independent; TTL60; branch codex/prime-sat-controls-review-20261030.\",\n            \"Administrative messages conveyed ownership and source identity only, without producer outcomes or mathematical followups.\"\n        ],\n        \"scientific_runs\": 0, \"benchmark_runs\": 0, \"solver_invocations\": 0,\n        \"performance_claim\": False, \"arithmetic_unsat_certificate\": False,\n        \"suite_invocations\": len(attempts), \"maximum_software_suite_invocations\": 4,\n        \"scope\": \"Seven fixed software control families only; prime is assumed; no all-prime, formal, novelty, performance, SAT/UNSAT or ECDLP claim.\",\n        \"overall_returncode\": 0 if result.wasSuccessful() and completed.returncode == 0 and immutable else 1,\n    }\n    receipt_path.write_text(json.dumps(receipt, indent=2) + \"\\n\")\n    print(new_attempt[\"stderr\"], end=\"\")\n    print(completed.stdout, end=\"\")\n    print(completed.stderr, end=\"\")\n    print(json.dumps({\"receipt\": str(receipt_path), \"suite_invocations\": len(attempts),\n                      \"new_suite_tests\": result.testsRun, \"named_assertions\": len(ASSERTIONS),\n                      \"new_suite_returncode\": new_attempt[\"returncode\"],\n                      \"old_regression_returncode\": completed.returncode,\n                      \"original_sources_unchanged\": immutable,\n                      \"overall_returncode\": receipt[\"overall_returncode\"]}, sort_keys=True))\n    return receipt[\"overall_returncode\"]\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+      "ended_at": "2026-10-30T00:48:27.132525+00:00",
+      "stdout": "",
+      "stderr": "test_01_false_nonroot_isolation (__main__.FixedAssertions.test_01_false_nonroot_isolation) ... ok\ntest_02_rehashed_input_guards (__main__.FixedAssertions.test_02_rehashed_input_guards) ... ok\ntest_03_oncurve_sum_guards (__main__.FixedAssertions.test_03_oncurve_sum_guards) ... ok\ntest_04_order_three_exception (__main__.FixedAssertions.test_04_order_three_exception) ... ok\ntest_05_high_valuation_root_path (__main__.FixedAssertions.test_05_high_valuation_root_path) ... ok\ntest_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) ... ok\ntest_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.009s\n\nOK\n",
+      "returncode": 0,
+      "tests_run": 7,
+      "assertion_outcomes": [
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.positive",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.f2",
+          "outcome": "holds",
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.positive_pairs",
+          "outcome": "holds",
+          "actual": [],
+          "expected": []
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.positive_witnesses",
+          "outcome": "holds",
+          "actual": [],
+          "expected": []
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.root_row",
+          "outcome": "holds",
+          "actual": [
+            {
+              "x": 2,
+              "kind": "square",
+              "roots": [
+                1,
+                4
+              ]
+            }
+          ],
+          "expected": [
+            {
+              "x": 2,
+              "kind": "square",
+              "roots": [
+                1,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.Z",
+          "outcome": "holds",
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.digest_unchanged",
+          "outcome": "holds",
+          "actual": "870e0c5021758b9c394e32a0d4c0e4e03cca143976114b758d375f110efcb4f7",
+          "expected": "870e0c5021758b9c394e32a0d4c0e4e03cca143976114b758d375f110efcb4f7"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.projected_equality_cannot_distinguish",
+          "outcome": "holds",
+          "actual": [
+            [],
+            [],
+            []
+          ],
+          "expected": [
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.original_rejection.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.original_rejection.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "invalid nonroot certificate"
+          ],
+          "expected": [
+            "invalid nonroot certificate"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.mutant_exactly_one_guard",
+          "outcome": "holds",
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "assertion": "false_nonroot.mutant_only_acceptance",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.duplicate.base",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.duplicate.digest_matches",
+          "outcome": "holds",
+          "actual": "add640d3287ac3337d9137dfdb5563edd0ed154e4e75fa10d94650bd2b108e5b",
+          "expected": "add640d3287ac3337d9137dfdb5563edd0ed154e4e75fa10d94650bd2b108e5b"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.duplicate.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.duplicate.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "duplicate domain coordinate"
+          ],
+          "expected": [
+            "duplicate domain coordinate"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.duplicate.producer_rejects",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.singular.base",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.singular.digest_matches",
+          "outcome": "holds",
+          "actual": "5f512e7d73c482ccf72848a539f012f26c995681a2522fdbd64db3b271acd237",
+          "expected": "5f512e7d73c482ccf72848a539f012f26c995681a2522fdbd64db3b271acd237"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.singular.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.singular.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "singular curve"
+          ],
+          "expected": [
+            "singular curve"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.singular.producer_rejects",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.offcurve.base",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.offcurve.digest_matches",
+          "outcome": "holds",
+          "actual": "4950a65524a22479f5aef23f54e29025310e6e908b320c3755ca603b013af844",
+          "expected": "4950a65524a22479f5aef23f54e29025310e6e908b320c3755ca603b013af844"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.offcurve.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.offcurve.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "point off curve"
+          ],
+          "expected": [
+            "point off curve"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.offcurve.producer_rejects",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.zero_ordinate.base",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.zero_ordinate.digest_matches",
+          "outcome": "holds",
+          "actual": "332f24d9ef8f84fbaf88dd65a5542fe52ac1692d55ff47f7ebcf1666b01c6dcf",
+          "expected": "332f24d9ef8f84fbaf88dd65a5542fe52ac1692d55ff47f7ebcf1666b01c6dcf"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.zero_ordinate.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.zero_ordinate.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "target has zero ordinate"
+          ],
+          "expected": [
+            "target has zero ordinate"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "assertion": "rehash.zero_ordinate.producer_rejects",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.positive",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.positive_projection",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              4
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              4
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.positive_witness",
+          "outcome": "holds",
+          "actual": [
+            {
+              "P": [
+                0,
+                4
+              ],
+              "Q": [
+                4,
+                2
+              ]
+            }
+          ],
+          "expected": [
+            {
+              "P": [
+                0,
+                4
+              ],
+              "Q": [
+                4,
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.positive_elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.same_projection",
+          "outcome": "holds",
+          "actual": [
+            0,
+            4
+          ],
+          "expected": [
+            0,
+            4
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.same_domains",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.digest",
+          "outcome": "holds",
+          "actual": "d6f8e8a61ce4dd44fabb78d45c25717b87638ce48e17171bbc98b77963924285",
+          "expected": "d6f8e8a61ce4dd44fabb78d45c25717b87638ce48e17171bbc98b77963924285"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.unchanged_projected_set",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              4
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              4
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.elementary_wrong_x",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.abscissa.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "witness sum has wrong abscissa"
+          ],
+          "expected": [
+            "witness sum has wrong abscissa"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.same_projection",
+          "outcome": "holds",
+          "actual": [
+            0,
+            4
+          ],
+          "expected": [
+            0,
+            4
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.same_domains",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.digest",
+          "outcome": "holds",
+          "actual": "d6f8e8a61ce4dd44fabb78d45c25717b87638ce48e17171bbc98b77963924285",
+          "expected": "d6f8e8a61ce4dd44fabb78d45c25717b87638ce48e17171bbc98b77963924285"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.unchanged_projected_set",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              4
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              4
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.negates_both_summands",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              1
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              1
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.elementary_minus_R",
+          "outcome": "holds",
+          "actual": [
+            0,
+            4
+          ],
+          "expected": [
+            0,
+            4
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "assertion": "sum.ordinate.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "witness sum has wrong ordinate"
+          ],
+          "expected": [
+            "witness sum has wrong ordinate"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.R_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.2R_is_minus_R",
+          "outcome": "holds",
+          "actual": [
+            0,
+            6
+          ],
+          "expected": [
+            0,
+            6
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.3R_is_infinity",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.minus_R_pair_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.positive",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.unique_exceptional_projection",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              0
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.minus_R_witness",
+          "outcome": "holds",
+          "actual": [
+            {
+              "P": [
+                0,
+                6
+              ],
+              "Q": [
+                0,
+                6
+              ]
+            }
+          ],
+          "expected": [
+            {
+              "P": [
+                0,
+                6
+              ],
+              "Q": [
+                0,
+                6
+              ]
+            }
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.lift_coverage_retained",
+          "outcome": "holds",
+          "actual": [
+            {
+              "x": 0,
+              "kind": "square",
+              "roots": [
+                1,
+                6
+              ]
+            }
+          ],
+          "expected": [
+            {
+              "x": 0,
+              "kind": "square",
+              "roots": [
+                1,
+                6
+              ]
+            }
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.input_digest_retained",
+          "outcome": "holds",
+          "actual": "97b195fedf30eeb262f899230c7d637fe5295d730a5e2a7fec4e817bfadf83d0",
+          "expected": "97b195fedf30eeb262f899230c7d637fe5295d730a5e2a7fec4e817bfadf83d0"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.omission.valid",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "assertion": "order3.omission.exact_finding",
+          "outcome": "holds",
+          "actual": [
+            "projected set incomplete or spurious"
+          ],
+          "expected": [
+            "projected set incomplete or spurious"
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.v2_p_minus_1",
+          "outcome": "holds",
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.Euler2",
+          "outcome": "holds",
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.Euler3",
+          "outcome": "holds",
+          "actual": 16,
+          "expected": 16
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.setup",
+          "outcome": "holds",
+          "actual": {
+            "nonresidue": 3,
+            "method": "deterministic_scan",
+            "euler_probes": 2
+          },
+          "expected": {
+            "method": "deterministic_scan",
+            "nonresidue": 3,
+            "euler_probes": 2
+          }
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.original_checker",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.no_authenticated_execution_counts",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.projected_set_independent_group_oracle",
+          "outcome": "holds",
+          "actual": [
+            [
+              0,
+              13
+            ],
+            [
+              4,
+              9
+            ],
+            [
+              4,
+              13
+            ],
+            [
+              6,
+              10
+            ],
+            [
+              6,
+              15
+            ],
+            [
+              9,
+              4
+            ],
+            [
+              9,
+              16
+            ],
+            [
+              10,
+              6
+            ],
+            [
+              10,
+              16
+            ],
+            [
+              11,
+              15
+            ],
+            [
+              13,
+              0
+            ],
+            [
+              13,
+              4
+            ],
+            [
+              15,
+              6
+            ],
+            [
+              15,
+              11
+            ],
+            [
+              16,
+              9
+            ],
+            [
+              16,
+              10
+            ]
+          ],
+          "expected": [
+            [
+              0,
+              13
+            ],
+            [
+              4,
+              9
+            ],
+            [
+              4,
+              13
+            ],
+            [
+              6,
+              10
+            ],
+            [
+              6,
+              15
+            ],
+            [
+              9,
+              4
+            ],
+            [
+              9,
+              16
+            ],
+            [
+              10,
+              6
+            ],
+            [
+              10,
+              16
+            ],
+            [
+              11,
+              15
+            ],
+            [
+              13,
+              0
+            ],
+            [
+              13,
+              4
+            ],
+            [
+              15,
+              6
+            ],
+            [
+              15,
+              11
+            ],
+            [
+              16,
+              9
+            ],
+            [
+              16,
+              10
+            ]
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.exact_lift_coordinate_coverage",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "expected": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x0.both_signs",
+          "outcome": "holds",
+          "actual": [
+            1,
+            16
+          ],
+          "expected": [
+            1,
+            16
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x0.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x1.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x1.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x1.twisted_certificate",
+          "outcome": "holds",
+          "actual": 9,
+          "expected": 9
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x2.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x2.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x2.twisted_certificate",
+          "outcome": "holds",
+          "actual": 16,
+          "expected": 16
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x3.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x3.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x3.twisted_certificate",
+          "outcome": "holds",
+          "actual": 8,
+          "expected": 8
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x4.both_signs",
+          "outcome": "holds",
+          "actual": [
+            1,
+            16
+          ],
+          "expected": [
+            1,
+            16
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x4.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x5.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x5.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x5.twisted_certificate",
+          "outcome": "holds",
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x6.both_signs",
+          "outcome": "holds",
+          "actual": [
+            6,
+            11
+          ],
+          "expected": [
+            6,
+            11
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x6.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x7.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x7.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x7.twisted_certificate",
+          "outcome": "holds",
+          "actual": 16,
+          "expected": 16
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x8.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x8.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x8.twisted_certificate",
+          "outcome": "holds",
+          "actual": 16,
+          "expected": 16
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x9.both_signs",
+          "outcome": "holds",
+          "actual": [
+            5,
+            12
+          ],
+          "expected": [
+            5,
+            12
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x9.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x10.both_signs",
+          "outcome": "holds",
+          "actual": [
+            5,
+            12
+          ],
+          "expected": [
+            5,
+            12
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x10.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x11.both_signs",
+          "outcome": "holds",
+          "actual": [
+            0
+          ],
+          "expected": [
+            0
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x11.classification",
+          "outcome": "holds",
+          "actual": "zero",
+          "expected": "zero"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x12.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x12.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x12.twisted_certificate",
+          "outcome": "holds",
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x13.both_signs",
+          "outcome": "holds",
+          "actual": [
+            1,
+            16
+          ],
+          "expected": [
+            1,
+            16
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x13.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x14.nonsquare_classification",
+          "outcome": "holds",
+          "actual": "nonsquare",
+          "expected": "nonsquare"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x14.nonzero_twisted_root",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x14.twisted_certificate",
+          "outcome": "holds",
+          "actual": 15,
+          "expected": 15
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x15.both_signs",
+          "outcome": "holds",
+          "actual": [
+            5,
+            12
+          ],
+          "expected": [
+            5,
+            12
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x15.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x16.both_signs",
+          "outcome": "holds",
+          "actual": [
+            4,
+            13
+          ],
+          "expected": [
+            4,
+            13
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.x16.classification",
+          "outcome": "holds",
+          "actual": "square",
+          "expected": "square"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness0.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness0.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness0.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness1.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness1.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness1.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness2.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness2.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness2.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness3.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness3.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness3.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness4.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness4.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness4.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness5.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness5.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness5.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness6.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness6.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness6.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness7.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness7.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness7.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness8.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness8.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness8.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness9.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness9.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness9.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness10.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness10.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness10.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness11.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness11.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness11.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness12.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness12.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness12.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness13.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness13.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness13.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness14.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness14.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness14.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness15.P_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness15.Q_on_curve",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.witness15.elementary_sum",
+          "outcome": "holds",
+          "actual": [
+            0,
+            1
+          ],
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "assertion": "p17.direct_general_root_squares_to_9",
+          "outcome": "holds",
+          "actual": 9,
+          "expected": 9
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.covered",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_cover.no_gap",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.covered",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.gap_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.gap_in_aux_domain",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.gap_matches_no_prefix",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.large_hole.specified_exact_gap",
+          "outcome": "holds",
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.covered",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.no_gap",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.overlap_duplicates.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.covered",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_prefix.no_gap",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.covered",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.gap_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.gap_in_aux_domain",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.gap_matches_no_prefix",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.specified_exact_gap",
+          "outcome": "holds",
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_zero_cube.gap_in_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.covered",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.no_gap",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_boundary.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.covered",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.gap_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.gap_in_aux_domain",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.gap_matches_no_prefix",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.specified_exact_gap",
+          "outcome": "holds",
+          "actual": 5,
+          "expected": 5
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.aux_hole.gap_in_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.covered",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.no_gap",
+          "outcome": "holds",
+          "actual": null,
+          "expected": null
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.empty_aux_domain.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.covered",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.covered_is_bool",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.arithmetic_verified_stays_false",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.trie_nodes_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.symbolic_node_bound",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.gap_canonical",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.gap_in_aux_domain",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.gap_matches_no_prefix",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.independent_tiny_oracle",
+          "outcome": "holds",
+          "actual": false,
+          "expected": false
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "assertion": "prefix.censored_cover.gap_in_tiny_oracle",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.bool_n.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.bool_depth.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.bool_prefix.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.negative_depth.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.depth_above_n.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.prefix_at_2powerdepth.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.negative_prefix.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.projected_bits_above_n.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.negative_aux_bound.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.aux_bound_above_capacity.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "assertion": "prefix.invalid.bool_aux_bound.rejected",
+          "outcome": "holds",
+          "actual": true,
+          "expected": true
+        }
+      ],
+      "test_outcomes": [
+        {
+          "test": "__main__.FixedAssertions.test_01_false_nonroot_isolation",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "subtest": "test_02_rehashed_input_guards (__main__.FixedAssertions.test_02_rehashed_input_guards) (case='duplicate')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "subtest": "test_02_rehashed_input_guards (__main__.FixedAssertions.test_02_rehashed_input_guards) (case='singular')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "subtest": "test_02_rehashed_input_guards (__main__.FixedAssertions.test_02_rehashed_input_guards) (case='offcurve')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "subtest": "test_02_rehashed_input_guards (__main__.FixedAssertions.test_02_rehashed_input_guards) (case='zero_ordinate')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_02_rehashed_input_guards",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "subtest": "test_03_oncurve_sum_guards (__main__.FixedAssertions.test_03_oncurve_sum_guards) (case='abscissa')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "subtest": "test_03_oncurve_sum_guards (__main__.FixedAssertions.test_03_oncurve_sum_guards) (case='ordinate')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_03_oncurve_sum_guards",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_04_order_three_exception",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_05_high_valuation_root_path",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='large_cover')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='large_hole')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='overlap_duplicates')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='empty_prefix')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='empty_zero_cube')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='aux_boundary')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='aux_hole')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='empty_aux_domain')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "subtest": "test_06_fixed_prefix_coverage (__main__.FixedAssertions.test_06_fixed_prefix_coverage) (case='censored_cover')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_06_fixed_prefix_coverage",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='bool_n')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='bool_depth')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='bool_prefix')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='negative_depth')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='depth_above_n')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='prefix_at_2powerdepth')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='negative_prefix')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='projected_bits_above_n')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='negative_aux_bound')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='aux_bound_above_capacity')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "subtest": "test_07_fixed_prefix_input_rejections (__main__.FixedAssertions.test_07_fixed_prefix_input_rejections) (case='bool_aux_bound')",
+          "outcome": "holds"
+        },
+        {
+          "test": "__main__.FixedAssertions.test_07_fixed_prefix_input_rejections",
+          "outcome": "holds"
+        }
+      ],
+      "observations": [
+        {
+          "name": "false_nonroot.positive",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "false_nonroot.original_rejection",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "invalid nonroot certificate"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "5d7b8000d1a25dc9a271aa5715995ffbe727192454f636f5aea4151b37732134"
+        },
+        {
+          "name": "rehash.duplicate.base",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "rehash.duplicate",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "duplicate domain coordinate"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "94302471622f8b02d8f951c96e41d4b6a28bcc71c1c379b590c3237fd3d7ea94"
+        },
+        {
+          "name": "rehash.duplicate.producer_error",
+          "mutant": false,
+          "exception_type": "ValueError",
+          "message": "duplicate explicit domain coordinate"
+        },
+        {
+          "name": "rehash.singular.base",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "rehash.singular",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "singular curve"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "b778ecf93c6b14874565d6e9bf2b88f50aa70f897b630484f26dd6b237d8930d"
+        },
+        {
+          "name": "rehash.singular.producer_error",
+          "mutant": false,
+          "exception_type": "ValueError",
+          "message": "singular curve"
+        },
+        {
+          "name": "rehash.offcurve.base",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "rehash.offcurve",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "point off curve"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "310c259ed6cd2173a1c6718556ebb7eab9ae1e020492cfbe5f2da1823926128f"
+        },
+        {
+          "name": "rehash.offcurve.producer_error",
+          "mutant": false,
+          "exception_type": "ValueError",
+          "message": "target must be on curve with t != 0"
+        },
+        {
+          "name": "rehash.zero_ordinate.base",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "rehash.zero_ordinate",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "target has zero ordinate"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "76c0a83fb552e9a83b6dfec22d2cdeac03d40d5adf6d00a84cc0f0bbcb0aa1fa"
+        },
+        {
+          "name": "rehash.zero_ordinate.producer_error",
+          "mutant": false,
+          "exception_type": "ValueError",
+          "message": "target must be on curve with t != 0"
+        },
+        {
+          "name": "sum.positive",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": true,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "sum.abscissa",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "witness sum has wrong abscissa"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "c2f5e9b713c390eb3081c46eee8290d64ff7d0514c52f198624e34257614212d"
+        },
+        {
+          "name": "sum.ordinate",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "witness sum has wrong ordinate"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "1800e60960e90b9d0efb7e6f647b5f38138a29457edd41292fe43387952be971"
+        },
+        {
+          "name": "order3.positive",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": true,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "order3.omission",
+          "mutant": false,
+          "checker": {
+            "valid": false,
+            "findings": [
+              "projected set incomplete or spurious"
+            ],
+            "completeness_verified": false,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "artifact_sha256": "3419e7647f37130e004225e6f9d118f26bad6e1fe7583858e88f62939f5b2ae4"
+        },
+        {
+          "name": "p17.original_checker",
+          "mutant": false,
+          "checker": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": true,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          }
+        },
+        {
+          "name": "p17.fixed_outputs",
+          "mutant": false,
+          "result": {
+            "schema": "prime-complement-reference/v1",
+            "mode": "all",
+            "input_sha256": "b94a554a433d21b288830b9b9588eccff8b2be504d14d5842ffe679f9071c45e",
+            "complete": true,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "setup": {
+              "nonresidue": 3,
+              "method": "deterministic_scan",
+              "euler_probes": 2
+            },
+            "lift_records": [
+              {
+                "x": 0,
+                "kind": "square",
+                "roots": [
+                  1,
+                  16
+                ]
+              },
+              {
+                "x": 1,
+                "kind": "nonsquare",
+                "twisted_root": 14
+              },
+              {
+                "x": 2,
+                "kind": "nonsquare",
+                "twisted_root": 4
+              },
+              {
+                "x": 3,
+                "kind": "nonsquare",
+                "twisted_root": 12
+              },
+              {
+                "x": 4,
+                "kind": "square",
+                "roots": [
+                  1,
+                  16
+                ]
+              },
+              {
+                "x": 5,
+                "kind": "nonsquare",
+                "twisted_root": 6
+              },
+              {
+                "x": 6,
+                "kind": "square",
+                "roots": [
+                  6,
+                  11
+                ]
+              },
+              {
+                "x": 7,
+                "kind": "nonsquare",
+                "twisted_root": 4
+              },
+              {
+                "x": 8,
+                "kind": "nonsquare",
+                "twisted_root": 4
+              },
+              {
+                "x": 9,
+                "kind": "square",
+                "roots": [
+                  5,
+                  12
+                ]
+              },
+              {
+                "x": 10,
+                "kind": "square",
+                "roots": [
+                  5,
+                  12
+                ]
+              },
+              {
+                "x": 11,
+                "kind": "zero",
+                "roots": [
+                  0
+                ]
+              },
+              {
+                "x": 12,
+                "kind": "nonsquare",
+                "twisted_root": 2
+              },
+              {
+                "x": 13,
+                "kind": "square",
+                "roots": [
+                  1,
+                  16
+                ]
+              },
+              {
+                "x": 14,
+                "kind": "nonsquare",
+                "twisted_root": 7
+              },
+              {
+                "x": 15,
+                "kind": "square",
+                "roots": [
+                  5,
+                  12
+                ]
+              },
+              {
+                "x": 16,
+                "kind": "square",
+                "roots": [
+                  4,
+                  13
+                ]
+              }
+            ],
+            "projected_pairs": [
+              [
+                0,
+                13
+              ],
+              [
+                4,
+                9
+              ],
+              [
+                4,
+                13
+              ],
+              [
+                6,
+                10
+              ],
+              [
+                6,
+                15
+              ],
+              [
+                9,
+                4
+              ],
+              [
+                9,
+                16
+              ],
+              [
+                10,
+                6
+              ],
+              [
+                10,
+                16
+              ],
+              [
+                11,
+                15
+              ],
+              [
+                13,
+                0
+              ],
+              [
+                13,
+                4
+              ],
+              [
+                15,
+                6
+              ],
+              [
+                15,
+                11
+              ],
+              [
+                16,
+                9
+              ],
+              [
+                16,
+                10
+              ]
+            ],
+            "witnesses": [
+              {
+                "P": [
+                  0,
+                  16
+                ],
+                "Q": [
+                  13,
+                  1
+                ]
+              },
+              {
+                "P": [
+                  4,
+                  1
+                ],
+                "Q": [
+                  9,
+                  12
+                ]
+              },
+              {
+                "P": [
+                  4,
+                  16
+                ],
+                "Q": [
+                  13,
+                  16
+                ]
+              },
+              {
+                "P": [
+                  6,
+                  6
+                ],
+                "Q": [
+                  10,
+                  5
+                ]
+              },
+              {
+                "P": [
+                  6,
+                  11
+                ],
+                "Q": [
+                  15,
+                  12
+                ]
+              },
+              {
+                "P": [
+                  9,
+                  12
+                ],
+                "Q": [
+                  4,
+                  1
+                ]
+              },
+              {
+                "P": [
+                  9,
+                  5
+                ],
+                "Q": [
+                  16,
+                  4
+                ]
+              },
+              {
+                "P": [
+                  10,
+                  5
+                ],
+                "Q": [
+                  6,
+                  6
+                ]
+              },
+              {
+                "P": [
+                  10,
+                  12
+                ],
+                "Q": [
+                  16,
+                  13
+                ]
+              },
+              {
+                "P": [
+                  11,
+                  0
+                ],
+                "Q": [
+                  15,
+                  5
+                ]
+              },
+              {
+                "P": [
+                  13,
+                  1
+                ],
+                "Q": [
+                  0,
+                  16
+                ]
+              },
+              {
+                "P": [
+                  13,
+                  16
+                ],
+                "Q": [
+                  4,
+                  16
+                ]
+              },
+              {
+                "P": [
+                  15,
+                  12
+                ],
+                "Q": [
+                  6,
+                  11
+                ]
+              },
+              {
+                "P": [
+                  15,
+                  5
+                ],
+                "Q": [
+                  11,
+                  0
+                ]
+              },
+              {
+                "P": [
+                  16,
+                  4
+                ],
+                "Q": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "P": [
+                  16,
+                  13
+                ],
+                "Q": [
+                  10,
+                  12
+                ]
+              }
+            ]
+          },
+          "independent_projected_oracle": [
+            [
+              0,
+              13
+            ],
+            [
+              4,
+              9
+            ],
+            [
+              4,
+              13
+            ],
+            [
+              6,
+              10
+            ],
+            [
+              6,
+              15
+            ],
+            [
+              9,
+              4
+            ],
+            [
+              9,
+              16
+            ],
+            [
+              10,
+              6
+            ],
+            [
+              10,
+              16
+            ],
+            [
+              11,
+              15
+            ],
+            [
+              13,
+              0
+            ],
+            [
+              13,
+              4
+            ],
+            [
+              15,
+              6
+            ],
+            [
+              15,
+              11
+            ],
+            [
+              16,
+              9
+            ],
+            [
+              16,
+              10
+            ]
+          ],
+          "direct_root_9": 14,
+          "setup_count_scope": "setup probes only; no total-operation or timing claim"
+        },
+        {
+          "name": "prefix.large_cover",
+          "mutant": false,
+          "input": {
+            "n": 256,
+            "prefixes": [
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          "output": {
+            "covered": true,
+            "uncovered": null,
+            "trie_nodes": 3,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": null,
+          "cube_enumerated": false,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.large_hole",
+          "mutant": false,
+          "input": {
+            "n": 256,
+            "prefixes": [
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          "output": {
+            "covered": false,
+            "uncovered": 1,
+            "trie_nodes": 2,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": null,
+          "cube_enumerated": false,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.overlap_duplicates",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                1,
+                0
+              ],
+              [
+                3,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          "output": {
+            "covered": true,
+            "uncovered": null,
+            "trie_nodes": 3,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.empty_prefix",
+          "mutant": false,
+          "input": {
+            "n": 256,
+            "prefixes": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "output": {
+            "covered": true,
+            "uncovered": null,
+            "trie_nodes": 1,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": null,
+          "cube_enumerated": false,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.empty_zero_cube",
+          "mutant": false,
+          "input": {
+            "n": 0,
+            "prefixes": []
+          },
+          "output": {
+            "covered": false,
+            "uncovered": 0,
+            "trie_nodes": 1,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [
+            0
+          ],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.aux_boundary",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "projected_bits": 1,
+            "aux_bound": 3,
+            "prefixes": [
+              [
+                3,
+                0
+              ],
+              [
+                3,
+                1
+              ],
+              [
+                3,
+                2
+              ],
+              [
+                3,
+                3
+              ],
+              [
+                3,
+                4
+              ],
+              [
+                3,
+                5
+              ]
+            ]
+          },
+          "output": {
+            "covered": true,
+            "uncovered": null,
+            "trie_nodes": 13,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.aux_hole",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "projected_bits": 1,
+            "aux_bound": 3,
+            "prefixes": [
+              [
+                3,
+                0
+              ],
+              [
+                3,
+                1
+              ],
+              [
+                3,
+                2
+              ],
+              [
+                3,
+                3
+              ],
+              [
+                3,
+                4
+              ]
+            ]
+          },
+          "output": {
+            "covered": false,
+            "uncovered": 5,
+            "trie_nodes": 12,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [
+            5
+          ],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.empty_aux_domain",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "projected_bits": 1,
+            "aux_bound": 0,
+            "prefixes": []
+          },
+          "output": {
+            "covered": true,
+            "uncovered": null,
+            "trie_nodes": 1,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.censored_cover",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                2,
+                0
+              ],
+              [
+                2,
+                1
+              ]
+            ]
+          },
+          "output": {
+            "covered": false,
+            "uncovered": 2,
+            "trie_nodes": 5,
+            "arithmetic_verified": false
+          },
+          "tiny_oracle_holes": [
+            2,
+            3,
+            6,
+            7,
+            10,
+            11,
+            14,
+            15
+          ],
+          "cube_enumerated": true,
+          "scope": "Boolean coverage only; no arithmetic SAT/UNSAT conclusion"
+        },
+        {
+          "name": "prefix.invalid.bool_n",
+          "mutant": false,
+          "input": {
+            "n": true,
+            "prefixes": []
+          },
+          "exception_type": "ValueError",
+          "message": "n must be an integer, not bool"
+        },
+        {
+          "name": "prefix.invalid.bool_depth",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                true,
+                0
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "depth must be an integer, not bool"
+        },
+        {
+          "name": "prefix.invalid.bool_prefix",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                1,
+                true
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "prefix must be an integer, not bool"
+        },
+        {
+          "name": "prefix.invalid.negative_depth",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                -1,
+                0
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "noncanonical prefix"
+        },
+        {
+          "name": "prefix.invalid.depth_above_n",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                5,
+                0
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "noncanonical prefix"
+        },
+        {
+          "name": "prefix.invalid.prefix_at_2powerdepth",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                1,
+                2
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "noncanonical prefix"
+        },
+        {
+          "name": "prefix.invalid.negative_prefix",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [
+              [
+                1,
+                -1
+              ]
+            ]
+          },
+          "exception_type": "ValueError",
+          "message": "noncanonical prefix"
+        },
+        {
+          "name": "prefix.invalid.projected_bits_above_n",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [],
+            "projected_bits": 5
+          },
+          "exception_type": "ValueError",
+          "message": "projected_bits outside [0,n]"
+        },
+        {
+          "name": "prefix.invalid.negative_aux_bound",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [],
+            "projected_bits": 1,
+            "aux_bound": -1
+          },
+          "exception_type": "ValueError",
+          "message": "aux_bound outside representable range"
+        },
+        {
+          "name": "prefix.invalid.aux_bound_above_capacity",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [],
+            "projected_bits": 1,
+            "aux_bound": 9
+          },
+          "exception_type": "ValueError",
+          "message": "aux_bound outside representable range"
+        },
+        {
+          "name": "prefix.invalid.bool_aux_bound",
+          "mutant": false,
+          "input": {
+            "n": 4,
+            "prefixes": [],
+            "projected_bits": 1,
+            "aux_bound": true
+          },
+          "exception_type": "ValueError",
+          "message": "aux_bound must be an integer, not bool"
+        }
+      ],
+      "mutant_guard_transformations": [
+        {
+          "id": "nonroot_guard_only",
+          "mutant": true,
+          "original_source_sha256": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+          "mutant_source_sha256": "5a8e83372cf9c568ef07f8a0dbfbd7936f52969621f6564c740c7a4d75e42c32",
+          "patch_text": "-_require(value != 0 and w != 0 and w*w % p == z*value % p, \"invalid nonroot certificate\")\n+_require(True, \"invalid nonroot certificate\")\n",
+          "patch_sha256": "77a24a31b1204e46ad8249d5d7c07be1cff52a476642ef7c79ddafc98a01cd5c",
+          "negative_artifact_sha256": "5d7b8000d1a25dc9a271aa5715995ffbe727192454f636f5aea4151b37732134",
+          "observed_checker_output": {
+            "valid": true,
+            "findings": [],
+            "completeness_verified": true,
+            "witness_verified": false,
+            "prime_assumed": true,
+            "primality_verified": false,
+            "execution_counts_verified": false
+          },
+          "certification": false,
+          "meaning": "Guard-necessity control only; weakened acceptance is not certification."
+        }
+      ],
+      "source_sha256_after": {
+        "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+        "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+        "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+        "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+        "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+      }
+    },
+    {
+      "invocation": 2,
+      "kind": "exact_old_regression",
+      "argv": [
+        "/home/ec2-user/prime-sat-research-venv/bin/python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/prime_sat_costbridge_20261029",
+        "-p",
+        "test_reference.py",
+        "-v"
+      ],
+      "cwd": "/home/ec2-user/crypto-prime-sat-ideas-20261029",
+      "environment": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "started_at": "2026-10-30T00:48:27.206128+00:00",
+      "source_sha256_before": {
+        "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+        "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+        "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+        "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+        "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+      },
+      "ended_at": "2026-10-30T00:48:27.799967+00:00",
+      "stdout": "",
+      "stderr": "test_corrupted_nonzero_twisted_root (test_reference.ReferenceIntegrity.test_corrupted_nonzero_twisted_root) ... ok\ntest_domain_boundaries (test_reference.ReferenceIntegrity.test_domain_boundaries) ... ok\ntest_duplicate_lift_record (test_reference.ReferenceIntegrity.test_duplicate_lift_record) ... ok\ntest_duplicate_projected_output (test_reference.ReferenceIntegrity.test_duplicate_projected_output) ... ok\ntest_false_first_exhaustion (test_reference.ReferenceIntegrity.test_false_first_exhaustion) ... ok\ntest_false_global_nonsquare (test_reference.ReferenceIntegrity.test_false_global_nonsquare) ... ok\ntest_first_false_completeness (test_reference.ReferenceIntegrity.test_first_false_completeness) ... ok\ntest_first_witness_and_exhaustion_never_complete (test_reference.ReferenceIntegrity.test_first_witness_and_exhaustion_never_complete) ... ok\ntest_full_domains_fixed_curves (test_reference.ReferenceIntegrity.test_full_domains_fixed_curves) ... ok\ntest_invalid_instances (test_reference.ReferenceIntegrity.test_invalid_instances) ... ok\ntest_missing_exceptional_root (test_reference.ReferenceIntegrity.test_missing_exceptional_root) ... ok\ntest_missing_lift_record (test_reference.ReferenceIntegrity.test_missing_lift_record) ... ok\ntest_missing_sign (test_reference.ReferenceIntegrity.test_missing_sign) ... ok\ntest_supplied_nonresidue_and_coefficient_normalization (test_reference.ReferenceIntegrity.test_supplied_nonresidue_and_coefficient_normalization) ... ok\ntest_wrong_input_digest (test_reference.ReferenceIntegrity.test_wrong_input_digest) ... ok\ntest_wrong_witness_sum (test_reference.ReferenceIntegrity.test_wrong_witness_sum) ... ok\ntest_zero_ordinate_lift_and_exceptional_x (test_reference.ReferenceIntegrity.test_zero_ordinate_lift_and_exceptional_x) ... ok\ntest_zero_twisted_root (test_reference.ReferenceIntegrity.test_zero_twisted_root) ... ok\n\n----------------------------------------------------------------------\nRan 18 tests in 0.003s\n\nOK\n",
+      "returncode": 0,
+      "source_sha256_after": {
+        "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+        "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+        "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+        "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+        "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+        "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+      },
+      "assertion_outcomes": [
+        {
+          "name": "exact_old_regression_exit_zero",
+          "outcome": "holds"
+        }
+      ]
+    }
+  ],
+  "source_sha256_before": {
+    "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+    "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+    "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+    "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+    "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+    "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+  },
+  "source_sha256_after": {
+    "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+    "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+    "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+    "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+    "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c",
+    "research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py": "60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733"
+  },
+  "frozen_expected_sha256": {
+    "research/prime_sat_costbridge_20261029/reference.py": "a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad",
+    "research/prime_sat_costbridge_20261029/check_reference.py": "af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e",
+    "research/prime_sat_costbridge_20261029/test_reference.py": "7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883",
+    "research/prime_sat_costbridge_20261029/unit-test-results.json": "10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3",
+    "research/prime_sat_costbridge_controls_20261029/prefix_cover.py": "10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c"
+  },
+  "original_sources_unchanged": true,
+  "runtime": {
+    "python_executable": "/home/ec2-user/prime-sat-research-venv/bin/python",
+    "python_version": "3.12.8",
+    "python_dont_write_bytecode": true,
+    "canonical_agent_name": "/root/costbridge_controls_reviewer",
+    "requested_model": "gpt-6.1-sol",
+    "requested_reasoning_effort": "xhigh",
+    "requested_runtime": "native_codex",
+    "requested_fork_turns": "none",
+    "authenticated_model": null,
+    "authenticated_reasoning_effort": null,
+    "opaque_session_uuid": null,
+    "unknown_reason": "No provider probe or opaque session UUID exposed.",
+    "model_verified": false,
+    "provider_probe_run": false,
+    "opus_execution": false
+  },
+  "administrative_continuation": [
+    "Epoch1 dispatch ended at provider usage-limit failure before outputs or suite invocations; release 0758a12082 reported by coordinator.",
+    "Availability-only turn confirmed execution and waited without new scientific reads, writes or suites.",
+    "Epoch2 renewed claim 32b0f64120 reported published by coordinator; owner reviewer-prime-controls; session prime-controls-independent; TTL60; branch codex/prime-sat-controls-review-20261030.",
+    "Administrative messages conveyed ownership and source identity only, without producer outcomes or mathematical followups."
+  ],
+  "scientific_runs": 0,
+  "benchmark_runs": 0,
+  "solver_invocations": 0,
+  "performance_claim": false,
+  "arithmetic_unsat_certificate": false,
+  "suite_invocations": 2,
+  "maximum_software_suite_invocations": 4,
+  "scope": "Seven fixed software control families only; prime is assumed; no all-prime, formal, novelty, performance, SAT/UNSAT or ECDLP claim.",
+  "overall_returncode": 0
+}

@@ -1,12 +1,13 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-29): the degree-six search is running; no degree-six bound has
-been obtained. The retained [high-memory report](reports/highmem-progress-001/report.md)
-records one terminal D5 attempt (inconclusive projection_kills_one) and 46
-pending inputs. Its accepted D4 certificate retains LFD at least 5. The live
-worker continues under its frozen protocol. The separate remote D4 panel has
-verified [n42-rand03](reports/panel-v2-pilot/report.md) and
-[n42-rand04](reports/panel-v2-n42-rand04/report.md), both with LFD at least 5.
+Status (2026-10-30): the degree-six search continues; no degree-six bound has
+been obtained. Five of 47 high-memory continuation inputs are terminal, all
+retaining LFD at least 5. The other 42 include the live n47 random input 00.
+Degree-five codimension equality and killed-constant projections establish no
+upper bound. The separate remote D4 continuation has 19 of 32 inputs completed,
+including 12 certified LFD at least 5 bounds; see the
+[new n44 random-input report](reports/panel-v3-n44-rand00/report.md).
+The remaining frozen cloud inputs continue in order as worker slots become free.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
@@ -134,3 +135,7 @@ The original50 records remain authoritative for their attempts. Continuation out
 The immutable [third progress snapshot](reports/highmem-progress-003/report.md) records two terminal inputs out of47. The first n47 polynomial-basis input retained its accepted D4 map (codimension21428, exact count0, LFD>=5). Its D5 construction killed the constant and produced no usable D5 certificate. This gives neither an upper bound nor a conclusion about membership in the true W5 closure. The second input has accepted D4 codimension21428 and D5 codimension2, with exact count2. It retains LFD>=5; equality at D5 gives no stronger lower bound or upper bound. Both accepted stages are publicly archived with anonymous and canonical-store GET/hash verification. The remaining45 inputs include the live third input; no degree-six bound is recorded.
 
 The continuation-specific [publication linkage](highmem-archive/fresh-n47-poly-00-D5-cascade01-highmem01-D4.publication.json) binds the retained certificate and fresh checker/count evidence to the already-public original certificate. A fresh anonymous GET verified all three original assets, and gzip decompression reproduced the continuation certificate hash. The original public receipt still describes the original attempt; the linkage records the continuation provenance separately. The new snapshot has no missing publication acknowledgement for its completed stage. This changes evidence availability, not the mathematical bound or sample count.
+
+## High-memory continuation: five terminal results
+
+The [fourth immutable snapshot](reports/highmem-progress-004/report.md) adds polynomial-basis inputs02–04 at n47. All retained D4 certificates and fresh checker/count transcripts were verified. Inputs02 and04 have accepted D5 codimension2 equal to their exact count2; input03 killed the constant at D5. All retain LFD>=5, with no degree-six or upper bound. Five newly archived stages passed anonymous public and canonical-store readback verification. The continuation now has five terminal and42 unfinished inputs; the live random input00 remains unfinished. These are continuations of original named inputs, not additional independent draws.
