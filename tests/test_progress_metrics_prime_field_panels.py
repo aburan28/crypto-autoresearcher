@@ -54,3 +54,24 @@ def test_residual_metrics_subtract_unknowns_and_charge_shared_stream_once(tmp_pa
     p.write_text('{}');assert read(first)==rows
     bad=copy.deepcopy(data);bad['cells'][0]['delta']=3;assert read(commit(bad))==[]
     bad=copy.deepcopy(data);bad['physical_collection_attempts_observed']*=3;assert read(commit(bad))==[]
+
+
+def test_direct_metrics_preserve_units_equivalence_and_committed_state(tmp_path,monkeypatch):
+    def git(*args):return subprocess.check_output(['git','-C',str(tmp_path),'-c','user.name=test','-c','user.email=test@example.invalid',*args],text=True).strip()
+    git('init','-q');monkeypatch.setattr(M,'REPO',tmp_path)
+    path='research/prime_field_a3_execution_20261030/runs/a3-fixed-panel-0cddd8/analysis.json';p=tmp_path/path;p.parent.mkdir(parents=True)
+    data=dict(panel_complete=True,cells=[dict(cell_id=b,arm=a,verified=True,status='verified',accepted_witnesses=31,
+        distinct_equations=20,new_rank=15,combined_rank=15,rank_gain=2,attempts=286720 if a=='enumeration' else 2048)
+        for b in ('b13','b16') for a in ('enumeration','pair_table')])
+    def commit(value):p.write_text(json.dumps(value));git('add',path);git('commit','-qm','marked-direct-source');return git('rev-parse','HEAD')
+    def read(ref):
+        stream=io.StringIO()
+        with contextlib.redirect_stdout(stream):M.prime_field_direct_panel(ref,'2026-10-30')
+        return [json.loads(line) for line in stream.getvalue().splitlines()]
+    first=commit(data);samples=read(first)
+    assert len(samples)==11
+    assert [(s['value'],s['unit']) for s in samples[:2]]==[(573440,'descriptors'),(4096,'queries')]
+    p.write_text('{}');assert read(first)==samples
+    for mutate in (lambda d:d['cells'][0].update(attempts=2048),lambda d:d['cells'][1].update(distinct_equations=21),
+                   lambda d:d.update(panel_complete=False),lambda d:d['cells'][0].update(verified=False)):
+        bad=copy.deepcopy(data);mutate(bad);assert read(commit(bad))==[]
