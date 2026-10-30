@@ -4,8 +4,8 @@ Status (2026-10-30): the degree-six search continues; no degree-six bound has
 been obtained. Six of 47 high-memory continuation inputs are terminal, all
 retaining LFD at least 5. The other 41 include the live n47 random input 01.
 Degree-five codimension equality and killed-constant projections establish no
-upper bound. The separate remote D4 continuation has 19 of 32 inputs completed,
-including 12 certified LFD at least 5 bounds; see the
+upper bound. The separate remote D4 continuation has 20 of 32 inputs completed,
+including 13 certified LFD at least 5 bounds; see the
 [new n44 random-input report](reports/panel-v3-n44-rand00/report.md).
 The remaining frozen cloud inputs continue in order as worker slots become free.
 
@@ -147,3 +147,5 @@ The [fifth immutable snapshot](reports/highmem-progress-005/report.md) records s
 The [retained-seed capacity calculation](reports/native-envelope-001/report.md) reproduces a 152,976,386,232-byte native envelope for this D5 lift. Both border enumerations agree. Even chunk 1 exceeds this host total memory, so reducing the batch alone cannot admit the existing representation. A separately qualified larger-memory instrument/host or reduced representation remains necessary. No new LFD bound follows.
 
 The separate [bounded-export allocation candidate](BOUNDED-EXPORT-MEMORY.md) passed generic byte-equivalence and nine independently checked Semaev stages. It removes a full-output-map reservation left over after blockwise export, giving a calculated 85.791 GiB envelope for this seed. Runtime placement and a frozen frontier continuation are still required; no large input has run on it.
+
+The [n44 random03 report](reports/panel-v3-n44-rand03/report.md) retains an accepted D4 codimension 31,780 against exact count zero, establishing LFD >= 5; all 47 artifact hashes and public archive readback verified.
