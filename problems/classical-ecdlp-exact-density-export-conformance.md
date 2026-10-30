@@ -35,3 +35,7 @@ TASK-20261030-fafaa1 may create an explicitly derived outer export with exact or
 ## Resolution and history
 
 2026-10-30: Opened from actual root RC1/seven findings after native structural completion. Original native/export/protocol bytes and all unknown historical qualifications remain. Unresolved.
+
+## Descriptive report evidence (2026-10-30)
+
+TASK-20261030-fafaa1 derived the outer experiments/EXP-ECDLP-787704/export.json from the immutable native export by rebasing only file/host/artifact paths and adding explicit derivation notes. The actual cb9953014fe0d93f193c3892d73bd284348532ae commit, single physical row, null analysis.script and raw backend_record/seals remain unchanged. The unchanged check-export --protocol --verify-files was run once in a read-only external path view: RC1, exactly the same seven findings, with no missing-file/hash findings. Actual argv, UTC interval, full before/after tool/schema/input bytes and output are retained in reports/run-20261030T1722Z/export-validation.json. The report contains all288 recorded curve-cell rows/histograms and all-zero/cap/failure counts, with a three-page inspected PDF. This additive communication step does not close any original exit criterion. Full independent new/retained mathematical validation, source-pin reconciliation and a prospectively compatible protocol/export representation remain separate. No source substitution, cloned rows, scientific rerun or protocol change occurred.
