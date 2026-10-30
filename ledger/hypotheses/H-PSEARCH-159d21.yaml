@@ -1,0 +1,143 @@
+hypothesis:
+  id: H-PSEARCH-159d21
+  question_id: RQ-PFDR-ae2fba
+  statement: Calling a fixed certified polynomial routine on genuinely partial contiguous Boolean prefixes
+    can expose a finite search-pruning signature in a same-backend comparison, without changing projected solutions.
+  mechanism: Before a full Boolean model is formed, refute eligible contiguous LSB restrictions and send their
+    checked prefix exclusion clauses through the same nonlazy CaDiCaL external-clause interface.
+  assumptions:
+  - Prime-field fixtures, nonsingular curves and nonzero rational target ordinate; fixed digit domains.
+  - Same source/backend/policies/limits within each matched encoding; no reference information enters search.
+  - All counters are instrumented subsets; no total-cost/runtime or ECDLP inference.
+  predictions:
+  - metric: SEARCH
+    direction: different
+    minimum_effect: At least one eligible ordinary pair has a genuine nonfull-assignment proof and fewer complete-model
+      theory callbacks; all required soundness/reference/A/A checks hold.
+  test_boundary:
+    instances:
+    - experiments/EXP-PSEARCH-3ea9fe/config.json
+    parameters:
+      schema: prime-prefix-search-config/v1
+      experiment_id: EXP-PSEARCH-3ea9fe
+      curves:
+      - p: 17
+        a: 2
+        b: 2
+      - p: 97
+        a: 1
+        b: 4
+      digits:
+      - 2
+      - 3
+      target_selection:
+        kind: first_affine_x_representatives
+        count_per_curve: 3
+        ordinate: least_nonzero_y
+        eligibility: nonsingular curve, mathematical prime p>3, nonzero target ordinate and 2^s<=p
+        selection: input only; no witness, completion or cost filtering
+      encodings:
+      - quartic
+      - membership
+      - quadratic
+      - quadratic_aa
+      strategies:
+      - model_only
+      - partial_prefix
+      - partial_prefix_aa
+      limits:
+        degree: 2
+        rows: 256
+        pc_calls: 512
+        native_conflicts_per_call: 20000
+        native_decisions_per_call: 20000
+        outer_calls: 2^(2*s)+1
+        arm_watchdog_seconds: 120
+        global_watchdog_seconds: 7200
+      backend:
+        name: Cadical195
+        pysat_version: 1.9.dev17
+        is_lazy: false
+        decision_policy: lowest unassigned observed variable, false first
+        model_blocking: outer loop queues checked model projected-prefix block; next solve_limited delivers
+          through the same has_clause/add_clause external callback as prefix conflicts; no ordinary add_clause
+          after initialization
+        prefix_depths: sorted unique [0,s,2*s,n]
+        threads: 1
+      order:
+        cell: curve list, digits list, first target x ascending
+        within_cell: encoding list; rotate strategy order by (cell_index+encoding_index) modulo 3
+        reference: after all search executions
+        fresh_solver_each_arm: true
+        solver_seed: 0
+      reference:
+        mode: all
+        domains: D1=D2 integer interval [0,2^s)
+        implementation: research/prime_sat_costbridge_20261029/reference.py
+        checker: research/prime_sat_costbridge_20261029/check_reference.py
+        cost_scope: retained certificate/setup counters plus explicitly named source-function/call/pow/domain
+          instrumentation if present; not a field-operation total
+      controls:
+        positive:
+          p: 5
+          n: 2
+          projected_bits: 2
+          polynomials:
+          - '3': 1
+            '0': 4
+          prefix_depths:
+          - 0
+          - 1
+          - 2
+          expected_models:
+          - 3
+          required: valid nonleaf refutation for prefix0 depth1 through partial callback
+        negative:
+          p: 5
+          n: 2
+          projected_bits: 2
+          polynomials:
+          - '3': 1
+          prefix_depths:
+          - 0
+          - 1
+          - 2
+          expected_models:
+          - 0
+          - 1
+          - 2
+          required: no certified nonleaf refutation
+        empty_clause:
+          p: 5
+          n: 2
+          projected_bits: 2
+          polynomials:
+          - '0': 1
+          prefix_depths:
+          - 0
+          - 1
+          - 2
+          expected_models: []
+          required: actual empty clause distinguished from no queued clause
+        mutations:
+        - corrupted multiplier rejected
+        - malformed prefix clause rejected
+        - invalid returned model rejected
+      checkpoint:
+        scientific_resume: false
+        completed_arm_journal: append and fsync
+        failure: retain every partial row; no automatic retry
+    implementation: research/prime_sat_prefix_search_20261030
+    budget:
+      maximum_memory_gb: 4
+      maximum_workers: 1
+      maximum_runs: 1
+  falsification_conditions:
+  - Complete valid48-pair inventory with no joint signature is negative only for this schedule/window; mismatches
+    invalidate the affected assertion; censored results are inconclusive.
+  interpretation_limits:
+  - No general degree, full-work/runtime, arbitrary-clause, unknown-scalar recovery or general ECDLP speedup
+    claim.
+  - Controls are calibration and old public inputs overlap; no unseen-distribution claim.
+  status: specified
+  proposed_by: coordinator
