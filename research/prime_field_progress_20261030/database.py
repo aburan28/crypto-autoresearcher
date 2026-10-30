@@ -53,6 +53,13 @@ CREATE VIEW isolated_target_summary AS
  t.old_nullity AS remaining_base_nullity
  FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid)
  WHERE t.status='verified' AND t.first_single_attempt IS NOT NULL;
+CREATE VIEW target_partial_score_summary AS
+ SELECT c.b,t.target_index,t.old_rank,t.augmented_rank,
+ CASE WHEN t.witnesses>0 THEN 1 ELSE 0 END AS outside_rank,
+ t.augmented_rank-(CASE WHEN t.witnesses>0 THEN 1 ELSE 0 END)-t.old_rank AS delta,
+ 2*t.attempts AS charged_collection_and_replay_branches
+ FROM target_cases t JOIN bases b USING(base_sha256) JOIN curves c USING(curve_uid)
+ WHERE t.status='verified';
 '''
 
 
@@ -65,7 +72,7 @@ def project(row,projection,r):
     return [x%r for x in v],b%r
 
 
-def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out):
+def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out,derived_sources=()):
     if out.exists():raise ValueError('fresh derived database required')
     original=sqlite3.connect('file:'+str(base_path.resolve())+'?mode=ro',uri=True)
     c=sqlite3.connect(out)
@@ -106,6 +113,7 @@ def build(base_path,b2_run,b2_inputs,d1_run,d1_inputs,out):
         return row[0]
     try:
         source(base_path,'parent_database');source(Path(__file__),'builder')
+        for path in derived_sources:source(path,'derived_certificates_or_scores')
         for key in ('builder_sha256','schema_sha256'):
             prior=c.execute('SELECT value FROM metadata WHERE key=?',(key,)).fetchone()
             if prior:c.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('parent_'+key,prior[0]))
@@ -169,7 +177,8 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--base',type=Path,required=True);p.add_argument('--b2-run',type=Path);p.add_argument('--b2-inputs',type=Path)
     p.add_argument('--d1-run',type=Path);p.add_argument('--d1-inputs',type=Path);p.add_argument('--out',type=Path,required=True)
-    args=p.parse_args();print(encode(build(args.base,args.b2_run,args.b2_inputs,args.d1_run,args.d1_inputs,args.out)))
+    p.add_argument('--derived-source',type=Path,action='append',default=[])
+    args=p.parse_args();print(encode(build(args.base,args.b2_run,args.b2_inputs,args.d1_run,args.d1_inputs,args.out,args.derived_source)))
 
 
 if __name__=='__main__':main()

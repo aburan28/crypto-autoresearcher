@@ -72,3 +72,22 @@ parent, frozen inputs, exports and certificate builders at committed source.
 Hashing/importing results is not independent scientific review. These are two
 small fixed curves, not a database of scalable attack results. Clock and partial
 operation counters do not provide a complete S or a speedup comparison.
+
+`cancel_targets.py` is a post-hoc reuse of the natural target witnesses as
+one-outside-point partials, separately labelled from the frozen D1 primary
+analysis. Without using a recovered target scalar, it eliminates the column
+`-t`, retains every cancellation's weights, verifies the resulting base-only
+point equation, and compares Delta with a dense python-flint modular rank
+oracle. The score is rank([[M,0],[B,-t]])-rank(-t)-rank(M), so merely adding
+the target variable cannot raise it. All frozen cases remain. The exact
+collection-plus-replay branch charge and shared-host diagnostic analysis CPU
+components are retained; neither is a complete S. This oracle is used only
+for these fixed small subgroup fields, not arbitrary-width database integers.
+It does not execute the open residual-outside-point collector lead.
+
+`target_partial_score_summary` exposes that same identity for verified D1
+cells: the single outside column has rank1 if at least one nonzero-multiplier
+row exists, otherwise0. Bind the actual cancellation/certificate files in the
+database's source registry with repeated `--derived-source PATH`, and check
+the view against the retained dense-oracle result before publishing the
+generation receipt. These derived checks add no physical native execution.

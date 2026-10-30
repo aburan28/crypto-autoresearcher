@@ -91,6 +91,7 @@ def build_d1(run,inputs,analysis,execution,export,out,supplements):
     isolated={(c['fixture_uid'],c['target_index']):c['isolated'] for c in supplements['certificates']['cases']}
     table='\n'.join(','.join('['+text(v)+']' for v in (definitions[c['curve_uid']]['fixture']['b'],c['target_index'],c['base_rank'],c['witnesses'],c['identified_target'],c['augmented_rank'],prefix_ranks[(c['curve_uid'],c['target_index'])],None if isolated[(c['curve_uid'],c['target_index'])] is None else isolated[(c['curve_uid'],c['target_index'])]['augmented_rank'],None if isolated[(c['curve_uid'],c['target_index'])] is None else isolated[(c['curve_uid'],c['target_index'])]['remaining_base_nullity'],c['status']))+',' for c in cases)
     points='\n'.join(f"- b={definitions[c['curve_uid']]['fixture']['b']}, j={c['target_index']}: Q={c['target']}; base coincidence {c['target_is_signed_base_point']}; projected anchor {c['target_is_public_anchor']}; broader known-source matches {supplements['matches'][(c['curve_uid'],c['target_index'])][0]}; earlier-target matches {supplements['matches'][(c['curve_uid'],c['target_index'])][1]}." for c in cases)
+    partial_scores='; '.join(f"b={definitions[c['fixture_uid']]['fixture']['b']},j={c['target_index']}: Delta={text(None if c['score'] is None else c['score']['delta'])}" for c in supplements['partials']['cases'])
     return f'''= Independent natural-target recovery
 Observations only. Eight fixed public hash indices, four per full EC1 curve identity, were frozen before any p4099 target generation. Domain prime-field-leads/20261028/target/v1; SHA256 of UTF-8 domain|curveUID|decimal index|decimal counter, big-endian mod p, first rational canonical-y point in the subgroup, counter bound10000. No target scalar label or manufactured known-log point was provided. All coincidences and unsuccessful cases remain; every target runs the full64-multiplier census regardless of first recovery.
 
@@ -104,6 +105,8 @@ Complete panel: {analysis['panel_complete']}; unknown cases {analysis['unknown_c
 )
 #image("observations.svg",width:100%)
 Prefix positions count scheduled branches, including misses; they are not elapsed costs. Final rank and first combined rank refer to the full stream's augmented sixteen-column system. A first rank below16 leaves base uncertainty; rank16 identifies the whole augmented system. The isolated columns instead use the original M plus ONE natural target row, with explicit unit-vector weights and a separate public-point check. Their rank is derived as rank(M)+1; remaining base nullity is15-rank(M). Thus a later isolated row can identify a target with base uncertainty even if the earlier combined stream first recovered it at full rank. Every case remains in both comparisons.
+
+Labelled post-hoc partial-relation reuse: {partial_scores}. Treating the target as one outside column, Delta=rank([[M,0],[B,-t]])-rank(-t)-rank(M). Cancellation uses no recovered target scalar. Original-row weights, resulting base-only point equations and a separate dense modular rank oracle are checked. Each completed case is charged its collection and replay branches; analysis CPU components are diagnostic and complete S remains unmeasured. This is not a new native execution or a residual-outside-point collector result.
 
 #pagebreak()
 == Frozen targets and retained scope
@@ -123,20 +126,22 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kind',choices=['b2','d1'],required=True);parser.add_argument('--run',type=Path,required=True)
     parser.add_argument('--inputs',type=Path,required=True);parser.add_argument('--out',type=Path,required=True)
-    parser.add_argument('--target-certificates',type=Path);parser.add_argument('--database',type=Path)
+    parser.add_argument('--target-certificates',type=Path);parser.add_argument('--target-partials',type=Path);parser.add_argument('--database',type=Path)
     args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=False)
-    load=lambda p:json.loads(p.read_text())
+    def load(p):
+        with (gzip.open(p,'rt') if p.suffix=='.gz' else p.open()) as stream:return json.load(stream)
     inputs,analysis,execution,export=(load(p) for p in (args.inputs,args.run/'analysis.json',args.run/'execution.json',args.run/'export.json'))
     plt.rcParams.update({'font.size':9,'svg.fonttype':'none'})
     paths=[args.inputs,args.run/'analysis.json',args.run/'execution.json',args.run/'export.json',Path(__file__)]
     if args.kind=='d1':
-        if args.target_certificates is None or args.database is None:raise ValueError('D1 needs explicit derived certificate/database inputs')
+        if args.target_certificates is None or args.database is None or args.target_partials is None:raise ValueError('D1 needs explicit derived certificate/partial/database inputs')
         certificates=load(args.target_certificates)
-        if certificates['source_export_sha256']!=sha256((args.run/'export.json').read_bytes()).hexdigest():raise ValueError('supplement export differs')
+        partials=load(args.target_partials)
+        if any(value['source_export_sha256']!=sha256((args.run/'export.json').read_bytes()).hexdigest() for value in (certificates,partials)):raise ValueError('supplement export differs')
         with sqlite3.connect('file:'+str(args.database.resolve())+'?mode=ro',uri=True) as connection:
             matches={(uid,index):(public,other) for uid,index,public,other in connection.execute('SELECT b.fixture_uid,t.target_index,t.public_source_matches_json,t.intertarget_matches_json FROM target_cases t JOIN bases b USING(base_sha256)')}
-        source=build_d1(args.run,inputs,analysis,execution,export,args.out,dict(certificates=certificates,matches=matches))
-        paths.extend([args.target_certificates,args.database])
+        source=build_d1(args.run,inputs,analysis,execution,export,args.out,dict(certificates=certificates,matches=matches,partials=partials))
+        paths.extend([args.target_certificates,args.target_partials,args.database])
     else:source=build_b2(args.run,inputs,analysis,execution,export,args.out)
     (args.out/'report-inputs.json').write_text(json.dumps([dict(path=str(p),bytes=p.stat().st_size,sha256=sha256(p.read_bytes()).hexdigest()) for p in paths],indent=2)+'\n')
     svg=args.out/'observations.svg';svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
