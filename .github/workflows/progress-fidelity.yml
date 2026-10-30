@@ -1,22 +1,24 @@
 name: progress-fidelity
 on:
   pull_request:
-  push:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    branches: [main]
+    types: [closed]
   merge_group:
   workflow_dispatch:
-# The pull_request event is the required check. Pushing a PR branch also fired
-# this workflow through `push` (every branch, no filter), so each PR push ran it
-# twice on a full checkout, and nothing cancelled a superseded run. Run on
-# pull_request and on main only, one run per ref, newest PR revision wins.
+# Open PR revisions provide the required check. A merged PR runs once against
+# its main commit; direct bot commits to main do not start this gate.
 concurrency:
-  group: progress-fidelity-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+  group: progress-fidelity-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'merge_group' }}
 permissions:
   contents: read
 jobs:
   progress-fidelity:
-    runs-on: main
+    if: ${{ github.event.action != 'closed' || github.event.pull_request.merged }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       # The claim checker reads claims/ only; never fetch multi-GB run archives.
@@ -30,6 +32,7 @@ jobs:
             /tests/test_progress_*.py
             /tools/progress_fidelity.py
             /tools/progress_dashboard.py
+            /tools/progress_metrics.py
           sparse-checkout-cone-mode: false
       - id: scope
         run: python3 .github/scripts/ci_scope.py

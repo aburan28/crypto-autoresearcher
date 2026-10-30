@@ -16,6 +16,14 @@ commit, and the workflow run. Sessions never upload: the job runs on each push
 to `main` that adds or changes a report, so S3 holds reports that merged.
 Removing a report from the repository does not delete its S3 copy.
 
+Large report files stay in the canonical content-addressed store, with their
+paths, SHA-256 and sizes tracked in `.artifacts.json`. After configuring AWS
+credentials, the workflow hydrates and verifies the checked-out report roots.
+It expands changed manifests into their verified report files before uploading;
+a manual run expands every report manifest. Research manifests select only PDF
+entries. Missing or corrupt selected report bytes fail publication. This also
+lets a manifest-only PDF change trigger publication.
+
 ## Configuration
 
 Repository variables (all optional):
@@ -43,7 +51,7 @@ Credentials, in the order the job tries them:
        "Action": "sts:AssumeRoleWithWebIdentity",
        "Condition": {"StringEquals": {
          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-         "token.actions.githubusercontent.com:sub": "repo:aburan28/crypto-autoresearcher:ref:refs/heads/main"
+         "token.actions.githubusercontent.com:sub": "repo:isogeny-labs/crypto-autoresearcher:ref:refs/heads/main"
        }}
      }]
    }
@@ -55,12 +63,17 @@ Credentials, in the order the job tries them:
    write this bucket), falling back to `AWS_ACCESS_KEY_ID` and
    `AWS_SECRET_ACCESS_KEY`.
 
-Either identity needs only:
+Either identity needs canonical-store read access for hydration and report-prefix
+write access for publication:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [{
+    "Effect": "Allow",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::setec-astronomy-artifacts/store/*"
+  }, {
     "Effect": "Allow",
     "Action": "s3:PutObject",
     "Resource": "arn:aws:s3:::setec-astronomy-artifacts/reports/crypto-autoresearcher/*"

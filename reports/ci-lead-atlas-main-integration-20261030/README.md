@@ -1,0 +1,13 @@
+# Lead atlas main integration
+
+Normally merged main91c729076 into the original PR2543 branch. The only conflicts were .gitattributes, the curated coverage mapping and the mutable problem index. All main attribute rules and the incoming exact report-PDF rule survive. The problem index retains all main records, including the real missing-capture obstruction, and the incoming atlas provenance gap.
+
+The coverage mapping retains every key from both parents (2773main,2758incoming). All18differing assignments were reviewed against their original hypothesis/proposal cards. The dedicated incoming odd-prime GHS/Weil-class leads and two relevant variant/engine classifications are retained; other cards keep current specific mechanism classifications. These are classifications, not decisions about the scientific claims in the cards.
+
+After restoring every cited original ledger record/experiment manifest from exact Git blobs, the complete native atlas checker passes for152leads. Six additional current records lacked mappings: the compounding/counting hypothesis maps to its existing yield model, and five proposed Prym/native-divisor follow-ups map to the existing same-field genus-g lead that explicitly cites the Prym router gap. Complete current local coverage is2095/2095, zero unmapped and zero dangling. All12original software tests plus7subtests pass. No lead disposition, hypothesis/experiment/goal status, scientific result or global four-repository review stamp changes.
+
+The historical149-lead report, diagram and PDF remain pinned to their original source; they are not rewritten as a current152-lead review. Cross-repository missing-path/ref warnings remain visible in the full checker output, and its original unmerged-source/independent-review qualifications remain in force. This is a partial classification/integrity repair, not four-repository saturation or scientific sign-off.
+
+Initial local checks lacked328referenced decision/evidence/experiment identifiers due sparse checkout; exact293committed record/manifest files were restored, with no empty placeholder directories or fabricated records. Initial failed controls and the later complete successes remain separate. An unnecessary broad historical whitespace diff failed128 and emitted binary/non-UTF8 output; it is retained as a setup diagnostic. Whitespace checks scoped to all three resolved metadata files pass. No frozen evidence was reformatted.
+
+Artifact policy passes under the existing configuration. The original report/graphs need no rebuild because their named historical snapshot and every scientific disposition/claim remain unchanged. Fresh hosted current-head checks and resolved review are required before merge; auto-merge is off.

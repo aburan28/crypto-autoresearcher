@@ -2,30 +2,31 @@ name: polynomial-solver-ml
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'tasks/polynomial_solver_ml/**'
       - '.github/workflows/polynomial-solver-ml.yml'
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
     paths:
       - 'tasks/polynomial_solver_ml/**'
       - '.github/workflows/polynomial-solver-ml.yml'
   workflow_dispatch:
 
-# One run per pull request (or per branch on push): a newer push cancels the run it
-# supersedes, so the shared runner pool is not spent on commits nobody will look at.
+# Supersede obsolete open-PR checks, and retain a distinct check for each merge.
 concurrency:
-  group: polynomial-solver-ml-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: polynomial-solver-ml-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
   software-benchmark:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       OPENBLAS_NUM_THREADS: '1'

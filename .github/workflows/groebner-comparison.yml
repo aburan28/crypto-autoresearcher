@@ -1,23 +1,24 @@
 name: Groebner comparison protocol
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths: ['groebner_compare/**', '.github/workflows/groebner-comparison.yml']
-  push:
+  pull_request_target:
     branches: [main]
+    types: [closed]
     paths: ['groebner_compare/**', '.github/workflows/groebner-comparison.yml']
-# One run per pull request (or per branch on push): a newer push cancels the run it
-# supersedes, so the shared runner pool is not spent on commits nobody will look at.
+# Supersede obsolete open-PR checks, and retain a distinct check for each merge.
 concurrency:
-  group: groebner-comparison-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: groebner-comparison-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 jobs:
   protocol:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +35,8 @@ jobs:
           name: boolean-protocol-smoke
           path: /tmp/groebner-smoke
   m5gb-bridge:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -50,8 +51,8 @@ jobs:
           M5GB_BINARY: /tmp/m5gb-bridge
         run: python -m unittest groebner_compare.test_research.SolverTrials.test_upstream_m5gb_basis -v
   julia-adapter:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -73,8 +74,8 @@ jobs:
           name: julia-adapter-environment
           path: .ci-julia/*toml
   polybori-adapter:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
       image: sagemath/sagemath:10.6

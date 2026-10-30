@@ -3,24 +3,24 @@ name: lean-verification
 # queues. Only positively identified irrelevant inputs skip the costly steps.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  push:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    branches: [main]
+    types: [closed]
   merge_group:
   workflow_dispatch:
 permissions:
   contents: read
-# A newer commit on the same PR supersedes the older one, so PR runs cancel.
-# Every commit that reaches main is a proof gate of its own: keying push,
-# merge-group and dispatch runs by commit keeps a later merge from cancelling
-# an earlier one before it builds, which is how theorems merged unbuilt.
+# A newer revision of an open PR supersedes the older check. A merged PR runs
+# against its main commit, while direct bot commits do not start this gate.
 concurrency:
-  group: lean-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: lean-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 jobs:
   changes:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       workspace: ${{ steps.scope.outputs.formal_workspace }}
@@ -37,12 +37,13 @@ jobs:
   kernel-controls:
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (!cancelled())
     env:
       SCOPE_RESULT: ${{ needs.changes.result }}
       RUN_KERNEL: ${{ needs.changes.outputs.kernel }}
-    runs-on: main
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Require a complete CI scope decision
@@ -99,6 +100,9 @@ jobs:
               if not Path(source).is_file():
                   raise SystemExit(f"Missing target source in {spec}: {source}")
           PY
+      - name: Prefetch pinned control toolchain
+        if: env.RUN_KERNEL == 'true'
+        run: bash tools/prefetch_pinned_lean.sh formal/smoke/lean-toolchain
       - uses: leanprover/lean-action@v1
         if: env.RUN_KERNEL == 'true'
         with:
@@ -117,6 +121,7 @@ jobs:
         if: env.RUN_KERNEL == 'true'
         run: |
           python -m pytest tests/test_lean_live.py tests/test_formal_research_lane.py \
+            tests/test_formal_verification_session.py \
             tests/test_formal_targets.py tests/test_formal_frontier_integration.py \
             tests/test_mathcode_formalizer.py -q --junitxml=lean-controls.xml
       - uses: actions/upload-artifact@v4
@@ -139,12 +144,13 @@ jobs:
     name: formal workspace (lake build + axiom audit)
     needs: changes
     if: >-
+      (github.event.action != 'closed' || github.event.pull_request.merged) &&
       !github.event.pull_request.draft &&
       (!cancelled())
     env:
       BUILD_WORKSPACE: ${{ needs.changes.outputs.workspace }}
       SCOPE_RESULT: ${{ needs.changes.result }}
-    runs-on: main
+    runs-on: ubuntu-latest
     # Hosted run 40046183587 spent ~20 min restoring/building Mathlib and then
     # reached only target 21/84 before the 25 min job limit cancelled the audit.
     # Keep enough time for the entire non-vacuous per-target proof gate.
@@ -212,6 +218,11 @@ jobs:
       - name: Generate the workspace root module
         if: env.BUILD_WORKSPACE == 'true'
         run: python3 tools/rebuild_formal_root.py --workspace formal
+      - name: Prefetch pinned proof toolchains
+        if: env.BUILD_WORKSPACE == 'true'
+        run: |
+          bash tools/prefetch_pinned_lean.sh formal/lean-toolchain
+          bash tools/prefetch_pinned_lean.sh formal/scoped-obstructions/lean-toolchain
       - uses: leanprover/lean-action@v1
         if: env.BUILD_WORKSPACE == 'true'
         with:

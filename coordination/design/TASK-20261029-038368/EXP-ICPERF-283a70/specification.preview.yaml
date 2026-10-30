@@ -1,0 +1,323 @@
+# EXP-ICPERF-283a70 — version-2 successor of EXP-ICPERF-b2f2d0, stage-0
+# instrument for H-ICPERF-5adc9b. Designed under TASK-20261029-038368
+# (DEC-20261029-22e05b). Frozen under DEC-20261029-0e40f3. No run, outcome, or conclusion is in this file.
+experiment:
+  id: EXP-ICPERF-283a70
+  hypothesis_id: H-ICPERF-5adc9b
+  source_idea: IDEA-20261015-b41f68
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  version: 2
+  predecessor_experiment_id: EXP-ICPERF-b2f2d0
+  predecessor_decision_id: DEC-20261029-22e05b
+  supersedes: EXP-ICPERF-b2f2d0
+  supersession_note: >-
+    Version 2 of the EXP-ICPERF-b2f2d0 contract, written under protocol
+    amendment experiments/EXP-ICPERF-b2f2d0/amendments/AMD-20261029-v2/protocol-amendment.yaml.
+    Version 1 stays frozen and approved as written and is never rerun. Its
+    only run, RUN-ICPERF-b09be8, is invalid_output and is not citable as an
+    observation (DEC-20261029-22e05b). The success and falsification criteria
+    below are version 1's, verbatim.
+  title: >-
+    Stage-0 instrument v2: 64 geometric draws at p = 1/50 with seed 20261017,
+    decided by exact integers, with two wrong-sampler negative controls
+  status: approved
+  frozen: true
+  approved_by: DEC-20261029-0e40f3
+  execution_authorized: true
+  designed_at: '2026-10-29'
+  designed_by_task: TASK-20261029-038368
+  objective: >-
+    Draw 64 geometric counts with success probability 1/50 from the xorshift32
+    sampler defined in /experiment/sampler at seed 20261017, and record the
+    sample sum, the sum of squares and the median. The runbook decides the
+    frozen success criterion by exact match with 2943, 289567 and 28. The
+    coefficient-of-variation and median-to-mean band flags are reported as
+    descriptive fields. Two planted negative controls, a wrong shift triple and
+    the support-{0, 1, ...} reading, must fail the exact match. Do not time a
+    pointer chase and do not read a host receipt.
+  inputs:
+    seed: 20261017
+    p_den: 50
+    n_targets: 64
+    shifts: [13, 17, 5]
+    support_min: 1
+    cv_band: [0.9, 1.1]
+    median_ratio_band: [0.6, 0.8]
+    preregistered:
+      sample_sum: 2943
+      sum_squares: 289567
+      median: 28
+    negative_controls:
+      wrong_triple: {shifts: [1, 2, 14], support_min: 1}
+      support_zero: {shifts: [13, 17, 5], support_min: 0}
+    runner: experiments/EXP-ICPERF-283a70/implementation/run.py
+    checker: experiments/EXP-ICPERF-283a70/implementation/check.py
+  input_bindings:
+    predecessor_specification:
+      path: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+      sha256: 36e31929db5cc9515d2bfa63caf7e1588b09aede5a7b7c2fbeeb8cc455a1c434
+      role: >-
+        Source of the verbatim success and falsification criteria, the seed,
+        the success denominator, the sample size and the preregistered integers.
+  sampler:
+    definition: >-
+      The state x is a 32-bit unsigned integer and starts at the seed. One step
+      is x ^= (x << 13) mod 2^32, then x ^= (x >> 17), then x ^= (x << 5) mod
+      2^32: xorshift32 with shifts left 13, right 17, left 5, all mod 2^32. A
+      draw steps first and then tests: it steps x and counts the test, and
+      stops at the first stepped state with x mod 50 = 0. The draw's value is
+      the number of tests, so its support is {1, 2, ...}. The next draw starts
+      from the state where the previous draw stopped. The seed itself is never
+      tested. Sixty-four draws make the sample; the median is the 32nd smallest
+      value (1-based), which must equal the 33rd.
+    shifts_definition: >-
+      The triple (13, 17, 5) is part of this definition. Its attribution to
+      Marsaglia (2003), "Xorshift RNGs", is recalled provenance: a pointer
+      only, not support for any property of the sampler.
+    citation_provenance: recalled
+  controls:
+    - id: CTL-1
+      kind: negative
+      trial_id: ctl-neg-wrong-triple
+      text: >-
+        A wrong sampler: the same recurrence, seed, denominator and support,
+        with shift triple (1, 2, 14) in place of (13, 17, 5). At design time
+        this sample gives 2938, 290138 and 29, has no median split, and sits
+        inside both bands. So the bands cannot tell it from the frozen sampler,
+        and the exact match must.
+      pass_condition: >-
+        raw-result.json records exact_match false, median_split false,
+        sample_sum 2938, sum_squares 290138 and median 29.
+      fail_condition: >-
+        exact_match is true, or any of those integers differs, or the trial
+        does not produce a complete raw-result.json.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-neg-wrong-triple
+    - id: CTL-2
+      kind: negative
+      trial_id: ctl-neg-support-zero
+      text: >-
+        The support-{0, 1, ...} reading of the same sampler: each draw counts
+        the failures before the success, one less than the frozen count. At
+        design time it gives 2879, 283745 and 27, and also sits inside both
+        bands (DEC-20261029-22e05b, F4).
+      pass_condition: >-
+        raw-result.json records exact_match false, median_split false,
+        sample_sum 2879, sum_squares 283745 and median 27.
+      fail_condition: >-
+        exact_match is true, or any of those integers differs, or the trial
+        does not produce a complete raw-result.json.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-neg-support-zero
+    - id: DESC-1
+      kind: descriptive_band
+      trial_id: geometric-probe-sample
+      text: >-
+        Version 1 control 1, kept as a descriptive field. The coefficient of
+        variation is compared with sqrt(1 - 1/50) through the band [0.81, 1.21]
+        on its square, computed exactly as cv_sq_num / cv_sq_den with cv_sq_num
+        = 64 * sum_squares - sample_sum^2 and cv_sq_den = sample_sum^2. It does
+        not discriminate: 6635 of 21207 non-degenerate wrong triples pass both
+        bands (DEC-20261029-22e05b, F4).
+      pass_condition: >-
+        Descriptive. The flag is reported and does not pass or fail the run.
+        The runbook counterpart checks that the band's inputs are the exact
+        values the preregistered integers imply: cv_sq_num 9871039 and
+        cv_sq_den 8661249.
+      fail_condition: >-
+        Descriptive. Neither value of cv_in_band fails the run. A cv_sq_num or
+        cv_sq_den other than 9871039 / 8661249 makes the unit invalid, as the
+        exact match already does.
+      runbook_assertion: runbook.yaml S02-trials by_trial.geometric-probe-sample (/cv_sq_num, /cv_sq_den, /cv_in_band type boolean) and metric cv_in_band
+    - id: DESC-2
+      kind: descriptive_band
+      trial_id: geometric-probe-sample
+      text: >-
+        Version 1 control 2, kept as a descriptive field. The median-to-mean
+        ratio median * 64 / sample_sum is compared with ln(2) through the band
+        [0.6, 0.8], computed exactly as median_ratio_num / median_ratio_den.
+      pass_condition: >-
+        Descriptive. The flag is reported and does not pass or fail the run.
+        The runbook counterpart checks median_ratio_num 1792 and
+        median_ratio_den 2943.
+      fail_condition: >-
+        Descriptive. Neither value of median_ratio_in_band fails the run.
+        Other numerator or denominator values make the unit invalid, as the
+        exact match already does.
+      runbook_assertion: runbook.yaml S02-trials by_trial.geometric-probe-sample (/median_ratio_num, /median_ratio_den, /median_ratio_in_band type boolean) and metric median_ratio_in_band
+  independent_variables:
+    - "sampler arm: frozen (13, 17, 5) support {1, ...} | wrong triple (1, 2, 14) | support {0, 1, ...}"
+  variable_ledger:
+    crosses_map: false
+    independent:
+      - name: shift_triple
+        values: ["(13, 17, 5) primary", "(1, 2, 14) CTL-1"]
+        how: constant per trial id in run.py TRIALS; bound by spec_bindings and asserted per trial (/shifts)
+      - name: support_min
+        values: ["1 primary", "0 CTL-2"]
+        how: constant per trial id in run.py TRIALS; bound by spec_bindings and asserted per trial (/support_min)
+    factors:
+      - {name: seed, treatment: fixed, how: "constant SEED = 20261017 in run.py; spec_bindings /experiment/inputs/seed; asserted /seed"}
+      - {name: p_den, treatment: fixed, how: "constant P_DEN = 50 in run.py; spec_bindings; asserted /p_den"}
+      - {name: n_targets, treatment: fixed, how: "constant N_TARGETS = 64 in run.py; spec_bindings; asserted /n_targets"}
+      - {name: process, treatment: measured, how: "each unit is a fresh python3 process launched by the supervisor; an audit replay is another fresh process"}
+      - {name: interpreter, treatment: measured, how: "recorded per unit in raw-result.json /interpreter and per session in step S01; exact integer arithmetic, so no effect is expected and none is credited"}
+      - {name: host, treatment: measured, how: "elapsed_seconds only; no clock is a primary metric"}
+    comparisons:
+      - {id: CMP-PRIMARY, design: absolute, arms: [geometric-probe-sample], differs_in: [], note: "the primary unit against the preregistered integers 2943, 289567, 28"}
+      - {id: CMP-CTL-1, design: one_factor, arms: [geometric-probe-sample, ctl-neg-wrong-triple], differs_in: [shift_triple]}
+      - {id: CMP-CTL-2, design: one_factor, arms: [geometric-probe-sample, ctl-neg-support-zero], differs_in: [support_min]}
+      - {id: CMP-AA, design: aa, arms: [recorded unit, audit replay of the same unit], differs_in: [process], note: "tools/runbook.py audit compares the replay pointers exactly; the noise floor is zero by construction"}
+  metrics:
+    primary:
+      - sample_sum
+      - sum_squares
+      - median
+      - cv_in_band
+      - median_ratio_in_band
+    secondary:
+      - elapsed_seconds
+    descriptive_only:
+      - cv_in_band
+      - median_ratio_in_band
+    decisive:
+      - exact_match (sample_sum, sum_squares and median equal 2943, 289567 and 28)
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      The sample sum is 2943, the sum of squares is 289567, and the median
+      is 28. The coefficient-of-variation square and the median-to-mean
+      ratio both sit in their bands.
+    formula: >-
+      Draws use xorshift32 from seed 20261017 and stop when the state is
+      divisible by 50. CV squared equals
+      (64 * 289567 - 2943^2) / 2943^2, which is inside [81/100, 121/100].
+      The median-to-mean ratio is 28 * 64 / 2943, inside [3/5, 4/5].
+    source: >-
+      Version 1's preregistered prediction, verbatim. The integers were
+      evaluated by experiments/EXP-ICPERF-b2f2d0/implementation/run.py in a
+      design-time directory before version 1 was frozen. They are not a host
+      measurement.
+  prediction_provenance:
+    - prediction: PRED-PRIMARY
+      text: the version-1 preregistered prediction, verbatim (2943, 289567, 28, both band flags true)
+      first_recorded_in: experiments/EXP-ICPERF-b2f2d0/specification.yaml
+      written_at: '2026-10-17'
+      data_seen:
+        - >-
+          RUN-ICPERF-b09be8 raw-result.json (2943, 289567, 28, both band flags true), the output of an
+          invalid_output unit, seen after 2026-10-21 by the audit readers of
+          AUD-20261029T011541Z-f9db07, by the Coordinator writing DEC-20261029-22e05b, and by this
+          design session. It is not an observation.
+      sample_status: out_of_sample
+      note: >-
+        The integers were fixed from version 1's run.py at its design time
+        (2026-10-17), before that unit existed, and are not changed here.
+    - prediction: PRED-CONTROLS
+      text: the negative-control integers (2938, 290138, 29) for CTL-1 and (2879, 283745, 27) for CTL-2, and the exact band inputs 9871039 / 8661249 and 1792 / 2943; the wrong triple (1, 2, 14) was chosen from a design-time scan as one that passes both bands with no median split
+      first_recorded_in: experiments/EXP-ICPERF-283a70/specification.yaml
+      written_at: '2026-10-29'
+      data_seen: []
+      sample_status: in_sample
+      note: >-
+        Computed by this design session from the stated model, in a scratch
+        directory outside the repository (arithmetic, not a trial). They
+        calibrate the controls' assertions; no success or falsification
+        criterion cites them.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Sixty-four draws at mean 50. No transfer to an 8 GiB table, to n=83,
+      or to a cross-host latency ratio.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: [20261017]
+    independent_instances: 1
+    seed_policy: >-
+      The single seed is 20261017. No other seed is drawn. The audit replay is
+      the A/A repetition of the same unit.
+  replay:
+    mode: fields
+    interpreter: >-
+      tools/runbook.py audit replays a unit with the python3 on PATH of the
+      auditing checkout, running the bound run.py under the runbook's
+      environment (PYTHONHASHSEED 0). No minor version is pinned, because the
+      arithmetic is exact integer arithmetic. Every unit records its own
+      interpreter in raw-result.json /interpreter (implementation, version,
+      executable), and the session records the launching interpreter in step
+      S01-probe-python. A replay records its own /interpreter the same way.
+      Replay compares only integers and booleans, exactly; never /interpreter
+      and never /elapsed_seconds.
+    compared_pointers: [/sample_sum, /sum_squares, /median, /median_split, /exact_match, /cv_sq_num, /cv_sq_den, /median_ratio_num, /median_ratio_den, /cv_in_band, /median_ratio_in_band]
+  decisive_test: >-
+    The runbook decides the frozen success criterion by itself. Unit
+    geometric-probe-sample is valid only if raw-result.json carries sample_sum
+    2943, sum_squares 289567, median 28, median_split false and exact_match
+    true. Given those three integers, cv_in_band and median_ratio_in_band are
+    true by arithmetic (CV squared 9871039/8661249 is inside [81/100,
+    121/100]; the ratio 1792/2943 is inside [3/5, 4/5]), so the exact match
+    decides the whole verbatim criterion. The band flags are asserted only as
+    booleans. Success is observed when the session's execution validity is
+    valid and its control validity is passed. Falsification is observed when
+    the primary unit writes a complete raw-result.json whose integers differ;
+    the runbook then marks the unit invalid on those assertions and the
+    session stops. A crash, a timeout, a missing file or a refused manifest is
+    an instrument failure, not falsification. A failed negative control
+    invalidates the session's control validity, and the instrument cell has no
+    valid observation.
+  budget:
+    enforcement: advisory
+    maximum_memory_gb: 1
+    maximum_runs: 3
+    wall_clock_seconds_per_run: 60
+  stopping_rules:
+    - Stop after the three preregistered trials, one run each. Do not open another seed in this version.
+  invalidation_rules:
+    - >-
+      A crash, timeout, or a split between the two central order statistics
+      of the primary sample invalidates the instrument run. It is not evidence
+      about host latency.
+    - >-
+      A manifest.yaml that fails tools/validate_ledger.py check_run, or that
+      the supervisor refuses, invalidates the unit. It is not evidence.
+    - >-
+      Changing the seed, the success denominator, the sample size, the shift
+      triple, the support or a control after this freeze requires an
+      amendment. It is not a rerun of version 2.
+  success_criterion: >-
+    The run records sample_sum 2943, sum_squares 289567, median 28,
+    cv_in_band true, and median_ratio_in_band true.
+  falsification_criterion: >-
+    The run records a complete sample in which sample_sum is not 2943, or
+    sum_squares is not 289567, or median is not 28, or cv_in_band is false,
+    or median_ratio_in_band is false. That result invalidates the instrument
+    cell and does not decide the host-latency claim of IDEA-20261015-b41f68.
+  decision_impact:
+    on_positive: >-
+      The sampler reproduced the frozen geometric sample exactly, and both
+      wrong samplers failed the exact match. A later amendment may bind real
+      probe panels. This pass does not show that n=83 probe counts are
+      geometric, and it does not close IDEA-20261015-b41f68.
+    on_negative: >-
+      The sampler failed the frozen sample. Do not schedule a pointer-chase
+      from this runner. Repair the instrument by amendment. Do not read the
+      failure as evidence that host latency is independent of the online ratio.
+  required_artifacts:
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-f21eb1/manifest.yaml
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-f21eb1/raw-result.json
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-f21eb1/RESULTS.md
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-0ef41e/manifest.yaml
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-0ef41e/raw-result.json
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-0ef41e/RESULTS.md
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-74e9a2/manifest.yaml
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-74e9a2/raw-result.json
+    - experiments/EXP-ICPERF-283a70/runs/RUN-ICPERF-74e9a2/RESULTS.md
+  runbook:
+    path: experiments/EXP-ICPERF-283a70/runbook.yaml
+    session_id: RBS-ICPERF-67df7d
+    predecessor_session_id: RBS-ICPERF-c4a91e
+  assigned_to: executor
+  scope_note: >-
+    Version 2 is the seeded geometric sample only, plus two wrong-sampler
+    controls. Pointer-chase latency, huge pages, and cross-host ratios remain
+    proposed. No speedup or latency statement.

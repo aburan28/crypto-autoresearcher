@@ -1,0 +1,52 @@
+# Independent fixed software review — TASK-20261029-3c8d06
+
+All six assigned joints hold within the frozen software contract. The independently authored suite executed seven fixed control families and 250 named assertions successfully; the exact old regression command then executed all 18 tests successfully. These are actual execution observations, with both invocations returning zero and all frozen source hashes identical before and after each invocation. No harness repair or repeat was needed. The two invocations use two of the permitted four suite invocations.
+
+The primary evidence is `independent-results.json`, SHA256 `207fe5f4a16f0e4ccdeb4aef0f4cd473f46e1c95afbf127eb103e3a539bbf8cc`. It retains exact argv, working directory, the explicit bytecode environment setting, observed UTC timestamps, complete captured stdout/stderr, return codes, per-assertion and per-test outcomes, guard-mutant transformation, harness source text/hash, and source hashes before and after both suites. The independently authored harness SHA256 is `60f320721abe4c383b0f9d7aa89e07ecf9134dd88b12d529cd389b3d924d9733`.
+
+| Assigned joint | Verdict | Actual observation |
+|---|---|---|
+| `false_nonroot_isolation` | holds | The original positive empty-model artifact is accepted. Replacing its square-root row with the fixed false nonsquare row preserves its correct digest, global Z=2, empty D2, empty projected set and empty witnesses. The original checker rejects exactly `invalid nonroot certificate`. Suppressing that one guard in an isolated in-memory mutant admits the same negative artifact. |
+| `rehash_input_guards` | holds | All four malformed inputs have correctly recomputed digests, independently asserted before checker invocation. The checker rejects exactly the named duplicate-coordinate, singular-curve, off-curve-point and zero-ordinate guards. Producer `solve` also rejects all four malformed inputs. This isolates those four input guards only. |
+| `oncurve_sum_guards` | holds | Both prescribed mutations retain on-curve summands, the same projected coordinates, domains and input digest. They are rejected exactly for wrong sum abscissa and wrong sum ordinate, respectively. Independently computed addition confirms that the second mutation negates both original summands and sums to (0,4)=-R. |
+| `exception_and_root_paths` | holds | Elementary addition confirms 2R=-R and 3R=O on the fixed p=7 curve. Producer/checker preserve the unique exceptional projection (0,0) with (-R,-R); removing it with unchanged lift coverage is rejected exactly as an incomplete/spurious projected set. For p=17, v2(p-1)=4, Euler(2)=1, Euler(3)=-1, and the actual setup is deterministic_scan, Z=3, two setup probes. Full projected output agrees with a separately written tiny group oracle; all lift signs, twisted certificates and witnesses are checked. The direct general-root-path output squares to 9. |
+| `prefix_coverage` | holds | All nine fixed coverage/gap cases and eleven specified invalid inputs behave as required. The three n=256 fixtures use no cube enumeration. Every returned gap is independently checked against its Boolean/auxiliary domain and every supplied cylinder; tiny exhaustive checks apply only to the fixed n<=4 fixtures. All outputs retain `arithmetic_verified=false`. |
+| `execution_custody` | holds | One new suite and one exact old regression were actually executed, with all attempts retained. All frozen source/receipt hashes and the independent harness hash match before and after both suites. No scientific run, benchmark, solver invocation, source mutation, harness repair, Git mutation or canonical gate invocation occurred. |
+
+The exact new-suite command, executed from `/home/ec2-user/crypto-prime-sat-ideas-20261029` with `PYTHONDONTWRITEBYTECODE=1`, was:
+
+```text
+/home/ec2-user/prime-sat-research-venv/bin/python -B research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/test_independent_controls.py --receipt research/prime_sat_costbridge_controls_20261029/TASK-20261029-3c8d06/independent-results.json
+```
+
+Its seven named families ran at the receipt-observed UTC interval `2026-10-30T00:48:27.121677+00:00` to `2026-10-30T00:48:27.132525+00:00`. The script captured the exact required subprocess command once:
+
+```text
+/home/ec2-user/prime-sat-research-venv/bin/python -B -m unittest discover -s research/prime_sat_costbridge_20261029 -p test_reference.py -v
+```
+
+The regression interval was `2026-10-30T00:48:27.206128+00:00` to `2026-10-30T00:48:27.799967+00:00`. The outer command itself was observed to exit zero by the execution tool. UTC clock-tool observations bracketing that execution were `2026-10-30 00:48:24 UTC` and `2026-10-30 00:48:27 UTC`. Timestamps establish custody only. Unittest's elapsed text is retained without performance interpretation.
+
+| Frozen file | SHA256 before and after both suites |
+|---|---|
+| `research/prime_sat_costbridge_20261029/reference.py` | `a05b0c30df5b5b4b9763e6bb422ee5f9212d5345aa573448827cd830ca4678ad` |
+| `research/prime_sat_costbridge_20261029/check_reference.py` | `af276a95753493ba8885b19f85cf9d53fe5f52746990256b0d04795aff68451e` |
+| `research/prime_sat_costbridge_20261029/test_reference.py` | `7588f9fb28c793f4eb4f7758504b4c0de3d48bdceb42fd8f20ab883cbffce883` |
+| `research/prime_sat_costbridge_20261029/unit-test-results.json` | `10598ae6b78d998b0fdb40a9e3c012b0f8f4ead6cdd19a45b1b7e03adbdef4c3` |
+| `research/prime_sat_costbridge_controls_20261029/prefix_cover.py` | `10ef5f615218649660eaf62212e9dcb58045f08ebb414663a4c14ed63c090c2c` |
+
+The only weakened checker is labeled `mutant=true`, with `certification=false`. Its patch SHA256 is `77a24a31b1204e46ad8249d5d7c07be1cff52a476642ef7c79ddafc98a01cd5c`, and its in-memory source SHA256 is `5a8e83372cf9c568ef07f8a0dbfbd7936f52969621f6564c740c7a4d75e42c32`. The unchanged negative artifact SHA256 is `5d7b8000d1a25dc9a271aa5715995ffbe727192454f636f5aea4151b37732134`. Its acceptance demonstrates the isolated guard's necessity and certifies nothing. No sum-guard mutant was needed or created.
+
+For the prefix utility, the n=256 two-half cover, one-half hole and empty-prefix cover return trie-node counts 3, 2 and 1, respectively; the one-half hole is exactly 1. The auxiliary boundary cover has 13 nodes, the auxiliary hole has 12 nodes and gap 5, the empty auxiliary domain has one node and is covered, and the censored fixture has five nodes and gap 2. The duplicate/overlap fixture is covered with three nodes; the zero-bit cube without prefixes has one node and gap 0. Each tested output respects `trie_nodes<=1+sum(depth)`. Source inspection finds an iterative sparse trie with stack traversal and no assignment-space enumeration; the finite checks do not constitute an all-input proof of the symbolic implementation bound.
+
+The review used the prospective brief, software contract, source-input identities, review plan, inference amendment and canonical handoff; these define the fixtures, permitted sources, scope and custody requirements. Primary implementation sources were the frozen old reference/checker/tests and the snapshot-bound new utility. The old result receipt was read only as bytes for its SHA256. Repository policy reads included `AGENTS.md`, `docs/agent-contract-extended.md`, `docs/lab-contract.md`, and schema code in `tools/check_review_independence.py`. The runtime and route skill instruction files were also read; the repository-local route and reviewer paths were absent. This is a fixed software execution review with no new literature, novelty or mathematical claim; no external paper verification or historical review conclusion is used as support. No canonical graph relationship changes: the review supplies fixed software execution evidence only, and the parent owns the declared synthesis/visual artifacts.
+
+Independence was maintained. I did not read the producer's new tests, results, README, snapshot receipt, old/sibling review conclusions, Git history, `.resume`, or the root scientific conversation. The assertions and elementary/tiny coverage oracles were independently authored from the fixed specification. Importing the permitted targets tests their implementation; the mathematical oracle does not import producer arithmetic. This is independent assertion/execution testing, not blind derivation of a new theorem.
+
+The initial epoch-1 dispatch ended at a provider usage-limit failure before any output file or test-suite invocation. A subsequent availability-only turn confirmed execution and waited without new scientific input reads, writes or tests. The coordinator then reported epoch-1 release `0758a12082` and published epoch-2 claim `32b0f64120` for owner `reviewer-prime-controls`, session `prime-controls-independent`, TTL60, branch `codex/prime-sat-controls-review-20261030`. These administrative messages supplied custody/identity only, with no producer outcomes or mathematical followups. I performed no Git, claim or queue mutations. An initial broad filename search produced no results before interruption; it supplied no forbidden file contents.
+
+The exposed canonical actor is `/root/costbridge_controls_reviewer`, operating in this separate review session. The prospective request was native Codex, gpt-6.1-sol, xhigh, fork_turns none. These requested settings are not authenticated provider facts: opaque session UUID, authenticated model and authenticated reasoning effort remain unknown. No provider probe, model-verification or Opus execution is claimed. The managed-cloud runtime skill was read; its environment-status tool was unavailable, and this task used no network access.
+
+There are no observed target-source defects in these fixed executions. Prime remains an explicit premise. Setup probe fields are narrow software assertions rather than authenticated total operations. Boolean prefix coverage verifies no algebraic clause and yields no arithmetic UNSAT certificate; an uncovered integer need not be an arithmetic model. The tests establish neither all-prime correctness, formal proof, novelty, performance advantage, transcript validity, SAT/UNSAT, nor ECDLP/scalar recovery. Scientific runs, benchmarks and solver invocations are all zero. The unchanged native independence checker has not been run by this reviewer; its later result belongs to the root gate.
+
+This report and its attestation are sealed after the above execution. No further producer result or mathematical input will be accepted in this review session.

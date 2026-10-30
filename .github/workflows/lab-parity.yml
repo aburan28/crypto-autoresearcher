@@ -1,4 +1,5 @@
 name: lab-parity
+# artifact-store: no-pull (parity reads only its tracked lock and named input files)
 
 # The cross-repository contract (docs/lab-contract.md): every skill resolves on
 # both agent surfaces, and every shared file matches docs/shared-code.lock.json.
@@ -7,25 +8,66 @@ name: lab-parity
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  push:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: lab-parity-${{ github.ref }}
-  cancel-in-progress: true
+  group: lab-parity-${{ github.event.action == 'closed' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   parity:
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: main
+    if: ${{ (github.event.action != 'closed' || github.event.pull_request.merged) && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          # Both complete skill surfaces, their plugin targets, and every file
+          # this repository checks in shared-code.lock.json. A new lock entry
+          # outside this list fails the input guard until included here.
+          sparse-checkout: |
+            /.agents/skills/
+            /.claude/skills/
+            /plugins/
+            /tools/check_skills_parity.py
+            /tools/check_lab_parity.py
+            /tools/curve_identity.py
+            /tools/task_card.py
+            /tools/artifacts/artifacts.py
+            /docs/shared-code.lock.json
+            /docs/curve-identities.md
+            /docs/lab-contract.md
+      - name: Require complete parity inputs
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import subprocess
+
+          surfaces = ('.agents/skills', '.claude/skills')
+          tracked = set(filter(None, subprocess.check_output(
+              ['git', 'ls-files', '-z', '--', *surfaces], text=True).split('\0')))
+          for surface in surfaces:
+              if not any(p.startswith(surface + '/') for p in tracked):
+                  raise SystemExit(f'Missing tracked skill surface: {surface}')
+          lock = json.loads(Path('docs/shared-code.lock.json').read_text())
+          paths = tracked | {entry['path'] for entry in lock['files']
+                             if 'crypto-autoresearcher' in entry['repos']}
+          missing = sorted(p for p in paths if not Path(p).exists())
+          if missing:
+              raise SystemExit('Parity inputs absent from checkout: ' + ', '.join(missing))
+          print(f'Parity inputs present: {len(tracked)} skill paths, {len(paths - tracked)} shared files')
+          PY
       - name: Skills surfaces
         run: python3 tools/check_skills_parity.py
       - name: Shared-code lock
