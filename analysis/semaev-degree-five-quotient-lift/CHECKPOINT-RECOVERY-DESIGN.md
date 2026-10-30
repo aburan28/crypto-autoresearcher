@@ -1,6 +1,6 @@
 # Degree-five producer recovery: implementation design
 
-Status: design with an initial compiled candidate; restore and cloud qualification remain outstanding. No frontier retry is authorized by this document alone; freeze its exact instrument and inputs after qualification.
+Status (2026-10-30 06:05 UTC): the local producer suite completed and both mock transport configurations passed (28/28, valid export); full producer archive/export audit and actual cloud qualification remain outstanding. The implementation sections below retain their original development-stage context; current transport evidence is in `reports/checkpoint-transport-002/`. No frontier retry is authorized by this document alone; freeze its exact instrument and inputs after qualification.
 
 The second bounded-export attempt was interrupted by node shutdown during degree-five production. See `runs/bounded-lift-terminal-002.json`. Stage-start receipts survive, but contain no matrix state. The current general job tool has no on-demand placement selector. The resumable tool accepts only native ecbench specifications on c8a.2xlarge, not an arbitrary Semaev producer. Do not mislabel this computation as an ecbench workload to pass that interface.
 

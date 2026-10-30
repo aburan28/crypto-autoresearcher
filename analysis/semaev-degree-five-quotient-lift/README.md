@@ -1,13 +1,23 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30): the degree-six search continues; no degree-six bound has
-been obtained. Six of 47 high-memory continuation inputs are terminal, all
-retaining LFD at least 5. The other 41 include the live n47 random input 01.
-Degree-five codimension equality and killed-constant projections establish no
-upper bound. The separate remote D4 continuation has 21 of 32 inputs completed,
-including 14 certified LFD at least 5 bounds; see the
-[new n44 random-input report](reports/panel-v3-n44-rand00/report.md).
-The remaining frozen cloud inputs continue in order as worker slots become free.
+Status (2026-10-30 06:05 UTC): the degree-six search remains open. Seven of
+47 original high-memory inputs have terminal records; 40 remain unfinished.
+The independent n47 random02 D4 recovery certifies LFD at least 5 and is
+published, but does not complete its D5 cascade. The cloud n47 random00 D5
+attempt ended during node shutdown with no D5 certificate; see
+[the interruption report](reports/bounded-lift-attempt-002/report.md).
+No frontier worker is currently active. Degree-five codimension equality,
+killed-constant projections, and interrupted runs establish no upper bound.
+
+The completed local checkpoint producer suite reports 150 fixture descriptions,
+including three zero-codomain cases outside the native interface; its full
+archive and export audit remain pending. The two retention configurations
+passed all 28 local mock-storage controls with a validated export; see
+[the transport report](reports/checkpoint-transport-002/report.md).
+Actual cloud publication and restoration in a replacement worker, followed by
+independent certificate checking, remain required before the frontier retry.
+The separate D4 panel remains at 21 of 32 terminal inputs, with 14 certified
+LFD-at-least-5 results. Its 11 unfinished inputs remain in scope.
 
 The [block triangular rewrite candidate](BLOCKED-REWRITE.md) has passed
 software equivalence controls but has not replaced the running instrument
