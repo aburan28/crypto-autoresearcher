@@ -158,3 +158,5 @@ Coordinator decision and evidence.
 - [Legacy adapter output preservation and timing validation](legacy-adapter-output-preservation.md) — prospective successors validated; original approved bindings remain unchanged.
 
 | [BINSTD f7ca97 original execution captures are missing](binstd-f7ca97-original-execution-captures-missing.md) | investigating | Complete native envelope and clean full-ledger claim for a real invalid-output run | Recover run-bound original command/environment captures, add a source-bound envelope preserving failure, and pass unchanged native/full checks |
+
+- [ECDLP lead atlas source and validation gap](ecdlp-lead-atlas-unmerged-evidence.md) — crypto study files now match merged main, while source CI, full replay, the open ecc-challenges PR and four-repository validation remain pending.
