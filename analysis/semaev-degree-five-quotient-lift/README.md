@@ -1,22 +1,33 @@
 # Degree-five closure through a checked degree-four quotient
 
-Status (2026-10-30 21:15 UTC): the separate D4 panel has 24 terminal inputs
-of 32, including 17 certified LFD-at-least-5 results. The latest completed
-input, n45 polynomial01, has independently accepted codimension 12,742 and
-fresh exact count zero. Its certificate is published with full public and
-object-store readback. See the [report](reports/panel-local-n45-poly01-002/report.md),
-[publication receipt](panel-local-archive-001/fresh-n45-poly-01-local02.publication.json),
-and [inventory](runtime/panel-remaining-after-local003.json). The report
-records the frozen protocol's stale analysis-input paths explicitly.
+Status (2026-10-30 21:38 UTC): the D4 panel has 25 terminal inputs of 32,
+including 18 certified LFD-at-least-five results. The newly completed
+n45 polynomial02 input has independently accepted codimension 12,742 and
+fresh exact count six. All 46 variable-closure checks passed; all 47
+worker-recorded artifact hashes verified. The 288,550,808-byte certificate
+is public, with anonymous download, decompression and object-store readback
+verified. See its [report](reports/panel-local-n45-poly02-004/report.md),
+[publication receipt](panel-local-archive-001/fresh-n45-poly-02-local04.publication.json),
+and [inventory](runtime/panel-remaining-after-local004.json). Seven original
+panel inputs remain, beginning with n45 polynomial03; no new panel worker
+has launched. The three earlier admission refusals and the successful
+bounded admission wait remain preserved.
 
-The next original input, n45 polynomial02, is running as local04. Its
-bounded admission wait succeeded after 91.28 seconds with the unchanged
-40 GiB child cap and 2 GiB reserve. All three software controls passed and
-fresh exact enumeration completed with six solutions. The D4 closure is
-in progress; [closed records](validation/panel-local-n45-poly02-progress-005/manifest.json)
-retain all ten admission samples, controls, and count. The three earlier
-admission refusals remain preserved. Eight original panel inputs, including
-this active one, remain unfinished.
+The n47 random02 degree-five job was submitted at 21:15:56 UTC and is
+running with the qualified blocked implementation. Actual memory/disk
+admission passed, and the retained seed bytes verified. A fresh original
+checker accepted the D4 seed with codimension 61,196 after all 48 variable
+checks; fresh enumeration confirmed four solutions. The D5 producer started
+at 21:30:33 UTC. [Closed stage receipts](validation/rand02-blocked-frontier-progress-002/manifest.json)
+retain these results. Only an independently accepted D5 codimension greater
+than four establishes LFD at least six for this input.
+
+A separate [RREF exporter](RREF-EXPORT.md) for later D4 inputs passed all
+14 fixed equivalence controls. Its 12 completed certificates match the
+reference bytes and pass independent checks; both constant-one cases emit
+no certificate. The [report](reports/rref-export-001/report.md) and validated
+export retain all 81 files. No running binary was replaced. Worker packaging,
+per-run controls and a separate scientific freeze remain the next steps.
 
 The n47 random00 degree-five attempt freshly counted zero solutions and
 verified byte identity and historical acceptance of its D4 seed. Its pod
