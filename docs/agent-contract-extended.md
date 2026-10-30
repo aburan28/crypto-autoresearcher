@@ -85,48 +85,30 @@ It guides future work and reporting; frozen protocols and historical records
 remain intact. Existing integrity, ownership, resource and claim-review rules
 still apply.
 
+Owner's communication instruction, 2026-10-30: lead with what was derived,
+implemented, improved, or checked. Recognize a completed component as progress
+at its scope. Give the supporting evidence, name a material dependency once,
+and continue with the next technical step. Keep overall ECDLP verdicts and rho
+comparisons for an explicitly scoped evaluation, a required comparison table,
+or a specific factual correction. Routine updates, reports, and handoffs do
+not repeat the overall goal's completion status. Apply the same rule when
+writing continuation notes or summarizing work for another agent.
+
 ### When a task actually studies performance
 
 Verified improvements are valid findings within an explicitly scoped performance
-study, using its stated matched reference. ECDLP pipeline comparisons use the
-frozen matched index-calculus baseline and end-to-end `S`, and report the matched
-rho gap where applicable; a claim to beat rho retains the full reference rules.
-These requirements qualify performance claims, not unrelated descriptive
-measurements. A null observation is valid research data without being relabeled
-an improvement.
+study, using its stated matched reference. Name a component speedup for the
+component and interval measured. Complete ECDLP pipeline comparisons use the
+frozen pipeline baseline and end-to-end `S`; include matched rho when the
+comparison or protocol calls for it. Unmeasured pipeline fields stay unset.
+Use each result to select the next technical step. Descriptive studies report
+their observations under their own stated scope.
 
 ## Scientific observation comes first
 
-Owner's instruction, 2026-10-17, supersedes an improvement-only definition of
-research success. The harness collects and presents reproducible observations,
-including regularities, deviations, null observations and inconclusive data.
-Neither finding an anomaly nor showing an attack advantage or practical use is
-a prerequisite for a worthwhile study. A descriptive study can specify its
-observables, sampling plan and controls without predicting a mechanism or a
-preferred outcome.
-
-Reports present raw data, methods, scope, controls/reference, sample counts,
-uncertainty, failures, censoring and limitations. Operational failures are not
-mathematical null results. An exploratory deviation is not automatically a
-mechanism, significance claim or application. Conclusions and usefulness
-assessments belong to separate, explicitly scoped analysis; observation reports
-need no attack/no-attack or useful/useless verdict. Do not dismiss observations
-because no immediate advantage is apparent.
-
-The owner makes interpretation and relevance calls. Agents may highlight
-candidate structure as worth inspecting, with actual values, uncertainty,
-controls, alternative explanations and a concrete next check. They must not
-dismiss a pattern as unrelated to ECDLP or make scientific decisions on the
-owner's behalf without an explicit request. Ordinary/control observations are
-presented too; an unusual finding is not a required outcome. Technical readiness
-approvals and observation collection retain their standing authorization.
-
-Matched baselines, end-to-end cost accounting and progress-fidelity records
-remain mandatory when making the performance claims they govern. They are not
-requirements to turn every descriptive study into an advantage comparison.
-Integrity, immutable records, frozen protocols, ownership and independent review
-requirements remain unchanged. See `AGENTS.md`, "Observe first; interpret later,"
-for the normative rule.
+Follow [Observe first; interpret later](#observe-first-interpret-later) above
+for observation reports, component progress, interpretation, and comparisons.
+That section is the maintained source of this rule.
 
 ## Research budgets: progress first
 
