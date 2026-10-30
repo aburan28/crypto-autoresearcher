@@ -50,4 +50,5 @@ map or cost edge, so no ECDLP frontier graph changes.
 | `runs/calibration.json.gz` (+ `.sha256` of the uncompressed file) | truncation calibration |
 | `runs/environment.txt`, `runs/*_stdout.log`, `runs/*_exit.txt` | Python 3.13, numpy 2.5.3, PARI 2.17.2; commit `9339f214`; calibration 196 s, analysis 78 s |
 | `posthoc.py` → `runs/posthoc.json` | the post-hoc checks above |
+| `export.json`, `runs/rows.jsonl` | `experiment.export/v1` bundle (`from-rows`); remaining `check-export` findings in [EXPORT_DEVIATION.md](EXPORT_DEVIATION.md) |
 | `figures.py` → `fig_null.svg` | null density per field with all 69 curves |
