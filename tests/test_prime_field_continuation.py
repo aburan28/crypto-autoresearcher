@@ -257,6 +257,8 @@ def test_target_collector_labels_and_fixed_projection(prym, monkeypatch, target_
     assert check(fixture, [1, 2], baseline['rows'], Q, [1, 3], result)['complete_branch_replay']
     mutations = [lambda v: v['rows'].pop(), lambda v: v.update(branch_sha256='0'*64),
                  lambda v: v['statuses'].update(accepted=0),
+                 lambda v: v['status_blocks'][0].update(statuses='+'*3584),
+                 lambda v: v['status_blocks'][0].update(branch_sha256='0'*64),
                  lambda v: v['preprocessing'].update(rank=0),
                  lambda v: v['projection'].update(U=0),
                  lambda v: v.update(target_is_public_anchor=not v['target_is_public_anchor']),
@@ -286,3 +288,21 @@ def test_gate_rejects_parameters_before_any_checkpoint(tmp_path):
     release.write_text(json.dumps(dict(parameters={'max_dimension': 1}, execution_authorized=True)))
     with pytest.raises(ValueError, match='parameters'):
         admit(tmp_path, protocol, tmp_path/'inputs.json', [], {'max_dimension': 560}, release)
+
+
+def test_public_target_recipe_has_separate_complete_hash_replay(prym):
+    _,fixture=prym
+    from crypto_autoresearcher.index_calculus.curve import Curve
+    from crypto_autoresearcher.index_calculus.target_relations import hash_public_target
+    from check_targets import check_recipe
+    curve=Curve(fixture['p'],fixture['a'],fixture['b'])
+    identity='urn:marked-small-software-curve';domain='marked-software-target/v1';attempts=[]
+    recipe=hash_public_target(curve,fixture['r'],identity,0,domain=domain,on_attempt=attempts.append)
+    result=check_recipe(fixture,identity,domain,0,10000,recipe,attempts)
+    assert result['hash_recipe_checked'] and result['hash_attempts_replayed']==len(attempts)
+    for mutate in [lambda v:v.update(point=[0,0]),lambda v:v['selected'].update(counter=999),
+                   lambda v:v.update(scalar_label_generated=True),lambda v:v.update(curve_uid='wrong')]:
+        corrupted=deepcopy(recipe);mutate(corrupted)
+        with pytest.raises(ValueError):check_recipe(fixture,identity,domain,0,10000,corrupted,attempts)
+    with pytest.raises(ValueError):check_recipe(fixture,identity+'wrong',domain,0,10000,recipe,attempts)
+    with pytest.raises(ValueError):check_recipe(fixture,identity,domain,0,10000,recipe,attempts+[attempts[-1]])

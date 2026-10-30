@@ -10,7 +10,7 @@ name: main-health
 #
 # Absolute checking is still necessary to find breakage after a PR merges to
 # main. The merged-PR event starts that sweep without rerunning it for the
-# cache-only PR merges. Generated data enters main through the normal PR gates.
+# cache-only PR merges. Generated data is retained as a run artifact for review.
 
 on:
   pull_request_target:
@@ -61,12 +61,14 @@ jobs:
   absolute-sweep:
     needs: scope
     if: ${{ needs.scope.outputs.run_sweep == 'true' }}
-    timeout-minutes: 20
+    # The complete dispatch-queue census took 16m20s on the first hosted run;
+    # that run finished its artifact upload at 21m34s and was then cancelled
+    # by the former 20-minute limit. Keep the full census and allow headroom.
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       issues: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,16 +164,6 @@ jobs:
           name: portfolio-health-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: coordination/portfolio_health/latest.json
           if-no-files-found: error
-
-      - name: Propose the generated cache through a normal pull request
-        if: always() && steps.health_cache.outcome == 'success' && steps.health_archive.outcome == 'success' && steps.health_cache.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SOURCE_COMMIT: ${{ github.sha }}
-        run: |
-          python3 tools/publish_portfolio_health.py \
-            --source "$SOURCE_COMMIT" --repository "$GITHUB_REPOSITORY" \
-            --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
 
       - name: Open or update the main-health issue
         if: failure()

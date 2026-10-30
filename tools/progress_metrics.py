@@ -275,6 +275,51 @@ def prym_width(ref):
                  label=f"RUN-ECDLP-967315 fixture {identity}: {name}", source=f"{path}@{ref}")
 
 
+def prym_equation_diversity(ref):
+    """Exploratory retained-data counts, distinct from new trial results."""
+    path = "research/prym_leads_20261027/derived/matrix-duplicate-review.json"
+    try:
+        data = json.loads(show(ref, path))
+        if (data.get("schema") != "prym-retained-duplicate-explanation/v1"
+                or type(data.get("new_scientific_trials")) is not int
+                or data["new_scientific_trials"] != 0
+                or data.get("source_logical_sha256") !=
+                "8f3d5b98b91b01dab9694e3a4c59a4559dbd7bcfa1cb7c4a3045475948fdb007"
+                or not isinstance(data.get("cells"), list) or not data["cells"]):
+            return
+        seen = set()
+        for cell in data["cells"]:
+            uid = cell["ec1_curve_uid"]
+            counts = [cell[k] for k in ["native_witnesses", "distinct_projected_affine_rows",
+                                        "rank_of_distinct_rows", "dependencies_among_distinct_rows"]]
+            groups = cell["groups"]
+            if (not isinstance(uid, str) or not re.fullmatch(r"urn:ec-record:1:sha256:[0-9a-f]{64}", uid)
+                    or uid in seen or any(type(n) is not int or n < 0 for n in counts)
+                    or not isinstance(groups, list)
+                    or counts[1] != len(groups) or counts[2] != counts[1] or counts[3] != 0
+                    or counts[0] < counts[1]):
+                return
+            seen.add(uid)
+            for group in groups:
+                if (type(group["native_witness_count"]) is not int or group["native_witness_count"] < 1
+                        or type(group["admissible_constraint_triples"]) is not int
+                        or group["native_witness_count"] != group["admissible_constraint_triples"]
+                        or group["exact_constraint_subset_match"] is not True):
+                    return
+            if sum(group["native_witness_count"] for group in groups) != counts[0]:
+                return
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    for cell in data["cells"]:
+        identity = cell["ec1_curve_uid"].rsplit(":", 1)[-1]
+        distinct = cell["distinct_projected_affine_rows"]
+        values = {"distinct_affine_rows": distinct, "duplicate_witnesses": cell["native_witnesses"]-distinct}
+        for name, value in values.items():
+            emit(f"prym.exploratory.967315.{identity}.{name}", value,
+                 problem="ecdlp-prym-relations", unit="count", better="neutral",
+                 label=f"Post-data RUN-ECDLP-967315 {identity}: {name}", source=f"{path}@{ref}")
+
+
 def funnel(ref, since):
     for date, commit, txt in file_history(ref, "coordination/portfolio_health/latest.json", since):
         try:
@@ -915,6 +960,81 @@ def host_reference_audit_observations(ref, since):
              unit="count", better="neutral", kind="gauge",
              label="RUN-ECDLP-939237: inspected " + name.replace("_", " "), source=path + "@" + ref)
 
+def prime_field_fixed_panels(ref, since):
+    """Exact completed-panel observations; method references are never summed."""
+    date = '2026-10-30'
+    if date < since:
+        return
+    for study, run, expected in [('b2', 'b2-fixed-panel-802e2a', 10),
+                                  ('d1', 'd1-fixed-panel-a91d96', 8)]:
+        path = f'research/prime_field_{study}_execution_20261030/runs/{run}/analysis.json'
+        raw = show(ref, path)
+        if raw is None:
+            continue
+        try:
+            data = json.loads(raw)
+            cells = data['cells']
+            if data['panel_complete'] is not True or len(cells) != expected:
+                continue
+            if any(c['verified'] is not True or c['status'] != 'verified' for c in cells):
+                continue
+            if any(type(c['attempts']) is not int or c['attempts'] <= 0 for c in cells):
+                continue
+            if len({(c['cell_id'], c['arm']) if study == 'b2' else
+                    (c['curve_uid'], c['target_index']) for c in cells}) != expected:
+                continue
+            if study == 'b2':
+                gains = [(c['cell_id'], c['rank_gain']) for c in cells if c['arm'] == 'shifted']
+                if len(gains) != 5 or any(type(g) is not int or not 0 <= g <= 15 for _, g in gains):
+                    continue
+            else:
+                recoveries = [c['identified_target'] for c in cells]
+                if any(type(v) is not int or v not in (0, 1) for v in recoveries):
+                    continue
+        except (ValueError, KeyError, TypeError):
+            continue
+        common = dict(date=date, problem='prime-field-factor-bases', better='neutral', source=f'{path}@{ref}')
+        prefix = f'prym.prime_field.{study}'
+        emit(prefix+'.collection_branches', sum(c['attempts'] for c in cells), unit='branches',
+             label=f'{study.upper()} complete fixed panel, collection only; separate replay excluded', **common)
+        emit(prefix+'.verified_cells', expected, unit='cells', label='Fixed cells with complete separate replay', **common)
+        if study == 'b2':
+            for name, gain in gains:
+                emit(prefix+'.'+name+'.rank_gain', gain, unit='dimensions',
+                     label='Additional rank on original15 columns, one fixed shifted subset', **common)
+        else:
+            emit(prefix+'.identified_targets', sum(recoveries), unit='targets',
+                 label='Identified targets in frozen eight-target census; includes all coincidences', **common)
+
+
+def prime_field_residual_panels(ref, since):
+    """Completed A1/A2 observations; charge shared streams once per panel."""
+    date='2026-10-30'
+    if date<since:return
+    for study,run,arms in [('a1','a1-fixed-panel-8e34c5',('smooth','pool16','pool32')),
+                           ('a2','a2-fixed-panel-56d50d',('smooth','norm_completed'))]:
+        path=f'research/prime_field_{study}_execution_20261030/runs/{run}/analysis.json';raw=show(ref,path)
+        if raw is None:continue
+        try:
+            data=json.loads(raw);cells=data['cells'];expected={(b,a) for b in ('b13','b16') for a in arms}
+            if data['panel_complete'] is not True or len(cells)!=len(expected) or {(c['cell_id'],c['arm']) for c in cells}!=expected:continue
+            if any(c['verified'] is not True or c['status']!='verified' for c in cells):continue
+            collection=data['physical_collection_attempts_observed'];replay=data['physical_replay_attempts_observed']
+            if type(collection) is not int or type(replay) is not int or collection!=4587520 or replay!=collection:continue
+            gain_key='delta' if study=='a1' else 'rank_gain'
+            if any(type(c[gain_key]) is not int or not 0<=c[gain_key]<=15 for c in cells):continue
+            if study=='a1' and any(type(c['direct_base_gain']) is not int or type(c['cross_row_cancellation_gain']) is not int or
+                c['direct_base_gain']<0 or c['cross_row_cancellation_gain']<0 or c['direct_base_gain']+c['cross_row_cancellation_gain']!=c['delta'] or
+                c['stacked_rank']-c['outside_rank']-c['base_rank_before']!=c['delta'] for c in cells):continue
+        except (ValueError,KeyError,TypeError):continue
+        common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+        prefix='prym.prime_field.'+study
+        emit(prefix+'.collection_branches',collection,unit='branches',label='Shared complete physical collection, not sum of nested arm counts',**common)
+        emit(prefix+'.replay_branches',replay,unit='branches',label='Separate complete branch replay',**common)
+        emit(prefix+'.verified_cells',len(cells),unit='cells',label='Verified fixed arm/curve observations, not physical executions',**common)
+        for c in cells:
+            emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
+
 
 def main():
     a = args()
@@ -923,6 +1043,7 @@ def main():
     runs(a.ref)
     prym_census(a.ref)
     prym_width(a.ref)
+    prym_equation_diversity(a.ref)
     funnel(a.ref, a.since)
     claims(a.ref)
     endpoint_reuse_observations(a.ref, a.since)
@@ -934,6 +1055,8 @@ def main():
     host_reference_audit_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
+    prime_field_fixed_panels(a.ref, a.since)
+    prime_field_residual_panels(a.ref, a.since)
 
 
 if __name__ == "__main__":
