@@ -132,8 +132,9 @@ class Curve:
     def lift_x(self, x: int) -> Point:
         F = self.F
         if x == 0:
-            # y^2 = B; for B=1, y=1
-            return (0, 1)
+            # At x=0 the curve equation is y^2=B. In F_{2^n},
+            # sqrt(B)=B^(2^(n-1)); the archived B=1 case still returns 1.
+            return (0, F.pow(self.B, F.q >> 1))
         c = self.rhs_c(x)
         if F.trace(c) != 0:
             return None
