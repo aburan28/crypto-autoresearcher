@@ -332,8 +332,13 @@ def _check_driver_facts(body: dict[str, Any], plan: dict[str, Any], plan_relativ
     for field, launched in (("command", argv), ("check_command", checker)):
         # The launched argv, as a JSON array (what completion writes), as that
         # array itself, or shell-quoted. Any other value names another command.
-        if field in code and not any(_same(code[field], form) for form in
-                                     (json.dumps(launched), launched, shlex.join(launched))):
+        # A driver records its own interpreter as sys.executable, which is the
+        # absolute path of a bare `python3` in the frozen argv; when the two
+        # resolve to the same file that spelling is the same command, not a
+        # contradiction.
+        forms = (json.dumps(launched), launched, shlex.join(launched),
+                 shlex.join([sys.executable, *launched[1:]]))
+        if field in code and not any(_same(code[field], form) for form in forms):
             raise EnvelopeRefused(f"driver manifest run.code.{field}={code[field]!r} "
                                   f"contradicts the launched argv {json.dumps(launched)}")
     _agree(code, "command_file", "command.txt", "run.code.", "the supervisor")
