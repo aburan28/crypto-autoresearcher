@@ -25,6 +25,11 @@ that the formal proposition matches the human claim and is not vacuous or
 weakened by hidden assumptions. Only the canonical Coordinator may promote a
 reviewed artifact into official claim/ledger state.
 
+The [2026-10-19 foundation retrofit](../research/lean_foundations_20261019/README.md)
+adds full constructive reachability, point-action bridges and a pinned shared
+cyclic-group library. CI requires all 66 frozen target proofs to remain present
+and machine-verified. Independent fidelity evidence is linked from that study.
+
 ## Expected workspace contract
 
 A concrete Lean project placed here should contain:
