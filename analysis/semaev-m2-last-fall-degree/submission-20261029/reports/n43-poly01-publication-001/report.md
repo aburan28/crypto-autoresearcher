@@ -1,0 +1,5 @@
+# n=43 polynomial01: published degree-four certificate
+
+The second fixed n=43 polynomial-basis input produced an independently accepted degree-four certificate. The checker reports `1 ∉ W_4` and codimension at least **4**. The separate exhaustive counter reports **4 ordered Boolean solutions**. The strict inequality required by Proposition 1.4 is absent, so this row does **not** establish LFD≥5.
+
+The 2,399,808-byte original certificate, producer/checker transcripts, exact-count record and inference record were retained. The [publication readback](../../archive/fresh-n43-poly-01.publication.json) verifies the compressed certificate and evidence bundle by anonymous HTTPS download and by S3 GET, and verifies the decompressed certificate against its original SHA-256. The [machine-readable row](../../validation/n43-poly01-publication-001/result.json) pins the raw result, inference and count hashes. This is one completed row of the frozen 20-input n=43–44 panel; the driver continues with subsequent original inputs.
